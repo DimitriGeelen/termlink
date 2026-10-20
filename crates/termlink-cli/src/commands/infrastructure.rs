@@ -951,6 +951,24 @@ pub(crate) fn retention_policy_line(v: &serde_json::Value) -> Option<String> {
     ))
 }
 
+/// T-3498: one line for the opt-in periodic retention sweeper (T-2427), so an
+/// operator can confirm from the CLI that it is armed and firing. Interval 0 =
+/// "off" (TERMLINK_SWEEP_INTERVAL_SECS unset); fields absent on a pre-T-2427
+/// hub render as n/a rather than hiding the line.
+pub(crate) fn retention_sweep_line(v: &serde_json::Value) -> String {
+    let n = |k: &str| v.get(k).and_then(|x| x.as_u64()).map_or("n/a".to_string(), |n| n.to_string());
+    let interval = match v.get("retention_sweep_interval_secs").and_then(|x| x.as_u64()) {
+        Some(0) => "off".to_string(),
+        Some(s) => format!("every {s}s"),
+        None => "n/a".to_string(),
+    };
+    format!(
+        "Retention sweep: {interval} (runs_total={}, pruned_total={})",
+        n("retention_sweep_runs_total"),
+        n("retention_sweep_pruned_total"),
+    )
+}
+
 pub(crate) fn render_governor_section(v: &serde_json::Value) -> String {
     use std::fmt::Write;
     let mut out = String::new();
@@ -965,6 +983,7 @@ pub(crate) fn render_governor_section(v: &serde_json::Value) -> String {
     if let Some(line) = retention_policy_line(v) {
         let _ = writeln!(out, "  {line}");
     }
+    let _ = writeln!(out, "  {}", retention_sweep_line(v));
     let _ = writeln!(
         out,
         "  Connections: {}/{} (capacity_hits_total={})",
@@ -1040,6 +1059,19 @@ pub(crate) async fn cmd_hub_status(
         termlink_hub::pidfile::PidfileStatus::Running(_)
     );
 
+    // T-3495: a live pidfile is not a healthy hub. The hub can serve TCP while
+    // its hub.sock is gone or replaced and local clients get ECONNREFUSED, so
+    // probe the unix socket too and report a failure instead of "running".
+    let socket_probe: Option<std::result::Result<(), String>> = if is_running {
+        Some(
+            termlink_hub::server::probe_hub_socket(&socket_path, std::time::Duration::from_secs(2))
+                .await,
+        )
+    } else {
+        None
+    };
+    let socket_ok = !matches!(socket_probe, Some(Err(_)));
+
     // T-2060: probe governor only when running AND --governor was passed.
     // Bounded 2s timeout matches the doctor pattern so a wedged hub can't
     // hang the status verb. Failure is rendered, not silenced.
@@ -1083,15 +1115,19 @@ pub(crate) async fn cmd_hub_status(
             let runtime_dir = pidfile_path.parent().map(|p| p.display().to_string()).unwrap_or_default();
             if json_output {
                 let mut env = json!({
-                    "ok": true,
+                    "ok": socket_ok,
                     "status": "running",
                     "pid": pid,
                     "socket": socket_path.display().to_string(),
+                    "socket_ok": socket_ok,
                     "pidfile": pidfile_path.display().to_string(),
                     "runtime_dir": runtime_dir,
                 });
+                let obj = env.as_object_mut().expect("status envelope is object");
+                if let Some(Err(e)) = &socket_probe {
+                    obj.insert("socket_error".into(), json!(e));
+                }
                 if let Some(g) = &governor_result {
-                    let obj = env.as_object_mut().expect("status envelope is object");
                     match g {
                         Ok(value) => { obj.insert("governor".into(), value.clone()); }
                         Err(e) => { obj.insert("governor".into(), json!({"error": e})); }
@@ -1099,11 +1135,20 @@ pub(crate) async fn cmd_hub_status(
                 }
                 println!("{}", env);
             } else if short {
-                println!("running {pid}");
+                if socket_ok {
+                    println!("running {pid}");
+                } else {
+                    println!("running {pid} socket-unreachable");
+                }
             } else {
                 println!("Hub: running (PID {pid})");
                 println!("  Runtime dir: {}", runtime_dir);
                 println!("  Socket: {}", socket_path.display());
+                if let Some(Err(e)) = &socket_probe {
+                    println!("  Socket NOT answering ({e}) — local clients cannot reach this hub.");
+                    println!("  The hub restores its own socket within ~10s if the path is free (T-3495);");
+                    println!("  if another process owns it, stop that one or restart this hub.");
+                }
                 println!("  Pidfile: {}", pidfile_path.display());
                 if let Some(g) = &governor_result {
                     match g {
@@ -1115,7 +1160,7 @@ pub(crate) async fn cmd_hub_status(
         }
     }
 
-    if check && !is_running {
+    if check && (!is_running || !socket_ok) {
         use std::io::Write;
         let _ = std::io::stdout().flush();
         std::process::exit(1);
@@ -1925,6 +1970,20 @@ mod tests {
         assert!(l.contains("forever-needs-owner=never") && l.contains("OPT-OUT") && l.contains("post trims=2 (40 records)"), "{l}");
         let v = serde_json::json!({"forever_requires_owner": "auto", "forever_enforced": true});
         assert!(crate::commands::infrastructure::retention_policy_line(&v).unwrap().contains("(enforcing, 0 bare-forever"));
+    }
+
+    #[test]
+    fn t3498_retention_sweep_line_on_off_absent() {
+        use crate::commands::infrastructure::retention_sweep_line;
+        let on = serde_json::json!({"retention_sweep_interval_secs": 300, "retention_sweep_runs_total": 7, "retention_sweep_pruned_total": 12});
+        assert_eq!(retention_sweep_line(&on), "Retention sweep: every 300s (runs_total=7, pruned_total=12)");
+        let off = serde_json::json!({"retention_sweep_interval_secs": 0, "retention_sweep_runs_total": 0, "retention_sweep_pruned_total": 0});
+        assert_eq!(retention_sweep_line(&off), "Retention sweep: off (runs_total=0, pruned_total=0)");
+        let absent = serde_json::json!({"connections_active": 1});
+        assert_eq!(retention_sweep_line(&absent), "Retention sweep: n/a (runs_total=n/a, pruned_total=n/a)");
+        // Rendered inside the Governor section, also on a pre-T-3310 hub.
+        assert!(super::render_governor_section(&on).contains("  Retention sweep: every 300s (runs_total=7"));
+        assert!(super::render_governor_section(&absent).contains("  Retention sweep: n/a"));
     }
 
     use super::{audit_secret_cache, render_governor_section, secret_cache_dir, sum_inbox_counts};
