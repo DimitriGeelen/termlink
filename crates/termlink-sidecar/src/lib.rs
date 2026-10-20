@@ -22,3 +22,4 @@ pub mod deadline;
 pub mod beat;
 pub mod book;
 pub mod tools;
+pub mod activity;

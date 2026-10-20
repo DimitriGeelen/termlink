@@ -1045,6 +1045,7 @@ fn status_at(
         "notes": [TAIL_NOTE],
         "outbox": sender.map(|s| json!({"pending": s.outbox_len(), "held": s.held()})),
         "supervision": crate::beat::view(store.dir(), now_ms),
+        "activity_veto": crate::activity::host_availability(),
     })
 }
 

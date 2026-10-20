@@ -48,7 +48,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-10T12:34:41Z
-last_update: 2026-10-20T19:51:23Z
+last_update: 2026-10-20T19:59:19Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -95,10 +95,10 @@ sessions anyway.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] New module `crates/termlink-sidecar/src/activity.rs` measures the agent's own process tree (rooted at the process whose fd/0 is the conversation's pty, per 055 T-491, not at a recorded claude pid) over a 1-2 s window: network bytes SENT per owned socket inode (primary; 055's `ss` by-inode method), CPU ticks and disk I/O bytes (secondary). Bytes-received / lastrcv are never read. Unit tests run against a fake `/proc` tree and canned `ss` output in temp dirs.
-- [ ] A doorbell gate (`activity::gate`) rings only when the readiness re-check says READY *and* the veto finds no clear activity; clear activity holds the doorbell with a retry; activity-quiet never turns a not-ready agent into ready (OQ-16 D 1-2). Each case has a test, and one mutant (veto ignored) is shown red.
-- [ ] Where the host cannot measure (no `/proc`): no veto, the gate falls back to the readiness re-check alone, and the sidecar `status` output carries an `activity_veto` field naming the state (`available` / `network unmeasured` / `unavailable: no /proc`) (OQ-16 D 3).
-- [ ] Presence fields derived from a sample carry only `busy` (true / false / null when unmeasurable) and its sample time `busy_sample_ms`; no raw byte, tick or I/O figure appears in them (OQ-16 D 4: raw telemetry stays on the host). Tested.
+- [x] New module `crates/termlink-sidecar/src/activity.rs` measures the agent's own process tree (rooted at the process whose fd/0 is the conversation's pty, per 055 T-491, not at a recorded claude pid) over a 1-2 s window: network bytes SENT per owned socket inode (primary; 055's `ss` by-inode method), CPU ticks and disk I/O bytes (secondary). Bytes-received / lastrcv are never read. Unit tests run against a fake `/proc` tree and canned `ss` output in temp dirs.
+- [x] A doorbell gate (`activity::gate`) rings only when the readiness re-check says READY *and* the veto finds no clear activity; clear activity holds the doorbell with a retry; activity-quiet never turns a not-ready agent into ready (OQ-16 D 1-2). Each case has a test, and one mutant (veto ignored) is shown red.
+- [x] Where the host cannot measure (no `/proc`): no veto, the gate falls back to the readiness re-check alone, and the sidecar `status` output carries an `activity_veto` field naming the state (`available` / `network unmeasured` / `unavailable: no /proc`) (OQ-16 D 3).
+- [x] Presence fields derived from a sample carry only `busy` (true / false / null when unmeasurable) and its sample time `busy_sample_ms`; no raw byte, tick or I/O figure appears in them (OQ-16 D 4: raw telemetry stays on the host). Tested.
 - [ ] Starting thresholds (network sent, CPU, disk over the window) are named constants citing 055's numbers (megabytes per model request vs <= 2.8 KB keep-alive per 30 s) and marked as H-11 starting values to be measured; `cargo test -p termlink-sidecar` passes.
 
 ### Human
@@ -286,6 +286,11 @@ sessions anyway.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+timeout 1500 cargo test -p termlink-sidecar --lib activity > /tmp/.t3387v 2>&1 && grep -q "test result: ok. 8 passed" /tmp/.t3387v
+grep -q '"activity_veto": crate::activity::host_availability()' crates/termlink-sidecar/src/api.rs
+grep -q "pub mod activity;" crates/termlink-sidecar/src/lib.rs
+grep -q 'field(l, "bytes_sent:")' crates/termlink-sidecar/src/activity.rs && ! grep -qE 'field\(l, "(bytes_received|lastrcv)' crates/termlink-sidecar/src/activity.rs
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -386,3 +391,17 @@ sessions anyway.
 ### 2026-10-20T19:51:23Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-20 — activity veto module [w-veto]
+- **Built:** `crates/termlink-sidecar/src/activity.rs`. It contains the pty-rooted process tree (fd/0 == pty, top holder), per-inode bytes_sent from `ss -tienH`, CPU and disk from `/proc`, `judge`, `gate`, `presence_fields` and `availability`. `lib.rs` declares the module, and `api.rs` status gains `activity_veto`.
+- **Tests:** 8/8 activity unit tests pass (fake `/proc` in temp dirs, canned `ss`). The mutant `Active => Ring` turns `gate_rings_only_when_ready_and_not_active` red (`mutant_rc=101`), and the file was restored byte-identical (`cmp`).
+- **Full suite (`cargo test -p termlink-sidecar --no-fail-fast`):** every binary passes except 2 tests:
+  1. `deadline_tests::received_never_stored_is_stuck_not_accepted`
+  2. `fc_matrix::fc_2_a_full_disk_never_reports_stored_and_the_message_waits`
+
+  Both sit on the send/stored/deadline path. While they ran, that path carried T-3462's uncommitted `send.rs` (+192 lines). This task only added a status field there, so AC5 stays unticked until it is re-run after T-3462 lands.
+- **Not done (no host code exists yet):**
+  1. No doorbell typing exists in the sidecar (deliver.rs: "PH-1 only records it; the PH-2 doorbell reads it"), so nothing calls `activity::gate` yet.
+  2. The sidecar posts no agent-presence heartbeat, so `presence_fields` has no publisher to add its fields to yet.
+  3. The `scripts/check-platform-lock.sh` roots do not include `crates/termlink-sidecar/src`, so its `/proc` and `ss` sites are unscanned; that file is outside this worker's area.
+  4. The thresholds are H-11 starting values and have not been measured on real turns.
