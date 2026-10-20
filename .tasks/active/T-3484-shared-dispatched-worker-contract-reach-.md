@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T22:03:42Z
-last_update: 2026-10-19T22:04:49Z
+last_update: 2026-10-20T08:11:30Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -119,6 +119,23 @@ Replies so far:
        contract version field; retention is part of fencing.
    3g. ring20 T-2281 must be mapped against the contract before it is called absorbed
        (ring20's call).
+
+4. AEF draft v0.1 (msg f1f7f8c5, 2026-10-20): AEF docs/specs/shared-worker-contract-transitions.md
+   (462 lines, sha256 87366f0a4acddb9b…), reaches bleeding-edge with AEF's next push (~2–3 h).
+   Shape: 5 states (dispatched, running, done{outcome}, lost, unknown); 13 transitions (T1–T8,
+   T3b, T-RECLAIM, T7a–d) each with writer, evidence, CAS expected-prior and precedence;
+   `fence_reject` is a response with 6 reason codes, not a state; 16 conformance cases
+   CC-01..CC-16 (completion racing session end, supervisor crash before/after commit, duplicate
+   finalisation, retry while the old worker survives, hub restart, partition, parent-session
+   loss, answer delivered+acked, answer TTL bounce, stale-attempt rejection, local-backend
+   parity). Open questions for TermLink: (1) the draft assumes TermLink accepts a caller-chosen
+   session name at spawn (`tl-<dispatch_id>-a<attempt>`) as the binding; our field proposal may
+   replace it; (2) `paused` as a hand-back status or a fifth outcome; (3) unsourced numbers:
+   grace 120 s, answer TTL 10 min, retention 30/180 days, shadow switch after >= 50 dispatches
+   over >= 7 days; (4) does ring20 need its own reconciler; (5) local fallback during a hub
+   outage out of scope for v0.1.
+5. ring20 (msg 8be20b13): operator decision and the T-3477 answer both expected from their next
+   session, starting today.
 
 Implication so far: the shared primitive must let the supervisor (not only the hub) write `lost`
 from its own evidence, and accept a supervisor writing on behalf of a worker with no hub access.
