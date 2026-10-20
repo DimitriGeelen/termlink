@@ -239,7 +239,24 @@ def _framed(text) -> str:
 def cmd_inbox(args) -> int:
     if getattr(args, "show", None):
         return _cmd_show(args)
-    messages = inbox.pending(advance=not args.peek)
+    from lib.sidecar import alerts
+    try:
+        # T-4312: the strict reader, as `fw sidecar alerts` uses. The default
+        # reader turns a missing binary or a refused read into [], which read
+        # as "no pending consults" with exit 0 whenever the hub id was known.
+        messages = inbox.pending(advance=not args.peek, reader=alerts.strict_reader)
+    except (circuit.CircuitError, alerts.Unreadable) as e:
+        # T-4308: no termlink binary (or no readable hub anchor) means the inbox
+        # is UNKNOWN, not empty. Same NOT CHECKED answer and exit 3 as `fw sidecar alerts`.
+        import shutil
+        reason = str(e) or type(e).__name__
+        if shutil.which("termlink") is None:
+            reason = "termlink is not installed; the inbox cannot be read"
+        if args.json:
+            print(json.dumps({"checked": False, "reason": reason}))
+        else:
+            print(f"NOT CHECKED: {reason}")
+        return 3
     try:
         return _print_inbox(args, messages)
     finally:
@@ -304,18 +321,34 @@ DM_SCOPE_NOTE = ("dm rails are keyed by this host's TermLink identity, which eve
                  "on this host shares — a dm below may be meant for another project. Check the "
                  "sender and the conversation before acting on it.")
 
+#: T-4252: why a plain `fw sidecar inbox` showed dm rails as summaries instead of draining them.
+DM_SHARED_NOTE = ("this project has no TermLink identity of its own, so it is signing as the "
+                  "host-shared one and its dm rails are shared with every project on this host. "
+                  "Draining them would mark other projects' DMs read, so they are shown as "
+                  "summaries only and no cursor moved. Consults on this agent's own inbox topic "
+                  "are drained as usual.")
+
 
 def _print_inbox(args, messages) -> int:
     # T-3442: `--peek` shows DM rail SUMMARIES (count/cursor/unread, no hub
     # drain of content) — the same shape `fw sidecar status` prints. A
     # non-peek call actually drains unread DM posts (like the consult inbox
     # above) and advances each rail's cursor.
-    dm_rows = dm.summary() if args.peek else []
-    dm_posts = [] if args.peek else dm.pending(advance=True)
+    # T-4252: ...unless our identity is the host-shared one. Every project on
+    # the host sees those rails, so draining marks other projects' DMs read
+    # (198 lost). Read-only summaries, the same shape --peek already uses.
+    shared = False if args.peek else dm.identity_is_host_shared()
+    readonly = args.peek or shared
+    dm_rows = dm.summary() if readonly else []
+    dm_posts = [] if readonly else dm.pending(advance=True)
+    if shared and not args.json:
+        print(f"NOTE: {DM_SHARED_NOTE}", file=sys.stderr)
 
     if args.json:
         payload = {"consults": messages}
-        if args.peek:
+        if shared:
+            payload["dm_drain_refused"] = DM_SHARED_NOTE
+        if readonly:
             payload["dm_rails"] = dm_rows
         else:
             payload["dm_posts"] = dm_posts
@@ -337,7 +370,7 @@ def _print_inbox(args, messages) -> int:
     if dm_rows or dm_posts:
         print(f"NOTE: {DM_SCOPE_NOTE}")
         print()
-    if args.peek:
+    if readonly:
         for row in dm_rows:
             print(f"dm rail {_meta(row['topic'])}: count={row['count']} "
                   f"cursor={row['cursor']} unread={row['unread']}")
@@ -671,6 +704,43 @@ def _agent_or_none():
         return None
 
 
+# T-4283: a receiver binds within `_start_receiver`'s 10 s wait and then writes its
+# triple file, so anything younger than this is booting, not orphaned.
+ORPHAN_MIN_AGE_S = 30.0
+
+
+def _reclaim_orphan_receivers(agent: str, root, quiet: bool) -> list[int]:
+    """T-4283: stop the live receivers for `agent` that run in THIS project's root.
+    The caller has already established that no triple-file receiver is alive, so
+    these are orphans: alive but unreachable (their pid/port/url were cleared), and
+    the T-4208 rival guard would refuse every restart while they live. Receivers
+    started from another copy (a different cwd) are left alone and still block.
+    A receiver younger than ORPHAN_MIN_AGE_S is not an orphan: it is still booting
+    (it writes its triple file only once bound), and a concurrent start must not
+    stop it. Returns the rivals that remain."""
+    import signal
+    import time
+
+    left = []
+    for pid in lifecycle.live_receiver_pids(agent):
+        started = watcher.process_started_at(pid)
+        young = started is None or time.time() - started < ORPHAN_MIN_AGE_S
+        if young or lifecycle.process_cwd(pid) != root:
+            left.append(pid)
+            continue
+        if not quiet:
+            print(f"receiver: stopping orphan pid={pid} for agent {agent!r} "
+                  f"(alive, no triple file, runs in {root})")
+        os.kill(pid, signal.SIGTERM)
+        deadline = time.time() + 5
+        while time.time() < deadline and lifecycle.pid_alive(pid):
+            time.sleep(0.1)
+        if lifecycle.pid_alive(pid):
+            os.kill(pid, signal.SIGKILL)
+        watcher.record_event("ORPHAN_RECEIVER_RECLAIMED", pid=pid, agent=agent)
+    return left
+
+
 def _start_receiver(agent: str, port, no_inject: bool, quiet: bool) -> tuple[int, dict | None]:
     """Start the receiver process. (rc, triple-file info): rc 0 started,
     1 already running, 2 refused/failed."""
@@ -683,7 +753,17 @@ def _start_receiver(agent: str, port, no_inject: bool, quiet: bool) -> tuple[int
         if not quiet:
             print(f"receiver already running: pid={info['pid']} url={info['url']}")
         return 1, info
+    root_path = receiver._root().resolve()
     if info and lifecycle.is_receiver_alive(info):
+        # T-4283: a start that the rival guard below will refuse must not take the
+        # live receiver down first; that left AEF with none for six hours.
+        foreign = [p for p in lifecycle.live_receiver_pids(agent)
+                   if p != info["pid"] and lifecycle.process_cwd(p) != root_path]
+        if foreign:
+            if not quiet:
+                print(f"receiver already served by pid {', '.join(map(str, foreign))} for agent "
+                      f"{agent!r} (another framework copy, T-4208) — keeping pid={info['pid']}")
+            return 1, None
         # T-3685: running code older than what is on disk — replace it, so a
         # fix (e.g. T-3745's per-session targeting) is actually live.
         import signal as _sig
@@ -702,7 +782,7 @@ def _start_receiver(agent: str, port, no_inject: bool, quiet: bool) -> tuple[int
     # T-4208: a live receiver for this agent id may run from ANOTHER framework
     # copy (055: vendored + AEF's), with no triple file of ours pointing at it.
     # Starting a second one is the duplicate this guard exists to prevent.
-    rivals = lifecycle.live_receiver_pids(agent)
+    rivals = _reclaim_orphan_receivers(agent, root_path, quiet)
     if rivals:
         if not quiet:
             print(f"receiver already served by pid {', '.join(map(str, rivals))} for agent "
@@ -871,9 +951,16 @@ def cmd_ensure(args) -> int:
                          if watcher.stopped_marker().exists()
                          else "not enabled (fw sidecar start enables it)")
     else:
-        rc, _ = _start_receiver(str(cfg.get("agent") or _agent_or_none() or ""), None,
-                                _ensure_no_inject(cfg), True)
+        agent = str(cfg.get("agent") or _agent_or_none() or "")
+        rc, info = _start_receiver(agent, None, _ensure_no_inject(cfg), True)
         row["receiver"] = {0: "restarted", 1: "running", 2: "FAILED"}[rc]
+        if rc == 1 and info is None:
+            # T-4283: rc 1 with no triple file of ours is a refused start, not a
+            # running receiver — another copy's receiver holds the agent id.
+            rivals = ", ".join(map(str, lifecycle.live_receiver_pids(agent)))
+            row["receiver"] = (f"REFUSED: agent {agent!r} is served by pid {rivals} "
+                               "(another framework copy, T-4208)")
+            print(f"receiver: {row['receiver']}", file=sys.stderr)
         if watcher.is_stale(watcher.read_pid("supervisor")) or watcher.is_stale(watcher.read_pid("watcher")):
             watcher.stop_processes()
             watcher.record_event("STALE_CODE_RESTART")

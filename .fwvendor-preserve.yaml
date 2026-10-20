@@ -19,3 +19,10 @@ files:
     reason: T-3337 never build index from a request; _db_opened_at ImportError fix
   - path: web/embeddings.py
     reason: T-3336 parallel embedding (FW_EMBED_WORKERS)
+  # T-3489 (AEF 1.8.13): registered but previously unpreserved; AEF T-4463 confirms not carried.
+  - path: lib/arc.sh
+    reason: T-3472 approve-driver persists the scoring spec
+  - path: bin/claude-fw
+    reason: T-3464 sidecar socket injection (expect a 3-way conflict near upstream line ~1235)
+  - path: lib/inception.sh
+    reason: T-3039 local fix (not carried in 1.8.13)

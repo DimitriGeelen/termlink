@@ -101,6 +101,8 @@ class _Ctx:
     boundary: bool = False
     cd_ok: Optional[Callable[[str], bool]] = None
     depth: int = 0
+    # T-3768 read mode (scan_boundary_reads): every path-shaped WORD is judged.
+    read_outside: Optional[Callable[[str], bool]] = None
 
 
 # T-4149: bash's `\cX` (control-X) consumes the character after `c` — a quote included —
@@ -895,6 +897,17 @@ def _segment(seg: list[str], ctx: _Ctx) -> None:
             if opt in ("-C", "-c", "--git-dir", "--work-tree", "--namespace") and rest:
                 rest.pop(0)
         sub = rest[0] if rest else ""
+        # T-4367: --output[=FILE] (any unambiguous long-option prefix) writes FILE
+        if sub in ("diff", "log", "show", "diff-tree", "diff-index", "whatchanged"):
+            for k, a in enumerate(rest[1:], 1):
+                m = re.match(r"^--ou(?:t(?:p(?:u(?:t)?)?)?)?(?:=(.*))?$", a)
+                if m:
+                    if m.group(1) is not None:
+                        _check_target(m.group(1), ctx, f"git {sub} {a.split('=')[0]}")
+                    elif k + 1 < len(rest):
+                        _check_target(rest[k + 1], ctx, f"git {sub} {a}")
+                    else:
+                        _check_target(UNRESOLVED, ctx, f"git {sub} {a}")
         if sub in ("checkout", "restore", "apply", "am", "stash", "switch", "reset") and \
                 not ctx.boundary and MENTION_RE.search(normalised(seg_text)):
             ctx.hits.append(Hit(f"git {sub} names a guarded path (writes it from another revision/patch)"))
@@ -1154,6 +1167,8 @@ def _scan_boundary_text(text: str, ctx: _Ctx) -> None:
                 else:
                     words.append(tok)
             for seg in _segments(words):
+                if ctx.read_outside is not None:
+                    _read_words(seg, ctx)
                 _segment(seg, ctx)
         if len(pieces) == 1:
             cwd_after_top = ctx.cwd
@@ -1175,6 +1190,125 @@ def scan_boundary(command: str, cwd: str | None, guarded, cd_ok) -> list[Hit]:
     except Exception as e:  # noqa: BLE001 — a scanner bug must not open the gate
         ctx.hits.append(Hit(f"boundary scanner error ({type(e).__name__}); refused rather than guessed"))
     return ctx.hits
+
+
+_READ_REASON = "Outside-path argument"
+_HOME_VAR = re.compile(r"^(?:\$HOME|\$\{HOME\})(?=/|$)")
+
+# T-4284: free-text options are TEXT, never path operands — a commit message, a dispatch
+# prompt or a sidecar body that MENTIONS an outside path does not read it. Scoped to the
+# commands whose options are known to mean this: elsewhere the same spellings are not
+# text (`zip -m` and `gzip --name` are flags that take no value, so the next word IS a
+# path operand; `install -m`, `grep -m` take a mode/count). A substitution inside the
+# text (`-m "$(cat /x)"`) is its own executed piece and is still judged.
+# T-4344: the value-taking free-text options are keyed per command (and per git
+# subcommand). One global set let `--summary` (git log, takes no value) or `-m` (git diff,
+# takes no value) skip the next word — a path operand — and hide an outside read.
+_FREE_TEXT_OPTS_BY_CMD = {
+    "fw": {"*": frozenset({"--prompt", "--body", "-m", "--message", "--description", "--name",
+                           "--rationale", "--summary", "--detail", "--reason"})},
+    "gh": {"*": frozenset({"--body", "-b", "--title", "-t"})},
+    "termlink": {"*": frozenset({"--prompt", "--body", "--message", "--description", "--name",
+                                 "--summary"})},
+    "claude": {"*": frozenset({"--prompt"})},
+    "git": {sub: frozenset({"-m", "--message"}) for sub in ("commit", "tag", "merge", "stash", "notes")},
+}
+_GIT_VALUE_GLOBALS = frozenset({"-C", "-c", "--git-dir", "--work-tree", "--namespace"})
+
+
+def _git_subcommand(argv: list[str]) -> str | None:
+    """The first non-option word after `git`, stepping over the value of `-C`/`-c`/…"""
+    it = iter(argv[1:])
+    for w in it:
+        if w in _GIT_VALUE_GLOBALS:
+            next(it, None)
+        elif not w.startswith("-"):
+            return w
+    return None
+
+
+def _free_text_opts(argv: list[str]) -> frozenset:
+    """The value-taking free-text options of this command, or none for any other command."""
+    if not argv:
+        return frozenset()
+    cmd = os.path.basename(argv[0])
+    table = _FREE_TEXT_OPTS_BY_CMD.get(cmd)
+    if not table:
+        return frozenset()
+    if cmd == "git":
+        return table.get(_git_subcommand(argv) or "", frozenset())
+    return table["*"]
+
+
+def _free_text_value(w: str, opts: frozenset) -> tuple[bool, str | None]:
+    """(is `w` a free-text option, its attached value or None when the value is the next word).
+    Spellings: `--opt`, `--opt=VALUE`, and `-mVALUE` for a short option."""
+    if w in opts:
+        return True, None
+    if w.startswith("--"):
+        name, sep, value = w.partition("=")
+        return (True, value) if sep and name in opts else (False, None)
+    for o in opts:
+        if len(o) == 2 and w.startswith(o) and len(w) > 2 and not w.startswith("--"):
+            return True, w[2:]
+    return False, None
+
+
+def _read_words(seg: list[str], ctx: _Ctx) -> None:
+    """T-3768: judge every path-shaped word of one segment, AFTER quote removal.
+
+    Path-shaped = absolute, `~`/`$HOME`-led, the value of an `--opt=VALUE` option, or a
+    relative word with a `..` component (resolved against the segment's cwd). A relative
+    word with no `..` stays under the cwd and is not judged, so sed scripts and regexes
+    (`s/a/b/`) cost nothing. normpath, not realpath: a read is judged by the name it
+    spells, the same as Pattern 4 always did. Prose (`-m "fix /x"`) is one word that does
+    not start with `/`, so it is never a path."""
+    outside = ctx.read_outside
+    if outside is None:
+        return
+    argv, _ = _unwrap(list(seg))
+    free_text = _free_text_opts(argv)
+    skip_next = False
+    for w in seg:
+        if skip_next:
+            skip_next = False
+            continue
+        if free_text:
+            is_free_text, _value = _free_text_value(w, free_text)
+            if is_free_text:
+                skip_next = _value is None
+                continue
+        if not w or w.startswith("\x00") or w in _OPSET or w == UNRESOLVED:
+            continue
+        if w.startswith("-") and "=" in w:
+            w = w.split("=", 1)[1]
+        w = _HOME_VAR.sub("~", w)
+        if w.startswith("~"):
+            w = os.path.expanduser(w)
+        if not w.startswith("/"):
+            if ".." not in w.split("/") or ctx.cwd is None:
+                continue
+            w = os.path.join(ctx.cwd, w)
+        p = os.path.normpath(w)
+        if p.startswith("//"):
+            p = "/" + p.lstrip("/")
+        if outside(p):
+            ctx.hits.append(Hit(_READ_REASON, p))
+
+
+def scan_boundary_reads(command: str, cwd: str | None, read_outside) -> list[Hit]:
+    """T-3768: every word that names a path `read_outside(path)` rejects, read as bash
+    reads it — quotes and escapes removed, `..` resolved against the cwd (cd-tracked),
+    `~`/`$HOME` expanded, brace expansion, and the bodies of $(...)/`...`/<(...),
+    here-strings, unquoted heredocs and static `sh -c`/`eval` scripts. Parse failures are
+    left to scan_boundary (which refuses them); only read hits are returned."""
+    ctx = _Ctx(cwd=cwd, mentions=False, guarded=lambda _p: False, boundary=True,
+               cd_ok=lambda _p: True, read_outside=read_outside)
+    try:
+        _scan_boundary_text(command, ctx)
+    except Exception as e:  # noqa: BLE001 — a scanner bug must not open the gate
+        return [Hit(f"boundary read scanner error ({type(e).__name__}); refused rather than guessed")]
+    return [h for h in ctx.hits if h.reason == _READ_REASON]
 
 
 def _substitutions(command: str) -> list[str]:

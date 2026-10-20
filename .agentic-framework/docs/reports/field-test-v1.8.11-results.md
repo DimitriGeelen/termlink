@@ -39,6 +39,93 @@ Not yet field-tested by anyone after round 2: T-4122 (speed), T-4137, T-4152, T-
 T-4162/T-4163 (estate pilot not yet live), T-4170, T-4171, T-4191, T-4197, T-4203/T-4204, T-4208,
 T-4211, T-4216; partly: T-4147 (default), T-4196 (announcement), T-4207 (WARN).
 
+## Round 3 — 832-Workflow-designer on bleeding-edge 956f05f36 (2026-10-17, msg 26c3e3cf)
+
+Upgraded via re-vendor (38 local fixes re-applied, 0 conflicts; their 101-script sweep green).
+
+| Fix | 832 result |
+|---|---|
+| T-4219 fw test lint in a consumer | WORKS — exit 0 (211 pass, 54 warn, 0 fail; Silent-Skip NOT APPLICABLE), was exit 1 |
+| T-4223 /gaps register parse once + concurrent gauges | WORKS — real register 10-11 s → 3.8-4.1 s (5 runs, load 13); remainder is 832's own slowest gauge. (A suggested follow-up, T-4247, was closed as not needed: gauges already run only for watching gaps.) |
+
+Other field results since round 2: 1409 upgraded 1.8.3 → 1.8.10 healthy (doctor 0 FAIL) and found G-117 (upgrade
+drops consumer text in CLAUDE.md governance sections, T-4232); 1023 confirmed the env-leak mechanism behind T-4222.
+
+## Round 4 — ring20 (proxmox-ring20-management) on bleeding-edge 112c098b9 (2026-10-17, msg 0d463b3e)
+
+Upgraded vendored ed683536a → 112c098b9 (v1.8.10+579) from a pinned clone; their commit 6aa9e807c, rollback c4dce8461.
+
+| Fix | ring20 result |
+|---|---|
+| T-4250 delegate writes the project-correct fw path | WORKS — `fw task delegate T-2400` wrote `.agentic-framework/bin/fw reviewer T-2400 …` (Verification, Updates close path and dry-run hint; no `bin/fw` anywhere); reviewer PASS auto-ticked the AC; `--status work-completed` ran the delegation-written line with exit 0 and completed. Was: 9 of 11 closes refused with exit 127. |
+
+Side findings from the same upgrade: (a) step [1/10] rewrote CLAUDE.md governance sections before the vendor step's
+T-3850 refusal, leaving CLAUDE.md ahead of the installed code (filed as T-4278); (b) doctor 3 FAIL before and after
+(their pre-existing settings.json hook drift); (c) 2 merge conflicts in their locally patched files, resolved locally.
+
+## Round 5 — ring20-dashboard on bleeding-edge a75c25472 (2026-10-17/18, msg 49af751f)
+
+Installed a75c25472 (1.8.10+454) plus their 37 local patches, zero fuzz; upgrade ALL OK; doctor 0 FAIL before and
+after; fast lane 16734 passed before, after 6 order-dependent failures in test_t1831 (pass alone; known class there).
+
+| Fix | ring20-dashboard result |
+|---|---|
+| T-4132 Watchtower restart notice after upgrade | WORKS — "NOTE Watchtower (pid 161) predates the upgraded web/ files - restart it" |
+| T-4171 budget warn/urgent reach the operator | WORKS — "BUDGET URGENT (T-4171): context ~91% of 900000 … restart at 95%" |
+| T-4208 receiver census | WORKS — one receiver |
+| T-4147 CONTEXT_WINDOW | their explicit 900000 honoured; the default itself not exercised |
+| T-4122/T-4210, T-4167, T-4170, T-4196, T-4197, T-4156, T-4131, T-4207, T-4211, T-4203/T-4204 | NOT EXERCISED (no shellcheck; no restart yet; no --commit handover; etc.) |
+
+Security findings from a review they ran on our code:
+- **A — CONFIRMED, release blocker: T-4286.** lib/estate_push.py refuses a private key only by catalogue pattern
+  NAME, and redact() leaves the key body; a missing or broken catalogue redacts nothing. Not live anywhere yet.
+- **B — not reproduced:** shell_write_scan.py depth cap (ctx.depth < 4); a task-file truncate inside 0..6 levels of
+  `bash -c` was still reported. Second look at what is skipped past depth 4 is optional.
+- Docs suggestion: pin the full 40-char sha in upgrade docs.
+
+## Round 6 — dimitri-mint-dev greenfield v2.2 run 4 on bleeding-edge fb8caf3b3 (2026-10-18, msg 86d31421)
+
+Installer from bleeding-edge (`--branch bleeding-edge`, recorded deviation), NO v2.1 workarounds; cross-checked by a
+clean-container smoke (ubuntu:24.04, their T-126 S1). 46 findings (24 framework-defect; 3 blocker).
+Record: /opt/0909-aef-greenfield-v22/.context/install-findings/aef-install-20261018T090519Z-dimitrimintdev/.
+
+| Fix | Result |
+|---|---|
+| T-4248 inherited env ignored | WORKS (workstation and container) |
+| T-4248 "with a warning" | **FAILS** — install.sh prints none; the vendored fw warns later on every call → T-4298 |
+| T-4248 failed step → non-zero/FAILED | NOT EXERCISED (covered by tests/unit/t4248_install_init_failure.bats) |
+| T-4248 ~/.local/bin backup | WORKS in the container; skipped on the workstation (files identical) |
+| T-4251 own repo, installer-created dir | WORKS; the / or HOME case not exercised |
+| T-4252 plain inbox safe | WORKS (no cursor moved) |
+| T-4261 WARN count | WORKS; failed-bootstrap half not exercised |
+| T-4265 onboarding skip | WORKS, also through a live T-532 gate |
+| T-4257 one INFO line | WORKS |
+| T-3083 doctor speed | WORKS — 25 s / 40 s workstation, 10 s container |
+
+New from this run: blocker cascade F-20 → F-21 → F-25 — a no-TTY `fw` call from a non-project cwd auto-ran `fw init`
+there (T-2746, promoted to now); the accidental project's hooks went live; T-559 then blocked the real target.
+Security F-34: `watchtower start` adds a UFW rule to Anywhere even for a loopback bind → T-4297.
+
+## Round 7 — dimitri-mint-dev greenfield level-2 run in a throwaway container (2026-10-18, msg 65d06812)
+
+Ubuntu 24.04 container, no mounts, Claude Code installed inside, dedicated token via `docker exec --env-file`
+(record grepped for the token: clean). Phase 1 (install) 205 s, phase 2 (fresh session in the project) 283 s,
+total 8 m 37 s; governance active after restart, first gate-authorised edit at 5 m 34 s. 19 findings (11 framework
+defects), against 43.6 min and 46 findings on the workstation (run 4). Level 1 (scripted, no credential): 3 m 25 s.
+
+| Fix | Verdict |
+|---|---|
+| T-4248 inherited env ignored, backup | PARTIAL — env ignored and backup WORKS; still no warning → T-4298 |
+| T-4251 own repo | WORKS |
+| T-4252 plain inbox safe | WORKS — but prints a traceback, exit 1, when termlink is absent → T-4308 |
+| T-4261 WARN count | PARTIAL (detail not given) |
+| T-4265 onboarding skip | WORKS |
+| T-3083 doctor speed | WORKS — 6 s |
+
+New, only visible on a clean machine: **blocker** — Watchtower cannot start, `markdown2` missing, nothing installs it,
+PEP 668 blocks pip → T-4304. Also `/embeddings` 500 on an empty project → T-4305; `watchtower stop` reports failure on
+a zombie → T-4306; the P-013 render gate false-positives on the task template comment naming web/app.py → T-4307.
+
 ## Findings
 
 - **T-4203** (055 item 7): `_fw_is_own_launcher` / `cmd_classify._Ctx` refuse a consumer's tracked

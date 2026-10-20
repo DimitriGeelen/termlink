@@ -28,9 +28,9 @@
 
 schema_version: 1
 last_vendor_event:
-  commit: 570c2e262
-  date: '2026-10-17'
-  description: "fw upgrade ed683536a -> bleeding-edge 5c886336b (1.8.10+516.g5c886336b; T-3434, operator ruling A: v1.8.11 untagged, v1.8.10 a 5-commit hotfix lacking 227 of our commits), from a full upstream clone after a rehearsal; 9 PRESERVE, five of them 3-way merged with upstream in the same commit (see not_divergence merge-of-upstream T-3434); CLAUDE.md project part unchanged. Previous baseline: 0570db4e2 (2026-10-12): fw upgrade v1.8.9 -> ed683536a (1.8.9+227.ged683536a, bleeding edge for the AEF v1.8.11 field test; T-3420, operator ruling A), from a full upstream clone after a rehearsal; .fwvendor-preserve.yaml respected (9 PRESERVE), CLAUDE.md unchanged. Previous baseline: cc2e08a02 (2026-10-11): fw upgrade v1.8.8 -> v1.8.9 from tag v1.8.9 (emergency hotfix T-4032 only; T-3392). Previous baseline: 5bf63128a (2026-10-10): fw upgrade v1.8.5 -> v1.8.8 from tag v1.8.8 with .fwvendor-preserve.yaml (T-3389, operator ruling A); checkpoint.sh and web/embeddings.py 3-way merged with upstream (T-3989, T-4004, T-3953). Previous baseline: 4b503e4a2 (2026-10-06, v1.8.3 -> v1.8.5, T-3376)."
+  commit: 570c2e262  # T-3489: set to the upgrade commit in the follow-up commit
+  date: '2026-10-20'
+  description: "fw upgrade 5c886336b -> v1.8.13 (6efec63df, security hotfix; T-3489, operator ruling A, 2026-10-20), run from a full upstream clone after a rehearsal on a throwaway clone (rc 0 both). Ancestry verified (merge-base --is-ancestor 5c886336b v1.8.13). Per AEF's T-4463 carry map: 12 PRESERVE (lib/arc.sh, bin/claude-fw and lib/inception.sh added to .fwvendor-preserve.yaml); six preserved files changed upstream and were 3-way merged (base 5c886336b) in the same commit (see not_divergence merge-of-upstream T-3489); bin/fw taken from upstream (T-2866 superseded by 80499503b). 17 unchanged-upstream .upstream copies removed. CLAUDE.md part above Core Principle byte-identical. Previous baseline: 570c2e262 (2026-10-17): fw upgrade ed683536a -> bleeding-edge 5c886336b (1.8.10+516.g5c886336b; T-3434, operator ruling A: v1.8.11 untagged, v1.8.10 a 5-commit hotfix lacking 227 of our commits), from a full upstream clone after a rehearsal; 9 PRESERVE, five of them 3-way merged with upstream in the same commit (see not_divergence merge-of-upstream T-3434); CLAUDE.md project part unchanged. Previous baseline: 0570db4e2 (2026-10-12): fw upgrade v1.8.9 -> ed683536a (1.8.9+227.ged683536a, bleeding edge for the AEF v1.8.11 field test; T-3420, operator ruling A), from a full upstream clone after a rehearsal; .fwvendor-preserve.yaml respected (9 PRESERVE), CLAUDE.md unchanged. Previous baseline: cc2e08a02 (2026-10-11): fw upgrade v1.8.8 -> v1.8.9 from tag v1.8.9 (emergency hotfix T-4032 only; T-3392). Previous baseline: 5bf63128a (2026-10-10): fw upgrade v1.8.5 -> v1.8.8 from tag v1.8.8 with .fwvendor-preserve.yaml (T-3389, operator ruling A); checkpoint.sh and web/embeddings.py 3-way merged with upstream (T-3989, T-4004, T-3953). Previous baseline: 4b503e4a2 (2026-10-06, v1.8.3 -> v1.8.5, T-3376)."
   # NOT promoted to the 2026-08-25 event below — see vendor_events[] for why the
   # baseline stays wide on purpose.
   note: >-
@@ -462,7 +462,8 @@ divergences:
       strawman/steelman comparison scored against the four Constitutional Directives.
     date: 2026-09-27
     file: .agentic-framework/agents/termlink/bvp-estimator/estimator.py
-    status: filed-upstream
+    status: landed-upstream
+    landed_note: "Superseded upstream by 51ec84ea3 (declared write_set:), per AEF's T-4463 carry map. The file stays preserved because T-3189 (same file) is not carried."
     filed_at: "framework:pickup offset 209 (proposal, read-back verified byte-identical 2026-09-27)"
     kind: scoring-correctness
     generality: GENERIC
@@ -950,7 +951,8 @@ divergences:
       reference is wanted.
     date: 2026-08-31
     file: .agentic-framework/bin/fw
-    status: filed-upstream
+    status: landed-upstream
+    landed_note: "Superseded upstream by 80499503b (AEF T-4051), confirmed in AEF's T-4463 carry map; T-3489 took upstream's bin/fw at the 1.8.13 re-vendor."
     kind: fix
     generality: GENERIC
     symptom: >
@@ -1318,6 +1320,19 @@ not_divergence:
       only reliable identity of a vendored tree, and is what future comparisons
       should use.
 
+  - kind: merge-of-upstream
+    tasks: [T-3489]
+    commit: pending-same-commit
+    date: 2026-10-20
+    reason: >
+      3-way merge (base upstream 5c886336b, ours, theirs v1.8.13) of the six preserved files
+      upstream changed: check-active-task.sh, checkpoint.sh, lib/pickup.sh and
+      web/blueprints/discovery.py (clean); agents/context/lib/safe-commands.sh (one conflict:
+      kept upstream's T-3746 `2>file`/`&>file` write check, the security half, AND our T-3178
+      sed -i flag anchor; upstream's echo|grep written as a herestring like the rest of our
+      copy); bin/claude-fw (one conflict: kept our T-3464 sidecar-socket env AND upstream's
+      T-4249 per-run exit-marker token). safe-commands and commit-pending fixtures pass.
+      Adds upstream's lines to our local copies; our local lines were already registered.
   - kind: merge-of-upstream
     tasks: [T-3434]
     commit: 570c2e262

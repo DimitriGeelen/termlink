@@ -131,7 +131,7 @@ T0_DEQUOTED=$(printf '%s' "$COMMAND" | tr -d "\"'\\\\\$")
 # Round 6: ANSI-C quoting ($'tier\x30') is decoded in Python, so any $' skips
 # the fast path.
 if [[ "$COMMAND" != *"\$'"* ]] && ! printf '%s\n%s\n' "$COMMAND" "$T0_DEQUOTED" | grep -qEi \
-    'git\s+(push|reset|clean|checkout|restore|branch)\s|git\s+-|git\s+commit\b[^;|&]*\s-[a-z]*n|(HOME|XDG_CONFIG_HOME|GIT_CONFIG[A-Z0-9_]*)=|hooksPath|include\.path|includeif|tier0|--no-v|rm\s+-|DROP\s|TRUNCATE\s|docker\s+system|kubectl\s+delete|find\s.*-delete|dd\s+if=|chmod\s.*\s000|mkfs|pkill\s|fw\s.*--force|fw\s.*inception\s.*decide'; then
+    'git\s+(push|reset|clean|checkout|restore|branch)\s|git\s+-|git\s+commit\b[^;|&]*\s-[a-z]*n|(HOME|XDG_CONFIG_HOME|GIT_CONFIG[A-Z0-9_]*)=|hooksPath|include\.path|includeif|tier0|--no-v|rm\s+-|DROP\s|TRUNCATE\s|docker\s+system|kubectl\s+delete|find\s.*-delete|dd\s+if=|chmod\s.*\s000|mkfs|pkill\s|killall\s|fw\s.*--force|fw\s.*inception\s.*decide'; then
     exit 0
 fi
 
@@ -214,6 +214,13 @@ OPT_FORCE = ab('force-with-lease')
 OPT_DELETE = ab('delete')
 OPT_NO_VERIFY = ab('no-verify', 4)
 APPROVE_VERB = r'(?:\bfw\s+tier0\s+approve\b|\btier0_action\b)'
+# T-4280: a word that is a signal name (-term, -sigprof, -VTALRM) is the
+# signal option, not a flag cluster: pkill reads -<signal> before its other
+# options, case-insensitively. Without this, -term read as containing -r and
+# -sigprof as containing -f. Prefixed to the -f/-r cluster alternatives.
+NOT_SIGNAME = (r'(?!(?i:(?:sig)?(?:hup|int|quit|ill|trap|abrt|iot|bus|fpe|kill|segv|pipe'
+               r'|alrm|term|stkflt|chld|cld|cont|stop|tstp|ttin|ttou|urg|xcpu|xfsz|vtalrm'
+               r'|prof|winch|io|poll|pwr|sys|unused|emt|lost|info))(?![^\s;|&)]))')
 
 PATTERNS = [
     # === Git destructive operations ===
@@ -316,8 +323,19 @@ PATTERNS = [
      'CHMOD 000 RECURSIVE: Removes all permissions recursively'),
     (r'\bmkfs\b',
      'MKFS: Creates filesystem — destroys existing data on device'),
-    (r'\bpkill\s+-9\b',
-     'PKILL -9: Force-kills processes by name (SIGKILL)'),
+
+    # === Kill by name or pattern (T-3640, 055 P-006) ===
+    # 'pkill -9' was the only rule, so pkill -KILL -f 'sleep|trap' passed and
+    # SIGKILLed every matching process on the host. Judge the option, not one
+    # spelling: SIGKILL in any form, or a pattern match against every command
+    # line. strip_quotes has already run, so the -f pattern itself is not read.
+    # kill <pid> (no p, no all) is untouched.
+    (r'\b(?:pkill|killall)\b[^;|&\n]*\s(?:-(?:s\s*)?|--sig(?:n(?:a(?:l)?)?)?(?:=|\s+))(?i:(?:sig)?(?:9|kill))(?![^\s;|&)])',
+     'SIGKILL BY NAME: pkill/killall with SIGKILL (-9, -KILL, -SIGKILL, -s KILL, --signal=KILL) force-kills every process of that name with no chance to clean up. Instead: kill the PID or process group you started (kill -TERM <pid>, kill -TERM -<pgid>)'),
+    (r'\bpkill\b[^;|&\n]*\s(?:-' + NOT_SIGNAME + r'[a-zA-Z]*f[a-zA-Z]*|--fu(?:l(?:l)?)?)(?![^\s;|&)])',
+     'PKILL -f: pkill -f/--full matches its pattern against the full command line of every process on the host, so it hits unrelated processes (055: pkill -KILL -f sleep|trap killed a live agent session). Instead: kill the PID or process group you started (kill -TERM <pid>, kill -TERM -<pgid>)'),
+    (r'\bkillall\b[^;|&\n]*\s(?:-' + NOT_SIGNAME + r'[a-zA-Z]*r[a-zA-Z]*|--re(?:g(?:e(?:x(?:p)?)?)?)?)(?![^\s;|&)])',
+     'KILLALL -r: killall -r/--regexp kills every process whose name matches a regular expression, unrelated ones included. Instead: kill the PID or process group you started (kill -TERM <pid>, kill -TERM -<pgid>)'),
 
     # === Infrastructure destructive ===
     (r'\bdocker\s+system\s+prune\b',

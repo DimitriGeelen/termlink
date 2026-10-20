@@ -988,6 +988,20 @@ _fw_project_owned_count() {
     grep -c '^[[:space:]]*<!-- project-owned: begin -->[[:space:]]*$' "$1" 2>/dev/null || true
 }
 
+# T-4232: governance lines of $1 that rebuilding CLAUDE.md onto $2 (the new governance
+# tail) would delete. A line counts when it sits in the governance section (from
+# `## Core Principle`), is not blank, and appears nowhere in $2. Project-owned regions
+# are part of $2, so they never count. Prints one line per deleted line.
+_fw_governance_at_risk() {
+    local tail_file
+    tail_file=$(mktemp) || return 0
+    printf '%s\n' "$2" > "$tail_file"
+    sed -n '/^## Core Principle$/,$ p' "$1" \
+        | grep -Fxv -f "$tail_file" \
+        | grep -vE '^[[:space:]]*$' || true
+    rm -f "$tail_file"
+}
+
 # Print the $2'th (1-based) project-owned region of $1, marker lines included.
 # One region per call rather than an array — `mapfile -d ''` needs bash 4.4 and
 # this file still has to run under macOS's bash 3.2 (same reason _sed_i exists).
@@ -1323,15 +1337,18 @@ do_upgrade() {
         # must find the consumer's recorded version_sha, and a shallow clone cannot
         # see it. --filter=blob:none keeps the clone cheap; a server that ignores
         # filters falls back to a full clone (git warns, does not fail).
-        # Exception: a LOCAL shallow source. Under file:// the filter is ignored and
-        # git 2.43 then never completes the clone of a shallow repo (measured: 60 s
-        # timeout, endless "filtering not recognized" warnings). Plain clone instead;
-        # the guard then refuses with the runnable remedy, which is the right outcome.
-        local _clone_filter=(--filter=blob:none) _clone_src="${_upstream_url#file://}"
-        if [ -d "$_clone_src" ] && [ "$(git -C "$_clone_src" rev-parse --is-shallow-repository 2>/dev/null)" = "true" ]; then
+        # T-4302: a LOCAL source is cloned by path, not file://. Over file:// git ignores
+        # the filter and packs the whole history on every upgrade: ~40 s wall and ~58 s
+        # CPU on the 12k-commit framework repo (--depth=1 was ~9 s). A path clone
+        # hardlinks the objects (~2 s CPU) and keeps the full history the guard needs.
+        # A shallow local source stays shallow on a path clone, so the guard still
+        # refuses it with the runnable remedy.
+        local _clone_filter=(--filter=blob:none) _clone_src="${_upstream_url#file://}" _clone_from="$_upstream_url"
+        if [ -d "$_clone_src" ]; then
             _clone_filter=()
+            _clone_from="$_clone_src"
         fi
-        if ! git clone ${_clone_filter[@]+"${_clone_filter[@]}"} --quiet "$_upstream_url" "$_tmpd/fw" 2>"$_tmpd/clone.err"; then
+        if ! git clone ${_clone_filter[@]+"${_clone_filter[@]}"} --quiet "$_clone_from" "$_tmpd/fw" 2>"$_tmpd/clone.err"; then
             echo "FAILED"
             echo -e "${RED}ERROR: git clone failed${NC}" >&2
             sed 's/^/    /' "$_tmpd/clone.err" >&2 2>/dev/null || true
@@ -1521,6 +1538,24 @@ do_upgrade() {
         fi
     fi
 
+    # T-4278: an upgrade that refuses must leave the consumer byte-identical. The
+    # vendor step (4b) refuses on consumer-local files (T-3850), but by then steps
+    # 0-4 had written: ring20 got the new CLAUDE.md governance over the old code.
+    # Ask for the same verdict here, before the first write. Same flags as step 4b.
+    if [ "$dry_run" != true ] && [ -d "$target_dir/.agentic-framework" ]; then
+        local _pre_vendor_rc=0
+        # `|| rc=` not a bare PIPESTATUS read: bin/fw runs with errexit+pipefail.
+        do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" --precheck ${_vendor_extra[@]+"${_vendor_extra[@]}"} 2>&1 \
+            | sed 's/^/  /' || _pre_vendor_rc=${PIPESTATUS[0]}
+        if [ "$_pre_vendor_rc" -ne 0 ]; then
+            echo -e "${RED}REFUSED${NC}  The vendor step would refuse (local files under .agentic-framework/, T-3850)," >&2
+            echo -e "          so the upgrade refused before any step wrote: nothing was changed." >&2
+            echo -e "          Keep them: list them in .fwvendor-preserve.yaml, then re-run fw upgrade." >&2
+            echo -e "          Lose them: re-run with ${BOLD}--allow-delete-locals${NC} (logged Tier-2; copies kept)." >&2
+            return 1
+        fi
+    fi
+
     # ── 0. Directory skeleton (T-2758) ──
     #
     # Step 8 below has always created the .context/ subdirectories. It runs FIVE
@@ -1653,6 +1688,42 @@ $project_owned"
         # Compare current governance with template
         local current_governance
         current_governance=$(sed -n '/^## Core Principle$/,$ p' "$project_claude")
+
+        # T-4232: the rebuild below replaces the whole governance section. A line the
+        # consumer added or edited inside it is deleted with no trace (the .bak is the
+        # only copy, and the post-write detector is skipped by dry-run). Refuse before
+        # writing unless the section is the stock copy of the template this project was
+        # last upgraded from: the vendored copy, still pre-upgrade at this step (step
+        # 4b syncs it later). A stock copy only loses framework text the template dropped.
+        local _gv_at_risk="" _gv_base="$target_dir/.agentic-framework/lib/templates/claude-project.md"
+        if [ "$current_governance" != "$governance_tail" ]; then
+            _gv_at_risk=$(_fw_governance_at_risk "$project_claude" "$governance_tail")
+        fi
+        if [ -n "$_gv_at_risk" ]; then
+            local _gv_stock=false
+            if [ -f "$_gv_base" ]; then
+                local _gv_base_tail
+                _gv_base_tail=$(sed -n '/^## Core Principle$/,$ p' "$_gv_base")
+                if [ -n "$project_owned" ]; then
+                    _gv_base_tail="$_gv_base_tail
+$project_owned"
+                fi
+                [ "$current_governance" = "$_gv_base_tail" ] && _gv_stock=true
+            fi
+            if [ "$_gv_stock" != true ]; then
+                local _gv_n
+                _gv_n=$(printf '%s\n' "$_gv_at_risk" | wc -l | tr -d ' ')
+                echo -e "  ${RED}REFUSED${NC}  $_gv_n line(s) in the CLAUDE.md governance section would be deleted" >&2
+                printf '%s\n' "$_gv_at_risk" | head -8 | sed 's/^/        /' >&2
+                [ "$_gv_n" -gt 8 ] && echo "        ... ($((_gv_n - 8)) more)" >&2
+                echo -e "        These are not in the framework template and not inside a project-owned region." >&2
+                echo -e "        Move them into a region below the governance section, between" >&2
+                echo -e "        \`<!-- project-owned: begin -->\` and \`<!-- project-owned: end -->\`, then re-run \`fw upgrade\`." >&2
+                echo -e "        Or remove them if the framework now carries the rule." >&2
+                echo -e "        CLAUDE.md was NOT rewritten — no other upgrade step ran." >&2
+                return 1
+            fi
+        fi
 
         if [ "$current_governance" = "$governance_tail" ]; then
             echo -e "  ${GREEN}OK${NC}  Already up to date"
