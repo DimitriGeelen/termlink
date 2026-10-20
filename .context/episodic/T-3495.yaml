@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3495: Hub notices its own socket replaced, and hub health probes the unix socket (T-3367 follow-up, ring20-dashboard)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T20:37:40Z
+# ============================================================================
+
+task_id: T-3495
+task_name: "Hub notices its own socket replaced, and hub health probes the unix socket (T-3367 follow-up, ring20-dashboard)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-20T16:25:49Z
+completed: 2026-10-20T20:35:08Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-20T20:22:18+02:00
+last_commit: 2026-10-20T20:22:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  running hub watches its hub.sock (re-creates a removed/dead socket with a WARN, leaves a live replacement alone); hub status and preflight Check 8 probe the unix socket; regression tests. record that the hub status probe landed in bd3391d84 (T-3498)
+
+# Key outcomes
+outcomes:
+  - 'A running hub checks periodically that its hub.sock is still its own (same inode, connectable); if it was removed or replaced it logs a WARN naming the path and re-creates it when the path is free, and never removes a socket another live hub answers on'
+  - 'The hub health probe (whatever `hub status` / substrate-preflight use to call a hub healthy) also probes the unix socket, so "TCP answers but local clients get ECONNREFUSED" is reported, not green'
+  - 'Regression tests in temp dirs only (never the real runtime dir, T-3293): socket deleted -> re-created + WARN; socket replaced by another live listener -> WARN, left alone; health probe reports the unix-socket failure'
+  - '`cargo test -p termlink-hub` and `-p termlink` pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-20 — what the watch treats as "its own" and as "free"'
+    chose: 'same dev+inode as the socket this hub bound = intact (no self-connect each tick); a path that is gone, or holds a dead socket (connect refused), is free and is re-created (bind directly when gone; `.new` + rename over a dead socket, as start does); a path another listener answers on, or holding a non-socket file, is left alone with one WARN per distinct file.'
+    rationale: 'the AC forbids removing a socket another live hub answers on; a dead socket is what `hub start` already treats as replaceable (T-3367). Connecting to our own listener every 10s adds accept/audit noise for no information the inode does not give.'
+    alternatives_rejected: ['threading the re-created listener into the existing accept loop''s select; a second unix-only `run_accept_loop` with the same secret and shutdown signal reuses its logic unchanged.']
+  - decision: '2026-10-20 — how `hub status` reports a dead socket'
+    chose: 'keep `status: "running"` (the process is alive), add `socket_ok` / `socket_error`, set `ok:false`; `--short` prints `running <pid> socket-unreachable`; `--check` exits 1. Plain `hub status` still exits 0, as it does for `not_running`.'
+    rationale: 'watchdog.sh, session-selftest.sh and hub-recover-original-runtime.sh gate on plain `hub status`''s exit code; changing it would change their restart behaviour, out of scope here. Preflight Check 8 turns `socket_ok:false` into a high-severity FAIL.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/tests/cli_integration.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - 'scripts/substrate-preflight.sh'
+  - '.tasks/active/T-3495-hub-notices-its-own-socket-replaced-and-.md'
+  - 'tests/substrate-preflight-hub-socket-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T20:22:18'
+    action: 'T-3495: running hub watches its hub.sock (re-creates a removed/dead socket with a WARN, leaves a live replacement alone); hub status and preflight Check 8 probe the unix socket; regression tests'
+  - time: '2026-10-20T20:22:31'
+    action: 'T-3495: record that the hub status probe landed in bd3391d84 (T-3498)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 249 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 249
+  commits: 2
+  files_changed: 5
+  lines_added: 839
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3495-hub-notices-its-own-socket-replaced-and-.md
+generated_by: context-agent-hybrid
