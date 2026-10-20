@@ -1104,6 +1104,8 @@ async fn main() -> Result<()> {
                 senders,
                 show_forwards,
                 include_current_value,
+                with_signature,
+                verify,
                 hub,
                 json,
                 from_latest,
@@ -1149,6 +1151,9 @@ async fn main() -> Result<()> {
                     from_latest,
                     then_live,
                     push,
+                    // T-3486: --verify implies --with-signature (it needs the fields).
+                    with_signature || verify,
+                    verify,
                 )
                 .await
             }

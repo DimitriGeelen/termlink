@@ -17,7 +17,7 @@ use base64::Engine;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde_json::{json, Value};
 
-use termlink_bus::{ArtifactStore, Bus, Envelope, Retention};
+use termlink_bus::{ArtifactStore, Bus, Envelope, EnvelopeSignature, Retention};
 use termlink_protocol::control::channel::canonical_sign_bytes;
 use termlink_protocol::control::error_code;
 use termlink_protocol::jsonrpc::{ErrorResponse, Response, RpcResponse};
@@ -228,6 +228,7 @@ pub(crate) async fn mirror_event_broadcast_with(bus: &Bus, topic: &str, payload:
         artifact_ref: None,
         ts_unix_ms,
         metadata: Default::default(),
+        signature: None,
     };
     if let Err(e) = bus.post(BROADCAST_GLOBAL_TOPIC, &env).await {
         tracing::warn!(error = %e, "T-1162 mirror: bus.post failed");
@@ -293,6 +294,7 @@ pub(crate) async fn mirror_inbox_deposit_with(
         artifact_ref: None,
         ts_unix_ms,
         metadata: Default::default(),
+        signature: None,
     };
     match bus.post(&topic_name, &env).await {
         Err(e) => tracing::warn!(topic = %topic_name, error = %e, "T-1163 mirror: bus.post failed"),
@@ -350,6 +352,7 @@ pub async fn mirror_routing_lint_warning(method: &str, payload: &Value) {
         artifact_ref: None,
         ts_unix_ms,
         metadata: Default::default(),
+        signature: None,
     };
     if let Err(e) = bus.post(ROUTING_LINT_TOPIC, &env).await {
         tracing::warn!(error = %e, "T-1300 mirror: bus.post failed");
@@ -1039,6 +1042,13 @@ pub(crate) async fn handle_channel_post_with_peer(
         }
     }
 
+    // T-3486: keep the signature the hub just verified, so a reader can
+    // re-verify the envelope without trusting this hub's storage. Stored as the
+    // canonical lowercase hex, so readers compare bytes, not spellings.
+    let stored_signature = EnvelopeSignature {
+        sender_pubkey_hex: hex_lower(verifying_key.as_bytes()),
+        signature_hex: hex_lower(&signature.to_bytes()),
+    };
     let env = Envelope {
         topic: topic.clone(),
         sender_id,
@@ -1047,6 +1057,7 @@ pub(crate) async fn handle_channel_post_with_peer(
         artifact_ref,
         ts_unix_ms,
         metadata,
+        signature: Some(stored_signature),
     };
     match bus.post(&topic, &env).await {
         Ok(offset) => {
@@ -1260,6 +1271,7 @@ fn walk_subscribe_records(
     in_reply_to_filter: Option<String>,
     limit: usize,
     deadline: std::time::Duration,
+    with_signature: bool,
 ) -> SubscribeWalk {
     let started = std::time::Instant::now();
     let mut messages: Vec<Value> = Vec::new();
@@ -1292,7 +1304,7 @@ fn walk_subscribe_records(
         {
             continue;
         }
-        messages.push(envelope_to_json(offset, &env));
+        messages.push(envelope_to_json_with(offset, &env, with_signature));
         if messages.len() >= limit {
             limit_hit = true;
             break;
@@ -1456,6 +1468,13 @@ pub(crate) async fn handle_channel_subscribe_with(
         .get("include_current_value")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
+    // T-3486: opt-in. When true, each message that was stored with a verified
+    // signature carries `sender_pubkey_hex` + `signature_hex`, so a reader can
+    // re-verify it. When false the wire output is unchanged.
+    let with_signature = params
+        .get("with_signature")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
     let iter = if timeout_ms > 0 {
         match bus
@@ -1542,6 +1561,7 @@ pub(crate) async fn handle_channel_subscribe_with(
             in_reply_to_filter,
             limit,
             deadline,
+            with_signature,
         )
     })
     .await
@@ -1614,7 +1634,7 @@ pub(crate) async fn handle_channel_subscribe_with(
                         out.push(json!({
                             "cv_key": cv_key,
                             "offset": offset,
-                            "msg": envelope_to_json(offset, &env),
+                            "msg": envelope_to_json_with(offset, &env, with_signature),
                         }));
                     }
                     // Stale index entry (offset past retention or moved):
@@ -2741,6 +2761,21 @@ pub(crate) async fn handle_agent_find_idle_with(
     }
 }
 
+/// T-3486: `envelope_to_json`, plus the stored signature fields when the caller
+/// asked for them. Absent (not null) for an unsigned envelope, so a reader can
+/// tell "unsigned" from "signed by a key of 0x00".
+fn envelope_to_json_with(offset: u64, env: &Envelope, with_signature: bool) -> Value {
+    let mut out = envelope_to_json(offset, env);
+    if with_signature
+        && let Some(sig) = &env.signature
+        && let Some(obj) = out.as_object_mut()
+    {
+        obj.insert("sender_pubkey_hex".to_string(), json!(sig.sender_pubkey_hex));
+        obj.insert("signature_hex".to_string(), json!(sig.signature_hex));
+    }
+    out
+}
+
 fn envelope_to_json(offset: u64, env: &Envelope) -> Value {
     let payload_b64 = base64::engine::general_purpose::STANDARD.encode(&env.payload);
     let mut out = json!({
@@ -2763,6 +2798,12 @@ fn envelope_to_json(offset: u64, env: &Envelope) -> Value {
         );
     }
     out
+}
+
+/// T-3486: lowercase hex of raw bytes (the canonical spelling stored on an
+/// envelope's signature).
+fn hex_lower(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 fn parse_pubkey_hex(hex: &str) -> Option<VerifyingKey> {
@@ -2838,6 +2879,7 @@ mod tests {
             artifact_ref: None,
             ts_unix_ms: 1000 + n as i64,
             metadata,
+            signature: None,
         }
     }
 
@@ -2868,6 +2910,7 @@ mod tests {
             None,
             100,
             std::time::Duration::ZERO,
+            false,
         );
         assert!(walk.deadline_hit, "zero deadline must trip immediately");
         assert_eq!(walk.records_scanned, 0);
@@ -2884,6 +2927,7 @@ mod tests {
             None,
             100,
             std::time::Duration::from_secs(60),
+            false,
         );
         assert!(!walk.deadline_hit);
         assert_eq!(walk.records_scanned, 5);
@@ -2905,6 +2949,7 @@ mod tests {
             None,
             100,
             std::time::Duration::from_millis(5),
+            false,
         );
         assert!(walk.deadline_hit);
         assert_eq!(walk.records_scanned, 1);
@@ -2946,6 +2991,7 @@ mod tests {
                 None,
                 100,
                 std::time::Duration::from_millis(10),
+                false,
             );
             for m in &walk.messages {
                 got.push(m["offset"].as_u64().unwrap());
@@ -3059,6 +3105,7 @@ mod tests {
             None,
             2,
             std::time::Duration::from_secs(60),
+            false,
         );
         assert!(!walk.limit_hit);
         assert_eq!(subscribe_end_reason(walk.limit_hit), "end");
@@ -3069,6 +3116,7 @@ mod tests {
             None,
             2,
             std::time::Duration::from_secs(60),
+            false,
         );
         assert!(walk.limit_hit);
         assert_eq!(subscribe_end_reason(walk.limit_hit), "limit");
@@ -3989,6 +4037,7 @@ mod tests {
                     artifact_ref: None,
                     ts_unix_ms: round,
                     metadata,
+                    signature: None,
                 };
                 bus.post("agent-presence", &env).await.unwrap();
             }
@@ -4030,6 +4079,7 @@ mod tests {
             artifact_ref: None,
             ts_unix_ms: 0,
             metadata: std::collections::BTreeMap::new(),
+            signature: None,
         }
     }
 
@@ -4689,6 +4739,7 @@ mod tests {
                 artifact_ref: None,
                 ts_unix_ms: ts,
                 metadata,
+                signature: None,
             }
         };
 
@@ -4784,6 +4835,132 @@ mod tests {
         let v = unwrap_success(resp);
         assert_eq!(v["offset"], 0);
         assert_eq!(v["ts"], 2);
+    }
+
+    // ── T-3486: the stored signature round-trips to a reader, who verifies it
+    // without trusting the hub. Helper: rebuild the signed bytes from the
+    // subscribe message's own fields and check them strictly against the key.
+    fn reader_verify(msg: &Value) -> Result<(), String> {
+        let ts = msg["ts"].as_i64().ok_or("no ts")?;
+        let payload = base64::engine::general_purpose::STANDARD
+            .decode(msg["payload_b64"].as_str().ok_or("no payload_b64")?)
+            .map_err(|e| e.to_string())?;
+        let artifact = msg["artifact_ref"].as_str();
+        let pk_bytes: [u8; 32] = hex_to_array(msg["sender_pubkey_hex"].as_str().ok_or("unsigned")?)?;
+        let sig_bytes: [u8; 64] = hex_to_array(msg["signature_hex"].as_str().ok_or("unsigned")?)?;
+        let pk = VerifyingKey::from_bytes(&pk_bytes).map_err(|e| e.to_string())?;
+        if msg["sender_id"].as_str() != Some(fingerprint_of(&pk).as_str()) {
+            return Err("sender_id != fingerprint(pubkey)".into());
+        }
+        let signed = canonical_sign_bytes(
+            msg["topic"].as_str().unwrap(),
+            msg["msg_type"].as_str().unwrap(),
+            &payload,
+            artifact,
+            ts,
+        );
+        pk.verify_strict(&signed, &Signature::from_bytes(&sig_bytes))
+            .map_err(|e| e.to_string())
+    }
+
+    fn hex_to_array<const N: usize>(hex: &str) -> Result<[u8; N], String> {
+        if hex.len() != N * 2 {
+            return Err("bad hex length".into());
+        }
+        let mut out = [0u8; N];
+        for (i, chunk) in hex.as_bytes().chunks(2).enumerate() {
+            out[i] = u8::from_str_radix(std::str::from_utf8(chunk).unwrap(), 16)
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(out)
+    }
+
+    async fn subscribe_msgs(bus: &Bus, topic: &str, with_signature: bool) -> Vec<Value> {
+        let params = json!({"topic": topic, "cursor": 0, "with_signature": with_signature});
+        let v = unwrap_success(handle_channel_subscribe_with(&bus, json!(9), &params).await);
+        v["messages"].as_array().unwrap().clone()
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn t3486_signed_post_reads_back_and_verifies_locally() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t3486:ok", Retention::Forever).unwrap();
+        let key = signing_key();
+        let p = post_params(&key, "t3486:ok", "chat", b"hello", 7);
+        unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+
+        let msgs = subscribe_msgs(&bus, "t3486:ok", true).await;
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(
+            msgs[0]["sender_pubkey_hex"].as_str().unwrap(),
+            hex_of(key.verifying_key().as_bytes())
+        );
+        assert!(msgs[0]["signature_hex"].is_string());
+        reader_verify(&msgs[0]).expect("honest record must verify strictly");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn t3486_tampered_payload_fails_reader_verify() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t3486:tamper", Retention::Forever).unwrap();
+        let key = signing_key();
+        let p = post_params(&key, "t3486:tamper", "chat", b"pay me 10", 7);
+        unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+
+        let mut msgs = subscribe_msgs(&bus, "t3486:tamper", true).await;
+        // What a root-on-the-hub attacker would do: rewrite the stored payload.
+        msgs[0]["payload_b64"] = json!(base64::engine::general_purpose::STANDARD.encode(b"pay me 9999"));
+        assert!(reader_verify(&msgs[0]).is_err(), "tampered payload must not verify");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn t3486_swapped_sender_id_fails_reader_verify() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t3486:swap", Retention::Forever).unwrap();
+        let key = signing_key();
+        let p = post_params(&key, "t3486:swap", "chat", b"hi", 7);
+        unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+
+        let mut msgs = subscribe_msgs(&bus, "t3486:swap", true).await;
+        let other = SigningKey::from_bytes(&[77u8; 32]);
+        msgs[0]["sender_id"] = json!(fingerprint_of(&other.verifying_key()));
+        assert!(reader_verify(&msgs[0]).is_err(), "swapped sender_id must not verify");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn t3486_with_signature_false_leaves_wire_unchanged() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t3486:off", Retention::Forever).unwrap();
+        let key = signing_key();
+        let p = post_params(&key, "t3486:off", "chat", b"hi", 7);
+        unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+
+        let msgs = subscribe_msgs(&bus, "t3486:off", false).await;
+        assert_eq!(msgs.len(), 1);
+        assert!(msgs[0].get("sender_pubkey_hex").is_none(), "no signature fields without the flag");
+        assert!(msgs[0].get("signature_hex").is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn t3486_hub_originated_envelope_carries_no_signature() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t3486:hub", Retention::Forever).unwrap();
+        // A hub-originated record never goes through channel.post, so it stores none.
+        let env = Envelope {
+            topic: "t3486:hub".into(),
+            sender_id: "hub:event.broadcast".into(),
+            msg_type: "note".into(),
+            payload: b"x".to_vec(),
+            artifact_ref: None,
+            ts_unix_ms: 1,
+            metadata: Default::default(),
+            signature: None,
+        };
+        bus.post("t3486:hub", &env).await.unwrap();
+
+        let msgs = subscribe_msgs(&bus, "t3486:hub", true).await;
+        assert_eq!(msgs.len(), 1);
+        assert!(msgs[0].get("signature_hex").is_none(), "hub:* records must read as unsigned");
     }
 
     // T-3432: the FX-5 plaintext field cap.

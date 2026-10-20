@@ -19,6 +19,7 @@ fn env(topic: &str) -> Envelope {
         artifact_ref: None,
         ts_unix_ms: 0,
         metadata: std::collections::BTreeMap::new(),
+        signature: None,
     }
 }
 

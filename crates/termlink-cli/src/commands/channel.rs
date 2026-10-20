@@ -10,7 +10,9 @@ use serde_json::{Value, json};
 
 use termlink_protocol::control::{channel::canonical_sign_bytes, method};
 use termlink_protocol::transport::TransportAddr;
-use termlink_session::agent_identity::{Identity, identity_path, per_agent_identity_path};
+use termlink_session::agent_identity::{
+    Identity, check_detached_hex, identity_path, per_agent_identity_path,
+};
 use termlink_session::bus_client::{BusClient, PostOutcome};
 use termlink_session::client;
 use termlink_session::offline_queue::{PendingPost, default_queue_path};
@@ -3072,6 +3074,7 @@ pub(crate) async fn cmd_channel_dm(
                 hub, json_output,
                 false, false, // T-2047: from_latest, then_live (default off)
                 false, // T-2309: push (dm-resume path uses poll, not WS)
+                false, false, // T-3486: with_signature, verify (dm-resume path: off)
             )
             .await
         }
@@ -9556,6 +9559,49 @@ pub(crate) fn trim_to_tail<T>(items: &mut Vec<T>, tail: Option<usize>) {
     }
 }
 
+/// T-3486: re-verify one message the hub returned, without trusting the hub.
+/// `valid` = the signature verifies strictly under the returned key AND that key
+/// is the one `sender_id` names. `unsigned` = the hub stored no signature (an old
+/// record, or a hub-originated envelope). Anything else is `INVALID (<why>)`.
+/// Pure: no network, no state. Metadata is outside the signed bytes and is not
+/// checked here.
+pub(crate) fn signature_verdict(msg: &Value) -> String {
+    let (Some(pk), Some(sig)) = (
+        msg.get("sender_pubkey_hex").and_then(Value::as_str),
+        msg.get("signature_hex").and_then(Value::as_str),
+    ) else {
+        return "unsigned".to_string();
+    };
+    let Some(sender_id) = msg.get("sender_id").and_then(Value::as_str) else {
+        return "INVALID (message has no sender_id)".to_string();
+    };
+    let (Some(topic), Some(msg_type), Some(ts)) = (
+        msg.get("topic").and_then(Value::as_str),
+        msg.get("msg_type").and_then(Value::as_str),
+        msg.get("ts").and_then(Value::as_i64),
+    ) else {
+        return "INVALID (message is missing topic, msg_type or ts)".to_string();
+    };
+    let payload = match msg
+        .get("payload_b64")
+        .and_then(Value::as_str)
+        .map(|p| base64::engine::general_purpose::STANDARD.decode(p))
+    {
+        Some(Ok(bytes)) => bytes,
+        _ => return "INVALID (payload_b64 does not decode)".to_string(),
+    };
+    let artifact_ref = msg.get("artifact_ref").and_then(Value::as_str);
+    let signed = canonical_sign_bytes(topic, msg_type, &payload, artifact_ref, ts);
+    match check_detached_hex(pk, sig, &signed) {
+        Err(e) => format!("INVALID ({e})"),
+        Ok(check) if check.fingerprint != sender_id => {
+            "INVALID (sender_id is not the fingerprint of the returned key)".to_string()
+        }
+        Ok(check) if !check.signature_ok => "INVALID (signature does not verify)".to_string(),
+        Ok(_) => "valid".to_string(),
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_channel_subscribe(
     topic: &str,
@@ -9593,6 +9639,10 @@ pub(crate) async fn cmd_channel_subscribe(
     // a TCP hub), stream pushed `hub.event` frames before falling into the poll
     // loop. Degrades to poll on any WS failure — never a hard error.
     push: bool,
+    // T-3486: ask the hub for stored signatures; `verify` re-checks them locally
+    // and prints a per-message verdict (implies `with_signature`).
+    with_signature: bool,
+    verify: bool,
 ) -> Result<()> {
     use std::fmt::Write as _;
     let tail_mode = tail.is_some();
@@ -9750,6 +9800,11 @@ pub(crate) async fn cmd_channel_subscribe(
         {
             obj.insert("include_current_value".to_string(), json!(true));
         }
+        if with_signature
+            && let Some(obj) = params.as_object_mut()
+        {
+            obj.insert("with_signature".to_string(), json!(true));
+        }
         let resp = match rpc_call_authed(&sock, method::CHANNEL_SUBSCRIBE, params).await {
             Ok(r) => r,
             Err(e) if follow || push => {
@@ -9810,7 +9865,21 @@ pub(crate) async fn cmd_channel_subscribe(
         // T-2105: render cv_index snapshot BEFORE the messages stream.
         // Snapshot is one-shot — clear the flag so paginated calls don't re-fetch.
         if request_cv_snapshot {
-            let cv_array = result["current_values"].as_array().cloned().unwrap_or_default();
+            let mut cv_array = result["current_values"].as_array().cloned().unwrap_or_default();
+            // T-3486: the snapshot carries messages too, so it gets the same verdict.
+            if verify {
+                for cv in cv_array.iter_mut() {
+                    let verdict = signature_verdict(&cv["msg"]);
+                    if json_output {
+                        if let Some(obj) = cv["msg"].as_object_mut() {
+                            obj.insert("signature_verdict".to_string(), json!(verdict));
+                        }
+                    } else {
+                        let cv_key = cv.get("cv_key").and_then(|v| v.as_str()).unwrap_or("?");
+                        println!("[sig] cv:{cv_key}: {verdict}");
+                    }
+                }
+            }
             if json_output {
                 // JSON-lines header: one line carrying the entire snapshot.
                 // Distinguishable from regular envelopes by the "current_values" key.
@@ -9828,7 +9897,22 @@ pub(crate) async fn cmd_channel_subscribe(
             }
             request_cv_snapshot = false;
         }
-        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        let mut msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        // T-3486: per-message verdict, computed before any render pass so every
+        // output mode (text, JSON, aggregated, tail) sees the same answer.
+        if verify {
+            for m in msgs.iter_mut() {
+                let verdict = signature_verdict(m);
+                if json_output {
+                    if let Some(obj) = m.as_object_mut() {
+                        obj.insert("signature_verdict".to_string(), json!(verdict));
+                    }
+                } else {
+                    let off = m.get("offset").and_then(Value::as_u64).unwrap_or(0);
+                    println!("[sig] offset {off}: {verdict}");
+                }
+            }
+        }
         // T-1330: ALWAYS collect redaction targets up-front so the reaction
         // aggregator (and other passes) can skip envelopes whose redaction
         // is in this or a prior batch. Matches Matrix m.annotation removal
@@ -20992,5 +21076,70 @@ mod t3286_identity_source_tests {
     #[test]
     fn no_home_and_no_dir_is_an_error_not_a_guess() {
         assert!(src(&[]).is_err());
+    }
+}
+
+#[cfg(test)]
+mod t3486_verdict_tests {
+    use super::*;
+    use termlink_session::agent_identity::Identity;
+
+    /// A message as `channel subscribe --with-signature` returns it, signed by `id`.
+    fn signed_msg(id: &Identity, topic: &str, msg_type: &str, payload: &[u8], ts: i64) -> Value {
+        let bytes = canonical_sign_bytes(topic, msg_type, payload, None, ts);
+        json!({
+            "offset": 0,
+            "topic": topic,
+            "sender_id": id.fingerprint(),
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload),
+            "artifact_ref": null,
+            "ts": ts,
+            "sender_pubkey_hex": id.public_key_hex(),
+            "signature_hex": id.sign_hex(&bytes),
+        })
+    }
+
+    #[test]
+    fn honest_signed_message_is_valid() {
+        let id = Identity::generate();
+        let m = signed_msg(&id, "t", "chat", b"hello", 7);
+        assert_eq!(signature_verdict(&m), "valid");
+    }
+
+    #[test]
+    fn tampered_payload_is_invalid() {
+        let id = Identity::generate();
+        let mut m = signed_msg(&id, "t", "chat", b"pay 10", 7);
+        m["payload_b64"] = json!(base64::engine::general_purpose::STANDARD.encode(b"pay 9999"));
+        assert_eq!(signature_verdict(&m), "INVALID (signature does not verify)");
+    }
+
+    #[test]
+    fn swapped_sender_id_is_invalid() {
+        let id = Identity::generate();
+        let other = Identity::generate();
+        let mut m = signed_msg(&id, "t", "chat", b"hi", 7);
+        m["sender_id"] = json!(other.fingerprint());
+        assert!(
+            signature_verdict(&m).starts_with("INVALID (sender_id"),
+            "got {}",
+            signature_verdict(&m)
+        );
+    }
+
+    #[test]
+    fn record_without_stored_signature_is_unsigned() {
+        let m = json!({"offset": 3, "topic": "t", "sender_id": "x", "msg_type": "n",
+                       "payload_b64": "", "artifact_ref": null, "ts": 1});
+        assert_eq!(signature_verdict(&m), "unsigned");
+    }
+
+    #[test]
+    fn malformed_key_is_invalid_not_unsigned() {
+        let id = Identity::generate();
+        let mut m = signed_msg(&id, "t", "chat", b"hi", 7);
+        m["sender_pubkey_hex"] = json!("not-hex");
+        assert!(signature_verdict(&m).starts_with("INVALID ("));
     }
 }

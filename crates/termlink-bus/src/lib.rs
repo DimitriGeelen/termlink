@@ -22,7 +22,7 @@ mod retention;
 pub use activity::{DEFAULT_FLAG_DAYS, ReaderActivity, TopicActivity, activity_flags};
 pub use artifact_store::{ArtifactStore, StreamingPutOutcome};
 pub use claim::{ClaimInfo, ClaimsSummary, IdleAgent, ReleaseInfo, TransferInfo};
-pub use envelope::Envelope;
+pub use envelope::{Envelope, EnvelopeSignature};
 pub use error::{BusError, Result};
 pub use limits::{
     CeilingAction, Ceilings, DEFAULT_MAX_LIVE_BYTES, DEFAULT_MAX_RECORDS, TopicStats, ceiling_action,
@@ -1400,6 +1400,7 @@ mod tests {
             artifact_ref: None,
             ts_unix_ms: 0,
             metadata: std::collections::BTreeMap::new(),
+            signature: None,
         }
     }
 
@@ -2590,6 +2591,7 @@ mod tests {
             artifact_ref: None,
             ts_unix_ms,
             metadata,
+            signature: None,
         }
     }
 

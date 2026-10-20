@@ -2769,6 +2769,19 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         include_current_value: bool,
 
+        /// T-3486: ask the hub for the poster's ed25519 signature on each message
+        /// (`sender_pubkey_hex` + `signature_hex`), when the hub stored one at
+        /// post time. Old records and hub-originated `hub:*` envelopes carry none.
+        #[arg(long)]
+        with_signature: bool,
+
+        /// T-3486: re-verify each message locally, without trusting the hub. Recomputes
+        /// the signed bytes, checks `sender_id` against the returned key, and verifies
+        /// strictly. Prints `valid`, `INVALID (<why>)` or `unsigned` per message. Implies
+        /// --with-signature. Metadata is not covered by the signature and is not checked.
+        #[arg(long)]
+        verify: bool,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,

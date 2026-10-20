@@ -9657,6 +9657,14 @@ pub struct ChannelSubscribeParams {
     /// false — preserves backward compatibility. Mirror of CLI flag
     /// `--include-current-value`.
     pub include_current_value: Option<bool>,
+    /// T-3486: when true, each message the hub stored with a verified poster
+    /// signature also carries `sender_pubkey_hex` + `signature_hex`, so the caller
+    /// can re-verify it without trusting the hub (recompute `canonical_sign_bytes`
+    /// over topic, msg_type, payload, artifact_ref and ts; verify strictly; check
+    /// `sender_id` is the key's fingerprint). Unsigned records omit the fields.
+    /// Default false, which leaves the response unchanged. Mirror of CLI
+    /// `--with-signature`.
+    pub with_signature: Option<bool>,
     /// T-3309: optional name for this reader (e.g. your agent id). The hub
     /// records per-reader last-fetch times so an operator can see who still
     /// reads a topic. Defaults to `TERMLINK_AGENT_ID` when that is set.
@@ -29357,6 +29365,12 @@ impl TermLinkTools {
             && let Some(obj) = params.as_object_mut()
         {
             obj.insert("include_current_value".to_string(), serde_json::json!(true));
+        }
+        // T-3486: pass the stored-signature request through to the hub.
+        if p.with_signature.unwrap_or(false)
+            && let Some(obj) = params.as_object_mut()
+        {
+            obj.insert("with_signature".to_string(), serde_json::json!(true));
         }
         // T-3309: per-reader activity on the hub.
         if let Some(r) = p
