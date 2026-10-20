@@ -107,6 +107,23 @@ All are reachable via MCP too (`termlink_{exec,inject,output,spawn,interact,run,
 signal,pty_mode,resize,list_sessions,…}`), so an agent controls sessions without
 shelling out.
 
+## 4a. Worker binding (T-3490)
+
+`termlink spawn` and `termlink register` accept `--worker-binding <dispatch_id>:<attempt>`
+(`dispatch_id` non-empty with no `:`, `attempt` a positive integer). The binding is
+stored in the registration and returned as `worker_binding: {dispatch_id, attempt}` by
+`list --json`, `discover --json` and the `session.discover` RPC; the key is absent when
+unset, and registrations written before the field existed still load.
+
+It is unique among **live** sessions: a second live registration with the same binding
+is refused with a message naming the holder, on the local file-registration path and on
+`session.register_remote` (`worker_binding` param). A binding held only by a dead
+registration does not block. `spawn` checks before launching, because the detached
+`register` inside the spawned shell has its output discarded.
+
+The session name is never parsed for the binding: a session named `tl-D-1-a1` registered
+without the flag has none. `tl-<dispatch>-a<attempt>` is a readable naming convention only.
+
 ## 5. The doorbell-wake path
 
 A session registered as *reachable* can be **doorbell-woken** — a peer's durable

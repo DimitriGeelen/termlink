@@ -66,6 +66,12 @@ pub(crate) enum Command {
         /// agents must present distinct envelope identities.
         #[arg(long, value_name = "PATH")]
         identity_key: Option<std::path::PathBuf>,
+
+        /// Worker binding `<dispatch_id>:<attempt>` (T-3490). Unique among
+        /// live sessions: registration is refused while another live session
+        /// holds the same binding. Returned by `list --json` / `discover --json`.
+        #[arg(long, value_name = "DISPATCH:ATTEMPT", conflicts_with = "self_mode")]
+        worker_binding: Option<String>,
     },
 
     /// List all registered sessions
@@ -839,6 +845,11 @@ pub(crate) enum Command {
         /// Output result as JSON (session_name, backend)
         #[arg(long)]
         json: bool,
+
+        /// Worker binding `<dispatch_id>:<attempt>` (T-3490), passed to the
+        /// spawned `register`. Refused up front if a live session holds it.
+        #[arg(long, value_name = "DISPATCH:ATTEMPT")]
+        worker_binding: Option<String>,
 
         /// Command to run in the spawned terminal (after --)
         #[arg(trailing_var_arg = true)]

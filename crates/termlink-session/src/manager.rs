@@ -5,7 +5,7 @@ use tokio::net::UnixListener;
 use crate::identity::SessionId;
 use crate::lifecycle::SessionState;
 use crate::liveness;
-use crate::registration::{Registration, SessionConfig};
+use crate::registration::{Registration, SessionConfig, WorkerBinding};
 
 /// Errors from session management operations.
 #[derive(Debug, thiserror::Error)]
@@ -21,6 +21,9 @@ pub enum SessionError {
 
     #[error("display name '{0}' already in use by {1}")]
     NameConflict(String, String),
+
+    #[error("worker binding '{0}' is already held by live session {1}")]
+    BindingConflict(String, String),
 }
 
 /// A running session with its registration and socket listener.
@@ -39,6 +42,24 @@ impl Session {
     /// Register a new session in a specific sessions directory.
     pub async fn register_in(
         config: SessionConfig,
+        sessions_dir: &Path,
+    ) -> Result<Self, SessionError> {
+        Self::register_bound_in(config, None, sessions_dir).await
+    }
+
+    /// Register in the default runtime directory with an optional worker
+    /// binding (T-3490). Refused while a LIVE session holds the same binding.
+    pub async fn register_bound(
+        config: SessionConfig,
+        binding: Option<WorkerBinding>,
+    ) -> Result<Self, SessionError> {
+        Self::register_bound_in(config, binding, &crate::discovery::sessions_dir()).await
+    }
+
+    /// Register in a specific sessions directory with an optional worker binding.
+    pub async fn register_bound_in(
+        config: SessionConfig,
+        binding: Option<WorkerBinding>,
         sessions_dir: &Path,
     ) -> Result<Self, SessionError> {
         let id = SessionId::generate();
@@ -78,6 +99,18 @@ impl Session {
             liveness::cleanup_stale(&existing, sessions_dir);
         }
 
+        // T-3490: a worker binding is unique among LIVE sessions. A dead
+        // holder does not block (its stale file is cleaned up). Same TOCTOU
+        // window as the display-name check above.
+        if let Some(ref b) = binding
+            && let Some(existing) = find_live_by_worker_binding_in(sessions_dir, b)?
+        {
+            return Err(SessionError::BindingConflict(
+                b.to_string(),
+                format!("{} ({})", existing.display_name, existing.id),
+            ));
+        }
+
         // Remove leftover socket file if it exists (e.g., from a crash)
         let _ = std::fs::remove_file(&socket_path);
 
@@ -87,6 +120,7 @@ impl Session {
         // Write registration (initially in Initializing state).
         // If the JSON write fails, clean up the socket to avoid leaking it.
         let mut registration = Registration::new(id.clone(), config, socket_path.clone());
+        registration.worker_binding = binding;
         if let Err(e) = registration.write_atomic(&json_path) {
             let _ = std::fs::remove_file(&socket_path);
             return Err(e.into());
@@ -418,6 +452,26 @@ pub fn clean_stale_sessions(
 }
 
 /// Find a session by display name in a specific directory.
+/// Find a LIVE session in `sessions_dir` holding `binding` (T-3490).
+/// Registrations of dead processes are ignored.
+pub fn find_live_by_worker_binding_in(
+    sessions_dir: &Path,
+    binding: &WorkerBinding,
+) -> Result<Option<Registration>, SessionError> {
+    Ok(list_sessions_in(sessions_dir, false)?
+        .into_iter()
+        .find(|r| r.worker_binding.as_ref() == Some(binding)))
+}
+
+/// Like [`find_live_by_worker_binding_in`] across every runtime sessions dir.
+pub fn find_live_by_worker_binding(
+    binding: &WorkerBinding,
+) -> Result<Option<Registration>, SessionError> {
+    Ok(list_sessions(false)?
+        .into_iter()
+        .find(|r| r.worker_binding.as_ref() == Some(binding)))
+}
+
 fn find_by_display_name(
     sessions_dir: &Path,
     name: &str,
@@ -739,6 +793,64 @@ mod tests {
         let sessions = list_sessions_in(&dir, true).unwrap();
         assert_eq!(sessions.len(), 2);
 
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn worker_binding_unique_among_live_sessions() {
+        let dir = unique_test_dir("binding-live");
+        let b = WorkerBinding::parse("disp:1").unwrap();
+        let first = Session::register_bound_in(
+            SessionConfig { display_name: Some("w1".into()), ..Default::default() },
+            Some(b.clone()),
+            &dir,
+        )
+        .await
+        .unwrap();
+        assert_eq!(first.registration.worker_binding.as_ref(), Some(&b));
+
+        let err = Session::register_bound_in(
+            SessionConfig { display_name: Some("w2".into()), ..Default::default() },
+            Some(b.clone()),
+            &dir,
+        )
+        .await
+        .err()
+        .expect("second live holder must be refused");
+        assert!(matches!(err, SessionError::BindingConflict(..)));
+        assert!(err.to_string().contains("w1"), "names holder: {err}");
+
+        // A different attempt is a different binding.
+        Session::register_bound_in(
+            SessionConfig { display_name: Some("w3".into()), ..Default::default() },
+            Some(WorkerBinding::parse("disp:2").unwrap()),
+            &dir,
+        )
+        .await
+        .unwrap();
+
+        let found = find_live_by_worker_binding_in(&dir, &b).unwrap().unwrap();
+        assert_eq!(found.display_name, "w1");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn worker_binding_dead_holder_does_not_block() {
+        let dir = unique_test_dir("binding-dead");
+        let b = WorkerBinding::parse("disp:7").unwrap();
+        let id = crate::identity::SessionId::generate();
+        let sock = dir.join(format!("{id}.sock"));
+        std::fs::write(&sock, b"fake").unwrap();
+        let mut dead = Registration::new(id.clone(), SessionConfig::default(), sock);
+        dead.pid = 4_000_000; // dead PID
+        dead.worker_binding = Some(b.clone());
+        dead.write_atomic(&dir.join(format!("{id}.json"))).unwrap();
+
+        assert!(find_live_by_worker_binding_in(&dir, &b).unwrap().is_none());
+        let s = Session::register_bound_in(SessionConfig::default(), Some(b.clone()), &dir)
+            .await
+            .unwrap();
+        assert_eq!(s.registration.worker_binding.as_ref(), Some(&b));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

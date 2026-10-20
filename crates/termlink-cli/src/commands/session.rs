@@ -8,7 +8,7 @@ use termlink_session::data_server;
 use termlink_session::handler::SessionContext;
 use termlink_session::manager;
 use termlink_session::pty::PtySession;
-use termlink_session::registration::SessionConfig;
+use termlink_session::registration::{Registration, SessionConfig};
 use termlink_session::server;
 
 use crate::util::{parse_signal, truncate};
@@ -125,6 +125,32 @@ pub(crate) struct ListFilterOpts<'a> {
     pub stale_binary: bool,
 }
 
+/// T-3490: add `worker_binding: {dispatch_id, attempt}` to a session's JSON
+/// when it declared one; the key is omitted otherwise.
+fn with_worker_binding(v: &mut serde_json::Value, reg: &Registration) {
+    if let Some(b) = &reg.worker_binding {
+        v["worker_binding"] = serde_json::json!(b);
+    }
+}
+
+/// Parse a `--worker-binding` value, exiting with a clear error (JSON-aware)
+/// before anything registers.
+pub(crate) fn parse_worker_binding_arg(
+    raw: Option<&str>,
+    json: bool,
+) -> Result<Option<termlink_session::registration::WorkerBinding>> {
+    match raw.map(termlink_session::registration::WorkerBinding::parse) {
+        None => Ok(None),
+        Some(Ok(b)) => Ok(Some(b)),
+        Some(Err(msg)) => {
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+            }
+            Err(anyhow::anyhow!(msg))
+        }
+    }
+}
+
 /// Options for session registration.
 pub(crate) struct RegisterOpts {
     pub name: Option<String>,
@@ -143,6 +169,8 @@ pub(crate) struct RegisterOpts {
     /// `Session::register` so registration metadata + downstream
     /// `channel.post` signing both pick it up.
     pub identity_key: Option<std::path::PathBuf>,
+    /// T-3490: explicit `<dispatch_id>:<attempt>` worker binding (raw flag value).
+    pub worker_binding: Option<String>,
 }
 
 /// T-2292: adopt a per-agent identity by DEFAULT when the session declares a
@@ -252,8 +280,11 @@ fn runtime_dir_mismatch_warning(
 }
 
 pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
-    let RegisterOpts { name, roles, tags, cap, shell, enable_token_secret, allowed_commands, json, quiet, identity_key } = opts;
+    let RegisterOpts { name, roles, tags, cap, shell, enable_token_secret, allowed_commands, json, quiet, identity_key, worker_binding } = opts;
     let verbose = !json && !quiet;
+
+    // T-3490: refuse a malformed binding before anything registers.
+    let worker_binding = parse_worker_binding_arg(worker_binding.as_deref(), json)?;
 
     // T-1700: bind per-agent identity BEFORE Session::register so the
     // fingerprint baked into SessionMetadata (registration.rs T-1436 path)
@@ -303,7 +334,7 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
         }
     }
 
-    let mut session = match termlink_session::Session::register(config).await {
+    let mut session = match termlink_session::Session::register_bound(config, worker_binding).await {
         Ok(s) => s,
         Err(e) => {
             if json {
@@ -726,7 +757,7 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
     if display.first {
         if let Some(s) = sessions.first() {
             if display.json {
-                println!("{}", serde_json::json!({
+                let mut v = serde_json::json!({
                     "ok": true,
                     "id": s.id.as_str(),
                     "display_name": s.display_name,
@@ -740,7 +771,9 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
                     "capabilities": s.capabilities,
                     "metadata": s.metadata,
                     "socket_path": s.socket_path().display().to_string(),
-                }));
+                });
+                with_worker_binding(&mut v, s);
+                println!("{v}");
             } else if display.ids {
                 println!("{}", s.id.as_str());
             } else {
@@ -785,7 +818,7 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
 
     if display.json {
         let items: Vec<serde_json::Value> = sessions.iter().map(|s| {
-            serde_json::json!({
+            let mut v = serde_json::json!({
                 "id": s.id.as_str(),
                 "display_name": s.display_name,
                 "state": s.state.to_string(),
@@ -799,7 +832,9 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
                 "capabilities": s.capabilities,
                 "metadata": s.metadata,
                 "socket_path": s.socket_path().display().to_string(),
-            })
+            });
+            with_worker_binding(&mut v, s);
+            v
         }).collect();
         let mut envelope = serde_json::json!({"ok": true, "sessions": items});
         if stale_binary {
@@ -1528,6 +1563,23 @@ mod tests {
         assert!(warn_v.is_none());
     }
 
+    #[test]
+    fn worker_binding_arg_parsing_and_json() {
+        assert!(parse_worker_binding_arg(None, false).unwrap().is_none());
+        let b = parse_worker_binding_arg(Some("D:3"), false).unwrap().unwrap();
+        assert_eq!((b.dispatch_id.as_str(), b.attempt), ("D", 3));
+        assert!(parse_worker_binding_arg(Some("D:0"), false).is_err());
+        assert!(parse_worker_binding_arg(Some("nope"), false).is_err());
+
+        let mut reg = test_reg("tl-D-3-a3", vec![], vec![], vec![]);
+        let mut v = serde_json::json!({});
+        with_worker_binding(&mut v, &reg);
+        assert!(v.get("worker_binding").is_none(), "absent when unset (name not parsed)");
+        reg.worker_binding = Some(b);
+        with_worker_binding(&mut v, &reg);
+        assert_eq!(v["worker_binding"], serde_json::json!({"dispatch_id": "D", "attempt": 3}));
+    }
+
     fn test_reg(name: &str, tags: Vec<&str>, roles: Vec<&str>, caps: Vec<&str>) -> Registration {
         Registration {
             version: 1,
@@ -1545,6 +1597,7 @@ mod tests {
             metadata: SessionMetadata::default(),
             token_secret: None,
             allowed_commands: None,
+            worker_binding: None,
         }
     }
 

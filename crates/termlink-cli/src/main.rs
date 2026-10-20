@@ -80,11 +80,11 @@ async fn main() -> Result<()> {
 
     match cli.command {
         // Session management
-        Command::Register { name, roles, tags, cap, shell, self_mode, token_secret, allowed_commands, json, quiet, identity_key } => {
+        Command::Register { name, roles, tags, cap, shell, self_mode, token_secret, allowed_commands, json, quiet, identity_key, worker_binding } => {
             if self_mode {
                 commands::session::cmd_register_self(name, roles, tags, cap, json, identity_key).await
             } else {
-                commands::session::cmd_register(commands::session::RegisterOpts { name, roles, tags, cap, shell, enable_token_secret: token_secret, allowed_commands, json, quiet, identity_key }).await
+                commands::session::cmd_register(commands::session::RegisterOpts { name, roles, tags, cap, shell, enable_token_secret: token_secret, allowed_commands, json, quiet, identity_key, worker_binding }).await
             }
         }
         Command::List { all, json, tag, name, role, cap, stale_binary, count, names, ids, first, wait, wait_timeout, no_header, sort } => {
@@ -278,8 +278,8 @@ async fn main() -> Result<()> {
         Command::Request { target, topic, payload, reply_topic, timeout, interval, json } => {
             commands::execution::cmd_request(&target, &topic, &payload, &reply_topic, timeout, interval, json).await
         }
-        Command::Spawn { name, roles, tags, cap, env_vars, wait, wait_timeout, shell, backend, json, command } => {
-            commands::execution::cmd_spawn(commands::execution::SpawnOpts { name, roles, tags, cap, env_vars, wait, wait_timeout, shell, backend, json, command }).await
+        Command::Spawn { name, roles, tags, cap, env_vars, wait, wait_timeout, shell, backend, json, worker_binding, command } => {
+            commands::execution::cmd_spawn(commands::execution::SpawnOpts { name, roles, tags, cap, env_vars, wait, wait_timeout, shell, backend, json, worker_binding, command }).await
         }
         Command::Dispatch { count, timeout, topic, name, roles, tags, cap, env_vars, backend, workdir, isolate, auto_merge, json, model, command } => {
             commands::dispatch::cmd_dispatch(commands::dispatch::DispatchOpts { count, timeout, topic, name_prefix: name, roles, tags, cap, env_vars, backend, workdir, isolate, auto_merge, json_output: json, command, model }).await

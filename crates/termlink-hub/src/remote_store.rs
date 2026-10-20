@@ -29,6 +29,8 @@ pub struct RemoteSessionInfo {
     /// Tier-B methods can return a structured `PROTOCOL_VERSION_TOO_OLD`
     /// instead of a raw serde parse failure when the session is too old.
     pub protocol_version: u8,
+    /// Explicit worker binding (T-3490); unique among live sessions.
+    pub worker_binding: Option<termlink_session::registration::WorkerBinding>,
 }
 
 /// A remote session entry stored in the hub's memory.
@@ -43,6 +45,7 @@ pub struct RemoteEntry {
     pub tags: Vec<String>,
     pub capabilities: Vec<String>,
     pub protocol_version: u8,
+    pub worker_binding: Option<termlink_session::registration::WorkerBinding>,
     pub state: String,
     pub registered_at: Instant,
     pub last_heartbeat: Instant,
@@ -57,7 +60,7 @@ impl RemoteEntry {
 
     /// Convert to JSON for discovery responses.
     pub fn to_json(&self) -> serde_json::Value {
-        json!({
+        let mut v = json!({
             "id": self.id,
             "display_name": self.display_name,
             "state": self.state,
@@ -72,7 +75,11 @@ impl RemoteEntry {
                 "port": self.port,
             },
             "remote": true,
-        })
+        });
+        if let Some(b) = &self.worker_binding {
+            v["worker_binding"] = json!(b);
+        }
+        v
     }
 }
 
@@ -98,7 +105,21 @@ impl RemoteStore {
     }
 
     /// Register a new remote session. Returns the assigned ID.
+    ///
+    /// Does not enforce worker-binding uniqueness; use [`Self::try_register`].
     pub fn register(&self, info: RemoteSessionInfo) -> String {
+        self.insert(info, false).expect("unenforced insert cannot conflict")
+    }
+
+    /// Register unless a LIVE remote session already holds the same worker
+    /// binding (T-3490). The check and insert share one write lock, so two
+    /// concurrent remote registrations cannot both win. `Err` carries the
+    /// holder's `(id, display_name)`.
+    pub fn try_register(&self, info: RemoteSessionInfo) -> Result<String, (String, String)> {
+        self.insert(info, true)
+    }
+
+    fn insert(&self, info: RemoteSessionInfo, enforce_binding: bool) -> Result<String, (String, String)> {
         let RemoteSessionInfo {
             display_name,
             host,
@@ -108,7 +129,17 @@ impl RemoteStore {
             tags,
             capabilities,
             protocol_version,
+            worker_binding,
         } = info;
+        let mut entries = self.entries.write().expect("remote store lock poisoned");
+        if enforce_binding
+            && let Some(b) = &worker_binding
+            && let Some(h) = entries
+                .values()
+                .find(|e| !e.is_expired() && e.worker_binding.as_ref() == Some(b))
+        {
+            return Err((h.id.clone(), h.display_name.clone()));
+        }
         let seq = self.next_id.fetch_add(1, Ordering::Relaxed);
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -126,13 +157,14 @@ impl RemoteStore {
             tags,
             capabilities,
             protocol_version,
+            worker_binding,
             state: "ready".to_string(),
             registered_at: now,
             last_heartbeat: now,
             ttl: DEFAULT_TTL,
         };
-        self.entries.write().expect("remote store lock poisoned").insert(id.clone(), entry);
-        id
+        entries.insert(id.clone(), entry);
+        Ok(id)
     }
 
     /// Refresh the heartbeat for a remote session. Returns true if found.
@@ -232,6 +264,7 @@ mod tests {
             tags,
             capabilities: caps,
             protocol_version: 1,
+            worker_binding: None,
         }
     }
 
@@ -249,6 +282,26 @@ mod tests {
         assert_eq!(entries[0].display_name, "worker-1");
         assert_eq!(entries[0].host, "192.168.1.50");
         assert_eq!(entries[0].port, 9001);
+    }
+
+    #[test]
+    fn try_register_refuses_second_live_binding() {
+        use termlink_session::registration::WorkerBinding;
+        let store = RemoteStore::new();
+        let b = WorkerBinding::parse("D:1").unwrap();
+        let mut a = info("a", "10.0.0.1", 1, None, vec![], vec![], vec![]);
+        a.worker_binding = Some(b.clone());
+        let first = store.try_register(a).unwrap();
+        let mut c = info("c", "10.0.0.2", 2, None, vec![], vec![], vec![]);
+        c.worker_binding = Some(b.clone());
+        let (holder_id, holder_name) = store.try_register(c).unwrap_err();
+        assert_eq!(holder_id, first);
+        assert_eq!(holder_name, "a");
+        // Once the holder deregisters (dead), the binding is free again.
+        assert!(store.deregister(&first));
+        let mut d = info("d", "10.0.0.3", 3, None, vec![], vec![], vec![]);
+        d.worker_binding = Some(b);
+        assert!(store.try_register(d).is_ok());
     }
 
     #[test]

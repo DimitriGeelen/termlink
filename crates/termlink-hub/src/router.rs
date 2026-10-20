@@ -210,6 +210,10 @@ async fn handle_discover(id: serde_json::Value, params: &serde_json::Value) -> R
                     if let Some(fp) = s.metadata.identity_fingerprint.as_deref() {
                         entry["identity_fingerprint"] = json!(fp);
                     }
+                    // T-3490: explicit worker binding; omitted when unset.
+                    if let Some(b) = &s.worker_binding {
+                        entry["worker_binding"] = json!(b);
+                    }
                     entry
                 })
                 .collect();
@@ -779,9 +783,40 @@ fn handle_register_remote(id: serde_json::Value, params: &serde_json::Value) -> 
         .map(|v| v as u8)
         .unwrap_or(1);
 
+    // T-3490: optional explicit worker binding {dispatch_id, attempt}.
+    let worker_binding = match params.get("worker_binding") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(v) => match serde_json::from_value::<termlink_session::registration::WorkerBinding>(v.clone()) {
+            Ok(b) if !b.dispatch_id.trim().is_empty() && !b.dispatch_id.contains(':') && b.attempt > 0 => Some(b),
+            _ => {
+                return ErrorResponse::new(
+                    id,
+                    -32602,
+                    "Invalid 'worker_binding': expected {dispatch_id (non-empty, no ':'), attempt (positive integer)}",
+                )
+                .into();
+            }
+        },
+    };
+    // Uniqueness among LIVE sessions: local file registrations here, remote
+    // entries atomically inside the store (`try_register`).
+    if let Some(b) = &worker_binding
+        && let Ok(Some(holder)) = manager::find_live_by_worker_binding(b)
+    {
+        return ErrorResponse::new(
+            id,
+            -32602,
+            &format!(
+                "worker binding '{b}' is already held by live session {} ({})",
+                holder.display_name, holder.id
+            ),
+        )
+        .into();
+    }
+
     let display_name_clone = display_name.clone();
     let host_clone = host.clone();
-    let session_id = store.register(crate::remote_store::RemoteSessionInfo {
+    let session_id = match store.try_register(crate::remote_store::RemoteSessionInfo {
         display_name,
         host,
         port,
@@ -790,7 +825,19 @@ fn handle_register_remote(id: serde_json::Value, params: &serde_json::Value) -> 
         tags,
         capabilities,
         protocol_version,
-    });
+        worker_binding: worker_binding.clone(),
+    }) {
+        Ok(id) => id,
+        Err((holder_id, holder_name)) => {
+            let b = worker_binding.expect("conflict implies a binding");
+            return ErrorResponse::new(
+                id,
+                -32602,
+                &format!("worker binding '{b}' is already held by live session {holder_name} ({holder_id})"),
+            )
+            .into();
+        }
+    };
     tracing::info!(id = %session_id, protocol_version, "Remote session registered");
 
     // T-966: Subscribe aggregator to this session's event bus
@@ -2782,6 +2829,7 @@ mod tests {
             tags: vec![],
             capabilities: vec![],
             protocol_version: 1,
+            worker_binding: None,
         });
 
         // Forward a ping to the remote session via the router
@@ -3602,6 +3650,57 @@ mod tests {
             }
             RpcResponse::Success(_) => panic!("Expected error for nonexistent session"),
         }
+    }
+
+    #[tokio::test]
+    async fn register_remote_worker_binding_unique_and_discovered() {
+        let _lock = ENV_LOCK.lock().await;
+        let _store = super::init_remote_store();
+        if let Some(s) = super::remote_store() { s.clear(); }
+
+        let params = |name: &str, binding: serde_json::Value| json!({
+            "display_name": name, "host": "10.9.9.9", "port": 9100, "worker_binding": binding,
+        });
+        let b = json!({"dispatch_id": "wb-test-disp", "attempt": 2});
+
+        let resp = super::handle_register_remote(json!(1), &params("holder", b.clone()));
+        let holder_id = match resp {
+            RpcResponse::Success(r) => r.result["id"].as_str().unwrap().to_string(),
+            _ => panic!("first registration should succeed"),
+        };
+
+        // Discover returns the binding.
+        if let RpcResponse::Success(r) = super::handle_discover(json!(2), &json!({})).await {
+            let s = r.result["sessions"].as_array().unwrap().iter()
+                .find(|s| s["id"] == holder_id).unwrap().clone();
+            assert_eq!(s["worker_binding"], b);
+        } else { panic!("discover failed"); }
+
+        // Second live holder refused, naming the first.
+        match super::handle_register_remote(json!(3), &params("second", b.clone())) {
+            RpcResponse::Error(e) => {
+                assert!(e.error.message.contains("already held"), "{}", e.error.message);
+                assert!(e.error.message.contains("holder"), "{}", e.error.message);
+            }
+            _ => panic!("second live holder must be refused"),
+        }
+
+        // Malformed bindings are refused.
+        for bad in [json!({"dispatch_id": "", "attempt": 1}), json!({"dispatch_id": "a:b", "attempt": 1}),
+                    json!({"dispatch_id": "a", "attempt": 0}), json!("a:1")] {
+            assert!(matches!(
+                super::handle_register_remote(json!(4), &params("bad", bad)),
+                RpcResponse::Error(_)
+            ));
+        }
+
+        // Freed after the holder goes away.
+        super::handle_deregister_remote(json!(5), &json!({"id": holder_id}));
+        assert!(matches!(
+            super::handle_register_remote(json!(6), &params("third", b)),
+            RpcResponse::Success(_)
+        ));
+        if let Some(s) = super::remote_store() { s.clear(); }
     }
 
     #[test]

@@ -114,6 +114,60 @@ pub struct Registration {
     /// When absent, all commands are allowed (backward compatible).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allowed_commands: Option<Vec<String>>,
+    /// Explicit worker binding `(dispatch_id, attempt)` set at spawn/register
+    /// (T-3490). Unique among LIVE sessions. Never derived from the session
+    /// name; absent for sessions that did not declare one and for
+    /// registrations written before this field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worker_binding: Option<WorkerBinding>,
+}
+
+/// Explicit worker binding: which dispatch attempt a session is serving.
+///
+/// Parsed from `--worker-binding <dispatch_id>:<attempt>`. The deterministic
+/// session name `tl-<dispatch>-a<attempt>` is a readable convention only and
+/// is never parsed to recover this.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct WorkerBinding {
+    pub dispatch_id: String,
+    pub attempt: u32,
+}
+
+impl WorkerBinding {
+    /// Parse `<dispatch_id>:<attempt>`. `dispatch_id` must be non-empty and
+    /// contain no `:`; `attempt` must be a positive integer.
+    pub fn parse(s: &str) -> Result<Self, String> {
+        let bad = |why: &str| {
+            format!("invalid worker binding '{s}': {why} (expected <dispatch_id>:<attempt>)")
+        };
+        let (dispatch_id, attempt) = s.split_once(':').ok_or_else(|| bad("missing ':'"))?;
+        if dispatch_id.trim().is_empty() {
+            return Err(bad("dispatch_id is empty"));
+        }
+        if attempt.contains(':') {
+            return Err(bad("dispatch_id must not contain ':'"));
+        }
+        let attempt: u32 = attempt
+            .parse()
+            .map_err(|_| bad("attempt must be a positive integer"))?;
+        if attempt == 0 {
+            return Err(bad("attempt must be a positive integer"));
+        }
+        Ok(Self { dispatch_id: dispatch_id.to_string(), attempt })
+    }
+}
+
+impl std::fmt::Display for WorkerBinding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.dispatch_id, self.attempt)
+    }
+}
+
+impl std::str::FromStr for WorkerBinding {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, String> {
+        Self::parse(s)
+    }
 }
 
 /// Wrapper that handles backward-compatible serialization of the transport address.
@@ -292,6 +346,7 @@ impl Registration {
             },
             token_secret: None,
             allowed_commands: None,
+            worker_binding: None,
         }
     }
 
@@ -838,6 +893,45 @@ mod tests {
 
         // State should not have changed
         assert_eq!(reg.state, SessionState::Initializing);
+    }
+
+    #[test]
+    fn worker_binding_parse_valid_and_invalid() {
+        let b = WorkerBinding::parse("disp-1:3").unwrap();
+        assert_eq!(b.dispatch_id, "disp-1");
+        assert_eq!(b.attempt, 3);
+        assert_eq!(b.to_string(), "disp-1:3");
+        for bad in ["", "nocolon", ":1", "d:", "d:0", "d:-1", "d:x", "a:b:1", "  :1"] {
+            assert!(WorkerBinding::parse(bad).is_err(), "should refuse {bad:?}");
+        }
+    }
+
+    #[test]
+    fn worker_binding_round_trips_and_old_files_load() {
+        let dir = tempdir();
+        let id = SessionId::generate();
+        let mut reg = Registration::new(id.clone(), SessionConfig::default(), dir.join("wb.sock"));
+        let path = dir.join(format!("{id}.json"));
+        reg.write_atomic(&path).unwrap();
+        // Unset: field absent from the file, loads back as None.
+        let raw = std::fs::read_to_string(&path).unwrap();
+        assert!(!raw.contains("worker_binding"));
+        assert!(Registration::read_from(&path).unwrap().worker_binding.is_none());
+
+        reg.worker_binding = Some(WorkerBinding::parse("D:2").unwrap());
+        reg.write_atomic(&path).unwrap();
+        let back = Registration::read_from(&path).unwrap();
+        assert_eq!(back.worker_binding, Some(WorkerBinding { dispatch_id: "D".into(), attempt: 2 }));
+    }
+
+    #[test]
+    fn session_name_is_never_parsed_for_binding() {
+        let reg = Registration::new(
+            SessionId::generate(),
+            SessionConfig { display_name: Some("tl-D-1-a1".into()), ..Default::default() },
+            PathBuf::from("/tmp/x.sock"),
+        );
+        assert!(reg.worker_binding.is_none());
     }
 
     fn tempdir() -> PathBuf {

@@ -329,6 +329,8 @@ pub(crate) struct SpawnOpts {
     pub shell: bool,
     pub backend: SpawnBackend,
     pub json: bool,
+    /// T-3490: raw `<dispatch_id>:<attempt>` flag value.
+    pub worker_binding: Option<String>,
     pub command: Vec<String>,
 }
 
@@ -438,12 +440,29 @@ pub(crate) fn spawn_terminal_state(
 }
 
 pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
-    let SpawnOpts { name, roles, tags, cap, env_vars, wait, wait_timeout, shell, backend, json, command } = opts;
+    let SpawnOpts { name, roles, tags, cap, env_vars, wait, wait_timeout, shell, backend, json, worker_binding, command } = opts;
     let session_name = name.clone().unwrap_or_else(|| {
         format!("spawn-{}", std::process::id())
     });
 
-    let shell_cmd = build_spawn_shell_cmd(&session_name, &roles, &tags, &cap, &env_vars, shell, &command)?;
+    // T-3490: validate and pre-check uniqueness BEFORE launching. The launched
+    // `register` runs detached with its output discarded, so a conflict found
+    // only there would be invisible to the caller.
+    let binding = super::session::parse_worker_binding_arg(worker_binding.as_deref(), json)?;
+    if let Some(b) = &binding
+        && let Ok(Some(holder)) = manager::find_live_by_worker_binding(b)
+    {
+        let msg = format!(
+            "worker binding '{b}' is already held by live session {} ({})",
+            holder.display_name, holder.id
+        );
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+
+    let shell_cmd = build_spawn_shell_cmd(&session_name, &roles, &tags, &cap, &env_vars, shell, &command, binding.as_ref())?;
 
     let resolved = resolve_spawn_backend(&backend);
     let spawn_result = match resolved {
@@ -551,6 +570,7 @@ fn build_spawn_shell_cmd(
     env_vars: &[String],
     shell: bool,
     command: &[String],
+    binding: Option<&termlink_session::registration::WorkerBinding>,
 ) -> Result<String> {
     let termlink_bin = std::env::current_exe()
         .context("Failed to determine termlink binary path")?;
@@ -575,6 +595,10 @@ fn build_spawn_shell_cmd(
     }
     if shell || command.is_empty() {
         register_args.push("--shell".to_string());
+    }
+    if let Some(b) = binding {
+        register_args.push("--worker-binding".to_string());
+        register_args.push(b.to_string());
     }
 
     // Build env prefix from runtime dir + user-supplied --env vars
@@ -872,7 +896,7 @@ mod tests {
 
     #[test]
     fn spawn_cmd_shell_only() {
-        let cmd = build_spawn_shell_cmd("demo", &[], &[], &[], &[], true, &[]).unwrap();
+        let cmd = build_spawn_shell_cmd("demo", &[], &[], &[], &[], true, &[], None).unwrap();
         // Should contain register with --name and --shell
         assert!(cmd.contains("register"), "should contain 'register': {cmd}");
         assert!(cmd.contains("--name"), "should contain '--name': {cmd}");
@@ -886,8 +910,7 @@ mod tests {
     fn spawn_cmd_with_command() {
         let cmd = build_spawn_shell_cmd(
             "worker-1", &[], &[], &[], &[], false,
-            &["echo".to_string(), "hello".to_string()],
-        ).unwrap();
+            &["echo".to_string(), "hello".to_string()], None).unwrap();
         // Should have background register + user command
         assert!(cmd.contains("TL_PID=$!"), "should background register: {cmd}");
         assert!(cmd.contains("echo hello"), "should contain user command: {cmd}");
@@ -906,11 +929,19 @@ mod tests {
     // the session is deregistered by design — see spawn_terminal_state.)
 
     #[test]
+    fn spawn_cmd_forwards_worker_binding_only_when_set() {
+        let b = termlink_session::registration::WorkerBinding::parse("D1:2").unwrap();
+        let with = build_spawn_shell_cmd("n", &[], &[], &[], &[], true, &[], Some(&b)).unwrap();
+        assert!(with.contains("--worker-binding D1:2"), "{with}");
+        let without = build_spawn_shell_cmd("tl-D1-a2", &[], &[], &[], &[], true, &[], None).unwrap();
+        assert!(!without.contains("--worker-binding"), "name must not imply a binding: {without}");
+    }
+
+    #[test]
     fn spawn_cmd_register_brackets_user_command() {
         let cmd = build_spawn_shell_cmd(
             "worker-2", &[], &[], &[], &[], false,
-            &["sleep".to_string(), "5".to_string()],
-        ).unwrap();
+            &["sleep".to_string(), "5".to_string()], None).unwrap();
         let reg = cmd.find("register").expect("register present");
         let bg = cmd.find("TL_PID=$!").expect("register backgrounded");
         let user = cmd.find("sleep 5").expect("user command present");
@@ -964,8 +995,7 @@ mod tests {
             &["execute".into()],
             &[],
             true,
-            &[],
-        ).unwrap();
+            &[], None).unwrap();
         assert!(cmd.contains("--roles"), "should contain '--roles': {cmd}");
         assert!(cmd.contains("compute,storage"), "should join roles: {cmd}");
         assert!(cmd.contains("--tags"), "should contain '--tags': {cmd}");
@@ -977,7 +1007,7 @@ mod tests {
     #[test]
     fn spawn_cmd_empty_command_gets_shell() {
         // When command is empty, --shell should be added automatically
-        let cmd = build_spawn_shell_cmd("test", &[], &[], &[], &[], false, &[]).unwrap();
+        let cmd = build_spawn_shell_cmd("test", &[], &[], &[], &[], false, &[], None).unwrap();
         assert!(cmd.contains("--shell"), "empty command should force --shell: {cmd}");
     }
 
@@ -986,15 +1016,14 @@ mod tests {
         // When command is provided and shell=false, --shell should NOT appear
         let cmd = build_spawn_shell_cmd(
             "test", &[], &[], &[], &[], false,
-            &["ls".to_string()],
-        ).unwrap();
+            &["ls".to_string()], None).unwrap();
         assert!(!cmd.contains("--shell"), "command mode should not have --shell: {cmd}");
     }
 
     #[test]
     fn spawn_cmd_with_env_vars() {
         let env = vec!["FOO=bar".to_string(), "BAZ=qux".to_string()];
-        let cmd = build_spawn_shell_cmd("test", &[], &[], &[], &env, false, &["echo".into()]).unwrap();
+        let cmd = build_spawn_shell_cmd("test", &[], &[], &[], &env, false, &["echo".into()], None).unwrap();
         assert!(cmd.contains("export FOO=bar"), "should export FOO: {cmd}");
         assert!(cmd.contains("export BAZ=qux"), "should export BAZ: {cmd}");
     }
