@@ -62,8 +62,8 @@ Third slice of the T-2026 GO. Blocked on T-3469. Pushes only to the remote the s
 ## Acceptance Criteria
 
 ### Agent
-- [ ] agent.publish implemented with the shape locked in T-3469, hub RPC + CLI verb + MCP tool (parity test)
-- [ ] A failed push returns a structured error and never reports published=true (tested with a refusing fake remote)
+- [ ] agent.publish implemented with the shape locked in T-3469 (design §2; IW-3 = B, ruled 2026-10-21): a CLI verb + MCP tool (parity test), NOT a hub RPC; pushes only `work/<hub8>/<claim_id>`; default `then=transfer`
+- [ ] The `--force-with-lease` fence is tested with a second pusher; a push refused by a fake remote returns `WORK_PUSH_REJECTED`, never reports published=true, and leaves the claim held
 - [ ] Each call posts a structured event to the per-agent audit topic
 
 ### Human

@@ -44,7 +44,7 @@ arc_id: arc-parallel-substrate
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T20:41:52Z
-last_update: 2026-10-19T13:04:03Z
+last_update: 2026-10-20T22:04:36Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,8 +83,8 @@ First slice of the T-2026 GO (operator, 2026-10-18: orchestration is the focus, 
 ### Agent
 - [x] Signatures for agent.checkout / agent.commit / agent.publish written down (params, return shape, error codes) and checked against the shipped claim API (claim, renew, release, claim-transfer): every scope handle is a real claim_id
 - [x] The intended consumer is named (which orchestrator calls these, from where), with one worked call sequence; an API with no named caller does not proceed to build
-- [ ] IW-3 presented to the operator as ONE decision brief: hub- vs spoke-owned worktrees, and the boundary with the standing rule that this repo's own sessions never use git worktrees; the ruling recorded in Decisions
-- [ ] T-3470 and T-3471 updated with the locked shape before either starts
+- [x] IW-3 presented to the operator as ONE decision brief: hub- vs spoke-owned worktrees, and the boundary with the standing rule that this repo's own sessions never use git worktrees; the ruling recorded in Decisions
+- [x] T-3470 and T-3471 updated with the locked shape before either starts
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -376,6 +376,29 @@ grep -q "policy/value-drivers.yaml" docs/reports/T-3469-iw3-decision-brief.md &&
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-21 — IW-3: who owns a dispatched worker's git checkout (operator ruling)
+- **Chose:** B, each worker owns its own clone per claim under `/var/lib/termlink/work/<hub8>/<claim_id>`,
+  refined by the operator's btrfs input (brief §6.1): on btrfs hosts the clone is a snapshot or reflink
+  copy of a per-repo template that is kept current; elsewhere it is a `git clone`. Operator: "ok as
+  recommended" (2026-10-21).
+- **Rule boundary recorded:** the no-worktree rule is unchanged for this repo's sessions. Worker clones are
+  not worktrees, live under `/var/lib/termlink/work`, and are only ever entered by a launcher that starts
+  the session there.
+- **Why:** it is the only option that works across hosts and keeps the rule intact. It fences pushes with
+  the claim lease and carries into containers unchanged. With copy-on-write it writes almost no data
+  (measured 72 KiB vs 122 MiB for a clone) and brings the untracked framework files and guards along.
+  Scored +55 vs A −19, C −13, D −19.
+- **Rejected:** A (the hub as a git server, useless across hosts without federation); C (reopens the
+  conditions behind the worktree incidents); D (the cost of waiting is open-ended, while B carries into
+  containers).
+- **Conditions:**
+  1. T-3470 and T-3471 prove B with the backlog-drain pair on two hosts, one unit each.
+  2. More than two parallel workers on a vendored-AEF repo wait for T-3476.
+  3. Containers (T-3477) move the clone inside the container.
+  4. Snapshot vs reflink to be chosen with 0909's experience (a snapshot forces a filesystem-wide commit).
+- **Also from the operator:** borrow git-ai concepts (CAS on land, verify-before-land, per-agent branch
+  tokens), not the software (brief §6.2).
 
 ## Decision
 

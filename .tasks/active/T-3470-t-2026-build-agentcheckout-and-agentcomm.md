@@ -62,7 +62,9 @@ Second slice of the T-2026 GO. Blocked on T-3469 (the shape it locks, and the IW
 ## Acceptance Criteria
 
 ### Agent
-- [ ] agent.checkout and agent.commit implemented with the shape locked in T-3469, hub RPC + CLI verb + MCP tool (parity test)
+- [ ] agent.checkout and agent.commit implemented with the shape locked in T-3469 (docs/reports/T-3469-agent-launch-surface-design.md §2; IW-3 = B, ruled 2026-10-21): a CLI verb + MCP tool (parity test), NOT a hub RPC; ownership checked with the shipped `channel.renew`
+- [ ] checkout creates the worker clone under `/var/lib/termlink/work/<hub8>/<claim_id>`: on btrfs a snapshot or reflink copy of a per-repo template kept current by fetch (choice per 0909's input), elsewhere `git clone --dissociate`; the guard bootstrap installs and verifies hooks and refuses fail-closed, tested with a missing hook
+- [ ] The commit-fails case keeps the claim (tested)
 - [ ] agent.commit refuses a scope that is not a live claim held by the caller (CLAIM_NOT_OWNED / CLAIM_NOT_FOUND), tested
 - [ ] Optional release-on-commit releases the named claim only after the commit exists, tested including the commit-fails case (claim kept)
 - [ ] Each call posts a structured event to the per-agent audit topic, with bounded retention
