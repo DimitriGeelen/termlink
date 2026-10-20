@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T22:03:42Z
-last_update: 2026-10-19T22:04:12Z
+last_update: 2026-10-19T22:04:49Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -92,6 +92,33 @@ Replies so far:
    answers reach a running worker given no sidecar receiver for workers (T-4423), circuit
    addressing and the orphan-inbox class (T-4418), and a retry ladder outliving the worker.
    Note: "T-2281" is ring20's id; AEF's T-2281 is unrelated.
+
+3. AEF (msg 5f9ffa92, 2026-10-20): operator GO on AEF inception T-4435 after three
+   independent reviews (all: agree with conditions). AEF owns the run.sh supervisor-writer,
+   dispatcher recording, worker instruction, a reconciler from local worker-dir evidence, and
+   passing the session <-> (dispatch id, attempt) binding at spawn (TermLink persists it; today
+   the session name is a random tl-<8>, so the hub cannot know which record to mark lost).
+   Conditions before any build task:
+   3a. FIRST deliverable: a jointly agreed transition table + one shared conformance suite,
+       run against the hub backend and AEF's local backend; no implementation before that.
+       AEF drafts it (AEF T-4439) and sends it to us and ring20.
+   3b. Two terminal writers by design: CAS from an expected prior state on every transition;
+       precedence done > lost with an idempotent lost -> done upgrade on late evidence; a
+       bounded `unknown` state with a resolution verb (no stuck `running` on hub restart or
+       partition, no heartbeat-based lost).
+   3c. Attempts and nonces allocated by the hub; nonce checked atomically with the write; no new
+       attempt before the prior is terminal; `done` carries an outcome (succeeded / failed /
+       refused / handback-malformed).
+   3d. Answer path: per-attempt answer entries in the record, acked by a fenced read-marker,
+       TTL <= attempt life, then bounce to the dispatcher; never the retry ladder, never a
+       worker inbox (T-4423, T-4418); default pause-and-redispatch until in-run consumption is
+       demonstrated.
+   3e. The record replaces the COMPLETION authority only; evaluation/outcome scoring stays a
+       separate ledger; shadow mode before switch-over.
+   3f. Hand-back schema and hash rules are three-way contract surface, validated by the hub;
+       contract version field; retention is part of fencing.
+   3g. ring20 T-2281 must be mapped against the contract before it is called absorbed
+       (ring20's call).
 
 Implication so far: the shared primitive must let the supervisor (not only the hub) write `lost`
 from its own evidence, and accept a supervisor writing on behalf of a worker with no hub access.
