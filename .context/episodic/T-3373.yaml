@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3373: Fixture for the external-reviewer ruling against upstream's verdict ledger (replaces retired T-3198 fixture)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T15:49:03Z
+# ============================================================================
+
+task_id: T-3373
+task_name: "Fixture for the external-reviewer ruling against upstream's verdict ledger (replaces retired T-3198 fixture)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-06T11:40:00Z
+completed: 2026-10-20T15:48:32Z
+duration_days: 14
+updates_count: 3
+first_commit: 2026-10-20T17:37:07+02:00
+last_commit: 2026-10-20T17:37:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  guard-layer fixture for the external-reviewer ruling against the verdict ledger
+
+# Key outcomes
+outcomes:
+  - '`tests/reviewer-verdict-ledger-fixtures.sh` (guard-layer member by naming convention) exercises the vendored `lib/verdict_ledger.py` / `apply_reviewer_verdicts` in a scratch project only, never the real `.context/` or `.tasks/`'
+  - 'Weighted to REFUSE cases: an unsigned or wrongly signed verdict, a verdict for another task, a FAIL verdict, a non-mechanical (operator-only / [REVIEW]) Human AC, and a task outside the low-risk class all leave the task open; plus one ALLOW case (signed external PASS closes a mechanical Human AC of a low-risk task), matching the operator ruling of 2026-09-28'
+  - 'At least one mutant shown: weakening a refuse check in a copy turns a case red'
+  - 'The old ''## Reviewer Verdict … Reviewer: external-dispatch'' blocks: a short note in the task Updates on whether any active task still relies on them (count, ids), without editing those tasks'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'guard-layer fixture for the external-reviewer ruling against the verdict ledger'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3373-fixture-for-the-external-reviewer-ruling.md'
+  - 'tests/reviewer-verdict-ledger-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T17:37:07'
+    action: 'T-3373: guard-layer fixture for the external-reviewer ruling against the verdict ledger'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 20408 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 20408
+  commits: 1
+  files_changed: 2
+  lines_added: 326
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3373-fixture-for-the-external-reviewer-ruling.md
+generated_by: context-agent-hybrid

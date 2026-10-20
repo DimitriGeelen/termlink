@@ -12,10 +12,10 @@ description: >
   old suite pinned. Also: existing '## Reviewer Verdict' blocks with 'Reviewer: external-dispatch'
   no longer close tasks (divergence-check note 2).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -46,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T11:40:00Z
-last_update: 2026-10-20T15:28:43Z
-date_finished:
+last_update: 2026-10-20T15:48:32Z
+date_finished: 2026-10-20T15:48:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -364,3 +364,20 @@ git diff --quiet HEAD -- .agentic-framework
   3. **"Low-risk class" is review_policy tiering:** a medium/high task is refused only because its rung (3/5) needs a signed review run. With a bound run the same verdict ticks. R7 pins the no-run refusal only.
   4. The real runtime path (`register_dispatch` → `start` → `complete`) is not exercised: `start`/`complete` refuse unless called from the canonical `run.sh` parent (`_runtime_fault`). Rows are signed directly with the ledger's own helpers (the same-user trust model the module documents).
 - **`## Reviewer Verdict … Reviewer: external-dispatch` blocks:** 0 active tasks rely on them. Only the retired T-3198 (completed) carried one; the only active file containing the string is this task, quoting it. Nothing under `.agentic-framework/` mentions `external-dispatch` or `external_reviewer`. The 27 active tasks with a `## Reviewer Verdict` heading carry the static-scan block (`Scan ID`/`Overall`), a different thing. No tasks edited.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5c2b7caa
+- **Timestamp:** 2026-10-20T15:48:53Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `tests/reviewer-verdict-ledger-fixtures.sh` (guard-layer member by naming convention) exercises the vendored `lib/verdict_ledger.py` / `apply_reviewer_verdicts` in a scratch project only, never the re
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/verdict_ledger.py in: `tests/reviewer-verdict-ledger-fixtures.sh` (guard-layer member by naming convention) exercises the vendored `lib/verdict_ledger.py` / `apply_reviewer`
+
+### 2026-10-20T15:48:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
