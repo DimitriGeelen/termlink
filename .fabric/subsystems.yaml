@@ -2,6 +2,14 @@
 # Defines the high-level architecture for fabric overview and onboarding
 
 subsystems:
+  - id: doctor
+    name: doctor
+    description: "One doctor check list shared by the CLI and MCP surfaces (T-3214, SQ-8 option 1b)"
+    root: crates/termlink-doctor/
+    depends_on: [session]
+    paths:
+      - crates/termlink-doctor/*
+
   - id: protocol
     name: protocol
     description: "Wire protocol definitions — JSON-RPC 2.0 control plane + binary data plane frames"

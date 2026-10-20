@@ -1,0 +1,21 @@
+id: crates/termlink-doctor/src/manifest.rs
+name: manifest
+type: script
+subsystem: doctor
+location: crates/termlink-doctor/src/manifest.rs
+tags: []
+
+purpose: "Dispatch manifest data model (.termlink/dispatch-manifest.json), the lifecycle record of every termlink dispatch --isolate branch; shared so the doctor reads it through one parser."
+purpose_source: header-comment  # T-3214: copied by hand from the //! header; fabric describe.py has no .rs reader (filed upstream)
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-20
+created_by: unknown
