@@ -4,7 +4,7 @@ name: "hub start unlinks a live hub's socket before binding TCP (ring20-dashboar
 description: >
   server.rs:264 removes hub.sock unconditionally after only the pidfile check, then fails TCP 9100 and exits, leaving a dead socket and wrong pidfile; local clients get ECONNREFUSED while TCP works. Fix: connect-probe before unlink, bind TCP first, never unlink a socket not created; hub notices its socket inode replaced; hub-health probes the unix socket. Reporter: ring20-dashboard, inbox:1389a831016c4bf1/ring20-dashboard, cid t2459-hub-socket-clobber.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: next
@@ -40,14 +40,19 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Both start paths (`run_with_tcp`, used by `termlink hub start`, and `run_blocking`) now share
+`prepare_start` in `crates/termlink-hub/src/server.rs`: connect-probe the socket, read-only pidfile
+check, bind TCP, load secret + TLS, and only then take the pidfile and swap in the new socket
+(bound at `hub.sock.new`, renamed over). Builds on T-3340's pidfile/one-hub-per-user checks.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `hub start` never unlinks a hub.sock that a live hub answers on: it connect-probes first and refuses with a message naming the live hub
+- [x] A start that fails (e.g. TCP port in use) leaves no dead socket and no wrong pidfile behind: it binds TCP before replacing the unix socket, and only removes a socket it created itself
+- [x] Regression tests in a temp runtime dir (never the real one, T-3293): live-hub socket survives a second start; failed TCP bind leaves the previous socket and pidfile untouched; a stale (unanswered) socket is still replaced
+- [x] `cargo test -p termlink-hub` and `-p termlink` pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -171,6 +176,10 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-hub --lib -- start_refuses_when_live_hub_answers_on_socket failed_tcp_bind_leaves_socket_and_pidfile_untouched stale_unanswered_socket_is_replaced > /tmp/.t3367-reg 2>&1 && grep -q "3 passed" /tmp/.t3367-reg
+cargo test -p termlink-hub > /tmp/.t3367-hub 2>&1 && grep -q "test result: ok" /tmp/.t3367-hub
+cargo test -p termlink > /tmp/.t3367-cli 2>&1 && grep -q "test result: ok" /tmp/.t3367-cli
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -186,6 +195,22 @@ date_finished: null
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** on .122 a second `hub start` exited on "Failed to bind TCP 9100" but left hub.sock
+dead and hub.pid naming the exited process; local clients got ECONNREFUSED while the live hub
+still served TCP.
+
+**Root cause:** start trusted the pidfile as the only liveness proof, then unconditionally
+unlinked hub.sock and bound the unix socket BEFORE binding TCP. Any start that got past a wrong
+pidfile destroyed the live hub's socket, and a later failure had no rollback. Shutdown also
+removed whatever socket sat at the path, not the one it created.
+
+**Why structurally allowed:** no test ever drove the start prefix (tests build listeners by hand
+and call `run_accept_loop`), so the order of destructive steps was never pinned.
+
+**Prevention:** three regression tests over `prepare_start` in a temp runtime dir (live socket
+survives, failed TCP bind leaves socket and pidfile untouched, stale socket replaced). Mutant
+check: stubbing out the connect probe turns the live-hub test red.
 
 ## Evolution
 
@@ -267,3 +292,8 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3367-hub-start-unlinks-a-live-hubs-socket-bef.md
 - **Context:** Initial task creation
+
+### 2026-10-20 — fix + regression tests [w-hub-sock]
+- `prepare_start` / `claim_runtime` / `ensure_no_live_hub` in `crates/termlink-hub/src/server.rs`; both start paths use them. Shutdown now removes hub.sock only if its dev/inode is still the one this hub created.
+- Tests: `cargo test -p termlink-hub` 542 lib passed; `cargo test -p termlink` all suites green.
+- Not done (from the description, not in the ACs): a running hub noticing that its socket inode was replaced, and hub-health probing the unix socket. Candidates for a follow-up task.

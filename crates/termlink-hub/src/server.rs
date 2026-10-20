@@ -221,6 +221,167 @@ fn generate_and_write_hub_secret() -> std::io::Result<String> {
     Ok(secret_hex)
 }
 
+/// T-3367: refuse to start while a live hub answers on `socket_path`.
+///
+/// The pidfile alone is not proof: it can name a dead or reused PID while the
+/// hub that owns the socket is alive (a failed start used to overwrite it). So
+/// connect to the socket. A connection that succeeds, or does not complete
+/// within 2s, means a live hub owns it; refused or absent means stale or none.
+pub async fn ensure_no_live_hub(socket_path: &Path) -> std::io::Result<()> {
+    let connect = tokio::net::UnixStream::connect(socket_path);
+    let pid = match tokio::time::timeout(std::time::Duration::from_secs(2), connect).await {
+        Ok(Ok(stream)) => stream.peer_cred().ok().and_then(|c| c.pid()),
+        Ok(Err(_)) => return Ok(()),
+        Err(_) => None,
+    };
+    let who = match pid {
+        Some(p) => format!("PID {p}"),
+        None => "PID unknown".to_string(),
+    };
+    Err(std::io::Error::new(
+        std::io::ErrorKind::AddrInUse,
+        format!(
+            "A live hub ({who}) is answering on {}; refusing to replace its socket. \
+             Use 'termlink hub stop' to stop it first.",
+            socket_path.display()
+        ),
+    ))
+}
+
+/// T-3367: identity of the socket file this hub created, so shutdown removes
+/// only its own socket and never one a later start put at the same path.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct SocketId {
+    dev: u64,
+    ino: u64,
+}
+
+fn socket_identity(path: &Path) -> Option<SocketId> {
+    use std::os::unix::fs::MetadataExt;
+    std::fs::symlink_metadata(path)
+        .ok()
+        .map(|m| SocketId { dev: m.dev(), ino: m.ino() })
+}
+
+/// T-3367: take the pidfile and the unix socket, last, after everything that
+/// can fail has succeeded. The new socket is bound at `<socket>.new` and renamed
+/// over the old path, so a socket at `socket_path` is replaced only once ours
+/// is listening. On failure the pidfile is put back as it was and only the
+/// `.new` socket we bound is removed.
+fn claim_runtime(
+    socket_path: &Path,
+    pidfile_path: &Path,
+) -> std::io::Result<(UnixListener, Option<SocketId>)> {
+    let prev_pidfile = std::fs::read_to_string(pidfile_path).ok();
+    pidfile::acquire(pidfile_path).map_err(|e| {
+        std::io::Error::new(std::io::ErrorKind::AddrInUse, e.to_string())
+    })?;
+    let restore_pidfile = || match &prev_pidfile {
+        Some(prev) => {
+            let _ = std::fs::write(pidfile_path, prev);
+        }
+        None => pidfile::remove(pidfile_path),
+    };
+
+    let mut tmp = socket_path.as_os_str().to_owned();
+    tmp.push(".new");
+    let tmp = PathBuf::from(tmp);
+
+    let bound = (|| {
+        // A leftover `.new` is from an earlier start of ours that died mid-way.
+        let _ = std::fs::remove_file(&tmp);
+        let listener = UnixListener::bind(&tmp)?;
+        if let Err(e) = std::fs::rename(&tmp, socket_path) {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(e);
+        }
+        Ok(listener)
+    })();
+
+    match bound {
+        Ok(listener) => Ok((listener, socket_identity(socket_path))),
+        Err(e) => {
+            restore_pidfile();
+            Err(e)
+        }
+    }
+}
+
+/// T-3367: shared start prefix for [`run_with_tcp`] and [`run_blocking`].
+///
+/// Order matters. Nothing in the runtime dir is touched until every step that
+/// can fail has passed: probe the socket for a live hub, check the pidfile,
+/// bind TCP, load the secret and TLS cert, and only then take the pidfile and
+/// replace the socket. A start that fails (e.g. TCP port in use) leaves the
+/// previous socket and pidfile exactly as they were.
+async fn prepare_start(
+    socket_path: &Path,
+    pidfile_path: &Path,
+    tcp_addr: Option<&str>,
+) -> std::io::Result<PreparedStart> {
+    ensure_no_live_hub(socket_path).await?;
+    if let pidfile::PidfileStatus::Running(pid) = pidfile::check(pidfile_path) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::AddrInUse,
+            pidfile::AcquireError::AlreadyRunning(pid).to_string(),
+        ));
+    }
+
+    // Ensure parent directory exists (creating a directory disturbs nothing).
+    if let Some(parent) = socket_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let (tcp_listener, token_secret, tls_acceptor) = if let Some(addr) = tcp_addr {
+        let listener = TcpListener::bind(addr).await.map_err(|e| {
+            std::io::Error::new(e.kind(), format!("Failed to bind TCP {}: {}", addr, e))
+        })?;
+        let secret = generate_and_write_hub_secret()?;
+        let acceptor = tls::load_or_generate_cert()?;
+        (Some(listener), Some(secret), Some(acceptor))
+    } else {
+        (None, None, None)
+    };
+
+    let (unix_listener, socket_id) = claim_runtime(socket_path, pidfile_path)?;
+    tracing::info!(path = %socket_path.display(), "Hub listening on Unix");
+
+    let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
+    if let Some(listener) = &tcp_listener {
+        let local_addr = listener.local_addr()?;
+        tracing::info!(%local_addr, "Hub listening on TCP (TLS)");
+        // T-1026: Record TCP address for hub restart (server-side, covers all start paths)
+        // T-2674: non-fatal but NOT silent (Directive #2). A failed write (read-only
+        // runtime_dir / disk full / perms) leaves the hub serving while advertising no
+        // address; without this warn the operator sees only the reassuring "Hub
+        // listening" line above and the discovery-flag loss is invisible.
+        if let Err(e) = std::fs::write(&tcp_flag, local_addr.to_string()) {
+            tracing::warn!(path = %tcp_flag.display(), error = %e,
+                "Failed to write hub.tcp discovery flag — hub is serving but its TCP address is unrecorded; restart re-bind and address-file discovery will not find it");
+        }
+    } else {
+        // T-1026: Remove stale hub.tcp if starting without TCP
+        // T-2674: NotFound is the normal no-prior-flag start; warn only on a real error
+        // (a failed removal silently leaves a DEAD endpoint advertised to consumers).
+        if let Err(e) = std::fs::remove_file(&tcp_flag)
+            && e.kind() != std::io::ErrorKind::NotFound
+        {
+            tracing::warn!(path = %tcp_flag.display(), error = %e,
+                "Failed to remove stale hub.tcp discovery flag — a dead TCP address may remain advertised to discovery consumers");
+        }
+    }
+
+    Ok(PreparedStart { unix_listener, socket_id, tcp_listener, tls_acceptor, token_secret })
+}
+
+struct PreparedStart {
+    unix_listener: UnixListener,
+    socket_id: Option<SocketId>,
+    tcp_listener: Option<TcpListener>,
+    tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
+    token_secret: Option<String>,
+}
+
 /// Start the hub server, binding to the given socket path.
 ///
 /// Returns a [`ShutdownHandle`] that can be used to trigger graceful shutdown.
@@ -251,63 +412,10 @@ pub async fn run_with_tcp(
 
     let pidfile_path = pidfile::hub_pidfile_path();
 
-    // Acquire pidfile (prevents double-start, cleans stale)
-    pidfile::acquire(&pidfile_path).map_err(|e| {
-        std::io::Error::new(std::io::ErrorKind::AddrInUse, e.to_string())
-    })?;
-
-    // Ensure parent directory exists
-    if let Some(parent) = socket_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    // Remove stale socket file
-    let _ = std::fs::remove_file(socket_path);
-
-    let unix_listener = UnixListener::bind(socket_path)?;
-    tracing::info!(path = %socket_path.display(), "Hub listening on Unix");
-
-    // Generate hub secret when TCP is enabled
-    let token_secret = if tcp_addr.is_some() {
-        Some(generate_and_write_hub_secret()?)
-    } else {
-        None
-    };
-
-    // Optional TCP listener with TLS
-    let (tcp_listener, tls_acceptor) = if let Some(addr) = tcp_addr {
-        let listener = TcpListener::bind(addr).await.map_err(|e| {
-            std::io::Error::new(e.kind(), format!("Failed to bind TCP {}: {}", addr, e))
-        })?;
-        let local_addr = listener.local_addr()?;
-        tracing::info!(%local_addr, "Hub listening on TCP (TLS)");
-
-        // T-1026: Record TCP address for hub restart (server-side, covers all start paths)
-        let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
-        // T-2674: non-fatal but NOT silent (Directive #2). A failed write (read-only
-        // runtime_dir / disk full / perms) leaves the hub serving while advertising no
-        // address; without this warn the operator sees only the reassuring "Hub
-        // listening" line above and the discovery-flag loss is invisible.
-        if let Err(e) = std::fs::write(&tcp_flag, local_addr.to_string()) {
-            tracing::warn!(path = %tcp_flag.display(), error = %e,
-                "Failed to write hub.tcp discovery flag — hub is serving but its TCP address is unrecorded; restart re-bind and address-file discovery will not find it");
-        }
-
-        let acceptor = tls::load_or_generate_cert()?;
-        (Some(listener), Some(acceptor))
-    } else {
-        // T-1026: Remove stale hub.tcp if starting without TCP
-        let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
-        // T-2674: NotFound is the normal no-prior-flag start; warn only on a real error
-        // (a failed removal silently leaves a DEAD endpoint advertised to consumers).
-        if let Err(e) = std::fs::remove_file(&tcp_flag)
-            && e.kind() != std::io::ErrorKind::NotFound
-        {
-            tracing::warn!(path = %tcp_flag.display(), error = %e,
-                "Failed to remove stale hub.tcp discovery flag — a dead TCP address may remain advertised to discovery consumers");
-        }
-        (None, None)
-    };
+    // T-3367: probe, bind TCP and load credentials before touching the pidfile
+    // or the socket, so a failed start leaves a running hub's files intact.
+    let PreparedStart { unix_listener, socket_id, tcp_listener, tls_acceptor, token_secret } =
+        prepare_start(socket_path, &pidfile_path, tcp_addr).await?;
 
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let handle = ShutdownHandle { tx: shutdown_tx };
@@ -399,7 +507,13 @@ pub async fn run_with_tcp(
         // Cleanup on exit. Secret file is intentionally preserved (T-933:
         // persist-if-present) so cross-host agents don't need to
         // re-distribute credentials on every hub restart.
-        let _ = std::fs::remove_file(&socket_path_owned);
+        // T-3367: remove the socket only if it is still the one we created.
+        if socket_id.is_some() && socket_identity(&socket_path_owned) == socket_id {
+            let _ = std::fs::remove_file(&socket_path_owned);
+        } else {
+            tracing::warn!(path = %socket_path_owned.display(),
+                "Hub socket was replaced since start; leaving it in place");
+        }
         // T-1026: Remove hub.tcp so non-TCP restart doesn't inherit stale config
         let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
         // T-2674: NotFound is expected (may already be gone); warn only on a real error
@@ -427,57 +541,9 @@ pub async fn run_with_tcp(
 pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io::Result<()> {
     let pidfile_path = pidfile::hub_pidfile_path();
 
-    // Acquire pidfile (prevents double-start, cleans stale)
-    pidfile::acquire(&pidfile_path).map_err(|e| {
-        std::io::Error::new(std::io::ErrorKind::AddrInUse, e.to_string())
-    })?;
-
-    // Ensure parent directory exists
-    if let Some(parent) = socket_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    // Remove stale socket file
-    let _ = std::fs::remove_file(socket_path);
-
-    let unix_listener = UnixListener::bind(socket_path)?;
-    tracing::info!(path = %socket_path.display(), "Hub listening on Unix");
-
-    // Generate hub secret when TCP is enabled
-    let token_secret = if tcp_addr.is_some() {
-        Some(generate_and_write_hub_secret()?)
-    } else {
-        None
-    };
-
-    let (tcp_listener, tls_acceptor) = if let Some(addr) = tcp_addr {
-        let listener = TcpListener::bind(addr).await.map_err(|e| {
-            std::io::Error::new(e.kind(), format!("Failed to bind TCP {}: {}", addr, e))
-        })?;
-        let local_addr = listener.local_addr()?;
-        tracing::info!(%local_addr, "Hub listening on TCP (TLS)");
-
-        // T-1026: Record TCP address for hub restart
-        let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
-        // T-2674: non-fatal but NOT silent (Directive #2) — see the run_with_tcp twin.
-        if let Err(e) = std::fs::write(&tcp_flag, local_addr.to_string()) {
-            tracing::warn!(path = %tcp_flag.display(), error = %e,
-                "Failed to write hub.tcp discovery flag — hub is serving but its TCP address is unrecorded; restart re-bind and address-file discovery will not find it");
-        }
-
-        let acceptor = tls::load_or_generate_cert()?;
-        (Some(listener), Some(acceptor))
-    } else {
-        let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
-        // T-2674: NotFound is the normal no-prior-flag start; warn only on a real error.
-        if let Err(e) = std::fs::remove_file(&tcp_flag)
-            && e.kind() != std::io::ErrorKind::NotFound
-        {
-            tracing::warn!(path = %tcp_flag.display(), error = %e,
-                "Failed to remove stale hub.tcp discovery flag — a dead TCP address may remain advertised to discovery consumers");
-        }
-        (None, None)
-    };
+    // T-3367: same safe start order as `run_with_tcp`.
+    let PreparedStart { unix_listener, socket_id: _, tcp_listener, tls_acceptor, token_secret } =
+        prepare_start(socket_path, &pidfile_path, tcp_addr).await?;
 
     // T-2048: Governors (idempotent — no-op if `run_with_tcp` already
     // installed them, e.g. tests that spin up both shapes).
@@ -3825,5 +3891,104 @@ mod tests {
                 unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", v) };
             }
         }
+    }
+
+    // ── T-3367: hub start must not clobber a live hub's socket or pidfile ──
+    // All three run against a temp runtime dir (T-3293), never the real one.
+
+    /// Run `f` with TERMLINK_RUNTIME_DIR pointed at a fresh temp dir holding a
+    /// pidfile that names a dead PID (the "wrong pidfile" a failed start used to
+    /// leave). Restores the env afterwards.
+    async fn with_temp_runtime<F, Fut>(f: F)
+    where
+        F: FnOnce(PathBuf) -> Fut,
+        Fut: std::future::Future<Output = ()>,
+    {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let prev_rt = std::env::var("TERMLINK_RUNTIME_DIR").ok();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+        f(dir.clone()).await;
+        unsafe {
+            match prev_rt {
+                Some(v) => std::env::set_var("TERMLINK_RUNTIME_DIR", v),
+                None => std::env::remove_var("TERMLINK_RUNTIME_DIR"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    const DEAD_PID: &str = "4194303";
+
+    #[tokio::test]
+    async fn start_refuses_when_live_hub_answers_on_socket() {
+        with_temp_runtime(|dir| async move {
+            let sock = hub_sock(&dir);
+            let pidfile = dir.join("hub.pid");
+            // A live hub whose pidfile was clobbered: the pidfile check passes.
+            let _live = UnixListener::bind(&sock).unwrap();
+            std::fs::write(&pidfile, DEAD_PID).unwrap();
+            let before = socket_identity(&sock);
+
+            let err = match prepare_start(&sock, &pidfile, None).await {
+                Ok(_) => panic!("start must refuse while a live hub answers on the socket"),
+                Err(e) => e,
+            };
+            assert_eq!(err.kind(), std::io::ErrorKind::AddrInUse);
+            assert!(err.to_string().contains("live hub"), "message: {err}");
+            assert!(err.to_string().contains(&format!("PID {}", std::process::id())), "message: {err}");
+            assert!(before.is_some() && socket_identity(&sock) == before, "live socket was replaced");
+            assert!(tokio::net::UnixStream::connect(&sock).await.is_ok(), "live hub no longer reachable");
+            assert_eq!(std::fs::read_to_string(&pidfile).unwrap(), DEAD_PID, "pidfile was rewritten");
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn failed_tcp_bind_leaves_socket_and_pidfile_untouched() {
+        with_temp_runtime(|dir| async move {
+            let sock = hub_sock(&dir);
+            let pidfile = dir.join("hub.pid");
+            // Stale socket (nobody listening) and stale pidfile.
+            drop(std::os::unix::net::UnixListener::bind(&sock).unwrap());
+            std::fs::write(&pidfile, DEAD_PID).unwrap();
+            let before = socket_identity(&sock);
+            // Something else holds the TCP port.
+            let busy = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let addr = busy.local_addr().unwrap().to_string();
+
+            let err = match prepare_start(&sock, &pidfile, Some(&addr)).await {
+                Ok(_) => panic!("start must fail when the TCP port is taken"),
+                Err(e) => e,
+            };
+            assert!(err.to_string().contains("Failed to bind TCP"), "message: {err}");
+            assert!(before.is_some() && socket_identity(&sock) == before, "socket was replaced by a failed start");
+            assert_eq!(std::fs::read_to_string(&pidfile).unwrap(), DEAD_PID, "pidfile was rewritten by a failed start");
+            assert!(!dir.join("hub.sock.new").exists(), "temp socket left behind");
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn stale_unanswered_socket_is_replaced() {
+        with_temp_runtime(|dir| async move {
+            let sock = hub_sock(&dir);
+            let pidfile = dir.join("hub.pid");
+            drop(std::os::unix::net::UnixListener::bind(&sock).unwrap());
+            std::fs::write(&pidfile, DEAD_PID).unwrap();
+            let before = socket_identity(&sock);
+
+            let prepared = prepare_start(&sock, &pidfile, None).await.expect("stale socket must be replaced");
+            assert!(socket_identity(&sock) != before, "stale socket was not replaced");
+            assert_eq!(prepared.socket_id, socket_identity(&sock));
+            assert!(tokio::net::UnixStream::connect(&sock).await.is_ok(), "new socket not listening");
+            assert_eq!(
+                std::fs::read_to_string(&pidfile).unwrap(),
+                std::process::id().to_string(),
+                "pidfile must name the new hub"
+            );
+            assert!(!dir.join("hub.sock.new").exists(), "temp socket left behind");
+        })
+        .await;
     }
 }
