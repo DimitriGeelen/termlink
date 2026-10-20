@@ -1005,102 +1005,10 @@ pub(crate) fn prefer_presence_fp(
     presence_fp.or(reg_fp)
 }
 
-/// T-2385 (comms loud-contract, Slice 1): structured reachability preflight for
-/// an `agent contact` recipient, computed from the recipient's authoritative
-/// `agent-presence` heartbeat. Turns the silent "offset-N to a peer nobody will
-/// read" failure into a per-link report the caller can surface loud.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ReachabilityReport {
-    /// Recipient has a LIVE agent-presence heartbeat (not STALE/OFFLINE/absent).
-    pub recipient_live: bool,
-    /// Recipient looks agent-backed (heartbeating with a role and/or a bound
-    /// PTY) rather than a bare `termlink register --shell` (which emits no
-    /// presence at all → the absent arm).
-    pub recipient_agent_backed: bool,
-    /// Recipient's be-reachable heartbeat carries a bound PTY (`pty_session`), so
-    /// its push-waker can inject a doorbell. `false` → the DM lands durably but
-    /// the peer is NOT push-woken (it queues until they run `/check-arc`).
-    pub waker_running: bool,
-    /// `LIVE` / `STALE` / `OFFLINE` / `ABSENT`.
-    pub presence_status: &'static str,
-    /// One-line human diagnosis of the first broken link; `None` when all green.
-    pub diagnosis: Option<String>,
-}
-
-impl ReachabilityReport {
-    pub fn to_json(&self) -> serde_json::Value {
-        serde_json::json!({
-            "recipient_live": self.recipient_live,
-            "recipient_agent_backed": self.recipient_agent_backed,
-            "waker_running": self.waker_running,
-            "presence_status": self.presence_status,
-            "diagnosis": self.diagnosis,
-        })
-    }
-    /// True when any delivery link the recipient controls is broken — the gate
-    /// for the loud human WARNING (and, with `--require-reachable`, the hard
-    /// fail on `!recipient_live`).
-    pub fn any_link_broken(&self) -> bool {
-        !self.recipient_live || !self.waker_running
-    }
-}
-
-/// T-2385: pure classifier — recipient's presence heartbeat → per-link report.
-/// `None` means no heartbeat matched the recipient (not `/be-reachable`, or on a
-/// different hub). Kept pure (no I/O) so it is unit-testable in isolation.
-pub(crate) fn classify_reachability(
-    presence: Option<&termlink_session::fleet_presence::PresenceMatch>,
-) -> ReachabilityReport {
-    use termlink_session::fleet_presence::PresenceStatus;
-    match presence {
-        None => ReachabilityReport {
-            recipient_live: false,
-            recipient_agent_backed: false,
-            waker_running: false,
-            presence_status: "ABSENT",
-            diagnosis: Some(
-                "no agent-presence heartbeat for recipient — they are not \
-                 /be-reachable (or heartbeating on a different hub). The DM will \
-                 land durably but nobody is listening to be woken. Confirm with \
-                 `/peers --all`."
-                    .to_string(),
-            ),
-        },
-        Some(m) => {
-            let live = m.status == PresenceStatus::Live;
-            let waker = m.pty_session.is_some();
-            // A real agent heartbeats with a role and/or a bound PTY. A bare
-            // `register --shell` emits no presence (→ the None arm); a heartbeat
-            // that exists but carries neither a role nor a pty is treated as
-            // not-clearly-agent-backed.
-            let agent_backed = m.role.is_some() || m.pty_session.is_some();
-            let diagnosis = if !live {
-                Some(format!(
-                    "recipient presence is {} (not LIVE) — last heartbeat {}s ago; \
-                     they are likely gone. The DM will land but may never be read.",
-                    m.status.as_str(),
-                    m.age_secs
-                ))
-            } else if !waker {
-                Some(
-                    "recipient is LIVE but has no push-waker (no bound PTY on its \
-                     be-reachable heartbeat) — the DM will queue until they run \
-                     `/check-arc`; it will NOT push-wake them."
-                        .to_string(),
-                )
-            } else {
-                None
-            };
-            ReachabilityReport {
-                recipient_live: live,
-                recipient_agent_backed: agent_backed,
-                waker_running: waker,
-                presence_status: m.status.as_str(),
-                diagnosis,
-            }
-        }
-    }
-}
+/// T-2385 / T-3227: the reachability report + classifier live in the shared
+/// `termlink_session::fleet_presence` so the MCP `termlink_agent_contact` runs
+/// the identical preflight (same verdicts, same diagnosis wording).
+use termlink_session::fleet_presence::{classify_reachability, select_recipient_presence};
 
 /// T-2385: fetch the recipient's `agent-presence` heartbeat on the target hub and
 /// resolve it to a `PresenceMatch`. Best-effort: any hub/read failure yields
@@ -1113,28 +1021,12 @@ async fn fetch_recipient_presence(
     peer_fp: &str,
     hub: Option<&str>,
 ) -> Option<termlink_session::fleet_presence::PresenceMatch> {
-    use termlink_session::fleet_presence::resolve_agent_presence;
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
     let msgs = super::channel::fetch_presence_msgs(hub).await.ok()?;
-    if let Some(name) = target_name {
-        return resolve_agent_presence(&msgs, name, now_ms);
-    }
-    // --target-fp-only path: find any heartbeat whose sender_id == peer_fp, read
-    // its agent_id, then resolve normally so status/age bands are consistent.
-    let agent_id = msgs.iter().rev().find_map(|m| {
-        let sid = m.get("sender_id").and_then(|v| v.as_str())?;
-        if sid != peer_fp {
-            return None;
-        }
-        m.get("metadata")
-            .and_then(|md| md.get("agent_id"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-    })?;
-    resolve_agent_presence(&msgs, &agent_id, now_ms)
+    select_recipient_presence(&msgs, target_name, peer_fp, now_ms)
 }
 
 /// T-2293 (V2 discovery registry): a fully-resolved registry record for an
@@ -4128,71 +4020,6 @@ mod contact_tests {
         assert_eq!(prefer_presence_fp(None, None), None);
     }
 
-    /// T-2385: the reachability classifier across all four recipient states.
-    #[test]
-    fn classify_reachability_all_states() {
-        use super::classify_reachability;
-        use termlink_session::fleet_presence::{PresenceMatch, PresenceStatus};
-
-        fn pm(
-            status: PresenceStatus,
-            pty: Option<&str>,
-            role: Option<&str>,
-        ) -> PresenceMatch {
-            PresenceMatch {
-                agent_id: "peer".to_string(),
-                identity_fingerprint: Some("abc1230000000000".to_string()),
-                pty_session: pty.map(|s| s.to_string()),
-                status,
-                age_secs: 5,
-                last_ts_ms: 0,
-                addr: None,
-                observed_addr: None,
-                host: None,
-                listen_topics: vec![],
-                role: role.map(|s| s.to_string()),
-            }
-        }
-
-        // LIVE + bound PTY → all green, no diagnosis, nothing broken.
-        let r = classify_reachability(Some(&pm(
-            PresenceStatus::Live,
-            Some("tmux:0"),
-            Some("claude-code"),
-        )));
-        assert!(r.recipient_live && r.waker_running && r.recipient_agent_backed);
-        assert_eq!(r.presence_status, "LIVE");
-        assert!(r.diagnosis.is_none());
-        assert!(!r.any_link_broken());
-
-        // LIVE but no PTY → waker_running=false, diagnosis names the no-waker breakpoint.
-        let r =
-            classify_reachability(Some(&pm(PresenceStatus::Live, None, Some("claude-code"))));
-        assert!(r.recipient_live && !r.waker_running);
-        assert!(r.any_link_broken());
-        assert!(r.diagnosis.as_deref().unwrap().contains("no push-waker"));
-
-        // STALE → recipient_live=false, loud "not LIVE" diagnosis.
-        let r = classify_reachability(Some(&pm(
-            PresenceStatus::Stale,
-            Some("tmux:0"),
-            Some("claude-code"),
-        )));
-        assert!(!r.recipient_live);
-        assert_eq!(r.presence_status, "STALE");
-        assert!(r.any_link_broken());
-        assert!(r.diagnosis.as_deref().unwrap().contains("not LIVE"));
-
-        // Absent heartbeat → recipient_live=false, "no agent-presence heartbeat".
-        let r = classify_reachability(None);
-        assert!(!r.recipient_live && !r.waker_running && !r.recipient_agent_backed);
-        assert_eq!(r.presence_status, "ABSENT");
-        assert!(r
-            .diagnosis
-            .as_deref()
-            .unwrap()
-            .contains("no agent-presence heartbeat"));
-    }
 
     /// T-2386: home-hub derivation precedence — self-reported `metadata.addr`
     /// wins; `observed_addr` (hub-attested TCP source, ephemeral port) is

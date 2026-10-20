@@ -6,7 +6,7 @@ description: >
   before sending; MCP agent_contact sends without it. Evidence: docs/reports/T-3219-twin-drift-triage.md
   (T-3219).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -24,7 +24,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T10:35:16Z
-last_update: '2026-09-29T10:51:36Z'
+last_update: 2026-10-20T18:05:24Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,6 +50,19 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=3 (body:portability-abstraction); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-10-20T18:05:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-29T10:51:36Z'
     estimator: bvp-estimator-v1-heuristic
@@ -73,8 +86,9 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] MCP `termlink_agent_contact` runs the same recipient reachability preflight as the CLI (T-2385: LIVE / wakeable classification) before sending, with the same verdicts and the same refuse/warn behaviour, reported in its JSON result
+- [x] The two share one implementation or a parity test pins them to the same answer for the same presence data (docs/reports/T-3219-twin-drift-triage.md names the drift)
+- [x] `cargo test -p termlink-mcp` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -198,6 +212,13 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo build -p termlink-mcp -p termlink > /tmp/.t3227-build 2>&1
+cargo test -p termlink-session fleet_presence > /tmp/.t3227-s 2>&1 && grep -q "test result: ok" /tmp/.t3227-s
+cargo test -p termlink-mcp --test mcp_integration test_agent_contact_reachability_preflight > /tmp/.t3227-m 2>&1 && grep -q "1 passed" /tmp/.t3227-m
+cargo test -p termlink --bin termlink agent:: > /tmp/.t3227-c 2>&1 && grep -q "test result: ok. 2" /tmp/.t3227-c
+grep -q "pub fn classify_reachability" crates/termlink-session/src/fleet_presence.rs && ! grep -q "fn classify_reachability" crates/termlink-cli/src/commands/agent.rs
+grep -q "fleet_presence::classify_reachability" crates/termlink-mcp/src/tools.rs
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -294,3 +315,13 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3227-mcp-agentcontact-has-no-recipient-reacha.md
 - **Context:** Initial task creation
+
+### 2026-10-20T18:05:24Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-10-20 — ported via ONE shared implementation [agent w-mcp]
+- **Shared code:** `ReachabilityReport`, `classify_reachability` and a new pure `select_recipient_presence` (the name-or-fp heartbeat pick that was inline in the CLI's `fetch_recipient_presence`) moved from `crates/termlink-cli/src/commands/agent.rs` into `crates/termlink-session/src/fleet_presence.rs`. The CLI now calls them from there, unchanged in behaviour. Only the transport stays per-crate: MCP `fetch_recipient_presence_mcp` reads `agent-presence` on the routed hub (local UDS or authenticated remote, 8s bound).
+- **MCP behaviour:** `termlink_agent_contact` classifies the recipient before the dry-run branch. `reachability` is in the dry-run preview, the refuse result and the success envelope (the CLI's `--json` annotation line). `warning` carries the diagnosis when a link is broken (the CLI's human `WARNING:`). The new `require_reachable` param refuses a non-LIVE recipient before connecting or posting (the CLI's `--require-reachable`, exit 11), with the same `recipient not reachable — <diagnosis>` error.
+- **On the parked note in Context (unratified T-2385 wording):** the diagnosis text is now single-sourced, so ratifying or rewording it in T-2385 changes both surfaces at once. The port adds no second copy of the wording to keep in sync.
+- **Tests:** the classifier test moved to `fleet_presence` (+ a selector test, 11/11). New hermetic MCP integration test `test_agent_contact_reachability_preflight` uses a temp runtime dir and temp HOME, so no hub and no hubs.toml are touched. CLI `agent::` 25/25. `cargo test -p termlink-mcp`: 944 + 100 + 37 parity pass (1 ignored = `parity_doctor`, owned by T-3214).
+- **Not done:** the other adjacent MCP gaps in the T-3219 report (presence-fp, ack poll, ack-status frontier) are separate tasks.

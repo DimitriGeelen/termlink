@@ -8022,6 +8022,40 @@ fn fleet_route_hub_mcp(declared: Option<&str>, read_hub: &str) -> String {
     declared.unwrap_or(read_hub).to_string()
 }
 
+/// T-3227 (port of CLI T-2385 `fetch_recipient_presence`): read the recipient's
+/// `agent-presence` heartbeat on the hub the post routes to (local hub when
+/// `target_hub` is None) and resolve it via the SHARED
+/// `fleet_presence::select_recipient_presence`. Best-effort: a down hub, auth
+/// failure or timeout yields `None`, which `classify_reachability` reports as
+/// ABSENT — loud, never an aborted send.
+async fn fetch_recipient_presence_mcp(
+    target_name: Option<&str>,
+    peer_fp: &str,
+    target_hub: Option<&str>,
+) -> Option<termlink_session::fleet_presence::PresenceMatch> {
+    let mut conn = match target_hub {
+        None => {
+            let sock = termlink_hub::server::hub_socket_path();
+            if !sock.exists() {
+                return None;
+            }
+            ContactHub::Local(sock)
+        }
+        Some(h) => ContactHub::Remote(Box::new(
+            connect_remote_hub_mcp(h, None, None, "observe").await.ok()?,
+        )),
+    };
+    let msgs = tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT_MCP, conn.fetch_presence_recent(500))
+        .await
+        .ok()?
+        .ok()?;
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    termlink_session::fleet_presence::select_recipient_presence(&msgs, target_name, peer_fp, now_ms)
+}
+
 /// T-2274 / T-3222: fleet presence lookup for `agent_id`. Returns
 /// `(fp, route_hub, declared_home_hub)` for the freshest LIVE match. `route_hub`
 /// is the declared home hub when present, else the hub the heartbeat was read
@@ -8927,6 +8961,13 @@ pub struct AgentContactParams {
     /// `agent-send.sh --to`, T-2273). An explicit `hub` wins over the
     /// auto-resolved one.
     pub hub: Option<String>,
+    /// T-3227 (mirror of CLI `--require-reachable`, T-2385): refuse to post when
+    /// the recipient has no LIVE `agent-presence` heartbeat on the routed hub,
+    /// returning `{ok: false, reachability, error}` without posting. Without it
+    /// the send proceeds and the result carries the `reachability` report (the
+    /// same LIVE / waker classification) so a broken link is never silent.
+    /// Default: false.
+    pub require_reachable: Option<bool>,
 }
 
 /// T-1719: parameters for `termlink_agent_dms` — DM topic directory.
@@ -19265,7 +19306,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_contact",
-        description = "Contact a peer agent on its canonical `dm:<sorted_a>:<sorted_b>` topic. Resolve via `target` (display name, local session.discover) OR `target_fp` (hex, cross-host) — exactly one required. Auto-creates the dm topic (retention=forever, idempotent), signs with local ed25519, posts msg_type=chat. Body: exactly one of `message` (inline) or `body_file` (path read at server cwd; empty rejected). Optional `thread` stamps `metadata._thread`; a `:project` suffix on `target` stamps `metadata.to_project`. `dry_run=true` previews resolved topic+metadata without posting. `require_online=true` fail-fasts if the peer has no chat-arc posts within `online_window_secs` (default 300); `ack_required=true` polls the dm topic up to `ack_timeout_secs` (default 60) for a reply, returning `ack:{received, ts_ms?, wait_secs}`. WRITES state."
+        description = "Contact a peer agent on its canonical `dm:<sorted_a>:<sorted_b>` topic. Resolve via `target` (display name, local session.discover) OR `target_fp` (hex, cross-host) — exactly one required. Auto-creates the dm topic (retention=forever, idempotent), signs with local ed25519, posts msg_type=chat. Body: exactly one of `message` (inline) or `body_file` (path read at server cwd; empty rejected). Optional `thread` stamps `metadata._thread`; a `:project` suffix on `target` stamps `metadata.to_project`. `dry_run=true` previews resolved topic+metadata without posting. `require_online=true` fail-fasts if the peer has no chat-arc posts within `online_window_secs` (default 300); `ack_required=true` polls the dm topic up to `ack_timeout_secs` (default 60) for a reply, returning `ack:{received, ts_ms?, wait_secs}`. Every result carries `reachability:{recipient_live, recipient_agent_backed, waker_running, presence_status, diagnosis}` (recipient presence on the routed hub, T-2385) plus `warning` when a link is broken; `require_reachable=true` refuses to post when the recipient is not LIVE. WRITES state."
     )]
     async fn termlink_agent_contact(
         &self,
@@ -19392,7 +19433,19 @@ impl TermLinkTools {
         // over a cross-hub fleet-resolved hub; both override the local default.
         let target_hub: Option<String> = p.hub.clone().or(fleet_hub);
 
-        // Dry-run path: render preview JSON, no hub round-trip.
+        // T-3227 (port of CLI T-2385): reachability preflight. Read the
+        // recipient's agent-presence heartbeat on the routed hub and classify
+        // each link it controls (LIVE? agent-backed? push-waker running?) with
+        // the SHARED classifier. Read-only + best-effort (a read failure is
+        // ABSENT). Computed before dry-run so the preview carries it too.
+        let reachability = termlink_session::fleet_presence::classify_reachability(
+            fetch_recipient_presence_mcp(target_name.as_deref(), &peer_fp, target_hub.as_deref())
+                .await
+                .as_ref(),
+        );
+
+        // Dry-run path: render preview JSON (the reachability read above is the
+        // only hub round-trip; nothing is posted).
         if p.dry_run.unwrap_or(false) {
             return serde_json::to_string_pretty(&serde_json::json!({
                 "ok": true,
@@ -19403,11 +19456,30 @@ impl TermLinkTools {
                 "metadata": metadata,
                 "hub": target_hub,
                 "routing": if target_hub.is_some() { "remote" } else { "local" },
+                "reachability": reachability.to_json(),
                 "would_post": {
                     "msg_type": "chat",
                     "body_preview": preview_body(&body, 80),
                     "body_bytes": body.len(),
                 }
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        // T-3227 (CLI T-2385 exit 11): with require_reachable, a recipient with
+        // no LIVE heartbeat is refused BEFORE the post — no durable no-op.
+        if p.require_reachable.unwrap_or(false) && !reachability.recipient_live {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": false,
+                "peer_fp": peer_fp,
+                "reachability": reachability.to_json(),
+                "error": format!(
+                    "recipient not reachable — {}",
+                    reachability
+                        .diagnosis
+                        .as_deref()
+                        .unwrap_or("no LIVE agent-presence heartbeat")
+                ),
             }))
             .unwrap_or_else(json_err);
         }
@@ -19531,12 +19603,22 @@ impl TermLinkTools {
         };
 
         // Decorate hub's reply with topic + peer_fp for caller convenience.
+        // T-3227: `reachability` rides the success envelope (the CLI's --json
+        // annotation line) so a broken link is never silent; `warning` is the
+        // CLI's human-mode WARNING text, set only when a link is broken.
         let mut envelope = serde_json::json!({
             "ok": true,
             "topic": topic,
             "peer_fp": peer_fp,
             "my_fp": my_fp,
+            "reachability": reachability.to_json(),
         });
+        if reachability.any_link_broken()
+            && let Some(diag) = &reachability.diagnosis
+            && let Some(obj) = envelope.as_object_mut()
+        {
+            obj.insert("warning".to_string(), serde_json::json!(diag));
+        }
         if let Some(obj) = envelope.as_object_mut()
             && let Some(post_obj) = post_result.as_object()
         {

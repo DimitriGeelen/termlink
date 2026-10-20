@@ -2365,3 +2365,64 @@ async fn test_register_minimal() {
 
     client.cancel().await.unwrap();
 }
+
+/// T-3227 (port of CLI T-2385): `termlink_agent_contact` runs the shared
+/// reachability preflight. Hermetic: temp runtime dir (no hub socket) and a temp
+/// HOME (fresh identity, empty hubs.toml — no fleet walk reaches a real host),
+/// so the recipient has no heartbeat anywhere → ABSENT.
+#[tokio::test]
+async fn test_agent_contact_reachability_preflight() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-contact-reach");
+    let home = TestDir::new("mcp-contact-reach-home");
+    let old_home = std::env::var_os("HOME");
+    unsafe {
+        std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path);
+        std::env::set_var("HOME", &home.path);
+    }
+
+    let client = mcp_client().await;
+    let fp = "abcdef0123456789";
+
+    // dry_run carries the reachability report (same shape as the CLI preview).
+    let text = call(
+        &client,
+        "termlink_agent_contact",
+        json!({"target_fp": fp, "message": "hi", "dry_run": true}),
+    )
+    .await;
+    let v: serde_json::Value = serde_json::from_str(&text).expect("json");
+    assert_eq!(v["ok"], true, "dry_run failed: {text}");
+    let r = &v["reachability"];
+    assert_eq!(r["presence_status"], "ABSENT", "{text}");
+    assert_eq!(r["recipient_live"], false);
+    assert_eq!(r["waker_running"], false);
+    assert!(
+        r["diagnosis"].as_str().unwrap().contains("no agent-presence heartbeat"),
+        "{text}"
+    );
+
+    // require_reachable refuses BEFORE any transport/post (the CLI's exit 11):
+    // there is no hub here, so a hub-down error would mean the gate ran late.
+    let text = call(
+        &client,
+        "termlink_agent_contact",
+        json!({"target_fp": fp, "message": "hi", "require_reachable": true}),
+    )
+    .await;
+    let v: serde_json::Value = serde_json::from_str(&text).expect("json");
+    assert_eq!(v["ok"], false, "{text}");
+    assert!(
+        v["error"].as_str().unwrap().starts_with("recipient not reachable — "),
+        "{text}"
+    );
+    assert_eq!(v["reachability"]["presence_status"], "ABSENT");
+
+    client.cancel().await.unwrap();
+    unsafe {
+        match old_home {
+            Some(h) => std::env::set_var("HOME", h),
+            None => std::env::remove_var("HOME"),
+        }
+    }
+}
