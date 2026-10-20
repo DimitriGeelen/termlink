@@ -9,10 +9,10 @@ description: >
   how the surface relates to the no-worktrees rule for this repo's own sessions) as
   one decision brief.
 
-status: started-work
+status: work-completed
 workflow_type: design
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: [T-2026, T-3470, T-3471, T-2019, T-2046]
@@ -44,8 +44,8 @@ arc_id: arc-parallel-substrate
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T20:41:52Z
-last_update: 2026-10-20T22:04:36Z
-date_finished:
+last_update: 2026-10-20T23:34:24Z
+date_finished: 2026-10-20T23:34:24Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -426,3 +426,20 @@ grep -q "policy/value-drivers.yaml" docs/reports/T-3469-iw3-decision-brief.md &&
 - **Consumer (AC2):** backlog-drain pair (scripts/orchestrator-backlog-drain.sh + worker-backlog-drain.sh), 2-host proof run; worked sequence in §2a. AEF `fw worker` backend:hub named second; its contract lacks `claim_id` (item for T-3484 v0.3).
 - **IW-3:** one decision brief written, `docs/reports/T-3469-iw3-decision-brief.md` (background, options A-D, scoring against both value-driver files: project B 123/175 vs C 66, A 57, D 59; framework B 135/270 vs A/C 68, D 59; steelman/strawman; recommendation B with the rule boundary sentence). Not presented to the operator in this slice.
 - **Not done:** AC3 (needs the operator's ruling), AC4 (T-3470/T-3471 updates are listed in design §2.7, to apply after the ruling; those files were outside this slice's write area).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b4caa3b0
+- **Timestamp:** 2026-10-20T23:34:25Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-20T23:34:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

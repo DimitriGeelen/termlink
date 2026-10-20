@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3469: T-2026 design: lock the agent.checkout/commit/publish RPC shape and bring worktree ownership (IW-3) to the operator
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T23:34:42Z
+# ============================================================================
+
+task_id: T-3469
+task_name: "T-2026 design: lock the agent.checkout/commit/publish RPC shape and bring worktree ownership (IW-3) to the operator"
+workflow_type: design
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-18T20:41:52Z
+completed: 2026-10-20T23:34:24Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-10-19T14:32:56+02:00
+last_commit: 2026-10-21T01:34:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  design draft — claim API facts, no production claim consumer today, signatures assuming worker-owned clones; IW-3 to operator. IW-3 external review round 1 (5 reviewers): 5/5 B, unanimous that clones do not fix the governance-state causes; synthesis + verbatim answers. lock agent.checkout/commit/publish against the shipped claim API (ownership via channel.renew, no new hub RPC, lease-fenced push, then=transfer), name the backlog-drain consumer with a worked sequence, and ready the IW-3 decision brief (A-D, scored on both value-driver files, recommend B). IW-3 brief gains operator input — btrfs copy-on-write checkouts measured (reflink 72 KiB new data, snapshot 0 B but forces a commit), git-ai concepts to borrow. IW-3 ruled B with btrfs copy-on-write checkouts (operator 2026-10-21); T-3470/T-3471 criteria updated to the locked shape
+
+# Key outcomes
+outcomes:
+  - 'Signatures for agent.checkout / agent.commit / agent.publish written down (params, return shape, error codes) and checked against the shipped claim API (claim, renew, release, claim-transfer): every scope handle is a real claim_id'
+  - 'The intended consumer is named (which orchestrator calls these, from where), with one worked call sequence; an API with no named caller does not proceed to build'
+  - 'IW-3 presented to the operator as ONE decision brief: hub- vs spoke-owned worktrees, and the boundary with the standing rule that this repo''s own sessions never use git worktrees; the ruling recorded in Decisions'
+  - 'T-3470 and T-3471 updated with the locked shape before either starts'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'IW-3 external review round 1 (5 reviewers): 5/5 B, unanimous that clones do not fix the governance-state causes; synthesis + verbatim answers'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-21 — IW-3: who owns a dispatched worker''s git checkout (operator ruling)'
+    chose: 'B, each worker owns its own clone per claim under `/var/lib/termlink/work/<hub8>/<claim_id>`, refined by the operator''s btrfs input (brief §6.1): on btrfs hosts the clone is a snapshot or reflink copy of a per-repo template that is kept current; elsewhere it is a `git clone`. Operator: "ok as recommended" (2026-10-21). - **Rule boundary recorded:** the no-worktree rule is unchanged for this repo''s sessions. Worker clones are not worktrees, live under `/var/lib/termlink/work`, and are only ever entered by a launcher that starts the session there.'
+    rationale: 'it is the only option that works across hosts and keeps the rule intact. It fences pushes with the claim lease and carries into containers unchanged. With copy-on-write it writes almost no data (measured 72 KiB vs 122 MiB for a clone) and brings the untracked framework files and guards along. Scored +55 vs A −19, C −13, D −19.'
+    alternatives_rejected: ['A (the hub as a git server, useless across hosts without federation); C (reopens the conditions behind the worktree incidents); D (the cost of waiting is open-ended, while B carries into containers).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3469-agent-launch-surface-design.md'
+  - 'docs/reports/T-3469-consult/brief.md'
+  - 'docs/reports/T-3469-consult/claude.md'
+  - 'docs/reports/T-3469-consult/codex.md'
+  - 'docs/reports/T-3469-consult/deepseek.md'
+  - 'docs/reports/T-3469-consult/glm.md'
+  - 'docs/reports/T-3469-consult/nemotron.md'
+  - 'docs/reports/T-3469-iw3-decision-brief.md'
+  - '.tasks/active/T-3469-t-2026-design-lock-the-agentcheckoutcomm.md'
+  - '.tasks/active/T-3470-t-2026-build-agentcheckout-and-agentcomm.md'
+  - '.tasks/active/T-3471-t-2026-build-agentpublish-rpc-push-a-bra.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-19T14:32:56'
+    action: 'T-3469: design draft — claim API facts, no production claim consumer today, signatures assuming worker-owned clones; IW-3 to operator'
+  - time: '2026-10-19T15:04:02'
+    action: 'T-3469: IW-3 external review round 1 (5 reviewers): 5/5 B, unanimous that clones do not fix the governance-state causes; synthesis + verbatim answers'
+  - time: '2026-10-20T22:06:27'
+    action: 'T-3469: lock agent.checkout/commit/publish against the shipped claim API (ownership via channel.renew, no new hub RPC, lease-fenced push, then=transfer), name the backlog-drain consumer with a worked sequence, and ready the IW-3 decision brief (A-D, scored on both value-driver files, recommend B)'
+  - time: '2026-10-21T00:04:35'
+    action: 'T-3469: IW-3 brief gains operator input — btrfs copy-on-write checkouts measured (reflink 72 KiB new data, snapshot 0 B but forces a commit), git-ai concepts to borrow'
+  - time: '2026-10-21T01:34:21'
+    action: 'T-3469: IW-3 ruled B with btrfs copy-on-write checkouts (operator 2026-10-21); T-3470/T-3471 criteria updated to the locked shape'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 3052 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3052
+  commits: 5
+  files_changed: 11
+  lines_added: 844
+  lines_removed: 40
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3469-t-2026-design-lock-the-agentcheckoutcomm.md
+generated_by: context-agent-hybrid
