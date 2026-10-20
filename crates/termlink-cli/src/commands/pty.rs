@@ -528,6 +528,24 @@ pub(crate) fn attach_output_error_action(
     }
 }
 
+/// T-3368: the `command.inject` keys for one stdin read of the attach loop.
+///
+/// The loop reads stdin in fixed-size chunks, and a read boundary can fall in
+/// the middle of a multi-byte UTF-8 character. This used to send each chunk as a
+/// `text` key built with `String::from_utf8_lossy`, so both halves of a split
+/// character became U+FFFD: a 7259-byte paste arrived with one character
+/// replaced by two replacement characters (055 T-474). The operator's bytes are
+/// not ours to decode; a `raw` key carries them base64-encoded and the session
+/// writes exactly those bytes to the PTY, so a character split across reads is
+/// reassembled by the terminal on the other side, as with a local keyboard.
+pub(crate) fn attach_input_keys(bytes: &[u8]) -> serde_json::Value {
+    use base64::Engine;
+    serde_json::json!([{
+        "type": "raw",
+        "value": base64::engine::general_purpose::STANDARD.encode(bytes),
+    }])
+}
+
 /// T-2644: what the interactive attach loop learned from one `command.inject`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum AttachInjectOutcome {
@@ -929,10 +947,8 @@ async fn attach_loop(
                     break;
                 }
 
-                // Send as text injection
-                let text = String::from_utf8_lossy(&stdin_buf[..n]);
-                let keys = vec![serde_json::json!({ "type": "text", "value": text })];
-                let params = serde_json::json!({ "keys": keys });
+                // T-3368: forward the bytes unchanged (see `attach_input_keys`).
+                let params = serde_json::json!({ "keys": attach_input_keys(&stdin_buf[..n]) });
 
                 // T-2644: this was `let _ = …` — a failed inject vanished while the
                 // operator kept typing into what looked like a live session. A dead
@@ -1440,6 +1456,58 @@ mod tests {
     // collected, and its message read as "your command is slow" even when the
     // real cause was a child blocked on a query nothing was ever going to answer.
 
+
+    // T-3368: attach input must reach the PTY byte-identical, whatever the read
+    // boundaries. Each chunk goes through the same path the session uses
+    // (`command.inject` keys → `resolve_keys`), so this fails if the loop ever
+    // decodes a chunk again: the old `text` + `from_utf8_lossy` form turned both
+    // halves of a split character into U+FFFD.
+    fn deliver_in_chunks(payload: &[u8], cuts: &[usize]) -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut start = 0;
+        for &end in cuts.iter().chain(std::iter::once(&payload.len())) {
+            let keys: Vec<termlink_protocol::control::KeyEntry> =
+                serde_json::from_value(attach_input_keys(&payload[start..end]))
+                    .expect("attach keys are valid command.inject keys");
+            out.extend(termlink_session::executor::resolve_keys(&keys).expect("keys resolve"));
+            start = end;
+        }
+        out
+    }
+
+    #[test]
+    fn attach_input_survives_a_multibyte_char_split_across_reads() {
+        let payload = "héllo — 日本語 🎉 end".as_bytes();
+        // Cut inside every multi-byte character: é (2 bytes), — (3), 日 (3), 🎉 (4).
+        let mut cuts = Vec::new();
+        for (i, ch) in std::str::from_utf8(payload).unwrap().char_indices() {
+            if ch.len_utf8() > 1 {
+                cuts.push(i + 1);
+            }
+        }
+        assert!(cuts.len() >= 6, "the payload must exercise several split characters");
+        let got = deliver_in_chunks(payload, &cuts);
+        assert_eq!(got, payload, "bytes must arrive unchanged");
+        assert!(!String::from_utf8_lossy(&got).contains('\u{FFFD}'));
+    }
+
+    #[test]
+    fn attach_input_large_paste_in_fixed_reads_is_byte_identical() {
+        // The 055 shape: a multi-KB paste read 256 bytes at a time (the loop's
+        // buffer size), with 3-byte characters so cuts land mid-character.
+        let payload = "αβγ—日本語".repeat(400);
+        let bytes = payload.as_bytes();
+        let cuts: Vec<usize> = (256..bytes.len()).step_by(256).collect();
+        assert!(cuts.iter().any(|&c| !payload.is_char_boundary(c)));
+        assert_eq!(deliver_in_chunks(bytes, &cuts), bytes);
+    }
+
+    #[test]
+    fn attach_input_passes_non_utf8_bytes_through() {
+        // Raw keystrokes need not be UTF-8 (meta-key bytes, binary pastes).
+        let payload = [0x1b, b'x', 0xff, 0xfe, 0x80, b'\r'];
+        assert_eq!(deliver_in_chunks(&payload, &[2, 3]), payload);
+    }
 
     // T-2644: the attach loop must not swallow a failed inject.
 

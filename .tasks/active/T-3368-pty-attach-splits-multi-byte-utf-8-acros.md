@@ -2,12 +2,15 @@
 id: T-3368
 name: "pty attach splits multi-byte UTF-8 across read chunks (055 pty-attach-paste)"
 description: >
-  A 7259-byte paste through termlink pty attach (0.12.103) arrived with one multi-byte char replaced by U+FFFD U+FFFD at ~1790 bytes: the input path decodes per read chunk. Fix: pass input bytes through unchanged. Reporter 055-agentic-fleet-cockpit T-474, report /opt/055-agentic-fleet-cockpit/docs/reports/T-474-measurements.md, cid pty-attach-paste.
+  A 7259-byte paste through termlink pty attach (0.12.103) arrived with one multi-byte
+  char replaced by U+FFFD U+FFFD at ~1790 bytes: the input path decodes per read chunk.
+  Fix: pass input bytes through unchanged. Reporter 055-agentic-fleet-cockpit T-474,
+  report /opt/055-agentic-fleet-cockpit/docs/reports/T-474-measurements.md, cid pty-attach-paste.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:34:19Z
-last_update: 2026-10-06T10:34:19Z
-date_finished: null
+last_update: 2026-10-20T15:17:13Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,20 +37,35 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T15:17:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3368: pty attach splits multi-byte UTF-8 across read chunks (055 pty-attach-paste)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`termlink pty attach` (`attach_loop`, crates/termlink-cli/src/commands/pty.rs) read stdin 256 bytes at a time and sent each read as a `text` inject key built with `String::from_utf8_lossy`, so a multi-byte character split across two reads became U+FFFD U+FFFD. Fix: send each read as a `raw` (base64) key, which the session writes to the PTY byte-for-byte (`executor::resolve_key_entry`, `KeyEntry::Raw`). No protocol or session change.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The `pty attach` input path forwards the operator's bytes unchanged: no per-read-chunk UTF-8 decode, so a multi-byte character split across reads arrives intact (no U+FFFD)
+- [x] Regression test: a payload with multi-byte characters fed in chunks that split a character arrives byte-identical; the test fails against the old decode path
+- [x] `cargo test -p termlink` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -83,6 +101,9 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo test -p termlink --bin termlink attach_input > /tmp/.t3368 2>&1 && grep -q "test result: ok. 3 passed" /tmp/.t3368
+cargo test -p termlink > /tmp/.t3368-all 2>&1 && ! grep -q "FAILED" /tmp/.t3368-all
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -172,6 +193,11 @@ date_finished: null
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
+
+**Symptom:** a 7259-byte paste through `termlink pty attach` arrived with one multi-byte character replaced by U+FFFD U+FFFD at ~1790 bytes (055 T-474).
+**Root cause:** the attach input path decoded each 256-byte stdin read as UTF-8 (`String::from_utf8_lossy`) to build a `text` inject key. A character straddling a read boundary is invalid UTF-8 in both halves, so both were replaced. The sibling `pty stream` path already sent raw bytes; attach never did.
+**Why structurally allowed:** no test fed attach input in chunks; key construction was inline in a raw-mode async loop and not unit-testable, and typed input (one key per read) never splits a character, so only a large paste could show it.
+**Prevention:** key construction is now the pure `attach_input_keys`, pinned by three tests that push chunked payloads through the session's own `resolve_keys`; a mutant restoring the lossy `text` key fails all three.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -267,3 +293,11 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3368-pty-attach-splits-multi-byte-utf-8-acros.md
 - **Context:** Initial task creation
+
+### 2026-10-20 — fix [w-pty-paste]
+- **Action:** attach input now sent as a `raw` base64 key via new `attach_input_keys` (no per-chunk decode); 3 regression tests (split multi-byte chars, 256-byte reads of a multi-KB paste, non-UTF-8 bytes).
+- **Output:** `cargo test -p termlink`: 1214 unit + 181 integration pass. Mutant (old lossy `text` key) fails all 3 new tests.
+
+### 2026-10-20T15:17:13Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
