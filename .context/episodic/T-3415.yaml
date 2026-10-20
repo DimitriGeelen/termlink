@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3415: WARN accumulation: 6 WARN guard members red at once (> 5) — pay down
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T15:50:18Z
+# ============================================================================
+
+task_id: T-3415
+task_name: "WARN accumulation: 6 WARN guard members red at once (> 5) — pay down"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-12T05:42:06Z
+completed: 2026-10-20T15:50:03Z
+duration_days: 8
+updates_count: 3
+first_commit: 2026-10-12T11:33:41+02:00
+last_commit: 2026-10-20T17:49:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  commit unattended write — WARN escalation filed (umbrella: umbrella) by warn-escalation-file.sh. WARN debt measured on a full guard run: 4 red (limit 5); per-member cause and clearing condition recorded
+
+# Key outcomes
+outcomes:
+  - 'At most 5 WARN members are red at once (each fixed, or reclassified by the operator)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3415-warn-accumulation-6-warn-guard-members-r.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T11:33:41'
+    action: 'T-3415: commit unattended write — WARN escalation filed (umbrella: umbrella) by warn-escalation-file.sh'
+  - time: '2026-10-20T17:49:06'
+    action: 'T-3415: WARN debt measured on a full guard run: 4 red (limit 5); per-member cause and clearing condition recorded'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 12127 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [warn-escalation, guard-layer]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 12127
+  commits: 2
+  files_changed: 1
+  lines_added: 395
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3415-warn-accumulation-6-warn-guard-members-r.md
+generated_by: context-agent-hybrid
