@@ -1,13 +1,21 @@
 ---
 id: T-3373
-name: "Fixture for the external-reviewer ruling against upstream's verdict ledger (replaces retired T-3198 fixture)"
+name: "Fixture for the external-reviewer ruling against upstream's verdict ledger
+  (replaces retired T-3198 fixture)"
 description: >
-  T-3370 retired tests/reviewer-sovereignty-fixtures.sh: it extracted external_reviewer_clears_sovereignty from update-task.sh, which AEF 1.8.3 replaced with the T-3579/T-3581 verdict ledger (lib/verdict_ledger.py, apply_reviewer_verdicts, HMAC-signed dispatch provenance). The operator ruling of 2026-09-28 (an external reviewer PASS closes a low-risk task's mechanical Human ACs) is now carried upstream, but nothing local tests it. Write a guard-layer fixture against verdict_ledger.py weighted to the REFUSE cases the old suite pinned. Also: existing '## Reviewer Verdict' blocks with 'Reviewer: external-dispatch' no longer close tasks (divergence-check note 2).
+  T-3370 retired tests/reviewer-sovereignty-fixtures.sh: it extracted external_reviewer_clears_sovereignty
+  from update-task.sh, which AEF 1.8.3 replaced with the T-3579/T-3581 verdict ledger
+  (lib/verdict_ledger.py, apply_reviewer_verdicts, HMAC-signed dispatch provenance).
+  The operator ruling of 2026-09-28 (an external reviewer PASS closes a low-risk task's
+  mechanical Human ACs) is now carried upstream, but nothing local tests it. Write
+  a guard-layer fixture against verdict_ledger.py weighted to the REFUSE cases the
+  old suite pinned. Also: existing '## Reviewer Verdict' blocks with 'Reviewer: external-dispatch'
+  no longer close tasks (divergence-check note 2).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T11:40:00Z
-last_update: 2026-10-06T11:40:00Z
-date_finished: null
+last_update: 2026-10-20T15:28:43Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +58,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T15:28:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3373: Fixture for the external-reviewer ruling against upstream's verdict ledger (replaces retired T-3198 fixture)
@@ -62,8 +84,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `tests/reviewer-verdict-ledger-fixtures.sh` (guard-layer member by naming convention) exercises the vendored `lib/verdict_ledger.py` / `apply_reviewer_verdicts` in a scratch project only, never the real `.context/` or `.tasks/`
+- [x] Weighted to REFUSE cases: an unsigned or wrongly signed verdict, a verdict for another task, a FAIL verdict, a non-mechanical (operator-only / [REVIEW]) Human AC, and a task outside the low-risk class all leave the task open; plus one ALLOW case (signed external PASS closes a mechanical Human AC of a low-risk task), matching the operator ruling of 2026-09-28
+- [x] At least one mutant shown: weakening a refuse check in a copy turns a case red
+- [x] The old '## Reviewer Verdict … Reviewer: external-dispatch' blocks: a short note in the task Updates on whether any active task still relies on them (count, ids), without editing those tasks
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -97,6 +121,10 @@ date_finished: null
 -->
 
 ## Verification
+
+bash tests/reviewer-verdict-ledger-fixtures.sh > /tmp/.t3373.out 2>&1 && grep -q "20 passed, 0 failed" /tmp/.t3373.out
+bash -n tests/reviewer-verdict-ledger-fixtures.sh
+git diff --quiet HEAD -- .agentic-framework
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -320,3 +348,19 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3373-fixture-for-the-external-reviewer-ruling.md
 - **Context:** Initial task creation
+
+### 2026-10-20T15:28:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-20 — fixture written (w-reviewer)
+- **Added:** `tests/reviewer-verdict-ledger-fixtures.sh` (20 assertions, guard-layer member by naming convention). One scratch git project per case under `mktemp -d`; drives `PROJECT_ROOT=<scratch> python3 lib/verdict_ledger.py apply T-9001`, exactly what `apply_reviewer_verdicts` runs. The signed chain (dispatch row, runtime start + completion rows, worker-authored commit) is built with the module's own `_sign`/`_sign_row`; the verdict row is written by the real `record()`. Vendored code is read only; mutants run on a copy.
+- **ALLOW (A1-A3):** a signed external PASS ticks a reviewer-judged Human AC of a low-risk task, owner human→agent, `applied.jsonl` row. Idempotent. Editing the criterion afterwards WITHDRAWS the tick and returns ownership to human.
+- **REFUSE (R1-R14), each checked for the right reason via `satisfying_verdict()`:** unsigned / forged-sig dispatch, dispatch for another task, verdict row naming another task, red verdict, operator-only (tier0) AC, high-risk task (rung 5 needed, no run: under-strength), no runtime completion, uncommitted row, row committed by someone other than its worker, reviewer is a producer, task work landed after the reviewed revision, deterministic `[REVIEWER]` AC, and `record()` refusing an operator-only AC. R1/R2/R3/R6/R7/R11/R13 are refused by `record()` itself, so those cases hand-append the row (`forge-row`) to prove `apply` refuses independently. The first draft passed them for the wrong reason (no row existed).
+- **Mutants (3, all bite):** dispatch signature check always true → R2 red. Both producer checks (`is_producer`, `_dispatch_is_producer`) neutered → R11 red (neutering only one does not, since two independent guards cover it). Strength check removed → R7 red.
+- **Findings on the vendored ledger (not faked; candidates for upstream filing):**
+  1. **`[REVIEW]` is not refused.** The listed refuse case "[REVIEW] Human AC" is unsupported: `delegation.classify` routes a `[REVIEW]` criterion with taste vocabulary to REVIEWER-JUDGES, so a valid external green DOES tick it (A1 uses one). A `[REVIEW]` criterion with no taste/render signal classifies `unclassified`, also REVIEWER-JUDGES. Only tier0/bypass, act-in-the-world and sovereignty classes are operator-only. This differs from the old T-3198 suite.
+  2. **Inverse:** a `[REVIEWER]`-marked (deterministic) Human AC is REVIEWER-CLOSEABLE, so the ledger never ticks it (R13). The "mechanical" ACs the 2026-09-28 ruling names are not closed by this path.
+  3. **"Low-risk class" is review_policy tiering:** a medium/high task is refused only because its rung (3/5) needs a signed review run. With a bound run the same verdict ticks. R7 pins the no-run refusal only.
+  4. The real runtime path (`register_dispatch` → `start` → `complete`) is not exercised: `start`/`complete` refuse unless called from the canonical `run.sh` parent (`_runtime_fault`). Rows are signed directly with the ledger's own helpers (the same-user trust model the module documents).
+- **`## Reviewer Verdict … Reviewer: external-dispatch` blocks:** 0 active tasks rely on them. Only the retired T-3198 (completed) carried one; the only active file containing the string is this task, quoting it. Nothing under `.agentic-framework/` mentions `external-dispatch` or `external_reviewer`. The 27 active tasks with a `## Reviewer Verdict` heading carry the static-scan block (`Scan ID`/`Overall`), a different thing. No tasks edited.
