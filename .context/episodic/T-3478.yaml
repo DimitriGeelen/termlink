@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3478: Hub records slow requests with hub-side timing in rpc-audit (handle_ms, write_ms) so a slow call can be attributed to hub or client
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T11:02:26Z
+# ============================================================================
+
+task_id: T-3478
+task_name: "Hub records slow requests with hub-side timing in rpc-audit (handle_ms, write_ms) so a slow call can be attributed to hub or client"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-19T14:09:33Z
+completed: 2026-10-20T11:02:04Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-10-19T16:24:10+02:00
+last_commit: 2026-10-20T13:01:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub writes a slow:true rpc-audit line (handle_ms, write_ms) for line-transport requests >= TERMLINK_AUDIT_SLOW_MS (default 1000). long-polls count as slow only beyond the wait they asked for (requested_wait_ms); live evidence recorded, write stalls split out as T-3488
+
+# Key outcomes
+outcomes:
+  - 'A line-transport request slower than `TERMLINK_AUDIT_SLOW_MS` (default 1000) adds one rpc-audit line with `slow:true`, `method`, `peer_addr`, `handle_ms`, `write_ms`; faster requests add nothing; the receipt line is unchanged'
+  - 'The slow line goes through the T-3475 writer thread (no file I/O on the worker)'
+  - 'Unit tests: line shape, threshold boundary; `cargo test -p termlink-hub` passes'
+  - 'After deploy, a channel-list capture on .107 attributes every probe over 2 s to hub (slow line present) or client (absent)'
+  - 'A long-poll (`params.timeout_ms`) counts as slow only for the time beyond the wait it asked for; the line carries `requested_wait_ms` (added 2026-10-20: 2698 of 2872 live slow lines were subscribes waiting out their own timeout)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/rpc_audit.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - '.tasks/active/T-3478-hub-records-slow-requests-with-hub-side-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-19T16:24:10'
+    action: 'T-3478: hub writes a slow:true rpc-audit line (handle_ms, write_ms) for line-transport requests >= TERMLINK_AUDIT_SLOW_MS (default 1000)'
+  - time: '2026-10-20T13:01:56'
+    action: 'T-3478: long-polls count as slow only beyond the wait they asked for (requested_wait_ms); live evidence recorded, write stalls split out as T-3488'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1252 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [hub, audit, observability]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1252
+  commits: 2
+  files_changed: 3
+  lines_added: 563
+  lines_removed: 12
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3478-hub-records-slow-requests-with-hub-side-.md
+generated_by: context-agent-hybrid
