@@ -26,7 +26,18 @@ fn deadline_table_is_r44e() {
 
 // ---- sender labels -------------------------------------------------------------
 
-/// A sender store with one message `m` at the stages given (peer stages at `t`).
+/// A sender store with one message `m` at the stages given. Every deadline is
+/// measured from the sender's own POSTED line (`status_at` reads it from the
+/// store), so the clock the tests reason about is that line's recorded time, not
+/// the wall clock taken before setup. A peer stage is given as an offset from
+/// that same instant. The view returned is taken `offset` ms after it.
+///
+/// Why not `now_ms()` taken before setup: the store stamps each line with the
+/// wall clock when it is written. On a loaded host the setup alone can take more
+/// than a second, so a "61 s after the post" view was really 60 s and the
+/// 60 s accept deadline had not yet passed. Measuring from the stamped line
+/// keeps the asserted property identical and makes the verdict independent of
+/// how long setup took.
 fn sender_view(priority: i64, peer_stages: &[(&str, u64)]) -> impl Fn(u64) -> Value + use<> {
     let e = Estate::create_without_hub().unwrap();
     let s = Store::open(&e.store_root(), "agent-a").unwrap();
@@ -34,13 +45,14 @@ fn sender_view(priority: i64, peer_stages: &[(&str, u64)]) -> impl Fn(u64) -> Va
     let sent = LineExtra { reason: Some(format!("priority={priority}")), ..Default::default() };
     s.append_event_unless("c", "SENT", "m", me, "d", sent, |_| false).unwrap();
     s.append_event("c", "POSTED", "m", me, "d").unwrap();
-    for (st, t) in peer_stages {
-        let extra = LineExtra { peer_ts_ms: Some(*t), ..Default::default() };
+    let posted = s.chain_lines("c").unwrap().into_iter().find(|l| l.event == "POSTED").and_then(|l| l.ts_ms).expect("POSTED is timestamped");
+    for (st, off) in peer_stages {
+        let extra = LineExtra { peer_ts_ms: Some(posted + off), ..Default::default() };
         s.append_event_unless("c", st, "m", peer, "d", extra, |_| false).unwrap();
     }
-    move |now: u64| {
+    move |offset: u64| {
         let _keep = &e;
-        api::status_view(&json!({"op": "status", "msg_id": "m"}), &s, "agent-a", None, now, &D)["messages"][0].clone()
+        api::status_view(&json!({"op": "status", "msg_id": "m"}), &s, "agent-a", None, posted + offset, &D)["messages"][0].clone()
     }
 }
 
@@ -50,52 +62,48 @@ fn label(v: &Value) -> (Option<&str>, Option<&str>) {
 
 #[test]
 fn posted_with_nothing_back_is_unknown_after_the_accept_deadline_urgent_sooner() {
-    let now = termlink_sidecar::store::now_ms();
     let normal = sender_view(0, &[]);
-    assert_eq!(label(&normal(now + 20_000)), (None, None), "within 60 s: no label");
-    assert_eq!(label(&normal(now + 61_000)), (Some("UNKNOWN"), None), "liveness unknown: never STUCK");
+    assert_eq!(label(&normal(20_000)), (None, None), "within 60 s: no label");
+    assert_eq!(label(&normal(61_000)), (Some("UNKNOWN"), None), "liveness unknown: never STUCK");
     let urgent = sender_view(7, &[]);
-    assert_eq!(label(&urgent(now + 20_000)), (Some("UNKNOWN"), None), "urgent: 15 s");
+    assert_eq!(label(&urgent(20_000)), (Some("UNKNOWN"), None), "urgent: 15 s");
 }
 
 #[test]
 fn received_never_stored_is_stuck_not_accepted() {
-    let now = termlink_sidecar::store::now_ms();
-    let v = sender_view(0, &[("RECEIVED", now)]);
-    assert_eq!(label(&v(now + 30_000)), (None, None));
-    assert_eq!(label(&v(now + 61_000)), (Some("STUCK"), Some("not accepted")));
-    let u = sender_view(9, &[("RECEIVED", now)]);
-    assert_eq!(label(&u(now + 16_000)), (Some("STUCK"), Some("not accepted")));
+    let v = sender_view(0, &[("RECEIVED", 0)]);
+    assert_eq!(label(&v(30_000)), (None, None));
+    assert_eq!(label(&v(61_000)), (Some("STUCK"), Some("not accepted")));
+    let u = sender_view(9, &[("RECEIVED", 0)]);
+    assert_eq!(label(&u(16_000)), (Some("STUCK"), Some("not accepted")));
 }
 
 #[test]
 fn stored_waits_for_the_recipient_until_its_overdue_notice() {
-    let t = termlink_sidecar::store::now_ms();
-    let v = sender_view(0, &[("RECEIVED", t), ("STORED", t)]);
+    let v = sender_view(0, &[("RECEIVED", 0), ("STORED", 0)]);
     // A busy or absent recipient: no age makes it STUCK on the sender's side.
-    assert_eq!(label(&v(t + 24 * 3_600_000)), (Some("WAITING FOR RECIPIENT"), None));
-    let n = sender_view(0, &[("RECEIVED", t), ("STORED", t), (OVERDUE_HANDOVER, t + 90_000)]);
-    assert_eq!(label(&n(t + 100_000)), (Some("STUCK"), Some("not handed over")));
+    assert_eq!(label(&v(24 * 3_600_000)), (Some("WAITING FOR RECIPIENT"), None));
+    let n = sender_view(0, &[("RECEIVED", 0), ("STORED", 0), (OVERDUE_HANDOVER, 90_000)]);
+    assert_eq!(label(&n(100_000)), (Some("STUCK"), Some("not handed over")));
 }
 
 #[test]
 fn handed_over_unanswered_is_unknown_past_the_deadline_and_stuck_on_notice() {
-    let t = termlink_sidecar::store::now_ms();
-    let base = [("RECEIVED", t), ("STORED", t), ("HANDED_OVER", t)];
+    let base = [("RECEIVED", 0), ("STORED", 0), ("HANDED_OVER", 0)];
     let v = sender_view(0, &base);
-    assert_eq!(label(&v(t + 30 * 60_000)), (None, None), "within the hour");
-    assert_eq!(label(&v(t + 61 * 60_000)), (Some("UNKNOWN"), None));
+    assert_eq!(label(&v(30 * 60_000)), (None, None), "within the hour");
+    assert_eq!(label(&v(61 * 60_000)), (Some("UNKNOWN"), None));
     let u = sender_view(5, &base);
-    assert_eq!(label(&u(t + 6 * 60_000)), (Some("UNKNOWN"), None), "urgent: 5 min");
+    assert_eq!(label(&u(6 * 60_000)), (Some("UNKNOWN"), None), "urgent: 5 min");
     let mut with_notice = base.to_vec();
-    with_notice.push((OVERDUE_ANSWER, t + 61 * 60_000));
+    with_notice.push((OVERDUE_ANSWER, 61 * 60_000));
     let n = sender_view(0, &with_notice);
-    assert_eq!(label(&n(t + 62 * 60_000)), (Some("STUCK"), Some("not answered")));
+    assert_eq!(label(&n(62 * 60_000)), (Some("STUCK"), Some("not answered")));
     // Answered: nothing to say.
     let mut replied = base.to_vec();
-    replied.push(("REPLIED", t + 60_000));
+    replied.push(("REPLIED", 60_000));
     let r = sender_view(0, &replied);
-    assert_eq!(label(&r(t + 2 * 3_600_000)), (None, None));
+    assert_eq!(label(&r(2 * 3_600_000)), (None, None));
 }
 
 // ---- receiver: overdue notices -------------------------------------------------
