@@ -20,6 +20,15 @@
 # arc-008 run parked a task unexecuted citing "~80% context" at ~178K, which is 59% of the
 # real window and level "ok".
 #
+# T-3489 (AEF 1.8.13, T-4226/T-4171): the gate no longer computes fixed 75/85/95% bands. Both
+# budget-gate.sh and checkpoint.sh now READ their thresholds from lib/budget_ladder.py (one
+# spawn reserve R; 650K/700K/750K at the 800K default). So the LIVE ladder is obtained by
+# running that module for the gate's CONTEXT_WINDOW default, and the two scripts are checked
+# to DELEGATE to it (a script that stopped delegating is a code-vs-code finding). The old
+# percentage parsing stays as a fallback for a gate that still carries it, and the prose is
+# checked in the new form ("At the 800K default: 650K / 700K / 750K used", "At 975K: ...",
+# "750K used at the 800K default") as well as the old absolute/percentage forms.
+#
 # Scope — read a green narrowly (T-2680): this compares the NUMBERS the prose asserts against
 # the NUMBERS the gate computes, plus whether the two enforcing scripts agree with each other.
 # It does NOT verify that the ladder is well chosen, that the surrounding prose is otherwise
@@ -33,6 +42,7 @@ CLAUDE_MD="${BUDGET_LADDER_CLAUDE_MD:-CLAUDE.md}"
 GATE="${BUDGET_LADDER_GATE:-.agentic-framework/agents/context/budget-gate.sh}"
 CHECKPOINT="${BUDGET_LADDER_CHECKPOINT:-.agentic-framework/agents/context/checkpoint.sh}"
 ALLOWLIST="${BUDGET_LADDER_ALLOWLIST:-.context/checks/budget-ladder-allowlist}"
+LADDER_PY="${BUDGET_LADDER_PY:-}"
 JSON=0; QUIET=0
 
 while [ $# -gt 0 ]; do
@@ -44,8 +54,9 @@ while [ $# -gt 0 ]; do
         --gate)          GATE="$2"; shift ;;
         --checkpoint)    CHECKPOINT="$2"; shift ;;
         --allowlist)     ALLOWLIST="$2"; shift ;;
+        --ladder-py)     LADDER_PY="$2"; shift ;;
         -h|--help)
-            echo "Usage: check-budget-ladder-drift.sh [--json] [--quiet] [--claude-md P] [--gate P] [--checkpoint P] [--allowlist P]"
+            echo "Usage: check-budget-ladder-drift.sh [--json] [--quiet] [--claude-md P] [--gate P] [--checkpoint P] [--allowlist P] [--ladder-py P]"
             exit 0 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
@@ -58,10 +69,11 @@ BUDGET_LADDER_CLAUDE_MD="$CLAUDE_MD" \
 BUDGET_LADDER_GATE="$GATE" \
 BUDGET_LADDER_CHECKPOINT="$CHECKPOINT" \
 BUDGET_LADDER_ALLOWLIST="$ALLOWLIST" \
+BUDGET_LADDER_PY="$LADDER_PY" \
 BUDGET_LADDER_JSON="$JSON" \
 BUDGET_LADDER_QUIET="$QUIET" \
 python3 - <<'PY'
-import json, os, re, sys
+import json, os, re, subprocess, sys
 
 claude_md  = os.environ["BUDGET_LADDER_CLAUDE_MD"]
 gate       = os.environ["BUDGET_LADDER_GATE"]
@@ -89,11 +101,31 @@ gate_src = read(gate)
 ckpt_src = read(checkpoint)
 doc_src  = read(claude_md)
 
+ladder_py = os.environ.get("BUDGET_LADDER_PY") or os.path.join(
+    os.path.dirname(os.path.abspath(gate)), "..", "..", "lib", "budget_ladder.py")
+
+def ladder_for(window):
+    """Run the framework's own ladder module (the same call the gate makes)."""
+    try:
+        r = subprocess.run(["python3", "-I", ladder_py, str(window)],
+                           capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError) as exc:
+        tooling("cannot run %s: %s" % (ladder_py, exc))
+    kv = dict(l.split("=", 1) for l in r.stdout.splitlines() if "=" in l)
+    try:
+        return {"warn": int(kv["TOKEN_WARN"]), "urgent": int(kv["TOKEN_URGENT"]),
+                "critical": int(kv["TOKEN_CRITICAL"])}
+    except (KeyError, ValueError):
+        tooling("%s gave no TOKEN_WARN/URGENT/CRITICAL for window %s (rc=%s)" % (ladder_py, window, r.returncode))
+
 def parse_gate(src, path):
     m = re.search(r'CONTEXT_WINDOW=\$\(fw_config_int\s+"CONTEXT_WINDOW"\s+(\d+)\)', src)
     if not m:
         tooling("cannot find CONTEXT_WINDOW default in %s" % path)
     window = int(m.group(1))
+    # T-3489: delegating form — thresholds come from lib/budget_ladder.py.
+    if re.search(r'^[^#\n]*budget_ladder\.py', src, re.M) and re.search(r'TOKEN_WARN=\$\(', src):
+        return window, None
     pct = {}
     for level in ("WARN", "URGENT", "CRITICAL"):
         p = re.search(r'TOKEN_%s=\$\(\(CONTEXT_WINDOW\s*\*\s*(\d+)\s*/\s*100\)\)' % level, src)
@@ -104,18 +136,34 @@ def parse_gate(src, path):
 
 gate_window, gate_pct = parse_gate(gate_src, gate)
 ckpt_window, ckpt_pct = parse_gate(ckpt_src, checkpoint)
+delegating = gate_pct is None
 
-live = {k: gate_window * v // 100 for k, v in gate_pct.items()}
+if delegating:
+    live = ladder_for(gate_window)
+    # Percent equivalents, only so the legacy percentage-prose checks below can still compare.
+    gate_pct = {k: round(v * 100 / gate_window) for k, v in live.items()}
+    gate_sig = (gate_window, "ladder")
+    ckpt_sig = (ckpt_window, "ladder" if ckpt_pct is None else ckpt_pct)
+    gate_desc = "window=%d delegates to budget_ladder.py" % gate_window
+    ckpt_desc = ("window=%d delegates" % ckpt_window) if ckpt_pct is None else \
+                ("window=%d pct=%s (does NOT read budget_ladder.py)" % (ckpt_window, ckpt_pct))
+else:
+    live = {k: gate_window * v // 100 for k, v in gate_pct.items()}
+    gate_sig = (gate_window, gate_pct)
+    ckpt_sig = (ckpt_window, ckpt_pct if ckpt_pct is not None else "ladder")
+    gate_desc = "window=%d pct=%s" % (gate_window, gate_pct)
+    ckpt_desc = ("window=%d pct=%s" % (ckpt_window, ckpt_pct)) if ckpt_pct is not None else \
+                ("window=%d delegates to budget_ladder.py" % ckpt_window)
 
 findings = []
 
 # --- code vs code: the two enforcing scripts must agree ---------------------------------
-if (gate_window, gate_pct) != (ckpt_window, ckpt_pct):
+if gate_sig != ckpt_sig:
     findings.append({
         "signature": "code::gate-vs-checkpoint",
-        "why": "budget-gate.sh (window=%d pct=%s) and checkpoint.sh (window=%d pct=%s) disagree; "
+        "why": "budget-gate.sh (%s) and checkpoint.sh (%s) disagree; "
                "an agent reading `checkpoint.sh status` is told a different ladder than the one that blocks it"
-               % (gate_window, gate_pct, ckpt_window, ckpt_pct),
+               % (gate_desc, ckpt_desc),
     })
 
 # --- prose absolutes: the escalation-ladder line ----------------------------------------
@@ -196,7 +244,32 @@ if crit_pct and int(crit_pct.group(1)) != gate_pct["critical"]:
         "why": "prose says the gate blocks at >=%s%%; it blocks at %d%%" % (crit_pct.group(1), gate_pct["critical"]),
     })
 
-if prose_abs is None and not bands and not crit and not pct_lad and not pct_bands and not crit_pct:
+# --- prose LADDER form (AEF 1.8.13, T-4226): "At the 800K default: 650K / 700K / 750K used" ---
+# Each stated window is run through budget_ladder.py, so a stated figure is checked against
+# the formula at THAT window (800K default and the 975K example), not only the gate's own.
+ladder_stmts = re.findall(r'[Aa]t (?:the )?(\d+)K(?: default)?(?:[:,]|\s+they sit at)\s*(\d+)K\s*/\s*(\d+)K\s*/\s*(\d+)K', doc_src)
+# A legacy (percentage) gate keeps legacy prose; only compare the new form when delegating.
+for w, a, u, c in (ladder_stmts if delegating else []):
+    want = ladder_for(int(w) * 1000)
+    got = {"warn": int(a) * 1000, "urgent": int(u) * 1000, "critical": int(c) * 1000}
+    if got != want:
+        findings.append({
+            "signature": "%s::ladder-at-%sK" % (os.path.basename(claude_md), w),
+            "why": "prose says at %sK: %s/%s/%sK used; budget_ladder.py gives %s"
+                   % (w, a, u, c, {k: v // 1000 for k, v in want.items()}),
+        })
+stop_stmts = re.findall(r'(\d+)K used at the (\d+)K default', doc_src)
+for t, w in (stop_stmts if delegating else []):
+    want = ladder_for(int(w) * 1000)["critical"]
+    if int(t) * 1000 != want:
+        findings.append({
+            "signature": "%s::stop-band-at-%sK" % (os.path.basename(claude_md), w),
+            "why": "prose says the Stop band is %sK used at the %sK default; budget_ladder.py gives %d"
+                   % (t, w, want),
+        })
+
+if prose_abs is None and not bands and not crit and not pct_lad and not pct_bands and not crit_pct \
+        and not ladder_stmts and not stop_stmts:
     # Every anchor missing at once means the prose was restructured and this check went blind.
     tooling("found no budget-ladder statement at all in %s — anchors stale, check is blind" % claude_md)
 
@@ -226,7 +299,8 @@ if as_json:
         "firing": firing,
         "acknowledged": [dict(f, reason=ack[f["signature"]]) for f in acknowledged],
         "drift_total": len(findings),
-        "live": {"window": gate_window, "pct": gate_pct, "tokens": live},
+        "live": {"window": gate_window, "pct": gate_pct, "tokens": live,
+                 "source": "budget_ladder.py" if delegating else "gate-percentages"},
         "scope": scope,
     }, indent=2))
 elif firing:

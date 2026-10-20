@@ -152,6 +152,47 @@ is   "MUTANT: gate percentages moved -> percentage prose fires" "$rc" "1"
 has  "  names the percentage-ladder signature"               "$out" "escalation-ladder-percentages"
 has  "  names the critical-percentage sentence"              "$out" "structural-enforcement-critical-pct"
 
+# --- 9. the DELEGATING form (AEF 1.8.13, T-4226/T-3489) -----------------------------------
+# Gate and checkpoint read their thresholds from lib/budget_ladder.py; prose states them as
+# "At the NK default: A / B / C used". Expected values come from the module itself.
+LADDER=.agentic-framework/lib/budget_ladder.py
+mkdgate() { # $1=path $2=window  (delegating gate; $3=nodelegate -> percentage form)
+    if [ "${3:-}" = "pct" ]; then mkgate "$1" "$2" 75 85 95; return; fi
+    cat > "$1" <<EOF2
+#!/usr/bin/env bash
+CONTEXT_WINDOW=\$(fw_config_int "CONTEXT_WINDOW" $2)
+_LADDER=\$(python3 -I "\$FRAMEWORK_ROOT/lib/budget_ladder.py" "\$CONTEXT_WINDOW" 2>/dev/null) || _LADDER=""
+TOKEN_WARN=\$(printf '%s\\n' "\$_LADDER" | sed -n 's/^TOKEN_WARN=//p')
+EOF2
+}
+k() { python3 -I "$LADDER" "$1" | sed -n "s/^$2=//p"; }   # k <window> <KEY>
+w8=$(k 800000 TOKEN_WARN); u8=$(k 800000 TOKEN_URGENT); c8=$(k 800000 TOKEN_CRITICAL)
+w9=$(k 975000 TOKEN_WARN); u9=$(k 975000 TOKEN_URGENT); c9=$(k 975000 TOKEN_CRITICAL)
+mkdprose() { # $1=path $2=stop800K-in-K (the Amber/Red/Stop 800K triple uses it as the Stop figure)
+    cat > "$1" <<EOF2
+# Doc
+- The bands are one ladder from the spawn reserve R: at the 800K default they sit at $((w8/1000))K / $((u8/1000))K / ${2}K used (Amber / Red / Stop); at 975K, $((w9/1000))K / $((u9/1000))K / $((c9/1000))K used.
+- Escalation ladder: At the 800K default: $((w8/1000))K / $((u8/1000))K / ${2}K used. At 975K: $((w9/1000))K / $((u9/1000))K / $((c9/1000))K used.
+blocks tool calls at critical level (the Stop band: ${2}K used at the 800K default).
+EOF2
+}
+mkdgate "$TMP/dgate.sh" 800000; cp "$TMP/dgate.sh" "$TMP/dckpt.sh"
+mkdprose "$TMP/dok.md" $((c8/1000))
+out=$(bash "$CHECK" --claude-md "$TMP/dok.md" --gate "$TMP/dgate.sh" --checkpoint "$TMP/dckpt.sh" --ladder-py "$LADDER" --allowlist "$TMP/empty-allow" 2>&1); rc=$?
+is   "delegating gate + matching new-form prose is clean"   "$rc" "0"
+has  "  live ladder comes from budget_ladder.py"            "$out" "warn=$w8"
+mkdprose "$TMP/dbad.md" $((c8/1000 + 10))
+out=$(bash "$CHECK" --claude-md "$TMP/dbad.md" --gate "$TMP/dgate.sh" --checkpoint "$TMP/dckpt.sh" --ladder-py "$LADDER" --allowlist "$TMP/empty-allow" 2>&1); rc=$?
+is   "drifted prose number fires"                           "$rc" "1"
+has  "  names the 800K ladder statement"                    "$out" "ladder-at-800K"
+has  "  names the stop-band statement"                      "$out" "stop-band-at-800K"
+mkgate "$TMP/pgate.sh" 800000 75 85 95   # checkpoint reverted to fixed percentages
+out=$(bash "$CHECK" --claude-md "$TMP/dok.md" --gate "$TMP/dgate.sh" --checkpoint "$TMP/pgate.sh" --ladder-py "$LADDER" --allowlist "$TMP/empty-allow" 2>&1); rc=$?
+is   "MUTANT: checkpoint not delegating fires"              "$rc" "1"
+has  "  names the code-vs-code signature"                   "$out" "code::gate-vs-checkpoint"
+out=$(bash "$CHECK" --claude-md "$TMP/dok.md" --gate "$TMP/dgate.sh" --checkpoint "$TMP/dckpt.sh" --ladder-py "$TMP/nope.py" --allowlist "$TMP/empty-allow" 2>&1); rc=$?
+is   "unrunnable ladder module exits 2, not 0"              "$rc" "2"
+
 notrun=$(wc -l < "$NOTRUN_LOG" | tr -d ' ')
 [ "$notrun" -gt 0 ] && FAIL=$((FAIL + notrun))
 printf '\n%d passed, %d failed' "$PASS" "$FAIL"

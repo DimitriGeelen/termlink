@@ -2319,8 +2319,12 @@ and overwrite them. Where the template and this section disagree about a
   *Fixed upstream in AEF 1.8.3 (re-vendored 2026-10-06, T-3370):* the governance section
   below now states the ladder as percentages of `FW_CONTEXT_WINDOW` (75 / 85 / 95 %) and names
   `budget-gate.sh` as the source of truth; `scripts/check-budget-ladder-drift.sh` guards that
-  prose against the gate. `checkpoint.sh budget` is now a native verb. The history below is
-  kept because the lesson about literal numbers in mandates still applies.
+  prose against the gate. `checkpoint.sh budget` is now a native verb. **Superseded again by
+  AEF 1.8.13 (T-4226, T-3489):** the bands are no longer fixed percentages. `lib/budget_ladder.py`
+  derives them from one spawn reserve R (650K / 700K / 750K used at the 800K window), and
+  `budget-gate.sh` and `checkpoint.sh` both read it; the drift guard now runs that module for
+  the live numbers. The history below is kept because the lesson about literal numbers in
+  mandates still applies (the 75/85/95% figures in it are the pre-1.8.13 form).
   Before 1.8.3 the governance section stated *"Escalation ladder:
   120K ok→warn, 150K warn→urgent, 170K urgent→critical (BLOCK)"*. Those are fixed figures
   from a 200K-window era. **The code has not worked that way for some time**:
@@ -2337,7 +2341,7 @@ and overwrite them. Where the template and this section disagree about a
   budget. At an 800K window that is 37%, *below even the first warning*, so the stop condition
   fired before the run had done any work. A literal number in a mandate is what went stale.
   **State stop conditions by threshold NAME, never by number** — e.g. *"stop at `TOKEN_WARN`
-  (75% of `CONTEXT_WINDOW`)"*. That auto-scales when the window changes and cannot rot.
+  (the Amber band, from `lib/budget_ladder.py` for the configured `CONTEXT_WINDOW`)"*. That auto-scales when the window changes and cannot rot.
   Check the live value with `bin/fw config get CONTEXT_WINDOW` and current usage with
   `.agentic-framework/agents/context/checkpoint.sh status` (note: there is **no** `budget`
   subcommand in the vendored copy, despite `/resume` step 6 calling one — use `status`).
