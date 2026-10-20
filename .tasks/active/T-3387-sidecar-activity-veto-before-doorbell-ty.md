@@ -48,7 +48,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-10T12:34:41Z
-last_update: 2026-10-20T19:59:19Z
+last_update: 2026-10-20T20:27:51Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -405,3 +405,6 @@ grep -q 'field(l, "bytes_sent:")' crates/termlink-sidecar/src/activity.rs && ! g
   2. The sidecar posts no agent-presence heartbeat, so `presence_fields` has no publisher to add its fields to yet.
   3. The `scripts/check-platform-lock.sh` roots do not include `crates/termlink-sidecar/src`, so its `/proc` and `ss` sites are unscanned; that file is outside this worker's area.
   4. The thresholds are H-11 starting values and have not been measured on real turns.
+- **Re-run after T-3462 committed (888988dbf):**
+  1. `deadline_tests` now passes 10/10.
+  2. `fc_matrix::fc_2` still fails at `fc_matrix.rs:175`: receiver B's pass returns `CaughtUp { handled: 0 }` for a 512 KiB message, where the test expects `Stalled`. That is the send→hub→receive path, which this task does not touch (it added only a status field), so I reported it to the orchestrator rather than fixing it. AC5 stays open until it is green.
