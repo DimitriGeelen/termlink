@@ -1309,3 +1309,486 @@ decisions:
     date: 2026-10-01
     task: T-2573
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-181
+    decision: "D+ — accept and label as `unowned_forever` now; enforcement (refuse) switches on"
+    scope: project
+    date: 2026-10-02
+    task: T-3310
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-182
+    decision: "B — mail by count, everything else by age: `inbox:*` and `dm:*` default to"
+    scope: project
+    date: 2026-10-02
+    task: T-3310
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-183
+    decision: "C — count, age and live-size ceilings on post, read from a hub config file and"
+    scope: project
+    date: 2026-10-02
+    task: T-3310
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-184
+    decision: "C — routing first, mining folded into the triage. Triage the framework:pickup"
+    scope: project
+    date: 2026-10-02
+    task: T-3319
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-185
+    decision: "C — termlink extracts and publishes an evidence digest (recurring classes with offsets"
+    scope: project
+    date: 2026-10-02
+    task: T-3319
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-186
+    decision: "C. The key is `to_circuit`, mirroring `from_circuit`. Read both grammars: path form (`//host/hub/project/session/agent`, or without the leading `//host`) and AEF V9 (`aef::host=…::hub=…::project=…::session=…::@agent::`). Write path form now and switch to V9 at AEF's announced write-side cutover. Match level by level from level 1. Wake when every named level matches this agent's circuit; do not wake when a named level differs. When the named session/agent is not live here, fall back to the deepest level that resolves, so the project-level owner wakes and nothing is silently dropped. A message without `to_circuit` wakes (back-compatible)."
+    scope: project
+    date: 2026-10-02
+    task: T-3325
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-187
+    decision: "C — adopt the documentation layer now (cards, common rules, adapter, schema, skeleton, step ACs, lessons, our profile, the arc-011 chain); driver and review panel arrive with a re-vendor."
+    scope: project
+    date: 2026-10-04
+    task: T-3339
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-188
+    decision: "C — rehearse in a scratch clone first; the real re-vendor comes back as a GO/NO-GO with evidence."
+    scope: project
+    date: 2026-10-04
+    task: T-3341
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-189
+    decision: "`hub start` refuses a second hub only when TERMLINK_RUNTIME_DIR is unset; `--allow-second-hub` overrides."
+    scope: project
+    date: 2026-10-04
+    task: T-3340
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-190
+    decision: "A — upgrade now; .fwvendor-preserve.yaml keeps our 9 local fixes, circuit.py takes upstream T-3957;"
+    scope: project
+    date: 2026-10-06
+    task: T-3376
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-191
+    decision: "A (operator: \"A\"): reopen now; a TermLink worker drafts v0.5 from the 20 accepted change requests with"
+    scope: project
+    date: 2026-10-11
+    task: T-3388
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-192
+    decision: "D (operator: \"D\"): if the hub record names a valid lease holder it keeps main, busy or ready (R-67.a:"
+    scope: project
+    date: 2026-10-11
+    task: T-3388
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-193
+    decision: "B — the 17 open questions one at a time; each brief names the change requests and residual risks its"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-194
+    decision: "A — confirm ADV-11 (compromised or rogue hub), ADV-12 (unadmitted joiner), ADV-13 (network attacker:"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-195
+    decision: "C now, B as the committed target (operator's words: \"we accept it for now, but we definitely want to move"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-196
+    decision: "D — PN-1 1 hour, PN-2 renewal from 30 minutes and 24 hours absolute, PN-13 1 hour, and the R-7.e (1)"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-197
+    decision: "D — A now: a new conversation always goes through the hub, on one host too (R-7.e (2) unchanged); only"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-198
+    decision: "A — survive F-1 (sidecar killed mid-write) and F-2 (host crash: flush before STORED); detect and show"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-199
+    decision: "D — A for the security floor now: CR-10 accepted; until GP-11 is ruled the default allow-list is \"own"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-200
+    decision: "B′ (operator: \"B plus the custodial rule plus purpose-intent-over-form … yes to all as suggested\"):"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-201
+    decision: "D″ (operator: \"I follow your recommendation\"; \"proceed as suggested\"):"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-202
+    decision: "D (operator: \"D\"): PN-3 to PN-12, PN-15 and PN-17 become [R~] starting values, changeable with"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-203
+    decision: "A as the default when no rule says otherwise, plus a boundary model (operator: \"Yes, that's the ruling,"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-204
+    decision: "C′ (operator: \"Yes, C′ is the ruling\"):"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-205
+    decision: "A (operator: \"a and next\"): no per-message digest beyond the 14-day stage memory; RR-10 accepted;"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-206
+    decision: "D (operator: \"D and next\"): a live holder's signed statement plus the new copy's acceptance, or the"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-207
+    decision: "D (operator: \"D\"): three single decisions first (CR-1 outage exception to \"hub record first\"; RR-8"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-208
+    decision: "A (operator: \"A\"): CR-1 as written. While the hub is unreachable and an established conversation runs"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-209
+    decision: "D′ with forwarding (operator: \"Yes, record it\"):"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-210
+    decision: "A with CR-4 corrected (operator: \"yes\"): CR-2 (every message signed by the sending agent's key,"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-211
+    decision: "A (operator: \"Yeah, I'm fine with A\" … \"Yeah, good idea\"): CR-7 (circuit pass bound to the connection"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-212
+    decision: "A (operator: \"A\"): CR-6 accepted (frame built by the receiving adapter with a per-delivery random"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-213
+    decision: "A (operator: \"A\"): CR-11 (peers see only reachable yes/no and the version class; the four R-53.a fields"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-214
+    decision: "D (operator: \"D\"):"
+    scope: project
+    date: 2026-10-11
+    task: T-3351
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-215
+    decision: "the sender repeats signer key and signature in the post metadata (`sidecar_pk`, `sidecar_sig`); the receiver verifies them against the payload it read."
+    scope: project
+    date: 2026-10-11
+    task: T-3408
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-216
+    decision: "REFUSED on the chain plus a needs-attention entry, not stored."
+    scope: project
+    date: 2026-10-11
+    task: T-3408
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-217
+    decision: "withhold: verify under the sender's own key, store, REFUSED `not-allowed`, needs-attention, shown by `status`; never delivered and never answered."
+    scope: project
+    date: 2026-10-11
+    task: T-3409
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-218
+    decision: "send none."
+    scope: project
+    date: 2026-10-11
+    task: T-3409
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-219
+    decision: "FRAME_CAP limits batching only; a body is always whole, a message larger than the cap travels alone."
+    scope: project
+    date: 2026-10-11
+    task: T-3410
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-220
+    decision: "an assistant record after the tool_result of the tool call the hook fired for (hook passes `tool_use_id`)."
+    scope: project
+    date: 2026-10-11
+    task: T-3410
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-221
+    decision: "the transcript is bound to the session at registration; the op takes `nonce` (+ `msg_id`, `final`)."
+    scope: project
+    date: 2026-10-11
+    task: T-3410
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-222
+    decision: "Stop (and SessionStart) only record the session as ready."
+    scope: project
+    date: 2026-10-11
+    task: T-3411
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-223
+    decision: "`termlink-sidecar start|hook|finalize` instead of a `termlink sidecar` subcommand."
+    scope: project
+    date: 2026-10-11
+    task: T-3411
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-224
+    decision: "the live test fixes `--session-id` and tells the sidecar the transcript location, because Claude runs with the operator's HOME (no credential in the estate HOME, OQ-3)."
+    scope: project
+    date: 2026-10-11
+    task: T-3411
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-225
+    decision: "add `from_instance` to the v1 payload and regenerate the golden vector."
+    scope: project
+    date: 2026-10-11
+    task: T-3412
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-226
+    decision: "the reply is an ordinary message in the same conversation; the link to the original is B's signed REPLIED stage naming the original msg_id (and B's chain line naming the reply)."
+    scope: project
+    date: 2026-10-11
+    task: T-3412
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-227
+    decision: "copy the workspace sources (no .git, no target) to a temp dir, build with `target/arc011-mutants`, apply and revert each patch there; check the unpatched suite is green first."
+    scope: project
+    date: 2026-10-11
+    task: T-3413
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-228
+    decision: "\"a ready session is taken as evidence of hand-over\"."
+    scope: project
+    date: 2026-10-11
+    task: T-3413
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-229
+    decision: "close a claim as an orphan only when its attempt has no CLAIMED line, and only in `Deliverer::new` (start-up)."
+    scope: project
+    date: 2026-10-12
+    task: T-3414
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-230
+    decision: "drive the store, claim and record directly with a scripted harness."
+    scope: project
+    date: 2026-10-12
+    task: T-3414
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-231
+    decision: "the whole run is unprivileged. The test binary runs as `testdev` under `strace -f`, so the throwaway hub, both sidecars, both Claude sessions, the hooks and the finalizers all run as testdev. The agents keep testdev's HOME and own login; only the sidecars' HOME is in the estate, and `Config.claude_projects` points them at testdev's transcripts."
+    scope: project
+    date: 2026-10-12
+    task: T-3417
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-232
+    decision: "run `git init` in each estate project dir, and also set `GIT_CEILING_DIRECTORIES`."
+    scope: project
+    date: 2026-10-12
+    task: T-3417
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-233
+    decision: "A (operator ruling): a project PreToolUse hook refusing `tmux -S`/`-L` on /proc or non-socket paths, plus a boot+hourly canary alerting when `/` is not 755 root."
+    scope: project
+    date: 2026-10-12
+    task: T-3425
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-234
+    decision: "B — stop expecting the legacy push-wake rail on this host until arc-011's doorbell (W2): `--expect-armed` dropped from the waker crontab (installed by runme action 1), and agents not expected armed are named with a reason in the git-tracked `.context/checks/waker-not-expected-allowlist` (`penelope`, `aef-greenfield-test`), counted and reported but not firing; a dead waker on an armed agent and any new unarmed agent still fire. Revisit at W2; the rail-dark expectation retires at W4."
+    scope: project
+    date: 2026-10-17
+    task: T-3443
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-235
+    decision: "B — apply the T-3310 inbox default (newest 1000) to the leftover forever project inboxes, ours now, each other project's only after its owner confirms. runme action 18 caps and sweeps a topic only when every known reader (every hub read-receipt, plus our own alert marker) is past the cut point, and refuses (FAILED, reader named, nothing changed) otherwise or when no reader position is known. AEF, 832, 055 and 1409-sprind are asked to confirm; their inboxes join action 18's list only with that confirmation recorded here."
+    scope: project
+    date: 2026-10-17
+    task: T-3443
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-236
+    decision: "A — re-vendor to AEF `origin/bleeding-edge` at `5c886336b` (2026-10-17), continuing the T-3420 field-test line. Operator: \"proceed as you see fit\", read as the recommended A."
+    scope: project
+    date: 2026-10-17
+    task: T-3434
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-237
+    decision: "C — a 512 KB backstop cap per plaintext field on `channel.post` (`PLAINTEXT_FIELD_TOO_LARGE`, -32025) plus a daily canary (`scripts/check-file-shaped-posts.sh`) that names new file-shaped messages outside the artifact path; refusal of such messages waits for P15's encrypted path. Operator: \"proceed as you see fit and suggested\", read as the recommended C."
+    scope: project
+    date: 2026-10-17
+    task: T-3432
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-238
+    decision: "B — fold into arc-011 PH-3. The measured gaps are parked in T-3455 (inception, horizon later, recommendation DEFER); shaping starts at PH-2 exit, with the operator."
+    scope: project
+    date: 2026-10-17
+    task: T-3454
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-239
+    decision: "C — `check-receiver-ack-lag` WARN → INFO; `voi-prompt` and `check-go-propagation` stay WARN and their items go to the operator one at a time."
+    scope: project
+    date: 2026-10-17
+    task: T-3441
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-240
+    decision: "B. Build only what is still not measured: (1) outbound-queue and circuit-breaker events logged locally by default (not only under `--watch --log`); (2) a daily rollup of the local logs, including the T-3383 hub-outage samples, posted over TermLink (Q2 transport, resolves IW-1) to a bounded collection topic so every host's view is collected, not only .107's."
+    scope: project
+    date: 2026-10-18
+    task: T-2250
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-241
+    decision: "A, strengthened by the operator's rule: **every \"accepted\" signal in the flow is sent only once the message is actually stored.** For the hub: WAL + `synchronous=FULL`, the payload flushed too (closes the T-2464 gap), all of it off the async workers. Sender-side resend stays as the safety net (separate task), keyed to the existing R-44.e accept deadlines (60 s normal, 15 s urgent), bounded attempts with growing gaps, then needs-attention; message-id dedupe at hub and recipient prevents duplicates."
+    scope: project
+    date: 2026-10-18
+    task: T-3461
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-242
+    decision: "`block_in_place` around every meta connection access and the payload write+fsync (`run_blocking` in lib.rs; inline on a current-thread runtime or outside one)."
+    scope: project
+    date: 2026-10-18
+    task: T-3461
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-243
+    decision: "A. The hub gets no filesystem-write observation. Collision avoidance before dispatch is AEF's `fw write-set check`; detection after the fact is check-task-id-collisions axes C/D. ADR §4 gets an addendum."
+    scope: project
+    date: 2026-10-18
+    task: T-2022
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-244
+    decision: "A. Keep the local Unix socket with its fail-closed same-user check (T-2448); no migration to loopback TCP. The trust question moves to T-2422 (per-agent authorization). ADR §7 gets an addendum."
+    scope: project
+    date: 2026-10-18
+    task: T-2024
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-245
+    decision: "close T-3473 (and T-3475) with AC 5 accepted on evidence: ring20 5/5 from .122 at"
+    scope: project
+    date: 2026-10-19
+    task: T-3473
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-246
+    decision: "C with conditions: one shared contract based on ring20's arc-009 S-1 model."
+    scope: project
+    date: 2026-10-19
+    task: T-3483
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-247
+    decision: "B. Add edges from literal path references between carded files (comment-only mentions excluded, ~286 cards), delete orphan cards whose file no longer exists (~29), mark the genuinely isolated rest `standalone: true` and acknowledge only that remainder in the audit-warning ledger, and file upstream that `underpopulated.py` ignores `standalone`."
+    scope: project
+    date: 2026-10-20
+    task: T-3440
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-248
+    decision: "A. Close arc-001 (arc-parallel-substrate, 43/46 done, headline demonstrated by T-2211 substrate-drain-demo) and arc-002 (arc-substrate-fitness, 11/12 done, headline measured live 2026-10-18: cv-keys agent-presence = 2 entries, dead-letter table + canary working) as shipped. The open members (T-2022, T-2024, T-2026, T-2250: human DEFER inceptions with ripe revisit_at) stay as standalone deferred tasks."
+    scope: project
+    date: 2026-10-20
+    task: T-3440
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-249
+    decision: "A′. Fix first: local patch so `fw arc approve-driver --scoring-file` persists the validated `scoring:` block inline and can attach one to an existing driver without losing approval history (T-3472, registered in .vendor-divergence.yaml, filed upstream together with the reviewer/estimator mismatch); a guard that fires when a reviewer recorded \"scorable\" but no `scoring:` is stored; then six specs, arc-substrate-fitness first, each tested across its arc's member tasks, keeping only specs that discriminate; the operator attaches; rescore with before/after rankings."
+    scope: project
+    date: 2026-10-20
+    task: T-3440
+    rationale: "Auto-captured from task file on completion"

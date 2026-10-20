@@ -7,12 +7,12 @@ description: >
   than 14 days (first seen red 2026-09-30T00:33:22Z). Operator binding condition (T-3258
   rulings): a stale WARN becomes an action.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [warn-escalation, guard-layer]
-components: []
+components: [crates/termlink-bus/src/activity.rs, crates/termlink-bus/src/artifact_store.rs, crates/termlink-bus/src/envelope.rs, crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/limits.rs, crates/termlink-bus/src/log.rs, crates/termlink-bus/src/meta.rs, crates/termlink-bus/src/retention.rs, crates/termlink-cli/build.rs, crates/termlink-cli/src/commands/artifact.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/help.rs, crates/termlink-cli/src/commands/identity.rs, crates/termlink-cli/src/commands/mirror_grid_composer.rs, crates/termlink-cli/src/commands/mirror_grid.rs, crates/termlink-cli/src/commands/substrate.rs, crates/termlink-cli/src/commands/tmux_spawn.rs, crates/termlink-cli/src/commands/webhook.rs, crates/termlink-cli/tests/channel_claim_cli_integration.rs, crates/termlink-cli/tests/sidecar_subcommand.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/topic_lint.rs, crates/termlink-hub/src/topic_policy.rs, crates/termlink-hub/src/webhook.rs, crates/termlink-hub/tests/no_federation_tripwire.rs, crates/termlink-mcp/build.rs, crates/termlink-mcp/tests/mcp_integration.rs, crates/termlink-mcp/tests/parity.rs, crates/termlink-protocol/src/retention_defaults.rs, crates/termlink-session/build.rs, crates/termlink-session/src/ack_retry.rs, crates/termlink-session/src/agent_identity.rs, crates/termlink-session/src/ansi.rs, crates/termlink-session/src/artifact.rs, crates/termlink-session/src/assignment.rs, crates/termlink-session/src/audit_append.rs, crates/termlink-session/src/bus_client.rs, crates/termlink-session/src/hub_capabilities.rs, crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/invocation_audit.rs, crates/termlink-session/src/known_peers.rs, crates/termlink-session/src/offline_queue.rs, crates/termlink-session/tests/bus_client_integration.rs, crates/termlink-session/tests/claim_client_integration.rs, crates/termlink-session/tests/integration.rs, crates/termlink-session/tests/no_spoke_mesh_tripwire.rs, crates/termlink-sidecar/src/adapter/claude.rs, crates/termlink-sidecar/src/adapter/mod.rs, crates/termlink-sidecar/src/api.rs, crates/termlink-sidecar/src/beat.rs, crates/termlink-sidecar/src/book.rs, crates/termlink-sidecar/src/cli.rs, crates/termlink-sidecar/src/daemon.rs, crates/termlink-sidecar/src/deadline.rs, crates/termlink-sidecar/src/deliver.rs, crates/termlink-sidecar/src/estate.rs, crates/termlink-sidecar/src/frame.rs, crates/termlink-sidecar/src/hook.rs, crates/termlink-sidecar/src/lib.rs, crates/termlink-sidecar/src/main.rs, crates/termlink-sidecar/src/policy.rs, crates/termlink-sidecar/src/pull.rs, crates/termlink-sidecar/src/send.rs, crates/termlink-sidecar/src/store.rs, crates/termlink-sidecar/src/testkit.rs, crates/termlink-sidecar/src/tools.rs, crates/termlink-sidecar/src/wire.rs, crates/termlink-sidecar/tests/api_tests.rs, crates/termlink-sidecar/tests/cli_prefix.rs, crates/termlink-sidecar/tests/deadline_tests.rs, crates/termlink-sidecar/tests/deliver_tests.rs, crates/termlink-sidecar/tests/drain_tests.rs, crates/termlink-sidecar/tests/estate_kit.rs, crates/termlink-sidecar/tests/fc_matrix.rs, crates/termlink-sidecar/tests/hooks_live.rs, crates/termlink-sidecar/tests/hooks_tests.rs, crates/termlink-sidecar/tests/killswitch_tests.rs, crates/termlink-sidecar/tests/p7_wiring_tests.rs, crates/termlink-sidecar/tests/policy_tests.rs, crates/termlink-sidecar/tests/production_mode.rs, crates/termlink-sidecar/tests/receive_hub.rs, crates/termlink-sidecar/tests/record_print.rs, crates/termlink-sidecar/tests/send_hub.rs, crates/termlink-sidecar/tests/soak.rs, crates/termlink-sidecar/tests/store_tests.rs, crates/termlink-sidecar/tests/supervision_tests.rs, runme.sh, scripts/check-arc-driver-scoring-persisted.sh, scripts/lib/__init__.py, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T05:42:07Z
-last_update: 2026-10-18T22:32:42Z
-date_finished:
+last_update: 2026-10-20T09:18:41Z
+date_finished: 2026-10-20T09:18:41Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -133,7 +133,13 @@ while the member is still red restarts a 14-day window from the close date, then
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `check-audit-warning-acknowledgement.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
+- [x] `check-audit-warning-acknowledgement.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
+
+Evidence (2026-10-20): `bash scripts/check-audit-warning-acknowledgement.sh` rc 0, "verdict: every
+warning acknowledged with a cited reason" against .context/audits/2026-10-19.yaml (was FIRING with
+15 unexamined at filing). Cleared by the work recorded above: BVP driver scoring specs attached
+(runme action 20, both arcs), the T-3472 persistence fix and its FAIL-tier guard, the Fabric
+cleanup, and the T-3440 allowlist entry for the under-populated-card count (cites upstream 330).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -169,6 +175,8 @@ while the member is still red restarts a 14-day window from the close date, then
 -->
 
 ## Verification
+
+bash scripts/check-audit-warning-acknowledgement.sh > /tmp/.t3440 2>&1 && grep -q "every warning acknowledged" /tmp/.t3440
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -441,3 +449,15 @@ while the member is still red restarts a 14-day window from the close date, then
 
 ### 2026-10-17T22:02:52Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6601b73f
+- **Timestamp:** 2026-10-20T09:18:44Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-20T09:18:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
