@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3311: Turn the hub retention sweeper on at .122 (runme) and ask ring20-dashboard about .121
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T20:48:12Z
+# ============================================================================
+
+task_id: T-3311
+task_name: "Turn the hub retention sweeper on at .122 (runme) and ask ring20-dashboard about .121"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-01T19:23:07Z
+completed: 2026-10-20T20:42:14Z
+duration_days: 19
+updates_count: 4
+first_commit: 2026-10-20T18:18:26+02:00
+last_commit: 2026-10-20T22:42:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 21 — retention sweeper on for the .122 hub via a systemd drop-in, restart through the unit, heading says the hub restarts; 5 fixtures. live on .122 (runme 17:46Z) and .121 (ring20 watchdog 18:04Z); waiting for first sweep counts. first sweeps observed on .107, .122 and .121 (interval 3600, runs 1). evolution note (env-only settings and restart paths)
+
+# Key outcomes
+outcomes:
+  - 'runme action 21 sets TERMLINK_SWEEP_INTERVAL_SECS=3600 on the .122 hub through a systemd drop-in and a restart through the unit, with the heading saying plainly that the .122 hub restarts (ring20-management''s condition, msg 245b71d9); idempotent; verified on disk (governor interval, fleet doctor ok, tofu ok); 5 hermetic fixtures (skip, dry-run, apply, no unit, restart not taking effect)'
+  - 'ring20-dashboard asked about .121: they set it in their watchdog themselves (their T-2554, msg 7b9d5272)'
+  - 'After the operator''s runme: .122 governor shows retention_sweep_interval_secs 3600 and retention_sweep_runs_total rising; ring20-management told when it ran; .121 confirmed by ring20-dashboard'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 21 — retention sweeper on for the .122 hub via a systemd drop-in, restart through the unit, heading says the hub restarts; 5 fixtures'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'runme.sh'
+  - '.tasks/active/T-3311-turn-the-hub-retention-sweeper-on-at-122.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T18:18:26'
+    action: 'T-3311: runme action 21 — retention sweeper on for the .122 hub via a systemd drop-in, restart through the unit, heading says the hub restarts; 5 fixtures'
+  - time: '2026-10-20T21:02:15'
+    action: 'T-3311: live on .122 (runme 17:46Z) and .121 (ring20 watchdog 18:04Z); waiting for first sweep counts'
+  - time: '2026-10-20T21:25:36'
+    action: 'T-3311: first sweeps observed on .107, .122 and .121 (interval 3600, runs 1)'
+  - time: '2026-10-20T22:42:12'
+    action: 'T-3311: evolution note (env-only settings and restart paths)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 27439 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-012]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 27439
+  commits: 4
+  files_changed: 3
+  lines_added: 179
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3311-turn-the-hub-retention-sweeper-on-at-122.md
+generated_by: context-agent-hybrid
