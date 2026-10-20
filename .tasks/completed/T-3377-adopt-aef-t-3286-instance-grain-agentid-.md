@@ -13,12 +13,12 @@ description: >
   to one correspondent; keep our newer code otherwise. Source: AEF lib/templates/scripts
   at v1.8.5.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/agent-conversation-status.sh, scripts/agent-respond.sh, scripts/agent-send.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -47,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T19:52:37Z
-last_update: 2026-10-20T19:56:42Z
-date_finished:
+last_update: 2026-10-20T21:40:11Z
+date_finished: 2026-10-20T21:40:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -393,3 +393,20 @@ timeout 300 bash tests/wake-confirm-reply-match.sh > /tmp/.t3377-wc 2>&1 && grep
 - **Action:** `agent-send.sh` and `agent-respond.sh` now source `scripts/agent-identity.sh` (AEF T-3286, vendored by 1.8.3) and stamp `metadata.agent_id` on the turn, the receipt, and the reply. If the resolver lib is missing, both scripts exit 2 and post nothing. `agent-conversation-status.sh` only needed its stale comment fixed, because its reader chain already prefers `.metadata.agent_id`. Our newer code (to_circuit, relay_hops, hub routing, the T-2411 self-fp resolution) is unchanged.
 - **Correction to the description:** it said our `agent-send.sh` "stamps agent_id its own way (4 sites)". It stamped **none**. The 4 `agent_id` hits are all `to_agent_id`, the recipient lookup. So before this change none of our three producer posts carried the sender's identity, and readers fell back to `.sender_id`, which collapses co-resident agents to one.
 - **Tests:** new `tests/agent-identity-stamping-fixtures.sh` (11 assertions, hermetic fake termlink + temp HOME). I ran two mutants against a temp copy: removing the send stamp turned 5 assertions red, and removing the receipt stamp turned 1 red. The 7 existing agent-send/respond suites are still green.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-69a9b24b
+- **Timestamp:** 2026-10-20T21:40:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/agent-send.sh` sources `scripts/agent-identity.sh` (overridable via `AGENT_IDENTITY_LIB`, die with exit 2 if absent) and stamps `--metadata agent_id=<resolve_agent_id>` on the turn post, keep
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/agent-identity.sh in: `scripts/agent-send.sh` sources `scripts/agent-identity.sh` (overridable via `AGENT_IDENTITY_LIB`, die with exit 2 if absent) and stamps `--metadata a`
+
+### 2026-10-20T21:40:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

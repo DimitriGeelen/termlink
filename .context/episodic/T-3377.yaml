@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3377: Adopt AEF T-3286 instance-grain agent_id stamping in TermLink's doorbell+mail toolkit
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T21:40:36Z
+# ============================================================================
+
+task_id: T-3377
+task_name: "Adopt AEF T-3286 instance-grain agent_id stamping in TermLink's doorbell+mail toolkit"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-06T19:52:37Z
+completed: 2026-10-20T21:40:11Z
+duration_days: 14
+updates_count: 3
+first_commit: 2026-10-20T21:56:38+02:00
+last_commit: 2026-10-20T22:03:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  concrete acceptance criteria for instance-grain agent_id stamping. agent-send/respond stamp instance-grain metadata.agent_id via agent-identity.sh (port of AEF T-3286); hermetic fixtures
+
+# Key outcomes
+outcomes:
+  - '`scripts/agent-send.sh` sources `scripts/agent-identity.sh` (overridable via `AGENT_IDENTITY_LIB`, die with exit 2 if absent) and stamps `--metadata agent_id=<resolve_agent_id>` on the turn post, keeping every other metadata arg it already sends (conversation_id, relay_hops, to_circuit)'
+  - '`scripts/agent-respond.sh` sources the same resolver, resolves once, and stamps `metadata.agent_id` on BOTH the receipt post and the optional reply turn post'
+  - '`scripts/agent-conversation-status.sh`''s stale "agent-send/respond do not write metadata.agent_id" comment is corrected (reader chain `.metadata.agent_id // ._from // .sender_id` already handles it; no logic change)'
+  - 'A hermetic fixture suite `tests/agent-identity-stamping-fixtures.sh` (fake `termlink` via `TERMLINK_BIN`, temp dirs only) proves: the send turn and both respond posts carry agent_id; `FW_AGENT_ID` wins; whoami `display_name@session_id` is used otherwise; two co-resident senders with different session ids stamp different agent_ids; and the stamp is NOT taken from `be-reachable.state`'
+  - 'Existing agent-send/respond test suites still pass (agent-send-grace-window, agent-send-idle-gate, relay-b1-doorbell-rail, relay-b2-send-hops, tl-claude-identity-binding, wake-confirm-reply-match)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'agent-send/respond stamp instance-grain metadata.agent_id via agent-identity.sh (port of AEF T-3286); hermetic fixtures'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/agent-conversation-status.sh'
+  - 'scripts/agent-respond.sh'
+  - 'scripts/agent-send.sh'
+  - '.tasks/active/T-3377-adopt-aef-t-3286-instance-grain-agentid-.md'
+  - 'tests/agent-identity-stamping-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T21:56:38'
+    action: 'T-3377: concrete acceptance criteria for instance-grain agent_id stamping'
+  - time: '2026-10-20T22:03:29'
+    action: 'T-3377: agent-send/respond stamp instance-grain metadata.agent_id via agent-identity.sh (port of AEF T-3286); hermetic fixtures'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 20267 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 20267
+  commits: 2
+  files_changed: 5
+  lines_added: 192
+  lines_removed: 21
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3377-adopt-aef-t-3286-instance-grain-agentid-.md
+generated_by: context-agent-hybrid
