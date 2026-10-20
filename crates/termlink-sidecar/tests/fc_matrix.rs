@@ -169,8 +169,11 @@ fn fc_2_a_full_disk_never_reports_stored_and_the_message_waits() {
     let sb = sender(&e, &store_b, "b", "agent-b", "inst-b", &id);
     let rx_a = receiver(&e, &store_a, &sa, "agent-a", "inst-a", &id, &roster);
     let rx_b = receiver(&e, &store_b, &sb, "agent-b", "inst-b", &id, &roster);
-    let big = "x".repeat(512 * 1024);
+    // Over the 256 KiB disk, under the hub's 512 KiB plaintext cap (FX-5): a body at
+    // the cap is refused by the hub and never reaches B's inbox, so no disk is tested.
+    let big = "x".repeat(400 * 1024);
     let s = sa.send("agent-b", "inst-b", Some("full"), &big, None).unwrap();
+    assert_eq!(sa.outbox_len(), 0, "the hub must have accepted the post");
     let r = rx_b.pass();
     assert!(matches!(r, PassResult::Stalled { .. }), "{r:?}");
     assert!(!events(&store_b, "full", &s.msg_id).contains(&"STORED".to_string()));
