@@ -19,6 +19,10 @@ pub struct TerminalMode {
     pub raw: bool,
     /// Whether the terminal is in alternate screen buffer mode.
     pub alternate_screen: bool,
+    /// Whether the program enabled bracketed paste (`ESC[?2004h`, T-3369).
+    /// `default` keeps payloads from sessions predating the field readable.
+    #[serde(default)]
+    pub bracketed_paste: bool,
 }
 
 /// Escape sequences that move a terminal in (`true`) or out (`false`) of the
@@ -37,6 +41,21 @@ const ALT_SCREEN_SEQUENCES: &[(&[u8], bool)] = &[
 /// cross-read carry. Asserted against the table in `alt_screen_max_seq_len_matches_table`
 /// so adding a longer sequence cannot silently under-size the carry.
 const ALT_SCREEN_MAX_SEQ_LEN: usize = 8;
+
+/// Bracketed-paste mode (DECSET 2004) on (`true`) / off (`false`) (T-3369).
+///
+/// A program that wants pastes wrapped in `ESC[200~ … ESC[201~` (Claude Code,
+/// readline, vim) writes `?2004h` once, at startup. A client attaching later
+/// never sees that byte in its replay window, so the session remembers the mode
+/// and reports it in `terminal_mode`; `pty attach` re-asserts it on the
+/// operator's terminal, which is what makes that terminal send the markers.
+const BRACKETED_PASTE_SEQUENCES: &[(&[u8], bool)] = &[
+    (b"\x1b[?2004h", true),
+    (b"\x1b[?2004l", false),
+];
+
+/// Length of the longest entry in [`BRACKETED_PASTE_SEQUENCES`] (carry sizing).
+const BRACKETED_PASTE_MAX_SEQ_LEN: usize = 8;
 
 /// Errors from PTY operations.
 #[derive(Debug, thiserror::Error)]
@@ -80,6 +99,10 @@ pub struct PtySession {
     /// Rolling tail of the last read (< one escape-sequence length) so an
     /// alternate-screen sequence split across a read boundary is still detected.
     scan_carry: Arc<Mutex<Vec<u8>>>,
+    /// Whether the program has bracketed paste enabled (T-3369).
+    bracketed_paste: Arc<Mutex<bool>>,
+    /// Cross-read carry for the bracketed-paste scan (same role as `scan_carry`).
+    paste_scan_carry: Arc<Mutex<Vec<u8>>>,
     /// Last known terminal mode (for change detection).
     last_mode: Arc<Mutex<Option<TerminalMode>>>,
 }
@@ -236,6 +259,8 @@ impl PtySession {
             scrollback: Arc::new(Mutex::new(ScrollbackBuffer::new(scrollback_bytes))),
             alternate_screen: Arc::new(Mutex::new(false)),
             scan_carry: Arc::new(Mutex::new(Vec::new())),
+            bracketed_paste: Arc::new(Mutex::new(false)),
+            paste_scan_carry: Arc::new(Mutex::new(Vec::new())),
             last_mode: Arc::new(Mutex::new(None)),
         })
     }
@@ -283,6 +308,12 @@ impl PtySession {
                     // Scan for alternate screen buffer escape sequences
                     Self::scan_alternate_screen(chunk, &self.alternate_screen, &self.scan_carry)
                         .await;
+                    Self::scan_bracketed_paste(
+                        chunk,
+                        &self.bracketed_paste,
+                        &self.paste_scan_carry,
+                    )
+                    .await;
 
                     let mut scrollback = self.scrollback.lock().await;
                     scrollback.append(chunk);
@@ -394,12 +425,14 @@ impl PtySession {
         let echo = (termios.c_lflag & libc::ECHO as libc::tcflag_t) != 0;
         let raw = !canonical && !echo;
         let alternate_screen = *self.alternate_screen.lock().await;
+        let bracketed_paste = *self.bracketed_paste.lock().await;
 
         Ok(TerminalMode {
             canonical,
             echo,
             raw,
             alternate_screen,
+            bracketed_paste,
         })
     }
 
@@ -463,6 +496,37 @@ impl PtySession {
         alt_screen: &Arc<Mutex<bool>>,
         carry: &Arc<Mutex<Vec<u8>>>,
     ) {
+        Self::scan_mode_sequences(chunk, alt_screen, carry, ALT_SCREEN_SEQUENCES, ALT_SCREEN_MAX_SEQ_LEN)
+            .await;
+    }
+
+    /// Track bracketed-paste mode (`ESC[?2004h/l`) in output bytes (T-3369).
+    /// Same carry discipline as [`Self::scan_alternate_screen`].
+    async fn scan_bracketed_paste(
+        chunk: &[u8],
+        bracketed_paste: &Arc<Mutex<bool>>,
+        carry: &Arc<Mutex<Vec<u8>>>,
+    ) {
+        Self::scan_mode_sequences(
+            chunk,
+            bracketed_paste,
+            carry,
+            BRACKETED_PASTE_SEQUENCES,
+            BRACKETED_PASTE_MAX_SEQ_LEN,
+        )
+        .await;
+    }
+
+    /// Shared scanner behind the mode trackers: the last on/off sequence from
+    /// `table` in `[carry || chunk]` sets `state`. See `scan_alternate_screen`
+    /// for the carry and no-double-count rules.
+    async fn scan_mode_sequences(
+        chunk: &[u8],
+        state: &Arc<Mutex<bool>>,
+        carry: &Arc<Mutex<Vec<u8>>>,
+        table: &[(&[u8], bool)],
+        max_seq_len: usize,
+    ) {
         let mut carry_guard = carry.lock().await;
         let carry_len = carry_guard.len();
 
@@ -475,7 +539,7 @@ impl PtySession {
         // byte stream is the one that sticks.
         let mut changed = None;
         for start in 0..combined.len() {
-            for (seq, enters) in ALT_SCREEN_SEQUENCES {
+            for (seq, enters) in table {
                 let end = start + seq.len();
                 // Past the end, or already fully seen on a previous call.
                 if end > combined.len() || end <= carry_len {
@@ -489,7 +553,7 @@ impl PtySession {
 
         // Retain the last max_seq_len-1 bytes so a sequence straddling the next
         // read boundary is still completed on the following call.
-        let keep = ALT_SCREEN_MAX_SEQ_LEN - 1;
+        let keep = max_seq_len - 1;
         if combined.len() > keep {
             let start = combined.len() - keep;
             *carry_guard = combined[start..].to_vec();
@@ -499,8 +563,7 @@ impl PtySession {
         drop(carry_guard);
 
         if let Some(new_state) = changed {
-            let mut state = alt_screen.lock().await;
-            *state = new_state;
+            *state.lock().await = new_state;
         }
     }
 
@@ -880,12 +943,14 @@ mod tests {
             echo: true,
             raw: false,
             alternate_screen: false,
+            bracketed_paste: true,
         };
         let json = serde_json::to_value(&mode).unwrap();
         assert_eq!(json["canonical"], true);
         assert_eq!(json["echo"], true);
         assert_eq!(json["raw"], false);
         assert_eq!(json["alternate_screen"], false);
+        assert_eq!(json["bracketed_paste"], true);
 
         let deserialized: TerminalMode = serde_json::from_value(json).unwrap();
         assert_eq!(deserialized, mode);
@@ -918,6 +983,68 @@ mod tests {
             ALT_SCREEN_MAX_SEQ_LEN, longest,
             "ALT_SCREEN_MAX_SEQ_LEN must track the longest sequence in the table"
         );
+    }
+
+    /// T-3369: bracketed-paste mode is remembered from the output stream, even
+    /// when the sequence is split across reads, so a later attach can restore it.
+    #[tokio::test]
+    async fn bracketed_paste_mode_is_tracked_across_reads() {
+        let bp = Arc::new(Mutex::new(false));
+        let carry = Arc::new(Mutex::new(Vec::new()));
+
+        PtySession::scan_bracketed_paste(b"prompt> \x1b[?20", &bp, &carry).await;
+        assert!(!*bp.lock().await, "half a sequence changes nothing");
+        PtySession::scan_bracketed_paste(b"04h", &bp, &carry).await;
+        assert!(*bp.lock().await, "?2004h split across reads enables it");
+
+        PtySession::scan_bracketed_paste(b"lots of output\r\n", &bp, &carry).await;
+        assert!(*bp.lock().await, "unrelated output keeps the mode");
+
+        PtySession::scan_bracketed_paste(b"\x1b[?2004l", &bp, &carry).await;
+        assert!(!*bp.lock().await, "?2004l disables it");
+    }
+
+    #[test]
+    fn bracketed_paste_max_seq_len_matches_table() {
+        let longest = BRACKETED_PASTE_SEQUENCES.iter().map(|(s, _)| s.len()).max().unwrap();
+        assert_eq!(BRACKETED_PASTE_MAX_SEQ_LEN, longest);
+    }
+
+    /// T-3369: a real program enabling bracketed paste shows up in `terminal_mode`.
+    #[tokio::test]
+    async fn terminal_mode_reports_bracketed_paste_from_child_output() {
+        let _guard = PTY_LOCK.lock().await;
+        let session = Arc::new(PtySession::spawn(Some("/bin/sh"), 4096).unwrap());
+        let reader = {
+            let s = session.clone();
+            tokio::spawn(async move { s.read_loop().await })
+        };
+        assert!(!session.terminal_mode().await.unwrap().bracketed_paste);
+
+        session.write(b"printf '\\033[?2004h'\n").await.unwrap();
+        let mut on = false;
+        for _ in 0..50 {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            if session.terminal_mode().await.unwrap().bracketed_paste {
+                on = true;
+                break;
+            }
+        }
+        assert!(on, "child's ?2004h must be reflected in terminal_mode");
+
+        session.write(b"exit 0\n").await.unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(2), session.wait()).await;
+        reader.abort();
+    }
+
+    /// T-3369: a mode payload from a session predating the field still parses.
+    #[test]
+    fn terminal_mode_without_bracketed_paste_field_deserializes() {
+        let m: TerminalMode = serde_json::from_value(serde_json::json!({
+            "canonical": true, "echo": true, "raw": false, "alternate_screen": false,
+        }))
+        .unwrap();
+        assert!(!m.bracketed_paste);
     }
 
     /// T-2738: the original 6-byte DECSET pair, still emitted by older TUIs.

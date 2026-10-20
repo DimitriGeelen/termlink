@@ -2,12 +2,15 @@
 id: T-3369
 name: "pty attach drops bracketed-paste markers (055 pty-attach-paste)"
 description: >
-  With the inner program enabling ESC[?2004h, no ESC[200~/ESC[201~ reached the session through termlink pty attach, so a multi-line paste lands in Claude line by line, each submitted (an agent crashed). Fix: relay bracketed-paste mode and markers. Reporter 055-agentic-fleet-cockpit T-474, cid pty-attach-paste.
+  With the inner program enabling ESC[?2004h, no ESC[200~/ESC[201~ reached the session
+  through termlink pty attach, so a multi-line paste lands in Claude line by line,
+  each submitted (an agent crashed). Fix: relay bracketed-paste mode and markers.
+  Reporter 055-agentic-fleet-cockpit T-474, cid pty-attach-paste.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:34:33Z
-last_update: 2026-10-06T10:34:33Z
-date_finished: null
+last_update: 2026-10-20T15:27:38Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,20 +37,35 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T15:27:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3369: pty attach drops bracketed-paste markers (055 pty-attach-paste)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+A program enables bracketed paste once, at startup (`ESC[?2004h`), usually long before anyone runs `termlink pty attach`. The attach replay (last 100 lines) and the 8 KB output polls rarely contain that byte, so the operator's terminal never entered the mode, never wrapped a paste in `ESC[200~ … ESC[201~`, and a multi-line paste reached Claude as one submitted line per newline. Fix: the session tracks the mode from its PTY output (`TerminalMode::bracketed_paste`, reported by `pty.mode` / `query.status` / `pty.mode-change`), and attach asserts it on the operator's terminal after the replay. Later toggles still pass through with the output; detach already emits `ESC[?2004l` (T-2732 restore set). Pasted markers then travel as raw bytes (T-3368).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] When the inner program enables bracketed paste (ESC[?2004h), a paste through `pty attach` reaches the session wrapped in ESC[200~ … ESC[201~, so a multi-line paste is one paste, not one submitted line per newline; the mode is relayed to the outer terminal and turned off on detach
+- [x] Regression test for the marker relay (input with ESC[200~…ESC[201~ arrives with markers intact; mode on/off sequences from the session reach the outer terminal)
+- [x] `cargo test -p termlink` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -83,6 +101,11 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo test -p termlink-session --lib pty:: > /tmp/.t3369-s 2>&1 && grep -q "bracketed_paste_mode_is_tracked_across_reads ... ok" /tmp/.t3369-s && grep -q "terminal_mode_reports_bracketed_paste_from_child_output ... ok" /tmp/.t3369-s
+cargo test -p termlink --bin termlink pty::tests > /tmp/.t3369-c 2>&1 && grep -q "pasted_markers_reach_the_session_intact_even_when_split ... ok" /tmp/.t3369-c && grep -q "mode_toggles_from_the_session_reach_the_outer_terminal ... ok" /tmp/.t3369-c && grep -q "attach_asserts_the_sessions_bracketed_paste_mode ... ok" /tmp/.t3369-c
+cargo test -p termlink > /tmp/.t3369-all 2>&1 && ! grep -q "FAILED" /tmp/.t3369-all
+cargo test -p termlink-session > /tmp/.t3369-sall 2>&1 && ! grep -q "FAILED" /tmp/.t3369-sall
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -172,6 +195,11 @@ date_finished: null
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
+
+**Symptom:** with the inner program enabling `ESC[?2004h`, no `ESC[200~`/`ESC[201~` reached the session through `pty attach`; a multi-line paste landed in Claude line by line, each submitted, and an agent crashed (055 T-474).
+**Root cause:** attach relayed terminal modes only implicitly, by replaying recent output. A mode set once at program startup is outside that window, so the operator's terminal never entered bracketed-paste mode and never generated markers. The session tracked one private mode (alternate screen) and not this one.
+**Why structurally allowed:** the relay was "bytes in, bytes out", which is correct only for modes set during the attach; nothing modelled state set before it, and no test attached to a session whose program had enabled a mode earlier.
+**Prevention:** the session's mode tracker now covers bracketed paste (shared scanner with the alternate-screen tracker), with tests for split sequences and a real child enabling it; attach's mode sync is the pure `attach_paste_mode_sync` with its own test.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -267,3 +295,12 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3369-pty-attach-drops-bracketed-paste-markers.md
 - **Context:** Initial task creation
+
+### 2026-10-20 — fix [w-pty-paste]
+- **Action:** termlink-session `PtySession` tracks bracketed paste from output (`scan_bracketed_paste`, sharing a new `scan_mode_sequences` with the alt-screen scan); `TerminalMode.bracketed_paste` (serde default) reported by `pty.mode`, `query.status` and `pty.mode-change`. `pty attach` asserts the mode (`?2004h` or `?2004l`) on the operator's terminal after the replay via `attach_paste_mode_sync`; detach already disables it.
+- **Output:** 4 session tests + 3 CLI tests. `cargo test -p termlink` 1220 unit + 182 integration pass; `cargo test -p termlink-session` 520 + integration pass. Clippy: no new warnings.
+- **Not done:** live end-to-end check with a real outer terminal and Claude Code (needs an interactive terminal). Known limit: if a program toggles the mode while attached and more than 8 KB of output arrives between two polls, that toggle can fall outside the poll window (pre-existing output-window limit; re-attach re-syncs).
+
+### 2026-10-20T15:27:38Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

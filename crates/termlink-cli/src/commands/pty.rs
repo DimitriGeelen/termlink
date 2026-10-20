@@ -546,6 +546,27 @@ pub(crate) fn attach_input_keys(bytes: &[u8]) -> serde_json::Value {
     }])
 }
 
+/// T-3369: bytes that put the operator's terminal into the session's
+/// bracketed-paste mode at attach time, from a `pty.mode` result.
+///
+/// A program turns bracketed paste on once, at startup (`ESC[?2004h`), long
+/// before anyone attaches, so the attach replay usually does not contain it.
+/// The operator's terminal then never wraps a paste in `ESC[200~ … ESC[201~`,
+/// and a multi-line paste reaches e.g. Claude Code as one submitted line per
+/// newline (055 T-474: an agent crashed). The session tracks the mode
+/// (`TerminalMode::bracketed_paste`); attach asserts it here, and later
+/// toggles pass through with the output as before. Off is asserted too: the
+/// operator's own shell may have left the mode on, and markers sent to a
+/// program that did not ask for them arrive as literal `[200~` text.
+/// `None` when the session does not report the field (older session): leave
+/// the terminal alone rather than guess.
+pub(crate) fn attach_paste_mode_sync(mode: &serde_json::Value) -> Option<&'static [u8]> {
+    match mode["bracketed_paste"].as_bool()? {
+        true => Some(b"\x1b[?2004h"),
+        false => Some(b"\x1b[?2004l"),
+    }
+}
+
 /// T-2644: what the interactive attach loop learned from one `command.inject`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum AttachInjectOutcome {
@@ -925,6 +946,19 @@ async fn attach_loop(
             std::io::Write::flush(&mut out)?;
         }
         last_buffered = result["total_buffered"].as_u64().unwrap_or(0);
+    }
+
+    // T-3369: match the operator's terminal to the session's bracketed-paste
+    // mode, after the replay so the current state wins over any stale toggle in
+    // it. Best-effort: an older session without `pty.mode`'s field is left alone.
+    if let Ok(resp) = client::rpc_call(socket, "pty.mode", serde_json::json!({})).await
+        && let Ok(mode) = client::unwrap_result(resp)
+        && let Some(seq) = attach_paste_mode_sync(&mode)
+    {
+        let stdout = std::io::stdout();
+        let mut out = stdout.lock();
+        std::io::Write::write_all(&mut out, seq)?;
+        std::io::Write::flush(&mut out)?;
     }
 
     let mut stdin = tokio::io::stdin();
@@ -1552,6 +1586,46 @@ mod tests {
         h.join().unwrap();
         assert_eq!(step, PollStep::Output { new_data: b"abc".to_vec(), new_buffered: 3 });
         assert_eq!(poll_output_step(&dir.path().join("none.sock"), 0).await, PollStep::ConnectionLost);
+    }
+
+    // === T-3369: bracketed paste through `pty attach` ===
+
+    #[test]
+    fn attach_asserts_the_sessions_bracketed_paste_mode() {
+        let on = serde_json::json!({ "raw": true, "bracketed_paste": true });
+        let off = serde_json::json!({ "raw": true, "bracketed_paste": false });
+        assert_eq!(attach_paste_mode_sync(&on), Some(&b"\x1b[?2004h"[..]));
+        assert_eq!(attach_paste_mode_sync(&off), Some(&b"\x1b[?2004l"[..]));
+        // An older session that does not report the field: leave the terminal alone.
+        assert_eq!(attach_paste_mode_sync(&serde_json::json!({ "raw": true })), None);
+    }
+
+    #[test]
+    fn pasted_markers_reach_the_session_intact_even_when_split() {
+        // What the operator's terminal sends for a multi-line paste once the mode is
+        // on: one wrapped block. Cut inside both markers and inside the text.
+        let paste = b"\x1b[200~line one\nline two \xc3\xa9\nline three\x1b[201~";
+        let got = deliver_in_chunks(paste, &[3, 9, 20, 27, paste.len() - 3]);
+        assert_eq!(got, paste);
+        assert!(got.starts_with(b"\x1b[200~") && got.ends_with(b"\x1b[201~"));
+    }
+
+    #[tokio::test]
+    async fn mode_toggles_from_the_session_reach_the_outer_terminal() {
+        // The output relay is byte-for-byte: a program's ?2004h / ?2004l written
+        // while attached arrives in the bytes the loop writes to the operator.
+        let dir = tempfile::tempdir().unwrap();
+        let sock = dir.path().join("s.sock");
+        let h = answer_once_with(
+            &sock,
+            "{\"jsonrpc\":\"2.0\",\"id\":\"cli-1\",\"result\":{\"output\":\"\\u001b[?2004h> \\u001b[?2004l\",\"total_buffered\":19}}\n",
+        );
+        let step = poll_output_step(&sock, 0).await;
+        h.join().unwrap();
+        assert_eq!(
+            step,
+            PollStep::Output { new_data: b"\x1b[?2004h> \x1b[?2004l".to_vec(), new_buffered: 19 }
+        );
     }
 
     #[test]

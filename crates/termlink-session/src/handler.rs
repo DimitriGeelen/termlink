@@ -385,6 +385,7 @@ async fn handle_query_status(id: serde_json::Value, ctx: &SessionContext) -> Rpc
                 "echo": mode.echo,
                 "raw": mode.raw,
                 "alternate_screen": mode.alternate_screen,
+                "bracketed_paste": mode.bracketed_paste,
             });
         }
 
@@ -1264,6 +1265,7 @@ async fn handle_pty_mode(id: serde_json::Value, ctx: &SessionContext) -> RpcResp
                 "echo": mode.echo,
                 "raw": mode.raw,
                 "alternate_screen": mode.alternate_screen,
+                "bracketed_paste": mode.bracketed_paste,
             }),
         )
         .into(),
@@ -1292,6 +1294,7 @@ async fn emit_mode_change_if_needed(ctx: &SessionContext) {
                 "echo": current.echo,
                 "raw": current.raw,
                 "alternate_screen": current.alternate_screen,
+                "bracketed_paste": current.bracketed_paste,
             });
             if let Some(prev) = previous {
                 payload["previous"] = json!({
@@ -1299,6 +1302,7 @@ async fn emit_mode_change_if_needed(ctx: &SessionContext) {
                     "echo": prev.echo,
                     "raw": prev.raw,
                     "alternate_screen": prev.alternate_screen,
+                    "bracketed_paste": prev.bracketed_paste,
                 });
             }
             if password_hint {
