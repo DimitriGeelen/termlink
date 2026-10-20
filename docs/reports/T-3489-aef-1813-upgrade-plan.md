@@ -76,3 +76,32 @@ The 11 `landed-upstream` entries need no action, but each one that is still in `
 ## 7. Recommendation
 
 Conditional go. The two blockers are unresolved: the ancestry check and the four registered-but-unpreserved files (`arc.sh`, `claude-fw`, `bin/fw`, `inception.sh`), so add those to the preserve manifest (or confirm upstream carries them) before running the upgrade. CLAUDE.md is safe (no project-specific content below line 2822), and the `cd X || git status` change has no hits in `scripts/` or `.claude/`.
+
+## 8. Outcome (2026-10-20, operator ruling A)
+
+**Carry status** — from AEF's own carry map (AEF T-4463, msg 78e60ff5, evidence = commits in v1.8.13's history), plus one correction measured here:
+
+| # | Fix | v1.8.13 | Action |
+|---|---|---|---|
+| 1 | T-3472 lib/arc.sh | not carried | preserved |
+| 2 | T-3464 bin/claude-fw | not carried; conflicts with T-4249 | preserved, 3-way merged (both kept) |
+| 3, 19 | T-3337, T-3370 discovery.py | not carried | preserved, 3-way merged clean |
+| 4 | T-3336 embeddings.py | not carried | preserved |
+| 5 | T-3270 check-active-task.sh | not carried | preserved, 3-way merged clean |
+| 6 | T-3269 handover.sh | not carried | preserved |
+| 7 | T-3189 estimator.py | not carried | preserved |
+| 8 | T-3188 estimator.py | superseded (51ec84ea3) | landed-upstream |
+| 9 | T-3185 lib/bvp.sh | not carried | preserved |
+| 10, 12 | T-3184, T-3176 lib/bvp.sh | partly carried | preserved (uncovered halves) |
+| 11, 18 | T-3178, T-3370 safe-commands.sh | partly carried | preserved, 3-way merged (one conflict; both kept) |
+| 13 | T-2882 handover.sh | partly carried | preserved |
+| 14 | T-2866 bin/fw | superseded (80499503b) | upstream taken |
+| 15 | T-2687 lib/pickup.sh | not carried | preserved, 3-way merged clean |
+| 16 | T-3039 lib/inception.sh | map said not carried; **ours is byte-identical to v1.8.13** | landed-upstream, unpreserved |
+| 17 | T-3316 checkpoint.sh | not in 1.8.13 (fixed in 1.8.14 pre-releases) | preserved, 3-way merged clean |
+
+**Done:** ancestry verified; rehearsed on a throwaway clone; upgrade b0b2348b2; register baseline bd1082a3e;
+follow-ups b1c7ffd96 (two new upstream write rules as herestrings, fixture-caught) and 0ca79c3b5
+(budget-ladder guard reads `lib/budget_ladder.py`). Not-carried fixes proposed back to AEF at
+`framework:pickup` offsets 341–350 (AEF triage T-4472). Guard layer after the upgrade: every FAIL-tier red explained
+(write-pattern and budget-ladder fixtures fixed; standing-controls red by design until PH-2).

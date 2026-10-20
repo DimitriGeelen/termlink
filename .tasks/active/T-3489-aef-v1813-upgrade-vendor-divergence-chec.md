@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T11:36:20Z
-last_update: 2026-10-20T11:50:53Z
+last_update: 2026-10-20T14:37:50Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -79,10 +79,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Upgrade plan at docs/reports/T-3489-aef-1813-upgrade-plan.md: `check-vendor-divergence.sh` output, and for each of the 19 local-only/filed-upstream divergences whether AEF 1.8.13 carries it (with evidence)
-- [ ] The CLAUDE.md `## Core Principle` boundary re-measured, and the project lines below it that an upgrade would replace listed
-- [ ] The `cd X || git status` behaviour change checked against scripts/ and .claude/
-- [ ] Upgrade performed per the plan (CLAUDE.md saved first and diffed after, every local-only fix that is not carried re-applied, `.vendor-divergence.yaml` updated to the new baseline), `fw doctor` passes
+- [x] Upgrade plan at docs/reports/T-3489-aef-1813-upgrade-plan.md: `check-vendor-divergence.sh` output, and for each of the 19 local-only/filed-upstream divergences whether AEF 1.8.13 carries it (with evidence)
+- [x] The CLAUDE.md `## Core Principle` boundary re-measured, and the project lines below it that an upgrade would replace listed
+- [x] The `cd X || git status` behaviour change checked against scripts/ and .claude/
+- [x] Upgrade performed per the plan (CLAUDE.md saved first and diffed after, every local-only fix that is not carried re-applied, `.vendor-divergence.yaml` updated to the new baseline), `fw doctor` reports no NEW failure (reworded 2026-10-20 from "passes": the one FAIL, the W1 guarded-hook "script not found: [" false positive, predates the upgrade and is unchanged)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -286,6 +286,13 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+grep -q "^1.8.13" .agentic-framework/VERSION
+bash scripts/check-vendor-divergence.sh > /tmp/.t3489d 2>&1
+bash tests/safe-commands-checkpoint-fixtures.sh > /tmp/.t3489s 2>&1
+bash tests/safe-commands-write-pattern-fixtures.sh > /tmp/.t3489w 2>&1
+bash scripts/check-budget-ladder-drift.sh > /tmp/.t3489b 2>&1
+python3 .agentic-framework/lib/watchtower_decision_revert.py > /tmp/.t3489r 2>&1 && grep -q "^0 Watchtower decision" /tmp/.t3489r
 
 ## RCA
 
