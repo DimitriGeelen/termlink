@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T14:17:17Z
-last_update: 2026-10-20T14:17:58Z
+last_update: 2026-10-20T14:31:48Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -290,6 +290,10 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+timeout 1500 cargo test -p termlink-session worker_binding > /tmp/.t3490.out 2>&1 && grep -q "worker_binding_unique_among_live_sessions ... ok" /tmp/.t3490.out
+grep -q "worker_binding_dead_holder_does_not_block ... ok" /tmp/.t3490.out
+grep -q "session_name_is_never_parsed_for_binding" crates/termlink-session/src/registration.rs
 
 ## RCA
 
