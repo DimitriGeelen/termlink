@@ -334,6 +334,7 @@ impl Meta {
             tx.execute("DELETE FROM claims WHERE topic = ?1", params![name])?;
             tx.execute("DELETE FROM topic_activity WHERE topic = ?1", params![name])?;
             tx.execute("DELETE FROM topic_readers WHERE topic = ?1", params![name])?;
+            tx.execute("DELETE FROM topic_logs WHERE topic = ?1", params![name])?;
             tx.execute("DELETE FROM topics WHERE name = ?1", params![name])?;
             tx.commit()?;
             Ok(Some(records as u64))
@@ -418,6 +419,90 @@ impl Meta {
             })?;
             rows.collect::<std::result::Result<Vec<_>, _>>()
                 .map_err(BusError::Sqlite)
+        })
+    }
+
+    /// T-3322: `records_from` plus the topic's current log generation, read in
+    /// ONE statement so both come from the same snapshot: a reclaim commit
+    /// switches byte positions and generation together, and a reader must never
+    /// pair new positions with the old file or the reverse.
+    pub(crate) fn records_from_gen(&self, topic: &str, cursor: u64) -> Result<(Vec<RecordLoc>, u64)> {
+        self.with_read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT offset, byte_pos, length, \
+                 COALESCE((SELECT generation FROM topic_logs WHERE topic = ?1), 0) \
+                 FROM records WHERE topic = ?1 AND offset >= ?2 ORDER BY offset",
+            )?;
+            let mut generation = 0u64;
+            let rows = stmt.query_map(params![topic, cursor as i64], |r| {
+                Ok((
+                    RecordLoc {
+                        offset: r.get::<_, i64>(0)? as u64,
+                        byte_pos: r.get::<_, i64>(1)? as u64,
+                        length: r.get::<_, i64>(2)? as u64,
+                    },
+                    r.get::<_, i64>(3)? as u64,
+                ))
+            })?;
+            let mut locs = Vec::new();
+            for row in rows {
+                let (loc, g) = row?;
+                generation = g;
+                locs.push(loc);
+            }
+            Ok((locs, generation))
+        })
+    }
+
+    /// T-3322: the topic's current log generation (0 = the original `<hex>.log`).
+    pub(crate) fn log_generation(&self, topic: &str) -> Result<u64> {
+        self.with_read(|conn| {
+            let g: Option<i64> = conn
+                .query_row(
+                    "SELECT generation FROM topic_logs WHERE topic = ?1",
+                    params![topic],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            Ok(g.unwrap_or(0) as u64)
+        })
+    }
+
+    /// T-3322: every registered topic with its current log generation.
+    pub(crate) fn all_log_generations(&self) -> Result<Vec<(String, u64)>> {
+        self.with_read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT t.name, COALESCE(l.generation, 0) FROM topics t \
+                 LEFT JOIN topic_logs l ON l.topic = t.name",
+            )?;
+            let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as u64)))?;
+            rows.collect::<std::result::Result<Vec<_>, _>>().map_err(BusError::Sqlite)
+        })
+    }
+
+    /// T-3322: the switch of a reclaim rewrite. Every moved record's `byte_pos`
+    /// and the topic's generation change in ONE commit (WAL + synchronous=FULL),
+    /// so after a crash the index points either wholly at the old file or wholly
+    /// at the new one. A record swept between the rewrite's read and this commit
+    /// simply matches no row; its bytes in the new file are dead and the next
+    /// reclaim drops them.
+    pub(crate) fn commit_rewrite(&self, topic: &str, generation: u64, moves: &[(u64, u64)]) -> Result<()> {
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
+            {
+                let mut stmt =
+                    tx.prepare("UPDATE records SET byte_pos = ?1 WHERE topic = ?2 AND offset = ?3")?;
+                for (offset, pos) in moves {
+                    stmt.execute(params![*pos as i64, topic, *offset as i64])?;
+                }
+            }
+            tx.execute(
+                "INSERT INTO topic_logs (topic, generation) VALUES (?1, ?2) \
+                 ON CONFLICT(topic) DO UPDATE SET generation = excluded.generation",
+                params![topic, generation as i64],
+            )?;
+            tx.commit()?;
+            Ok(())
         })
     }
 
@@ -1280,6 +1365,12 @@ fn init_schema(conn: &Connection) -> Result<()> {
             ts_ms  INTEGER NOT NULL,
             topic  TEXT NOT NULL,
             sender TEXT NOT NULL
+         );
+         -- T-3322: current log file generation per topic (absent = 0 = <hex>.log).
+         -- Changed only by a reclaim rewrite, in the same commit as the byte_pos moves.
+         CREATE TABLE IF NOT EXISTS topic_logs (
+            topic      TEXT PRIMARY KEY,
+            generation INTEGER NOT NULL
          );
          INSERT OR IGNORE INTO schema_version (version) VALUES (1);",
     )?;

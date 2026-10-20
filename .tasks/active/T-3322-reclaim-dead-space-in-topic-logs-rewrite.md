@@ -28,7 +28,7 @@ related_tasks: [T-3310]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-02T15:12:07Z
-last_update: 2026-10-20T19:51:04Z
+last_update: 2026-10-20T19:56:00Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -60,17 +60,20 @@ bvp_scores_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-3310 D3 (operator ruling C): trims are index-only, so topic logs never shrink. Built in
+`crates/termlink-bus/src/reclaim.rs` (rewrite + crash-safety argument in its module doc),
+wired into `Bus::sweep` / `trim_topic` / per-key compaction / post-time ceiling trims
+(best-effort, never waits for the topic lock) plus an explicit `Bus::reclaim(topic, force)`.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] termlink-bus rewrites a topic log keeping live records only when the file is over `reclaim_min_file_bytes` (default 8 MiB) AND more than `reclaim_min_dead_pct` (default 50) % dead; both thresholds are fields of `Ceilings` (the struct the T-3310 hub config file sets). After a rewrite the file shrinks, every live record keeps its offset and its envelope bytes, and `byte_pos` points into the new file (unit test).
-- [ ] The rewrite writes the new log to a temp file, fsyncs it, renames it, fsyncs the directory and only then switches the index (byte_pos + log generation) in ONE SQLite commit, all while holding the topic's append lock; a post's append and its index commit happen under that same lock, so no record is lost or mis-pointed by a concurrent post (test with concurrent posts).
-- [ ] Crash tests: a simulated crash after the temp write, after the rename (before the index commit) and after the commit (before the old file is removed), followed by a reopen of the bus, each leave every live record readable at its original offset, new posts work, stale files are cleaned up, and a later reclaim succeeds.
-- [ ] Concurrent readers never see a broken log: an iterator opened before a rewrite keeps reading the old file correctly, and readers subscribing in a loop during rewrites + posts always get the right payload for each offset (test).
-- [ ] Meta stays WAL + synchronous=FULL and a post is still one index commit (T-3488 test `a_post_is_two_durable_steps_and_a_create_is_one` still passes); the whole termlink-bus test suite passes.
+- [x] termlink-bus rewrites a topic log keeping live records only when the file is over `reclaim_min_file_bytes` (default 8 MiB) AND more than `reclaim_min_dead_pct` (default 50) % dead; both thresholds are fields of `Ceilings` (the struct the T-3310 hub config file sets). After a rewrite the file shrinks, every live record keeps its offset and its envelope bytes, and `byte_pos` points into the new file (unit test).
+- [x] The rewrite writes the new log to a temp file, fsyncs it, renames it, fsyncs the directory and only then switches the index (byte_pos + log generation) in ONE SQLite commit, all while holding the topic's append lock; a post's append and its index commit happen under that same lock, so no record is lost or mis-pointed by a concurrent post (test with concurrent posts).
+- [x] Crash tests: a simulated crash after the temp write, after the rename (before the index commit) and after the commit (before the old file is removed), followed by a reopen of the bus, each leave every live record readable at its original offset, new posts work, stale files are cleaned up, and a later reclaim succeeds.
+- [x] Concurrent readers never see a broken log: an iterator opened before a rewrite keeps reading the old file correctly, and readers subscribing in a loop during rewrites + posts always get the right payload for each offset (test).
+- [x] Meta stays WAL + synchronous=FULL and a post is still one index commit (T-3488 test `a_post_is_two_durable_steps_and_a_create_is_one` still passes); the whole termlink-bus test suite passes.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -194,6 +197,12 @@ bvp_scores_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-bus --lib reclaim > /tmp/.t3322-reclaim 2>&1 && grep -q "test result: ok" /tmp/.t3322-reclaim
+cargo test -p termlink-bus --lib a_post_is_two_durable_steps_and_a_create_is_one > /tmp/.t3322-3488 2>&1 && grep -q "1 passed" /tmp/.t3322-3488
+cargo test -p termlink-bus > /tmp/.t3322-all 2>&1
+cargo check -p termlink-hub --tests > /tmp/.t3322-hub 2>&1
+grep -q "PRAGMA synchronous=FULL" crates/termlink-bus/src/meta.rs
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -233,6 +242,11 @@ bvp_scores_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-20 — the rename alone cannot be the switch
+- **What changed:** The log file and the byte positions live in two stores (file + meta.db). Renaming over `<hex>.log` and then updating `byte_pos` (or the reverse) leaves a crash window where the index points into the wrong file. So the switch is a log *generation* (`topic_logs` table) changed in the same SQLite commit as every `byte_pos`; the new file is written to a temp, fsynced, renamed to `<hex>.g<N>.log` and dir-fsynced BEFORE that commit. Generation 0 stays `<hex>.log`, so no migration.
+- **Plan impact:** A post now holds its topic's append lock through its index commit (`LogAppender::append_then`); otherwise a rewrite could slip between a record's append and its commit and lose it. Still one index commit per post (T-3488 test unchanged and passing).
+- **Triggered:** hub config wiring for the two new thresholds (outside this worker's area, see Updates).
 
 ## Recommendation
 
@@ -294,3 +308,9 @@ bvp_scores_proposed:
 ### 2026-10-20T19:51:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-20T20:25:53Z — build [w-compact]
+- **Files:** `crates/termlink-bus/src/{reclaim.rs (new), log.rs, meta.rs, lib.rs, limits.rs}`.
+- **What:** `Ceilings.reclaim_min_file_bytes` (8 MiB) / `reclaim_min_dead_pct` (50, 100 = off); `Bus::reclaim(topic, force)`; automatic best-effort reclaim after sweep / trim / per-key compaction / post-time ceiling trim; stale-generation cleanup on `Bus::open`; `CeilingCounters.reclaims_total` + `reclaimed_bytes_total`; `subscribe` reads positions + generation in one statement and retries if a reclaim removed the file in between.
+- **Tests:** 9 new in `reclaim::tests` (trigger thresholds, shrink + offsets/payloads unchanged + reopen, sweep-triggered, crash at each of 3 points + reopen, leftover cleanup, unreadable record aborts cleanly, pre-opened iterator, multi-thread posts/trims/rewrites/readers race). `cargo test -p termlink-bus`: 146 lib + integration tests pass; `cargo check -p termlink-hub --tests` clean.
+- **Not done (outside this worker's area):** the hub config file (`crates/termlink-hub/src/topic_policy.rs`) does not yet read the two new keys or report the two new counters in `hub.governor_status`; the defaults apply until it does. No fabric card for `reclaim.rs` (`.fabric/` not in area).

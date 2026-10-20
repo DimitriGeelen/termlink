@@ -17,6 +17,7 @@ mod error;
 mod limits;
 mod log;
 mod meta;
+mod reclaim;
 mod retention;
 
 pub use activity::{DEFAULT_FLAG_DAYS, ReaderActivity, TopicActivity, activity_flags};
@@ -30,6 +31,9 @@ pub use limits::{
 };
 pub use log::Offset;
 pub use meta::{BareForeverSender, BareForeverSummary, TopicOwners};
+pub use reclaim::{
+    DEFAULT_RECLAIM_MIN_DEAD_PCT, DEFAULT_RECLAIM_MIN_FILE_BYTES, ReclaimOutcome, should_reclaim,
+};
 pub use retention::Retention;
 
 /// Iterator yielded by `Bus::subscribe` — one `(offset, envelope)` per
@@ -140,6 +144,8 @@ pub struct Bus {
     post_trims_total: AtomicU64,
     post_trimmed_records_total: AtomicU64,
     forever_warnings_total: AtomicU64,
+    reclaims_total: AtomicU64,
+    reclaimed_bytes_total: AtomicU64,
 }
 
 /// T-3310: counters for the post-time ceilings, for `hub.governor_status`.
@@ -148,6 +154,9 @@ pub struct CeilingCounters {
     pub post_trims_total: u64,
     pub post_trimmed_records_total: u64,
     pub forever_warnings_total: u64,
+    /// T-3322: log rewrites done, and the bytes they gave back.
+    pub reclaims_total: u64,
+    pub reclaimed_bytes_total: u64,
 }
 
 impl Bus {
@@ -157,6 +166,15 @@ impl Bus {
         let root = path.as_ref().to_path_buf();
         std::fs::create_dir_all(root.join("topics"))?;
         let meta = meta::Meta::open(&root.join("meta.db"))?;
+        // T-3322: drop log files a crash mid-reclaim left behind (the index says
+        // which generation of each topic is current). Best-effort: a leftover
+        // file is wasted space, never a wrong read.
+        if let Err(e) = meta
+            .all_log_generations()
+            .and_then(|g| reclaim::remove_stale_generations_all(&root, &g))
+        {
+            eprintln!("warning: T-3322: stale log cleanup on open failed: {e}");
+        }
         Ok(Self {
             root,
             meta,
@@ -167,6 +185,8 @@ impl Bus {
             post_trims_total: AtomicU64::new(0),
             post_trimmed_records_total: AtomicU64::new(0),
             forever_warnings_total: AtomicU64::new(0),
+            reclaims_total: AtomicU64::new(0),
+            reclaimed_bytes_total: AtomicU64::new(0),
         })
     }
 
@@ -186,6 +206,64 @@ impl Bus {
             post_trims_total: self.post_trims_total.load(Ordering::Relaxed),
             post_trimmed_records_total: self.post_trimmed_records_total.load(Ordering::Relaxed),
             forever_warnings_total: self.forever_warnings_total.load(Ordering::Relaxed),
+            reclaims_total: self.reclaims_total.load(Ordering::Relaxed),
+            reclaimed_bytes_total: self.reclaimed_bytes_total.load(Ordering::Relaxed),
+        }
+    }
+
+    /// T-3322: rewrite `topic`'s log keeping only live records, if it is over
+    /// `Ceilings::reclaim_min_file_bytes` and more than
+    /// `Ceilings::reclaim_min_dead_pct` percent dead (`force` skips that test).
+    /// Waits for the topic lock. Offsets never change. `Ok(None)` = nothing to do.
+    /// See the `reclaim` module for the crash-safety argument.
+    pub async fn reclaim(&self, topic: &str, force: bool) -> Result<Option<ReclaimOutcome>> {
+        if !self.meta.topic_exists(topic)? {
+            return Err(BusError::UnknownTopic(topic.to_string()));
+        }
+        let appender = self.appender_for(topic)?;
+        let mut guard = appender.lock().await;
+        let out = reclaim::rewrite_locked(&self.root, &self.meta, topic, &mut guard, &self.ceilings(), force)?;
+        drop(guard);
+        self.note_reclaim(topic, out);
+        Ok(out)
+    }
+
+    /// T-3322: reclaim after a trim, best-effort and never waiting: a topic
+    /// whose lock is busy (a post in flight) is retried on the next trim.
+    fn maybe_reclaim(&self, topic: &str) {
+        let c = self.ceilings();
+        let attempt = || -> Result<Option<ReclaimOutcome>> {
+            // Cheap size test first, so a small or never-posted topic costs one stat
+            // and no appender (which would create an empty file).
+            let path = log::topic_log_path_gen(&self.root, topic, self.meta.log_generation(topic)?);
+            match std::fs::metadata(&path) {
+                Ok(m) if m.len() > c.reclaim_min_file_bytes => {}
+                Ok(_) => return Ok(None),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+                Err(e) => return Err(e.into()),
+            }
+            let appender = self.appender_for(topic)?;
+            let Some(mut guard) = appender.try_lock() else {
+                return Ok(None);
+            };
+            reclaim::rewrite_locked(&self.root, &self.meta, topic, &mut guard, &c, false)
+        };
+        match attempt() {
+            Ok(out) => self.note_reclaim(topic, out),
+            Err(e) => eprintln!("warning: T-3322: reclaim of {topic} failed, log left as it was: {e}"),
+        }
+    }
+
+    fn note_reclaim(&self, topic: &str, out: Option<ReclaimOutcome>) {
+        if let Some(o) = out {
+            self.reclaims_total.fetch_add(1, Ordering::Relaxed);
+            self.reclaimed_bytes_total
+                .fetch_add(o.old_bytes.saturating_sub(o.new_bytes), Ordering::Relaxed);
+            eprintln!(
+                "termlink-bus: T-3322 reclaimed {topic}: log {} -> {} bytes, {} live records kept, \
+                 generation {}",
+                o.old_bytes, o.new_bytes, o.records, o.generation
+            );
         }
     }
 
@@ -291,6 +369,7 @@ impl Bus {
                 "termlink-bus: T-3310 trimmed {trimmed} oldest record(s) from {topic} on post ({reason}); \
                  readers behind the trim are told via the subscribe gap signal"
             );
+            self.maybe_reclaim(topic);
         }
         Ok(trimmed)
     }
@@ -385,7 +464,8 @@ impl Bus {
                 .expect("notifiers mutex poisoned")
                 .remove(topic);
             // Missing log file is fine — topic may never have been posted to.
-            let _ = std::fs::remove_file(log::topic_log_path(&self.root, topic));
+            // T-3322: every generation goes (the index row naming it is gone).
+            reclaim::remove_topic_files(&self.root, topic);
         }
         Ok(deleted)
     }
@@ -397,7 +477,11 @@ impl Bus {
     /// `inbox.clear` semantics (T-1234 / T-1230a). For per-subscriber
     /// "mark as read" semantics use `advance_cursor` instead.
     pub fn trim_topic(&self, topic: &str, before_offset: Option<u64>) -> Result<u64> {
-        self.meta.trim_records(topic, before_offset)
+        let n = self.meta.trim_records(topic, before_offset)?;
+        if n > 0 {
+            self.maybe_reclaim(topic);
+        }
+        Ok(n)
     }
 
     /// Append an envelope to `topic`'s log. Returns the logical offset
@@ -409,14 +493,19 @@ impl Bus {
         }
         let appender = self.appender_for(topic)?;
         let bytes = log::encode_envelope(env)?;
-        let byte_pos = appender.append(&bytes).await?;
         let length = bytes.len() as u64;
         // T-3309: record the write outside the log. A topic_metadata envelope
         // (describe / ensure touch) is not activity. T-3488: recorded in the same
         // transaction as the record (one commit, one fsync); best-effort inside it,
         // so a failure never fails the post itself.
         let writer = (env.msg_type != "topic_metadata").then_some(env.sender_id.as_str());
-        let offset = self.meta.record_append(topic, byte_pos, length, env.ts_unix_ms, writer)?;
+        // T-3322: the index commit runs under the topic's append lock, so a
+        // reclaim rewrite cannot slip between the append and the commit.
+        let offset = appender
+            .append_then(&bytes, |byte_pos| {
+                self.meta.record_append(topic, byte_pos, length, env.ts_unix_ms, writer)
+            })
+            .await?;
         // T-3310 D3: ceilings checked on post. Best-effort like activity: the
         // record is already durable, so a failed trim must not fail the post.
         // Checked every Nth post (see `limits::check_every`), not every post.
@@ -492,20 +581,28 @@ impl Bus {
         if !self.meta.topic_exists(topic)? {
             return Err(BusError::UnknownTopic(topic.to_string()));
         }
-        let records = self.meta.records_from(topic, cursor)?;
-        if records.is_empty() {
-            return Ok(Box::new(std::iter::empty()));
-        }
-        let path = log::topic_log_path(&self.root, topic);
-        let reader = match std::fs::File::open(&path) {
-            Ok(f) => f,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+        // T-3322: positions and log generation come from one snapshot. If a
+        // reclaim commits and removes that generation's file between the read and
+        // the open, the open misses: read again, the new snapshot names the new
+        // file. Once open, the file stays readable even after it is removed.
+        let mut attempts = 0;
+        loop {
+            let (records, generation) = self.meta.records_from_gen(topic, cursor)?;
+            if records.is_empty() {
                 return Ok(Box::new(std::iter::empty()));
             }
-            Err(e) => return Err(BusError::Io(e)),
-        };
-        let iter = log::ReaderIter::new(reader, records);
-        Ok(Box::new(iter))
+            let path = log::topic_log_path_gen(&self.root, topic, generation);
+            match std::fs::File::open(&path) {
+                Ok(f) => return Ok(Box::new(log::ReaderIter::new(f, records))),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    attempts += 1;
+                    if attempts >= 5 {
+                        return Ok(Box::new(std::iter::empty()));
+                    }
+                }
+                Err(e) => return Err(BusError::Io(e)),
+            }
+        }
     }
 
     /// Smallest offset still live in `topic` (after retention sweeps), or
@@ -1054,7 +1151,11 @@ impl Bus {
             Retention::Messages(n) => (None, Some(n)),
             Retention::Latest => (None, Some(1)),
         };
-        self.meta.sweep_records(topic, keep_after, keep_last)
+        let n = self.meta.sweep_records(topic, keep_after, keep_last)?;
+        if n > 0 {
+            self.maybe_reclaim(topic);
+        }
+        Ok(n)
     }
 
     /// Compaction sweep for [`Retention::LatestPerCvKey`]: keep only the
@@ -1110,7 +1211,11 @@ impl Bus {
             .filter(|(off, cv)| latest.get(cv).is_some_and(|latest_off| off != latest_off))
             .map(|(off, _)| *off)
             .collect();
-        self.meta.delete_records_at(topic, &to_delete)
+        let n = self.meta.delete_records_at(topic, &to_delete)?;
+        if n > 0 {
+            self.maybe_reclaim(topic);
+        }
+        Ok(n)
     }
 
     fn appender_for(&self, topic: &str) -> Result<Arc<log::LogAppender>> {
@@ -1118,7 +1223,9 @@ impl Bus {
         if let Some(a) = guard.get(topic) {
             return Ok(a.clone());
         }
-        let path = log::topic_log_path(&self.root, topic);
+        // T-3322: the current generation; it changes only under the appender's
+        // own lock, and no appender exists for this topic yet.
+        let path = log::topic_log_path_gen(&self.root, topic, self.meta.log_generation(topic)?);
         let appender = Arc::new(log::LogAppender::open(&path)?);
         guard.insert(topic.to_string(), appender.clone());
         Ok(appender)

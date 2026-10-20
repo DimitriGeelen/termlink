@@ -13,16 +13,38 @@ pub type Offset = u64;
 
 /// Resolve the on-disk file for a topic. Topic names can contain any UTF-8
 /// (including `:` and `/`), so we hash to avoid accidentally nesting dirs.
+#[cfg(test)]
 pub(crate) fn topic_log_path(root: &Path, topic: &str) -> PathBuf {
+    topic_log_path_gen(root, topic, 0)
+}
+
+/// SHA-256 hex of the topic name: the file-name stem of every log file of it.
+pub(crate) fn topic_hex(topic: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(topic.as_bytes());
     let digest = hasher.finalize();
-    let hex = digest.iter().fold(String::with_capacity(64), |mut acc, b| {
+    digest.iter().fold(String::with_capacity(64), |mut acc, b| {
         use std::fmt::Write;
         let _ = write!(&mut acc, "{:02x}", b);
         acc
-    });
-    root.join("topics").join(format!("{hex}.log"))
+    })
+}
+
+/// T-3322: file name of generation `generation` of a topic's log. Generation 0
+/// is the original `<hex>.log`, so logs written before T-3322 need no
+/// migration; each reclaim rewrite moves the topic to `<hex>.g<N>.log`.
+pub(crate) fn log_file_name(hex: &str, generation: u64) -> String {
+    if generation == 0 {
+        format!("{hex}.log")
+    } else {
+        format!("{hex}.g{generation}.log")
+    }
+}
+
+/// T-3322: path of generation `generation` of `topic`'s log. The index (meta.db)
+/// says which generation is current; see `reclaim`.
+pub(crate) fn topic_log_path_gen(root: &Path, topic: &str, generation: u64) -> PathBuf {
+    root.join("topics").join(log_file_name(&topic_hex(topic), generation))
 }
 
 /// Append-only writer for one topic. Held behind a tokio mutex so async
@@ -34,30 +56,30 @@ pub(crate) struct LogAppender {
 
 impl LogAppender {
     pub(crate) fn open(path: &Path) -> Result<Self> {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .read(true)
-            .open(path)?;
         Ok(Self {
-            inner: Mutex::new(file),
+            inner: Mutex::new(open_append(path)?),
         })
     }
 
-    /// Append one record and make it durable. Returns the byte offset the
-    /// record starts at (i.e. position of the length prefix). Caller is
-    /// responsible for mapping byte-offset → logical offset via the SQLite
-    /// offsets table.
+    /// Append one record and make it durable, then pass the byte offset the
+    /// record starts at (i.e. position of the length prefix) to `commit`, which
+    /// maps byte-offset → logical offset via the SQLite offsets table.
     ///
     /// T-3461: the payload is fsynced (`sync_data`) before this returns, and
     /// `Bus::post` commits the index only after that, so the index never points
     /// at bytes that were not on disk. This closes the T-2464 gap: "accepted"
     /// means stored (operator rule 2026-10-18). The write and the fsync run in
     /// `run_blocking`, off the tokio workers.
-    pub(crate) async fn append(&self, payload: &[u8]) -> Result<u64> {
+    ///
+    /// T-3322: `commit` runs while the topic's append lock is still held.
+    /// `Bus::post` commits the index entry there, so a reclaim rewrite (which takes the same
+    /// lock) can never run between a record's append and its index commit and
+    /// leave that record pointing into a file that is no longer current.
+    pub(crate) async fn append_then<R>(
+        &self,
+        payload: &[u8],
+        commit: impl FnOnce(u64) -> Result<R>,
+    ) -> Result<R> {
         let mut guard = self.inner.lock().await;
         let len = u64::try_from(payload.len()).map_err(|e| {
             BusError::Io(std::io::Error::new(
@@ -81,7 +103,27 @@ impl LogAppender {
             }
             Ok(start)
         })
+        .and_then(commit)
     }
+
+    /// T-3322: the topic lock, for a reclaim rewrite. Never blocks: a reclaim is
+    /// opportunistic and a busy topic is retried on the next sweep or trim.
+    pub(crate) fn try_lock(&self) -> Option<tokio::sync::MutexGuard<'_, File>> {
+        self.inner.try_lock().ok()
+    }
+
+    /// T-3322: the topic lock, waiting for it (explicit `Bus::reclaim`).
+    pub(crate) async fn lock(&self) -> tokio::sync::MutexGuard<'_, File> {
+        self.inner.lock().await
+    }
+}
+
+/// T-3322: open a log file for appending (and positional reads).
+pub(crate) fn open_append(path: &Path) -> Result<File> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    Ok(OpenOptions::new().create(true).append(true).read(true).open(path)?)
 }
 
 /// Serialize an envelope to the on-disk byte form. JSON for wedge 2 —

@@ -17,8 +17,9 @@
 //! | forever            | WARN at `max_records`         | -                          | WARN at max (never deleted) |
 //!
 //! All numbers live in [`Ceilings`] and are configurable (hub config file).
-//! Trimming is index-only like every other trim; reclaiming the dead bytes on
-//! disk is T-3322.
+//! Trimming is index-only like every other trim; the dead bytes on disk are
+//! reclaimed by a log rewrite (T-3322, `reclaim`) once a file is over
+//! `reclaim_min_file_bytes` and more than `reclaim_min_dead_pct` percent dead.
 
 use crate::Retention;
 
@@ -36,11 +37,21 @@ pub struct Ceilings {
     /// Check ceilings on post at all (default true). Off leaves bounding to
     /// the background sweeper only, the pre-T-3310 behaviour.
     pub on_post: bool,
+    /// T-3322: reclaim (rewrite) a log larger than this many bytes...
+    pub reclaim_min_file_bytes: u64,
+    /// ...when more than this percent of it is dead. 100 switches reclaim off.
+    pub reclaim_min_dead_pct: u8,
 }
 
 impl Default for Ceilings {
     fn default() -> Self {
-        Self { max_records: DEFAULT_MAX_RECORDS, max_live_bytes: DEFAULT_MAX_LIVE_BYTES, on_post: true }
+        Self {
+            max_records: DEFAULT_MAX_RECORDS,
+            max_live_bytes: DEFAULT_MAX_LIVE_BYTES,
+            on_post: true,
+            reclaim_min_file_bytes: crate::reclaim::DEFAULT_RECLAIM_MIN_FILE_BYTES,
+            reclaim_min_dead_pct: crate::reclaim::DEFAULT_RECLAIM_MIN_DEAD_PCT,
+        }
     }
 }
 
@@ -146,7 +157,7 @@ mod tests {
         TopicStats { records, live_bytes, oldest_ts_ms: oldest_days_ago.map(|d| NOW - d * DAY_MS) }
     }
     fn c() -> Ceilings {
-        Ceilings { max_records: 10_000, max_live_bytes: 1000, on_post: true }
+        Ceilings { max_records: 10_000, max_live_bytes: 1000, on_post: true, ..Ceilings::default() }
     }
 
     #[test]
