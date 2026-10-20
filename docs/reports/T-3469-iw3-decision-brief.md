@@ -151,3 +151,43 @@ are only ever entered by a launcher that starts the session there."
        stay as locked.
 2. **Ask the operator:** A, B, C or D, and if B, whether the boundary sentence above is the
    one to record.
+
+## 6. Operator input while the decision was open (2026-10-21)
+
+### 6.1 btrfs copy-on-write instead of a full clone (how B's checkout is made)
+
+The operator's point: create worker checkouts by btrfs snapshot or copy-on-write, so a new worker costs
+almost no disk writes. Measured on .107 (btrfs, root subvolume `@`, zstd), with two cargo builds
+running, in the scratch area:
+
+| Method | Wall time | New data written | Contents |
+|---|---|---|---|
+| `cp -a --reflink=always` of the checkout, without `target/` | 43 s | 72 KiB of 4.05 GiB | everything, untracked framework files included |
+| `git clone --local` | 35 s | 122 MiB | tracked files only |
+| `btrfs subvolume snapshot` of a prepared template subvolume | 8.8 s | 0 B | the template, as a working git checkout |
+
+Findings:
+1. Both copy-on-write methods write essentially no data, which is the property the hub needs.
+2. A snapshot is not free: it forces a filesystem-wide transaction commit, so on a busy disk it waits,
+   and it may itself add a flush stall. Copy-on-write copying costs one metadata entry per file.
+3. A template that is copied includes the untracked framework files and the installed hooks, so it removes
+   the "clone lacks untracked files" gap that the reviewers raised against plain B.
+
+This refines **how** B's `checkout` makes the clone; it is not a new option. Proposed: on btrfs hosts,
+checkout = snapshot (or reflink copy) of a per-repo template kept current by fetch; elsewhere, `git clone`
+(portability, D4). Asked 0909-boot-into-timeshift-snapshots, who runs btrfs snapshots here, about
+pitfalls (nested subvolumes inside `@` vs Timeshift, qgroups, cleaner load on delete).
+
+### 6.2 git-ai (github.com/feder-cr/git-ai)
+
+What it is: an MIT-licensed, self-hosted git server for AI agents, built on GitLab's Gitaly (v0.3.0, about
+1.3k stars, "interfaces may still change before 1.0"). Adopting it would mean running a second git server
+beside or instead of OneDev: too much impact for now. Concepts worth borrowing:
+1. **Land = rebase onto the current tip, then compare-and-swap on the ref, with batched concurrent lands.**
+   This is what B's lease-fenced `publish` and ring20's landing step approximate; a CAS on the target ref
+   closes the remaining race.
+2. **A merged result lands only if a configured verify command passes on the exact tree**, including
+   AI-resolved conflicts. This is a clean rule for `agent.publish`/merge.
+3. **Per-agent tokens with RPC allowlists and branch policies.** This is directly relevant to T-3493
+   (who may inject) and to B's push scope (a worker may push only `work/<hub8>/<claim_id>`).
+4. **A changeset log as an event stream** (agents follow it). This matches B's per-verb events.
