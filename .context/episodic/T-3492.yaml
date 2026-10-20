@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3492: discover/list with unset TERMLINK_RUNTIME_DIR: hint when the default dir is empty but /var/lib/termlink holds live sessions (ring20 suggestion c)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T16:25:27Z
+# ============================================================================
+
+task_id: T-3492
+task_name: "discover/list with unset TERMLINK_RUNTIME_DIR: hint when the default dir is empty but /var/lib/termlink holds live sessions (ring20 suggestion c)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-20T14:37:41Z
+completed: 2026-10-20T16:24:40Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-20T17:36:30+02:00
+last_commit: 2026-10-20T17:36:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  list/discover hint on stderr (+ runtime_dir_hint JSON field) when nothing was found but another runtime dir has live sessions or cannot be read
+
+# Key outcomes
+outcomes:
+  - '`termlink discover` (and `list`, if T-3480''s warning does not already cover this case) with no sessions in the resolved runtime dir, while another candidate runtime dir (e.g. /var/lib/termlink) holds live sessions, prints a stderr hint naming both dirs and the count, and suggests `TERMLINK_RUNTIME_DIR=<dir>`; `--json` carries the same as a field; stdout output is unchanged'
+  - 'Unit test with temp dirs (never the real runtime dir): the hint appears when the default is empty and another dir has live sessions, and is absent when sessions are found or no other dir has any'
+  - '`cargo test -p termlink` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-20 — when the hint fires, and what it probes'
+    chose: 'fire only when the UNFILTERED live set is empty, then probe every candidate dir regardless of `TERMLINK_RUNTIME_DIR` (`/var/lib/termlink`, `$XDG_RUNTIME_DIR/termlink`, `$TMPDIR/termlink-$UID`, `/tmp/termlink-$UID`), excluding the resolved dir. A dir with live sessions is named with its count, and the fix names the one with the most. An unreadable `sessions/` dir is also reported ("could not be read (Permission denied)"). Stderr in every mode, `runtime_dir_hint` field in the `--json` envelopes (sessions / count / names / ids). Text stdout is unchanged.'
+    rationale: 'with the env var unset, `list_sessions` already merges `/var/lib/termlink` (T-987), so a readable populated pool is already found. The cases still silent are an env override pointing at an empty dir, and an unreadable pool (EACCES is skipped at debug level). The latter is the most plausible cause of the ring20 report for a non-root watcher, so it is reported, not filtered out. Gating on the unfiltered set means a `--tag`/`--name` filter that matches nothing never triggers a misleading hint.'
+    alternatives_rejected: ['adding the probe to `discovery::all_runtime_dirs` / the session crate (would change what every caller scans, not just the hint); gating on the filtered result (false hints under filters). - **Test seam:** `TERMLINK_HINT_CANDIDATE_DIRS` (colon-separated, empty = none) replaces the candidate list. `termlink_test_utils::termlink_cmd` sets it empty, so integration tests never read the real dirs.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/metadata.rs'
+  - 'crates/termlink-cli/src/commands/session.rs'
+  - 'crates/termlink-test-utils/src/lib.rs'
+  - '.tasks/active/T-3492-discoverlist-with-unset-termlinkruntimed.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T17:36:30'
+    action: 'T-3492: list/discover hint on stderr (+ runtime_dir_hint JSON field) when nothing was found but another runtime dir has live sessions or cannot be read'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 106 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 106
+  commits: 1
+  files_changed: 4
+  lines_added: 569
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3492-discoverlist-with-unset-termlinkruntimed.md
+generated_by: context-agent-hybrid
