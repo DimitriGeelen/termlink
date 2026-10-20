@@ -44,7 +44,7 @@ arc_id: arc-parallel-substrate
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T20:41:52Z
-last_update: 2026-10-19T12:30:47Z
+last_update: 2026-10-19T13:04:03Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -81,8 +81,8 @@ First slice of the T-2026 GO (operator, 2026-10-18: orchestration is the focus, 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Signatures for agent.checkout / agent.commit / agent.publish written down (params, return shape, error codes) and checked against the shipped claim API (claim, renew, release, claim-transfer): every scope handle is a real claim_id
-- [ ] The intended consumer is named (which orchestrator calls these, from where), with one worked call sequence; an API with no named caller does not proceed to build
+- [x] Signatures for agent.checkout / agent.commit / agent.publish written down (params, return shape, error codes) and checked against the shipped claim API (claim, renew, release, claim-transfer): every scope handle is a real claim_id
+- [x] The intended consumer is named (which orchestrator calls these, from where), with one worked call sequence; an API with no named caller does not proceed to build
 - [ ] IW-3 presented to the operator as ONE decision brief: hub- vs spoke-owned worktrees, and the boundary with the standing rule that this repo's own sessions never use git worktrees; the ruling recorded in Decisions
 - [ ] T-3470 and T-3471 updated with the locked shape before either starts
 
@@ -143,6 +143,14 @@ First slice of the T-2026 GO (operator, 2026-10-18: orchestration is the focus, 
 # run, add the line `# verification: none — <why nothing can be run>`; it is serviced
 # (queued for review: add a check / other evidence / accept). See docs/reports/T-4024-servicing-loop.md.
 #
+test -f docs/reports/T-3469-agent-launch-surface-design.md && grep -q "## 2. Locked signatures" docs/reports/T-3469-agent-launch-surface-design.md
+grep -q "## 2a. Consumer and one worked call sequence" docs/reports/T-3469-agent-launch-surface-design.md && grep -q "orchestrator-backlog-drain.sh" docs/reports/T-3469-agent-launch-surface-design.md
+test -f scripts/orchestrator-backlog-drain.sh && test -f scripts/worker-backlog-drain.sh
+grep -q "pub const CHANNEL_RENEW" crates/termlink-protocol/src/control.rs && grep -q "fn handle_channel_renew_with" crates/termlink-hub/src/channel.rs
+grep -q "CLAIM_EXPIRED: i64 = -32018" crates/termlink-protocol/src/control.rs && grep -q "PLAINTEXT_FIELD_TOO_LARGE: i64 = -32025" crates/termlink-protocol/src/control.rs
+test -f docs/reports/T-3469-iw3-decision-brief.md && grep -q "^### A\." docs/reports/T-3469-iw3-decision-brief.md && grep -q "^### D\." docs/reports/T-3469-iw3-decision-brief.md && grep -q "^## 5. Recommendation" docs/reports/T-3469-iw3-decision-brief.md
+grep -q "policy/value-drivers.yaml" docs/reports/T-3469-iw3-decision-brief.md && grep -q ".agentic-framework/policy/value-drivers.yaml" docs/reports/T-3469-iw3-decision-brief.md
+
 # Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
@@ -389,3 +397,9 @@ First slice of the T-2026 GO (operator, 2026-10-18: orchestration is the focus, 
 ### 2026-10-19T12:30:47Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-20 — signatures locked, IW-3 brief ready [w-launch-design]
+- **Action:** Re-read the claim API (channel.rs:2085-2473, control.rs:150-230, meta.rs:1001-1031), T-3490 `--worker-binding` and the T-3484 build design. Locked §2 of `docs/reports/T-3469-agent-launch-surface-design.md`: worker-side CLI+MCP verbs, no new hub RPC; ownership check is the shipped `channel.renew` (returns topic, extends lease), so `channel.claim_get` is dropped; branch `work/<hub8>/<claim_id>`; `--dissociate` clone + fail-closed hook bootstrap; publish fenced with `--force-with-lease`, default `then=transfer` (to_owner required: the hub does not persist who transferred); new codes -32029/-32030 after T-3484's -32026..-32028; events carry the T-3490 binding.
+- **Consumer (AC2):** backlog-drain pair (scripts/orchestrator-backlog-drain.sh + worker-backlog-drain.sh), 2-host proof run; worked sequence in §2a. AEF `fw worker` backend:hub named second; its contract lacks `claim_id` (item for T-3484 v0.3).
+- **IW-3:** one decision brief written, `docs/reports/T-3469-iw3-decision-brief.md` (background, options A-D, scoring against both value-driver files: project B 123/175 vs C 66, A 57, D 59; framework B 135/270 vs A/C 68, D 59; steelman/strawman; recommendation B with the rule boundary sentence). Not presented to the operator in this slice.
+- **Not done:** AC3 (needs the operator's ruling), AC4 (T-3470/T-3471 updates are listed in design §2.7, to apply after the ruling; those files were outside this slice's write area).
