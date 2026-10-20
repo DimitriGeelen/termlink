@@ -1,6 +1,48 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
+
+/// T-3465: file name of the breaker event log under the hub runtime dir
+/// (`<runtime_dir>/circuit-breaker.jsonl`). Bounded by `termlink_session::event_log`
+/// (1 MiB cap, one `.1` backup); written best-effort off the caller's thread.
+pub const LOG_FILE_NAME: &str = "circuit-breaker.jsonl";
+static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// T-3465: point the breaker event log at the hub runtime dir. Called once at hub start
+/// (beside `rpc_audit::init`). Until then, and in tests, nothing is logged.
+pub fn init(runtime_dir: &Path) {
+    let _ = LOG_PATH.set(runtime_dir.join(LOG_FILE_NAME));
+}
+
+/// T-3465: one breaker event line. `state` is `open`, `reopen` (a half-open probe failed,
+/// cooldown re-armed) or `closed`. `open_ms` is how long the circuit had been open
+/// (0 on `open`).
+pub(crate) fn render_event_line(
+    scope: &str,
+    key: &str,
+    state: &str,
+    consecutive_failures: u32,
+    open_ms: u64,
+) -> String {
+    serde_json::json!({
+        "ts": termlink_session::event_log::now_rfc3339(),
+        "signal": "breaker_trip",
+        "scope": scope,
+        "key": key,
+        "state": state,
+        "consecutive_failures": consecutive_failures,
+        "open_ms": open_ms,
+    })
+    .to_string()
+}
+
+fn emit(log: &Option<PathBuf>, scope: &str, key: &str, state: &str, failures: u32, open_ms: u64) {
+    if let Some(p) = log.as_ref().or_else(|| LOG_PATH.get()) {
+        termlink_session::event_log::append(p, render_event_line(scope, key, state, failures, open_ms));
+    }
+}
 
 /// Number of consecutive transport failures before opening the circuit.
 const FAILURE_THRESHOLD: u32 = 3;
@@ -32,9 +74,14 @@ impl CircuitState {
     }
 
     /// Record a successful call — close the circuit.
-    fn record_success(&mut self) {
+    /// T-3465: returns `(failures_before_reset, open_ms)` if this CLOSED an open circuit.
+    fn record_success(&mut self) -> Option<(u32, u64)> {
+        let closed = self
+            .opened_at
+            .map(|t| (self.consecutive_failures, t.elapsed().as_millis() as u64));
         self.consecutive_failures = 0;
         self.opened_at = None;
+        closed
     }
 
     /// Record a transport failure. Opens (or RE-arms) the circuit after
@@ -50,11 +97,16 @@ impl CircuitState {
     /// 1511/1528) — sessions in the open (non-half-open) window are skipped
     /// without an attempt — so re-stamping cannot prematurely extend a
     /// still-open circuit; it only re-arms after a probe genuinely fails.
-    fn record_failure(&mut self) {
+    /// T-3465: returns the event state (`open` / `reopen`) when this failure opened or
+    /// re-armed the circuit.
+    fn record_failure(&mut self) -> Option<&'static str> {
         self.consecutive_failures += 1;
         if self.consecutive_failures >= FAILURE_THRESHOLD {
+            let was_open = self.opened_at.is_some();
             self.opened_at = Some(Instant::now());
+            return Some(if was_open { "reopen" } else { "open" });
         }
+        None
     }
 }
 
@@ -91,6 +143,8 @@ pub struct CircuitBreakerRegistry {
     /// Hard cap; eviction (safe, non-actively-blocking-first) runs when the map
     /// would exceed it. Always `>= 1` (clamped in `with_cap`).
     max_entries: usize,
+    /// T-3465: explicit event-log path (tests); `None` = the runtime-dir path from `init`.
+    log: Option<PathBuf>,
 }
 
 impl Default for CircuitBreakerRegistry {
@@ -110,7 +164,14 @@ impl CircuitBreakerRegistry {
         Self {
             states: Mutex::new(HashMap::new()),
             max_entries: max_entries.max(1),
+            log: None,
         }
+    }
+
+    /// T-3465: log breaker events to `path` instead of the runtime-dir default.
+    pub fn with_log(mut self, path: PathBuf) -> Self {
+        self.log = Some(path);
+        self
     }
 
     /// T-2676: bound the map. Called after an insert that may have grown it past
@@ -156,8 +217,10 @@ impl CircuitBreakerRegistry {
     /// Record a successful call to a session — closes the circuit.
     pub fn record_success(&self, session_id: &str) {
         let mut states = self.states.lock().expect("circuit breaker lock poisoned");
-        if let Some(state) = states.get_mut(session_id) {
-            state.record_success();
+        if let Some(state) = states.get_mut(session_id)
+            && let Some((f, open_ms)) = state.record_success()
+        {
+            emit(&self.log, "session", session_id, "closed", f, open_ms);
         }
     }
 
@@ -165,10 +228,10 @@ impl CircuitBreakerRegistry {
     /// After `FAILURE_THRESHOLD` consecutive failures, opens the circuit.
     pub fn record_failure(&self, session_id: &str) {
         let mut states = self.states.lock().expect("circuit breaker lock poisoned");
-        states
-            .entry(session_id.to_string())
-            .or_default()
-            .record_failure();
+        let st = states.entry(session_id.to_string()).or_default();
+        if let Some(state) = st.record_failure() {
+            emit(&self.log, "session", session_id, state, st.consecutive_failures, 0);
+        }
         // T-2676: hold the map bound after this insert. Safe eviction only —
         // an actively-blocking circuit is never removed.
         Self::evict_if_over_cap(&mut states, self.max_entries);
@@ -205,6 +268,8 @@ pub const DEFAULT_MODEL_FALLBACK: &[&str] = &["opus", "sonnet", "haiku"];
 /// falls back to the next model in the fallback chain.
 pub struct ModelCircuitBreaker {
     states: Mutex<HashMap<String, CircuitState>>,
+    /// T-3465: explicit event-log path (tests).
+    log: Option<PathBuf>,
 }
 
 impl Default for ModelCircuitBreaker {
@@ -217,7 +282,14 @@ impl ModelCircuitBreaker {
     pub fn new() -> Self {
         Self {
             states: Mutex::new(HashMap::new()),
+            log: None,
         }
+    }
+
+    /// T-3465: log breaker events to `path` instead of the runtime-dir default.
+    pub fn with_log(mut self, path: PathBuf) -> Self {
+        self.log = Some(path);
+        self
     }
 
     /// Check if a model's circuit is open (should be skipped).
@@ -232,18 +304,20 @@ impl ModelCircuitBreaker {
     /// Record a successful dispatch with this model.
     pub fn record_success(&self, model: &str) {
         let mut states = self.states.lock().expect("model circuit breaker lock poisoned");
-        if let Some(state) = states.get_mut(model) {
-            state.record_success();
+        if let Some(state) = states.get_mut(model)
+            && let Some((f, open_ms)) = state.record_success()
+        {
+            emit(&self.log, "model", model, "closed", f, open_ms);
         }
     }
 
     /// Record a failure for this model.
     pub fn record_failure(&self, model: &str) {
         let mut states = self.states.lock().expect("model circuit breaker lock poisoned");
-        states
-            .entry(model.to_string())
-            .or_default()
-            .record_failure();
+        let st = states.entry(model.to_string()).or_default();
+        if let Some(state) = st.record_failure() {
+            emit(&self.log, "model", model, state, st.consecutive_failures, 0);
+        }
     }
 
     /// Resolve the best available model from a fallback chain.
@@ -303,6 +377,67 @@ pub fn model_global() -> &'static ModelCircuitBreaker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── T-3465: breaker event log ──
+    #[test]
+    fn open_reopen_and_close_are_logged_for_session_and_model() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("cb.jsonl");
+        let reg = CircuitBreakerRegistry::new().with_log(p.clone());
+        reg.record_failure("s1");
+        reg.record_failure("s1");
+        reg.record_failure("s1"); // opens
+        reg.record_failure("s1"); // re-arm
+        reg.record_success("s1"); // closes
+        reg.record_success("s1"); // already closed: no line
+        let m = ModelCircuitBreaker::new().with_log(p.clone());
+        for _ in 0..3 {
+            m.record_failure("opus");
+        }
+        m.record_success("opus");
+        termlink_session::event_log::flush();
+        let v: Vec<serde_json::Value> = std::fs::read_to_string(&p)
+            .unwrap()
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap())
+            .collect();
+        let got: Vec<(String, String, String)> = v
+            .iter()
+            .map(|e| (e["scope"].as_str().unwrap().into(), e["key"].as_str().unwrap().into(), e["state"].as_str().unwrap().into()))
+            .collect();
+        let exp = [("session", "s1", "open"), ("session", "s1", "reopen"), ("session", "s1", "closed"), ("model", "opus", "open"), ("model", "opus", "closed")];
+        assert_eq!(got, exp.map(|(a, b, c)| (a.to_string(), b.to_string(), c.to_string())));
+        assert_eq!(v[0]["consecutive_failures"], 3);
+        assert_eq!(v[2]["consecutive_failures"], 4);
+        assert!(v[2]["open_ms"].is_u64() && v[0]["ts"].is_string());
+    }
+
+    #[test]
+    fn unwritable_breaker_log_never_affects_the_breaker() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("cb.jsonl");
+        std::fs::create_dir(&p).unwrap(); // appends to a directory fail
+        let reg = CircuitBreakerRegistry::new().with_log(p);
+        for _ in 0..3 {
+            reg.record_failure("s");
+        }
+        assert!(reg.should_skip("s"));
+        reg.record_success("s");
+        assert!(!reg.should_skip("s"));
+        termlink_session::event_log::flush();
+    }
+
+    #[test]
+    fn breaker_log_is_bounded() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("cb.jsonl");
+        for i in 0..200 {
+            termlink_session::event_log::append_capped(&p, render_event_line("session", &format!("s{i}"), "open", 3, 0), 2000);
+        }
+        termlink_session::event_log::flush();
+        assert!(std::fs::metadata(&p).unwrap().len() < 2000 + 300);
+        assert!(termlink_session::audit_append::rotated_path(&p).exists());
+    }
 
     #[test]
     fn closed_by_default() {

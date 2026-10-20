@@ -156,6 +156,33 @@ CREATE INDEX IF NOT EXISTS dead_letters_dl_ms ON dead_letters(dead_lettered_ms);
 pub struct OfflineQueue {
     conn: Mutex<Connection>,
     cap: u64,
+    /// T-3465: where pending/drained transitions are logged (`None` = in-memory queue).
+    /// `queue.log` beside the queue file, i.e. `~/.termlink/queue.log` by default,
+    /// the same file and T-2085 line schema `channel queue-status --watch --log` uses.
+    log_path: Option<std::path::PathBuf>,
+    queue_path: std::path::PathBuf,
+}
+
+/// T-3465: file name of the always-on transition log, beside the queue file.
+pub const QUEUE_LOG_FILE_NAME: &str = "queue.log";
+
+/// T-3465: one T-2085-schema line (`ts, kind, old_pending, new_pending, oldest_age_ms, queue_path`).
+pub fn render_transition_line(
+    kind: &str,
+    old_pending: u64,
+    new_pending: u64,
+    oldest_age_ms: Option<i64>,
+    queue_path: &Path,
+) -> String {
+    serde_json::json!({
+        "ts": crate::event_log::now_rfc3339(),
+        "kind": kind,
+        "old_pending": old_pending,
+        "new_pending": new_pending,
+        "oldest_age_ms": oldest_age_ms,
+        "queue_path": queue_path.display().to_string(),
+    })
+    .to_string()
 }
 
 impl OfflineQueue {
@@ -169,19 +196,27 @@ impl OfflineQueue {
         let conn = Connection::open(p)?;
         conn.execute_batch(SCHEMA)?;
         let cap = read_cap_from_env();
-        Ok(Self { conn: Mutex::new(conn), cap })
+        let log_path = Some(p.with_file_name(QUEUE_LOG_FILE_NAME));
+        Ok(Self { conn: Mutex::new(conn), cap, log_path, queue_path: p.to_path_buf() })
     }
 
     /// Open an in-memory queue (tests only).
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch(SCHEMA)?;
-        Ok(Self { conn: Mutex::new(conn), cap: read_cap_from_env() })
+        Ok(Self { conn: Mutex::new(conn), cap: read_cap_from_env(), log_path: None, queue_path: std::path::PathBuf::from(":memory:") })
     }
 
     /// Configured cap (max retained entries).
     pub fn cap(&self) -> u64 {
         self.cap
+    }
+
+    /// T-3465: best-effort, non-blocking transition log (0→N pending, N→0 drained).
+    fn log_transition(&self, kind: &str, old: u64, new: u64, oldest_age_ms: Option<i64>) {
+        if let Some(p) = &self.log_path {
+            crate::event_log::append(p, render_transition_line(kind, old, new, oldest_age_ms, &self.queue_path));
+        }
     }
 
     /// Number of pending posts currently retained.
@@ -205,6 +240,9 @@ impl OfflineQueue {
             "INSERT INTO pending_posts (post_json, enqueued_ms) VALUES (?1, ?2)",
             params![json, now_ms],
         )?;
+        if n == 0 {
+            self.log_transition("pending", 0, 1, Some(0));
+        }
         Ok(QueueId(conn.last_insert_rowid()))
     }
 
@@ -275,8 +313,18 @@ impl OfflineQueue {
     /// Remove the entry with the given id. No-op if not present.
     pub fn pop(&self, id: QueueId) -> Result<()> {
         let conn = self.conn.lock().expect("queue mutex poisoned");
-        conn.execute("DELETE FROM pending_posts WHERE id = ?1", params![id.0])?;
+        let removed = conn.execute("DELETE FROM pending_posts WHERE id = ?1", params![id.0])?;
+        if removed > 0 {
+            self.log_if_drained(&conn);
+        }
         Ok(())
+    }
+
+    /// T-3465: after a removal, log `drained` if the queue just became empty.
+    fn log_if_drained(&self, conn: &Connection) {
+        if let Ok(0) = conn.query_row("SELECT COUNT(*) FROM pending_posts", [], |r| r.get::<_, i64>(0)) {
+            self.log_transition("drained", 1, 0, None);
+        }
     }
 
     /// Increment the attempt counter for a row (used after a failed flush
@@ -332,6 +380,7 @@ impl OfflineQueue {
         )?;
         tx.execute("DELETE FROM pending_posts WHERE id = ?1", params![id.0])?;
         tx.commit()?;
+        self.log_if_drained(&conn);
         Ok(())
     }
 
@@ -396,6 +445,45 @@ fn read_cap_from_env() -> u64 {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn transitions_are_logged_by_default_in_t2085_schema() {
+        // T-3465: queue.log beside the queue file, no --watch needed.
+        let dir = tempfile::tempdir().unwrap();
+        let q = OfflineQueue::open(dir.path().join("outbound.sqlite")).unwrap();
+        let a = q.enqueue(&sample_post("t", b"x")).unwrap();
+        let b = q.enqueue(&sample_post("t", b"x")).unwrap(); // pending->pending: no event
+        q.pop(a).unwrap(); // still 1: no event
+        q.pop(b).unwrap(); // -> 0: drained
+        q.enqueue(&sample_post("t", b"x")).unwrap();
+        let c = q.peek_head_id().unwrap().unwrap();
+        q.dead_letter(c, "x").unwrap(); // -> 0: drained
+        crate::event_log::flush();
+        let log = std::fs::read_to_string(dir.path().join(QUEUE_LOG_FILE_NAME)).unwrap();
+        let kinds: Vec<String> = log
+            .lines()
+            .map(|l| serde_json::from_str::<serde_json::Value>(l).unwrap())
+            .map(|v| {
+                for k in ["ts", "kind", "old_pending", "new_pending", "oldest_age_ms", "queue_path"] {
+                    assert!(v.get(k).is_some(), "missing {k}");
+                }
+                v["kind"].as_str().unwrap().to_string()
+            })
+            .collect();
+        assert_eq!(kinds, ["pending", "drained", "pending", "drained"]);
+    }
+
+    #[test]
+    fn unwritable_queue_log_never_fails_the_queue() {
+        let dir = tempfile::tempdir().unwrap();
+        let q = OfflineQueue::open(dir.path().join("outbound.sqlite")).unwrap();
+        // make queue.log a directory so every append fails
+        std::fs::create_dir(dir.path().join(QUEUE_LOG_FILE_NAME)).unwrap();
+        let id = q.enqueue(&sample_post("t", b"x")).unwrap();
+        q.pop(id).unwrap();
+        crate::event_log::flush();
+        assert_eq!(q.size().unwrap(), 0);
+    }
     use super::*;
 
     fn sample_post(topic: &str, payload: &[u8]) -> PendingPost {
@@ -487,7 +575,7 @@ mod tests {
             let c = Connection::open_in_memory().unwrap();
             c.execute_batch(SCHEMA).unwrap();
             c
-        }), cap: 3 };
+        }), cap: 3, log_path: None, queue_path: std::path::PathBuf::new() };
         q.enqueue(&sample_post("t", &[1])).unwrap();
         q.enqueue(&sample_post("t", &[2])).unwrap();
         q.enqueue(&sample_post("t", &[3])).unwrap();

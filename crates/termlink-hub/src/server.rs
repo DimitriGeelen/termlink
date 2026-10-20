@@ -334,6 +334,7 @@ pub async fn run_with_tcp(
     // sink at <runtime_dir>/rpc-audit.jsonl, read by `fw metrics api-usage`
     // for T-1166 entry-gate measurement.
     crate::rpc_audit::init(&runtime_dir);
+    crate::circuit_breaker::init(&runtime_dir);
 
     // T-2048: Install connection-cap + per-sender rate-limit governors.
     // Reads TERMLINK_MAX_CONNECTIONS / TERMLINK_RATE_LIMIT_PER_SEC from env,

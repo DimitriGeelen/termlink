@@ -151,6 +151,23 @@ pub struct BusClient {
     shutdown_tx: Mutex<Option<oneshot::Sender<()>>>,
     /// T-2616: see `FlushReport::transport_fail_streak`.
     transport_fail_streak: std::sync::atomic::AtomicU64,
+    /// T-3465: when the current transport-failure streak began (None = hub reachable).
+    down_since: Mutex<Option<std::time::Instant>>,
+    /// T-3465: `reconnect.log` beside the queue file (`~/.termlink/reconnect.log`).
+    reconnect_log: std::path::PathBuf,
+}
+
+/// T-3465: one `reconnect` NDJSON line: `ts, peer, downtime_ms, attempt`.
+/// `attempt` is the number of flush passes it took (failed passes + the successful one).
+pub fn render_reconnect_line(peer: &str, downtime_ms: u64, attempt: u64) -> String {
+    serde_json::json!({
+        "ts": crate::event_log::now_rfc3339(),
+        "signal": "reconnect",
+        "peer": peer,
+        "downtime_ms": downtime_ms,
+        "attempt": attempt,
+    })
+    .to_string()
 }
 
 impl BusClient {
@@ -173,6 +190,7 @@ impl BusClient {
         queue_path: impl AsRef<Path>,
         flush_interval: Duration,
     ) -> Result<(Arc<Self>, JoinHandle<()>), BusClientError> {
+        let reconnect_log = queue_path.as_ref().with_file_name("reconnect.log");
         let queue = Arc::new(OfflineQueue::open(queue_path)?);
         let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
         let client = Arc::new(Self {
@@ -180,6 +198,8 @@ impl BusClient {
             queue,
             shutdown_tx: Mutex::new(Some(shutdown_tx)),
             transport_fail_streak: std::sync::atomic::AtomicU64::new(0),
+            down_since: Mutex::new(None),
+            reconnect_log,
         });
         let handle = {
             let weak = Arc::downgrade(&client);
@@ -252,8 +272,18 @@ impl BusClient {
 
     /// T-2616: clear the transport-failure streak, pass `v` through.
     fn reset_transport_streak_then<T>(&self, v: T) -> T {
-        self.transport_fail_streak
-            .store(0, std::sync::atomic::Ordering::Relaxed);
+        let prior = self
+            .transport_fail_streak
+            .swap(0, std::sync::atomic::Ordering::Relaxed);
+        if prior > 0 {
+            // T-3465: the hub answered after `prior` failed passes: a reconnect.
+            let since = self.down_since.lock().ok().and_then(|mut g| g.take());
+            let downtime_ms = since.map(|t| t.elapsed().as_millis() as u64).unwrap_or(0);
+            crate::event_log::append(
+                &self.reconnect_log,
+                render_reconnect_line(&self.addr.to_string(), downtime_ms, prior + 1),
+            );
+        }
         v
     }
 
@@ -448,6 +478,11 @@ impl BusClient {
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
                         + 1;
                     report.transport_fail_streak = streak;
+                    if streak == 1
+                        && let Ok(mut g) = self.down_since.lock()
+                    {
+                        *g = Some(std::time::Instant::now());
+                    }
                     if transport_streak_is_loud(streak) {
                         tracing::warn!(
                             queue_id = id.0,
@@ -890,6 +925,58 @@ mod tests {
         assert_eq!(r.failed, 1); // breaks at first failure
         assert_eq!(client.queue_size(), 3);
 
+        drop(client);
+        let _ = tokio::time::timeout(Duration::from_secs(2), handle).await;
+    }
+
+    #[tokio::test]
+    async fn reconnect_is_logged_with_downtime_and_attempt() {
+        // T-3465: two failed passes then a hub answer = one `reconnect` line, attempt 3.
+        use crate::handler::SessionContext;
+        use crate::registration::{Registration, SessionConfig};
+        use crate::{SessionId, SessionState};
+        use tokio::sync::RwLock;
+
+        let dir = tempfile::tempdir().unwrap();
+        let socket_path = dir.path().join("hub.sock");
+        let queue_path = dir.path().join("outbound.sqlite");
+        {
+            let seed = crate::offline_queue::OfflineQueue::open(&queue_path).unwrap();
+            seed.enqueue(&sample_post("t")).unwrap();
+        }
+        let (client, handle) = BusClient::connect_with_interval(
+            TransportAddr::unix(socket_path.clone()),
+            &queue_path,
+            Duration::from_secs(3600),
+        )
+        .unwrap();
+        client.flush().await;
+        client.flush().await;
+        tokio::time::sleep(Duration::from_millis(30)).await;
+
+        let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+        let mut reg = Registration::new(SessionId::generate(), SessionConfig::default(), socket_path.clone());
+        reg.state = SessionState::Ready;
+        let shared = std::sync::Arc::new(RwLock::new(SessionContext::new(reg)));
+        let srv = tokio::spawn(async move { crate::server::run_accept_loop(listener, shared).await });
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        client.flush().await; // hub answers (reject is fine) -> reconnect
+        crate::event_log::flush();
+
+        let log = std::fs::read_to_string(dir.path().join("reconnect.log")).unwrap();
+        let lines: Vec<&str> = log.lines().collect();
+        assert_eq!(lines.len(), 1, "{log}");
+        let v: serde_json::Value = serde_json::from_str(lines[0]).unwrap();
+        assert_eq!(v["signal"], "reconnect");
+        assert_eq!(v["attempt"], 3);
+        assert!(v["downtime_ms"].as_u64().unwrap() >= 30);
+        assert!(v["peer"].as_str().unwrap().contains("hub.sock"));
+        // a further answered pass is not another reconnect
+        client.flush().await;
+        crate::event_log::flush();
+        assert_eq!(std::fs::read_to_string(dir.path().join("reconnect.log")).unwrap().lines().count(), 1);
+
+        srv.abort();
         drop(client);
         let _ = tokio::time::timeout(Duration::from_secs(2), handle).await;
     }

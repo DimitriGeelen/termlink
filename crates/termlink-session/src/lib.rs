@@ -26,6 +26,7 @@ pub mod governance_subscriber;
 pub mod handler;
 pub mod hub_capabilities;
 pub mod audit_append;
+pub mod event_log;
 pub mod inbox_channel;
 pub mod invocation_audit;
 pub mod pty;
