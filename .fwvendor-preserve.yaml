@@ -24,5 +24,3 @@ files:
     reason: T-3472 approve-driver persists the scoring spec
   - path: bin/claude-fw
     reason: T-3464 sidecar socket injection (expect a 3-way conflict near upstream line ~1235)
-  - path: lib/inception.sh
-    reason: T-3039 local fix (not carried in 1.8.13)

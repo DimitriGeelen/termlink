@@ -1131,7 +1131,8 @@ divergences:
       checker's match key is the task id parsed from the commit subject.
     date: 2026-09-24
     file: .agentic-framework/lib/inception.sh
-    status: filed-upstream
+    status: landed-upstream
+    landed_note: "Measured 2026-10-20 (T-3489): our lib/inception.sh is byte-identical to v1.8.13's, so the fix is carried, although AEF's T-4463 carry map listed it as not carried. Removed from .fwvendor-preserve.yaml."
     filed_at: "framework:pickup offset 146"
     kind: defect-report
     generality: GENERIC
