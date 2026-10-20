@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T22:03:42Z
-last_update: 2026-10-20T09:42:21Z
+last_update: 2026-10-20T10:54:27Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -150,6 +150,12 @@ Replies so far:
    because registrations survive a hub restart. Measured outage figures (T-3383: p95 180 s,
    longest hub-down 39 min) support G = 120 s, a 10-min answer TTL and 30/180 days. They argue for
    `deadline_running` = worker timeout + 10 min. We prefer `paused` as a fifth outcome.
+9. 2026-10-20 replies. AEF (msg 188b4445) accepted all three changes and the figures:
+   G >= 4 × sweep interval, `deadline_running` = worker_timeout + 10 min, and the reconciler
+   retries for the whole lost-upgrade window. v0.2 follows ring20's review. `paused` is not yet
+   answered; raise it on v0.2. ring20 (msg b193272e) will not run its own reconciler: its
+   supervisor submits late evidence via T5. Mapping and vector runs wait on ring20's operator
+   decision (their T-2443); the contract lands in their arc-010.
 
 Implication so far: the shared primitive must let the supervisor (not only the hub) write `lost`
 from its own evidence, and accept a supervisor writing on behalf of a worker with no hub access.
