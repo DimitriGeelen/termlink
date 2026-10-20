@@ -45,7 +45,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T09:39:15Z
-last_update: 2026-10-20T19:51:15Z
+last_update: 2026-10-20T19:56:38Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,10 +83,10 @@ Operator ruling 2026-10-18 (T-3461): only a stored message counts as accepted. S
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] When the hub accepts a message post (POSTED), the sender keeps a durable record of the signed post (it survives a Sender restart), instead of forgetting the message once the outbox row is removed; stage records (no msg id) are not tracked
-- [ ] A message whose recipient has reported STORED (or any later stage) is released: its record is removed and it is never resent
-- [ ] A message with no STORED report past the R-44.e accept deadline (60 s normal, 15 s urgent = priority >= 5) is resent through the outbox with the same msg id as `client_msg_id`, and a `RESENT` line is written to its chain
-- [ ] Resends are bounded with growing gaps (deadline × 2^n after each attempt, at most MAX_RESENDS); after the last one runs out, the record is dropped and a needs-attention entry (`not-accepted`) names the message — no endless flooding
+- [x] When the hub accepts a message post (POSTED), the sender keeps a durable record of the signed post (it survives a Sender restart), instead of forgetting the message once the outbox row is removed; stage records (no msg id) are not tracked
+- [x] A message whose recipient has reported STORED (or any later stage) is released: its record is removed and it is never resent
+- [x] A message with no STORED report past the R-44.e accept deadline (60 s normal, 15 s urgent = priority >= 5) is resent through the outbox with the same msg id as `client_msg_id`, and a `RESENT` line is written to its chain
+- [x] Resends are bounded with growing gaps (deadline × 2^n after each attempt, at most MAX_RESENDS); after the last one runs out, the record is dropped and a needs-attention entry (`not-accepted`) names the message — no endless flooding
 - [ ] Tests in crates/termlink-sidecar (temp dirs and a fake hub only, never the real runtime dir or live hub) cover: record kept at POSTED, release on STORED, resend after deadline (normal and urgent), growing gap, give-up attention entry, restart durability; `cargo test -p termlink-sidecar` passes
 
 ### Human
@@ -292,6 +292,9 @@ Operator ruling 2026-10-18 (T-3461): only a stored message counts as accepted. S
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-sidecar --test resend_tests > /tmp/.t3462-v1.out 2>&1 && grep -q "test result: ok. 8 passed" /tmp/.t3462-v1.out
+cargo test -p termlink-sidecar --test send_hub --test receive_hub > /tmp/.t3462-v2.out 2>&1 && ! grep -q "FAILED" /tmp/.t3462-v2.out
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -331,6 +334,11 @@ Operator ruling 2026-10-18 (T-3461): only a stored message counts as accepted. S
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-20 — where responsibility lives after POSTED
+- **What changed:** The outbox (`OfflineQueue`, termlink-session) is a FIFO with peek-oldest/pop only, so it cannot hold posted-but-unstored rows without re-posting them on every pass. The record therefore lives beside it, one JSON file per message (`<outbox>.awaiting/<msg_id>.json`, tmp+rename+fsync), owned by send.rs. Urgency is read from the SENT line's `priority=` reason, as api.rs status already does, so the wire post is unchanged.
+- **Plan impact:** None to the ruling. Resend re-enqueues the stored `PendingPost` (same `client_msg_id`); within the hub's 5-min dedupe TTL a resend is absorbed (test asserts inbox stays at 1), after it the recipient store's Duplicate outcome absorbs it. Schedule: deadline, then 2×, 4×, 8× (MAX_RESENDS = 4), then `NOT_ACCEPTED` + attention `not-accepted` (~31 min normal, ~7.75 min urgent).
+- **Triggered:** Not done here (outside this worker's area): api.rs status could label `NOT_ACCEPTED` / show `RESENT` count; daemon wiring needs nothing, since the background pump thread already calls `resend_overdue`.
 
 ## Recommendation
 
@@ -392,3 +400,7 @@ Operator ruling 2026-10-18 (T-3461): only a stored message counts as accepted. S
 ### 2026-10-20T19:51:15Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-20 — build [w-outbox]
+- **Action:** `send.rs`: durable awaiting record at POSTED (`<outbox>.awaiting/<msg_id>.json`); `Sender::resend_overdue(now_ms, &Deadlines)` (also called by the background pump thread) releases on a peer STORED-or-later report, resends on the accept deadline with doubling gaps (`RESENT`), gives up after `MAX_RESENDS`=4 (`NOT_ACCEPTED` + attention `not-accepted`); `Sender::awaiting()`. New `tests/resend_tests.rs` (8 tests, testkit estate only).
+- **Results:** resend_tests 8/8 pass. Full `cargo test -p termlink-sidecar --no-fail-fast`: everything passes except 2 tests outside this area. Neither touches send.rs: (1) `hooks_tests::hooks_scripted_demo` expects `[RECEIVED, STORED, CLAIMED, HANDED_OVER]` but gets an extra recipient-side `UNCERTAIN`, which is the delivery code; (2) `fc_matrix::fc_2_a_full_disk…` gives `CaughtUp { handled: 0 }` at line 175, and it still fails with the awaiting record disabled, so it is not caused by this change. A first run also had `activity::tests::gate_rings_only_when_ready_and_not_active` fail (in untracked `src/activity.rs`, another worker's file); it passed on the re-run. AC5 stays unticked until those are green.

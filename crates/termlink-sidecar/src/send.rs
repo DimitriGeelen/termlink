@@ -17,6 +17,17 @@
 //! `DEAD_LETTER` (the hub rejected it `POISON_THRESHOLD` times). The post carries
 //! the message id as `client_msg_id`, so a re-post after a crash between the hub
 //! accepting and the outbox row being removed is absorbed by the hub's dedupe.
+//!
+//! Only a stored message counts as accepted (operator ruling 2026-10-18, T-3461).
+//! When the hub accepts a post the outbox row goes, but the sender keeps the
+//! signed post in a durable awaiting record (`<outbox>.awaiting/<msg_id>.json`)
+//! until the recipient reports STORED (or a later stage). `resend_overdue`
+//! re-queues a message with no such report past the R-44.e accept deadline
+//! (deadline.rs), with the same msg id as `client_msg_id`: the hub's dedupe and
+//! the recipient store's Duplicate outcome keep it from arriving twice. Each
+//! resend writes `RESENT` and doubles the next gap; after `MAX_RESENDS` the
+//! record is dropped, `NOT_ACCEPTED` is written and a needs-attention entry
+//! names the message.
 
 use crate::store::{Store, StoreError};
 use crate::wire::{self, Msg};
@@ -39,6 +50,14 @@ use termlink_session::offline_queue::{OfflineQueue, PendingPost, QueueError};
 pub const WAITING: &str = "WAITING";
 pub const POSTED: &str = "POSTED";
 pub const DEAD_LETTER: &str = "DEAD_LETTER";
+/// A message re-queued because no STORED report came back in time.
+pub const RESENT: &str = "RESENT";
+/// The sender gave up resending: the recipient never reported STORED.
+pub const NOT_ACCEPTED: &str = "NOT_ACCEPTED";
+/// Needs-attention kind written when the sender gives up.
+pub const ATTN_NOT_ACCEPTED: &str = "not-accepted";
+/// Resends per message before the sender gives up (bounded: no flooding).
+pub const MAX_RESENDS: u32 = 4;
 
 pub struct SendConfig {
     /// This agent's name (`from_agent`).
@@ -118,6 +137,29 @@ pub enum PumpResult {
     Held(String),
     /// The hub rejected the head message; it is retried, then dead-lettered.
     Rejected(String),
+}
+
+/// What one `resend_overdue` pass did.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ResendReport {
+    /// Messages the recipient reported STORED: their awaiting record is gone.
+    pub released: Vec<String>,
+    /// Messages re-queued for another post.
+    pub resent: Vec<String>,
+    /// Messages given up on: needs-attention written.
+    pub gave_up: Vec<String>,
+}
+
+/// A posted message the sender is still responsible for (durable, one file each).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct Awaiting {
+    conv: String,
+    msg_id: String,
+    urgent: bool,
+    /// When it was last posted or re-queued (ms since the epoch).
+    since_ms: u64,
+    resends: u32,
+    post: PendingPost,
 }
 
 /// Why a pin check did not pass.
@@ -215,6 +257,7 @@ impl Sender {
                     if waited >= iv {
                         waited = Duration::ZERO;
                         i.run_pump();
+                        i.resend_overdue(crate::store::now_ms(), &crate::deadline::Deadlines::R44E);
                     }
                 }
             })
@@ -263,6 +306,17 @@ impl Sender {
     /// One pump pass (the background thread runs the same thing).
     pub fn pump(&self) -> PumpResult {
         self.inner.run_pump()
+    }
+
+    /// Release messages the recipient stored; re-queue the overdue ones; give up
+    /// after `MAX_RESENDS`. `now_ms` is passed in so tests can move the clock.
+    pub fn resend_overdue(&self, now_ms: u64, dl: &crate::deadline::Deadlines) -> ResendReport {
+        self.inner.resend_overdue(now_ms, dl)
+    }
+
+    /// Msg ids the sender still holds awaiting a STORED report.
+    pub fn awaiting(&self) -> Vec<String> {
+        self.inner.awaiting_records().into_iter().map(|a| a.msg_id).collect()
     }
 
     /// Messages still in the outbox.
@@ -566,6 +620,12 @@ impl Inner {
                         let _ = self.store.attention("posted-not-recorded", &format!("{msg_id}: {e}"));
                         return PumpResult::Rejected(format!("cannot record POSTED: {e}"));
                     }
+                    // Responsibility stays here until the recipient reports STORED:
+                    // the awaiting record is written before the outbox row goes.
+                    if let Err(e) = self.keep_awaiting(&conv, &msg_id, &post) {
+                        let _ = self.store.attention("awaiting-not-recorded", &format!("{msg_id}: {e}"));
+                        return PumpResult::Rejected(format!("cannot keep the message awaiting STORED: {e}"));
+                    }
                     let _ = self.queue.pop(qid);
                 }
                 Ok(RpcResponse::Error(e)) => {
@@ -591,6 +651,138 @@ impl Inner {
                 }
             }
         }
+    }
+
+    fn awaiting_dir(&self) -> PathBuf {
+        self.cfg.queue_path.with_extension("awaiting")
+    }
+
+    fn awaiting_path(&self, msg_id: &str) -> PathBuf {
+        self.awaiting_dir().join(format!("{msg_id}.json"))
+    }
+
+    fn write_awaiting(&self, a: &Awaiting) -> std::io::Result<()> {
+        use std::io::Write as _;
+        let dir = self.awaiting_dir();
+        std::fs::create_dir_all(&dir)?;
+        let tmp = dir.join(format!(".{}.tmp", a.msg_id));
+        let mut f = std::fs::File::create(&tmp)?;
+        f.write_all(&serde_json::to_vec(a).map_err(std::io::Error::other)?)?;
+        f.sync_all()?;
+        std::fs::rename(&tmp, self.awaiting_path(&a.msg_id))?;
+        std::fs::File::open(&dir)?.sync_all()
+    }
+
+    fn awaiting_records(&self) -> Vec<Awaiting> {
+        let Ok(rd) = std::fs::read_dir(self.awaiting_dir()) else { return vec![] };
+        let mut v: Vec<Awaiting> = rd
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".json"))
+            .filter_map(|e| serde_json::from_slice(&std::fs::read(e.path()).ok()?).ok())
+            .collect();
+        v.sort_by_key(|a| a.since_ms);
+        v
+    }
+
+    /// At POSTED: start holding the message, unless it is held already (a resend
+    /// keeps its count), stored already, or given up on.
+    fn keep_awaiting(&self, conv: &str, msg_id: &str, post: &PendingPost) -> std::io::Result<()> {
+        if msg_id.is_empty() || self.awaiting_path(msg_id).exists() {
+            return Ok(());
+        }
+        let lines = self.store.chain_lines(conv).unwrap_or_default();
+        let mine: Vec<_> = lines.iter().filter(|l| l.msg_id == msg_id).collect();
+        if mine.iter().any(|l| l.event == NOT_ACCEPTED) || self.accepted(conv, msg_id) {
+            return Ok(());
+        }
+        // Urgent per the SENT line's recorded priority, as the status view reads it.
+        let urgent = mine
+            .iter()
+            .filter(|l| l.event == "SENT")
+            .filter_map(|l| l.reason.as_deref()?.strip_prefix("priority=")?.parse::<i64>().ok())
+            .any(|p| p >= 5);
+        self.write_awaiting(&Awaiting {
+            conv: conv.to_owned(),
+            msg_id: msg_id.to_owned(),
+            urgent,
+            since_ms: crate::store::now_ms(),
+            resends: 0,
+            post: post.clone(),
+        })
+    }
+
+    /// The recipient reported STORED, or a later stage, for this message.
+    fn accepted(&self, conv: &str, msg_id: &str) -> bool {
+        let stored = wire::STAGE_ORDER.iter().position(|s| *s == "STORED").unwrap_or(1);
+        let me = self.cfg.identity.fingerprint();
+        self.store.chain_lines(conv).unwrap_or_default().iter().any(|l| {
+            l.msg_id == msg_id
+                && l.peer_ts_ms.is_some()
+                && l.sender != me
+                && wire::STAGE_ORDER.iter().position(|s| *s == l.event).is_some_and(|r| r >= stored)
+        })
+    }
+
+    fn resend_overdue(&self, now_ms: u64, dl: &crate::deadline::Deadlines) -> ResendReport {
+        let mut rep = ResendReport::default();
+        let mut mem = match self.pump.lock() {
+            Ok(m) => m,
+            Err(p) => p.into_inner(),
+        };
+        let me = self.cfg.identity.fingerprint().to_owned();
+        for mut a in self.awaiting_records() {
+            let path = self.awaiting_path(&a.msg_id);
+            let digest = a.post.metadata.get("sidecar_digest").cloned().unwrap_or_default();
+            if self.accepted(&a.conv, &a.msg_id) {
+                if std::fs::remove_file(&path).is_ok() {
+                    rep.released.push(a.msg_id);
+                }
+                continue;
+            }
+            // Dead-lettered by the hub: that path already raised its own alarm.
+            if self.events_for(&a.conv, &a.msg_id).iter().any(|e| e == DEAD_LETTER) {
+                let _ = std::fs::remove_file(&path);
+                continue;
+            }
+            // The gap doubles after each resend: deadline, 2x, 4x, ...
+            let gap = dl.accept(a.urgent).saturating_mul(1u64 << a.resends.min(32));
+            if now_ms.saturating_sub(a.since_ms) <= gap {
+                continue;
+            }
+            if a.resends >= MAX_RESENDS {
+                let why = format!(
+                    "{}/{}: no STORED report after {} resends; the recipient has not accepted it",
+                    a.conv, a.msg_id, a.resends
+                );
+                let extra = crate::store::LineExtra { reason: Some(format!("resends={}", a.resends)), ..Default::default() };
+                let id = a.msg_id.clone();
+                let written = self.store.append_event_unless(&a.conv, NOT_ACCEPTED, &a.msg_id, &me, &digest, extra, |ls| {
+                    ls.iter().any(|l| l.msg_id == id && l.event == NOT_ACCEPTED)
+                });
+                if written.is_ok() && self.store.attention(ATTN_NOT_ACCEPTED, &why).is_ok() {
+                    let _ = std::fs::remove_file(&path);
+                    rep.gave_up.push(a.msg_id);
+                }
+                continue;
+            }
+            // Same post, same client_msg_id: the hub's dedupe and the recipient's
+            // Duplicate outcome absorb a copy that did arrive.
+            if self.queue.enqueue(&a.post).is_err() {
+                continue;
+            }
+            a.resends += 1;
+            a.since_ms = now_ms;
+            let extra = crate::store::LineExtra { reason: Some(format!("attempt={}", a.resends)), ..Default::default() };
+            let _ = self.store.append_event_unless(&a.conv, RESENT, &a.msg_id, &me, &digest, extra, |_| false);
+            if let Err(e) = self.write_awaiting(&a) {
+                let _ = self.store.attention("awaiting-not-recorded", &format!("{}: {e}", a.msg_id));
+            }
+            rep.resent.push(a.msg_id);
+        }
+        if !rep.resent.is_empty() {
+            let _ = self.pump_locked(&mut mem);
+        }
+        rep
     }
 
     /// The hub is out of reach: the head message shows WAITING.
