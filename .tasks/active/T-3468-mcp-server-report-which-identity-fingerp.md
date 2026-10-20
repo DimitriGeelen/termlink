@@ -56,14 +56,21 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`termlink_agent_identity` (crates/termlink-mcp/src/tools.rs ~20532) re-resolves the identity at
+CALL time via `resolve_signing_identity(~/.termlink)` and always reports `path` =
+`~/.termlink/identity.json`, even when the per-agent resolver (TERMLINK_IDENTITY_FILE >
+TERMLINK_AGENT_ID > TERMLINK_IDENTITY_DIR > host default) picked another file. 832 asks for the
+key the RUNNING server actually signs with: if the env or file changed after start, the two
+differ, and that is the confusion to remove. Find where the MCP post path obtains its signing
+identity (tools.rs ~20086 mentions the CLI `load_identity_or_create` fallback) and report THAT.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `termlink_agent_identity` (and the identity part of `termlink_whoami` if it has one) reports the fingerprint, public key, resolution source and real key path of the identity the server's post path signs with
+- [ ] It also reports whether a fresh resolution right now gives the same fingerprint (`matches_current_resolution`), so a server started under an old env or a rotated key is visible
+- [ ] Unit test covers the fields and the mismatch case; `cargo test -p termlink-mcp` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
