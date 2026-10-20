@@ -1,0 +1,191 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3489: AEF v1.8.13 upgrade: vendor-divergence check and upgrade plan (security hotfix)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T14:40:55Z
+# ============================================================================
+
+task_id: T-3489
+task_name: "AEF v1.8.13 upgrade: vendor-divergence check and upgrade plan (security hotfix)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-20T11:36:20Z
+completed: 2026-10-20T14:40:35Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-20T13:50:52+02:00
+last_commit: 2026-10-20T16:40:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  AEF 1.8.13 upgrade plan — divergence check clean, carried-upstream status unknown for 17 of 19 local fixes (asked AEF). re-vendor AEF 5c886336b -> v1.8.13 (security hotfix; operator ruling A, 2026-10-20). vendor register baseline -> b0b2348b2 (the 1.8.13 re-vendor). T-3039 (lib/inception.sh) is carried in v1.8.13 (byte-identical); landed-upstream, no longer preserved. Ten local-fix proposals filed at framework:pickup offsets 341-350. merge follow-up — two new upstream write rules in has_bash_write_pattern (sed w-flag, sort -o) as herestrings like the rest of the function; write-pattern fixtures 44/44. budget-ladder drift guard reads the live ladder from lib/budget_ladder.py (AEF 1.8.13); fixtures for the new form; CLAUDE.md project note updated. upgrade outcome recorded in the plan report (carry table, follow-ups, guard-layer result); ACs and verification. RCA; pre-re-vendor checklist step 4 gains env hygiene, merge-every-changed-preserved-file and full guard layer on the rehearsal
+
+# Key outcomes
+outcomes:
+  - 'Upgrade plan at docs/reports/T-3489-aef-1813-upgrade-plan.md: `check-vendor-divergence.sh` output, and for each of the 19 local-only/filed-upstream divergences whether AEF 1.8.13 carries it (with evidence)'
+  - 'The CLAUDE.md `## Core Principle` boundary re-measured, and the project lines below it that an upgrade would replace listed'
+  - 'The `cd X || git status` behaviour change checked against scripts/ and .claude/'
+  - 'Upgrade performed per the plan (CLAUDE.md saved first and diffed after, every local-only fix that is not carried re-applied, `.vendor-divergence.yaml` updated to the new baseline), `fw doctor` reports no NEW failure (reworded 2026-10-20 from "passes": the one FAIL, the W1 guarded-hook "script not found: [" false positive, predates the upgrade and is unchanged)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'budget-ladder drift guard reads the live ladder from lib/budget_ladder.py (AEF 1.8.13); fixtures for the new form; CLAUDE.md project note updated'
+    source: git-mined
+  - description: 'merge follow-up — two new upstream write rules in has_bash_write_pattern (sed w-flag, sort -o) as herestrings like the rest of the function; write-pattern fixtures 44/44'
+    source: git-mined
+  - description: 'T-3039 (lib/inception.sh) is carried in v1.8.13 (byte-identical); landed-upstream, no longer preserved. Ten local-fix proposals filed at framework:pickup offsets 341-350'
+    source: git-mined
+  - description: 're-vendor AEF 5c886336b -> v1.8.13 (security hotfix; operator ruling A, 2026-10-20)'
+    source: git-mined
+  - description: 'AEF 1.8.13 upgrade plan — divergence check clean, carried-upstream status unknown for 17 of 19 local fixes (asked AEF)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/audit/unit-suite.sh'
+  - '.agentic-framework/agents/context/budget-gate.sh'
+  - '.agentic-framework/agents/context/check-active-task.sh'
+  - '.agentic-framework/agents/context/checkpoint.sh'
+  - '.agentic-framework/agents/context/check-project-boundary.sh'
+  - '.agentic-framework/agents/context/check-tier0.sh'
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.agentic-framework/agents/designer/designer.sh'
+  - '.agentic-framework/agents/dispatch/preamble.md'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/bin/watchtower.sh'
+  - '.agentic-framework/.context/designer/projects/aef-audit-cron/v1.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-dispatch-loop/v1.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-dispatch-loop/v2.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-dispatch-loop/v3.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-existing-project-onboarding/v1.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-greenfield-onboarding/v1.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-greenfield-onboarding/v2.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-inception-flow/v1.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-session-lifecycle/v1.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-task-lifecycle/v1.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-task-lifecycle/v2.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-task-lifecycle/v3.bpmn'
+  - '.agentic-framework/.context/designer/projects/aef-tier0-escalation/v1.bpmn'
+  - '.agentic-framework/docs/releases/v1.8.11-upgrade-notes.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.11-results.md'
+  - '.agentic-framework/docs/reports/T-3083-doctor-profile.md'
+  - '.agentic-framework/docs/reports/T-4224-inputs/T-1189-aef-node-id-map-0.21.0.md'
+  - '.agentic-framework/docs/reports/T-4224-inputs/table.json'
+  - '.agentic-framework/docs/reports/T-4237-inputs/aef-greenfield-install-prompt-v2.1.md'
+  - '.agentic-framework/docs/reports/T-4237-inputs/aef-greenfield-install-prompt-v2.2.1.md'
+  - '.agentic-framework/docs/reports/T-4237-inputs/P-016-feature-proposal.yaml'
+  - '.agentic-framework/docs/reports/T-4237-inputs/P-017-feature-proposal.yaml'
+  - '.agentic-framework/docs/reports/T-4237-inputs/P-020-feature-proposal.yaml'
+  - '.agentic-framework/docs/reports/T-4237-inputs/P-021-feature-proposal.yaml'
+  - '.agentic-framework/docs/reports/T-4237-inputs/T-121-greenfield-v2.1-changes-and-onboarding-evaluation.md'
+  - '.agentic-framework/docs/reports/T-4246-full-suite-comparison.md'
+  - '.agentic-framework/docs/reports/T-4253-greenfield-run-triage.md'
+  - '.agentic-framework/docs/reports/T-4299-greenfield-orchestrator.md'
+  - '.agentic-framework/docs/reports/T-4309-agent-profile-v1.md'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/lib/arc_membership.py'
+  - '.agentic-framework/lib/budget_ladder.py'
+  - '.agentic-framework/lib/bvp_outcomes.py'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/delegation_cli.py'
+  - '.agentic-framework/lib/estate_ingest.py'
+  - '.agentic-framework/lib/estate_push.py'
+  - '.agentic-framework/lib/firewall.sh'
+  - '.agentic-framework/lib/gaps.py'
+  - '.agentic-framework/lib/hook-dispatch.sh'
+  - '.agentic-framework/lib/init.sh'
+  - '.agentic-framework/lib/paths.sh'
+  - '.agentic-framework/lib/pickup.sh'
+  - '.agentic-framework/lib/render_surface.sh'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/shell_write_scan.py'
+  - '.agentic-framework/lib/sidecar-audit.sh'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/sidecar/dm.py'
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - '.agentic-framework/lib/sidecar/lifecycle.py'
+  - '.agentic-framework/lib/task_commits.py'
+  - '.agentic-framework/lib/templates/claude-project.md'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/lib/wm_tasks.sh'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/tools/port3000_hygiene.py'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.23.0.html'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.agentic-framework/web/blueprints/core.py'
+  - '.agentic-framework/web/blueprints/cron.py'
+  - '.agentic-framework/web/blueprints/discovery.py'
+  - '.agentic-framework/web/blueprints/embeddings.py'
+  - '.agentic-framework/web/blueprints/inception.py'
+  - '.agentic-framework/web/decide_runner.py'
+  - '.agentic-framework/web/templates/_ac_list.html'
+  - 'CLAUDE.md'
+  - '.context/audits/upgrades.yaml'
+  - 'docs/reports/T-3489-aef-1813-upgrade-plan.md'
+  - '.framework.yaml'
+  - '.fwvendor-preserve.yaml'
+  - 'scripts/check-budget-ladder-drift.sh'
+  - '.tasks/active/T-3489-aef-v1813-upgrade-vendor-divergence-chec.md'
+  - 'tests/budget-ladder-drift-fixtures.sh'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T13:50:52'
+    action: 'T-3489: AEF 1.8.13 upgrade plan — divergence check clean, carried-upstream status unknown for 17 of 19 local fixes (asked AEF)'
+  - time: '2026-10-20T16:01:49'
+    action: 'T-3489: re-vendor AEF 5c886336b -> v1.8.13 (security hotfix; operator ruling A, 2026-10-20)'
+  - time: '2026-10-20T16:02:00'
+    action: 'T-3489: vendor register baseline -> b0b2348b2 (the 1.8.13 re-vendor)'
+  - time: '2026-10-20T16:03:25'
+    action: 'T-3489: T-3039 (lib/inception.sh) is carried in v1.8.13 (byte-identical); landed-upstream, no longer preserved. Ten local-fix proposals filed at framework:pickup offsets 341-350'
+  - time: '2026-10-20T16:28:12'
+    action: 'T-3489: merge follow-up — two new upstream write rules in has_bash_write_pattern (sed w-flag, sort -o) as herestrings like the rest of the function; write-pattern fixtures 44/44'
+  - time: '2026-10-20T16:37:49'
+    action: 'T-3489: budget-ladder drift guard reads the live ladder from lib/budget_ladder.py (AEF 1.8.13); fixtures for the new form; CLAUDE.md project note updated'
+  - time: '2026-10-20T16:39:45'
+    action: 'T-3489: upgrade outcome recorded in the plan report (carry table, follow-ups, guard-layer result); ACs and verification'
+  - time: '2026-10-20T16:40:33'
+    action: 'T-3489: RCA; pre-re-vendor checklist step 4 gains env hygiene, merge-every-changed-preserved-file and full guard layer on the rehearsal'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 8 commit(s), 184 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 184
+  commits: 8
+  files_changed: 92
+  lines_added: 9720
+  lines_removed: 1063
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3489-aef-v1813-upgrade-vendor-divergence-chec.md
+generated_by: context-agent-hybrid
