@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T14:09:33Z
-last_update: 2026-10-19T14:10:29Z
+last_update: 2026-10-19T14:24:11Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -84,10 +84,11 @@ T-3474. This adds a second line only for slow requests, measured in the line tra
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A line-transport request slower than `TERMLINK_AUDIT_SLOW_MS` (default 1000) adds one rpc-audit line with `slow:true`, `method`, `peer_addr`, `handle_ms`, `write_ms`; faster requests add nothing; the receipt line is unchanged
-- [ ] The slow line goes through the T-3475 writer thread (no file I/O on the worker)
-- [ ] Unit tests: line shape, threshold boundary; `cargo test -p termlink-hub` passes
-- [ ] After deploy, a channel-list capture on .107 attributes every probe over 2 s to hub (slow line present) or client (absent)
+- [x] A line-transport request slower than `TERMLINK_AUDIT_SLOW_MS` (default 1000) adds one rpc-audit line with `slow:true`, `method`, `peer_addr`, `handle_ms`, `write_ms`; faster requests add nothing; the receipt line is unchanged
+- [x] The slow line goes through the T-3475 writer thread (no file I/O on the worker)
+- [x] Unit tests: line shape, threshold boundary; `cargo test -p termlink-hub` passes
+- [x] After deploy, a channel-list capture on .107 attributes every probe over 2 s to hub (slow line present) or client (absent)
+- [x] A long-poll (`params.timeout_ms`) counts as slow only for the time beyond the wait it asked for; the line carries `requested_wait_ms` (added 2026-10-20: 2698 of 2872 live slow lines were subscribes waiting out their own timeout)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -292,6 +293,10 @@ T-3474. This adds a second line only for slow requests, measured in the line tra
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+timeout 900 cargo test -p termlink-hub --lib rpc_audit > /tmp/.t3478.out 2>&1 && grep -q "test result: ok" /tmp/.t3478.out
+grep -q "a_long_poll_is_slow_only_beyond_the_wait_it_asked_for" crates/termlink-hub/src/rpc_audit.rs
+grep -q "requested_wait_ms" crates/termlink-hub/src/server.rs
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -383,6 +388,19 @@ T-3474. This adds a second line only for slow requests, measured in the line tra
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-20 — live evidence and the long-poll fix
+- Live on .107 since the 2026-10-19 deploy: 2872 slow lines in `/var/lib/termlink/rpc-audit.jsonl`;
+  `peer_addr` present for TCP callers and absent for local ones, as specified.
+- **AC4 holds only vacuously.** Of the T-3383 collector's 2313 probes of the .107 hub since
+  22:10Z, none took over 2 s and none failed, so no client-side slow probe needed attributing.
+  The attribution works where it matters: 77 `channel.create` and 88 `channel.post` lines over
+  1 s, max 68.9 s, all hub-side (`write_ms` 0). That is a real stall, filed as **T-3488**.
+- Noise found and fixed: 2698 of the 2872 lines were `channel.subscribe` long-polls waiting out
+  the timeout they requested. `record_slow` now counts only the time beyond `params.timeout_ms`
+  and records `requested_wait_ms` (`rpc_audit::excess_ms`, test
+  `a_long_poll_is_slow_only_beyond_the_wait_it_asked_for`). `cargo test -p termlink-hub`: 537 lib
+  tests and the integration tests pass. Goes live with the next runme deploy.
 
 ### 2026-10-19T14:09:33Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent

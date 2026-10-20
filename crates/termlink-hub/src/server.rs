@@ -1243,15 +1243,20 @@ async fn handle_line_connection<S>(
             let total_ms = (handled + written).as_millis() as u64;
             if crate::rpc_audit::is_slow(total_ms, crate::rpc_audit::slow_ms()) {
                 // The request is parsed a second time only when it was slow.
-                let method = serde_json::from_str::<serde_json::Value>(line)
-                    .ok()
+                let req = serde_json::from_str::<serde_json::Value>(line).ok();
+                let method = req
+                    .as_ref()
                     .and_then(|v| v.get("method").and_then(|m| m.as_str()).map(str::to_string))
                     .unwrap_or_else(|| "(unparsed)".to_string());
+                let requested_wait_ms = req.as_ref().and_then(|v| {
+                    v.get("params").and_then(|p| p.get("timeout_ms")).and_then(|t| t.as_u64())
+                });
                 crate::rpc_audit::record_slow(
                     &method,
                     peer_addr.as_deref(),
                     handled.as_millis() as u64,
                     written.as_millis() as u64,
+                    requested_wait_ms,
                 );
             }
         }
