@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T17:15:40Z
-last_update: 2026-10-20T17:15:40Z
+last_update: 2026-10-20T17:17:10Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -290,6 +290,14 @@ bash scripts/check-vendor-divergence.sh > /tmp/.t3496d 2>&1
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** under v1.8.13, `git` commands carrying `--output` in quoted, escaped, variable, parameter-default, loop-variable, `$'…'`, brace or abbreviated (`--outp=`) form were classified as reads, although git wrote the named file. A write that slipped past the write gate.
+
+**Root cause (upstream, AEF T-4485):** `_fw_git_has_output_opt` tested the RAW words of the command, but git receives the words after bash's quote removal and expansion, so any shell-level spelling hid the option.
+
+**Why structurally allowed:** the check reasoned about bash syntax with its own pattern instead of the tokenizer the write scanner uses, so the two gates could disagree. The fix routes any special character through `lib/shell_write_scan.py`, so both gates read the same words. Found in the field by ring20-dashboard, not by a test.
+
+**Prevention:** upstream's `tests/unit/t4485_git_output_quoting.bats`. Locally, our spot check of the four forms against the merged copy is recorded in the ACs. Our checklist (T-3489 step 4) made this re-vendor a 20-minute merge of one file instead of a risk.
 
 ## Evolution
 
