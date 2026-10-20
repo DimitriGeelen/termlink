@@ -4,12 +4,12 @@ name: "hub start unlinks a live hub's socket before binding TCP (ring20-dashboar
 description: >
   server.rs:264 removes hub.sock unconditionally after only the pidfile check, then fails TCP 9100 and exits, leaving a dead socket and wrong pidfile; local clients get ECONNREFUSED while TCP works. Fix: connect-probe before unlink, bind TCP first, never unlink a socket not created; hub notices its socket inode replaced; hub-health probes the unix socket. Reporter: ring20-dashboard, inbox:1389a831016c4bf1/ring20-dashboard, cid t2459-hub-socket-clobber.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/server.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:34:05Z
-last_update: 2026-10-06T10:34:05Z
-date_finished: null
+last_update: 2026-10-20T16:21:35Z
+date_finished: 2026-10-20T16:21:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -297,3 +297,15 @@ check: stubbing out the connect probe turns the live-hub test red.
 - `prepare_start` / `claim_runtime` / `ensure_no_live_hub` in `crates/termlink-hub/src/server.rs`; both start paths use them. Shutdown now removes hub.sock only if its dev/inode is still the one this hub created.
 - Tests: `cargo test -p termlink-hub` 542 lib passed; `cargo test -p termlink` all suites green.
 - Not done (from the description, not in the ACs): a running hub noticing that its socket inode was replaced, and hub-health probing the unix socket. Candidates for a follow-up task.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-32ccbdb3
+- **Timestamp:** 2026-10-20T16:23:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-20T16:21:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
