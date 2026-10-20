@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3255: Re-verify fleet version floors for .121/.122 against per-hub build sha
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T15:27:32Z
+# ============================================================================
+
+task_id: T-3255
+task_name: "Re-verify fleet version floors for .121/.122 against per-hub build sha"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T19:57:01Z
+completed: 2026-10-20T15:26:54Z
+duration_days: 21
+updates_count: 3
+first_commit: 2026-10-20T17:26:23+02:00
+last_commit: 2026-10-20T17:26:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet version floors set from evidence — all hubs on our lineage at >= 0.12.786; ring20-dashboard exemption removed, greenfield floored
+
+# Key outcomes
+outcomes:
+  - 'Each hub''s served version and build lineage established with evidence (`termlink fleet doctor --json` hub_version; how each hub was built/deployed per the 2026-10-20 runme log `.context/working/runme-logs/runme-20261020T115627Z-2735729.log`, which upgraded .122/.121/.132 from this repo)'
+  - '`.context/cron/fleet-version-floors.conf` sets or justifies a floor/exemption for every hub with that evidence cited inline (ring20-dashboard''s exemption removed if it now runs our lineage, or kept with the reason)'
+  - '`bash scripts/check-fleet-binary-freshness.sh` exits 0 against the live fleet and the fixture that exercises it (`tests/fleet-capability-canary.sh`; the script has no fixture suite of its own) passes; CLAUDE.md is not edited (the historical notes there stay)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/fleet-version-floors.conf'
+  - '.tasks/active/T-3255-re-verify-fleet-version-floors-for-12112.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T17:26:23'
+    action: 'T-3255: fleet version floors set from evidence — all hubs on our lineage at >= 0.12.786; ring20-dashboard exemption removed, greenfield floored'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 29969 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009, go-slice]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 29969
+  commits: 1
+  files_changed: 2
+  lines_added: 56
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3255-re-verify-fleet-version-floors-for-12112.md
+generated_by: context-agent-hybrid

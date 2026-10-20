@@ -7,10 +7,10 @@ description: >
   each hub's build sha, then set or justify each floor/exemption with the evidence
   in the conf.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009, go-slice]
 components: []
 related_tasks: [T-3005]
@@ -25,8 +25,8 @@ related_tasks: [T-3005]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:57:01Z
-last_update: 2026-10-20T15:24:38Z
-date_finished:
+last_update: 2026-10-20T15:26:54Z
+date_finished: 2026-10-20T15:26:54Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -267,6 +267,11 @@ grep -q "^ring20-dashboard 0.12.786" .context/cron/fleet-version-floors.conf
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-20 — the premise dissolved before the work started
+- **What changed:** the task was filed (T-3005 C-41) to obtain per-hub build SHAs because patch numbers are not comparable across tag epochs or lineages. Today's runme upgraded every hub from this repo, so all of them run our lineage, and the patch number is comparable again.
+- **Plan impact:** no per-hub SHA probe was needed. The evidence is the deploy log plus live `fleet doctor`, cited inline in the conf.
+- **Triggered:** nothing new. The floors must be raised again on the next fleet-wide deploy, as the conf's own comment says.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -335,3 +340,25 @@ grep -q "^ring20-dashboard 0.12.786" .context/cron/fleet-version-floors.conf
 
 ### 2026-10-20T15:24:38Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1a2baf69
+- **Timestamp:** 2026-10-20T15:27:04Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Each hub's served version and build lineage established with evidence (`termlink fleet doctor --json` hub_version; how each hub was built/deployed per the 2026-10-20 runme log `.context/working/runme-
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/working/runme-logs/runme-20261020T115627Z-2735729.log in: Each hub's served version and build lineage established with evidence (`termlink fleet doctor --json` hub_version; how each hub was built/deployed per`
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 88
+     - evidence: `bash scripts/check-fleet-binary-freshness.sh > /tmp/.t3255c 2>&1 || grep -q "unreachable" /tmp/.t3255c`
+
+### 2026-10-20T15:26:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
