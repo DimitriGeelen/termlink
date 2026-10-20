@@ -542,6 +542,70 @@ enum WsPushOutcome {
     Ended,
 }
 
+/// T-3338: what `--push` can deliver for a topic. The WS carries hub EVENTS
+/// (`inbox.queued`, `dm.queued`, ...), never channel envelopes, so a channel
+/// topic passed as-is used to wait forever and print nothing.
+#[derive(Debug, PartialEq, Eq)]
+enum PushTopicMode {
+    /// A hub event topic (dotted, no `:`, or a `*` pattern): stream its frames.
+    Event,
+    /// An `inbox:`/`dm:` channel: listen for its wake event, then fetch and
+    /// print the envelopes from the durable topic (backlog included).
+    Wake(&'static str),
+    /// Any other channel topic: push carries nothing for it.
+    Unsupported,
+}
+
+/// T-3338: classify `topic` for `--push`. Pure — unit-tested. Hub event topic
+/// names are dotted and never contain `:` (termlink_protocol::events).
+fn push_topic_mode(topic: &str) -> PushTopicMode {
+    use termlink_protocol::events::{dm_topic, inbox_topic};
+    if topic.contains('*') {
+        PushTopicMode::Event
+    } else if topic.starts_with("inbox:") {
+        PushTopicMode::Wake(inbox_topic::QUEUED)
+    } else if topic.starts_with("dm:") {
+        PushTopicMode::Wake(dm_topic::QUEUED)
+    } else if topic.contains('.') && !topic.contains(':') {
+        PushTopicMode::Event
+    } else {
+        PushTopicMode::Unsupported
+    }
+}
+
+/// T-3338: the refusal for `--push` on a channel topic push cannot carry.
+fn push_unsupported_hint(topic: &str) -> String {
+    format!(
+        "--push cannot deliver channel topic '{topic}': push streams hub events \
+         (inbox.queued, dm.queued), not channel envelopes, and only inbox:<id> and \
+         dm:<a>:<b> topics have a wake event. Use `termlink channel subscribe {topic} \
+         --follow` to stream this topic, or subscribe to the event itself \
+         (e.g. `channel subscribe inbox.queued --push`)."
+    )
+}
+
+/// T-3338: how often a wake-mode consumer re-fetches without a wake event, as a
+/// safety net for posts that emit none (e.g. a relay post on a dm topic) and for
+/// the window between the backlog fetch and the WS subscription going live.
+const WS_WAKE_SAFETY_FETCH_SECS: u64 = 30;
+
+/// T-3338: fetch every page from `*cursor` until the topic is drained.
+async fn drain_catchup(
+    addr: &TransportAddr,
+    topic: &str,
+    cursor: &mut u64,
+    json_output: bool,
+    label: &str,
+) -> Result<()> {
+    loop {
+        let next = ws_poll_catchup(addr, topic, *cursor, json_output, label).await?;
+        if next <= *cursor {
+            return Ok(());
+        }
+        *cursor = next;
+    }
+}
+
 /// T-2309 (arc-004 push-transport S3b): drive the live WS push consumer for
 /// `topic` against a TCP hub. Spawns the session-crate WS helper into a task
 /// and renders each pushed `hub.event`'s `params` as it arrives. Returns when
@@ -551,8 +615,10 @@ async fn run_ws_push(
     topic: &str,
     json_output: bool,
     reconnecting: bool,
+    cursor: &mut u64,
 ) -> Result<WsPushOutcome> {
     use termlink_session::ws_consumer::stream_ws_events;
+    let mode = push_topic_mode(topic);
 
     // T-2313 (arc-004 WS-over-Unix): TCP hubs need a minted auth token; Unix hubs
     // are peer-cred-trusted and need none (stream_ws_events ignores the token for
@@ -563,10 +629,54 @@ async fn run_ws_push(
         mint_tcp_hub_token(addr)?
     };
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Value>(256);
-    let topics = vec![topic.to_string()];
+    // T-3338: a wake-mode channel subscribes to its wake event, not to itself.
+    let topics = match mode {
+        PushTopicMode::Wake(event) => vec![event.to_string()],
+        _ => vec![topic.to_string()],
+    };
     let addr_owned = addr.clone();
     let ws_task =
         tokio::spawn(async move { stream_ws_events(&addr_owned, &token_raw, &topics, tx).await });
+
+    if let PushTopicMode::Wake(event) = mode {
+        // Backlog (or the gap since the last session) first, then one fetch per
+        // wake event naming this channel, plus a periodic safety-net fetch.
+        if let Err(e) = drain_catchup(addr, topic, cursor, json_output, "push").await {
+            eprintln!("[push] fetch of {topic} failed ({e}) — will retry");
+        }
+        let mut safety =
+            tokio::time::interval(std::time::Duration::from_secs(WS_WAKE_SAFETY_FETCH_SECS));
+        safety.tick().await; // the first tick is immediate; the drain above covered it
+        let mut announced = !reconnecting;
+        loop {
+            tokio::select! {
+                ev = rx.recv() => {
+                    let Some(params) = ev else { break };
+                    let for_us = params
+                        .get("payload")
+                        .and_then(|p| p.get("channel"))
+                        .and_then(|c| c.as_str())
+                        == Some(topic);
+                    if !for_us {
+                        continue;
+                    }
+                    if !announced {
+                        eprintln!("[push] reconnected — back on push ({event} wake)");
+                        announced = true;
+                    }
+                }
+                _ = safety.tick() => {}
+            }
+            if let Err(e) = drain_catchup(addr, topic, cursor, json_output, "push").await {
+                eprintln!("[push] fetch of {topic} failed ({e}) — will retry");
+            }
+        }
+        return match ws_task.await {
+            Ok(Ok(())) => Ok(WsPushOutcome::Ended),
+            Ok(Err(e)) => Err(anyhow!("{e}")),
+            Err(join_err) => Err(anyhow!("ws consumer task failed: {join_err}")),
+        };
+    }
 
     // T-2314 (arc-004 active reconnect): print a "back on push" notice symmetric to
     // the caller's degrade notice, but only once and only when a reconnect actually
@@ -699,6 +809,7 @@ async fn ws_poll_catchup(
     topic: &str,
     cursor: u64,
     json_output: bool,
+    label: &str,
 ) -> Result<u64> {
     let params = json!({"topic": topic, "cursor": cursor, "limit": 500});
     let resp = rpc_call_authed(addr, method::CHANNEL_SUBSCRIBE, params)
@@ -714,7 +825,7 @@ async fn ws_poll_catchup(
             let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
             let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
             let payload = decode_payload_lossy(m);
-            println!("[push:catchup] {topic} offset={off} {sender}: {payload}");
+            println!("[{label}] {topic} offset={off} {sender}: {payload}");
         }
     }
     Ok(result["next_cursor"].as_u64().unwrap_or(cursor))
@@ -742,7 +853,7 @@ async fn run_ws_reconnect_loop(
     let mut attempt: u32 = 0;
     loop {
         let started = std::time::Instant::now();
-        match run_ws_push(addr, topic, json_output, attempt > 0).await {
+        match run_ws_push(addr, topic, json_output, attempt > 0, cursor).await {
             Ok(WsPushOutcome::Ended) => {
                 eprintln!("[push] WS stream ended — catching up then reconnecting");
             }
@@ -753,7 +864,7 @@ async fn run_ws_reconnect_loop(
         let healthy = started.elapsed().as_millis() >= WS_HEALTHY_SESSION_MS;
         // RB2: drain the gap from the durable cursor before retrying the
         // live-only WS, advancing the cursor so we neither miss nor re-render.
-        match ws_poll_catchup(addr, topic, *cursor, json_output).await {
+        match ws_poll_catchup(addr, topic, *cursor, json_output, "push:catchup").await {
             Ok(next) => *cursor = next,
             Err(e) => eprintln!("[push] catch-up poll failed ({e}) — retrying"),
         }
@@ -9639,6 +9750,15 @@ pub(crate) async fn cmd_channel_subscribe(
     verify: bool,
 ) -> Result<()> {
     use std::fmt::Write as _;
+    // T-3338: refuse at once, before any hub contact, when push cannot carry
+    // this topic — the old behaviour was to wait forever and print nothing.
+    if push && push_topic_mode(topic) == PushTopicMode::Unsupported {
+        let hint = push_unsupported_hint(topic);
+        if json_output {
+            super::json_error_exit(json!({"ok": false, "error": hint}));
+        }
+        anyhow::bail!(hint);
+    }
     let tail_mode = tail.is_some();
     // T-1346: when --tail is set, accumulate per-envelope rendered output
     // here; after the polling loop completes (only reachable when !follow,
@@ -15902,6 +16022,40 @@ mod tests {
         );
         assert_eq!(clamp_reprobe_cycles(Some(2)), 2);
         assert_eq!(clamp_reprobe_cycles(Some(30)), 30);
+    }
+
+    #[test]
+    fn push_topic_mode_keeps_hub_event_topics_streaming() {
+        // T-3338: the pushwaker's own subscriptions must keep today's behaviour.
+        assert_eq!(push_topic_mode("inbox.queued"), PushTopicMode::Event);
+        assert_eq!(push_topic_mode("dm.queued"), PushTopicMode::Event);
+        assert_eq!(push_topic_mode("agent.request"), PushTopicMode::Event);
+        assert_eq!(push_topic_mode("dm:*"), PushTopicMode::Event);
+    }
+
+    #[test]
+    fn push_topic_mode_maps_inbox_and_dm_channels_to_their_wake_event() {
+        // T-3338: these channels are delivered via the wake event + fetch.
+        assert_eq!(
+            push_topic_mode("inbox:abc123"),
+            PushTopicMode::Wake("inbox.queued")
+        );
+        assert_eq!(
+            push_topic_mode("dm:aaaa:bbbb"),
+            PushTopicMode::Wake("dm.queued")
+        );
+    }
+
+    #[test]
+    fn push_topic_mode_refuses_other_channel_topics() {
+        // T-3338: a channel with no wake event used to wait forever, silently.
+        for t in ["agent-presence", "framework:pickup", "broadcast:global", "agent-chat-arc"] {
+            assert_eq!(push_topic_mode(t), PushTopicMode::Unsupported, "{t}");
+            let hint = push_unsupported_hint(t);
+            assert!(hint.contains(t), "{hint}");
+            assert!(hint.contains("--follow"), "{hint}");
+            assert!(hint.contains("inbox.queued"), "{hint}");
+        }
     }
 
     #[test]

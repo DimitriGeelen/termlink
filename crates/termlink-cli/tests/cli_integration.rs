@@ -4358,3 +4358,103 @@ fn cli_identity_no_create_requires_resolve() {
         .expect("run termlink");
     assert!(!out.status.success(), "--no-create without --resolve must be refused by clap");
 }
+
+/// T-3338: run `termlink` and fail (instead of hanging the suite) if it does not
+/// exit within `secs` — the pre-fix `--push` on a channel topic never exited.
+fn output_within(mut cmd: Command, secs: u64) -> std::process::Output {
+    let mut child = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("run termlink");
+    let deadline = Instant::now() + Duration::from_secs(secs);
+    while child.try_wait().expect("try_wait").is_none() {
+        if Instant::now() > deadline {
+            let _ = child.kill();
+            panic!("termlink did not exit within {secs}s");
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    child.wait_with_output().expect("collect output")
+}
+
+#[test]
+fn cli_subscribe_push_refuses_non_inbox_channel_topic_at_once() {
+    // T-3338: push streams hub events, never channel envelopes; on a channel with
+    // no wake event it used to wait forever and print nothing. It must now refuse
+    // before contacting any hub (the --hub below is a closed port on purpose).
+    let dir = TestDir::new("push-refuse");
+    for topic in ["agent-presence", "framework:pickup"] {
+        let mut cmd = termlink_cmd(&dir.path);
+        cmd.args(["channel", "subscribe", topic, "--push", "--hub", "127.0.0.1:1"]);
+        let out = output_within(cmd, 10);
+        assert!(!out.status.success(), "{topic}: --push must be refused");
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(stderr.contains("--push cannot deliver channel topic"), "{topic}: {stderr}");
+        assert!(stderr.contains("--follow"), "{topic}: {stderr}");
+
+        let mut cmd = termlink_cmd(&dir.path);
+        cmd.args(["channel", "subscribe", topic, "--push", "--json", "--hub", "127.0.0.1:1"]);
+        let out = output_within(cmd, 10);
+        assert!(!out.status.success());
+        let v: serde_json::Value = serde_json::from_slice(&out.stdout)
+            .unwrap_or_else(|e| panic!("{topic}: --json refusal is not JSON ({e})"));
+        assert_eq!(v["ok"], false);
+        assert!(v["error"].as_str().unwrap_or("").contains(topic));
+    }
+}
+
+#[test]
+fn cli_subscribe_push_on_inbox_topic_prints_backlog_and_live_envelopes() {
+    // T-3338: on an inbox: channel, --push listens for inbox.queued and fetches
+    // the envelopes — backlog first, then each new post. Unix-only hub in a temp
+    // runtime dir (no --tcp), so nothing outside the test is touched.
+    let dir = TestDir::new("push-inbox");
+    let cmd = |args: &[&str]| {
+        let mut c = termlink_cmd(&dir.path);
+        c.env("HOME", &dir.path).args(args);
+        c
+    };
+    let hub_child = cmd(&["hub", "start"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn hub");
+    let _hub = ProcessGuard::new(hub_child, "push-inbox-hub");
+    let sock = dir.path.join("hub.sock");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !sock.exists() {
+        assert!(Instant::now() < deadline, "hub socket never appeared");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let sock = sock.to_string_lossy().to_string();
+    let topic = "inbox:t3338-test";
+    assert!(cmd(&["channel", "create", topic, "--hub", &sock]).output().unwrap().status.success());
+    assert!(cmd(&["channel", "post", topic, "--payload", "backlog-one", "--hub", &sock])
+        .output()
+        .unwrap()
+        .status
+        .success());
+
+    let sub = cmd(&["channel", "subscribe", topic, "--push", "--hub", &sock])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn subscribe");
+    let mut sub = ProcessGuard::new(sub, "push-inbox-sub");
+    std::thread::sleep(Duration::from_secs(2));
+    assert!(cmd(&["channel", "post", topic, "--payload", "live-two", "--hub", &sock])
+        .output()
+        .unwrap()
+        .status
+        .success());
+    // Well inside the 30s safety-net fetch, so live-two must arrive by wake.
+    std::thread::sleep(Duration::from_secs(3));
+    let _ = sub.child().kill();
+    let _ = sub.child().wait();
+    let mut out = String::new();
+    use std::io::Read as _;
+    sub.child().stdout.take().expect("piped stdout").read_to_string(&mut out).unwrap();
+    assert!(out.contains("backlog-one"), "backlog not delivered: {out}");
+    assert!(out.contains("live-two"), "live post not delivered by wake: {out}");
+}

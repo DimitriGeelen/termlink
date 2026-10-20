@@ -4,7 +4,7 @@ name: "channel subscribe --push on a channel topic prints nothing, silently (rin
 description: >
   --push streams hub EVENTS (inbox.queued, dm wake), never channel envelopes, so 'subscribe inbox:X --push' waits forever for frames tagged inbox:X and skips the backlog; no hint. Reported by ring20-dashboard @465, reproduced on .107 2026-10-04. Fix: map inbox:/dm: topics to their wake event and print the envelope, or refuse with the inbox.queued hint.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: next
@@ -41,13 +41,15 @@ date_finished: null
 ## Context
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`--push` opens a WS that carries hub EVENTS (`inbox.queued`, `dm.queued`) only. Given a channel topic, it subscribed to an event name the hub never emits, so the healthy WS session never ended, the catch-up never ran, and nothing printed. Code: `crates/termlink-cli/src/commands/channel.rs` (`push_topic_mode`, `run_ws_push`).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `channel subscribe <topic> --push` on a topic that push does not carry no longer waits silently: either it delivers the topic's envelopes (inbox:/dm: mapped to their wake event, then the envelope fetched and printed, backlog included), or it refuses at once with a hint naming what to use instead
+- [x] Regression test for the chosen behaviour, including a non-inbox channel topic
+- [x] `cargo test -p termlink` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -170,6 +172,9 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink --bin termlink push_topic_mode > /tmp/.t3338-unit 2>&1 && grep -q "3 passed" /tmp/.t3338-unit
+cargo test -p termlink --test cli_integration cli_subscribe_push > /tmp/.t3338-cli 2>&1 && grep -q "2 passed" /tmp/.t3338-cli
+cargo test -p termlink > /tmp/.t3338-all 2>&1 && ! grep -q "FAILED" /tmp/.t3338-all
 
 ## RCA
 
@@ -186,6 +191,10 @@ date_finished: null
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+**Symptom:** `channel subscribe inbox:X --push` printed nothing, forever, with no hint, and skipped the backlog (ring20 T-2459, reproduced on .107 2026-10-04).
+**Root cause:** `run_ws_push` passed the channel topic to `hub.ws_subscribe` as an event-topic filter. The hub only pushes aggregator events (`inbox.queued`, `dm.queued`, ...), so the filter matched nothing. The WS stayed healthy, so the reconnect loop's durable catch-up (the only path that reads envelopes) never ran.
+**Why structurally allowed:** `--push` accepts any string as a topic. Every push test and caller (the pushwaker) used event topics, so the channel-topic case was never exercised.
+**Prevention:** `push_topic_mode` classifies the topic up front (unit-tested). An integration test pins both the refusal on a non-inbox channel and backlog + live delivery on an `inbox:` channel against a temp Unix hub.
 
 ## Evolution
 
@@ -250,6 +259,10 @@ date_finished: null
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+### 2026-10-20 — what --push does on a channel topic
+- **Chose:** both, by topic. `inbox:<id>` and `dm:<a>:<b>` are delivered. The WS subscribes to their wake event (`inbox.queued` / `dm.queued`) and keeps only events whose `payload.channel` is this topic. Each such event triggers a durable fetch from the cursor that prints the envelopes (`[push] <topic> offset=N sender: payload`). The backlog is fetched first, and a fetch also runs every 30 s as a safety net. Every other channel topic (`agent-presence`, `framework:pickup`, ...) is refused at once, before any hub contact, with a hint naming `--follow` and the event topics. Hub event topics (dotted with no `:`, or a `*` pattern) keep today's behaviour, so the pushwaker's `inbox.queued --push` / `dm.queued --push` are untouched.
+- **Why:** inbox/dm are exactly the topics the report used, and the hub already emits a wake for each post on them, so delivering costs one fetch per wake and gives the user what they asked for. Other channels have no wake event, so a "push" there could only be a disguised poll; refusing names the honest tool (`--follow`). The safety-net fetch covers posts that emit no wake (a dm relay post whose sender is neither participant) and the gap between the backlog fetch and the WS subscription going live.
+- **Rejected:** refusing inbox:/dm: too (simplest, but throws away a working wake path the hub already provides); silently degrading every channel topic to the poll loop (still "push" in name only, and hides that the WS carries nothing).
 
 ## Decision
 
@@ -267,3 +280,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3338-channel-subscribe---push-on-a-channel-to.md
 - **Context:** Initial task creation
+
+### 2026-10-20 — implemented [w-cli-hints]
+- **Action:** `push_topic_mode` + wake-mode delivery in `run_ws_push`, refusal in `cmd_channel_subscribe`, `--push` help text. Tests: 3 unit tests; 2 CLI integration tests (refusal incl. `--json`; inbox: backlog + live delivery against a temp Unix-only hub).
+- **Verified:** manual run against a temp hub: `subscribe inbox:t3338 --push` printed the backlog and a post made 3 s later; `subscribe inbox.queued --push` still streams the raw event.

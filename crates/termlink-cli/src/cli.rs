@@ -2725,6 +2725,9 @@ pub(crate) enum ChannelAction {
         /// host:port` with a known secret. If the WS path is unavailable or
         /// drops, degrades to the normal poll loop (durable substrate stays
         /// authoritative). WS-over-Unix (co-located agent) is a follow-on.
+        /// T-3338: push carries hub EVENTS. On an `inbox:<id>` / `dm:<a>:<b>`
+        /// channel it listens for the wake event and prints the envelopes
+        /// (backlog first); any other channel topic is refused with a hint.
         #[arg(long)]
         push: bool,
 
