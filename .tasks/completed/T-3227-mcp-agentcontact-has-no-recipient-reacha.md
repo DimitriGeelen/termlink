@@ -6,12 +6,12 @@ description: >
   before sending; MCP agent_contact sends without it. Evidence: docs/reports/T-3219-twin-drift-triage.md
   (T-3219).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: [crates/termlink-mcp/src/tools.rs]
+components: [crates/termlink-cli/src/commands/agent.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-mcp/tests/mcp_integration.rs, crates/termlink-session/src/fleet_presence.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -24,8 +24,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T10:35:16Z
-last_update: 2026-10-20T18:05:24Z
-date_finished:
+last_update: 2026-10-20T19:51:34Z
+date_finished: 2026-10-20T19:51:34Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -325,3 +325,15 @@ grep -q "fleet_presence::classify_reachability" crates/termlink-mcp/src/tools.rs
 - **On the parked note in Context (unratified T-2385 wording):** the diagnosis text is now single-sourced, so ratifying or rewording it in T-2385 changes both surfaces at once. The port adds no second copy of the wording to keep in sync.
 - **Tests:** the classifier test moved to `fleet_presence` (+ a selector test, 11/11). New hermetic MCP integration test `test_agent_contact_reachability_preflight` uses a temp runtime dir and temp HOME, so no hub and no hubs.toml are touched. CLI `agent::` 25/25. `cargo test -p termlink-mcp`: 944 + 100 + 37 parity pass (1 ignored = `parity_doctor`, owned by T-3214).
 - **Not done:** the other adjacent MCP gaps in the T-3219 report (presence-fp, ack poll, ack-status frontier) are separate tasks.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-23221689
+- **Timestamp:** 2026-10-20T20:00:01Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-20T19:51:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
