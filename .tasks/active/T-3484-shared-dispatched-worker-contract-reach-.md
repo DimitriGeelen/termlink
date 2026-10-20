@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T22:03:42Z
-last_update: 2026-10-20T09:30:10Z
+last_update: 2026-10-20T09:42:21Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -142,6 +142,14 @@ Replies so far:
    conformance cases rather than run a second one, and will check v0.1 against their ledger.
 5. ring20 (msg 8be20b13): operator decision and the T-3477 answer both expected from their next
    session, starting today.
+8. 2026-10-20: AEF draft v0.1 (T-4439, commit 0df1e4600) reviewed:
+   docs/reports/T-3483-consult/review-aef-draft-v0.1.md. Structure agreed. Three changes asked:
+   T4 written by the hub itself (in the 30 s sweep before cleanup and on deregistration), because
+   `session.exited` is fire-and-forget and is not emitted on a clean exit; explicit
+   `--worker-binding <dispatch>:<attempt>` that is unique among live registrations; CC-08 reworded,
+   because registrations survive a hub restart. Measured outage figures (T-3383: p95 180 s,
+   longest hub-down 39 min) support G = 120 s, a 10-min answer TTL and 30/180 days. They argue for
+   `deadline_running` = worker timeout + 10 min. We prefer `paused` as a fifth outcome.
 
 Implication so far: the shared primitive must let the supervisor (not only the hub) write `lost`
 from its own evidence, and accept a supervisor writing on behalf of a worker with no hub access.
