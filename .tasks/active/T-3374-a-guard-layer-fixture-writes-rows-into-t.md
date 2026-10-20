@@ -2,12 +2,18 @@
 id: T-3374
 name: "A guard-layer fixture writes rows into the live .context/checks/voi-waiver-ledger"
 description: >
-  Observed 2026-10-06 (T-3370): during a full run-guard-layer.sh, three rows T-8 'throwaway spike, ranking irrelevant', T-9 'absent on purpose, one-off', T-10 (empty) were appended to the REAL .context/checks/voi-waiver-ledger at 11:11 UTC; identical rows from 2026-09-26 20:09 show it recurs on every full run. A hermetic fixture must never write host or repo state (same class as AEF T-3790 cron leak, T-3511 git identity). Find the member (likely voi-prompt or a voi fixture), point it at a temp ledger, remove the leaked rows, add a guard.
+  Observed 2026-10-06 (T-3370): during a full run-guard-layer.sh, three rows T-8 'throwaway
+  spike, ranking irrelevant', T-9 'absent on purpose, one-off', T-10 (empty) were
+  appended to the REAL .context/checks/voi-waiver-ledger at 11:11 UTC; identical rows
+  from 2026-09-26 20:09 show it recurs on every full run. A hermetic fixture must
+  never write host or repo state (same class as AEF T-3790 cron leak, T-3511 git identity).
+  Find the member (likely voi-prompt or a voi fixture), point it at a temp ledger,
+  remove the leaked rows, add a guard.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T11:40:30Z
-last_update: 2026-10-06T11:40:30Z
-date_finished: null
+last_update: 2026-10-20T15:24:43Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +56,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T15:24:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3374: A guard-layer fixture writes rows into the live .context/checks/voi-waiver-ledger
@@ -62,8 +82,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The guard-layer member that appends to the real `.context/checks/voi-waiver-ledger` is identified (named in Updates with the line that writes) and pointed at a temp ledger; a full `run-guard-layer.sh` run leaves the real ledger byte-identical (checked by hashing it before and after)
+- [x] The leaked fixture rows (T-8 'throwaway spike...', T-9 'absent on purpose...', T-10 empty, and any older copies) are removed from the real ledger, and nothing else in it changes
+- [x] A guard catches a recurrence: a fixture/check that fails if a guard-layer run changes the real ledger (or the member refuses to write outside a temp dir under test)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -224,6 +245,10 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash tests/voi-ledger-hermetic-fixtures.sh > /tmp/.t3374.out 2>&1 && grep -q "failed=0" /tmp/.t3374.out
+test "$(grep -c -P '\t(T-8|T-9|T-10)(\t|$)' .context/checks/voi-waiver-ledger)" = "0"
+grep -q "^export FW_VOI_GATE_LEDGER=" tests/inception-voi-gate-fixtures.sh
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -316,7 +341,16 @@ date_finished: null
 
 ## Updates
 
+### 2026-10-20 — fixed (w-guards)
+- **Writer:** `tests/inception-voi-gate-fixtures.sh` (member of the layer by naming convention) drives `scripts/gate-inception-voi.sh`, which appends at its `LEDGER=` default (line 66) when `FW_VOI_GATE_LEDGER` is unset. T-3458 already added the temp-ledger export in the fixture; the 18 leaked rows (T-8/T-9/T-10, 2026-09-26) were still in the real ledger, so they are removed now (header kept).
+- **Guard:** new `tests/voi-ledger-hermetic-fixtures.sh` (4 assertions): no T-8..T-12 rows in the real ledger; running the gate fixtures leaves it byte-identical; a mutant without the export does leak (so the guard bites); ledger restored.
+- **Proof:** full `run-guard-layer.sh` (1385 s): real ledger sha256 9d2903be… before and after, identical. Run result 213/219 pass; reds are the 4 WARN + 1 INFO members and `check-arc-claim-drift.sh` (FAIL tier, not in scope here, not investigated).
+
 ### 2026-10-06T11:40:30Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3374-a-guard-layer-fixture-writes-rows-into-t.md
 - **Context:** Initial task creation
+
+### 2026-10-20T15:24:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

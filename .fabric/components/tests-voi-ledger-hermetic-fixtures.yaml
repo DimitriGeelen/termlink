@@ -1,0 +1,21 @@
+id: tests/voi-ledger-hermetic-fixtures.sh
+name: voi-ledger-hermetic-fixtures
+type: script
+subsystem: guard-layer
+location: tests/voi-ledger-hermetic-fixtures.sh
+tags: []
+
+purpose: "T-3374: recurrence guard. A guard-layer fixture must never append to the REAL .context/checks/voi-waiver-ledger (fixture waivers T-8/T-9/T-10 leaked into it on every full run, again after T-3458's fix was overwritten by T-3189)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-20
+created_by: unknown
