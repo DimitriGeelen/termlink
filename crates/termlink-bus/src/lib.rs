@@ -100,7 +100,22 @@ pub fn set_test_slow_durable_ms(ms: u64) {
     TEST_SLOW_DURABLE_MS.store(ms, Ordering::SeqCst);
 }
 
+#[cfg(test)]
+thread_local! {
+    /// T-3488: durable steps (write-lock acquisitions + payload flushes) taken on
+    /// this thread. Thread-local so parallel tests cannot see each other's steps;
+    /// unit tests run on a current-thread runtime, where `run_blocking` is inline.
+    static DURABLE_STEPS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) fn durable_steps_on_this_thread() -> u64 {
+    DURABLE_STEPS.with(|c| c.get())
+}
+
 pub(crate) fn test_slow_durable() {
+    #[cfg(test)]
+    DURABLE_STEPS.with(|c| c.set(c.get() + 1));
     let ms = TEST_SLOW_DURABLE_MS.load(Ordering::Relaxed);
     if ms > 0 {
         std::thread::sleep(std::time::Duration::from_millis(ms));
@@ -396,15 +411,12 @@ impl Bus {
         let bytes = log::encode_envelope(env)?;
         let byte_pos = appender.append(&bytes).await?;
         let length = bytes.len() as u64;
-        let offset = self.meta.record_append(topic, byte_pos, length, env.ts_unix_ms)?;
         // T-3309: record the write outside the log. A topic_metadata envelope
-        // (describe / ensure touch) is not activity. Best-effort: activity is
-        // telemetry, so a failure here must never fail the post itself.
-        if env.msg_type != "topic_metadata"
-            && let Err(e) = self.meta.note_write(topic, &env.sender_id, env.ts_unix_ms)
-        {
-            eprintln!("warning: T-3309: could not record write activity on {topic}: {e}");
-        }
+        // (describe / ensure touch) is not activity. T-3488: recorded in the same
+        // transaction as the record (one commit, one fsync); best-effort inside it,
+        // so a failure never fails the post itself.
+        let writer = (env.msg_type != "topic_metadata").then_some(env.sender_id.as_str());
+        let offset = self.meta.record_append(topic, byte_pos, length, env.ts_unix_ms, writer)?;
         // T-3310 D3: ceilings checked on post. Best-effort like activity: the
         // record is already durable, so a failed trim must not fail the post.
         // Checked every Nth post (see `limits::check_every`), not every post.
@@ -2025,6 +2037,40 @@ mod tests {
         bus.delete_topic("t").unwrap();
         assert!(bus.topic_activity("t").unwrap().is_none());
         assert!(bus.topic_readers("t").unwrap().is_empty());
+    }
+
+    // ── T-3488: fewer serialized durable steps per write ──
+    #[tokio::test]
+    async fn a_post_is_two_durable_steps_and_a_create_is_one() {
+        let (_dir, bus) = tmp_bus();
+        let before = durable_steps_on_this_thread();
+        bus.create_topic("t", Retention::Messages(10)).unwrap();
+        assert_eq!(durable_steps_on_this_thread() - before, 1, "create: one commit");
+        let before = durable_steps_on_this_thread();
+        bus.post("t", &Envelope { sender_id: "alice".into(), ..env("t", b"a") }).await.unwrap();
+        // Payload sync_data + one commit for the record AND its activity (was three).
+        assert_eq!(durable_steps_on_this_thread() - before, 2, "post: payload + one commit");
+        let a = bus.topic_activity("t").unwrap().unwrap();
+        assert_eq!((a.writes_total, a.last_writer.as_deref()), (1, Some("alice")));
+    }
+
+    #[tokio::test]
+    async fn a_fetch_note_leaves_the_connection_at_synchronous_full() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Messages(10)).unwrap();
+        bus.note_fetch("t", Some("r"), 1, 1_000).unwrap();
+        assert_eq!(bus.meta.synchronous_level(), 2, "posts after a fetch note must still be FULL");
+    }
+
+    #[test]
+    fn slow_lock_message_names_the_caller_and_both_durations() {
+        use std::time::Duration;
+        let at = std::panic::Location::caller();
+        assert!(meta::slow_lock_message(at, Duration::from_millis(10), Duration::from_millis(20), 1000).is_none());
+        let m = meta::slow_lock_message(at, Duration::from_millis(4_200), Duration::from_millis(30), 1000).unwrap();
+        assert!(m.contains("lib.rs:") && m.contains("waited 4200 ms") && m.contains("held 30 ms"), "{m}");
+        assert!(meta::slow_lock_message(at, Duration::from_millis(5), Duration::from_millis(1_000), 1000).is_some());
+        assert!(meta::slow_lock_message(at, Duration::from_secs(60), Duration::ZERO, 0).is_none(), "0 = off");
     }
 
     #[tokio::test]

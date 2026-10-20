@@ -72,7 +72,13 @@ impl LogAppender {
             file.write_all(payload)?;
             file.flush()?;
             crate::test_slow_durable();
+            let synced = std::time::Instant::now();
             file.sync_data()?;
+            // T-3488: name a slow payload fsync, the other durable step of a post.
+            let ms = synced.elapsed().as_millis();
+            if ms >= 1000 {
+                eprintln!("warning: T-3488: topic log sync_data took {ms} ms");
+            }
             Ok(start)
         })
     }

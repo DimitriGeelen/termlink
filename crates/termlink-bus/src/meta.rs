@@ -86,19 +86,38 @@ impl Meta {
     /// and running the statement (whose commit fsyncs) happen inside
     /// `crate::run_blocking`, so a slow disk parks a blocking thread, never a
     /// tokio worker: the hub's accept loop keeps running while a commit waits.
+    ///
+    /// T-3488: `#[track_caller]` so a slow wait for the write lock, or a slow hold of
+    /// it (a commit whose fsync stalled), is reported with the `meta.rs` line that
+    /// took it. Without that split the T-3478 slow line can only say "68 s" and not
+    /// whether the time went to queueing behind others or to this request's own fsync.
+    #[track_caller]
     fn with_conn<R>(&self, f: impl FnOnce(&Connection) -> R) -> R {
+        let at = std::panic::Location::caller();
         crate::run_blocking(|| {
+            let asked = std::time::Instant::now();
             let conn = self.conn.lock().expect("meta mutex poisoned");
+            let got = std::time::Instant::now();
             crate::test_slow_durable();
-            f(&conn)
+            let r = f(&conn);
+            drop(conn);
+            report_slow_lock(at, got - asked, got.elapsed());
+            r
         })
     }
 
+    #[track_caller]
     fn with_conn_mut<R>(&self, f: impl FnOnce(&mut Connection) -> R) -> R {
+        let at = std::panic::Location::caller();
         crate::run_blocking(|| {
+            let asked = std::time::Instant::now();
             let mut conn = self.conn.lock().expect("meta mutex poisoned");
+            let got = std::time::Instant::now();
             crate::test_slow_durable();
-            f(&mut conn)
+            let r = f(&mut conn);
+            drop(conn);
+            report_slow_lock(at, got - asked, got.elapsed());
+            r
         })
     }
 
@@ -108,7 +127,10 @@ impl Meta {
     /// clients can do "describe-on-first-create" without re-emitting
     /// topic_metadata envelopes on every idempotent re-call.
     pub(crate) fn create_topic(&self, name: &str, retention: Retention) -> Result<bool> {
-        self.with_conn(|conn| {
+        // T-3488: one transaction, so a new topic costs one commit (one fsync), not two.
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
+            let conn = &tx;
             let existing: Option<(String, i64)> = conn
                 .query_row(
                     "SELECT retention_kind, retention_value FROM topics WHERE name = ?1",
@@ -153,6 +175,7 @@ impl Meta {
                 "INSERT INTO offsets (topic, next_offset) VALUES (?1, 0)",
                 params![name],
             )?;
+            tx.commit()?;
             Ok(true)
         })
     }
@@ -215,15 +238,22 @@ impl Meta {
     /// Atomically reserve the next offset for `topic` and insert a
     /// `records` row pointing at the given byte position. Returns the
     /// offset assigned.
+    ///
+    /// T-3488: `writer = Some(sender)` also records the write activity (T-3309) in
+    /// the SAME transaction, so a post costs one commit instead of two. The activity
+    /// upsert runs in a savepoint: if it fails it is rolled back alone, with a
+    /// warning, and the record still commits (activity is telemetry and must never
+    /// fail a post).
     pub(crate) fn record_append(
         &self,
         topic: &str,
         byte_pos: u64,
         length: u64,
         ts_unix_ms: i64,
+        writer: Option<&str>,
     ) -> Result<u64> {
         self.with_conn_mut(|conn| {
-            let tx = conn.transaction()?;
+            let mut tx = conn.transaction()?;
             let current: i64 = tx.query_row(
                 "SELECT next_offset FROM offsets WHERE topic = ?1",
                 params![topic],
@@ -238,6 +268,16 @@ impl Meta {
                  VALUES (?1, ?2, ?3, ?4, ?5)",
                 params![topic, current, byte_pos as i64, length as i64, ts_unix_ms],
             )?;
+            if let Some(w) = writer {
+                let sp = tx.savepoint()?;
+                match upsert_write_activity(&sp, topic, w, ts_unix_ms) {
+                    Ok(()) => sp.commit()?,
+                    // Dropping the savepoint rolls back only the activity upsert.
+                    Err(e) => eprintln!(
+                        "warning: T-3309: could not record write activity on {topic}: {e}"
+                    ),
+                }
+            }
             tx.commit()?;
             Ok(current as u64)
         })
@@ -990,22 +1030,67 @@ fn compose_claim_id(now_ns: u128, seq: u64, topic: &str, offset: u64) -> String 
     format!("clm-{now_ns}-{seq}-{topic_tag}-{offset}")
 }
 
+/// T-3309 write-activity upsert. Sets `unread_since_ms` only if it is unset, so it
+/// keeps the OLDEST write still waiting for a data fetch. T-3488: called by
+/// `record_append` inside the record's own transaction (it replaced `note_write`).
+fn upsert_write_activity(conn: &Connection, topic: &str, writer: &str, ts_ms: i64) -> Result<()> {
+    conn.execute(
+        "INSERT INTO topic_activity (topic, tracking_since_ms, last_write_ms, last_writer, \
+             writes_total, unread_since_ms) VALUES (?1, ?2, ?2, ?3, 1, ?2) \
+         ON CONFLICT(topic) DO UPDATE SET \
+             last_write_ms = MAX(COALESCE(last_write_ms, 0), ?2), \
+             last_writer = ?3, writes_total = writes_total + 1, \
+             unread_since_ms = COALESCE(unread_since_ms, ?2)",
+        params![topic, ts_ms, writer],
+    )?;
+    Ok(())
+}
+
+/// T-3488: report a write-lock wait or hold at or above this many ms (0 = off).
+/// `TERMLINK_BUS_SLOW_LOCK_MS`, default 1000, the same threshold as the hub slow line.
+fn slow_lock_ms() -> u64 {
+    static MS: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
+    *MS.get_or_init(|| {
+        std::env::var("TERMLINK_BUS_SLOW_LOCK_MS")
+            .ok()
+            .and_then(|v| v.trim().parse().ok())
+            .unwrap_or(1000)
+    })
+}
+
+/// T-3488: pure — the warning for a slow write-lock wait or hold, or None.
+pub(crate) fn slow_lock_message(
+    at: &std::panic::Location<'_>,
+    waited: std::time::Duration,
+    held: std::time::Duration,
+    threshold_ms: u64,
+) -> Option<String> {
+    let (w, h) = (waited.as_millis() as u64, held.as_millis() as u64);
+    if threshold_ms == 0 || (w < threshold_ms && h < threshold_ms) {
+        return None;
+    }
+    Some(format!(
+        "warning: T-3488: meta write lock at {}:{} waited {w} ms, held {h} ms",
+        at.file(),
+        at.line()
+    ))
+}
+
+fn report_slow_lock(
+    at: &std::panic::Location<'_>,
+    waited: std::time::Duration,
+    held: std::time::Duration,
+) {
+    if let Some(m) = slow_lock_message(at, waited, held, slow_lock_ms()) {
+        eprintln!("{m}");
+    }
+}
+
 impl Meta {
-    /// T-3309: record a write. Sets `unread_since_ms` only if it is unset, so it
-    /// keeps the OLDEST write still waiting for a data fetch.
-    pub(crate) fn note_write(&self, topic: &str, writer: &str, ts_ms: i64) -> Result<()> {
-        self.with_conn(|conn| {
-            conn.execute(
-                "INSERT INTO topic_activity (topic, tracking_since_ms, last_write_ms, last_writer, \
-                     writes_total, unread_since_ms) VALUES (?1, ?2, ?2, ?3, 1, ?2) \
-                 ON CONFLICT(topic) DO UPDATE SET \
-                     last_write_ms = MAX(COALESCE(last_write_ms, 0), ?2), \
-                     last_writer = ?3, writes_total = writes_total + 1, \
-                     unread_since_ms = COALESCE(unread_since_ms, ?2)",
-                params![topic, ts_ms, writer],
-            )?;
-            Ok(())
-        })
+    /// T-3488 test helper: the write connection's `PRAGMA synchronous` (2 = FULL).
+    #[cfg(test)]
+    pub(crate) fn synchronous_level(&self) -> i64 {
+        self.with_conn(|c| c.query_row("PRAGMA synchronous", [], |r| r.get(0)).unwrap())
     }
 
     /// T-3309: record a `channel.subscribe` fetch. `returned > 0` is a DATA fetch,
@@ -1019,7 +1104,30 @@ impl Meta {
         now_ms: i64,
     ) -> Result<()> {
         let data: Option<i64> = (returned > 0).then_some(now_ms);
+        // T-3488: fetch activity is telemetry, and every subscribe can write it, so it
+        // must not cost an fsync while posts wait behind the same lock. WAL +
+        // synchronous=NORMAL skips the commit fsync and stays corruption-safe (the next
+        // FULL commit, or a checkpoint, makes these frames durable). Never OFF: an OFF
+        // commit that triggers a checkpoint can corrupt the file on power loss. FULL is
+        // restored before the lock is released, whatever happened.
         self.with_conn_mut(|conn| {
+            conn.pragma_update(None, "synchronous", "NORMAL")?;
+            let r = Self::note_fetch_tx(conn, topic, reader, now_ms, data);
+            let restored = conn.pragma_update(None, "synchronous", "FULL");
+            r?;
+            restored?;
+            Ok(())
+        })
+    }
+
+    fn note_fetch_tx(
+        conn: &mut Connection,
+        topic: &str,
+        reader: Option<&str>,
+        now_ms: i64,
+        data: Option<i64>,
+    ) -> Result<()> {
+        {
             let tx = conn.transaction()?;
             tx.execute(
                 "INSERT INTO topic_activity (topic, tracking_since_ms, last_fetch_ms, \
@@ -1041,7 +1149,7 @@ impl Meta {
             }
             tx.commit()?;
             Ok(())
-        })
+        }
     }
 
     /// T-3309: activity rows for every tracked topic (for `channel.list`).

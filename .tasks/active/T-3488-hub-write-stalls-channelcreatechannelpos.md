@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T10:56:05Z
-last_update: 2026-10-20T10:57:54Z
+last_update: 2026-10-20T11:19:44Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -81,9 +81,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Root-cause report at `docs/reports/T-3488-hub-write-stalls.md` covering the channel.create/channel.post write path (file:line), ranked hypotheses with evidence, and a proposed fix with a verification plan
-- [ ] Fix implemented for the identified wait point, with a regression test
-- [ ] Re-measured on .107 after deploy: no channel.create/channel.post slow line over 5 s in rpc-audit.jsonl for 24 h
+- [x] Root-cause report at `docs/reports/T-3488-hub-write-stalls.md` covering the channel.create/channel.post write path (file:line), ranked hypotheses with evidence, and a proposed fix with a verification plan
+- [x] Fix implemented for the identified wait point, with a regression test: a post is 2 durable steps (payload + one commit carrying record and activity, was 3), a new topic 1 commit (was 2), fetch notes commit without an fsync (synchronous=NORMAL, FULL restored)
+- [x] A slow write-lock wait/hold (≥ `TERMLINK_BUS_SLOW_LOCK_MS`, default 1000) and a slow payload `sync_data` are logged with the meta.rs call site, so the next stall says whether it queued or fsynced
+- [ ] Re-measured on .107 after deploy, 24 h, same traffic (criterion from the report §6): no channel.create/channel.post slow line over 5 s while the disk is under 90% util, and the slow count in a saturated hour at least 5× lower than the 61/h baseline. Changed 2026-10-20 from "no slow line over 5 s for 24 h", which other workloads saturating the disk can break regardless of the hub
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -287,6 +288,10 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+timeout 1500 cargo test -p termlink-bus > /tmp/.t3488.out 2>&1 && grep -q "a_post_is_two_durable_steps_and_a_create_is_one ... ok" /tmp/.t3488.out
+grep -q "fn slow_lock_message" crates/termlink-bus/src/meta.rs
+grep -q '"synchronous", "NORMAL"' crates/termlink-bus/src/meta.rs
 
 ## RCA
 
