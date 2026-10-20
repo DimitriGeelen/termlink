@@ -47,7 +47,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T19:52:37Z
-last_update: 2026-10-20T19:51:33Z
+last_update: 2026-10-20T19:56:42Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -85,11 +85,11 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/agent-send.sh` sources `scripts/agent-identity.sh` (overridable via `AGENT_IDENTITY_LIB`, die with exit 2 if absent) and stamps `--metadata agent_id=<resolve_agent_id>` on the turn post, keeping every other metadata arg it already sends (conversation_id, relay_hops, to_circuit)
-- [ ] `scripts/agent-respond.sh` sources the same resolver, resolves once, and stamps `metadata.agent_id` on BOTH the receipt post and the optional reply turn post
-- [ ] `scripts/agent-conversation-status.sh`'s stale "agent-send/respond do not write metadata.agent_id" comment is corrected (reader chain `.metadata.agent_id // ._from // .sender_id` already handles it; no logic change)
-- [ ] A hermetic fixture suite `tests/agent-identity-stamping-fixtures.sh` (fake `termlink` via `TERMLINK_BIN`, temp dirs only) proves: the send turn and both respond posts carry agent_id; `FW_AGENT_ID` wins; whoami `display_name@session_id` is used otherwise; two co-resident senders with different session ids stamp different agent_ids; and the stamp is NOT taken from `be-reachable.state`
-- [ ] Existing agent-send/respond test suites still pass (agent-send-grace-window, agent-send-idle-gate, relay-b1-doorbell-rail, relay-b2-send-hops, tl-claude-identity-binding, wake-confirm-reply-match)
+- [x] `scripts/agent-send.sh` sources `scripts/agent-identity.sh` (overridable via `AGENT_IDENTITY_LIB`, die with exit 2 if absent) and stamps `--metadata agent_id=<resolve_agent_id>` on the turn post, keeping every other metadata arg it already sends (conversation_id, relay_hops, to_circuit)
+- [x] `scripts/agent-respond.sh` sources the same resolver, resolves once, and stamps `metadata.agent_id` on BOTH the receipt post and the optional reply turn post
+- [x] `scripts/agent-conversation-status.sh`'s stale "agent-send/respond do not write metadata.agent_id" comment is corrected (reader chain `.metadata.agent_id // ._from // .sender_id` already handles it; no logic change)
+- [x] A hermetic fixture suite `tests/agent-identity-stamping-fixtures.sh` (fake `termlink` via `TERMLINK_BIN`, temp dirs only) proves: the send turn and both respond posts carry agent_id; `FW_AGENT_ID` wins; whoami `display_name@session_id` is used otherwise; two co-resident senders with different session ids stamp different agent_ids; and the stamp is NOT taken from `be-reachable.state`
+- [x] Existing agent-send/respond test suites still pass (agent-send-grace-window, agent-send-idle-gate, relay-b1-doorbell-rail, relay-b2-send-hops, tl-claude-identity-binding, wake-confirm-reply-match)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -276,6 +276,18 @@ bvp_scores_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash -n scripts/agent-send.sh && bash -n scripts/agent-respond.sh && bash -n scripts/agent-conversation-status.sh
+timeout 120 bash tests/agent-identity-stamping-fixtures.sh > /tmp/.t3377-id 2>&1 && grep -q "ALL PASS" /tmp/.t3377-id
+grep -q 'metadata agent_id="\$agent_id"' scripts/agent-send.sh && grep -q '\. "\$IDENTITY_LIB"' scripts/agent-send.sh
+test "$(grep -c 'agent_id="\$agent_id"' scripts/agent-respond.sh)" -eq 2
+test -f scripts/agent-conversation-status.sh && ! grep -q "do not write metadata.agent_id" scripts/agent-conversation-status.sh
+timeout 300 bash tests/agent-send-grace-window.sh > /tmp/.t3377-gw 2>&1 && grep -q "ALL PASS" /tmp/.t3377-gw
+timeout 300 bash tests/agent-send-idle-gate.sh > /tmp/.t3377-ig 2>&1 && grep -q "ALL PASS" /tmp/.t3377-ig
+timeout 120 bash tests/relay-b1-doorbell-rail.sh > /tmp/.t3377-b1 2>&1 && grep -q "^PASS" /tmp/.t3377-b1
+timeout 120 bash tests/relay-b2-send-hops.sh > /tmp/.t3377-b2 2>&1 && grep -q "^PASS" /tmp/.t3377-b2
+timeout 120 bash tests/tl-claude-identity-binding.sh > /tmp/.t3377-tl 2>&1 && grep -q "ALL PASS" /tmp/.t3377-tl
+timeout 300 bash tests/wake-confirm-reply-match.sh > /tmp/.t3377-wc 2>&1 && grep -q "ALL PASS" /tmp/.t3377-wc
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -376,3 +388,8 @@ bvp_scores_proposed:
 ### 2026-10-20T19:51:33Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-20 — resolver ported [w-stamp]
+- **Action:** `agent-send.sh` and `agent-respond.sh` now source `scripts/agent-identity.sh` (AEF T-3286, vendored by 1.8.3) and stamp `metadata.agent_id` on the turn, the receipt, and the reply. If the resolver lib is missing, both scripts exit 2 and post nothing. `agent-conversation-status.sh` only needed its stale comment fixed, because its reader chain already prefers `.metadata.agent_id`. Our newer code (to_circuit, relay_hops, hub routing, the T-2411 self-fp resolution) is unchanged.
+- **Correction to the description:** it said our `agent-send.sh` "stamps agent_id its own way (4 sites)". It stamped **none**. The 4 `agent_id` hits are all `to_agent_id`, the recipient lookup. So before this change none of our three producer posts carried the sender's identity, and readers fell back to `.sender_id`, which collapses co-resident agents to one.
+- **Tests:** new `tests/agent-identity-stamping-fixtures.sh` (11 assertions, hermetic fake termlink + temp HOME). I ran two mutants against a temp copy: removing the send stamp turned 5 assertions red, and removing the receipt stamp turned 1 red. The 7 existing agent-send/respond suites are still green.

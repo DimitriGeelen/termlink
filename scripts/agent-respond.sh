@@ -23,6 +23,14 @@ TERMLINK="${TERMLINK_BIN:-termlink}"
 
 die() { echo "agent-respond: $*" >&2; exit 2; }
 
+# T-3377 (port of AEF T-3286) — shared agent_id resolver (resolve_agent_id): the
+# receipt and reply posts stamp metadata.agent_id with the RESPONDER'S OWN instance
+# identity so co-resident agents stop collapsing to one correspondent.
+IDENTITY_LIB="${AGENT_IDENTITY_LIB:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/agent-identity.sh}"
+[ -f "$IDENTITY_LIB" ] || die "agent-identity lib not found: $IDENTITY_LIB (set AGENT_IDENTITY_LIB to override)"
+# shellcheck source=agent-identity.sh
+. "$IDENTITY_LIB"
+
 usage() {
     cat <<'EOF'
 Usage: agent-respond.sh (--topic <dm-topic> | --peer-fp <fp>)
@@ -113,9 +121,13 @@ if [ -z "$up_to" ]; then
     [[ "$up_to" =~ ^[0-9]+$ ]] || up_to=0
 fi
 
+# Resolve the responder's own agent_id once for both posts (T-3377/T-3286).
+agent_id="$(resolve_agent_id)"
+
 # 1. Post the receipt (the load-bearing ack agent-send.sh waits for).
 "$TERMLINK" channel post "$topic" --msg-type receipt \
     --metadata conversation_id="$cid" --metadata up_to="$up_to" \
+    --metadata agent_id="$agent_id" \
     --ensure-topic --json </dev/null >/dev/null \
     || die "receipt post failed for topic '$topic'"
 # </dev/null (T-3456): a body-less post reads its payload from stdin; called from a
@@ -129,7 +141,7 @@ if [ -n "$reply" ]; then
     relay_meta_args=()
     [ -n "$relay_hops" ] && relay_meta_args=(--metadata relay_hops="$relay_hops")
     reply_json="$("$TERMLINK" channel post "$topic" --msg-type turn --payload "$reply" \
-                    --metadata conversation_id="$cid" \
+                    --metadata conversation_id="$cid" --metadata agent_id="$agent_id" \
                     "${relay_meta_args[@]+"${relay_meta_args[@]}"}" \
                     --ensure-topic --json)" \
         || die "reply post failed for topic '$topic'"

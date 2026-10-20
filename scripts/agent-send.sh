@@ -38,6 +38,14 @@ fi
 
 die() { echo "agent-send: $*" >&2; exit 2; }
 
+# T-3377 (port of AEF T-3286) — shared agent_id resolver (resolve_agent_id): the
+# turn post stamps metadata.agent_id with the SENDER'S OWN instance identity so
+# co-resident agents stop collapsing to one correspondent. Chain documented in the lib.
+IDENTITY_LIB="${AGENT_IDENTITY_LIB:-$SELF_DIR/agent-identity.sh}"
+[ -f "$IDENTITY_LIB" ] || die "agent-identity lib not found: $IDENTITY_LIB (set AGENT_IDENTITY_LIB to override)"
+# shellcheck source=agent-identity.sh
+. "$IDENTITY_LIB"
+
 usage() {
     cat <<'EOF'
 Usage: agent-send.sh --to-session <name> (--topic <dm-topic> | --peer-fp <fp>)
@@ -487,7 +495,8 @@ elif [ -n "$peer_hub" ]; then
     ring_remote=1
 fi
 
-# 1. Post the turn (mail) once.
+# 1. Post the turn (mail) once, stamped with the sender's own agent_id (T-3377/T-3286).
+agent_id="$(resolve_agent_id)"
 # T-2395 (B3): stamp relay_hops onto the turn when this is a relay initiation, so
 # the recipient's circuit-breaker (relay-hop-check.sh) can read + bound the loop.
 # A non-relay send leaves relay_hops empty → no extra metadata (back-compat).
@@ -512,7 +521,7 @@ if [ -n "${to_agent_id:-}" ]; then
     [ -n "$_tc" ] && relay_meta_args+=(--metadata to_circuit="$_tc")
 fi
 post_json="$("$TERMLINK" channel post "$topic" --msg-type turn --payload "$message" \
-                --metadata conversation_id="$cid" \
+                --metadata conversation_id="$cid" --metadata agent_id="$agent_id" \
                 "${relay_meta_args[@]+"${relay_meta_args[@]}"}" \
                 --ensure-topic --json \
                 "${hub_args[@]+"${hub_args[@]}"}")" \
