@@ -268,6 +268,13 @@ pub mod method {
     /// `channel.claims_summary`. Old hubs return `MethodNotFound` (-32601).
     pub const CHANNEL_CV_KEYS: &str = "channel.cv_keys";
 
+    /// T-3501 shared worker contract (wc/0.3), hub backend: T1 allocate (Execute).
+    pub const DISPATCH_ALLOCATE: &str = "dispatch.allocate";
+    /// T-3501: T2/T3/T3b/T-RECLAIM/T5/T7b/T8 in one fenced transaction (Execute).
+    pub const DISPATCH_TRANSITION: &str = "dispatch.transition";
+    /// T-3501: read a dispatch record (Observe).
+    pub const DISPATCH_GET: &str = "dispatch.get";
+
     /// T-1329 — server-side aggregation of latest `m.receipt` envelope per sender.
     /// Walks the topic on the hub, keeps only `msg_type=receipt`, picks the latest
     /// (by ts; ties broken by higher up_to), returns a sorted-by-sender list.
@@ -521,6 +528,17 @@ pub mod error_code {
     /// transfer is not stopped by any per-message cap; that is watched by a canary instead.
     /// `data` carries `{field, bytes, max_bytes}`.
     pub const PLAINTEXT_FIELD_TOO_LARGE: i64 = -32025;
+
+    /// T-3501 `dispatch.transition` / `dispatch.allocate`: a write was refused by the
+    /// worker-contract fence. `data.reason` is one of `stale_attempt`, `bad_nonce`,
+    /// `bad_credential`, `stale_gen`, `cas_mismatch`, `forbidden_transition`,
+    /// `done_conflict`. A refused write changes nothing.
+    pub const FENCE_REJECTED: i64 = -32026;
+    /// T-3501: no such dispatch (or attempt). `data` carries `{dispatch_id}`.
+    pub const DISPATCH_NOT_FOUND: i64 = -32027;
+    /// T-3501 `dispatch.allocate`: the caller-chosen `dispatch_id` is already used.
+    /// The backend never substitutes another id. `data` carries `{dispatch_id}`.
+    pub const DISPATCH_ID_TAKEN: i64 = -32028;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.

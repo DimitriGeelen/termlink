@@ -5,6 +5,7 @@ pub mod channel;
 pub mod circuit_breaker;
 pub mod cv_index;
 pub mod dedupe;
+pub mod dispatch_contract;
 pub mod governor;
 pub mod inbox;
 pub mod pidfile;

@@ -772,6 +772,7 @@ fn hub_method_scope(method: &str) -> PermissionScope {
         | control::method::CHANNEL_CLAIMS
         | control::method::CHANNEL_CLAIMS_SUMMARY
         | control::method::CHANNEL_CV_KEYS
+        | control::method::DISPATCH_GET
         | control::method::AGENT_FIND_IDLE => PermissionScope::Observe,
 
         // Interact: append / own-lease mutations + addressed/fan-out delivery.

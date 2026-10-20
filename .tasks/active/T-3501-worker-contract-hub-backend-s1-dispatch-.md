@@ -1,13 +1,16 @@
 ---
 id: T-3501
-name: "Worker contract hub backend S1: dispatch record tables + dispatch.allocate/get/transition with CAS and fencing; error codes; CC-04/05/06/07/14/16/18/19 (T-3484)"
+name: "Worker contract hub backend S1: dispatch record tables + dispatch.allocate/get/transition
+  with CAS and fencing; error codes; CC-04/05/06/07/14/16/18/19 (T-3484)"
 description: >
-  GATE: build starts only after ring20 agrees to contract v0.2 (AEF msg 028ffa5a); AEF and TermLink agreed 2026-10-20. Spec: AEF docs/specs/shared-worker-contract-transitions.md v0.2 (f600187a6) + TermLink's three v0.2.1 fixes; design: docs/reports/T-3484-termlink-build-design.md.
+  GATE: build starts only after ring20 agrees to contract v0.2 (AEF msg 028ffa5a);
+  AEF and TermLink agreed 2026-10-20. Spec: AEF docs/specs/shared-worker-contract-transitions.md
+  v0.2 (f600187a6) + TermLink's three v0.2.1 fixes; design: docs/reports/T-3484-termlink-build-design.md.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T20:18:51Z
-last_update: 2026-10-20T20:18:51Z
-date_finished: null
+last_update: 2026-10-20T21:13:10Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +53,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T21:13:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3501: Worker contract hub backend S1: dispatch record tables + dispatch.allocate/get/transition with CAS and fencing; error codes; CC-04/05/06/07/14/16/18/19 (T-3484)
@@ -62,8 +79,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Dispatch record storage in meta.db (wc_dispatches, wc_attempts, wc_history) in a NEW module of the bus crate with its own idempotent table creation, per docs/reports/T-3484-termlink-build-design.md §2; nonce and supervisor token stored only as sha256
+- [x] `dispatch.allocate` returns {dispatch_id, attempt, nonce, supervisor_token}; caller-chosen well-formed D-<ulid> accepted when unused, refused with id_taken when taken (never substituted); a new attempt only when the previous one is terminal or a resolved unknown
+- [x] `dispatch.transition` applies T2/T3/T3b/T-RECLAIM/T5/T7b/T8 in ONE transaction: checks supervisor token (lifecycle writes), nonce, supervisor_gen and expected prior state; refusals are FENCE_REJECTED with data.reason (stale_attempt, bad_nonce, stale_gen, cas_mismatch, forbidden_transition, done_conflict, bad_credential); state = last accepted transition; a late T5/T7b on a non-current lost/unknown attempt with its own nonce is allowed; T8 with the same evidence_digest returns the stored record with no history row; `dispatch.get` reads
+- [x] New error codes have emission sites and tests (check-error-code-emission.sh clean); conformance cases CC-04/05/06/07/14/16/18/19 as Rust tests with injected time, temp dirs only
+- [ ] `cargo test -p termlink-bus -p termlink-hub` pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +134,11 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo test -p termlink-bus worker_contract > /tmp/.t3501-bus 2>&1 && grep -q "13 passed" /tmp/.t3501-bus
+cargo test -p termlink-hub dispatch_contract > /tmp/.t3501-hub 2>&1 && grep -q "3 passed" /tmp/.t3501-hub
+bash scripts/check-error-code-emission.sh
+bash scripts/check-error-code-docs.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +389,10 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3501-worker-contract-hub-backend-s1-dispatch-.md
 - **Context:** Initial task creation
+
+### 2026-10-20T21:13:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-20 - S1 built (w-wc-s1)
+- New bus module worker_contract.rs (own connection to meta.db, 3 tables), hub dispatch_contract.rs, router/server lines, codes -32026/-32027/-32028. Conformance CC-04/05/06/07/14/16/18/19 plus CC-23/24 as Rust tests.

@@ -113,6 +113,15 @@ pub async fn route(req: &Request, peer_addr: Option<&str>) -> Option<RpcResponse
         control::method::CHANNEL_CLAIM => {
             crate::channel::handle_channel_claim(id, &req.params).await
         }
+        control::method::DISPATCH_ALLOCATE => {
+            crate::dispatch_contract::handle_dispatch_allocate(id, &req.params).await
+        }
+        control::method::DISPATCH_TRANSITION => {
+            crate::dispatch_contract::handle_dispatch_transition(id, &req.params).await
+        }
+        control::method::DISPATCH_GET => {
+            crate::dispatch_contract::handle_dispatch_get(id, &req.params).await
+        }
         control::method::CHANNEL_RELEASE => {
             crate::channel::handle_channel_release(id, &req.params).await
         }
@@ -1110,6 +1119,9 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         control::method::CHANNEL_CLAIMS,
         control::method::CHANNEL_CLAIMS_SUMMARY,
         control::method::CHANNEL_CV_KEYS,
+        control::method::DISPATCH_ALLOCATE,
+        control::method::DISPATCH_TRANSITION,
+        control::method::DISPATCH_GET,
         control::method::AGENT_FIND_IDLE,
         control::method::DIALOG_PRESENCE,
         control::method::ARTIFACT_PUT,

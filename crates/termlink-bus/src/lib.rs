@@ -19,6 +19,7 @@ mod log;
 mod meta;
 mod reclaim;
 mod retention;
+pub mod worker_contract;
 
 pub use activity::{DEFAULT_FLAG_DAYS, ReaderActivity, TopicActivity, activity_flags};
 pub use artifact_store::{ArtifactStore, StreamingPutOutcome};
@@ -131,6 +132,8 @@ pub(crate) fn test_slow_durable() {
 pub struct Bus {
     root: PathBuf,
     meta: meta::Meta,
+    /// T-3501: shared worker contract store (own connection to meta.db).
+    wc: worker_contract::WcStore,
     appenders: StdMutex<HashMap<String, Arc<log::LogAppender>>>,
     /// Per-topic notify primitive: `post` calls `notify_waiters()` after a
     /// successful append; `subscribe_blocking` listens on it. Enables
@@ -166,6 +169,7 @@ impl Bus {
         let root = path.as_ref().to_path_buf();
         std::fs::create_dir_all(root.join("topics"))?;
         let meta = meta::Meta::open(&root.join("meta.db"))?;
+        let wc = worker_contract::WcStore::open(&root.join("meta.db"))?;
         // T-3322: drop log files a crash mid-reclaim left behind (the index says
         // which generation of each topic is current). Best-effort: a leftover
         // file is wasted space, never a wrong read.
@@ -178,6 +182,7 @@ impl Bus {
         Ok(Self {
             root,
             meta,
+            wc,
             appenders: StdMutex::new(HashMap::new()),
             notifiers: StdMutex::new(HashMap::new()),
             ceilings: StdMutex::new(Ceilings::default()),
@@ -188,6 +193,32 @@ impl Bus {
             reclaims_total: AtomicU64::new(0),
             reclaimed_bytes_total: AtomicU64::new(0),
         })
+    }
+
+    /// T-3501: `dispatch.allocate` (T1). `now_ms` is injected so tests control time.
+    pub fn wc_allocate(
+        &self,
+        req: &worker_contract::AllocateRequest,
+        now_ms: i64,
+    ) -> std::result::Result<worker_contract::Allocation, worker_contract::WcError> {
+        self.wc.allocate(req, now_ms)
+    }
+
+    /// T-3501: `dispatch.transition` (T2/T3/T3b/T-RECLAIM/T5/T7b/T8).
+    pub fn wc_transition(
+        &self,
+        req: &worker_contract::TransitionRequest,
+        now_ms: i64,
+    ) -> std::result::Result<worker_contract::TransitionOutcome, worker_contract::WcError> {
+        self.wc.transition(req, now_ms)
+    }
+
+    /// T-3501: `dispatch.get`.
+    pub fn wc_get(
+        &self,
+        dispatch_id: &str,
+    ) -> std::result::Result<serde_json::Value, worker_contract::WcError> {
+        self.wc.get(dispatch_id)
     }
 
     /// T-3310 D3: replace the post-time ceilings (hub config file).
