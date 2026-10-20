@@ -1469,12 +1469,13 @@ has_bash_write_pattern() {
     # delimiter, quote, `;`, `$` or line number (optionally after s-flags) and
     # followed by a filename. Conservative: replacement text ending `/w x/`
     # also matches, which errs toward the task gate.
-    if echo "$cmd" | grep -qE "\\bsed\\b.*[/;'\"\$0-9][gpIiMme0-9]*[wW][[:space:]]+[^[:space:]]"; then
+    # (T-3489 merge: herestring, like every rule in this function — see the note above.)
+    if grep -qE "\\bsed\\b.*[/;'\"\$0-9][gpIiMme0-9]*[wW][[:space:]]+[^[:space:]]" <<< "$cmd"; then
         return 0
     fi
 
     # T-3746: `sort -o FILE` / `sort --output[=]FILE` write the output file.
-    if echo "$cmd" | grep -qE '\bsort\b[^|;&]*[[:space:]](-[a-zA-Z]*o|--output)'; then
+    if grep -qE '\bsort\b[^|;&]*[[:space:]](-[a-zA-Z]*o|--output)' <<< "$cmd"; then
         return 0
     fi
 
