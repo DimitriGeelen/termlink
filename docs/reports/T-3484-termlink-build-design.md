@@ -58,12 +58,21 @@ record with no new history row. A different digest gets `done_conflict` plus a W
 
 A new step in the existing sweep, `sweep_dispatches`. For each attempt in `dispatched` or `running`:
 
+**Registry epoch (AEF condition a).** A sweep reads the registry *intact* only when every sessions
+dir it scans was listed without error. The hub keeps a `registry_epoch` that is bumped at hub start
+and on any sweep whose listing was incomplete. Each attempt records the epoch of the sweep that last
+saw it alive (`seen_epoch`). Absence counts toward T4 only on sweeps whose epoch equals `seen_epoch`.
+So a hub restart, or an unreadable directory, can never turn "I could not see it" into `lost`. It can
+only lead to `unknown` (T6) via the deadlines.
+
 | Observation this sweep | Action |
 |---|---|
-| A live registration carries this attempt's binding | set `binding_seen_at` if unset; if the state is `unknown`, apply T7a (back to `running`) |
-| No live registration carries the binding, `binding_seen_at` is set, and it was also absent on the previous sweep | **T4 → `lost`** (confirmed end: seen alive before, now absent twice, ≥ 30 s apart) |
-| No registration was ever seen and `deadline_running` has passed | **T6 → `unknown`** (never confirmed, so never `lost`) |
+| A live registration carries this attempt's binding | set `binding_seen_at` and `seen_epoch`; if the state is `unknown`, apply T7a (back to `running`) |
+| No live registration carries the binding, `binding_seen_at` is set, it was also absent on the previous sweep, and both sweeps ran at `seen_epoch` | mark *end observed*; ask for reconciliation; after grace **G** with no fenced `done` evidence → **T4 `lost`** (AEF b: the earliest `lost` is ~60 s + G) |
+| Absent, but a sweep in between had a different epoch | no T4; the deadlines decide (→ T6) |
+| Still `dispatched` (never seen) and `deadline_dispatched` has passed | **T6 `dispatched` → `unknown`** (AEF c: a new row in v0.2; refused/died-before-T2 still ends via T3b) |
 | `running`, a live registration exists, and `deadline_running` has passed | **T6 → `unknown`** (alive past its bound: operator notice, no new attempt) |
+| Already `lost`, and a live registration carries the binding again | **no transition** (`lost → running` stays forbidden); log + operator notice like `done_conflict` (AEF d); T5 evidence can still upgrade it |
 
 **Why state and not events.**
 1. A clean exit removes its own registration and emits nothing (supervisor.rs: only dead-pid cleanups
@@ -101,15 +110,18 @@ ring20 can run the same file.
 
 AEF's shadow mode (contract §8) needs S1 and S2 at most, so the migration can start before S3.
 
-## 7. Open questions for v0.2 (ours to raise or settle)
+## 7. Settled with AEF for v0.2 (AEF msg 03478f28, their docs/reports/T-4439-reviews/termlink-v0.2-input.md; ring20 still to confirm)
 
-1. **`paused` as a fifth outcome.** We prefer it (our review §3.1). AEF has not answered yet.
-2. **Who allocates `dispatch_id`.** The contract says the hub or backend allocates. We propose:
-   accept a caller-chosen id when unused (AEF already mints `D-<ulid>`), else allocate. Simpler for
-   shadow mode.
-3. **Operator identity for T7d.** Scope alone cannot tell the operator from an agent holding Control.
-   Proposal: `dispatch.resolve` requires a signed request from an identity the hub is configured to
-   trust as operator. Until then, it is a CLI on the hub host only. This ties into T-3493 (signed
-   requests).
+1. **`paused` is a fifth outcome.** Hand-back `status: paused` with exit 0 derives `outcome: paused`,
+   evaluated after rule 3 and before rule 4. It is a terminal `done` for that attempt and never a success
+   in a review verdict. The dispatch continues with attempt N+1, or with a re-dispatch naming it in
+   `retry_of_dispatch_id`.
+2. **`dispatch_id`.** A caller-chosen, well-formed `D-<ulid>` is accepted when unused and refused with
+   `id_taken` when taken. The backend never substitutes another id, because a silently different id is
+   the worst failure in shadow mode. With no id given, the backend allocates one. This means a third
+   error code is needed (e.g. `DISPATCH_ID_TAKEN` -32028).
+3. **T7d.** Until a signed operator identity exists, `dispatch.resolve` is a CLI on the hub host only,
+   logged with its reason. Signed requests stay with T-3493.
+4. **State-based end (T4/T6/T7a):** adopted with AEF's four conditions (a–d), all written into §4 above.
 4. **Retention.** Tombstones per §7 (30 days lost-upgradable, 180 days records), swept by the existing
    retention sweeper, which is now on at .107, .122 and .121 (T-3311).
