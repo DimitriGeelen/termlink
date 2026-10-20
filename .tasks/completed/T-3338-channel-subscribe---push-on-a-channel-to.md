@@ -4,12 +4,12 @@ name: "channel subscribe --push on a channel topic prints nothing, silently (rin
 description: >
   --push streams hub EVENTS (inbox.queued, dm wake), never channel envelopes, so 'subscribe inbox:X --push' waits forever for frames tagged inbox:X and skips the backlog; no hint. Reported by ring20-dashboard @465, reproduced on .107 2026-10-04. Fix: map inbox:/dm: topics to their wake event and print the envelope, or refuse with the inbox.queued hint.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T08:53:29Z
-last_update: 2026-10-04T08:53:29Z
-date_finished: null
+last_update: 2026-10-20T16:23:47Z
+date_finished: 2026-10-20T16:23:47Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -284,3 +284,15 @@ cargo test -p termlink > /tmp/.t3338-all 2>&1 && ! grep -q "FAILED" /tmp/.t3338-
 ### 2026-10-20 — implemented [w-cli-hints]
 - **Action:** `push_topic_mode` + wake-mode delivery in `run_ws_push`, refusal in `cmd_channel_subscribe`, `--push` help text. Tests: 3 unit tests; 2 CLI integration tests (refusal incl. `--json`; inbox: backlog + live delivery against a temp Unix-only hub).
 - **Verified:** manual run against a temp hub: `subscribe inbox:t3338 --push` printed the backlog and a post made 3 s later; `subscribe inbox.queued --push` still streams the raw event.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-094329d7
+- **Timestamp:** 2026-10-20T16:24:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-20T16:23:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

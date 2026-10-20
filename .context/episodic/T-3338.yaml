@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3338: channel subscribe --push on a channel topic prints nothing, silently (ring20 T-2459)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T16:24:40Z
+# ============================================================================
+
+task_id: T-3338
+task_name: "channel subscribe --push on a channel topic prints nothing, silently (ring20 T-2459)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-04T08:53:29Z
+completed: 2026-10-20T16:23:47Z
+duration_days: 16
+updates_count: 2
+first_commit: 2026-10-20T17:35:22+02:00
+last_commit: 2026-10-20T17:35:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel subscribe --push delivers inbox:/dm: channels via their wake event (backlog first), refuses other channel topics at once with a hint
+
+# Key outcomes
+outcomes:
+  - '`channel subscribe <topic> --push` on a topic that push does not carry no longer waits silently: either it delivers the topic''s envelopes (inbox:/dm: mapped to their wake event, then the envelope fetched and printed, backlog included), or it refuses at once with a hint naming what to use instead'
+  - 'Regression test for the chosen behaviour, including a non-inbox channel topic'
+  - '`cargo test -p termlink` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-20 — what --push does on a channel topic'
+    chose: 'both, by topic. `inbox:<id>` and `dm:<a>:<b>` are delivered. The WS subscribes to their wake event (`inbox.queued` / `dm.queued`) and keeps only events whose `payload.channel` is this topic. Each such event triggers a durable fetch from the cursor that prints the envelopes (`[push] <topic> offset=N sender: payload`). The backlog is fetched first, and a fetch also runs every 30 s as a safety net. Every other channel topic (`agent-presence`, `framework:pickup`, ...) is refused at once, before any hub contact, with a hint naming `--follow` and the event topics. Hub event topics (dotted with no `:`, or a `*` pattern) keep today''s behaviour, so the pushwaker''s `inbox.queued --push` / `dm.queued --push` are untouched.'
+    rationale: 'inbox/dm are exactly the topics the report used, and the hub already emits a wake for each post on them, so delivering costs one fetch per wake and gives the user what they asked for. Other channels have no wake event, so a "push" there could only be a disguised poll; refusing names the honest tool (`--follow`). The safety-net fetch covers posts that emit no wake (a dm relay post whose sender is neither participant) and the gap between the backlog fetch and the WS subscription going live.'
+    alternatives_rejected: ['refusing inbox:/dm: too (simplest, but throws away a working wake path the hub already provides); silently degrading every channel topic to the poll loop (still "push" in name only, and hides that the WS carries nothing).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/tests/cli_integration.rs'
+  - '.tasks/active/T-3338-channel-subscribe---push-on-a-channel-to.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T17:35:22'
+    action: 'T-3338: channel subscribe --push delivers inbox:/dm: channels via their wake event (backlog first), refuses other channel topics at once with a hint'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 23490 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 23490
+  commits: 1
+  files_changed: 4
+  lines_added: 281
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3338-channel-subscribe---push-on-a-channel-to.md
+generated_by: context-agent-hybrid
