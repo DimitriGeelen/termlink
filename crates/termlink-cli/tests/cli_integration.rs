@@ -2126,6 +2126,64 @@ fn cli_hub_status_stale_pidfile() {
     assert_eq!(parsed["pid"], 4000000, "Should report the stale PID");
 }
 
+// ─── Hub Status Probes The Unix Socket (T-3495) ─────────────────────
+
+/// A process whose command line contains "termlink", so the pidfile check
+/// counts it as a running hub. Nothing real is started or signalled.
+#[cfg(target_os = "linux")]
+fn fake_hub_process() -> std::process::Child {
+    std::process::Command::new("bash")
+        .args(["-c", "exec -a termlink-fake-hub sleep 30"])
+        .spawn()
+        .expect("spawn fake hub")
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn cli_hub_status_reports_unanswered_socket() {
+    let dir = TestDir::new("hub-sock-dead");
+    let mut fake = fake_hub_process();
+    std::thread::sleep(Duration::from_millis(200)); // let exec -a take effect
+    std::fs::write(dir.path.join("hub.pid"), fake.id().to_string()).unwrap();
+    // A dead socket file: connecting gets ECONNREFUSED, as the report described.
+    drop(std::os::unix::net::UnixListener::bind(dir.path.join("hub.sock")).unwrap());
+
+    let json_out = termlink_cmd(&dir.path).args(["hub", "status", "--json"]).output().unwrap();
+    let check = termlink_cmd(&dir.path).args(["hub", "status", "--check", "--short"]).output().unwrap();
+    let _ = fake.kill();
+    let _ = fake.wait();
+
+    let stdout = String::from_utf8_lossy(&json_out.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+    assert_eq!(parsed["status"], "running", "{stdout}");
+    assert_eq!(parsed["socket_ok"], false, "dead socket must not read healthy: {stdout}");
+    assert_eq!(parsed["ok"], false, "{stdout}");
+    assert!(parsed["socket_error"].as_str().is_some_and(|e| e.contains("hub.sock")), "{stdout}");
+    assert!(!check.status.success(), "--check must fail when the socket does not answer");
+    assert!(String::from_utf8_lossy(&check.stdout).contains("socket-unreachable"));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn cli_hub_status_answered_socket_is_healthy() {
+    let dir = TestDir::new("hub-sock-live");
+    let mut fake = fake_hub_process();
+    std::thread::sleep(Duration::from_millis(200));
+    std::fs::write(dir.path.join("hub.pid"), fake.id().to_string()).unwrap();
+    let _live = std::os::unix::net::UnixListener::bind(dir.path.join("hub.sock")).unwrap();
+
+    let out = termlink_cmd(&dir.path).args(["hub", "status", "--json"]).output().unwrap();
+    let _ = fake.kill();
+    let _ = fake.wait();
+
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("Invalid JSON: {e}\nGot: {stdout}"));
+    assert_eq!(parsed["socket_ok"], true, "{stdout}");
+    assert_eq!(parsed["ok"], true, "{stdout}");
+}
+
 // ─── Hub Status Check + Short Combined ──────────────────────────────
 
 #[test]

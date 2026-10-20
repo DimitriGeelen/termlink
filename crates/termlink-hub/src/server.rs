@@ -248,6 +248,26 @@ pub async fn ensure_no_live_hub(socket_path: &Path) -> std::io::Result<()> {
     ))
 }
 
+/// T-3495: health probe of the hub's unix socket. A hub can serve TCP while
+/// its `hub.sock` is gone or replaced, and local clients then get ECONNREFUSED;
+/// a pidfile check alone calls that hub healthy. `Ok` only when a connection
+/// to `socket_path` completes within `timeout`; otherwise the reason.
+pub async fn probe_hub_socket(
+    socket_path: &Path,
+    timeout: std::time::Duration,
+) -> Result<(), String> {
+    let connect = tokio::net::UnixStream::connect(socket_path);
+    match tokio::time::timeout(timeout, connect).await {
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(e)) => Err(format!("{}: {e}", socket_path.display())),
+        Err(_) => Err(format!(
+            "{}: no answer within {}ms",
+            socket_path.display(),
+            timeout.as_millis()
+        )),
+    }
+}
+
 /// T-3367: identity of the socket file this hub created, so shutdown removes
 /// only its own socket and never one a later start put at the same path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -283,28 +303,165 @@ fn claim_runtime(
         None => pidfile::remove(pidfile_path),
     };
 
-    let mut tmp = socket_path.as_os_str().to_owned();
-    tmp.push(".new");
-    let tmp = PathBuf::from(tmp);
-
-    let bound = (|| {
-        // A leftover `.new` is from an earlier start of ours that died mid-way.
-        let _ = std::fs::remove_file(&tmp);
-        let listener = UnixListener::bind(&tmp)?;
-        if let Err(e) = std::fs::rename(&tmp, socket_path) {
-            let _ = std::fs::remove_file(&tmp);
-            return Err(e);
-        }
-        Ok(listener)
-    })();
-
-    match bound {
+    match bind_replacing(socket_path) {
         Ok(listener) => Ok((listener, socket_identity(socket_path))),
         Err(e) => {
             restore_pidfile();
             Err(e)
         }
     }
+}
+
+/// T-3367: bind a listener at `<socket>.new` and rename it over `socket_path`,
+/// so a socket at the path is replaced only once ours is listening. Only the
+/// `.new` socket we bound is ever removed on failure.
+fn bind_replacing(socket_path: &Path) -> std::io::Result<UnixListener> {
+    let mut tmp = socket_path.as_os_str().to_owned();
+    tmp.push(".new");
+    let tmp = PathBuf::from(tmp);
+    // A leftover `.new` is from an earlier start of ours that died mid-way.
+    let _ = std::fs::remove_file(&tmp);
+    let listener = UnixListener::bind(&tmp)?;
+    if let Err(e) = std::fs::rename(&tmp, socket_path) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    Ok(listener)
+}
+
+/// T-3495: how often a running hub checks that `hub.sock` is still its own.
+const SOCKET_WATCH_INTERVAL: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// T-3495: what one ownership check of the hub socket found.
+enum SocketCheck {
+    /// The path still holds the socket this hub bound.
+    Intact,
+    /// The path was free (gone, or a dead socket nobody answers on); a new
+    /// listener now serves it.
+    Recreated(UnixListener, Option<SocketId>),
+    /// Another live listener answers on the path. Left alone.
+    ForeignLive(Option<SocketId>),
+    /// Something that is not a socket sits on the path. Left alone.
+    Blocked(Option<SocketId>),
+    /// The path was free but binding a new socket failed.
+    RecreateFailed(std::io::Error),
+}
+
+/// T-3495: check that `socket_path` is still the socket identified by `ours`,
+/// and re-create it when the path is free. A socket another live process
+/// answers on is never removed or replaced.
+async fn check_own_socket(socket_path: &Path, ours: Option<SocketId>) -> SocketCheck {
+    let now = socket_identity(socket_path);
+    if now.is_some() && now == ours {
+        return SocketCheck::Intact;
+    }
+    let bound = if now.is_none() {
+        // Removed: bind directly, which fails rather than replace anything a
+        // racing start puts there first.
+        UnixListener::bind(socket_path)
+    } else {
+        let connect = tokio::net::UnixStream::connect(socket_path);
+        match tokio::time::timeout(std::time::Duration::from_secs(2), connect).await {
+            // Answers, or too busy to answer in time: a live listener owns it.
+            Ok(Ok(_)) | Err(_) => return SocketCheck::ForeignLive(now),
+            Ok(Err(_)) => {}
+        }
+        use std::os::unix::fs::FileTypeExt;
+        let is_socket = std::fs::symlink_metadata(socket_path)
+            .map(|m| m.file_type().is_socket())
+            .unwrap_or(false);
+        if !is_socket {
+            return SocketCheck::Blocked(now);
+        }
+        // A dead socket: replace it the same way start does.
+        bind_replacing(socket_path)
+    };
+    match bound {
+        Ok(listener) => SocketCheck::Recreated(listener, socket_identity(socket_path)),
+        Err(e) => SocketCheck::RecreateFailed(e),
+    }
+}
+
+/// T-3495: one tick of the socket watch. Updates `ours` when the socket was
+/// re-created, hands a new listener to `serve`, and returns the WARN it logged
+/// (repeat findings about the same file are logged once, tracked in `last`).
+async fn socket_watch_tick(
+    socket_path: &Path,
+    ours: &std::sync::Mutex<Option<SocketId>>,
+    last: &mut Option<String>,
+    serve: &mut impl FnMut(UnixListener),
+) -> Option<String> {
+    let current = *ours.lock().unwrap_or_else(|e| e.into_inner());
+    let path = socket_path.display();
+    let (msg, key) = match check_own_socket(socket_path, current).await {
+        SocketCheck::Intact => {
+            *last = None;
+            return None;
+        }
+        SocketCheck::Recreated(listener, id) => {
+            *ours.lock().unwrap_or_else(|e| e.into_inner()) = id;
+            serve(listener);
+            *last = None;
+            let msg = format!(
+                "Hub socket {path} was removed or replaced by a dead socket; re-created it \
+                 (local clients could not reach this hub until now)"
+            );
+            tracing::warn!("{msg}");
+            return Some(msg);
+        }
+        SocketCheck::ForeignLive(id) => (
+            format!(
+                "Hub socket {path} was replaced by another live listener; leaving it alone. \
+                 Local clients now reach that process, not this hub (TCP still serves this hub)"
+            ),
+            format!("live:{id:?}"),
+        ),
+        SocketCheck::Blocked(id) => (
+            format!(
+                "Hub socket {path} was replaced by a file that is not a socket; leaving it alone. \
+                 Local clients cannot reach this hub"
+            ),
+            format!("blocked:{id:?}"),
+        ),
+        SocketCheck::RecreateFailed(e) => (
+            format!("Hub socket {path} is gone and re-creating it failed: {e}. Local clients cannot reach this hub"),
+            format!("failed:{e}"),
+        ),
+    };
+    if last.as_deref() == Some(key.as_str()) {
+        return None;
+    }
+    *last = Some(key);
+    tracing::warn!("{msg}");
+    Some(msg)
+}
+
+/// T-3495: spawn the periodic socket watch. A re-created listener is served by
+/// its own unix-only accept loop with the same secret and shutdown signal.
+fn spawn_socket_watch(
+    socket_path: PathBuf,
+    ours: std::sync::Arc<std::sync::Mutex<Option<SocketId>>>,
+    interval: std::time::Duration,
+    token_secret: Option<String>,
+    mut shutdown_rx: watch::Receiver<bool>,
+) {
+    tokio::spawn(async move {
+        let mut last = None;
+        let serve_rx = shutdown_rx.clone();
+        let mut serve = |listener: UnixListener| {
+            tokio::spawn(run_accept_loop(listener, None, None, token_secret.clone(), serve_rx.clone()));
+        };
+        loop {
+            tokio::select! {
+                _ = tokio::time::sleep(interval) => {}
+                _ = shutdown_rx.changed() => break,
+            }
+            if *shutdown_rx.borrow() {
+                break;
+            }
+            socket_watch_tick(&socket_path, &ours, &mut last, &mut serve).await;
+        }
+    });
 }
 
 /// T-3367: shared start prefix for [`run_with_tcp`] and [`run_blocking`].
@@ -500,9 +657,20 @@ pub async fn run_with_tcp(
         remote_store::run_reaper(remote_store, remote_store::REAPER_INTERVAL, reaper_rx).await;
     });
 
+    // T-3495: notice when hub.sock is removed or replaced while we run.
+    let socket_id = std::sync::Arc::new(std::sync::Mutex::new(socket_id));
+    spawn_socket_watch(
+        socket_path.to_path_buf(),
+        socket_id.clone(),
+        SOCKET_WATCH_INTERVAL,
+        token_secret.clone(),
+        shutdown_rx.clone(),
+    );
+
     let socket_path_owned = socket_path.to_path_buf();
     tokio::spawn(async move {
         run_accept_loop(unix_listener, tcp_listener, tls_acceptor, token_secret, shutdown_rx).await;
+        let socket_id = *socket_id.lock().unwrap_or_else(|e| e.into_inner());
 
         // Cleanup on exit. Secret file is intentionally preserved (T-933:
         // persist-if-present) so cross-host agents don't need to
@@ -542,7 +710,7 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
     let pidfile_path = pidfile::hub_pidfile_path();
 
     // T-3367: same safe start order as `run_with_tcp`.
-    let PreparedStart { unix_listener, socket_id: _, tcp_listener, tls_acceptor, token_secret } =
+    let PreparedStart { unix_listener, socket_id, tcp_listener, tls_acceptor, token_secret } =
         prepare_start(socket_path, &pidfile_path, tcp_addr).await?;
 
     // T-2048: Governors (idempotent — no-op if `run_with_tcp` already
@@ -561,6 +729,14 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
     crate::webhook::spawn_retry_loop();
 
     let (_shutdown_tx, shutdown_rx) = watch::channel(false);
+    // T-3495: notice when hub.sock is removed or replaced while we run.
+    spawn_socket_watch(
+        socket_path.to_path_buf(),
+        std::sync::Arc::new(std::sync::Mutex::new(socket_id)),
+        SOCKET_WATCH_INTERVAL,
+        token_secret.clone(),
+        shutdown_rx.clone(),
+    );
     run_accept_loop(unix_listener, tcp_listener, tls_acceptor, token_secret, shutdown_rx).await;
 
     // Cleanup on exit. Secret file is intentionally preserved (T-933:
@@ -3988,6 +4164,105 @@ mod tests {
                 "pidfile must name the new hub"
             );
             assert!(!dir.join("hub.sock.new").exists(), "temp socket left behind");
+        })
+        .await;
+    }
+
+    // ── T-3495: a running hub notices its socket removed or replaced ──
+    // Temp runtime dirs only (T-3293); the "hub" is a listener bound here.
+
+    #[tokio::test]
+    async fn socket_watch_recreates_a_deleted_socket_and_warns() {
+        with_temp_runtime(|dir| async move {
+            let sock = hub_sock(&dir);
+            let _ours = UnixListener::bind(&sock).unwrap();
+            let ours = std::sync::Mutex::new(socket_identity(&sock));
+            let mut last = None;
+            let mut served = Vec::new();
+            let mut serve = |l: UnixListener| served.push(l);
+
+            assert!(socket_watch_tick(&sock, &ours, &mut last, &mut serve).await.is_none(),
+                "an intact socket must not warn");
+
+            std::fs::remove_file(&sock).unwrap();
+            let msg = socket_watch_tick(&sock, &ours, &mut last, &mut serve).await
+                .expect("a deleted socket must warn");
+            assert!(msg.contains(&sock.display().to_string()), "WARN must name the path: {msg}");
+            assert!(msg.contains("re-created"), "message: {msg}");
+            drop(serve);
+            assert_eq!(served.len(), 1, "the new listener must be handed to an accept loop");
+            assert_eq!(*ours.lock().unwrap(), socket_identity(&sock), "ownership must follow the new socket");
+            assert!(probe_hub_socket(&sock, std::time::Duration::from_secs(2)).await.is_ok(),
+                "re-created socket must accept connections");
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn socket_watch_leaves_a_live_replacement_alone_and_warns_once() {
+        with_temp_runtime(|dir| async move {
+            let sock = hub_sock(&dir);
+            let ours_listener = UnixListener::bind(&sock).unwrap();
+            let ours = std::sync::Mutex::new(socket_identity(&sock));
+            // Another hub takes the path while we run.
+            std::fs::remove_file(&sock).unwrap();
+            let _other = UnixListener::bind(&sock).unwrap();
+            let theirs = socket_identity(&sock);
+            let mut last = None;
+            let mut served = 0;
+            let mut serve = |_l: UnixListener| served += 1;
+
+            let msg = socket_watch_tick(&sock, &ours, &mut last, &mut serve).await
+                .expect("a replaced socket must warn");
+            assert!(msg.contains(&sock.display().to_string()), "WARN must name the path: {msg}");
+            assert!(msg.contains("another live listener"), "message: {msg}");
+            assert!(socket_watch_tick(&sock, &ours, &mut last, &mut serve).await.is_none(),
+                "the same replacement must not warn every tick");
+            drop(serve);
+            assert_eq!(served, 0, "must not bind over a live listener");
+            assert_eq!(socket_identity(&sock), theirs, "the live replacement was touched");
+            assert!(probe_hub_socket(&sock, std::time::Duration::from_secs(2)).await.is_ok());
+            drop(ours_listener);
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn socket_watch_replaces_a_dead_replacement() {
+        with_temp_runtime(|dir| async move {
+            let sock = hub_sock(&dir);
+            let _ours_listener = UnixListener::bind(&sock).unwrap();
+            let ours = std::sync::Mutex::new(socket_identity(&sock));
+            std::fs::remove_file(&sock).unwrap();
+            drop(std::os::unix::net::UnixListener::bind(&sock).unwrap()); // dead socket file
+            let dead = socket_identity(&sock);
+            let mut last = None;
+            let mut served = 0;
+            let mut serve = |_l: UnixListener| served += 1;
+
+            let msg = socket_watch_tick(&sock, &ours, &mut last, &mut serve).await
+                .expect("a dead replacement must warn");
+            assert!(msg.contains("re-created"), "message: {msg}");
+            drop(serve);
+            assert_eq!(served, 1);
+            assert_ne!(socket_identity(&sock), dead);
+            assert!(!dir.join("hub.sock.new").exists(), "temp socket left behind");
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn health_probe_reports_an_unanswered_socket() {
+        with_temp_runtime(|dir| async move {
+            let sock = hub_sock(&dir);
+            let t = std::time::Duration::from_secs(2);
+            let err = probe_hub_socket(&sock, t).await.expect_err("missing socket must fail");
+            assert!(err.contains(&sock.display().to_string()), "error: {err}");
+            drop(std::os::unix::net::UnixListener::bind(&sock).unwrap());
+            assert!(probe_hub_socket(&sock, t).await.is_err(), "dead socket (ECONNREFUSED) must fail");
+            std::fs::remove_file(&sock).unwrap();
+            let _live = UnixListener::bind(&sock).unwrap();
+            assert!(probe_hub_socket(&sock, t).await.is_ok(), "live socket must pass");
         })
         .await;
     }

@@ -70,6 +70,12 @@
 #              Check 6 stops at the first pidfile, so it never saw it. WARNs when
 #              more than one live termlink hub runs for this uid, naming each
 #              runtime dir, pid and session count.
+#   Check 8: the running hub answers on its unix socket (T-3495, T-3367 follow-up)
+#            → ring20-dashboard: a hub served TCP while its hub.sock had been
+#              replaced, so local clients got ECONNREFUSED and every pidfile-based
+#              check stayed green. FAILs when `hub status --json` reports
+#              socket_ok:false. Skips when no hub runs (Check 6) or the binary
+#              predates the field (Check 4).
 #
 # Read-only, no network, no auth, no state mutation. Safe in any context.
 #
@@ -841,6 +847,33 @@ check_single_hub() {
     fi
 }
 
+# ---- Check 8: the running hub answers on its unix socket (T-3495) -----------
+# A pidfile naming a live hub is not a healthy hub: the hub can keep serving TCP
+# after its hub.sock was removed or replaced, and local clients then get
+# ECONNREFUSED. `hub status --json` probes the socket (socket_ok). Seam:
+#   TERMLINK_PREFLIGHT_TEST_HUB_STATUS_JSON  file holding canned `hub status --json`
+check_hub_socket() {
+    local out err
+    if [ -n "${TERMLINK_PREFLIGHT_TEST_HUB_STATUS_JSON:-}" ]; then
+        out=$(cat "$TERMLINK_PREFLIGHT_TEST_HUB_STATUS_JSON" 2>/dev/null)
+    else
+        command -v termlink >/dev/null 2>&1 || return
+        out=$(timeout 10 termlink hub status --json 2>/dev/null) || return
+    fi
+    case "$out" in
+        *'"socket_ok":false'*)
+            err=$(printf '%s' "$out" | sed -n 's/.*"socket_error":"\([^"]*\)".*/\1/p')
+            emit_check "hub-socket" "high" "fail" \
+                "the hub's process is running but its unix socket does not answer (${err:-no detail}) — local clients cannot reach it while TCP may still serve" \
+                "A current hub restores its own socket within ~10s when the path is free (T-3495). If another process answers there, stop it or restart this hub THROUGH its systemd unit (G-070); check 'termlink hub status' again after."
+            ;;
+        *'"socket_ok":true'*)
+            emit_check "hub-socket" "high" "pass" "running hub answers on its unix socket"
+            ;;
+        *) ;; # not running (Check 6) or a binary that predates the probe (Check 4)
+    esac
+}
+
 check_runtime_dir_volatility
 check_hubs_toml
 check_be_reachable_state
@@ -848,6 +881,7 @@ check_binary_freshness
 check_hub_binary_freshness
 check_hub_unit_health
 check_single_hub
+check_hub_socket
 
 # ---- Summary -----------------------------------------------------------
 
