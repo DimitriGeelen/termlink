@@ -320,3 +320,31 @@ fn a_clean_sweep_writes_nothing() {
     assert!(r.transitions.is_empty() && r.notices.is_empty());
     assert_eq!(s.get(&a.dispatch_id).unwrap()["attempts"][0]["history"], before["attempts"][0]["history"]);
 }
+
+// --- confirm_end (T-3522, wc/0.3 CC-02 / §3.4): the hub's end confirmation -------------
+
+#[test]
+fn confirm_end_refuses_a_done_attempt_with_forbidden_transition() {
+    // CC-02: the supervisor's completion (T3) lands first; the hub's later end confirmation is
+    // a forbidden transition (done is terminal), and the attempt is not touched.
+    let (_d, s) = store();
+    let a = running_seen(&s, 3_600_000, 2_000);
+    t3_done(&s, &a, 10_000);
+    let err = s.confirm_end(&a.dispatch_id, a.attempt, &nobody(), 20_000).unwrap_err();
+    assert!(matches!(err, WcError::Fence { reason: FenceReason::ForbiddenTransition, .. }), "{err:?}");
+    assert_eq!(state(&s, &a), "done");
+}
+
+#[test]
+fn confirm_end_on_a_never_seen_running_attempt_writes_nothing_at_any_clock() {
+    // §3.4 / CC-17: absence counts only for an attempt seen alive at the current epoch. A
+    // running attempt whose binding was never observed is acted on by its deadlines only.
+    let (_d, s) = store();
+    let a = alloc(&s, 0);
+    t2(&s, &a, 1_000, 3_600_000);
+    for t in [2_000, 32_000, 62_000, 500_000] {
+        let r = s.confirm_end(&a.dispatch_id, a.attempt, &nobody(), t).unwrap();
+        assert!(r.transitions.is_empty(), "no end was observed at {t}");
+    }
+    assert_eq!(state(&s, &a), "running");
+}

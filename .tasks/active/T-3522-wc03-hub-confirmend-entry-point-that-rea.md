@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:43:50Z
-last_update: 2026-10-21T14:46:05Z
+last_update: 2026-10-21T14:46:06Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -80,10 +80,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Decided and recorded in Decisions, with the vector text quoted: AEF's vocabulary defines `confirm_end` for the hub as "two sweeps at the last-seen epoch then G" (evidence read first is the hubless form). Whether the S2 sweep (`absent_twice_then_lost_only_after_grace`, `done_evidence_inside_grace_prevents_lost`) already is that behaviour, so the gap is the adapter's mapping, or whether the backend lacks something (e.g. reading fenced done evidence before T4)
-- [ ] The conformance adapter maps `confirm_end` for the hub to the real sweep path (driving the sweeps with the injected clock, never a shortcut that writes the state directly), and CC-01, CC-02, CC-03 and CC-06 each report pass, or fail with the diverging step named; any backend change is minimal, comes with a failing-first unit test, and changes no case that already passes (CC-04, 07, 14, 16, 18, 23)
-- [ ] Every case still failing after this is filed as its own bug task with the diverging step; the conformance map is updated from the adapter's output
-- [ ] `cargo test -p termlink-bus -p termlink-hub` passes
+- [x] Decided and recorded in Decisions, with the vector text quoted: AEF's vocabulary defines `confirm_end` for the hub as "two sweeps at the last-seen epoch then G" (evidence read first is the hubless form). Whether the S2 sweep (`absent_twice_then_lost_only_after_grace`, `done_evidence_inside_grace_prevents_lost`) already is that behaviour, so the gap is the adapter's mapping, or whether the backend lacks something (e.g. reading fenced done evidence before T4)
+- [x] The conformance adapter maps `confirm_end` for the hub to the real sweep path (driving the sweeps with the injected clock, never a shortcut that writes the state directly), and CC-01, CC-02, CC-03 and CC-06 each report pass, or fail with the diverging step named; any backend change is minimal, comes with a failing-first unit test, and changes no case that already passes (CC-04, 07, 14, 16, 18, 23)
+- [x] Every case still failing after this is filed as its own bug task with the diverging step; the conformance map is updated from the adapter's output
+- [x] `cargo test -p termlink-bus -p termlink-hub` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -371,6 +371,19 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3522 2>&1 && ! grep -q "test
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-10-21 — adapter mapping or backend gap for confirm_end
+- **Chose:** Both, split by case. The adapter maps `confirm_end` to the real sweep path: `Bus::wc_confirm_end` refuses a done attempt with `forbidden_transition`, otherwise runs two sweeps at the current epoch and one more G later on the injected clock. The backend changes only where a case showed a real divergence: a hub end over a done attempt answered nothing where CC-02 expects the refusal. CC-01 and CC-03 (evidence-present) and CC-03 (no-evidence) plus CC-06 stay failing with the diverging step named, filed as T-3525 and T-3526.
+- **Quoted vector text:** vocabulary `confirm_end`: "the sweep writer confirms the attempt's end by the backend's own evidence (hub two sweeps at the last-seen epoch then G; hubless independent probe, evidence read first) and acts on it". CC-02: `complete` accepted T3, then `confirm_end` expects `{fence_reject: forbidden_transition}`. CC-06: a running attempt with no `seen_alive_epoch`, clock 20, `confirm_end` expects `{accepted: T4}`.
+- **Why:** S2 `absence()` counts absence only for an attempt whose binding was seen at the current epoch. That is §3.4 as CC-17 pins it ("acted on by deadlines only"), and `dispatched_never_seen_goes_unknown…` says "never seen, so no end was observed". So the sweep is right for seen attempts, and the two-sweeps-then-G mapping fits them. CC-06 and CC-03 (no-evidence) want T4 on a never-seen attempt before G, which contradicts §3.4, so this needs an AEF ruling, not a backend patch (T-3526). CC-01 and CC-03 (evidence-present) need the hub to read signed evidence persisted before the end; the store has no hub-side evidence intake (T-3525).
+- **Rejected:** (a) writing T4 directly from the adapter: a shortcut around the state machine, which the task forbids. (b) letting the sweep count never-seen attempts: CC-06 would pass, but §3.4 and CC-17 would be weakened, and both are pinned by tests. (c) marking CC-01/03/06 n/a: the vectors set `n_a_allowed: false` for transition subjects (§6.6 N2).
+
+## Evolution
+
+### 2026-10-21 — confirm_end mapped; three cases stay open
+- **What changed:** The filing assumed the sweep needed only an adapter mapping. That holds for CC-02 once the done-attempt refusal exists. The other vectors ask for behaviour the store does not have: a hub read of signed evidence (CC-01, CC-03 evidence-present), and T4 for a never-seen attempt before G (CC-06, CC-03 no-evidence), which conflicts with §3.4 / CC-17.
+- **Plan impact:** AC 2 is met as "fail with the diverging step named" for CC-01/03/06, not as pass. The verification line's no-`not-implemented` check holds.
+- **Triggered:** T-3525 (evidence intake for confirm_end) and T-3526 (never-seen absence; needs an AEF ruling). The conformance map was regenerated from the adapter. Its stale CC-16 and CC-21 verdicts (pre-T-3518/T-3519) are corrected.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -391,3 +404,9 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3522 2>&1 && ! grep -q "test
 ### 2026-10-21T14:46:05Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-21 — confirm_end implemented and verified
+- **Change:** adapter op `confirm_end` mapped (`crates/termlink-hub/tests/wc_conformance/hub.rs`, `confirm_end`). Backend `Bus::wc_confirm_end` added (`crates/termlink-bus/src/worker_contract/sweep.rs`): refuses a done attempt with `forbidden_transition`, else runs the S2 sweep. Two failing-first unit tests in `sweep_tests.rs` (red first as a missing-method compile error, then green).
+- **Verdicts:** before pass=6 fail=1 not-implemented=17 n/a=1; after pass=7 fail=4 not-implemented=13 n/a=1. CC-02 → pass. CC-01, CC-03, CC-06 → fail, each naming the `confirm_end` step (T-3525, T-3526). No previously passing case changed (CC-04, 07, 14, 16, 18, 23 still pass).
+- **Tests:** `cargo test -p termlink-bus -p termlink-hub` exits 0 (bus lib 185 passed; hub 555 passed).
+- **Map:** `docs/reports/T-3484-conformance-map.md` regenerated from the adapter output.

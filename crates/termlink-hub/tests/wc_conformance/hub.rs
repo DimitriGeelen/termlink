@@ -421,7 +421,7 @@ impl Hub {
             "resolve" => self.resolve(args),
             "partition" | "heal" => missing(&format!("op:{op} (the hub has no model of worker-host contact)")),
             "hold_lock" => missing("op:hold_lock (the per-write lock is SQLite IMMEDIATE; no hook to hold it)"),
-            "confirm_end" => missing("op:confirm_end (the sweep counts absence only for attempts seen alive, and does not read signed evidence first)"),
+            "confirm_end" => self.confirm_end(n),
             "stop" => missing("op:stop (no backend-initiated stop in the store; transition takes no stop cause)"),
             "ask_wait" | "wait" => missing(&format!("op:{op} (no worker-side wait or collect surface)")),
             "consume" => missing("op:consume (no consumer surface; refusals of review_verdict / pass_rate live outside the store)"),
@@ -519,6 +519,30 @@ impl Hub {
         let mut c = self.complete_for(&ev, n, Some(nonce), Some(token))?;
         c.sgen = step["supervisor_gen"].as_i64();
         Ok(complete_once(&self.bus, &c, self.clock))
+    }
+
+    /// The hub's end confirmation (AEF `confirm_end`, §3.2). The store refuses a finished attempt;
+    /// otherwise the sweep runs twice at the current epoch, then once more G later on the injected
+    /// clock. Nothing is written here: a state change is only the sweep's own (T4).
+    fn confirm_end(&mut self, n: i64) -> Res<Map<String, Value>> {
+        let d = self.dispatch_id()?;
+        // The attempt's own registration is absent: that is what the vector's end means.
+        let live: HashSet<(String, i64)> = self.live.iter().filter(|k| !(k.0 == d && k.1 == n)).cloned().collect();
+        let obs = SweepObservation { listing_complete: true, live };
+        let mut report = match self.bus.wc_confirm_end(&d, n, &obs, self.clock) {
+            Ok(r) => r,
+            Err(e) => return Ok(error_map(&e)),
+        };
+        for later in [0, GRACE_MS] {
+            self.clock += later;
+            let r = self
+                .bus
+                .wc_sweep(&obs, self.clock)
+                .map_err(|e| Fail::Mismatch(format!("confirm_end sweep refused: {e:?}")))?;
+            report.transitions.extend(r.transitions);
+            report.notices.extend(r.notices);
+        }
+        Ok(sweep_result(&report))
     }
 
     fn reclaim(&mut self, step: &Value, n: i64) -> Res<Map<String, Value>> {

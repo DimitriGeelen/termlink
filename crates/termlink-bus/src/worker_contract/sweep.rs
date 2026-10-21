@@ -18,7 +18,7 @@ use std::collections::HashSet;
 
 use rusqlite::{OptionalExtension, Transaction, params};
 
-use super::{FenceReason, GRACE_MS, RUNNING_SLACK_MS, WcResult, WcStore, append_history, fence};
+use super::{FenceReason, GRACE_MS, RUNNING_SLACK_MS, WcError, WcResult, WcStore, append_history, fence};
 use crate::Bus;
 
 /// What one sweep saw. Built by the hub from the sessions dirs.
@@ -78,6 +78,19 @@ impl Bus {
     ) -> std::result::Result<SweepReport, super::WcError> {
         self.wc.sweep(obs, now_ms)
     }
+
+    /// The hub's end confirmation for one attempt (T-3522, AEF `confirm_end`). A finished
+    /// attempt is refused with `forbidden_transition`; otherwise the same sweep runs. Time is
+    /// injected, and the sweep is the only writer.
+    pub fn wc_confirm_end(
+        &self,
+        dispatch_id: &str,
+        attempt: i64,
+        obs: &SweepObservation,
+        now_ms: i64,
+    ) -> std::result::Result<SweepReport, super::WcError> {
+        self.wc.confirm_end(dispatch_id, attempt, obs, now_ms)
+    }
 }
 
 impl WcStore {
@@ -87,6 +100,35 @@ impl WcStore {
 
     pub(crate) fn sweep(&self, obs: &SweepObservation, now_ms: i64) -> WcResult<SweepReport> {
         self.with_tx(|tx| sweep_tx(tx, obs, now_ms))
+    }
+
+    pub(crate) fn confirm_end(
+        &self,
+        dispatch_id: &str,
+        attempt: i64,
+        obs: &SweepObservation,
+        now_ms: i64,
+    ) -> WcResult<SweepReport> {
+        self.with_tx(|tx| {
+            let state: Option<String> = tx
+                .query_row(
+                    "SELECT state FROM wc_attempts WHERE dispatch_id = ?1 AND attempt = ?2",
+                    params![dispatch_id, attempt],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            match state.as_deref() {
+                None => Err(WcError::NotFound(format!("{dispatch_id} attempt {attempt}"))),
+                // T4 from done is forbidden: `done` is terminal, so the end is not confirmed.
+                Some("done") => fence(
+                    FenceReason::ForbiddenTransition,
+                    format!("{dispatch_id} attempt {attempt} is done; no end can be confirmed over it"),
+                ),
+                // Anything else is the ordinary sweep. It writes only what the observation
+                // and the deadlines support, for this attempt and any other the sweep reaches.
+                Some(_) => sweep_tx(tx, obs, now_ms),
+            }
+        })
     }
 }
 
