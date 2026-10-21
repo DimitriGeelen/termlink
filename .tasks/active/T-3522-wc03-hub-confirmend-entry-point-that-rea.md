@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:43:50Z
-last_update: 2026-10-21T14:46:06Z
+last_update: 2026-10-21T14:54:21Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -330,6 +330,15 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3522 2>&1 && ! grep -q "test
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-21 — confirm_end was mostly an adapter mapping, and the rest was the vectors
+- **What changed:** AEF's vocabulary defines confirm_end for a hub as the S2 sweep macro (two absent sweeps at the
+  last-seen epoch, then G), so this slice mapped the op onto the real sweep and fixed one backend case (a confirm_end
+  on a done attempt is refused, CC-02 pass). CC-01/03/06 then failed for want of a seen-alive precondition, which AEF
+  ruled was missing from their vectors (msg d0f2e96a) and added in 25f56ed68; CC-06's last step was our fence order (T-3529).
+- **Plan impact:** none on the hub design; the store's strict §3.4 reading was right. Lesson kept: run the vectors before
+  changing the backend to fit one case.
+- **Triggered:** T-3525 and T-3526 (both resolved by AEF's vector fix), T-3529 (fence order).
 
 ## Recommendation
 

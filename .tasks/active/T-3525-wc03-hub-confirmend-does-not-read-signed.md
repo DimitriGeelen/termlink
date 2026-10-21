@@ -1,13 +1,23 @@
 ---
 id: T-3525
-name: "wc/0.3 hub: confirm_end does not read signed evidence before confirming an end (CC-01, CC-03 evidence-present)"
+name: "wc/0.3 hub: confirm_end does not read signed evidence before confirming an
+  end (CC-01, CC-03 evidence-present)"
 description: >
-  Found by T-3522 (conformance adapter, AEF vectors wc/0.3 afe974124). CC-01 and CC-03 variant evidence-present step confirm_end (writer hub, attempt 1, clock 20, signed E1 persisted_at 10, handback complete for n1) expects accepted T4 or T3. The store answers no_transition: the sweep counts absence only for attempts seen alive at the current epoch, and the store has no hub-side read of signed worker evidence, so the hub cannot act on it. Vector text: confirm_end = the sweep writer confirms the attempt end by the backend's own evidence (hub two sweeps at last-seen epoch then G; hubless independent probe, evidence read first). Fix belongs in the backend (worker_contract sweep), with a failing-first unit test. Not patched in T-3522, which only maps the op.
+  Found by T-3522 (conformance adapter, AEF vectors wc/0.3 afe974124). CC-01 and CC-03
+  variant evidence-present step confirm_end (writer hub, attempt 1, clock 20, signed
+  E1 persisted_at 10, handback complete for n1) expects accepted T4 or T3. The store
+  answers no_transition: the sweep counts absence only for attempts seen alive at
+  the current epoch, and the store has no hub-side read of signed worker evidence,
+  so the hub cannot act on it. Vector text: confirm_end = the sweep writer confirms
+  the attempt end by the backend's own evidence (hub two sweeps at last-seen epoch
+  then G; hubless independent probe, evidence read first). Fix belongs in the backend
+  (worker_contract sweep), with a failing-first unit test. Not patched in T-3522,
+  which only maps the op.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011, wc-conformance]
 components: []
 related_tasks: [T-3522, T-3517, T-3484]
@@ -39,8 +49,8 @@ origin: {kind: "agent"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:52:47Z
-last_update: 2026-10-21T14:52:47Z
-date_finished: null
+last_update: 2026-10-21T15:30:05Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +61,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T15:30:05Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3525: wc/0.3 hub: confirm_end does not read signed evidence before confirming an end (CC-01, CC-03 evidence-present)
@@ -311,6 +335,12 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3525-wc 2>&1; grep -qE "^  CC-01 +pass "
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-21 — no hub-side evidence intake needed
+- **What changed:** the "hub cannot read signed evidence before an end" reading came from a vector missing its
+  seen-alive precondition; AEF ruled the hub form needs no evidence read (that is the hubless form) and fixed the vectors.
+- **Plan impact:** no backend work; CC-01 and CC-03 pass at 25f56ed68.
+- **Triggered:** none.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -367,3 +397,7 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3525-wc 2>&1; grep -qE "^  CC-01 +pass "
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3525-wc03-hub-confirmend-does-not-read-signed.md
 - **Context:** Initial task creation
+
+### 2026-10-21T15:30:05Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
