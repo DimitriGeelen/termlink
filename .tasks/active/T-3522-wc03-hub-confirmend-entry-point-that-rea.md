@@ -1,13 +1,17 @@
 ---
 id: T-3522
-name: "wc/0.3 hub: confirm_end entry point that reads signed evidence before confirming an end (CC-01,02,03,06)"
+name: "wc/0.3 hub: confirm_end entry point that reads signed evidence before confirming
+  an end (CC-01,02,03,06)"
 description: >
-  From the T-3517 conformance adapter: the store has no end-confirmation entry point; the sweep counts absence only for attempts seen alive at the current epoch and does not read signed evidence before confirming an end. Add confirm_end per contract §3.2 and drive CC-01/02/03/06 to pass through the adapter.
+  From the T-3517 conformance adapter: the store has no end-confirmation entry point;
+  the sweep counts absence only for attempts seen alive at the current epoch and does
+  not read signed evidence before confirming an end. Add confirm_end per contract
+  §3.2 and drive CC-01/02/03/06 to pass through the adapter.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:43:50Z
-last_update: 2026-10-21T14:43:50Z
-date_finished: null
+last_update: 2026-10-21T14:46:05Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +54,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T14:46:05Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3522: wc/0.3 hub: confirm_end entry point that reads signed evidence before confirming an end (CC-01,02,03,06)
@@ -62,8 +80,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Decided and recorded in Decisions, with the vector text quoted: AEF's vocabulary defines `confirm_end` for the hub as "two sweeps at the last-seen epoch then G" (evidence read first is the hubless form). Whether the S2 sweep (`absent_twice_then_lost_only_after_grace`, `done_evidence_inside_grace_prevents_lost`) already is that behaviour, so the gap is the adapter's mapping, or whether the backend lacks something (e.g. reading fenced done evidence before T4)
+- [ ] The conformance adapter maps `confirm_end` for the hub to the real sweep path (driving the sweeps with the injected clock, never a shortcut that writes the state directly), and CC-01, CC-02, CC-03 and CC-06 each report pass, or fail with the diverging step named; any backend change is minimal, comes with a failing-first unit test, and changes no case that already passes (CC-04, 07, 14, 16, 18, 23)
+- [ ] Every case still failing after this is filed as its own bug task with the diverging step; the conformance map is updated from the adapter's output
+- [ ] `cargo test -p termlink-bus -p termlink-hub` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +134,9 @@ date_finished: null
 -->
 
 ## Verification
+
+bash scripts/run-wc-vectors.sh > /tmp/.t3522-wc 2>&1; ! grep -qE "^  CC-0[1236] +not-implemented " /tmp/.t3522-wc && grep -qE "^summary: 25 cases" /tmp/.t3522-wc
+cargo test -p termlink-bus -p termlink-hub > /tmp/.t3522 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3522
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +387,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3522-wc03-hub-confirmend-entry-point-that-rea.md
 - **Context:** Initial task creation
+
+### 2026-10-21T14:46:05Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
