@@ -7,12 +7,12 @@ description: >
   AEF and TermLink agreed 2026-10-20. Spec: AEF docs/specs/shared-worker-contract-transitions.md
   v0.2 (f600187a6) + TermLink's three v0.2.1 fixes; design: docs/reports/T-3484-termlink-build-design.md.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T20:19:59Z
-last_update: 2026-10-21T13:34:39Z
-date_finished:
+last_update: 2026-10-21T13:53:55Z
+date_finished: 2026-10-21T13:53:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -139,6 +139,10 @@ signed operator identity exists, T-3493). Builds on S1 (698d630f5) and S2 (a6b58
 -->
 
 ## Verification
+
+cargo test -p termlink-bus --lib worker_contract > /tmp/.t3503-bus 2>&1 && grep -q "cc15_unknown_resolution_by_operator ... ok" /tmp/.t3503-bus && ! grep -q "test result: FAILED" /tmp/.t3503-bus
+cargo test -p termlink-hub --lib dispatch_contract > /tmp/.t3503-hub 2>&1 && grep -q "test result: ok" /tmp/.t3503-hub && ! grep -q "test result: FAILED" /tmp/.t3503-hub
+bash scripts/check-error-code-emission.sh --quiet
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -399,3 +403,22 @@ signed operator identity exists, T-3493). Builds on S1 (698d630f5) and S2 (a6b58
 - **Assumptions** (spec §5 and the vector text were not readable from this project, T-559 boundary): ANSWER_TTL 10 min; ask and ack use the attempt nonce, answer the supervisor token; `stored` past its deadline becomes `expired` (question marked bounced), `stored` on an ended attempt becomes `undelivered`, `received` is never expired by the clock; resolve `done` is attested and invents no outcome. CC-10 is modelled as "parent loss changes nothing durable, a successor with the token answers": marked partial in the map.
 - **Outside the stated file list (wiring only):** `termlink-protocol/src/control.rs` (3 method constants), `termlink-hub/src/router.rs` and `server.rs` (route, capability list, Interact scope), `termlink-cli` `cli.rs` / `main.rs` / `commands/infrastructure.rs` (resolve entry). Last AC left unticked for that reason and because of the test result below.
 - **Tests:** `cargo test -p termlink-bus` 182 passed. `cargo test -p termlink-hub --lib` 554 passed, 1 failed (`channel::tests::subscribe_timeout_ms_zero_is_snapshot`, a timing test on a loaded host; passes alone in 10 s); hub integration tests after the lib failure did not run in that invocation. `cargo check -p termlink` clean. `check-error-code-emission.sh` clean.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-924f962f
+- **Timestamp:** 2026-10-21T13:54:08Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#5 (Agent)** — Only `crates/termlink-bus/src/worker_contract*`, `crates/termlink-hub/src/dispatch_contract.rs`, the hub CLI entry for resolve, the wiring a new RPC needs (method constants in `termlink-protocol/src/c
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-hub/src/dispatch_contract.rs in: Only `crates/termlink-bus/src/worker_contract*`, `crates/termlink-hub/src/dispatch_contract.rs`, the hub CLI entry for resolve, the wiring a new RPC n`
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T13:53:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
