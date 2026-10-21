@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3462: arc-011 sidecar: sender keeps a message until the recipient reports STORED; resend on the R-44.e accept deadline, bounded, then needs-attention
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T11:59:20Z
+# ============================================================================
+
+task_id: T-3462
+task_name: "arc-011 sidecar: sender keeps a message until the recipient reports STORED; resend on the R-44.e accept deadline, bounded, then needs-attention"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-18T09:39:15Z
+completed: 2026-10-21T11:58:33Z
+duration_days: 3
+updates_count: 3
+first_commit: 2026-10-20T21:56:34+02:00
+last_commit: 2026-10-20T22:27:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  concrete acceptance criteria (keep until STORED, bounded resend, needs-attention). sidecar sender keeps a posted message until the recipient reports STORED; bounded resend on the R-44.e accept deadline with doubling gaps, then NOT_ACCEPTED + needs-attention
+
+# Key outcomes
+outcomes:
+  - 'When the hub accepts a message post (POSTED), the sender keeps a durable record of the signed post (it survives a Sender restart), instead of forgetting the message once the outbox row is removed; stage records (no msg id) are not tracked'
+  - 'A message whose recipient has reported STORED (or any later stage) is released: its record is removed and it is never resent'
+  - 'A message with no STORED report past the R-44.e accept deadline (60 s normal, 15 s urgent = priority >= 5) is resent through the outbox with the same msg id as `client_msg_id`, and a `RESENT` line is written to its chain'
+  - 'Resends are bounded with growing gaps (deadline × 2^n after each attempt, at most MAX_RESENDS); after the last one runs out, the record is dropped and a needs-attention entry (`not-accepted`) names the message — no endless flooding'
+  - 'Tests in crates/termlink-sidecar (temp dirs and a fake hub only, never the real runtime dir or live hub) cover: record kept at POSTED, release on STORED, resend after deadline (normal and urgent), growing gap, give-up attention entry, restart durability; `cargo test -p termlink-sidecar` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/send.rs'
+  - 'crates/termlink-sidecar/tests/resend_tests.rs'
+  - '.tasks/active/T-3462-arc-011-sidecar-sender-keeps-a-message-u.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T21:56:34'
+    action: 'T-3462: concrete acceptance criteria (keep until STORED, bounded resend, needs-attention)'
+  - time: '2026-10-20T22:27:32'
+    action: 'T-3462: sidecar sender keeps a posted message until the recipient reports STORED; bounded resend on the R-44.e accept deadline with doubling gaps, then NOT_ACCEPTED + needs-attention'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4459 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4459
+  commits: 2
+  files_changed: 3
+  lines_added: 418
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3462-arc-011-sidecar-sender-keeps-a-message-u.md
+generated_by: context-agent-hybrid
