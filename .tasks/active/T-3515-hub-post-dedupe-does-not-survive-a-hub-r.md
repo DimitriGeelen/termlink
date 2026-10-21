@@ -1,13 +1,21 @@
 ---
 id: T-3515
-name: "Hub post dedupe does not survive a hub restart: a resend across the restart is stored twice"
+name: "Hub post dedupe does not survive a hub restart: a resend across the restart
+  is stored twice"
 description: >
-  Found by T-3511 (0300255fb): the hub's client_msg_id dedupe (crates/termlink-hub/src/dedupe.rs) is an in-memory LRU, so a hub restart between a post and its resend lets the resend append a second copy. The recipient's Duplicate outcome absorbs it, so nothing is applied twice, but the hub log holds two records and 'stored before accepted, exactly once' (O-2) is not true at the hub across a restart. Options: persist (sender_id, client_msg_id) -> offset in meta.db with the TTL, or look up the topic's recent records by client_msg_id on a cache miss. Test: post, restart hub (new Bus on the same dir), resend same id -> one record.
+  Found by T-3511 (0300255fb): the hub's client_msg_id dedupe (crates/termlink-hub/src/dedupe.rs)
+  is an in-memory LRU, so a hub restart between a post and its resend lets the resend
+  append a second copy. The recipient's Duplicate outcome absorbs it, so nothing is
+  applied twice, but the hub log holds two records and 'stored before accepted, exactly
+  once' (O-2) is not true at the hub across a restart. Options: persist (sender_id,
+  client_msg_id) -> offset in meta.db with the TTL, or look up the topic's recent
+  records by client_msg_id on a cache miss. Test: post, restart hub (new Bus on the
+  same dir), resend same id -> one record.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -38,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T12:36:25Z
-last_update: 2026-10-21T12:36:25Z
-date_finished: null
+last_update: 2026-10-21T12:39:42Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +58,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T12:39:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3515: Hub post dedupe does not survive a hub restart: a resend across the restart is stored twice
@@ -62,8 +84,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Regression test written first and failing on main: post with a client_msg_id, drop the hub state as a restart does (new Bus / new dedupe on the same dir), post again with the same (sender, client_msg_id) → today two records; must be one, and the second call returns the first offset with `deduped: true`
+- [ ] Dedupe survives a restart for at least the existing TTL (`TERMLINK_DEDUPE_TTL_MS`, default 300 s): either persisted alongside the record in the same meta.db commit (no extra fsync per post; T-3488 counted durable steps) or recovered on a cache miss from the topic's recent records; the choice and its cost are recorded in Decisions
+- [ ] The T-3488 durable-step test (`a_post_is_two_durable_steps_and_a_create_is_one`) still passes unchanged, the in-memory LRU fast path and `dedupe_hits_total` keep working, and the T-3511 test that pins 2 copies across a hub restart is updated to 1
+- [ ] `cargo test -p termlink-bus -p termlink-hub` and `TERMLINK_BIN=<built termlink> cargo test -p termlink-sidecar --test resend_tests` pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +388,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3515-hub-post-dedupe-does-not-survive-a-hub-r.md
 - **Context:** Initial task creation
+
+### 2026-10-21T12:39:42Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now

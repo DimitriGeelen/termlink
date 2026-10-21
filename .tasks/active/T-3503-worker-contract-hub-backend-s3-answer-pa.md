@@ -1,13 +1,16 @@
 ---
 id: T-3503
-name: "Worker contract hub backend S3: answer path (dispatch.ask/answer/ack, TTL bounce) and hub-host CLI resolve (T7d); CC-10/12/15 (T-3484)"
+name: "Worker contract hub backend S3: answer path (dispatch.ask/answer/ack, TTL bounce)
+  and hub-host CLI resolve (T7d); CC-10/12/15 (T-3484)"
 description: >
-  GATE: build starts only after ring20 agrees to contract v0.2 (AEF msg 028ffa5a); AEF and TermLink agreed 2026-10-20. Spec: AEF docs/specs/shared-worker-contract-transitions.md v0.2 (f600187a6) + TermLink's three v0.2.1 fixes; design: docs/reports/T-3484-termlink-build-design.md.
+  GATE: build starts only after ring20 agrees to contract v0.2 (AEF msg 028ffa5a);
+  AEF and TermLink agreed 2026-10-20. Spec: AEF docs/specs/shared-worker-contract-transitions.md
+  v0.2 (f600187a6) + TermLink's three v0.2.1 fixes; design: docs/reports/T-3484-termlink-build-design.md.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T20:19:59Z
-last_update: 2026-10-20T20:19:59Z
-date_finished: null
+last_update: 2026-10-21T12:39:39Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +53,41 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T12:39:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3503: Worker contract hub backend S3: answer path (dispatch.ask/answer/ack, TTL bounce) and hub-host CLI resolve (T7d); CC-10/12/15 (T-3484)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Slice S3 of the hub backend for the shared worker contract v0.3.3: the answer path (contract §5) and
+`dispatch.resolve` (T7d). Design: `docs/reports/T-3484-termlink-build-design.md` §2 (`wc_answers`, `wc_questions`),
+§3 (`dispatch.ask` / `dispatch.answer` / `dispatch.ack`, `dispatch.resolve`) and §7 item 3 (T7d is a hub-host CLI until a
+signed operator identity exists, T-3493). Builds on S1 (698d630f5) and S2 (a6b583a31). Case map:
+`docs/reports/T-3484-conformance-map.md` (CC-10, CC-11, CC-12, CC-15 are open for this slice).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `dispatch.ask`, `dispatch.answer` and `dispatch.ack {cmd_id, received|applied}` implemented per §3 with the `wc_answers` / `wc_questions` tables; every write is one transaction, fenced like S1 (nonce or supervisor token, attempt, prior state), with refusals as FENCE_REJECTED reasons and a history row
+- [ ] Answer states stored → received → applied, with `undelivered` and `expired` (TTL bounce) driven by the existing sweep, never by events; tested with injected time
+- [ ] `dispatch.resolve {dispatch_id, attempt, as, reason}` (T7d) exists only as a hub-host CLI path (no network RPC accepts it), logs its reason in history, and refuses unless the attempt is `unknown`; tested
+- [ ] Tests named for CC-10 (parent-session loss), CC-11 (answer delivered and acked), CC-12 (answer TTL expiry bounces) and CC-15 (unknown resolution by operator), with injected time and fake liveness, temp dirs only (T-3293 rule); the conformance map updated to "covered" for each one proven
+- [ ] Only `crates/termlink-bus/src/worker_contract*`, `crates/termlink-hub/src/dispatch_contract.rs`, the hub CLI entry for resolve, and new test files are changed; `cargo test -p termlink-bus -p termlink-hub` passes and `bash scripts/check-error-code-emission.sh` is clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +388,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3503-worker-contract-hub-backend-s3-answer-pa.md
 - **Context:** Initial task creation
+
+### 2026-10-21T12:39:39Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now
