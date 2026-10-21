@@ -63,8 +63,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] AEF ruled (msg d0f2e96a, 2026-10-21): neither relaxation; §3.4 and CC-17 stay strict (T4 only for an attempt seen alive at the epoch of the two absent sweeps; a never-seen attempt leaves only through the deadlines T6b/T6). The vectors lacked a `seen_alive_epoch` precondition, fixed in AEF T-4556 (25f56ed68). The hub's no_transition was correct; no backend change
+- [x] The adapter at 25f56ed68 reports CC-03 and CC-06 pass (CC-06 after the separate fence-order fix T-3529, db9facce5)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -115,6 +115,8 @@ date_finished: null
 -->
 
 ## Verification
+
+bash scripts/run-wc-vectors.sh > /tmp/.t3526-wc 2>&1; grep -qE "^  CC-03 +pass " /tmp/.t3526-wc && grep -qE "^  CC-06 +pass " /tmp/.t3526-wc
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

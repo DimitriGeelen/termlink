@@ -63,8 +63,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Resolved by AEF's ruling (msg d0f2e96a, 2026-10-21) and vector fix T-4556 (25f56ed68), not by a hub change: confirm_end is the whole macro (two absent sweeps at the last-seen epoch, then G) and presumes a last-seen epoch; the vectors lacked `seen_alive_epoch` in `given`. The hub store's no_transition for a never-seen attempt was correct, and no hub-side signed-evidence read is required for the hub form (evidence-first is the hubless form)
+- [x] The adapter at 25f56ed68 reports CC-01 and CC-03 (both variants) pass with no backend change
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -115,6 +115,8 @@ date_finished: null
 -->
 
 ## Verification
+
+bash scripts/run-wc-vectors.sh > /tmp/.t3525-wc 2>&1; grep -qE "^  CC-01 +pass " /tmp/.t3525-wc && grep -qE "^  CC-03 +pass " /tmp/.t3525-wc
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
