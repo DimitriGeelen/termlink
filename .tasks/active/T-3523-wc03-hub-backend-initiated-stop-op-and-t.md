@@ -56,7 +56,7 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Scope narrowed 2026-10-22 to CC-25 (backend-initiated stop).** The T7d gates moved: the agent-session gate (CC-15) is T-3527, and the material binding with the consumer refusal (CC-22) is T-3539.
 
 ## Acceptance Criteria
 

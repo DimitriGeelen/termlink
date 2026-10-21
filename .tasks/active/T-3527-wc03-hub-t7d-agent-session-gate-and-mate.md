@@ -56,14 +56,17 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Scope narrowed 2026-10-22 to CC-15.** The material binding and the attested-done consumer refusal (CC-22) are T-3539, and the stop op (CC-25) stays in T-3523.
+Spec §3.3 T7d: resolve is a hub-host CLI. Every call is logged with actor and reason, and it posts an operator notice. "Speed bump: the CLI refuses an agent session (agent-environment markers present) without an explicit, recorded override; this is stated as a speed bump, not identity." The AEF marker is `CLAUDECODE=1` (as in `lib/arc.sh`'s agent gate). Today `resolve_on_host` (crates/termlink-hub/src/dispatch_contract.rs:125) has no gate, and history records the actor as a fixed "operator".
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `resolve_on_host` takes the caller's session kind and an optional override reason. An agent session with no override is refused by name (`agent_session`) and writes nothing. An agent session WITH an override is accepted and records the override in history (actor names the agent session and the override reason). An operator session is accepted as today
+- [ ] `termlink hub dispatch-resolve` treats `CLAUDECODE=1` as an agent session and gains `--override "<reason>"` (non-empty reason required); the refusal message says it is a speed bump, not identity, and how to override
+- [ ] History rows written by resolve carry the real actor rather than a fixed "operator"; the reason stays in the row's cause
+- [ ] Tests (failing first): agent without override refused and the record unchanged; agent with override accepted, with the override recorded; operator accepted. The conformance adapter maps `session`/`override` to the gate and reports `logged_actor`/`logged_reason` from the history row; `scripts/run-wc-vectors.sh` at 25f56ed68 reports CC-15 pass with fail=0
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +117,8 @@ date_finished: null
 -->
 
 ## Verification
+cargo test -p termlink-hub --lib dispatch_contract > /tmp/.t3527 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3527 && grep -q agent_session crates/termlink-hub/src/dispatch_contract.rs
+bash scripts/run-wc-vectors.sh --ref 25f56ed68 > /tmp/.t3527-v 2>&1 && grep -qE 'CC-15 +pass' /tmp/.t3527-v && grep -qE 'summary: .* fail=0 ' /tmp/.t3527-v
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
