@@ -1,13 +1,15 @@
 ---
 id: T-3470
-name: "T-2026 build: agent.checkout and agent.commit RPCs (scope = claim_id, optional release on commit, per-agent audit event)"
+name: "T-2026 build: agent.checkout and agent.commit RPCs (scope = claim_id, optional
+  release on commit, per-agent audit event)"
 description: >
-  Second slice of the T-2026 GO. Blocked on the design slice. MCP parity per the repo convention.
+  Second slice of the T-2026 GO. Blocked on the design slice. MCP parity per the repo
+  convention.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: [T-2026, T-3469, T-3471]
@@ -39,8 +41,8 @@ arc_id: arc-parallel-substrate
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T20:42:05Z
-last_update: 2026-10-18T20:42:05Z
-date_finished: null
+last_update: 2026-10-21T08:49:57Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,19 +53,39 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T08:49:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3470: T-2026 build: agent.checkout and agent.commit RPCs (scope = claim_id, optional release on commit, per-agent audit event)
 
 ## Context
 
-Second slice of the T-2026 GO. Blocked on T-3469 (the shape it locks, and the IW-3 ruling). Do not start before T-3469 is complete.
+Second slice of the T-2026 GO. T-3469 is complete and IW-3 is ruled B (2026-10-21), so this is unblocked.
+
+Clone strategy (agent choice, 2026-10-21): 0909 has not answered on snapshot vs reflink. Measured on .107
+(T-3469 brief §6): reflink 72 KiB new data / 43 s, snapshot 0 B / 8.8 s but forces a btrfs commit, full clone
+122 MiB / 35 s. Default is therefore **reflink** (`cp -a --reflink=always` of the per-repo template) on btrfs,
+`git clone --dissociate` elsewhere or when reflink fails; `snapshot` is a selectable strategy
+(`TERMLINK_WORKTREE_STRATEGY=reflink|snapshot|clone`) so 0909's answer becomes a default change, not a rewrite.
 
 ## Acceptance Criteria
 
 ### Agent
 - [ ] agent.checkout and agent.commit implemented with the shape locked in T-3469 (docs/reports/T-3469-agent-launch-surface-design.md §2; IW-3 = B, ruled 2026-10-21): a CLI verb + MCP tool (parity test), NOT a hub RPC; ownership checked with the shipped `channel.renew`
-- [ ] checkout creates the worker clone under `/var/lib/termlink/work/<hub8>/<claim_id>`: on btrfs a snapshot or reflink copy of a per-repo template kept current by fetch (choice per 0909's input), elsewhere `git clone --dissociate`; the guard bootstrap installs and verifies hooks and refuses fail-closed, tested with a missing hook
+- [ ] checkout creates the worker clone under `/var/lib/termlink/work/<hub8>/<claim_id>`: on btrfs a reflink copy (default) or snapshot of a per-repo template kept current by fetch, selectable by `TERMLINK_WORKTREE_STRATEGY`, elsewhere `git clone --dissociate` (each strategy tested in a temp dir; btrfs-only cases skip with a visible reason off btrfs); never under the operator's checkout and never a `git worktree`; the guard bootstrap installs and verifies hooks and refuses fail-closed, tested with a missing hook
 - [ ] The commit-fails case keeps the claim (tested)
 - [ ] agent.commit refuses a scope that is not a live claim held by the caller (CLAIM_NOT_OWNED / CLAIM_NOT_FOUND), tested
 - [ ] Optional release-on-commit releases the named claim only after the commit exists, tested including the commit-fails case (claim kept)
@@ -118,6 +140,8 @@ Second slice of the T-2026 GO. Blocked on T-3469 (the shape it locks, and the IW
 -->
 
 ## Verification
+
+cargo test -p termlink-cli -p termlink-mcp > /tmp/.t3470 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3470
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -368,3 +392,7 @@ Second slice of the T-2026 GO. Blocked on T-3469 (the shape it locks, and the IW
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3470-t-2026-build-agentcheckout-and-agentcomm.md
 - **Context:** Initial task creation
+
+### 2026-10-21T08:49:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now

@@ -1,13 +1,16 @@
 ---
 id: T-3502
-name: "Worker contract hub backend S2: state sweep_dispatches (T4/T6/T6b/T7a/T7c) with registry_epoch over the T-3490 worker binding; CC-01/02/03/08/09/17/20/21 (T-3484)"
+name: "Worker contract hub backend S2: state sweep_dispatches (T4/T6/T6b/T7a/T7c)
+  with registry_epoch over the T-3490 worker binding; CC-01/02/03/08/09/17/20/21 (T-3484)"
 description: >
-  GATE: build starts only after ring20 agrees to contract v0.2 (AEF msg 028ffa5a); AEF and TermLink agreed 2026-10-20. Spec: AEF docs/specs/shared-worker-contract-transitions.md v0.2 (f600187a6) + TermLink's three v0.2.1 fixes; design: docs/reports/T-3484-termlink-build-design.md.
+  GATE: build starts only after ring20 agrees to contract v0.2 (AEF msg 028ffa5a);
+  AEF and TermLink agreed 2026-10-20. Spec: AEF docs/specs/shared-worker-contract-transitions.md
+  v0.2 (f600187a6) + TermLink's three v0.2.1 fixes; design: docs/reports/T-3484-termlink-build-design.md.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T20:19:18Z
-last_update: 2026-10-20T20:19:18Z
-date_finished: null
+last_update: 2026-10-21T08:49:54Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +53,42 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T08:49:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3502: Worker contract hub backend S2: state sweep_dispatches (T4/T6/T6b/T7a/T7c) with registry_epoch over the T-3490 worker binding; CC-01/02/03/08/09/17/20/21 (T-3484)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Slice S2 of the hub backend for the shared worker contract (v0.3.3, agreed by AEF, ring20 and TermLink).
+Design: `docs/reports/T-3484-termlink-build-design.md` §4 (state sweep, registry epoch, AEF conditions a–d)
+and §5. S1 (T-3501, commit 698d630f5) built the tables and `dispatch.allocate/transition/get` in
+`crates/termlink-bus/src/worker_contract.rs` and `crates/termlink-hub/src/dispatch_contract.rs`. The worker
+binding (`--worker-binding <dispatch>:<attempt>`, unique among live registrations) exists from T-3490.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `sweep_dispatches` runs as a step of the hub's existing sweep and drives T4, T6 (both rows), T7a and T7c from STATE (registration files + records), never from events, each write going through S1's fenced transition path with writer `hub` and a history row
+- [ ] Registry epoch per §4: bumped at hub start and on any sweep whose listing was incomplete; absence counts toward T4 only on two consecutive sweeps at the attempt's `seen_epoch`; an epoch change can lead only to `unknown` via deadlines, never `lost` (tested: hub restart between sweeps, and an unreadable sessions dir)
+- [ ] T4 `lost` only after end observed twice plus grace G (≥ 4 × sweep interval) with no fenced `done` evidence; `lost` stays upgradable by T5 and `lost → running` is never written (a re-appearing binding gives a log line + operator notice instead), tested
+- [ ] T6: `dispatched` past `deadline_dispatched` → `unknown`; `running` with a live registration past `deadline_running` → `unknown`; T7a: `unknown` with a live binding → `running`; tested
+- [ ] Conformance CC-01, CC-02, CC-03, CC-08 and CC-09 pass as Rust tests with injected time and fake liveness, temp dirs only (T-3293 rule: never the real supervisor loop, never the real runtime dir)
+- [ ] Only `crates/termlink-bus/src/worker_contract*` and `crates/termlink-hub/src/{dispatch_contract,supervisor}.rs` (plus a new test file) are changed; `cargo test -p termlink-bus -p termlink-hub` passes and `bash scripts/check-error-code-emission.sh` stays clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +139,9 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo test -p termlink-bus -p termlink-hub > /tmp/.t3502 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3502
+bash scripts/check-error-code-emission.sh --quiet
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +392,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3502-worker-contract-hub-backend-s2-state-swe.md
 - **Context:** Initial task creation
+
+### 2026-10-21T08:49:54Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now
