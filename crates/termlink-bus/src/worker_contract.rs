@@ -343,6 +343,9 @@ impl WcStore {
                 attempts.push(a);
             }
             d["attempts"] = Value::Array(attempts);
+            let (bounced, replays) = answer::bounce_json(&conn, dispatch_id)?;
+            d["bounced_to_dispatcher"] = bounced;
+            d["retry_ladder_entries"] = json!(replays);
             Ok(d)
         })
     }

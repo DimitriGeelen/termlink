@@ -448,3 +448,76 @@ fn cc12_attempt_terminal_closes_unapplied_answers() {
     // Nothing left for the sweep.
     assert!(s.sweep_answers(4_001).unwrap().is_empty());
 }
+
+/// T-3528 (CC-12 `then`): the dispatch record names what bounced back to the dispatcher.
+/// An expired answer and an attempt-ended one both bounce; a received or applied answer
+/// does not. Nothing has been re-posted, so the replay count is 0.
+#[test]
+fn bounced_to_dispatcher_lists_expired_and_undelivered_answers() {
+    let (_d, s) = store();
+    let a = running(&s);
+    s.answer(&answer(&a, "c-ttl", None), 2_000).unwrap();
+    s.answer(&answer(&a, "c-recv", None), 2_001).unwrap();
+    s.ack(&ack(&a, "c-recv", "received"), 2_002).unwrap();
+    let v = s.get(&a.dispatch_id).unwrap();
+    assert_eq!(v["bounced_to_dispatcher"], serde_json::json!([]));
+    assert_eq!(v["retry_ladder_entries"], 0);
+    s.sweep_answers(2_000 + ANSWER_TTL_MS + 1).unwrap();
+    s.answer(&answer(&a, "c-stored", None), 2_000 + ANSWER_TTL_MS + 2).unwrap();
+    end_attempt(&s, &a, 2_000 + ANSWER_TTL_MS + 3);
+    let v = s.get(&a.dispatch_id).unwrap();
+    // c-ttl expired first; the attempt end then closed c-recv and c-stored as undelivered.
+    assert_eq!(v["bounced_to_dispatcher"], serde_json::json!(["c-ttl", "c-recv", "c-stored"]));
+    assert_eq!(v["retry_ladder_entries"], 0);
+}
+
+/// T-3528: §5.5 says a bounced answer is never re-posted into a replacement attempt. The
+/// record counts any such re-post, so a violation is visible rather than silent.
+#[test]
+fn reposting_a_bounced_answer_into_the_next_attempt_is_counted() {
+    let (_d, s) = store();
+    let a = running(&s);
+    s.answer(&answer(&a, "c1", None), 2_000).unwrap();
+    end_attempt(&s, &a, 3_000);
+    let a2 = s
+        .allocate(&AllocateRequest { attempt_of: Some(a.dispatch_id.clone()), ..Default::default() }, 3_100)
+        .unwrap();
+    assert_eq!(a2.attempt, 2);
+    s.transition(
+        &TransitionRequest {
+            dispatch_id: a2.dispatch_id.clone(),
+            attempt: a2.attempt,
+            nonce: a2.nonce.clone(),
+            supervisor_token: Some(a2.supervisor_token.clone()),
+            expected_prior: "dispatched".into(),
+            to: "running".into(),
+            supervisor_gen: 1,
+            ..Default::default()
+        },
+        3_150,
+    )
+    .unwrap();
+    s.answer(&answer(&a2, "c1", None), 3_200).unwrap();
+    let v = s.get(&a.dispatch_id).unwrap();
+    assert_eq!(v["bounced_to_dispatcher"], serde_json::json!(["c1"]));
+    assert_eq!(v["retry_ladder_entries"], 1);
+}
+
+fn end_attempt(s: &WcStore, a: &Allocation, at: i64) {
+    s.transition(
+        &TransitionRequest {
+            dispatch_id: a.dispatch_id.clone(),
+            attempt: a.attempt,
+            nonce: a.nonce.clone(),
+            supervisor_token: Some(a.supervisor_token.clone()),
+            expected_prior: "running".into(),
+            to: "done".into(),
+            supervisor_gen: 1,
+            evidence_digest: Some("E".into()),
+            exit_code: Some(0),
+            ..Default::default()
+        },
+        at,
+    )
+    .unwrap();
+}

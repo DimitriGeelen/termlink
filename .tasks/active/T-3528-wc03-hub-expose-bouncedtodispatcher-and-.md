@@ -1,13 +1,19 @@
 ---
 id: T-3528
-name: "wc/0.3 hub: expose bounced_to_dispatcher and retry_ladder_entries on the dispatch record (CC-12)"
+name: "wc/0.3 hub: expose bounced_to_dispatcher and retry_ladder_entries on the dispatch
+  record (CC-12)"
 description: >
-  From T-3520 (6a3bbd9f1): after the terminal-attempt fix CC-12's answer state matches, but the case asserts then.bounced_to_dispatcher (both variants) and likely retry_ladder_entries, which the hub does not expose on the dispatch record (dispatch.get / the bus read path the adapter uses, crates/termlink-hub/tests/wc_conformance.rs). Define both from AEF's vocabulary (vectors b4c168aa9 or later), record them durably, expose them, map them in the adapter; CC-12 then reports pass.
+  From T-3520 (6a3bbd9f1): after the terminal-attempt fix CC-12's answer state matches,
+  but the case asserts then.bounced_to_dispatcher (both variants) and likely retry_ladder_entries,
+  which the hub does not expose on the dispatch record (dispatch.get / the bus read
+  path the adapter uses, crates/termlink-hub/tests/wc_conformance.rs). Define both
+  from AEF's vocabulary (vectors b4c168aa9 or later), record them durably, expose
+  them, map them in the adapter; CC-12 then reports pass.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -38,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T15:03:29Z
-last_update: 2026-10-21T15:03:29Z
-date_finished: null
+last_update: 2026-10-21T23:19:10Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +56,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T23:19:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3528: wc/0.3 hub: expose bounced_to_dispatcher and retry_ladder_entries on the dispatch record (CC-12)
@@ -62,10 +82,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The dispatch record (the bus read the hub serves on `dispatch.get`) carries `bounced_to_dispatcher`: the cmd_ids of this dispatch's answers in state `undelivered` or `expired`, in the order they were closed. Derived from the durable `wc_answers` rows the sweep already writes (answer.rs), no new table
-- [ ] It carries `retry_ladder_entries`: the number of answer rows in ANY attempt of the dispatch that re-use a bounced cmd_id (a replay or re-post of a bounced answer). Spec §5.5 says a bounced answer is never re-posted and never replayed into a replacement attempt; this counts violations of that, so it is a measured value (0 when the rule holds), not a constant
-- [ ] Unit tests in termlink-bus: an expired answer and an attempt-ended undelivered answer both appear in `bounced_to_dispatcher`; a stored/received/applied answer does not; re-appending a bounced cmd_id into attempt 2 makes `retry_ladder_entries` 1 (failing first)
-- [ ] `scripts/run-wc-vectors.sh` at 25f56ed68 reports CC-12 pass (both variants), with no other case regressing (pass 16, fail 0); docs/reports/T-3484-conformance-map.md updated
+- [x] The dispatch record (the bus read the hub serves on `dispatch.get`) carries `bounced_to_dispatcher`: the cmd_ids of this dispatch's answers in state `undelivered` or `expired`, in the order they were closed. Derived from the durable `wc_answers` rows the sweep already writes (answer.rs), no new table
+- [x] It carries `retry_ladder_entries`: the number of answer rows in ANY attempt of the dispatch that re-use a bounced cmd_id (a replay or re-post of a bounced answer). Spec §5.5 says a bounced answer is never re-posted and never replayed into a replacement attempt; this counts violations of that, so it is a measured value (0 when the rule holds), not a constant
+- [x] Unit tests in termlink-bus: an expired answer and an attempt-ended undelivered answer both appear in `bounced_to_dispatcher`; a stored/received/applied answer does not; re-appending a bounced cmd_id into attempt 2 makes `retry_ladder_entries` 1 (failing first)
+- [x] `scripts/run-wc-vectors.sh` at 25f56ed68 reports CC-12 pass (both variants), with no other case regressing (pass 16, fail 0); docs/reports/T-3484-conformance-map.md updated
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -368,3 +388,7 @@ bash scripts/run-wc-vectors.sh --ref 25f56ed68 > /tmp/.t3528-v 2>&1 && grep -qE 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3528-wc03-hub-expose-bouncedtodispatcher-and-.md
 - **Context:** Initial task creation
+
+### 2026-10-21T23:19:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

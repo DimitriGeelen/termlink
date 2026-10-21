@@ -733,9 +733,13 @@ impl Hub {
         let mut attempts = Map::new();
         let mut dispatcher_session = Value::Null;
         let mut attempt_count = 0;
+        // T-3528 (CC-12): dispatch-level bounce facts, read from the record as served.
+        let (mut bounced, mut ladder) = (Value::Null, Value::Null);
         if let Some(d) = &self.dispatch {
             let v = self.bus.wc_get(d).map_err(|e| Fail::Mismatch(format!("get refused: {e:?}")))?;
             dispatcher_session = v["dispatcher"]["session"].clone();
+            bounced = v["bounced_to_dispatcher"].clone();
+            ladder = v["retry_ladder_entries"].clone();
             let list = v["attempts"].as_array().cloned().unwrap_or_default();
             attempt_count = list.len();
             for a in &list {
@@ -789,6 +793,8 @@ impl Hub {
             "dispatcher_session": dispatcher_session,
             "new_dispatch_retry_of": retry_of,
             "operator_notices": self.notice_total() - self.base_notices,
+            "bounced_to_dispatcher": bounced,
+            "retry_ladder_entries": ladder,
         }))
     }
 

@@ -190,6 +190,32 @@ fn answer_json(conn: &Connection, id: &str, attempt: i64, cmd: &str) -> WcResult
     )?)
 }
 
+/// T-3528 (§5.5, CC-12): what bounced back to the dispatcher, and whether any of it was
+/// re-posted. `bounced` lists the cmd_ids of this dispatch's answers the sweep (or a terminal
+/// transition) closed as `undelivered` or `expired`, in closing order. The count is answer
+/// rows in a LATER attempt that re-use a bounced cmd_id: §5.5 says a bounced answer is never
+/// re-posted or replayed into a replacement attempt, so this measures violations (0 when the
+/// rule holds) rather than stating a constant.
+pub(super) fn bounce_json(conn: &Connection, id: &str) -> WcResult<(Value, i64)> {
+    let bounced: Vec<String> = conn
+        .prepare(
+            "SELECT cmd_id FROM wc_answers WHERE dispatch_id=?1 AND state IN ('undelivered','expired')
+             ORDER BY closed_at, attempt, cmd_id",
+        )?
+        .query_map(params![id], |r| r.get(0))?
+        .collect::<std::result::Result<_, _>>()?;
+    let replays: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM wc_answers a
+         WHERE a.dispatch_id=?1
+           AND EXISTS (SELECT 1 FROM wc_answers b WHERE b.dispatch_id=a.dispatch_id
+                       AND b.cmd_id=a.cmd_id AND b.attempt < a.attempt
+                       AND b.state IN ('undelivered','expired'))",
+        params![id],
+        |r| r.get(0),
+    )?;
+    Ok((json!(bounced), replays))
+}
+
 /// Questions and answers of one attempt, for `dispatch.get`.
 pub(super) fn qa_json(conn: &Connection, id: &str, attempt: i64) -> WcResult<(Value, Value)> {
     let qids: Vec<String> = conn

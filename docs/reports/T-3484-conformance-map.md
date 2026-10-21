@@ -38,8 +38,7 @@ vectors: AEF 25f56ed68 (https://raw.githubusercontent.com/DimitriGeelen/agentic-
          [main] op:inspect surface operator_queue
   CC-11  n/a              Answer delivered and acked
          capability not offered: real_worker
-  CC-12  not-implemented  Answer TTL expiry bounces
-         [deadline-passes] then.bounced_to_dispatcher: the backend does not expose it | [attempt-terminal-unacked] then.bounced_to_dispatcher: the backend does not expose it
+  CC-12  pass             Answer TTL expiry bounces
   CC-13  not-implemented  Local backend parity
          [lock-timeout-fails-closed] op:hold_lock (the per-write lock is SQLite IMMEDIATE; no hook to hold it)
   CC-14  pass             Stale supervisor generation
@@ -58,15 +57,15 @@ vectors: AEF 25f56ed68 (https://raw.githubusercontent.com/DimitriGeelen/agentic-
   CC-24  pass             Late T5 whose evidence postdates the lost entry
   CC-25  not-implemented  Backend-initiated stop
          [exit-confirmed-valid-handback] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [exit-confirmed-handback-absent] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [no-exit-evidence] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [revoked] op:stop (no backend-initiated stop in the store; transition takes no stop cause)
-summary: 25 cases: pass=15 fail=0 not-implemented=9 n/a=1
+summary: 25 cases: pass=16 fail=0 not-implemented=8 n/a=1
 ```
 
-Counts (2026-10-21, AEF `25f56ed68`, the script's default ref): **pass 15** (CC-01..07, 14, 16, 17, 18, 20, 21, 23, 24) · **fail 0** · **not-implemented 9** (CC-08, 09, 10, 12, 13, 15, 19, 22, 25) · **n/a 1** (CC-11).
+Counts (2026-10-21, AEF `25f56ed68`, the script's default ref): **pass 16** (CC-01..07, 12, 14, 16, 17, 18, 20, 21, 23, 24) · **fail 0** · **not-implemented 8** (CC-08, 09, 10, 13, 15, 19, 22, 25) · **n/a 1** (CC-11).
 CC-01 and CC-03 turned pass when AEF added the `seen_alive_epoch` precondition (their T-4556, ruling msg d0f2e96a; the hub
 did not change). CC-06 turned pass with the fence-order fix T-3529 (db9facce5). The hub-side notes for every case were sent
 to AEF as a patch (T-3530, `docs/reports/T-3530-vectors-hub.patch`, sha256 b8fa05be…dfa97c8).
 
-Progress the same day: afe974124 pass 5 / fail 3 → b4c168aa9 pass 12 / fail 3 → 25f56ed68 pass 15 / fail 0.
+Progress the same day: afe974124 pass 5 / fail 3 → b4c168aa9 pass 12 / fail 3 → 25f56ed68 pass 15 / fail 0. On 2026-10-22 T-3528 took it to pass 16 / fail 0 (CC-12).
 
 Before T-3521 (same tree, AEF `b4c168aa9`): pass 7 · fail 4 (CC-01, 03, 06, 12) · not-implemented 13 · n/a 1. T-3521 turned
 CC-05, 17, 20, 21 and 24 into pass and moved CC-08 from an unreadable notice step to the `wait` op. CC-12 left `fail` for
@@ -80,7 +79,7 @@ None at 25f56ed68. Resolved, for the record:
 
 | Case | Diverging step (earlier run) | Task | Resolution |
 |---|---|---|---|
-| CC-12 | `append_answer` naming an unasked `q1` → `cas_mismatch` | T-3520 | AEF ruled the store right and fixed the vector (b4c168aa9); the remaining answer-state bug (unapplied answers stay `stored` on a terminal attempt) fixed in 6a3bbd9f1. Now not-implemented only for the `bounced_to_dispatcher` read surface (T-3528). |
+| CC-12 | `append_answer` naming an unasked `q1` → `cas_mismatch` | T-3520 | AEF ruled the store right and fixed the vector (b4c168aa9); the remaining answer-state bug (unapplied answers stay `stored` on a terminal attempt) fixed in 6a3bbd9f1. T-3528 (2026-10-22) exposes `bounced_to_dispatcher` (the cmd_ids of undelivered or expired answers, in closing order) and `retry_ladder_entries` (re-posts of a bounced cmd_id into a later attempt: a measured violation count, not a constant) on the dispatch record. CC-12 passes both variants. |
 | CC-01, CC-03 | `confirm_end` → `no_transition` | T-3525, T-3526 | AEF ruled the store right (strict §3.4) and added the missing `seen_alive_epoch` precondition (25f56ed68). No hub change. |
 | CC-06 | `reclaim` of a stale attempt → `forbidden_transition`, expected `stale_attempt` | T-3529 | Fence order fixed in db9facce5 (attempt currency before transition legality). |
 | CC-16, CC-21 | refused exit with absent handback → `handback-malformed` | T-3518, T-3519 | `derive_outcome` order fixed in 762dd909f. |
