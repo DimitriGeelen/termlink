@@ -1,13 +1,17 @@
 ---
 id: T-3537
-name: "register --token-secret --verbose prints the session secret to stdout (T-3533 follow-up)"
+name: "register --token-secret --verbose prints the session secret to stdout (T-3533
+  follow-up)"
 description: >
-  crates/termlink-cli/src/commands/session.rs:451 prints 'Token auth enabled. Secret: <hex>' under --verbose. Output is often captured into logs (runme logs, tmux scrollback), which defeats T-3533's rule that a token is never logged. Print where the secret is stored (path, mode) instead of its value.
+  crates/termlink-cli/src/commands/session.rs:451 prints 'Token auth enabled. Secret:
+  <hex>' under --verbose. Output is often captured into logs (runme logs, tmux scrollback),
+  which defeats T-3533's rule that a token is never logged. Print where the secret
+  is stored (path, mode) instead of its value.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T22:08:40Z
-last_update: 2026-10-21T22:08:40Z
-date_finished: null
+last_update: 2026-10-21T23:09:26Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +54,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T23:09:26Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3537: register --token-secret --verbose prints the session secret to stdout (T-3533 follow-up)
@@ -62,9 +80,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `termlink register --token-secret` prints the secret's value neither under `--verbose` (session.rs:451) nor in `--json` (session.rs:491, field `token_secret`); `--json` carries `token_auth: true` instead. No consumer reads the JSON field (grep 2026-10-22: `token create` and MCP read the registration file), so dropping it breaks nothing
-- [ ] CHANGELOG notes the `--json` field change
-- [ ] A test pins it: registering with `--token-secret --verbose` in a temp runtime dir produces output that does not contain the stored `token_secret`
+- [x] `termlink register --token-secret` prints the secret's value neither under `--verbose` (session.rs:451) nor in `--json` (session.rs:491, field `token_secret`); `--json` carries `token_auth: true` instead. No consumer reads the JSON field (grep 2026-10-22: `token create` and MCP read the registration file), so dropping it breaks nothing
+- [x] CHANGELOG notes the `--json` field change
+- [x] A test pins it: registering with `--token-secret` in a temp runtime dir, in `--json` and in the default (verbose) output, produces output that does not contain the stored `token_secret` (`cli_register_token_secret_is_never_printed`; fails against the previous session.rs: "json: output printed the token secret")
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -368,3 +386,7 @@ cargo test -p termlink --test cli_integration > /tmp/.t3537 2>&1 && ! grep -q "t
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3537-register---token-secret---verbose-prints.md
 - **Context:** Initial task creation
+
+### 2026-10-21T23:09:26Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

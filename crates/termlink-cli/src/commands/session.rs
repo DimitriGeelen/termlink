@@ -448,7 +448,8 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
         let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
         session.registration.token_secret = Some(secret_hex.clone());
         if verbose {
-            println!("Token auth enabled. Secret: {secret_hex}");
+            // T-3537: never print the secret; it lives only in the registration file.
+            println!("Token auth enabled (secret stored in the session registration, not shown).");
             println!("  Create tokens with: termlink token create {} --scope observe", session.id());
         }
         Some(secret_hex)
@@ -488,7 +489,7 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
             "socket_path": session.registration.socket_path().display().to_string(),
             "pid": std::process::id(),
             "shell": shell,
-            "token_secret": token_secret_hex,
+            "token_auth": token_secret_hex.is_some(),
         }));
     } else if verbose {
         println!("Session registered:");

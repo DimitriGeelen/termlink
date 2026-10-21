@@ -20,6 +20,10 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `--token-secret` session no longer locks out its own doorbell. A refused ring shows as a
   `WARN doorbell:` line in `fw sidecar status`.
 - `termlink token create --scope notify` mints the doorbell-only token.
+- `termlink register --token-secret` no longer prints the session secret (T-3537). `--json` output
+  replaces the `token_secret` field with `token_auth: true`; the default output says token auth is
+  enabled without the value. The secret stays in the session registration file, where
+  `termlink token create` reads it.
 
 See `docs/operations/session-token-doorbell.md`.
 

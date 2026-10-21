@@ -1878,6 +1878,49 @@ fn cli_vendor_merges_existing_mcp_settings() {
     );
 }
 
+/// T-3537: `register --token-secret` never prints the secret, in `--json` or `--verbose`
+/// output. The secret lives only in the registration file, which this test reads to know
+/// what must not appear.
+#[test]
+fn cli_register_token_secret_is_never_printed() {
+    // "verbose" is register's default output (neither --json nor --quiet).
+    for (label, extra) in [("json", &["--json"][..]), ("verbose", &[][..])] {
+        let dir = TestDir::new(&format!("token-secret-quiet-{label}"));
+        let mut reg = termlink_cmd(&dir.path)
+            .args(["register", "--name", "secret-quiet", "--token-secret"])
+            .args(extra)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn register");
+        let socket = wait_for_socket(&dir.sessions_dir(), Duration::from_secs(10)).expect("Socket never appeared");
+        let reg_json = socket.with_extension("json");
+        let mut secret = String::new();
+        for _ in 0..50 {
+            if let Some(s) = std::fs::read_to_string(&reg_json)
+                .ok()
+                .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+                .and_then(|v| v["token_secret"].as_str().map(str::to_string))
+            {
+                secret = s;
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        std::thread::sleep(Duration::from_millis(300));
+        let _ = reg.kill();
+        let out = reg.wait_with_output().expect("register output");
+        assert!(!secret.is_empty(), "{label}: registration file carries no token_secret");
+        let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(!text.contains(&secret), "{label}: output printed the token secret: {text}");
+        if label == "json" {
+            assert!(text.contains("\"token_auth\":true"), "{label}: json lacks token_auth: {text}");
+        } else {
+            assert!(text.contains("Token auth enabled"), "{label}: verbose lacks the notice: {text}");
+        }
+    }
+}
+
 #[test]
 fn cli_token_create_and_inspect_roundtrip() {
     let dir = TestDir::new("token-roundtrip");
