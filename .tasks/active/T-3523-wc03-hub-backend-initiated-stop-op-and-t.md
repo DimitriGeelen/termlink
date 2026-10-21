@@ -1,13 +1,18 @@
 ---
 id: T-3523
-name: "wc/0.3 hub: backend-initiated stop op and T7d resolve gates (CC-15, CC-22, CC-25)"
+name: "wc/0.3 hub: backend-initiated stop op and T7d resolve gates (CC-15, CC-22,
+  CC-25)"
 description: >
-  From the T-3517 conformance adapter: no stop op (CC-25); resolve_on_host has no agent-session gate and ResolveRequest carries no material or outcome (CC-15, CC-22); suspected: resolve_tx sets evidence_digest to operator:<sha> where the no-material variant expects null, and leaves outcome NULL where succeeded is expected (unverified until the steps run).
+  From the T-3517 conformance adapter: no stop op (CC-25); resolve_on_host has no
+  agent-session gate and ResolveRequest carries no material or outcome (CC-15, CC-22);
+  suspected: resolve_tx sets evidence_digest to operator:<sha> where the no-material
+  variant expects null, and leaves outcome NULL where succeeded is expected (unverified
+  until the steps run).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:43:57Z
-last_update: 2026-10-21T14:43:57Z
-date_finished: null
+last_update: 2026-10-21T23:45:30Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +55,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T23:45:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3523: wc/0.3 hub: backend-initiated stop op and T7d resolve gates (CC-15, CC-22, CC-25)
@@ -62,8 +81,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] The store records a backend-initiated stop (`Bus::wc_stop`): fenced by the supervisor token, cause ∈ {deadline_stop, revoked, operator_stop} (anything else is `invalid`), only on a `dispatched` or `running` attempt (a terminal or unknown attempt is `cas_mismatch`). A repeat with the same cause is a no-op; a different cause after the first is refused. Per spec §3.3 the stop is an action, not a state: it writes no history row and changes no state, and the attempt record shows `stop_cause`
+- [ ] The confirmed end that follows carries the cause on its history entry: T3 (`done`, including `handback-malformed`) uses the request's cause or else the recorded stop cause, and the sweep's T4 (`lost`) uses the recorded stop cause instead of its own. No new attempt is allocated by a stop
+- [ ] `dispatch.stop` JSON-RPC (Execute, like `dispatch.transition`) with the method constant in control.rs and the router entry; the error-code emission and MCP parity checks stay clean
+- [ ] Bus unit tests cover the four CC-25 variants (exit confirmed with a valid hand-back, exit confirmed with the hand-back absent, no exit evidence then the sweep, revoked), plus the refusals (bad token, bad cause, terminal attempt, conflicting second cause). The conformance adapter maps `op: stop` and reports `history_causes` (the cause on each attempt's last lifecycle row); `scripts/run-wc-vectors.sh` at 25f56ed68 reports CC-25 pass with fail=0
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +135,9 @@ date_finished: null
 -->
 
 ## Verification
+cargo test -p termlink-bus --lib worker_contract > /tmp/.t3523 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3523 && grep -q 'fn stop_' crates/termlink-bus/src/worker_contract/tests.rs
+bash scripts/run-wc-vectors.sh --ref 25f56ed68 > /tmp/.t3523-v 2>&1 && grep -qE 'CC-25 +pass' /tmp/.t3523-v && grep -qE 'summary: .* fail=0 ' /tmp/.t3523-v
+bash scripts/check-error-code-emission.sh > /tmp/.t3523-e 2>&1
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +388,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3523-wc03-hub-backend-initiated-stop-op-and-t.md
 - **Context:** Initial task creation
+
+### 2026-10-21T23:45:30Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
