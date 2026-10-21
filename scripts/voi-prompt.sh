@@ -29,7 +29,8 @@
 #   --task T-XXX   stop asking about THIS inception
 #   --global       stop asking about voi_score at all
 #
-# Store: .context/checks/voi-decisions.yaml (git-tracked). Holds current state per key
+# Store: .context/checks/voi-decisions.yaml (git-tracked, written only by --record). The --check
+# counter is untracked (.context/working/.voi-runs, or FW_VOI_RUNS_FILE; T-3508). Holds state per key
 # plus an append-only `history:` so "what did we decide and when" survives.
 #
 # FAILS OPEN, ALWAYS. It asks; it does not gate. Any error exits 0 with nothing pending.
@@ -45,6 +46,10 @@
 set -uo pipefail
 
 STORE="${FW_VOI_STORE:-.context/checks/voi-decisions.yaml}"
+# T-3508: the --check counter lives OUTSIDE the tracked store, so a check (the guard
+# layer runs one on every push) never dirties a tracked file. Default: the gitignored
+# .context/working/.voi-runs for the default store, else <store>.runs beside it.
+RUNS_FILE="${FW_VOI_RUNS_FILE:-}"
 TASKS_DIR="${FW_VOI_TASKS_DIR:-.tasks/active}"
 CUTOFF="${FW_VOI_CUTOFF:-2026-09-26}"
 DEFAULT_SNOOZE="${FW_VOI_DEFAULT_SNOOZE:-10}"
@@ -76,7 +81,7 @@ command -v python3 >/dev/null 2>&1 || exit 0     # fail-open
 
 MODE="$MODE" TASK="$TASK" CHOICE="$CHOICE" VALUE="$VALUE" REASON="$REASON" \
 SNOOZE="$SNOOZE" SCOPE="$SCOPE" JSON="$JSON" QUIET="$QUIET" STORE="$STORE" \
-TASKS_DIR="$TASKS_DIR" CUTOFF="$CUTOFF" DEFAULT_SNOOZE="$DEFAULT_SNOOZE" \
+TASKS_DIR="$TASKS_DIR" CUTOFF="$CUTOFF" DEFAULT_SNOOZE="$DEFAULT_SNOOZE" RUNS_FILE="$RUNS_FILE" \
 python3 <<'PYEOF'
 import glob, json, os, re, sys, datetime
 
@@ -85,6 +90,9 @@ mode, task, choice = E["MODE"], E["TASK"], E["CHOICE"]
 value, reason, scope = E["VALUE"], E["REASON"], E["SCOPE"]
 as_json, quiet = E["JSON"] == "1", E["QUIET"] == "1"
 store, tdir, cutoff = E["STORE"], E["TASKS_DIR"], E["CUTOFF"].strip()
+runs_file = E.get("RUNS_FILE") or (
+    ".context/working/.voi-runs" if os.path.normpath(store) == os.path.normpath(".context/checks/voi-decisions.yaml")
+    else store + ".runs")
 try:
     default_snooze = max(1, int(E["DEFAULT_SNOOZE"]))
 except ValueError:
@@ -121,7 +129,27 @@ def load_store():
     if not isinstance(d["history"], list): d["history"] = []
     try: d["runs"] = int(d["runs"])
     except (TypeError, ValueError): d["runs"] = 0
+    # The tracked `runs` is a floor written at --record time; the live count is in
+    # runs_file. Take the larger so neither a fresh clone nor an old store resets it.
+    d["runs"] = max(d["runs"], read_runs())
     return d
+
+def read_runs():
+    try:
+        return max(0, int(open(runs_file, encoding="utf-8").read().strip() or 0))
+    except (OSError, ValueError):
+        return 0
+
+def save_runs(n):
+    try:
+        os.makedirs(os.path.dirname(runs_file) or ".", exist_ok=True)
+        tmp = runs_file + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write("%d\n" % n)
+        os.replace(tmp, runs_file)
+        return True
+    except OSError:
+        return False
 
 def save_store(d):
     try:
@@ -129,8 +157,9 @@ def save_store(d):
         tmp = store + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             fh.write("# voi_score decision store (T-3175). Managed by scripts/voi-prompt.sh.\n"
-                     "# `runs` counts --check invocations; a snooze recorded at run R is\n"
-                     "# askable again at R + snooze_runs. `history` is append-only.\n")
+                     "# `runs` is the --check count as of the last --record (a floor; the live\n"
+                     "# count is untracked, T-3508). A snooze recorded at run R is askable\n"
+                     "# again at R + snooze_runs. `history` is append-only.\n")
             yaml.safe_dump(d, fh, sort_keys=False, allow_unicode=True, width=100)
         os.replace(tmp, store)
         return True
@@ -272,7 +301,7 @@ if not global_suppressed:
                 suppressed.append((tid, "answered %s (file not yet updated)" % e.get("value"))); continue
         pending.append((tid, f, "never asked"))
 
-save_store(d)
+save_runs(run)   # T-3508: a check writes only the untracked counter, never the tracked store
 
 if as_json:
     print(json.dumps({

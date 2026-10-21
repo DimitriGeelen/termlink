@@ -51,7 +51,7 @@ printf '%s' "$o" | grep -q 'T-104' && bad "pre-cutoff task asked about" "$o" || 
 
 echo "== Case 2: THE CYCLE — snooze, silence for exactly N, then re-ask =="
 # --snooze 3 => silent for runs 1,2,3 and re-asked at run 4 (askable_at_run = R+N+1)
-rm -f "$ST"; rec --task T-100 --choice snooze --snooze 3 >/dev/null 2>&1
+rm -f "$ST" "$ST.runs"; rec --task T-100 --choice snooze --snooze 3 >/dev/null 2>&1
 rec --task T-101 --choice waive --reason "throwaway spike" >/dev/null 2>&1
 [ "$(pend T-100)" = "no" ] && ok "run 1 after snooze: silent about T-100" || bad "snooze not honoured at run 1" "$(cat $TMP/.p)"
 [ "$(pend T-100)" = "no" ] && ok "run 2: still silent" || bad "run2" ""
@@ -62,10 +62,10 @@ grep -q 're-ask' "$TMP/.p" && ok "  and says it is a RE-ASK, not a fresh questio
 [ "$(pend_of "$TMP/.p" T-101)" = "no" ] && ok "the permanent waiver stays silent across all runs" || bad "waiver re-asked" ""
 
 echo "== Case 3: the two scopes are different requests =="
-rm -f "$ST"
+rm -f "$ST" "$ST.runs"
 rec --global --choice snooze --snooze 2 >/dev/null 2>&1
 # snooze N recorded at run R is askable at R+N+1, so N=2 -> silent for runs 1,2; expires at run 3
-rm -f "$ST"; rec --global --choice snooze --snooze 2 >/dev/null 2>&1
+rm -f "$ST" "$ST.runs"; rec --global --choice snooze --snooze 2 >/dev/null 2>&1
 o="$(chk --json)"                       # run 1: silent
 printf '%s' "$o" | grep -q '"global_suppressed": true' && ok "global snooze silences everything" || bad "global snooze" "$o"
 printf '%s' "$o" | grep -q '"pending_count": 0' && ok "  nothing pending while globally snoozed" || bad "global pending" "$o"
@@ -74,7 +74,7 @@ o="$(chk --json)"                       # run 3: expiry
 printf '%s' "$o" | grep -q 'EXPIRED' && ok "global snooze EXPIRES and says so" || bad "global expiry" "$o"
 
 echo "== Case 4: a permanent waiver still needs a reason (carried from T-3174) =="
-rm -f "$ST"
+rm -f "$ST" "$ST.runs"
 rc_is "waive with no --reason is refused" 2 "$(recrc --task T-100 --choice waive)"
 rc_is "waive with an empty --reason is refused" 2 "$(recrc --task T-100 --choice waive --reason '')"
 rc_is "waive WITH a reason is accepted" 0 "$(recrc --task T-100 --choice waive --reason 'not worth ranking')"
@@ -83,7 +83,7 @@ rc_is "an unknown choice is refused" 2 "$(recrc --task T-100 --choice maybe)"
 rc_is "--record with neither --task nor --global is refused" 2 "$(recrc --choice snooze)"
 
 echo "== Case 5: the store records who/when and keeps history =="
-rm -f "$ST"
+rm -f "$ST" "$ST.runs"
 rec --task T-100 --choice snooze --snooze 5 >/dev/null 2>&1
 rec --task T-100 --choice set --value 0.7 >/dev/null 2>&1
 grep -q 'recorded_at' "$ST" && ok "store records WHEN a decision was made" || bad "recorded_at" ""
@@ -105,7 +105,7 @@ rc=$?; [ "$rc" = "0" ] || [ "$rc" = "1" ] && ok "a malformed task file never cra
 rm -f "$D/T-999.md"
 
 echo "== Case 7: --quiet and --status =="
-rm -f "$ST"; mk T-200 inception 2026-10-01 "voi_score: 0.9"
+rm -f "$ST" "$ST.runs"; mk T-200 inception 2026-10-01 "voi_score: 0.9"
 o="$(FW_VOI_TASKS_DIR="$TMP/empty" FW_VOI_STORE="$ST" bash "$S" --check --quiet 2>&1)"
 [ -z "$o" ] && ok "--quiet is silent when there is nothing to ask" || bad "--quiet" "$o"
 rec --task T-300 --choice snooze --snooze 4 >/dev/null 2>&1
@@ -113,10 +113,22 @@ o="$(FW_VOI_STORE="$ST" bash "$S" --status 2>&1)"
 printf '%s' "$o" | grep -q 'run(s) left' && ok "--status shows how many runs remain on a snooze" || bad "status" "$o"
 grep -q '^# guard-layer: source' "$S" && ok "carries the guard-layer marker" || bad "marker" ""
 
+echo "== Case 7b: a check never rewrites the tracked store (T-3508) =="
+rm -f "$ST" "$ST.runs"; mk T-500 inception 2026-10-01 "voi_score: 0.5"
+rec --task T-500 --choice snooze --snooze 2 >/dev/null 2>&1
+before="$(sha256sum "$ST" | cut -d' ' -f1)"
+for _ in 1 2 3; do chk >/dev/null; done
+[ "$(sha256sum "$ST" | cut -d' ' -f1)" = "$before" ] && ok "three checks leave the tracked store byte-identical" \
+    || bad "store mutated by --check" "$(diff <(echo) "$ST" | head -5)"
+[ "$(cat "$ST.runs" 2>/dev/null)" -ge 3 ] 2>/dev/null && ok "the counter advanced in the untracked runs file" \
+    || bad "runs file" "$(cat "$ST.runs" 2>&1)"
+[ "$(pend T-500)" = "yes" ] && ok "...and the snooze still expires on that counter" || bad "expiry via runs file" "$(cat "$TMP/.p")"
+rm -f "$D/T-500.md"
+
 echo "== Case 8: MUTANT — break expiry, the snooze becomes permanent =="
 M="$TMP/mutant.sh"
 sed 's|            left = e.get("askable_at_run", 0) - run|            left = 999999|' "$S" > "$M"
-rm -f "$ST"; mk T-400 inception 2026-10-01 "voi_score: 0.5"
+rm -f "$ST" "$ST.runs"; mk T-400 inception 2026-10-01 "voi_score: 0.5"
 FW_VOI_TASKS_DIR="$D" FW_VOI_STORE="$ST" bash "$S" --record --task T-400 --choice snooze --snooze 1 >/dev/null 2>&1
 for _ in 1 2 3; do FW_VOI_TASKS_DIR="$D" FW_VOI_STORE="$ST" bash "$M" --check --json >/dev/null 2>&1; done
 FW_VOI_TASKS_DIR="$D" FW_VOI_STORE="$ST" bash "$M" --check --json > "$TMP/.m" 2>&1
