@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T19:55:25Z
-last_update: 2026-10-21T09:04:22Z
+last_update: 2026-10-21T09:05:00Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -450,6 +450,19 @@ Prompt (d) — crash and fuzz runs:
 - **Recommendation so far:** keep for one-off independent checks (it found 2 real reds the host run had
   missed because nothing ran those fixtures on push here); not a replacement for host runs, since a third of
   the guard layer cannot run off-host.
+
+### 2026-10-21 — results of (c), (d) and the T-3511 re-derivation
+- **(c) independent review** of T-3322/T-3462 (main 914ae796): 3 real defects, all confirmed by code reading and filed:
+  T-3509 (high: topic delete during a reclaim loses a re-created topic's acked posts, fixed 5b6b5236d), T-3510
+  (unreadable awaiting record dropped silently, fixed 5fcfdd85c), T-3511 (resend pile-up while the hub is down).
+- **(d) crash/stress** (main 914ae796, 4 CPU, 15 GB): no defect. Loops x300 quiet / x100 loaded (stress-ng, load ~22):
+  bus compaction, crash/kill, concurrency, claims; sidecar deadline, keep-until-stored, fault matrix: 0 failures. A
+  SIGKILL harness (5 topics with every retention kind, compaction at low thresholds, 4 readers from random offsets,
+  journal of acked posts) ran 1545 iterations / 1545 kills / 0 failures in ~57 min.
+- **T-3511 re-derivation:** reproduced (outbox 1→2→3→4 copies, NOT_ACCEPTED at the 4th resend while the hub was only
+  unreachable); worker w-resend-down dispatched with that as the regression test.
+- **Value so far:** one high-severity data-loss race and two medium defects found that the host suite never hit, plus an
+  hour of fault injection the host could not afford; cost visible only on the operator's usage page.
 
 ### 2026-10-20T19:55:25Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
