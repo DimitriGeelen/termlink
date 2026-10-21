@@ -1618,6 +1618,63 @@ head2 "21. Retention sweeper on for the .122 hub — THE .122 HUB RESTARTS (T-33
 enable_sweep_122
 
 # ---------------------------------------------------------------------------
+# 22. ring20's deep-inception pack (T-3477): move it from /var/tmp into a GITIGNORED
+# folder and delete the drop. ring20 (msg c8880c1c, 2026-10-21) placed it on this host and
+# asked: keep it inside the estate (never in a public repo; this repo mirrors to GitHub),
+# copy it out of /var/tmp, then delete it there. The agent's session cannot read /var/tmp
+# (project boundary), hence this action. Verified before AND after: the tarball's sha256
+# must match ring20's, every file must match the SHA256SUMS inside, and git must ignore
+# the destination; only then is the drop removed. Nothing in the pack is executed.
+# Idempotent: skips when the destination already verifies and the drop is gone.
+# Seams (fixtures only): RUNME_PACK_SRC, RUNME_PACK_DEST, RUNME_PACK_GITROOT, RUNME_PACK_SHA.
+# ---------------------------------------------------------------------------
+seam PACK_SRC RUNME_PACK_SRC "/var/tmp/ring20-deep-inception-pack.tgz"
+seam PACK_DEST RUNME_PACK_DEST "$PROJECT_ROOT/.context/working/ring20-deep-inception"
+seam PACK_GITROOT RUNME_PACK_GITROOT "$PROJECT_ROOT"
+PACK_SHA="${RUNME_PACK_SHA:-2ee08f7818dbe2792d306052f5ae66c1663276bf5477c85b79a5e6b2c32834f7}"
+
+pack_verifies() {  # 0 when $PACK_DEST holds the unpacked pack and every SHA256SUMS line matches
+    local sums; sums="$(find "$PACK_DEST" -name SHA256SUMS -type f 2>/dev/null | head -1)"
+    [ -n "$sums" ] || return 1
+    ( cd "$(dirname "$sums")" && grep -E '^[0-9a-f]{64}  ' SHA256SUMS | sha256sum -c --quiet - >/dev/null 2>&1 )
+}
+
+import_ring20_pack() {
+    if pack_verifies && [ ! -e "$PACK_SRC" ]; then
+        say "  skip    pack already in $PACK_DEST and verified; the /var/tmp drop is gone"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ ! -e "$PACK_SRC" ]; then
+        say "  FAILED  no pack at $PACK_SRC and none verified in $PACK_DEST — ask ring20 to place it again"; FAILED=$((FAILED+1)); return
+    fi
+    local got; got="$(sha256sum "$PACK_SRC" | cut -d' ' -f1)"
+    if [ "$got" != "$PACK_SHA" ]; then
+        say "  FAILED  $PACK_SRC sha256 $got does not match ring20's $PACK_SHA — not copied, not deleted"; FAILED=$((FAILED+1)); return
+    fi
+    if ! git -C "$PACK_GITROOT" check-ignore -q "$PACK_DEST/probe" 2>/dev/null; then
+        say "  FAILED  $PACK_DEST is not gitignored — refusing to place estate material where it could be committed"; FAILED=$((FAILED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would unpack $PACK_SRC (sha256 ok) into $PACK_DEST, verify SHA256SUMS, then delete the drop"; DONE=$((DONE+1)); return
+    fi
+    mkdir -p "$PACK_DEST" && chmod 700 "$PACK_DEST"
+    if ! tar -xzf "$PACK_SRC" -C "$PACK_DEST" --no-same-owner --no-same-permissions; then
+        say "  FAILED  could not unpack $PACK_SRC into $PACK_DEST — drop kept"; FAILED=$((FAILED+1)); return
+    fi
+    cp -p "$PACK_SRC" "$PACK_DEST/ring20-deep-inception-pack.tgz"
+    if ! pack_verifies; then
+        say "  FAILED  unpacked files do not match the SHA256SUMS inside — drop kept for ring20 to check"; FAILED=$((FAILED+1)); return
+    fi
+    if rm -f "$PACK_SRC" && [ ! -e "$PACK_SRC" ]; then
+        say "  OK      pack unpacked into $PACK_DEST (gitignored, mode 700), every file verified, /var/tmp drop deleted"; DONE=$((DONE+1))
+    else
+        say "  FAILED  verified copy in place but could not delete $PACK_SRC"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "22. ring20's deep-inception pack into a gitignored folder; delete the /var/tmp drop (T-3477)"
+import_ring20_pack
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.

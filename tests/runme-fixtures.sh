@@ -37,6 +37,18 @@ printf '{"hubs":[{"name":"%s","retention_sweep_interval_secs":%s}]}\n' "${RUNME_
 EOS
 chmod +x "$TMP/fake-gov"
 
+# T-3477 (action 22): ring20's deep-inception pack. A scratch git repo whose .gitignore covers
+# work/*, a fake pack (two files + SHA256SUMS), and a default state of "already imported, drop
+# gone" so every other case skips action 22 without touching /var/tmp or the real repo.
+PACK_REPO="$TMP/packrepo"; mkdir -p "$PACK_REPO/work" "$TMP/packsrc/pack"
+git -C "$PACK_REPO" init -q 2>/dev/null; printf 'work/*\n' > "$PACK_REPO/.gitignore"
+printf 'plan\n' > "$TMP/packsrc/pack/plan.md"; printf 'chain: v2\n' > "$TMP/packsrc/pack/role-chain.yaml"
+( cd "$TMP/packsrc/pack" && sha256sum plan.md role-chain.yaml > SHA256SUMS && echo >> SHA256SUMS )
+tar -czf "$TMP/pack-good.tgz" -C "$TMP/packsrc" pack
+export RUNME_PACK_GITROOT="$PACK_REPO" RUNME_PACK_DEST="$PACK_REPO/work/pack" RUNME_PACK_SRC="$TMP/pack-drop.tgz"
+export RUNME_PACK_SHA="$(sha256sum "$TMP/pack-good.tgz" | cut -d' ' -f1)"
+mkdir -p "$RUNME_PACK_DEST" && tar -xzf "$TMP/pack-good.tgz" -C "$RUNME_PACK_DEST"
+
 # T-2988 (action 9): stateful fake termlink for health:ring20-fedprobe. State is
 # "<kind> <value> <count>" in $FAKE_FEDPROBE_STATE; default = already bounded, so
 # every other case below skips action 9 without touching a real hub.
@@ -499,7 +511,7 @@ else bad "log path printed" "$out"; fi
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 30 ))   # +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 31 ))   # +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1336,6 +1348,41 @@ if [ "$rc" = "1" ] && echo "$s21" | grep -q "FAILED  fake-hub after restart: int
     ok "sweeper: restart that does not take effect => FAILED (verified, not trusted)"
 else bad "sweeper not applied" "rc=$rc: $s21"; fi
 sweep_case 3600; unset RUNME_SWEEP_HUB
+
+# ---------------------------------------------------------------------------
+# T-3477 action 22 — ring20's pack: verify before and after, delete the drop only when
+# the copy verifies, never place it where git would track it.
+# ---------------------------------------------------------------------------
+s22() { echo "$1" | sed -n '/^.*22\. ring20.s deep-inception pack/,/^.*Verification/p'; }
+pack_reset() { rm -rf "$RUNME_PACK_DEST"; rm -f "$RUNME_PACK_SRC"; }
+out=$(run); x=$(s22 "$out")
+if echo "$x" | grep -q "skip    pack already in .* verified; the /var/tmp drop is gone"; then ok "pack: already imported, drop gone => skip"
+else bad "pack skip" "$x"; fi
+pack_reset; cp "$TMP/pack-good.tgz" "$RUNME_PACK_SRC"
+out=$(run --dry-run); x=$(s22 "$out")
+if echo "$x" | grep -q "\[DRY\]   would unpack" && [ -e "$RUNME_PACK_SRC" ] && [ ! -d "$RUNME_PACK_DEST" ]; then ok "pack: --dry-run changes nothing"
+else bad "pack dry-run" "$x"; fi
+out=$(run); x=$(s22 "$out")
+if echo "$x" | grep -q "OK      pack unpacked into" && [ ! -e "$RUNME_PACK_SRC" ] && [ -f "$RUNME_PACK_DEST/pack/plan.md" ]; then
+    ok "pack: unpacked, verified, drop deleted"
+else bad "pack apply" "$x"; fi
+pack_reset; printf 'not the pack' > "$RUNME_PACK_SRC"
+out=$(run); rc=$?; x=$(s22 "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  .* sha256 .* does not match" && [ -e "$RUNME_PACK_SRC" ] && [ ! -d "$RUNME_PACK_DEST" ]; then
+    ok "pack: wrong sha256 => FAILED, nothing copied, drop kept"
+else bad "pack wrong sha" "rc=$rc: $x"; fi
+pack_reset; mkdir -p "$TMP/packbad/pack"; cp "$TMP/packsrc/pack/"* "$TMP/packbad/pack/"; printf 'tampered\n' > "$TMP/packbad/pack/plan.md"
+tar -czf "$RUNME_PACK_SRC" -C "$TMP/packbad" pack
+out=$(RUNME_PACK_SHA="$(sha256sum "$RUNME_PACK_SRC" | cut -d' ' -f1)" run); rc=$?; x=$(s22 "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  unpacked files do not match the SHA256SUMS inside" && [ -e "$RUNME_PACK_SRC" ]; then
+    ok "pack: contents not matching SHA256SUMS => FAILED, drop kept"
+else bad "pack tampered" "rc=$rc: $x"; fi
+pack_reset; cp "$TMP/pack-good.tgz" "$RUNME_PACK_SRC"; mkdir -p "$TMP/plainrepo"; git -C "$TMP/plainrepo" init -q 2>/dev/null
+out=$(RUNME_PACK_GITROOT="$TMP/plainrepo" RUNME_PACK_DEST="$TMP/plainrepo/pack" run); rc=$?; x=$(s22 "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  .* is not gitignored" && [ ! -d "$TMP/plainrepo/pack" ] && [ -e "$RUNME_PACK_SRC" ]; then
+    ok "pack: destination git would track => FAILED, nothing placed"
+else bad "pack not ignored" "rc=$rc: $x"; fi
+pack_reset; mkdir -p "$RUNME_PACK_DEST" && tar -xzf "$TMP/pack-good.tgz" -C "$RUNME_PACK_DEST"
 
 
 echo ""
