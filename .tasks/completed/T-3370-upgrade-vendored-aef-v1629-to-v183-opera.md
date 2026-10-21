@@ -4,12 +4,12 @@ name: "Upgrade vendored AEF v1.6.29 to v1.8.3 (operator ruling A, 2026-10-06)"
 description: >
   Full re-vendor to AEF v1.8.3 following docs/reports/T-3344-aef-upgrade-analysis.md section 5: gitignore re-includes, upgrade from a full clone with sidecar autostart held, restore the 15 TermLink-origin toolkit files, re-apply the NOT-CARRIED fixes (T-3178 first), guard layer + doctor + divergence register, fw cron install, single receiver on our inbox verified by a test send, session restart via claude-fw --termlink.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [workflow/aef-audit-cron/ac_emit, workflow/aef-dispatch-loop/dl_msg_result, workflow/aef-existing-project-onboarding/epo_human_alongside, workflow/aef-greenfield-onboarding/gfo_t001, workflow/aef-inception-flow/if_archive, workflow/aef-session-lifecycle/sl_capture, workflow/aef-task-lifecycle/tl_archive, workflow/aef-tier0-escalation/te_audit, runme.sh, scripts/agent-identity.sh, scripts/check-budget-ladder-drift.sh, scripts/lib/verification-block-batch.py, scripts/notify-sidecar.sh, tests/budget-ladder-drift-fixtures.sh, tests/budget-status-session-key-fixtures.sh, tests/bvp-auto-confirm-fixtures.sh, tests/checkpoint-verb-fixtures.sh, tests/hook-telemetry-race-fixtures.sh, tests/notify-sidecar-inbox-fixtures.sh, tests/runme-fixtures.sh, tests/verification-heading-shadow-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T11:03:00Z
-last_update: 2026-10-06T11:36:51Z
-date_finished: null
+last_update: 2026-10-21T17:56:59Z
+date_finished: 2026-10-21T17:56:59Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -299,3 +299,15 @@ bash scripts/check-vendor-divergence.sh > /tmp/.t3370-div 2>&1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3370-upgrade-vendored-aef-v1629-to-v183-opera.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8e2f1547
+- **Timestamp:** 2026-10-21T17:57:02Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-21T17:56:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
