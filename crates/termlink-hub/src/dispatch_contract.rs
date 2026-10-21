@@ -119,21 +119,54 @@ pub async fn handle_dispatch_ack(id: Value, params: &Value) -> RpcResponse {
     }
 }
 
+/// Who is calling `resolve_on_host` (T-3527, spec §3.3 T7d speed bump).
+#[derive(Debug, Clone, Default)]
+pub struct ResolveSession {
+    /// Agent-environment markers were present (the CLI reads `CLAUDECODE=1`).
+    pub agent: bool,
+    /// An explicit override reason, recorded in history when an agent session resolves.
+    pub override_reason: Option<String>,
+}
+
+/// The refusal an agent session gets without an override. Named so a caller can match it.
+pub const AGENT_SESSION_REFUSAL: &str = "agent_session";
+
+/// T-3527: the T7d speed bump. Returns the actor to record (empty: the operator), or the
+/// refusal for an agent session that gave no non-empty override reason.
+pub fn resolve_gate(session: &ResolveSession) -> Result<String, String> {
+    let over = session.override_reason.as_deref().map(str::trim).filter(|r| !r.is_empty());
+    match (session.agent, over) {
+        (false, _) => Ok(String::new()),
+        (true, Some(r)) => Ok(format!("agent session, override: {r}")),
+        (true, None) => Err(format!(
+            "refused ({AGENT_SESSION_REFUSAL}): this looks like an agent session (CLAUDECODE=1). \
+             T7d resolve is the operator's; this check is a speed bump, not identity. To resolve \
+             anyway, pass --override \"<why>\", which is recorded in the attempt's history"
+        )),
+    }
+}
+
 /// T-3503 (S3), T7d: the operator resolves an `unknown` attempt. Hub-host only: this is
 /// called by the CLI on the host that runs the hub, and nothing in the router reaches it.
 /// Until a signed operator identity exists (T-3493), being on the host is the identity.
+/// T-3527: an agent session is refused unless it carries a non-empty override reason, which
+/// is then recorded in the history row. This is a speed bump, not identity: an agent can set
+/// the override, and the record shows that it did.
 pub fn resolve_on_host(
     bus_root: &std::path::Path,
     dispatch_id: &str,
     attempt: i64,
     as_state: &str,
     reason: &str,
+    session: &ResolveSession,
 ) -> Result<Value, String> {
+    let actor = resolve_gate(session)?;
     let req = ResolveRequest {
         dispatch_id: dispatch_id.to_string(),
         attempt,
         as_state: as_state.to_string(),
         reason: reason.to_string(),
+        actor,
     };
     resolve_at(bus_root, &req, now_ms()).map_err(|e| match e {
         WcError::NotFound(d) => format!("not found: {d}"),
@@ -551,8 +584,9 @@ mod tests {
         let bus = Bus::open(d.path()).unwrap();
         let a = ok(allocate_with(&bus, json!(1), &json!({}), 1_000));
         let id = a["dispatch_id"].as_str().unwrap();
+        let op = ResolveSession::default();
         // Still `dispatched`: refused, and the refusal names the reason.
-        let e = resolve_on_host(d.path(), id, 1, "lost", "operator says so").unwrap_err();
+        let e = resolve_on_host(d.path(), id, 1, "lost", "operator says so", &op).unwrap_err();
         assert!(e.contains("cas_mismatch"), "{e}");
         // Past the dispatched deadline the sweep makes it `unknown`; then resolve works.
         let past = a["deadline_dispatched"].as_i64().unwrap() + 1;
@@ -561,10 +595,44 @@ mod tests {
             past,
         )
         .unwrap();
-        let rec = resolve_on_host(d.path(), id, 1, "done", "checked by hand").unwrap();
+        let rec = resolve_on_host(d.path(), id, 1, "done", "checked by hand", &op).unwrap();
         assert_eq!(rec["state"], "done");
         assert_eq!(rec["attested"], true);
-        let e = resolve_on_host(d.path(), "D-01J9ZZZZZZZZZZZZZZZZZZZZZZ", 1, "lost", "x").unwrap_err();
+        let e = resolve_on_host(d.path(), "D-01J9ZZZZZZZZZZZZZZZZZZZZZZ", 1, "lost", "x", &op).unwrap_err();
         assert!(e.starts_with("not found"), "{e}");
+    }
+
+    /// T-3527 (CC-15 speed bump): an agent session is refused without an override and writes
+    /// nothing; with an override it resolves and the override is in the history row; the
+    /// writer stays `operator`, so the T7d notice still fires.
+    #[test]
+    fn resolve_refuses_an_agent_session_without_a_recorded_override() {
+        let d = tempfile::tempdir().unwrap();
+        let bus = Bus::open(d.path()).unwrap();
+        let a = ok(allocate_with(&bus, json!(1), &json!({}), 1_000));
+        let id = a["dispatch_id"].as_str().unwrap().to_string();
+        let past = a["deadline_dispatched"].as_i64().unwrap() + 1;
+        bus.wc_sweep(
+            &termlink_bus::worker_contract::sweep::SweepObservation { listing_complete: true, ..Default::default() },
+            past,
+        )
+        .unwrap();
+        let before = bus.wc_get(&id).unwrap();
+
+        let agent = ResolveSession { agent: true, override_reason: None };
+        let e = resolve_on_host(d.path(), &id, 1, "lost", "host reimaged", &agent).unwrap_err();
+        assert!(e.contains(AGENT_SESSION_REFUSAL), "{e}");
+        let blank = ResolveSession { agent: true, override_reason: Some("  ".into()) };
+        assert!(resolve_on_host(d.path(), &id, 1, "lost", "host reimaged", &blank).unwrap_err().contains(AGENT_SESSION_REFUSAL));
+        assert_eq!(bus.wc_get(&id).unwrap(), before, "a refused resolve writes nothing");
+
+        let over = ResolveSession { agent: true, override_reason: Some("operator asked me to".into()) };
+        let rec = resolve_on_host(d.path(), &id, 1, "lost", "host reimaged", &over).unwrap();
+        assert_eq!(rec["state"], "lost");
+        let got = bus.wc_get(&id).unwrap();
+        let row = got["attempts"][0]["history"].as_array().unwrap().last().unwrap().clone();
+        assert_eq!(row["writer"], "operator");
+        let cause = row["cause"].as_str().unwrap();
+        assert!(cause.contains("override: operator asked me to") && cause.contains("host reimaged"), "{cause}");
     }
 }

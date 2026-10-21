@@ -70,6 +70,11 @@ pub struct ResolveRequest {
     /// `done` or `lost`.
     pub as_state: String,
     pub reason: String,
+    /// T-3527: who resolved, recorded in the history row's cause (empty: the operator). The
+    /// row's writer stays `operator` because that is the T7d role and the notice trigger
+    /// keys on it. The session gate itself is the host CLI's (`resolve_on_host`): the store
+    /// only records what the caller was.
+    pub actor: String,
 }
 
 /// Result of an answer-path write: the row as stored, and whether it was a replay.
@@ -515,7 +520,11 @@ fn resolve_tx(tx: &Transaction, req: &ResolveRequest, now: i64) -> WcResult<Valu
             format!("attempt is {}, resolve only applies to unknown", row.state),
         );
     }
-    let cause = format!("operator_resolve: {reason}");
+    let cause = match req.actor.trim() {
+        "" => format!("operator_resolve: {reason}"),
+        actor => format!("operator_resolve [{actor}]: {reason}"),
+    };
+    let actor = "operator";
     if req.as_state == "done" {
         // Attested, not evidenced: no outcome is invented, and the record says who vouched.
         let digest = format!("operator:{}", sha256_hex(reason));
@@ -524,14 +533,14 @@ fn resolve_tx(tx: &Transaction, req: &ResolveRequest, now: i64) -> WcResult<Valu
                 result_kind='none' WHERE dispatch_id=?1 AND attempt=?2",
             params![id, req.attempt, digest],
         )?;
-        append_history(tx, id, req.attempt, Some("unknown"), "done", "operator", now, Some(&digest), Some(&cause), None)?;
+        append_history(tx, id, req.attempt, Some("unknown"), "done", actor, now, Some(&digest), Some(&cause), None)?;
         close_ended_answers_tx(tx, id, req.attempt, "done", now)?;
     } else {
         tx.execute(
             "UPDATE wc_attempts SET state='lost' WHERE dispatch_id=?1 AND attempt=?2",
             params![id, req.attempt],
         )?;
-        append_history(tx, id, req.attempt, Some("unknown"), "lost", "operator", now, None, Some(&cause), None)?;
+        append_history(tx, id, req.attempt, Some("unknown"), "lost", actor, now, None, Some(&cause), None)?;
         close_ended_answers_tx(tx, id, req.attempt, "lost", now)?;
     }
     super::attempt_record(tx, id, req.attempt)

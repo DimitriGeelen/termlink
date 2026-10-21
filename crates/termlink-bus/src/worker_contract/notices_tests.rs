@@ -175,6 +175,7 @@ fn operator_resolve_of_unknown_raises_a_notice_and_a_refused_resolve_none() {
                 attempt: a.attempt,
                 as_state: as_state.into(),
                 reason: "host reimaged".into(),
+                ..Default::default()
             },
             now,
         )

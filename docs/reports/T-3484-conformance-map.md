@@ -42,8 +42,7 @@ vectors: AEF 25f56ed68 (https://raw.githubusercontent.com/DimitriGeelen/agentic-
   CC-13  not-implemented  Local backend parity
          [lock-timeout-fails-closed] op:hold_lock (the per-write lock is SQLite IMMEDIATE; no hook to hold it)
   CC-14  pass             Stale supervisor generation
-  CC-15  not-implemented  Unknown resolution by operator
-         [main] refusal:agent_session (T7d speed bump: resolve_on_host has no agent-session gate)
+  CC-15  pass             Unknown resolution by operator
   CC-16  pass             Outcome derivation
   CC-17  pass             Absence across a registry epoch
   CC-18  pass             Caller-chosen dispatch id
@@ -57,15 +56,15 @@ vectors: AEF 25f56ed68 (https://raw.githubusercontent.com/DimitriGeelen/agentic-
   CC-24  pass             Late T5 whose evidence postdates the lost entry
   CC-25  not-implemented  Backend-initiated stop
          [exit-confirmed-valid-handback] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [exit-confirmed-handback-absent] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [no-exit-evidence] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [revoked] op:stop (no backend-initiated stop in the store; transition takes no stop cause)
-summary: 25 cases: pass=16 fail=0 not-implemented=8 n/a=1
+summary: 25 cases: pass=17 fail=0 not-implemented=7 n/a=1
 ```
 
-Counts (2026-10-21, AEF `25f56ed68`, the script's default ref): **pass 16** (CC-01..07, 12, 14, 16, 17, 18, 20, 21, 23, 24) · **fail 0** · **not-implemented 8** (CC-08, 09, 10, 13, 15, 19, 22, 25) · **n/a 1** (CC-11).
+Counts (2026-10-21, AEF `25f56ed68`, the script's default ref): **pass 17** (CC-01..07, 12, 14, 15, 16, 17, 18, 20, 21, 23, 24) · **fail 0** · **not-implemented 7** (CC-08, 09, 10, 13, 19, 22, 25) · **n/a 1** (CC-11).
 CC-01 and CC-03 turned pass when AEF added the `seen_alive_epoch` precondition (their T-4556, ruling msg d0f2e96a; the hub
 did not change). CC-06 turned pass with the fence-order fix T-3529 (db9facce5). The hub-side notes for every case were sent
 to AEF as a patch (T-3530, `docs/reports/T-3530-vectors-hub.patch`, sha256 b8fa05be…dfa97c8).
 
-Progress the same day: afe974124 pass 5 / fail 3 → b4c168aa9 pass 12 / fail 3 → 25f56ed68 pass 15 / fail 0. On 2026-10-22 T-3528 took it to pass 16 / fail 0 (CC-12).
+Progress the same day: afe974124 pass 5 / fail 3 → b4c168aa9 pass 12 / fail 3 → 25f56ed68 pass 15 / fail 0. On 2026-10-22 T-3528 took it to pass 16 / fail 0 (CC-12), then T-3527 to pass 17 (CC-15).
 
 Before T-3521 (same tree, AEF `b4c168aa9`): pass 7 · fail 4 (CC-01, 03, 06, 12) · not-implemented 13 · n/a 1. T-3521 turned
 CC-05, 17, 20, 21 and 24 into pass and moved CC-08 from an unreadable notice step to the `wait` op. CC-12 left `fail` for
@@ -103,8 +102,10 @@ the backend, and the verdict is the honest state until they land.
 - **Consumers (`consume`) — CC-19, 22.** No consumer surface. Refusals `not_finished_work` live outside the store.
 - **Worker wait / collect (`ask_wait`) — CC-11 (n/a), CC-08 (wait).** No worker-side wait surface.
 - **Dispatcher ownership (`adopt`) and inspect surfaces (`operator_queue`, `worker_topics`) — CC-10.**
-- **T7d gates — CC-15, 22 (T-3527).** `resolve_on_host` has no agent-session gate, and `ResolveRequest` carries
-  no material or outcome. `via: remote` is refused by construction: resolve is not an RPC.
+- **T7d material — CC-22 (T-3539).** `ResolveRequest` carries no material or outcome, and no consumer surface refuses an
+  attested done. The CC-15 agent-session speed bump landed in T-3527 (`resolve_gate`: `CLAUDECODE=1` without
+  `--override` is refused by name; with it the override is recorded in history). `via: remote` is refused by
+  construction: resolve is not an RPC.
 - **Backend addressing (`complete.args.backend`) — CC-09.** `dispatch.transition` has no backend address.
 - **Lease (`lease`) and real worker (`real_worker`).** Not offered. Lease variants are not run. CC-11 is n/a.
 

@@ -337,6 +337,7 @@ fn resolve(a: &Allocation, as_state: &str, reason: &str) -> ResolveRequest {
         attempt: a.attempt,
         as_state: as_state.into(),
         reason: reason.into(),
+        ..Default::default()
     }
 }
 

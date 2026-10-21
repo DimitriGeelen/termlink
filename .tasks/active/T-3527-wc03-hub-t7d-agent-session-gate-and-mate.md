@@ -1,10 +1,15 @@
 ---
 id: T-3527
-name: "wc/0.3 hub: T7d agent-session gate and material binding on resolve (CC-15, CC-22)"
+name: "wc/0.3 hub: T7d agent-session gate and material binding on resolve (CC-15,
+  CC-22)"
 description: >
-  CC-15 refuses operator resolve from an agent session without a recorded override (refusal agent_session); CC-22 binds material/outcome on T7d (attested, result_kind, evidence_digest null vs bound ref) and needs a consumer refusal not_finished_work. ResolveRequest (answer.rs) carries no session, override, outcome or material. Notices for T7d already land (T-3521). Touches answer.rs, so after T-3520.
+  CC-15 refuses operator resolve from an agent session without a recorded override
+  (refusal agent_session); CC-22 binds material/outcome on T7d (attested, result_kind,
+  evidence_digest null vs bound ref) and needs a consumer refusal not_finished_work.
+  ResolveRequest (answer.rs) carries no session, override, outcome or material. Notices
+  for T7d already land (T-3521). Touches answer.rs, so after T-3520.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T15:03:06Z
-last_update: 2026-10-21T15:03:06Z
-date_finished: null
+last_update: 2026-10-21T23:31:45Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +55,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T23:31:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3527: wc/0.3 hub: T7d agent-session gate and material binding on resolve (CC-15, CC-22)
@@ -63,10 +82,10 @@ Spec §3.3 T7d: resolve is a hub-host CLI. Every call is logged with actor and r
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `resolve_on_host` takes the caller's session kind and an optional override reason. An agent session with no override is refused by name (`agent_session`) and writes nothing. An agent session WITH an override is accepted and records the override in history (actor names the agent session and the override reason). An operator session is accepted as today
-- [ ] `termlink hub dispatch-resolve` treats `CLAUDECODE=1` as an agent session and gains `--override "<reason>"` (non-empty reason required); the refusal message says it is a speed bump, not identity, and how to override
-- [ ] History rows written by resolve carry the real actor rather than a fixed "operator"; the reason stays in the row's cause
-- [ ] Tests (failing first): agent without override refused and the record unchanged; agent with override accepted, with the override recorded; operator accepted. The conformance adapter maps `session`/`override` to the gate and reports `logged_actor`/`logged_reason` from the history row; `scripts/run-wc-vectors.sh` at 25f56ed68 reports CC-15 pass with fail=0
+- [x] `resolve_on_host` takes the caller's session kind and an optional override reason. An agent session with no override is refused by name (`agent_session`) and writes nothing. An agent session WITH an override is accepted and records the override in history (actor names the agent session and the override reason). An operator session is accepted as today
+- [x] `termlink hub dispatch-resolve` treats `CLAUDECODE=1` as an agent session and gains `--override "<reason>"` (non-empty reason required); the refusal message says it is a speed bump, not identity, and how to override (demonstrated against a temp runtime dir: refused with `agent_session`, rc 1; with `--override` it passes the gate)
+- [x] History rows written by resolve name who resolved: the row's cause reads `operator_resolve [agent session, override: <why>]: <reason>` for an overridden agent session, and `operator_resolve: <reason>` for the operator. **Amended from "replace the fixed operator writer":** the writer column must stay `operator`, because it names the T7d role and the operator-notice trigger keys on it (notices.rs:89); replacing it would have silenced the detective-control notice for exactly the agent case
+- [x] Tests: agent without override refused and the record unchanged (a blank override is refused too); agent with override accepted, with the override in the cause and writer `operator`; operator accepted (`resolve_refuses_an_agent_session_without_a_recorded_override`, plus the existing resolve test). The conformance adapter calls the same `resolve_gate` and reports `logged_actor`/`logged_reason` read back from the history row; `scripts/run-wc-vectors.sh` at 25f56ed68: CC-15 pass, summary pass=17 fail=0
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -313,6 +332,11 @@ bash scripts/run-wc-vectors.sh --ref 25f56ed68 > /tmp/.t3527-v 2>&1 && grep -qE 
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-22 — the actor goes in the cause, not the writer
+- **What changed:** the plan was to record the real actor in the history row's writer column. Reading notices.rs showed the T7d operator-notice trigger fires on `writer = 'operator'` (notices.rs:89). An agent-session resolve recorded under another writer would have produced no notice, the one case the detective control most needs to see.
+- **Plan impact:** the writer stays `operator` (the T7d role), and the session and override go into the cause. AC 3 was amended to say so. The gate lives in the hub crate (`resolve_gate`), and the CLI and the conformance adapter both call it, so the vector exercises the real check.
+- **Triggered:** scope split. CC-22 (material binding and attested-done consumer refusal) became T-3539, and CC-25 (stop) stays in T-3523.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -369,3 +393,6 @@ bash scripts/run-wc-vectors.sh --ref 25f56ed68 > /tmp/.t3527-v 2>&1 && grep -qE 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3527-wc03-hub-t7d-agent-session-gate-and-mate.md
 - **Context:** Initial task creation
+
+### 2026-10-21T23:31:45Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

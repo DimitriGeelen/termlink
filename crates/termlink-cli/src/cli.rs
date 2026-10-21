@@ -1360,6 +1360,12 @@ pub(crate) enum HubAction {
         #[arg(long)]
         reason: String,
 
+        /// T-3527: resolve from an agent session (CLAUDECODE=1) anyway. Without this an
+        /// agent session is refused (a speed bump, not identity); with it the override
+        /// reason is recorded in the attempt's history next to the resolve reason.
+        #[arg(long = "override", value_name = "WHY")]
+        override_reason: Option<String>,
+
         /// Output the resulting record as JSON
         #[arg(long)]
         json: bool,

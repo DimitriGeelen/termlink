@@ -24,6 +24,7 @@ use termlink_bus::Bus;
 use termlink_bus::worker_contract::answer::{AckRequest, AnswerRequest, AskRequest, ResolveRequest, resolve_at};
 use termlink_bus::worker_contract::sweep::{SweepObservation, SweepReport};
 use termlink_bus::worker_contract::{AllocateRequest, Allocation, Handback, TransitionRequest, WcError};
+use termlink_hub::dispatch_contract::{AGENT_SESSION_REFUSAL, ResolveSession, resolve_gate};
 
 /// Capabilities this backend offers (vocabulary.capabilities). `lease` and `real_worker` are not.
 pub const CAPABILITIES: [&str; 4] = ["registry_epoch", "answer_channel", "caller_chosen_ids", "supervisor_gen"];
@@ -703,9 +704,6 @@ impl Hub {
     }
 
     fn resolve(&mut self, args: &Value) -> Res<Map<String, Value>> {
-        if args["session"].as_str() == Some("agent") {
-            return missing("refusal:agent_session (T7d speed bump: resolve_on_host has no agent-session gate)");
-        }
         if args.get("material").is_some() {
             return missing("T7d material binding (ResolveRequest carries no material or outcome)");
         }
@@ -714,16 +712,42 @@ impl Hub {
             // caller can reach it. The refusal holds by construction.
             return Ok(obj(json!({"refused": "not_available"})));
         }
+        // T-3527: the host CLI's speed bump, the same function `resolve_on_host` runs. A vector
+        // `override: false` (or none) is no override; a string is the recorded reason.
+        let session = ResolveSession {
+            agent: args["session"].as_str() == Some("agent"),
+            override_reason: args["override"].as_str().map(str::to_string),
+        };
+        let actor = match resolve_gate(&session) {
+            Ok(a) => a,
+            Err(_) => return Ok(obj(json!({"refused": AGENT_SESSION_REFUSAL}))),
+        };
         let d = self.dispatch_id()?;
         let n = args["attempt"].as_i64().unwrap_or(1);
+        let reason = args["reason"].as_str().unwrap_or_default().to_string();
         let req = ResolveRequest {
-            dispatch_id: d,
+            dispatch_id: d.clone(),
             attempt: n,
             as_state: args["as"].as_str().unwrap_or_default().to_string(),
-            reason: args["reason"].as_str().unwrap_or_default().to_string(),
+            reason: reason.clone(),
+            actor,
         };
         match resolve_at(&self.root(), &req, self.clock) {
-            Ok(_) => Ok(obj(json!({"accepted": "T7d"}))),
+            Ok(_) => {
+                // What the history row recorded, read back rather than echoed.
+                let row = attempt_view(&self.bus, &d, n)
+                    .and_then(|a| a["history"].as_array().and_then(|h| h.last().cloned()))
+                    .unwrap_or(Value::Null);
+                let cause = row["cause"].as_str().unwrap_or_default();
+                let logged_reason = cause.rsplit_once(": ").map(|(_, r)| r.to_string());
+                Ok(obj(json!({
+                    "accepted": "T7d",
+                    "values": {
+                        "logged_actor": row["writer"].as_str().is_some_and(|w| !w.is_empty()),
+                        "logged_reason": logged_reason,
+                    },
+                })))
+            }
             Err(e) => Ok(error_map(&e)),
         }
     }

@@ -823,15 +823,22 @@ pub(crate) fn cmd_hub_fingerprint(json_output: bool) -> Result<()> {
 
 /// T-3503 (T7d): resolve an `unknown` worker-contract attempt on this host. No RPC exists
 /// for it; this opens the local bus store directly. Errors are loud (non-zero exit).
+/// T-3527: `CLAUDECODE=1` marks an agent session (the AEF convention, `lib/arc.sh`), which
+/// is refused unless `--override` gives a reason.
 pub(crate) fn cmd_hub_dispatch_resolve(
     dispatch_id: &str,
     attempt: i64,
     as_state: &str,
     reason: &str,
+    override_reason: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
     let bus_root = termlink_session::discovery::runtime_dir().join("bus");
-    let rec = termlink_hub::dispatch_contract::resolve_on_host(&bus_root, dispatch_id, attempt, as_state, reason)
+    let session = termlink_hub::dispatch_contract::ResolveSession {
+        agent: std::env::var("CLAUDECODE").is_ok_and(|v| v == "1"),
+        override_reason: override_reason.map(str::to_string),
+    };
+    let rec = termlink_hub::dispatch_contract::resolve_on_host(&bus_root, dispatch_id, attempt, as_state, reason, &session)
         .map_err(|e| anyhow::anyhow!("dispatch resolve: {e}"))?;
     if json_output {
         println!("{}", json!({"ok": true, "record": rec}));
