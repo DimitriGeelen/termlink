@@ -57,14 +57,7 @@ sends to us reach RECEIVED / HANDED_OVER. Analysis and step order: `docs/reports
 - [x] `fw cron install` run from /opt/termlink; the sidecar-sweep job is installed
 - [x] Exactly one receiver consumes `inbox:cacc73ea32b121dd/010-termlink`; a test send from another identity reaches RECEIVED
 - [x] Upstream filings sent for: step 7b overwriting the origin toolkit, shallow-clone refusal in the default upgrade path, T-3178 still open, hazard H1
-
-### Human
-- [ ] [RUBBER-STAMP] Peer mail reaches this session without nudging (no session restart, no `claude-fw --termlink` — operator rule)
-  **Steps:**
-  1. Run `/opt/termlink/runme.sh` (action 13 installs the sidecar-sweep cron job) — done 2026-10-06, rc=0
-  2. In this session, send any prompt; peer mail sent to 010-termlink appears in the session as a "Sidecar receiver: N message(s)" block
-  **Expected:** peer messages appear at your next prompt; senders report RECEIVED, not HUB_ACCEPTED
-  **If not:** tell the agent which peer is still waiting; the agent checks `fw sidecar status` and the receiver
+- [x] Peer mail reaches this session without nudging (no session restart, no `claude-fw --termlink`): the sidecar watcher is live, its delivery ledger shows mail injected into the session and 0 UNKNOWN, and senders' receipts report RECEIVED (checked in Verification). Converted from a [RUBBER-STAMP] Human criterion by operator ruling 2026-10-21 (decision 5, option B); evidence that day: more than 15 "Sidecar receiver" blocks arrived at prompts unprompted, ledger INJECTED_NOW 91 / UNKNOWN 0, AEF and ring20 replies came back `delivered: RECEIVED`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -101,8 +94,9 @@ sends to us reach RECEIVED / HANDED_OVER. Analysis and step order: `docs/reports
 
 ## Verification
 
-grep -qx '1.8.3' .agentic-framework/VERSION
+python3 -c "import sys; v=tuple(int(x) for x in open('.agentic-framework/VERSION').read().split('.')[:3]); sys.exit(0 if v >= (1,8,3) else 1)"
 .agentic-framework/bin/fw help > /tmp/.t3370-help 2>&1 && grep -q sidecar /tmp/.t3370-help
+.agentic-framework/bin/fw sidecar status > /tmp/.t3370-sc 2>&1 && grep -qE '^watcher: +live' /tmp/.t3370-sc && grep -qE 'INJECTED_NOW [1-9]' /tmp/.t3370-sc && grep -qE 'UNKNOWN 0( |$)' /tmp/.t3370-sc
 git check-ignore -q .agentic-framework/.context/working/x
 bash scripts/check-vendor-divergence.sh > /tmp/.t3370-div 2>&1
 # Shell commands that MUST pass before work-completed. One per line.
@@ -271,6 +265,15 @@ bash scripts/check-vendor-divergence.sh > /tmp/.t3370-div 2>&1
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-21 — the last Human box: machine check instead of a tick (operator ruling, decision 5)
+- **Chose:** B: the [RUBBER-STAMP] "peer mail reaches this session without nudging" criterion becomes an Agent criterion
+  checked by Verification (sidecar watcher live, ledger shows injected mail and 0 UNKNOWN). Operator: "13 we can do that, yes."
+- **Why:** the evidence is mechanical and was observed all day; a check that runs at every close is stronger than a one-off
+  tick, and it takes the operator out of a loop with no judgement in it.
+- **Rejected:** A (operator ticks: one-off, nothing re-checks), C (leave open), D (reviewer: the classifier keeps it human).
+- **Also fixed:** the first Verification line pinned VERSION to exactly 1.8.3 and would rot after the later 1.8.14 upgrade;
+  it now checks >= 1.8.3.
 
 ### 2026-10-06 — How to give TermLink a working receiver: full upgrade now (operator ruling)
 - **Chose:** A — full re-vendor to v1.8.3 now, following the analysis §5 safe sequence.
