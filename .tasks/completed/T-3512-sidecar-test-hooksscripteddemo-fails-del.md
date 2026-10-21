@@ -9,12 +9,12 @@ description: >
   whether UNCERTAIN there is correct behaviour (then update the test and say why)
   or a regression (then fix src); never just loosen the assertion.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug]
-components: []
+components: [crates/termlink-sidecar/tests/hooks_tests.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -43,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T10:57:33Z
-last_update: 2026-10-21T10:58:58Z
-date_finished:
+last_update: 2026-10-21T11:59:42Z
+date_finished: 2026-10-21T11:59:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -136,6 +136,8 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+TERMLINK_BIN=$PWD/target/debug/termlink cargo test -p termlink-sidecar --test hooks_tests > /tmp/.t3512 2>&1 && grep -q "test result: ok" /tmp/.t3512
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -306,6 +308,23 @@ bvp_scores_proposed:
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** `hooks_scripted_demo` failed intermittently (1 of 3 runs) with an extra UNCERTAIN row between CLAIMED
+and HANDED_OVER in the delivery chain.
+
+**Root cause:** a test-harness race, not a product regression. `Deliverer::finalize` (crates/termlink-sidecar/src/deliver.rs)
+treats a transcript it cannot open as `Evidence::Unreadable` and writes UNCERTAIN at once, by the design rule
+"unreadable is never absence". The sweeper runs every 2 s (`SWEEP_EVERY`, daemon.rs). The test registered the transcript
+path via the session-start hook but created the file only after the pull, so a sweep landing between CLAIMED and that
+write recorded UNCERTAIN. Under host load 40–65 the gap is easy to hit. Neither T-3387 nor T-3462 caused it.
+
+**Why structurally allowed:** the scripted demo modelled a session whose transcript does not exist yet, which no real
+session has (a transcript exists from its first turn); the test passed on a quiet host because the sweep usually missed
+the window, so it only failed under load.
+
+**Prevention:** the test now creates the transcript before the hooks run and writes the harness record atomically
+(temp + rename, since a half-written last line is also Unreadable); the assertion on the exact stage list is unchanged,
+so a real extra UNCERTAIN still fails it. 5/5 consecutive runs green (39868e699).
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -393,3 +412,20 @@ bvp_scores_proposed:
 ### 2026-10-21 — fix [agent]
 - **Action:** hooks_tests.rs: transcript created before the hooks run; harness record written via temp+rename. No src change.
 - **Output:** `cargo test -p termlink-sidecar --test hooks_tests` 5/5 green (6 tests each).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-af7d0947
+- **Timestamp:** 2026-10-21T11:59:57Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T11:59:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
