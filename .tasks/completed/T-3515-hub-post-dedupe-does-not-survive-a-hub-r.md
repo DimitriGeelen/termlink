@@ -12,12 +12,12 @@ description: >
   records by client_msg_id on a cache miss. Test: post, restart hub (new Bus on the
   same dir), resend same id -> one record.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/dedupe.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -46,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T12:36:25Z
-last_update: 2026-10-21T12:39:42Z
-date_finished:
+last_update: 2026-10-21T13:55:38Z
+date_finished: 2026-10-21T13:55:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -138,6 +138,9 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+cargo test -p termlink-hub --lib dedupe > /tmp/.t3515 2>&1 && grep -q "dedupe_survives_a_restart_by_finding_the_stored_record ... ok" /tmp/.t3515 && ! grep -q "test result: FAILED" /tmp/.t3515
+cargo test -p termlink-bus --lib a_post_is_two_durable_steps > /tmp/.t3515-bus 2>&1 && grep -q "test result: ok. 1 passed" /tmp/.t3515-bus
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -332,6 +335,16 @@ bvp_scores_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-21 — dedupe was a cache, not a guarantee
+- **What changed:** T-3511 fixed the sender side (one outbox copy, unreachable attempts not counted) and then exposed
+  that the hub's exactly-once rested on an in-memory LRU: arc-011's "stored before accepted" held per message but not
+  across a hub restart, where a resend stored a second record. The recipient's Duplicate outcome hid it.
+- **Plan impact:** arc-011's O-2 claim ("accepted means stored, exactly once") needs the hub's dedupe to be durable, not
+  only the sender's. Chosen: no new table and no extra fsync (the T-3488 two-durable-steps budget stays), the stored
+  record carries client_msg_id and a cold-window lookup scans the topic's newest 1024 records for one TTL after start.
+- **Triggered:** none new. Known limit, documented: a resend older than 1024 records or swept by retention is not
+  recovered across a restart; the recipient-side Duplicate check remains the second line.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -399,3 +412,20 @@ bvp_scores_proposed:
 - **Change:** horizon: next → now
 
 - 2026-10-21: implemented. Tests: termlink-bus 173 ok; termlink-hub 552 ok (new: dedupe_survives_a_restart_by_finding_the_stored_record, stored_post_lookup_is_scoped_to_the_sender); sidecar resend_tests 12 ok with the T-3511 pin changed 2 -> 1 (real hub restart). The failing-first run on main was not repeated; the old pin of 2 copies is the prior evidence.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-257c53a0
+- **Timestamp:** 2026-10-21T13:55:46Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T13:55:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

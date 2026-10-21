@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3515: Hub post dedupe does not survive a hub restart: a resend across the restart is stored twice
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T13:55:51Z
+# ============================================================================
+
+task_id: T-3515
+task_name: "Hub post dedupe does not survive a hub restart: a resend across the restart is stored twice"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-21T12:36:25Z
+completed: 2026-10-21T13:55:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-21T14:54:58+02:00
+last_commit: 2026-10-21T14:54:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub post dedupe survives a restart (stored record carries client_msg_id; cold-window lookup)
+
+# Key outcomes
+outcomes:
+  - 'Regression test written first and failing on main: post with a client_msg_id, drop the hub state as a restart does (new Bus / new dedupe on the same dir), post again with the same (sender, client_msg_id) → today two records; must be one, and the second call returns the first offset with `deduped: true`'
+  - 'Dedupe survives a restart for at least the existing TTL (`TERMLINK_DEDUPE_TTL_MS`, default 300 s): either persisted alongside the record in the same meta.db commit (no extra fsync per post; T-3488 counted durable steps) or recovered on a cache miss from the topic''s recent records; the choice and its cost are recorded in Decisions'
+  - 'The T-3488 durable-step test (`a_post_is_two_durable_steps_and_a_create_is_one`) still passes unchanged, the in-memory LRU fast path and `dedupe_hits_total` keep working, and the T-3511 test that pins 2 copies across a hub restart is updated to 1'
+  - '`cargo test -p termlink-bus -p termlink-hub` and `TERMLINK_BIN=<built termlink> cargo test -p termlink-sidecar --test resend_tests` pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-21 — recover on a cache miss, from the stored record (not meta.db)'
+    chose: 'the hub stamps `metadata.client_msg_id` on the stored envelope (metadata is outside the signed bytes), and a dedupe miss within one TTL of cache creation (`PostDedupe::is_cold`) scans the topic''s newest 1024 records for the same (sender_id, client_msg_id) before appending (`dedupe::find_stored_post`).'
+    rationale: 'no schema change and no extra durable step (T-3488 test untouched); the id is written in the same append as the record. **Cost:** none after the first TTL post-start; during it, one read of up to 1024 records per fresh-id post. A resend further than 1024 records back, or one whose record was swept, is not recovered. Persisting in meta.db rejected: new table plus a write per post.'
+    alternatives_rejected: ['persisting (sender, id)->offset in meta.db.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/dedupe.rs'
+  - 'crates/termlink-sidecar/tests/resend_tests.rs'
+  - '.tasks/active/T-3515-hub-post-dedupe-does-not-survive-a-hub-r.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T14:54:58'
+    action: 'T-3515: hub post dedupe survives a restart (stored record carries client_msg_id; cold-window lookup)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 79 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 79
+  commits: 3
+  files_changed: 7
+  lines_added: 614
+  lines_removed: 39
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3515-hub-post-dedupe-does-not-survive-a-hub-r.md
+generated_by: context-agent-hybrid
