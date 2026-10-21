@@ -48,7 +48,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:27:26Z
-last_update: 2026-10-21T14:35:54Z
+last_update: 2026-10-21T14:35:56Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -86,10 +86,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A unit test in crates/termlink-bus written first and failing on main: a refused supervisor exit (supervisor_refused true, exit_code 3) with the handback absent derives outcome `refused`
-- [ ] `derive_outcome` checks the refused flag before the handback check, and only the refused flag wins: an exit with no refusal and an absent handback (the CC-25 shape, exit 143) still derives `handback-malformed`, pinned by its own test; the existing `cc16_outcome_derivation_and_cc19_paused` test still passes
-- [ ] The conformance adapter reports CC-16 as pass: `TERMLINK_WC_VECTORS=<fetched file> cargo test -p termlink-hub --test wc_conformance` shows CC-16 pass (and CC-21, which T-3519 tracks with the same root cause)
-- [ ] `cargo test -p termlink-bus -p termlink-hub` passes; RCA section filled
+- [x] A unit test in crates/termlink-bus written first and failing on main: a refused supervisor exit (supervisor_refused true, exit_code 3) with the handback absent derives outcome `refused`
+- [x] `derive_outcome` checks the refused flag before the handback check, and only the refused flag wins: an exit with no refusal and an absent handback (the CC-25 shape, exit 143) still derives `handback-malformed`, pinned by its own test; the existing `cc16_outcome_derivation_and_cc19_paused` test still passes
+- [x] The conformance adapter reports CC-16 as pass: `TERMLINK_WC_VECTORS=<fetched file> cargo test -p termlink-hub --test wc_conformance` shows CC-16 pass (and CC-21, which T-3519 tracks with the same root cause)
+- [x] `cargo test -p termlink-bus -p termlink-hub` passes; RCA section filled
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -313,6 +313,11 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3518-wc 2>&1; grep -qE "^  CC-16 +pass "
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** A refused supervisor exit (supervisor_refused true, exit 3) with an absent handback derived `handback-malformed`, not `refused` (CC-16 supervisor-refusal).
+**Root cause:** `derive_outcome` tested handback validity before `req.refused`, so a refusal, which carries no handback, could never derive `refused`.
+**Why structurally allowed:** the only unit test (`cc16_outcome_derivation_and_cc19_paused`) always gave the refused row a valid handback; nothing combined refused with an absent handback until the T-3517 adapter ran AEF's vectors.
+**Prevention:** `refused_wins_over_absent_handback_but_unrefused_absent_is_malformed` pins refused+absent (CC-16/CC-21 shape) to `refused` and unrefused+absent exit 143 (CC-25) to `handback-malformed`; the conformance adapter covers CC-16.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -393,6 +398,9 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3518-wc 2>&1; grep -qE "^  CC-16 +pass "
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3518-wc03-cc-16-refused-supervisor-exit-with-.md
 - **Context:** Initial task creation
+
+### 2026-10-21 — fix [w-outcome-order]
+- Moved the `req.refused` check ahead of the handback check in `derive_outcome`; new unit test failed on main first. Adapter: pass=5 fail=3 -> pass=6 fail=1 (CC-16 now pass; CC-04/07/14/18/23 unchanged). CC-21 went fail -> not-implemented (see T-3519).
 
 ### 2026-10-21T14:35:54Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work

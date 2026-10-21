@@ -283,6 +283,35 @@ fn cc16_outcome_derivation_and_cc19_paused() {
     }
 }
 
+// CC-16 supervisor-refusal / CC-21 / CC-25: only the refused flag outranks the handback check.
+#[test]
+fn refused_wins_over_absent_handback_but_unrefused_absent_is_malformed() {
+    // (name, from dispatched?, exit, refused, want)
+    let cases = [
+        ("cc16_refused_absent", false, 3, true, "refused"),
+        ("cc21_refused_before_start_absent", true, 3, true, "refused"),
+        ("cc25_unrefused_absent", false, 143, false, "handback-malformed"),
+    ];
+    for (name, from_dispatched, exit, refused, want) in cases {
+        let (_d, s) = store();
+        let a = alloc(&s, 10);
+        if !from_dispatched {
+            s.transition(&t2(&a), 11).unwrap();
+        }
+        let mut r = t3(&a, "D");
+        if from_dispatched {
+            r.expected_prior = "dispatched".into();
+        }
+        r.exit_code = Some(exit);
+        r.refused = refused;
+        r.handback = None;
+        let out = s.transition(&r, 12).unwrap();
+        assert_eq!(out.record["state"], "done", "{name}");
+        assert_eq!(out.record["outcome"], want, "{name}");
+        assert_eq!(out.record["exit_code"], json!(exit), "{name}");
+    }
+}
+
 // CC-23
 #[test]
 fn nonce_alone_cannot_complete() {

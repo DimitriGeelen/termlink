@@ -572,11 +572,13 @@ fn derive_outcome(req: &TransitionRequest) -> &'static str {
             && h.nonce.as_deref() == Some(req.nonce.as_str())
             && h.status.is_some()
     });
-    if !hb_ok {
-        return "handback-malformed";
-    }
+    // The refused flag outranks the handback check (CC-16, CC-21): a refusal carries no
+    // handback. An unrefused exit with an absent handback stays malformed (CC-25).
     if req.refused {
         return "refused";
+    }
+    if !hb_ok {
+        return "handback-malformed";
     }
     let status = req.handback.as_ref().and_then(|h| h.status.as_deref()).unwrap_or("");
     let exit = req.exit_code.unwrap_or(0);

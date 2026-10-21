@@ -86,7 +86,7 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Confirmed fixed by T-3518's change (same root cause: `derive_outcome` checked the handback before the refused flag), or, if CC-21 still fails after it, its own cause named in the RCA and fixed
+- [x] Confirmed fixed by T-3518's change (same root cause: `derive_outcome` checked the handback before the refused flag), or, if CC-21 still fails after it, its own cause named in the RCA and fixed
 - [ ] The conformance adapter reports CC-21 as pass
 
 ### Human
@@ -310,6 +310,11 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3519-wc 2>&1; grep -qE "^  CC-21 +pass "
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** A refused-before-start exit (dispatched to done, T3b) with an absent handback derived `handback-malformed`.
+**Root cause:** Same as T-3518: `derive_outcome` checked the handback before the refused flag. One reordering in crates/termlink-bus/src/worker_contract.rs fixes it.
+**Why structurally allowed:** See T-3518; no test crossed refused with an absent handback.
+**Prevention:** The dispatched-origin case is in T-3518's unit test. Residual: after the fix the adapter reports CC-21 as `not-implemented`, not `fail`: the vector also asserts `operator_notices` and a never-registers `advance` step that the adapter/backend do not expose. That is outside this task's scope (adapter and vector file are not to be edited), so the pass AC stays open.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -390,6 +395,9 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3519-wc 2>&1; grep -qE "^  CC-21 +pass "
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3519-wc03-cc-21-refused-before-start-exit-wit.md
 - **Context:** Initial task creation
+
+### 2026-10-21 — fix [w-outcome-order]
+- Outcome derivation fixed by T-3518 (covered by its dispatched-origin unit case). Adapter now reports CC-21 `not-implemented` (was `fail`): missing operator_notices / never-registers surface. AC "adapter reports CC-21 pass" left unticked.
 
 ### 2026-10-21T14:35:55Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
