@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T15:15:24Z
-last_update: 2026-10-21T15:16:07Z
+last_update: 2026-10-21T15:16:08Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -82,10 +82,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A unified diff against AEF's `vectors.yaml` at 25f56ed68 is committed as `docs/reports/T-3530-vectors-hub.patch` (a patch, not a copy of the file); it applies cleanly with `git apply --check` / `patch --dry-run` to the 25f56ed68 file, and the patched file passes AEF's `check_vectors.py` at 25f56ed68
-- [ ] Content follows AEF's README: one entry per case id, edits inside existing cases only, no new vocabulary term unless unavoidable (any new term listed in the Decisions section with a one-line meaning, so the message to AEF can name it); every case whose applicability the hub interprets (an `equivalent` the hub uses, a capability the hub lacks) carries a hub note grounded in the adapter verdict at 25f56ed68
-- [ ] The hub adapter still reports pass 15, fail 0 against the PATCHED file (run it with `TERMLINK_WC_VECTORS=<patched file>`), so the patch changes no verdict
-- [ ] Size and sha256 of the patch file recorded in Updates (AEF delivery rule: inline if under ~8 KB, else committed file + sha + sha256)
+- [x] A unified diff against AEF's `vectors.yaml` at 25f56ed68 is committed as `docs/reports/T-3530-vectors-hub.patch` (a patch, not a copy of the file); it applies cleanly with `git apply --check` / `patch --dry-run` to the 25f56ed68 file, and the patched file passes AEF's `check_vectors.py` at 25f56ed68
+- [x] Content follows AEF's README: one entry per case id, edits inside existing cases only, no new vocabulary term unless unavoidable (any new term listed in the Decisions section with a one-line meaning, so the message to AEF can name it); every case whose applicability the hub interprets (an `equivalent` the hub uses, a capability the hub lacks) carries a hub note grounded in the adapter verdict at 25f56ed68
+- [x] The hub adapter still reports pass 15, fail 0 against the PATCHED file (run it with `TERMLINK_WC_VECTORS=<patched file>`), so the patch changes no verdict
+- [x] Size and sha256 of the patch file recorded in Updates (AEF delivery rule: inline if under ~8 KB, else committed file + sha + sha256)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -333,6 +333,11 @@ test -z "$(git ls-files | grep -E '(^|/)vectors\.yaml$')"
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-21 — hub contribution to the shared vectors
+- **What changed:** at 25f56ed68 the three failing cases (CC-01, 03, 06) pass (seen_alive_epoch precondition), so the hub notes describe pass 15 / fail 0 / not-impl 9 / n/a 1, not the b4c168aa9 map.
+- **Plan impact:** the schema offers no per-backend verdict field; notes go in as comments rather than a `backend_notes` key.
+- **Triggered:** none; docs/reports/T-3484-conformance-map.md still describes b4c168aa9.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -364,6 +369,11 @@ test -z "$(git ls-files | grep -E '(^|/)vectors\.yaml$')"
 
 ## Decisions
 
+### 2026-10-21 — hub notes as YAML comments, no new vocabulary
+- **Chose:** one `# hub: ...` comment line inside each applicability block of the 15 cases where the hub interprets the case or lacks a piece (CC-01, 03, 06, 08, 09, 10, 11, 12, 13, 14, 15, 17, 19, 22, 25), each stating the adapter verdict at 25f56ed68 and the missing piece.
+- **Why:** `applicability` has no field for a backend's own verdict, and `equivalent` is the text for backends WITHOUT a hub; a new key would be new vocabulary. Comments pass check_vectors.py and change no step, so no verdict moves. New vocabulary: none.
+- **Rejected:** a `backend_notes` key (new vocabulary; AEF decides), editing `equivalent` (it describes other backends).
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -392,3 +402,7 @@ test -z "$(git ls-files | grep -E '(^|/)vectors\.yaml$')"
 
 ### 2026-10-21T15:16:07Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-21T16:00:00Z — patch-prepared [agent]
+- **Output:** docs/reports/T-3530-vectors-hub.patch, 5311 bytes (under the ~8 KB inline bound), sha256 b8fa05be2d6ff603814ce07edc22ff720f4c9c5b5da1f863e1831c914dfa97c8
+- **Checks:** `git apply --check` and `patch --dry-run` clean on the 25f56ed68 file; patched file passes `check_vectors.py` (25 cases); adapter with TERMLINK_WC_VECTORS=<patched> gives pass=15 fail=0 not-implemented=9 n/a=1 (unchanged).
