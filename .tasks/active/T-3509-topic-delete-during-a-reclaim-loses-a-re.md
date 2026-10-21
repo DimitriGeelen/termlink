@@ -47,7 +47,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T09:10:10Z
-last_update: 2026-10-21T09:11:09Z
+last_update: 2026-10-21T09:11:17Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -85,10 +85,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Regression test `delete_and_recreate_during_a_reclaim_loses_the_new_topic` (cfg(test) hook after `CrashPoint::AfterRename`) is written first and fails on the unfixed code: delete + create + 3 posts during a reclaim, then subscribe must return offsets [0,1,2] before and after reopening the bus
-- [ ] `delete_topic` serialises with the topic's appender/reclaim (no reclaim can switch generations across a delete), and `commit_rewrite` refuses to apply to a different topic incarnation (identity check, and `AND byte_pos = <old>` on each moved row), returning an error the reclaim treats as "abandon, remove my new file"
-- [ ] A reclaim abandoned this way never unlinks a log file it did not create; tested
-- [ ] `cargo test -p termlink-bus` passes, including the existing T-3322 compaction and crash tests; RCA section filled
+- [x] Regression test `delete_and_recreate_during_a_reclaim_loses_the_new_topic` (cfg(test) hook after `CrashPoint::AfterRename`) is written first and fails on the unfixed code: delete + create + 3 posts during a reclaim, then subscribe must return offsets [0,1,2] before and after reopening the bus
+- [x] `delete_topic` serialises with the topic's appender/reclaim (no reclaim can switch generations across a delete), and `commit_rewrite` refuses to apply to a different topic incarnation (identity check, and `AND byte_pos = <old>` on each moved row), returning an error the reclaim treats as "abandon, remove my new file"
+- [x] A reclaim abandoned this way never unlinks a log file it did not create; tested
+- [x] `cargo test -p termlink-bus` passes, including the existing T-3322 compaction and crash tests; RCA section filled
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -293,6 +293,8 @@ bvp_scores_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-bus delete_and_recreate_during_a_reclaim > /tmp/t3509-v.out 2>&1 && grep -q "1 passed" /tmp/t3509-v.out
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -308,6 +310,16 @@ bvp_scores_proposed:
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** A topic deleted while a compaction reclaim was between its rename and its switch, then re-created and posted to, returned `[]` from subscribe with no error. Acked posts were gone after a restart. The reclaim log line read `reclaimed t: ... generation 1` against the new topic. Reproduced by the regression test (delete, create and 3 posts inside the reclaim window).
+
+**Root cause:** Two gaps. (1) `delete_topic` dropped the topic's cached appender from the map without holding its append/reclaim lock, so a reclaim already holding that appender kept rewriting the topic after the delete. (2) The rewrite's switch (`meta.commit_rewrite`) matched records by offset and set the generation by NAME, with no check that the topic was the one the rewrite had read. The re-created topic's offsets 0..n matched nothing harmful, but the generation became 1, and step 4 then unlinked `<hex>.log`, which is the new topic's gen-0 file (both incarnations share that name).
+
+**Why structurally allowed:** The per-topic lock lived inside the appender Arc, so it was discarded with the map entry on delete. Generation file names are per (name, generation), so a re-created topic reuses the names the old one's rewrite was about to touch. Nothing checked topic identity at the commit. The T-3322 tests covered crashes at each step but never a concurrent delete, because no seam existed between rename and switch.
+
+**Prevention:** The regression test `delete_and_recreate_during_a_reclaim_loses_the_new_topic` drives delete, create and posts into the window through a cfg(test) hook (`AFTER_RENAME_HOOK`) and must stay green. The fix has four parts: `delete_topic` holds the appender-map lock across the meta delete and file removal; the switch and the step-4 unlink run under that same lock, and only if the rewrite's appender is still registered (so an abandoned rewrite removes only its own new file); reclaims of one topic NAME are serialised by `Bus::reclaim_locks`, which survives a delete, so a re-created topic's reclaim never runs beside the old one; `commit_rewrite` matches `AND byte_pos = <old>` per move and refuses an unknown topic. The step-1 stale-generation sweep is removed, because on a re-created topic it could unlink that topic's gen-0 file.
+
+**Residual, not in scope:** a post that holds the old appender when `delete_topic` runs can still write into the unlinked file. Not analysed here; flagged for a follow-up.
 
 ## Evolution
 
@@ -332,6 +344,12 @@ bvp_scores_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-21 — the delete fence cannot wait for the appender lock
+
+- **What changed:** The AC asks that `delete_topic` serialise with the topic's appender. The natural shape is for delete to take the appender's lock, but the test hook runs delete INSIDE the reclaim's critical section on the same thread, so a blocking delete would deadlock the test. The fence became the appender-map lock instead: delete and the switch both take it, and the switch re-checks that its appender is still registered.
+- **Plan impact:** Per-name reclaim serialisation was not in the original plan. It was added because an abandoned rewrite removes its generation file, and a re-created topic's reclaim could be writing that same name at that moment.
+- **Triggered:** none filed. Residual post-vs-delete race noted in RCA.
 
 ## Recommendation
 
@@ -392,3 +410,8 @@ bvp_scores_proposed:
 
 ### 2026-10-21T09:11:09Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-21T12:00:00Z — fix-implemented [w-reclaim-race]
+- **Action:** Regression test written first and confirmed failing (reclaim logged `generation 1` on the re-created topic). Fix in `crates/termlink-bus/src/{lib.rs,reclaim.rs,meta.rs}`: appender-map lock across delete and switch, per-name reclaim lock, `commit_rewrite` with `AND byte_pos`, step-1 stale sweep removed.
+- **Verification:** `cargo test -p termlink-bus` — lib 173 passed / 0 failed; integration 2 passed / 1 ignored; doc-tests 0. Exit 0.
+- **Status:** left at `started-work` (not set to work-completed, per instruction).

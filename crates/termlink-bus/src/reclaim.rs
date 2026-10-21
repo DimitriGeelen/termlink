@@ -20,18 +20,31 @@
 //! The commit in step 3 is the switch. A crash before it leaves the index wholly
 //! on generation N, whose file is untouched; a crash after it leaves the index
 //! wholly on N+1, whose file was fsynced and renamed before the commit. Leftover
-//! files of the other generation are removed when the bus next opens and before
-//! the next reclaim of that topic. Readers take positions and generation from
-//! one statement and open that generation's file; a reader that already has the
-//! old file open keeps reading it (an unlinked file stays readable while open).
+//! files of the other generation are removed when the bus next opens. Readers take
+//! positions and generation from one statement and open that generation's file; a
+//! reader that already has the old file open keeps reading it (an unlinked file
+//! stays readable while open).
+//!
+//! Delete races (T-3509). `delete_topic` can run while a reclaim is between its
+//! steps, and the topic can be re-created under the same name. Two rules keep the
+//! reclaim from touching the new incarnation's files:
+//!
+//! - Reclaims of one topic NAME are serialised by `Bus::reclaim_locks`, which is
+//!   not dropped on delete. So a re-created topic's reclaim never runs beside the
+//!   old one, and a generation file name is only ever created by one reclaim at a
+//!   time.
+//! - The switch (steps 3 and 4) runs under the `appenders` map lock, and only if
+//!   the topic's appender is still the one this rewrite holds. `delete_topic`
+//!   removes that entry under the same lock, so a deleted topic is never switched
+//!   or unlinked. The abandoned rewrite removes only its own new file.
 
 use std::fs::File;
 use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::Path;
+use std::sync::Arc;
 
 use crate::limits::Ceilings;
 use crate::log;
-use crate::meta::Meta;
 use crate::{BusError, Result};
 
 /// Default trigger: the log file is larger than this...
@@ -86,33 +99,25 @@ fn simulating_crash() -> bool {
     false
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Runs once, after the rename and before the switch, on the thread running
+    /// the reclaim: a test does bus operations there to race the rewrite (T-3509).
+    pub(crate) static AFTER_RENAME_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+fn after_rename_hook() {
+    #[cfg(test)]
+    if let Some(f) = AFTER_RENAME_HOOK.with(|h| h.borrow_mut().take()) {
+        f();
+    }
+}
+
 fn crash_here(_p: CrashPoint) -> Result<()> {
     #[cfg(test)]
     if CRASH_AT.with(|c| c.get()) == Some(_p) {
         return Err(BusError::Io(std::io::Error::other(format!("T-3322 test crash at {_p:?}"))));
-    }
-    Ok(())
-}
-
-/// Remove every log file of `topic` other than generation `keep` (leftovers of
-/// a crash mid-rewrite, or the old file a crash after the commit did not get to
-/// remove). Files of other topics are never touched.
-pub(crate) fn remove_stale_generations(root: &Path, topic: &str, keep: u64) -> Result<()> {
-    let hex = log::topic_hex(topic);
-    let keep_name = log::log_file_name(&hex, keep);
-    let prefix = format!("{hex}.");
-    let dir = root.join("topics");
-    let entries = match std::fs::read_dir(&dir) {
-        Ok(e) => e,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(e) => return Err(e.into()),
-    };
-    for entry in entries {
-        let name = entry?.file_name();
-        let Some(name) = name.to_str() else { continue };
-        if name.starts_with(&prefix) && name != keep_name {
-            remove_reporting(&dir.join(name));
-        }
     }
     Ok(())
 }
@@ -179,16 +184,20 @@ fn sync_dir(dir: &Path) -> Result<()> {
 }
 
 /// Rewrite `topic`'s log if it meets the trigger (or always, with `force`).
-/// The caller holds the topic's append lock; `appender` is the file behind it
-/// and is replaced by the new generation's file on success.
+/// The caller holds the topic's name lock and append lock; `appender` is the file
+/// behind `current`, and is replaced by the new generation's file on success.
+/// Returns `Ok(None)` without switching when the topic was deleted (or deleted
+/// and re-created) since the caller took its appender: nothing is rewritten and
+/// the new incarnation's files are left alone.
 pub(crate) fn rewrite_locked(
-    root: &Path,
-    meta: &Meta,
+    bus: &crate::Bus,
     topic: &str,
+    current: &Arc<log::LogAppender>,
     appender: &mut File,
     c: &Ceilings,
     force: bool,
 ) -> Result<Option<ReclaimOutcome>> {
+    let (root, meta) = (bus.root.as_path(), &bus.meta);
     // The generation changes only under the lock we hold, so these two reads agree.
     let generation = meta.log_generation(topic)?;
     let old_path = log::topic_log_path_gen(root, topic, generation);
@@ -213,7 +222,6 @@ pub(crate) fn rewrite_locked(
 
     // Steps 1 and 2: the new file, durable and in place, before the index moves.
     let (moves, new_bytes, new_append) = crate::run_blocking(|| -> Result<_> {
-        remove_stale_generations(root, topic, generation)?;
         let mut src = File::open(&old_path)?;
         let mut out = BufWriter::new(File::create(&tmp_path)?);
         let mut moves = Vec::with_capacity(locs.len());
@@ -243,7 +251,7 @@ pub(crate) fn rewrite_locked(
             })?;
             out.write_all(&loc.length.to_be_bytes())?;
             out.write_all(&buf)?;
-            moves.push((loc.offset, pos));
+            moves.push((loc.offset, loc.byte_pos, pos));
             pos += 8 + loc.length;
         }
         let f = out.into_inner().map_err(|e| BusError::Io(e.into_error()))?;
@@ -264,10 +272,24 @@ pub(crate) fn rewrite_locked(
             let _ = std::fs::remove_file(&new_path);
         }
     })?;
+    after_rename_hook();
     crash_here(CrashPoint::AfterRename)?;
+
+    // Steps 3 and 4 run under the appender map lock. `delete_topic` takes the same
+    // lock, so either the topic is still ours (and stays so until we finish), or it
+    // was deleted first and we switch nothing.
+    let registry = bus.appenders.lock().expect("appenders mutex poisoned");
+    let live_here = registry.get(topic).is_some_and(|a| Arc::ptr_eq(a, current));
+    if !live_here {
+        drop(registry);
+        drop(new_append);
+        let _ = std::fs::remove_file(&new_path);
+        return Ok(None);
+    }
 
     // Step 3: the switch.
     if let Err(e) = meta.commit_rewrite(topic, new_gen, &moves) {
+        drop(registry);
         drop(new_append);
         let _ = std::fs::remove_file(&new_path);
         return Err(e);
@@ -283,6 +305,7 @@ pub(crate) fn rewrite_locked(
             old_path.display()
         );
     }
+    drop(registry);
     Ok(Some(ReclaimOutcome { generation: new_gen, records: moves.len() as u64, old_bytes, new_bytes }))
 }
 
@@ -567,6 +590,47 @@ mod tests {
         assert_eq!(live.last(), Some(&(N - 1)));
         assert!(live.windows(2).all(|w| w[1] == w[0] + 1), "{live:?}");
         assert_eq!(bus.meta.synchronous_level(), 2, "meta still synchronous=FULL");
+    }
+
+    /// T-3509: a topic deleted and re-created while a reclaim of its OLD incarnation
+    /// is between rename and switch must keep its own records. Unfixed, the old
+    /// reclaim set generation=1 on the new topic and unlinked `<hex>.log`, which is
+    /// the new topic's file: subscribe returned [] with no error.
+    #[tokio::test]
+    async fn delete_and_recreate_during_a_reclaim_loses_the_new_topic() {
+        let dir = TempDir::new().unwrap();
+        let bus = Arc::new(seeded(dir.path()).await);
+        let racer = bus.clone();
+        AFTER_RENAME_HOOK.with(|h| {
+            *h.borrow_mut() = Some(Box::new(move || {
+                racer.delete_topic("t").unwrap();
+                racer.create_topic("t", Retention::Forever).unwrap();
+                // Posts run on their own thread and runtime: the reclaim is still
+                // inside this one's critical section.
+                std::thread::scope(|s| {
+                    s.spawn(|| {
+                        tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build()
+                            .unwrap()
+                            .block_on(async {
+                                for i in 0..3 {
+                                    assert_eq!(racer.post("t", &env(i)).await.unwrap(), i);
+                                }
+                            })
+                    })
+                    .join()
+                    .unwrap();
+                });
+            }))
+        });
+        let outcome = bus.reclaim("t", true).await.unwrap();
+        assert!(outcome.is_none(), "the topic was deleted under the reclaim: nothing to rewrite");
+        assert_eq!(read_all(&bus), (0..3).collect::<Vec<_>>(), "the new topic's records");
+        assert_eq!(log_files(dir.path()).len(), 1, "the abandoned reclaim unlinked nothing: {:?}", log_files(dir.path()));
+        drop(bus);
+        let bus = open(dir.path(), false);
+        assert_eq!(read_all(&bus), (0..3).collect::<Vec<_>>(), "and after a reopen");
     }
 
     fn c(min: u64, pct: u8) -> Ceilings {

@@ -486,14 +486,26 @@ impl Meta {
     /// at the new one. A record swept between the rewrite's read and this commit
     /// simply matches no row; its bytes in the new file are dead and the next
     /// reclaim drops them.
-    pub(crate) fn commit_rewrite(&self, topic: &str, generation: u64, moves: &[(u64, u64)]) -> Result<()> {
+    ///
+    /// T-3509: each move names the `byte_pos` it expects (`AND byte_pos = old`), and
+    /// the commit refuses an unknown topic. A row already at another position is
+    /// one this rewrite did not read, so it is left alone. Topic identity is the
+    /// caller's job: `Bus::delete_topic` removes the appender that the rewrite must
+    /// still hold, under the same lock (see `reclaim::rewrite_locked`).
+    pub(crate) fn commit_rewrite(&self, topic: &str, generation: u64, moves: &[(u64, u64, u64)]) -> Result<()> {
         self.with_conn_mut(|conn| {
             let tx = conn.transaction()?;
+            let exists: i64 =
+                tx.query_row("SELECT COUNT(*) FROM topics WHERE name = ?1", params![topic], |r| r.get(0))?;
+            if exists == 0 {
+                return Err(BusError::UnknownTopic(topic.to_string()));
+            }
             {
-                let mut stmt =
-                    tx.prepare("UPDATE records SET byte_pos = ?1 WHERE topic = ?2 AND offset = ?3")?;
-                for (offset, pos) in moves {
-                    stmt.execute(params![*pos as i64, topic, *offset as i64])?;
+                let mut stmt = tx.prepare(
+                    "UPDATE records SET byte_pos = ?1 WHERE topic = ?2 AND offset = ?3 AND byte_pos = ?4",
+                )?;
+                for (offset, old_pos, new_pos) in moves {
+                    stmt.execute(params![*new_pos as i64, topic, *offset as i64, *old_pos as i64])?;
                 }
             }
             tx.execute(

@@ -135,6 +135,11 @@ pub struct Bus {
     /// T-3501: shared worker contract store (own connection to meta.db).
     wc: worker_contract::WcStore,
     appenders: StdMutex<HashMap<String, Arc<log::LogAppender>>>,
+    /// T-3509: one lock per topic NAME, held by a reclaim for its whole run. Kept
+    /// after a delete on purpose: a re-created topic's reclaim must wait for the old
+    /// one, since both would name the same generation files. Entries are never
+    /// removed, so the set grows only with reclaimed names.
+    reclaim_locks: StdMutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     /// Per-topic notify primitive: `post` calls `notify_waiters()` after a
     /// successful append; `subscribe_blocking` listens on it. Enables
     /// long-poll without busy polling (T-1289 / T-243 dialog liveness).
@@ -184,6 +189,7 @@ impl Bus {
             meta,
             wc,
             appenders: StdMutex::new(HashMap::new()),
+            reclaim_locks: StdMutex::new(HashMap::new()),
             notifiers: StdMutex::new(HashMap::new()),
             ceilings: StdMutex::new(Ceilings::default()),
             forever_warned: StdMutex::new(HashSet::new()),
@@ -251,9 +257,15 @@ impl Bus {
         if !self.meta.topic_exists(topic)? {
             return Err(BusError::UnknownTopic(topic.to_string()));
         }
+        let name_lock = self.reclaim_lock_for(topic);
+        let _serial = name_lock.lock().await;
+        // Re-checked under the name lock: a delete may have landed while we waited.
+        if !self.meta.topic_exists(topic)? {
+            return Err(BusError::UnknownTopic(topic.to_string()));
+        }
         let appender = self.appender_for(topic)?;
         let mut guard = appender.lock().await;
-        let out = reclaim::rewrite_locked(&self.root, &self.meta, topic, &mut guard, &self.ceilings(), force)?;
+        let out = reclaim::rewrite_locked(self, topic, &appender, &mut guard, &self.ceilings(), force)?;
         drop(guard);
         self.note_reclaim(topic, out);
         Ok(out)
@@ -264,6 +276,10 @@ impl Bus {
     fn maybe_reclaim(&self, topic: &str) {
         let c = self.ceilings();
         let attempt = || -> Result<Option<ReclaimOutcome>> {
+            let name_lock = self.reclaim_lock_for(topic);
+            let Ok(_serial) = name_lock.try_lock() else {
+                return Ok(None);
+            };
             // Cheap size test first, so a small or never-posted topic costs one stat
             // and no appender (which would create an empty file).
             let path = log::topic_log_path_gen(&self.root, topic, self.meta.log_generation(topic)?);
@@ -277,7 +293,7 @@ impl Bus {
             let Some(mut guard) = appender.try_lock() else {
                 return Ok(None);
             };
-            reclaim::rewrite_locked(&self.root, &self.meta, topic, &mut guard, &c, false)
+            reclaim::rewrite_locked(self, topic, &appender, &mut guard, &c, false)
         };
         match attempt() {
             Ok(out) => self.note_reclaim(topic, out),
@@ -484,12 +500,13 @@ impl Bus {
     /// empties a topic but leaves it registered forever — the gap that let
     /// production hubs accumulate thousands of dead test topics (T-2419 §5.4).
     pub fn delete_topic(&self, topic: &str) -> Result<Option<u64>> {
+        // T-3509: the appender map lock is held across the meta delete and the file
+        // removal. A reclaim's switch takes the same lock and checks that its
+        // appender is still registered, so it sees the topic either whole or gone.
+        let mut appenders = self.appenders.lock().expect("appenders mutex poisoned");
         let deleted = self.meta.delete_topic(topic)?;
         if deleted.is_some() {
-            self.appenders
-                .lock()
-                .expect("appenders mutex poisoned")
-                .remove(topic);
+            appenders.remove(topic);
             self.notifiers
                 .lock()
                 .expect("notifiers mutex poisoned")
@@ -1247,6 +1264,16 @@ impl Bus {
             self.maybe_reclaim(topic);
         }
         Ok(n)
+    }
+
+    /// T-3509: the reclaim lock for `topic`'s name (created on first use).
+    fn reclaim_lock_for(&self, topic: &str) -> Arc<tokio::sync::Mutex<()>> {
+        self.reclaim_locks
+            .lock()
+            .expect("reclaim locks mutex poisoned")
+            .entry(topic.to_string())
+            .or_default()
+            .clone()
     }
 
     fn appender_for(&self, topic: &str) -> Result<Arc<log::LogAppender>> {
