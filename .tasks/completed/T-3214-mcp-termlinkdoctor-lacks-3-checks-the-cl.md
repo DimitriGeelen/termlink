@@ -13,14 +13,12 @@ description: >
   says the CLI verb), port the missing checks, drop or mirror 'strict'; then un-ignore
   the parity case.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-009, parity, bug]
-components: [crates/termlink-mcp/src/tools.rs, 
-      crates/termlink-cli/src/commands/infrastructure.rs, 
-      crates/termlink-mcp/tests/parity.rs]
+components: [crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/config.rs, crates/termlink-cli/src/manifest.rs, crates/termlink-doctor/src/hubs_config.rs, crates/termlink-doctor/src/lib.rs, crates/termlink-doctor/src/manifest.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-mcp/tests/mcp_integration.rs, crates/termlink-mcp/tests/parity.rs, scripts/check-drain-sink-caps.sh, scripts/check-platform-lock.sh]
 related_tasks: [T-2991, T-1712, T-1689, T-2069, T-3215]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -33,8 +31,8 @@ related_tasks: [T-2991, T-1712, T-1689, T-2069, T-3215]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-28T23:48:32Z
-last_update: 2026-10-01T15:49:18Z
-date_finished:
+last_update: 2026-10-21T11:46:01Z
+date_finished: 2026-10-21T11:46:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -419,3 +417,20 @@ bash scripts/check-platform-lock.sh
 - **Tests:** `parity_doctor` un-ignored and passing. New `parity_doctor_strict_with_warning` (orphaned `.sock` → warn, both `ok:false`, CLI echoes `strict`, CLI exit 1). New `test_doctor_annotated_read_only`. `test_doctor_empty_env` now also asserts the secret-cache checks and `strict`. Both doctor integration tests run under a temp HOME (`TempHome` guard), so the shared checks never read the real `~/.termlink`. Results: doctor 4/4; MCP lib 941, integration 101, parity 39 (0 ignored); CLI bin 1220.
 - **Static checks:** `check-platform-lock.sh` and `check-drain-sink-caps.sh` default roots now include `crates/termlink-doctor/src`. The `ufw`/`ss` spawns are acknowledged at their new signature `lib.rs::ufw_listener_check` (stale CLI platform-lock entries removed). Both scan clean: 12 and 8 sites. Their fixture suites pass (26/26, 6/6). alloc-sink, silent-exit, busy-spin, version-derivation, parity-census and error-code-emission all clean.
 - **Not done:** no fabric cards for the new crate's files. `fw fabric register` refuses until `.fabric/subsystems.yaml` has a rule for `crates/termlink-doctor/` (see Evolution).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-fe30e9dc
+- **Timestamp:** 2026-10-21T11:54:25Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **mock-only-integration** (partial, heuristic) @ AC vs Verification cross-check
+     - evidence: `test -f crates/termlink-mcp/tests/parity.rs && ! grep -q 'ignore = "T-3214' crates/termlink-mcp/tests/parity.rs`
+
+### 2026-10-21T11:46:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
