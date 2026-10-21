@@ -13,12 +13,12 @@ description: >
   handshake (auth.token), never in command.inject's params, so the later signed-envelope
   design (C) can replace the token without changing the call.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011, security]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/pty.rs, crates/termlink-cli/src/main.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-mcp/tests/mcp_integration.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/auth.rs, crates/termlink-session/src/client.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/server.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -47,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T18:35:58Z
-last_update: 2026-10-21T18:38:27Z
-date_finished:
+last_update: 2026-10-21T22:08:08Z
+date_finished: 2026-10-21T22:08:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -341,6 +341,11 @@ bash scripts/check-drain-sink-caps.sh --no-heartbeat
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-21 — notify became an RPC, not a filtered inject
+- **What changed:** the ruling allowed either a narrow scope over inject or a dedicated notify call. Building it showed a scope over `command.inject` would still carry free text, so the only real boundary would be a text filter. A `command.notify` that takes message ids and composes the line in the session removes free text from the notify path entirely.
+- **Plan impact:** the sidecar now rings through `termlink pty notify` instead of `pty inject`; the doorbell line format is fixed in the session (`doorbell_line`) and must stay byte-identical to the sidecar's `injection_line`.
+- **Triggered:** gaps left open and named in Updates (tmux doorbell route still types directly; `register --token-secret` prints its secret; web terminal still uses `pty inject`); load-sensitive test timeouts seen while closing filed as T-3535.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -413,3 +418,20 @@ bash scripts/check-drain-sink-caps.sh --no-heartbeat
 
 ### 2026-10-21T18:38:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ccd96966
+- **Timestamp:** 2026-10-21T23:08:41Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T22:08:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
