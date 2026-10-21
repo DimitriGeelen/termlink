@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3509: Topic delete during a reclaim loses a re-created topic's acked records (race: delete_topic takes no appender lock; commit_rewrite matches by name)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T11:43:50Z
+# ============================================================================
+
+task_id: T-3509
+task_name: "Topic delete during a reclaim loses a re-created topic's acked records (race: delete_topic takes no appender lock; commit_rewrite matches by name)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T09:10:10Z
+completed: 2026-10-21T11:43:43Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-21T12:17:08+02:00
+last_commit: 2026-10-21T12:17:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  topic delete during a reclaim no longer loses a re-created topic
+
+# Key outcomes
+outcomes:
+  - 'Regression test `delete_and_recreate_during_a_reclaim_loses_the_new_topic` (cfg(test) hook after `CrashPoint::AfterRename`) is written first and fails on the unfixed code: delete + create + 3 posts during a reclaim, then subscribe must return offsets [0,1,2] before and after reopening the bus'
+  - '`delete_topic` serialises with the topic''s appender/reclaim (no reclaim can switch generations across a delete), and `commit_rewrite` refuses to apply to a different topic incarnation (identity check, and `AND byte_pos = <old>` on each moved row), returning an error the reclaim treats as "abandon, remove my new file"'
+  - 'A reclaim abandoned this way never unlinks a log file it did not create; tested'
+  - '`cargo test -p termlink-bus` passes, including the existing T-3322 compaction and crash tests; RCA section filled'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-bus/src/reclaim.rs'
+  - '.tasks/active/T-3509-topic-delete-during-a-reclaim-loses-a-re.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T12:17:08'
+    action: 'T-3509: topic delete during a reclaim no longer loses a re-created topic'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 153 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 153
+  commits: 1
+  files_changed: 4
+  lines_added: 176
+  lines_removed: 50
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3509-topic-delete-during-a-reclaim-loses-a-re.md
+generated_by: context-agent-hybrid
