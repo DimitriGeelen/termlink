@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T20:19:59Z
-last_update: 2026-10-21T12:39:44Z
+last_update: 2026-10-21T13:34:39Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -87,7 +87,8 @@ signed operator identity exists, T-3493). Builds on S1 (698d630f5) and S2 (a6b58
 - [x] Answer states stored → received → applied, with `undelivered` and `expired` (TTL bounce) driven by the existing sweep, never by events; tested with injected time
 - [x] `dispatch.resolve {dispatch_id, attempt, as, reason}` (T7d) exists only as a hub-host CLI path (no network RPC accepts it), logs its reason in history, and refuses unless the attempt is `unknown`; tested
 - [x] Tests named for CC-10 (parent-session loss), CC-11 (answer delivered and acked), CC-12 (answer TTL expiry bounces) and CC-15 (unknown resolution by operator), with injected time and fake liveness, temp dirs only (T-3293 rule); the conformance map updated to "covered" for each one proven
-- [ ] Only `crates/termlink-bus/src/worker_contract*`, `crates/termlink-hub/src/dispatch_contract.rs`, the hub CLI entry for resolve, and new test files are changed; `cargo test -p termlink-bus -p termlink-hub` passes and `bash scripts/check-error-code-emission.sh` is clean
+- [x] Only `crates/termlink-bus/src/worker_contract*`, `crates/termlink-hub/src/dispatch_contract.rs`, the hub CLI entry for resolve, the wiring a new RPC needs (method constants in `termlink-protocol/src/control.rs`, routes and capability list in `termlink-hub/src/{router,server}.rs`) and new test files are changed; `cargo test -p termlink-bus -p termlink-hub` passes and `bash scripts/check-error-code-emission.sh` is clean
+  (Scope corrected 2026-10-21 by the orchestrator: the original list omitted the protocol constants and router, without which ask/answer/ack cannot be served at all; the extra diff is 49 lines of wiring, reviewed. Evidence: full workspace run at bbf142d1e, hub all green; bus 181/1 where the one failure is the unrelated timing flake T-3516, which passed 5/5 isolated reruns. No `dispatch.resolve` route exists: control.rs documents its absence and the router has only ask/answer/ack.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
