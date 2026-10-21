@@ -62,8 +62,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `termlink register --token-secret` prints the secret's value neither under `--verbose` (session.rs:451) nor in `--json` (session.rs:491, field `token_secret`); `--json` carries `token_auth: true` instead. No consumer reads the JSON field (grep 2026-10-22: `token create` and MCP read the registration file), so dropping it breaks nothing
+- [ ] CHANGELOG notes the `--json` field change
+- [ ] A test pins it: registering with `--token-secret --verbose` in a temp runtime dir produces output that does not contain the stored `token_secret`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +115,9 @@ date_finished: null
 -->
 
 ## Verification
+! grep -n 'Secret: {secret_hex}' crates/termlink-cli/src/commands/session.rs
+! grep -n '"token_secret": token_secret_hex' crates/termlink-cli/src/commands/session.rs
+cargo test -p termlink --test cli_integration > /tmp/.t3537 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3537
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

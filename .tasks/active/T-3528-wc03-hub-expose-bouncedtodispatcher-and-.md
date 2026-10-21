@@ -62,8 +62,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] The dispatch record (the bus read the hub serves on `dispatch.get`) carries `bounced_to_dispatcher`: the cmd_ids of this dispatch's answers in state `undelivered` or `expired`, in the order they were closed. Derived from the durable `wc_answers` rows the sweep already writes (answer.rs), no new table
+- [ ] It carries `retry_ladder_entries`: the number of answer rows in ANY attempt of the dispatch that re-use a bounced cmd_id (a replay or re-post of a bounced answer). Spec §5.5 says a bounced answer is never re-posted and never replayed into a replacement attempt; this counts violations of that, so it is a measured value (0 when the rule holds), not a constant
+- [ ] Unit tests in termlink-bus: an expired answer and an attempt-ended undelivered answer both appear in `bounced_to_dispatcher`; a stored/received/applied answer does not; re-appending a bounced cmd_id into attempt 2 makes `retry_ladder_entries` 1 (failing first)
+- [ ] `scripts/run-wc-vectors.sh` at 25f56ed68 reports CC-12 pass (both variants), with no other case regressing (pass 16, fail 0); docs/reports/T-3484-conformance-map.md updated
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +116,8 @@ date_finished: null
 -->
 
 ## Verification
+cargo test -p termlink-bus --lib worker_contract > /tmp/.t3528 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3528 && grep -q bounced_to_dispatcher crates/termlink-bus/src/worker_contract/answer_tests.rs
+bash scripts/run-wc-vectors.sh --ref 25f56ed68 > /tmp/.t3528-v 2>&1 && grep -qE 'CC-12 +pass' /tmp/.t3528-v && grep -qE 'summary: .* fail=0 ' /tmp/.t3528-v
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

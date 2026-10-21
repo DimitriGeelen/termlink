@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T21:31:02Z
-last_update: 2026-10-21T21:31:02Z
+last_update: 2026-10-21T21:31:18Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,14 +56,20 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Found while closing T-3533 (2026-10-21, load average 44–62 on 24 cores from other agents' browser/python jobs).
+Both bounds were already widened once: `Estate::hub_id` (crates/termlink-sidecar/src/testkit.rs:184) retries
+`hub.version` for 90 s, and the hub test T-2258 uses `test_budget(60s)`, scaled by `TERMLINK_TEST_TIME_FACTOR`
+(T-3479). At load 62 both still ran out: the sidecar fixture hub did not answer for 90 s (11/12 resend tests and
+fc_2), and the T-2258 walk exceeded 60 s while a meta write lock was held 8.1 s. The same binary passed every
+one of these at lower load. The sidecar fixture ignores `TERMLINK_TEST_TIME_FACTOR`, so a contended host has no
+single dial covering both crates.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `Estate::hub_id`'s 90 s deadline scales by `TERMLINK_TEST_TIME_FACTOR` (default 1, same parsing as the hub's `test_budget`), so one env var widens both crates' load-sensitive bounds; the default stays 90 s
+- [ ] The sidecar suite passes with `TERMLINK_BIN` set (`test result: ok`, no `FAILED`)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +120,9 @@ date_finished: null
 -->
 
 ## Verification
+grep -q 'TERMLINK_TEST_TIME_FACTOR' crates/termlink-sidecar/src/testkit.rs
+cargo test -p termlink-sidecar --lib > /tmp/.t3535 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3535
+cargo build -p termlink -q && TERMLINK_BIN=$PWD/target/debug/termlink TERMLINK_TEST_TIME_FACTOR=1 cargo test -p termlink-sidecar --test resend_tests > /tmp/.t3535-r 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3535-r
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
