@@ -148,22 +148,55 @@ pub fn install(prefix: &Path, system: Option<&SystemDirs>) -> Result<Vec<String>
     Ok(out)
 }
 
+/// The running image's sha256, computed on a background thread so no caller
+/// (start-up above all) waits for it. Streamed in 1 MiB reads: the old
+/// whole-file read held the entire binary in memory (~100 MB release, ~370 MB
+/// debug) and, hashed unoptimised, took seconds before the sockets could bind.
+static SHA: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+static SHA_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn hash_file(p: &std::path::Path) -> Option<String> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(p).ok()?;
+    let mut h = Sha256::new();
+    let mut buf = vec![0u8; 1 << 20];
+    loop {
+        let n = f.read(&mut buf).ok()?;
+        if n == 0 {
+            break;
+        }
+        h.update(&buf[..n]);
+    }
+    Some(h.finalize().iter().map(|x| format!("{x:02x}")).collect())
+}
+
+/// Begin hashing the running binary, once per process, and return at once.
+pub fn start_binary_hash() {
+    if SHA_STARTED.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        return;
+    }
+    std::thread::spawn(|| {
+        let sha = std::env::current_exe().ok().and_then(|p| hash_file(&p));
+        let _ = SHA.set(sha);
+    });
+}
+
 /// SI-27: the running binary's sha256 against the release checksum record.
 /// The record is `<exe dir>/../share/termlink/checksums.txt` (written by
-/// `install.sh`), or `TERMLINK_CHECKSUMS` when set.
+/// `install.sh`), or `TERMLINK_CHECKSUMS` when set. While the hash is still
+/// being computed `verified` is `"verifying"` and `sha256` is null; it never
+/// reads `"yes"` or `"no"` before the digest exists.
 pub fn binary_check() -> serde_json::Value {
     let exe = std::env::current_exe().ok();
-    // Hashed once per process: the running image cannot change under us (an
-    // upgrade replaces the file, not this process), and hashing tens of MB on
-    // every status call made status slow enough to skew its own deadlines.
-    static SHA: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
-    let sha = SHA
-        .get_or_init(|| {
-            exe.as_ref()
-                .and_then(|p| std::fs::read(p).ok())
-                .map(|b| Sha256::digest(&b).iter().map(|x| format!("{x:02x}")).collect::<String>())
-        })
-        .clone();
+    start_binary_hash();
+    let Some(sha) = SHA.get().cloned() else {
+        return serde_json::json!({
+            "path": exe.map(|p| p.display().to_string()),
+            "sha256": null,
+            "record": null,
+            "verified": "verifying",
+        });
+    };
     let record = std::env::var_os("TERMLINK_CHECKSUMS").map(PathBuf::from).or_else(|| {
         exe.as_ref()
             .and_then(|p| p.parent())
@@ -245,6 +278,13 @@ mod tests {
         std::fs::create_dir_all(&d).unwrap();
         let exe = std::env::current_exe().unwrap();
         let sha: String = Sha256::digest(std::fs::read(&exe).unwrap()).iter().map(|x| format!("{x:02x}")).collect();
+        // Before the background hash lands the answer is "verifying", never a verdict.
+        let first = binary_check()["verified"].clone();
+        assert!(first == "verifying" || first == "no-record" || first == "no", "{first}");
+        let t = std::time::Instant::now();
+        while SHA.get().is_none() && t.elapsed() < std::time::Duration::from_secs(120) {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
         let rec = d.join("checksums.txt");
         // SAFETY: test-local variable, read only by binary_check in this thread.
         unsafe { std::env::set_var("TERMLINK_CHECKSUMS", &rec) };

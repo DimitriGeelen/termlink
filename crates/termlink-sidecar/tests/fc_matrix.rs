@@ -262,8 +262,8 @@ fn start(e: &Estate, who: &str, name: &str, inst: &str, hub_id: &str) -> Proc {
     std::fs::write(&path, serde_json::to_string(&cfg).unwrap()).unwrap();
     let log = std::fs::File::create(e.root().join(format!("sidecar-{who}.log"))).unwrap();
     let child = e.command(BIN).args(["start", "--config"]).arg(&path).stdin(Stdio::null()).stdout(log.try_clone().unwrap()).stderr(log).spawn().unwrap();
-    // The sidecar hashes its own (debug, ~370MB) binary before binding; on a loaded host that takes tens of seconds.
-    assert!(wait_for(120, || api::socket_path(&e.runtime_dir(), name, Scope::Send).exists()));
+    // T-3514: the binary hash no longer precedes the bind; start-to-socket measured 0.4-8 s on a load-50 host.
+    assert!(wait_for(40, || api::socket_path(&e.runtime_dir(), name, Scope::Send).exists()));
     Proc(child)
 }
 

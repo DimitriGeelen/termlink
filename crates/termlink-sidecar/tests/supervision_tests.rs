@@ -96,7 +96,13 @@ fn heartbeat_names_every_component_fresh_and_status_reports_the_supervisor() {
     assert_eq!(v["supervisor"], "systemd");
     assert_eq!(v["keep_running"], "on");
     assert_eq!(v["pid"], json!(p.0.id()));
-    let st = hook::call(&api::socket_path(&e.runtime_dir(), "agent-a", Scope::Status), &json!({"op": "status"}), Duration::from_secs(10)).unwrap();
+    let mut st = hook::call(&api::socket_path(&e.runtime_dir(), "agent-a", Scope::Status), &json!({"op": "status"}), Duration::from_secs(10)).unwrap();
+    // T-3514: the binary hash runs off the start-up path; early status says "verifying".
+    let end = std::time::Instant::now() + Duration::from_secs(120);
+    while st["binary"]["verified"] == "verifying" && std::time::Instant::now() < end {
+        std::thread::sleep(Duration::from_millis(200));
+        st = hook::call(&api::socket_path(&e.runtime_dir(), "agent-a", Scope::Status), &json!({"op": "status"}), Duration::from_secs(10)).unwrap();
+    }
     let sup = &st["supervision"];
     assert_eq!(sup["supervisor"], "systemd", "{st}");
     assert!(sup["heartbeat_age_ms"].as_u64().unwrap() < 5_000, "{sup}");

@@ -125,6 +125,7 @@ pub fn render_status(v: &Value) -> String {
             "yes" => "matches the release checksum",
             "no" => "DOES NOT match the release checksum",
             "no-record" => "no release checksum record (not installed by install.sh)",
+            "verifying" => "still hashing the running binary",
             _ => "unreadable",
         };
         out.push_str(&format!("binary {}  {what}\n", v["binary"]["sha256"].as_str().map(|s| &s[..s.len().min(16)]).unwrap_or("?")));
