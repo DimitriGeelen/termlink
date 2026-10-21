@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3519: wc/0.3 CC-21: refused-before-start exit with absent handback classed handback-malformed, not refused
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T14:51:45Z
+# ============================================================================
+
+task_id: T-3519
+task_name: "wc/0.3 CC-21: refused-before-start exit with absent handback classed handback-malformed, not refused"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T14:27:38Z
+completed: 2026-10-21T14:51:28Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Found by the T-3517 hub conformance adapter (AEF vectors.yaml, case CC-21, variant refused-before-start). Given: attempt 1 dispatched; E1 exit_code 3, supervisor_refused true, handback absent. Steps: complete (supervisor, attempt 1, valid nonce and credential) expecting accepted T3b, then advance past deadline_dispatched expecting no transition. Expected final: A1 state done, outcome refused. Observed: the complete is accepted as T3b, and the outcome is handback-malformed. Cause: the same derive_outcome() ordering as CC-16 in crates/termlink-bus/src/worker_contract.rs (handback checked before the refused flag). Fixing that one function clears both CC-16 and CC-21; they are filed separately because the adapter reports each case on its own. Do not patch the backend from the adapter.
+
+# Key outcomes
+outcomes:
+  - 'Confirmed fixed by T-3518''s change (same root cause: `derive_outcome` checked the handback before the refused flag), or, if CC-21 still fails after it, its own cause named in the RCA and fixed'
+  - 'The conformance adapter no longer reports CC-21 as a fail on the outcome: after 762dd909f it derives `refused`; the case is now `not-implemented` only because it also asserts `operator_notices` (and a never-registers `advance`), which the hub does not have yet. That remaining part is not this bug; it is tracked with the operator-notices slice (T-3521).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 23 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 23
+  commits: 1
+  files_changed: 2
+  lines_added: 77
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3519-wc03-cc-21-refused-before-start-exit-wit.md
+generated_by: context-agent-hybrid

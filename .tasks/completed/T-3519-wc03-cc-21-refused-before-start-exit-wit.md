@@ -14,10 +14,10 @@ description: >
   they are filed separately because the adapter reports each case on its own. Do not
   patch the backend from the adapter.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, arc:arc-011]
 components: []
 related_tasks: []
@@ -48,8 +48,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:27:38Z
-last_update: 2026-10-21T14:35:55Z
-date_finished:
+last_update: 2026-10-21T14:51:28Z
+date_finished: 2026-10-21T14:51:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -340,6 +340,12 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3519-wc 2>&1; ! grep -qE "^  CC-21 +fail
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-21 — same root cause as CC-16; the rest of the case is a missing surface
+- **What changed:** T-3518's fix makes CC-21 derive `refused`; the case still reports not-implemented because it also
+  asserts `operator_notices`, which the hub does not expose yet.
+- **Plan impact:** the remaining part is a feature gap, not this bug.
+- **Triggered:** carried by T-3521 (operator notices and counts).
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -402,3 +408,20 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3519-wc 2>&1; ! grep -qE "^  CC-21 +fail
 
 ### 2026-10-21T14:35:55Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-cdf63882
+- **Timestamp:** 2026-10-21T14:51:40Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T14:51:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
