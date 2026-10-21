@@ -4,12 +4,12 @@ name: "Cloud-session spike: run guard layer + workspace tests in a cloud session
 description: >
   Cloud-session spike: run guard layer + workspace tests in a cloud session instead of on .107; measure cost and result
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [tests/planted-default-gate-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T19:55:25Z
-last_update: 2026-10-21T09:05:00Z
-date_finished: null
+last_update: 2026-10-21T22:07:31Z
+date_finished: 2026-10-21T22:07:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -62,10 +62,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] One cloud session clones the GitHub mirror (read-only; the mirror verified in sync with OneDev first) at an exact pinned commit, and runs `bash scripts/run-guard-layer.sh --json` and `cargo test --workspace`; no credentials, hub secrets or identity keys are given to it, and it pushes nothing anywhere
-- [ ] Result recorded in Updates: pass/fail per suite against the same commit's local result, wall time, and what in the guard layer cannot run off-host (SKIP/ERROR because no hub or no identity), so a cloud green is never mistaken for a full green
-- [ ] Cost recorded as measured (credit balance before/after or the session's reported usage); if it cannot be measured, said so
-- [ ] Recommendation in Updates: keep using it before deploys (and how it is triggered), adjust, or drop
+- [x] One cloud session clones the GitHub mirror (read-only; the mirror verified in sync with OneDev first) at an exact pinned commit, and runs `bash scripts/run-guard-layer.sh --json` and `cargo test --workspace`; no credentials, hub secrets or identity keys are given to it, and it pushes nothing anywhere
+- [x] Result recorded in Updates: pass/fail per suite against the same commit's local result, wall time, and what in the guard layer cannot run off-host (SKIP/ERROR because no hub or no identity), so a cloud green is never mistaken for a full green
+- [x] Cost recorded as measured (credit balance before/after or the session's reported usage); if it cannot be measured, said so
+- [x] Recommendation in Updates: keep using it before deploys (and how it is triggered), adjust, or drop
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -116,6 +116,9 @@ date_finished: null
 -->
 
 ## Verification
+grep -q 'Recommendation: keep, adjusted' .tasks/active/T-3500-cloud-session-spike-run-guard-layer--wor.md
+grep -q 'not measurable by us or ring20' .tasks/active/T-3500-cloud-session-spike-run-guard-layer--wor.md
+grep -q 'cannot run off-host' .tasks/active/T-3500-cloud-session-spike-run-guard-layer--wor.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -464,7 +467,40 @@ Prompt (d) — crash and fuzz runs:
 - **Value so far:** one high-severity data-loss race and two medium defects found that the host suite never hit, plus an
   hour of fault injection the host could not afford; cost visible only on the operator's usage page.
 
+### 2026-10-22 — comparison with the host, and recommendation (closing)
+- **Same-commit comparison.** Cloud (b) at 717e8fb: one cargo red, fc_2. The host saw the same red in the same window
+  (T-3505: "seen 2026-10-20 in two runs", fixed in 7edbca055, whose parent line contains 717e8fb). Every other crate
+  was green both places. The guard-layer reds that are real (error-swallowing predicate + fixtures J1/J2,
+  planted-default-gate J2) were re-run on the host and reproduced there before fixing (1f4e69b33); the off-host-only
+  ones (arc-claim-drift provers, fleet-recipient-agreement, cron-drift, sqlite3/cron fixtures) pass on the host.
+  Not done: a full `cargo test --workspace` on the host pinned to 717e8fb itself (no worktrees here, and the host was
+  too loaded to spare a second full run); the match rests on the red sets agreeing.
+- **Recommendation: keep, adjusted.** Use cloud sessions (via ring20's routines, one-off, latest main, sha printed
+  first) for (1) an independent review of a risky change, (2) long crash/stress loops the host cannot afford, (3) an
+  off-host test run before a release tag. Do not use them as the release gate or a substitute for host runs: a third
+  of the guard layer cannot run off-host, and a cloud green says nothing about those members. Trigger: a message to
+  ring20 with the self-contained prompt; cost is read only from the operator's usage page.
+
 ### 2026-10-20T19:55:25Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3500-cloud-session-spike-run-guard-layer--wor.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ae7fb006
+- **Timestamp:** 2026-10-21T22:07:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — One cloud session clones the GitHub mirror (read-only; the mirror verified in sync with OneDev first) at an exact pinned commit, and runs `bash scripts/run-guard-layer.sh --json` and `cargo test --wor
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/run-guard-layer.sh in: One cloud session clones the GitHub mirror (read-only; the mirror verified in sync with OneDev first) at an exact pinned commit, and runs `bash script`
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T22:07:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
