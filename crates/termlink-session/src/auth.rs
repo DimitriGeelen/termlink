@@ -131,18 +131,23 @@ pub enum PermissionScope {
     /// Methods: ping, query.*, event.poll, event.topics, kv.get, kv.list
     Observe = 0,
 
+    /// Fixed doorbell action only (T-3533). Ranks below `Interact` so a notify
+    /// token cannot mutate state; carries no free-form keystrokes.
+    /// Methods: command.notify
+    Notify = 1,
+
     /// Mutates session state or injects events.
     /// Methods: event.emit, event.broadcast, command.resize, session.update,
     ///          session.heartbeat, kv.set, kv.delete
-    Interact = 1,
+    Interact = 2,
 
     /// Affects running processes (keystroke injection, signals).
     /// Methods: command.inject, command.signal
-    Control = 2,
+    Control = 3,
 
     /// Runs arbitrary shell commands.
     /// Methods: command.execute
-    Execute = 3,
+    Execute = 4,
 }
 
 impl PermissionScope {
@@ -158,6 +163,7 @@ impl std::fmt::Display for PermissionScope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Observe => write!(f, "observe"),
+            Self::Notify => write!(f, "notify"),
             Self::Interact => write!(f, "interact"),
             Self::Control => write!(f, "control"),
             Self::Execute => write!(f, "execute"),
@@ -180,6 +186,9 @@ pub fn method_scope(method: &str) -> PermissionScope {
         | control::method::EVENT_TOPICS
         | control::method::KV_GET
         | control::method::KV_LIST => PermissionScope::Observe,
+
+        // Notify: the sidecar doorbell's fixed action (T-3533). Below Interact.
+        control::method::COMMAND_NOTIFY => PermissionScope::Notify,
 
         // Interact: mutates session state or event bus
         | control::method::EVENT_EMIT
@@ -261,11 +270,114 @@ pub enum TokenError {
 pub fn parse_scope(s: &str) -> Result<PermissionScope, TokenError> {
     match s {
         "observe" => Ok(PermissionScope::Observe),
+        "notify" => Ok(PermissionScope::Notify),
         "interact" => Ok(PermissionScope::Interact),
         "control" => Ok(PermissionScope::Control),
         "execute" => Ok(PermissionScope::Execute),
         _ => Err(TokenError::InvalidScope(s.to_string())),
     }
+}
+
+/// Where a client reads its capability token from (T-3533).
+///
+/// A token is a bearer credential, so it is never a CLI value and never an
+/// environment variable: a value on the command line is visible to every local
+/// user in `/proc/<pid>/cmdline`, and an environment variable is inherited by
+/// every child process and shows up in crash dumps. The two sources here are a
+/// file that only its owner can read, or a descriptor a parent passed down.
+#[derive(Debug, Clone, Copy)]
+pub enum TokenSource<'a> {
+    /// A file readable by its owner only (mode with no group/other bits).
+    File(&'a std::path::Path),
+    /// An inherited, already-open file descriptor, read to EOF.
+    Fd(i32),
+}
+
+/// Largest token accepted from a source. A real token is ~200 bytes; the cap
+/// stops a wrong file (or a pipe that never closes) from being read unbounded.
+pub const MAX_TOKEN_BYTES: u64 = 4096;
+
+/// Errors reading a token. None of them carries the token's contents.
+#[derive(Debug, thiserror::Error)]
+pub enum TokenSourceError {
+    #[error("cannot open token file {path}: {source}")]
+    Open {
+        path: String,
+        #[source]
+        source: io::Error,
+    },
+    #[error("refusing token file {path}: mode {mode:04o} is readable by group or others (run: chmod 600 {path})")]
+    TooPermissive { path: String, mode: u32 },
+    #[error("token descriptor {0} is not open in this process")]
+    BadFd(i32),
+    #[error("cannot read token from {what}: {source}")]
+    Read {
+        what: String,
+        #[source]
+        source: io::Error,
+    },
+    #[error("token source {0} is empty")]
+    Empty(String),
+    #[error("token source {0} is larger than {MAX_TOKEN_BYTES} bytes")]
+    TooLarge(String),
+}
+
+/// Read a session token from `source`, trimmed of surrounding whitespace.
+///
+/// The file's permissions are checked on the open handle, not the path, so a
+/// file swapped between check and read cannot widen what is read.
+pub fn read_token_source(source: TokenSource<'_>) -> Result<String, TokenSourceError> {
+    use std::io::Read;
+    use std::os::unix::fs::PermissionsExt;
+    use std::os::unix::io::FromRawFd;
+
+    let (what, mut reader): (String, Box<dyn Read>) = match source {
+        TokenSource::File(path) => {
+            let shown = path.display().to_string();
+            let file = std::fs::File::open(path).map_err(|source| TokenSourceError::Open {
+                path: shown.clone(),
+                source,
+            })?;
+            let mode = file
+                .metadata()
+                .map_err(|source| TokenSourceError::Read {
+                    what: shown.clone(),
+                    source,
+                })?
+                .permissions()
+                .mode()
+                & 0o777;
+            if mode & 0o077 != 0 {
+                return Err(TokenSourceError::TooPermissive { path: shown, mode });
+            }
+            (shown, Box::new(file))
+        }
+        TokenSource::Fd(fd) => {
+            // SAFETY: F_GETFD only inspects the descriptor; it is not consumed.
+            if unsafe { libc::fcntl(fd, libc::F_GETFD) } == -1 {
+                return Err(TokenSourceError::BadFd(fd));
+            }
+            // SAFETY: the parent passed this descriptor to us to be read here; we
+            // take ownership and close it when the reader drops.
+            let file = unsafe { std::fs::File::from_raw_fd(fd) };
+            (format!("fd {fd}"), Box::new(file))
+        }
+    };
+
+    // Bounded at MAX_TOKEN_BYTES + 1 on the same line as the read (drain-sink guard).
+    let mut raw = String::new();
+    reader.by_ref().take(MAX_TOKEN_BYTES + 1).read_to_string(&mut raw).map_err(|source| TokenSourceError::Read {
+        what: what.clone(),
+        source,
+    })?;
+    if raw.len() as u64 > MAX_TOKEN_BYTES {
+        return Err(TokenSourceError::TooLarge(what));
+    }
+    let token = raw.trim().to_string();
+    if token.is_empty() {
+        return Err(TokenSourceError::Empty(what));
+    }
+    Ok(token)
 }
 
 /// Default maximum token TTL: 7 days. Bounds the captured-token reuse window
@@ -511,9 +623,36 @@ mod tests {
         assert_eq!(method_scope("admin.shutdown"), PermissionScope::Execute);
     }
 
+    /// T-3533: `notify` is a rung below `interact` — a notify token reaches the
+    /// doorbell action and nothing that mutates state or types free text.
+    #[test]
+    fn notify_scope_sits_between_observe_and_interact() {
+        use termlink_protocol::control::method;
+
+        assert!(PermissionScope::Notify.satisfies(PermissionScope::Observe));
+        assert!(PermissionScope::Notify.satisfies(PermissionScope::Notify));
+        assert!(!PermissionScope::Notify.satisfies(PermissionScope::Interact));
+        assert!(!PermissionScope::Notify.satisfies(PermissionScope::Control));
+        assert!(!PermissionScope::Notify.satisfies(PermissionScope::Execute));
+        // Higher tokens still ring the doorbell.
+        assert!(PermissionScope::Interact.satisfies(PermissionScope::Notify));
+        assert!(PermissionScope::Control.satisfies(PermissionScope::Notify));
+
+        assert_eq!(method_scope(method::COMMAND_NOTIFY), PermissionScope::Notify);
+        // The keystroke path stays Control: notify does not widen inject.
+        assert_eq!(method_scope(method::COMMAND_INJECT), PermissionScope::Control);
+    }
+
+    #[test]
+    fn parse_scope_accepts_notify() {
+        assert_eq!(parse_scope("notify").unwrap(), PermissionScope::Notify);
+        assert!(parse_scope("Notify").is_err());
+    }
+
     #[test]
     fn scope_display() {
         assert_eq!(format!("{}", PermissionScope::Observe), "observe");
+        assert_eq!(format!("{}", PermissionScope::Notify), "notify");
         assert_eq!(format!("{}", PermissionScope::Interact), "interact");
         assert_eq!(format!("{}", PermissionScope::Control), "control");
         assert_eq!(format!("{}", PermissionScope::Execute), "execute");
@@ -679,5 +818,99 @@ mod tests {
             let (_, validated_scope) = validate_token(&secret, &token.raw, None).unwrap();
             assert_eq!(validated_scope, scope);
         }
+    }
+
+    /// A fresh directory under the system temp dir, unique per call.
+    fn token_test_dir(tag: &str) -> std::path::PathBuf {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        static N: AtomicU32 = AtomicU32::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "tl-token-src-{tag}-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn write_with_mode(path: &std::path::Path, body: &str, mode: u32) {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::write(path, body).unwrap();
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+    }
+
+    /// T-3533: a token file is read only when no group or other bit is set.
+    /// Each refusal names the path and the fix, and never the token.
+    #[test]
+    fn token_file_must_be_owner_only() {
+        let dir = token_test_dir("perm");
+        let secret_body = "secret-token-body.sig";
+
+        let open = dir.join("open.tok");
+        write_with_mode(&open, secret_body, 0o644);
+        let err = read_token_source(TokenSource::File(&open)).unwrap_err();
+        assert!(matches!(err, TokenSourceError::TooPermissive { .. }), "{err}");
+        assert!(err.to_string().contains("chmod 600"));
+        assert!(!err.to_string().contains(secret_body), "token leaked into error");
+
+        let group = dir.join("group.tok");
+        write_with_mode(&group, secret_body, 0o640);
+        assert!(matches!(
+            read_token_source(TokenSource::File(&group)),
+            Err(TokenSourceError::TooPermissive { .. })
+        ));
+
+        let private = dir.join("private.tok");
+        write_with_mode(&private, &format!("{secret_body}\n"), 0o600);
+        assert_eq!(read_token_source(TokenSource::File(&private)).unwrap(), secret_body);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn token_file_missing_empty_and_oversize_are_refused() {
+        let dir = token_test_dir("bad");
+        let missing = dir.join("nope.tok");
+        let err = read_token_source(TokenSource::File(&missing)).unwrap_err();
+        assert!(matches!(err, TokenSourceError::Open { .. }), "{err}");
+
+        let empty = dir.join("empty.tok");
+        write_with_mode(&empty, "  \n", 0o600);
+        assert!(matches!(
+            read_token_source(TokenSource::File(&empty)),
+            Err(TokenSourceError::Empty(_))
+        ));
+
+        let big = dir.join("big.tok");
+        write_with_mode(&big, &"a".repeat(MAX_TOKEN_BYTES as usize + 10), 0o600);
+        assert!(matches!(
+            read_token_source(TokenSource::File(&big)),
+            Err(TokenSourceError::TooLarge(_))
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-3533: an inherited descriptor is read to EOF, and a closed or invalid
+    /// one is a clear error rather than a read of something else.
+    #[test]
+    fn token_fd_reads_inherited_pipe_and_rejects_bad_fd() {
+        use std::io::Write;
+        use std::os::unix::io::IntoRawFd;
+
+        let (reader, mut writer) = std::os::unix::net::UnixStream::pair().unwrap();
+        writer.write_all(b"fd-token.sig\n").unwrap();
+        drop(writer);
+        let fd = reader.into_raw_fd();
+        assert_eq!(read_token_source(TokenSource::Fd(fd)).unwrap(), "fd-token.sig");
+
+        // A number no process holds open. (Reusing the just-closed `fd` would race
+        // with other tests that open files in parallel.)
+        assert!(matches!(
+            read_token_source(TokenSource::Fd(i32::MAX)),
+            Err(TokenSourceError::BadFd(_))
+        ));
+        assert!(matches!(
+            read_token_source(TokenSource::Fd(-1)),
+            Err(TokenSourceError::BadFd(-1))
+        ));
     }
 }

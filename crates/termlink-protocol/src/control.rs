@@ -45,6 +45,10 @@ pub mod method {
     pub const COMMAND_EXECUTE: &str = "command.execute";
     /// Tier-B — typed injection params (text, session, options).
     pub const COMMAND_INJECT: &str = "command.inject";
+    /// T-3533 — the doorbell's fixed notify action. Params are structured
+    /// (`ids`), never free text: the session renders its own line. Needs the
+    /// `notify` scope, which ranks below `interact` and above `observe`.
+    pub const COMMAND_NOTIFY: &str = "command.notify";
     /// Tier-B — typed signal name + target.
     pub const COMMAND_SIGNAL: &str = "command.signal";
     /// Tier-B — typed resize dimensions (rows, cols).

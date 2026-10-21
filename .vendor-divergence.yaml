@@ -1272,6 +1272,45 @@ divergences:
     fix: Import and use _db_opened_at (the connection-cache clock the readiness check means).
     evidence: python3 -c 'from web.embeddings import ... _db_opened_at ...' imports; old name absent from embeddings.py.
     upstream_note: To file with AEF (T-3370 filings, follow-up to framework:pickup offset 321).
+  - task: T-3533
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the patch.
+    date: 2026-10-21
+    file: .agentic-framework/lib/sidecar/inject.py
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: >-
+      A session locked with --token-secret also locked out its own sidecar doorbell:
+      the doorbell called `termlink pty inject`, which cannot present a token, so the
+      session refused it and the peer mail waited unrung.
+    fix: >-
+      The doorbell calls `termlink pty notify <session> --ids <short ids> [--token-file
+      <path>]` (T-3533): the session composes the line itself, the token travels by path
+      only, and every ring's outcome is recorded to receiver/doorbell.json. Also
+      doorbell_ids, doorbell_argv, doorbell_warning. The tmux route still types its line.
+    evidence: >-
+      tests/sidecar_doorbell_test.py (5 tests); end-to-end against a real token-secret
+      session (notify with token rings, notify with no token refused, inject with a notify
+      token refused, control token injects, a world-readable token file refused).
+    upstream_note: >-
+      Not yet filed. Wants filing with AEF with the lib/sidecar_cli.py status line. The
+      fix assumes a `termlink` new enough to carry `pty notify` (T-3533, this repo's build).
+  - task: T-3533
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the patch.
+    date: 2026-10-21
+    file: .agentic-framework/lib/sidecar_cli.py
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: >-
+      `fw sidecar status` printed nothing when a doorbell ring was refused, so a
+      missing or wrong notify token stayed invisible until mail went unrung.
+    fix: >-
+      Prints `doorbell_warning()` (T-3533) next to the T-3900 several-sessions line.
+    evidence: Same fixture file as inject.py (the warning builder is tested there).
+    upstream_note: Not yet filed; file with the inject.py change.
 not_divergence:
   - kind: vendor-event
     tasks: [T-2705]

@@ -4,6 +4,25 @@ All notable changes to TermLink are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **`termlink pty notify <session> --ids <csv>`** (T-3533) — the sidecar doorbell's call.
+  The session composes the doorbell line from the message ids; the caller supplies no text.
+  Needs the new `notify` token scope, which ranks below `interact`.
+- **`--token-file <path>` / `--token-fd <n>`** on `termlink inject`, `termlink pty inject`,
+  `termlink pty notify` and the MCP `termlink_inject` tool (`token_file`). A token file must be
+  owner-only (no group/other bits). There is no `--token` value flag and no token environment
+  variable. This is bearer authorisation without attribution, an interim measure, not O-7.
+
+### Changed
+- The sidecar doorbell rings via `termlink pty notify` with the session's notify token file, so a
+  `--token-secret` session no longer locks out its own doorbell. A refused ring shows as a
+  `WARN doorbell:` line in `fw sidecar status`.
+- `termlink token create --scope notify` mints the doorbell-only token.
+
+See `docs/operations/session-token-doorbell.md`.
+
 ## [0.9.0] - 2026-03-26
 
 ### Added

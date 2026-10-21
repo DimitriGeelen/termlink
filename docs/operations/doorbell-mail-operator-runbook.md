@@ -275,6 +275,15 @@ default (T-1861). The summary line `unique_speakers=K, heartbeats
 excluded=N posts / S speakers` is your signal: K=0 + N>0 means cold
 arc with bookkeeping noise.
 
+### Doorbell refused (`WARN doorbell:` in `fw sidecar status`)
+
+**Symptom:** `fw sidecar status` prints `WARN doorbell: last ring into <session> REFUSED`, and
+waiting mail is not being rung.
+
+**Cause:** the session was registered with `--token-secret`, and its notify token is missing,
+world-readable, expired, or minted for another session. See
+`docs/operations/session-token-doorbell.md` (T-3533) for provisioning and rotation.
+
 ### DM was sent but peer didn't get notified
 
 **Symptom:** `/agent-handoff` succeeded but the peer says they didn't

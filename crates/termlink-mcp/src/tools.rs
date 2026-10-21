@@ -8707,6 +8707,9 @@ pub struct InjectParams {
     pub text: String,
     /// Press Enter after injection (default: false)
     pub enter: Option<bool>,
+    /// T-3533: path to an owner-only (chmod 600) file holding the session token,
+    /// for a session registered with `--token-secret`. A path, never the token.
+    pub token_file: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -12730,6 +12733,18 @@ impl TermLinkTools {
         description = "Inject text (keystrokes) into a PTY-backed TermLink session"
     )]
     async fn termlink_inject(&self, Parameters(p): Parameters<InjectParams>) -> String {
+        // T-3533: the token is read from a protected file, and before the session
+        // lookup so a bad token file fails without touching the registry. It is
+        // presented in the auth.token handshake, never in the params or response.
+        let token = match p.token_file.as_deref() {
+            None => None,
+            Some(path) => match termlink_session::auth::read_token_source(
+                termlink_session::auth::TokenSource::File(std::path::Path::new(path)),
+            ) {
+                Ok(t) => Some(t),
+                Err(e) => return json_err(e.to_string()),
+            },
+        };
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
             Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
@@ -12740,13 +12755,15 @@ impl TermLinkTools {
             keys.push(serde_json::json!({"type": "key", "value": "Enter"}));
         }
 
-        match client::rpc_call(reg.socket_path(), "command.inject", serde_json::json!({"keys": keys})).await {
+        let timeout = std::time::Duration::from_secs(30);
+        match client::rpc_call_with_token_timeout(reg.socket_path(), token.as_deref(), "command.inject", serde_json::json!({"keys": keys}), timeout).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 // T-2580: status-aware — a no-PTY session resolves keys without
                 // writing them and must NOT be reported as a successful inject.
                 Ok(result) => mcp_inject_outcome(&result),
                 Err(e) => json_err(e),
             },
+            Err(client::ClientError::AuthFailed(msg)) => json_err(format!("session refused the token: {msg}")),
             Err(e) => json_err(format!("connection failed: {e}")),
         }
     }

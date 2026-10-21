@@ -375,6 +375,16 @@ pub(crate) enum Command {
         json: bool,
         #[arg(long, default_value = "5")]
         timeout: u64,
+
+        /// T-3533: read the session token from this file. It must be owner-only
+        /// (chmod 600). Needed for a session registered with `--token-secret`.
+        #[arg(long, value_name = "PATH", conflicts_with = "token_fd")]
+        token_file: Option<std::path::PathBuf>,
+
+        /// T-3533: read the session token from this already-open descriptor
+        /// (e.g. `... --token-fd 3 3< token.file`). Never a value on the command line.
+        #[arg(long, value_name = "FD", conflicts_with = "token_file")]
+        token_fd: Option<i32>,
     },
 
     /// Attach to a PTY session
@@ -6759,6 +6769,44 @@ pub(crate) enum PtyCommand {
         /// Send a named key instead of text (e.g., Escape, Tab, Up, Down)
         #[arg(long, short)]
         key: Option<String>,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Timeout in seconds (default: 5)
+        #[arg(long, default_value = "5")]
+        timeout: u64,
+
+        /// T-3533: read the session token from this file. It must be owner-only
+        /// (chmod 600). Needed for a session registered with `--token-secret`.
+        #[arg(long, value_name = "PATH", conflicts_with = "token_fd")]
+        token_file: Option<std::path::PathBuf>,
+
+        /// T-3533: read the session token from this already-open descriptor
+        /// (e.g. `... --token-fd 3 3< token.file`). Never a value on the command line.
+        #[arg(long, value_name = "FD", conflicts_with = "token_file")]
+        token_fd: Option<i32>,
+    },
+
+    /// T-3533: ring a sidecar doorbell. Types the fixed doorbell line for the
+    /// named message ids into the session, with Enter. Needs only the `notify`
+    /// scope, never Control, so a sidecar holds no keystroke authority.
+    Notify {
+        /// Session ID or display name
+        target: String,
+
+        /// Message ids to name in the doorbell line (comma-separated)
+        #[arg(long, value_name = "IDS", value_delimiter = ',', required = true)]
+        ids: Vec<String>,
+
+        /// Read the notify token from this file (owner-only, chmod 600)
+        #[arg(long, value_name = "PATH", conflicts_with = "token_fd")]
+        token_file: Option<std::path::PathBuf>,
+
+        /// Read the notify token from this already-open descriptor
+        #[arg(long, value_name = "FD", conflicts_with = "token_file")]
+        token_fd: Option<i32>,
 
         /// Output result as JSON
         #[arg(long)]

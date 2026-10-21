@@ -47,7 +47,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T18:35:58Z
-last_update: 2026-10-21T18:38:00Z
+last_update: 2026-10-21T18:38:27Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -85,12 +85,12 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `termlink inject` (and the MCP inject tool, parity-tested) can present a session token read from a protected file (`--token-file <path>`, refused if the file is group/world-readable) or an inherited file descriptor (`--token-fd <n>`); there is no `--token <value>` argument and no token environment variable; the token is never logged or echoed
-- [ ] A narrow notify permission for the doorbell: either a new scope below Control that allows only a fixed notify action, or a dedicated notify RPC the session handles without keystroke injection; the sidecar's doorbell uses it, so the sidecar never holds Control (keyboard) rights on a `--token-secret` session; Control-scope inject still requires a Control token
-- [ ] Tests, failing first where they describe a change: a `--token-secret` session refuses an unauthenticated inject and an unauthenticated notify; accepts its own sidecar's notify; accepts a Control-token inject; a missing or wrong token makes the doorbell report a visible failure (sidecar attention / health line), never a silent drop
-- [ ] Authentication stays in the handshake (`auth.token`); `command.inject`'s parameters gain no credential field (so the later signed-envelope design, T-3493 C, can replace the token without changing the call)
-- [ ] Docs (the inject/doorbell operations doc and CHANGELOG or release notes) say plainly: this is bearer authorisation without attribution, an interim measure, not O-7, and not an inject access list
-- [ ] `cargo test -p termlink-session -p termlink-hub -p termlink-sidecar -p termlink-mcp` passes (sidecar with TERMLINK_BIN set); guard checks touched by new MCP tools or subprocesses stay clean
+- [x] `termlink inject` (and the MCP inject tool, parity-tested) can present a session token read from a protected file (`--token-file <path>`, refused if the file is group/world-readable) or an inherited file descriptor (`--token-fd <n>`); there is no `--token <value>` argument and no token environment variable; the token is never logged or echoed
+- [x] A narrow notify permission for the doorbell: either a new scope below Control that allows only a fixed notify action, or a dedicated notify RPC the session handles without keystroke injection; the sidecar's doorbell uses it, so the sidecar never holds Control (keyboard) rights on a `--token-secret` session; Control-scope inject still requires a Control token
+- [x] Tests, failing first where they describe a change: a `--token-secret` session refuses an unauthenticated inject and an unauthenticated notify; accepts its own sidecar's notify; accepts a Control-token inject; a missing or wrong token makes the doorbell report a visible failure (sidecar attention / health line), never a silent drop
+- [x] Authentication stays in the handshake (`auth.token`); `command.inject`'s parameters gain no credential field (so the later signed-envelope design, T-3493 C, can replace the token without changing the call)
+- [x] Docs (the inject/doorbell operations doc and CHANGELOG or release notes) say plainly: this is bearer authorisation without attribution, an interim measure, not O-7, and not an inject access list
+- [x] `cargo test -p termlink-session -p termlink-hub -p termlink-sidecar -p termlink-mcp` passes (sidecar with TERMLINK_BIN set); guard checks touched by new MCP tools or subprocesses stay clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -381,6 +381,12 @@ bash scripts/check-drain-sink-caps.sh --no-heartbeat
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-10-21 — notify design (AC 2)
+- **Chose:** a new `notify` permission scope ranking below `interact` (Observe < Notify < Interact < Control < Execute), plus a dedicated `command.notify` RPC whose only input is message ids. The session composes the doorbell line itself (`doorbell_line`, byte-identical to the sidecar's `injection_line`). Authentication stays in the `auth.token` handshake.
+- **Why:** a notify holder can ring the doorbell and nothing else. It cannot type free text, emit events or change state. The sidecar never holds Control.
+- **Rejected:** (a) a Control-scope inject with a text filter, because the filter would be the whole security boundary; (b) reusing `interact`, which would let a doorbell holder emit events and mutate state; (c) a token value on the CLI or in an env var, which the ruling forbids.
+- **Token source:** `--token-file` (refused unless owner-only, checked on the open handle) or `--token-fd` (an inherited descriptor). 4 KiB cap. Errors never include the token.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -397,6 +403,13 @@ bash scripts/check-drain-sink-caps.sh --no-heartbeat
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3533-inject-b-token-from-a-protected-filefd-o.md
 - **Context:** Initial task creation
+
+### 2026-10-21 — B′ build (agent)
+- **Files:** crates/termlink-session (auth.rs scope and token reader, handler.rs notify and shared key writer, server.rs test, client.rs token-aware RPC); crates/termlink-protocol (control.rs COMMAND_NOTIFY); crates/termlink-cli (cli.rs flags and notify subcommand, pty.rs, main.rs); crates/termlink-mcp (tools.rs token_file, tests/mcp_integration.rs); .agentic-framework/lib/sidecar/inject.py and lib/sidecar_cli.py (vendored; registered in .vendor-divergence.yaml and .fwvendor-preserve.yaml); tests/sidecar_doorbell_test.py; docs/operations/session-token-doorbell.md; runbook section; CHANGELOG.
+- **Tests:** `cargo test -p termlink-session -p termlink-hub -p termlink-mcp` exit 0, no FAILED. Session notify and token unit tests green. CLI parse and token-resolution tests green. MCP inject integration 3/3. `python3 -I tests/sidecar_doorbell_test.py` 5/5.
+- **End-to-end:** temp runtime dir, real `--token-secret` session. Unauthenticated notify refused; world-readable token file refused locally; notify token rings; notify token refused on inject; control token injects; wrong token refused visibly; fd source works; doorbell text reached the PTY. Session stopped and temp dir removed.
+- **Guards:** parity census, alloc-sink, error-code emission, platform-lock, silent-exit, busy-spin, verification-misfile, drain-sink (fixed a take/read line split), vendor-divergence all clean.
+- **Not done / open:** the tmux doorbell route still types directly. `web/terminal` still uses `pty inject` and cannot reach a locked session. Hub-routed calls keep their scopes. `termlink register --token-secret` prints the session secret to its own output (existing behaviour, not changed).
 
 ### 2026-10-21T18:38:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work

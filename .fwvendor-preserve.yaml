@@ -24,3 +24,9 @@ files:
     reason: T-3472 approve-driver persists the scoring spec
   - path: bin/claude-fw
     reason: T-3464 sidecar socket injection (expect a 3-way conflict near upstream line ~1235)
+  # T-3533 (notify doorbell): the sidecar rings via `termlink pty notify` with a
+  # per-session notify token path, and records refused rings (status line).
+  - path: lib/sidecar/inject.py
+    reason: T-3533 doorbell rings via termlink pty notify (token by path); doorbell.json refusal record
+  - path: lib/sidecar_cli.py
+    reason: T-3533 status prints the doorbell REFUSED warning

@@ -835,4 +835,76 @@ mod tests {
         handle.abort();
         let _ = std::fs::remove_file(&socket_path);
     }
+
+    /// T-3533: on a `--token-secret` session the doorbell rings on a notify token
+    /// and keystrokes stay behind Control. The sidecar's notify token cannot inject,
+    /// and an unauthenticated notify is refused in the handshake.
+    #[tokio::test]
+    async fn doorbell_notify_token_rings_but_cannot_inject() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let (ctx, secret) = test_session_with_tokens(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
+        let handle = tokio::spawn({
+            let shared = shared.clone();
+            async move { run_accept_loop(listener, shared).await }
+        });
+
+        let notify_req = json!({"jsonrpc": "2.0", "method": "command.notify", "id": "n1", "params": {"ids": ["m-1"]}});
+        let inject_req = json!({"jsonrpc": "2.0", "method": "command.inject", "id": "i1", "params": {"keys": [{"type": "text", "value": "rm"}]}});
+
+        // Unauthenticated: the doorbell is refused, the same as any call.
+        {
+            let stream = tokio::net::UnixStream::connect(&socket_path).await.unwrap();
+            let (reader, mut writer) = stream.into_split();
+            let mut lines = BufReader::new(reader).lines();
+            writer.write_all(format!("{}\n", notify_req).as_bytes()).await.unwrap();
+            let resp: serde_json::Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            assert_eq!(resp["error"]["code"], -32010, "notify must need a token");
+        }
+
+        // Notify token: the doorbell is accepted; inject is refused in the same connection.
+        {
+            let stream = tokio::net::UnixStream::connect(&socket_path).await.unwrap();
+            let (reader, mut writer) = stream.into_split();
+            let mut lines = BufReader::new(reader).lines();
+            let token = auth::create_token(&secret, PermissionScope::Notify, "", 3600);
+            let req = json!({"jsonrpc": "2.0", "method": "auth.token", "id": "a1", "params": {"token": token.raw}});
+            writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+            let resp: serde_json::Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            assert_eq!(resp["result"]["scope"], "notify");
+
+            writer.write_all(format!("{}\n", notify_req).as_bytes()).await.unwrap();
+            let resp: serde_json::Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            assert!(resp["error"].is_null(), "notify token must ring the doorbell: {resp}");
+
+            writer.write_all(format!("{}\n", inject_req).as_bytes()).await.unwrap();
+            let resp: serde_json::Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            assert_eq!(resp["error"]["code"], -32010, "notify token must not inject");
+        }
+
+        // Control token: keystroke injection is still available.
+        {
+            let stream = tokio::net::UnixStream::connect(&socket_path).await.unwrap();
+            let (reader, mut writer) = stream.into_split();
+            let mut lines = BufReader::new(reader).lines();
+            let token = auth::create_token(&secret, PermissionScope::Control, "", 3600);
+            let req = json!({"jsonrpc": "2.0", "method": "auth.token", "id": "a1", "params": {"token": token.raw}});
+            writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+            let _ = lines.next_line().await.unwrap().unwrap();
+            writer.write_all(format!("{}\n", inject_req).as_bytes()).await.unwrap();
+            let resp: serde_json::Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            assert!(resp["error"].is_null(), "control token must inject: {resp}");
+        }
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
 }

@@ -315,6 +315,42 @@ pub async fn rpc_call_addr_with_timeout(
         .await
 }
 
+/// T-3533: [`rpc_call_with_timeout`] for a session that may require a token.
+///
+/// With `token = None` this is exactly `rpc_call_with_timeout`. With a token the
+/// connection authenticates first via the `auth.token` handshake and the token
+/// never appears in `params` or in any error text. A refused token surfaces as
+/// [`ClientError::AuthFailed`] carrying the hub's code and message only.
+pub async fn rpc_call_with_token_timeout(
+    socket_path: &Path,
+    token: Option<&str>,
+    method: &str,
+    params: serde_json::Value,
+    timeout: std::time::Duration,
+) -> Result<RpcResponse, ClientError> {
+    let addr = TransportAddr::unix(socket_path);
+    let mut client = Client::connect_addr_with_timeout(&addr, timeout).await?;
+    if let Some(token) = token {
+        let resp = client
+            .call_with_timeout(
+                control::method::AUTH_TOKEN,
+                serde_json::json!("auth"),
+                serde_json::json!({"token": token}),
+                timeout,
+            )
+            .await?;
+        if let RpcResponse::Error(e) = resp {
+            return Err(ClientError::AuthFailed(format!(
+                "{}: {}",
+                e.error.code, e.error.message
+            )));
+        }
+    }
+    client
+        .call_with_timeout(method, serde_json::json!("cli-1"), params, timeout)
+        .await
+}
+
 /// T-2669: socket-path sibling of [`rpc_call_addr_with_timeout`].
 ///
 /// `rpc_call` delegates to `rpc_call_addr`; this delegates to

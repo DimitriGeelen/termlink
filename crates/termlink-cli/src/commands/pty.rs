@@ -625,7 +625,30 @@ pub(crate) fn attach_inject_notice(
     }
 }
 
-pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>, json: bool, timeout_secs: u64) -> Result<()> {
+/// T-3533: the session token for one call, from `--token-file` or `--token-fd`
+/// only. `None` when neither is given (a session without `--token-secret`).
+/// Errors carry the path or fd and the reason, never the token.
+pub(crate) fn resolve_token(token_file: Option<&std::path::Path>, token_fd: Option<i32>) -> Result<Option<String>, String> {
+    use termlink_session::auth::{read_token_source, TokenSource};
+    let source = match (token_file, token_fd) {
+        (None, None) => return Ok(None),
+        (Some(path), None) => TokenSource::File(path),
+        (None, Some(fd)) => TokenSource::Fd(fd),
+        (Some(_), Some(_)) => return Err("use only one of --token-file or --token-fd".to_string()),
+    };
+    read_token_source(source).map(Some).map_err(|e| e.to_string())
+}
+
+/// T-3533: the connect/auth failure as the operator should read it. A refused
+/// token is named as one; any other failure keeps the connect wording.
+fn connect_failure_text(e: &client::ClientError) -> String {
+    match e {
+        client::ClientError::AuthFailed(msg) => format!("Session refused the token: {msg}"),
+        other => format!("Failed to connect to session: {other}"),
+    }
+}
+
+pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>, json: bool, timeout_secs: u64, token_file: Option<&std::path::Path>, token_fd: Option<i32>) -> Result<()> {
     let reg = match manager::find_session(target) {
         Ok(r) => r,
         Err(e) => {
@@ -633,6 +656,15 @@ pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Optio
                 super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
             }
             return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
+    let token = match resolve_token(token_file, token_fd) {
+        Ok(t) => t,
+        Err(msg) => {
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg}));
+            }
+            anyhow::bail!("{msg}");
         }
     };
 
@@ -651,15 +683,16 @@ pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Optio
     let params = serde_json::json!({ "keys": keys });
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    let rpc_future = client::rpc_call(reg.socket_path(), "command.inject", params);
+    let rpc_future = client::rpc_call_with_token_timeout(reg.socket_path(), token.as_deref(), "command.inject", params, timeout_dur);
     let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
         Ok(result) => match result {
             Ok(r) => r,
             Err(e) => {
+                let text = connect_failure_text(&e);
                 if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": text}));
                 }
-                return Err(e).context("Failed to connect to session");
+                return Err(anyhow::anyhow!("{text}"));
             }
         },
         Err(_) => {
@@ -726,6 +759,67 @@ pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Optio
             anyhow::bail!("Inject failed: {}", e);
         }
     }
+}
+
+/// T-3533: `termlink pty notify` — the sidecar doorbell's call. Sends only the
+/// message ids; the session composes the line (see `command.notify`). A session
+/// with no PTY answers `resolved`, which is not a doorbell, so it is an error here.
+pub(crate) async fn cmd_notify(target: &str, ids: &[String], token_file: Option<&std::path::Path>, token_fd: Option<i32>, json: bool, timeout_secs: u64) -> Result<()> {
+    let reg = match manager::find_session(target) {
+        Ok(r) => r,
+        Err(e) => {
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+            }
+            return Err(e).context(format!("Session '{}' not found", target));
+        }
+    };
+    let token = match resolve_token(token_file, token_fd) {
+        Ok(t) => t,
+        Err(msg) => {
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg}));
+            }
+            anyhow::bail!("{msg}");
+        }
+    };
+
+    let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+    let params = serde_json::json!({ "ids": ids });
+    let rpc = client::rpc_call_with_token_timeout(reg.socket_path(), token.as_deref(), "command.notify", params, timeout_dur);
+    let outcome = match tokio::time::timeout(timeout_dur, rpc).await {
+        Ok(Ok(resp)) => client::unwrap_result(resp).map_err(|e| format!("Doorbell refused: {e}")),
+        Ok(Err(e)) => Err(connect_failure_text(&e)),
+        Err(_) => Err(format!("Doorbell timed out after {timeout_secs}s")),
+    };
+    let checked = match outcome {
+        Ok(r) if inject_status_is_injected(&r) => Ok(r),
+        Ok(r) => Err(format!(
+            "Doorbell not rung: the session has no PTY (status={})",
+            r["status"].as_str().unwrap_or("unknown")
+        )),
+        Err(msg) => Err(msg),
+    };
+    let result = match checked {
+        Ok(r) => r,
+        Err(msg) => {
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg}));
+            }
+            anyhow::bail!("{msg}");
+        }
+    };
+    if json {
+        println!("{}", serde_json::json!({
+            "ok": true,
+            "target": target,
+            "ids": ids.len(),
+            "bytes_injected": result["bytes_len"].as_u64().unwrap_or(0),
+        }));
+    } else {
+        println!("Doorbell rang for {} message id(s)", ids.len());
+    }
+    Ok(())
 }
 
 pub(crate) async fn cmd_resize(target: &str, cols: u16, rows: u16, json: bool, timeout_secs: u64) -> Result<()> {
@@ -1481,6 +1575,47 @@ pub(crate) fn char_boundary_floor(s: &str, idx: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
+    /// T-3533: the CLI surface gives a token no value flag. `--token <value>`
+    /// would put the bearer credential in every process's argv.
+    #[test]
+    fn token_is_never_a_command_line_value() {
+        use crate::cli::Cli;
+        use clap::Parser;
+
+        assert!(Cli::try_parse_from(["termlink", "pty", "inject", "s", "x", "--token", "abc"]).is_err());
+        assert!(Cli::try_parse_from(["termlink", "pty", "notify", "s", "--ids", "m1", "--token", "abc"]).is_err());
+        assert!(Cli::try_parse_from(["termlink", "inject", "s", "x", "--token", "abc"]).is_err());
+        // The two sanctioned sources are exclusive.
+        assert!(Cli::try_parse_from([
+            "termlink", "pty", "notify", "s", "--ids", "m1", "--token-file", "/x", "--token-fd", "3"
+        ])
+        .is_err());
+        // Each parses on its own.
+        assert!(Cli::try_parse_from(["termlink", "pty", "notify", "s", "--ids", "m1,m2", "--token-fd", "3"]).is_ok());
+        assert!(Cli::try_parse_from(["termlink", "pty", "inject", "s", "x", "--token-file", "/x"]).is_ok());
+        // Notify needs at least one id.
+        assert!(Cli::try_parse_from(["termlink", "pty", "notify", "s"]).is_err());
+    }
+
+    #[test]
+    fn resolve_token_picks_one_source_and_refuses_two() {
+        assert_eq!(resolve_token(None, None).unwrap(), None);
+        let err = resolve_token(Some(std::path::Path::new("/nope")), Some(3)).unwrap_err();
+        assert!(err.contains("only one of"), "{err}");
+
+        let dir = std::env::temp_dir().join(format!("tl-pty-tok-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("notify.tok");
+        std::fs::write(&path, "tok-body.sig\n").unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        assert_eq!(resolve_token(Some(&path), None).unwrap().as_deref(), Some("tok-body.sig"));
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let err = resolve_token(Some(&path), None).unwrap_err();
+        assert!(!err.contains("tok-body"), "token leaked into CLI error: {err}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     use super::*;
 
     // === T-2736: an interact timeout must name a cause, not just a deadline ===

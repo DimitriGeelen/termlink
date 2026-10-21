@@ -2093,6 +2093,32 @@ async fn test_inject_with_session() {
     _h.abort();
 }
 
+/// T-3533: a token file readable by group or others is refused before any
+/// lookup, and the refusal names the fix without echoing the token.
+#[tokio::test]
+async fn test_inject_token_file_must_be_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-inject-tokperm");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let token_path = dir.path.join("notify.tok");
+    std::fs::write(&token_path, "tok-body-do-not-echo.sig").unwrap();
+    std::fs::set_permissions(&token_path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+    let client = mcp_client().await;
+    let text = call(&client, "termlink_inject", json!({
+        "target": "no-such-session",
+        "text": "hello",
+        "token_file": token_path.display().to_string(),
+    })).await;
+
+    assert!(text.contains("chmod 600"), "expected the permission refusal: {text}");
+    assert!(!text.contains("tok-body-do-not-echo"), "token must not be echoed: {text}");
+
+    client.cancel().await.unwrap();
+}
+
 // --- token_inspect tests ---
 
 #[tokio::test]

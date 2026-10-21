@@ -496,6 +496,9 @@ def cmd_status(args) -> int:
     several = inject.several_sessions_warning()  # T-3900
     if several:
         print(several)
+    doorbell = inject.doorbell_warning()  # T-3533
+    if doorbell:
+        print(doorbell)
     return 0
 
 

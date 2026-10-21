@@ -234,6 +234,74 @@ def injector_found_no_session() -> bool:
     return isinstance(cands, list) and not cands
 
 
+# T-3533: the doorbell rings through `termlink pty notify`, which carries no
+# text of its own: the session composes the line from the ids. The token that
+# authorises it is a file per TermLink session, named here by path, never read
+# or logged by this module.
+NOTIFY_TOKEN_DIR = "notify-tokens"
+
+
+def _notify_token_path(session: str) -> Path:
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", session)
+    return receiver._receiver_dir() / NOTIFY_TOKEN_DIR / f"{safe}.tok"
+
+
+def _notify_token_args(session: str) -> list[str]:
+    """`--token-file <path>` when the session has a provisioned notify token; no
+    flag otherwise. A session registered with `--token-secret` then refuses the
+    ring, and the refusal is recorded (see `doorbell_warning`)."""
+    path = _notify_token_path(session)
+    return ["--token-file", str(path)] if path.exists() else []
+
+
+def doorbell_ids(msg_ids: list[str]) -> list[str]:
+    """The ids as `injection_line` shows them, sent to `termlink pty notify`.
+    The session renders the same line from these, so an id is reduced here
+    exactly as `injection_line` reduces it. An id that reduces to nothing is
+    sent as "?", the placeholder `injection_line` prints for it."""
+    return [re.sub(r"[^A-Za-z0-9-]", "", i)[:8] or "?" for i in msg_ids]
+
+
+def doorbell_argv(session: str, msg_ids: list[str]) -> list[str]:
+    """The one call that rings a session's doorbell. No keystroke text: the
+    session composes the line from `--ids`. The token travels by path only."""
+    return ["termlink", "pty", "notify", session,
+            "--ids", ",".join(doorbell_ids(msg_ids)),
+            *_notify_token_args(session)]
+
+
+def _doorbell_path() -> Path:
+    return receiver._receiver_dir() / "doorbell.json"
+
+
+def _record_doorbell(session: str, ok: bool, err: str) -> None:
+    """The last ring's outcome, durable, so `fw sidecar status` can say a ring
+    was refused even when no one is watching the watcher's report."""
+    try:
+        tmp = _doorbell_path().with_suffix(f".json.{os.getpid()}.tmp")
+        tmp.write_text(json.dumps({"at": datetime.now(timezone.utc).isoformat(),
+                                   "session": session, "ok": ok,
+                                   "error": err or None}), encoding="utf-8")
+        os.replace(tmp, _doorbell_path())
+    except OSError:
+        pass
+
+
+def doorbell_warning() -> str | None:
+    """T-3533: one status line when the last ring into a session was refused
+    (a missing or wrong notify token, or the session gone), else None."""
+    try:
+        data = json.loads(_doorbell_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if data.get("ok") is not False:
+        return None
+    return (f"WARN doorbell:   last ring into {data.get('session')} REFUSED at "
+            f"{data.get('at', '?')}: {data.get('error') or 'no detail'} — waiting peer "
+            "mail is not being rung; provision the session's notify token (chmod 600 "
+            f"{NOTIFY_TOKEN_DIR}/<session>.tok)")
+
+
 def claim_for(msg_id: str, session: dict) -> None:
     """Claim a message for the session that is about to surface it itself."""
     _write_claim(msg_id, datetime.now(timezone.utc), session)
@@ -557,9 +625,10 @@ def _deliver_locked(trigger: str, runner) -> dict:
             ok = p1.returncode == 0 and p2.returncode == 0
             err = ((p1.stderr or "") + (p2.stderr or "")).strip()[:200]
         else:
-            proc = runner(["termlink", "pty", "inject", session, line, "--enter"],
-                          capture_output=True, text=True, timeout=15)
+            proc = runner(doorbell_argv(session, batch), capture_output=True,
+                          text=True, timeout=15)
             ok, err = proc.returncode == 0, (proc.stderr or "").strip()[:200]
+            _record_doorbell(session, ok, err)
     except (OSError, subprocess.SubprocessError) as e:
         ok, err = False, str(e)
     for m in batch:
@@ -577,7 +646,7 @@ def _deliver_locked(trigger: str, runner) -> dict:
         report["injected"] = batch
         report["reason"] = f"injected into {session} ({why})"
     else:
-        report["reason"] = f"termlink pty inject failed: {err}"
+        report["reason"] = f"doorbell refused (termlink pty notify): {err}"
     return report
 
 

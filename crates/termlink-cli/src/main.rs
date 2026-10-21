@@ -150,8 +150,11 @@ async fn main() -> Result<()> {
         // PTY subcommand group
         Command::Pty(pty) => match pty {
             PtyCommand::Output { target, lines, bytes, strip_ansi, json, timeout } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi, json, timeout).await,
-            PtyCommand::Inject { target, text, enter, key, json, timeout } => {
-                commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json, timeout).await
+            PtyCommand::Inject { target, text, enter, key, json, timeout, token_file, token_fd } => {
+                commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json, timeout, token_file.as_deref(), token_fd).await
+            }
+            PtyCommand::Notify { target, ids, token_file, token_fd, json, timeout } => {
+                commands::pty::cmd_notify(&target, &ids, token_file.as_deref(), token_fd, json, timeout).await
             }
             PtyCommand::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
             PtyCommand::Resize { target, cols, rows, json, timeout } => commands::pty::cmd_resize(&target, cols, rows, json, timeout).await,
@@ -199,8 +202,8 @@ async fn main() -> Result<()> {
 
         // Hidden backward-compat aliases (PTY)
         Command::Output { target, lines, bytes, strip_ansi, json, timeout } => commands::pty::cmd_output(&resolve_target(target)?, lines, bytes, strip_ansi, json, timeout).await,
-        Command::Inject { target, text, enter, key, json, timeout } => {
-            commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json, timeout).await
+        Command::Inject { target, text, enter, key, json, timeout, token_file, token_fd } => {
+            commands::pty::cmd_inject(&target, &text, enter, key.as_deref(), json, timeout, token_file.as_deref(), token_fd).await
         }
         Command::Attach { target, poll_ms } => commands::pty::cmd_attach(&resolve_target(target)?, poll_ms).await,
         Command::Resize { target, cols, rows, json, timeout } => commands::pty::cmd_resize(&target, cols, rows, json, timeout).await,
