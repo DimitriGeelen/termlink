@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3516: Bus test subscribe_blocking_wakes_on_concurrent_post flaky: measures the post's fsync as wake latency
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T13:57:01Z
+# ============================================================================
+
+task_id: T-3516
+task_name: "Bus test subscribe_blocking_wakes_on_concurrent_post flaky: measures the post's fsync as wake latency"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T13:47:11Z
+completed: 2026-10-21T13:56:55Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-21T15:47:53+02:00
+last_commit: 2026-10-21T15:50:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  filed with ACs (bus wake test times the post's fsync); T-3503 scope criterion corrected to include the RPC wiring it needs. bus wake test measures wake latency from post-commit, not the post's fsync
+
+# Key outcomes
+outcomes:
+  - 'Cause confirmed in the RCA: the test''s timer includes the post''s durable write (payload sync_data + meta commit), so a slow fsync (4.2 s lock hold observed) fails a < 1 s wake bound that is about the notifier, not the disk'
+  - 'The test measures wake latency from the moment the post has committed (e.g. timestamp taken when `post` returns, or when the notifier fires), keeps the < 1 s bound on the wake itself, and still fails if the subscriber is never woken (a mutant that removes the notify call goes red; say so in Updates)'
+  - '`cargo test -p termlink-bus --lib subscribe_blocking_wakes_on_concurrent_post` passes 20 consecutive runs, including runs alongside a parallel `cargo build`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - '.tasks/active/T-3503-worker-contract-hub-backend-s3-answer-pa.md'
+  - '.tasks/active/T-3516-bus-test-subscribeblockingwakesonconcurr.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T15:47:53'
+    action: 'T-3516: filed with ACs (bus wake test times the post''s fsync); T-3503 scope criterion corrected to include the RPC wiring it needs'
+  - time: '2026-10-21T15:50:29'
+    action: 'T-3516: bus wake test measures wake latency from post-commit, not the post''s fsync'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 2
+  files_changed: 3
+  lines_added: 425
+  lines_removed: 12
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3516-bus-test-subscribeblockingwakesonconcurr.md
+generated_by: context-agent-hybrid

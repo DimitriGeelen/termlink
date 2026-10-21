@@ -10,12 +10,12 @@ description: >
   wake latency from the moment the post has committed (or the notifier fired), not
   from before the post's durable write; keep the < 1 s bound on the wake itself.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug]
-components: []
+components: [crates/termlink-bus/src/lib.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -44,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T13:47:11Z
-last_update: 2026-10-21T13:47:54Z
-date_finished:
+last_update: 2026-10-21T13:56:55Z
+date_finished: 2026-10-21T13:56:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -135,6 +135,8 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+cargo test -p termlink-bus --lib subscribe_blocking_wakes_on_concurrent_post > /tmp/.t3516 2>&1 && grep -q "test result: ok. 1 passed" /tmp/.t3516
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -398,3 +400,20 @@ bvp_scores_proposed:
 - Test-only change in crates/termlink-bus/src/lib.rs: wake latency measured from the post-commit stamp; subscribe timeout 20s.
 - Mutant (`notify_waiters()` at lib.rs:565 commented out) → test RED ("19.9s after the post committed, expected < 1s"); restored.
 - 20/20 consecutive runs pass, with a parallel `cargo build -p termlink-session` running.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c5b9db4f
+- **Timestamp:** 2026-10-21T13:56:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T13:56:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
