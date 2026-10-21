@@ -41,7 +41,7 @@ arc_id: arc-parallel-substrate
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T20:42:05Z
-last_update: 2026-10-21T08:49:57Z
+last_update: 2026-10-21T10:41:48Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -404,3 +404,16 @@ cargo test -p termlink-cli -p termlink-mcp > /tmp/.t3470 2>&1 && ! grep -q "test
 - **Strategy:** `TERMLINK_WORKTREE_STRATEGY` = reflink | snapshot | clone; default reflink on btrfs, clone elsewhere; reflink/snapshot fall back to clone with a note when the copy fails.
 - **Tests:** 17 unit tests in `agent_work.rs` (fake hub, real git in temp dirs); 2 no-hub parity pairs (`parity_agent_checkout_no_hub`, `parity_agent_commit_no_hub`). The no-hub pairs needed `TERMLINK_BIN` (the MCP tool subprocesses the CLI; under the harness `current_exe()` is the test binary). Census: `check-mcp-parity-census.sh` clean (263 tools, 36 asserted).
 - **Not verified:** (a) the reflink/snapshot *success* branch needs a btrfs temp dir; on this host those tests take the fallback path. (b) the audit event's real subprocess post (`channel create` + `channel post` with `messages:1000`) is only exercised through the fake hub; no live-hub proof. AC 6 is left unticked for that reason.
+
+### 2026-10-21 — 0909's btrfs input (msg dce3c6e5) and the follow-up it implies
+- **Pinning:** a plain directory under `@` is pinned by every Timeshift snapshot of `@` until it rotates (the operator
+  just freed 88 GB by deleting two). A nested subvolume is NOT included in snapshots of `@`. So the work root
+  (`/var/lib/termlink/work`) should be its own subvolume: worker churn stops being pinned, and a restore of `@` not
+  bringing clones back is fine (they are disposable).
+- **Cost:** reflink still creates every inode and directory entry (cost grows with file count); a snapshot of a template
+  that is itself a subvolume is near constant time. Our earlier "snapshot forces a commit" measurement predates making the
+  template a subvolume; re-measure before switching the default to snapshot.
+- **Cleanup:** subvolume delete needs root (or `user_subvol_rm_allowed`); the cleaner frees space later, so no
+  `subvolume sync` in the hot path. No qgroups.
+- **Follow-up (open, this task or a slice):** create the work root and per-repo template as subvolumes when on btrfs;
+  re-measure snapshot vs reflink with that layout; make snapshot the default if it holds; plus AC 6 live proof.
