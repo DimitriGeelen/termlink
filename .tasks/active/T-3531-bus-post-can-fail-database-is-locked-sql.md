@@ -49,7 +49,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T15:28:51Z
-last_update: 2026-10-21T15:29:33Z
+last_update: 2026-10-21T15:45:02Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -90,7 +90,7 @@ bvp_scores_proposed:
 - [x] Root cause named in the RCA with file:line: which connection held the write lock past the post's 5 s busy wait (bus writer, bus reader, worker_contract writer, reclaim), and since which commit the second writer connection exists
 - [x] A deterministic failing-first test holds the write lock from the other connection (or simulates a slow commit) for longer than the post's wait and shows the post refused today; after the fix the post waits and succeeds within a bounded time, and past that bound fails with a named, loud error (not a raw SQLITE_BUSY)
 - [x] The fix keeps the T-3488 budget: a post is still two durable steps (`a_post_is_two_durable_steps_and_a_create_is_one` unchanged) and the slow-lock log still names the waiting and holding call sites
-- [ ] `readers_never_see_a_broken_log_during_posts_trims_and_rewrites` passes 20 consecutive runs, including alongside a parallel `cargo build`; `cargo test -p termlink-bus -p termlink-hub` passes; RCA and Evolution filled
+- [x] `readers_never_see_a_broken_log_during_posts_trims_and_rewrites` passes 20 consecutive runs, including alongside a parallel `cargo build` (2026-10-22: 20/20 while the T-3533 close ran cargo build/test alongside; host load 44–93 during the loop, 22 at its end); `cargo test -p termlink-bus -p termlink-hub` passes; RCA and Evolution filled
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
