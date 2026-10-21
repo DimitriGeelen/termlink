@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3505: Sidecar fault-matrix test fc_2_a_full_disk_never_reports_stored_and_the_message_waits is red
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T11:43:30Z
+# ============================================================================
+
+task_id: T-3505
+task_name: "Sidecar fault-matrix test fc_2_a_full_disk_never_reports_stored_and_the_message_waits is red"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-20T21:11:40Z
+completed: 2026-10-21T11:42:55Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-10-20T23:35:36+02:00
+last_commit: 2026-10-20T23:35:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fc_2 used a body over the hub's 512 KiB payload cap; use 400 KiB and assert the post was accepted
+
+# Key outcomes
+outcomes:
+  - 'Root cause recorded: whether fc_2 was already red before 888988dbf (T-3462), checked by running it at that commit''s parent; and whether the test or the code is wrong'
+  - 'Fixed on the correct side so the test''s intent holds (a full disk never reports STORED; the message waits and is retried), with no weakened assertion'
+  - 'fc_matrix passes three runs in a row (full-package run green once; separate flake in deadline_tests, see Updates)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/tests/fc_matrix.rs'
+  - '.tasks/active/T-3505-sidecar-fault-matrix-test-fc2afulldiskne.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T23:35:36'
+    action: 'T-3505: fc_2 used a body over the hub''s 512 KiB payload cap; use 400 KiB and assert the post was accepted'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 871 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 871
+  commits: 1
+  files_changed: 2
+  lines_added: 405
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3505-sidecar-fault-matrix-test-fc2afulldiskne.md
+generated_by: context-agent-hybrid
