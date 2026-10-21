@@ -781,6 +781,9 @@ fn hub_method_scope(method: &str) -> PermissionScope {
         | control::method::CHANNEL_CLAIM
         | control::method::CHANNEL_RENEW
         | control::method::CHANNEL_RELEASE
+        | control::method::DISPATCH_ASK
+        | control::method::DISPATCH_ANSWER
+        | control::method::DISPATCH_ACK
         | control::method::EVENT_EMIT_TO
         | control::method::EVENT_BROADCAST
         | "session.register_remote"

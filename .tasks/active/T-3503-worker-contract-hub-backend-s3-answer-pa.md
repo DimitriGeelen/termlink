@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T20:19:59Z
-last_update: 2026-10-21T12:39:39Z
+last_update: 2026-10-21T12:39:44Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,10 +83,10 @@ signed operator identity exists, T-3493). Builds on S1 (698d630f5) and S2 (a6b58
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `dispatch.ask`, `dispatch.answer` and `dispatch.ack {cmd_id, received|applied}` implemented per §3 with the `wc_answers` / `wc_questions` tables; every write is one transaction, fenced like S1 (nonce or supervisor token, attempt, prior state), with refusals as FENCE_REJECTED reasons and a history row
-- [ ] Answer states stored → received → applied, with `undelivered` and `expired` (TTL bounce) driven by the existing sweep, never by events; tested with injected time
-- [ ] `dispatch.resolve {dispatch_id, attempt, as, reason}` (T7d) exists only as a hub-host CLI path (no network RPC accepts it), logs its reason in history, and refuses unless the attempt is `unknown`; tested
-- [ ] Tests named for CC-10 (parent-session loss), CC-11 (answer delivered and acked), CC-12 (answer TTL expiry bounces) and CC-15 (unknown resolution by operator), with injected time and fake liveness, temp dirs only (T-3293 rule); the conformance map updated to "covered" for each one proven
+- [x] `dispatch.ask`, `dispatch.answer` and `dispatch.ack {cmd_id, received|applied}` implemented per §3 with the `wc_answers` / `wc_questions` tables; every write is one transaction, fenced like S1 (nonce or supervisor token, attempt, prior state), with refusals as FENCE_REJECTED reasons and a history row
+- [x] Answer states stored → received → applied, with `undelivered` and `expired` (TTL bounce) driven by the existing sweep, never by events; tested with injected time
+- [x] `dispatch.resolve {dispatch_id, attempt, as, reason}` (T7d) exists only as a hub-host CLI path (no network RPC accepts it), logs its reason in history, and refuses unless the attempt is `unknown`; tested
+- [x] Tests named for CC-10 (parent-session loss), CC-11 (answer delivered and acked), CC-12 (answer TTL expiry bounces) and CC-15 (unknown resolution by operator), with injected time and fake liveness, temp dirs only (T-3293 rule); the conformance map updated to "covered" for each one proven
 - [ ] Only `crates/termlink-bus/src/worker_contract*`, `crates/termlink-hub/src/dispatch_contract.rs`, the hub CLI entry for resolve, and new test files are changed; `cargo test -p termlink-bus -p termlink-hub` passes and `bash scripts/check-error-code-emission.sh` is clean
 
 ### Human
@@ -392,3 +392,9 @@ signed operator identity exists, T-3493). Builds on S1 (698d630f5) and S2 (a6b58
 ### 2026-10-21T12:39:39Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now
+
+### 2026-10-21 — S3 built [worker w-s3-answer]
+- **Done:** `worker_contract/answer.rs` (ask/answer/ack, sweep step, resolve) with `wc_questions` / `wc_answers`; RPCs `dispatch.ask|answer|ack` (Interact scope); answer sweep hooked into `sweep_state`; `termlink hub dispatch-resolve` (host only, no RPC); `dispatch.get` now carries `questions` / `answers` per attempt.
+- **Assumptions** (spec §5 and the vector text were not readable from this project, T-559 boundary): ANSWER_TTL 10 min; ask and ack use the attempt nonce, answer the supervisor token; `stored` past its deadline becomes `expired` (question marked bounced), `stored` on an ended attempt becomes `undelivered`, `received` is never expired by the clock; resolve `done` is attested and invents no outcome. CC-10 is modelled as "parent loss changes nothing durable, a successor with the token answers": marked partial in the map.
+- **Outside the stated file list (wiring only):** `termlink-protocol/src/control.rs` (3 method constants), `termlink-hub/src/router.rs` and `server.rs` (route, capability list, Interact scope), `termlink-cli` `cli.rs` / `main.rs` / `commands/infrastructure.rs` (resolve entry). Last AC left unticked for that reason and because of the test result below.
+- **Tests:** `cargo test -p termlink-bus` 182 passed. `cargo test -p termlink-hub --lib` 554 passed, 1 failed (`channel::tests::subscribe_timeout_ms_zero_is_snapshot`, a timing test on a loaded host; passes alone in 10 s); hub integration tests after the lib failure did not run in that invocation. `cargo check -p termlink` clean. `check-error-code-emission.sh` clean.

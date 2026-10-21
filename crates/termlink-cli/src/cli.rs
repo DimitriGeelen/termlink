@@ -1327,6 +1327,33 @@ pub(crate) enum HubAction {
         #[arg(long)]
         json: bool,
     },
+    /// Resolve an `unknown` worker-contract attempt as done or lost (T7d, hub host only)
+    ///
+    /// T-3503: reads and writes the dispatch store under this host's runtime dir directly.
+    /// There is deliberately no network RPC for this: until a signed operator identity
+    /// exists (T-3493), being on the hub host is the operator identity. The reason is
+    /// required and is recorded in the attempt's history. Refused unless the attempt is
+    /// `unknown`. `done` is an attestation, not evidence: the record keeps no outcome.
+    DispatchResolve {
+        /// The dispatch (D-<ulid>)
+        dispatch_id: String,
+
+        /// Attempt number
+        #[arg(long)]
+        attempt: i64,
+
+        /// Resolve as `done` or `lost`
+        #[arg(long = "as", value_name = "done|lost")]
+        as_state: String,
+
+        /// Why (recorded in history)
+        #[arg(long)]
+        reason: String,
+
+        /// Output the resulting record as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Print the sha256 fingerprint of <runtime_dir>/hub.cert.pem (TOFU pin)
     ///
     /// Use to verify what peers should pin after a hub rotation (PL-021)

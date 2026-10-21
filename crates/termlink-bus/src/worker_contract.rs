@@ -11,7 +11,7 @@
 //!
 //! Only the writes reachable through `dispatch.transition` live here: T1 (allocate),
 //! T2, T3, T3b, T-RECLAIM, T5, T7b and the T8 response. T4/T6/T6b/T7a/T7c belong to the
-//! sweep (S2) and T7d to the operator CLI (S3); asking for them here is
+//! sweep (S2) and T7d to the operator CLI (S3, `answer::resolve_at`); asking for them here is
 //! `forbidden_transition`.
 //!
 //! The nonce and the supervisor token are returned once at allocation and stored only
@@ -331,6 +331,9 @@ impl WcStore {
             for mut a in nums {
                 let n = a["attempt"].as_i64().unwrap_or(0);
                 a["history"] = history_json(&conn, dispatch_id, n)?;
+                let (qs, ans) = answer::qa_json(&conn, dispatch_id, n)?;
+                a["questions"] = qs;
+                a["answers"] = ans;
                 attempts.push(a);
             }
             d["attempts"] = Value::Array(attempts);
@@ -679,6 +682,8 @@ fn init_schema(conn: &Connection) -> Result<()> {
     // files get the columns here rather than through the CREATE above.
     ensure_column(conn, "wc_attempts", "end_observed_at", "INTEGER")?;
     ensure_column(conn, "wc_attempts", "absent_sweeps", "INTEGER NOT NULL DEFAULT 0")?;
+    // T-3503 (S3): the answer path.
+    answer::init_schema(conn)?;
     Ok(())
 }
 
@@ -733,7 +738,10 @@ fn new_dispatch_id(now_ms: i64) -> Result<String> {
     Ok(out)
 }
 
+pub mod answer;
 pub mod sweep;
+#[cfg(test)]
+mod answer_tests;
 #[cfg(test)]
 mod sweep_tests;
 #[cfg(test)]

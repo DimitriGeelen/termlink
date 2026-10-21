@@ -18,12 +18,12 @@ given/steps have not been checked against the vector text yet; **open** = not bu
 | CC-07 | Stale-attempt write rejected | covered | `cc07_stale_attempt_write_rejected`, `stale_attempt_on_running_path` |
 | CC-08 | Hub restart | covered | `hub_restart_between_sweeps_never_produces_lost`, `restart_keeps_state_and_a_live_binding_changes_nothing` |
 | CC-09 | Partition | partial | `unreadable_listing_never_produces_lost` (the hub cannot see → never `lost`) |
-| CC-10 | Parent-session loss | open | S3 (T-3503) |
-| CC-11 | Answer delivered and acked | open | S3 (T-3503) |
-| CC-12 | Answer TTL expiry bounces | open | S3 (T-3503) |
+| CC-10 | Parent-session loss | partial | `cc10_parent_session_loss_does_not_lose_the_question_or_the_attempt` (S3; modelled from design §3/§5, vector text not readable) |
+| CC-11 | Answer delivered and acked | covered | `cc11_answer_delivered_and_acked`, `ask_answer_ack_round_trip_over_the_rpc_edge` (stored, received, applied) |
+| CC-12 | Answer TTL expiry bounces | covered | `cc12_answer_ttl_expiry_bounces`, `answer_to_an_attempt_that_ended_is_undelivered`, `sweep_answers_bounces_an_expired_answer` (ANSWER_TTL 10 min, sweep-driven) |
 | CC-13 | Local backend parity | n/a here | AEF runs it against both backends; we expose a test hub (S4) |
 | CC-14 | Stale supervisor generation | covered | `cc14_stale_supervisor_generation` |
-| CC-15 | Unknown resolution by operator | open | S3 (T-3503, `dispatch.resolve` / T7d) |
+| CC-15 | Unknown resolution by operator | covered | `cc15_unknown_resolution_by_operator`, `resolve_is_host_only_and_needs_an_unknown_attempt`, `resolve_at_works_on_a_live_store_and_never_creates_one` (hub-host CLI only, no RPC) |
 | CC-16 | Outcome derivation | covered | `cc16_outcome_derivation_and_cc19_paused` |
 | CC-17 | Absence across a registry epoch | covered | `hub_restart_between_sweeps_never_produces_lost`, `epoch_is_bumped_at_hub_start_and_persists` |
 | CC-18 | Caller-chosen dispatch id | covered | `cc18_caller_chosen_dispatch_id`, `id_taken_and_not_found_have_their_own_codes` |
@@ -35,7 +35,7 @@ given/steps have not been checked against the vector text yet; **open** = not bu
 | CC-24 | Late T5 whose evidence postdates the lost entry | covered | `cc24_late_t5_postdating_lost_is_forbidden` |
 | CC-25 | Backend-initiated stop | open | not yet checked; needs the vector text |
 
-Totals: 14 covered, 4 partial, 7 open or n/a (CC-10/11/12/15 wait for S3; CC-22/25 need the vector text; CC-13 is AEF's).
+Totals: 17 covered, 5 partial, 3 open or n/a (CC-22/25 need the vector text; CC-13 is AEF's). CC-10..12 and CC-15 were built from the design and the review (ANSWER_TTL 10 min, T7d host-only), not from the vector text, which the S3 worker could not read: re-check their given/steps/then against `vectors.yaml` when it is on the mirror.
 
 Next: when the vector file is on the mirror, (1) read each case's given/steps/then; (2) turn the four partials into
 covered or open; (3) add `cc<NN>_` aliases or rename so each test names its case; (4) send AEF the patch with the

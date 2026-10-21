@@ -821,6 +821,29 @@ pub(crate) fn cmd_hub_fingerprint(json_output: bool) -> Result<()> {
     Ok(())
 }
 
+/// T-3503 (T7d): resolve an `unknown` worker-contract attempt on this host. No RPC exists
+/// for it; this opens the local bus store directly. Errors are loud (non-zero exit).
+pub(crate) fn cmd_hub_dispatch_resolve(
+    dispatch_id: &str,
+    attempt: i64,
+    as_state: &str,
+    reason: &str,
+    json_output: bool,
+) -> Result<()> {
+    let bus_root = termlink_session::discovery::runtime_dir().join("bus");
+    let rec = termlink_hub::dispatch_contract::resolve_on_host(&bus_root, dispatch_id, attempt, as_state, reason)
+        .map_err(|e| anyhow::anyhow!("dispatch resolve: {e}"))?;
+    if json_output {
+        println!("{}", json!({"ok": true, "record": rec}));
+    } else {
+        println!(
+            "{dispatch_id} attempt {attempt} resolved as {} (reason recorded in history)",
+            rec["state"].as_str().unwrap_or("?")
+        );
+    }
+    Ok(())
+}
+
 /// T-1658: TLS-probe a remote hub and print its leaf cert fingerprint.
 ///
 /// Companion to `cmd_hub_fingerprint` (T-1657, local) — `cmd_hub_probe`

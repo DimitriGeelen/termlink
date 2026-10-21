@@ -297,6 +297,7 @@ async fn main() -> Result<()> {
             Some(HubAction::Restart { json }) => commands::infrastructure::cmd_hub_restart(json),
             Some(HubAction::Status { json, short, check, governor }) => commands::infrastructure::cmd_hub_status(json, short, check, governor).await,
             Some(HubAction::ExportSecret { out, json }) => commands::infrastructure::cmd_hub_export_secret(out.as_deref(), json),
+            Some(HubAction::DispatchResolve { ref dispatch_id, attempt, ref as_state, ref reason, json }) => commands::infrastructure::cmd_hub_dispatch_resolve(dispatch_id, attempt, as_state, reason, json),
             Some(HubAction::Fingerprint { json }) => commands::infrastructure::cmd_hub_fingerprint(json),
             Some(HubAction::Probe { addr, json }) => commands::infrastructure::cmd_hub_probe(&addr, json).await,
         },

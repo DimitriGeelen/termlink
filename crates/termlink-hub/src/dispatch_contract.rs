@@ -12,6 +12,9 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 use termlink_bus::Bus;
 use termlink_bus::worker_contract::sweep::SweepObservation;
+use termlink_bus::worker_contract::answer::{
+    resolve_at, AckRequest, AnswerRequest, AskRequest, ResolveRequest,
+};
 use termlink_bus::worker_contract::{
     AllocateRequest, Handback, TransitionRequest, WcError,
 };
@@ -95,6 +98,51 @@ pub async fn handle_dispatch_get(id: Value, params: &Value) -> RpcResponse {
     }
 }
 
+pub async fn handle_dispatch_ask(id: Value, params: &Value) -> RpcResponse {
+    match bus_or_err(&id) {
+        Ok(b) => ask_with(b, id, params, now_ms()),
+        Err(r) => r,
+    }
+}
+
+pub async fn handle_dispatch_answer(id: Value, params: &Value) -> RpcResponse {
+    match bus_or_err(&id) {
+        Ok(b) => answer_with(b, id, params, now_ms()),
+        Err(r) => r,
+    }
+}
+
+pub async fn handle_dispatch_ack(id: Value, params: &Value) -> RpcResponse {
+    match bus_or_err(&id) {
+        Ok(b) => ack_with(b, id, params, now_ms()),
+        Err(r) => r,
+    }
+}
+
+/// T-3503 (S3), T7d: the operator resolves an `unknown` attempt. Hub-host only: this is
+/// called by the CLI on the host that runs the hub, and nothing in the router reaches it.
+/// Until a signed operator identity exists (T-3493), being on the host is the identity.
+pub fn resolve_on_host(
+    bus_root: &std::path::Path,
+    dispatch_id: &str,
+    attempt: i64,
+    as_state: &str,
+    reason: &str,
+) -> Result<Value, String> {
+    let req = ResolveRequest {
+        dispatch_id: dispatch_id.to_string(),
+        attempt,
+        as_state: as_state.to_string(),
+        reason: reason.to_string(),
+    };
+    resolve_at(bus_root, &req, now_ms()).map_err(|e| match e {
+        WcError::NotFound(d) => format!("not found: {d}"),
+        WcError::Invalid(m) => m,
+        WcError::Fence { reason, detail } => format!("refused ({}): {detail}", reason.as_str()),
+        other => format!("{other:?}"),
+    })
+}
+
 /// T-3502 (S2): what the sweep sees of the registrations under `dirs`. A dir that
 /// cannot be listed makes the listing incomplete (the hub bumps the epoch); a dir that
 /// does not exist is empty, not unreadable (`list_sessions_in` says so itself).
@@ -121,6 +169,7 @@ pub(crate) fn scan_bindings(dirs: &[PathBuf]) -> SweepObservation {
 /// T-3502 (S2): one state sweep, run as a step of the supervisor loop. Failures are
 /// logged and skipped: the next sweep sees the same state again.
 pub(crate) fn sweep_state(bus: &Bus, dirs: &[PathBuf]) {
+    sweep_answers(bus, now_ms());
     let obs = scan_bindings(dirs);
     match bus.wc_sweep(&obs, now_ms()) {
         Ok(report) => {
@@ -135,6 +184,71 @@ pub(crate) fn sweep_state(bus: &Bus, dirs: &[PathBuf]) {
             }
         }
         Err(e) => tracing::warn!(error = ?e, "dispatch sweep failed"),
+    }
+}
+
+/// T-3503 (S3): the answer step of the sweep, `undelivered` and `expired`, from state.
+pub(crate) fn sweep_answers(bus: &Bus, now: i64) {
+    match bus.wc_sweep_answers(now) {
+        Ok(closed) => {
+            for c in &closed {
+                tracing::warn!(
+                    dispatch_id = %c.dispatch_id, attempt = c.attempt, cmd_id = %c.cmd_id,
+                    to = %c.to, cause = %c.cause, "dispatch sweep: answer closed by hub"
+                );
+            }
+        }
+        Err(e) => tracing::warn!(error = ?e, "dispatch answer sweep failed"),
+    }
+}
+
+pub(crate) fn ask_with(bus: &Bus, id: Value, params: &Value, now: i64) -> RpcResponse {
+    let (Some(dispatch_id), Some(nonce), Some(attempt), Some(body)) =
+        (s(params, "dispatch_id"), s(params, "nonce"), i(params, "attempt"), s(params, "body"))
+    else {
+        return ErrorResponse::new(id, -32602, "dispatch.ask needs dispatch_id, attempt, nonce, body").into();
+    };
+    let req = AskRequest { dispatch_id, attempt, nonce, question_id: s(params, "question_id"), body };
+    match bus.wc_ask(&req, now) {
+        Ok(o) => Response::success(id, json!({"question": o.record, "deduped": o.deduped})).into(),
+        Err(e) => err(id, e),
+    }
+}
+
+pub(crate) fn answer_with(bus: &Bus, id: Value, params: &Value, now: i64) -> RpcResponse {
+    let (Some(dispatch_id), Some(attempt), Some(body)) =
+        (s(params, "dispatch_id"), i(params, "attempt"), s(params, "body"))
+    else {
+        return ErrorResponse::new(id, -32602, "dispatch.answer needs dispatch_id, attempt, supervisor_token, body").into();
+    };
+    let req = AnswerRequest {
+        dispatch_id,
+        attempt,
+        supervisor_token: s(params, "supervisor_token"),
+        cmd_id: s(params, "cmd_id"),
+        question_id: s(params, "question_id"),
+        body,
+    };
+    match bus.wc_answer(&req, now) {
+        Ok(o) => Response::success(id, json!({"answer": o.record, "deduped": o.deduped})).into(),
+        Err(e) => err(id, e),
+    }
+}
+
+pub(crate) fn ack_with(bus: &Bus, id: Value, params: &Value, now: i64) -> RpcResponse {
+    let (Some(dispatch_id), Some(nonce), Some(attempt), Some(cmd_id), Some(state)) = (
+        s(params, "dispatch_id"),
+        s(params, "nonce"),
+        i(params, "attempt"),
+        s(params, "cmd_id"),
+        s(params, "state"),
+    ) else {
+        return ErrorResponse::new(id, -32602, "dispatch.ack needs dispatch_id, attempt, nonce, cmd_id, state").into();
+    };
+    let req = AckRequest { dispatch_id, attempt, nonce, cmd_id, state };
+    match bus.wc_ack(&req, now) {
+        Ok(o) => Response::success(id, json!({"answer": o.record, "deduped": o.deduped})).into(),
+        Err(e) => err(id, e),
     }
 }
 
@@ -340,5 +454,98 @@ mod tests {
         // A dir that does not exist holds no sessions: complete and empty.
         let obs = scan_bindings(&[dir.path().join("absent")]);
         assert!(obs.listing_complete && obs.live.is_empty());
+    }
+
+    /// T-3503: the answer path through the RPC edge, end to end (CC-11 shape).
+    #[test]
+    fn ask_answer_ack_round_trip_over_the_rpc_edge() {
+        let (_d, b) = bus();
+        let a = ok(allocate_with(&b, json!(1), &json!({}), 1_000));
+        ok(transition_with(&b, json!(2), &lifecycle(&a, "running", "dispatched"), 2_000));
+        let q = ok(ask_with(
+            &b,
+            json!(3),
+            &json!({"dispatch_id": a["dispatch_id"], "attempt": 1, "nonce": a["nonce"],
+                    "question_id": "q1", "body": "which branch?"}),
+            3_000,
+        ));
+        assert_eq!(q["question"]["question_id"], "q1");
+        let st = ok(answer_with(
+            &b,
+            json!(4),
+            &json!({"dispatch_id": a["dispatch_id"], "attempt": 1, "supervisor_token": a["supervisor_token"],
+                    "cmd_id": "c1", "question_id": "q1", "body": "main"}),
+            4_000,
+        ));
+        assert_eq!(st["answer"]["state"], "stored");
+        let ack = |state: &str, now: i64| {
+            ack_with(
+                &b,
+                json!(5),
+                &json!({"dispatch_id": a["dispatch_id"], "attempt": 1, "nonce": a["nonce"],
+                        "cmd_id": "c1", "state": state}),
+                now,
+            )
+        };
+        assert_eq!(ok(ack("received", 5_000))["answer"]["state"], "received");
+        assert_eq!(ok(ack("applied", 6_000))["answer"]["state"], "applied");
+        // A refusal is FENCE_REJECTED with its reason.
+        let (code, data) = fail(answer_with(
+            &b,
+            json!(6),
+            &json!({"dispatch_id": a["dispatch_id"], "attempt": 1, "supervisor_token": "no", "body": "x"}),
+            7_000,
+        ));
+        assert_eq!(code, error_code::FENCE_REJECTED);
+        assert_eq!(data["reason"], "bad_credential");
+    }
+
+    /// T-3503: the sweep hook bounces an expired answer, from state.
+    #[test]
+    fn sweep_answers_bounces_an_expired_answer() {
+        let (_d, b) = bus();
+        let a = ok(allocate_with(&b, json!(1), &json!({}), 1_000));
+        ok(transition_with(&b, json!(2), &lifecycle(&a, "running", "dispatched"), 2_000));
+        ok(answer_with(
+            &b,
+            json!(3),
+            &json!({"dispatch_id": a["dispatch_id"], "attempt": 1, "supervisor_token": a["supervisor_token"],
+                    "cmd_id": "c1", "body": "main"}),
+            3_000,
+        ));
+        sweep_answers(&b, 3_000 + 600_000);
+        let got = ok(get_with(&b, json!(4), &json!({"dispatch_id": a["dispatch_id"]})));
+        assert_eq!(got["attempts"][0]["answers"][0]["state"], "expired");
+    }
+
+    /// T-3503 / CC-15: `dispatch.resolve` has no network surface. The method constant does
+    /// not exist, the router does not route it, the capability list does not name it, and
+    /// the host entry point refuses anything that is not `unknown`.
+    #[test]
+    fn resolve_is_host_only_and_needs_an_unknown_attempt() {
+        let src = include_str!("router.rs");
+        assert!(!src.contains("dispatch.resolve") && !src.contains("DISPATCH_RESOLVE"));
+        let ctl = include_str!("../../termlink-protocol/src/control.rs");
+        assert!(!ctl.contains("pub const DISPATCH_RESOLVE"));
+
+        let d = tempfile::tempdir().unwrap();
+        let bus = Bus::open(d.path()).unwrap();
+        let a = ok(allocate_with(&bus, json!(1), &json!({}), 1_000));
+        let id = a["dispatch_id"].as_str().unwrap();
+        // Still `dispatched`: refused, and the refusal names the reason.
+        let e = resolve_on_host(d.path(), id, 1, "lost", "operator says so").unwrap_err();
+        assert!(e.contains("cas_mismatch"), "{e}");
+        // Past the dispatched deadline the sweep makes it `unknown`; then resolve works.
+        let past = a["deadline_dispatched"].as_i64().unwrap() + 1;
+        bus.wc_sweep(
+            &termlink_bus::worker_contract::sweep::SweepObservation { listing_complete: true, ..Default::default() },
+            past,
+        )
+        .unwrap();
+        let rec = resolve_on_host(d.path(), id, 1, "done", "checked by hand").unwrap();
+        assert_eq!(rec["state"], "done");
+        assert_eq!(rec["attested"], true);
+        let e = resolve_on_host(d.path(), "D-01J9ZZZZZZZZZZZZZZZZZZZZZZ", 1, "lost", "x").unwrap_err();
+        assert!(e.starts_with("not found"), "{e}");
     }
 }

@@ -274,6 +274,13 @@ pub mod method {
     pub const DISPATCH_TRANSITION: &str = "dispatch.transition";
     /// T-3501: read a dispatch record (Observe).
     pub const DISPATCH_GET: &str = "dispatch.get";
+    /// T-3503 answer path (contract §5): a worker asks (nonce), the dispatcher answers
+    /// (supervisor token), the worker acks `received|applied`. Interact.
+    /// There is deliberately NO `dispatch.resolve` method: T7d is a hub-host CLI only
+    /// until a signed operator identity exists (T-3493).
+    pub const DISPATCH_ASK: &str = "dispatch.ask";
+    pub const DISPATCH_ANSWER: &str = "dispatch.answer";
+    pub const DISPATCH_ACK: &str = "dispatch.ack";
 
     /// T-1329 — server-side aggregation of latest `m.receipt` envelope per sender.
     /// Walks the topic on the hub, keeps only `msg_type=receipt`, picks the latest
