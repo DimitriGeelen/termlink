@@ -91,6 +91,26 @@ Research: docs/reports/T-3477-container-isolation-workers.md.
   confidence: 0
   disposition:
   rationale:
+- **IW-6: Placement: how does a dispatcher pick a host with spare capacity (CPU, memory, disk) and start the worker there?**
+  confidence: 0
+  disposition:
+  rationale: operator input 2026-10-21 (below): the reason for containers is spreading worker load across hosts
+- **IW-7: Which run model: (a) a container spawned per task on the chosen host, (b) standing containers per host that accept tasks, (c) a central definition (image + config) each host pulls and spawns from; or a mix?**
+  confidence: 0
+  disposition:
+  rationale: operator named all three on 2026-10-21
+- **IW-8: Which hub owns the dispatch record of a worker running on another host? Hubs do not federate (G-060) and the shared contract says the record's hub is the hub the worker registers with.**
+  confidence: 0
+  disposition:
+  rationale:
+- **IW-9: How do the worker's results come back across hosts (push a branch to OneDev, or a patch/artifact through the hub) and land safely (verify before land, CAS)?**
+  confidence: 0
+  disposition:
+  rationale:
+- **IW-10: Who may start a worker on my host? Remote spawn is a privileged action and ties to the inject/identity work (T-3493 C, O-7).**
+  confidence: 0
+  disposition:
+  rationale:
 
 ## Exploration Plan
 
@@ -186,3 +206,16 @@ Shaping in progress. Two of five T-3469 reviewers (claude, glm) named a per-task
 
 ### 2026-10-19T13:38:40Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-21 — operator input: containers are for spreading work across hosts
+- Operator, verbatim in substance: "I want containers for multiple reasons ... I've got multiple hosts and I'm running
+  out of processing power. What's the ability then to spawn off a container in another host and fire off a task? A worker
+  task." And: "Or we have standing containers where work tasks can be spawned, or we have configuration centrally which
+  can be pulled and then spawned up, right?"
+- Consequence for scope: this inception is no longer only per-claim isolation on one host; the main goal is cross-host
+  worker placement for capacity. New open questions IW-6 (placement by capacity), IW-7 (per-task spawn vs standing pool vs
+  centrally defined image pulled per host), IW-8 (which hub owns the record, given no federation), IW-9 (results back across
+  hosts), IW-10 (who may start a worker on a host).
+- Hard constraint carried from the operator's standing rules: the operator's own credentials (e.g. ~/.claude/.credentials.json)
+  are never copied into a container or onto another host (IW-1 must find another route).
+- VOI raised to 0.8 by the operator (decision 4, 2026-10-21).
