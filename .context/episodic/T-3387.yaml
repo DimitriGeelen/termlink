@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3387: Sidecar activity veto before doorbell typing + derived busy bit on presence (OQ-16 D, CR-5)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T11:55:23Z
+# ============================================================================
+
+task_id: T-3387
+task_name: "Sidecar activity veto before doorbell typing + derived busy bit on presence (OQ-16 D, CR-5)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-10T12:34:41Z
+completed: 2026-10-21T11:55:07Z
+duration_days: 11
+updates_count: 3
+first_commit: 2026-10-20T21:59:14+02:00
+last_commit: 2026-10-20T22:28:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  acceptance criteria from OQ-16 D (activity veto, gate, no-/proc fallback, busy bit). sidecar activity veto (pty-rooted tree, ss bytes_sent primary, CPU/disk secondary), doorbell gate, busy-bit presence fields, activity_veto in status; 8 tests + gate mutant red. record re-run after T-3462 (deadline_tests green; fc_2 still red, outside this area)
+
+# Key outcomes
+outcomes:
+  - 'New module `crates/termlink-sidecar/src/activity.rs` measures the agent''s own process tree (rooted at the process whose fd/0 is the conversation''s pty, per 055 T-491, not at a recorded claude pid) over a 1-2 s window: network bytes SENT per owned socket inode (primary; 055''s `ss` by-inode method), CPU ticks and disk I/O bytes (secondary). Bytes-received / lastrcv are never read. Unit tests run against a fake `/proc` tree and canned `ss` output in temp dirs.'
+  - 'A doorbell gate (`activity::gate`) rings only when the readiness re-check says READY *and* the veto finds no clear activity; clear activity holds the doorbell with a retry; activity-quiet never turns a not-ready agent into ready (OQ-16 D 1-2). Each case has a test, and one mutant (veto ignored) is shown red.'
+  - 'Where the host cannot measure (no `/proc`): no veto, the gate falls back to the readiness re-check alone, and the sidecar `status` output carries an `activity_veto` field naming the state (`available` / `network unmeasured` / `unavailable: no /proc`) (OQ-16 D 3).'
+  - 'Presence fields derived from a sample carry only `busy` (true / false / null when unmeasurable) and its sample time `busy_sample_ms`; no raw byte, tick or I/O figure appears in them (OQ-16 D 4: raw telemetry stays on the host). Tested.'
+  - 'Starting thresholds (network sent, CPU, disk over the window) are named constants citing 055''s numbers (megabytes per model request vs <= 2.8 KB keep-alive per 30 s) and marked as H-11 starting values to be measured; `cargo test -p termlink-sidecar` passes.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/activity.rs'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - '.tasks/active/T-3387-sidecar-activity-veto-before-doorbell-ty.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T21:59:14'
+    action: 'T-3387: acceptance criteria from OQ-16 D (activity veto, gate, no-/proc fallback, busy bit)'
+  - time: '2026-10-20T22:27:50'
+    action: 'T-3387: sidecar activity veto (pty-rooted tree, ss bytes_sent primary, CPU/disk secondary), doorbell gate, busy-bit presence fields, activity_veto in status; 8 tests + gate mutant red'
+  - time: '2026-10-20T22:28:41'
+    action: 'T-3387: record re-run after T-3462 (deadline_tests green; fc_2 still red, outside this area)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 15800 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 15800
+  commits: 3
+  files_changed: 4
+  lines_added: 468
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3387-sidecar-activity-veto-before-doorbell-ty.md
+generated_by: context-agent-hybrid

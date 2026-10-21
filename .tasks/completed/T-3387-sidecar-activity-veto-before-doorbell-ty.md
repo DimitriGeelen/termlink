@@ -14,12 +14,12 @@ description: >
   are starting values measured in the first build (H-11). Write real ACs before editing
   source (G-020).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-sidecar/src/api.rs, crates/termlink-sidecar/src/lib.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -48,8 +48,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-10T12:34:41Z
-last_update: 2026-10-20T20:27:51Z
-date_finished:
+last_update: 2026-10-21T11:55:07Z
+date_finished: 2026-10-21T11:55:07Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -99,7 +99,7 @@ sessions anyway.
 - [x] A doorbell gate (`activity::gate`) rings only when the readiness re-check says READY *and* the veto finds no clear activity; clear activity holds the doorbell with a retry; activity-quiet never turns a not-ready agent into ready (OQ-16 D 1-2). Each case has a test, and one mutant (veto ignored) is shown red.
 - [x] Where the host cannot measure (no `/proc`): no veto, the gate falls back to the readiness re-check alone, and the sidecar `status` output carries an `activity_veto` field naming the state (`available` / `network unmeasured` / `unavailable: no /proc`) (OQ-16 D 3).
 - [x] Presence fields derived from a sample carry only `busy` (true / false / null when unmeasurable) and its sample time `busy_sample_ms`; no raw byte, tick or I/O figure appears in them (OQ-16 D 4: raw telemetry stays on the host). Tested.
-- [ ] Starting thresholds (network sent, CPU, disk over the window) are named constants citing 055's numbers (megabytes per model request vs <= 2.8 KB keep-alive per 30 s) and marked as H-11 starting values to be measured; `cargo test -p termlink-sidecar` passes.
+- [x] Starting thresholds (network sent, CPU, disk over the window) are named constants citing 055's numbers (megabytes per model request vs <= 2.8 KB keep-alive per 30 s) and marked as H-11 starting values to be measured; `cargo test -p termlink-sidecar` passes.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -408,3 +408,15 @@ grep -q 'field(l, "bytes_sent:")' crates/termlink-sidecar/src/activity.rs && ! g
 - **Re-run after T-3462 committed (888988dbf):**
   1. `deadline_tests` now passes 10/10.
   2. `fc_matrix::fc_2` still fails at `fc_matrix.rs:175`: receiver B's pass returns `CaughtUp { handled: 0 }` for a 512 KiB message, where the test expects `Stalled`. That is the send→hub→receive path, which this task does not touch (it added only a status field), so I reported it to the orchestrator rather than fixing it. AC5 stays open until it is green.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-263c76e3
+- **Timestamp:** 2026-10-21T11:55:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-21T11:55:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
