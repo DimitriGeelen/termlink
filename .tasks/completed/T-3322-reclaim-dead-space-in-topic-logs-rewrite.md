@@ -10,12 +10,12 @@ description: >
   Trigger: file > 8 MB and > 50% dead, configurable in the hub config file from T-3310.
   After T-3310.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-012]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/limits.rs, crates/termlink-bus/src/log.rs, crates/termlink-bus/src/meta.rs]
 related_tasks: [T-3310]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -28,8 +28,8 @@ related_tasks: [T-3310]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-02T15:12:07Z
-last_update: 2026-10-20T19:56:00Z
-date_finished:
+last_update: 2026-10-21T11:45:30Z
+date_finished: 2026-10-21T11:45:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -314,3 +314,15 @@ grep -q "PRAGMA synchronous=FULL" crates/termlink-bus/src/meta.rs
 - **What:** `Ceilings.reclaim_min_file_bytes` (8 MiB) / `reclaim_min_dead_pct` (50, 100 = off); `Bus::reclaim(topic, force)`; automatic best-effort reclaim after sweep / trim / per-key compaction / post-time ceiling trim; stale-generation cleanup on `Bus::open`; `CeilingCounters.reclaims_total` + `reclaimed_bytes_total`; `subscribe` reads positions + generation in one statement and retries if a reclaim removed the file in between.
 - **Tests:** 9 new in `reclaim::tests` (trigger thresholds, shrink + offsets/payloads unchanged + reopen, sweep-triggered, crash at each of 3 points + reopen, leftover cleanup, unreadable record aborts cleanly, pre-opened iterator, multi-thread posts/trims/rewrites/readers race). `cargo test -p termlink-bus`: 146 lib + integration tests pass; `cargo check -p termlink-hub --tests` clean.
 - **Not done (outside this worker's area):** the hub config file (`crates/termlink-hub/src/topic_policy.rs`) does not yet read the two new keys or report the two new counters in `hub.governor_status`; the defaults apply until it does. No fabric card for `reclaim.rs` (`.fabric/` not in area).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e1e6fe34
+- **Timestamp:** 2026-10-21T11:45:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-21T11:45:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

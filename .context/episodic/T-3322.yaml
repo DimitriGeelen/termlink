@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3322: Reclaim dead space in topic logs: rewrite a log over 8 MB and more than half dead, offsets unchanged
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T11:46:00Z
+# ============================================================================
+
+task_id: T-3322
+task_name: "Reclaim dead space in topic logs: rewrite a log over 8 MB and more than half dead, offsets unchanged"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-02T15:12:07Z
+completed: 2026-10-21T11:45:30Z
+duration_days: 19
+updates_count: 3
+first_commit: 2026-10-20T21:55:51+02:00
+last_commit: 2026-10-20T22:26:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  concrete acceptance criteria for topic-log reclaim. reclaim dead space in topic logs — rewrite to a new generation (temp+fsync+rename), switch byte_pos+generation in one commit under the topic lock; crash and concurrency tests
+
+# Key outcomes
+outcomes:
+  - 'termlink-bus rewrites a topic log keeping live records only when the file is over `reclaim_min_file_bytes` (default 8 MiB) AND more than `reclaim_min_dead_pct` (default 50) % dead; both thresholds are fields of `Ceilings` (the struct the T-3310 hub config file sets). After a rewrite the file shrinks, every live record keeps its offset and its envelope bytes, and `byte_pos` points into the new file (unit test).'
+  - 'The rewrite writes the new log to a temp file, fsyncs it, renames it, fsyncs the directory and only then switches the index (byte_pos + log generation) in ONE SQLite commit, all while holding the topic''s append lock; a post''s append and its index commit happen under that same lock, so no record is lost or mis-pointed by a concurrent post (test with concurrent posts).'
+  - 'Crash tests: a simulated crash after the temp write, after the rename (before the index commit) and after the commit (before the old file is removed), followed by a reopen of the bus, each leave every live record readable at its original offset, new posts work, stale files are cleaned up, and a later reclaim succeeds.'
+  - 'Concurrent readers never see a broken log: an iterator opened before a rewrite keeps reading the old file correctly, and readers subscribing in a loop during rewrites + posts always get the right payload for each offset (test).'
+  - 'Meta stays WAL + synchronous=FULL and a post is still one index commit (T-3488 test `a_post_is_two_durable_steps_and_a_create_is_one` still passes); the whole termlink-bus test suite passes.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/limits.rs'
+  - 'crates/termlink-bus/src/log.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-bus/src/reclaim.rs'
+  - '.tasks/active/T-3322-reclaim-dead-space-in-topic-logs-rewrite.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T21:55:51'
+    action: 'T-3322: concrete acceptance criteria for topic-log reclaim'
+  - time: '2026-10-20T22:26:11'
+    action: 'T-3322: reclaim dead space in topic logs — rewrite to a new generation (temp+fsync+rename), switch byte_pos+generation in one commit under the topic lock; crash and concurrency tests'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 27153 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-012]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 27153
+  commits: 2
+  files_changed: 6
+  lines_added: 944
+  lines_removed: 56
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3322-reclaim-dead-space-in-topic-logs-rewrite.md
+generated_by: context-agent-hybrid
