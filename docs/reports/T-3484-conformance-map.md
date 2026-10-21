@@ -22,16 +22,13 @@ TERMLINK_WC_CASE=CC-16 bash scripts/run-wc-vectors.sh   # one case, e.g. to repr
 ## Result
 
 ```
-vectors: AEF b4c168aa9 (https://raw.githubusercontent.com/DimitriGeelen/agentic-engineering-framework/b4c168aa9/tests/conformance/worker-contract/vectors.yaml)
-  CC-01  fail             Completion racing session end
-         [main] step confirm_end: expected {"any_of":[{"accepted":"T4"},{"accepted":"T3"}]}, got {"no_transition":true,"notices":0,"ok":true,"values":{"observation_logged":false,"reconciliation_requested":false}}
+vectors: AEF 25f56ed68 (https://raw.githubusercontent.com/DimitriGeelen/agentic-engineering-framework/25f56ed68/tests/conformance/worker-contract/vectors.yaml)
+  CC-01  pass             Completion racing session end
   CC-02  pass             Same race, opposite order
-  CC-03  fail             Supervisor crash before commit
-         [evidence-present] step confirm_end: expected {"any_of":[{"accepted":"T4"},{"accepted":"T3"}]}, got {"no_transition":true,"notices":0,"ok":true,"values":{"observation_logged":false,"reconciliation_requested":false}} | [no-evidence] step confirm_end: expected {"accepted":"T4"}, got {"no_transition":true,"notices":0,"ok":true,"values":{"observation_logged":false,"reconciliation_requested":false}}
+  CC-03  pass             Supervisor crash before commit
   CC-04  pass             Supervisor crash after commit
   CC-05  pass             Duplicate finalisation
-  CC-06  fail             Retry while the old worker survives
-         [main] step confirm_end: expected {"accepted":"T4"}, got {"no_transition":true,"notices":0,"ok":true,"values":{"observation_logged":false,"reconciliation_requested":false}}
+  CC-06  pass             Retry while the old worker survives
   CC-07  pass             Stale-attempt write rejected
   CC-08  not-implemented  Hub restart
          [undecidable-then-alive] op:wait (no worker-side wait or collect surface)
@@ -61,10 +58,15 @@ vectors: AEF b4c168aa9 (https://raw.githubusercontent.com/DimitriGeelen/agentic-
   CC-24  pass             Late T5 whose evidence postdates the lost entry
   CC-25  not-implemented  Backend-initiated stop
          [exit-confirmed-valid-handback] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [exit-confirmed-handback-absent] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [no-exit-evidence] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [revoked] op:stop (no backend-initiated stop in the store; transition takes no stop cause)
-summary: 25 cases: pass=12 fail=3 not-implemented=9 n/a=1
+summary: 25 cases: pass=15 fail=0 not-implemented=9 n/a=1
 ```
 
-Counts: **pass 12** (CC-02, 04, 05, 07, 14, 16, 17, 18, 20, 21, 23, 24) · **fail 3** (CC-01, 03, 06) · **not-implemented 9** · **n/a 1** (CC-11).
+Counts (2026-10-21, AEF `25f56ed68`, the script's default ref): **pass 15** (CC-01..07, 14, 16, 17, 18, 20, 21, 23, 24) · **fail 0** · **not-implemented 9** (CC-08, 09, 10, 12, 13, 15, 19, 22, 25) · **n/a 1** (CC-11).
+CC-01 and CC-03 turned pass when AEF added the `seen_alive_epoch` precondition (their T-4556, ruling msg d0f2e96a; the hub
+did not change). CC-06 turned pass with the fence-order fix T-3529 (db9facce5). The hub-side notes for every case were sent
+to AEF as a patch (T-3530, `docs/reports/T-3530-vectors-hub.patch`, sha256 b8fa05be…dfa97c8).
+
+Progress the same day: afe974124 pass 5 / fail 3 → b4c168aa9 pass 12 / fail 3 → 25f56ed68 pass 15 / fail 0.
 
 Before T-3521 (same tree, AEF `b4c168aa9`): pass 7 · fail 4 (CC-01, 03, 06, 12) · not-implemented 13 · n/a 1. T-3521 turned
 CC-05, 17, 20, 21 and 24 into pass and moved CC-08 from an unreadable notice step to the `wait` op. CC-12 left `fail` for
@@ -74,9 +76,14 @@ not-implemented in the same run through T-3520's work, not this task's. No previ
 
 | Case | Diverging step | Bug task | Note |
 |---|---|---|---|
-| CC-12 | `append_answer` naming `question_id: q1` that the given never asks → refused `cas_mismatch` (vector expects `ok`) | T-3520 | Either the store or the vector is wrong. Needs an AEF ruling. Not patched. |
-| CC-01, CC-03 (evidence-present) | `confirm_end` (hub, clock 20, signed E1 persisted at 10) → `no_transition`; vector expects T4 or T3 | T-3525 | The hub cannot read signed worker evidence before an end. The store has no hub-side evidence intake. Backend gap. |
-| CC-03 (no-evidence), CC-06 | `confirm_end` on a running attempt never seen alive → `no_transition`; vector expects T4 | T-3526 | Vector conflicts with §3.4 / CC-17 (absence counts only for an attempt seen alive). Needs an AEF ruling before any backend change. |
+None at 25f56ed68. Resolved, for the record:
+
+| Case | Diverging step (earlier run) | Task | Resolution |
+|---|---|---|---|
+| CC-12 | `append_answer` naming an unasked `q1` → `cas_mismatch` | T-3520 | AEF ruled the store right and fixed the vector (b4c168aa9); the remaining answer-state bug (unapplied answers stay `stored` on a terminal attempt) fixed in 6a3bbd9f1. Now not-implemented only for the `bounced_to_dispatcher` read surface (T-3528). |
+| CC-01, CC-03 | `confirm_end` → `no_transition` | T-3525, T-3526 | AEF ruled the store right (strict §3.4) and added the missing `seen_alive_epoch` precondition (25f56ed68). No hub change. |
+| CC-06 | `reclaim` of a stale attempt → `forbidden_transition`, expected `stale_attempt` | T-3529 | Fence order fixed in db9facce5 (attempt currency before transition legality). |
+| CC-16, CC-21 | refused exit with absent handback → `handback-malformed` | T-3518, T-3519 | `derive_outcome` order fixed in 762dd909f. |
 
 CC-16 and CC-21 are no longer failing (see the Result note above). CC-21 is not-implemented now,
 on its `T6b` / operator-notice steps.
