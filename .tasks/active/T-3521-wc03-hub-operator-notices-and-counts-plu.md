@@ -81,11 +81,11 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The vocabulary meaning of `notices`, `operator_notices` and `reconciliation_requested` is quoted from AEF's vectors (b4c168aa9) in Decisions, together with the notice kinds and counts each of CC-05, 08, 15, 17, 20, 21, 22 and 24 asserts
-- [ ] The hub records operator notices durably in the bus worker_contract store (a table or the history, written in the same transaction as the event that causes it: T4, T6, done-conflict refusals, a lost attempt's binding reappearing, reconciliation requested), and exposes them with counts through a read API the adapter maps to `notices` / `operator_notices`; `dispatch.get` returns an attempt's notices
-- [ ] Notices come from state transitions and refusals, never from best-effort events; failing-first unit tests per notice kind
-- [ ] The adapter at `--ref b4c168aa9` moves the notice-blocked cases from not-implemented to pass or to fail with a named diverging step (each remaining fail filed as its own bug), and no previously passing case regresses
-- [ ] `cargo test -p termlink-bus -p termlink-hub` passes; Evolution filled (arc-tagged)
+- [x] The vocabulary meaning of `notices`, `operator_notices` and `reconciliation_requested` is quoted from AEF's vectors (b4c168aa9) in Decisions, together with the notice kinds and counts each of CC-05, 08, 15, 17, 20, 21, 22 and 24 asserts
+- [x] The hub records operator notices durably in the bus worker_contract store (a table or the history, written in the same transaction as the event that causes it: T4, T6, done-conflict refusals, a lost attempt's binding reappearing, reconciliation requested), and exposes them with counts through a read API the adapter maps to `notices` / `operator_notices`; `dispatch.get` returns an attempt's notices
+- [x] Notices come from state transitions and refusals, never from best-effort events; failing-first unit tests per notice kind
+- [x] The adapter at `--ref b4c168aa9` moves the notice-blocked cases from not-implemented to pass or to fail with a named diverging step (each remaining fail filed as its own bug), and no previously passing case regresses
+- [x] `cargo test -p termlink-bus -p termlink-hub` passes; Evolution filled (arc-tagged)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -333,6 +333,15 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3521 2>&1 && ! grep -q "test
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-21 — notices were a surface, not a feature
+- **What changed:** the map said "no notice surface"; in fact seven of eight blocked cases needed only a durable count the store
+  could derive from rows it already wrote. The real work was one table, five triggers and one explicit write.
+- **Plan impact:** seeding a case reaches `unknown`/`lost` through the sweep and so raises notices of its own; the adapter must count
+  what steps add (`base_notices`), as it already does for history rows.
+- **Triggered:** adapter at b4c168aa9 went pass 7 → 12 (CC-05, 17, 20, 21, 24); CC-08 now stops at `wait`, CC-15 at the
+  `agent_session` gate, CC-22 at consume and material binding. The T7d gates need `ResolveRequest` fields in `answer.rs`: filed
+  as T-3527 (after T-3520). No failing case came from notices.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -364,14 +373,25 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3521 2>&1 && ! grep -q "test
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-10-21 — vocabulary, read from AEF vectors b4c168aa9
+- The vector file carries no prose for these keys (its `vocabulary` lists only states, outcomes, transitions, writers, fence
+  reasons, refusals, capabilities, ops; `inspect` is "read-only check of an operator-visible surface (queue, notices, topics)").
+  Meaning, read from the cases: `notices: N` in a step `expect` = operator notices that step raised (also on `fence_reject` steps);
+  `operator_notices: N` under `then` = notices the dispatch carries at the end beyond `given`; `values.reconciliation_requested: true`
+  on a sweep = the hub asks the reconciler to look for evidence before T4.
+- Asserted: CC-05 done_conflict refusal 1 · CC-08 T6 1 · CC-15 T7d 1 (agent_session / not_available refusals before it add none)
+  · CC-17 `reconciliation_requested` on the 2nd absence at the last-seen epoch · CC-20 sweep-alive on lost 1 (refused start, T5: none)
+  · CC-21 T6b 1, T3b 0 · CC-22 T7d 1 · CC-24 late T5 refusal 1.
+
+### 2026-10-21 — notice record
+- **Chose:** table `wc_notices`, filled by `AFTER INSERT` triggers on `wc_history` for every history-backed kind; the sweep writes
+  `reconciliation_requested` (audience `reconciler`, not counted as operator) explicitly in its own transaction.
+- **Why:** the history row IS the transition or refusal, so the notice commits with it and cannot be forgotten by a writer; T7d
+  (`answer.rs`, T-3520's file) is covered with no edit there.
+- **Rejected:** explicit `append_notice` calls at each site (leaves T7d uncovered, and each future writer must remember); deriving
+  notices from history at read time (no durable record, and the T5 refusal is not distinguishable without a cause marker, which
+  the trigger approach also needs).
+- T4 raises no notice (no vector asks for one). `dispatch.get` is the read surface; no new RPC.
 
 ## Decision
 
@@ -393,3 +413,9 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3521 2>&1 && ! grep -q "test
 ### 2026-10-21T14:57:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-21 — build [agent]
+- **Action:** `worker_contract/notices.rs` (table, triggers, read API), `notices_tests.rs` (10 tests, 2 mutants caught),
+  sweep `reconciliation_requested`, T5 refusal cause, `dispatch.get` notices, adapter mapping, conformance map.
+- **Result:** adapter `--ref b4c168aa9` pass 7→12, fail 4→3, not-implemented 13→9; `cargo test -p termlink-bus -p termlink-hub` green.
+- **Filed:** T-3527 (T7d agent-session gate and material binding, CC-15/22).

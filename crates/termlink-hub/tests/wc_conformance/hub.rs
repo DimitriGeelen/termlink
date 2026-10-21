@@ -187,6 +187,9 @@ pub struct Hub {
     last_listing: bool,
     /// attempt -> (state it was seeded or created in, history rows at that point).
     base: HashMap<i64, (String, usize)>,
+    /// Operator notices the seeded record already carries (reaching `unknown` or `lost` raises
+    /// some). The vectors count what the steps add, so this is subtracted.
+    base_notices: i64,
 }
 
 impl Hub {
@@ -208,6 +211,7 @@ impl Hub {
             live: HashSet::new(),
             last_listing: true,
             base: HashMap::new(),
+            base_notices: 0,
         };
         h.seed(given)?;
         Ok(h)
@@ -329,7 +333,16 @@ impl Hub {
             self.base.insert(n, (reached, rows));
         }
         self.clock = now;
+        self.base_notices = self.notice_total();
         Ok(())
+    }
+
+    /// Operator notices on the case dispatch, as the store counts them (0 before a dispatch exists).
+    fn notice_total(&self) -> i64 {
+        match &self.dispatch {
+            Some(d) => self.bus.wc_operator_notice_count(d, None).unwrap_or(0),
+            None => 0,
+        }
     }
 
     fn start_seed(&mut self, n: i64, t: i64) -> Res<()> {
@@ -382,7 +395,19 @@ impl Hub {
     }
 
     /// Applies one vector step through the store and returns its result.
+    ///
+    /// `notices` in a step's result is how many operator notices the step raised: the difference of
+    /// the store's durable count across the op. Nothing here decides whether a notice is due.
     pub fn apply(&mut self, step: &Value) -> Res<Map<String, Value>> {
+        let before = self.notice_total();
+        let mut res = self.apply_op(step)?;
+        if self.dispatch.is_some() {
+            res.insert("notices".into(), json!(self.notice_total() - before));
+        }
+        Ok(res)
+    }
+
+    fn apply_op(&mut self, step: &Value) -> Res<Map<String, Value>> {
         let op = step["op"].as_str().unwrap_or_default();
         let args = &step["args"];
         let n = step["attempt"].as_i64().unwrap_or(1);
@@ -541,6 +566,7 @@ impl Hub {
                 .map_err(|e| Fail::Mismatch(format!("confirm_end sweep refused: {e:?}")))?;
             report.transitions.extend(r.transitions);
             report.notices.extend(r.notices);
+            report.reconciliation_requested.extend(r.reconciliation_requested);
         }
         Ok(sweep_result(&report))
     }
@@ -762,6 +788,7 @@ impl Hub {
             "dispatch_count": self.dispatch_count()?,
             "dispatcher_session": dispatcher_session,
             "new_dispatch_retry_of": retry_of,
+            "operator_notices": self.notice_total() - self.base_notices,
         }))
     }
 
@@ -789,11 +816,15 @@ fn sweep_result(report: &SweepReport) -> Map<String, Value> {
             out.insert("accepted".into(), json!("multiple"));
         }
         None => {
-            let n = report.notices.len();
             out.insert("no_transition".into(), json!(true));
-            out.insert("notices".into(), json!(n));
-            out.insert("values".into(), json!({"observation_logged": n > 0}));
         }
     }
+    out.insert(
+        "values".into(),
+        json!({
+            "observation_logged": !report.notices.is_empty(),
+            "reconciliation_requested": !report.reconciliation_requested.is_empty(),
+        }),
+    );
     out
 }

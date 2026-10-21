@@ -18,6 +18,7 @@ use std::collections::HashSet;
 
 use rusqlite::{OptionalExtension, Transaction, params};
 
+use super::notices::{self, KIND_RECONCILIATION_REQUESTED};
 use super::{FenceReason, GRACE_MS, RUNNING_SLACK_MS, WcError, WcResult, WcStore, append_history, fence};
 use crate::Bus;
 
@@ -49,6 +50,10 @@ pub struct SweepReport {
     /// `lost` attempts whose binding came back. They stay `lost` (AEF d); the
     /// operator is told here and by a refusal row in history.
     pub notices: Vec<String>,
+    /// `(dispatch_id, attempt)` whose absence was just confirmed twice at the epoch that saw the
+    /// binding, with `G` still running (T-3521). The reconciler is asked to look for evidence
+    /// before T4; the request is also a durable `reconciliation_requested` notice.
+    pub reconciliation_requested: Vec<(String, i64)>,
 }
 
 /// An attempt the sweep may act on, with the bookkeeping it needs.
@@ -223,6 +228,14 @@ fn absence(tx: &Transaction, c: &Candidate, epoch: i64, now: i64, report: &mut S
                 // T4 from running/dispatched; T7c from unknown. Same evidence, same bound.
                 let cause = if c.state == "unknown" { "end_observed_unknown" } else { "end_observed" };
                 return hub_write(tx, c, &c.state, "lost", now, cause, None, report);
+            }
+            if absent == 2 {
+                // Confirmed twice, G not over: ask the reconciler for evidence before T4.
+                notices::append(
+                    tx, &c.dispatch_id, c.attempt, KIND_RECONCILIATION_REQUESTED, "reconciler", now,
+                    "absence confirmed twice at the last-seen epoch; look for completion evidence before T4",
+                )?;
+                report.reconciliation_requested.push((c.dispatch_id.clone(), c.attempt));
             }
         } else {
             // The epoch moved since the sighting (hub restart, or an unreadable dir):

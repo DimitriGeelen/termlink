@@ -16,63 +16,59 @@ TERMLINK_WC_CASE=CC-16 bash scripts/run-wc-vectors.sh   # one case, e.g. to repr
   differently; the diverging step is named), **not-implemented** (the backend does not expose the op,
   argument or surface; named), **n/a** (capability not offered, where the vector allows it).
 - The vector file is AEF's. It is not committed here (`git ls-files` has no `vectors.yaml`).
-- Run at: 2026-10-21, AEF `afe974124`, TermLink `main` at the T-3522 commit (T-3518/T-3519 fixes in).
+- Run at: 2026-10-21, AEF `b4c168aa9`, TermLink `main` with T-3521 (operator notices) in. T-3520's answer work was in flight in
+  the same tree, so CC-12 reads as that task leaves it.
 
 ## Result
 
 ```
-backend: hub (termlink-bus worker_contract, S1-S3), vectors: AEF afe974124
+vectors: AEF b4c168aa9 (https://raw.githubusercontent.com/DimitriGeelen/agentic-engineering-framework/b4c168aa9/tests/conformance/worker-contract/vectors.yaml)
   CC-01  fail             Completion racing session end
-         [main] step confirm_end: expected {"any_of":[{"accepted":"T4"},{"accepted":"T3"}]}, got {"no_transition":true,"notices":0,"ok":true,"values":{"observation_logged":false}}
+         [main] step confirm_end: expected {"any_of":[{"accepted":"T4"},{"accepted":"T3"}]}, got {"no_transition":true,"notices":0,"ok":true,"values":{"observation_logged":false,"reconciliation_requested":false}}
   CC-02  pass             Same race, opposite order
   CC-03  fail             Supervisor crash before commit
-         [evidence-present] step confirm_end: expected {"any_of":[{"accepted":"T4"},{"accepted":"T3"}]}, got {"no_transition":true,"notices":0,"ok":true,"values":{"observation_logged":false}} | [no-evidence] step confirm_end: expected {"accepted":"T4"}, got {"no_transition":true,"notices":0,"ok":true,"values":{"observation_logged":false}}
+         [evidence-present] step confirm_end: expected {"any_of":[{"accepted":"T4"},{"accepted":"T3"}]}, got {"no_transition":true,"notices":0,"ok":true,"values":{"observation_logged":false,"reconciliation_requested":false}} | [no-evidence] step confirm_end: expected {"accepted":"T4"}, got {"no_transition":true,"notices":0,"ok":true,"values":{"observation_logged":false,"reconciliation_requested":false}}
   CC-04  pass             Supervisor crash after commit
-  CC-05  not-implemented  Duplicate finalisation
-         [different-evidence] step complete: expectation names a surface the backend does not expose: {"fence_reject":"done_conflict","notices":1}
+  CC-05  pass             Duplicate finalisation
   CC-06  fail             Retry while the old worker survives
-         [main] step confirm_end: expected {"accepted":"T4"}, got {"no_transition":true,"notices":0,"ok":true,"values":{"observation_logged":false}}
+         [main] step confirm_end: expected {"accepted":"T4"}, got {"no_transition":true,"notices":0,"ok":true,"values":{"observation_logged":false,"reconciliation_requested":false}}
   CC-07  pass             Stale-attempt write rejected
   CC-08  not-implemented  Hub restart
-         [absent-after-restart] step advance: expectation names a surface the backend does not expose: {"any_of":[{"accepted":"T6","notices":1},{"no_transition":true}]} | [undecidable-then-alive] step advance: expectation names a surface the backend does not expose: {"accepted":"T6","notices":1}
+         [undecidable-then-alive] op:wait (no worker-side wait or collect surface)
   CC-09  not-implemented  Partition
          [via-unknown] op:partition (the hub has no model of worker-host contact) | [via-lost] op:partition (the hub has no model of worker-host contact)
   CC-10  not-implemented  Parent-session loss
          [main] op:inspect surface operator_queue
   CC-11  n/a              Answer delivered and acked
          capability not offered: real_worker
-  CC-12  fail             Answer TTL expiry bounces
-         [deadline-passes] step append_answer: expected {"ok":true}, got {"fence_reject":"cas_mismatch"} | [attempt-terminal-unacked] step append_answer: expected {"ok":true}, got {"fence_reject":"cas_mismatch"}
+  CC-12  not-implemented  Answer TTL expiry bounces
+         [deadline-passes] then.bounced_to_dispatcher: the backend does not expose it | [attempt-terminal-unacked] then.bounced_to_dispatcher: the backend does not expose it
   CC-13  not-implemented  Local backend parity
          [lock-timeout-fails-closed] op:hold_lock (the per-write lock is SQLite IMMEDIATE; no hook to hold it)
   CC-14  pass             Stale supervisor generation
   CC-15  not-implemented  Unknown resolution by operator
          [main] refusal:agent_session (T7d speed bump: resolve_on_host has no agent-session gate)
   CC-16  pass             Outcome derivation
-  CC-17  not-implemented  Absence across a registry epoch
-         [absences-at-last-seen-epoch] step sweep: expectation names a surface the backend does not expose: {"ok":true,"values":{"reconciliation_requested":true}} | [fenced-done-inside-G-wins] step sweep: expectation names a surface the backend does not expose: {"ok":true,"values":{"reconciliation_requested":true}}
+  CC-17  pass             Absence across a registry epoch
   CC-18  pass             Caller-chosen dispatch id
   CC-19  not-implemented  Paused is terminal, not success
          [next-attempt] op:consume (no consumer surface; refusals of review_verdict / pass_rate live outside the store) | [re-dispatch] op:consume (no consumer surface; refusals of review_verdict / pass_rate live outside the store)
-  CC-20  not-implemented  Lost attempt seen alive
-         [main] then.operator_notices: the backend does not expose it
-  CC-21  not-implemented  Dispatched never seen
-         [never-registers] step advance: expectation names a surface the backend does not expose: {"accepted":"T6b","notices":1} | [refused-before-start] then.operator_notices: the backend does not expose it
+  CC-20  pass             Lost attempt seen alive
+  CC-21  pass             Dispatched never seen
   CC-22  not-implemented  Attested done is not finished work
-         [no-material] step resolve: expectation names a surface the backend does not expose: {"accepted":"T7d","notices":1} | [unbound-material] T7d material binding (ResolveRequest carries no material or outcome) | [bound-evidence] T7d material binding (ResolveRequest carries no material or outcome)
+         [no-material] op:consume (no consumer surface; refusals of review_verdict / pass_rate live outside the store) | [unbound-material] T7d material binding (ResolveRequest carries no material or outcome) | [bound-evidence] T7d material binding (ResolveRequest carries no material or outcome)
   CC-23  pass             The nonce alone cannot complete
-  CC-24  not-implemented  Late T5 whose evidence postdates the lost entry
-         [persisted-after-lost] step complete: expectation names a surface the backend does not expose: {"fence_reject":"forbidden_transition","notices":1}
+  CC-24  pass             Late T5 whose evidence postdates the lost entry
   CC-25  not-implemented  Backend-initiated stop
          [exit-confirmed-valid-handback] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [exit-confirmed-handback-absent] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [no-exit-evidence] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [revoked] op:stop (no backend-initiated stop in the store; transition takes no stop cause)
-summary: 25 cases: pass=7 fail=4 not-implemented=13 n/a=1
+summary: 25 cases: pass=12 fail=3 not-implemented=9 n/a=1
 ```
 
-Counts: **pass 7** (CC-02, 04, 07, 14, 16, 18, 23) · **fail 4** (CC-01, 03, 06, 12) · **not-implemented 13** · **n/a 1** (CC-11).
+Counts: **pass 12** (CC-02, 04, 05, 07, 14, 16, 17, 18, 20, 21, 23, 24) · **fail 3** (CC-01, 03, 06) · **not-implemented 9** · **n/a 1** (CC-11).
 
-Before T-3522 (same tree, adapter as of T-3518): pass 6 (CC-04, 07, 14, 16, 18, 23) · fail 1 (CC-12) ·
-not-implemented 17 · n/a 1. The earlier version of this map showed CC-16 and CC-21 as fail; that
-predated the T-3518/T-3519 fixes. The table above is the adapter's current output.
+Before T-3521 (same tree, AEF `b4c168aa9`): pass 7 · fail 4 (CC-01, 03, 06, 12) · not-implemented 13 · n/a 1. T-3521 turned
+CC-05, 17, 20, 21 and 24 into pass and moved CC-08 from an unreadable notice step to the `wait` op. CC-12 left `fail` for
+not-implemented in the same run through T-3520's work, not this task's. No previously passing case regressed.
 
 ## Failing cases — filed as bug tasks
 
@@ -91,10 +87,8 @@ the backend, and the verdict is the honest state until they land.
 
 ## Not-implemented, by missing piece
 
-- **Operator notices (`notices`, `operator_notices`) — CC-05, 08, 15, 20, 22, 24.** No notice surface is
-  exposed. The sweep reports notices only for a `lost` attempt whose binding reappears. T4/T6 and
-  done-conflict refusals are not counted.
-- **Reconciliation request (`reconciliation_requested`) — CC-17.** Not reported by the sweep.
+- **Operator notices: done (T-3521).** See the section below. What still stops these cases is not notices: CC-08 stops at `wait`
+  (no worker-side wait surface), CC-15 at the `agent_session` refusal, CC-22 at `consume` and the T7d material binding.
 - **Partition and worker-host contact (`partition`, `heal`) — CC-09.** The hub has no model of it.
   `probe_undecided` is the closest op and is mapped to a sweep that cannot see (`listing_complete` false).
 - **Backend-initiated stop (`stop`) — CC-25.** `transition` takes a `cause` but there is no stop op.
@@ -103,10 +97,34 @@ the backend, and the verdict is the honest state until they land.
 - **Consumers (`consume`) — CC-19, 22.** No consumer surface. Refusals `not_finished_work` live outside the store.
 - **Worker wait / collect (`ask_wait`) — CC-11 (n/a), CC-08 (wait).** No worker-side wait surface.
 - **Dispatcher ownership (`adopt`) and inspect surfaces (`operator_queue`, `worker_topics`) — CC-10.**
-- **T7d gates — CC-15, 22.** `resolve_on_host` has no agent-session gate, and `ResolveRequest` carries
+- **T7d gates — CC-15, 22 (T-3527).** `resolve_on_host` has no agent-session gate, and `ResolveRequest` carries
   no material or outcome. `via: remote` is refused by construction: resolve is not an RPC.
 - **Backend addressing (`complete.args.backend`) — CC-09.** `dispatch.transition` has no backend address.
 - **Lease (`lease`) and real worker (`real_worker`).** Not offered. Lease variants are not run. CC-11 is n/a.
+
+## Operator notices and reconciliation requests (T-3521)
+
+Vocabulary, as the vectors use it (the file has no prose for these keys, so this is read from the cases): `notices: N` on a
+step's `expect` is how many operator notices that step raised; `operator_notices: N` under `then` is how many the dispatch carries
+at the end, beyond what `given` already held; `values.reconciliation_requested: true` on a sweep says the hub asked the reconciler to
+look for evidence before T4. A `refused` or `fence_reject` step can carry `notices` too.
+
+What each asserting case needs: CC-05 done-conflict refusal 1; CC-08 T6 1; CC-15 T7d 1 (the refusals before it add none); CC-17
+`reconciliation_requested` on the second absence at the last-seen epoch; CC-20 binding reappeared on a lost attempt 1 (the refused
+`start` and the T5 add none); CC-21 T6b 1, and T3b 0; CC-22 T7d 1; CC-24 late T5 refusal 1.
+
+Design: one durable table, `wc_notices (dispatch_id, attempt, kind, audience, ts, detail, history_id)`, in `meta.db`. Every
+history-backed kind is an `AFTER INSERT` trigger on `wc_history`: the history row is the transition or refusal, so the notice
+commits in the same transaction and no writer can record one without the other, including the T7d resolve in `answer.rs`, which
+needed no change. Kinds: `done_conflict`, `late_evidence` (T5 refused; the refusal row now carries `cause = late_evidence`),
+`unknown_by_deadline` (T6 and T6b), `binding_reappeared`, `operator_resolved` (T7d). `reconciliation_requested` has no history row, so
+the sweep writes it inside its own transaction, once when absence is confirmed twice with G still running; its audience is
+`reconciler`, and operator counts exclude it. T4 raises no notice (no vector asks for one). Not raised: T8 with the same evidence,
+fence refusals other than the two above, a refused resolve. No backfill: history before the table has no notices.
+
+Read API: `Bus::wc_operator_notice_count(dispatch, attempt?)`, `Bus::wc_notices(dispatch, attempt)`, and `dispatch.get` now returns
+`attempts[].notices`. The adapter's per-step `notices` is the difference of the count across the op, and its `operator_notices` is
+the count minus what the seeded record already held. No new RPC: the read surface is `dispatch.get`.
 
 ## `confirm_end` (T-3522): what the adapter maps and what the store does
 

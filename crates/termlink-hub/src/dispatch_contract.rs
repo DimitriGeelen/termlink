@@ -390,6 +390,25 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_get_returns_the_attempts_notices() {
+        // T-3521: a done-conflict refusal is a durable operator notice, shown by dispatch.get.
+        let (_d, b) = bus();
+        let a = ok(allocate_with(&b, json!(1), &json!({}), 1_000));
+        ok(transition_with(&b, json!(2), &lifecycle(&a, "running", "dispatched"), 2_000));
+        ok(transition_with(&b, json!(3), &lifecycle(&a, "done", "running"), 3_000));
+        let mut other = lifecycle(&a, "done", "running");
+        other["evidence_digest"] = json!("E2");
+        let (code, data) = fail(transition_with(&b, json!(4), &other, 4_000));
+        assert_ne!(code, 0);
+        assert_eq!(data["reason"], "done_conflict");
+        let got = ok(get_with(&b, json!(5), &json!({"dispatch_id": a["dispatch_id"]})));
+        let n = got["attempts"][0]["notices"].as_array().unwrap();
+        assert_eq!(n.len(), 1);
+        assert_eq!(n[0]["kind"], "done_conflict");
+        assert_eq!(n[0]["audience"], "operator");
+    }
+
+    #[test]
     fn fence_rejected_carries_reason() {
         let (_d, b) = bus();
         let a = ok(allocate_with(&b, json!(1), &json!({}), 1_000));
