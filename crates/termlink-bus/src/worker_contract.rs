@@ -449,11 +449,15 @@ fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcRe
 
     match req.to.as_str() {
         "running" => {
+            // §3.3 fence order (T-3529, CC-06): attempt currency is tested before transition
+            // legality, so a running-path write naming a non-current attempt is stale_attempt
+            // whatever its prior state. T5/T8 are not gated here: late evidence for a lost
+            // attempt is legitimate (CC-07, CC-24).
+            if !is_current {
+                return refuse(FenceReason::StaleAttempt, format!("attempt {} is not current", req.attempt));
+            }
             if req.expected_prior == "dispatched" && actual == "dispatched" {
                 // T2
-                if !is_current {
-                    return refuse(FenceReason::StaleAttempt, format!("attempt {} is not current", req.attempt));
-                }
                 if req.supervisor_gen != row.sgen {
                     return refuse(FenceReason::StaleGen, format!("sgen {} != {}", req.supervisor_gen, row.sgen));
                 }
@@ -466,9 +470,6 @@ fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcRe
                 append_history(tx, id, req.attempt, Some("dispatched"), "running", "supervisor", now_ms, None, None, None)?;
             } else if req.expected_prior == "running" && actual == "running" {
                 // T-RECLAIM: claims sgen = prev + 1
-                if !is_current {
-                    return refuse(FenceReason::StaleAttempt, format!("attempt {} is not current", req.attempt));
-                }
                 if req.supervisor_gen != row.sgen + 1 {
                     return refuse(
                         FenceReason::StaleGen,

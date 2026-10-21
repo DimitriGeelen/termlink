@@ -124,14 +124,35 @@ fn cc06_retry_while_old_worker_survives() {
     let a2 = s.allocate(&again, 21).unwrap();
     assert_eq!(a2.attempt, 2);
     assert_ne!(a2.nonce, a1.nonce);
-    // late running-path write from A1 (T-RECLAIM with the A1 nonce): attempt state is lost,
-    // so it is refused; a T2 on non-current A1 is stale_attempt.
+    // late running-path write from A1 (T-RECLAIM with the A1 nonce): A1 is not current, so it is
+    // stale_attempt before the CAS is even looked at (§3.3 fence order, T-3529).
     let mut late = t2(&a1);
     late.expected_prior = "running".into();
     late.supervisor_gen = 2;
-    assert_eq!(reason(s.transition(&late, 22).unwrap_err()), "cas_mismatch");
+    assert_eq!(reason(s.transition(&late, 22).unwrap_err()), "stale_attempt");
     let v = s.get(&a1.dispatch_id).unwrap();
     assert_eq!(v["attempts"][1]["state"], "dispatched");
+}
+
+// CC-06 (T-3529): a reclaim naming a stale attempt is `stale_attempt` even though the
+// transition itself is not legal (the attempt is lost, and the write says prior=lost).
+// Fence order per contract §3.3: attempt currency is tested before transition legality.
+#[test]
+fn cc06_reclaim_of_stale_attempt_is_stale_not_forbidden() {
+    let (_d, s) = store();
+    let a1 = alloc(&s, 10);
+    s.transition(&t2(&a1), 11).unwrap();
+    mark_lost(&s, &a1.dispatch_id, 1, 20);
+    let a2 = s.allocate(&AllocateRequest { attempt_of: Some(a1.dispatch_id.clone()), ..Default::default() }, 21).unwrap();
+    assert_eq!(a2.attempt, 2);
+    // The vector's reclaim: expected_prior is the attempt's own state (lost), to=running, gen+1.
+    let reclaim = TransitionRequest {
+        expected_prior: "lost".into(),
+        supervisor_gen: 2,
+        ..t2(&a1)
+    };
+    assert_eq!(reason(s.transition(&reclaim, 22).unwrap_err()), "stale_attempt");
+    assert_eq!(s.get(&a1.dispatch_id).unwrap()["attempts"][0]["state"], "lost");
 }
 
 #[test]

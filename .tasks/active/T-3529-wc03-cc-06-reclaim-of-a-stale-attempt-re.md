@@ -45,7 +45,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T15:08:00Z
-last_update: 2026-10-21T15:08:27Z
+last_update: 2026-10-21T15:08:28Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,10 +83,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Failing-first unit test: a `reclaim` (T-RECLAIM) naming an attempt that is no longer current is refused `stale_attempt`, not `forbidden_transition`; the contract §3.3 precedence of fence reasons is quoted in the RCA
-- [ ] The fence checks in crates/termlink-bus/src/worker_contract.rs test attempt currency before transition legality (and keep the other reasons' order as §3.3 states it); no other refusal reason changes for any case
-- [ ] The adapter (default ref 25f56ed68) reports CC-06 pass and fail=0; no earlier pass regresses (CC-01..05, 07, 14, 16..18, 20, 21, 23, 24)
-- [ ] `cargo test -p termlink-bus -p termlink-hub` passes; RCA and Evolution filled
+- [x] Failing-first unit test: a `reclaim` (T-RECLAIM) naming an attempt that is no longer current is refused `stale_attempt`, not `forbidden_transition`; the contract §3.3 precedence of fence reasons is quoted in the RCA
+- [x] The fence checks in crates/termlink-bus/src/worker_contract.rs test attempt currency before transition legality (and keep the other reasons' order as §3.3 states it); no other refusal reason changes for any case
+- [x] The adapter (default ref 25f56ed68) reports CC-06 pass and fail=0; no earlier pass regresses (CC-01..05, 07, 14, 16..18, 20, 21, 23, 24)
+- [x] `cargo test -p termlink-bus -p termlink-hub` passes; RCA and Evolution filled
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -296,6 +296,16 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3529 2>&1 && ! grep -q "test
 
 ## RCA
 
+**Symptom:** AEF wc/0.3 CC-06 ("retry while the old worker survives"), step `reclaim`: attempt 1 is lost, attempt 2 is current, and a reclaim naming attempt 1 (sgen 2) is refused `forbidden_transition` with `notices: 0`. The vector expects `stale_attempt`.
+
+**Root cause:** `transition_tx` in `crates/termlink-bus/src/worker_contract.rs` tested attempt currency only inside the T2 and T-RECLAIM branches of the `running` arm. The vector sends `expected_prior` = the attempt's own state (`lost`), which matches neither the `dispatched` nor the `running` prior, so the write fell through to the final `else` arm and was refused `forbidden_transition` before any currency check ran. The task's contract summary (§3.3 fence_reject) states that a write naming a non-current attempt is `stale_attempt` whatever the transition; the fence order was inverted for this path.
+
+**Why structurally allowed:** The currency check was duplicated per branch instead of being tested once ahead of transition legality, so any prior state that matched no branch skipped it. The existing unit test `cc06_retry_while_old_worker_survives` pinned the same shape as `cas_mismatch`, which encoded the wrong precedence as the expected answer, and no test drove a reclaim whose prior was `lost`. The adapter vector caught it only because it runs against the AEF ref.
+
+**Prevention:** Failing-first unit test `cc06_reclaim_of_stale_attempt_is_stale_not_forbidden` (confirmed red: `left: "forbidden_transition"`, `right: "stale_attempt"`) pins the vector's exact shape. The corrected `cc06_retry_while_old_worker_survives` assertion now pins `stale_attempt`. The AEF CC-06 vector runs in `scripts/run-wc-vectors.sh` and fails loudly on regression.
+
+**Fence precedence after the fix (running path):** nonce (`bad_nonce`) → credential (`bad_credential`) → currency (`stale_attempt`) → transition legality / CAS / gen. T3/T3b keep their existing order (CAS, then currency, then gen). T5 and T8 are deliberately NOT gated on currency: CC-07 and CC-24 require late evidence for a lost attempt to be accepted when it predates the lost entry.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -311,6 +321,11 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3529 2>&1 && ! grep -q "test
 -->
 
 ## Evolution
+
+### 2026-10-21 — arc-011: fence order, first attempt was too broad
+- **What changed:** The first draft hoisted the currency check above the whole transition `match`, so every write naming a non-current attempt was `stale_attempt`. That broke CC-07: a zombie attempt's `lost → done` (T5) with pre-lost evidence is required to be accepted, and the global check refused it. The fix was narrowed to the `running` path (where CC-06 fails). T3/T3b keep their CAS → currency → gen order, and T5/T8 are untouched.
+- **Plan impact:** The unit test `cc06_retry_while_old_worker_survives` asserted `cas_mismatch` for the same reclaim shape; that is the case being corrected, so its assertion now expects `stale_attempt`. No other refusal reason changed for any case.
+- **Triggered:** none. The adapter at 25f56ed68 went from pass=14 fail=1 to pass=15 fail=0, with no earlier pass regressed.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -393,3 +408,10 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3529 2>&1 && ! grep -q "test
 
 ### 2026-10-21T15:08:27Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-21T16:00:00Z — fix-landed [worker w-fence-order]
+- **Cause:** running-path currency check existed only inside T2/T-RECLAIM branches; a `lost`-prior reclaim fell through to forbidden_transition first.
+- **Fix:** `running` arm tests `is_current` before branch selection (T3/T3b unchanged). Unit tests: new `cc06_reclaim_of_stale_attempt_is_stale_not_forbidden` (red before, green after); `cc06_retry_while_old_worker_survives` late-reclaim assertion cas_mismatch → stale_attempt.
+- **Adapter (AEF 25f56ed68), before:** pass=14 fail=1 not-impl=9 n/a=1 (CC-06 fail: forbidden_transition). **After:** pass=15 fail=0 not-impl=9 n/a=1. Per-case verdicts identical except CC-06 fail→pass.
+- **Tests:** `cargo test -p termlink-bus -p termlink-hub` — all suites ok, 0 failed.
+- **Status:** left at started-work for review; not set to work-completed.
