@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3513: Sidecar test fc_17 fails with EAGAIN: unwrap on a non-blocking read at fc_matrix.rs:305
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T11:57:13Z
+# ============================================================================
+
+task_id: T-3513
+task_name: "Sidecar test fc_17 fails with EAGAIN: unwrap on a non-blocking read at fc_matrix.rs:305"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T10:57:42Z
+completed: 2026-10-21T11:56:01Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-21T13:30:13+02:00
+last_commit: 2026-10-21T13:30:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fc_17 retries a timed-out status read and waits longer for sidecar start; EAGAIN was a 10s read timeout on a loaded host
+
+# Key outcomes
+outcomes:
+  - 'Root cause of the EAGAIN at fc_matrix.rs:305 named (which fd, why it is non-blocking or timed out, which commit made it so), in the RCA section'
+  - 'Fixed so fc_17 reaches a real verdict on whether the canary appears in estate output (no unwrap on a would-block read; retry/blocking read or the product fixed if it is a product defect); the canary assertion itself is unchanged'
+  - '`TERMLINK_BIN=<built termlink> cargo test -p termlink-sidecar --test fc_matrix` passes 10 consecutive runs'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/tests/fc_matrix.rs'
+  - '.tasks/active/T-3513-sidecar-test-fc17-fails-with-eagain-unwr.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T13:30:13'
+    action: 'T-3513: fc_17 retries a timed-out status read and waits longer for sidecar start; EAGAIN was a 10s read timeout on a loaded host'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 58 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 58
+  commits: 2
+  files_changed: 3
+  lines_added: 809
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3513-sidecar-test-fc17-fails-with-eagain-unwr.md
+generated_by: context-agent-hybrid

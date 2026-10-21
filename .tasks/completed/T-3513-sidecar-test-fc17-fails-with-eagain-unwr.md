@@ -8,12 +8,12 @@ description: >
   if the harness or the product is wrong, fix so the canary check runs to a verdict;
   prove 10 consecutive passes.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug]
-components: []
+components: [crates/termlink-sidecar/tests/fc_matrix.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T10:57:42Z
-last_update: 2026-10-21T10:58:57Z
-date_finished:
+last_update: 2026-10-21T11:56:01Z
+date_finished: 2026-10-21T11:56:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -133,6 +133,8 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+TERMLINK_BIN=$PWD/target/debug/termlink cargo test -p termlink-sidecar --test fc_matrix > /tmp/.t3513 2>&1 && grep -q "test result: ok" /tmp/.t3513
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -400,3 +402,20 @@ bvp_scores_proposed:
 
 ### 2026-10-21T10:58:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-61a36f02
+- **Timestamp:** 2026-10-21T11:57:03Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T11:56:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
