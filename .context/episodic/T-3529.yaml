@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3529: wc/0.3 CC-06: reclaim of a stale attempt refused forbidden_transition, contract expects stale_attempt (fence check order)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T15:16:13Z
+# ============================================================================
+
+task_id: T-3529
+task_name: "wc/0.3 CC-06: reclaim of a stale attempt refused forbidden_transition, contract expects stale_attempt (fence check order)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T15:08:00Z
+completed: 2026-10-21T15:14:57Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-21T17:08:27+02:00
+last_commit: 2026-10-21T17:13:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CC-06 fence-order bug filed with ACs; run-wc-vectors default ref 25f56ed68 (adapter: pass 14, fail 1, not-impl 9, n/a 1). CC-06 fence order: running-path currency checked before transition legality (stale_attempt, not forbidden_transition); adapter 25f56ed68 pass 14->15 fail 1->0
+
+# Key outcomes
+outcomes:
+  - 'Failing-first unit test: a `reclaim` (T-RECLAIM) naming an attempt that is no longer current is refused `stale_attempt`, not `forbidden_transition`; the contract §3.3 precedence of fence reasons is quoted in the RCA'
+  - 'The fence checks in crates/termlink-bus/src/worker_contract.rs test attempt currency before transition legality (and keep the other reasons'' order as §3.3 states it); no other refusal reason changes for any case'
+  - 'The adapter (default ref 25f56ed68) reports CC-06 pass and fail=0; no earlier pass regresses (CC-01..05, 07, 14, 16..18, 20, 21, 23, 24)'
+  - '`cargo test -p termlink-bus -p termlink-hub` passes; RCA and Evolution filled'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'CC-06 fence-order bug filed with ACs; run-wc-vectors default ref 25f56ed68 (adapter: pass 14, fail 1, not-impl 9, n/a 1)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/worker_contract.rs'
+  - 'crates/termlink-bus/src/worker_contract/tests.rs'
+  - 'docs/reports/T-3484-conformance-map.md'
+  - 'scripts/run-wc-vectors.sh'
+  - '.tasks/active/T-3529-wc03-cc-06-reclaim-of-a-stale-attempt-re.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T17:08:27'
+    action: 'T-3529: CC-06 fence-order bug filed with ACs; run-wc-vectors default ref 25f56ed68 (adapter: pass 14, fail 1, not-impl 9, n/a 1)'
+  - time: '2026-10-21T17:13:22'
+    action: 'T-3529: CC-06 fence order: running-path currency checked before transition legality (stale_attempt, not forbidden_transition); adapter 25f56ed68 pass 14->15 fail 1->0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6
+  commits: 2
+  files_changed: 5
+  lines_added: 458
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3529-wc03-cc-06-reclaim-of-a-stale-attempt-re.md
+generated_by: context-agent-hybrid
