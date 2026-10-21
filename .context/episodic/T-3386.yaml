@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3386: Lightweight TermLink dispatch for short jobs (replace vendor sub-agents, CR-21)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T11:45:29Z
+# ============================================================================
+
+task_id: T-3386
+task_name: "Lightweight TermLink dispatch for short jobs (replace vendor sub-agents, CR-21)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-10T09:01:28Z
+completed: 2026-10-21T11:43:51Z
+duration_days: 11
+updates_count: 3
+first_commit: 2026-10-20T21:57:59+02:00
+last_commit: 2026-10-20T22:27:52+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  real acceptance criteria (G-020). lite dispatch worker for short bounded jobs (RR-13/CR-21) — ~50x fewer start tokens, result returned as a file; CLI/vendored wiring proposed in task Updates
+
+# Key outcomes
+outcomes:
+  - 'Current overhead measured first: `docs/operations/lite-dispatch.md` records, for one trivial job, the start cost of today''s full worker (`claude -p` in the project: CLAUDE.md, hooks, MCP, skills) against the lite worker (wall time, input/cache tokens, cost), with the exact commands so it can be re-measured'
+  - 'New module beside dispatch.rs (`commands/dispatch/lite.rs`) builds the lite worker command: no CLAUDE.md auto-discovery, hooks, MCP servers or skills; a short caller system prompt; a bounded tool list (default read-only `Read,Grep,Glob`); optional model; unit tests pin each of these flags'
+  - 'The job prompt reaches the worker as one shell-escaped argument, never interpolated into the shell line (unit test with quotes, `$()` and newlines)'
+  - 'The result comes back as a file: the worker writes `result.md` and `exit_code` into its job dir and emits `task.completed` carrying `result_path` and `exit_code`, so `termlink dispatch`''s existing collect returns it (unit test on the built shell line)'
+  - '`cargo test -p termlink --bin termlink dispatch::` passes and `cargo clippy -p termlink --bin termlink` has no warnings (the crate in crates/termlink-cli is the package `termlink`) in the new module; wiring that lies outside this worker''s area (cli.rs / main.rs flag, vendored `fw termlink dispatch --lite`) is written as a proposal in Updates, not edited'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/dispatch/lite.rs'
+  - 'crates/termlink-cli/src/commands/dispatch.rs'
+  - 'docs/operations/lite-dispatch.md'
+  - '.tasks/active/T-3386-lightweight-termlink-dispatch-for-short-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T21:57:59'
+    action: 'T-3386: real acceptance criteria (G-020)'
+  - time: '2026-10-20T22:27:52'
+    action: 'T-3386: lite dispatch worker for short bounded jobs (RR-13/CR-21) — ~50x fewer start tokens, result returned as a file; CLI/vendored wiring proposed in task Updates'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 16002 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 16002
+  commits: 2
+  files_changed: 4
+  lines_added: 515
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3386-lightweight-termlink-dispatch-for-short-.md
+generated_by: context-agent-hybrid

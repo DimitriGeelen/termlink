@@ -9,12 +9,12 @@ description: >
   so cost is never a reason to fall back on vendor sub-agents. Measure current dispatch
   overhead first. Write real ACs before editing source (G-020).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/dispatch.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -43,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-10T09:01:28Z
-last_update: 2026-10-20T19:58:40Z
-date_finished:
+last_update: 2026-10-21T11:43:51Z
+date_finished: 2026-10-21T11:43:51Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -405,3 +405,20 @@ grep -q "pub(crate) mod lite;" crates/termlink-cli/src/commands/dispatch.rs
   `termlink dispatch --lite`.
 - **Limit stated in the doc:** `--safe-mode` drops this project's hooks, so lite is for read-and-answer
   jobs; anything that edits, commits or runs tests stays a full worker.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4969eed7
+- **Timestamp:** 2026-10-21T11:45:25Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — New module beside dispatch.rs (`commands/dispatch/lite.rs`) builds the lite worker command: no CLAUDE.md auto-discovery, hooks, MCP servers or skills; a short caller system prompt; a bounded tool list
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=commands/dispatch/lite.rs in: New module beside dispatch.rs (`commands/dispatch/lite.rs`) builds the lite worker command: no CLAUDE.md auto-discovery, hooks, MCP servers or skills;`
+
+### 2026-10-21T11:43:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
