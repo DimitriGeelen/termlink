@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T19:55:25Z
-last_update: 2026-10-20T20:01:24Z
+last_update: 2026-10-21T09:04:22Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -425,6 +425,31 @@ Prompt (d) — crash and fuzz runs:
      checks that every surviving offset reads back intact and in order. Run it for at least 30 minutes.
   3. Report: iterations, failures with reproduction steps, and whether any failure is a real defect or a
      harness artefact. End with JSON {"commit", "loops": {...}, "harness_minutes", "failures": [...], "pushed": false}.
+
+### 2026-10-21 — plan change: ring20 runs the jobs; result of (b)
+- Ring20 (msgs @1257–1259) runs every cloud job as a one-off routine on its own cloud environment from a
+  self-contained prompt; the operator clicks nothing. Operator rule: run on the latest main tip and print the sha first.
+- **(b) off-host test run** (routine trig_0132YKDL…, main 717e8fb80b1d, rustc 1.97.0, as root, 23:56–00:18Z,
+  ~22 min, one session): `cargo test --workspace --no-fail-fast` 4052 passed, 1 failed, 9 ignored, 16m49s.
+  Per crate: cli 1419/0/4, bus 150/0/1, doctor 4/0/0, hub 553/0/0, mcp 1081/0/0 (parity.rs alone 687 s),
+  protocol 109/0/0, session 564/0/0, sidecar 167/1/4, test-utils 5/0/0.
+  1. The one failure, fc_2 (full disk), is the 512 KiB payload-cap defect already fixed by T-3505 (7edbca055,
+     not an ancestor of 717e8fb).
+  2. Guard layer off-host: 9 FAIL, 3 ERROR, 5 WARN. Real on main (reproduced locally and fixed in 1f4e69b33):
+     check-error-swallowing-predicate + its fixtures J1/J2 (T-3227 MCP presence fast path, allowlisted with
+     reason); planted-default-gate J2 (pinned a mutable field name). Real and already fixed: preflight-doc-set
+     drift (74a600d27). Off-host only (no hub / identity / cron): arc-claim-drift provers exit 2,
+     fleet-recipient-agreement ERROR, cron-drift-firing (passes here 13/13), sqlite3/cron-missing fixtures.
+  3. Side effect seen off-host: `voi-prompt.sh` rewrites tracked `.context/checks/voi-decisions.yaml` on every
+     run (the same file shows dirty here).
+- **Cost:** not measurable by us or ring20; the routine API reports no per-run cost. Runtime is the proxy
+  (~22 min, one session). Only the operator's account usage page shows spend. Ring20 notes it ran on the
+  account ring20 holds, as no separate account-2 environment exists.
+- (c) review and (d) crash/stress prompts sent (scratch copies) and started by ring20 at 08:56Z as
+  trig_01DP4tvMgX8564D8uL6Y1QcH and trig_018GjzuVbAiz1zHjwUvnexBm; reports relayed when they land.
+- **Recommendation so far:** keep for one-off independent checks (it found 2 real reds the host run had
+  missed because nothing ran those fixtures on push here); not a replacement for host runs, since a third of
+  the guard layer cannot run off-host.
 
 ### 2026-10-20T19:55:25Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
