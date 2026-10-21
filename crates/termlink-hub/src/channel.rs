@@ -1038,8 +1038,26 @@ pub(crate) async fn handle_channel_post_with_peer(
                 )
                 .into();
             }
-            crate::dedupe::DedupeOutcome::Newly => { /* reserved (T-2435); fall through to post */ }
+            crate::dedupe::DedupeOutcome::Newly => {
+                // Reserved (T-2435). T-3515: the cache is in memory, so within one
+                // TTL of a hub restart a miss may be a post it never saw. Look the
+                // pair up in the topic's stored records before appending a copy.
+                let dedupe = crate::dedupe::post_dedupe();
+                if dedupe.is_cold(now)
+                    && let Some((offset, ts)) =
+                        crate::dedupe::find_stored_post(&bus, &topic, &sender_id, cid)
+                {
+                    dedupe.record_offset(&sender_id, cid, now, offset, ts);
+                    return Response::success(
+                        id,
+                        json!({"offset": offset, "ts": ts, "deduped": true}),
+                    )
+                    .into();
+                }
+            }
         }
+        // T-3515: keep the id on the stored record so a restarted hub can find it.
+        metadata.insert(crate::dedupe::STORED_CID_KEY.to_string(), cid.clone());
     }
 
     // T-3486: keep the signature the hub just verified, so a reader can
@@ -5401,6 +5419,47 @@ mod tests {
             "expected 1 envelope (dedupe absorbed retry), got {}",
             msgs.len()
         );
+    }
+
+    // T-3515: the dedupe cache is in memory. A hub restart empties it, so a resend
+    // of a post made before the restart used to append a second copy. The stored
+    // record carries the id; a cache miss within one TTL of start looks it up.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn dedupe_survives_a_restart_by_finding_the_stored_record() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dedupe:restart", Retention::Forever).unwrap();
+        let key = SigningKey::from_bytes(&[55u8; 32]);
+        let mut p = post_params(&key, "dedupe:restart", "test", b"once", 1_000);
+        p.as_object_mut().unwrap().insert("client_msg_id".into(), json!("uniq-T3515-restart-55"));
+
+        let r1 = unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+        let offset1 = r1["offset"].as_i64().unwrap();
+        // Forget the pair as a restart does.
+        let sender = bus.envelope_at("dedupe:restart", offset1 as u64).unwrap().unwrap().sender_id;
+        crate::dedupe::post_dedupe().forget_for_test(&sender, "uniq-T3515-restart-55");
+
+        let r2 = unwrap_success(handle_channel_post_with(&bus, json!(2), &p).await);
+        assert_eq!(r2["offset"].as_i64().unwrap(), offset1, "resend returns the first offset");
+        assert_eq!(r2["deduped"], json!(true));
+        let sub = unwrap_success(
+            handle_channel_subscribe_with(&bus, json!(3), &json!({"topic": "dedupe:restart"})).await,
+        );
+        assert_eq!(sub["messages"].as_array().unwrap().len(), 1, "one record, not two");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn stored_post_lookup_is_scoped_to_the_sender() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dedupe:scope", Retention::Forever).unwrap();
+        let key = SigningKey::from_bytes(&[57u8; 32]);
+        let mut p = post_params(&key, "dedupe:scope", "test", b"x", 1_000);
+        p.as_object_mut().unwrap().insert("client_msg_id".into(), json!("uniq-T3515-scope-57"));
+        let r = unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+        let sender = bus.envelope_at("dedupe:scope", 0).unwrap().unwrap().sender_id;
+        let hit = crate::dedupe::find_stored_post(&bus, "dedupe:scope", &sender, "uniq-T3515-scope-57");
+        assert_eq!(hit.map(|h| h.0 as i64), Some(r["offset"].as_i64().unwrap()));
+        assert!(crate::dedupe::find_stored_post(&bus, "dedupe:scope", "someone-else", "uniq-T3515-scope-57").is_none());
+        assert!(crate::dedupe::find_stored_post(&bus, "dedupe:scope", &sender, "other-id").is_none());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

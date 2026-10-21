@@ -138,6 +138,10 @@ pub enum DedupeOutcome {
 pub struct PostDedupe {
     ttl_ms: i64,
     capacity: usize,
+    /// T-3515: wall-clock ms when this cache was built. Until `ttl_ms` later the
+    /// cache cannot know about posts made before it existed (a hub restart), so a
+    /// miss in that window is checked against the topic's stored records.
+    born_ms: i64,
     map: Mutex<HashMap<(String, String), DedupeEntry>>,
     hits_total: AtomicU64,
     /// T-2579: count of capacity-driven evictions of `Committed` entries
@@ -161,6 +165,7 @@ impl PostDedupe {
         Self {
             ttl_ms,
             capacity,
+            born_ms: now_unix_ms(),
             map: Mutex::new(HashMap::new()),
             hits_total: AtomicU64::new(0),
             evictions_total: AtomicU64::new(0),
@@ -330,6 +335,62 @@ impl PostDedupe {
     pub fn ttl_ms(&self) -> i64 {
         self.ttl_ms
     }
+
+    /// T-3515: true while a cache miss may be a post this cache never saw,
+    /// i.e. within one TTL of the cache being built (a hub restart).
+    pub fn is_cold(&self, now_ms: i64) -> bool {
+        now_ms.saturating_sub(self.born_ms) <= self.ttl_ms
+    }
+
+    /// Test seam: drop one entry, as a hub restart would.
+    #[cfg(test)]
+    pub(crate) fn forget_for_test(&self, sender_id: &str, client_msg_id: &str) {
+        self.map
+            .lock()
+            .unwrap()
+            .remove(&(sender_id.to_string(), client_msg_id.to_string()));
+    }
+}
+
+fn now_unix_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+/// Metadata key the hub stamps on a stored envelope that carried a
+/// `client_msg_id`, so the dedupe can be recovered from the log after a restart
+/// (T-3515). Not part of the signed bytes, so it never affects verification.
+pub const STORED_CID_KEY: &str = "client_msg_id";
+
+/// How many of a topic's newest records a recovery scan reads. Bounds the cost
+/// of the one-TTL cold window after a restart; a resend further back than this
+/// is not recovered (the in-memory path covers it while the hub stays up).
+pub const RECOVERY_SCAN_RECORDS: u64 = 1024;
+
+/// T-3515: look for an earlier post by `(sender_id, client_msg_id)` among the
+/// newest records of `topic`. Returns its `(offset, ts_unix_ms)`.
+pub fn find_stored_post(
+    bus: &termlink_bus::Bus,
+    topic: &str,
+    sender_id: &str,
+    client_msg_id: &str,
+) -> Option<(u64, i64)> {
+    let latest = bus.latest_offset(topic).ok().flatten()?;
+    let from = latest.saturating_sub(RECOVERY_SCAN_RECORDS - 1);
+    let iter = bus.subscribe(topic, from).ok()?;
+    let mut found = None;
+    for item in iter {
+        let Ok((offset, env)) = item else { break };
+        if env.sender_id == sender_id
+            && env.metadata.get(STORED_CID_KEY).map(String::as_str) == Some(client_msg_id)
+        {
+            found = Some((offset, env.ts_unix_ms));
+            break;
+        }
+    }
+    found
 }
 
 fn evict_expired_in(

@@ -149,11 +149,10 @@ fn resend_while_hub_is_down() {
     t += gap;
     assert_eq!(r.sender.resend_overdue(t, &DL).resent, vec![s.msg_id.clone()]);
     assert_eq!(r.sender.outbox_len(), 0);
-    // The original landed before the outage. The restarted hub has lost its in-memory
-    // dedupe LRU (termlink-hub dedupe.rs), so the recovery post is a second hub-side
-    // copy; the recipient's Duplicate outcome absorbs it. Hub-side persistence is the
-    // residual, and it is outside this crate.
-    assert_eq!(inbox_len(&r, "agent-b"), 2, "one original plus one recovery copy");
+    // The original landed before the outage. The restarted hub has an empty dedupe
+    // cache, but the stored record carries the client_msg_id and a miss within one TTL
+    // of start looks it up (T-3515), so the recovery post is absorbed: one copy.
+    assert_eq!(inbox_len(&r, "agent-b"), 1, "the recovery post was deduped across the restart");
     assert_eq!(count(&r, "k-12", &s.msg_id, RESENT), 1);
 }
 

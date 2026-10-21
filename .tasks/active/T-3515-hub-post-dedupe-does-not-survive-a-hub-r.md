@@ -84,10 +84,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Regression test written first and failing on main: post with a client_msg_id, drop the hub state as a restart does (new Bus / new dedupe on the same dir), post again with the same (sender, client_msg_id) → today two records; must be one, and the second call returns the first offset with `deduped: true`
-- [ ] Dedupe survives a restart for at least the existing TTL (`TERMLINK_DEDUPE_TTL_MS`, default 300 s): either persisted alongside the record in the same meta.db commit (no extra fsync per post; T-3488 counted durable steps) or recovered on a cache miss from the topic's recent records; the choice and its cost are recorded in Decisions
-- [ ] The T-3488 durable-step test (`a_post_is_two_durable_steps_and_a_create_is_one`) still passes unchanged, the in-memory LRU fast path and `dedupe_hits_total` keep working, and the T-3511 test that pins 2 copies across a hub restart is updated to 1
-- [ ] `cargo test -p termlink-bus -p termlink-hub` and `TERMLINK_BIN=<built termlink> cargo test -p termlink-sidecar --test resend_tests` pass
+- [x] Regression test written first and failing on main: post with a client_msg_id, drop the hub state as a restart does (new Bus / new dedupe on the same dir), post again with the same (sender, client_msg_id) → today two records; must be one, and the second call returns the first offset with `deduped: true`
+- [x] Dedupe survives a restart for at least the existing TTL (`TERMLINK_DEDUPE_TTL_MS`, default 300 s): either persisted alongside the record in the same meta.db commit (no extra fsync per post; T-3488 counted durable steps) or recovered on a cache miss from the topic's recent records; the choice and its cost are recorded in Decisions
+- [x] The T-3488 durable-step test (`a_post_is_two_durable_steps_and_a_create_is_one`) still passes unchanged, the in-memory LRU fast path and `dedupe_hits_total` keep working, and the T-3511 test that pins 2 copies across a hub restart is updated to 1
+- [x] `cargo test -p termlink-bus -p termlink-hub` and `TERMLINK_BIN=<built termlink> cargo test -p termlink-sidecar --test resend_tests` pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -363,6 +363,11 @@ bvp_scores_proposed:
 
 ## Decisions
 
+### 2026-10-21 — recover on a cache miss, from the stored record (not meta.db)
+- **Chose:** the hub stamps `metadata.client_msg_id` on the stored envelope (metadata is outside the signed bytes), and a dedupe miss within one TTL of cache creation (`PostDedupe::is_cold`) scans the topic's newest 1024 records for the same (sender_id, client_msg_id) before appending (`dedupe::find_stored_post`).
+- **Why:** no schema change and no extra durable step (T-3488 test untouched); the id is written in the same append as the record. **Cost:** none after the first TTL post-start; during it, one read of up to 1024 records per fresh-id post. A resend further than 1024 records back, or one whose record was swept, is not recovered. Persisting in meta.db rejected: new table plus a write per post.
+- **Rejected:** persisting (sender, id)->offset in meta.db.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -392,3 +397,5 @@ bvp_scores_proposed:
 ### 2026-10-21T12:39:42Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now
+
+- 2026-10-21: implemented. Tests: termlink-bus 173 ok; termlink-hub 552 ok (new: dedupe_survives_a_restart_by_finding_the_stored_record, stored_post_lookup_is_scoped_to_the_sender); sidecar resend_tests 12 ok with the T-3511 pin changed 2 -> 1 (real hub restart). The failing-first run on main was not repeated; the old pin of 2 copies is the prior evidence.
