@@ -125,6 +125,38 @@ fn resend_after_the_normal_accept_deadline_with_the_same_id_and_no_duplicate_on_
     assert_eq!(r.sender.awaiting(), vec![s.msg_id.clone()], "still held until STORED");
 }
 
+/// T-3511: the hub is down across several resend deadlines. An attempt the hub could
+/// not take is neither a second outbox copy nor a count toward giving up; once the
+/// hub is back the message is delivered by the resend, and only that one counts.
+#[test]
+fn resend_while_hub_is_down() {
+    let mut r = rig();
+    let s = r.sender.send("agent-b", "inst-b", Some("k-12"), "hello", None).unwrap();
+    r.e.stop_hub();
+    let gap = DL.accept(false) + 1_000;
+    let mut t = now_ms();
+    for tick in 0..(MAX_RESENDS + 3) {
+        t += gap;
+        let rep = r.sender.resend_overdue(t, &DL);
+        assert!(rep.resent.is_empty() && rep.gave_up.is_empty(), "tick {tick} with the hub down: {rep:?}");
+        assert!(r.sender.outbox_len() <= 1, "tick {tick}: outbox_len={}", r.sender.outbox_len());
+        assert_eq!(r.sender.awaiting(), vec![s.msg_id.clone()], "tick {tick}: still held");
+    }
+    assert_eq!(count(&r, "k-12", &s.msg_id, RESENT), 0, "no attempt reached the hub");
+    assert_eq!(count(&r, "k-12", &s.msg_id, NOT_ACCEPTED), 0, "the hub never refused it");
+
+    r.e.restart_hub().unwrap();
+    t += gap;
+    assert_eq!(r.sender.resend_overdue(t, &DL).resent, vec![s.msg_id.clone()]);
+    assert_eq!(r.sender.outbox_len(), 0);
+    // The original landed before the outage. The restarted hub has lost its in-memory
+    // dedupe LRU (termlink-hub dedupe.rs), so the recovery post is a second hub-side
+    // copy; the recipient's Duplicate outcome absorbs it. Hub-side persistence is the
+    // residual, and it is outside this crate.
+    assert_eq!(inbox_len(&r, "agent-b"), 2, "one original plus one recovery copy");
+    assert_eq!(count(&r, "k-12", &s.msg_id, RESENT), 1);
+}
+
 #[test]
 fn resend_urgent_uses_the_fifteen_second_deadline() {
     let r = rig();
@@ -154,6 +186,7 @@ fn resend_gaps_grow_and_the_sender_gives_up_with_a_needs_attention_entry() {
     assert_eq!(rep.gave_up, vec![s.msg_id.clone()]);
     assert!(rep.resent.is_empty());
     assert!(r.sender.awaiting().is_empty());
+    assert_eq!(r.sender.outbox_len(), 0, "nothing is queued for a message given up on");
     assert_eq!(count(&r, "k-6", &s.msg_id, NOT_ACCEPTED), 1);
     let attn: Vec<Value> = r.store.attention_entries().iter().map(|l| serde_json::from_str(l).unwrap()).collect();
     assert!(

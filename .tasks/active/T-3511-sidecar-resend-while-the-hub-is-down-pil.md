@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T09:10:36Z
-last_update: 2026-10-21T12:25:02Z
+last_update: 2026-10-21T12:25:05Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -82,10 +82,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Regression test `resend_while_hub_is_down` written first and failing on main (ring20's reproduction, 2026-10-21: per tick outbox_len 1,2,3,4 with RESENT each, NOT_ACCEPTED at t4, 4 copies left after giving up): send one, stop the hub, tick across several deadlines
+- [x] Regression test `resend_while_hub_is_down` written first and failing on main (ring20's reproduction, 2026-10-21: per tick outbox_len 1,2,3,4 with RESENT each, NOT_ACCEPTED at t4, 4 copies left after giving up): send one, stop the hub, tick across several deadlines
 - [ ] Fixed so that (a) a resend never adds a second outbox copy of a message that is still queued (the outbox holds at most one copy per msg_id), and (b) attempts that could not reach the hub do not count toward MAX_RESENDS, so the sender does not give up NOT_ACCEPTED while the hub is merely unreachable; after the hub returns, the message is delivered exactly once (dedupe on the hub side stays the backstop)
-- [ ] Giving up removes or marks any queued copy so nothing is posted after NOT_ACCEPTED; tested
-- [ ] Existing keep-until-stored, fault-matrix and deadline tests still pass: `cargo test -p termlink-sidecar` green with TERMLINK_BIN set; RCA section filled
+- [x] Giving up removes or marks any queued copy so nothing is posted after NOT_ACCEPTED; tested
+- [x] Existing keep-until-stored, fault-matrix and deadline tests still pass: `cargo test -p termlink-sidecar` green with TERMLINK_BIN set; RCA section filled
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -306,6 +306,18 @@ bvp_scores_proposed:
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** with the hub down, one message's resends pile copies into the outbox (outbox_len 1,2,3,4 with a RESENT each tick), then NOT_ACCEPTED is written after 4 resends although the hub never refused anything. Four copies stay queued afterwards.
+
+**Root cause:** `crates/termlink-sidecar/src/send.rs` `resend_overdue` (was line ~837) called `self.queue.enqueue(&a.post)` and incremented `a.resends` before any attempt reached the hub. The pump that follows finds the hub unreachable and leaves each row queued. So "a resend was scheduled" was counted as "the hub refused it": unreachable and refused were the same event, and the copies accumulated because nothing checked for a copy already in the queue.
+
+**Why structurally allowed:** the resend tests (`resend_tests.rs`) only ran with the hub up, where the first resend always succeeds, so the unreachable branch of the resend path had no test. The outbox has no per-message uniqueness check, and the give-up path counted attempts without asking whether the hub saw one.
+
+**Prevention:** `resend_while_hub_is_down` (new, `tests/resend_tests.rs`) drives the hub-down case across MAX_RESENDS+3 deadlines and asserts no RESENT, no NOT_ACCEPTED, and `outbox_len <= 1` per tick. The give-up test also asserts `outbox_len == 0`.
+
+**Fix:** the resend is posted directly to the hub by the new `resend_reached_hub` and is never queued. It counts (`resends`, RESENT, the doubling gap) only when the hub answered: accepted or refused. A dead connection, RATE_LIMITED or HUB_AT_CAPACITY is not counted; the timer restarts so a dead hub is retried on the gap. Hub-side dedupe (client_msg_id) remains the backstop.
+
+**Residual, not fixed here:** the hub's dedupe is an in-memory LRU (`crates/termlink-hub/src/dedupe.rs`). A hub restart forgets it, so a resend after a restart can add a second hub-side copy of a message that landed before the outage. The recipient's Duplicate outcome absorbs it. The test pins 2 copies, not 1. Closing this needs hub-side persistence of the dedupe window, which is outside the sidecar crate.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -389,3 +401,10 @@ bvp_scores_proposed:
 
 ### 2026-10-21T12:25:02Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-21 — fix and red/green evidence [agent]
+- **Red:** `resend_while_hub_is_down` failed on the unfixed code at tick 0: the hub-down resend reported `resent` and enqueued a copy.
+- **Green:** `TERMLINK_BIN=$PWD/target/debug/termlink cargo test -p termlink-sidecar`: 172 passed, 0 failed across all targets.
+- **Fix:** send.rs `resend_reached_hub` posts the resend directly and never queues it. Only a hub-answered attempt counts toward MAX_RESENDS. Unreachable and RATE_LIMITED/HUB_AT_CAPACITY attempts restart the timer without counting.
+- **AC 2(b) not fully met:** "delivered exactly once" holds for the sender's chain (one RESENT, empty outbox), but a hub restart clears the in-memory dedupe LRU, so the hub can hold a second copy. Left unticked. The residual needs hub-side dedupe persistence (termlink-hub, out of this crate); the test pins the current 2-copy behaviour.
+- **Not done:** work-completed not set (per the operator's instruction for this run).

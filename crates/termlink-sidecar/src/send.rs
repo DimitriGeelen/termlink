@@ -833,8 +833,15 @@ impl Inner {
                 continue;
             }
             // Same post, same client_msg_id: the hub's dedupe and the recipient's
-            // Duplicate outcome absorb a copy that did arrive.
-            if self.queue.enqueue(&a.post).is_err() {
+            // Duplicate outcome absorb a copy that did arrive. Posted directly, never
+            // queued: a queued copy piles up behind a hub that is down (T-3511).
+            if !self.resend_reached_hub(&mut mem, &a.post) {
+                // Not an attempt the hub could take, so it does not count toward
+                // giving up. The timer restarts, so a dead hub is retried on the gap.
+                a.since_ms = now_ms;
+                if let Err(e) = self.write_awaiting(&a) {
+                    let _ = self.store.attention("awaiting-not-recorded", &format!("{}: {e}", a.msg_id));
+                }
                 continue;
             }
             a.resends += 1;
@@ -850,6 +857,36 @@ impl Inner {
             let _ = self.pump_locked(&mut mem);
         }
         rep
+    }
+
+    /// One resend attempt. True when the hub answered it, whether it accepted the post
+    /// or refused it, since a refusal is what counts toward giving up. False when the
+    /// hub could not take it: no connection, or RATE_LIMITED / HUB_AT_CAPACITY, which
+    /// say "not now" rather than "no" (T-3511).
+    fn resend_reached_hub(&self, mem: &mut PumpMemory, post: &PendingPost) -> bool {
+        use termlink_protocol::control::error_code;
+        if !mem.topics.contains(&post.topic) {
+            match self.rpc(method::CHANNEL_CREATE, json!({"name": post.topic})) {
+                Err(_) => return false,
+                Ok(RpcResponse::Success(_)) => {
+                    mem.topics.insert(post.topic.clone());
+                }
+                Ok(RpcResponse::Error(e)) => {
+                    if e.error.message.to_lowercase().contains("exist") {
+                        mem.topics.insert(post.topic.clone());
+                    }
+                }
+            }
+        }
+        match self.rpc(method::CHANNEL_POST, post_params(post)) {
+            Err(_) => false,
+            Ok(RpcResponse::Error(e))
+                if e.error.code == error_code::RATE_LIMITED || e.error.code == error_code::HUB_AT_CAPACITY =>
+            {
+                false
+            }
+            Ok(_) => true,
+        }
     }
 
     /// The hub is out of reach: the head message shows WAITING.
