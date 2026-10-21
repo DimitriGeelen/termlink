@@ -17,7 +17,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-10-20T14:38:15Z
-last_update: 2026-10-21T15:53:32Z
+last_update: 2026-10-21T15:56:11Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -25,7 +25,7 @@ date_finished:
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
-voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
+voi_score: 0.7                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
 bvp_scores_proposed:
   - ts: '2026-10-21T15:44:46Z'
