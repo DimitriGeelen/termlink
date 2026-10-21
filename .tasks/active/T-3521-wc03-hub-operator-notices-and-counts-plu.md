@@ -2,12 +2,17 @@
 id: T-3521
 name: "wc/0.3 hub: operator notices and counts, plus reconciliation_requested (CC-05,08,15,17,20,21,22,24)"
 description: >
-  From the T-3517 conformance adapter (docs/reports/T-3484-conformance-map.md, 'Not-implemented, by missing piece'): the hub exposes no notice surface; the sweep reports notices only for a lost attempt whose binding reappears; T4/T6 and done-conflict refusals are not counted; reconciliation_requested is not reported. Build the notice record + counts in the bus worker_contract layer and expose it through the adapter's notices/operator_notices ops; CC-21's remaining assertion lands here.
+  From the T-3517 conformance adapter (docs/reports/T-3484-conformance-map.md, 'Not-implemented,
+  by missing piece'): the hub exposes no notice surface; the sweep reports notices
+  only for a lost attempt whose binding reappears; T4/T6 and done-conflict refusals
+  are not counted; reconciliation_requested is not reported. Build the notice record
+  + counts in the bus worker_contract layer and expose it through the adapter's notices/operator_notices
+  ops; CC-21's remaining assertion lands here.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:43:43Z
-last_update: 2026-10-21T14:43:43Z
-date_finished: null
+last_update: 2026-10-21T14:57:41Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +55,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T14:57:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3521: wc/0.3 hub: operator notices and counts, plus reconciliation_requested (CC-05,08,15,17,20,21,22,24)
@@ -62,8 +81,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] The vocabulary meaning of `notices`, `operator_notices` and `reconciliation_requested` is quoted from AEF's vectors (b4c168aa9) in Decisions, together with the notice kinds and counts each of CC-05, 08, 15, 17, 20, 21, 22 and 24 asserts
+- [ ] The hub records operator notices durably in the bus worker_contract store (a table or the history, written in the same transaction as the event that causes it: T4, T6, done-conflict refusals, a lost attempt's binding reappearing, reconciliation requested), and exposes them with counts through a read API the adapter maps to `notices` / `operator_notices`; `dispatch.get` returns an attempt's notices
+- [ ] Notices come from state transitions and refusals, never from best-effort events; failing-first unit tests per notice kind
+- [ ] The adapter at `--ref b4c168aa9` moves the notice-blocked cases from not-implemented to pass or to fail with a named diverging step (each remaining fail filed as its own bug), and no previously passing case regresses
+- [ ] `cargo test -p termlink-bus -p termlink-hub` passes; Evolution filled (arc-tagged)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +136,9 @@ date_finished: null
 -->
 
 ## Verification
+
+bash scripts/run-wc-vectors.sh --ref b4c168aa9 > /tmp/.t3521-wc 2>&1; grep -qE "^summary: 25 cases" /tmp/.t3521-wc && ! grep -qE "^         .*op:(notices|operator_notices)" /tmp/.t3521-wc
+cargo test -p termlink-bus -p termlink-hub > /tmp/.t3521 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3521
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +389,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3521-wc03-hub-operator-notices-and-counts-plu.md
 - **Context:** Initial task creation
+
+### 2026-10-21T14:57:41Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

@@ -1,10 +1,22 @@
 ---
 id: T-3520
-name: "wc/0.3 CC-12: answer naming an unasked question is refused (cas_mismatch); vector expects ok"
+name: "wc/0.3 CC-12: answer naming an unasked question is refused (cas_mismatch);
+  vector expects ok"
 description: >
-  Found by the T-3517 hub conformance adapter (AEF vectors.yaml, case CC-12, both variants). Given: attempt 1 running, E1 exit 0, no question on the record. Step: append_answer (dispatcher, attempt 1, cmd_id c2-answer, question_id q1, body 'retry later', deadline 620) expecting ok. Observed: fence_reject cas_mismatch, store message 'no question q1 on this attempt' (crates/termlink-bus/src/worker_contract/answer.rs answer_tx). The two variants then fail at that step, so no answer-TTL behaviour was reached. Cause is either (a) the store: AnswerRequest documents question_id as 'the question this answers, if any', which suggests an answer need not name an asked question, or (b) the vector: its given seeds no question q1, so the step relies on an unasked question. Needs an AEF ruling before the backend changes: if (a), the store should accept the answer; if (b), AEF should seed q1 in given. Do not patch from the adapter.
+  Found by the T-3517 hub conformance adapter (AEF vectors.yaml, case CC-12, both
+  variants). Given: attempt 1 running, E1 exit 0, no question on the record. Step:
+  append_answer (dispatcher, attempt 1, cmd_id c2-answer, question_id q1, body 'retry
+  later', deadline 620) expecting ok. Observed: fence_reject cas_mismatch, store message
+  'no question q1 on this attempt' (crates/termlink-bus/src/worker_contract/answer.rs
+  answer_tx). The two variants then fail at that step, so no answer-TTL behaviour
+  was reached. Cause is either (a) the store: AnswerRequest documents question_id
+  as 'the question this answers, if any', which suggests an answer need not name an
+  asked question, or (b) the vector: its given seeds no question q1, so the step relies
+  on an unasked question. Needs an AEF ruling before the backend changes: if (a),
+  the store should accept the answer; if (b), AEF should seed q1 in given. Do not
+  patch from the adapter.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +50,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:27:48Z
-last_update: 2026-10-21T14:27:48Z
-date_finished: null
+last_update: 2026-10-21T14:57:40Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +62,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T14:57:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3520: wc/0.3 CC-12: answer naming an unasked question is refused (cas_mismatch); vector expects ok
@@ -62,8 +88,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Ruling recorded in Decisions: AEF (msg a075812c, 2026-10-21) ruled the store right (an answer must name a question already on the attempt, spec §5.3) and fixed the vector in b4c168aa9; no store change for the unasked-question refusal
+- [ ] Re-scoped bug, found by the adapter against b4c168aa9 (variant attempt-terminal-unacked): a stored, unacked answer stays `stored` when its attempt reaches a terminal state, where it must become `undelivered`. A failing-first unit test pins it; the fix makes the attempt's terminal transition (or the answer sweep, from state, never from events) move every stored or received but unapplied answer of that attempt to `undelivered`, with a history row
+- [ ] The adapter at `--ref b4c168aa9` reports CC-12 pass, and no case that passed before regresses (CC-02, 04, 07, 14, 16, 18, 23)
+- [ ] `cargo test -p termlink-bus -p termlink-hub` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +142,9 @@ date_finished: null
 -->
 
 ## Verification
+
+bash scripts/run-wc-vectors.sh --ref b4c168aa9 > /tmp/.t3520-wc 2>&1; grep -qE "^  CC-12 +pass " /tmp/.t3520-wc
+cargo test -p termlink-bus -p termlink-hub > /tmp/.t3520 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3520
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +395,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3520-wc03-cc-12-answer-naming-an-unasked-ques.md
 - **Context:** Initial task creation
+
+### 2026-10-21T14:57:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
