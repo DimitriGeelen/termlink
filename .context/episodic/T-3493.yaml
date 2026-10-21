@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3493: Inject ACL for registered sessions: signed inject + per-session allowlist of identity fingerprints (ring20-dashboard request)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T17:43:43Z
+# ============================================================================
+
+task_id: T-3493
+task_name: "Inject ACL for registered sessions: signed inject + per-session allowlist of identity fingerprints (ring20-dashboard request)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-20T14:38:15Z
+completed: 2026-10-21T17:43:30Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-10-21T17:52:14+02:00
+last_commit: 2026-10-21T19:43:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  external review round 1 — brief + codex answer (B as interim with protected credential delivery; C committed as the O-7 implementation); IW-1..IW-4 filed. external review round 1 — Antigravity answer (B modified: no --token flag, narrow notify scope; C via signed RPC envelope + spawn-time allowlist). operator ruled B′ (token from file/fd, narrow notify scope for the doorbell, visible failure, interim not O-7; C planned separately with AEF/ring20); IW-1 answered; dialogue log. operator set inception VOI scores (decision 4: T-3476 0.8, T-3477 0.8 raised by operator, T-3493 0.7, T-3524 0.6). inception decision GO (via Watchtower)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-21 — IW-1 which option: B′ (operator ruling)'
+    chose: 'B′, as recommended after external review (operator: "as recommended"): 1. the inject path reads its token from a protected file or file descriptor, never a CLI argument, and not from the environment (codex''s stricter reading); 2. a narrow notify scope/RPC for the doorbell, so the sidecar never holds Control (keyboard) rights; if notify is enough, the sidecar stops using inject; 3. a missing or wrong token is a visible doorbell health failure, never silently lost mail; 4. documented as bearer authorisation without attribution: interim, explicitly not O-7, not an "inject ACL"; 5. authentication stays in the handshake (`auth.token`) or an envelope, never in `command.inject`''s parameters, so C can swap the token for a signature without changing the call''s shape; peer projects configure public fingerprints, never shared session secrets.'
+    rationale: 'closes the live gap with a small, reversible change; the two reviewers independently flagged the sidecar holding keyboard rights as B''s main risk, which item 2 removes.'
+    alternatives_rejected: ['A (keeps the open door and ring20''s safe-or-reachable trade-off); C now (design questions IW-2..IW-4 not agreed with AEF/ring20; building it now means building it twice); D (contradicts O-7 as ratified). - **Left open:** C becomes its own plan from the reviewers'' answers (signed RPC envelope over method, target, args, caller, timestamp and nonce reusing the T-1427 Ed25519 key; allowlist fixed at session creation by an authenticated spawner that cannot grant more than it holds; the supervisor''s fingerprint present from the first moment, creation failing visibly otherwise), with an owner and finish criteria, reviewed by AEF and ring20. Whether new sessions default to `--token-secret` is a later, separate decision.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/voi-decisions.yaml'
+  - 'docs/reports/T-3493-consult/antigravity.md'
+  - 'docs/reports/T-3493-consult/brief.md'
+  - 'docs/reports/T-3493-consult/codex.md'
+  - 'docs/reports/T-3493-consult/decision.md'
+  - '.tasks/active/T-3476-deterministic-task-assignment-sidecar-on.md'
+  - '.tasks/active/T-3477-container-isolation-for-dispatched-agent.md'
+  - '.tasks/active/T-3493-inject-acl-for-registered-sessions-signe.md'
+  - '.tasks/active/T-3524-wc03-which-remaining-vector-capabilities.md'
+  - '.tasks/completed/T-3493-inject-acl-for-registered-sessions-signe.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T17:52:14'
+    action: 'T-3493: external review round 1 — brief + codex answer (B as interim with protected credential delivery; C committed as the O-7 implementation); IW-1..IW-4 filed'
+  - time: '2026-10-21T17:53:31'
+    action: 'T-3493: external review round 1 — Antigravity answer (B modified: no --token flag, narrow notify scope; C via signed RPC envelope + spawn-time allowlist)'
+  - time: '2026-10-21T17:56:09'
+    action: 'T-3493: operator ruled B′ (token from file/fd, narrow notify scope for the doorbell, visible failure, interim not O-7; C planned separately with AEF/ring20); IW-1 answered; dialogue log'
+  - time: '2026-10-21T18:03:20'
+    action: 'T-3493: operator set inception VOI scores (decision 4: T-3476 0.8, T-3477 0.8 raised by operator, T-3493 0.7, T-3524 0.6)'
+  - time: '2026-10-21T19:43:32'
+    action: 'T-3493: inception decision GO (via Watchtower)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 1625 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1625
+  commits: 5
+  files_changed: 10
+  lines_added: 379
+  lines_removed: 30
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3493-inject-acl-for-registered-sessions-signe.md
+generated_by: context-agent-hybrid
