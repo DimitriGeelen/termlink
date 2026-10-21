@@ -173,7 +173,12 @@ impl WcStore {
     pub(crate) fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open(path)?;
         let _: String = conn.query_row("PRAGMA journal_mode=WAL", [], |r| r.get(0))?;
-        conn.execute_batch("PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;")?;
+        // T-3531: the same wait as the Meta writer. This connection holds IMMEDIATE
+        // locks across its commit fsync, so the Meta writer waits on it.
+        conn.execute_batch(&format!(
+            "PRAGMA synchronous=FULL; PRAGMA busy_timeout={};",
+            crate::meta::WRITE_LOCK_WAIT_MS
+        ))?;
         init_schema(&conn)?;
         Ok(Self { conn: Mutex::new(conn) })
     }

@@ -11,6 +11,12 @@ pub enum BusError {
     #[error("sqlite: {0}")]
     Sqlite(#[from] rusqlite::Error),
 
+    // T-3531: another connection held the metadata write lock past the whole wait
+    // (`meta::WRITE_LOCK_WAIT_MS`). Named, so the refusal says where and how long,
+    // not a bare SQLITE_BUSY.
+    #[error("meta write lock at {site} was held by another connection for more than {wait_ms} ms; the write was refused")]
+    WriteLockTimeout { site: String, wait_ms: u32 },
+
     #[error("topic {name:?} already exists with a different retention policy (existing={existing:?}, requested={requested:?})")]
     TopicPolicyMismatch {
         name: String,

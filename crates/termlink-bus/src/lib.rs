@@ -2231,6 +2231,60 @@ mod tests {
         assert_eq!((a.writes_total, a.last_writer.as_deref()), (1, Some("alice")));
     }
 
+    /// T-3531: a second connection on meta.db (the WcStore writer, or any other
+    /// SQLite writer) holds the write lock past the post's busy wait. The post
+    /// must wait it out, not refuse with a raw SQLITE_BUSY. The holder keeps the
+    /// lock for 6 s, longer than the 5 s `busy_timeout` the writers used to have.
+    #[tokio::test]
+    async fn a_post_waits_out_a_write_lock_held_by_another_connection() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        let path = bus.root.join("meta.db");
+        let (locked_tx, locked_rx) = std::sync::mpsc::channel();
+        let holder = std::thread::spawn(move || {
+            let mut c = rusqlite::Connection::open(&path).unwrap();
+            let tx = c.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).unwrap();
+            locked_tx.send(()).unwrap();
+            std::thread::sleep(std::time::Duration::from_secs(6));
+            tx.commit().unwrap();
+        });
+        locked_rx.recv().unwrap();
+        let offset = bus.post("t", &env("t", b"a")).await.expect("post waits out a 6 s write lock");
+        assert_eq!(offset, 0);
+        holder.join().unwrap();
+    }
+
+    /// T-3531: past the bound the refusal is named (site and bound), never a bare
+    /// SQLITE_BUSY, and the record is not written. The bound is shortened so the
+    /// holder keeps the lock for 2 s, not the production 30 s.
+    #[tokio::test]
+    async fn a_post_past_the_write_lock_bound_is_refused_by_name() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        bus.meta.set_write_wait_for_test(std::time::Duration::from_millis(300));
+        let path = bus.root.join("meta.db");
+        let (locked_tx, locked_rx) = std::sync::mpsc::channel();
+        let holder = std::thread::spawn(move || {
+            let mut c = rusqlite::Connection::open(&path).unwrap();
+            let tx = c.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).unwrap();
+            locked_tx.send(()).unwrap();
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            tx.commit().unwrap();
+        });
+        locked_rx.recv().unwrap();
+        let err = bus.post("t", &env("t", b"a")).await.unwrap_err();
+        match &err {
+            BusError::WriteLockTimeout { site, wait_ms } => {
+                assert!(site.contains("meta.rs:"), "names the call site: {site}");
+                assert_eq!(*wait_ms, 300, "reports the bound that ran");
+            }
+            other => panic!("expected a named write-lock timeout, got {other:?}"),
+        }
+        holder.join().unwrap();
+        assert_eq!(bus.latest_offset("t").unwrap(), None, "a refused post writes nothing");
+        assert_eq!(bus.post("t", &env("t", b"a")).await.unwrap(), 0, "lock free: the next post lands");
+    }
+
     #[tokio::test]
     async fn a_fetch_note_leaves_the_connection_at_synchronous_full() {
         let (_dir, bus) = tmp_bus();

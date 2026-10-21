@@ -2,10 +2,17 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 
 use crate::claim::{ClaimInfo, ClaimsSummary, ReleaseInfo, TransferInfo};
 use crate::{BusError, Result, Retention, TopicSummary};
+
+/// T-3531: how long a writer waits for ANOTHER connection's write lock before it
+/// gives up. Long on purpose: a commit holds the lock through its fsync (T-3488
+/// measured multi-second holds on this disk), and a post must wait that out. Past
+/// it the write fails loud and named (`BusError::WriteLockTimeout`), never as a bare
+/// SQLITE_BUSY. The per-commit budget is unchanged: this bounds the wait, not the work.
+pub(crate) const WRITE_LOCK_WAIT_MS: u32 = 30_000;
 
 /// SQLite sidecar tracking topics, cursors, and per-topic offset counters.
 /// Schema version is baked into a `schema_version` table — bump when the
@@ -17,6 +24,9 @@ pub(crate) struct Meta {
     /// commit that is holding `conn` through its fsync (measured: one fsync over
     /// 60 s on btrfs, and channel.list timing out behind it).
     rconn: std::sync::Mutex<Connection>,
+    /// T-3531: the write-lock wait `conn` was given, so a named failure reports the
+    /// bound that actually ran (a test may shorten it).
+    write_wait_ms: std::sync::atomic::AtomicU32,
 }
 
 impl Meta {
@@ -31,7 +41,9 @@ impl Meta {
         if !mode.eq_ignore_ascii_case("wal") {
             eprintln!("termlink-bus: WARN meta.db journal_mode is {mode}, not wal");
         }
-        conn.execute_batch("PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;")?;
+        conn.execute_batch(&format!(
+            "PRAGMA synchronous=FULL; PRAGMA busy_timeout={WRITE_LOCK_WAIT_MS};"
+        ))?;
         init_schema(&conn)?;
         // Opened after the schema exists. query_only makes a write through it an
         // error instead of a silent second writer.
@@ -40,6 +52,7 @@ impl Meta {
         let meta = Self {
             conn: std::sync::Mutex::new(conn),
             rconn: std::sync::Mutex::new(rconn),
+            write_wait_ms: std::sync::atomic::AtomicU32::new(WRITE_LOCK_WAIT_MS),
         };
         meta.migrate_t3310()?;
         Ok(meta)
@@ -106,8 +119,11 @@ impl Meta {
         })
     }
 
+    /// T-3531: a write transaction. A busy error is named here, with the call site
+    /// and the bound, so a lock that outlasted `WRITE_LOCK_WAIT_MS` never surfaces
+    /// as a bare SQLITE_BUSY.
     #[track_caller]
-    fn with_conn_mut<R>(&self, f: impl FnOnce(&mut Connection) -> R) -> R {
+    fn with_conn_mut<R>(&self, f: impl FnOnce(&mut Connection) -> Result<R>) -> Result<R> {
         let at = std::panic::Location::caller();
         crate::run_blocking(|| {
             let asked = std::time::Instant::now();
@@ -117,7 +133,8 @@ impl Meta {
             let r = f(&mut conn);
             drop(conn);
             report_slow_lock(at, got - asked, got.elapsed());
-            r
+            let wait_ms = self.write_wait_ms.load(std::sync::atomic::Ordering::Relaxed);
+            r.map_err(|e| write_lock_failure(at, wait_ms, e))
         })
     }
 
@@ -129,7 +146,7 @@ impl Meta {
     pub(crate) fn create_topic(&self, name: &str, retention: Retention) -> Result<bool> {
         // T-3488: one transaction, so a new topic costs one commit (one fsync), not two.
         self.with_conn_mut(|conn| {
-            let tx = conn.transaction()?;
+            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             let conn = &tx;
             let existing: Option<(String, i64)> = conn
                 .query_row(
@@ -253,7 +270,7 @@ impl Meta {
         writer: Option<&str>,
     ) -> Result<u64> {
         self.with_conn_mut(|conn| {
-            let mut tx = conn.transaction()?;
+            let mut tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             let current: i64 = tx.query_row(
                 "SELECT next_offset FROM offsets WHERE topic = ?1",
                 params![topic],
@@ -314,7 +331,7 @@ impl Meta {
     /// absence is an error — the hub reports it loudly, no stealth success).
     pub(crate) fn delete_topic(&self, name: &str) -> Result<Option<u64>> {
         self.with_conn_mut(|conn| {
-            let tx = conn.transaction()?;
+            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             let existed: i64 = tx.query_row(
                 "SELECT COUNT(*) FROM topics WHERE name = ?1",
                 params![name],
@@ -494,7 +511,7 @@ impl Meta {
     /// still hold, under the same lock (see `reclaim::rewrite_locked`).
     pub(crate) fn commit_rewrite(&self, topic: &str, generation: u64, moves: &[(u64, u64, u64)]) -> Result<()> {
         self.with_conn_mut(|conn| {
-            let tx = conn.transaction()?;
+            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             let exists: i64 =
                 tx.query_row("SELECT COUNT(*) FROM topics WHERE name = ?1", params![topic], |r| r.get(0))?;
             if exists == 0 {
@@ -571,7 +588,7 @@ impl Meta {
         keep_last_n: Option<u64>,
     ) -> Result<u64> {
         self.with_conn_mut(|conn| {
-            let tx = conn.transaction()?;
+            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             let mut deleted: u64 = 0;
             if let Some(ts) = keep_after_ts_ms {
                 let n = tx.execute(
@@ -615,7 +632,7 @@ impl Meta {
             return Ok(0);
         }
         self.with_conn_mut(|conn| {
-            let tx = conn.transaction()?;
+            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             let mut deleted: u64 = 0;
             {
                 let mut stmt =
@@ -642,7 +659,7 @@ impl Meta {
         now_ms: i64,
     ) -> Result<ClaimInfo> {
         self.with_conn_mut(|conn| {
-            let tx = conn.transaction()?;
+            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             // T-2572: reject a claim at/beyond the frontier BEFORE inserting. Valid
             // claimable offsets are [0, next_offset); an offset >= next_offset names
             // work that has not been posted. Accepting it and then `release --ack`
@@ -726,7 +743,7 @@ impl Meta {
         now_ms: i64,
     ) -> Result<ReleaseInfo> {
         self.with_conn_mut(|conn| {
-            let tx = conn.transaction()?;
+            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             let row: rusqlite::Result<(String, i64, String, i64)> = tx.query_row(
                 "SELECT topic, offset, claimed_by, claimed_until FROM claims WHERE claim_id = ?1",
                 params![claim_id],
@@ -805,7 +822,7 @@ impl Meta {
         reason: Option<&str>,
     ) -> Result<ReleaseInfo> {
         self.with_conn_mut(|conn| {
-            let tx = conn.transaction()?;
+            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             let row: rusqlite::Result<(String, i64, String)> = tx.query_row(
                 "SELECT topic, offset, claimed_by FROM claims WHERE claim_id = ?1",
                 params![claim_id],
@@ -857,7 +874,7 @@ impl Meta {
         now_ms: i64,
     ) -> Result<TransferInfo> {
         self.with_conn_mut(|conn| {
-            let tx = conn.transaction()?;
+            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             let row: rusqlite::Result<(String, i64, String, i64, i64)> = tx.query_row(
                 "SELECT topic, offset, claimed_by, claimed_at, claimed_until \
                  FROM claims WHERE claim_id = ?1",
@@ -921,7 +938,7 @@ impl Meta {
         now_ms: i64,
     ) -> Result<ClaimInfo> {
         self.with_conn_mut(|conn| {
-            let tx = conn.transaction()?;
+            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             let row: rusqlite::Result<(String, i64, String, i64, i64)> = tx.query_row(
                 "SELECT topic, offset, claimed_by, claimed_at, claimed_until \
                  FROM claims WHERE claim_id = ?1",
@@ -1183,7 +1200,34 @@ fn report_slow_lock(
     }
 }
 
+/// T-3531: a write whose lock wait ran out names the call site and the bound, loudly.
+/// Any other error passes through unchanged.
+fn write_lock_failure(at: &std::panic::Location<'_>, wait_ms: u32, e: BusError) -> BusError {
+    use rusqlite::{Error::SqliteFailure, ErrorCode};
+    match &e {
+        BusError::Sqlite(SqliteFailure(f, _))
+            if matches!(f.code, ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked) =>
+        {
+            let site = format!("{}:{}", at.file(), at.line());
+            eprintln!(
+                "warning: T-3531: meta write lock at {site} was still held by another \
+                 connection after {wait_ms} ms; the write was refused"
+            );
+            BusError::WriteLockTimeout { site, wait_ms }
+        }
+        _ => e,
+    }
+}
+
 impl Meta {
+    /// T-3531 test helper: shorten the write-lock wait so the named failure can be
+    /// reached without holding a lock for the production bound.
+    #[cfg(test)]
+    pub(crate) fn set_write_wait_for_test(&self, wait: std::time::Duration) {
+        self.conn.lock().expect("meta mutex poisoned").busy_timeout(wait).expect("busy_timeout");
+        self.write_wait_ms.store(wait.as_millis() as u32, std::sync::atomic::Ordering::Relaxed);
+    }
+
     /// T-3488 test helper: the write connection's `PRAGMA synchronous` (2 = FULL).
     #[cfg(test)]
     pub(crate) fn synchronous_level(&self) -> i64 {
@@ -1225,7 +1269,7 @@ impl Meta {
         data: Option<i64>,
     ) -> Result<()> {
         {
-            let tx = conn.transaction()?;
+            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             tx.execute(
                 "INSERT INTO topic_activity (topic, tracking_since_ms, last_fetch_ms, \
                      last_data_fetch_ms, fetches_total) VALUES (?1, ?2, ?2, ?3, 1) \
@@ -1617,7 +1661,7 @@ impl Meta {
     /// remain. Returns the number of records deleted. Index-only.
     pub(crate) fn keep_bytes(&self, topic: &str, target: u64) -> Result<u64> {
         self.with_conn_mut(|conn| {
-            let tx = conn.transaction()?;
+            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
             // Walk newest-first, summing lengths; the first offset whose running
             // total passes `target` and everything older goes.
             let cutoff: Option<i64> = {
