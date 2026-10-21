@@ -219,6 +219,16 @@ impl Bus {
         self.wc.transition(req, now_ms)
     }
 
+    /// T-3523: `dispatch.stop`, a backend-initiated stop (§3.3). Records the cause; the
+    /// confirmed end that follows (T3 or the sweep's T4) carries it on its history entry.
+    pub fn wc_stop(
+        &self,
+        req: &worker_contract::StopRequest,
+        now_ms: i64,
+    ) -> std::result::Result<serde_json::Value, worker_contract::WcError> {
+        self.wc.stop(req, now_ms)
+    }
+
     /// T-3501: `dispatch.get`.
     pub fn wc_get(
         &self,

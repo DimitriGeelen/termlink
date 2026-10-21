@@ -278,6 +278,10 @@ pub mod method {
     pub const DISPATCH_TRANSITION: &str = "dispatch.transition";
     /// T-3501: read a dispatch record (Observe).
     pub const DISPATCH_GET: &str = "dispatch.get";
+    /// T-3523: a backend-initiated stop (§3.3) with `cause` ∈ {deadline_stop, revoked,
+    /// operator_stop}, fenced by the supervisor token (Execute). Records the cause only; the
+    /// confirmed end that follows carries it on its history entry.
+    pub const DISPATCH_STOP: &str = "dispatch.stop";
     /// T-3503 answer path (contract §5): a worker asks (nonce), the dispatcher answers
     /// (supervisor token), the worker acks `received|applied`. Interact.
     /// There is deliberately NO `dispatch.resolve` method: T7d is a hub-host CLI only

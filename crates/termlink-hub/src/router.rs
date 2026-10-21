@@ -119,6 +119,9 @@ pub async fn route(req: &Request, peer_addr: Option<&str>) -> Option<RpcResponse
         control::method::DISPATCH_TRANSITION => {
             crate::dispatch_contract::handle_dispatch_transition(id, &req.params).await
         }
+        control::method::DISPATCH_STOP => {
+            crate::dispatch_contract::handle_dispatch_stop(id, &req.params).await
+        }
         control::method::DISPATCH_GET => {
             crate::dispatch_contract::handle_dispatch_get(id, &req.params).await
         }
@@ -1130,6 +1133,7 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         control::method::CHANNEL_CV_KEYS,
         control::method::DISPATCH_ALLOCATE,
         control::method::DISPATCH_TRANSITION,
+        control::method::DISPATCH_STOP,
         control::method::DISPATCH_GET,
         control::method::DISPATCH_ASK,
         control::method::DISPATCH_ANSWER,

@@ -348,3 +348,80 @@ fn confirm_end_on_a_never_seen_running_attempt_writes_nothing_at_any_clock() {
     }
     assert_eq!(state(&s, &a), "running");
 }
+
+// --- CC-25 (T-3523, §3.3): a backend-initiated stop is an action, not a state ---------------
+
+fn stop(s: &WcStore, a: &Allocation, cause: &str, token: &str, now: i64) -> WcResult<Value> {
+    s.stop(
+        &StopRequest {
+            dispatch_id: a.dispatch_id.clone(),
+            attempt: a.attempt,
+            supervisor_token: Some(token.into()),
+            cause: cause.into(),
+        },
+        now,
+    )
+}
+
+fn last_cause(s: &WcStore, a: &Allocation) -> Value {
+    let v = s.get(&a.dispatch_id).unwrap();
+    v["attempts"][a.attempt as usize - 1]["history"].as_array().unwrap().last().unwrap()["cause"].clone()
+}
+
+#[test]
+fn stop_then_confirmed_exit_is_done_and_carries_the_cause() {
+    // CC-25 (a): exit confirmed, valid hand-back. The stop writes no row and no state; T3
+    // ends the attempt and its history entry carries the stop cause. No new attempt.
+    let (_d, s) = store();
+    let a = running_seen(&s, 3_600_000, 2_000);
+    let rows = s.get(&a.dispatch_id).unwrap()["attempts"][0]["history"].as_array().unwrap().len();
+    let rec = stop(&s, &a, "deadline_stop", &a.supervisor_token, 5_000).unwrap();
+    assert_eq!(rec["state"], "running");
+    assert_eq!(rec["stop_cause"], "deadline_stop");
+    assert_eq!(rec["history"].as_array().unwrap().len(), rows, "a stop writes no history row");
+    t3_done(&s, &a, 6_000);
+    assert_eq!(state(&s, &a), "done");
+    assert_eq!(last_cause(&s, &a), "deadline_stop");
+    assert_eq!(s.get(&a.dispatch_id).unwrap()["attempts"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn stop_then_no_exit_evidence_is_lost_by_the_sweep_with_the_cause() {
+    // CC-25 (c): no confirmed exit. The hub's end confirmation and grace give T4, and the T4
+    // entry carries the stop cause in place of the sweep's own.
+    let (_d, s) = store();
+    let a = running_seen(&s, 3_600_000, 2_000);
+    stop(&s, &a, "deadline_stop", &a.supervisor_token, 5_000).unwrap();
+    s.confirm_end(&a.dispatch_id, a.attempt, &nobody(), 10_000).unwrap();
+    s.sweep(&nobody(), 10_000 + GRACE_MS).unwrap();
+    assert_eq!(state(&s, &a), "lost");
+    assert_eq!(last_cause(&s, &a), "deadline_stop");
+}
+
+#[test]
+fn stop_revoked_behaves_the_same() {
+    let (_d, s) = store();
+    let a = running_seen(&s, 3_600_000, 2_000);
+    stop(&s, &a, "revoked", &a.supervisor_token, 5_000).unwrap();
+    t3_done(&s, &a, 6_000);
+    assert_eq!(last_cause(&s, &a), "revoked");
+}
+
+#[test]
+fn stop_refusals_bad_token_bad_cause_terminal_and_conflicting_cause() {
+    let (_d, s) = store();
+    let a = running_seen(&s, 3_600_000, 2_000);
+    let fence_of = |r: WcResult<Value>| match r {
+        Err(WcError::Fence { reason, .. }) => reason.as_str(),
+        other => panic!("expected a fence refusal, got {other:?}"),
+    };
+    assert_eq!(fence_of(stop(&s, &a, "deadline_stop", "not-the-token", 3_000)), "bad_credential");
+    assert!(matches!(stop(&s, &a, "bored", &a.supervisor_token, 3_000), Err(WcError::Invalid(_))));
+    stop(&s, &a, "deadline_stop", &a.supervisor_token, 4_000).unwrap();
+    // The same cause again is a no-op; a different one is refused.
+    stop(&s, &a, "deadline_stop", &a.supervisor_token, 4_500).unwrap();
+    assert_eq!(fence_of(stop(&s, &a, "revoked", &a.supervisor_token, 4_600)), "cas_mismatch");
+    t3_done(&s, &a, 5_000);
+    assert_eq!(fence_of(stop(&s, &a, "deadline_stop", &a.supervisor_token, 6_000)), "cas_mismatch");
+    assert_eq!(state(&s, &a), "done");
+}

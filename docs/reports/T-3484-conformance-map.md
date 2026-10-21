@@ -54,17 +54,16 @@ vectors: AEF 25f56ed68 (https://raw.githubusercontent.com/DimitriGeelen/agentic-
          [no-material] op:consume (no consumer surface; refusals of review_verdict / pass_rate live outside the store) | [unbound-material] T7d material binding (ResolveRequest carries no material or outcome) | [bound-evidence] T7d material binding (ResolveRequest carries no material or outcome)
   CC-23  pass             The nonce alone cannot complete
   CC-24  pass             Late T5 whose evidence postdates the lost entry
-  CC-25  not-implemented  Backend-initiated stop
-         [exit-confirmed-valid-handback] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [exit-confirmed-handback-absent] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [no-exit-evidence] op:stop (no backend-initiated stop in the store; transition takes no stop cause) | [revoked] op:stop (no backend-initiated stop in the store; transition takes no stop cause)
-summary: 25 cases: pass=17 fail=0 not-implemented=7 n/a=1
+  CC-25  pass             Backend-initiated stop
+summary: 25 cases: pass=18 fail=0 not-implemented=6 n/a=1
 ```
 
-Counts (2026-10-21, AEF `25f56ed68`, the script's default ref): **pass 17** (CC-01..07, 12, 14, 15, 16, 17, 18, 20, 21, 23, 24) · **fail 0** · **not-implemented 7** (CC-08, 09, 10, 13, 19, 22, 25) · **n/a 1** (CC-11).
+Counts (2026-10-21, AEF `25f56ed68`, the script's default ref): **pass 18** (CC-01..07, 12, 14, 15, 16, 17, 18, 20, 21, 23, 24, 25) · **fail 0** · **not-implemented 6** (CC-08, 09, 10, 13, 19, 22) · **n/a 1** (CC-11).
 CC-01 and CC-03 turned pass when AEF added the `seen_alive_epoch` precondition (their T-4556, ruling msg d0f2e96a; the hub
 did not change). CC-06 turned pass with the fence-order fix T-3529 (db9facce5). The hub-side notes for every case were sent
 to AEF as a patch (T-3530, `docs/reports/T-3530-vectors-hub.patch`, sha256 b8fa05be…dfa97c8).
 
-Progress the same day: afe974124 pass 5 / fail 3 → b4c168aa9 pass 12 / fail 3 → 25f56ed68 pass 15 / fail 0. On 2026-10-22 T-3528 took it to pass 16 / fail 0 (CC-12), then T-3527 to pass 17 (CC-15).
+Progress the same day: afe974124 pass 5 / fail 3 → b4c168aa9 pass 12 / fail 3 → 25f56ed68 pass 15 / fail 0. On 2026-10-22 T-3528 took it to pass 16 / fail 0 (CC-12), then T-3527 to pass 17 (CC-15), then T-3523 to pass 18 (CC-25).
 
 Before T-3521 (same tree, AEF `b4c168aa9`): pass 7 · fail 4 (CC-01, 03, 06, 12) · not-implemented 13 · n/a 1. T-3521 turned
 CC-05, 17, 20, 21 and 24 into pass and moved CC-08 from an unreadable notice step to the `wait` op. CC-12 left `fail` for
@@ -96,7 +95,6 @@ the backend, and the verdict is the honest state until they land.
   (no worker-side wait surface), CC-15 at the `agent_session` refusal, CC-22 at `consume` and the T7d material binding.
 - **Partition and worker-host contact (`partition`, `heal`) — CC-09.** The hub has no model of it.
   `probe_undecided` is the closest op and is mapped to a sweep that cannot see (`listing_complete` false).
-- **Backend-initiated stop (`stop`) — CC-25.** `transition` takes a `cause` but there is no stop op.
 - **Locks (`hold_lock`) — CC-13 (lock-timeout variant).** The per-write lock is SQLite IMMEDIATE, with no
   hook to hold it from outside. The concurrent-writer variants (eight writers) are judged and pass.
 - **Consumers (`consume`) — CC-19, 22.** No consumer surface. Refusals `not_finished_work` live outside the store.

@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:43:57Z
-last_update: 2026-10-21T23:45:30Z
+last_update: 2026-10-21T23:45:53Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -81,10 +81,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The store records a backend-initiated stop (`Bus::wc_stop`): fenced by the supervisor token, cause ∈ {deadline_stop, revoked, operator_stop} (anything else is `invalid`), only on a `dispatched` or `running` attempt (a terminal or unknown attempt is `cas_mismatch`). A repeat with the same cause is a no-op; a different cause after the first is refused. Per spec §3.3 the stop is an action, not a state: it writes no history row and changes no state, and the attempt record shows `stop_cause`
-- [ ] The confirmed end that follows carries the cause on its history entry: T3 (`done`, including `handback-malformed`) uses the request's cause or else the recorded stop cause, and the sweep's T4 (`lost`) uses the recorded stop cause instead of its own. No new attempt is allocated by a stop
-- [ ] `dispatch.stop` JSON-RPC (Execute, like `dispatch.transition`) with the method constant in control.rs and the router entry; the error-code emission and MCP parity checks stay clean
-- [ ] Bus unit tests cover the four CC-25 variants (exit confirmed with a valid hand-back, exit confirmed with the hand-back absent, no exit evidence then the sweep, revoked), plus the refusals (bad token, bad cause, terminal attempt, conflicting second cause). The conformance adapter maps `op: stop` and reports `history_causes` (the cause on each attempt's last lifecycle row); `scripts/run-wc-vectors.sh` at 25f56ed68 reports CC-25 pass with fail=0
+- [x] The store records a backend-initiated stop (`Bus::wc_stop`): fenced by the supervisor token, cause ∈ {deadline_stop, revoked, operator_stop} (anything else is `invalid`), only on a `dispatched` or `running` attempt (a terminal or unknown attempt is `cas_mismatch`). A repeat with the same cause is a no-op; a different cause after the first is refused. Per spec §3.3 the stop is an action, not a state: it writes no history row and changes no state, and the attempt record shows `stop_cause`
+- [x] The confirmed end that follows carries the cause on its history entry: T3 (`done`, including `handback-malformed`) uses the request's cause or else the recorded stop cause, and the sweep's T4 (`lost`) uses the recorded stop cause instead of its own. No new attempt is allocated by a stop
+- [x] `dispatch.stop` JSON-RPC (Execute, like `dispatch.transition`) with the method constant in control.rs and the router entry; the error-code emission and MCP parity checks stay clean (both rc 0; error-code docs lint clean; protocol tests 109/0; RPC test `dispatch_stop_records_the_cause_for_the_confirmed_end`)
+- [x] Bus unit tests (worker_contract/sweep_tests.rs, `stop_*`) cover three CC-25 variants (exit confirmed with a valid hand-back, no exit evidence then the sweep's T4, revoked); the fourth (exit confirmed, hand-back absent → `done{handback-malformed}`) is the existing T3 outcome rule and is exercised through the vector rather than a new unit test. Plus the refusals (bad token, bad cause, terminal attempt, conflicting second cause). The conformance adapter maps `op: stop` and reports `history_causes` (the cause on each attempt's last lifecycle row); `scripts/run-wc-vectors.sh` at 25f56ed68 reports CC-25 pass with fail=0
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -135,7 +135,7 @@ bvp_scores_proposed:
 -->
 
 ## Verification
-cargo test -p termlink-bus --lib worker_contract > /tmp/.t3523 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3523 && grep -q 'fn stop_' crates/termlink-bus/src/worker_contract/tests.rs
+cargo test -p termlink-bus --lib worker_contract > /tmp/.t3523 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3523 && grep -q 'fn stop_' crates/termlink-bus/src/worker_contract/sweep_tests.rs
 bash scripts/run-wc-vectors.sh --ref 25f56ed68 > /tmp/.t3523-v 2>&1 && grep -qE 'CC-25 +pass' /tmp/.t3523-v && grep -qE 'summary: .* fail=0 ' /tmp/.t3523-v
 bash scripts/check-error-code-emission.sh > /tmp/.t3523-e 2>&1
 
@@ -331,6 +331,11 @@ bash scripts/check-error-code-emission.sh > /tmp/.t3523-e 2>&1
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-22 — the stop is recorded, not transitioned
+- **What changed:** the filing read CC-25 as a missing op. Spec §3.3 makes it narrower: "the stop is an action, not a state". The confirmed end is the existing T3 or T4, and only the cause is new. `TransitionRequest` already had a `cause` field for this, but nothing could set it from a stop, and the sweep's T4 always wrote its own cause.
+- **Plan impact:** no new state and no history row. A `stop_cause` column on the attempt is read by T3 (when the request has no cause) and by the sweep's T4. A stop writes no lifecycle row, so admissible histories stay `[running, done]` / `[running, lost]` as the vector requires.
+- **Triggered:** scope narrowed to CC-25 only. CC-15 was done in T-3527, and CC-22 is T-3539. Vectors at 25f56ed68: pass 18, fail 0.
 
 ## Recommendation
 

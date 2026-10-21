@@ -323,6 +323,17 @@ fn hub_write(
             params![c.dispatch_id, c.attempt, to],
         )?,
     };
+    // T-3523 (§3.3): a T4 that ends a stopped attempt carries the backend's stop cause.
+    let stop_cause: Option<String> = if to == "lost" {
+        tx.query_row(
+            "SELECT stop_cause FROM wc_attempts WHERE dispatch_id = ?1 AND attempt = ?2",
+            params![c.dispatch_id, c.attempt],
+            |r| r.get(0),
+        )?
+    } else {
+        None
+    };
+    let cause = stop_cause.as_deref().unwrap_or(cause);
     append_history(tx, &c.dispatch_id, c.attempt, Some(expected), to, "hub", now, None, Some(cause), None)?;
     report.transitions.push(SweepTransition {
         dispatch_id: c.dispatch_id.clone(),

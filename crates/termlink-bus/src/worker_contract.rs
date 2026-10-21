@@ -149,6 +149,19 @@ pub struct TransitionRequest {
     pub cause: Option<String>,
 }
 
+/// The causes a backend may stop an attempt for (§3.3).
+pub const STOP_CAUSES: [&str; 3] = ["deadline_stop", "revoked", "operator_stop"];
+
+/// T-3523: a backend-initiated stop (§3.3, CC-25). The supervisor's credential fences it.
+#[derive(Debug, Clone, Default)]
+pub struct StopRequest {
+    pub dispatch_id: String,
+    pub attempt: i64,
+    pub supervisor_token: Option<String>,
+    /// One of `STOP_CAUSES`.
+    pub cause: String,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Handback {
     pub attempt: Option<i64>,
@@ -353,11 +366,15 @@ impl WcStore {
     pub(crate) fn transition(&self, req: &TransitionRequest, now_ms: i64) -> WcResult<TransitionOutcome> {
         self.with_tx(|tx| transition_tx(tx, req, now_ms))
     }
+
+    pub(crate) fn stop(&self, req: &StopRequest, now_ms: i64) -> WcResult<Value> {
+        self.with_tx(|tx| stop_tx(tx, req, now_ms))
+    }
 }
 
 const ATTEMPT_COLS: &str = "attempt, state, outcome, worker_kind, session_name, supervisor_gen, \
     exit_code, result_kind, result_value, persisted_at, evidence_digest, attested, attested_by, \
-    deadline_dispatched, deadline_running, handback_status, created_at";
+    deadline_dispatched, deadline_running, handback_status, created_at, stop_cause";
 
 fn attempt_json(r: &rusqlite::Row) -> rusqlite::Result<Value> {
     Ok(json!({
@@ -380,6 +397,7 @@ fn attempt_json(r: &rusqlite::Row) -> rusqlite::Result<Value> {
         "deadline_running": r.get::<_, Option<i64>>(14)?,
         "handback_status": r.get::<_, Option<String>>(15)?,
         "created_at": r.get::<_, i64>(16)?,
+        "stop_cause": r.get::<_, Option<String>>(17)?,
     }))
 }
 
@@ -410,13 +428,14 @@ struct Row {
     token_sha: String,
     sgen: i64,
     evidence_digest: Option<String>,
+    stop_cause: Option<String>,
 }
 
 fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcResult<TransitionOutcome> {
     let id = &req.dispatch_id;
     let row: Option<Row> = tx
         .query_row(
-            "SELECT state, nonce_sha256, supervisor_token_sha256, supervisor_gen, evidence_digest
+            "SELECT state, nonce_sha256, supervisor_token_sha256, supervisor_gen, evidence_digest, stop_cause
              FROM wc_attempts WHERE dispatch_id=?1 AND attempt=?2",
             params![id, req.attempt],
             |r| {
@@ -426,6 +445,7 @@ fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcRe
                     token_sha: r.get(2)?,
                     sgen: r.get(3)?,
                     evidence_digest: r.get(4)?,
+                    stop_cause: r.get(5)?,
                 })
             },
         )
@@ -572,7 +592,9 @@ fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcRe
                     req.handback.as_ref().and_then(|h| h.status.clone())
                 ],
             )?;
-            append_history(tx, id, req.attempt, Some(actual), "done", "supervisor", now_ms, Some(digest), req.cause.as_deref(), None)?;
+            // T-3523: a recorded backend stop gives the confirmed end its cause (§3.3).
+            let cause = req.cause.as_deref().or(row.stop_cause.as_deref());
+            append_history(tx, id, req.attempt, Some(actual), "done", "supervisor", now_ms, Some(digest), cause, None)?;
             answer::close_ended_answers_tx(tx, id, req.attempt, "done", now_ms)?;
         }
         // lost / unknown are the sweep's (S2); dispatched is only ever T1.
@@ -605,6 +627,49 @@ fn derive_outcome(req: &TransitionRequest) -> &'static str {
         return "paused";
     }
     "succeeded"
+}
+
+/// T-3523 (§3.3): "The stop is an action, not a state." It records the cause and nothing
+/// else: no history row, no state change, no new attempt. The confirmed end that follows
+/// (T3, or the sweep's T4) carries the cause on its history entry.
+fn stop_tx(tx: &Transaction, req: &StopRequest, now_ms: i64) -> WcResult<Value> {
+    let id = &req.dispatch_id;
+    if !STOP_CAUSES.contains(&req.cause.as_str()) {
+        return Err(WcError::Invalid(format!("stop cause must be one of {STOP_CAUSES:?}")));
+    }
+    let row: Option<(String, String, Option<String>)> = tx
+        .query_row(
+            "SELECT state, supervisor_token_sha256, stop_cause FROM wc_attempts WHERE dispatch_id=?1 AND attempt=?2",
+            params![id, req.attempt],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .optional()?;
+    let Some((state, token_sha, recorded)) = row else {
+        return Err(WcError::NotFound(format!("{id} attempt {}", req.attempt)));
+    };
+    match &req.supervisor_token {
+        Some(t) if sha256_hex(t) == token_sha => {}
+        _ => return fence(FenceReason::BadCredential, "missing or wrong supervisor credential"),
+    }
+    let refuse = |reason: FenceReason, detail: String| -> WcResult<Value> {
+        // Like every refused authenticated write: a history row outside the lifecycle.
+        append_history(tx, id, req.attempt, Some(&state), &state, "supervisor", now_ms, None, None, Some(reason.as_str()))?;
+        fence(reason, detail)
+    };
+    if !matches!(state.as_str(), "dispatched" | "running") {
+        return refuse(FenceReason::CasMismatch, format!("attempt is {state}; only a live attempt can be stopped"));
+    }
+    match recorded.as_deref() {
+        Some(c) if c == req.cause => {}
+        Some(c) => return refuse(FenceReason::CasMismatch, format!("already stopped for {c}")),
+        None => {
+            tx.execute(
+                "UPDATE wc_attempts SET stop_cause=?3 WHERE dispatch_id=?1 AND attempt=?2",
+                params![id, req.attempt, req.cause],
+            )?;
+        }
+    }
+    attempt_record(tx, id, req.attempt)
 }
 
 fn attempt_record(tx: &Transaction, id: &str, attempt: i64) -> WcResult<Value> {
@@ -700,6 +765,8 @@ fn init_schema(conn: &Connection) -> Result<()> {
     // files get the columns here rather than through the CREATE above.
     ensure_column(conn, "wc_attempts", "end_observed_at", "INTEGER")?;
     ensure_column(conn, "wc_attempts", "absent_sweeps", "INTEGER NOT NULL DEFAULT 0")?;
+    // T-3523: a backend-initiated stop's cause, carried onto the confirmed end's history.
+    ensure_column(conn, "wc_attempts", "stop_cause", "TEXT")?;
     // T-3503 (S3): the answer path.
     answer::init_schema(conn)?;
     // T-3521: durable operator notices (triggers on wc_history).

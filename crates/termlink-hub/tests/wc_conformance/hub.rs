@@ -23,7 +23,7 @@ use serde_json::{Map, Value, json};
 use termlink_bus::Bus;
 use termlink_bus::worker_contract::answer::{AckRequest, AnswerRequest, AskRequest, ResolveRequest, resolve_at};
 use termlink_bus::worker_contract::sweep::{SweepObservation, SweepReport};
-use termlink_bus::worker_contract::{AllocateRequest, Allocation, Handback, TransitionRequest, WcError};
+use termlink_bus::worker_contract::{AllocateRequest, Allocation, Handback, StopRequest, TransitionRequest, WcError};
 use termlink_hub::dispatch_contract::{AGENT_SESSION_REFUSAL, ResolveSession, resolve_gate};
 
 /// Capabilities this backend offers (vocabulary.capabilities). `lease` and `real_worker` are not.
@@ -448,7 +448,7 @@ impl Hub {
             "partition" | "heal" => missing(&format!("op:{op} (the hub has no model of worker-host contact)")),
             "hold_lock" => missing("op:hold_lock (the per-write lock is SQLite IMMEDIATE; no hook to hold it)"),
             "confirm_end" => self.confirm_end(n),
-            "stop" => missing("op:stop (no backend-initiated stop in the store; transition takes no stop cause)"),
+            "stop" => self.stop(step, n),
             "ask_wait" | "wait" => missing(&format!("op:{op} (no worker-side wait or collect surface)")),
             "consume" => missing("op:consume (no consumer surface; refusals of review_verdict / pass_rate live outside the store)"),
             "adopt" => missing("op:adopt (no dispatcher-ownership transfer)"),
@@ -503,6 +503,21 @@ impl Hub {
         match step.get("nonce").and_then(Value::as_str) {
             Some(s) => Ok(self.resolve_sym(s)),
             None => self.nonce_of.get(&n).cloned().ok_or_else(|| Fail::Missing(format!("nonce of attempt {n}"))),
+        }
+    }
+
+    /// T-3523 (CC-25): the backend's stop records its cause. `exit_status_captured` is the
+    /// world's fact, not a store input: it decides which confirmed end follows (T3 or T4).
+    fn stop(&mut self, step: &Value, n: i64) -> Res<Map<String, Value>> {
+        let req = StopRequest {
+            dispatch_id: self.dispatch_id()?,
+            attempt: n,
+            supervisor_token: self.token_for(step, n),
+            cause: step["args"]["cause"].as_str().unwrap_or_default().to_string(),
+        };
+        match self.bus.wc_stop(&req, self.clock) {
+            Ok(_) => Ok(obj(json!({"ok": true}))),
+            Err(e) => Ok(error_map(&e)),
         }
     }
 
@@ -759,6 +774,7 @@ impl Hub {
         let mut attempt_count = 0;
         // T-3528 (CC-12): dispatch-level bounce facts, read from the record as served.
         let (mut bounced, mut ladder) = (Value::Null, Value::Null);
+        let mut causes = Map::new();
         if let Some(d) = &self.dispatch {
             let v = self.bus.wc_get(d).map_err(|e| Fail::Mismatch(format!("get refused: {e:?}")))?;
             dispatcher_session = v["dispatcher"]["session"].clone();
@@ -770,11 +786,15 @@ impl Hub {
                 let n = a["attempt"].as_i64().unwrap_or(0);
                 let (base_state, base_rows) = self.base.get(&n).cloned().unwrap_or(("dispatched".into(), 0));
                 let mut history = vec![Value::String(base_state)];
+                let mut last_cause = Value::Null;
                 for row in a["history"].as_array().map(Vec::as_slice).unwrap_or_default().iter().skip(base_rows) {
                     if lifecycle_row(row) {
                         history.push(row["to"].clone());
+                        last_cause = row["cause"].clone();
                     }
                 }
+                // T-3523 (CC-25): the cause on the attempt's latest lifecycle entry.
+                causes.insert(format!("A{n}"), last_cause);
                 let answers: Map<String, Value> = a["answers"]
                     .as_array()
                     .map(|xs| {
@@ -819,6 +839,7 @@ impl Hub {
             "operator_notices": self.notice_total() - self.base_notices,
             "bounced_to_dispatcher": bounced,
             "retry_ladder_entries": ladder,
+            "history_causes": Value::Object(causes),
         }))
     }
 

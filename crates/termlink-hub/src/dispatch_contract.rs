@@ -16,7 +16,7 @@ use termlink_bus::worker_contract::answer::{
     resolve_at, AckRequest, AnswerRequest, AskRequest, ResolveRequest,
 };
 use termlink_bus::worker_contract::{
-    AllocateRequest, Handback, TransitionRequest, WcError,
+    AllocateRequest, Handback, StopRequest, TransitionRequest, WcError,
 };
 use termlink_protocol::control::error_code;
 use termlink_protocol::jsonrpc::{ErrorResponse, Response, RpcResponse};
@@ -87,6 +87,13 @@ pub async fn handle_dispatch_allocate(id: Value, params: &Value) -> RpcResponse 
 pub async fn handle_dispatch_transition(id: Value, params: &Value) -> RpcResponse {
     match bus_or_err(&id) {
         Ok(b) => transition_with(b, id, params, now_ms()),
+        Err(r) => r,
+    }
+}
+
+pub async fn handle_dispatch_stop(id: Value, params: &Value) -> RpcResponse {
+    match bus_or_err(&id) {
+        Ok(b) => stop_with(b, id, params, now_ms()),
         Err(r) => r,
     }
 }
@@ -362,6 +369,19 @@ pub(crate) fn transition_with(bus: &Bus, id: Value, params: &Value, now: i64) ->
     }
 }
 
+/// T-3523: `dispatch.stop {dispatch_id, attempt, supervisor_token, cause}`.
+pub(crate) fn stop_with(bus: &Bus, id: Value, params: &Value, now: i64) -> RpcResponse {
+    let (Some(dispatch_id), Some(attempt), Some(cause)) = (s(params, "dispatch_id"), i(params, "attempt"), s(params, "cause"))
+    else {
+        return ErrorResponse::new(id, -32602, "dispatch.stop needs dispatch_id, attempt, cause").into();
+    };
+    let req = StopRequest { dispatch_id, attempt, supervisor_token: s(params, "supervisor_token"), cause };
+    match bus.wc_stop(&req, now) {
+        Ok(record) => Response::success(id, json!({"record": record})).into(),
+        Err(e) => err(id, e),
+    }
+}
+
 pub(crate) fn get_with(bus: &Bus, id: Value, params: &Value) -> RpcResponse {
     let Some(dispatch_id) = s(params, "dispatch_id") else {
         return ErrorResponse::new(id, -32602, "Missing 'dispatch_id' in params").into();
@@ -420,6 +440,29 @@ mod tests {
         let got = ok(get_with(&b, json!(5), &json!({"dispatch_id": a["dispatch_id"]})));
         assert_eq!(got["attempts"][0]["state"], "done");
         assert_eq!(got["dispatcher"]["session"], "claude-master-1");
+    }
+
+    /// T-3523 (CC-25): `dispatch.stop` records the cause without a state change; the T3 that
+    /// follows carries it; a missing field is -32602 and a wrong token is a fence refusal.
+    #[test]
+    fn dispatch_stop_records_the_cause_for_the_confirmed_end() {
+        let (_d, b) = bus();
+        let a = ok(allocate_with(&b, json!(1), &json!({}), 1_000));
+        ok(transition_with(&b, json!(2), &lifecycle(&a, "running", "dispatched"), 2_000));
+        let (code, _) = fail(stop_with(&b, json!(3), &json!({"dispatch_id": a["dispatch_id"], "attempt": 1}), 2_500));
+        assert_eq!(code, -32602);
+        let bad = json!({"dispatch_id": a["dispatch_id"], "attempt": 1, "supervisor_token": "nope", "cause": "deadline_stop"});
+        let (_, data) = fail(stop_with(&b, json!(4), &bad, 2_600));
+        assert_eq!(data["reason"], "bad_credential");
+        let req = json!({"dispatch_id": a["dispatch_id"], "attempt": 1, "supervisor_token": a["supervisor_token"], "cause": "deadline_stop"});
+        let r = ok(stop_with(&b, json!(5), &req, 3_000));
+        assert_eq!(r["record"]["state"], "running");
+        assert_eq!(r["record"]["stop_cause"], "deadline_stop");
+        ok(transition_with(&b, json!(6), &lifecycle(&a, "done", "running"), 4_000));
+        let got = ok(get_with(&b, json!(7), &json!({"dispatch_id": a["dispatch_id"]})));
+        let last = got["attempts"][0]["history"].as_array().unwrap().last().unwrap().clone();
+        assert_eq!((last["to"].as_str(), last["cause"].as_str()), (Some("done"), Some("deadline_stop")));
+        assert_eq!(got["attempts"].as_array().unwrap().len(), 1, "a stop allocates nothing");
     }
 
     #[test]
