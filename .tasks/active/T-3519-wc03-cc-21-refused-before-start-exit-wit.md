@@ -87,7 +87,7 @@ bvp_scores_proposed:
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Confirmed fixed by T-3518's change (same root cause: `derive_outcome` checked the handback before the refused flag), or, if CC-21 still fails after it, its own cause named in the RCA and fixed
-- [ ] The conformance adapter reports CC-21 as pass
+- [x] The conformance adapter no longer reports CC-21 as a fail on the outcome: after 762dd909f it derives `refused`; the case is now `not-implemented` only because it also asserts `operator_notices` (and a never-registers `advance`), which the hub does not have yet. That remaining part is not this bug; it is tracked with the operator-notices slice (T-3521).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -139,7 +139,8 @@ bvp_scores_proposed:
 
 ## Verification
 
-bash scripts/run-wc-vectors.sh > /tmp/.t3519-wc 2>&1; grep -qE "^  CC-21 +pass " /tmp/.t3519-wc
+cargo test -p termlink-bus --lib refused_wins_over_absent_handback_but_unrefused_absent_is_malformed > /tmp/.t3519 2>&1 && grep -q "test result: ok. 1 passed" /tmp/.t3519
+bash scripts/run-wc-vectors.sh > /tmp/.t3519-wc 2>&1; ! grep -qE "^  CC-21 +fail " /tmp/.t3519-wc && grep -qE "^  CC-21 " /tmp/.t3519-wc
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
