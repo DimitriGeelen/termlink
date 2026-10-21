@@ -262,7 +262,8 @@ fn start(e: &Estate, who: &str, name: &str, inst: &str, hub_id: &str) -> Proc {
     std::fs::write(&path, serde_json::to_string(&cfg).unwrap()).unwrap();
     let log = std::fs::File::create(e.root().join(format!("sidecar-{who}.log"))).unwrap();
     let child = e.command(BIN).args(["start", "--config"]).arg(&path).stdin(Stdio::null()).stdout(log.try_clone().unwrap()).stderr(log).spawn().unwrap();
-    assert!(wait_for(30, || api::socket_path(&e.runtime_dir(), name, Scope::Send).exists()));
+    // The sidecar hashes its own (debug, ~370MB) binary before binding; on a loaded host that takes tens of seconds.
+    assert!(wait_for(120, || api::socket_path(&e.runtime_dir(), name, Scope::Send).exists()));
     Proc(child)
 }
 
@@ -302,7 +303,19 @@ fn fc_17_the_canary_appears_in_nothing_the_estate_produced() {
         .unwrap();
         outputs.push(sent.to_string());
         let id_m = sent["msg_id"].as_str().unwrap().to_owned();
-        let st = |name: &str| hook::call(&sock(&e, name, Scope::Status), &json!({"op": "status"}), Duration::from_secs(10)).unwrap();
+        // A status read is idempotent and a loaded host can answer late: a read
+        // timeout (EAGAIN) is retried until a generous deadline (120s), never unwrapped.
+        let st = |name: &str| {
+            let end = Instant::now() + Duration::from_secs(120);
+            loop {
+                let t0 = Instant::now();
+                match hook::call(&sock(&e, name, Scope::Status), &json!({"op": "status"}), Duration::from_secs(10)) {
+                    Ok(v) => return v,
+                    Err(why) if why.starts_with("read:") && Instant::now() < end => eprintln!("fc17 status {name} slow after {:?}: {why}", t0.elapsed()),
+                    Err(why) => panic!("status {name}: {why}"),
+                }
+            }
+        };
         assert!(wait_for(30, || st("agent-a")["messages"].as_array().is_some_and(|m| m.iter().any(|x| x["msg_id"] == id_m.as_str() && x["stage"] == "STORED"))));
         let session = "fc17-session";
         let out = run_hook(&e, "post-tool-use", &sock(&e, "agent-b", Scope::Send), &json!({"session_id": session, "tool_use_id": "toolu_fc17"}));

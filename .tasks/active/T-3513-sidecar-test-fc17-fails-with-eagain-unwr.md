@@ -80,9 +80,9 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Root cause of the EAGAIN at fc_matrix.rs:305 named (which fd, why it is non-blocking or timed out, which commit made it so), in the RCA section
-- [ ] Fixed so fc_17 reaches a real verdict on whether the canary appears in estate output (no unwrap on a would-block read; retry/blocking read or the product fixed if it is a product defect); the canary assertion itself is unchanged
-- [ ] `TERMLINK_BIN=<built termlink> cargo test -p termlink-sidecar --test fc_matrix` passes 10 consecutive runs
+- [x] Root cause of the EAGAIN at fc_matrix.rs:305 named (which fd, why it is non-blocking or timed out, which commit made it so), in the RCA section
+- [x] Fixed so fc_17 reaches a real verdict on whether the canary appears in estate output (no unwrap on a would-block read; retry/blocking read or the product fixed if it is a product defect); the canary assertion itself is unchanged
+- [x] `TERMLINK_BIN=<built termlink> cargo test -p termlink-sidecar --test fc_matrix` passes 10 consecutive runs
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -303,6 +303,16 @@ bvp_scores_proposed:
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** fc_17 panics `read: Resource temporarily unavailable (os error 11)` at fc_matrix.rs:305 (the `st` status closure's `.unwrap()`). Intermittent: 3 of 9 runs failed at load average 42-65; 0 of 10 at lower load.
+
+**Root cause:** the fd is the client UnixStream in `hook::call` (src/hook.rs:37-43), which sets `set_read_timeout(10s)`. A read timeout on a blocking socket surfaces as EAGAIN (os error 11). The sidecar did not answer a `status` op within the test's 10s on a heavily loaded host, whose steady load is ~45. Every other wait in fc_17 allows 30-40s; only the status call allowed 10s and treated a late answer as fatal. Not a non-blocking flag: the server side resets the accepted socket to blocking (api.rs `serve`). I could not catch a slow status in the act. After the load dropped, 10 runs showed no read slower than 10s, so the slow-host cause is inferred from the timing and the failure rate. The binary hash is not the cause: it is computed once at daemon start (daemon.rs:145). Not bisected to a commit, since the 10s value is from when the test was written.
+
+**Why structurally allowed:** the harness treated a read timeout as a verdict (unwrap) instead of "no answer yet", and the status wait was the only one without a deadline loop.
+
+**Prevention:** `st` now retries only read-timeout errors until 120s and panics with the cause on any other error. The sidecar-start wait (fc_matrix.rs `start`) went from 30s to 120s, because under the same load I also saw it time out at line 265 (the sidecar hashes its ~370MB debug binary before binding, daemon.rs:145). The canary assertions are untouched.
+
+**Open caveat:** one run failed at the old fc_matrix.rs:291 (my `status` panic, before the deadline raise) and I did not capture its message. Whether that was a status that stayed unanswered for 90s is unknown. The 10 passes were taken after the raise, at moderate load.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -383,6 +393,10 @@ bvp_scores_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3513-sidecar-test-fc17-fails-with-eagain-unwr.md
 - **Context:** Initial task creation
+
+### 2026-10-21 — fix [agent]
+- **Action:** fc_matrix.rs only. The `st` status closure retries read timeouts (EAGAIN) for up to 120s instead of unwrapping, and the sidecar-start wait is 120s instead of 30s. Canary assertions unchanged.
+- **Evidence:** 10 consecutive `fc_matrix` runs (4 tests each) passed after the change. Before it, 3 of 9 fc_17 runs failed at load ~45.
 
 ### 2026-10-21T10:58:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
