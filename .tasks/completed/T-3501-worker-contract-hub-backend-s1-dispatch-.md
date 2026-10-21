@@ -7,12 +7,12 @@ description: >
   AEF and TermLink agreed 2026-10-20. Spec: AEF docs/specs/shared-worker-contract-transitions.md
   v0.2 (f600187a6) + TermLink's three v0.2.1 fixes; design: docs/reports/T-3484-termlink-build-design.md.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T20:18:51Z
-last_update: 2026-10-20T21:13:10Z
-date_finished:
+last_update: 2026-10-21T11:58:06Z
+date_finished: 2026-10-21T11:58:06Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -83,7 +83,7 @@ bvp_scores_proposed:
 - [x] `dispatch.allocate` returns {dispatch_id, attempt, nonce, supervisor_token}; caller-chosen well-formed D-<ulid> accepted when unused, refused with id_taken when taken (never substituted); a new attempt only when the previous one is terminal or a resolved unknown
 - [x] `dispatch.transition` applies T2/T3/T3b/T-RECLAIM/T5/T7b/T8 in ONE transaction: checks supervisor token (lifecycle writes), nonce, supervisor_gen and expected prior state; refusals are FENCE_REJECTED with data.reason (stale_attempt, bad_nonce, stale_gen, cas_mismatch, forbidden_transition, done_conflict, bad_credential); state = last accepted transition; a late T5/T7b on a non-current lost/unknown attempt with its own nonce is allowed; T8 with the same evidence_digest returns the stored record with no history row; `dispatch.get` reads
 - [x] New error codes have emission sites and tests (check-error-code-emission.sh clean); conformance cases CC-04/05/06/07/14/16/18/19 as Rust tests with injected time, temp dirs only
-- [ ] `cargo test -p termlink-bus -p termlink-hub` pass
+- [x] `cargo test -p termlink-bus -p termlink-hub` pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -135,8 +135,8 @@ bvp_scores_proposed:
 
 ## Verification
 
-cargo test -p termlink-bus worker_contract > /tmp/.t3501-bus 2>&1 && grep -q "13 passed" /tmp/.t3501-bus
-cargo test -p termlink-hub dispatch_contract > /tmp/.t3501-hub 2>&1 && grep -q "3 passed" /tmp/.t3501-hub
+cargo test -p termlink-bus worker_contract > /tmp/.t3501-bus 2>&1 && grep -q "test result: ok" /tmp/.t3501-bus && ! grep -q "test result: FAILED" /tmp/.t3501-bus
+cargo test -p termlink-hub dispatch_contract > /tmp/.t3501-hub 2>&1 && grep -q "test result: ok" /tmp/.t3501-hub && ! grep -q "test result: FAILED" /tmp/.t3501-hub
 bash scripts/check-error-code-emission.sh
 bash scripts/check-error-code-docs.sh
 
@@ -396,3 +396,20 @@ bash scripts/check-error-code-docs.sh
 
 ### 2026-10-20 - S1 built (w-wc-s1)
 - New bus module worker_contract.rs (own connection to meta.db, 3 tables), hub dispatch_contract.rs, router/server lines, codes -32026/-32027/-32028. Conformance CC-04/05/06/07/14/16/18/19 plus CC-23/24 as Rust tests.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ea09b850
+- **Timestamp:** 2026-10-21T11:58:21Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T11:58:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

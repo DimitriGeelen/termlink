@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3501: Worker contract hub backend S1: dispatch record tables + dispatch.allocate/get/transition with CAS and fencing; error codes; CC-04/05/06/07/14/16/18/19 (T-3484)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T11:58:30Z
+# ============================================================================
+
+task_id: T-3501
+task_name: "Worker contract hub backend S1: dispatch record tables + dispatch.allocate/get/transition with CAS and fencing; error codes; CC-04/05/06/07/14/16/18/19 (T-3484)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-20T20:18:51Z
+completed: 2026-10-21T11:58:06Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-10-20T23:34:32+02:00
+last_commit: 2026-10-20T23:34:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  worker contract hub backend S1 (dispatch.allocate/transition/get, CAS+fencing, codes -32026..-32028)
+
+# Key outcomes
+outcomes:
+  - 'Dispatch record storage in meta.db (wc_dispatches, wc_attempts, wc_history) in a NEW module of the bus crate with its own idempotent table creation, per docs/reports/T-3484-termlink-build-design.md §2; nonce and supervisor token stored only as sha256'
+  - '`dispatch.allocate` returns {dispatch_id, attempt, nonce, supervisor_token}; caller-chosen well-formed D-<ulid> accepted when unused, refused with id_taken when taken (never substituted); a new attempt only when the previous one is terminal or a resolved unknown'
+  - '`dispatch.transition` applies T2/T3/T3b/T-RECLAIM/T5/T7b/T8 in ONE transaction: checks supervisor token (lifecycle writes), nonce, supervisor_gen and expected prior state; refusals are FENCE_REJECTED with data.reason (stale_attempt, bad_nonce, stale_gen, cas_mismatch, forbidden_transition, done_conflict, bad_credential); state = last accepted transition; a late T5/T7b on a non-current lost/unknown attempt with its own nonce is allowed; T8 with the same evidence_digest returns the stored record with no history row; `dispatch.get` reads'
+  - 'New error codes have emission sites and tests (check-error-code-emission.sh clean); conformance cases CC-04/05/06/07/14/16/18/19 as Rust tests with injected time, temp dirs only'
+  - '`cargo test -p termlink-bus -p termlink-hub` pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/worker_contract.rs'
+  - 'crates/termlink-bus/src/worker_contract/tests.rs'
+  - 'crates/termlink-hub/src/dispatch_contract.rs'
+  - 'crates/termlink-hub/src/lib.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - '.tasks/active/T-3501-worker-contract-hub-backend-s1-dispatch-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T23:34:32'
+    action: 'T-3501: worker contract hub backend S1 (dispatch.allocate/transition/get, CAS+fencing, codes -32026..-32028)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 939 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 939
+  commits: 1
+  files_changed: 9
+  lines_added: 1409
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3501-worker-contract-hub-backend-s1-dispatch-.md
+generated_by: context-agent-hybrid
