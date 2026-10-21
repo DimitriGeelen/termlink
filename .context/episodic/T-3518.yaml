@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3518: wc/0.3 CC-16: refused supervisor exit with absent handback classed handback-malformed, not refused
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T14:51:11Z
+# ============================================================================
+
+task_id: T-3518
+task_name: "wc/0.3 CC-16: refused supervisor exit with absent handback classed handback-malformed, not refused"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T14:27:26Z
+completed: 2026-10-21T14:48:26Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-21T16:42:39+02:00
+last_commit: 2026-10-21T16:42:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  derive_outcome checks refused flag before handback (CC-16, CC-21 outcome); CC-25 stays handback-malformed
+
+# Key outcomes
+outcomes:
+  - 'A unit test in crates/termlink-bus written first and failing on main: a refused supervisor exit (supervisor_refused true, exit_code 3) with the handback absent derives outcome `refused`'
+  - '`derive_outcome` checks the refused flag before the handback check, and only the refused flag wins: an exit with no refusal and an absent handback (the CC-25 shape, exit 143) still derives `handback-malformed`, pinned by its own test; the existing `cc16_outcome_derivation_and_cc19_paused` test still passes'
+  - 'The conformance adapter reports CC-16 as pass: `TERMLINK_WC_VECTORS=<fetched file> cargo test -p termlink-hub --test wc_conformance` shows CC-16 pass (and CC-21, which T-3519 tracks with the same root cause)'
+  - '`cargo test -p termlink-bus -p termlink-hub` passes; RCA section filled'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/worker_contract.rs'
+  - 'crates/termlink-bus/src/worker_contract/tests.rs'
+  - '.tasks/active/T-3518-wc03-cc-16-refused-supervisor-exit-with-.md'
+  - '.tasks/active/T-3519-wc03-cc-21-refused-before-start-exit-wit.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T16:42:39'
+    action: 'T-3518: derive_outcome checks refused flag before handback (CC-16, CC-21 outcome); CC-25 stays handback-malformed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 21 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 21
+  commits: 1
+  files_changed: 4
+  lines_added: 56
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3518-wc03-cc-16-refused-supervisor-exit-with-.md
+generated_by: context-agent-hybrid
