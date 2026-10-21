@@ -668,8 +668,27 @@ fn init_schema(conn: &Connection) -> Result<()> {
             cause TEXT,
             fence_reason TEXT
          );
-         CREATE INDEX IF NOT EXISTS wc_history_attempt ON wc_history (dispatch_id, attempt, id);",
+         CREATE INDEX IF NOT EXISTS wc_history_attempt ON wc_history (dispatch_id, attempt, id);
+         CREATE TABLE IF NOT EXISTS wc_registry (
+            k INTEGER PRIMARY KEY CHECK (k = 1),
+            epoch INTEGER NOT NULL
+         );
+         INSERT OR IGNORE INTO wc_registry (k, epoch) VALUES (1, 0);",
     )?;
+    // T-3502 (S2): sweep bookkeeping. Added after S1 shipped, so existing meta.db
+    // files get the columns here rather than through the CREATE above.
+    ensure_column(conn, "wc_attempts", "end_observed_at", "INTEGER")?;
+    ensure_column(conn, "wc_attempts", "absent_sweeps", "INTEGER NOT NULL DEFAULT 0")?;
+    Ok(())
+}
+
+/// `ALTER TABLE ... ADD COLUMN` unless the column is already there.
+fn ensure_column(conn: &Connection, table: &str, column: &str, decl: &str) -> Result<()> {
+    let mut st = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let names: Vec<String> = st.query_map([], |r| r.get::<_, String>(1))?.collect::<std::result::Result<_, _>>()?;
+    if !names.iter().any(|n| n == column) {
+        conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {column} {decl};"))?;
+    }
     Ok(())
 }
 
@@ -714,5 +733,8 @@ fn new_dispatch_id(now_ms: i64) -> Result<String> {
     Ok(out)
 }
 
+pub mod sweep;
+#[cfg(test)]
+mod sweep_tests;
 #[cfg(test)]
 mod tests;

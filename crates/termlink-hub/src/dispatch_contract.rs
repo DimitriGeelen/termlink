@@ -6,13 +6,18 @@
 //! get is Observe (listed in `server.rs`). Time is read here and passed down, so the
 //! store is testable with injected time.
 
+use std::collections::HashSet;
+use std::path::PathBuf;
+
 use serde_json::{json, Value};
 use termlink_bus::Bus;
+use termlink_bus::worker_contract::sweep::SweepObservation;
 use termlink_bus::worker_contract::{
     AllocateRequest, Handback, TransitionRequest, WcError,
 };
 use termlink_protocol::control::error_code;
 use termlink_protocol::jsonrpc::{ErrorResponse, Response, RpcResponse};
+use termlink_session::{liveness, manager};
 
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
@@ -87,6 +92,49 @@ pub async fn handle_dispatch_get(id: Value, params: &Value) -> RpcResponse {
     match bus_or_err(&id) {
         Ok(b) => get_with(b, id, params),
         Err(r) => r,
+    }
+}
+
+/// T-3502 (S2): what the sweep sees of the registrations under `dirs`. A dir that
+/// cannot be listed makes the listing incomplete (the hub bumps the epoch); a dir that
+/// does not exist is empty, not unreadable (`list_sessions_in` says so itself).
+pub(crate) fn scan_bindings(dirs: &[PathBuf]) -> SweepObservation {
+    let mut obs = SweepObservation { listing_complete: true, live: HashSet::new() };
+    for dir in dirs {
+        match manager::list_sessions_in(dir, true) {
+            Ok(regs) => {
+                for reg in regs.iter().filter(|r| liveness::is_alive(r)) {
+                    if let Some(b) = &reg.worker_binding {
+                        obs.live.insert((b.dispatch_id.clone(), i64::from(b.attempt)));
+                    }
+                }
+            }
+            Err(e) => {
+                obs.listing_complete = false;
+                tracing::warn!(dir = %dir.display(), error = %e, "dispatch sweep: sessions dir unreadable; epoch bumped, no absence counted");
+            }
+        }
+    }
+    obs
+}
+
+/// T-3502 (S2): one state sweep, run as a step of the supervisor loop. Failures are
+/// logged and skipped: the next sweep sees the same state again.
+pub(crate) fn sweep_state(bus: &Bus, dirs: &[PathBuf]) {
+    let obs = scan_bindings(dirs);
+    match bus.wc_sweep(&obs, now_ms()) {
+        Ok(report) => {
+            for t in &report.transitions {
+                tracing::info!(
+                    dispatch_id = %t.dispatch_id, attempt = t.attempt, from = %t.from, to = %t.to,
+                    cause = %t.cause, epoch = report.epoch, "dispatch sweep: state written by hub"
+                );
+            }
+            for n in &report.notices {
+                tracing::warn!(epoch = report.epoch, "dispatch sweep: {n}");
+            }
+        }
+        Err(e) => tracing::warn!(error = ?e, "dispatch sweep failed"),
     }
 }
 
@@ -254,5 +302,43 @@ mod tests {
         assert_eq!(code, error_code::DISPATCH_NOT_FOUND);
         let (code, _) = fail(allocate_with(&b, json!(4), &json!({"dispatch_id": "bad"}), 3));
         assert_eq!(code, -32602);
+    }
+
+    /// T-3502: the sweep's view of the registrations. Fake liveness is a dead pid vs
+    /// this process; the dirs are temp dirs (T-3293).
+    #[test]
+    fn scan_bindings_sees_only_live_bound_registrations() {
+        use termlink_session::identity::SessionId;
+        use termlink_session::registration::{Registration, SessionConfig, WorkerBinding};
+        let dir = tempfile::tempdir().unwrap();
+        let bound = "D-01J9ZZZZZZZZZZZZZZZZZZZZZZ";
+        let mk = |pid: u32, binding: Option<&str>| {
+            let id = SessionId::generate();
+            let sock = dir.path().join(format!("{id}.sock"));
+            std::fs::write(&sock, b"").unwrap();
+            let mut reg = Registration::new(id.clone(), SessionConfig::default(), sock);
+            reg.pid = pid;
+            reg.worker_binding = binding.map(|b| WorkerBinding::parse(b).unwrap());
+            let json = serde_json::to_string_pretty(&reg).unwrap();
+            std::fs::write(Registration::json_path(dir.path(), &id), json).unwrap();
+        };
+        mk(std::process::id(), Some(&format!("{bound}:2"))); // live, bound
+        mk(4_000_000, Some(&format!("{bound}:3"))); // dead pid: not live
+        mk(std::process::id(), None); // live, unbound
+
+        let obs = scan_bindings(&[dir.path().to_path_buf()]);
+        assert!(obs.listing_complete);
+        assert_eq!(obs.live, HashSet::from([(bound.to_string(), 2)]));
+
+        // A path that exists but is not a directory cannot be listed: incomplete, not empty.
+        let file = dir.path().join("not-a-dir");
+        std::fs::write(&file, b"").unwrap();
+        let obs = scan_bindings(&[file]);
+        assert!(!obs.listing_complete);
+        assert!(obs.live.is_empty());
+
+        // A dir that does not exist holds no sessions: complete and empty.
+        let obs = scan_bindings(&[dir.path().join("absent")]);
+        assert!(obs.listing_complete && obs.live.is_empty());
     }
 }

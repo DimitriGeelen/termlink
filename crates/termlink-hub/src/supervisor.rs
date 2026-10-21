@@ -31,7 +31,7 @@ pub const SESSION_EXITED_TOPIC: &str = "session.exited";
 /// Emits `session.exited` events before cleanup.
 /// Stops when the shutdown signal is received.
 pub async fn run(interval: Duration, shutdown_rx: watch::Receiver<bool>) {
-    run_with(interval, shutdown_rx, sweep_targets, true).await
+    run_with(interval, shutdown_rx, sweep_targets, true, crate::channel::bus).await
 }
 
 /// The real sweep targets: every candidate session dir (or the default one),
@@ -71,21 +71,42 @@ fn with_legacy_pool(
 /// `run` swept whatever `TERMLINK_RUNTIME_DIR` pointed at on the test host — and
 /// once the sweep reaped orphan data sockets, a `cargo test` deleted ~10,000 real
 /// files on the machine running it. Tests pass their own dirs and skip the inbox.
+///
+/// T-3502: `dispatch_bus` is the channel bus, looked up each cycle because the hub
+/// starts the supervisor before it finishes opening the bus. Once it is up, the
+/// dispatch state sweep runs as a step of this loop, before the session sweep. The
+/// first sweep after a bus appears bumps the registry epoch (hub start, AEF a).
+/// Tests pass `|| None`, so they never touch a real bus.
 pub async fn run_with(
     interval: Duration,
     mut shutdown_rx: watch::Receiver<bool>,
     dirs: impl Fn() -> Vec<std::path::PathBuf>,
     inbox_housekeeping: bool,
+    dispatch_bus: impl Fn() -> Option<&'static termlink_bus::Bus>,
 ) {
     tracing::info!(
         interval_secs = interval.as_secs(),
         "Session supervisor started"
     );
 
+    let mut epoch_begun = false;
     loop {
         tokio::select! {
             _ = tokio::time::sleep(interval) => {
-                for dir in dirs() {
+                let dirs = dirs();
+                if let Some(bus) = dispatch_bus() {
+                    if !epoch_begun {
+                        match bus.wc_begin_hub_epoch() {
+                            Ok(epoch) => {
+                                epoch_begun = true;
+                                tracing::info!(epoch, "dispatch sweep: registry epoch bumped at hub start");
+                            }
+                            Err(e) => tracing::warn!(error = ?e, "dispatch sweep: could not bump registry epoch; will retry"),
+                        }
+                    }
+                    crate::dispatch_contract::sweep_state(bus, &dirs);
+                }
+                for dir in dirs {
                     sweep(&dir).await;
                 }
                 if inbox_housekeeping {
@@ -365,7 +386,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().to_path_buf();
         let handle = tokio::spawn(async move {
-            run_with(Duration::from_millis(50), rx, move || vec![path.clone()], false).await;
+            run_with(Duration::from_millis(50), rx, move || vec![path.clone()], false, || None).await;
         });
 
         // Let it run a few cycles
