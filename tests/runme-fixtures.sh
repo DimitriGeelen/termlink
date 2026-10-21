@@ -48,7 +48,7 @@ printf 'plan\n' > "$TMP/packsrc/pack/plan.md"; printf 'chain: v2\n' > "$TMP/pack
 tar -czf "$TMP/pack-good.tgz" -C "$TMP/packsrc" pack
 export RUNME_PACK_GITROOT="$PACK_REPO" RUNME_PACK_DEST="$PACK_REPO/work/pack" RUNME_PACK_SRC="$TMP/pack-drop.tgz"
 export RUNME_PACK_SHA="$(sha256sum "$TMP/pack-good.tgz" | cut -d' ' -f1)"
-mkdir -p "$RUNME_PACK_DEST" && tar -xzf "$TMP/pack-good.tgz" -C "$RUNME_PACK_DEST"
+mkdir -p "$RUNME_PACK_DEST" && tar -xzf "$TMP/pack-good.tgz" -C "$RUNME_PACK_DEST" && chmod -R go-rwx "$RUNME_PACK_DEST"
 
 # T-2988 (action 9): stateful fake termlink for health:ring20-fedprobe. State is
 # "<kind> <value> <count>" in $FAKE_FEDPROBE_STATE; default = already bounded, so
@@ -1367,6 +1367,13 @@ out=$(run); x=$(s22 "$out")
 if echo "$x" | grep -q "OK      pack unpacked into" && [ ! -e "$RUNME_PACK_SRC" ] && [ -f "$RUNME_PACK_DEST/pack/plan.md" ]; then
     ok "pack: unpacked, verified, drop deleted"
 else bad "pack apply" "$x"; fi
+if [ -z "$(find "$RUNME_PACK_DEST" -perm /077 -print -quit)" ]; then ok "pack: unpacked tree is owner-only on disk (tar does not leave it 755)"
+else bad "pack mode" "$(find "$RUNME_PACK_DEST" -perm /077 | head -3)"; fi
+chmod -R go+rX "$RUNME_PACK_DEST"
+out=$(run); rc=$?; x=$(s22 "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      .* was group/other-readable; now owner-only" && [ -z "$(find "$RUNME_PACK_DEST" -perm /077 -print -quit)" ]; then
+    ok "pack: imported but readable => tightened to owner-only"
+else bad "pack tighten" "rc=$rc: $x"; fi
 pack_reset; printf 'not the pack' > "$RUNME_PACK_SRC"
 out=$(run); rc=$?; x=$(s22 "$out")
 if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  .* sha256 .* does not match" && [ -e "$RUNME_PACK_SRC" ] && [ ! -d "$RUNME_PACK_DEST" ]; then
@@ -1383,7 +1390,7 @@ out=$(RUNME_PACK_GITROOT="$TMP/plainrepo" RUNME_PACK_DEST="$TMP/plainrepo/pack" 
 if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  .* is not gitignored" && [ ! -d "$TMP/plainrepo/pack" ] && [ -e "$RUNME_PACK_SRC" ]; then
     ok "pack: destination git would track => FAILED, nothing placed"
 else bad "pack not ignored" "rc=$rc: $x"; fi
-pack_reset; mkdir -p "$RUNME_PACK_DEST" && tar -xzf "$TMP/pack-good.tgz" -C "$RUNME_PACK_DEST"
+pack_reset; mkdir -p "$RUNME_PACK_DEST" && tar -xzf "$TMP/pack-good.tgz" -C "$RUNME_PACK_DEST" && chmod -R go-rwx "$RUNME_PACK_DEST"
 
 
 echo ""

@@ -1642,9 +1642,28 @@ pack_verifies() {  # 0 when $PACK_DEST holds the unpacked pack and every SHA256S
         | sha256sum -c --quiet - >/dev/null 2>&1 )
 }
 
+pack_private() {  # 0 when nothing under $PACK_DEST is group/other-accessible
+    [ -d "$PACK_DEST" ] && [ -z "$(find "$PACK_DEST" -perm /077 -print -quit 2>/dev/null)" ]
+}
+
+pack_lockdown() {  # owner-only, checked on disk afterwards (tar resets the dir's mode from the archive's "." entry)
+    chmod -R go-rwx "$PACK_DEST" 2>/dev/null; pack_private
+}
+
 import_ring20_pack() {
     if pack_verifies && [ ! -e "$PACK_SRC" ]; then
-        say "  skip    pack already in $PACK_DEST and verified; the /var/tmp drop is gone"; SKIPPED=$((SKIPPED+1)); return
+        if pack_private; then
+            say "  skip    pack already in $PACK_DEST, owner-only and verified; the /var/tmp drop is gone"; SKIPPED=$((SKIPPED+1)); return
+        fi
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would make $PACK_DEST owner-only (it is group/other-readable)"; DONE=$((DONE+1)); return
+        fi
+        if pack_lockdown; then
+            say "  OK      $PACK_DEST was group/other-readable; now owner-only (verified on disk)"; DONE=$((DONE+1))
+        else
+            say "  FAILED  could not make $PACK_DEST owner-only"; FAILED=$((FAILED+1))
+        fi
+        return
     fi
     if [ ! -e "$PACK_SRC" ]; then
         say "  FAILED  no pack at $PACK_SRC and none verified in $PACK_DEST — ask ring20 to place it again"; FAILED=$((FAILED+1)); return
@@ -1667,8 +1686,11 @@ import_ring20_pack() {
     if ! pack_verifies; then
         say "  FAILED  unpacked files do not match the SHA256SUMS inside — drop kept for ring20 to check"; FAILED=$((FAILED+1)); return
     fi
+    if ! pack_lockdown; then
+        say "  FAILED  unpacked and verified, but could not make $PACK_DEST owner-only — drop kept"; FAILED=$((FAILED+1)); return
+    fi
     if rm -f "$PACK_SRC" && [ ! -e "$PACK_SRC" ]; then
-        say "  OK      pack unpacked into $PACK_DEST (gitignored, mode 700), every file verified, /var/tmp drop deleted"; DONE=$((DONE+1))
+        say "  OK      pack unpacked into $PACK_DEST (gitignored, owner-only, checked on disk), every file verified, /var/tmp drop deleted"; DONE=$((DONE+1))
     else
         say "  FAILED  verified copy in place but could not delete $PACK_SRC"; FAILED=$((FAILED+1))
     fi
