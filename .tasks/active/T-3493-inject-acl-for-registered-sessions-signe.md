@@ -1,19 +1,24 @@
 ---
 id: T-3493
-name: "Inject ACL for registered sessions: signed inject + per-session allowlist of identity fingerprints (ring20-dashboard request)"
+name: "Inject ACL for registered sessions: signed inject + per-session allowlist of
+  identity fingerprints (ring20-dashboard request)"
 description: >
-  ring20-dashboard (msg 0d962a47): a registered --shell session accepts command.inject from anyone reaching it; over TCP the only gate is the hub secret, which many peers hold. Verified 2026-10-20: open session injects; --token-secret refuses inject at observe, but the CLI inject cannot present a token, so it would also lock out the session's own sidecar.
+  ring20-dashboard (msg 0d962a47): a registered --shell session accepts command.inject
+  from anyone reaching it; over TCP the only gate is the hub secret, which many peers
+  hold. Verified 2026-10-20: open session injects; --token-secret refuses inject at
+  observe, but the CLI inject cannot present a token, so it would also lock out the
+  session's own sidecar.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-10-20T14:38:15Z
-last_update: 2026-10-20T14:38:15Z
-date_finished: null
+last_update: 2026-10-21T15:44:46Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -22,13 +27,31 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-10-21T15:44:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3493: Inject ACL for registered sessions: signed inject + per-session allowlist of identity fingerprints (ring20-dashboard request)
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Anyone holding the hub secret (most fleet peers) can inject keystrokes into any open agent session, and nothing records
+who did it; the one existing lock (`--token-secret`) cannot be used because `termlink inject`, and so the sidecar's
+doorbell, cannot present a token. O-7 (ratified 2026-10-21) names injection explicitly: traced to an identity, accepted
+only from an allowed identity. Facts verified 2026-10-21: crates/termlink-session/src/server.rs:250-253 (same-UID gets
+Execute without a token secret), crates/termlink-cli/src/cli.rs:364-372 (inject has no token argument),
+crates/termlink-hub/src/channel.rs (only channel posts carry and verify identity signatures).
 
 ## Assumptions
 
@@ -51,6 +74,23 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
      §Disposition Gate. Bypass: --skip-disposition-gate "rationale" (direct) or
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
+
+- **IW-1: Which option: A defer, B token on the inject path now (C shaped next), C full signed-inject design now, D no-go?**
+  confidence: 2
+  disposition: deferred
+  rationale: brief presented 2026-10-21 (recommend B); operator asked for external review first (docs/reports/T-3493-consult/)
+- **IW-2: How does an inject RPC carry a signature the session can verify (today only channel posts are signed, T-1427)?**
+  confidence: 0
+  disposition: deferred
+  rationale: open; input wanted from the external review and from AEF/ring20 (their supervisors inject)
+- **IW-3: Where does a session's allowlist of identity fingerprints come from (spawner, hub, config), and how does the operator attach?**
+  confidence: 0
+  disposition: deferred
+  rationale: open
+- **IW-4: How does a worker session spawned by another project's supervisor get the right allowlist from its first second without locking that supervisor out?**
+  confidence: 0
+  disposition: deferred
+  rationale: open; touches the shared worker contract (AEF T-4439)
 
 ## Exploration Plan
 
@@ -135,3 +175,7 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-10-21T15:44:46Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
