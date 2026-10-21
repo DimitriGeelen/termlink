@@ -11,10 +11,10 @@ description: >
   reporting pass / fail / not-implemented per case. This is the 'Rust conformance
   runner' item of the cloud plan and the input to the hub-side patch for AEF.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -45,8 +45,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:13:56Z
-last_update: 2026-10-21T14:14:59Z
-date_finished:
+last_update: 2026-10-21T15:25:32Z
+date_finished: 2026-10-21T15:25:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -406,3 +406,20 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3517-ws 2>&1 && ! grep -q "t
 - **Result:** 25 cases: pass=5 (CC-04, 07, 14, 18, 23), fail=3 (CC-12, 16, 21), not-implemented=16, n/a=1 (CC-11). Full table in `docs/reports/T-3484-conformance-map.md`.
 - **Bug tasks:** T-3518 (CC-16), T-3519 (CC-21), T-3520 (CC-12). No backend source changed.
 - **Verification:** `cargo test -p termlink-bus -p termlink-hub` passes (the conformance test prints SKIP without `TERMLINK_WC_VECTORS`). `run-wc-vectors.sh` exits 1 on the three fails, as designed. Not set to work-completed.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-606100ee
+- **Timestamp:** 2026-10-21T15:26:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T15:25:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

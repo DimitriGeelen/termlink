@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3517: Hub conformance adapter: run AEF's shared worker-contract vectors.yaml against the hub backend
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T15:27:00Z
+# ============================================================================
+
+task_id: T-3517
+task_name: "Hub conformance adapter: run AEF's shared worker-contract vectors.yaml against the hub backend"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T14:13:56Z
+completed: 2026-10-21T15:25:32Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-21T16:14:55+02:00
+last_commit: 2026-10-21T16:33:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  filed with ACs and verification — hub adapter for AEF's shared vectors (no copy of the file in this repo). hub conformance adapter for AEF wc/0.3 vectors
+
+# Key outcomes
+outcomes:
+  - 'An adapter (Rust integration test or test binary in the hub/bus crates, using the existing `serde_yaml` dependency) reads the vector file from the path in `TERMLINK_WC_VECTORS`; when unset it prints a visible SKIP with the reason and the fetch command, never a pass; no copy of `vectors.yaml` is committed to this repo (AEF README rule)'
+  - 'For every one of the 25 cases (and each variant) it seeds `given` into a temp-dir hub store, runs `steps` through the hub backend''s real API with injected time, maps the vector''s symbols (nonce, token, gen, evidence ids) to real values, and judges `then` and `admissible_histories`; each case reports exactly one of pass / fail (with the first diverging step) / not-implemented (naming the missing op or capability); a case is never reported pass without its steps having run'
+  - '`scripts/run-wc-vectors.sh [--ref <aef-commit>]` fetches `vectors.yaml` at a pinned AEF commit (default afe974124) from the public mirror into a temp dir, runs the adapter, prints the per-case table and a summary line, and exits 0 only when no case fails (not-implemented is listed, not hidden); it never writes into the repo'
+  - 'The per-case result table is written to `docs/reports/T-3484-conformance-map.md` (replacing the hand-made status column with the adapter''s verdicts), and any case the adapter finds failing is filed as its own bug task'
+  - 'Tests use temp dirs only (T-3293 rule); `cargo test -p termlink-bus -p termlink-hub` still passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'Cargo.lock'
+  - 'crates/termlink-hub/Cargo.toml'
+  - 'crates/termlink-hub/tests/wc_conformance/hub.rs'
+  - 'crates/termlink-hub/tests/wc_conformance.rs'
+  - 'docs/reports/T-3484-conformance-map.md'
+  - 'scripts/run-wc-vectors.sh'
+  - '.tasks/active/T-3517-hub-conformance-adapter-run-aefs-shared-.md'
+  - '.tasks/active/T-3518-wc03-cc-16-refused-supervisor-exit-with-.md'
+  - '.tasks/active/T-3519-wc03-cc-21-refused-before-start-exit-wit.md'
+  - '.tasks/active/T-3520-wc03-cc-12-answer-naming-an-unasked-ques.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T16:14:55'
+    action: 'T-3517: filed with ACs and verification — hub adapter for AEF''s shared vectors (no copy of the file in this repo)'
+  - time: '2026-10-21T16:33:39'
+    action: 'T-3517: hub conformance adapter for AEF wc/0.3 vectors'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 71 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 71
+  commits: 2
+  files_changed: 10
+  lines_added: 2849
+  lines_removed: 44
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3517-hub-conformance-adapter-run-aefs-shared-.md
+generated_by: context-agent-hybrid
