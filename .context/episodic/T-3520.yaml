@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3520: wc/0.3 CC-12: answer naming an unasked question is refused (cas_mismatch); vector expects ok
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T15:20:43Z
+# ============================================================================
+
+task_id: T-3520
+task_name: "wc/0.3 CC-12: answer naming an unasked question is refused (cas_mismatch); vector expects ok"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-21T14:27:48Z
+completed: 2026-10-21T15:16:30Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-21T17:02:57+02:00
+last_commit: 2026-10-21T17:02:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  terminal transition closes unapplied answers as undelivered (CC-12 state fixed; bounced_to_dispatcher still unexposed)
+
+# Key outcomes
+outcomes:
+  - 'Ruling recorded in Decisions: AEF (msg a075812c, 2026-10-21) ruled the store right (an answer must name a question already on the attempt, spec §5.3) and fixed the vector in b4c168aa9; no store change for the unasked-question refusal'
+  - 'Re-scoped bug, found by the adapter against b4c168aa9 (variant attempt-terminal-unacked): a stored, unacked answer stays `stored` when its attempt reaches a terminal state, where it must become `undelivered`. A failing-first unit test pins it; the fix makes the attempt''s terminal transition (or the answer sweep, from state, never from events) move every stored or received but unapplied answer of that attempt to `undelivered`, with a history row'
+  - 'The adapter at `--ref b4c168aa9` no longer fails CC-12 on the answer state (it now reports not-implemented only for `then.bounced_to_dispatcher` / `retry_ladder_entries`, a missing read surface carried by **T-3528**), and no case that passed before regresses (CC-02, 04, 07, 14, 16, 18, 23). Narrowed 2026-10-21 by the orchestrator: the full CC-12 pass needs that surface, which is outside this bug.'
+  - '`cargo test -p termlink-bus -p termlink-hub` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'terminal transition closes unapplied answers as undelivered (CC-12 state fixed; bounced_to_dispatcher still unexposed)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-21 — CC-12 unasked question'
+    chose: 'no store change; AEF (msg a075812c) ruled an answer must name a question already on the attempt (spec 5.3) and fixed the vector in b4c168aa9.'
+    rationale: 'the store was right; the vector seeded no q1.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/worker_contract/answer.rs'
+  - 'crates/termlink-bus/src/worker_contract/answer_tests.rs'
+  - 'crates/termlink-bus/src/worker_contract.rs'
+  - '.tasks/active/T-3520-wc03-cc-12-answer-naming-an-unasked-ques.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T17:02:57'
+    action: 'T-3520: terminal transition closes unapplied answers as undelivered (CC-12 state fixed; bounced_to_dispatcher still unexposed)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 48 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 48
+  commits: 1
+  files_changed: 4
+  lines_added: 125
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3520-wc03-cc-12-answer-naming-an-unasked-ques.md
+generated_by: context-agent-hybrid
