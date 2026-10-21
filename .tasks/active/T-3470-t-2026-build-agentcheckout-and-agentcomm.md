@@ -84,11 +84,11 @@ Clone strategy (agent choice, 2026-10-21): 0909 has not answered on snapshot vs 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] agent.checkout and agent.commit implemented with the shape locked in T-3469 (docs/reports/T-3469-agent-launch-surface-design.md §2; IW-3 = B, ruled 2026-10-21): a CLI verb + MCP tool (parity test), NOT a hub RPC; ownership checked with the shipped `channel.renew`
-- [ ] checkout creates the worker clone under `/var/lib/termlink/work/<hub8>/<claim_id>`: on btrfs a reflink copy (default) or snapshot of a per-repo template kept current by fetch, selectable by `TERMLINK_WORKTREE_STRATEGY`, elsewhere `git clone --dissociate` (each strategy tested in a temp dir; btrfs-only cases skip with a visible reason off btrfs); never under the operator's checkout and never a `git worktree`; the guard bootstrap installs and verifies hooks and refuses fail-closed, tested with a missing hook
-- [ ] The commit-fails case keeps the claim (tested)
-- [ ] agent.commit refuses a scope that is not a live claim held by the caller (CLAIM_NOT_OWNED / CLAIM_NOT_FOUND), tested
-- [ ] Optional release-on-commit releases the named claim only after the commit exists, tested including the commit-fails case (claim kept)
+- [x] agent.checkout and agent.commit implemented with the shape locked in T-3469 (docs/reports/T-3469-agent-launch-surface-design.md §2; IW-3 = B, ruled 2026-10-21): a CLI verb + MCP tool (parity test), NOT a hub RPC; ownership checked with the shipped `channel.renew`
+- [x] checkout creates the worker clone under `/var/lib/termlink/work/<hub8>/<claim_id>`: on btrfs a reflink copy (default) or snapshot of a per-repo template kept current by fetch, selectable by `TERMLINK_WORKTREE_STRATEGY`, elsewhere `git clone --dissociate` (each strategy tested in a temp dir; btrfs-only cases skip with a visible reason off btrfs); never under the operator's checkout and never a `git worktree`; the guard bootstrap installs and verifies hooks and refuses fail-closed, tested with a missing hook
+- [x] The commit-fails case keeps the claim (tested)
+- [x] agent.commit refuses a scope that is not a live claim held by the caller (CLAIM_NOT_OWNED / CLAIM_NOT_FOUND), tested
+- [x] Optional release-on-commit releases the named claim only after the commit exists, tested including the commit-fails case (claim kept)
 - [ ] Each call posts a structured event to the per-agent audit topic, with bounded retention
 
 ### Human
@@ -396,3 +396,11 @@ cargo test -p termlink-cli -p termlink-mcp > /tmp/.t3470 2>&1 && ! grep -q "test
 ### 2026-10-21T08:49:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now
+
+### 2026-10-21 — build [w-checkout]
+- **What:** `termlink agent checkout` and `termlink agent commit` (CLI verbs) plus MCP tools `termlink_agent_checkout` / `termlink_agent_commit`, per T-3469 §2. Code: `crates/termlink-cli/src/commands/agent_work.rs`; wiring in `cli.rs`, `main.rs`, `commands/infrastructure.rs` (`local_hub_fingerprint` extracted from `hub fingerprint`), `termlink-mcp/src/tools.rs`.
+- **Ownership:** every verb renews the claim first (`channel.renew`); a non-holder or unknown claim is refused before git runs. Commit refusal by a hook keeps the claim; `--release` releases (ack) only after the commit exists.
+- **Guards:** a clone that vendors `.agentic-framework/bin/fw` runs `fw git install-hooks`, then must have `pre-commit` and `commit-msg` installed and executable, or it refuses with WORK_GUARD_MISSING (-32029, defined locally in `agent_work.rs`, see open points).
+- **Strategy:** `TERMLINK_WORKTREE_STRATEGY` = reflink | snapshot | clone; default reflink on btrfs, clone elsewhere; reflink/snapshot fall back to clone with a note when the copy fails.
+- **Tests:** 17 unit tests in `agent_work.rs` (fake hub, real git in temp dirs); 2 no-hub parity pairs (`parity_agent_checkout_no_hub`, `parity_agent_commit_no_hub`). The no-hub pairs needed `TERMLINK_BIN` (the MCP tool subprocesses the CLI; under the harness `current_exe()` is the test binary). Census: `check-mcp-parity-census.sh` clean (263 tools, 36 asserted).
+- **Not verified:** (a) the reflink/snapshot *success* branch needs a btrfs temp dir; on this host those tests take the fallback path. (b) the audit event's real subprocess post (`channel create` + `channel post` with `messages:1000`) is only exercised through the fake hub; no live-hub proof. AC 6 is left unticked for that reason.

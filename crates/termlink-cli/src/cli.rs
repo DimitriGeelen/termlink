@@ -4678,6 +4678,69 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Check out a claimed unit into a private clone (T-3470, T-2026 slice 2).
+    ///
+    /// Renews the claim first, so only the holder can check it out (CLAIM_NOT_OWNED /
+    /// CLAIM_NOT_FOUND otherwise). Clones `--repo` into
+    /// `$TERMLINK_WORK_DIR/<hub8>/<claim_id>` on branch `work/<hub8>/<claim_id>`. The
+    /// strategy is `TERMLINK_WORKTREE_STRATEGY`: reflink (btrfs default), snapshot, or
+    /// clone (`git clone --dissociate`). The framework guard hooks must be installed
+    /// and executable, or the verb refuses (WORK_GUARD_MISSING, -32029). Never a
+    /// `git worktree`. Spawn your session with its cwd at the printed `dir`.
+    Checkout {
+        /// Claim id from `termlink channel claim` (or the orchestrator's assignment).
+        #[arg(long = "claim-id")]
+        claim_id: String,
+        /// Holder identity. Defaults to `$TERMLINK_AGENT_ID`, then `be-reachable.state`.
+        #[arg(long)]
+        claimer: Option<String>,
+        /// Repository to clone (URL or local path).
+        #[arg(long)]
+        repo: String,
+        /// Branch, tag or sha to base the work branch on.
+        #[arg(long = "ref", default_value = "main")]
+        git_ref: String,
+        /// Explicit clone dir. Default: `$TERMLINK_WORK_DIR/<hub8>/<claim_id>`.
+        #[arg(long = "work-dir")]
+        work_dir: Option<String>,
+        /// Lease extension requested from the hub (ms; hub clamps to 1h).
+        #[arg(long = "ttl-ms")]
+        ttl_ms: Option<u32>,
+        /// Emit JSON instead of human-readable lines.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Commit the work in a claimed clone, keeping the claim (T-3470, T-2026 slice 2).
+    ///
+    /// Renews the claim first (CLAIM_NOT_OWNED / CLAIM_NOT_FOUND refuse before git runs),
+    /// stages `--path`s (or everything), and runs a plain `git commit` so the repo's own
+    /// hooks run. A refused commit returns the hook output and keeps the claim.
+    /// `--release` releases the claim with ack after the commit exists.
+    Commit {
+        /// Claim id used at checkout.
+        #[arg(long = "claim-id")]
+        claim_id: String,
+        /// Holder identity. Defaults to `$TERMLINK_AGENT_ID`, then `be-reachable.state`.
+        #[arg(long)]
+        claimer: Option<String>,
+        /// Commit message (e.g. "T-NNNN: what changed").
+        #[arg(short = 'm', long)]
+        message: String,
+        /// Stage only these paths (repeatable). Default: everything.
+        #[arg(long = "path")]
+        paths: Vec<String>,
+        /// Lease extension requested from the hub (ms; hub clamps to 1h).
+        #[arg(long = "ttl-ms")]
+        ttl_ms: Option<u32>,
+        /// Release the claim (ack=true) after the commit exists.
+        #[arg(long)]
+        release: bool,
+        /// Emit JSON instead of human-readable lines.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Resolve an agent_id to its discovery-registry record (T-2293, arc-003
     /// reliable-comms V2): `{hub, host, listen_topics, liveness}` by walking
     /// every hub in `hubs.toml` and reading `agent-presence` heartbeats.

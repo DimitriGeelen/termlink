@@ -470,6 +470,50 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
+/// T-3470: the binary the agent work tools subprocess. `TERMLINK_BIN` wins: under
+/// the parity test `current_exe()` is the test harness, not `termlink`. In production
+/// the MCP server is `termlink` itself, so `current_exe()` is the right answer.
+fn termlink_bin() -> Result<std::path::PathBuf, String> {
+    if let Some(p) = std::env::var_os("TERMLINK_BIN").filter(|v| !v.is_empty()) {
+        return Ok(p.into());
+    }
+    std::env::current_exe().map_err(|e| format!("cannot resolve termlink binary path: {e}"))
+}
+
+/// T-3470: bound for one `agent checkout|commit` subprocess. A clone of a large repo
+/// can take minutes, so this is generous. `kill_on_drop` reaps the child on timeout.
+const AGENT_WORK_TIMEOUT_SECS: u64 = 900;
+
+/// T-3470: run `termlink agent <verb> --json` and return its JSON verbatim. The CLI
+/// prints the refusal JSON on stdout and exits 1, so the exit code is not the verdict.
+/// The stdout JSON is. MCP and CLI therefore print the same object, which the parity
+/// suite checks.
+async fn run_agent_work_cli(args: Vec<String>) -> String {
+    let exe = match termlink_bin() {
+        Ok(p) => p,
+        Err(e) => return json_err(e),
+    };
+    let mut cmd = tokio::process::Command::new(&exe);
+    cmd.args(&args)
+        .stdin(std::process::Stdio::null())
+        .kill_on_drop(true);
+    let fut = cmd.output();
+    let output = match tokio::time::timeout(std::time::Duration::from_secs(AGENT_WORK_TIMEOUT_SECS), fut).await {
+        Ok(Ok(o)) => o,
+        Ok(Err(e)) => return json_err(format!("subprocess spawn failed: {e}")),
+        Err(_) => return json_err(format!("agent verb timed out after {AGENT_WORK_TIMEOUT_SECS}s")),
+    };
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    match serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+        Ok(v) => serde_json::to_string_pretty(&v).unwrap_or_else(json_err),
+        Err(_) => json_err(format!(
+            "agent verb printed no JSON (exit {:?}): {}",
+            output.status.code(),
+            String::from_utf8_lossy(&output.stderr).trim()
+        )),
+    }
+}
+
 /// Actionable error for the "hub socket not found" failure — the single most
 /// common MCP failure path (T-2553, usability lens of the T-2468 purpose
 /// review). Constitutional Directive #3: errors must name the fix, not just
@@ -1149,6 +1193,8 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_typing_list", "List peers currently emitting typing indicators on a topic (any topic)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
             ("termlink_channel_claim", "Reserve a (topic, offset) for exclusive processing (arc-parallel-substrate)"),
             ("termlink_channel_release", "Release a claim — ack=true advances cursor, ack=false reopens slot"),
+            ("termlink_agent_checkout", "T-3470: check out a claimed unit into a private clone on branch work/<hub8>/<claim_id> (renews the claim first; guard hooks verified fail-closed)"),
+            ("termlink_agent_commit", "T-3470: commit the work in a claimed clone via the repo's own hooks; keeps the claim on refusal; optional release after the commit"),
             ("termlink_channel_claim_force_release", "Operator-Tier-0 force release — bypass claimer-ownership check to clear a stuck claim faster than TTL expiry (T-2044)"),
             ("termlink_channel_claim_transfer", "T-2046: atomic ownership transfer of an existing claim — cooperative + owner-checked orchestrator-to-worker handoff that eliminates the release-then-claim race. Distinct from claim_force_release (Tier-0 bypass)."),
             ("termlink_channel_renew", "Extend the lease on a held claim (for long-running workers)"),
@@ -10258,6 +10304,40 @@ pub struct ChannelClaimTransferParams {
     /// Optional audit reason — echoed in the response, surfaced but not
     /// persisted in the claims table.
     pub reason: Option<String>,
+}
+
+/// T-3470: `termlink_agent_checkout` parameters (see `termlink agent checkout --help`).
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentCheckoutParams {
+    /// Claim id from `termlink_channel_claim` (letters, digits, '-' and '_').
+    pub claim_id: String,
+    /// Holder identity. Default: `$TERMLINK_AGENT_ID`, then `~/.termlink/be-reachable.state`.
+    pub claimer: Option<String>,
+    /// Repository to clone (URL or local path).
+    pub repo: String,
+    /// Branch, tag or sha to base the work branch on. Default: `main`.
+    pub git_ref: Option<String>,
+    /// Explicit clone dir. Default: `$TERMLINK_WORK_DIR/<hub8>/<claim_id>`.
+    pub work_dir: Option<String>,
+    /// Lease extension requested from the hub, in ms (hub clamps to 1h).
+    pub ttl_ms: Option<u32>,
+}
+
+/// T-3470: `termlink_agent_commit` parameters (see `termlink agent commit --help`).
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentCommitParams {
+    /// Claim id used at checkout.
+    pub claim_id: String,
+    /// Holder identity. Default: `$TERMLINK_AGENT_ID`, then `~/.termlink/be-reachable.state`.
+    pub claimer: Option<String>,
+    /// Commit message, e.g. "T-NNNN: what changed".
+    pub message: String,
+    /// Stage only these paths. Default: everything.
+    pub paths: Option<Vec<String>>,
+    /// Lease extension requested from the hub, in ms (hub clamps to 1h).
+    pub ttl_ms: Option<u32>,
+    /// Release the claim (ack=true) after the commit exists. Default: false.
+    pub release: Option<bool>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -23117,6 +23197,69 @@ impl TermLinkTools {
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
+    }
+
+    #[tool(
+        name = "termlink_agent_checkout",
+        description = "T-3470 (T-2026 slice 2): check out a claimed unit into a private clone. Renews the claim first, so only the holder can check it out: CLAIM_NOT_OWNED (-32017) / CLAIM_NOT_FOUND (-32016) refuse before git runs. Clones `repo` into `$TERMLINK_WORK_DIR/<hub8>/<claim_id>` on branch `work/<hub8>/<claim_id>`. Strategy from TERMLINK_WORKTREE_STRATEGY: reflink (btrfs default), snapshot, or clone. Refuses with WORK_GUARD_MISSING (-32029) when a framework clone lacks its guard hooks. Never a git worktree. Returns {ok, claim_id, topic, offset, dir, branch, base, head, claimed_until, strategy, notes}. Subprocesses `termlink agent checkout --json`. WRITES state."
+    )]
+    async fn termlink_agent_checkout(
+        &self,
+        Parameters(p): Parameters<AgentCheckoutParams>,
+    ) -> String {
+        let mut args = vec![
+            "agent".to_string(),
+            "checkout".to_string(),
+            "--claim-id".to_string(),
+            p.claim_id,
+            "--repo".to_string(),
+            p.repo,
+            "--ref".to_string(),
+            p.git_ref.unwrap_or_else(|| "main".to_string()),
+        ];
+        if let Some(c) = p.claimer {
+            args.extend(["--claimer".to_string(), c]);
+        }
+        if let Some(d) = p.work_dir {
+            args.extend(["--work-dir".to_string(), d]);
+        }
+        if let Some(t) = p.ttl_ms {
+            args.extend(["--ttl-ms".to_string(), t.to_string()]);
+        }
+        args.push("--json".to_string());
+        run_agent_work_cli(args).await
+    }
+
+    #[tool(
+        name = "termlink_agent_commit",
+        description = "T-3470 (T-2026 slice 2): commit the work in a claimed clone, keeping the claim. Renews the claim first (CLAIM_NOT_OWNED / CLAIM_NOT_FOUND refuse before git runs). Stages `paths` (default: everything) and runs a plain `git commit`, so the repo's own hooks run. A refused commit returns the hook output as the error and KEEPS the claim. `release=true` releases the claim with ack after the commit exists. Returns {ok, claim_id, topic, commit, paths_added, paths_modified, paths_deleted, claimed_until, released}. Subprocesses `termlink agent commit --json`. WRITES state."
+    )]
+    async fn termlink_agent_commit(
+        &self,
+        Parameters(p): Parameters<AgentCommitParams>,
+    ) -> String {
+        let mut args = vec![
+            "agent".to_string(),
+            "commit".to_string(),
+            "--claim-id".to_string(),
+            p.claim_id,
+            "--message".to_string(),
+            p.message,
+        ];
+        if let Some(c) = p.claimer {
+            args.extend(["--claimer".to_string(), c]);
+        }
+        for path in p.paths.unwrap_or_default() {
+            args.extend(["--path".to_string(), path]);
+        }
+        if let Some(t) = p.ttl_ms {
+            args.extend(["--ttl-ms".to_string(), t.to_string()]);
+        }
+        if p.release.unwrap_or(false) {
+            args.push("--release".to_string());
+        }
+        args.push("--json".to_string());
+        run_agent_work_cli(args).await
     }
 
     #[tool(

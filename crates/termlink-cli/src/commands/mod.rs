@@ -18,6 +18,7 @@ pub(crate) mod identity;
 pub(crate) mod channel;
 pub(crate) mod help;
 pub(crate) mod agent_find_idle;
+pub(crate) mod agent_work;
 pub(crate) mod substrate;
 pub(crate) mod webhook;
 pub(crate) mod tmux_spawn;

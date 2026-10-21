@@ -345,6 +345,12 @@ async fn main() -> Result<()> {
             AgentAction::Resolve { agent_id, json } => {
                 commands::agent::cmd_agent_resolve(&agent_id, json).await
             }
+            AgentAction::Checkout { claim_id, claimer, repo, git_ref, work_dir, ttl_ms, json } => {
+                commands::agent_work::cmd_agent_checkout(&claim_id, claimer.as_deref(), &repo, &git_ref, work_dir.as_deref(), ttl_ms, json).await
+            }
+            AgentAction::Commit { claim_id, claimer, message, paths, ttl_ms, release, json } => {
+                commands::agent_work::cmd_agent_commit(&claim_id, claimer.as_deref(), &message, &paths, ttl_ms, release, json).await
+            }
             AgentAction::Who { target_fp, target, window_secs, hub, json, filter_thread } => {
                 commands::agent::cmd_agent_who(target_fp.as_deref(), target.as_deref(), window_secs, hub.as_deref(), json, filter_thread.as_deref()).await
             }

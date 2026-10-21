@@ -1525,16 +1525,21 @@ async fn no_hub_pair(name: &str, tool: &'static str, args: Value, cli_argv: &[&s
     unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
     unsafe { std::env::set_var("HOME", &dir.path) };
 
-    let client = mcp_client().await;
-    let mcp_raw = call_mcp(&client, tool, args).await;
-    let mcp_json: Value = serde_json::from_str(&mcp_raw)
-        .unwrap_or_else(|e| panic!("MCP {tool} response not JSON: {e}\nraw: {mcp_raw}"));
-
+    // T-3470: resolve the fresh CLI first and point the MCP side at it. Tools that
+    // subprocess the CLI (`termlink_agent_checkout`/`_commit`) run `current_exe()`,
+    // which under this harness is the test binary, not `termlink`.
+    //
     // T-3215 lesson: `find_termlink_bin()` prefers target/release, which can be
     // DAYS stale relative to the MCP side compiled INTO this test binary — the
     // first run of PAIR 32 reported a "drift" that was only a stale release
     // build. Always resolve the fresh build here.
     let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
+    unsafe { std::env::set_var("TERMLINK_BIN", &bin) };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, tool, args).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP {tool} response not JSON: {e}\nraw: {mcp_raw}"));
     let mut cmd = termlink_cmd(&bin, &dir.path);
     cmd.env("HOME", &dir.path);
     cmd.args(cli_argv);
@@ -1557,6 +1562,31 @@ async fn no_hub_pair(name: &str, tool: &'static str, args: Value, cli_argv: &[&s
 
     let ignore: HashSet<&'static str> = ["ts_ms", "pid", "error"].into_iter().collect();
     diff_json(name, &mcp_json, &cli_json, &ignore).unwrap_or_else(|e| panic!("{e}"));
+}
+
+// T-3470: agent checkout / commit refuse loudly on hub-down, JSON on both sides. The
+// ownership check (channel.renew) is the first hub call, so with no hub the verb
+// must stop there, before any git runs and before any clone is made.
+#[tokio::test]
+async fn parity_agent_checkout_no_hub() {
+    no_hub_pair(
+        "agent-checkout",
+        "termlink_agent_checkout",
+        json!({"claim_id": "clm-1-1-work_queue-7", "claimer": "w1", "repo": "/nonexistent/repo", "git_ref": "main"}),
+        &["agent", "checkout", "--claim-id", "clm-1-1-work_queue-7", "--claimer", "w1", "--repo", "/nonexistent/repo", "--ref", "main", "--json"],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn parity_agent_commit_no_hub() {
+    no_hub_pair(
+        "agent-commit",
+        "termlink_agent_commit",
+        json!({"claim_id": "clm-1-1-work_queue-7", "claimer": "w1", "message": "T-3470: probe"}),
+        &["agent", "commit", "--claim-id", "clm-1-1-work_queue-7", "--claimer", "w1", "-m", "T-3470: probe", "--json"],
+    )
+    .await;
 }
 
 // PAIR 25 (T-2991): termlink_channel_ack_status — #4 by churn (37 commits).

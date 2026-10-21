@@ -47,3 +47,10 @@ crates/termlink-mcp/src/tools.rs::run_t1836_subprocess::output
 # with no peer-influenced input; output is a local firewall/socket table, bounded
 # by host configuration, not by peer bytes. INTERNAL by the T-2529 threat model.
 crates/termlink-doctor/src/lib.rs::ufw_listener_check::output
+# T-3470: agent checkout/commit MCP tools subprocess the SELF binary (TERMLINK_BIN or
+# current_exe) on the fixed subcommand `agent checkout|commit --json`, with stdin null,
+# kill_on_drop and a 900 s timeout. Captured stdout is the subcommand's single JSON object;
+# git runs inside that short-lived CLI process (agent_work.rs git()), and its stderr
+# reaches the JSON only as the error text of a failed git step. Bounded by the subcommand, not by peer bytes:
+# INTERNAL by the T-2529 threat model, same as the three tools.rs sites above.
+crates/termlink-mcp/src/tools.rs::run_agent_work_cli::output

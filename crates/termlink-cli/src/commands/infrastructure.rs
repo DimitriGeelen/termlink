@@ -771,7 +771,10 @@ pub(crate) fn cmd_hub_export_secret(out: Option<&str>, json_output: bool) -> Res
 /// here are directly comparable against peer pins. Reads the LIVE cert
 /// file via `termlink_hub::tls::hub_cert_path()` — same "never cache, always
 /// live" discipline as T-1656's `hub export-secret`.
-pub(crate) fn cmd_hub_fingerprint(json_output: bool) -> Result<()> {
+/// T-3470: the local hub's TLS fingerprint (`sha256:<hex>`) and the cert it was
+/// read from. Shared with the agent work verbs, which key checkout dirs and
+/// branches by its first 8 hex digits (`agent checkout`).
+pub(crate) fn local_hub_fingerprint() -> Result<(PathBuf, String)> {
     use base64::Engine;
 
     let cert_path = termlink_hub::tls::hub_cert_path();
@@ -798,6 +801,11 @@ pub(crate) fn cmd_hub_fingerprint(json_output: bool) -> Result<()> {
         .map_err(|e| anyhow::anyhow!("base64-decode failed for {}: {}", cert_path.display(), e))?;
 
     let fingerprint = termlink_session::tofu::cert_fingerprint(&der);
+    Ok((cert_path, fingerprint))
+}
+
+pub(crate) fn cmd_hub_fingerprint(json_output: bool) -> Result<()> {
+    let (cert_path, fingerprint) = local_hub_fingerprint()?;
 
     if json_output {
         println!(
