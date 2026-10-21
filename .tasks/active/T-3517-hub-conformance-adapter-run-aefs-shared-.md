@@ -45,7 +45,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:13:56Z
-last_update: 2026-10-21T14:14:52Z
+last_update: 2026-10-21T14:14:59Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,11 +83,11 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] An adapter (Rust integration test or test binary in the hub/bus crates, using the existing `serde_yaml` dependency) reads the vector file from the path in `TERMLINK_WC_VECTORS`; when unset it prints a visible SKIP with the reason and the fetch command, never a pass; no copy of `vectors.yaml` is committed to this repo (AEF README rule)
-- [ ] For every one of the 25 cases (and each variant) it seeds `given` into a temp-dir hub store, runs `steps` through the hub backend's real API with injected time, maps the vector's symbols (nonce, token, gen, evidence ids) to real values, and judges `then` and `admissible_histories`; each case reports exactly one of pass / fail (with the first diverging step) / not-implemented (naming the missing op or capability); a case is never reported pass without its steps having run
-- [ ] `scripts/run-wc-vectors.sh [--ref <aef-commit>]` fetches `vectors.yaml` at a pinned AEF commit (default afe974124) from the public mirror into a temp dir, runs the adapter, prints the per-case table and a summary line, and exits 0 only when no case fails (not-implemented is listed, not hidden); it never writes into the repo
-- [ ] The per-case result table is written to `docs/reports/T-3484-conformance-map.md` (replacing the hand-made status column with the adapter's verdicts), and any case the adapter finds failing is filed as its own bug task
-- [ ] Tests use temp dirs only (T-3293 rule); `cargo test -p termlink-bus -p termlink-hub` still passes
+- [x] An adapter (Rust integration test or test binary in the hub/bus crates, using the existing `serde_yaml` dependency) reads the vector file from the path in `TERMLINK_WC_VECTORS`; when unset it prints a visible SKIP with the reason and the fetch command, never a pass; no copy of `vectors.yaml` is committed to this repo (AEF README rule)
+- [x] For every one of the 25 cases (and each variant) it seeds `given` into a temp-dir hub store, runs `steps` through the hub backend's real API with injected time, maps the vector's symbols (nonce, token, gen, evidence ids) to real values, and judges `then` and `admissible_histories`; each case reports exactly one of pass / fail (with the first diverging step) / not-implemented (naming the missing op or capability); a case is never reported pass without its steps having run
+- [x] `scripts/run-wc-vectors.sh [--ref <aef-commit>]` fetches `vectors.yaml` at a pinned AEF commit (default afe974124) from the public mirror into a temp dir, runs the adapter, prints the per-case table and a summary line, and exits 0 only when no case fails (not-implemented is listed, not hidden); it never writes into the repo
+- [x] The per-case result table is written to `docs/reports/T-3484-conformance-map.md` (replacing the hand-made status column with the adapter's verdicts), and any case the adapter finds failing is filed as its own bug task
+- [x] Tests use temp dirs only (T-3293 rule); `cargo test -p termlink-bus -p termlink-hub` still passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -336,6 +336,11 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3517-ws 2>&1 && ! grep -q "t
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-21 — first adapter run against AEF vectors (afe974124)
+- **What changed:** The S1–S3 unit tests did not cover the vectors' exact cases. Marking cases "covered" from them was wrong. Running the vectors found three real divergences the unit tests missed: CC-12, CC-16 and CC-21. The adapter runs AEF's given/steps/then through the bus-level API with injected time. Of 25 cases: 5 pass, 3 fail, 16 not-implemented (named by the missing op, argument or surface), 1 n/a (CC-11, real worker).
+- **Plan impact:** The task planned a wrapper over the hub backend. The vectors also need the hub to expose end-confirmation, operator notices and worker-side wait, and the store has none of these. Those are the not-implemented list in the map, which is the backlog for S4 and the operator surface. The adapter reads the store's tables (dispatch count, answers) directly, read-only, since `dispatch.get` does not list dispatches.
+- **Triggered:** Bug tasks T-3518 (CC-16, outcome order), T-3519 (CC-21, same root cause, separate task as the adapter reports per case), T-3520 (CC-12, store or vector question for AEF). Verification line 1 (`run-wc-vectors.sh` exit 0) is red until these are settled. That is the intended gate, so this task stays `started-work`.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -395,3 +400,9 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3517-ws 2>&1 && ! grep -q "t
 
 ### 2026-10-21T14:14:52Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-21 — adapter built, first run [agent]
+- **Built:** `crates/termlink-hub/tests/wc_conformance.rs` (runner, AEF `run_local.py` semantics) and `tests/wc_conformance/hub.rs` (op-to-store mapping, injected clock, temp-dir bus per vector run). `scripts/run-wc-vectors.sh` fetches vectors at afe974124 into a temp dir and runs the adapter. Dev-deps added to `termlink-hub`: `rusqlite` (read-only dispatch count), `regex` (workspace).
+- **Result:** 25 cases: pass=5 (CC-04, 07, 14, 18, 23), fail=3 (CC-12, 16, 21), not-implemented=16, n/a=1 (CC-11). Full table in `docs/reports/T-3484-conformance-map.md`.
+- **Bug tasks:** T-3518 (CC-16), T-3519 (CC-21), T-3520 (CC-12). No backend source changed.
+- **Verification:** `cargo test -p termlink-bus -p termlink-hub` passes (the conformance test prints SKIP without `TERMLINK_WC_VECTORS`). `run-wc-vectors.sh` exits 1 on the three fails, as designed. Not set to work-completed.
