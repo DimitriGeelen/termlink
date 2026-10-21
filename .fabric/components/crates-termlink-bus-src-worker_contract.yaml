@@ -1,0 +1,21 @@
+id: crates/termlink-bus/src/worker_contract.rs
+name: worker_contract
+type: script
+subsystem: bus
+location: crates/termlink-bus/src/worker_contract.rs
+tags: []
+
+purpose: "Shared worker contract, hub backend, slice S1 (T-3501, T-3484)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

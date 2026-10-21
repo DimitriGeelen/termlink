@@ -1,0 +1,21 @@
+id: tests/reviewer-verdict-ledger-fixtures.sh
+name: reviewer-verdict-ledger-fixtures
+type: script
+subsystem: guard-layer
+location: tests/reviewer-verdict-ledger-fixtures.sh
+tags: []
+
+purpose: "reviewer-verdict-ledger-fixtures.sh — T-3373: the operator ruling of 2026-09-28 against upstream's verdict ledger (AEF T-3579/T-3581: lib/verdict_ledger.py, HMAC-signed dispatch provenance, the apply_reviewer_verdicts path in…"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

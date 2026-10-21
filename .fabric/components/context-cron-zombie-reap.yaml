@@ -1,0 +1,21 @@
+id: .context/cron/zombie-reap.crontab
+name: zombie-reap
+type: script
+subsystem: guard-layer-cron
+location: .context/cron/zombie-reap.crontab
+tags: []
+
+purpose: "T-3491 — daily reap of idle zombie `termlink register --shell` sessions Source of truth: /opt/termlink/.context/cron/zombie-reap.crontab (git-tracked) Installed to: /etc/cron.d/termlink-zombie-reap (USER field syntax — do NOT load into a…"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

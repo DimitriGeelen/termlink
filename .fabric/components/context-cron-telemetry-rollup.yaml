@@ -1,0 +1,21 @@
+id: .context/cron/telemetry-rollup.crontab
+name: telemetry-rollup
+type: script
+subsystem: guard-layer-cron
+location: .context/cron/telemetry-rollup.crontab
+tags: []
+
+purpose: "T-3466 — R5b daily telemetry rollup (T-2250 GO) Source of truth: /opt/termlink/.context/cron/telemetry-rollup.crontab (git-tracked) Installed to: /etc/cron.d/termlink-telemetry-rollup (USER field syntax — do NOT load into a user crontab)"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

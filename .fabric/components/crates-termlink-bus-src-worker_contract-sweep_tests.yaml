@@ -1,0 +1,21 @@
+id: crates/termlink-bus/src/worker_contract/sweep_tests.rs
+name: sweep_tests
+type: script
+subsystem: bus
+location: crates/termlink-bus/src/worker_contract/sweep_tests.rs
+tags: []
+
+purpose: "Sweep conformance (T-3502, S2) with injected time and a fake registry: temp dirs only (T-3293)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

@@ -1,0 +1,21 @@
+id: crates/termlink-cli/src/commands/agent_work.rs
+name: agent_work
+type: script
+subsystem: cli
+location: crates/termlink-cli/src/commands/agent_work.rs
+tags: []
+
+purpose: "T-3470 (T-2026 slice 2): `termlink agent checkout` and `termlink agent commit`, the worker-side git verbs of the claim-scoped work model."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

@@ -1,0 +1,21 @@
+id: crates/termlink-session/src/event_log.rs
+name: event_log
+type: script
+subsystem: session
+location: crates/termlink-session/src/event_log.rs
+tags: []
+
+purpose: "Bounded, best-effort NDJSON event logs (T-3465, R5a of the T-2250 telemetry plane)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

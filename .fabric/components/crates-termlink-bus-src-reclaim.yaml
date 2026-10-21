@@ -1,0 +1,21 @@
+id: crates/termlink-bus/src/reclaim.rs
+name: reclaim
+type: script
+subsystem: bus
+location: crates/termlink-bus/src/reclaim.rs
+tags: []
+
+purpose: "Reclaim dead space in topic logs: rewrite a log keeping live records only, offsets unchanged. T-3322 (arc-012, T-3310 D3 operator ruling C)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

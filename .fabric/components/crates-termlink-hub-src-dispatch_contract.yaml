@@ -1,0 +1,21 @@
+id: crates/termlink-hub/src/dispatch_contract.rs
+name: dispatch_contract
+type: script
+subsystem: hub
+location: crates/termlink-hub/src/dispatch_contract.rs
+tags: []
+
+purpose: "Shared worker contract, hub backend, slice S1 (T-3501): `dispatch.allocate`, `dispatch.transition`, `dispatch.get`. The store and the fencing live in `termlink_bus::worker_contract`; this module is the JSON-RPC edge."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

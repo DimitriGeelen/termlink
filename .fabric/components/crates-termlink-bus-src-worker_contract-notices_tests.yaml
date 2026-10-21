@@ -1,0 +1,21 @@
+id: crates/termlink-bus/src/worker_contract/notices_tests.rs
+name: notices_tests
+type: script
+subsystem: bus
+location: crates/termlink-bus/src/worker_contract/notices_tests.rs
+tags: []
+
+purpose: "Operator notices (T-3521): one failing-first test per notice kind, driven through the real store API with injected time and a fake registry. Temp dirs only (T-3293)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

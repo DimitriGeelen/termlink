@@ -1,0 +1,21 @@
+id: tests/substrate-preflight-hub-socket-fixtures.sh
+name: substrate-preflight-hub-socket-fixtures
+type: script
+subsystem: guard-layer
+location: tests/substrate-preflight-hub-socket-fixtures.sh
+tags: []
+
+purpose: "T-3495 — fixtures for substrate-preflight Check 8 (hub-socket). Hermetic: the `hub status --json` output comes from a seam; no real hub is contacted."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

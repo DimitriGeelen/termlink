@@ -1,0 +1,21 @@
+id: crates/termlink-bus/src/worker_contract/answer_tests.rs
+name: answer_tests
+type: script
+subsystem: bus
+location: crates/termlink-bus/src/worker_contract/answer_tests.rs
+tags: []
+
+purpose: "Answer path and operator resolve (T-3503, S3) with injected time, temp dirs only (T-3293). Cases: CC-10 parent-session loss, CC-11 answer delivered and acked, CC-12 answer TTL expiry bounces, CC-15 unknown resolution by operator."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

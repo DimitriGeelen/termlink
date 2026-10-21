@@ -1,0 +1,21 @@
+id: crates/termlink-hub/tests/wc_conformance.rs
+name: wc_conformance
+type: script
+subsystem: hub
+location: crates/termlink-hub/tests/wc_conformance.rs
+tags: []
+
+purpose: "Runs AEF's shared worker-contract conformance vectors (wc/0.3, CC-01..CC-25) against the hub backend (T-3517)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

@@ -1,0 +1,21 @@
+id: crates/termlink-sidecar/src/activity.rs
+name: activity
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/src/activity.rs
+tags: []
+
+purpose: "Activity veto measured by the sidecar immediately before it types the doorbell (T-3387). Activity veto before the doorbell and the derived busy bit (T-3387, OQ-16 D, CR-5)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

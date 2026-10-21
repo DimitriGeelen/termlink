@@ -1,0 +1,21 @@
+id: crates/termlink-cli/src/commands/dispatch/lite.rs
+name: lite
+type: script
+subsystem: cli
+location: crates/termlink-cli/src/commands/dispatch/lite.rs
+tags: []
+
+purpose: "Lite dispatch — one short, bounded job through TermLink at a small fraction of a full worker's start cost (T-3386, operator ruling RR-13 / CR-21)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

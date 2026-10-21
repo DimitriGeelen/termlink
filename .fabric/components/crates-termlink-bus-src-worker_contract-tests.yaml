@@ -1,0 +1,21 @@
+id: crates/termlink-bus/src/worker_contract/tests.rs
+name: tests
+type: script
+subsystem: bus
+location: crates/termlink-bus/src/worker_contract/tests.rs
+tags: []
+
+purpose: "Conformance cases CC-04/05/06/07/14/16/18/19 (+CC-23/24 credential and T5 bound) with injected time and a temp dir only (T-3293)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

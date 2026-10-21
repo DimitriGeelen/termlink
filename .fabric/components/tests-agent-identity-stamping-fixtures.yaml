@@ -1,0 +1,21 @@
+id: tests/agent-identity-stamping-fixtures.sh
+name: agent-identity-stamping-fixtures
+type: script
+subsystem: guard-layer
+location: tests/agent-identity-stamping-fixtures.sh
+tags: []
+
+purpose: "T-3377 (port of AEF T-3286): agent-send.sh and agent-respond.sh stamp metadata.agent_id with the poster's OWN instance identity, resolved by scripts/agent-identity.sh (FW_AGENT_ID > whoami display_name@session_id >"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

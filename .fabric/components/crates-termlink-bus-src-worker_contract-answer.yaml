@@ -1,0 +1,21 @@
+id: crates/termlink-bus/src/worker_contract/answer.rs
+name: answer
+type: script
+subsystem: bus
+location: crates/termlink-bus/src/worker_contract/answer.rs
+tags: []
+
+purpose: "Shared worker contract, hub backend, slice S3 (T-3503): the answer path (contract §5) and the operator's `resolve` (T7d)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown

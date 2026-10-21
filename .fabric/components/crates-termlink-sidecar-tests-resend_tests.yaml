@@ -1,0 +1,21 @@
+id: crates/termlink-sidecar/tests/resend_tests.rs
+name: resend_tests
+type: script
+subsystem: sidecar
+location: crates/termlink-sidecar/tests/resend_tests.rs
+tags: []
+
+purpose: "T-3462: the sender keeps a message until the recipient reports STORED, resends it on the R-44.e accept deadline with growing gaps, then gives up loudly. Hermetic: testkit estate (temp dir, throwaway hub) only."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-21
+created_by: unknown
