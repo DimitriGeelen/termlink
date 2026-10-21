@@ -74,6 +74,17 @@ fn random_hex(bytes: usize) -> std::io::Result<String> {
     Ok(buf.iter().map(|b| format!("{b:02x}")).collect())
 }
 
+/// A load-sensitive test bound scaled by `TERMLINK_TEST_TIME_FACTOR` (default 1, values
+/// below 1 or unparseable read as 1). Same dial and parsing as the hub crate's
+/// `test_budget` (T-3479), so one variable widens both crates on a contended host (T-3535).
+pub fn test_budget(base: Duration) -> Duration {
+    base * time_factor(std::env::var("TERMLINK_TEST_TIME_FACTOR").ok().as_deref())
+}
+
+fn time_factor(raw: Option<&str>) -> u32 {
+    raw.and_then(|v| v.trim().parse::<u32>().ok()).filter(|f| *f >= 1).unwrap_or(1)
+}
+
 /// Locate the `termlink` binary used for the throwaway hub.
 pub fn termlink_bin() -> Option<PathBuf> {
     if let Some(p) = std::env::var_os("TERMLINK_BIN") {
@@ -180,10 +191,12 @@ impl Estate {
     /// The throwaway hub's own id, as `hub.version` states it. A hub that is up
     /// (it is only called while one runs) but slow to answer on a loaded host is
     /// asked again, for up to 90 s in all (a fresh debug-build hub on a host at
-    /// load average 40+ has been measured to take over 30 s to answer).
+    /// load average 40+ has been measured to take over 30 s to answer). T-3535: at
+    /// load ~60 even 90 s ran out, so the bound scales by `TERMLINK_TEST_TIME_FACTOR`,
+    /// the same dial the hub crate's load-sensitive tests read (T-3479).
     pub fn hub_id(&self) -> std::io::Result<String> {
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
-        let deadline = std::time::Instant::now() + Duration::from_secs(90);
+        let deadline = std::time::Instant::now() + test_budget(Duration::from_secs(90));
         let resp = loop {
             match rt.block_on(termlink_session::client::rpc_call_addr_with_timeout(
                 &self.hub_addr(),
@@ -384,5 +397,21 @@ impl Drop for Estate {
         if !survivors.is_empty() && !std::thread::panicking() {
             panic!("estate teardown left processes alive: {survivors:?}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::time_factor;
+
+    /// T-3535: the factor parses like the hub's `test_budget` — unset, empty, zero and
+    /// garbage all read as 1, so a stray value never shortens a bound.
+    #[test]
+    fn time_factor_defaults_to_one_and_never_shrinks() {
+        assert_eq!(time_factor(None), 1);
+        assert_eq!(time_factor(Some("")), 1);
+        assert_eq!(time_factor(Some("0")), 1);
+        assert_eq!(time_factor(Some("abc")), 1);
+        assert_eq!(time_factor(Some(" 3 ")), 3);
     }
 }
