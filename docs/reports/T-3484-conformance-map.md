@@ -5,7 +5,7 @@ Verdicts come from the adapter, not from hand-written status. The adapter runs A
 (`termlink-bus` worker_contract S1–S3, bus-level API with injected time):
 
 ```bash
-bash scripts/run-wc-vectors.sh            # fetches vectors at AEF afe974124 into a temp dir; exit 0 only if no case fails
+bash scripts/run-wc-vectors.sh            # fetches vectors at AEF 25f56ed68 (default) into a temp dir; exit 0 only if no case fails
 TERMLINK_WC_CASE=CC-16 bash scripts/run-wc-vectors.sh   # one case, e.g. to reproduce a finding (filter is in the adapter)
 ```
 

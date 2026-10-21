@@ -7,7 +7,9 @@
 # adapter is crates/termlink-hub/tests/wc_conformance.rs (with wc_conformance/hub.rs). Vectors are
 # DATA: the script reads them through the adapter and never runs anything from them.
 #
-# Usage: scripts/run-wc-vectors.sh [--ref <aef-commit>]     (default ref: afe974124)
+# Usage: scripts/run-wc-vectors.sh [--ref <aef-commit>]     (default ref: 25f56ed68)
+#        History: afe974124 first published; b4c168aa9 fixed CC-11/12 (question asked first);
+#        25f56ed68 added seen_alive_epoch preconditions for confirm_end (CC-01/02/03/06/09/25).
 # Exit:  0 no case fails (not-implemented cases are listed, not hidden)
 #        1 at least one case fails against the hub backend
 #        2 tooling: fetch failed, build failed, or the adapter did not reach its summary line
@@ -16,7 +18,7 @@
 
 set -uo pipefail
 
-REF="afe974124"
+REF="25f56ed68"
 while [ $# -gt 0 ]; do
     case "$1" in
         --ref) REF="${2:?--ref needs an AEF commit}"; shift 2 ;;
