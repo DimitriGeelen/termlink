@@ -131,7 +131,12 @@ jrc=$?
 [ -s "$J/_real.out" ] && ok "J0 the real-tree run produced output (it actually ran)" \
   || bad "J0 the real-tree run produced NO output — J1's rc would be vacuous"
 chk "$jrc" 1 "J1 real tree fires with an EMPTY ledger"
-grep -q "voi_score" "$J/_real.out" && ok "J2 names voi_score" || bad "J2 names voi_score"
+# T-3495 follow-up (2026-10-21): J2 used to pin the FIELD name (voi_score). Which
+# field dominates is mutable corpus state (after the AEF 1.8.14 template change it
+# is target_blast_radius), so the line rotted red off-host and here (T-3326 rule).
+# Pin the invariant instead: the finding names a field and the template planting it.
+grep -qE "^ +[a-z_]+: [0-9]+/[0-9]+ tasks" "$J/_real.out" && grep -q "planted by:" "$J/_real.out" \
+  && ok "J2 names a dominating field and its template" || bad "J2 names a dominating field and its template"
 bash "$CHECK" > /dev/null 2>&1
 chk $? 0 "J3 real tree is clean with the tracked ledger"
 rm -rf "$J"
