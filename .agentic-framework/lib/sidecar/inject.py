@@ -646,8 +646,16 @@ def _deliver_locked(trigger: str, runner) -> dict:
         report["injected"] = batch
         report["reason"] = f"injected into {session} ({why})"
     else:
-        report["reason"] = f"doorbell refused (termlink pty notify): {err}"
+        report["reason"] = ring_failure_reason(target.get("route", "termlink"), err)
     return report
+
+
+def ring_failure_reason(route: str, err: str) -> str:
+    """T-3536: name the route that actually failed. A tmux failure is not a
+    notify-token problem, and saying so sends the operator to the wrong fix."""
+    if route == "tmux":
+        return f"doorbell failed (tmux send-keys): {err}"
+    return f"doorbell refused (termlink pty notify): {err}"
 
 
 def held_unsurfaced(threshold_hours: float = 24, now: datetime | None = None) -> list[dict]:

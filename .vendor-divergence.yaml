@@ -1296,6 +1296,22 @@ divergences:
     upstream_note: >-
       Not yet filed. Wants filing with AEF with the lib/sidecar_cli.py status line. The
       fix assumes a `termlink` new enough to carry `pty notify` (T-3533, this repo's build).
+  - task: T-3536
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the patch.
+    date: 2026-10-22
+    file: .agentic-framework/lib/sidecar/inject.py
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: >-
+      A doorbell ring that failed on the tmux route (c2) reported "doorbell refused
+      (termlink pty notify)", pointing the operator at a notify token that cannot help.
+    fix: >-
+      ring_failure_reason(route, err) names the route actually used: "doorbell failed
+      (tmux send-keys)" or "doorbell refused (termlink pty notify)".
+    evidence: tests/sidecar_doorbell_test.py test_failure_reason_names_the_route_used.
+    upstream_note: Not yet filed; file with the T-3533 inject.py entry above.
   - task: T-3533
     commit: pending-same-commit
     commit_note: Registered in the same commit that carries the patch.

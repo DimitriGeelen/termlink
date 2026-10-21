@@ -70,6 +70,14 @@ class DoorbellTest(unittest.TestCase):
         inject._record_doorbell("sess-a", True, "")
         self.assertIsNone(inject.doorbell_warning())
 
+    def test_failure_reason_names_the_route_used(self):
+        # T-3536: a tmux failure must not point at the notify token.
+        tmux = inject.ring_failure_reason("tmux", "no server running")
+        self.assertIn("tmux send-keys", tmux)
+        self.assertNotIn("notify", tmux)
+        tl = inject.ring_failure_reason("termlink", "-32010")
+        self.assertIn("termlink pty notify", tl)
+
     def test_unreadable_record_is_not_a_warning(self):
         (self.dir / "doorbell.json").write_text("{not json", encoding="utf-8")
         self.assertIsNone(inject.doorbell_warning())

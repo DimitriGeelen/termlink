@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T22:08:33Z
-last_update: 2026-10-21T22:08:33Z
+last_update: 2026-10-21T22:08:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,14 +56,20 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Checked 2026-10-22, and the premise in the title is weaker than it reads. In `.agentic-framework/lib/sidecar/inject.py`,
+`choose_target` (line 310) uses the tmux route (c2) only when no TermLink session is registered for the project.
+A refused `pty notify` never falls back to tmux (the ring path at lines 587–648 makes one attempt on the chosen route).
+So tmux does not get around a `--token-secret` lock. It types into a pane that has no lock, using the
+same uid's access to its tmux socket (an OS permission). What IS wrong: when the tmux route fails, the report reason
+is still `doorbell refused (termlink pty notify): …`, which names the wrong route and sends an operator to provision
+a notify token that would not help. Vendored file: register the change in `.vendor-divergence.yaml` and file upstream.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] A failed ring's report reason names the route it actually used (`tmux send-keys` vs `termlink pty notify`); a test pins both
+- [x] The change is registered in `.vendor-divergence.yaml` (local-only until upstream carries it) and the "tmux has no lock to bypass" finding is recorded in Decisions
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +120,8 @@ date_finished: null
 -->
 
 ## Verification
+python3 -I tests/sidecar_doorbell_test.py > /tmp/.t3536 2>&1 && grep -q "^OK" /tmp/.t3536
+grep -q 'T-3536' .vendor-divergence.yaml
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -338,6 +346,11 @@ date_finished: null
 -->
 
 ## Decisions
+
+### 2026-10-22 — the tmux route is left as it is; only its error message changes
+- **Chose:** keep the tmux route (c2) typing directly, and fix only the mislabelled failure reason.
+- **Why:** c2 runs only when no TermLink session is registered (`choose_target`, inject.py:310), and a refused notify never falls back to it. With no session there is no lock to respect. The pane is reached through the uid's own tmux socket, an OS permission that a TermLink token could not add to.
+- **Rejected:** routing tmux through `pty notify`, because there is no session to notify; refusing tmux when a token exists, because no session means no token.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
