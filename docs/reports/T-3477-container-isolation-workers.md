@@ -238,8 +238,24 @@ Isolation (§1–§3b) is now the secondary benefit. Sections 1–5 stay valid; 
    45 / 27 / 30 (1 / 5 / 15 min), so CPU is oversubscribed about 2x. Root filesystem 1.8 TB, 87% used,
    247 GB free (btrfs). Docker 29.9.0, overlay2, runtimes runc + nvidia, root dir on the same
    filesystem. bubblewrap present, podman absent.
-2. **Other hosts (.109, .121, .122, laptops):** capacity, Docker or podman presence, btrfs, ufw state:
-   asked ring20 on 2026-10-21 (conversation cross-host-workers), answer pending. Not probed here.
+2. **Other hosts: ring20's answer** (msg d86eb1c3, 2026-10-21, measured by ring20, read-only, not probed by us):
+   2a. Proxmox cluster PVE 9.2.3, 4 nodes: proxmox1 16 cores / 28 GB (14 used) / CPU 4% / 152 GB free;
+       proxmox2 16 cores / 31 GB (17 used) / 7% / 87 GB free; proxmox4 6 cores / 63 GB (17 used) / 19% /
+       399 GB free; proxmox (.180) 4 cores / 16 GB / 6% / 379 GB free. CPU headroom on proxmox1/2, RAM on proxmox4.
+   2b. A remote Incus node (VPS) up to 12 vCPU / 40 GB, slow cores (about a third of .107 per core): fine
+       for agent sessions and test suites, slow for big Rust builds.
+   2c. Runtimes: Proxmox LXC on every node (unprivileged by default), Docker swarm on CT 301, Incus on the
+       remote node. A TermLink worker fits ring20's estate rules as an unprivileged LXC/Incus container with
+       its own identity and no estate credentials inside.
+   2d. ring20 offers the cluster: one unprivileged LXC template per worker class, started through the
+       Proxmox API; ring20 owns the template and the API token, we own what runs inside. ring20 prefers
+       standing containers per node that pull work through TermLink claims over one CT per task (creating a
+       CT takes 30-60 s, plus storage churn), the same reading as §6.3.
+   2e. Network: LAN hosts and CTs reach .107:9100 directly; the remote node reaches home only through its
+       tunnel, today only .122:9100 and OneDev SSH (.107:9100 can be added, or it runs its own hub).
+   2f. Caution from ring20: .107 is overloaded (load ~45-70); a worker fleet whose hub stays on .107 keeps part
+       of that load there. This weighs toward R2 (work posted on the worker host's own hub) for the pilot, or a
+       hub on a less loaded node.
 3. **Shipped and relevant:** `agent find-idle` (hub-local only, by design), `channel
    claim/renew/release/claim-transfer` (per hub), `--worker-binding <dispatch_id>:<attempt>` on
    `spawn`/`register` (T-3490, live in 0.12.800+), `fleet doctor`/`governor-status` (read per-hub
@@ -362,4 +378,6 @@ worker task." And: "Or we have standing containers where work tasks can be spawn
 configuration centrally which can be pulled and then spawned up, right?" Outcome: scope widened to
 cross-host placement; IW-6..IW-10 added; run models (a)/(b)/(c) named by the operator; VOI raised to
 0.8; credentials rule restated (operator credential files never copied). ring20 asked the capacity and
-runtime questions on conversation `cross-host-workers`; answer pending.
+runtime questions on conversation `cross-host-workers` and answered the same day (msg d86eb1c3, §6.1 item 2):
+spare CPU on proxmox1/2, an LXC template they would own, and a preference for standing pull-workers. The
+operator said "go" on 2026-10-21 to this read-only groundwork, ending in a decision brief.
