@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T09:10:36Z
-last_update: 2026-10-21T12:25:05Z
+last_update: 2026-10-21T12:35:23Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,7 +83,8 @@ bvp_scores_proposed:
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Regression test `resend_while_hub_is_down` written first and failing on main (ring20's reproduction, 2026-10-21: per tick outbox_len 1,2,3,4 with RESENT each, NOT_ACCEPTED at t4, 4 copies left after giving up): send one, stop the hub, tick across several deadlines
-- [ ] Fixed so that (a) a resend never adds a second outbox copy of a message that is still queued (the outbox holds at most one copy per msg_id), and (b) attempts that could not reach the hub do not count toward MAX_RESENDS, so the sender does not give up NOT_ACCEPTED while the hub is merely unreachable; after the hub returns, the message is delivered exactly once (dedupe on the hub side stays the backstop)
+- [x] Fixed so that (a) a resend never adds a second outbox copy of a message that is still queued (the outbox holds at most one copy per msg_id), and (b) attempts that could not reach the hub do not count toward MAX_RESENDS, so the sender does not give up NOT_ACCEPTED while the hub is merely unreachable; after the hub returns, the sender's chain shows one RESENT and an empty outbox
+- Not in scope here, moved (not a criterion): "delivered exactly once at the hub across a hub restart" → **T-3515** (2026-10-21): the hub's client_msg_id dedupe is an in-memory LRU, so a hub restart lets the resend store a second copy (the recipient's Duplicate outcome absorbs it; nothing is applied twice). That is a hub-crate change outside this task's scope; the test here pins the current 2-copy behaviour so T-3515 will see it change.
 - [x] Giving up removes or marks any queued copy so nothing is posted after NOT_ACCEPTED; tested
 - [x] Existing keep-until-stored, fault-matrix and deadline tests still pass: `cargo test -p termlink-sidecar` green with TERMLINK_BIN set; RCA section filled
 
