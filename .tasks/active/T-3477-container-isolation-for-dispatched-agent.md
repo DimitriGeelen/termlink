@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-10-19T13:37:19Z
-last_update: 2026-10-19T18:39:38Z
+last_update: 2026-10-21T16:04:05Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -172,13 +172,18 @@ Research: docs/reports/T-3477-container-isolation-workers.md.
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO (draft, for the operator's decision) on a phased, human-initiated two-host pilot only; DEFER push-style remote spawn.
 
 **Rationale:**
 
-Shaping in progress. Two of five T-3469 reviewers (claude, glm) named a per-task container as the prior-art isolation (OpenHands, Codex cloud, Copilot agent) that also removes the hook/cwd/basename failure modes; operator asked to explore it. Docker 29.9 and bubblewrap are present on .107. Evidence to gather: credentials and auth inside a container without copying operator secrets, governance (hooks, untracked framework files) baked into an image, build-cache and disk cost, cross-host.
+The operator's goal is capacity: .107 is oversubscribed (load 45/27/30 on 24 cores, 2026-10-21) and root is 87% full. Containers help here mainly as a distribution unit, not just isolation. The smallest design that works across hosts without new security primitives is a pull-based standing worker (run model c+b): the host pulls a digest-pinned image, the worker self-selects via the shipped claim primitive, clones from OneDev per claim, returns a branch, and is verified before landing. It needs no inbound remote-start path (IW-10) and no full hub secret in a container (IW-1). Push-style per-task spawn on a chosen host (model a) is the end state but waits on a signed spawn envelope (T-3493 C / O-7) and a scoped per-worker hub token, neither of which exists. Phase 1 uses the worker host's own hub (IW-8 option R2) to avoid a cross-host credential. Other hosts' capacity and runtime are unknown (asked ring20 on 2026-10-21, answer pending), so GO is conditional on that answer and on the operator deciding IW-8.
 
 **Evidence:**
+
+- docs/reports/T-3477-container-isolation-workers.md section 6: model comparison, 10 missing primitives (sized), phased plan, IW-6..IW-10 draft answers.
+- .107 facts 2026-10-21: 24 cores, load 45, 40 GB RAM available, 247 GB free of 1.8 TB, Docker 29.9.0, bubblewrap present.
+- Login route proven elsewhere on this host (dedicated setup-token, mode-600 env file; section 3a); six external reviewers agree on container-per-work-unit, no host network, no full hub secret.
+- Not yet evidenced: any second host's capacity or Docker presence; a scoped hub token (missing); the cross-host results flow (unrun).
 
 <!-- Add evidence bullets as exploration progresses (file paths,
      commit hashes, test results). The filing-time recommendation

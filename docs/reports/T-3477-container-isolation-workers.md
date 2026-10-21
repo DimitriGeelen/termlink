@@ -224,3 +224,142 @@ session (first standing worker); short version: **interested in the pilot**.
    `termlink-t3477-container-workers` (4 questions: changes, where assignment lives / overlap
    with T-3476, estate constraints, pilot participation). Finalising waits for ring20 and
    Perplexity.
+4. 2026-10-21, operator: containers are for spreading load across hosts; see §6.8.
+
+## 6. Cross-host workers (2026-10-21)
+
+**Why this section exists.** Operator, 2026-10-21: the main reason for containers is capacity. Host
+.107 is running out of CPU, other hosts have spare, so a worker must be startable on another host.
+Isolation (§1–§3b) is now the secondary benefit. Sections 1–5 stay valid; this section reframes them.
+
+### 6.1 Facts
+
+1. **.107, read-only, 2026-10-21 18:09:** 24 cores, 62 GB RAM (22 used, 40 available), load average
+   45 / 27 / 30 (1 / 5 / 15 min), so CPU is oversubscribed about 2x. Root filesystem 1.8 TB, 87% used,
+   247 GB free (btrfs). Docker 29.9.0, overlay2, runtimes runc + nvidia, root dir on the same
+   filesystem. bubblewrap present, podman absent.
+2. **Other hosts (.109, .121, .122, laptops):** capacity, Docker or podman presence, btrfs, ufw state:
+   asked ring20 on 2026-10-21 (conversation cross-host-workers), answer pending. Not probed here.
+3. **Shipped and relevant:** `agent find-idle` (hub-local only, by design), `channel
+   claim/renew/release/claim-transfer` (per hub), `--worker-binding <dispatch_id>:<attempt>` on
+   `spawn`/`register` (T-3490, live in 0.12.800+), `fleet doctor`/`governor-status` (read per-hub
+   health), `agent checkout` (T-3469 surface; per-claim clone, btrfs CoW on btrfs hosts), TCP hub
+   access with HMAC secret and TOFU pinning, `remote exec/call` to a profiled hub.
+4. **Designed, not built:** `dispatch.allocate/transition/get` (T-3484 S1+). The dispatch record lives
+   on exactly one hub, and the shared contract says it is the hub the worker registers with. Hubs do
+   not federate (G-060); sessions on another hub can only reach `unknown`.
+
+### 6.2 The constraints that decide it
+
+1. **IW-8 (record owner).** Two routes: R1, the worker registers with the hub where the work was
+   posted, over TCP; R2, the dispatch is posted on the worker host's hub. R1 keeps one ledger, one
+   claim namespace, and `find-idle` stays truthful for the dispatcher, but the worker needs a hub
+   credential. R2 needs no cross-host credential but splits the ledger by host and makes the
+   dispatcher poll N hubs (the G-060 shape again).
+2. **IW-1 (credentials).** The operator's own credential files never leave their host. Claude login
+   per runner is a dedicated `claude setup-token` identity delivered at run time through a mode-600
+   env file for one `docker exec` (proven on .107 by dimitri-mint-dev, §3a 4b). The full `hub.secret`
+   never enters a container (all six reviewers). A scoped per-worker hub token does not exist, so R1
+   is blocked on that primitive unless a broker holds the secret.
+3. **IW-9 (results).** Clone from OneDev inside the container, work on `workers/<task>/<attempt>`,
+   hand back a branch or an archive plus envelope; verify (tests, guard layer, evidence digest) on a
+   trusted host before landing; fencing by attempt/nonce so a stale attempt cannot publish. Never
+   unpack a worker tree inside another project.
+4. **IW-10 (who may start work on my host).** Remote spawn is a privileged action. The host's own
+   supervisor must decide, against an allowlist of dispatchers and images; the dispatcher's request is
+   a signed envelope, not generic `remote exec`. This is T-3493 C / O-7 (signed RPC envelope plus
+   spawn-time allowlist). Until it exists, any cross-host start is an operator-initiated act.
+5. **IW-4 (disk/cache).** Disk is the tight resource per host: per-host cache volume (sccache,
+   registry), cap on concurrent Rust workers (~3), admission floor ~15% free, scratch not inside a
+   snapshotted subvolume.
+
+### 6.3 Comparing the run models
+
+| | (a) per-task spawn on a chosen host | (b) standing containers per host that take tasks | (c) central definition each host pulls and spawns from |
+|---|---|---|---|
+| What it is | dispatcher picks host H, H starts a fresh container for one task, removed after | N long-lived worker containers per host, idle until they claim | image + config bundle published once; each host pulls by digest and spawns locally |
+| Placement (IW-6) | needs a capacity probe plus a start path on H | natural: workers self-select by claiming; capacity = standing workers per host | orthogonal: says what to run, not where; combines with (a) or (b) |
+| Record owner (IW-8) | spawned worker registers with the posting hub (R1) or H's hub (R2) | workers register with their own host's hub, so work is posted there (R2), or they poll a remote hub over TCP (R1) | n/a |
+| Credentials (IW-1) | token injected per run; hub credential per run | token lives in the container for its lifetime: larger blast radius, rotation needed | bundle carries no secrets by rule; secrets arrive at start |
+| Isolation | strongest: fresh filesystem each task | weak across tasks unless it clones per claim and resets | as strong as the spawn mode that runs it |
+| Authorisation (IW-10) | start request crosses hosts: needs O-7 | no cross-host start; the host operator starts the pool once; only the task post crosses | pull is host-initiated: no inbound start |
+| Disk / cache (IW-4) | cold start each time unless a cache volume | warm caches, long-lived overlay growth | image pulled once per digest per host |
+| Failure | worker dies with the task; clean | stuck or poisoned worker needs reaping; claim leases already expire | pull failure leaves the host unable to spawn; visible |
+
+**Mixes.** (c) is not an alternative; it is the distribution mechanism for (a) or (b). The plausible
+mixes are (c)+(b), a pull-based standing pool, and (c)+(a), pull then spawn per task.
+
+**Reading.** (c)+(b) is the smallest thing that works across hosts today: the pull is host-initiated
+(no IW-10 problem), workers self-select via the claim primitive (no placement algorithm), and no
+remote-start credential exists. Its costs are weaker per-task isolation (mitigated: the worker clones
+per claim, exits after one claim, and the supervisor restarts a fresh container, which is model (a)
+on the local host) and the R1/R2 record question. (a) across hosts is the end state for push-style
+dispatch but waits on O-7 and a scoped per-worker hub token.
+
+### 6.4 What TermLink ships, per model
+
+1. **(b):** find-idle (local hub), claim/renew/release, worker binding, DM/waker: all shipped, but
+   all per hub. Cross-host works only if the standing worker's presence and claims live on the hub
+   where work is posted (R1, which needs a hub credential in the container).
+2. **(a):** claim-transfer and the dispatch ledger fit once built; the cross-host start path does not exist.
+3. **(c):** nothing shipped; the bundle format, the registry (OneDev container registry, or `docker
+   save` over ssh) and the pull step are new.
+
+### 6.5 Missing primitives
+
+1. **Scoped per-worker hub token** (claim/renew/release/post on named topics, no session control, no
+   inject, short TTL, revocable): M. Server-enforced scope on the auth path; the long pole.
+2. **Trusted broker** (alternative to 1: a sidecar holds the hub secret and proxies a narrow
+   allowlist): M, no hub change, more moving parts (Perplexity).
+3. **Fleet capacity read** (one verb returning cpu/load/mem/disk-free/container slots per hub): S;
+   `fleet governor-status` is the template.
+4. **Fleet-wide find-idle** (union over hubs, honouring G-060): S as client-side fan-out; M if the
+   dispatcher then needs R1 claims.
+5. **Cross-host dispatch record (R1):** worker registers to a remote hub over TCP with
+   `--worker-binding`: S once primitive 1 or 2 exists. Building `dispatch.*` itself is T-3484 (M, designed).
+6. **Signed spawn request plus host allowlist (O-7 / T-3493 C):** M. Needed for push-style (a) only.
+7. **Host-side runner supervisor** (pulls a digest, enforces slot cap and admission floor, `--init`,
+   restart-fresh, leak grep): M.
+8. **Worker image + config bundle** (derived `FROM aef-greenfield-testbed` + musl `termlink`, bundle
+   hash recorded per result): S, plus a registry/pull path: S.
+9. **Trusted publisher and fence check** (branch push with credentials the worker lacks, stale-attempt
+   refusal): M.
+10. **Per-runner Claude identity and secret slot:** S in code, but one operator login per runner.
+
+### 6.6 Phased plan
+
+| Phase | Deliverable | Needs from the operator |
+|---|---|---|
+| 0 | ring20's answers on host capacity/runtime; choose R1 vs R2 for the pilot | a decision on IW-8 (one question) |
+| 1 | **two-host pilot, human-initiated:** one standing worker container on host B (derived image, `--init`, fresh clone from OneDev per claim, its own `setup-token` identity). Work is posted on B's own hub by hand (R2, so no cross-host credential and no ufw change). Branch returned and verified on .107. Control arm: plain clone on .107 | a `claude setup-token` login for runner B; approval to run Docker on B |
+| 2 | R1: worker on B registers with .107's hub; needs primitive 1 or 2, plus capacity read (3) and fleet find-idle (4) so the dispatcher can see B | decision to accept a broker or fund the scoped token; a ufw/DOCKER-USER rule for the bridge to 9100 |
+| 3 | host runner supervisor (7), publisher/fence (9), (c) bundle pull by digest | per-host install of the supervisor (a system change) |
+| 4 | push-style (a): signed spawn request (6) | the O-7 decision, shared with T-3493 |
+
+Phase 1 is the smallest step that answers the capacity question honestly: does work done on B cost
+.107 nothing, and does the branch land clean.
+
+### 6.7 Draft answers IW-6..IW-10 (confidence 0–3)
+
+1. **IW-6 placement.** Start pull-based: capacity is the count of standing workers per host and workers
+   self-select by claim; add a fleet capacity read (S) before any push placement. confidence 1 (no
+   data on other hosts yet).
+2. **IW-7 run model.** (c)+(b) first, with a fresh container per claim as the standing worker's loop;
+   (a) across hosts later. confidence 1.
+3. **IW-8 record owner.** Pilot on R2 (work posted on the worker host's hub, no cross-host credential);
+   target R1 once a scoped token or broker exists. confidence 1; this is the operator's decision.
+4. **IW-9 results.** Branch `workers/<task>/<attempt>` pushed by a trusted publisher; verify on a
+   trusted host; fencing by attempt/nonce; archive plus envelope as fallback. confidence 2 (consistent
+   across all reviewers, not yet run).
+5. **IW-10 authorisation.** No inbound remote start in phases 1–3 (pull model); push-style waits on
+   O-7. confidence 2.
+
+### 6.8 Dialogue log, 2026-10-21
+
+Operator: "I want containers for multiple reasons ... I've got multiple hosts and I'm running out of
+processing power. What's the ability then to spawn off a container in another host and fire off a task? A
+worker task." And: "Or we have standing containers where work tasks can be spawned, or we have
+configuration centrally which can be pulled and then spawned up, right?" Outcome: scope widened to
+cross-host placement; IW-6..IW-10 added; run models (a)/(b)/(c) named by the operator; VOI raised to
+0.8; credentials rule restated (operator credential files never copied). ring20 asked the capacity and
+runtime questions on conversation `cross-host-workers`; answer pending.
