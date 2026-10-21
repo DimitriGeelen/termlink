@@ -1,26 +1,21 @@
 ---
-id: T-3531
-name: "Bus post can fail 'database is locked' (SQLITE_BUSY after 5 s) under concurrent
-  reclaim / second writer connection"
+id: T-3535
+name: "Sidecar/hub tests time out on a loaded host: fixture hub.version 5s, T-2258
+  60s walk bound"
 description: >
-  Seen 2026-10-21 in the bus suite under load: reclaim::tests::readers_never_see_a_broken_log_during_posts_trims_and_rewrites
-  panicked at reclaim.rs:540 because bus.post returned Sqlite DatabaseBusy 'database
-  is locked'; 6/6 isolated reruns pass. A post must never be refused because another
-  writer holds the lock briefly; O-2 (stored before accepted) makes a spurious refusal
-  a delivery failure. Facts: meta.rs:34 sets busy_timeout=5000 on the bus writer connection
-  (mutex-serialised); worker_contract.rs:176 opens a SECOND writer connection on the
-  same database since S1 (busy_timeout 5000, BEGIN IMMEDIATE); T-3488 measured write-lock
-  holds of 4 s and fsync stalls far longer on this disk. Find which connection held
-  the lock and why the post's wait ran out; fix so a post waits out normal contention
-  (one writer path, or a bounded retry with a loud error past a much longer bound),
-  with a deterministic test that holds the lock from the other connection.
+  Under load avg 44-62 (other agents' playwright/python on 24 cores) T-3533's verification
+  failed three ways that all trace to fixed timeouts, not code: resend_tests (11/12
+  panic at Estate::hub_id unwrap, hub.version 5s timeout), fc_2 (same), hub channel_subscribe_no_hang_under_concurrent_walks_t2258
+  (60s bound; meta write lock held 8123 ms). Same binary passed 12/12 on an earlier
+  run. Decide: scale fixture timeouts, retry hub_id in Estate, or mark load-sensitive
+  tests and gate them on load.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: [bug, arc:arc-011]
-components: []
+horizon: null
+tags: []
+components: [crates/termlink-sidecar/src/testkit.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -48,9 +43,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-21T15:28:51Z
-last_update: 2026-10-21T15:45:02Z
-date_finished:
+created: 2026-10-21T21:31:02Z
+last_update: 2026-10-21T23:24:42Z
+date_finished: 2026-10-21T23:24:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -62,7 +57,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-10-21T15:29:31Z'
+  - ts: '2026-10-21T23:17:34Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -77,20 +72,24 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3531: Bus post can fail 'database is locked' (SQLITE_BUSY after 5 s) under concurrent reclaim / second writer connection
+# T-3535: Sidecar/hub tests time out on a loaded host: fixture hub.version 5s, T-2258 60s walk bound
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Found while closing T-3533 (2026-10-21, load average 44–62 on 24 cores from other agents' browser/python jobs).
+Both bounds were already widened once: `Estate::hub_id` (crates/termlink-sidecar/src/testkit.rs:184) retries
+`hub.version` for 90 s, and the hub test T-2258 uses `test_budget(60s)`, scaled by `TERMLINK_TEST_TIME_FACTOR`
+(T-3479). At load 62 both still ran out: the sidecar fixture hub did not answer for 90 s (11/12 resend tests and
+fc_2), and the T-2258 walk exceeded 60 s while a meta write lock was held 8.1 s. The same binary passed every
+one of these at lower load. The sidecar fixture ignores `TERMLINK_TEST_TIME_FACTOR`, so a contended host has no
+single dial covering both crates.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Root cause named in the RCA with file:line: which connection held the write lock past the post's 5 s busy wait (bus writer, bus reader, worker_contract writer, reclaim), and since which commit the second writer connection exists
-- [x] A deterministic failing-first test holds the write lock from the other connection (or simulates a slow commit) for longer than the post's wait and shows the post refused today; after the fix the post waits and succeeds within a bounded time, and past that bound fails with a named, loud error (not a raw SQLITE_BUSY)
-- [x] The fix keeps the T-3488 budget: a post is still two durable steps (`a_post_is_two_durable_steps_and_a_create_is_one` unchanged) and the slow-lock log still names the waiting and holding call sites
-- [x] `readers_never_see_a_broken_log_during_posts_trims_and_rewrites` passes 20 consecutive runs, including alongside a parallel `cargo build` (2026-10-22: 20/20 while the T-3533 close ran cargo build/test alongside; host load 44–93 during the loop, 22 at its end); `cargo test -p termlink-bus -p termlink-hub` passes; RCA and Evolution filled
+- [x] `Estate::hub_id`'s 90 s deadline scales by `TERMLINK_TEST_TIME_FACTOR` (default 1, same parsing as the hub's `test_budget`), so one env var widens both crates' load-sensitive bounds; the default stays 90 s
+- [x] The sidecar suite passes with `TERMLINK_BIN` set (`test result: ok`, no `FAILED`); the factor's parsing is pinned by `testkit::tests::time_factor_defaults_to_one_and_never_shrinks`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -141,10 +140,9 @@ bvp_scores_proposed:
 -->
 
 ## Verification
-
-cargo test -p termlink-bus --lib readers_never_see_a_broken_log_during_posts_trims_and_rewrites > /tmp/.t3531-r 2>&1 && grep -q "test result: ok. 1 passed" /tmp/.t3531-r
-cargo test -p termlink-bus --lib a_post_is_two_durable_steps > /tmp/.t3531-d 2>&1 && grep -q "test result: ok. 1 passed" /tmp/.t3531-d
-cargo test -p termlink-bus -p termlink-hub > /tmp/.t3531 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3531
+grep -q 'TERMLINK_TEST_TIME_FACTOR' crates/termlink-sidecar/src/testkit.rs
+cargo test -p termlink-sidecar --lib > /tmp/.t3535 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3535
+cargo build -p termlink -q && TERMLINK_BIN=$PWD/target/debug/termlink TERMLINK_TEST_TIME_FACTOR=1 cargo test -p termlink-sidecar --test resend_tests > /tmp/.t3535-r 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3535-r
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -315,26 +313,6 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3531 2>&1 && ! grep -q "test
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** `bus.post` returned `Sqlite(DatabaseBusy)` ("database is locked") while a reclaim and trims ran on the same topic. It was seen once in `reclaim::tests::readers_never_see_a_broken_log_during_posts_trims_and_rewrites` (reclaim.rs:540, the poster's `unwrap`). 6/6 isolated reruns passed before the fix.
-
-**Root cause (measured, not inferred).** The post's write transaction was DEFERRED, and a deferred transaction that has already read cannot wait for a lock it needs to upgrade to.
-- `crates/termlink-bus/src/meta.rs` `record_append` (the post's commit, meta.rs ~256 before the fix) ran `conn.transaction()`, a DEFERRED transaction. Its first statement, the `SELECT next_offset`, starts a read snapshot. The `UPDATE` then needs the write lock. The same pattern was at all 13 explicit write transactions in `meta.rs` (`create_topic`, `trim_records`, `commit_rewrite` at ~495, and others).
-- SQLite runs the busy handler only when the connection is not already inside a transaction. An upgrade from read to write therefore fails at once with SQLITE_BUSY whenever another connection holds the write lock. The message is the same "database is locked" as BUSY_SNAPSHOT, so a stale snapshot is the same class.
-- Measured in the failing-first test, which holds the lock from a second connection for 6 s: the post failed in **20 ms**, not after the 5 s `busy_timeout`. The task's premise that it "waited out 5 s then failed" is wrong. A raw experiment agrees: a deferred upgrade failed in 0.000 s, and `BEGIN IMMEDIATE` waited the full 5.005 s. Raising `busy_timeout` alone would have changed nothing on the post path.
-- The second connection is `WcStore` (`crates/termlink-bus/src/worker_contract.rs:173-178`, its own `Connection` on `meta.db`). It was added by T-3501 (commit `698d630f5`, 2026-10-20), and it takes `BEGIN IMMEDIATE` and holds the write lock through its commit fsync. It is the one writer the Meta mutex does not serialise against. Its `busy_timeout` was 5 s, the same bound T-3488 measured holds exceeding (multi-second fsync stalls on this disk).
-- **Not proven:** which connection held the lock in the one observed flake. In that test only the Meta writer and the read-only connection are active, and `WcStore` is idle, so the logs do not name the holder. The flake was not reproduced before the fix in 6 isolated runs, and not after it in 20 runs under synthetic load. The mechanism above is what makes any contention a refusal. The fix removes that mechanism for every holder.
-
-**Why structurally allowed:** no test ever held the write lock from a second connection. The `busy_timeout` looked like protection in the code, and the single-connection unit tests could not exercise it. The T-3488 slow-lock log measured the wait but could not show a wait that never happened.
-
-**Prevention:** two deterministic tests in `crates/termlink-bus/src/lib.rs`: `a_post_waits_out_a_write_lock_held_by_another_connection` (6 s hold, red before the fix, green after) and `a_post_past_the_write_lock_bound_is_refused_by_name` (named refusal past the bound, nothing written). Every write transaction in `meta.rs` now uses `TransactionBehavior::Immediate`, the same as `WcStore` already did.
-
-**The fix.**
-1. `meta.rs`: all 13 explicit write transactions use `transaction_with_behavior(TransactionBehavior::Immediate)`. The lock is taken at BEGIN, where the busy handler applies.
-2. `meta.rs` `WRITE_LOCK_WAIT_MS = 30_000` replaces the 5 s bound on the Meta writer, and `worker_contract.rs` `WcStore::open` uses the same constant, so both writers wait the same time. The T-3488 durable-step budget is unchanged: a post is still two durable steps, and `a_post_is_two_durable_steps_and_a_create_is_one` passes unchanged.
-3. `meta.rs` `with_conn_mut` maps a busy error past that bound to `BusError::WriteLockTimeout { site, wait_ms }` (error.rs), with a loud stderr line naming the call site. The bound it reports is the one that actually ran (`Meta.write_wait_ms`).
-
-**Scope note.** `WcStore` (worker contract) errors past the bound still surface as `WcError::Sqlite`, not the named variant. Its wait is now the same 30 s, but naming it is not in this slice. The read-only connection keeps 5 s: a WAL reader never waits for a writer.
-
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -358,11 +336,6 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3531 2>&1 && ! grep -q "test
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
-
-### 2026-10-21 — the premise was the wait; the cause was the upgrade
-- **What changed:** The brief said the post waited the 5 s `busy_timeout` and then failed. The first failing-first run showed it failing in 20 ms. A deferred transaction cannot wait for an upgrade to the write lock, so the busy handler never ran. A bigger timeout alone would have fixed nothing on the post path.
-- **Plan impact:** The fix is `BEGIN IMMEDIATE` on every write transaction, plus the 30 s bound for both writers, plus a named refusal past the bound. The brief's "raise the wait" was necessary but not sufficient.
-- **Triggered:** None. Scope stayed in `crates/termlink-bus`. The worker-contract error path (`WcError`) still surfaces its busy error unnamed, recorded as a scope note in RCA.
 
 ## Recommendation
 
@@ -416,18 +389,28 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3531 2>&1 && ! grep -q "test
 
 ## Updates
 
-### 2026-10-21T15:28:51Z — task-created [task-create-agent]
+### 2026-10-21T21:31:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3531-bus-post-can-fail-database-is-locked-sql.md
+- **Output:** /opt/termlink/.tasks/active/T-3535-sidecarhub-tests-time-out-on-a-loaded-ho.md
 - **Context:** Initial task creation
 
-### 2026-10-21T15:29:31Z — status-update [task-update-agent]
+### 2026-10-21T23:17:33Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
 
-### 2026-10-21 — fix verified, work-completed NOT set [w-db-locked]
-- **Red before:** `a_post_waits_out_a_write_lock_held_by_another_connection` failed with `Sqlite(DatabaseBusy)` in 20 ms (6 s holder on a second connection). Measured, not from the 5 s wait the brief assumed.
-- **Green after:** that test passes (6.3 s); `a_post_past_the_write_lock_bound_is_refused_by_name` passes (named `WriteLockTimeout` with call site and bound, nothing written); `a_post_is_two_durable_steps_and_a_create_is_one` passes unchanged.
-- **Readers test:** `readers_never_see_a_broken_log_during_posts_trims_and_rewrites` passed 20/20 in a loop run directly from the test binary, with synthetic CPU and fsync load in the background. The load intensity was not measured. Not run alongside a literal parallel `cargo build`, so AC 4's wording is not fully met and that AC stays open.
-- **Suite:** `cargo test -p termlink-bus -p termlink-hub` exit 0; bus 199/199, hub lib 556 passed, 0 failed.
-- **Open:** the holder in the one observed flake is not identified by the logs (only the Meta writer and the read-only connection are active in that test; WcStore is idle). The mechanism that turned any contention into a refusal is removed for every holder.
-- **Commit:** pending, paths named explicitly; the rest of the working tree is framework state, not part of this change.
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d3a10cbf
+- **Timestamp:** 2026-10-21T23:25:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T23:24:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
