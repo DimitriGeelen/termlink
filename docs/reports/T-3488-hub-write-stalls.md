@@ -122,3 +122,14 @@ Host-wide write load on the same NVMe/btrfs root (not a restart, not one peer, n
 - `iostat -x 1` plus `pidstat -d 1` during the next 10:20-style `:20` window, and `/proc/<hub-pid>/task/*/wchan` sampled during a stall (confirms `btrfs_sync_file` vs `futex` on the write mutex).
 - Add the wait-vs-fsync split to the T-3478 slow line (already proposed in section 6, fix 4). It turns "which fsync" from inference into a measurement.
 - Rule out the sidecar snapshot subscribes as write load: check `note_subscribe_fetch` throttling in the 08–10Z window (count of persisted fetches per minute).
+
+## Night sampler (2026-10-20 21:50Z – 2026-10-21 00:00Z)
+
+Full analysis: `docs/reports/T-3488-iosample-analysis.md` (pidstat -d + iostat -x, 780 ticks of 10 s).
+
+1. **The "sustained 60–90 MB/s" premise does not hold at the device.** iostat on nvme0n1: mean 23 MB/s, p90 66 MB/s, max 354 MB/s. The 60–90 figure was pidstat's per-process sum, which runs about 3× the device rate (double attribution), so per-process numbers are approximate.
+2. **The load is bursty**, in two windows (about 21:50–22:20Z and 23:30–23:50Z); the top 5% of ticks carry 43% of the bytes.
+3. **The hub is not a writer of note:** `termlink hub start` averaged 27 kB/s (21 MB over 2 h), about 0.1% of the device mean.
+4. **Stalls are latency-bound, not bandwidth-bound.** At 22:09Z w_await reached 497 ms at only 9–10 MB/s (heavy mixed reads and writes); at 23:45Z w_await reached 327 ms with ~650 small writes/s at ~16 KB each (queue depth 156–230). 32 of 33 ticks over 80% util also had w_await > 10 ms. Small synchronous writes from agent tooling (claude sessions, git and fw hooks, bats runs, headless Chromium, the `web.embeddings.reindex_incremental` job) queue behind each other.
+5. **Consequence for the fix:** this supports the T-3488 diagnosis (the hub queues behind other writers' fsyncs) and the shipped fix (fewer durable steps per post, the slow-lock log splitting wait from fsync). It also means the 24 h re-measure must be read against concurrent device latency: the AC's "while the disk is under 90% util" is the right qualifier, and a w_await series should be captured alongside.
+6. **Not the hub's to fix, but worth a task:** the reindex job's schedule and fsync rate, and the fsync rate of the 23:30–23:50Z window.
