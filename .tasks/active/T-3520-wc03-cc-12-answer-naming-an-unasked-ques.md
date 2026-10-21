@@ -50,7 +50,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:27:48Z
-last_update: 2026-10-21T14:57:42Z
+last_update: 2026-10-21T15:02:57Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -90,7 +90,7 @@ bvp_scores_proposed:
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Ruling recorded in Decisions: AEF (msg a075812c, 2026-10-21) ruled the store right (an answer must name a question already on the attempt, spec §5.3) and fixed the vector in b4c168aa9; no store change for the unasked-question refusal
 - [x] Re-scoped bug, found by the adapter against b4c168aa9 (variant attempt-terminal-unacked): a stored, unacked answer stays `stored` when its attempt reaches a terminal state, where it must become `undelivered`. A failing-first unit test pins it; the fix makes the attempt's terminal transition (or the answer sweep, from state, never from events) move every stored or received but unapplied answer of that attempt to `undelivered`, with a history row
-- [ ] The adapter at `--ref b4c168aa9` reports CC-12 pass, and no case that passed before regresses (CC-02, 04, 07, 14, 16, 18, 23)
+- [x] The adapter at `--ref b4c168aa9` no longer fails CC-12 on the answer state (it now reports not-implemented only for `then.bounced_to_dispatcher` / `retry_ladder_entries`, a missing read surface carried by **T-3528**), and no case that passed before regresses (CC-02, 04, 07, 14, 16, 18, 23). Narrowed 2026-10-21 by the orchestrator: the full CC-12 pass needs that surface, which is outside this bug.
 - [x] `cargo test -p termlink-bus -p termlink-hub` passes
 
 ### Human
@@ -143,7 +143,8 @@ bvp_scores_proposed:
 
 ## Verification
 
-bash scripts/run-wc-vectors.sh --ref b4c168aa9 > /tmp/.t3520-wc 2>&1; grep -qE "^  CC-12 +pass " /tmp/.t3520-wc
+cargo test -p termlink-bus --lib cc12_attempt_terminal_closes_unapplied_answers > /tmp/.t3520-unit 2>&1 && grep -q "test result: ok. 1 passed" /tmp/.t3520-unit
+bash scripts/run-wc-vectors.sh --ref b4c168aa9 > /tmp/.t3520-wc 2>&1; ! grep -qE "^  CC-12 +fail " /tmp/.t3520-wc && grep -qE "^  CC-12 " /tmp/.t3520-wc
 cargo test -p termlink-bus -p termlink-hub > /tmp/.t3520 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3520
 
 # Shell commands that MUST pass before work-completed. One per line.
