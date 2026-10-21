@@ -11,12 +11,12 @@ description: >
   unpack (mode 700), verify every file against SHA256SUMS inside, then delete the
   drop. Nothing in the pack is executed.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -45,8 +45,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T16:34:53Z
-last_update: 2026-10-21T16:35:42Z
-date_finished:
+last_update: 2026-10-21T20:57:04Z
+date_finished: 2026-10-21T20:57:04Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -85,7 +85,7 @@ bvp_scores_proposed:
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] runme.sh action 22 verifies the tarball's sha256 against ring20's, refuses unless the destination is gitignored, unpacks into `.context/working/ring20-deep-inception/` (mode 700), verifies every file against the SHA256SUMS inside, and only then deletes the `/var/tmp` drop; it never executes anything from the pack and is idempotent
 - [x] Hermetic fixtures in tests/runme-fixtures.sh cover skip, dry-run, apply, wrong sha256, tampered contents and a non-ignored destination; the full suite passes (155/0)
-- [ ] The operator's run shows action 22 OK in the runme log, the drop gone and the files verified
+- [x] The operator's run shows action 22 OK in the runme log, the drop gone and the files verified (run 20261021T203302Z: OK unpacked, verified, drop deleted; the folder was left 755 by tar, fixed in the follow-up commit; run 20261021T205619Z: OK now owner-only, verified on disk, 0 group/other-accessible entries)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -393,3 +393,22 @@ test -z "$(git ls-files .context/working/ring20-deep-inception)"
 
 ### 2026-10-21T16:35:42Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4f0b75d4
+- **Timestamp:** 2026-10-21T20:57:06Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Hermetic fixtures in tests/runme-fixtures.sh cover skip, dry-run, apply, wrong sha256, tampered contents and a non-ignored destination; the full suite passes (155/0)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/runme-fixtures.sh in: Hermetic fixtures in tests/runme-fixtures.sh cover skip, dry-run, apply, wrong sha256, tampered contents and a non-ignored destination; the full suite`
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T20:57:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
