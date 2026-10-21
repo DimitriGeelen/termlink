@@ -1277,7 +1277,7 @@ divergences:
     commit_note: Registered in the same commit that carries the patch.
     date: 2026-10-21
     file: .agentic-framework/lib/sidecar/inject.py
-    status: local-only
+    status: filed-upstream
     kind: fix
     generality: GENERIC
     symptom: >-
@@ -1294,14 +1294,14 @@ divergences:
       session (notify with token rings, notify with no token refused, inject with a notify
       token refused, control token injects, a world-readable token file refused).
     upstream_note: >-
-      Not yet filed. Wants filing with AEF with the lib/sidecar_cli.py status line. The
+      Filed at framework:pickup offset 355 (2026-10-22), with the sidecar_cli.py status line. The
       fix assumes a `termlink` new enough to carry `pty notify` (T-3533, this repo's build).
   - task: T-3536
     commit: pending-same-commit
     commit_note: Registered in the same commit that carries the patch.
     date: 2026-10-22
     file: .agentic-framework/lib/sidecar/inject.py
-    status: local-only
+    status: filed-upstream
     kind: fix
     generality: GENERIC
     symptom: >-
@@ -1311,13 +1311,13 @@ divergences:
       ring_failure_reason(route, err) names the route actually used: "doorbell failed
       (tmux send-keys)" or "doorbell refused (termlink pty notify)".
     evidence: tests/sidecar_doorbell_test.py test_failure_reason_names_the_route_used.
-    upstream_note: Not yet filed; file with the T-3533 inject.py entry above.
+    upstream_note: Filed at framework:pickup offset 355 (2026-10-22) with the T-3533 inject.py entry above.
   - task: T-3533
     commit: pending-same-commit
     commit_note: Registered in the same commit that carries the patch.
     date: 2026-10-21
     file: .agentic-framework/lib/sidecar_cli.py
-    status: local-only
+    status: filed-upstream
     kind: fix
     generality: GENERIC
     symptom: >-
@@ -1326,7 +1326,7 @@ divergences:
     fix: >-
       Prints `doorbell_warning()` (T-3533) next to the T-3900 several-sessions line.
     evidence: Same fixture file as inject.py (the warning builder is tested there).
-    upstream_note: Not yet filed; file with the inject.py change.
+    upstream_note: Filed at framework:pickup offset 355 (2026-10-22) with the inject.py change.
 not_divergence:
   - kind: vendor-event
     tasks: [T-2705]
