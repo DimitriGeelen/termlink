@@ -224,6 +224,18 @@ fn hooks_scripted_demo() {
     // 3 B's agent starts a session and ends a tool call: the hooks run.
     let errlog = e.root().join("hook-errors.log");
     let session = "5e55f00d-0000-4000-8000-00000000demo";
+    // A real session's transcript exists from its first turn on. Create it before
+    // the hooks run: with no file the finalizer reads "cannot open" as Unreadable and
+    // records UNCERTAIN (deliver.rs, "Unreadable is never absence"), which is correct
+    // for a missing transcript but is not the path this demo exercises.
+    let proj = e.home().join(".claude").join("projects").join("-estate-proj-b");
+    std::fs::create_dir_all(&proj).unwrap();
+    let transcript = proj.join(format!("{session}.jsonl"));
+    std::fs::write(
+        &transcript,
+        format!("{}\n", json!({"type": "user", "message": {"role": "user", "content": "start"}})),
+    )
+    .unwrap();
     let send_b = sock(&e, "agent-b", Scope::Send);
     let (rc, out) = run_hook(&e, "session-start", &send_b, &json!({"session_id": session}), &errlog);
     assert_eq!((rc, out.as_str()), (0, ""));
@@ -245,15 +257,18 @@ fn hooks_scripted_demo() {
 
     // 4 The harness writes it into B's transcript (scripted: the record shape of
     //   the B1 spike), under B's own HOME where the sidecar looks for it.
-    let proj = e.home().join(".claude").join("projects").join("-estate-proj-b");
-    std::fs::create_dir_all(&proj).unwrap();
     let recs = [
         json!({"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": tool, "name": "Bash", "input": {}}]}}),
         json!({"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": tool, "content": "ok"}]}}),
         json!({"type": "attachment", "attachment": {"type": "hook_additional_context", "content": [frame], "hookName": "PostToolUse:Bash", "toolUseID": tool, "hookEvent": "PostToolUse"}}),
     ];
     let text: String = recs.iter().map(|r| format!("{r}\n")).collect();
-    std::fs::write(proj.join(format!("{session}.jsonl")), text).unwrap();
+    // Rename, not rewrite: the sweeper may read at any moment, and a half-written
+    // last line is Unreadable (UNCERTAIN) by design.
+    let first = std::fs::read_to_string(&transcript).unwrap();
+    let tmp = proj.join(format!("{session}.tmp"));
+    std::fs::write(&tmp, format!("{first}{text}")).unwrap();
+    std::fs::rename(&tmp, &transcript).unwrap();
 
     // 5 The detached finalizer finds the harness record; A sees HANDED_OVER.
     assert!(
