@@ -9,16 +9,16 @@ description: >
   observe, but the CLI inject cannot present a token, so it would also lock out the
   session's own sidecar.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-10-20T14:38:15Z
-last_update: 2026-10-21T15:56:11Z
-date_finished:
+last_update: 2026-10-21T17:43:30Z
+date_finished: 2026-10-21T17:43:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -112,15 +112,15 @@ crates/termlink-hub/src/channel.rs (only channel posts carry and verify identity
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -197,7 +197,14 @@ requires, but its design is a separate decision with the peer projects.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: The risk is verified (open sessions accept inject from any hub-secret holder; the existing lock breaks the
+sidecar doorbell) and O-7 names injection. Two independent external reviewers (codex, Antigravity; docs/reports/T-3493-consult/)
+both chose B as an interim fix and both improved it into B′. C (signed inject + spawn-time allowlist) is what O-7
+requires, but its design is a separate decision with the peer projects.
+
+**Date**: 2026-10-21T17:43:29Z
 
 ## Updates
 
@@ -207,3 +214,37 @@ requires, but its design is a separate decision with the peer projects.
 ### 2026-10-21T15:44:46Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-21T17:43:29Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** The risk is verified (open sessions accept inject from any hub-secret holder; the existing lock breaks the
+sidecar doorbell) and O-7 names injection. Two independent external reviewers (codex, Antigravity; docs/reports/T-3493-consult/)
+both chose B as an interim fix and both improved it into B′. C (signed inject + spawn-time allowlist) is what O-7
+requires, but its design is a separate decision with the peer projects.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-60a9fd7e
+- **Timestamp:** 2026-10-21T17:43:32Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-1968c0df
+- **Timestamp:** 2026-10-21T17:43:32Z
+- **Overall:** UNVERIFIED
+- **Claims:** 0
+- No verifiable claims found in ## Recommendation
+
+### 2026-10-21T17:43:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
