@@ -1,10 +1,20 @@
 ---
 id: T-3518
-name: "wc/0.3 CC-16: refused supervisor exit with absent handback classed handback-malformed, not refused"
+name: "wc/0.3 CC-16: refused supervisor exit with absent handback classed handback-malformed,
+  not refused"
 description: >
-  Found by the T-3517 hub conformance adapter (AEF vectors.yaml, case CC-16, variant supervisor-refusal). Given: E1 exit_code 3, supervisor_refused true, handback absent, signed true. Steps: complete (supervisor, attempt 1, valid nonce and credential) expecting accepted T3. Expected final: A1 state done, outcome refused, exit_code 3. Observed: outcome handback-malformed. Cause: crates/termlink-bus/src/worker_contract.rs derive_outcome() tests the handback before the refused flag, so a refusal without a handback is never refused. CC-21 refused-before-start shows the same divergence (separate bug task). Fix belongs in the backend (do not patch from the adapter). Confirm the precedence with AEF: CC-25 exit-confirmed-handback-absent (not refused, exit 143) still expects handback-malformed, so only the refused flag should win.
+  Found by the T-3517 hub conformance adapter (AEF vectors.yaml, case CC-16, variant
+  supervisor-refusal). Given: E1 exit_code 3, supervisor_refused true, handback absent,
+  signed true. Steps: complete (supervisor, attempt 1, valid nonce and credential)
+  expecting accepted T3. Expected final: A1 state done, outcome refused, exit_code
+  3. Observed: outcome handback-malformed. Cause: crates/termlink-bus/src/worker_contract.rs
+  derive_outcome() tests the handback before the refused flag, so a refusal without
+  a handback is never refused. CC-21 refused-before-start shows the same divergence
+  (separate bug task). Fix belongs in the backend (do not patch from the adapter).
+  Confirm the precedence with AEF: CC-25 exit-confirmed-handback-absent (not refused,
+  exit 143) still expects handback-malformed, so only the refused flag should win.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +48,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:27:26Z
-last_update: 2026-10-21T14:27:26Z
-date_finished: null
+last_update: 2026-10-21T14:35:54Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +60,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T14:35:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3518: wc/0.3 CC-16: refused supervisor exit with absent handback classed handback-malformed, not refused
@@ -62,8 +86,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] A unit test in crates/termlink-bus written first and failing on main: a refused supervisor exit (supervisor_refused true, exit_code 3) with the handback absent derives outcome `refused`
+- [ ] `derive_outcome` checks the refused flag before the handback check, and only the refused flag wins: an exit with no refusal and an absent handback (the CC-25 shape, exit 143) still derives `handback-malformed`, pinned by its own test; the existing `cc16_outcome_derivation_and_cc19_paused` test still passes
+- [ ] The conformance adapter reports CC-16 as pass: `TERMLINK_WC_VECTORS=<fetched file> cargo test -p termlink-hub --test wc_conformance` shows CC-16 pass (and CC-21, which T-3519 tracks with the same root cause)
+- [ ] `cargo test -p termlink-bus -p termlink-hub` passes; RCA section filled
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +140,9 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo test -p termlink-bus --lib worker_contract > /tmp/.t3518 2>&1 && grep -q "test result: ok" /tmp/.t3518 && ! grep -q "test result: FAILED" /tmp/.t3518
+bash scripts/run-wc-vectors.sh > /tmp/.t3518-wc 2>&1; grep -qE "^  CC-16 +pass " /tmp/.t3518-wc
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +393,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3518-wc03-cc-16-refused-supervisor-exit-with-.md
 - **Context:** Initial task creation
+
+### 2026-10-21T14:35:54Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

@@ -1,10 +1,20 @@
 ---
 id: T-3519
-name: "wc/0.3 CC-21: refused-before-start exit with absent handback classed handback-malformed, not refused"
+name: "wc/0.3 CC-21: refused-before-start exit with absent handback classed handback-malformed,
+  not refused"
 description: >
-  Found by the T-3517 hub conformance adapter (AEF vectors.yaml, case CC-21, variant refused-before-start). Given: attempt 1 dispatched; E1 exit_code 3, supervisor_refused true, handback absent. Steps: complete (supervisor, attempt 1, valid nonce and credential) expecting accepted T3b, then advance past deadline_dispatched expecting no transition. Expected final: A1 state done, outcome refused. Observed: the complete is accepted as T3b, and the outcome is handback-malformed. Cause: the same derive_outcome() ordering as CC-16 in crates/termlink-bus/src/worker_contract.rs (handback checked before the refused flag). Fixing that one function clears both CC-16 and CC-21; they are filed separately because the adapter reports each case on its own. Do not patch the backend from the adapter.
+  Found by the T-3517 hub conformance adapter (AEF vectors.yaml, case CC-21, variant
+  refused-before-start). Given: attempt 1 dispatched; E1 exit_code 3, supervisor_refused
+  true, handback absent. Steps: complete (supervisor, attempt 1, valid nonce and credential)
+  expecting accepted T3b, then advance past deadline_dispatched expecting no transition.
+  Expected final: A1 state done, outcome refused. Observed: the complete is accepted
+  as T3b, and the outcome is handback-malformed. Cause: the same derive_outcome()
+  ordering as CC-16 in crates/termlink-bus/src/worker_contract.rs (handback checked
+  before the refused flag). Fixing that one function clears both CC-16 and CC-21;
+  they are filed separately because the adapter reports each case on its own. Do not
+  patch the backend from the adapter.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +48,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:27:38Z
-last_update: 2026-10-21T14:27:38Z
-date_finished: null
+last_update: 2026-10-21T14:35:55Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +60,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T14:35:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3519: wc/0.3 CC-21: refused-before-start exit with absent handback classed handback-malformed, not refused
@@ -62,8 +86,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Confirmed fixed by T-3518's change (same root cause: `derive_outcome` checked the handback before the refused flag), or, if CC-21 still fails after it, its own cause named in the RCA and fixed
+- [ ] The conformance adapter reports CC-21 as pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +138,8 @@ date_finished: null
 -->
 
 ## Verification
+
+bash scripts/run-wc-vectors.sh > /tmp/.t3519-wc 2>&1; grep -qE "^  CC-21 +pass " /tmp/.t3519-wc
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +390,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3519-wc03-cc-21-refused-before-start-exit-wit.md
 - **Context:** Initial task creation
+
+### 2026-10-21T14:35:55Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
