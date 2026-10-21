@@ -1636,7 +1636,10 @@ PACK_SHA="${RUNME_PACK_SHA:-2ee08f7818dbe2792d306052f5ae66c1663276bf5477c85b79a5
 pack_verifies() {  # 0 when $PACK_DEST holds the unpacked pack and every SHA256SUMS line matches
     local sums; sums="$(find "$PACK_DEST" -name SHA256SUMS -type f 2>/dev/null | head -1)"
     [ -n "$sums" ] || return 1
-    ( cd "$(dirname "$sums")" && grep -E '^[0-9a-f]{64}  ' SHA256SUMS | sha256sum -c --quiet - >/dev/null 2>&1 )
+    # SHA256SUMS may list itself, hashed while it was still empty (ring20's pack does: "ignore its
+    # own empty line"); a file cannot carry its own final hash, so that one entry is skipped.
+    ( cd "$(dirname "$sums")" && grep -E '^[0-9a-f]{64}  ' SHA256SUMS | grep -vE '  (\./)?SHA256SUMS$' \
+        | sha256sum -c --quiet - >/dev/null 2>&1 )
 }
 
 import_ring20_pack() {

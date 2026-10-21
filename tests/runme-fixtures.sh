@@ -43,7 +43,8 @@ chmod +x "$TMP/fake-gov"
 PACK_REPO="$TMP/packrepo"; mkdir -p "$PACK_REPO/work" "$TMP/packsrc/pack"
 git -C "$PACK_REPO" init -q 2>/dev/null; printf 'work/*\n' > "$PACK_REPO/.gitignore"
 printf 'plan\n' > "$TMP/packsrc/pack/plan.md"; printf 'chain: v2\n' > "$TMP/packsrc/pack/role-chain.yaml"
-( cd "$TMP/packsrc/pack" && sha256sum plan.md role-chain.yaml > SHA256SUMS && echo >> SHA256SUMS )
+# Shaped like ring20's real pack: SHA256SUMS lists itself first, hashed while still empty.
+( cd "$TMP/packsrc/pack" && : > SHA256SUMS && sha256sum ./SHA256SUMS ./plan.md ./role-chain.yaml > SHA256SUMS.new && mv SHA256SUMS.new SHA256SUMS && echo >> SHA256SUMS )
 tar -czf "$TMP/pack-good.tgz" -C "$TMP/packsrc" pack
 export RUNME_PACK_GITROOT="$PACK_REPO" RUNME_PACK_DEST="$PACK_REPO/work/pack" RUNME_PACK_SRC="$TMP/pack-drop.tgz"
 export RUNME_PACK_SHA="$(sha256sum "$TMP/pack-good.tgz" | cut -d' ' -f1)"
