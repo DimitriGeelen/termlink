@@ -50,7 +50,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:27:48Z
-last_update: 2026-10-21T14:57:40Z
+last_update: 2026-10-21T14:57:42Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -88,10 +88,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Ruling recorded in Decisions: AEF (msg a075812c, 2026-10-21) ruled the store right (an answer must name a question already on the attempt, spec §5.3) and fixed the vector in b4c168aa9; no store change for the unasked-question refusal
-- [ ] Re-scoped bug, found by the adapter against b4c168aa9 (variant attempt-terminal-unacked): a stored, unacked answer stays `stored` when its attempt reaches a terminal state, where it must become `undelivered`. A failing-first unit test pins it; the fix makes the attempt's terminal transition (or the answer sweep, from state, never from events) move every stored or received but unapplied answer of that attempt to `undelivered`, with a history row
+- [x] Ruling recorded in Decisions: AEF (msg a075812c, 2026-10-21) ruled the store right (an answer must name a question already on the attempt, spec §5.3) and fixed the vector in b4c168aa9; no store change for the unasked-question refusal
+- [x] Re-scoped bug, found by the adapter against b4c168aa9 (variant attempt-terminal-unacked): a stored, unacked answer stays `stored` when its attempt reaches a terminal state, where it must become `undelivered`. A failing-first unit test pins it; the fix makes the attempt's terminal transition (or the answer sweep, from state, never from events) move every stored or received but unapplied answer of that attempt to `undelivered`, with a history row
 - [ ] The adapter at `--ref b4c168aa9` reports CC-12 pass, and no case that passed before regresses (CC-02, 04, 07, 14, 16, 18, 23)
-- [ ] `cargo test -p termlink-bus -p termlink-hub` passes
+- [x] `cargo test -p termlink-bus -p termlink-hub` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -301,6 +301,11 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3520 2>&1 && ! grep -q "test
 
 ## RCA
 
+**Symptom:** CC-12 variant attempt-terminal-unacked: after the attempt reached `done`, the unacked answer stayed `stored` (adapter: expected undelivered, got stored).
+**Root cause:** `undelivered` was written only by the sweep (`sweep_answers_tx`), and the vector (rightly) runs no sweep step; the `done` transition (T3) and operator resolve never touched the attempt's answers.
+**Why structurally allowed:** the existing test `answer_to_an_attempt_that_ended_is_undelivered` itself called the sweep, so it pinned the sweep as the only mover.
+**Prevention:** `cc12_attempt_terminal_closes_unapplied_answers` asserts the state after the transition with no sweep; the sweep path stays as a backstop (lost attempts).
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -316,6 +321,11 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3520 2>&1 && ! grep -q "test
 -->
 
 ## Evolution
+
+### 2026-10-21 — terminal transition owns answer closure [arc:arc-011]
+- **What changed:** the vector's terminal variant has no sweep step, so closure by sweep alone cannot satisfy it; the closure belongs to the terminal write, derived from state.
+- **Plan impact:** reaching CC-12 pass needs the backend to expose `bounced_to_dispatcher` and `retry_ladder_entries` on the dispatch record; the fix alone gets the state right but not the verdict.
+- **Triggered:** follow-up needed (adapter/record exposure), not yet filed.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -370,6 +380,10 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3520 2>&1 && ! grep -q "test
 
 ## Decisions
 
+### 2026-10-21 — CC-12 unasked question
+- **Chose:** no store change; AEF (msg a075812c) ruled an answer must name a question already on the attempt (spec 5.3) and fixed the vector in b4c168aa9.
+- **Why:** the store was right; the vector seeded no q1.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -390,6 +404,10 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3520 2>&1 && ! grep -q "test
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-21 — fix [agent w-answer-terminal]
+- `close_ended_answers_tx` (answer.rs) runs in the same transaction as the T3 done transition and operator resolve; stored/received answers become `undelivered`, question bounced, history row `answer_undelivered:attempt_ended`.
+- Adapter b4c168aa9: pass=7 fail=4 ni=13 -> pass=7 fail=3 ni=14. CC-12 moved fail -> not-implemented: state now matches, but the adapter reports `then.bounced_to_dispatcher` (and `retry_ladder_entries`) as surfaces the backend does not expose. The CC-12 pass AC and its verification line stay open pending that exposure (wc_conformance.rs / dispatch record, out of this worker's scope).
 
 ### 2026-10-21T14:27:48Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent

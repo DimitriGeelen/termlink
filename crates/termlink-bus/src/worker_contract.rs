@@ -334,6 +334,7 @@ impl WcStore {
                 let (qs, ans) = answer::qa_json(&conn, dispatch_id, n)?;
                 a["questions"] = qs;
                 a["answers"] = ans;
+                a["notices"] = notices::notices_json(&conn, dispatch_id, n)?;
                 attempts.push(a);
             }
             d["attempts"] = Value::Array(attempts);
@@ -525,9 +526,14 @@ fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcRe
                     match req.persisted_at {
                         Some(p) if p <= lost_ts => {}
                         _ => {
-                            return refuse(
+                            // T-3521: the cause marks this refusal so it raises a `late_evidence` notice.
+                            append_history(
+                                tx, id, current, Some(actual), actual, "supervisor", now_ms, None,
+                                Some(notices::CAUSE_LATE_EVIDENCE), Some(FenceReason::ForbiddenTransition.as_str()),
+                            )?;
+                            return fence(
                                 FenceReason::ForbiddenTransition,
-                                "evidence was not persisted before the lost entry".into(),
+                                "evidence was not persisted before the lost entry",
                             );
                         }
                     }
@@ -558,6 +564,7 @@ fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcRe
                 ],
             )?;
             append_history(tx, id, req.attempt, Some(actual), "done", "supervisor", now_ms, Some(digest), req.cause.as_deref(), None)?;
+            answer::close_ended_answers_tx(tx, id, req.attempt, "done", now_ms)?;
         }
         // lost / unknown are the sweep's (S2); dispatched is only ever T1.
         other => return refuse(FenceReason::ForbiddenTransition, format!("{actual} -> {other}")),
@@ -686,6 +693,8 @@ fn init_schema(conn: &Connection) -> Result<()> {
     ensure_column(conn, "wc_attempts", "absent_sweeps", "INTEGER NOT NULL DEFAULT 0")?;
     // T-3503 (S3): the answer path.
     answer::init_schema(conn)?;
+    // T-3521: durable operator notices (triggers on wc_history).
+    notices::init_schema(conn)?;
     Ok(())
 }
 
@@ -741,9 +750,12 @@ fn new_dispatch_id(now_ms: i64) -> Result<String> {
 }
 
 pub mod answer;
+pub mod notices;
 pub mod sweep;
 #[cfg(test)]
 mod answer_tests;
+#[cfg(test)]
+mod notices_tests;
 #[cfg(test)]
 mod sweep_tests;
 #[cfg(test)]

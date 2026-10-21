@@ -376,6 +376,36 @@ fn ack_tx(tx: &Transaction, req: &AckRequest, now: i64) -> WcResult<AnswerOutcom
     Ok(AnswerOutcome { record: answer_json(tx, id, req.attempt, &req.cmd_id)?, deduped: false })
 }
 
+/// T-3520: the attempt just reached a terminal state (`done`, or `lost` by resolve): every
+/// stored or received but unapplied answer of it can no longer be delivered. Read from
+/// state, never from events, and written in the same transaction as the transition, so
+/// nothing waits on a sweep. Same closure the sweep applies (question bounced, history row).
+pub(super) fn close_ended_answers_tx(tx: &Transaction, id: &str, attempt: i64, state: &str, now: i64) -> WcResult<()> {
+    let open: Vec<(String, Option<String>)> = {
+        let mut st = tx.prepare(
+            "SELECT cmd_id, question_id FROM wc_answers
+             WHERE dispatch_id = ?1 AND attempt = ?2 AND state IN ('stored', 'received')
+             ORDER BY stored_at, cmd_id",
+        )?;
+        let rows = st.query_map(params![id, attempt], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        rows.collect::<std::result::Result<_, _>>()?
+    };
+    for (cmd, question) in open {
+        tx.execute(
+            "UPDATE wc_answers SET state='undelivered', closed_at=?4 WHERE dispatch_id=?1 AND attempt=?2 AND cmd_id=?3",
+            params![id, attempt, cmd, now],
+        )?;
+        if let Some(q) = question {
+            tx.execute(
+                "UPDATE wc_questions SET bounced_at=?4 WHERE dispatch_id=?1 AND attempt=?2 AND question_id=?3",
+                params![id, attempt, q, now],
+            )?;
+        }
+        append_history(tx, id, attempt, Some(state), state, "hub", now, None, Some("answer_undelivered:attempt_ended"), None)?;
+    }
+    Ok(())
+}
+
 /// The sweep step: close answers that can no longer be delivered. State only, no events.
 fn sweep_answers_tx(tx: &Transaction, now: i64) -> WcResult<Vec<AnswerClosed>> {
     struct Open {
@@ -469,12 +499,14 @@ fn resolve_tx(tx: &Transaction, req: &ResolveRequest, now: i64) -> WcResult<Valu
             params![id, req.attempt, digest],
         )?;
         append_history(tx, id, req.attempt, Some("unknown"), "done", "operator", now, Some(&digest), Some(&cause), None)?;
+        close_ended_answers_tx(tx, id, req.attempt, "done", now)?;
     } else {
         tx.execute(
             "UPDATE wc_attempts SET state='lost' WHERE dispatch_id=?1 AND attempt=?2",
             params![id, req.attempt],
         )?;
         append_history(tx, id, req.attempt, Some("unknown"), "lost", "operator", now, None, Some(&cause), None)?;
+        close_ended_answers_tx(tx, id, req.attempt, "lost", now)?;
     }
     super::attempt_record(tx, id, req.attempt)
 }

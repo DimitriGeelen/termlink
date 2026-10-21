@@ -234,6 +234,8 @@ fn cc12_answer_ttl_expiry_bounces() {
 }
 
 /// An answer still `stored` when its attempt ends can never be delivered: `undelivered`.
+/// Since T-3520 the `done` transition itself closes it (see
+/// `cc12_attempt_terminal_closes_unapplied_answers`); the sweep finds nothing left.
 #[test]
 fn answer_to_an_attempt_that_ended_is_undelivered() {
     let (_d, s) = store();
@@ -261,10 +263,8 @@ fn answer_to_an_attempt_that_ended_is_undelivered() {
         3_000,
     )
     .unwrap();
-    let closed = s.sweep_answers(3_100).unwrap();
-    assert_eq!(closed.len(), 1);
-    assert_eq!((closed[0].to.as_str(), closed[0].cause.as_str()), ("undelivered", "attempt_ended"));
     assert_eq!(answers(&s, &a)[0]["state"], "undelivered");
+    assert!(s.sweep_answers(3_100).unwrap().is_empty());
 }
 
 /// CC-10: the parent (dispatcher) session is lost. The records live in the store, not in
@@ -393,4 +393,58 @@ fn resolve_at_works_on_a_live_store_and_never_creates_one() {
     let rec = resolve_at(d.path(), &resolve(&a, "lost", "gone"), 800_000).unwrap();
     assert_eq!(rec["state"], "lost");
     assert_eq!(s.get(&a.dispatch_id).unwrap()["attempts"][0]["state"], "lost");
+}
+
+/// T-3520 (CC-12, attempt-terminal-unacked): when the attempt reaches `done`, its stored or
+/// received but unapplied answers become `undelivered` in the same write, with no sweep run.
+/// An applied answer is left alone, and the question is marked bounced.
+#[test]
+fn cc12_attempt_terminal_closes_unapplied_answers() {
+    let (_d, s) = store();
+    let a = running(&s);
+    s.ask(&ask(&a, "q1"), 2_000).unwrap();
+    s.ask(&ask(&a, "q2"), 2_001).unwrap();
+    s.ask(&ask(&a, "q3"), 2_002).unwrap();
+    s.answer(&answer(&a, "c-stored", Some("q1")), 3_000).unwrap();
+    s.answer(&answer(&a, "c-recv", Some("q2")), 3_001).unwrap();
+    s.answer(&answer(&a, "c-applied", Some("q3")), 3_002).unwrap();
+    s.ack(&ack(&a, "c-recv", "received"), 3_100).unwrap();
+    s.ack(&ack(&a, "c-applied", "received"), 3_101).unwrap();
+    s.ack(&ack(&a, "c-applied", "applied"), 3_102).unwrap();
+    s.transition(
+        &TransitionRequest {
+            dispatch_id: a.dispatch_id.clone(),
+            attempt: a.attempt,
+            nonce: a.nonce.clone(),
+            supervisor_token: Some(a.supervisor_token.clone()),
+            expected_prior: "running".into(),
+            to: "done".into(),
+            supervisor_gen: 1,
+            evidence_digest: Some("E1".into()),
+            exit_code: Some(0),
+            ..Default::default()
+        },
+        4_000,
+    )
+    .unwrap();
+    let got = answers(&s, &a);
+    let state = |c: &str| got.iter().find(|x| x["cmd_id"] == c).unwrap()["state"].clone();
+    assert_eq!(state("c-stored"), "undelivered");
+    assert_eq!(state("c-recv"), "undelivered");
+    assert_eq!(state("c-applied"), "applied");
+    let v = s.get(&a.dispatch_id).unwrap();
+    let qs = v["attempts"][0]["questions"].as_array().unwrap();
+    let bounced = |q: &str| qs.iter().find(|x| x["question_id"] == q).unwrap()["bounced_at"].clone();
+    assert_eq!(bounced("q1"), 4_000);
+    assert_eq!(bounced("q2"), 4_000);
+    assert!(bounced("q3").is_null());
+    let causes: Vec<String> = v["attempts"][0]["history"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|h| h["cause"].as_str().map(str::to_string))
+        .collect();
+    assert_eq!(causes.iter().filter(|c| c.starts_with("answer_undelivered")).count(), 2, "{causes:?}");
+    // Nothing left for the sweep.
+    assert!(s.sweep_answers(4_001).unwrap().is_empty());
 }
