@@ -35,7 +35,7 @@ given/steps have not been checked against the vector text yet; **open** = not bu
 | CC-24 | Late T5 whose evidence postdates the lost entry | covered | `cc24_late_t5_postdating_lost_is_forbidden` |
 | CC-25 | Backend-initiated stop | open | not yet checked; needs the vector text |
 
-Totals: 15 covered, 4 partial, 6 open or n/a (CC-10/11/12/15 wait for S3; CC-22/25 need the vector text; CC-13 is AEF's).
+Totals: 14 covered, 4 partial, 7 open or n/a (CC-10/11/12/15 wait for S3; CC-22/25 need the vector text; CC-13 is AEF's).
 
 Next: when the vector file is on the mirror, (1) read each case's given/steps/then; (2) turn the four partials into
 covered or open; (3) add `cc<NN>_` aliases or rename so each test names its case; (4) send AEF the patch with the
