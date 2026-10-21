@@ -10,12 +10,12 @@ description: >
   (needs-attention / dead-letter), never drop; test with a corrupt record and an unreadable
   dir.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug]
-components: []
+components: [crates/termlink-sidecar/src/send.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -44,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T09:10:27Z
-last_update: 2026-10-21T09:11:12Z
-date_finished:
+last_update: 2026-10-21T11:59:23Z
+date_finished: 2026-10-21T11:59:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -83,8 +83,8 @@ bvp_scores_proposed:
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Tests written first and failing on the unfixed code: (1) a corrupt `.json` awaiting record, (2) an unreadable record file, (3) an unreadable awaiting dir; each must be surfaced, never silently treated as "nothing held"
-- [ ] `awaiting_records` distinguishes absent from unreadable: an unreadable/unparseable record is kept on disk, moved aside or reported, and raised as a needs-attention item (the sidecar's existing attention path) naming the file; an unreadable dir is an error, not an empty list
-- [ ] No change in behaviour for well-formed records (existing keep-until-stored and fault-matrix tests still pass); `cargo test -p termlink-sidecar` passes with TERMLINK_BIN set; RCA section filled
+- [x] `awaiting_records` distinguishes absent from unreadable: an unreadable/unparseable record is kept on disk, moved aside or reported, and raised as a needs-attention item (the sidecar's existing attention path) naming the file; an unreadable dir is an error, not an empty list
+- [x] No change in behaviour for well-formed records (existing keep-until-stored and fault-matrix tests still pass); `cargo test -p termlink-sidecar` passes with TERMLINK_BIN set; RCA section filled
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -135,6 +135,8 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+TERMLINK_BIN=$PWD/target/debug/termlink cargo test -p termlink-sidecar --test resend_tests > /tmp/.t3510 2>&1 && grep -q "unreadable_awaiting_dir_is_an_error_not_an_empty_list ... ok" /tmp/.t3510 && ! grep -q "test result: FAILED" /tmp/.t3510
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -417,3 +419,20 @@ lists its id, so the held count stays truthful. Regression tests
 - **Change:** `awaiting_records()` returns `Result<AwaitingScan, String>`. An unlistable awaiting dir is an `Err` and raises `awaiting-unreadable` attention. An unreadable or unparseable record is moved aside to `<id>.unreadable` and raised as `awaiting-unreadable` naming the file. `awaiting()` lists parseable and quarantined ids, so the held count stays truthful.
 - **Tests:** three regression tests added to `crates/termlink-sidecar/tests/resend_tests.rs`: corrupt record, unreadable record (a directory named `*.json`, which fails as root too), unreadable dir (a regular file where the dir should be). Run with `TERMLINK_BIN=$PWD/target/debug/termlink` (package `termlink`).
 - **Scope:** `crates/termlink-sidecar` only. No change to bus, hub, cli or mcp.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c910d644
+- **Timestamp:** 2026-10-21T11:59:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-21T11:59:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
