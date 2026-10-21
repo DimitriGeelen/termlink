@@ -2086,30 +2086,42 @@ mod tests {
         bus.create_topic("t", Retention::Forever).unwrap();
         let bus = std::sync::Arc::new(bus);
 
+        // T-3516: the wake bound is about the notifier, not the disk. The post's
+        // durable write (payload sync_data + meta commit) can take seconds on a
+        // slow fsync, so stamp the moment `post` has committed and measure the
+        // wake from there. The timeout is generous so a slow fsync cannot
+        // masquerade as a missed wake; a missed wake still fails (empty result).
+        let posted_at = std::sync::Arc::new(std::sync::Mutex::new(None::<std::time::Instant>));
         let producer = {
             let bus = bus.clone();
+            let posted_at = posted_at.clone();
             tokio::spawn(async move {
                 tokio::time::sleep(Duration::from_millis(50)).await;
                 bus.post("t", &env("t", b"hello")).await.unwrap();
+                *posted_at.lock().unwrap() = Some(std::time::Instant::now());
             })
         };
 
         let start = std::time::Instant::now();
         let got: Vec<Vec<u8>> = bus
-            .subscribe_blocking("t", 0, Duration::from_secs(5))
+            .subscribe_blocking("t", 0, Duration::from_secs(20))
             .await
             .unwrap()
             .map(|r| r.unwrap().1.payload)
             .collect();
-        let elapsed = start.elapsed();
+        let woke_at = std::time::Instant::now();
+        let elapsed = woke_at.duration_since(start);
         producer.await.unwrap();
+        let posted = posted_at.lock().unwrap().expect("producer stamped post-commit time");
+        // The notify may fire inside post, before the stamp: saturate to zero.
+        let wake_latency = woke_at.saturating_duration_since(posted);
 
         assert_eq!(got, vec![b"hello".to_vec()]);
-        // Producer slept 50ms before posting, then wake + read should be
-        // well under 1s — push-like latency.
+        // Once the post has committed, wake + read should be well under 1s —
+        // push-like latency.
         assert!(
-            elapsed < Duration::from_secs(1),
-            "wake-on-post took {elapsed:?}, expected < 1s"
+            wake_latency < Duration::from_secs(1),
+            "wake-on-post took {wake_latency:?} after the post committed, expected < 1s"
         );
         assert!(
             elapsed >= Duration::from_millis(50),

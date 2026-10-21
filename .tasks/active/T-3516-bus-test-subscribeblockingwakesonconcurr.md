@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T13:47:11Z
-last_update: 2026-10-21T13:47:52Z
+last_update: 2026-10-21T13:47:54Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -82,9 +82,9 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Cause confirmed in the RCA: the test's timer includes the post's durable write (payload sync_data + meta commit), so a slow fsync (4.2 s lock hold observed) fails a < 1 s wake bound that is about the notifier, not the disk
-- [ ] The test measures wake latency from the moment the post has committed (e.g. timestamp taken when `post` returns, or when the notifier fires), keeps the < 1 s bound on the wake itself, and still fails if the subscriber is never woken (a mutant that removes the notify call goes red; say so in Updates)
-- [ ] `cargo test -p termlink-bus --lib subscribe_blocking_wakes_on_concurrent_post` passes 20 consecutive runs, including runs alongside a parallel `cargo build`
+- [x] Cause confirmed in the RCA: the test's timer includes the post's durable write (payload sync_data + meta commit), so a slow fsync (4.2 s lock hold observed) fails a < 1 s wake bound that is about the notifier, not the disk
+- [x] The test measures wake latency from the moment the post has committed (e.g. timestamp taken when `post` returns, or when the notifier fires), keeps the < 1 s bound on the wake itself, and still fails if the subscriber is never woken (a mutant that removes the notify call goes red; say so in Updates)
+- [x] `cargo test -p termlink-bus --lib subscribe_blocking_wakes_on_concurrent_post` passes 20 consecutive runs, including runs alongside a parallel `cargo build`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -305,6 +305,11 @@ bvp_scores_proposed:
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** `subscribe_blocking_wakes_on_concurrent_post` failed with "wake-on-post took 4.38s, expected < 1s" in a full workspace run; 5/5 isolated reruns passed.
+**Root cause:** The test's timer started before the producer's `post`, so it included the post's durable write (payload sync_data + meta commit). A slow fsync (meta write lock held 4243 ms, T-3488 warning) pushed the total past 1 s although the notifier woke the subscriber immediately.
+**Why structurally allowed:** The assertion measured end-to-end time from before the producer ran, conflating disk latency with wake latency; same class as T-3506/T-3507.
+**Prevention:** The test now stamps the instant `post` returns and bounds wake latency from there (saturating, since notify fires inside post). Subscribe timeout raised 5s to 20s so a slow disk cannot masquerade as a missed wake. Mutant with `notify_waiters()` removed goes red.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -388,3 +393,8 @@ bvp_scores_proposed:
 
 ### 2026-10-21T13:47:52Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-21 — fix [agent]
+- Test-only change in crates/termlink-bus/src/lib.rs: wake latency measured from the post-commit stamp; subscribe timeout 20s.
+- Mutant (`notify_waiters()` at lib.rs:565 commented out) → test RED ("19.9s after the post committed, expected < 1s"); restored.
+- 20/20 consecutive runs pass, with a parallel `cargo build -p termlink-session` running.
