@@ -17,7 +17,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-10-20T14:38:15Z
-last_update: 2026-10-21T15:44:46Z
+last_update: 2026-10-21T15:53:32Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -76,9 +76,9 @@ crates/termlink-hub/src/channel.rs (only channel posts carry and verify identity
 -->
 
 - **IW-1: Which option: A defer, B token on the inject path now (C shaped next), C full signed-inject design now, D no-go?**
-  confidence: 2
-  disposition: deferred
-  rationale: brief presented 2026-10-21 (recommend B); operator asked for external review first (docs/reports/T-3493-consult/)
+  confidence: 3
+  disposition: answered
+  rationale: operator ruled B′ on 2026-10-21 after external review round 1 (codex, Antigravity); see Decisions
 - **IW-2: How does an inject RPC carry a signature the session can verify (today only channel posts are signed, T-1427)?**
   confidence: 0
   disposition: deferred
@@ -152,9 +152,16 @@ crates/termlink-hub/src/channel.rs (only channel posts carry and verify identity
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO (option B′: a scoped first slice; C planned separately)
 
-**Rationale:** Shaping in progress: the risk is verified (open sessions accept inject from any hub-secret holder), but the design has open questions not yet answered: how an inject request carries a signature the session can check (RPC calls are not identity-signed today, only channel posts are, T-1427), how the session learns its allowlist and the operator's attach, and how the sidecar injector authenticates. Interim mitigation exists and is ring20's call: --token-secret blocks foreign inject but today also their own sidecar.
+**Rationale:** The risk is verified (open sessions accept inject from any hub-secret holder; the existing lock breaks the
+sidecar doorbell) and O-7 names injection. Two independent external reviewers (codex, Antigravity; docs/reports/T-3493-consult/)
+both chose B as an interim fix and both improved it into B′. C (signed inject + spawn-time allowlist) is what O-7
+requires, but its design is a separate decision with the peer projects.
+
+**Evidence:**
+- crates/termlink-session/src/server.rs:250-253, crates/termlink-cli/src/cli.rs:364-372, crates/termlink-hub/src/channel.rs (facts, verified 2026-10-21)
+- docs/reports/T-3493-consult/codex.md and antigravity.md (round 1; opencode failed twice with a provider server error)
 
 ## Decisions
 
@@ -166,6 +173,27 @@ crates/termlink-hub/src/channel.rs (only channel posts carry and verify identity
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-21 — IW-1 which option: B′ (operator ruling)
+- **Chose:** B′, as recommended after external review (operator: "as recommended"):
+  1. the inject path reads its token from a protected file or file descriptor, never a CLI argument, and not from the
+     environment (codex's stricter reading);
+  2. a narrow notify scope/RPC for the doorbell, so the sidecar never holds Control (keyboard) rights; if notify is
+     enough, the sidecar stops using inject;
+  3. a missing or wrong token is a visible doorbell health failure, never silently lost mail;
+  4. documented as bearer authorisation without attribution: interim, explicitly not O-7, not an "inject ACL";
+  5. authentication stays in the handshake (`auth.token`) or an envelope, never in `command.inject`'s parameters, so C can
+     swap the token for a signature without changing the call's shape; peer projects configure public fingerprints, never
+     shared session secrets.
+- **Why:** closes the live gap with a small, reversible change; the two reviewers independently flagged the sidecar
+  holding keyboard rights as B's main risk, which item 2 removes.
+- **Rejected:** A (keeps the open door and ring20's safe-or-reachable trade-off); C now (design questions IW-2..IW-4 not
+  agreed with AEF/ring20; building it now means building it twice); D (contradicts O-7 as ratified).
+- **Left open:** C becomes its own plan from the reviewers' answers (signed RPC envelope over method, target, args, caller,
+  timestamp and nonce reusing the T-1427 Ed25519 key; allowlist fixed at session creation by an authenticated spawner that
+  cannot grant more than it holds; the supervisor's fingerprint present from the first moment, creation failing visibly
+  otherwise), with an owner and finish criteria, reviewed by AEF and ring20. Whether new sessions default to
+  `--token-secret` is a later, separate decision.
 
 ## Decision
 
