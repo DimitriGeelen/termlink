@@ -1,10 +1,16 @@
 ---
 id: T-3511
-name: "Sidecar resend while the hub is down piles copies into the outbox and gives up too early (NOT_ACCEPTED)"
+name: "Sidecar resend while the hub is down piles copies into the outbox and gives
+  up too early (NOT_ACCEPTED)"
 description: >
-  Found by ring20 cloud review job (c) of T-3462 (888988dbf): with the hub down, resends add copies to the outbox (observed outbox_len=4; events SENT, POSTED, RESENT x4, NOT_ACCEPTED) and the bounded resend budget is spent while nothing could be delivered. Expected: at most one queued copy per message, and the resend budget counts only attempts the hub could have accepted. Ring20 re-derives the test diff in a short cloud job; reproduce locally first.
+  Found by ring20 cloud review job (c) of T-3462 (888988dbf): with the hub down, resends
+  add copies to the outbox (observed outbox_len=4; events SENT, POSTED, RESENT x4,
+  NOT_ACCEPTED) and the bounded resend budget is spent while nothing could be delivered.
+  Expected: at most one queued copy per message, and the resend budget counts only
+  attempts the hub could have accepted. Ring20 re-derives the test diff in a short
+  cloud job; reproduce locally first.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T09:10:36Z
-last_update: 2026-10-21T09:10:36Z
-date_finished: null
+last_update: 2026-10-21T12:25:02Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +56,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-21T12:25:02Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3511: Sidecar resend while the hub is down piles copies into the outbox and gives up too early (NOT_ACCEPTED)
@@ -62,8 +82,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Regression test `resend_while_hub_is_down` written first and failing on main (ring20's reproduction, 2026-10-21: per tick outbox_len 1,2,3,4 with RESENT each, NOT_ACCEPTED at t4, 4 copies left after giving up): send one, stop the hub, tick across several deadlines
+- [ ] Fixed so that (a) a resend never adds a second outbox copy of a message that is still queued (the outbox holds at most one copy per msg_id), and (b) attempts that could not reach the hub do not count toward MAX_RESENDS, so the sender does not give up NOT_ACCEPTED while the hub is merely unreachable; after the hub returns, the message is delivered exactly once (dedupe on the hub side stays the backstop)
+- [ ] Giving up removes or marks any queued copy so nothing is posted after NOT_ACCEPTED; tested
+- [ ] Existing keep-until-stored, fault-matrix and deadline tests still pass: `cargo test -p termlink-sidecar` green with TERMLINK_BIN set; RCA section filled
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +386,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3511-sidecar-resend-while-the-hub-is-down-pil.md
 - **Context:** Initial task creation
+
+### 2026-10-21T12:25:02Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
