@@ -82,7 +82,7 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Tests written first and failing on the unfixed code: (1) a corrupt `.json` awaiting record, (2) an unreadable record file, (3) an unreadable awaiting dir; each must be surfaced, never silently treated as "nothing held"
+- [x] Tests written first and failing on the unfixed code: (1) a corrupt `.json` awaiting record, (2) an unreadable record file, (3) an unreadable awaiting dir; each must be surfaced, never silently treated as "nothing held"
 - [ ] `awaiting_records` distinguishes absent from unreadable: an unreadable/unparseable record is kept on disk, moved aside or reported, and raised as a needs-attention item (the sidecar's existing attention path) naming the file; an unreadable dir is an error, not an empty list
 - [ ] No change in behaviour for well-formed records (existing keep-until-stored and fault-matrix tests still pass); `cargo test -p termlink-sidecar` passes with TERMLINK_BIN set; RCA section filled
 
@@ -305,6 +305,30 @@ bvp_scores_proposed:
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** a message the sender holds awaiting STORED (T-3462 keep-until-stored) can
+disappear from `awaiting()` with nothing raised. A corrupt `.json` record, a record the
+sidecar cannot read, or an awaiting dir it cannot list all looked the same as "nothing held".
+Found by ring20's cloud review of T-3462 (888988dbf).
+
+**Root cause:** `awaiting_records()` in `crates/termlink-sidecar/src/send.rs` returned
+`vec![]` when `read_dir` failed, and `filter_map`ped away any record whose read or parse
+failed. Both failures reached the caller as an ordinary empty list, so the message was
+no longer retained and nothing told the operator.
+
+**Why structurally allowed:** the "absent" and "unreadable" cases shared one return type,
+`Vec<Awaiting>`, so no caller could tell them apart. The existing tests covered well-formed
+records and the STORED release path only. No test fed the function a corrupt or
+unreadable input, so the drop was never exercised.
+
+**Prevention:** `awaiting_records()` now returns `Result<AwaitingScan, String>`. An
+unlistable dir is an `Err`, and a dir-level attention item is raised where the failure happens.
+An unreadable or unparseable record is moved aside to `<id>.unreadable` (kept on disk, not
+re-read on every pump) and raised as `awaiting-unreadable` naming the file. `awaiting()` still
+lists its id, so the held count stays truthful. Regression tests
+`unreadable_awaiting_corrupt_record_is_kept_and_raised_not_dropped`,
+`unreadable_awaiting_record_file_is_kept_and_raised_not_dropped` and
+`unreadable_awaiting_dir_is_an_error_not_an_empty_list` live in `tests/resend_tests.rs`.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -388,3 +412,8 @@ bvp_scores_proposed:
 
 ### 2026-10-21T09:11:12Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-21 — fix: awaiting records and dir are no longer dropped silently
+- **Change:** `awaiting_records()` returns `Result<AwaitingScan, String>`. An unlistable awaiting dir is an `Err` and raises `awaiting-unreadable` attention. An unreadable or unparseable record is moved aside to `<id>.unreadable` and raised as `awaiting-unreadable` naming the file. `awaiting()` lists parseable and quarantined ids, so the held count stays truthful.
+- **Tests:** three regression tests added to `crates/termlink-sidecar/tests/resend_tests.rs`: corrupt record, unreadable record (a directory named `*.json`, which fails as root too), unreadable dir (a regular file where the dir should be). Run with `TERMLINK_BIN=$PWD/target/debug/termlink` (package `termlink`).
+- **Scope:** `crates/termlink-sidecar` only. No change to bus, hub, cli or mcp.

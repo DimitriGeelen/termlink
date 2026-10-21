@@ -56,6 +56,10 @@ pub const RESENT: &str = "RESENT";
 pub const NOT_ACCEPTED: &str = "NOT_ACCEPTED";
 /// Needs-attention kind written when the sender gives up.
 pub const ATTN_NOT_ACCEPTED: &str = "not-accepted";
+/// Needs-attention kind for an awaiting record (or the awaiting dir) that cannot be read.
+pub const ATTN_AWAITING_UNREADABLE: &str = "awaiting-unreadable";
+/// Suffix an unreadable awaiting record is moved to, so it stays on disk unre-read.
+const UNREADABLE_SUFFIX: &str = ".unreadable";
 /// Resends per message before the sender gives up (bounded: no flooding).
 pub const MAX_RESENDS: u32 = 4;
 
@@ -160,6 +164,13 @@ struct Awaiting {
     since_ms: u64,
     resends: u32,
     post: PendingPost,
+}
+
+/// The awaiting dir as read: parseable records, and the ids of quarantined ones.
+#[derive(Default)]
+struct AwaitingScan {
+    records: Vec<Awaiting>,
+    quarantined: Vec<String>,
 }
 
 /// Why a pin check did not pass.
@@ -316,7 +327,7 @@ impl Sender {
 
     /// Msg ids the sender still holds awaiting a STORED report.
     pub fn awaiting(&self) -> Vec<String> {
-        self.inner.awaiting_records().into_iter().map(|a| a.msg_id).collect()
+        self.inner.awaiting_ids()
     }
 
     /// Messages still in the outbox.
@@ -673,15 +684,70 @@ impl Inner {
         std::fs::File::open(&dir)?.sync_all()
     }
 
-    fn awaiting_records(&self) -> Vec<Awaiting> {
-        let Ok(rd) = std::fs::read_dir(self.awaiting_dir()) else { return vec![] };
-        let mut v: Vec<Awaiting> = rd
-            .flatten()
-            .filter(|e| e.file_name().to_string_lossy().ends_with(".json"))
-            .filter_map(|e| serde_json::from_slice(&std::fs::read(e.path()).ok()?).ok())
-            .collect();
-        v.sort_by_key(|a| a.since_ms);
-        v
+    /// Every held record. A record that cannot be read or parsed is a held message
+    /// too: it is moved aside (kept, under `.unreadable`) and raised as attention,
+    /// never dropped. An awaiting dir that cannot be listed is an `Err`, not an
+    /// empty list: that reads as "nothing held" otherwise. Attention is raised here.
+    fn awaiting_records(&self) -> Result<AwaitingScan, String> {
+        let dir = self.awaiting_dir();
+        let rd = match std::fs::read_dir(&dir) {
+            Ok(rd) => rd,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(AwaitingScan::default()),
+            Err(e) => {
+                let why = format!("{}: cannot list the awaiting dir: {e}", dir.display());
+                let _ = self.store.attention(ATTN_AWAITING_UNREADABLE, &why);
+                return Err(why);
+            }
+        };
+        let mut scan = AwaitingScan::default();
+        for entry in rd {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(e) => {
+                    let _ = self.store.attention(ATTN_AWAITING_UNREADABLE, &format!("{}: cannot read a dir entry: {e}", dir.display()));
+                    continue;
+                }
+            };
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.ends_with(UNREADABLE_SUFFIX) {
+                scan.quarantined.push(name.trim_end_matches(UNREADABLE_SUFFIX).to_owned());
+                continue;
+            }
+            if !name.ends_with(".json") {
+                continue;
+            }
+            let path = entry.path();
+            let parsed = std::fs::read(&path)
+                .map_err(|e| e.to_string())
+                .and_then(|bytes| serde_json::from_slice::<Awaiting>(&bytes).map_err(|e| e.to_string()));
+            match parsed {
+                Ok(a) => scan.records.push(a),
+                Err(why) => {
+                    scan.quarantined.push(name.trim_end_matches(".json").to_owned());
+                    self.quarantine_awaiting(&path, &why);
+                }
+            }
+        }
+        scan.records.sort_by_key(|a| a.since_ms);
+        Ok(scan)
+    }
+
+    /// Move an unreadable record aside so it is not re-read on every pump, and say so.
+    fn quarantine_awaiting(&self, path: &std::path::Path, why: &str) {
+        let aside = path.with_extension(UNREADABLE_SUFFIX.trim_start_matches('.'));
+        let detail = match std::fs::rename(path, &aside) {
+            Ok(()) => format!("{}: {why}; moved aside to {}", path.display(), aside.display()),
+            Err(e) => format!("{}: {why}; could not move it aside: {e}", path.display()),
+        };
+        let _ = self.store.attention(ATTN_AWAITING_UNREADABLE, &detail);
+    }
+
+    /// Every message id still held: parseable records plus quarantined ones.
+    fn awaiting_ids(&self) -> Vec<String> {
+        match self.awaiting_records() {
+            Ok(scan) => scan.records.into_iter().map(|a| a.msg_id).chain(scan.quarantined).collect(),
+            Err(_) => vec![],
+        }
     }
 
     /// At POSTED: start holding the message, unless it is held already (a resend
@@ -730,7 +796,8 @@ impl Inner {
             Err(p) => p.into_inner(),
         };
         let me = self.cfg.identity.fingerprint().to_owned();
-        for mut a in self.awaiting_records() {
+        let Ok(scan) = self.awaiting_records() else { return rep };
+        for mut a in scan.records {
             let path = self.awaiting_path(&a.msg_id);
             let digest = a.post.metadata.get("sidecar_digest").cloned().unwrap_or_default();
             if self.accepted(&a.conv, &a.msg_id) {

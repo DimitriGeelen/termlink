@@ -194,3 +194,52 @@ fn resend_stage_records_are_not_held() {
     assert_eq!(r.sender.outbox_len(), 0);
     assert!(r.sender.awaiting().is_empty());
 }
+
+/// T-3510: a held record the sender cannot parse is still a held message. It must
+/// be kept (never silently dropped) and raised as a needs-attention item.
+fn awaiting_dir(r: &Rig) -> std::path::PathBuf {
+    r.e.root().join("outbox-a.awaiting")
+}
+
+fn attention_for(r: &Rig, kind: &str, needle: &str) -> bool {
+    r.store
+        .attention_entries()
+        .iter()
+        .map(|l| serde_json::from_str::<Value>(l).unwrap())
+        .any(|a| a["kind"] == kind && a["detail"].as_str().unwrap_or_default().contains(needle))
+}
+
+#[test]
+fn unreadable_awaiting_corrupt_record_is_kept_and_raised_not_dropped() {
+    let r = rig();
+    let s = r.sender.send("agent-b", "inst-b", Some("k-10"), "hello", None).unwrap();
+    let rec = awaiting_dir(&r).join(format!("{}.json", s.msg_id));
+    std::fs::write(&rec, b"{not json").unwrap();
+    assert_eq!(r.sender.awaiting(), vec![s.msg_id.clone()], "the message is still held");
+    assert!(attention_for(&r, "awaiting-unreadable", &s.msg_id), "the operator is told");
+    assert!(!rec.exists(), "the corrupt record is moved aside, not left to be re-read");
+    assert_eq!(std::fs::read(rec.with_extension("unreadable")).unwrap(), b"{not json", "its bytes are kept");
+}
+
+#[test]
+fn unreadable_awaiting_record_file_is_kept_and_raised_not_dropped() {
+    let r = rig();
+    let s = r.sender.send("agent-b", "inst-b", Some("k-11"), "hello", None).unwrap();
+    // A directory named like a record: listed, matches `.json`, cannot be read as a file
+    // (EISDIR), and unlike chmod 000 it fails for root too.
+    let rec = awaiting_dir(&r).join(format!("{}.json", s.msg_id));
+    std::fs::remove_file(&rec).unwrap();
+    std::fs::create_dir(&rec).unwrap();
+    assert_eq!(r.sender.awaiting(), vec![s.msg_id.clone()], "the message is still held");
+    assert!(attention_for(&r, "awaiting-unreadable", &s.msg_id), "the operator is told");
+    assert!(rec.with_extension("unreadable").exists(), "the unreadable record is kept under its quarantine name");
+}
+
+#[test]
+fn unreadable_awaiting_dir_is_an_error_not_an_empty_list() {
+    let r = rig();
+    // The awaiting "dir" is a regular file: it exists, but cannot be listed (ENOTDIR).
+    std::fs::write(awaiting_dir(&r), b"not a directory").unwrap();
+    assert!(r.sender.awaiting().is_empty());
+    assert!(attention_for(&r, "awaiting-unreadable", "outbox-a.awaiting"), "an unreadable dir must raise attention");
+}
