@@ -101,3 +101,28 @@ affected. Running processes keep their old copy until relaunched.
    that point at another project before launching; TermLink should spawn on its own tmux
    socket (or with a clean server environment) so one project's spawn cannot seed another's
    sessions. The TermLink half is homed with TermLink per Gap Homing.
+
+## Damage update (2026-10-22 21:00)
+
+- **050-email-archive (vendored 1.8.10): confirmed cross-project WRITE.** Its 17:21 PreCompact hook ran
+  with the leaked `CONTEXT_DIR` and wrote handover `S-2026-1022-1721.md`, `LATEST.md`,
+  `audits/2026-10-22.yaml` and `.session-metrics.yaml` into `/opt/1409-sprind/.context`; its
+  auto-commit step may have committed in the 1409 repo. 1409-sprind was asked to inspect and revert on
+  its side (project boundary: not touched from here). 050 relaunched clean at 20:50.
+- **1023 (1.8.12): clean**, writes in its own tree, env clean.
+- **0506: still unknown.**
+- The host rebooted at ~20:46, so every process now runs with a fresh environment; the leak itself
+  is gone. Pre-T-4222 consumers (050, 055, 1023) stay exposed to a recurrence until they upgrade.
+- **1409-sprind inspection (21:20):** 050's leaked hook left two untracked files in 1409's
+  `.context/handovers/` (`S-2026-1022-1721.md`, `.discard-manifest.yaml`), computed from 1409's own task
+  tree. No commit was made in 1409 and nothing was pushed; 1409 quarantined both files, and its
+  LATEST.md had already been re-pointed by its own 17:36 handover. Damage is closed for 050→1409.
+- **055 (21:30):** its own tmux wrappers (fleet launcher, rehome, cockpit) had the same deny-list hole
+  (055 T-538); now an allow-list (055 commit 34e78fe1) with an A-after-B polluted private-server test
+  that was red on the old code — the model for the G-116/G-124 close test. 055's post-reboot host scan:
+  256 agent processes, 0 foreign TASKS_DIR/CONTEXT_DIR, tmux global environment clean.
+- **Host remediation done (23:40):** `loginctl enable-linger root` and `loginctl enable-linger dimitri-mint-dev`
+  run on .107 by dimitri-mint-dev's operator runme `linger-107` (EXIT 0); verified from the AEF session:
+  both users LINGER yes, `/var/lib/systemd/linger` lists both. Root's slice is no longer torn down when
+  its last login session closes, and the session-c1.scope placement of Watchtower, claude-fw and tmux
+  now survives a logout of dimitri-mint-dev.

@@ -352,3 +352,7 @@ upgrades:
     from_version: "1.8.14"
     to_version: "1.8.14+987.g2ec39ef8e"
     framework_root: "/tmp/claude-0/-opt-termlink/10c2f139-7c28-4c84-b41d-df672cbe37c4/scratchpad/aefsrc"
+  - timestamp: 2026-10-22T21:53:49Z
+    from_version: "1.8.14+987.g2ec39ef8e"
+    to_version: "1.8.14+1027.gb19757443"
+    framework_root: "/tmp/claude-0/-opt-termlink/10c2f139-7c28-4c84-b41d-df672cbe37c4/scratchpad/aefsrc4"
