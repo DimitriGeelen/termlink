@@ -1,0 +1,21 @@
+id: .context/cron/env-leak-canary.crontab
+name: env-leak-canary
+type: script
+subsystem: guard-layer-cron
+location: .context/cron/env-leak-canary.crontab
+tags: []
+
+purpose: "T-3551 (SEV-1 T-3549, G-019) — Environment-leak canary Source of truth: /opt/termlink/.context/cron/env-leak-canary.crontab (git-tracked) Installed to: /etc/cron.d/termlink-env-leak-canary (USER field syntax — do NOT load into a user…"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-22
+created_by: unknown

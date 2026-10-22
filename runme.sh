@@ -209,6 +209,10 @@ install_crontab arc-claim-drift-canary.crontab    "$CRON_DIR/termlink-arc-claim-
 # sessions and orphaned data sockets, both invisible for weeks before T-3291.
 install_crontab session-leak-canary.crontab       "$CRON_DIR/termlink-session-leak-canary"
 
+# T-3551 (SEV-1 T-3549, operator ruling A) — hourly: a registered session carrying
+# another project's variables, or a project variable in the tmux server's global env.
+install_crontab env-leak-canary.crontab           "$CRON_DIR/termlink-env-leak-canary"
+
 # T-3425 (operator ruling A) — `/` lost its execute bits on 2026-10-12 (an agent's
 # `tmux -S /proc/<pid>/cwd`) and the host could not boot. Checks at boot and hourly
 # that `/` is a 755 root-owned directory; alerts only, never repairs.

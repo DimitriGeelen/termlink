@@ -1,0 +1,23 @@
+# T-3551 (SEV-1 T-3549, G-019) — Environment-leak canary
+# Source of truth: /opt/termlink/.context/cron/env-leak-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-env-leak-canary (USER field syntax — do NOT load into a user crontab)
+#
+# On 2026-10-22 the host's default tmux server was seeded with another project's
+# TASKS_DIR/CONTEXT_DIR and 30 of 54 registered sessions ran with them; it was found
+# by hand. FIRES when a registered session's root process carries a project variable
+# that points into a different project than the one the session works in, or when
+# the default tmux server's global environment holds any project variable at all.
+# Empty log = healthy. /canaries auto-discovers this log; tooling errors go to the
+# .stderr sink (T-2842).
+#
+# Hourly, not daily: a leaked environment acts on the wrong project's tasks for as
+# long as it goes unnoticed.
+#
+# Operator action on firing: relaunch the named sessions from a clean shell (another
+# project's agents are that project's or the operator's call); for a server global,
+# `tmux set-environment -gu <VAR>`. Detail: bash scripts/check-env-leak-freshness.sh
+SHELL=/bin/bash
+PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+
+# Hourly at :17 — termlink from /root/.cargo/bin first (the current build; see arc-claim-drift note).
+17 * * * * root cd /opt/termlink && bash scripts/check-env-leak-freshness.sh --quiet >> .context/working/.env-leak-canary.log 2>> .context/working/.env-leak-canary.log.stderr

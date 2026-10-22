@@ -1,0 +1,21 @@
+id: scripts/check-env-leak-freshness.sh
+name: check-env-leak-freshness
+type: script
+subsystem: guard-layer
+location: scripts/check-env-leak-freshness.sh
+tags: []
+
+purpose: "T-3551 (SEV-1 T-3549, G-019) — environment-leak canary."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-22
+created_by: unknown

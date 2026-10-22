@@ -1,10 +1,15 @@
 ---
 id: T-3551
-name: "SEV-1 fix 2: env-leak detector — refuse at spawn on project mismatch; canary scanning live registered sessions and the tmux server global env"
+name: "SEV-1 fix 2: env-leak detector — refuse at spawn on project mismatch; canary
+  scanning live registered sessions and the tmux server global env"
 description: >
-  Operator ruling A on T-3549. (a) synchronous: termlink spawn/dispatch/register refuses when a session's project variables point at a project other than its own; (b) canary: termlink list --json (created_at, pid) joined with /proc/<pid>/environ and tmux show-environment -g, firing on any foreign project path (30 of 54 found on 2026-10-22). Empty-log=healthy convention, fixtures, crontab.
+  Operator ruling A on T-3549. (a) synchronous: termlink spawn/dispatch/register refuses
+  when a session's project variables point at a project other than its own; (b) canary:
+  termlink list --json (created_at, pid) joined with /proc/<pid>/environ and tmux
+  show-environment -g, firing on any foreign project path (30 of 54 found on 2026-10-22).
+  Empty-log=healthy convention, fixtures, crontab.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T14:04:45Z
-last_update: 2026-10-22T14:04:45Z
-date_finished: null
+last_update: 2026-10-22T19:44:56Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +55,42 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-22T19:18:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3551: SEV-1 fix 2: env-leak detector — refuse at spawn on project mismatch; canary scanning live registered sessions and the tmux server global env
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Operator ruling A on SEV-1 T-3549; companion to T-3550 (which removes the leak by construction). This task
+detects a leak that got in anyway: a process whose project variables name a different project than the one it is in.
+
+A variable is **foreign** when its value lies in project B and the process's working directory lies in a different
+project A. A project root is the nearest ancestor holding `.framework.yaml` (else `.git`). Values outside any project
+(test temp dirs) and processes outside any project are not judged: unknown is reported, never refused. `FRAMEWORK_ROOT`
+is not judged, because shared-tooling mode legitimately points it outside the project.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `termlink_session::child_env::foreign_project_vars(vars, cwd)` judges `PROJECT_ROOT`, `TASKS_DIR`, `CONTEXT_DIR`, `CLAUDE_PROJECT_DIR`, `_FW_PATHS_DERIVED_BY` by the rule above, with unit tests (foreign, same project, subdir, temp dir, no project, worktree)
+- [x] `termlink register` and `register --self` refuse to start (non-zero exit, message naming each variable and both projects) when the process carries a foreign variable
+- [x] Canary `scripts/check-env-leak-freshness.sh` joins `termlink list --json` (pid, cwd) with `/proc/<pid>/environ` of each session's root process (descendants dropped after the live run, see Decisions), plus the default tmux server's global environment, and fires on any foreign variable or any project variable in the server's global env; exit 0/1/2, `--json`, `--quiet`, heartbeat on EXIT
+- [x] Hermetic fixtures through test seams (fake proc dir, canned list JSON, canned tmux env) with a mutant that disables the comparison
+- [x] Crontab `.context/cron/env-leak-canary.crontab` with the split-stream redirect idiom; installing it is an operator `runme.sh` action
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -268,7 +295,24 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-session --lib child_env > /tmp/.t3551a 2>&1 && grep -q "another_projects_paths_are_foreign ... ok" /tmp/.t3551a && grep -q "a_worktree_is_its_main_checkout ... ok" /tmp/.t3551a && grep -q "test result: ok\." /tmp/.t3551a
+bash tests/env-leak-canary-fixtures.sh > /tmp/.t3551b 2>&1 && grep -q " 0 failed" /tmp/.t3551b
+bash -n scripts/check-env-leak-freshness.sh && python3 -m py_compile scripts/lib/env-leak-scan.py
+grep -q "install_crontab env-leak-canary.crontab" runme.sh && grep -q "2>> .context/working/.env-leak-canary.log.stderr" .context/cron/env-leak-canary.crontab
+bash scripts/check-canary-log-hygiene.sh > /tmp/.t3551c 2>&1
+grep -q "refuse_foreign_project_env()?;" crates/termlink-cli/src/commands/session.rs && test "$(grep -c 'refuse_foreign_project_env()?;' crates/termlink-cli/src/commands/session.rs)" -eq 2
+
 ## RCA
+
+**Symptom:** on 2026-10-22, 30 of 54 registered sessions carried 1409-sprind's `TASKS_DIR`/`CONTEXT_DIR`, and it was
+found by hand, roughly 75 minutes after the tmux server was reseeded (13:38 → 14:55).
+**Root cause:** nothing compared a process's project variables with the project it actually works in. `register`
+accepted any environment, and no canary looked at live process environments or the tmux server's global environment.
+**Why structurally allowed:** every existing canary watches the hub, the bus or the session table; none reads
+`/proc/<pid>/environ`. The T-3445 fix (2026-10-16) added prevention with no detection, so its gap went unseen.
+**Prevention:** `register` refuses a foreign project at start (so a polluted shell cannot join the fleet), and an
+hourly canary scans live sessions and the server's global env. Both use one rule (`project_of` / `foreign`), pinned by
+unit tests, 13 fixtures and a mutant that removes the comparison.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -339,6 +383,28 @@ date_finished: null
 
 ## Decisions
 
+### 2026-10-22 — the canary judges each session's ROOT process against the session's registered cwd
+- **Chose:** root process only, judged against `metadata.cwd`.
+- **Why:** the first live run (descendants, each by its own cwd) fired on 5 sessions and every finding was legitimate:
+  pyright running from its install dir under `/root` (itself a git repo with `.framework.yaml`) with the session's
+  `PROJECT_ROOT`, a 055 worktree pointing at its main checkout, and AEF's fresh-machine test pointing its children at a
+  `/tmp` fixture project on purpose. A leak arrives through the root process (the register a polluted server or shell
+  started), and every dispatched worker registers as a session of its own, so the root is where it shows.
+- **Rejected:** descendants by their own cwd (5/5 false positives); descendants by the session cwd (still fires on
+  test harnesses that set a fixture project deliberately).
+
+### 2026-10-22 — refuse in `register`, with no override flag
+- **Chose:** `register` and `register --self` fail with a message naming each variable and both projects.
+- **Why:** ruling A ("refuse, not warn"). `register` is the one choke point every spawned session and worker passes;
+  after T-3550 a spawned session cannot inherit a foreign value, so a refusal means a polluted shell. An inherited
+  override would itself be ambient authority (AEF's point on `FW_TASKS_DIR_OVERRIDE`); the fix is to unset the variable.
+- **Rejected:** a warning (2026-10-16 shows a recurrence needs a stop); a `--allow-foreign-project` flag (no case found).
+
+### 2026-10-22 — unknown is never a finding; FRAMEWORK_ROOT is not judged in sessions
+- **Why:** a value outside every project (test temp dirs) or a session outside every project cannot be judged without
+  guessing. `FRAMEWORK_ROOT` legitimately points outside the project in shared-tooling mode. The tmux server's GLOBAL
+  env is stricter: any project variable there, `FRAMEWORK_ROOT` included, fires, because every new session inherits it.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -364,3 +430,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3551-sev-1-fix-2-env-leak-detector--refuse-at.md
 - **Context:** Initial task creation
+
+### 2026-10-22T19:18:51Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

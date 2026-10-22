@@ -377,9 +377,23 @@ pub(crate) fn runtime_dir_hint_if_empty(found: usize) -> Option<(String, serde_j
     empty_runtime_dir_hint(all, &resolved, &others)
 }
 
+/// T-3551 (SEV-1 T-3549): refuse to register a process that carries another project's
+/// variables. Such a process got them by inheritance (a polluted tmux server or shell), and
+/// it would act on that project's tasks while appearing on the fleet as this one.
+fn refuse_foreign_project_env() -> Result<()> {
+    let Ok(cwd) = std::env::current_dir() else { return Ok(()) };
+    let found = termlink_session::child_env::foreign_project_vars(std::env::vars(), &cwd);
+    if found.is_empty() {
+        return Ok(());
+    }
+    anyhow::bail!("{}", termlink_session::child_env::foreign_refusal(&found))
+}
+
 pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
     let RegisterOpts { name, roles, tags, cap, shell, enable_token_secret, allowed_commands, json, quiet, identity_key, worker_binding } = opts;
     let verbose = !json && !quiet;
+
+    refuse_foreign_project_env()?;
 
     // T-3490: refuse a malformed binding before anything registers.
     let worker_binding = parse_worker_binding_arg(worker_binding.as_deref(), json)?;
@@ -704,6 +718,8 @@ pub(crate) async fn cmd_register_self(
     identity_key: Option<std::path::PathBuf>,
 ) -> Result<()> {
     let verbose = !json;
+
+    refuse_foreign_project_env()?;
 
     // T-1701: parity with cmd_register's --identity-key handling (T-1700).
     // Bind the per-agent identity BEFORE Endpoint::start so the event-only

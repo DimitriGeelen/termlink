@@ -1,0 +1,21 @@
+id: tests/env-leak-canary-fixtures.sh
+name: env-leak-canary-fixtures
+type: script
+subsystem: guard-layer
+location: tests/env-leak-canary-fixtures.sh
+tags: []
+
+purpose: "T-3551 — fixtures for scripts/check-env-leak-freshness.sh (SEV-1 T-3549 detector). Hermetic: a fake /proc, canned `termlink list --json` and canned tmux global env through the ENV_LEAK_* seams."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-22
+created_by: unknown
