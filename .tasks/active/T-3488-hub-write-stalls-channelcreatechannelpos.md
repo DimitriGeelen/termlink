@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T10:56:05Z
-last_update: 2026-10-20T11:19:44Z
+last_update: 2026-10-21T09:01:18Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -384,6 +384,21 @@ grep -q '"synchronous", "NORMAL"' crates/termlink-bus/src/meta.rs
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-22 — interim re-measure (12.5 of 24 h): the criterion is failing (agent)
+- Window: hub (systemd) up since 2026-10-21 22:38 CEST; `journalctl -u termlink-hub` to 10:40 CEST: **1597** T-3488
+  slow lines. Per hour: 142, 682, 277, 154, 8, 101, 13, 14, 34, 62, 3, 67, 40. Lines over 5 s per hour: 105, 450,
+  141, 81, 2, 21, 1, 3, 10, 18, 0, 27, 15.
+- Disk: nvme0n1 10-minute `sar -d` %util peaked at 89.5 (23:00) and never reached 90. By the criterion's own
+  condition these hours count. Caveat: a 10-minute average can hide shorter saturated bursts, and this session ran
+  cargo test suites across that night.
+- Sites: `meta.rs:1254` (`note_fetch`, subscribe telemetry) holds the lock in **1183** lines, up to 87 s;
+  `sync_data` 232 (max 83 s); post `meta.rs:272` 108 (max 78 s); create `meta.rs:148` 69 (max 82 s). Posts and
+  creates mostly *wait*, behind `note_fetch`'s hold.
+- So the AC is not met. The T-3488 change made `note_fetch` cheap per commit (NORMAL), but something inside its
+  commit still runs for tens of seconds. Suspect: SQLite's default WAL auto-checkpoint (meta.db-wal = 4.16 MB, right at
+  1000 pages; never configured) runs in the committing connection, under our mutex, with an fsync of meta.db. Filed
+  as **T-3541**, to measure before changing anything. The full 24 h read is still owed after 22:38 CEST today.
 
 ### 2026-10-20T10:56:05Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
