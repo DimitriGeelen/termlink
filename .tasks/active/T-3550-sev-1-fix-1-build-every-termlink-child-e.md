@@ -1,10 +1,18 @@
 ---
 id: T-3550
-name: "SEV-1 fix 1: build every TermLink child environment by construction (env_clear + allow-list) on all spawn paths, incl. hub and tl-claude.sh"
+name: "SEV-1 fix 1: build every TermLink child environment by construction (env_clear
+  + allow-list) on all spawn paths, incl. hub and tl-claude.sh"
 description: >
-  Operator ruling A on T-3549 (2026-10-22). Replace T-3445's deny-list: tmux_new_session (execution.rs ~700, dispatch.rs ~962), background detached_command (~747-760), scripts/tl-claude.sh (~171/249), and the hub's own environment, all start from env_clear()/env -i plus an exact allow-list of host settings (HOME, USER, LOGNAME, SHELL, TERM, LANG/LC_*, TMPDIR, XDG_RUNTIME_DIR, fixed PATH, TERMLINK_RUNTIME_DIR). Project values go only to the session via -e from the target's launch spec. Tests with canary variables of unknown names, a pre-polluted server, and cross-project dispatch; mutant: restoring the deny-list must fail them. Synthesis: docs/reports/T-3549-incident/synthesis-six.md.
+  Operator ruling A on T-3549 (2026-10-22). Replace T-3445's deny-list: tmux_new_session
+  (execution.rs ~700, dispatch.rs ~962), background detached_command (~747-760), scripts/tl-claude.sh
+  (~171/249), and the hub's own environment, all start from env_clear()/env -i plus
+  an exact allow-list of host settings (HOME, USER, LOGNAME, SHELL, TERM, LANG/LC_*,
+  TMPDIR, XDG_RUNTIME_DIR, fixed PATH, TERMLINK_RUNTIME_DIR). Project values go only
+  to the session via -e from the target's launch spec. Tests with canary variables
+  of unknown names, a pre-polluted server, and cross-project dispatch; mutant: restoring
+  the deny-list must fail them. Synthesis: docs/reports/T-3549-incident/synthesis-six.md.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T14:04:28Z
-last_update: 2026-10-22T14:04:28Z
-date_finished: null
+last_update: 2026-10-22T19:40:12Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +58,39 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-22T19:00:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3550: SEV-1 fix 1: build every TermLink child environment by construction (env_clear + allow-list) on all spawn paths, incl. hub and tl-claude.sh
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Operator ruling A on SEV-1 T-3549. T-3445's deny-list (`PROJECT_SCOPED_ENV`) let `TASKS_DIR`/`CONTEXT_DIR`
+through and stripped the framework's own detector sentinel. Replace it with an environment built by
+construction. Synthesis: `docs/reports/T-3549-incident/synthesis-six.md`.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] One shared allow-list (`termlink_session::child_env`): `env_clear()` plus host settings only (HOME, USER, LOGNAME, SHELL, TERM, LANG/LC_*, TZ, TMPDIR, XDG_RUNTIME_DIR, TERMLINK_RUNTIME_DIR) and a fixed PATH that never inherits the caller's
+- [x] The tmux client in `tmux_new_session` (CLI spawn and dispatch) runs with that environment; caller project variables are no longer forwarded to the session (project values only via the launch spec: `--env`, `--workdir`)
+- [x] The CLI background backend (`detached_command`) and the MCP dispatch background spawn use it
+- [x] `scripts/tl-claude.sh` starts the agent under `env -i` plus the same allow-list instead of `env -u PROJECT_ROOT` (it goes through `termlink spawn`, which now does this; `oneshot` passes its values with `--env`)
+- [x] The hub's own environment: a hub started from a project shell no longer seeds spawns (the hub starts none itself; verified by grep and recorded), and the systemd unit / `hub start` path is covered
+- [x] Tests use canary variables of unknown names, including a live private-socket tmux server pre-polluted by a leaking caller; a mutant restoring the deny-list (dropping `env_clear`) fails them
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -268,7 +295,29 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-session --lib child_env > /tmp/.t3550a 2>&1 && grep -q "test result: ok\." /tmp/.t3550a
+cargo test -p termlink --bin termlink -- tmux_spawn t3550 > /tmp/.t3550b 2>&1 && grep -q "spawned_sessions_carry_no_caller_project_live ... ok" /tmp/.t3550b && grep -q "t3550_background_spawn_env_is_built_by_construction ... ok" /tmp/.t3550b
+bash tests/tl-claude-identity-binding.sh > /tmp/.t3550c 2>&1 && grep -q "ALL PASS" /tmp/.t3550c
+bash tests/tl-claude-sidecar-fixtures.sh > /tmp/.t3550d 2>&1 && grep -q " 0 failed" /tmp/.t3550d
+bash scripts/check-drain-sink-caps.sh --no-heartbeat > /tmp/.t3550e 2>&1
+test -f crates/termlink-cli/src/commands/tmux_spawn.rs && ! grep -q "PROJECT_SCOPED_ENV" crates/termlink-cli/src/commands/tmux_spawn.rs
+cargo build -p termlink-mcp > /tmp/.t3550f 2>&1
+
 ## RCA
+
+**Symptom:** after the host's default tmux server was restarted at 13:38:43 on 2026-10-22, sessions on it ran with
+1409-sprind's `TASKS_DIR`/`CONTEXT_DIR` (30 of 54 registered sessions at detection).
+**Root cause:** every TermLink spawn path passed the caller's environment to the child, minus a hand-kept deny-list
+(T-3445 `PROJECT_SCOPED_ENV`). The list omitted `TASKS_DIR`/`CONTEXT_DIR` and removed the framework's
+detection sentinel `_FW_PATHS_DERIVED_BY`. The background path and both MCP spawn paths had no filtering at all.
+**Why structurally allowed:** a deny-list fails open for every name its author did not think of, and T-3445's
+tests only used `PROJECT_ROOT`, the one name on the list. No test used a variable nobody listed, and none used a server
+that was already polluted.
+**Prevention:** the environment is built by construction in one place (`termlink_session::child_env`) and used by
+every spawn path. Tests use canary names on the list's blind side (unknown names, `CARGO_*` of the test process),
+a live private tmux server pre-polluted by a leaking caller, and the old script as a mutant. Three mutants
+(no `env_clear` in apply, none on the tmux client, no `-i` on the session wrapper) each fail the suite. The live
+detector is T-3551.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -348,6 +397,37 @@ date_finished: null
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-10-22 — two layers on the tmux path, not one
+- **Chose:** clear the tmux client's environment AND wrap the session command in `/usr/bin/env -i <allowed> /bin/sh -c`.
+- **Why:** clearing the client only protects a server our spawn starts. A server someone else already polluted still
+  hands its global environment to every new session; only the wrapper covers that, and the live test shows it.
+- **Rejected:** `new-session -e` per variable (cannot unset a polluted global); clearing the client alone.
+
+### 2026-10-22 — the caller's project variables are no longer forwarded
+- **Chose:** forward nothing project-scoped; project values come only from the launch spec (`--env`, `--workdir`,
+  the cwd). `tl-claude.sh oneshot` now passes `TERMLINK_AGENT_ID`, `TERMLINK_SIDECAR_SOCKET` and `IS_SANDBOX` with `--env`.
+- **Why:** operator ruling A: "from the target's validated launch spec, not from the spawning agent". T-3445 forwarded
+  the caller's `PROJECT_ROOT` even to `dispatch --workdir /opt/other` (antigravity review).
+- **Rejected:** forwarding when the target is "the same project" (needs a project resolver here; that is T-3551's job).
+
+### 2026-10-22 — fixed PATH, not the caller's
+- **Chose:** the binary's own dir, `$HOME/.local/bin`, `$HOME/.cargo/bin`, then system dirs.
+- **Why:** a project can put its own `.agentic-framework/bin` first on PATH, and a child would run that project's `fw`.
+- **Rejected:** passing PATH through (a leak vector); a pure system PATH (loses `claude` and `termlink`).
+  A session that needs more passes `--env PATH=...`.
+
+### 2026-10-22 — the hub
+- **Chose:** `hub restart` (CLI and MCP) starts the hub with the allow-list plus the caller's `TERMLINK_*` settings.
+- **Why:** the hub starts no child processes (grep over `crates/termlink-hub` finds no `Command`), so its environment
+  cannot reach a session; hub tuning variables (`TERMLINK_MAX_CONNECTIONS`, ...) are too many to list. The systemd
+  unit already gives the hub a clean environment (`Environment=` lines only).
+
+### 2026-10-22 — what is not changed
+- **`executor.rs` (`termlink exec`):** runs inside the target session's own process and inherits that session's
+  environment, which is the session's own, not a caller's. Unchanged.
+- **MCP subcommand calls (`fleet bootstrap-check` and the like):** short-lived runs of the termlink binary itself that
+  start no session. Unchanged.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -364,3 +444,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3550-sev-1-fix-1-build-every-termlink-child-e.md
 - **Context:** Initial task creation
+
+### 2026-10-22T19:00:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

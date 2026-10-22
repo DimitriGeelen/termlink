@@ -958,7 +958,7 @@ end tell"#
 
 fn spawn_via_tmux(session_name: &str, shell_cmd: &str) -> Result<()> {
     let tmux_session = format!("tl-{}", session_name);
-    // T-3445: project vars go to the session only, never into a server this call may start.
+    // T-3550: the session's environment is built by construction; nothing of the caller's project reaches it or the server.
     let status = super::tmux_spawn::tmux_new_session(&tmux_session, shell_cmd)
         .status()
         .context("Failed to run tmux")?;

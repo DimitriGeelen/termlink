@@ -47,6 +47,31 @@ echo "$out" | grep -q 'TERMLINK_AGENT_ID' \
     && fail "reachable but empty agent-id: TERMLINK_AGENT_ID should be omitted (got: $out)" \
     || pass "reachable + empty agent-id -> no TERMLINK_AGENT_ID (correct)"
 
+# --- Part 1b (T-3550): oneshot passes identity through spawn's launch spec -----
+# `termlink spawn` now starts the session under env -i plus a host allow-list, so
+# an exported TERMLINK_AGENT_ID would never reach claude. The oneshot path must
+# hand it (and IS_SANDBOX) to spawn with --env. A stub termlink on PATH records
+# the argv; arming and the sidecar are stubbed so nothing touches the host.
+STUB="$(mktemp -d)"
+printf '#!/bin/sh\nprintf "%%s\\n" "$@"\n' > "$STUB/termlink"; chmod +x "$STUB/termlink"
+oneshot_argv="$(
+    PATH="$STUB:$PATH"
+    TL_CLAUDE_LIB=1
+    # shellcheck disable=SC1091
+    . "$ROOT/scripts/tl-claude.sh" >/dev/null 2>&1
+    arm_reachable_async() { :; }
+    prepare_sidecar() { SIDECAR_SOCKET=/run/x.send.sock; }
+    REACHABLE=1; AGENT_ID=ring20-concierge; SESSION_NAME=s; TAGS=t; BACKEND=tmux
+    CLAUDE_ARGS=(--resume)
+    cmd_oneshot 2>/dev/null
+)"
+rm -rf "$STUB"
+for want in "TERMLINK_AGENT_ID=ring20-concierge" "IS_SANDBOX=1" "TERMLINK_SIDECAR_SOCKET=/run/x.send.sock"; do
+    grep -qx -- "$want" <<< "$oneshot_argv" && grep -B1 -x -- "$want" <<< "$oneshot_argv" | head -1 | grep -qx -- "--env" \
+        && pass "oneshot passes $want with --env" \
+        || fail "oneshot: $want not passed with --env (argv: $(tr '\n' ' ' <<< "$oneshot_argv"))"
+done
+
 # --- Part 2: agent-respond.sh prefers env-respecting resolver -------------------
 # Verify the source wires the TERMLINK_AGENT_ID branch to `agent identity
 # --resolve` BEFORE the PL-195 presence scrape (static-structure assertion —

@@ -344,6 +344,8 @@ pub(crate) fn cmd_hub_restart(json: bool) -> Result<()> {
 
     // Build the hub start command
     let mut cmd = std::process::Command::new(&self_exe);
+    // T-3550: the hub must not carry the caller's project (SEV-1 T-3549).
+    termlink_session::child_env::apply_hub(&mut cmd);
     cmd.arg("hub").arg("start");
     if let Some(ref addr) = tcp_addr {
         cmd.arg("--tcp").arg(addr);

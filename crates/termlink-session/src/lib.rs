@@ -14,6 +14,7 @@ pub mod manager;
 pub mod ack_retry;
 pub mod assignment;
 pub mod bus_client;
+pub mod child_env;
 pub mod claim_client;
 pub mod client;
 pub mod codec;

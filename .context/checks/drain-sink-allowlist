@@ -54,3 +54,6 @@ crates/termlink-doctor/src/lib.rs::ufw_listener_check::output
 # reaches the JSON only as the error text of a failed git step. Bounded by the subcommand, not by peer bytes:
 # INTERNAL by the T-2529 threat model, same as the three tools.rs sites above.
 crates/termlink-mcp/src/tools.rs::run_agent_work_cli::output
+# T-3550: #[cfg(test)] only. Runs a fixed `sh -c env` under the allow-listed environment; the
+# output is a few hundred bytes of env lines, never peer data.
+crates/termlink-session/src/child_env.rs::a_real_child_sees_none_of_the_callers_project::output

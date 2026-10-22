@@ -696,7 +696,7 @@ end tell"#
 
 fn spawn_via_tmux(session_name: &str, shell_cmd: &str) -> Result<()> {
     let tmux_session = format!("tl-{}", session_name);
-    // T-3445: project vars go to the session only, never into a server this call may start.
+    // T-3550: the session's environment is built by construction; nothing of the caller's project reaches it or the server.
     let status = super::tmux_spawn::tmux_new_session(&tmux_session, shell_cmd)
         .status()
         .context("Failed to run tmux — is tmux installed?")?;
@@ -743,12 +743,11 @@ pub(crate) fn spawn_detached(shell_cmd: &str) -> std::io::Result<std::process::C
 }
 
 /// The `sh -c` command [`spawn_detached`] runs, before `setsid` is attached.
-/// T-3463: the spawning agent's sidecar sockets never reach a spawned session.
+/// T-3550: its environment is built by construction (`env_clear` plus the host allow-list),
+/// so nothing of the spawning agent's project or sidecar sockets (T-3463) reaches it.
 fn detached_command(shell_cmd: &str) -> std::process::Command {
-    let mut cmd = std::process::Command::new("sh");
-    for var in super::tmux_spawn::LAUNCH_SCOPED_ENV {
-        cmd.env_remove(var);
-    }
+    let mut cmd = std::process::Command::new("/bin/sh");
+    termlink_session::child_env::apply(&mut cmd);
     cmd.args(["-c", shell_cmd])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -804,16 +803,24 @@ mod tests {
     // leads its OWN session is out of its reach. `getsid(pid) == pid` is that,
     // and it is observable in-process on both platforms.
 
-    /// T-3463: the background backend never hands a spawned session the spawning
-    /// agent's sidecar sockets.
+    /// T-3463 / T-3550: the background backend hands a spawned session nothing of the
+    /// spawning agent's environment beyond the host allow-list: not its sidecar sockets, not
+    /// its project, not a variable nobody thought to list. The test process itself is the
+    /// canary: cargo runs it with CARGO_* and RUST_* variables no allow-list names.
     #[test]
-    fn t3463_background_spawn_removes_sidecar_sockets() {
-        let c = detached_command("true");
-        for var in crate::commands::tmux_spawn::LAUNCH_SCOPED_ENV {
-            assert!(
-                c.get_envs().any(|(k, v)| k == std::ffi::OsStr::new(var) && v.is_none()),
-                "{var} must be removed from the background child"
-            );
+    fn t3550_background_spawn_env_is_built_by_construction() {
+        assert!(std::env::vars().any(|(k, _)| !termlink_session::child_env::is_allowed(&k) && k != "PATH"),
+            "control: the test process must carry at least one unlisted variable");
+        let mut c = detached_command("env");
+        c.stdout(std::process::Stdio::piped());
+        let out = c.output().expect("sh runs");
+        let seen = String::from_utf8_lossy(&out.stdout);
+        assert!(seen.lines().any(|l| l.starts_with("PATH=")), "control: the child printed its env:\n{seen}");
+        for line in seen.lines() {
+            let name = line.split('=').next().unwrap_or("");
+            // PWD, SHLVL and _ are set by sh itself, not inherited.
+            let ok = termlink_session::child_env::is_allowed(name) || ["PATH", "PWD", "SHLVL", "_", "OLDPWD"].contains(&name);
+            assert!(ok, "{name} reached the background child:\n{seen}");
         }
     }
 

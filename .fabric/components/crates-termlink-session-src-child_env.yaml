@@ -1,0 +1,28 @@
+id: crates/termlink-session/src/child_env.rs
+name: child_env
+type: library
+subsystem: session
+location: crates/termlink-session/src/child_env.rs
+tags: [env, spawn, isolation, sev1]
+
+purpose: "Builds the environment of every process TermLink starts for another session: env_clear plus a host allow-list and a fixed PATH (T-3550, SEV-1 T-3549)"
+purpose_source: header
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  - target: crates/termlink-cli/src/commands/tmux_spawn.rs
+    type: calls
+  - target: crates/termlink-cli/src/commands/execution.rs
+    type: calls
+  - target: crates/termlink-cli/src/commands/infrastructure.rs
+    type: calls
+  - target: crates/termlink-mcp/src/tools.rs
+    type: calls
+
+last_verified: 2026-10-22
+created_by: T-3550

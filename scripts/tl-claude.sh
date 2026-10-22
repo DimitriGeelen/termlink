@@ -161,13 +161,11 @@ session_exists() {
 build_claude_cmd() {
     local cmd="${TL_CLAUDE_CMD:-claude}"
     local env_prefix="" has_skip=0 arg
-    # T-2403: sanitize a leaked PROJECT_ROOT so a cwd-scoped agent resolves its
-    # OWN project. A stale value inherited from the launcher env (observed:
-    # /opt/023 on workflow-designer while PWD=/opt/832) misroutes framework
-    # project resolution and gates ALL of the agent's fw/Bash/Edit in the wrong
-    # project. `env -u PROJECT_ROOT` drops it so the framework falls back to the
-    # cwd's .framework.yaml / git-toplevel (the normal unset path). Unconditional
-    # (independent of REACHABLE); opt out with TL_KEEP_PROJECT_ROOT=1.
+    # T-2403 / T-3550: a cwd-scoped agent must resolve its OWN project. The
+    # session shell this command is injected into was started by `termlink
+    # spawn` under env -i plus a host allow-list, so no project variable can be
+    # inherited; `env -u PROJECT_ROOT` stays as a second guard for a shell that
+    # predates T-3550. Opt out with TL_KEEP_PROJECT_ROOT=1.
     [ "${TL_KEEP_PROJECT_ROOT:-0}" != "1" ] && env_prefix="env -u PROJECT_ROOT "
     # T-2411: bind the per-agent identity into the claude process so the woken
     # REPL resolves its OWN agent-id fp (via `termlink agent identity --resolve`)
@@ -243,27 +241,25 @@ cmd_oneshot() {
     echo ""
     # T-2388: exec replaces this process, so arm out-of-band via retry loop.
     [ "$REACHABLE" -eq 1 ] && arm_reachable_async
-    # T-2403: sanitize a leaked PROJECT_ROOT before the exec so the spawned
-    # register/claude resolves its OWN project (see build_claude_cmd note).
-    # This path uses exec (inherited env), so unset in-shell rather than prefix.
-    [ "${TL_KEEP_PROJECT_ROOT:-0}" != "1" ] && unset PROJECT_ROOT
-    # T-2411: bind per-agent identity into the exec'd claude env (exec path
-    # analog of the build_claude_cmd prefix) so the woken REPL resolves its own
-    # agent-id fp, not the shared host key. See build_claude_cmd T-2411 note.
-    [ "$REACHABLE" -eq 1 ] && [ -n "${AGENT_ID:-}" ] && export TERMLINK_AGENT_ID="$AGENT_ID"
-    # T-3438: start the sidecar first; the socket is exported only when it is live.
+    # T-3550: `termlink spawn` builds the session's environment by construction
+    # (env -i plus a host allow-list), so nothing exported here is inherited.
+    # Every value the session needs goes through the launch spec (--env), and a
+    # leaked PROJECT_ROOT (T-2403) can no longer reach it at all.
+    local spawn_env=()
+    # T-2411: bind per-agent identity into the claude env so the woken REPL
+    # resolves its own agent-id fp, not the shared host key.
+    [ "$REACHABLE" -eq 1 ] && [ -n "${AGENT_ID:-}" ] && spawn_env+=(--env "TERMLINK_AGENT_ID=$AGENT_ID")
+    # T-3438: start the sidecar first; the socket is passed only when it is live.
     prepare_sidecar || true
-    if [ -n "$SIDECAR_SOCKET" ]; then export TERMLINK_SIDECAR_SOCKET="$SIDECAR_SOCKET"; else unset TERMLINK_SIDECAR_SOCKET; fi
-    # T-2400: same auto-accept guarantee as build_claude_cmd, but this path uses
-    # exec (not PTY-string injection), so export IS_SANDBOX into the inherited
-    # env and append the flag to the argv rather than prefixing a shell string.
+    [ -n "$SIDECAR_SOCKET" ] && spawn_env+=(--env "TERMLINK_SIDECAR_SOCKET=$SIDECAR_SOCKET")
+    # T-2400: same auto-accept guarantee as build_claude_cmd.
     if [ "$REACHABLE" -eq 1 ] && [ "${TL_NO_AUTO_ACCEPT:-0}" != "1" ]; then
         local has_skip=0 arg
         for arg in "${CLAUDE_ARGS[@]}"; do
             [ "$arg" = "--dangerously-skip-permissions" ] && has_skip=1
         done
         if [ "$has_skip" -eq 0 ]; then
-            export IS_SANDBOX=1
+            spawn_env+=(--env "IS_SANDBOX=1")
             CLAUDE_ARGS+=("--dangerously-skip-permissions")
         fi
     fi
@@ -271,6 +267,7 @@ cmd_oneshot() {
         --name "$SESSION_NAME" \
         --tags "$TAGS" \
         --backend "$BACKEND" \
+        ${spawn_env[@]+"${spawn_env[@]}"} \
         -- ${TL_CLAUDE_CMD:-claude} "${CLAUDE_ARGS[@]}"
 }
 

@@ -8442,7 +8442,10 @@ pub struct WhoamiParams {
 fn spawn_detached(shell_cmd: &str) -> std::io::Result<std::process::Child> {
     use std::os::unix::process::CommandExt;
 
-    let mut cmd = std::process::Command::new("sh");
+    let mut cmd = std::process::Command::new("/bin/sh");
+    // T-3550: the worker's environment is built by construction (env_clear + host allow-list),
+    // never inherited from the MCP server's caller (SEV-1 T-3549).
+    termlink_session::child_env::apply(&mut cmd);
     cmd.args(["-c", shell_cmd])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -13095,7 +13098,11 @@ impl TermLinkTools {
             )
         };
 
-        let child = std::process::Command::new("sh")
+        // T-3550: the session's environment is built by construction, never inherited
+        // from whoever started this MCP server (SEV-1 T-3549).
+        let mut sh = std::process::Command::new("/bin/sh");
+        termlink_session::child_env::apply(&mut sh);
+        let child = sh
             .args(["-c", &shell_cmd])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
@@ -18827,6 +18834,8 @@ impl TermLinkTools {
 
         // Build the hub start command
         let mut cmd = std::process::Command::new(&self_exe);
+        // T-3550: the hub must not carry the caller's project (SEV-1 T-3549).
+        termlink_session::child_env::apply_hub(&mut cmd);
         cmd.arg("hub").arg("start");
         if let Some(ref addr) = tcp_addr {
             cmd.arg("--tcp").arg(addr);
