@@ -4,12 +4,12 @@ name: "run-wc-vectors.sh: offline fallback to a gitignored cache of AEF's vector
 description: >
   The independent reviewer for T-3526 (fw reviewer judge) returned not-evaluated: its sandbox cannot resolve raw.githubusercontent.com, so run-wc-vectors.sh exited 2 and no case ran. Fix: after a successful fetch, keep a copy at .context/working/wc-vectors/<REF>.yaml (gitignored; AEF's file is never committed here); when the fetch fails and a copy for that exact REF exists, use it and say so on the vectors: line. No copy → exit 2 as today. Fixture-tested without network.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/run-wc-vectors.sh, tests/run-wc-vectors-cache-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T10:35:13Z
-last_update: 2026-10-22T10:35:13Z
-date_finished: null
+last_update: 2026-10-22T10:37:19Z
+date_finished: 2026-10-22T10:37:19Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -62,8 +62,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] After a successful fetch the script stores the file at `.context/working/wc-vectors/<REF>.yaml` (gitignored). When the fetch fails and that exact REF is cached, it uses the copy and the `vectors:` line says "cached copy"; with no copy it still exits 2 ("nothing was judged")
-- [ ] A hermetic test (network blocked via a bad URL seam) covers both: a cache hit runs and says "cached", a miss exits 2
+- [x] After a successful fetch the script stores the file at `.context/working/wc-vectors/<REF>.yaml` (gitignored). When the fetch fails and that exact REF is cached, it uses the copy and the `vectors:` line says "cached copy"; with no copy it still exits 2 ("nothing was judged")
+- [x] (tests/run-wc-vectors-cache-fixtures.sh 4/0; cache seeded for 25f56ed68, 52555 bytes) A hermetic test (network blocked via a bad URL seam) covers both: a cache hit runs and says "cached", a miss exits 2
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -366,3 +366,20 @@ git check-ignore -q .context/working/wc-vectors/probe.yaml
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3545-run-wc-vectorssh-offline-fallback-to-a-g.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-50d35541
+- **Timestamp:** 2026-10-22T10:37:24Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-22T10:37:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
