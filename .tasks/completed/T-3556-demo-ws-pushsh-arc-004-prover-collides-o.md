@@ -9,12 +9,12 @@ description: >
   and the guard layer then report arc-004 CLAIM-FAILED, a false alarm. Fix: pick a
   free port (bind :0 or probe), and wait for the hub to exit in cleanup.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [flake, arc-004]
-components: []
+components: [scripts/demo-ws-push.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -43,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T21:11:26Z
-last_update: 2026-10-22T22:35:21Z
-date_finished:
+last_update: 2026-10-22T22:35:24Z
+date_finished: 2026-10-22T22:35:24Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -401,3 +401,20 @@ verification line that runs two provers concurrently.
 ### 2026-10-22T22:33:40Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f6a621f0
+- **Timestamp:** 2026-10-22T22:35:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-22T22:35:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
