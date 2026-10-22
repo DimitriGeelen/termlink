@@ -2,12 +2,18 @@
 id: T-3539
 name: "wc/0.3 hub: T7d material binding and attested-done consumer refusal (CC-22)"
 description: >
-  Split from T-3527/T-3523. CC-22: resolve --as done takes an operator outcome (attested: true, result_kind none, evidence_digest NULL — today resolve_tx writes operator:<sha> as evidence_digest and no outcome) or a material ref; material of kind evidence bound to (dispatch, attempt, nonce) and verified like T7b gives attested:false + evidence_digest; anything unbound is an attestation. Consumers (review_verdict, pass_rate) must refuse an attested done with not_finished_work; decide where that consumer surface lives.
+  Split from T-3527/T-3523. CC-22: resolve --as done takes an operator outcome (attested:
+  true, result_kind none, evidence_digest NULL — today resolve_tx writes operator:<sha>
+  as evidence_digest and no outcome) or a material ref; material of kind evidence
+  bound to (dispatch, attempt, nonce) and verified like T7b gives attested:false +
+  evidence_digest; anything unbound is an attestation. Consumers (review_verdict,
+  pass_rate) must refuse an attested done with not_finished_work; decide where that
+  consumer surface lives.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T23:31:07Z
-last_update: 2026-10-21T23:31:07Z
-date_finished: null
+last_update: 2026-10-22T07:23:30Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +56,36 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-22T07:23:30Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3539: wc/0.3 hub: T7d material binding and attested-done consumer refusal (CC-22)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Scope (2026-10-22): the material binding only.** The consumer refusal (`not_finished_work`) is T-3540, blocked on T-3524. Spec §3.3 T7d: `done` "needs evidence **or** an operator-attested `outcome`, which writes `attested: true`, `attested_by`, `result.kind: none` and no `evidence_digest`". Evidence is "exactly T7b's … bound to (dispatch_id, attempt, nonce) and verified by the backend in the same step as the write; the outcome is then derived by the rule below, never chosen by the operator. Anything the operator supplies that is not so bound … is not evidence: the write is an attestation". Today `resolve_tx` (answer.rs ~530) writes `evidence_digest = operator:<sha(reason)>` and no outcome.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `resolve --as done` without bound evidence needs an operator outcome (`succeeded` or `failed`; missing or other is `invalid`) and writes `state done, outcome <it>, attested true, attested_by operator, result_kind none, evidence_digest NULL`. Unbound material (a kind other than evidence) is still an attestation, and its kind is noted in the history cause
+- [ ] `resolve --as done` with bound evidence (the attempt's nonce plus evidence digest, exit code, hand-back, persisted_at) is checked against the attempt's nonce in the same transaction. A wrong nonce is refused (`bad_nonce`) and writes nothing. A bound one writes `attested false`, the evidence digest, and the outcome derived by the T3 rule (`derive_outcome`); an operator `outcome` given alongside is ignored for the derivation and noted in the cause
+- [ ] CLI: `termlink hub dispatch-resolve` gains `--outcome succeeded|failed` and `--evidence <file.json>` (fields: nonce, evidence_digest, exit_code, handback, persisted_at), and the help text says an attestation is not finished work
+- [ ] Tests: the attested done (fields as above, digest null), unbound material, bound evidence (outcome derived, attested false), wrong nonce refused, and a done with no outcome or evidence refused. The conformance adapter maps `outcome` and `material` (kind evidence → the vector's bound evidence; any other kind → unbound); vectors at 25f56ed68 keep fail=0, and CC-22's only remaining gap is `op:consume` (T-3540)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +136,9 @@ date_finished: null
 -->
 
 ## Verification
+cargo test -p termlink-bus --lib worker_contract > /tmp/.t3539 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3539
+cargo test -p termlink-hub --lib dispatch_contract > /tmp/.t3539-h 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3539-h
+bash scripts/run-wc-vectors.sh --ref 25f56ed68 > /tmp/.t3539-v 2>&1 && grep -qE 'summary: .* fail=0 ' /tmp/.t3539-v && grep -A1 'CC-22' /tmp/.t3539-v > /tmp/.t3539-c && grep -q 'op:consume' /tmp/.t3539-c && ! grep -q 'material binding' /tmp/.t3539-c
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +389,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3539-wc03-hub-t7d-material-binding-and-attest.md
 - **Context:** Initial task creation
+
+### 2026-10-22T07:23:30Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
