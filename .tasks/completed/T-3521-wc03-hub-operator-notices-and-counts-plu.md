@@ -1,18 +1,20 @@
 ---
-id: T-3502
-name: "Worker contract hub backend S2: state sweep_dispatches (T4/T6/T6b/T7a/T7c)
-  with registry_epoch over the T-3490 worker binding; CC-01/02/03/08/09/17/20/21 (T-3484)"
+id: T-3521
+name: "wc/0.3 hub: operator notices and counts, plus reconciliation_requested (CC-05,08,15,17,20,21,22,24)"
 description: >
-  GATE: build starts only after ring20 agrees to contract v0.2 (AEF msg 028ffa5a);
-  AEF and TermLink agreed 2026-10-20. Spec: AEF docs/specs/shared-worker-contract-transitions.md
-  v0.2 (f600187a6) + TermLink's three v0.2.1 fixes; design: docs/reports/T-3484-termlink-build-design.md.
+  From the T-3517 conformance adapter (docs/reports/T-3484-conformance-map.md, 'Not-implemented,
+  by missing piece'): the hub exposes no notice surface; the sweep reports notices
+  only for a lost attempt whose binding reappears; T4/T6 and done-conflict refusals
+  are not counted; reconciliation_requested is not reported. Build the notice record
+  + counts in the bus worker_contract layer and expose it through the adapter's notices/operator_notices
+  ops; CC-21's remaining assertion lands here.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: []
-components: []
+horizon: null
+tags: [arc:arc-011]
+components: [crates/termlink-bus/src/worker_contract/notices.rs, crates/termlink-bus/src/worker_contract/notices_tests.rs, crates/termlink-bus/src/worker_contract/sweep.rs, crates/termlink-hub/src/dispatch_contract.rs, crates/termlink-hub/tests/wc_conformance/hub.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -40,9 +42,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-20T20:19:18Z
-last_update: 2026-10-21T08:49:54Z
-date_finished:
+created: 2026-10-21T14:43:43Z
+last_update: 2026-10-22T07:45:56Z
+date_finished: 2026-10-22T07:45:56Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -54,7 +56,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-10-21T08:49:54Z'
+  - ts: '2026-10-21T14:57:41Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -69,26 +71,21 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3502: Worker contract hub backend S2: state sweep_dispatches (T4/T6/T6b/T7a/T7c) with registry_epoch over the T-3490 worker binding; CC-01/02/03/08/09/17/20/21 (T-3484)
+# T-3521: wc/0.3 hub: operator notices and counts, plus reconciliation_requested (CC-05,08,15,17,20,21,22,24)
 
 ## Context
 
-Slice S2 of the hub backend for the shared worker contract (v0.3.3, agreed by AEF, ring20 and TermLink).
-Design: `docs/reports/T-3484-termlink-build-design.md` §4 (state sweep, registry epoch, AEF conditions a–d)
-and §5. S1 (T-3501, commit 698d630f5) built the tables and `dispatch.allocate/transition/get` in
-`crates/termlink-bus/src/worker_contract.rs` and `crates/termlink-hub/src/dispatch_contract.rs`. The worker
-binding (`--worker-binding <dispatch>:<attempt>`, unique among live registrations) exists from T-3490.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `sweep_dispatches` runs as a step of the hub's existing sweep and drives T4, T6 (both rows), T7a and T7c from STATE (registration files + records), never from events, each write going through S1's fenced transition path with writer `hub` and a history row
-- [ ] Registry epoch per §4: bumped at hub start and on any sweep whose listing was incomplete; absence counts toward T4 only on two consecutive sweeps at the attempt's `seen_epoch`; an epoch change can lead only to `unknown` via deadlines, never `lost` (tested: hub restart between sweeps, and an unreadable sessions dir)
-- [ ] T4 `lost` only after end observed twice plus grace G (≥ 4 × sweep interval) with no fenced `done` evidence; `lost` stays upgradable by T5 and `lost → running` is never written (a re-appearing binding gives a log line + operator notice instead), tested
-- [ ] T6: `dispatched` past `deadline_dispatched` → `unknown`; `running` with a live registration past `deadline_running` → `unknown`; T7a: `unknown` with a live binding → `running`; tested
-- [ ] Conformance CC-01, CC-02, CC-03, CC-08 and CC-09 pass as Rust tests with injected time and fake liveness, temp dirs only (T-3293 rule: never the real supervisor loop, never the real runtime dir)
-- [ ] Only `crates/termlink-bus/src/worker_contract*` and `crates/termlink-hub/src/{dispatch_contract,supervisor}.rs` (plus a new test file) are changed; `cargo test -p termlink-bus -p termlink-hub` passes and `bash scripts/check-error-code-emission.sh` stays clean
+- [x] The vocabulary meaning of `notices`, `operator_notices` and `reconciliation_requested` is quoted from AEF's vectors (b4c168aa9) in Decisions, together with the notice kinds and counts each of CC-05, 08, 15, 17, 20, 21, 22 and 24 asserts
+- [x] The hub records operator notices durably in the bus worker_contract store (a table or the history, written in the same transaction as the event that causes it: T4, T6, done-conflict refusals, a lost attempt's binding reappearing, reconciliation requested), and exposes them with counts through a read API the adapter maps to `notices` / `operator_notices`; `dispatch.get` returns an attempt's notices
+- [x] Notices come from state transitions and refusals, never from best-effort events; failing-first unit tests per notice kind
+- [x] The adapter at `--ref b4c168aa9` moves the notice-blocked cases from not-implemented to pass or to fail with a named diverging step (each remaining fail filed as its own bug), and no previously passing case regresses
+- [x] `cargo test -p termlink-bus -p termlink-hub` passes; Evolution filled (arc-tagged)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -140,8 +137,8 @@ binding (`--worker-binding <dispatch>:<attempt>`, unique among live registration
 
 ## Verification
 
-cargo test -p termlink-bus -p termlink-hub > /tmp/.t3502 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3502
-bash scripts/check-error-code-emission.sh --quiet
+bash scripts/run-wc-vectors.sh --ref b4c168aa9 > /tmp/.t3521-wc 2>&1; grep -qE "^summary: 25 cases" /tmp/.t3521-wc && ! grep -qE "^         .*op:(notices|operator_notices)" /tmp/.t3521-wc
+cargo test -p termlink-bus -p termlink-hub > /tmp/.t3521 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3521
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -336,6 +333,15 @@ bash scripts/check-error-code-emission.sh --quiet
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-21 — notices were a surface, not a feature
+- **What changed:** the map said "no notice surface"; in fact seven of eight blocked cases needed only a durable count the store
+  could derive from rows it already wrote. The real work was one table, five triggers and one explicit write.
+- **Plan impact:** seeding a case reaches `unknown`/`lost` through the sweep and so raises notices of its own; the adapter must count
+  what steps add (`base_notices`), as it already does for history rows.
+- **Triggered:** adapter at b4c168aa9 went pass 7 → 12 (CC-05, 17, 20, 21, 24); CC-08 now stops at `wait`, CC-15 at the
+  `agent_session` gate, CC-22 at consume and material binding. The T7d gates need `ResolveRequest` fields in `answer.rs`: filed
+  as T-3527 (after T-3520). No failing case came from notices.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -367,14 +373,25 @@ bash scripts/check-error-code-emission.sh --quiet
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-10-21 — vocabulary, read from AEF vectors b4c168aa9
+- The vector file carries no prose for these keys (its `vocabulary` lists only states, outcomes, transitions, writers, fence
+  reasons, refusals, capabilities, ops; `inspect` is "read-only check of an operator-visible surface (queue, notices, topics)").
+  Meaning, read from the cases: `notices: N` in a step `expect` = operator notices that step raised (also on `fence_reject` steps);
+  `operator_notices: N` under `then` = notices the dispatch carries at the end beyond `given`; `values.reconciliation_requested: true`
+  on a sweep = the hub asks the reconciler to look for evidence before T4.
+- Asserted: CC-05 done_conflict refusal 1 · CC-08 T6 1 · CC-15 T7d 1 (agent_session / not_available refusals before it add none)
+  · CC-17 `reconciliation_requested` on the 2nd absence at the last-seen epoch · CC-20 sweep-alive on lost 1 (refused start, T5: none)
+  · CC-21 T6b 1, T3b 0 · CC-22 T7d 1 · CC-24 late T5 refusal 1.
+
+### 2026-10-21 — notice record
+- **Chose:** table `wc_notices`, filled by `AFTER INSERT` triggers on `wc_history` for every history-backed kind; the sweep writes
+  `reconciliation_requested` (audience `reconciler`, not counted as operator) explicitly in its own transaction.
+- **Why:** the history row IS the transition or refusal, so the notice commits with it and cannot be forgotten by a writer; T7d
+  (`answer.rs`, T-3520's file) is covered with no edit there.
+- **Rejected:** explicit `append_notice` calls at each site (leaves T7d uncovered, and each future writer must remember); deriving
+  notices from history at read time (no durable record, and the T5 refusal is not distinguishable without a cause marker, which
+  the trigger approach also needs).
+- T4 raises no notice (no vector asks for one). `dispatch.get` is the read surface; no new RPC.
 
 ## Decision
 
@@ -388,11 +405,34 @@ bash scripts/check-error-code-emission.sh --quiet
 
 ## Updates
 
-### 2026-10-20T20:19:18Z — task-created [task-create-agent]
+### 2026-10-21T14:43:43Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3502-worker-contract-hub-backend-s2-state-swe.md
+- **Output:** /opt/termlink/.tasks/active/T-3521-wc03-hub-operator-notices-and-counts-plu.md
 - **Context:** Initial task creation
 
-### 2026-10-21T08:49:54Z — status-update [task-update-agent]
+### 2026-10-21T14:57:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-- **Change:** horizon: next → now
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-21 — build [agent]
+- **Action:** `worker_contract/notices.rs` (table, triggers, read API), `notices_tests.rs` (10 tests, 2 mutants caught),
+  sweep `reconciliation_requested`, T5 refusal cause, `dispatch.get` notices, adapter mapping, conformance map.
+- **Result:** adapter `--ref b4c168aa9` pass 7→12, fail 4→3, not-implemented 13→9; `cargo test -p termlink-bus -p termlink-hub` green.
+- **Filed:** T-3527 (T7d agent-session gate and material binding, CC-15/22).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2d4095c2
+- **Timestamp:** 2026-10-22T07:49:11Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-22T07:45:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

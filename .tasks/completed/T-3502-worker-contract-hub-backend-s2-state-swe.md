@@ -1,27 +1,19 @@
 ---
-id: T-3525
-name: "wc/0.3 hub: confirm_end does not read signed evidence before confirming an
-  end (CC-01, CC-03 evidence-present)"
+id: T-3502
+name: "Worker contract hub backend S2: state sweep_dispatches (T4/T6/T6b/T7a/T7c)
+  with registry_epoch over the T-3490 worker binding; CC-01/02/03/08/09/17/20/21 (T-3484)"
 description: >
-  Found by T-3522 (conformance adapter, AEF vectors wc/0.3 afe974124). CC-01 and CC-03
-  variant evidence-present step confirm_end (writer hub, attempt 1, clock 20, signed
-  E1 persisted_at 10, handback complete for n1) expects accepted T4 or T3. The store
-  answers no_transition: the sweep counts absence only for attempts seen alive at
-  the current epoch, and the store has no hub-side read of signed worker evidence,
-  so the hub cannot act on it. Vector text: confirm_end = the sweep writer confirms
-  the attempt end by the backend's own evidence (hub two sweeps at last-seen epoch
-  then G; hubless independent probe, evidence read first). Fix belongs in the backend
-  (worker_contract sweep), with a failing-first unit test. Not patched in T-3522,
-  which only maps the op.
+  GATE: build starts only after ring20 agrees to contract v0.2 (AEF msg 028ffa5a);
+  AEF and TermLink agreed 2026-10-20. Spec: AEF docs/specs/shared-worker-contract-transitions.md
+  v0.2 (f600187a6) + TermLink's three v0.2.1 fixes; design: docs/reports/T-3484-termlink-build-design.md.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: [arc:arc-011, wc-conformance]
-components: []
-related_tasks: [T-3522, T-3517, T-3484]
-origin: {kind: "agent"}
+horizon: null
+tags: []
+components: [crates/termlink-bus/src/worker_contract.rs, crates/termlink-bus/src/worker_contract/sweep.rs, crates/termlink-bus/src/worker_contract/sweep_tests.rs, crates/termlink-hub/src/dispatch_contract.rs, crates/termlink-hub/src/supervisor.rs]
+related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -48,9 +40,9 @@ origin: {kind: "agent"}
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-21T14:52:47Z
-last_update: 2026-10-21T15:30:05Z
-date_finished:
+created: 2026-10-20T20:19:18Z
+last_update: 2026-10-22T07:43:06Z
+date_finished: 2026-10-22T07:43:06Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -62,7 +54,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-10-21T15:30:05Z'
+  - ts: '2026-10-21T08:49:54Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -77,18 +69,26 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3525: wc/0.3 hub: confirm_end does not read signed evidence before confirming an end (CC-01, CC-03 evidence-present)
+# T-3502: Worker contract hub backend S2: state sweep_dispatches (T4/T6/T6b/T7a/T7c) with registry_epoch over the T-3490 worker binding; CC-01/02/03/08/09/17/20/21 (T-3484)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Slice S2 of the hub backend for the shared worker contract (v0.3.3, agreed by AEF, ring20 and TermLink).
+Design: `docs/reports/T-3484-termlink-build-design.md` §4 (state sweep, registry epoch, AEF conditions a–d)
+and §5. S1 (T-3501, commit 698d630f5) built the tables and `dispatch.allocate/transition/get` in
+`crates/termlink-bus/src/worker_contract.rs` and `crates/termlink-hub/src/dispatch_contract.rs`. The worker
+binding (`--worker-binding <dispatch>:<attempt>`, unique among live registrations) exists from T-3490.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Resolved by AEF's ruling (msg d0f2e96a, 2026-10-21) and vector fix T-4556 (25f56ed68), not by a hub change: confirm_end is the whole macro (two absent sweeps at the last-seen epoch, then G) and presumes a last-seen epoch; the vectors lacked `seen_alive_epoch` in `given`. The hub store's no_transition for a never-seen attempt was correct, and no hub-side signed-evidence read is required for the hub form (evidence-first is the hubless form)
-- [x] The adapter at 25f56ed68 reports CC-01 and CC-03 (both variants) pass with no backend change
+- [x] `sweep_dispatches` runs as a step of the hub's existing sweep and drives T4, T6 (both rows), T7a and T7c from STATE (registration files + records), never from events, each write going through S1's fenced transition path with writer `hub` and a history row
+- [x] Registry epoch per §4: bumped at hub start and on any sweep whose listing was incomplete; absence counts toward T4 only on two consecutive sweeps at the attempt's `seen_epoch`; an epoch change can lead only to `unknown` via deadlines, never `lost` (tested: hub restart between sweeps, and an unreadable sessions dir)
+- [x] T4 `lost` only after end observed twice plus grace G (≥ 4 × sweep interval) with no fenced `done` evidence; `lost` stays upgradable by T5 and `lost → running` is never written (a re-appearing binding gives a log line + operator notice instead), tested
+- [x] T6: `dispatched` past `deadline_dispatched` → `unknown`; `running` with a live registration past `deadline_running` → `unknown`; T7a: `unknown` with a live binding → `running`; tested
+- [x] Conformance CC-01, CC-02, CC-03, CC-08 and CC-09 pass as Rust tests with injected time and fake liveness, temp dirs only (T-3293 rule: never the real supervisor loop, never the real runtime dir)
+- [x] Only `crates/termlink-bus/src/worker_contract*` and `crates/termlink-hub/src/{dispatch_contract,supervisor}.rs` (plus a new test file) are changed; `cargo test -p termlink-bus -p termlink-hub` passes and `bash scripts/check-error-code-emission.sh` stays clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -140,7 +140,8 @@ bvp_scores_proposed:
 
 ## Verification
 
-bash scripts/run-wc-vectors.sh > /tmp/.t3525-wc 2>&1; grep -qE "^  CC-01 +pass " /tmp/.t3525-wc && grep -qE "^  CC-03 +pass " /tmp/.t3525-wc
+cargo test -p termlink-bus -p termlink-hub > /tmp/.t3502 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3502
+bash scripts/check-error-code-emission.sh --quiet
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -335,12 +336,6 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3525-wc 2>&1; grep -qE "^  CC-01 +pass "
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-10-21 — no hub-side evidence intake needed
-- **What changed:** the "hub cannot read signed evidence before an end" reading came from a vector missing its
-  seen-alive precondition; AEF ruled the hub form needs no evidence read (that is the hubless form) and fixed the vectors.
-- **Plan impact:** no backend work; CC-01 and CC-03 pass at 25f56ed68.
-- **Triggered:** none.
-
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -393,11 +388,33 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3525-wc 2>&1; grep -qE "^  CC-01 +pass "
 
 ## Updates
 
-### 2026-10-21T14:52:47Z — task-created [task-create-agent]
+### 2026-10-20T20:19:18Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3525-wc03-hub-confirmend-does-not-read-signed.md
+- **Output:** /opt/termlink/.tasks/active/T-3502-worker-contract-hub-backend-s2-state-swe.md
 - **Context:** Initial task creation
 
-### 2026-10-21T15:30:05Z — status-update [task-update-agent]
+### 2026-10-21T08:49:54Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
+- **Change:** horizon: next → now
+
+### 2026-10-21 — S2 finished (a6b583a31)
+- Finished from the prior worker's uncommitted tree: sweep.rs, 14 sweep tests, hub scan_bindings test, supervisor step via `run_with(.., dispatch_bus)`.
+- `cargo test -p termlink-bus` 173+2+2 pass; `-p termlink-hub` 550+3+4 pass; check-error-code-emission clean.
+- CC-01/03/09 are covered by behaviour shape (end-twice+grace, epoch, deadlines); no test is literally named after them.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-33390fd1
+- **Timestamp:** 2026-10-22T07:45:42Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-22T07:43:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

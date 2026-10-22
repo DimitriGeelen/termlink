@@ -10,10 +10,10 @@ description: >
   needs pinning, no copy of the vector file committed. Deliver per AEF msg aa10a1f5:
   inline unified diff if under ~8 KB, else a committed patch file + commit sha + sha256.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -44,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T15:15:24Z
-last_update: 2026-10-21T15:16:08Z
-date_finished:
+last_update: 2026-10-22T07:42:47Z
+date_finished: 2026-10-22T07:42:47Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -406,3 +406,20 @@ test -z "$(git ls-files | grep -E '(^|/)vectors\.yaml$')"
 ### 2026-10-21T16:00:00Z — patch-prepared [agent]
 - **Output:** docs/reports/T-3530-vectors-hub.patch, 5311 bytes (under the ~8 KB inline bound), sha256 b8fa05be2d6ff603814ce07edc22ff720f4c9c5b5da1f863e1831c914dfa97c8
 - **Checks:** `git apply --check` and `patch --dry-run` clean on the 25f56ed68 file; patched file passes `check_vectors.py` (25 cases); adapter with TERMLINK_WC_VECTORS=<patched> gives pass=15 fail=0 not-implemented=9 n/a=1 (unchanged).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c50f106b
+- **Timestamp:** 2026-10-22T07:42:49Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-22T07:42:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

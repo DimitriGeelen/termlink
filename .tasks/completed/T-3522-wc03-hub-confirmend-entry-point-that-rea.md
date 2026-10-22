@@ -1,20 +1,19 @@
 ---
-id: T-3521
-name: "wc/0.3 hub: operator notices and counts, plus reconciliation_requested (CC-05,08,15,17,20,21,22,24)"
+id: T-3522
+name: "wc/0.3 hub: confirm_end entry point that reads signed evidence before confirming
+  an end (CC-01,02,03,06)"
 description: >
-  From the T-3517 conformance adapter (docs/reports/T-3484-conformance-map.md, 'Not-implemented,
-  by missing piece'): the hub exposes no notice surface; the sweep reports notices
-  only for a lost attempt whose binding reappears; T4/T6 and done-conflict refusals
-  are not counted; reconciliation_requested is not reported. Build the notice record
-  + counts in the bus worker_contract layer and expose it through the adapter's notices/operator_notices
-  ops; CC-21's remaining assertion lands here.
+  From the T-3517 conformance adapter: the store has no end-confirmation entry point;
+  the sweep counts absence only for attempts seen alive at the current epoch and does
+  not read signed evidence before confirming an end. Add confirm_end per contract
+  §3.2 and drive CC-01/02/03/06 to pass through the adapter.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-bus/src/worker_contract/sweep.rs, crates/termlink-bus/src/worker_contract/sweep_tests.rs, crates/termlink-hub/tests/wc_conformance/hub.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,9 +41,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-21T14:43:43Z
-last_update: 2026-10-21T14:57:41Z
-date_finished:
+created: 2026-10-21T14:43:50Z
+last_update: 2026-10-22T07:49:24Z
+date_finished: 2026-10-22T07:49:24Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -56,7 +55,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-10-21T14:57:41Z'
+  - ts: '2026-10-21T14:46:05Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -71,7 +70,7 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3521: wc/0.3 hub: operator notices and counts, plus reconciliation_requested (CC-05,08,15,17,20,21,22,24)
+# T-3522: wc/0.3 hub: confirm_end entry point that reads signed evidence before confirming an end (CC-01,02,03,06)
 
 ## Context
 
@@ -81,11 +80,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The vocabulary meaning of `notices`, `operator_notices` and `reconciliation_requested` is quoted from AEF's vectors (b4c168aa9) in Decisions, together with the notice kinds and counts each of CC-05, 08, 15, 17, 20, 21, 22 and 24 asserts
-- [x] The hub records operator notices durably in the bus worker_contract store (a table or the history, written in the same transaction as the event that causes it: T4, T6, done-conflict refusals, a lost attempt's binding reappearing, reconciliation requested), and exposes them with counts through a read API the adapter maps to `notices` / `operator_notices`; `dispatch.get` returns an attempt's notices
-- [x] Notices come from state transitions and refusals, never from best-effort events; failing-first unit tests per notice kind
-- [x] The adapter at `--ref b4c168aa9` moves the notice-blocked cases from not-implemented to pass or to fail with a named diverging step (each remaining fail filed as its own bug), and no previously passing case regresses
-- [x] `cargo test -p termlink-bus -p termlink-hub` passes; Evolution filled (arc-tagged)
+- [x] Decided and recorded in Decisions, with the vector text quoted: AEF's vocabulary defines `confirm_end` for the hub as "two sweeps at the last-seen epoch then G" (evidence read first is the hubless form). Whether the S2 sweep (`absent_twice_then_lost_only_after_grace`, `done_evidence_inside_grace_prevents_lost`) already is that behaviour, so the gap is the adapter's mapping, or whether the backend lacks something (e.g. reading fenced done evidence before T4)
+- [x] The conformance adapter maps `confirm_end` for the hub to the real sweep path (driving the sweeps with the injected clock, never a shortcut that writes the state directly), and CC-01, CC-02, CC-03 and CC-06 each report pass, or fail with the diverging step named; any backend change is minimal, comes with a failing-first unit test, and changes no case that already passes (CC-04, 07, 14, 16, 18, 23)
+- [x] Every case still failing after this is filed as its own bug task with the diverging step; the conformance map is updated from the adapter's output
+- [x] `cargo test -p termlink-bus -p termlink-hub` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -137,8 +135,8 @@ bvp_scores_proposed:
 
 ## Verification
 
-bash scripts/run-wc-vectors.sh --ref b4c168aa9 > /tmp/.t3521-wc 2>&1; grep -qE "^summary: 25 cases" /tmp/.t3521-wc && ! grep -qE "^         .*op:(notices|operator_notices)" /tmp/.t3521-wc
-cargo test -p termlink-bus -p termlink-hub > /tmp/.t3521 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3521
+bash scripts/run-wc-vectors.sh > /tmp/.t3522-wc 2>&1; ! grep -qE "^  CC-0[1236] +not-implemented " /tmp/.t3522-wc && grep -qE "^summary: 25 cases" /tmp/.t3522-wc
+cargo test -p termlink-bus -p termlink-hub > /tmp/.t3522 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3522
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -333,14 +331,14 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3521 2>&1 && ! grep -q "test
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-10-21 — notices were a surface, not a feature
-- **What changed:** the map said "no notice surface"; in fact seven of eight blocked cases needed only a durable count the store
-  could derive from rows it already wrote. The real work was one table, five triggers and one explicit write.
-- **Plan impact:** seeding a case reaches `unknown`/`lost` through the sweep and so raises notices of its own; the adapter must count
-  what steps add (`base_notices`), as it already does for history rows.
-- **Triggered:** adapter at b4c168aa9 went pass 7 → 12 (CC-05, 17, 20, 21, 24); CC-08 now stops at `wait`, CC-15 at the
-  `agent_session` gate, CC-22 at consume and material binding. The T7d gates need `ResolveRequest` fields in `answer.rs`: filed
-  as T-3527 (after T-3520). No failing case came from notices.
+### 2026-10-21 — confirm_end was mostly an adapter mapping, and the rest was the vectors
+- **What changed:** AEF's vocabulary defines confirm_end for a hub as the S2 sweep macro (two absent sweeps at the
+  last-seen epoch, then G), so this slice mapped the op onto the real sweep and fixed one backend case (a confirm_end
+  on a done attempt is refused, CC-02 pass). CC-01/03/06 then failed for want of a seen-alive precondition, which AEF
+  ruled was missing from their vectors (msg d0f2e96a) and added in 25f56ed68; CC-06's last step was our fence order (T-3529).
+- **Plan impact:** none on the hub design; the store's strict §3.4 reading was right. Lesson kept: run the vectors before
+  changing the backend to fit one case.
+- **Triggered:** T-3525 and T-3526 (both resolved by AEF's vector fix), T-3529 (fence order).
 
 ## Recommendation
 
@@ -373,25 +371,27 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3521 2>&1 && ! grep -q "test
 
 ## Decisions
 
-### 2026-10-21 — vocabulary, read from AEF vectors b4c168aa9
-- The vector file carries no prose for these keys (its `vocabulary` lists only states, outcomes, transitions, writers, fence
-  reasons, refusals, capabilities, ops; `inspect` is "read-only check of an operator-visible surface (queue, notices, topics)").
-  Meaning, read from the cases: `notices: N` in a step `expect` = operator notices that step raised (also on `fence_reject` steps);
-  `operator_notices: N` under `then` = notices the dispatch carries at the end beyond `given`; `values.reconciliation_requested: true`
-  on a sweep = the hub asks the reconciler to look for evidence before T4.
-- Asserted: CC-05 done_conflict refusal 1 · CC-08 T6 1 · CC-15 T7d 1 (agent_session / not_available refusals before it add none)
-  · CC-17 `reconciliation_requested` on the 2nd absence at the last-seen epoch · CC-20 sweep-alive on lost 1 (refused start, T5: none)
-  · CC-21 T6b 1, T3b 0 · CC-22 T7d 1 · CC-24 late T5 refusal 1.
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
 
-### 2026-10-21 — notice record
-- **Chose:** table `wc_notices`, filled by `AFTER INSERT` triggers on `wc_history` for every history-backed kind; the sweep writes
-  `reconciliation_requested` (audience `reconciler`, not counted as operator) explicitly in its own transaction.
-- **Why:** the history row IS the transition or refusal, so the notice commits with it and cannot be forgotten by a writer; T7d
-  (`answer.rs`, T-3520's file) is covered with no edit there.
-- **Rejected:** explicit `append_notice` calls at each site (leaves T7d uncovered, and each future writer must remember); deriving
-  notices from history at read time (no durable record, and the T5 refusal is not distinguishable without a cause marker, which
-  the trigger approach also needs).
-- T4 raises no notice (no vector asks for one). `dispatch.get` is the read surface; no new RPC.
+### 2026-10-21 — adapter mapping or backend gap for confirm_end
+- **Chose:** Both, split by case. The adapter maps `confirm_end` to the real sweep path: `Bus::wc_confirm_end` refuses a done attempt with `forbidden_transition`, otherwise runs two sweeps at the current epoch and one more G later on the injected clock. The backend changes only where a case showed a real divergence: a hub end over a done attempt answered nothing where CC-02 expects the refusal. CC-01 and CC-03 (evidence-present) and CC-03 (no-evidence) plus CC-06 stay failing with the diverging step named, filed as T-3525 and T-3526.
+- **Quoted vector text:** vocabulary `confirm_end`: "the sweep writer confirms the attempt's end by the backend's own evidence (hub two sweeps at the last-seen epoch then G; hubless independent probe, evidence read first) and acts on it". CC-02: `complete` accepted T3, then `confirm_end` expects `{fence_reject: forbidden_transition}`. CC-06: a running attempt with no `seen_alive_epoch`, clock 20, `confirm_end` expects `{accepted: T4}`.
+- **Why:** S2 `absence()` counts absence only for an attempt whose binding was seen at the current epoch. That is §3.4 as CC-17 pins it ("acted on by deadlines only"), and `dispatched_never_seen_goes_unknown…` says "never seen, so no end was observed". So the sweep is right for seen attempts, and the two-sweeps-then-G mapping fits them. CC-06 and CC-03 (no-evidence) want T4 on a never-seen attempt before G, which contradicts §3.4, so this needs an AEF ruling, not a backend patch (T-3526). CC-01 and CC-03 (evidence-present) need the hub to read signed evidence persisted before the end; the store has no hub-side evidence intake (T-3525).
+- **Rejected:** (a) writing T4 directly from the adapter: a shortcut around the state machine, which the task forbids. (b) letting the sweep count never-seen attempts: CC-06 would pass, but §3.4 and CC-17 would be weakened, and both are pinned by tests. (c) marking CC-01/03/06 n/a: the vectors set `n_a_allowed: false` for transition subjects (§6.6 N2).
+
+## Evolution
+
+### 2026-10-21 — confirm_end mapped; three cases stay open
+- **What changed:** The filing assumed the sweep needed only an adapter mapping. That holds for CC-02 once the done-attempt refusal exists. The other vectors ask for behaviour the store does not have: a hub read of signed evidence (CC-01, CC-03 evidence-present), and T4 for a never-seen attempt before G (CC-06, CC-03 no-evidence), which conflicts with §3.4 / CC-17.
+- **Plan impact:** AC 2 is met as "fail with the diverging step named" for CC-01/03/06, not as pass. The verification line's no-`not-implemented` check holds.
+- **Triggered:** T-3525 (evidence intake for confirm_end) and T-3526 (never-seen absence; needs an AEF ruling). The conformance map was regenerated from the adapter. Its stale CC-16 and CC-21 verdicts (pre-T-3518/T-3519) are corrected.
 
 ## Decision
 
@@ -405,17 +405,34 @@ cargo test -p termlink-bus -p termlink-hub > /tmp/.t3521 2>&1 && ! grep -q "test
 
 ## Updates
 
-### 2026-10-21T14:43:43Z — task-created [task-create-agent]
+### 2026-10-21T14:43:50Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3521-wc03-hub-operator-notices-and-counts-plu.md
+- **Output:** /opt/termlink/.tasks/active/T-3522-wc03-hub-confirmend-entry-point-that-rea.md
 - **Context:** Initial task creation
 
-### 2026-10-21T14:57:41Z — status-update [task-update-agent]
+### 2026-10-21T14:46:05Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
 
-### 2026-10-21 — build [agent]
-- **Action:** `worker_contract/notices.rs` (table, triggers, read API), `notices_tests.rs` (10 tests, 2 mutants caught),
-  sweep `reconciliation_requested`, T5 refusal cause, `dispatch.get` notices, adapter mapping, conformance map.
-- **Result:** adapter `--ref b4c168aa9` pass 7→12, fail 4→3, not-implemented 13→9; `cargo test -p termlink-bus -p termlink-hub` green.
-- **Filed:** T-3527 (T7d agent-session gate and material binding, CC-15/22).
+### 2026-10-21 — confirm_end implemented and verified
+- **Change:** adapter op `confirm_end` mapped (`crates/termlink-hub/tests/wc_conformance/hub.rs`, `confirm_end`). Backend `Bus::wc_confirm_end` added (`crates/termlink-bus/src/worker_contract/sweep.rs`): refuses a done attempt with `forbidden_transition`, else runs the S2 sweep. Two failing-first unit tests in `sweep_tests.rs` (red first as a missing-method compile error, then green).
+- **Verdicts:** before pass=6 fail=1 not-implemented=17 n/a=1; after pass=7 fail=4 not-implemented=13 n/a=1. CC-02 → pass. CC-01, CC-03, CC-06 → fail, each naming the `confirm_end` step (T-3525, T-3526). No previously passing case changed (CC-04, 07, 14, 16, 18, 23 still pass).
+- **Tests:** `cargo test -p termlink-bus -p termlink-hub` exits 0 (bus lib 185 passed; hub 555 passed).
+- **Map:** `docs/reports/T-3484-conformance-map.md` regenerated from the adapter output.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-7fbcaead
+- **Timestamp:** 2026-10-22T07:53:00Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-22T07:49:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
