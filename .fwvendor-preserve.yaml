@@ -6,7 +6,7 @@ files:
   - path: agents/context/checkpoint.sh
     reason: T-3316 usage to stderr (upstream T-4227 took the rest of our fix; filed upstream in the T-3554 field report)
   - path: agents/context/lib/safe-commands.sh
-    reason: T-3178 Tier-1 write-gate bypass fix; /dev/stdout|stderr strip
+    reason: T-3178 redirect rule fails closed on a trailing bare '>' (upstream now catches the rest of the class, measured T-3554); /dev/stdout|stderr strip
   - path: agents/handover/handover.sh
     reason: T-3269 commit-pending; T-2882 enrichment marker and TODO sections
   - path: agents/termlink/bvp-estimator/estimator.py

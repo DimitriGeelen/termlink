@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T19:47:57Z
-last_update: 2026-10-22T20:37:54Z
+last_update: 2026-10-22T20:40:50Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -62,12 +62,12 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] v1.8.14 (2328ae76b) is an ancestor of v1.8.15-be.3 on a full (non-shallow) upstream clone; vendor-divergence check clean before the run
-- [ ] Rehearsed on a throwaway copy of this repo first (rc 0), with FRAMEWORK_ROOT/PROJECT_ROOT/FW_ROUTED_FROM unset
-- [ ] Every preserved file upstream changed is 3-way merged (base v1.8.14) in the same change; none left as our stale copy
-- [ ] CLAUDE.md part above `## Core Principle` byte-identical after the run (diff against CLAUDE.md.prevendor)
+- [x] v1.8.14 (2328ae76b) is an ancestor of v1.8.15-be.3 on a full (non-shallow) upstream clone; vendor-divergence check clean before the run
+- [x] Rehearsed on a throwaway copy of this repo first (rc 0), with FRAMEWORK_ROOT/PROJECT_ROOT/FW_ROUTED_FROM unset
+- [x] Every preserved file upstream changed is 3-way merged (base v1.8.14) in the same change; none left as our stale copy
+- [x] CLAUDE.md part above `## Core Principle` byte-identical after the run (diff against CLAUDE.md.prevendor)
 - [ ] Full guard layer and `fw doctor` show no new FAIL against the pre-upgrade baseline; `.vendor-divergence.yaml` last_vendor_event updated
-- [ ] WORKS/FAILS field report per exercised fix (T-4647 first) sent to AEF on conversation aef-v1815-be3
+- [x] WORKS/FAILS field report per exercised fix (T-4647 first) sent to AEF on conversation aef-v1815-be3 (client_msg_id 6829fbaa)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -271,6 +271,32 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+grep -qx "1.8.14+987.g2ec39ef8e" .agentic-framework/VERSION
+bash scripts/check-vendor-divergence.sh > /tmp/.t3554a 2>&1
+bash tests/vendor-divergence-fixtures.sh > /tmp/.t3554b 2>&1 && grep -q "failed: 0" /tmp/.t3554b
+bash tests/checkpoint-verb-fixtures.sh > /tmp/.t3554c 2>&1 && grep -q "ALL PASS" /tmp/.t3554c
+bash tests/safe-commands-checkpoint-fixtures.sh > /tmp/.t3554d 2>&1 && grep -q "ALL PASS" /tmp/.t3554d
+bash tests/safe-commands-write-pattern-fixtures.sh > /tmp/.t3554e 2>&1 && grep -q "Fail: 0" /tmp/.t3554e
+bash scripts/check-framework-tracking-drift.sh --quiet > /tmp/.t3554f 2>&1
+test "$(grep -c '^  - path:' .fwvendor-preserve.yaml)" -eq 9
+
+## Decisions
+
+### 2026-10-22 — preserved files whose fix landed upstream are taken from upstream, without --allow-delete-locals
+- **Chose:** reset pickup/embeddings/arc/claude-fw to their exact v1.8.14 content before the run, so the vendor
+  step's normal path replaced them with be.3; drop them from `.fwvendor-preserve.yaml` (13 -> 9).
+- **Why:** each 3-way merge resolved to upstream byte-for-byte (our fix landed as T-4473/T-4474/_embed_batches/T-2687).
+  `--allow-delete-locals` is a logged Tier-2 bypass and was not needed for an identical result.
+- **Rejected:** keeping them preserved (a stale copy would hide future upstream fixes, the T-3489 lesson).
+
+### 2026-10-22 — kept local: checkpoint usage on stderr, safe-commands trailing '>', handover [TODO:
+- **checkpoint.sh:** upstream T-4227 fixed the false HOOK CRASHED but prints usage on stdout; our fixture (T-3316)
+  expects stderr. One line kept, reported upstream.
+- **safe-commands.sh:** measured after the commit: upstream already catches `2> f`, `&> f`, `>| f`, `1>f`; ours
+  differs only in failing closed on a truncated trailing `>`. The commit message overstated this; corrected in
+  the register. Took upstream's stricter `sed -i` rule (T-4479).
+- **handover.sh:** `/resume` warns on unfilled `[TODO:` sections; upstream writes "Not recorded" there.
 
 ## RCA
 
