@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-10-21T14:44:17Z
-last_update: 2026-10-22T08:32:38Z
+last_update: 2026-10-22T09:50:04Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -67,25 +67,25 @@ bvp_scores_proposed:
 -->
 
 - **IW-1: Is a bounded `wait` on a dispatch record (CC-08) a hub surface, or a client poll of `dispatch.get`?**
-  confidence: 2
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: hub surface `dispatch.wait` (operator A′1, 2026-10-22; codex and antigravity agree; no lost wakeup, defined across restart)
 - **IW-2: For a hub backend, is a partition (CC-09) the existing absent-registration rule (two sweeps + G, `probe_undecided`), or does the hub need its own worker-host contact model?**
-  confidence: 2
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: neither — the absent-registration mapping is rejected (both reviewers: visibility loss ≠ execution loss); partition/heal is adapter fault injection that replays a late done against the fencing (operator A′1)
 - **IW-3: Are the parent-session-loss queue entry and `adopt` (CC-10) hub obligations (spec §4.6), or dispatcher tooling outside the hub?**
-  confidence: 1
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: hub obligations (§4.6): orphan routing of questions and bounces, plus an authorised, atomic, generation-advancing `adopt` (operator A′1; both reviewers)
 - **IW-4: Should `hold_lock` (CC-13) be exercised through the adapter against the real SQLite lock, or is T-3531's unit coverage the accepted evidence?**
-  confidence: 2
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: through the adapter against the real SQLite lock, short test timeout (operator A′1; both reviewers)
 - **IW-5: Are `consume` refusals (CC-19, CC-22) AEF's evaluation layer (n/a for a backend), or should the hub derive a `finished_work` fact?**
-  confidence: 2
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: AEF's evaluation layer; dispatch.get documents a normative finished_work rule (operator A′1 over A′2's hub dispatch.consume gate; codex for, antigravity against)
 
 ## Exploration Plan
 
@@ -147,11 +147,17 @@ bvp_scores_proposed:
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO (option A′1, operator ruling 2026-10-22, "Suggested Proceed"; stamp pending in Watchtower)
 
 **Rationale:**
 
-Shaping in progress: needs AEF and ring20's view per capability (consume, partition/heal, backend addressing, adopt/inspect, ask_wait, hold_lock, lease) before a ruling is decidable. Found by the T-3517 conformance adapter.
+Build in the hub: `dispatch.wait` (bounded; no lost wakeup; defined across hub restart; never waits inside a write
+transaction); orphan routing of questions **and** bounces when the dispatcher session is not live; `adopt`, authorised
+and atomic, advancing the fencing generation and carrying pending questions and bounces with deadlines unchanged.
+Build in the adapter: a `hold_lock` hook on the real SQLite lock (short test timeout); `partition`/`heal` as fault
+injection that replays a late `done` to prove fencing rejects a stale completion. The grading refusal (`consume`,
+CC-19/CC-22) stays with AEF's evaluation layer; `dispatch.get` documents a normative `finished_work` rule. External
+review: docs/reports/T-3524-consult/ (codex, antigravity; both "modified A"; they differ only on consume).
 
 **Evidence:**
 

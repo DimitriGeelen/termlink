@@ -60,3 +60,8 @@ hub behaviour already IS the op, and only the mapping needs agreeing.
 ## Dialogue Log
 
 1. **2026-10-22.** Artifact written after T-3523, T-3527, T-3528 and T-3539 took the vectors to 18/0. No operator dialogue yet.
+2. **2026-10-22.** Operator asked for external consultation. codex and antigravity reviewed (opencode returned empty).
+   Both: modified A; both reject the absent-registration partition mapping; they split on `consume` (codex:
+   evaluation layer; antigravity: hub `dispatch.consume` gate). Revised options A′1 / A′2 presented.
+3. **2026-10-22.** Operator: "Suggested Proceed" → **A′1** (consume stays with AEF; `finished_work` documented on
+   `dispatch.get`). GO stamp pending in Watchtower.
