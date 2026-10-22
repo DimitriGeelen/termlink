@@ -968,6 +968,12 @@ pub(crate) enum Command {
         action: Option<HubAction>,
     },
 
+    /// Per-project tmux servers (T-3552): socket name, list, attach — by project path
+    Tmux {
+        #[command(subcommand)]
+        action: TmuxAction,
+    },
+
     /// Per-agent message sidecar (arc-011): start, hook, finalize, send, reply, status, admin.
     /// Every argument after `sidecar` is passed through unchanged; run `termlink sidecar` for usage.
     #[command(disable_help_flag = true)]
@@ -1269,6 +1275,34 @@ impl std::fmt::Display for SpawnBackend {
             SpawnBackend::Background => write!(f, "background"),
         }
     }
+}
+
+/// Per-project tmux server actions (T-3552). Every form takes a project PATH, never a socket.
+#[derive(Subcommand)]
+pub(crate) enum TmuxAction {
+    /// Print the `tmux -L` name of the project's server (exit 2 if the path is in no project)
+    Socket {
+        /// A directory inside the project
+        path: std::path::PathBuf,
+    },
+    /// List sessions on the project's server, or on every TermLink server with --all
+    List {
+        /// A directory inside the project (default: the current directory)
+        path: Option<std::path::PathBuf>,
+        /// Every TermLink server of this user, not one project's
+        #[arg(long, conflicts_with = "path")]
+        all: bool,
+        /// Output JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Attach to a session on the project's server (replaces this process with a tmux client)
+    Attach {
+        /// A directory inside the project
+        path: std::path::PathBuf,
+        /// Session name (default: the only session, if there is exactly one)
+        session: Option<String>,
+    },
 }
 
 /// Hub server actions

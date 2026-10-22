@@ -68,7 +68,11 @@ termlink tmux attach <project-path> [<session>]             # exec: tmux -L <nam
 2. `list --json`: one object per session:
    `{project, server, session, attached, created, panes:[{pid, cmd}], registered_session_id}`. `--all` enumerates
    every `tl-*` server of this uid (the socket directory), including `tl-host`. A server whose socket exists but does
-   not answer is listed with `"state": "dead"`, never silently skipped.
+   not answer is listed with `"state": "dead"`, never silently skipped (`kill-server` leaves its socket file, so a
+   killed server shows as dead until the file is removed); a project with no server yet is `"absent"`.
+   `registered_session_id` is filled when the pane's own process is the registered TermLink session (a `--shell`
+   spawn); for a command spawn the registrar is a child of the pane's shell and the field is `null` (implemented
+   2026-10-23; a later step can fill it from the registration's `tmux_server` metadata).
 3. `attach`: without `<session>`, attaches when the project has exactly one session and lists them otherwise.
    It replaces the process (`exec`), so a cockpit gets a normal tmux client.
 4. The registration metadata of every spawned session gains `tmux_server` (the `-L` name) beside `pty_session`, so
