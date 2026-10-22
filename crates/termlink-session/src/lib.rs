@@ -33,6 +33,7 @@ pub mod invocation_audit;
 pub mod pty;
 pub mod scrollback;
 pub mod server;
+pub mod tmux_server;
 pub mod tofu;
 pub mod transport;
 pub mod ws_consumer;
