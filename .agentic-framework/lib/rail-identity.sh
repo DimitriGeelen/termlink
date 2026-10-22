@@ -76,7 +76,13 @@ rail_identity_fingerprint() {
     if [ -n "$idfile" ]; then
         out="$(TERMLINK_IDENTITY_FILE="$idfile" termlink agent identity --resolve --json 2>/dev/null)"
     else
-        out="$(termlink agent identity --resolve --json 2>/dev/null)"
+        # T-4326: strip every identity selector, or a session that already
+        # exports TERMLINK_IDENTITY_FILE=<project key> measures the project key
+        # as "the host" and compares it with itself (lib/sidecar/dm.py
+        # _host_fingerprint does the same). unset inside the $(...) subshell,
+        # not `env -u`, so a `termlink` shell function still resolves.
+        out="$(unset TERMLINK_IDENTITY_FILE TERMLINK_AGENT_ID TERMLINK_IDENTITY_DIR
+            termlink agent identity --resolve --json 2>/dev/null)"
     fi
     [ -n "$out" ] || return 1
     printf '%s' "$out" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("fingerprint",""))' 2>/dev/null
@@ -186,6 +192,14 @@ EOF
 # co-residents and authenticates nobody. It is a grouping key, and a grouping key
 # is only worth having if it groups.
 
+#
+# T-4327: only a CONFIGURED label is normalised. With nothing configured the
+# label is the verbatim project dir name — the fleet id the sidecar
+# (lib/sidecar/circuit.py project_id), lib/pickup.sh and 832's exact-match gate
+# already use. Lower-casing it here split one project into two names
+# ('832-Workflow-designer' on the sidecar, '832-workflow-designer' on the rail).
+# The dir name is one source, so it cannot vary the way a typed label did.
+
 rail_project_label() {
     local label
     if declare -F fw_config >/dev/null 2>&1; then
@@ -193,11 +207,69 @@ rail_project_label() {
     else
         label="${FW_RAIL_PROJECT_LABEL:-}"
     fi
-    [ -n "$label" ] || label="$(basename "${PROJECT_ROOT:-$PWD}")"
+    if [ -z "$label" ]; then
+        printf '%s' "$(basename "${PROJECT_ROOT:-$PWD}")"
+        return 0
+    fi
     printf '%s' "$label" \
         | tr '[:upper:]' '[:lower:]' \
         | tr ' _' '--' \
         | tr -cd 'a-z0-9.-'
+}
+
+# ── shared producer path for in-repo scripts (T-2913) ────────────────────────
+#
+# rail_post_exec <termlink-bin> <channel-post-args...>
+#
+# Runs `<termlink-bin> channel post <args>` with the project's signing identity
+# and the canonical from_project label — the two things `fw rail post` gives a
+# post. Used by the scripts that post from cron / pickup / doorbell paths
+# (lib/pickup-channel-bridge.sh, lib/publish-learning-to-bus.sh and the
+# messaging-toolkit scripts via lib/templates/scripts/rail-post.sh), which used
+# to call `termlink channel post` bare and so signed as the host with no label.
+#
+# Differences from `fw rail post`, on purpose:
+#   - It does NOT refuse a host-signed post; it warns once per process. These
+#     callers are unattended (heartbeat loop, pickup hook, learning hook) and
+#     the doorbell ack path; a refusal there is an outage on every consumer
+#     without RAIL_IDENTITY_FILE, not a prompt anyone can answer.
+#   - A caller that already chose an identity in its environment
+#     (TERMLINK_IDENTITY_FILE or TERMLINK_AGENT_ID) keeps it — overriding it
+#     would silently re-sign a session-scoped producer as the project.
+#   - The label is APPENDED after the caller's args, so a positional topic
+#     stays first.
+# RAIL_POST_TIMEOUT=N bounds the termlink call with timeout(1) when available
+# (a shell function cannot be wrapped by `timeout` from the caller's side).
+rail_post_exec() {
+    local tl="${1:?rail_post_exec: termlink binary required}"
+    shift
+    local -a run=("$tl")
+    if [ -n "${RAIL_POST_TIMEOUT:-}" ] && command -v timeout >/dev/null 2>&1; then
+        run=(timeout "$RAIL_POST_TIMEOUT" "$tl")
+    fi
+    local -a extra=()
+    case " $* " in
+        *" --metadata from_project="*|*" --metadata=from_project="*) : ;;
+        *) extra=(--metadata "from_project=$(rail_project_label)") ;;
+    esac
+
+    if [ -n "${TERMLINK_IDENTITY_FILE:-}" ] || [ -n "${TERMLINK_AGENT_ID:-}" ]; then
+        "${run[@]}" channel post "$@" "${extra[@]}"
+        return
+    fi
+
+    local idfile
+    idfile="$(rail_identity_configured_path)"
+    if [ -n "$idfile" ]; then
+        TERMLINK_IDENTITY_FILE="$idfile" "${run[@]}" channel post "$@" "${extra[@]}"
+        return
+    fi
+
+    if [ -z "${_RAIL_POST_HOST_WARNED:-}" ]; then
+        _RAIL_POST_HOST_WARNED=1
+        echo "rail-identity: WARNING — no RAIL_IDENTITY_FILE configured; this post is host-signed (set one: fw config set RAIL_IDENTITY_FILE .context/rail-identity.key)" >&2
+    fi
+    "${run[@]}" channel post "$@" "${extra[@]}"
 }
 
 # ── command surface ──────────────────────────────────────────────────────────

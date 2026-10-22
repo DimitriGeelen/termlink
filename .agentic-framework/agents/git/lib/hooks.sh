@@ -24,7 +24,7 @@
 # PL-078 still applies: when you change the CONTENT of any hook template below,
 # bump this constant AND the `# VERSION=` literal in the commit-msg heredoc
 # together, so consumers' next install-hooks redeploys all four.
-COMMIT_MSG_HOOK_VERSION="1.17"
+COMMIT_MSG_HOOK_VERSION="1.22"
 
 # T-2813: verify a hook actually landed by reading state back from disk,
 # rather than trusting that the `cat`/`chmod` calls that wrote it didn't
@@ -34,6 +34,160 @@ COMMIT_MSG_HOOK_VERSION="1.17"
 # is a reliable signal — only the resulting file is.
 _verify_hook_written() {
     [ -f "$1" ] && [ -x "$1" ]
+}
+
+# T-4403 (T-3926): the framework owns only a MARKED BLOCK of each hook file, not
+# the whole file. The whole file used to be compared and copied, so a line a
+# consumer added was indistinguishable from drift and every `fw upgrade` erased it
+# (832). The template runs in a subshell: its `exit 0` ends the block, not the
+# hook, so consumer lines after the block run once the framework checks pass; a
+# non-zero exit stops the hook. Only the block is compared and replaced.
+_FW_HOOK_BEGIN="# >>> agentic-framework hook - managed by fw git install-hooks; edits inside this block are overwritten >>>"
+_FW_HOOK_END="# <<< agentic-framework hook <<<"
+
+# _fw_hook_block TEMPLATE — the marked block for a staged template.
+_fw_hook_block() {
+    printf '%s\n(\n' "$_FW_HOOK_BEGIN"
+    sed '1{/^#!/d;}' "$1"
+    printf '%s\n%s\n' ') || exit $?' "$_FW_HOOK_END"
+}
+
+# _fw_hook_marked FILE — true when FILE holds exactly one well-formed block.
+_fw_hook_marked() {
+    [ -f "$1" ] || return 1
+    awk -v b="$_FW_HOOK_BEGIN" -v e="$_FW_HOOK_END" '
+        $0 == b { nb++; if (ne) bad = 1 }
+        $0 == e { ne++; if (!nb) bad = 1 }
+        END { exit !(nb == 1 && ne == 1 && !bad) }' "$1"
+}
+
+# _fw_hook_installed_block FILE — the block as installed (empty if unmarked).
+_fw_hook_installed_block() {
+    _fw_hook_marked "$1" || return 0
+    awk -v b="$_FW_HOOK_BEGIN" -v e="$_FW_HOOK_END" '
+        $0 == b { inb = 1 } inb { print } $0 == e { inb = 0 }' "$1"
+}
+
+# T-4568: digests of every template body a pre-block install-hooks wrote verbatim
+# (tools/gen-stock-hook-digests.sh). A stock old hook is recognised whole, so its
+# own lines are never mistaken for project lines (they did not parse after the
+# block, and the upgrade REFUSED a hook nobody had edited).
+_FW_STOCK_HOOK_DIGESTS="$(dirname "${BASH_SOURCE[0]}")/stock-hook-digests.txt"
+
+_fw_sha256() {
+    if command -v sha256sum >/dev/null 2>&1; then sha256sum; else shasum -a 256; fi | cut -d' ' -f1
+}
+
+# _fw_hook_stock_prefix FILE — line count of the longest shipped template that
+# FILE starts with, line for line (0 when none does).
+_fw_hook_stock_prefix() {
+    local file="$1" total n sha best=0
+    [ -f "$_FW_STOCK_HOOK_DIGESTS" ] || { echo 0; return 0; }
+    total=$(wc -l < "$file" | tr -d ' ')
+    while read -r n sha; do
+        case "$n" in ''|\#*) continue ;; esac
+        { [ "$n" -le "$total" ] && [ "$n" -gt "$best" ]; } || continue
+        [ "$(head -n "$n" "$file" | _fw_sha256)" = "$sha" ] && best=$n
+    done < "$_FW_STOCK_HOOK_DIGESTS"
+    echo "$best"
+}
+
+# _fw_hook_first_exit FILE — line number of FILE's first unconditional top-level
+# `exit` (column 0, as every template writes its final `exit 0`), 0 when none.
+# T-4569: nothing after it ever ran.
+_fw_hook_first_exit() {
+    awk '/^exit([[:space:]]|;|$)/ { print NR; found = 1; exit } END { if (!found) print 0 }' "$1"
+}
+
+# _fw_hook_compose INSTALLED BLOCK OUT — write the new hook to OUT: the block,
+# with everything the installed file held outside it kept in place. An unmarked
+# installed hook is migrated (backed up to INSTALLED.pre-fw-block first):
+#   - a stock old framework hook (T-4568: a shipped template, per its digest) is
+#     replaced whole; lines appended after it are kept, after the block;
+#   - any other old framework hook keeps only the lines the template does not
+#     contain, after the block — the template lines are never duplicated;
+#   - a consumer's own sh/bash hook keeps its whole body, after the block;
+#   - a hook in another language, or a merge that does not parse, is REFUSED:
+#     the installed file is left as it is and the function returns 2.
+# T-4515 (G-122): no line is ever commented out and no consumer hook is ever
+# replaced by the block alone. T-4403 did both, and 832's two pre-commit gates
+# stopped running for five hours while their marker text, still inside the
+# comment, made their own check read "installed". A stale framework line that
+# runs is loud; a consumer gate that silently stops is not.
+_fw_hook_compose() {
+    local installed="$1" block="$2" out="$3"
+    if [ ! -s "$installed" ]; then
+        { echo '#!/bin/bash'; cat "$block"; } > "$out"
+        return 0
+    fi
+    if _fw_hook_marked "$installed"; then
+        awk -v b="$_FW_HOOK_BEGIN" -v e="$_FW_HOOK_END" -v blk="$block" '
+            $0 == b { while ((getline l < blk) > 0) print l; skip = 1; next }
+            $0 == e { skip = 0; next }
+            !skip { print }' "$installed" > "$out"
+        return 0
+    fi
+    local name backup="$installed.pre-fw-block" kept="$out.kept" inert="$out.inert" first note="" stock dead
+    name=$(basename "$installed")
+    first=$(head -n 1 "$installed")
+    stock=$(_fw_hook_stock_prefix "$installed")
+    : > "$inert"
+    if [ "$stock" -gt 0 ]; then
+        # T-4568: a stock old framework hook, possibly with lines appended. The
+        # template is replaced whole; only the appended lines are kept.
+        awk -v s="$stock" 'NR > s { print NR "\t" $0 }' "$installed" > "$kept.n"
+        grep -q '[^[:space:]]' "$kept.n" || : > "$kept.n"
+        note="appended to a stock framework hook — they now run after the framework checks pass"
+    elif grep -qE 'Agentic Engineering Framework|agents/git/git\.sh install-hooks|^# [<>]{3} agentic-framework hook' "$installed"; then
+        # An old framework hook: lines the current template lacks are either the
+        # consumer's or an OLDER template's, and nothing tells them apart. Keep
+        # them all ACTIVE (T-4515): a consumer gate must keep running.
+        awk 'FNR == NR { t[$0] = 1; next }
+             FNR > 1 && !($0 in t) && $0 !~ /^[[:space:]]*$/ && $0 !~ /^# [<>][<>][<>] agentic-framework hook/ {
+                 print FNR "\t" $0 }' "$block" "$installed" > "$kept.n"
+        note="still active — delete any that came from an older framework hook"
+    elif [[ "$first" =~ ^#!(/usr)?/bin/(env[[:space:]]+)?(ba)?sh([[:space:]]|$) ]]; then
+        tail -n +2 "$installed" > "$kept"
+        note="unchanged — they now run after the framework checks pass"
+    else
+        rm -f "$kept" "$inert"
+        echo -e "${RED}REFUSED: $name is not a shell script ($first) — it cannot be merged with the framework block, and replacing it would disable it. Left unchanged.${NC}" >&2
+        echo "  Fix: call your hook from a shell $name, then re-run fw git install-hooks." >&2
+        return 2
+    fi
+    if [ -f "$kept.n" ]; then
+        # T-4569: keeping a line must keep whether it ran. A line after the old
+        # hook's unconditional top-level exit never ran; kept ACTIVE below the
+        # block it would start running on every commit. It stays inert.
+        dead=$(_fw_hook_first_exit "$installed")
+        awk -F '\t' -v d="$dead" -v k="$kept" -v i="$inert" '{
+            n = $1; sub(/^[0-9]+\t/, "")
+            if (d > 0 && n > d) print > i; else print > k }' "$kept.n"
+        touch "$kept"
+        rm -f "$kept.n"
+    fi
+    { echo '#!/bin/bash'; cat "$block"
+      if [ -s "$kept" ]; then
+          echo "# T-4515: project lines kept ACTIVE from the previous $name by fw git install-hooks ($note); original: $(basename "$backup")"
+          cat "$kept"
+      fi
+      if [ -s "$inert" ]; then
+          echo "# T-4569: project lines kept INERT from the previous $name by fw git install-hooks — they sat after its unconditional exit (line $dead) and never ran; uncomment any that should run; original: $(basename "$backup")"
+          sed 's/^/# /' "$inert"
+      fi; } > "$out"
+    if [ -s "$kept" ] && ! bash -n "$out" 2>/dev/null; then
+        echo -e "${RED}REFUSED: the lines of $name outside the framework template do not parse after the framework block — installing would disable them. $name left unchanged (its checks still run).${NC}" >&2
+        echo "  Lines:" >&2
+        sed 's/^/    | /' "$kept" | head -20 >&2
+        echo "  Fix: delete the lines that came from an older framework hook (or make the rest parse on its own), then re-run fw git install-hooks." >&2
+        rm -f "$kept" "$inert" "$out"
+        return 2
+    fi
+    [ -s "$kept" ] || [ -s "$inert" ] || [ -z "$note" ] && cp -p "$installed" "$backup" 2>/dev/null
+    [ -s "$kept" ] && echo -e "${YELLOW}$name: kept $(wc -l < "$kept") line(s) of the previous hook below the framework block ($note); previous file: $backup${NC}" >&2
+    [ -s "$inert" ] && echo -e "${YELLOW}$name: kept $(wc -l < "$inert") line(s) commented out — they sat after the previous hook's unconditional exit (line $dead) and never ran; previous file: $backup${NC}" >&2
+    rm -f "$kept" "$inert"
+    return 0
 }
 
 do_install_hooks() {
@@ -98,7 +252,7 @@ do_install_hooks() {
 # commit-msg hook - Task Reference Enforcement
 # Installed by: ./agents/git/git.sh install-hooks
 # Part of: Agentic Engineering Framework
-# VERSION=1.17
+# VERSION=1.22
 
 COMMIT_MSG_FILE="$1"
 COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
@@ -181,6 +335,17 @@ if [ -f "$FRAMEWORK_ROOT/lib/paths.sh" ]; then
 fi
 INCEPTION_COMMIT_LIMIT=$(fw_config "INCEPTION_COMMIT_LIMIT" 2 2>/dev/null || echo 2)
 
+# --- Foreign-delete guard (T-4528) ---
+# Refuse a commit that deletes files last committed by a DIFFERENT task unless the
+# message names that task: the signature of a stale scratch index built before
+# another worker's commit (290e149d6 deleted T-4520's suite). Here, not in
+# pre-commit, because only this hook sees the message. Inherits GIT_INDEX_FILE.
+# Override: FW_ALLOW_FOREIGN_DELETE=1 (Tier-2, logged).
+FOREIGN_DELETE_GUARD="$FRAMEWORK_ROOT/agents/git/lib/foreign-delete-guard.py"
+if [ -f "$FOREIGN_DELETE_GUARD" ] && command -v python3 >/dev/null 2>&1; then
+    PROJECT_ROOT="$PROJECT_ROOT" python3 "$FOREIGN_DELETE_GUARD" "$COMMIT_MSG_FILE" || exit 1
+fi
+
 # --- Inception commit classifier (T-2195) ---
 # An inception commit is "exploration" (counts toward budget) if its diff touches
 # anything OUTSIDE the inception's own task file in .tasks/{active,completed}/.
@@ -201,12 +366,26 @@ _count_inception_exploration_commits() {
         files=$(git show --name-only --format= "$sha" 2>/dev/null || echo "")
         # If ANY file is outside .tasks/{active,completed}/T-XXX-*, this is exploration.
         # grep -v matches storage-pattern lines; if anything remains, we count.
-        if echo "$files" | grep -vE "^\.tasks/(active|completed)/${task_ref}-" | grep -q '[^[:space:]]'; then
+        # T-4469: reviewer verdict rows (.context/reviews/, .context/costs/reviews.jsonl)
+        # are not exploration either — a verdict commit must not spend the budget.
+        if echo "$files" | grep -vE "^\.tasks/(active|completed)/${task_ref}-|^\.context/reviews/|^\.context/costs/reviews\.jsonl$" | grep -q '[^[:space:]]'; then
             total=$((total + 1))
         fi
     done < <(git log --oneline 2>/dev/null | grep -E "^[0-9a-f]+ ${task_ref}:" | awk '{print $1}')
     echo "$total"
 }
+
+# --- Reviewer verdict commits (T-4469) ---
+# A commit whose staged set lies ENTIRELY under .context/reviews/ (plus the review
+# cost ledger) is a reviewer recording a verdict row, not inception exploration.
+# Both inception gates below skip it. Refusing it left the row staged, the next
+# unrelated commit carried it, and the append-only ledger then blocked every push
+# (832, row V-20261020-2c550c7f). Exact: any other staged path re-applies the gates.
+REVIEW_LEDGER_ONLY=false
+_staged_files=$(git diff --cached --name-only 2>/dev/null || true)
+if [ -n "$_staged_files" ] && ! echo "$_staged_files" | grep -qvE '^\.context/reviews/|^\.context/costs/reviews\.jsonl$'; then
+    REVIEW_LEDGER_ONLY=true
+fi
 
 # --- Inception Gate (T-126, T-1176) ---
 # Block commits on inception tasks after exploration threshold unless decision recorded
@@ -220,7 +399,9 @@ if [ -n "$TASK_REF" ]; then
             HAS_DECISION=true
         fi
 
-        if [ "$HAS_DECISION" = false ]; then
+        if [ "$HAS_DECISION" = false ] && [ "$REVIEW_LEDGER_ONLY" = true ]; then
+            echo "NOTE: Inception task $TASK_REF — reviewer verdict commit (.context/reviews/ only), inception gates skipped (T-4469)"
+        elif [ "$HAS_DECISION" = false ]; then
             # Count existing exploration commits for this inception task (T-2195).
             # Storage commits (task-file-only edits: filing, demote, status flips,
             # frontmatter changes) are exempt. The classifier looks at each commit's
@@ -244,7 +425,7 @@ if [ -n "$TASK_REF" ]; then
                 echo ""
                 echo "Bypass: git commit --no-verify"
                 echo "  (In agent context, Tier 0 will prompt for approval on --no-verify.)"
-                echo "  Configure: $(_emit_user_command "config set inception_commit_limit N")"
+                echo "  Configure: $(_emit_user_command "config set INCEPTION_COMMIT_LIMIT N")"
                 exit 1
             else
                 echo ""
@@ -262,7 +443,7 @@ fi
 # inception-research-warnings: audit marker (C-002 OE check)
 # First commit is allowed (task creation). Subsequent commits must have the artifact
 # either on disk already or in the staged changes.
-if [ -n "$TASK_REF" ] && [ -n "$TASK_FILE" ] && grep -q "^workflow_type: inception" "$TASK_FILE" 2>/dev/null; then
+if [ -n "$TASK_REF" ] && [ -n "$TASK_FILE" ] && [ "$REVIEW_LEDGER_ONLY" = false ] && grep -q "^workflow_type: inception" "$TASK_FILE" 2>/dev/null; then
     # T-2195: exploration-only counter; storage commits exempt.
     INCEPTION_COMMITS=$(_count_inception_exploration_commits "$TASK_REF")
     if [ "$INCEPTION_COMMITS" -gt 0 ]; then
@@ -335,9 +516,11 @@ HOOK_EOF
 #!/bin/bash
 # pre-commit hook - Master-merge-only guard (T-2396) + task-corpus guard (T-3110)
 #                   + stale-index guard (T-4167) + Secret Scan (T-1844)
+#                   + bats dead-negation lint on staged tests (T-4379)
+#                   + task-template shipped-hash currency (T-4449)
 # Installed by: ./agents/git/git.sh install-hooks
 # Part of: Agentic Engineering Framework
-# VERSION=1.5
+# VERSION=1.7
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 
@@ -462,6 +645,13 @@ fi
 _hits=$(PROJECT_ROOT="$PROJECT_ROOT" bash "$SCANNER" scan-staged 2>&1)
 _rc=$?
 
+# T-2661: a passing scan can still carry a warning (T-2656's "RUNNING WITHOUT
+# PATTERNS"). The 2>&1 capture above swallowed it on rc=0, so the fail-open
+# default was silent after all. Pass it through.
+if [ "$_rc" -eq 0 ] && [ -n "$_hits" ]; then
+    echo "$_hits" >&2
+fi
+
 if [ "$_rc" -ne 0 ]; then
     echo ""
     echo "ERROR: Commit blocked — secret-scan detected matches:" >&2
@@ -469,7 +659,8 @@ if [ "$_rc" -ne 0 ]; then
     echo "$_hits" >&2
     echo "" >&2
     echo "If this is a real secret: remove it from the staged content and re-commit." >&2
-    echo "If this is a false positive: add a regex to .secret-scan-allowlist." >&2
+    echo "If this is a false positive: add a regex to .secret-scan-allowlist in the project root" >&2
+    echo "  ($PROJECT_ROOT/.secret-scan-allowlist — not .agentic-framework/, which fw upgrade replaces)." >&2
     echo "" >&2
     echo "Bypass: git commit --no-verify" >&2
     echo "  (Tier 0 will prompt for approval on --no-verify. Bypasses are logged.)" >&2
@@ -528,6 +719,83 @@ if [ -f "$LARGE_FILE_SCANNER" ]; then
         echo "Bypass: git commit --no-verify   (Tier 0, logged)" >&2
         echo "" >&2
         echo "Origin: T-1845 — sibling prevention to T-1844 (T-1834 force-push surfaced 36MB+78MB tracked binaries)." >&2
+        exit 1
+    fi
+fi
+
+# FW-HOOK-BLOCK: t4379-dead-negation
+# T-4379 (T-4398 prevention): a `! cmd` that is not the last statement of a bats
+# test is inert under set -e, and reads exactly like a working assertion. The lint
+# ran only at pre-push and in the structure audit (T-3191), a push after the
+# commit that wrote it. This runs it on the STAGED blobs of tests/**/*.bats, only
+# in a repo that carries the lint (the framework repo) and only when such a file
+# is staged, so every other commit pays one stat. Inherits GIT_INDEX_FILE.
+DN_LINT="$PROJECT_ROOT/tools/bats-dead-negation-lint.py"
+if [ -f "$DN_LINT" ] && command -v python3 >/dev/null 2>&1; then
+    _dn_files=$(git diff --cached --name-only --diff-filter=ACMR -- 'tests/*.bats' 2>/dev/null)
+    if [ -n "$_dn_files" ]; then
+        _dn_tmp=$(mktemp -d "${TMPDIR:-/tmp}/fw-dn-lint.XXXXXX") || exit 1
+        _dn_n=0
+        while IFS= read -r _dn_f; do
+            [ -n "$_dn_f" ] || continue
+            mkdir -p "$_dn_tmp/$(dirname "$_dn_f")"
+            git show ":$_dn_f" > "$_dn_tmp/$_dn_f" 2>/dev/null && _dn_n=$((_dn_n + 1))
+        done <<< "$_dn_files"
+        _dn_rc=0
+        if [ "$_dn_n" -gt 0 ]; then
+            _dn_out=$(cd "$_dn_tmp" && python3 "$DN_LINT" tests 2>&1) || _dn_rc=$?
+        fi
+        rm -rf "$_dn_tmp"
+        if [ "$_dn_rc" -eq 1 ]; then
+            echo "" >&2
+            echo "ERROR: Commit blocked — dead negation in a staged bats test:" >&2
+            echo "" >&2
+            echo "$_dn_out" | grep 'dead negation' >&2
+            echo "" >&2
+            echo "A '! cmd' that is not the last statement of its test cannot fail it" >&2
+            echo "(set -e ignores negated pipelines). Write it as '! cmd || false'." >&2
+            echo "Bypass: git commit --no-verify   (Tier 0, logged)" >&2
+            echo "Origin: T-4379 / T-4398." >&2
+            exit 1
+        fi
+    fi
+fi
+
+# FW-HOOK-BLOCK: t4449-template-shipped
+# T-4449: an edit to .tasks/templates/*.md must regenerate the shipped-hash list
+# lib/upgrade_template_shipped.py (fw upgrade's KEPT/UPDATED decision reads it).
+# Only test_upgrade_template_sync_t3955 noticed, in the nightly, a day later:
+# T-4035, T-4213, T-4441. This compares generate_known() — reused, not reimplemented
+# — against the STAGED list, only in a repo that carries both files (the framework
+# repo) and only when a template is staged, so every other commit pays one stat.
+TS_SYNC="$PROJECT_ROOT/lib/upgrade_template_sync.py"
+if [ -f "$TS_SYNC" ] && [ -f "$PROJECT_ROOT/lib/upgrade_template_shipped.py" ] \
+    && command -v python3 >/dev/null 2>&1 \
+    && [ -n "$(git diff --cached --name-only -- '.tasks/templates/*.md' 2>/dev/null)" ]; then
+    _ts_rc=0
+    _ts_out=$(git show :lib/upgrade_template_shipped.py 2>/dev/null | python3 -c '
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1] + "/lib")
+from upgrade_template_sync import generate_known
+ns = {}
+exec(sys.stdin.read(), ns)
+shipped, known = ns.get("SHIPPED", {}), generate_known(Path(sys.argv[1]))
+stale = sorted(k for k in set(shipped) | set(known) if shipped.get(k) != known.get(k))
+print("\n".join(stale))
+sys.exit(1 if stale else 0)
+' "$PROJECT_ROOT" 2>&1) || _ts_rc=$?
+    if [ "$_ts_rc" -ne 0 ]; then
+        echo "" >&2
+        echo "ERROR: Commit blocked — lib/upgrade_template_shipped.py is not current" >&2
+        echo "for the staged task templates:" >&2
+        echo "" >&2
+        echo "$_ts_out" | sed 's/^/  /' >&2
+        echo "" >&2
+        echo "Regenerate and stage it:" >&2
+        echo "  python3 lib/upgrade_template_sync.py --gen-known && git add lib/upgrade_template_shipped.py" >&2
+        echo "Bypass: git commit --no-verify   (Tier 0, logged)" >&2
+        echo "Origin: T-4449 (T-4035, T-4213, T-4441)." >&2
         exit 1
     fi
 fi
@@ -1266,16 +1534,17 @@ _version=""
 if git -C "$PROJECT_ROOT" ls-files --error-unmatch VERSION >/dev/null 2>&1; then
     echo "VERSION is tracked — not stamped (fw release is its only writer, T-3821)"
 else
-    _version=$(git describe --tags --match 'v[0-9]*' 2>/dev/null) || true
+    # T-4431: same exclude as lib/release-tags.sh — a -be tag is not a release
+    _version=$(git describe --tags --match 'v[0-9]*' --exclude '*-be.*' 2>/dev/null) || true
 fi
 if [ -n "$_version" ]; then
     _version="${_version#v}"
-    if [[ "$_version" == *-*-* ]]; then
-        _base="${_version%%-*}"
-        _rest="${_version#*-}"
-        _commits="${_rest%%-*}"
-        _major_minor="${_base%.*}"
-        _stamped="${_major_minor}.${_commits}"
+    # T-2961: same grammar as bin/fw _derive_version (T-4055) — v1.8.9-92-gabc
+    # → 1.8.9+92.gabc. The old <major.minor>.<commits> form dropped the tag's
+    # patch, so the third field was a distance that reset at every tag and
+    # 1.8.92 read "newer" than 1.8.10 (T-2925).
+    if [[ "$_version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-([0-9]+)-(g[0-9a-f]+)$ ]]; then
+        _stamped="${BASH_REMATCH[1]}+${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
     else
         _stamped="$_version"
     fi
@@ -1300,6 +1569,14 @@ echo ""
 # the whole point of the exit-75 branch below is that the pipeline's exit code must
 # not be substituted for the audit's.
 _t3126_out=$(mktemp -t fw-prepush-audit-XXXXXX 2>/dev/null || echo "")
+# T-4526: an interrupted push (Ctrl-C mid-audit) skipped every rm below and left
+# the capture behind. The rm calls stay; this covers the paths that miss them.
+# $BASHPID, not $$: the hook body runs in a ( ... ) subshell (T-4515).
+if [ -n "$_t3126_out" ]; then
+    trap 'rm -f "$_t3126_out"' EXIT
+    trap 'rm -f "$_t3126_out"; trap - INT; kill -INT $BASHPID' INT
+    trap 'rm -f "$_t3126_out"; trap - TERM; kill -TERM $BASHPID' TERM
+fi
 
 # T-3297: one audit attempt — shared by the first run and the bounded-wait
 # retries below. Sets $audit_exit; captures to $_t3126_out when available.
@@ -1363,14 +1640,50 @@ _t3297_lock_free() {
         [ ! -f "$_t3297_lock_file" ]
     fi
 }
+# T-4542: name the holder. audit.sh writes pid/since/job to audit.lock.holder when
+# it takes the lock; the record counts only while that pid is alive. Without this
+# a contended push read as a silent hang (field report from 1409-sprind).
+_t4542_holder_desc() {
+    _t4542_hf="$PROJECT_ROOT/.context/locks/audit.lock.holder"
+    _t4542_hpid=$(sed -n 's/^pid=//p' "$_t4542_hf" 2>/dev/null | head -1)
+    case "$_t4542_hpid" in ''|*[!0-9]*) echo "holder unknown (no holder record)"; return 0 ;; esac
+    if ! kill -0 "$_t4542_hpid" 2>/dev/null; then
+        echo "holder unknown (recorded pid $_t4542_hpid has exited)"
+        return 0
+    fi
+    _t4542_hsince=$(sed -n 's/^since=//p' "$_t4542_hf" 2>/dev/null | head -1)
+    _t4542_hjob=$(sed -n 's/^job=//p' "$_t4542_hf" 2>/dev/null | head -1)
+    case "$_t4542_hsince" in ''|*[!0-9]*) _t4542_hage="?" ;; *) _t4542_hage=$(( $(date +%s) - _t4542_hsince )) ;; esac
+    echo "held by pid $_t4542_hpid (${_t4542_hjob:-job unknown}) for ${_t4542_hage}s"
+}
+# T-4542: progress cadence while waiting (seconds); the first line prints at once.
+_t4542_progress="${FW_PREPUSH_LOCK_PROGRESS:-30}"
+case "$_t4542_progress" in ''|*[!0-9]*|0) _t4542_progress=30 ;; esac
+_t4542_waiting_file="$PROJECT_ROOT/.context/locks/push-waiting"
 _t3297_waited=0
 if [ "$audit_exit" -eq 75 ] && [ "$_t3297_wait" -gt 0 ]; then
-    echo ""
-    echo "Audit lock held — waiting up to ${_t3297_wait}s for it to free (FW_PREPUSH_LOCK_WAIT=$_t3297_wait, 0 disables)..."
+    # stderr is unbuffered and is what git shows for a hook; say it there first.
+    echo "" >&2
+    echo "Audit lock held — waiting up to ${_t3297_wait}s for it to free (FW_PREPUSH_LOCK_WAIT=$_t3297_wait, 0 disables)..." >&2
+    echo "  lock $(_t4542_holder_desc)" >&2
+    # T-4542: while this marker names a live pid, cron audits yield instead of
+    # re-taking the lock (agents/audit/audit.sh), so the push cannot be starved by
+    # back-to-back cron runs. Removed when the wait ends, or on any exit.
+    mkdir -p "$PROJECT_ROOT/.context/locks" 2>/dev/null
+    printf 'pid=%s\nsince=%s\n' "$$" "$(date +%s)" > "$_t4542_waiting_file" 2>/dev/null
+    # ($$ is the hook process — alive for the whole push; the body is a subshell.)
+    trap 'rm -f "$_t4542_waiting_file" ${_t3126_out:+"$_t3126_out"}' EXIT
+    trap 'rm -f "$_t4542_waiting_file" ${_t3126_out:+"$_t3126_out"}; trap - INT; kill -INT $BASHPID' INT
+    trap 'rm -f "$_t4542_waiting_file" ${_t3126_out:+"$_t3126_out"}; trap - TERM; kill -TERM $BASHPID' TERM
     _t3297_start=$(date +%s)
     _t3297_deadline=$(( _t3297_start + _t3297_wait ))
+    _t4542_next_note=$(( _t3297_start + _t4542_progress ))
     _t3297_blind=0
     while [ "$audit_exit" -eq 75 ] && [ "$(date +%s)" -lt "$_t3297_deadline" ]; do
+        if [ "$(date +%s)" -ge "$_t4542_next_note" ]; then
+            echo "  still waiting ($(( $(date +%s) - _t3297_start ))s of ${_t3297_wait}s) — lock $(_t4542_holder_desc)" >&2
+            _t4542_next_note=$(( _t4542_next_note + _t4542_progress ))
+        fi
         if _t3297_lock_free; then
             # Lock looks free — retry now. The retry may still lose the
             # re-acquire race and return 75 again; keep waiting if so.
@@ -1390,6 +1703,7 @@ if [ "$audit_exit" -eq 75 ] && [ "$_t3297_wait" -gt 0 ]; then
         [ "$audit_exit" -eq 75 ] && sleep 1
     done
     _t3297_waited=$(( $(date +%s) - _t3297_start ))
+    rm -f "$_t4542_waiting_file"
 fi
 
 # T-3297: Tier-2 log writer for the contention-only bypass (same entry shape as
@@ -1456,6 +1770,7 @@ if [ $audit_exit -eq 75 ]; then
         echo "trigger, so the lock may stay held for many minutes (T-3297); the window"
         echo "is sized from the last measured structure audit, so more than one queued"
         echo "pusher can still outlast it (T-3421)."
+        echo "  Lock: $(_t4542_holder_desc)"
         echo "  Check: ls -l $PROJECT_ROOT/.context/locks/audit.lock; pgrep -af audit.sh"
         echo ""
         echo "What to do — each command works as-is from this blocked state:"
@@ -1539,11 +1854,19 @@ HOOK_EOF
     _verify_hook_written "$pre_push_hook" || { install_failed=true; failed_hooks+=("$pre_push_hook"); }
 
     # T-3998: compare the staged hooks with the installed ones; deploy what differs.
-    local _names="commit-msg pre-commit pre-merge-commit post-commit pre-push" _n _differ=""
+    # T-4403: only the framework BLOCK is compared and replaced — lines outside it
+    # are the consumer's (see _fw_hook_compose).
+    # T-4268: an absent hook is not a differing one — a first install used to
+    # print "content differs — reinstalling" for all five.
+    local _names="commit-msg pre-commit pre-merge-commit post-commit pre-push" _n _differ="" _absent="" _changed=""
     if [ "$install_failed" = false ]; then
         for _n in $_names; do
-            if [ "$force" = true ] || [ ! -x "$hooks_dir/$_n" ] || ! cmp -s "$stage_dir/$_n" "$hooks_dir/$_n"; then
-                _differ="$_differ $_n"
+            _fw_hook_block "$stage_dir/$_n" > "$stage_dir/$_n.block"
+            if [ "$force" != true ] && [ ! -e "$hooks_dir/$_n" ]; then
+                _differ="$_differ $_n"; _absent="$_absent $_n"
+            elif [ "$force" = true ] || [ ! -x "$hooks_dir/$_n" ] \
+                || ! _fw_hook_installed_block "$hooks_dir/$_n" | cmp -s "$stage_dir/$_n.block" -; then
+                _differ="$_differ $_n"; _changed="$_changed $_n"
             fi
         done
         if [ -z "$_differ" ]; then
@@ -1553,17 +1876,28 @@ HOOK_EOF
         fi
         local existing_version
         existing_version=$(grep "^# VERSION=" "$hooks_dir/commit-msg" 2>/dev/null | cut -d= -f2)
+        [ -n "$_absent" ] && echo -e "${YELLOW}Hooks not present:${_absent} — installing${NC}"
         # State the difference, not a direction (T-2852): nothing here compares ordering.
-        [ "$force" = true ] || echo -e "${YELLOW}Hook content differs:${_differ} (marker installed: ${existing_version:-none}, template: $COMMIT_MSG_HOOK_VERSION) — reinstalling${NC}"
+        [ "$force" = true ] || [ -z "$_changed" ] || echo -e "${YELLOW}Hook content differs:${_changed} (marker installed: ${existing_version:-none}, template: $COMMIT_MSG_HOOK_VERSION) — reinstalling${NC}"
         failed_hooks=()
+        local _refused="" _rc
         for _n in $_differ; do
-            if cp "$stage_dir/$_n" "$hooks_dir/$_n" 2>/dev/null && chmod +x "$hooks_dir/$_n" \
-                && cmp -s "$stage_dir/$_n" "$hooks_dir/$_n"; then
+            _rc=0
+            _fw_hook_compose "$hooks_dir/$_n" "$stage_dir/$_n.block" "$stage_dir/$_n.new" || _rc=$?
+            if [ "$_rc" -eq 2 ]; then
+                _refused="$_refused $_n"   # T-4515: left as it is, never disabled
+            elif [ "$_rc" -eq 0 ] \
+                && cp "$stage_dir/$_n.new" "$hooks_dir/$_n" 2>/dev/null && chmod +x "$hooks_dir/$_n" \
+                && _fw_hook_installed_block "$hooks_dir/$_n" | cmp -s "$stage_dir/$_n.block" -; then
                 :
             else
                 install_failed=true; failed_hooks+=("$hooks_dir/$_n")
             fi
         done
+        if [ -n "$_refused" ] && [ "$install_failed" = false ]; then
+            echo -e "${RED}ERROR: hook(s) not installed:${_refused} — merging would have disabled lines that are not the framework's (see REFUSED above). They were left unchanged.${NC}" >&2
+            exit 1
+        fi
     fi
     commit_msg_hook="$hooks_dir/commit-msg"; pre_commit_hook="$hooks_dir/pre-commit"
     post_commit_hook="$hooks_dir/post-commit"; pre_push_hook="$hooks_dir/pre-push"
@@ -1595,11 +1929,17 @@ HOOK_EOF
 
     echo -e "${GREEN}=== Hooks Installed ===${NC}"
     echo ""
+    # T-4268: list the hooks this run wrote, not a fixed four.
     echo "Installed:"
-    echo "  - $commit_msg_hook (task reference validation)"
-    echo "  - $pre_commit_hook (secret-scan — T-1844)"
-    echo "  - $post_commit_hook (bypass detection)"
-    echo "  - $pre_push_hook (audit before push)"
+    for _n in $_differ; do
+        case "$_n" in
+            commit-msg)       echo "  - $commit_msg_hook (task reference validation)" ;;
+            pre-commit)       echo "  - $pre_commit_hook (secret-scan — T-1844)" ;;
+            pre-merge-commit) echo "  - $pre_merge_commit_hook (parked-branch merge guard)" ;;
+            post-commit)      echo "  - $post_commit_hook (bypass detection)" ;;
+            pre-push)         echo "  - $pre_push_hook (audit before push)" ;;
+        esac
+    done
     echo ""
     echo "Hook behavior:"
     echo "  - Blocks commits without task references (T-XXX)"
@@ -1631,6 +1971,12 @@ Installs:
   - pre-push hook: Runs audit before push (blocks on FAIL, and on could-not-run)
 
 The hooks enforce task traceability (P-002: Structural Enforcement).
+
+Each hook file holds the framework's checks between the markers
+"# >>> agentic-framework hook" and "# <<< agentic-framework hook <<<" (T-4403).
+Only that block is compared and replaced; lines you add above or below it are
+kept across install-hooks and fw upgrade, and lines below it run after the
+framework checks pass.
 
 Pre-push behavior:
   - Audit FAIL (exit 2): Push blocked

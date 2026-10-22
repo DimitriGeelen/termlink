@@ -64,6 +64,18 @@ def _halt_file() -> Path:
     return PROJECT_ROOT / ".context" / "working" / ".continuous-halt"
 
 
+def _continuous_armed() -> bool:
+    """T-4269: is a continuous run armed? Same rule as stop-driver.sh:112,144 —
+    the state file exists and `enabled` is a literal true. Anything else is the
+    disarmed default, which must not read as a running loop."""
+    sf = PROJECT_ROOT / ".context" / "working" / ".continuous-mode.yaml"
+    try:
+        state = yaml.safe_load(sf.read_text())
+    except (OSError, yaml.YAMLError):
+        return False
+    return isinstance(state, dict) and state.get("enabled") is True
+
+
 def _halt_state() -> dict:
     """Current brake state, for the /approvals card."""
     hf = _halt_file()
@@ -74,7 +86,7 @@ def _halt_state() -> dict:
             since = datetime.fromtimestamp(hf.stat().st_mtime, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         except OSError:
             since = None
-    return {"halted": halted, "path": str(hf), "since": since}
+    return {"halted": halted, "armed": _continuous_armed(), "path": str(hf), "since": since}
 
 # Approvals older than this are considered expired (seconds)
 EXPIRY_SECONDS = 3600  # 1 hour
@@ -640,7 +652,11 @@ def _load_waiting_messages() -> dict:
             capture_output=True, text=True, timeout=20, cwd=str(PROJECT_ROOT),
             env=_sidecar_cli_env())
         if proc.returncode != 0:
-            raise RuntimeError(f"exit {proc.returncode}: {(proc.stderr or '').strip()[-300:]}")
+            # T-4407: sanitize before the tail is cut, or a reason followed by
+            # bypass lines is cut away and the card shows a bare RuntimeError
+            from web.shared import operator_facing_stderr
+            raise RuntimeError(f"exit {proc.returncode}: "
+                               f"{operator_facing_stderr(proc.stderr or '')[-300:]}")
         data = json.loads(proc.stdout)
         items = []
         for it in data.get("items", []):
@@ -788,7 +804,14 @@ def _load_close_ready_arcs(threshold: float = 0.80) -> list[dict]:
                      or str(arc.get("anchor_task") or "").strip())
         _rec_role = "close-out task" if str(arc.get("close_task") or "").strip() else "anchor"
         blocked_reason = ""
-        if not rec.get("present"):
+        if not rec.get("present") and rec.get("ignored_task"):
+            # T-4320: a GO / NO-GO / DEFER is about starting the arc, not closing it.
+            blocked_reason = (
+                f"{rec['ignored_task']} holds only Recommendation: {rec.get('ignored_verdict') or '?'} "
+                f"— not a close verdict (CLOSE or KEEP-OPEN). The agent sets close_task: on "
+                f"the arc and writes one there, with demo evidence."
+            )
+        elif not rec.get("present"):
             blocked_reason = (
                 f"{_rec_role} {anchor_id or '(none set)'} has no Recommendation section — the agent "
                 f"advisory that closure review reads. Until it is written the arc cannot be "

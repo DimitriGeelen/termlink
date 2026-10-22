@@ -14,7 +14,9 @@
 #
 # Configuration:
 #   .secret-scan-patterns   TSV catalogue (name<TAB>regex)
-#   .secret-scan-allowlist  One regex per line; matching findings suppressed
+#   .secret-scan-allowlist  One regex per line; matching findings suppressed.
+#                           Read from the project root AND beside the patterns
+#                           (union, T-4316) — consumers keep theirs at the root.
 #
 # Optional escalation:
 #   If `gitleaks` is on PATH, run it as a second pass and treat any finding
@@ -73,6 +75,23 @@ _secret_scan_build_allowlist() {
     echo "$_joined"
 }
 
+# T-4316 (055 T-545): the effective allowlist is the UNION of the project-root
+# file and the one beside the chosen patterns. Patterns belong to the framework
+# and may come from the vendored copy; the allowlist belongs to the project, and
+# reading it only from $cfg meant a consumer could allowlist solely by editing
+# .agentic-framework/, which fw upgrade replaces — entries silently vanished.
+_secret_scan_allow_re() {
+    local root="$1" cfg="$2" _re _part
+    _re="$(_secret_scan_build_allowlist "$root/.secret-scan-allowlist")"
+    if [ "$cfg" != "$root" ]; then
+        _part="$(_secret_scan_build_allowlist "$cfg/.secret-scan-allowlist")"
+        if [ -n "$_part" ]; then
+            _re="${_re:+$_re|}$_part"
+        fi
+    fi
+    echo "$_re"
+}
+
 # T-3665 (P-01 Win F-07): emit the pattern catalogue with carriage returns
 # stripped. In a CRLF checkout (core.autocrlf=true, the Git for Windows default)
 # every catalogue line ends in \r, `read` keeps it, and each regex then demands
@@ -121,9 +140,17 @@ _secret_scan_run_patterns() {
     fi
 
     local _hits=0
+    # T-4400: the stream goes to a file and each pattern greps the file. Holding
+    # it in a variable and re-echoing it per pattern cost 77 s on fw init's
+    # 57 MB bootstrap diff; grep over the file is < 1 s for all patterns.
     local _input
-    _input=$(cat)
-    [ -z "$_input" ] && return 0
+    _input=$(mktemp "${TMPDIR:-/tmp}/fw-secret-scan.XXXXXX") || {
+        echo "ERROR: secret-scan could not create a temp file in ${TMPDIR:-/tmp} — nothing was scanned, commit blocked (set TMPDIR to a writable dir)" >&2
+        cat >/dev/null
+        return 1
+    }
+    cat > "$_input"
+    [ -s "$_input" ] || { rm -f "$_input"; return 0; }
 
     local _name _re
     while IFS=$'\t' read -r _name _re; do
@@ -137,7 +164,11 @@ _secret_scan_run_patterns() {
         # "filepath:diffline:content"; prefixing grep's own line number would
         # break allowlist regexes anchored at `^`.
         local _matches
-        _matches=$(echo "$_input" | grep -E -e "$_re" 2>/dev/null || true)
+        # T-4400: LC_ALL=C — the catalogue is ASCII, and under a UTF-8 locale
+        # GNU grep spent 8.4 s of a 9.6 s bootstrap scan on `[a-z2-7]{52}`
+        # alone (0.3 s in C). C also never treats invalid UTF-8 as binary,
+        # which would print "binary file matches" in place of the hit line.
+        _matches=$(LC_ALL=C grep -E -e "$_re" "$_input" 2>/dev/null || true)
         [ -z "$_matches" ] && continue
 
         while IFS= read -r _hit; do
@@ -149,6 +180,7 @@ _secret_scan_run_patterns() {
             _hits=$((_hits + 1))
         done <<< "$_matches"
     done < <(_secret_scan_read_catalogue "$patterns_file")
+    rm -f "$_input"
 
     [ "$_hits" -gt 0 ] && return 1
     return 0
@@ -157,19 +189,23 @@ _secret_scan_run_patterns() {
 # Public: scan staged content via `git diff --cached`. This is the pre-commit
 # hook's primary mode.
 scan_staged() {
-    local root cfg patterns allowlist
+    local root cfg patterns
     root="$(_secret_scan_project_root)"
     cfg="$(_secret_scan_config_dir "$root")"
     patterns="$cfg/.secret-scan-patterns"
-    allowlist="$cfg/.secret-scan-allowlist"
 
     local allow_re
-    allow_re="$(_secret_scan_build_allowlist "$allowlist")"
+    allow_re="$(_secret_scan_allow_re "$root" "$cfg")"
 
     # Format: walk the staged diff, prefix each added line with file:line:
     # — this gives the regex run a stable "filepath:linenumber:content" shape.
+    # T-4400: to a temp file, not a variable — see _secret_scan_run_patterns.
     local diff_stream
-    diff_stream=$(git -C "$root" diff --cached -U0 2>/dev/null | awk '
+    diff_stream=$(mktemp "${TMPDIR:-/tmp}/fw-secret-diff.XXXXXX") || {
+        echo "ERROR: secret-scan could not create a temp file in ${TMPDIR:-/tmp} — nothing was scanned, commit blocked (set TMPDIR to a writable dir)" >&2
+        return 1
+    }
+    { git -C "$root" diff --cached -U0 2>/dev/null || true; } | awk '
         /^diff --git/ { in_file=0; next }
         /^\+\+\+ b\// { file=substr($0, 7); in_file=1; next }
         in_file && /^@@/ {
@@ -189,28 +225,31 @@ scan_staged() {
             line_no++
         }
         in_file && /^[^+-]/ { line_no++ }
-    ')
+    ' > "$diff_stream"
 
     local rc=0
-    if [ -n "$diff_stream" ]; then
-        echo "$diff_stream" | _secret_scan_run_patterns "$patterns" "$allow_re" || rc=1
+    if [ -s "$diff_stream" ]; then
+        _secret_scan_run_patterns "$patterns" "$allow_re" < "$diff_stream" || rc=1
     fi
+    rm -f "$diff_stream"
 
     # T-2897 name axis, at the gate rather than only at the audit. scan_tree
     # tells you a key was published; this refuses the commit that publishes it.
     # Newly-added paths only: a rename or a content edit to a file whose name
     # was already accepted is not the event we are gating, and re-flagging it on
     # every touch is how a gate gets bypassed by habit.
-    local _added _path _base _lower _class
-    _added=$(git -C "$root" diff --cached --name-only --diff-filter=A 2>/dev/null)
-    while IFS= read -r _path; do
+    # T-4400: basenames are lowercased in one awk pass and classified without a
+    # subshell — three forks per path cost 24 s on fw init's 3,772 new paths.
+    local _added _path _base _lower
+    _added=$({ git -C "$root" diff --cached --name-only --diff-filter=A 2>/dev/null || true; } \
+             | awk '{ b = $0; sub(/.*\//, "", b); print tolower(b) "\t" $0 }')
+    while IFS=$'\t' read -r _lower _path; do
         [ -z "$_path" ] && continue
+        _secret_name_classify_var "$_lower"
+        [ -z "$_SECRET_NAME_CLASS" ] && continue
         _base="${_path##*/}"
-        _lower="$(printf '%s' "$_base" | tr '[:upper:]' '[:lower:]')"
-        _class="$(_secret_name_classify "$_lower")"
-        [ -z "$_class" ] && continue
         _secret_scan_is_allowed "$_path:0:$_base" "$allow_re" && continue
-        printf '  [name:%s] %s\n' "$_class" "$_path"
+        printf '  [name:%s] %s\n' "$_SECRET_NAME_CLASS" "$_path"
         rc=1
     done <<< "$_added"
 
@@ -230,14 +269,13 @@ scan_staged() {
 # Public: scan the entire working tree (audit mode). Used by the human-AC
 # step to surface pre-existing matches that need allowlisting.
 scan_tree() {
-    local root cfg patterns allowlist
+    local root cfg patterns
     root="$(_secret_scan_project_root)"
     cfg="$(_secret_scan_config_dir "$root")"
     patterns="$cfg/.secret-scan-patterns"
-    allowlist="$cfg/.secret-scan-allowlist"
 
     local allow_re
-    allow_re="$(_secret_scan_build_allowlist "$allowlist")"
+    allow_re="$(_secret_scan_allow_re "$root" "$cfg")"
 
     # T-3983 (ring20 T-2271, via the T-3977 review): both axes read the git INDEX
     # (git grep over tracked files, git ls-files). Outside a work tree, or with zero
@@ -413,10 +451,19 @@ _secret_name_is_prose_or_source() {
 
 # Classify one basename. Echoes the class, or nothing.
 _secret_name_classify() {
+    _secret_name_classify_var "$1"
+    [ -n "$_SECRET_NAME_CLASS" ] && echo "$_SECRET_NAME_CLASS"
+    return 0
+}
+
+# Same classification, result in $_SECRET_NAME_CLASS (empty = none). T-4400:
+# lets scan_staged classify thousands of paths without a subshell per path.
+_secret_name_classify_var() {
     local lower="$1"
+    _SECRET_NAME_CLASS=""
     case "$lower" in
         .fw-secret-key|id_rsa|id_dsa|id_ecdsa|id_ed25519|.netrc|.pgpass|.htpasswd)
-            echo DEFINITIVE; return ;;
+            _SECRET_NAME_CLASS=DEFINITIVE; return ;;
         # Bare `credentials` as the whole stem is a credential store by
         # convention. As a compound suffix it is usually prose ABOUT one
         # (url-credentials, strips_upstream_credentials) — which is why it is
@@ -424,24 +471,23 @@ _secret_name_classify() {
         # Known limit, stated rather than papered over: `aws-credentials` and
         # other qualifier-less compounds fall through both classes.
         credentials|.credentials|credentials.json|credentials.yaml|credentials.yml|credentials.ini)
-            echo DEFINITIVE; return ;;
+            _SECRET_NAME_CLASS=DEFINITIVE; return ;;
         *.pem|*.p12|*.pfx|*.jks|*.keystore|*.ppk|*.key)
-            echo DEFINITIVE; return ;;
+            _SECRET_NAME_CLASS=DEFINITIVE; return ;;
     esac
     _secret_name_is_prose_or_source "$lower" && return
     if _secret_name_pair_disjoint "$lower"; then
-        echo ANNOUNCED
+        _SECRET_NAME_CLASS=ANNOUNCED
     fi
 }
 
 # Public: scan tracked FILENAMES for credential material.
 # Returns 0 if none, 1 if any.
 scan_names() {
-    local root cfg allowlist allow_re
+    local root cfg allow_re
     root="$(_secret_scan_project_root)"
     cfg="$(_secret_scan_config_dir "$root")"
-    allowlist="$cfg/.secret-scan-allowlist"
-    allow_re="$(_secret_scan_build_allowlist "$allowlist")"
+    allow_re="$(_secret_scan_allow_re "$root" "$cfg")"
 
     local _hits=0 _path _base _lower _class
     while IFS= read -r _path; do
@@ -466,18 +512,17 @@ scan_file() {
     local file="$1"
     [ -z "$file" ] && { echo "usage: scan-file <path>" >&2; return 2; }
     [ ! -f "$file" ] && { echo "scan-file: not found: $file" >&2; return 2; }
-    local root cfg patterns allowlist
+    local root cfg patterns
     root="$(_secret_scan_project_root)"
     cfg="$(_secret_scan_config_dir "$root")"
     patterns="$cfg/.secret-scan-patterns"
-    allowlist="$cfg/.secret-scan-allowlist"
     # T-3971: not a commit gate, so no fail-open — missing catalogue is NOT CHECKED (3).
     if [ ! -f "$patterns" ]; then
         echo "secret-scan: NOT CHECKED: no patterns catalogue ($patterns)" >&2
         return 3
     fi
     local allow_re
-    allow_re="$(_secret_scan_build_allowlist "$allowlist")"
+    allow_re="$(_secret_scan_allow_re "$root" "$cfg")"
     awk -v file="$file" '{ printf "%s:%d:%s\n", file, NR, $0 }' "$file" \
         | _secret_scan_run_patterns "$patterns" "$allow_re"
 }
@@ -487,7 +532,22 @@ _secret_scan_main() {
     local cmd="${1:-scan-staged}"
     shift || true
     case "$cmd" in
-        scan-staged|scan_staged) scan_staged "$@" ;;
+        scan-staged|scan_staged)
+            # T-4427: FW_SECRET_SCAN_TIMING_FILE=<path> records one line
+            # "secret scan: N file(s) in S.s s" there, so fw init can print the
+            # bootstrap commit's scan time (the hook swallows scanner output on
+            # success). Verdict and exit code are scan_staged's, unchanged.
+            [ -z "${FW_SECRET_SCAN_TIMING_FILE:-}" ] && { scan_staged "$@"; return; }
+            local _t0 _t1 _rc=0 _n
+            _t0="${EPOCHREALTIME:-$(date +%s)}"
+            scan_staged "$@" || _rc=$?
+            _t1="${EPOCHREALTIME:-$(date +%s)}"
+            _n=$(git -C "$(_secret_scan_project_root)" diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ')
+            awk -v n="${_n:-0}" -v a="${_t0/,/.}" -v b="${_t1/,/.}" \
+                'BEGIN { printf "secret scan: %d file(s) in %.1f s\n", n, b - a }' \
+                > "$FW_SECRET_SCAN_TIMING_FILE" 2>/dev/null || true
+            return "$_rc"
+            ;;
         scan-tree|scan_tree)     scan_tree "$@" ;;
         scan-names|scan_names)   scan_names "$@" ;;
         scan-file|scan_file)     scan_file "$@" ;;
@@ -507,7 +567,8 @@ FW_SECRET_SCAN_STRICT=1.
 
 Configuration:
   .secret-scan-patterns   TSV pattern catalogue
-  .secret-scan-allowlist  Suppress known false-positives
+  .secret-scan-allowlist  Suppress known false-positives (project root; the
+                          vendored copy's entries also apply)
 USAGE
             return 0
             ;;

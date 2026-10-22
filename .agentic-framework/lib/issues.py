@@ -26,10 +26,14 @@ import hashlib
 import json
 import os
 import re
+import socket
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from fnmatch import fnmatchcase
 from pathlib import Path
+
+import yaml
 
 # T-4093: arc ids are normalised by the canonical helper (T-3516), never re-derived here.
 try:
@@ -68,7 +72,6 @@ LABELS = {  # name -> (description, colour)
     "status:not-planned": ("Not planned; reason given in the issue", "cfd3d7"),
     "status:in-progress": ("Work has started", "5319e7"),
     "status:fixed-on-bleeding-edge": ("Fixed on bleeding-edge; not yet released", "0e8a16"),
-    "fixed-on-bleeding-edge": ("Fix is on the bleeding-edge branch", "0e8a16"),
     "status:available-for-testing": ("Fix is in a pre-release for testing", "1d76db"),
     "status:released": ("Released", "0e8a16"),
 }
@@ -77,9 +80,16 @@ STAGE_LABELS = {
     "accepted": ["status:accepted"], "needs-info": ["status:needs-info"],
     "duplicate": ["status:duplicate"], "not-planned": ["status:not-planned"],
     "in-progress": ["status:in-progress"],
-    "fixed-on-bleeding-edge": ["status:fixed-on-bleeding-edge", "fixed-on-bleeding-edge"],
+    "fixed-on-bleeding-edge": ["status:fixed-on-bleeding-edge"],
     "available-for-testing": ["status:available-for-testing"], "released": ["status:released"],
 }
+# T-4412: status:* labels are a state, not a history — one at a time. LEGACY_STATUS_LABELS were
+# once added beside the status:* label and are removed with the other status labels.
+LEGACY_STATUS_LABELS = {"fixed-on-bleeding-edge"}
+
+
+def _is_status_label(name: str) -> bool:
+    return name.startswith("status:") or name in LEGACY_STATUS_LABELS
 
 
 class IssuesError(Exception):
@@ -221,6 +231,22 @@ def _marked_on_issue(issue: int, stage: str) -> bool:
     return False
 
 
+def _label_spec(name: str) -> tuple:
+    if name in LABELS:
+        return LABELS[name]
+    if name.startswith("area:"):  # T-4411: one per area in policy/issue-areas.yaml
+        return (f"Area {name[5:]} (from the component fabric)", "c5def5")
+    if name.startswith("severity:"):
+        return (f"Severity {name[9:]}", {"high": "b60205", "medium": "fbca04"}.get(name[9:], "c2e0c6"))
+    raise IssuesError(f"no definition for label {name!r}", 2)
+
+
+def _triage_labels(area: str, severity: str) -> list:
+    """area:<x> / severity:<y> (T-4411); 'unspecified' and unknown severities get no label."""
+    out = [f"area:{area}"] if area and area != "unspecified" else []
+    return out + ([f"severity:{severity}"] if severity in SEVERITIES else [])
+
+
 def _ensure_labels(names: list) -> None:
     p = _gh(["label", "list", "--repo", _repo(), "--limit", "500", "--json", "name"])
     if p.returncode != 0:
@@ -232,7 +258,7 @@ def _ensure_labels(names: list) -> None:
     for n in names:
         if n in have:
             continue
-        desc, colour = LABELS[n]
+        desc, colour = _label_spec(n)
         q = _gh(["label", "create", n, "--repo", _repo(), "--description", desc, "--color", colour])
         if q.returncode != 0:
             raise IssuesError(f"cannot create label {n!r}: {q.stderr.strip()[:300]}", 2)
@@ -263,6 +289,25 @@ def _approval_ok(ref: str, issue: int, stage: str) -> bool:
                 and r.get("by") == "human"):
             return True
     return False
+
+
+# Operator ruling 2026-10-19 (T-4347): 'you can post fully automatically no approval needed'.
+# Supersedes answer 1 of 2026-10-10 for decision comments, but only while the key is on.
+STANDING_PERMISSION_KEY = "ISSUES_DECISIONS_STANDING_PERMISSION"
+STANDING_PERMISSION_REF = "standing-permission:operator-2026-10-19"
+
+
+def _standing_permission() -> bool:
+    """env FW_<KEY> > .framework.yaml > 0, resolved like fw_config. Only an explicit 1 grants it."""
+    raw = os.environ.get("FW_" + STANDING_PERMISSION_KEY)
+    if raw in (None, ""):
+        try:
+            text = (_project_root() / ".framework.yaml").read_text(encoding="utf-8")
+        except OSError:
+            return False
+        m = re.search(rf"^{STANDING_PERMISSION_KEY}:\s*['\"]?([^'\"#\n]+?)['\"]?\s*(#.*)?$", text, re.M)
+        raw = m.group(1) if m else ""
+    return raw.strip() == "1"
 
 
 def cmd_approve(a) -> int:
@@ -335,11 +380,25 @@ def render(a, date: str, intake: str = "") -> str:
         out.append(f"{t_md} is available for testing in **{a.version}**." + (f" {text}" if text else ""))
         if a.test_cmd:
             out += ["", f"**To try it:** `{a.test_cmd}`"]
+        if "-be." in a.version:  # T-4500: a shallow tag clone is refused by fw upgrade
+            out += ["", "Upgrade from a non-shallow clone of the tag (no `--depth`): a shallow clone "
+                        "cannot see your project's recorded version_sha, so `fw upgrade` refuses it as "
+                        "foreign-source. Already cloned shallow? Run `git -C <clone> fetch --unshallow`, "
+                        "then re-run `fw upgrade`."]
         out += ["", "Does this fix it for you? Your confirmation here is the strongest evidence "
                     "we can get. Next update here: released."]
     elif st == "released":
         _need(a, "task", "version")
         out.append(f"{t_md} is released in **{a.version}**." + (f" {text}" if text else ""))
+        if getattr(a, "closing", False):
+            out += ["", "This issue is closed with this release: the fix is in it and the field evidence "
+                        "below confirms it."]
+        elif getattr(a, "please_confirm", False):
+            out += ["", "Please confirm it fixes this for you. Reply here if it does not. With no reply in "
+                        f"{RELEASE_DUE_DAYS} days this issue is closed with a note, and you can reopen it."]
+        evidence = (getattr(a, "evidence", "") or "").strip()
+        if evidence:
+            out += ["", evidence]
     out += ["", FOOTER]
     return "\n".join(out) + "\n"
 
@@ -349,6 +408,29 @@ def render(a, date: str, intake: str = "") -> str:
 _TASK_RE = re.compile(r"^T-\d+$")
 _COMMIT_RE = re.compile(r"^[0-9a-f]{7,40}$")
 _VERSION_RE = re.compile(r"^v?\d+\.\d+\.\d+([-.][0-9A-Za-z.]+)?$")
+
+
+def _current_labels(n: int) -> list:
+    p = _gh(["issue", "view", str(n), "--repo", _repo(), "--json", "labels"])
+    if p.returncode != 0:
+        raise IssuesError(f"cannot read the labels of #{n}: {p.stderr.strip()[:300]}", 2)
+    try:
+        return [str((x or {}).get("name") or "") for x in json.loads(p.stdout or "{}").get("labels") or []]
+    except (ValueError, AttributeError):
+        raise IssuesError(f"gh returned unparseable labels for #{n}", 2)
+
+
+def _stale_status_labels(n: int, adding: list) -> list:
+    """The status labels to remove when `adding` carries a status label (T-4412). Only labels
+    actually on the issue are named. Unreadable labels -> nothing removed (the add still runs)."""
+    if not any(_is_status_label(x) for x in adding):
+        return []
+    try:
+        have = _current_labels(n)
+    except IssuesError as e:
+        print(f"WARN: {e}; previous status labels left in place", file=sys.stderr)
+        return []
+    return [h for h in have if _is_status_label(h) and h not in adding]
 
 
 def cmd_comment(a) -> int:
@@ -363,7 +445,10 @@ def cmd_comment(a) -> int:
     if a.test_cmd and ("`" in a.test_cmd or "\n" in a.test_cmd):
         raise IssuesError("--test-cmd must be one line without backticks")
 
-    if st in DECISION_STAGES:
+    standing = ""
+    if st in DECISION_STAGES and not a.approved_by_operator and _standing_permission():
+        standing = STANDING_PERMISSION_REF
+    elif st in DECISION_STAGES:
         if not a.approved_by_operator:
             raise IssuesError(f"stage {st} is a decision: it needs --approved-by-operator <ref>")
         if _is_agent() and not _approval_ok(a.approved_by_operator, a.issue, st):
@@ -389,7 +474,10 @@ def cmd_comment(a) -> int:
         print(body, end="")
         return 0
 
-    labels = STAGE_LABELS[st]
+    labels = list(STAGE_LABELS[st])
+    if st == "classified":  # T-4411: the triage labels ride on the Classified edit
+        ex = getattr(a, "extra", None) or {}
+        labels += _triage_labels(str(ex.get("area", "")), str(ex.get("severity", "")))
     _ensure_labels(labels)
     p = _gh(["issue", "comment", str(a.issue), "--repo", _repo(), "--body-file", "-"], stdin=body)
     url = next((w for w in p.stdout.split() if w.startswith("https://")), "") if p.returncode == 0 else ""
@@ -406,7 +494,11 @@ def cmd_comment(a) -> int:
         row["commit"] = a.commit
     if a.version:
         row["version"] = a.version
+    if standing:
+        row["approved_by"] = standing
     row.update(getattr(a, "extra", None) or {})  # sync's classification fields ride on the row
+    if st == "released" and getattr(a, "please_confirm", False):
+        row["due"] = (datetime.now(timezone.utc) + timedelta(days=RELEASE_DUE_DAYS)).strftime("%Y-%m-%d")
     row.update(comment=url, ts=_now())
     try:
         _append_row(_issues_dir() / "intake.jsonl", row)
@@ -414,7 +506,11 @@ def cmd_comment(a) -> int:
         print(f"LOUD: comment POSTED at {url} but the ledger write failed ({e}). Reconcile by "
               f"appending this row to intake.jsonl:\n{json.dumps(row)}", file=sys.stderr)
         return 4
-    e = _gh(["issue", "edit", str(a.issue), "--repo", _repo(), "--add-label", ",".join(labels)])
+    edit = ["issue", "edit", str(a.issue), "--repo", _repo()]
+    drop = _stale_status_labels(a.issue, labels)
+    if drop:
+        edit += ["--remove-label", ",".join(drop)]
+    e = _gh(edit + ["--add-label", ",".join(labels)])
     if e.returncode != 0:
         print(f"WARN: comment posted and logged ({url}) but adding labels failed: "
               f"{e.stderr.strip()[:200]}", file=sys.stderr)
@@ -432,7 +528,76 @@ ROUTES = {  # operator ruling 2026-10-10: every issue by this submitter goes to 
     "mikeechovoid": {"arc_id": "mikeechovoid-requests", "horizon": "now"},
 }
 DUP_THRESHOLD = 0.6   # Jaccard over title words; a hint only, never a decision
-AREAS = {"lib", "bin", "agents", "web", "tests", "docs", "policy"}
+
+# T-4411: the area is a functional one taken from the component fabric through ONE committed
+# mapping (policy/issue-areas.yaml), not the first directory prefix in the text.
+AREA_MAP_FILE = Path(__file__).resolve().parent.parent / "policy" / "issue-areas.yaml"
+_PATH_RE = re.compile(r"(?<![\w/.-])((?:lib|bin|agents|web|tests|docs|policy|tools)/[\w./-]*\w)")
+_FW_CMD_RE = re.compile(r"\bfw\s+([a-z][a-z0-9-]+)")
+_SEVERITY_RE = re.compile(r"\bseverity:\s*(low|medium|high)\b", re.I)
+SEVERITIES = ("low", "medium", "high")
+
+
+def _area_map() -> dict:
+    try:
+        d = yaml.safe_load(AREA_MAP_FILE.read_text()) or {}
+    except (OSError, yaml.YAMLError) as e:
+        raise IssuesError(f"cannot read the area mapping {AREA_MAP_FILE}: {e}", 2)
+    return {"paths": d.get("paths") or [], "subsystems": d.get("subsystems") or {},
+            "commands": d.get("commands") or {}, "weak": set(d.get("weak") or [])}
+
+
+def _fabric_cards() -> dict:
+    """location -> subsystem, plus name -> location, from .fabric/components (project root)."""
+    by_loc, by_name = {}, {}
+    d = _project_root() / ".fabric" / "components"
+    for f in sorted(d.glob("*.yaml")) if d.is_dir() else []:
+        try:
+            c = yaml.safe_load(f.read_text(errors="replace")) or {}
+        except yaml.YAMLError:
+            continue
+        loc, sub = str(c.get("location") or ""), str(c.get("subsystem") or "")
+        if loc and sub:
+            by_loc[loc] = sub
+            name = str(c.get("name") or "")
+            if len(name) >= 6 and re.search(r"[-_.]", name):  # generic one-word names are noise
+                by_name[name] = loc
+    return {"loc": by_loc, "name": by_name}
+
+
+def _path_area(path: str, amap: dict, cards: dict) -> str:
+    for rule in amap["paths"]:
+        if fnmatchcase(path, str(rule.get("match", ""))):
+            return str(rule.get("area", ""))
+    return str(amap["subsystems"].get(cards["loc"].get(path, ""), ""))
+
+
+def _resolve_area(paths: list, text: str = "") -> str:
+    """Most-mentioned area over the given paths and the paths, `fw <cmd>` commands and component
+    names in `text`; weak areas only when nothing else resolved; else 'unspecified'."""
+    amap, cards = _area_map(), _fabric_cards()
+    hits = [_path_area(p, amap, cards) for p in paths]
+    for m in sorted([(m.start(), "p", m.group(1)) for m in _PATH_RE.finditer(text)]
+                    + [(m.start(), "c", m.group(1)) for m in _FW_CMD_RE.finditer(text)]
+                    + [(m.start(), "n", nm) for nm in cards["name"]
+                       for m in re.finditer(r"(?<![\w/.-])" + re.escape(nm) + r"(?![\w-])", text)]):
+        _, kind, val = m
+        if kind == "p":
+            hits.append(_path_area(val, amap, cards))
+        elif kind == "n":
+            hits.append(_path_area(cards["name"][val], amap, cards))
+        elif val in amap["commands"]:
+            hits.append(str(amap["commands"][val]))
+        else:
+            for cand in (f"lib/{val}.sh", f"lib/{val}.py", f"agents/{val}/{val}.sh"):
+                if cand in cards["loc"]:
+                    hits.append(_path_area(cand, amap, cards))
+                    break
+    hits = [h for h in hits if h]
+    strong = [h for h in hits if h not in amap["weak"]] or hits
+    if not strong:
+        return "unspecified"
+    return max(dict.fromkeys(strong), key=strong.count)  # first mention breaks a tie
 
 
 def _project_root() -> Path:
@@ -501,8 +666,7 @@ def _classify(issue: dict, others: list, tasks: list, owner: str) -> dict:
         typ = "enhancement"
     else:
         typ = "question"  # unclear from the title: parked for the maintainer to read
-    m = re.search(r"\b(lib|bin|agents|web|tests|docs|policy)/", f"{title} {body}")
-    area = m.group(1) if m and m.group(1) in AREAS else "unspecified"
+    area = _resolve_area([], f"{title}\n{body}")
     if typ in ("enhancement", "question", "proposal"):
         sev = "low"
     elif re.search(r"data loss|corrupt|crash|security|cannot|fails? on every", f"{title} {body}".lower()):
@@ -557,6 +721,19 @@ def cmd_sync(a) -> int:
         if needs_cls:
             others = [(int(i["number"]), i.get("title") or "") for i in issues if int(i["number"]) != n]
             c = _classify(it, others, tasks, owner)
+        if internal and needs_cls:
+            # T-4342: our own issues (filed via fw upstream) are class internal: a ledger row, no
+            # Received/Classified comment and no label. The operator reads them directly.
+            missing = [st for st in ("received", "classified") if not _has(rows, n, st)]
+            if is_new:
+                counts["new"] += 1
+            counts["classified"] += 1
+            lines.append(f"INTERNAL #{n} from {author}: ledger only, nothing posted")
+            if not a.dry_run:
+                _append_row(ledger, {"issue": n, "stage": "+".join(missing), "class": "internal",
+                                     "type": "internal", "body_hash": h, "title": title[:120],
+                                     "author": author, "ts": _now()})
+            continue
         if is_new:
             counts["new"] += 1
             lines.append(f"NEW #{n} from {author or '?'}: {c['type']}/{c['area']}/{c['severity']}"
@@ -600,6 +777,10 @@ def cmd_sync(a) -> int:
     tag = " (dry-run: nothing posted or written)" if a.dry_run else ""
     print(f"sync: {counts['new']} new, {counts['classified']} classified, {counts['edited']} edited, "
           f"{counts['reply']} submitter replies{tag}")
+    try:  # T-4340: the scheduled step that closes overdue please-confirm issues rides on sync
+        _sweep(_now()[:10], a.dry_run)
+    except IssuesError as e:
+        print(f"WARN: overdue sweep not run: {e}", file=sys.stderr)
     return 0
 
 
@@ -697,6 +878,561 @@ def cmd_close(a) -> int:
     return 0
 
 
+# ── release leg (T-4340, lifecycle stages 8-9) ──────────────────────────────
+# lib/release.sh calls `release` after the tag is published. For each task in the commit range that
+# carries github_issue:, the Released stage goes through cmd_comment (the one outward verb) with an
+# evidence block. Close rule (operator 2026-10-18): close when the task is completed AND the field
+# report has a WORKS row for it; otherwise post "please confirm" with a due date, and `sweep` (run
+# from sync) closes it after RELEASE_DUE_DAYS unless the submitter has replied since. A task still in
+# active/ (awaiting review) and a field verdict of FAILS are held: nothing posted, issue stays open.
+# A GitHub failure is recorded in release-pending.jsonl and never fails the release.
+
+RELEASE_DUE_DAYS = 14
+_FIELD_VERDICT_RE = re.compile(r"\b(WORKS|BROKEN|FAILS?)\b")
+
+
+def _range_task_ids(root: Path, rng: str) -> list:
+    p = _run(["git", "-C", str(root), "log", "--format=%s", rng])
+    if p.returncode != 0:
+        raise IssuesError(f"cannot read git log {rng}: {p.stderr.strip()[:200]}", 2)
+    out: list = []
+    for subject in reversed(p.stdout.splitlines()):  # oldest first
+        m = re.match(r"(T-\d+)\b", subject)
+        if m and m.group(1) not in out:
+            out.append(m.group(1))
+    return out
+
+
+def _task_facts(root: Path, tid: str) -> dict | None:
+    hits = sorted(root.glob(f".tasks/*/{tid}-*.md"))
+    if not hits:
+        return None
+    path = hits[0]
+    text = path.read_text(errors="replace")
+    fm = text.split("---", 2)[1] if text.startswith("---") and text.count("---") >= 2 else ""
+    m = re.search(r"^github_issue:\s*\"?(\d+)\"?\s*$", fm, re.M)
+    return {"issue": int(m.group(1)) if m else None,
+            "state": "completed" if path.parent.name == "completed" else "active",
+            "tests": _verification_tests(text),
+            "name": _frontmatter_name(fm)}
+
+
+def _frontmatter_name(fm: str) -> str:
+    """The task's `name:` (a quoted scalar that may wrap onto continuation lines)."""
+    try:
+        name = (yaml.safe_load(fm) or {}).get("name")
+    except (yaml.YAMLError, AttributeError):
+        return ""
+    return str(name or "")
+
+
+def _verification_tests(text: str) -> list:
+    """Test files and test_ names named in the task's ## Verification command lines."""
+    m = re.search(r"^## Verification\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
+    if not m:
+        return []
+    body = "\n".join(x for x in m.group(1).splitlines() if x.strip() and not x.lstrip().startswith("#"))
+    files = re.findall(r"tests/[\w./-]+\.(?:py|bats)", body)
+    names = re.findall(r"\btest_\w+", body)
+    return list(dict.fromkeys(files + names))
+
+
+def _field_verdicts(path: Path) -> dict:
+    """Per task id, the verdict in a release's field-evidence report. Only table rows count: a row
+    whose first cell names T-NNNN is a verdict for those tasks when a later cell says WORKS or
+    BROKEN/FAILS. Prose that mentions a task is not evidence.
+    Returns {tid: {"verdict": "works" | "fails" | None, "evidence": [str, ...]}}."""
+    out: dict = {}
+    if not path.exists():
+        return out
+    header: list = []
+    section = ""
+    for line in path.read_text(errors="replace").splitlines():
+        s = line.strip()
+        if s.startswith("#"):
+            section = s.lstrip("#").strip()
+        if not s.startswith("|"):
+            header = []
+            continue
+        cells = [c.strip() for c in s.strip("|").split("|")]
+        if all(set(c) <= set("-: ") for c in cells):
+            continue  # the |---|---| separator
+        if not header:
+            header = cells
+            continue
+        for tid in set(re.findall(r"\bT-\d+\b", cells[0])):
+            rec = out.setdefault(tid, {"fails": False, "evidence": []})
+            for i, cell in enumerate(cells[1:], start=1):
+                words = set(_FIELD_VERDICT_RE.findall(cell))
+                if words & {"BROKEN", "FAIL", "FAILS"}:
+                    rec["fails"] = True
+                if "WORKS" in words:
+                    col = header[i] if i < len(header) else "field"
+                    rec["evidence"].append(f"{section or 'field report'}, {col}: {cell[:200]}")
+    for rec in out.values():
+        rec["verdict"] = "fails" if rec.pop("fails") else ("works" if rec["evidence"] else None)
+    return out
+
+
+_LOCAL_HOST_RE = re.compile(
+    r"\b[\w-]+(?:\.[\w-]+)*\.(?:local|lan|internal|localdomain|corp)\b"  # local-only names
+    r"|\b(?:\d{1,3}\.){3}\d{1,3}\b"                                     # IPv4
+    r"|\b(?:[0-9a-fA-F]{1,4}:){3,7}:?[0-9a-fA-F]{0,4}\b")               # IPv6 (3+ colons: not a clock time)
+
+
+def _scrub(text: str) -> str:
+    """No hostname or IP address in posted text (T-4346). The field report and task names are free
+    text and the release comment goes to a public issue, so local names, addresses and this machine's
+    own hostname are replaced before posting. Names the scrub cannot recognise are not caught."""
+    text = _LOCAL_HOST_RE.sub("[host]", text)
+    for h in {socket.gethostname(), socket.getfqdn()} - {"", "localhost"}:
+        text = re.sub(r"(?<![\w.-])" + re.escape(h) + r"(?![\w-])", "[host]", text, flags=re.I)
+    return text
+
+
+def _summary(name: str) -> str:
+    """One plain-words line from the task name: the parenthetical (GitHub #86, the submitter) is dropped."""
+    s = re.sub(r"\s+", " ", re.sub(r"\([^()]*\)", "", name or "")).strip(" .;,:")
+    if len(s) > 220:
+        return s[:220].rsplit(" ", 1)[0] + "…"
+    return (s[:1].upper() + s[1:] + ".") if s else ""
+
+
+def _comparison_report(root: Path, version: str) -> str:
+    """File name of the release's full-suite comparison: a docs/reports file whose first lines name
+    both this version and a full-suite comparison (T-4246 for v1.8.11). Empty when none does."""
+    for p in sorted((root / "docs" / "reports").glob("*.md")):
+        head = "\n".join(p.read_text(errors="replace").splitlines()[:6]).lower()
+        if "full-suite" in head and re.search(re.escape(version.lower()) + r"(?![\w]|\.\d)", head):
+            return p.name
+    return ""
+
+
+def _release_decision(root: Path, version: str) -> dict | None:
+    """The last row for this version in .context/releases/decisions.jsonl (bin/fw release decide)."""
+    found = None
+    for r in _read_rows(root / ".context" / "releases" / "decisions.jsonl"):
+        if r.get("version") == version:
+            found = r
+    return found
+
+
+def _why_line(version: str, decision: dict | None, all_positive: bool) -> str:
+    """Why it was released: the T-4146 field-test rule when every fix has a positive field test and
+    the recorded decision says so, else the operator's recorded decision, else an honest no-record."""
+    by = (decision or {}).get("decided_by")
+    if by == "field-evidence" and all_positive:
+        return (f"**Why it was released:** the T-4146 rule: every fix in {version} has a positive field "
+                f"test from another agent, and the release gates are green.")
+    if by == "operator":
+        when = str((decision or {}).get("ts") or "")[:10]
+        return (f"**Why it was released:** the operator's release decision for {version}"
+                + (f" ({when})" if when else "") + ", with the release gates green.")
+    return (f"**Why it was released:** {version} passed the release gates; no release decision is "
+            f"recorded for it in .context/releases/decisions.jsonl.")
+
+
+def _evidence_block(version: str, g: dict, root: Path) -> str:
+    repo = _repo()
+    tag = f"https://github.com/{repo}/blob/{version}"
+    report = root / "docs" / "reports" / f"field-test-{version}-results.md"
+    comparison = _comparison_report(root, version)
+    tests = g["tests"]
+    tested = ", ".join(f"`{t}`" for t in tests) if tests else \
+        "see the task's Verification block (no test file is named there)."
+    if comparison:
+        tested += "; the release's full-suite comparison is linked below"
+    summary = " ".join(s for s in g.get("summaries", []) if s)
+    lines = [f"**What was fixed:** {summary}"] if summary else []
+    lines.append("**How it was tested:** " + tested)
+    if g["evidence"]:
+        lines.append("**Field evidence:**")
+        lines += [f"- {e}" for e in g["evidence"][:6]]
+    else:
+        lines.append("**Field evidence:** none recorded for this fix.")
+    all_positive = all(v == "works" for v in g["verdicts"])
+    lines.append(_why_line(version, _release_decision(root, version), all_positive))
+    links = [f"release notes https://github.com/{repo}/releases/tag/{version}"]
+    if report.exists():
+        links.append(f"field-evidence report {tag}/docs/reports/field-test-{version}-results.md")
+    if comparison:
+        links.append(f"full-suite comparison {tag}/docs/reports/{comparison}")
+    lines.append("**Links:** " + " · ".join(links))
+    return _scrub("\n".join(lines))
+
+
+def _record_pending(issue: int, stage: str, version: str, err) -> None:
+    try:
+        _append_row(_issues_dir() / "release-pending.jsonl",
+                    {"issue": issue, "stage": stage, "version": version, "error": str(err)[:300], "ts": _now()})
+    except OSError as e:
+        print(f"WARN: could not record #{issue} for retry ({e})", file=sys.stderr)
+
+
+def _issue_view(n: int) -> dict:
+    p = _gh(["issue", "view", str(n), "--repo", _repo(), "--json", "state,author,comments"])
+    if p.returncode != 0:
+        raise IssuesError(f"cannot read issue #{n}: {p.stderr.strip()[:300]}", 2)
+    try:
+        return json.loads(p.stdout or "{}")
+    except ValueError:
+        raise IssuesError(f"gh returned unparseable JSON for issue #{n}", 2)
+
+
+def _ts(s: str) -> datetime | None:
+    try:
+        return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def _replies_since(n: int, info: dict, since: str) -> list:
+    """Anything from someone other than the maintainer after `since`: a GitHub comment, or a reply
+    the sync verb ingested. An unreadable time counts as a reply: when in doubt the issue stays open."""
+    maint = _maintainer_login().lower()
+    cut = _ts(since)
+    found = []
+    for c in info.get("comments") or []:
+        who = _login(c.get("author"))
+        if who.lower() == maint:
+            continue
+        t = _ts(c.get("createdAt") or "")
+        if cut is None or t is None or t > cut:
+            found.append(f"comment by {who or '?'} at {c.get('createdAt') or '?'}")
+    for r in _read_rows(_issues_dir() / "intake.jsonl"):
+        if r.get("issue") == n and r.get("stage") == "reply":
+            t = _ts(r.get("ts") or "")
+            if cut is None or t is None or t > cut:
+                found.append(f"reply ingested by sync at {r.get('ts') or '?'}")
+    return found
+
+
+def _closed_note(version: str, date: str) -> str:
+    out = ["<!-- aef-intake:stage=closed-released -->", f"**[AEF intake] Closed: released** — {date}", "",
+           f"Released in **{version}**. No reply in {RELEASE_DUE_DAYS} days, so this issue is closed. "
+           "It can be reopened if the fix does not work for you.", "", FOOTER]
+    return "\n".join(out) + "\n"
+
+
+def _close_issue(n: int, since: str, version: str, comment_url: str, note: str = "",
+                 dry_run: bool = False) -> str:
+    """Close #n unless the submitter has replied since `since`. Returns closed | kept | already |
+    would-close. The closed row is written only after GitHub accepted the close, so a failed close
+    is retried by the next run."""
+    info = _issue_view(n)
+    if str(info.get("state", "")).upper() != "OPEN":
+        if not dry_run:
+            _append_row(_issues_dir() / "intake.jsonl", {"issue": n, "stage": "closed-released",
+                                                          "release": version, "comment": comment_url,
+                                                          "note": "already closed", "ts": _now()})
+        return "already"
+    if _replies_since(n, info, since):
+        return "kept"
+    if dry_run:
+        return "would-close"
+    if note and not _marked_on_issue(n, "closed-released"):
+        p = _gh(["issue", "comment", str(n), "--repo", _repo(), "--body-file", "-"], stdin=note)
+        url = next((w for w in p.stdout.split() if w.startswith("https://")), "") if p.returncode == 0 else ""
+        if not url:
+            raise IssuesError(f"GitHub did not return a comment URL for the close note on #{n}: "
+                              f"{(p.stderr or p.stdout).strip()[:300]}", 3)
+        _append_row(_issues_dir() / "intake.jsonl", {"issue": n, "stage": "closed-note", "comment": url,
+                                                      "release": version, "ts": _now()})
+    q = _gh(["issue", "close", str(n), "--repo", _repo(), "--reason", "completed"])
+    if q.returncode != 0:
+        raise IssuesError(f"#{n} is commented but closing failed: {q.stderr.strip()[:300]}. "
+                          f"Re-run to retry the close only.", 3)
+    _append_row(_issues_dir() / "intake.jsonl", {"issue": n, "stage": "closed-released", "release": version,
+                                                  "comment": comment_url, "ts": _now()})
+    return "closed"
+
+
+def _sweep(today: str, dry_run: bool) -> None:
+    """Close please-confirm issues whose due date has passed and that drew no reply."""
+    done = 0
+    for r in _read_rows(_issues_dir() / "intake.jsonl"):
+        if r.get("stage") != "released" or not r.get("due") or str(r["due"]) > today:
+            continue
+        n = int(r["issue"])
+        if _ledger_has(n, "closed-released"):
+            continue
+        version = r.get("version") or ""
+        try:
+            outcome = _close_issue(n, r.get("ts") or "", version, r.get("comment") or "",
+                                   note=_closed_note(version, today), dry_run=dry_run)
+        except IssuesError as e:
+            _record_pending(n, "closed-released", version, e)
+            print(f"WARN  #{n}: close not done ({e}); recorded in release-pending.jsonl", file=sys.stderr)
+            continue
+        if outcome == "kept":
+            print(f"keep   #{n}: the submitter replied after the Released comment; left open for the operator")
+        else:
+            done += outcome in ("closed", "would-close", "already")
+            print(f"{outcome:9} #{n}: please-confirm was due {r['due']}")
+    tag = " (dry-run)" if dry_run else ""
+    print(f"sweep: {done} overdue please-confirm issue(s) handled{tag}")
+
+
+def cmd_sweep(a) -> int:
+    if a.today and not re.match(r"^\d{4}-\d{2}-\d{2}$", a.today):
+        raise IssuesError("--today must be YYYY-MM-DD")
+    _sweep(a.today or _now()[:10], a.dry_run)
+    return 0
+
+
+def cmd_release(a) -> int:
+    if not _VERSION_RE.match(a.version or ""):
+        raise IssuesError(f"version must look like vX.Y.Z, got {a.version!r}", 2)
+    if not re.match(r"^\S+\.\.\S+$", a.rng or ""):
+        raise IssuesError(f"--range must be A..B, got {a.rng!r}", 2)
+    root = Path(a.root) if a.root else _project_root()
+    field = _field_verdicts(root / "docs" / "reports" / f"field-test-{a.version}-results.md")
+    groups: dict = {}
+    for tid in _range_task_ids(root, a.rng):
+        t = _task_facts(root, tid)
+        if t is None or t["issue"] is None:
+            continue  # no task file, or no github_issue: nothing to post
+        g = groups.setdefault(t["issue"], {"tasks": [], "tests": [], "verdicts": [], "evidence": [],
+                                           "summaries": [], "held": None})
+        f = field.get(tid, {"verdict": None, "evidence": []})
+        g["tasks"].append(tid)
+        g["summaries"].append(_summary(t["name"]))
+        g["tests"] += [x for x in t["tests"] if x not in g["tests"]]
+        g["verdicts"].append(f["verdict"] or "none")
+        g["evidence"] += f["evidence"]
+        if t["state"] != "completed":
+            g["held"] = f"{tid} is still active (awaiting review); not posted. Re-run after it completes"
+        elif f["verdict"] == "fails":
+            g["held"] = f"field report says FAILS for {tid}; keep the issue open and file a new task"
+    posted = closed = held = failed = 0
+    for n, g in groups.items():
+        tasks = ", ".join(g["tasks"])
+        if g["held"]:
+            print(f"hold   #{n} ({tasks}): {g['held']}")
+            held += 1
+            continue
+        close = all(v == "works" for v in g["verdicts"])
+        prior = _ledger_has(n, "released")
+        if prior is None:
+            ns = argparse.Namespace(issue=n, stage="released", task=g["tasks"], commit=None, test_cmd=None,
+                                    version=a.version, text=None, approved_by_operator=None,
+                                    dry_run=a.dry_run, evidence=_evidence_block(a.version, g, root),
+                                    please_confirm=not close, closing=close)
+            if a.dry_run:
+                print(f"would post released on #{n} ({tasks}): {'close' if close else 'please-confirm'}")
+                cmd_comment(ns)
+            else:
+                try:
+                    rc = cmd_comment(ns)
+                except IssuesError as e:
+                    _record_pending(n, "released", a.version, e)
+                    print(f"WARN   #{n}: released comment not posted ({e}); recorded in "
+                          f"release-pending.jsonl, re-run to retry", file=sys.stderr)
+                    failed += 1
+                    continue
+                if rc:
+                    _record_pending(n, "released", a.version, f"cmd_comment returned {rc}")
+                    failed += 1
+                    continue
+                prior = _ledger_has(n, "released")
+                posted += 1
+        else:
+            print(f"have   #{n}: released already logged ({prior.get('comment', 'no url')})")
+        if not close or _ledger_has(n, "closed-released"):
+            continue
+        if a.dry_run:
+            print(f"would close #{n} (completed, WORKS in the field report)")
+            continue
+        try:
+            outcome = _close_issue(n, (prior or {}).get("ts") or "", a.version, (prior or {}).get("comment") or "")
+        except IssuesError as e:
+            _record_pending(n, "closed-released", a.version, e)
+            print(f"WARN   #{n}: close not done ({e}); recorded in release-pending.jsonl", file=sys.stderr)
+            failed += 1
+            continue
+        if outcome == "closed":
+            closed += 1
+        print(f"{outcome:9} #{n} ({tasks})")
+    print(f"release {a.version}: {posted} posted, {closed} closed, {held} held, {failed} failed"
+          + (" (dry-run: nothing posted or closed)" if a.dry_run else ""))
+    return 0
+
+
+# ── task lifecycle leg (T-4341, lifecycle stages 6-7) ────────────────────────
+# update-task.sh calls `lifecycle` after a transition: started-work posts in-progress, work-completed
+# (partial-complete included: the fix is on bleeding-edge even while Human ACs await review) posts
+# fixed-on-bleeding-edge. Both go through cmd_comment, so the mirror check and idempotence apply. A
+# GitHub failure never fails the transition: it is recorded in lifecycle-pending.jsonl and this verb
+# exits 0. FW_ISSUES_LIFECYCLE=0 disables it.
+
+LIFECYCLE_STAGES = {"started": "in-progress", "closed": "fixed-on-bleeding-edge"}
+_TEST_RUNNER_RE = re.compile(r"\b(bats|pytest|python3?\s+-m\s+pytest|bash\s+tests/\S+)\b")
+LIFECYCLE_FALLBACK_TEST = "bin/fw doctor"
+
+
+def _first_test_command(text: str) -> str:
+    m = re.search(r"^## Verification\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
+    for line in (m.group(1).splitlines() if m else []):
+        line = line.strip()
+        if line and not line.startswith("#") and _TEST_RUNNER_RE.search(line) and "`" not in line:
+            return line
+    return LIFECYCLE_FALLBACK_TEST
+
+
+def _task_last_commit(root: Path, tid: str) -> str:
+    p = _run(["git", "-C", str(root), "log", "-1", "--format=%H", "-E", f"--grep=^{tid}([^0-9]|$)"])
+    return p.stdout.strip() if p.returncode == 0 else ""
+
+
+# ── area/severity labels (T-4411) ────────────────────────────────────────────
+# On a linked task's close (and via `fw issues labels` for backfill) the area is recomputed from
+# the files the task changed: its `components:` when resolved, else the files of its commits —
+# lifecycle runs before update-task.sh fills components:, from the same commits. Labels only:
+# nothing is posted. The old area:* label is removed in the same edit that adds the new one.
+
+def _task_paths(root: Path, tid: str) -> list:
+    hits = sorted(root.glob(f".tasks/*/{tid}-*.md"))
+    if hits:
+        text = hits[0].read_text(errors="replace")
+        fm = text.split("---", 2)[1] if text.startswith("---") and text.count("---") >= 2 else ""
+        try:
+            comps = (yaml.safe_load(fm) or {}).get("components") or []
+        except (yaml.YAMLError, AttributeError):
+            comps = []
+        if isinstance(comps, list) and comps:
+            return [str(c) for c in comps]
+    p = _run(["git", "-C", str(root), "log", "--format=", "--name-only", "-E",
+              f"--grep=^{tid}([^0-9]|$)"])
+    out = p.stdout.splitlines() if p.returncode == 0 else []
+    return [x for x in dict.fromkeys(out) if x and not x.startswith(".")]
+
+
+def _refine_labels(n: int, tasks: list, root: Path, dry_run: bool) -> str:
+    p = _gh(["issue", "view", str(n), "--repo", _repo(), "--json", "title,body,labels,comments"])
+    if p.returncode != 0:
+        raise IssuesError(f"cannot read issue #{n}: {p.stderr.strip()[:300]}", 2)
+    try:
+        info = json.loads(p.stdout or "{}")
+    except ValueError:
+        raise IssuesError(f"gh returned unparseable JSON for issue #{n}", 2)
+    have = [str((x or {}).get("name") or "") for x in info.get("labels") or []]
+    me = _maintainer_login()
+    cls_text = "\n".join(c.get("body") or "" for c in info.get("comments") or []
+                         if _login(c.get("author")) == me and any(
+                             "classified" in m.group(1).split("+") for m in MARKER_RE.finditer(c.get("body") or "")))
+    paths = [x for t in tasks for x in _task_paths(root, t)]
+    area = _resolve_area(paths) if paths else "unspecified"
+    if area == "unspecified":
+        area = _resolve_area([], f"{cls_text}\n{info.get('title') or ''}\n{info.get('body') or ''}")
+    m = _SEVERITY_RE.search(cls_text)
+    sev = m.group(1).lower() if m else next(
+        (str(r["severity"]) for r in reversed(_read_rows(_issues_dir() / "intake.jsonl"))
+         if r.get("issue") == n and r.get("severity") in SEVERITIES),
+        next((h[9:] for h in have if h.startswith("severity:")), ""))
+    want = _triage_labels(area, sev)
+    add = [x for x in want if x not in have]
+    drop = [h for h in have if (h.startswith("area:") and any(w.startswith("area:") for w in add))
+            or (h.startswith("severity:") and any(w.startswith("severity:") for w in add))]
+    if not add:
+        return f"#{n}: labels unchanged ({', '.join(want) or 'nothing resolved'})"
+    what = f"#{n}: +{','.join(add)}" + (f" -{','.join(drop)}" if drop else "")
+    if dry_run:
+        return what + " (dry-run: nothing changed)"
+    _ensure_labels(add)
+    args = ["issue", "edit", str(n), "--repo", _repo()]
+    if drop:
+        args += ["--remove-label", ",".join(drop)]
+    e = _gh(args + ["--add-label", ",".join(add)])
+    if e.returncode != 0:
+        raise IssuesError(f"cannot edit labels on #{n}: {e.stderr.strip()[:300]}", 2)
+    return what
+
+
+def cmd_labels(a) -> int:
+    root = Path(a.root or os.environ.get("PROJECT_ROOT") or os.getcwd())
+    tasks = a.task or list(dict.fromkeys(
+        t for r in _read_rows(_issues_dir() / "intake.jsonl") if r.get("issue") == a.issue
+        for t in r.get("tasks") or []))
+    for t in tasks:
+        if not _TASK_RE.match(t):
+            raise IssuesError(f"--task must be T-NNN, got {t!r}")
+    print(_refine_labels(a.issue, tasks, root, a.dry_run))
+    return 0
+
+
+def cmd_status_labels(a) -> int:
+    """T-4412: set the one status label from the issue's latest ledger stage. Labels only."""
+    want = ""
+    for r in _read_rows(_issues_dir() / "intake.jsonl"):
+        if r.get("issue") != a.issue:
+            continue
+        for tok in str(r.get("stage", "")).split("+"):
+            want = next((x for x in STAGE_LABELS.get(tok, []) if _is_status_label(x)), want)
+    if not want:
+        raise IssuesError(f"#{a.issue}: no ledger stage with a status label")
+    have = _current_labels(a.issue)
+    drop = [h for h in have if _is_status_label(h) and h != want]
+    add = [] if want in have else [want]
+    if not drop and not add:
+        print(f"#{a.issue}: status label unchanged ({want})")
+        return 0
+    what = f"#{a.issue}: {want}" + (f" (remove {','.join(drop)})" if drop else "")
+    if a.dry_run:
+        print(what + " (dry-run: nothing changed)")
+        return 0
+    edit = ["issue", "edit", str(a.issue), "--repo", _repo()]
+    if drop:
+        edit += ["--remove-label", ",".join(drop)]
+    if add:
+        _ensure_labels(add)
+        edit += ["--add-label", ",".join(add)]
+    e = _gh(edit)
+    if e.returncode != 0:
+        raise IssuesError(f"cannot edit labels on #{a.issue}: {e.stderr.strip()[:300]}", 2)
+    print(what)
+    return 0
+
+
+def cmd_lifecycle(a) -> int:
+    if os.environ.get("FW_ISSUES_LIFECYCLE", "1") == "0":
+        return 0
+    root = Path(a.root or os.environ.get("PROJECT_ROOT") or os.getcwd())
+    stage = LIFECYCLE_STAGES[a.event]
+    facts = _task_facts(root, a.task_id)
+    if not facts or not facts["issue"]:
+        return 0
+    n = facts["issue"]
+    if a.event == "closed":  # T-4411: refine the area label from what the task changed
+        try:
+            print(_refine_labels(n, [a.task_id], root, False))
+        except (IssuesError, OSError) as e:
+            print(f"WARN: GitHub #{n} area label not refined ({str(e)[:160]}); re-run "
+                  f"`fw issues labels {n} --task {a.task_id}`", file=sys.stderr)
+    try:
+        if _ledger_has(n, stage):
+            return 0
+        ns = argparse.Namespace(issue=n, stage=stage, task=[a.task_id], commit=None, test_cmd=None,
+                                version=None, text=None, approved_by_operator=None, dry_run=False)
+        if stage == "fixed-on-bleeding-edge":
+            ns.commit = _task_last_commit(root, a.task_id)
+            if not ns.commit:
+                raise IssuesError(f"no commit referencing {a.task_id} found")
+            text = sorted(root.glob(f".tasks/*/{a.task_id}-*.md"))[0].read_text(errors="replace")
+            ns.test_cmd = _first_test_command(text)
+        rc = cmd_comment(ns)
+        if rc:
+            raise IssuesError(f"cmd_comment returned {rc}")
+    except (IssuesError, OSError) as e:
+        try:
+            _append_row(_issues_dir() / "lifecycle-pending.jsonl",
+                        {"issue": n, "stage": stage, "task": a.task_id, "error": str(e)[:300], "ts": _now()})
+        except OSError:
+            pass
+        print(f"WARN: GitHub #{n} {stage} not posted ({str(e)[:160]}); recorded in lifecycle-pending.jsonl, "
+              f"re-run `fw issues lifecycle {a.task_id} --event {a.event}` to retry", file=sys.stderr)
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="fw issues")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -709,8 +1445,36 @@ def main(argv=None) -> int:
     c.add_argument("--version")
     c.add_argument("--text")
     c.add_argument("--approved-by-operator", metavar="REF")
+    c.add_argument("--evidence", help="released: the evidence block (how tested, field, why released)")
+    c.add_argument("--please-confirm", action="store_true",
+                   help="released: ask the reporter to confirm; records a due date for the sweep (T-4340)")
     c.add_argument("--dry-run", action="store_true", help="print the comment, post nothing")
     c.set_defaults(fn=cmd_comment)
+    lc = sub.add_parser("lifecycle", help="post in-progress / fixed-on-bleeding-edge for a task's linked issue (T-4341)")
+    lc.add_argument("task_id")
+    lc.add_argument("--event", required=True, choices=sorted(LIFECYCLE_STAGES))
+    lc.add_argument("--root", help="project root (default PROJECT_ROOT or cwd)")
+    lc.set_defaults(fn=cmd_lifecycle)
+    lb = sub.add_parser("labels", help="set area:/severity: labels from the fabric; labels only, no comment (T-4411)")
+    lb.add_argument("issue", type=int)
+    lb.add_argument("--task", action="append", help="linked task (default: the ledger's tasks for the issue)")
+    lb.add_argument("--root", help="project root (default PROJECT_ROOT or cwd)")
+    lb.add_argument("--dry-run", action="store_true", help="print the label change, change nothing")
+    lb.set_defaults(fn=cmd_labels)
+    sl = sub.add_parser("status-labels", help="set the one status:* label from the latest ledger stage; labels only (T-4412)")
+    sl.add_argument("issue", type=int)
+    sl.add_argument("--dry-run", action="store_true", help="print the label change, change nothing")
+    sl.set_defaults(fn=cmd_status_labels)
+    rl = sub.add_parser("release", help="post the Released stage for a release's tasks, apply the close rule (T-4340)")
+    rl.add_argument("version", help="the release tag, vX.Y.Z")
+    rl.add_argument("--range", dest="rng", required=True, help="commit range, e.g. v1.8.10..HEAD")
+    rl.add_argument("--root", help="project root (default PROJECT_ROOT or cwd)")
+    rl.add_argument("--dry-run", action="store_true", help="list what would be posted and closed; post nothing")
+    rl.set_defaults(fn=cmd_release)
+    sw = sub.add_parser("sweep", help="close overdue please-confirm issues with a note (T-4340; also runs in sync)")
+    sw.add_argument("--dry-run", action="store_true")
+    sw.add_argument("--today", help="YYYY-MM-DD (default: today, UTC)")
+    sw.set_defaults(fn=cmd_sweep)
     ap_ = sub.add_parser("approve", help="operator: record approval of a decision comment")
     ap_.add_argument("ref")
     ap_.add_argument("--issue", type=int, required=True)

@@ -277,15 +277,11 @@ generate_id() {
     done < <(fw_task_view_dirs)
     shopt -u nullglob
 
-    if [ "${#ids[@]}" -eq 0 ]; then
-        printf "T-%03d" 1
-        return
-    fi
-
     # Ascending unique; walk up from the bottom and stop at the first gap larger
     # than the threshold — everything above that cliff is a quarantined band.
+    # No task files at all leaves main_max=0 (next T-001, unless a mark says more).
     local n prev="" main_max=0
-    while IFS= read -r n; do
+    [ "${#ids[@]}" -gt 0 ] && while IFS= read -r n; do
         if [ -z "$prev" ]; then
             main_max=$n
         elif [ $((n - prev)) -gt "$gap_threshold" ]; then
@@ -295,6 +291,23 @@ generate_id() {
         fi
         prev=$n
     done < <(printf '%s\n' "${ids[@]}" | sort -n -u)
+
+    # T-4189: max over the files that exist now is pulled DOWN by deletion —
+    # remove the top task file and its id is reissued (832 OBS-426; T-2966 was
+    # the same defect in the OBS allocator). Take the max with the high-water
+    # mark of every view; a mark past the quarantine cliff is ignored like the
+    # band it would point into. Persisted at generation time, inside the
+    # allocation keylock: a crash before the write skips an id, never reuses one.
+    local mark
+    while IFS= read -r d; do
+        mark=$(head -n1 "$d/.id-highwater" 2>/dev/null) || continue
+        [[ "$mark" =~ ^[0-9]+$ ]] || continue
+        mark=$((10#$mark))
+        if [ "$mark" -gt "$main_max" ] && [ $((mark - main_max)) -le "$gap_threshold" ]; then
+            main_max=$mark
+        fi
+    done < <(fw_task_view_dirs)
+    printf '%s\n' $((main_max + 1)) > "$TASKS_DIR/.id-highwater" 2>/dev/null || true
 
     printf "T-%03d" $((main_max + 1))
 }
@@ -457,10 +470,24 @@ format_yaml_array() {
 TAGS_YAML=$(format_yaml_array "$TAGS")
 RELATED_YAML=$(format_yaml_array "$RELATED")
 
+# T-4597: a project without .tasks/templates/ (one fw init never seeded, or a test
+# fixture) uses the framework's own copy. Without this an inception fell through to
+# the inline fallback below, which has no ## Recommendation / ## Decision, and the
+# T-1263 check refused every `fw inception start` in such a project.
+_template_path() {
+    if [ -f "$TASKS_DIR/templates/$1" ]; then
+        echo "$TASKS_DIR/templates/$1"
+    elif [ -f "$FRAMEWORK_ROOT/.tasks/templates/$1" ]; then
+        echo "$FRAMEWORK_ROOT/.tasks/templates/$1"
+    fi
+}
+INCEPTION_TEMPLATE=$(_template_path inception.md)
+DEFAULT_TEMPLATE=$(_template_path default.md)
+
 # Select template content based on workflow type
 # All vars passed via env to avoid shell interpolation into Python source (T-595)
-if [ "$WORKFLOW_TYPE" = "inception" ] && [ -f "$TASKS_DIR/templates/inception.md" ]; then
-    TC_TEMPLATE="$TASKS_DIR/templates/inception.md" \
+if [ "$WORKFLOW_TYPE" = "inception" ] && [ -n "$INCEPTION_TEMPLATE" ]; then
+    TC_TEMPLATE="$INCEPTION_TEMPLATE" \
     TC_TASK_ID="$TASK_ID" TC_STATUS="$STATUS" TC_HORIZON="$HORIZON" \
     TC_OWNER="$OWNER" TC_TAGS_YAML="$TAGS_YAML" TC_RELATED_YAML="$RELATED_YAML" \
     TC_TIMESTAMP="$TIMESTAMP" TC_FILEPATH="$FILEPATH" \
@@ -496,8 +523,8 @@ t = t.replace('[Chronological log', '### ' + e['TC_TIMESTAMP'] + ' — task-crea
 with open(e['TC_FILEPATH'], 'w') as f:
     f.write(t)
 " "$NAME" "$DESCRIPTION"
-elif [ -f "$TASKS_DIR/templates/default.md" ]; then
-    TC_TEMPLATE="$TASKS_DIR/templates/default.md" \
+elif [ -n "$DEFAULT_TEMPLATE" ]; then
+    TC_TEMPLATE="$DEFAULT_TEMPLATE" \
     TC_TASK_ID="$TASK_ID" TC_STATUS="$STATUS" TC_WORKFLOW_TYPE="$WORKFLOW_TYPE" \
     TC_HORIZON="$HORIZON" TC_OWNER="$OWNER" TC_TAGS_YAML="$TAGS_YAML" \
     TC_RELATED_YAML="$RELATED_YAML" TC_TIMESTAMP="$TIMESTAMP" TC_FILEPATH="$FILEPATH" \
@@ -619,7 +646,7 @@ if [ "$WORKFLOW_TYPE" = "inception" ]; then
     if [ -n "$_missing" ]; then
         echo -e "${RED}ERROR: Inception template missing required sections: $_missing${NC}" >&2
         echo "The inception decide pipeline requires both ## Recommendation and ## Decision." >&2
-        echo "Fix the template at: $TASKS_DIR/templates/inception.md" >&2
+        echo "Fix the template at: ${INCEPTION_TEMPLATE:-$TASKS_DIR/templates/inception.md}" >&2
         rm -f "$FILEPATH"
         exit 1
     fi

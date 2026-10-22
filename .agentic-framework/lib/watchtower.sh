@@ -14,6 +14,8 @@
 
 # Source config for PORT setting (guard protects double-source)
 source "${FRAMEWORK_ROOT:-.}/lib/config.sh"
+# T-4337: zombie-aware liveness (bare kill -0 succeeds on a zombie)
+source "${FRAMEWORK_ROOT:-.}/lib/pid-alive.sh"
 
 [[ -n "${_FW_WATCHTOWER_LOADED:-}" ]] && return 0
 _FW_WATCHTOWER_LOADED=1
@@ -70,6 +72,28 @@ _watchtower_identity_matches() {
     [ "$_svc" = "watchtower" ] && [ -n "$_our_root" ] && [ "$_proot" = "$_our_root" ]
 }
 
+# _watchtower_identity_state URL
+#
+# T-4460: one /api/_identity probe, three answers on stdout: "ours" (service is
+# watchtower and project_root is ours), "foreign" (something answered the
+# endpoint with 200 but is not us), "none" (no answer yet). The start loop polls
+# this instead of GET /, which renders the whole home page (68 s under load).
+_watchtower_identity_state() {
+    local _u="$1" _json _svc _proot _our_root
+    if ! _json=$(curl -sf --max-time 2 "${_u}/api/_identity" 2>/dev/null); then
+        printf 'none'
+        return 0
+    fi
+    _our_root=$(_watchtower_our_root) || _our_root=""
+    _svc=$(printf '%s' "$_json" | grep -oE '"service"[[:space:]]*:[[:space:]]*"[^"]*"' | sed -E 's/.*"([^"]*)"$/\1/') || _svc=""
+    _proot=$(printf '%s' "$_json" | grep -oE '"project_root"[[:space:]]*:[[:space:]]*"[^"]*"' | sed -E 's/.*"([^"]*)"$/\1/') || _proot=""
+    if [ "$_svc" = "watchtower" ] && [ -n "$_our_root" ] && [ "$_proot" = "$_our_root" ]; then
+        printf 'ours'
+    else
+        printf 'foreign'
+    fi
+}
+
 # _watchtower_bound_host
 #
 # T-4041 (GitHub #88): the address Watchtower was told to bind (FW_HOST — read by
@@ -111,7 +135,7 @@ _watchtower_port_holder_is_ours() {
 
 # _watchtower_url [TASK_ID]
 #
-# Returns the base Watchtower URL (e.g., http://192.168.10.107:3000) on stdout.
+# Returns the base Watchtower URL (e.g., http://<host>:3000) on stdout.
 #
 # T-1284 / T-1290 3-layer discovery (replaces the port-probe fallback that
 # accidentally matched any service returning 200, e.g. Open WebUI on :8080):
@@ -165,8 +189,8 @@ _watchtower_url() {
         _url=$(cat "$_uf" 2>/dev/null | tr -d '[:space:]')
         [ -n "$_pid" ] && [ -n "$_url" ] || continue
 
-        # Verify process is alive (cheap kernel check)
-        kill -0 "$_pid" 2>/dev/null || continue
+        # Verify process is alive and not a zombie (T-4337)
+        fw_pid_alive "$_pid" || continue
 
         # Verify identity (confirms the url actually IS our Watchtower,
         # not a masquerader that happened to bind the same port after restart)
@@ -287,7 +311,11 @@ _watchtower_base_or_placeholder() {
 # bin/watchtower.sh:port_in_use, which lib/ does not source. It says nothing
 # about WHO holds the port: the identity question is _watchtower_identity_matches.
 _watchtower_port_listening() {
-    ss -tln 2>/dev/null | grep -q ":${1} "
+    # T-4221: count, don't `grep -q` — an early exit SIGPIPEs ss and a caller
+    # under pipefail reads the 141 as "not listening" (L-387).
+    local n
+    n=$(ss -tln 2>/dev/null | grep -c ":${1} ") || true
+    [ "${n:-0}" -gt 0 ]
 }
 
 # fw_task_review_url TASK_ID [TASK_FILE]
@@ -381,4 +409,22 @@ watchtower_rotate_log() {
         [ -e "$log.$i" ] && mv -f "$log.$i" "$log.$((i + 1))"
     done
     mv -f "$log" "$log.1"
+}
+
+# T-4459: is the running server writing its output into a deleted file? The server
+# holds watchtower.log open from start; anything that replaces the file (git once
+# rewrote it on every merge, while it was tracked) leaves the process writing to an
+# unlinked inode, so its tracebacks are readable nowhere. Prints "fd N -> target"
+# for each of stdout/stderr that points at a deleted file.
+# Exit: 0 = at least one deleted, 1 = none, 2 = cannot tell (no /proc entry).
+watchtower_log_fd_deleted() {
+    local pid="$1" fd target found=1
+    [ -n "$pid" ] && [ -d "/proc/$pid/fd" ] || return 2
+    for fd in 1 2; do
+        target=$(readlink "/proc/$pid/fd/$fd" 2>/dev/null) || continue
+        case "$target" in
+            *" (deleted)") echo "fd $fd -> $target"; found=0 ;;
+        esac
+    done
+    return "$found"
 }

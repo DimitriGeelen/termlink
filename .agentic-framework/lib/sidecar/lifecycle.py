@@ -88,8 +88,13 @@ def write_token() -> str:
 #: T-3725: runtime files beside the token that must never reach git. Written by
 #: the receiver itself so every project (vendored consumers included) is covered,
 #: not only repos whose root .gitignore happens to list them.
+#: T-4231: plus the per-host process/cache state (pid/port/url, inbox cursors,
+#: hub-id and peer caches, waiting/ dedupe). The *.jsonl ledgers (awaiting-ack,
+#: direct-ack, receipts, receipts-sent, refusals) are audit records and stay tracked.
 _RUNTIME_IGNORES = ("receiver.token", "receiver.token.tmp", "ready-for-input.yaml", "receiver/",
-                    "sessions/", "watcher/", "liveness.yaml")
+                    "sessions/", "watcher/", "liveness.yaml",
+                    "receiver.pid", "receiver.port", "receiver.url", "inbox-state.json",
+                    "hub-id", "peers.json", "waiting/", "*.lock", "*.tmp")
 
 
 def _ensure_runtime_ignored(sidecar_dir: Path) -> None:
@@ -162,7 +167,6 @@ def pid_alive(pid) -> bool:
         return False
     try:
         os.kill(pid, 0)
-        return True
     except PermissionError:
         # T-4216 (055 T-509): EPERM means the process EXISTS under another user.
         # Reading it as dead let a desktop-user session start a second receiver
@@ -170,6 +174,13 @@ def pid_alive(pid) -> bool:
         return True
     except OSError:
         return False
+    # T-4292: kill(0) succeeds on a zombie. A receiver started by this process
+    # (Popen in _start_receiver) and then stopped stays a zombie until reaped.
+    try:
+        with open(f"/proc/{pid}/stat", encoding="utf-8") as fh:
+            return fh.read().rsplit(")", 1)[1].split()[0] != "Z"
+    except (OSError, IndexError):
+        return True
 
 
 def is_receiver_alive(info: dict) -> bool:

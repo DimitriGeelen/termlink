@@ -22,12 +22,17 @@ Checks (any FAIL makes the verdict FAIL):
   canary    a semantic search for the manifest's canary probe returns the
             canary document as top hit — through the real search code, against
             this index (skipped only with --no-canary, and then reported SKIP)
-  cron      .context/cron-registry.yaml has an active index-reindex-hourly job
+  cron      .context/cron-registry.yaml has an active index-reindex-hourly job AND
+            the deployed crontab (FW_CRON_INSTALL_DIR) has a live line for it (T-4390);
+            no deployed crontab at all is WARN — not installed yet (T-4413)
 WARN-only:
   usage     recall queries that could not run, as a share of the window
   disk      orphan build/reindex scratch beside the index (dead owner pid), and
             free space below what the next reindex needs: a full copy of the
             index plus max(20%, 500 MB) (T-3860 — the copy filled a disk)
+Opt-out:
+  FW_SEMANTIC_RECALL=0 (config SEMANTIC_RECALL) declares recall deliberately
+  absent on this host: one SKIP "not configured on this host", status OK (T-3862)
 
 Stdlib only — so it runs, and FAILs, exactly where web/ cannot be imported.
 Never raises: a health check that crashes reports nothing.
@@ -50,6 +55,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 REQUIRED_JOB = "index-reindex-hourly"
@@ -253,6 +259,7 @@ def _source_drift(project_root: Path, state: dict) -> int:
     0.8s on AEF.
     """
     n = 0
+    root_prefix = len(str(project_root).rstrip("/")) + 1
     for parts in DRIFT_DIRS:
         d = project_root.joinpath(*parts)
         if not d.is_dir():
@@ -260,7 +267,9 @@ def _source_drift(project_root: Path, state: dict) -> int:
         for f in d.rglob("*"):
             if f.suffix not in DRIFT_SUFFIXES or not f.is_file():
                 continue
-            seen = state.get(f.relative_to(project_root).as_posix())
+            # == f.relative_to(project_root).as_posix(): f comes from rglob under
+            # project_root (T-4386 — pathlib's relative_to cost ~2 s here).
+            seen = state.get(str(f)[root_prefix:])
             if seen is None:
                 n += 1
                 continue
@@ -382,6 +391,40 @@ def check_canary(child, token: str):
     return _check("canary", "OK", f"canary {token} retrieved as top hit")
 
 
+def cron_install_target(project_root: Path):
+    """Deployed crontab path for this project, from the ONE name rule
+    (lib/cron-registry.sh:cron_install_target — the file `fw cron install`
+    writes). None when it cannot be resolved."""
+    helper = Path(__file__).resolve().parent / "cron-registry.sh"
+    try:
+        out = subprocess.run(
+            ["bash", "-c", 'source "$1" && cron_install_target "$2"', "_", str(helper), str(project_root)],
+            capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    path = out.stdout.strip()
+    return Path(path) if out.returncode == 0 and path else None
+
+
+def deployed_job_live(text, job_id, name=""):
+    """True when the deployed crontab text has an uncommented line for the job:
+    one that names the job id, or that directly follows the `# <name>` header
+    `fw cron generate` writes. A `# PAUSED:` line is a comment — not live."""
+    if not text:
+        return False
+    prev = ""
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if not line.startswith("#") and "=" not in line.split(None, 1)[0]:
+            if (job_id and re.search(r"(?<![A-Za-z0-9_])" + re.escape(job_id) + r"(?![\w-])", line)) \
+                    or (name and prev == f"# {name}"):
+                return True
+        prev = line
+    return False
+
+
 def check_cron(project_root: Path):
     reg = project_root / ".context" / "cron-registry.yaml"
     try:
@@ -412,6 +455,25 @@ def check_cron(project_root: Path):
     if status != "active":
         return _check("cron", "FAIL", f"{REQUIRED_JOB} is {status}, not active",
                       f"Resume it: fw cron resume {REQUIRED_JOB}")
+    # T-4390: registry status is intent; the deployed crontab is what cron runs.
+    target = cron_install_target(project_root)
+    try:
+        deployed = target.read_text(errors="replace") if target else None
+    except OSError:
+        deployed = None
+    if deployed is None:
+        # T-4413: no deployed crontab at all is every fresh install's state — cron
+        # install is a deliberate operator step. WARN, not FAIL: a FAIL here made
+        # every greenfield doctor exit 2. A deployed file that lacks the job is the
+        # real false green (below), and the age check FAILs once recall goes stale.
+        where = target if target else "the cron install dir"
+        return _check("cron", "WARN",
+                      f"cron not installed yet (operator step) — {REQUIRED_JOB} is in the registry, {where} is missing",
+                      "Install it: fw cron install (operator: writes root cron)")
+    if not deployed_job_live(deployed, REQUIRED_JOB, str(job.get("name") or "")):
+        return _check("cron", "FAIL",
+                      f"{REQUIRED_JOB} is in the registry but not deployed — {target} has no live line for it",
+                      "Install it: fw cron install (operator: writes root cron)")
     return _check("cron", "OK", f"{REQUIRED_JOB} scheduled")
 
 
@@ -524,6 +586,16 @@ def evaluate(project_root: Path, framework_root: Path, canary: bool = True,
     fail_pct = _env_num("FW_RECALL_FAIL_PCT_WARN", DEFAULT_FAIL_PCT)
     timeout = _env_num("FW_INDEX_CANARY_TIMEOUT", 90)
 
+    # T-3862: SEMANTIC_RECALL=0 declares semantic recall deliberately absent on
+    # this host (no sqlite-vec / no embed host by design). One SKIP, status OK —
+    # never inferred from a missing index or an unreachable Ollama, which still FAIL.
+    if os.environ.get("FW_SEMANTIC_RECALL", "1").strip() == "0":
+        return {"status": "OK", "full": canary, "ts": now,
+                "project_root": str(project_root),
+                "checks": [_check("index", "SKIP",
+                                  "semantic recall not configured on this host (SEMANTIC_RECALL=0)",
+                                  "Enable: fw config set SEMANTIC_RECALL 1")]}
+
     path = db_path(project_root)
     manifest = read_manifest(path)
     checks = []
@@ -531,18 +603,20 @@ def evaluate(project_root: Path, framework_root: Path, canary: bool = True,
     # T-3747: a project initialized less than INDEX_MAX_AGE_HOURS ago whose index was
     # never built (no file, no manifest) is "not built yet", not broken: the hourly
     # reindex has not had its window, and the age check already tolerates an index
-    # that old. WARN, not FAIL. The cron check below still FAILs when nothing is
-    # scheduled to build it, and an index that existed and vanished still FAILs.
+    # that old. The cron check below still FAILs when nothing is scheduled to build
+    # it, and an index that existed and vanished still FAILs. T-4256: SKIP, not
+    # WARN — inside the window the message itself states nothing is degraded, and a
+    # WARN there was a standing warning on every fresh install.
     init_at = project_initialized_at(project_root)
     if (manifest is None and not path.exists() and init_at is not None
             and 0 <= now - init_at < max_age * 3600):
         checks.append(_check(
-            "index", "WARN",
+            "index", "SKIP",
             f"vector index not built yet (project initialized {(now - init_at) / 3600:.1f}h ago, "
             f"limit {max_age:g}h)", f"Build it now: {REMEDY_REINDEX}"))
         checks.append(check_cron(project_root))
         verdicts = [c["verdict"] for c in checks]
-        status = "FAIL" if "FAIL" in verdicts else "WARN"
+        status = "FAIL" if "FAIL" in verdicts else ("WARN" if "WARN" in verdicts else "OK")
         return {"status": status, "full": canary, "ts": now,
                 "project_root": str(project_root), "checks": checks}
     idx = check_index(path)
@@ -555,12 +629,18 @@ def evaluate(project_root: Path, framework_root: Path, canary: bool = True,
     # falls through to a FULL rebuild when the index is missing or empty, and a
     # health probe must never start a multi-hour build.
     mode = "canary" if (canary and idx["verdict"] == "OK" and man["verdict"] == "OK") else "import"
-    child = run_child(project_root, framework_root, mode, token, path, timeout)
+    # T-4386: the child (an import of web.embeddings plus the canary, ~8 s) and
+    # the lag scan (hashing every source file, ~6 s) are independent; run them
+    # side by side instead of back to back. The checks keep their order.
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        child_f = pool.submit(run_child, project_root, framework_root, mode, token, path, timeout)
+        lag = (check_lag(path, project_root, max_lag) if idx["verdict"] == "OK"
+               else _check("lag", "FAIL", "index lag unmeasurable (no usable index)",
+                           f"Build it: {REMEDY_REINDEX}"))
+        child = child_f.result()
     checks.append(check_import(child))
     checks.append(check_age(manifest, max_age, now))
-    checks.append(check_lag(path, project_root, max_lag) if idx["verdict"] == "OK"
-                  else _check("lag", "FAIL", "index lag unmeasurable (no usable index)",
-                              f"Build it: {REMEDY_REINDEX}"))
+    checks.append(lag)
     if not canary:
         checks.append(_check("canary", "SKIP", "canary not run (fast mode)"))
     elif mode != "canary":

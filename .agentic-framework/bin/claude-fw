@@ -3,7 +3,8 @@
 #
 # Runs claude normally, then checks for a restart signal file
 # written by checkpoint.sh when auto-handover fires at critical budget.
-# If found (and fresh), auto-restarts with `claude -c` to continue.
+# If found (and fresh), auto-restarts (fresh by default, T-3166). Any -c / --continue
+# is resolved to `--resume <this session's conversation>`, never a worker's (T-4497).
 #
 # Usage:
 #   claude-fw [claude-args...]          # Run with auto-restart enabled
@@ -48,8 +49,18 @@ _cfw_pin_project() {
     if [ -n "${PROJECT_ROOT:-}" ] && [ "$PROJECT_ROOT" != "$d" ]; then
         echo "claude-fw: WARNING: inherited PROJECT_ROOT=$PROJECT_ROOT is not this project; this session uses $d (T-4218)" >&2
     fi
-    if [ -f "$d/.agentic-framework/bin/fw" ]; then fwr="$d/.agentic-framework"
-    elif [ -f "$d/FRAMEWORK.md" ] && [ -x "$d/bin/fw" ]; then fwr="$d"; fi
+    # T-4638: say so for TASKS_DIR/CONTEXT_DIR too (unset below), not only for PROJECT_ROOT.
+    local _v
+    for _v in TASKS_DIR CONTEXT_DIR; do
+        case "${!_v:-$d}" in
+            "$d"|"$d"/*) ;;
+            *) echo "claude-fw: WARNING: inherited $_v=${!_v} is not this project; cleared for $d (T-4638)" >&2 ;;
+        esac
+    done
+    # T-4369: the framework repo first — it also carries a vendored self-copy
+    # (fw vendor self), and exporting that ran every fw command from the copy.
+    if [ -f "$d/FRAMEWORK.md" ] && [ -x "$d/bin/fw" ]; then fwr="$d"
+    elif [ -f "$d/.agentic-framework/bin/fw" ]; then fwr="$d/.agentic-framework"; fi
     export PROJECT_ROOT="$d"
     if [ -n "$fwr" ]; then export FRAMEWORK_ROOT="$fwr"; else unset FRAMEWORK_ROOT; fi
     unset TASKS_DIR CONTEXT_DIR _FW_PATHS_DERIVED_BY
@@ -124,6 +135,32 @@ fi
 unset FW_CFW_REEXEC_PID FW_CFW_REEXEC_COUNT FW_CFW_REEXEC_TIMES FW_CFW_REEXEC_ARGS \
     FW_CFW_REEXEC_TL_SESSION FW_CFW_REEXEC_TL_ENABLED FW_CFW_REEXEC_OLD_ID
 
+# T-4636 (T-4635 RCA): started from a login session (cron, ssh, a terminal), this wrapper, the
+# tmux server it may start below and claude all lived in that session's scope, and a forced
+# teardown of the user's slice killed them together. Re-exec once through lib/agent-scope.sh's
+# `systemd-run --scope` prefix so all of them live in agentic.slice instead; where systemd
+# cannot do that the helper logs why, once, and the launch goes on as before. Only at start
+# (a T-4118 re-exec is already placed); FW_CFW_SCOPED_PID names this pid (systemd-run execs,
+# so the pid is kept) and stops a second attempt. The lib is looked up beside this script or
+# in the pinned FRAMEWORK_ROOT, never $PWD (T-3984). Opt out: FW_AGENT_SCOPE=0.
+if [ "$_CFW_RESUMED" != 1 ] && [ "${FW_CFW_SCOPED_PID:-}" != "$$" ]; then
+    for _cfw_d in "$(dirname "$_CFW_SELF_PATH")/.." "${FRAMEWORK_ROOT:-}"; do
+        [ -n "$_cfw_d" ] && [ -f "$_cfw_d/lib/agent-scope.sh" ] || continue
+        # shellcheck source=/dev/null
+        . "$_cfw_d/lib/agent-scope.sh"
+        fw_agent_scope_prefix claude-fw
+        if [ "${#FW_AGENT_SCOPE_CMD[@]}" -gt 0 ]; then
+            export FW_CFW_SCOPED_PID="$$"
+            shopt -s execfail
+            exec "${FW_AGENT_SCOPE_CMD[@]}" bash "$_CFW_SELF_PATH" "$@"
+            shopt -u execfail
+            echo "claude-fw: WARNING: could not start in its own systemd scope — continuing in the current one (T-4636)" >&2
+        fi
+        break
+    done
+fi
+unset FW_CFW_SCOPED_PID
+
 # T-4003 (operator 2026-10-09: "we wanted reliable to work for every project"): peer mail can
 # only reach an agent through a terminal something can type into — a TermLink session or a
 # tmux pane (lib/sidecar/inject.py c1/c2). A bare terminal window cannot be typed into from
@@ -149,6 +186,7 @@ _cfw_should_wrap_tmux() {
 if _cfw_should_wrap_tmux; then
     _cfw_self="$(readlink -f "$0")"   # this script itself (not a lib/ lookup, T-3954)
     _cfw_name="fw-$(printf '%s' "$(basename "$PWD")" | tr -c 'A-Za-z0-9_-' '_' | cut -c1-40)-$$"
+    _cfw_sock=fw-agents   # the tmux server this wrap runs on (-L); the redraw hooks below reuse it
     # tmux does not hand the caller's environment to a new session: pass what matters.
     _cfw_env=(-e FW_CLAUDE_FW_IN_TMUX=1)
     while IFS='=' read -r _k _; do
@@ -171,8 +209,15 @@ if _cfw_should_wrap_tmux; then
     # T-4217 (G-116): a tmux server takes its GLOBAL env from the process that starts it. The
     # session's own paths travel via -e below, so the server itself must not inherit the
     # caller's PROJECT_ROOT/FRAMEWORK_ROOT (another project's, if the server is shared).  T-4222: also TASKS_DIR/CONTEXT_DIR.
+    # T-4426: after a mouse-wheel scroll into copy mode, on attach and on resize, Claude Code's
+    # screen stays cluttered until Ctrl+L. Three hooks send C-l to this session's pane. Each is
+    # set on "$_cfw_name" (or its window), never -g: the shared server also carries dispatch
+    # workers, and they must not get Ctrl+L. pane-mode-changed is a window hook in tmux 3.4, so
+    # it targets "$_cfw_name:"; it fires on every mode change, so it sends C-l only when the
+    # pane is back out of its mode (#{pane_in_mode} = 0). run-shell -b expands the formats; a
+    # set-hook command that uses if-shell -F silently did nothing (T-4426 measurement).
     exec env -u PROJECT_ROOT -u FRAMEWORK_ROOT -u _FW_PATHS_DERIVED_BY -u FW_ROUTED_FROM -u TASKS_DIR -u CONTEXT_DIR \
-        tmux -L fw-agents -f /dev/null new-session -s "$_cfw_name" -c "$PWD" "${_cfw_env[@]}" -- "$_cfw_self" "$@" \; \
+        tmux -L "$_cfw_sock" -f /dev/null new-session -s "$_cfw_name" -c "$PWD" "${_cfw_env[@]}" -- "$_cfw_self" "$@" \; \
         set-option -s escape-time 0 \; \
         set-option -g prefix None \; \
         set-option -g prefix2 None \; \
@@ -181,7 +226,10 @@ if _cfw_should_wrap_tmux; then
         set-option -g status off \; \
         set-option -t "$_cfw_name" destroy-unattached on \; \
         set-option -g history-limit 50000 \; \
-        set-option -g mouse on
+        set-option -g mouse on \; \
+        set-hook -w -t "$_cfw_name:" pane-mode-changed "run-shell -b '[ #{pane_in_mode} = 0 ] && tmux -L $_cfw_sock send-keys -t #{pane_id} C-l'" \; \
+        set-hook -t "$_cfw_name" client-attached "run-shell -b 'tmux -L $_cfw_sock send-keys -t #{pane_id} C-l'" \; \
+        set-hook -t "$_cfw_name" client-resized "run-shell -b 'tmux -L $_cfw_sock send-keys -t #{pane_id} C-l'"
 fi
 
 # TermLink session management
@@ -240,6 +288,27 @@ _cfw_lib() {
     return 0
 }
 
+# T-4454: TermLink registration resolves its identity from TERMLINK_IDENTITY_FILE, the same
+# env precedence as signing. Without it the session registered with the HOST key (shared by
+# every co-resident session) while every signing path used the project key. Resolve the
+# project's RAIL_IDENTITY_FILE through lib/rail-identity.sh (env > .framework.yaml, relative
+# to PROJECT_ROOT) in a subshell, and export it ONLY when the key file exists: TermLink
+# creates a keypair at a missing path, so a guessed path would mint a new identity.
+_cfw_rail_identity() {
+    local _lib _fwd _idf
+    _lib="$(_cfw_lib rail-identity.sh)"
+    [ -n "$_lib" ] || return 0
+    _fwd="$(_cfw_framework_dir)"
+    _idf=$(FRAMEWORK_ROOT="$_fwd" bash -c '. "$1" && rail_identity_configured_path' _ "$_lib" 2>/dev/null) || _idf=""
+    [ -n "$_idf" ] || return 0
+    if [ -f "$_idf" ]; then
+        export TERMLINK_IDENTITY_FILE="$_idf"
+        echo "claude-fw: TermLink identity: project key $_idf (T-4454)"
+    else
+        echo "claude-fw: WARNING: RAIL_IDENTITY_FILE=$_idf does not exist; registering with the default TermLink identity (T-4454)" >&2
+    fi
+}
+
 termlink_start() {
     if [ "$TERMLINK_ENABLED" != "1" ]; then return; fi
     [ "$_CFW_RESUMED" = 1 ] && return   # T-4118: reuse the session spawned before the re-exec
@@ -266,6 +335,8 @@ termlink_start() {
                 echo "claude-fw: WARNING: TermLink runtime: ${_tlrt#* } (T-3779)" >&2 ;;
         esac
     fi
+
+    _cfw_rail_identity
 
     TERMLINK_SESSION="claude-master-$$"
     echo "claude-fw: Registering TermLink session: $TERMLINK_SESSION"
@@ -297,12 +368,54 @@ termlink_inject() {
     termlink pty inject "$TERMLINK_SESSION" "$cmd" --enter >/dev/null 2>&1
 }
 
+# T-4474 (010-termlink T-3464, framework:pickup offset 342): the arc-011 sidecar
+# sockets are launch-scoped, and the PTY shell the injected line runs in is spawned
+# by termlink, not by us. termlink >= 0.12.665 no longer forwards them into that
+# PTY, so hand them to the injected claude explicitly, as assignment words before
+# `command claude`. Values are %q-quoted: the PTY shell re-parses the line. Unset or
+# empty adds nothing. Prints the prefix (each word followed by a space).
+_tl_sidecar_env_prefix() {
+    local _v
+    for _v in TERMLINK_SIDECAR_SOCKET TERMLINK_SIDECAR_STATUS_SOCKET; do
+        [ -n "${!_v:-}" ] && printf '%s=%q ' "$_v" "${!_v}"
+    done
+    return 0
+}
+
+# T-4638 (T-4635 RCA): the PTY shell takes its environment from the tmux server TermLink spawned
+# it on, and a server another project's spawn started carries THAT project's PROJECT_ROOT /
+# TASKS_DIR / CONTEXT_DIR (1409-sprind's, 2026-10-22). _cfw_pin_project cleaned only this
+# process. So the injected line pins the shell itself to this project: it names each foreign
+# value it finds (once — the shell keeps the cleared state, so a relaunch finds nothing), unsets
+# the derived variables and exports the pinned paths. Plain POSIX case/unset/export, no bash
+# indirection: the PTY shell is the user's shell. Outside any project it adds nothing.
+_tl_project_env_prefix() {
+    [ -n "${PROJECT_ROOT:-}" ] || return 0
+    local _r _v _unset="TASKS_DIR CONTEXT_DIR _FW_PATHS_DERIVED_BY FW_ROUTED_FROM" _exp
+    _r=$(printf '%q' "$PROJECT_ROOT")
+    _exp="PROJECT_ROOT=$_r"
+    if [ -n "${FRAMEWORK_ROOT:-}" ]; then _exp="$_exp FRAMEWORK_ROOT=$(printf '%q' "$FRAMEWORK_ROOT")"
+    else _unset="$_unset FRAMEWORK_ROOT"; fi
+    for _v in PROJECT_ROOT TASKS_DIR CONTEXT_DIR; do
+        printf 'case "${%s:-}" in ""|%s|%s/*) ;; *) echo "claude-fw: inherited %s=$%s is not this project; cleared for "%s" (T-4638)" >&2 ;; esac; ' \
+            "$_v" "$_r" "$_r" "$_v" "$_v" "$_r"
+    done
+    printf 'unset %s; export %s; ' "$_unset" "$_exp"
+}
+
 # T-3648 (port of 055 P-011/P-012, framework:pickup offsets 242/244): one ping
 # is a liveness SAMPLE, not a verdict. Under CPU load a single ping fails or
 # times out while the session is fine, and the wait loop used to end the agent
 # on it. The session is declared gone only after CLAUDE_FW_PING_FAILURES
 # consecutive failures (default 3, one per 5 s poll; non-numeric or <1 → 3).
 # A success resets the count. Each tolerated failure goes to stderr.
+# T-4541 (055 T-587): failed pings alone never end a session. Under host
+# overload (load 283-443 on 24 cores, 2026-10-21) the local ping times out for
+# minutes and every --termlink agent on the host was torn down twice. Once the
+# failure limit is reached the session is gone only if a second, independent
+# signal agrees: no exact-name `termlink register --name <session>` process is
+# left (_tl_register_pids, /proc-backed). While one lives, log DEGRADED (at the
+# limit, then once a minute) and keep waiting; the exit marker still ends it.
 # Returns 0 when the session is gone, 1 while it should be treated as alive.
 _TL_PING_FAILS=0
 _tl_session_gone() {
@@ -315,7 +428,13 @@ _tl_session_gone() {
     fi
     _TL_PING_FAILS=$((_TL_PING_FAILS + 1))
     if [ "$_TL_PING_FAILS" -ge "$limit" ]; then
-        echo "claude-fw: termlink ping failed ${_TL_PING_FAILS} times in a row — session $TERMLINK_SESSION is gone." >&2
+        if [ -n "$(_tl_register_pids "$TERMLINK_SESSION")" ]; then
+            if [ $(( (_TL_PING_FAILS - limit) % 12 )) -eq 0 ]; then
+                echo "claude-fw: DEGRADED — termlink ping failed ${_TL_PING_FAILS} times in a row, but session $TERMLINK_SESSION's register process is alive; keeping the session (T-4541)." >&2
+            fi
+            return 1
+        fi
+        echo "claude-fw: termlink ping failed ${_TL_PING_FAILS} times in a row and no register process is left — session $TERMLINK_SESSION is gone." >&2
         return 0
     fi
     echo "claude-fw: termlink ping failed (${_TL_PING_FAILS}/${limit}) — tolerating, session $TERMLINK_SESSION may be under load." >&2
@@ -1125,12 +1244,41 @@ fi
 # idle). Any real argument takes the conversation path; `-n <name>` also labels
 # the session. The name is restricted to [A-Za-z0-9._-] because the TermLink
 # path joins CLAUDE_ARGS with spaces into one shell line.
+# T-4048 (055 T-491 proposal A): the FIRST launch too — a bare `claude-fw` opened the
+# agents overview and started the conversation as a tty-less background job in the
+# shared claude daemon. A launch with the user's own arguments is left untouched.
 _name_fresh_relaunch() {
-    [ "$restart_count" -gt 0 ] || return 0
     [ "${#CLAUDE_ARGS[@]}" -eq 0 ] || return 0
     local base
     base=$(printf '%s' "${PWD##*/}" | tr -c 'A-Za-z0-9._-' '-')
-    CLAUDE_ARGS=("-n" "fw-${base}-r${restart_count}")
+    if [ "$restart_count" -gt 0 ]; then
+        CLAUDE_ARGS=("-n" "fw-${base}-r${restart_count}")
+    else
+        CLAUDE_ARGS=("-n" "fw-${base}")
+    fi
+}
+
+# T-4048 (055 T-491 proposal B): refuse to --resume a conversation that is a live
+# Claude Code background job. The resume becomes a `claude attach` viewer, not a
+# foreground conversation on this tty, so claude-fw's typing path cannot reach it and
+# the operator ends up with one more hidden conversation. Stopping the job keeps the
+# conversation, and a plain --resume then opens it here.
+_background_job_guard() {
+    local _job _short _state
+    declare -F fw_conversation_background_job >/dev/null || return 0
+    _job=$(fw_conversation_background_job "$1")
+    [ -n "$_job" ] || return 0
+    read -r _short _state <<< "$_job"
+    if [ "${FW_ALLOW_BACKGROUND_RESUME:-0}" = "1" ]; then
+        echo "claude-fw: WARNING: conversation $1 is a live background job ($_short, state $_state); resuming anyway — it opens as a 'claude attach' viewer, not on this tty (FW_ALLOW_BACKGROUND_RESUME=1)" >&2
+        return 0
+    fi
+    echo "claude-fw: REFUSED — conversation $1 is a Claude Code BACKGROUND job ($_short, state $_state)." >&2
+    echo "  Resuming it would open a 'claude attach' viewer, not a conversation on this terminal," >&2
+    echo "  so claude-fw cannot type into it (T-4003) and it keeps running hidden in the claude daemon." >&2
+    echo "  To bring it to the foreground here:  claude stop $_short && claude-fw --resume $1" >&2
+    echo "  (stopping keeps the conversation). Override: FW_ALLOW_BACKGROUND_RESUME=1" >&2
+    return 1
 }
 
 # T-3890: refuse to open a conversation that another live process already holds
@@ -1148,6 +1296,7 @@ _conversation_guard() {
     . "$lib"
     _id=$(fw_conversation_target "$PWD" "${CLAUDE_ARGS[@]}")
     [ -n "$_id" ] || return 0
+    _background_job_guard "$_id" || return 1   # T-4048
     _holder=$(fw_conversation_holder "${PROJECT_ROOT:-$PWD}" "$_id")
     [ -n "$_holder" ] || return 0
     if [ "${FW_ALLOW_DUPLICATE_CONVERSATION:-0}" = "1" ]; then
@@ -1158,6 +1307,46 @@ _conversation_guard() {
     echo "  A second copy would act on the same events twice. Use that session instead" >&2
     echo "  (termlink list / termlink attach), or stop it first. Override: FW_ALLOW_DUPLICATE_CONVERSATION=1" >&2
     return 1
+}
+
+# T-4497: never hand claude a bare -c/--continue. It continues the NEWEST conversation
+# in the folder, which is often a `claude -p` worker's (fw termlink dispatch): refused
+# while the worker runs, its transcript resumed once it ends. Every -c — the operator's
+# `claude-fw -c` and both FW_RESTART_MODE=continue relaunches — becomes `--resume <id>`
+# for the conversation this wrapper recorded, else the newest interactive one; with
+# none, the session starts fresh. Without the lib, -c passes through with a warning.
+_resolve_continue() {
+    local lib a has=0
+    for a in ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"}; do
+        case "$a" in -c|--continue) has=1 ;; esac
+    done
+    [ "$has" = 1 ] || return 0
+    lib="$(_cfw_lib conversation-holder.sh)"
+    if [ -z "$lib" ]; then
+        echo "claude-fw: WARNING: cannot resolve -c to this project's conversation (no framework lib for $PWD) — claude -c may continue a worker's conversation (T-4497)" >&2
+        return 0
+    fi
+    # shellcheck source=/dev/null
+    . "$lib"
+    mapfile -d '' -t CLAUDE_ARGS < <(fw_conversation_rewrite_continue "$PWD" "${PROJECT_ROOT:-$PWD}" "${CLAUDE_ARGS[@]}")
+    case " ${CLAUDE_ARGS[*]+${CLAUDE_ARGS[*]}} " in
+        *" --resume "*) ;;
+        *) echo "claude-fw: no interactive conversation to continue here — starting a fresh session (T-4497)" >&2 ;;
+    esac
+    return 0
+}
+
+# T-4497: after a run, record the interactive conversation it wrote, so the next -c
+# continues THIS session's conversation rather than whatever is newest in the folder.
+_record_conversation() {
+    local lib launched=""
+    lib="$(_cfw_lib conversation-holder.sh)"
+    [ -n "$lib" ] || return 0
+    # shellcheck source=/dev/null
+    . "$lib"
+    launched=$(fw_conversation_target "$PWD" ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"} 2>/dev/null) || launched=""
+    fw_conversation_record "$PWD" "${PROJECT_ROOT:-$PWD}" "$run_start_epoch" "$launched" || true
+    return 0
 }
 
 # T-4118: at the restart boundary, run the wrapper that is on disk now rather than the
@@ -1216,6 +1405,7 @@ while true; do
     # T-2373: record when this run started so the terminator only acts on a
     # signal written DURING the run (edge case a — not a leftover/stale signal).
     run_start_epoch=$(date +%s)
+    _resolve_continue    # T-4497 (before naming: an unresolvable -c leaves a fresh run)
     _name_fresh_relaunch # T-3629
     _conversation_guard || exit 3   # T-3890
     # Run claude with user's arguments
@@ -1229,17 +1419,16 @@ while true; do
         # `fw sidecar recover` passes) must arrive as ONE argument, and any
         # quote, $ or newline in it must stay data. %q of an empty array is
         # one '' — skipped so a bare relaunch stays `claude`.
+        # T-4462: `command claude` — the PTY shell is interactive and sources the
+        # user's rc, so a bare `claude` would run their claude() function or alias
+        # instead of the binary. `command` skips functions; an alias only expands
+        # in command position, which `claude` no longer holds.
         _tl_args=""
         [ "${#CLAUDE_ARGS[@]}" -gt 0 ] && _tl_args=$(printf ' %q' "${CLAUDE_ARGS[@]}")
-        # 010-termlink T-3464 (local, filed upstream): the arc-011 sidecar sockets are
-        # launch-scoped. termlink >= 0.12.665 (T-3463) no longer forwards them into a
-        # spawned PTY, so hand them to THIS claude explicitly, per command, as
-        # tl-claude.sh does. Unset here = nothing added.
-        _tl_env=""
-        [ -n "${TERMLINK_SIDECAR_SOCKET:-}" ] && _tl_env="TERMLINK_SIDECAR_SOCKET=$(printf '%q' "$TERMLINK_SIDECAR_SOCKET") "
-        [ -n "${TERMLINK_SIDECAR_STATUS_SOCKET:-}" ] && _tl_env="${_tl_env}TERMLINK_SIDECAR_STATUS_SOCKET=$(printf '%q' "$TERMLINK_SIDECAR_STATUS_SOCKET") "
+        _tl_env=$(_tl_sidecar_env_prefix)   # T-4474: sidecar sockets, per command
+        _tl_pin=$(_tl_project_env_prefix)   # T-4638: this project's paths, not the server's
         _tl_tok="r${restart_count}p$$e$(date +%s)"   # T-4249: this run's marker token
-        termlink_inject "${_tl_env}claude${_tl_args}; printf '__CLAUDE_FW_EXIT_${_tl_tok}_%s__\n' \"\$?\""
+        termlink_inject "${_tl_pin}${_tl_env}command claude${_tl_args}; printf '__CLAUDE_FW_EXIT_${_tl_tok}_%s__\n' \"\$?\""
         _TL_PING_FAILS=0 # T-3648: each run starts with a clean failure count
         # Wait for claude to exit by polling the PTY for shell prompt
         # We check if claude process is still running inside the session
@@ -1338,6 +1527,7 @@ while true; do
         fi
     fi
     set -e
+    _record_conversation || true   # T-4497
 
     # Don't auto-restart if disabled
     if [ "$AUTO_RESTART" = false ]; then
@@ -1437,7 +1627,7 @@ while true; do
         # T-3166: name the mode, so which kind of restart fired is visible in the
         # operator's terminal without reading the source.
         if [ "${FW_RESTART_MODE:-fresh}" = "continue" ]; then
-            echo "  Restart mode: continue (claude -c — transcript restored, context NOT freed)"
+            echo "  Restart mode: continue (--resume of this session's recorded conversation — transcript restored, context NOT freed; T-4497)"
         else
             echo "  Restart mode: fresh (new session, seeded from the handover)"
         fi

@@ -212,6 +212,24 @@ except Exception:
     return 0
 }
 
+# T-4258 (R14). A fresh `fw init` wires the SessionStart hook that starts the
+# watcher (agents/context/sidecar-autostart.sh) but no session has run yet, so
+# an `absent` watcher is the expected state, not a gap. True while the hook is
+# wired in .claude/settings.json and has never fired here (it appends to
+# .context/sidecar/watcher/autostart.log on every run) and the sidecar was never
+# enabled. Once a session has started, an absent watcher is the R14 WARN again.
+#
+#   fw_sidecar_watcher_awaiting_first_session <project_root>
+#     rc 0   : awaiting the first session
+#     rc 1   : a session has run, the sidecar was enabled, or the hook is not wired
+fw_sidecar_watcher_awaiting_first_session() {
+    local root="${1:?fw_sidecar_watcher_awaiting_first_session: project root required}"
+    [ -e "$root/.context/sidecar/watcher/autostart.log" ] && return 1
+    [ -e "$root/.context/sidecar/watcher/enabled.json" ] && return 1
+    grep -q 'hook sidecar-autostart' "$root/.claude/settings.json" 2>/dev/null || return 1
+    return 0
+}
+
 # T-3685 (arc-011 S-LIVE, R7/R14/R15). The watcher's liveness verdict, read by
 # fw doctor and fw audit. Reads .context/sidecar/liveness.yaml through
 # `fw sidecar liveness --json` — our own file, no hub call.
@@ -221,6 +239,8 @@ except Exception:
 #              WAKE (T-3855) is `none` when this agent has a sidecar inbox and nothing
 #              would wake it on arrival (watcher not live), else `ok` / `no-inbox`.
 #              Appended last so a caller reading six fields keeps working.
+#              WARNINGS (T-4423, 8th, "; "-joined or "-"): e.g. enabled.json persists
+#              an agent id that is not this project's — WARN, independent of STATE.
 #              STATE is live | not-live | absent (see lib/sidecar/watcher.py:liveness_verdict)
 #     rc 0   : facts printed
 #     rc 2   : the verdict could not be read — the caller says so
@@ -241,9 +261,38 @@ try:
     wake = "none" if w.get("nothing_wakes") else ("ok" if w.get("has_inbox") else "no-inbox")
     print("\t".join((v["state"], str(live.get("seq")), str(v.get("age_s")),
                      str(live.get("last_probe_latency_ms")), str(v.get("injection_transport")),
-                     "; ".join(v.get("reasons") or []) or "-", wake)))
+                     "; ".join(v.get("reasons") or []) or "-", wake,
+                     "; ".join(v.get("warnings") or []) or "-")))
 except Exception:
     sys.exit(2)
+' || return 2
+    return 0
+}
+
+# fw_sidecar_orphan_inbox_facts <project_root>
+#
+#   T-4418: project-level inboxes on THIS hub that hold unread posts and that no
+#   known agent reads — mail sent to a nickname (ring20: 14 consults to
+#   inbox:<hub>/ring20-manager, a hub profile name, never fetched). One
+#   `termlink channel list` on our own hub, through `sidecar_cli.py orphan-inboxes`.
+#
+#     stdout : one line per topic: TOPIC<TAB>COUNT
+#     rc 0   : facts printed (possibly empty)
+#     rc 2   : the hub could not be asked, or sidecar_cli.py is missing
+fw_sidecar_orphan_inbox_facts() {
+    local root="${1:?fw_sidecar_orphan_inbox_facts: project root required}"
+    local lib_dir out
+    lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    [ -f "$lib_dir/sidecar_cli.py" ] || return 2
+    out=$(PROJECT_ROOT="$root" timeout 60 python3 "$lib_dir/sidecar_cli.py" orphan-inboxes --json 2>/dev/null)
+    [ -n "$out" ] || return 2
+    printf '%s' "$out" | python3 -c '
+import json, sys
+rows = json.load(sys.stdin)
+if rows is None:
+    sys.exit(2)
+for r in rows:
+    print("%s\t%s" % (r["topic"], r.get("count")))
 ' || return 2
     return 0
 }

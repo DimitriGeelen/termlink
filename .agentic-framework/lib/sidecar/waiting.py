@@ -434,6 +434,8 @@ def outbound_items(now: datetime | None = None) -> list[dict]:
         st = direct._effective(hist)
         if st in (direct.HANDED_OVER, direct.REPLIED):
             continue
+        if sent.get("notice") and st not in (direct.SENT, direct.UNDELIVERABLE, direct.REJECTED):
+            continue   # T-4348: a notice the peer received owes us nothing more
         row = {k: v for r in hist for k, v in r.items()}
         wrow = next((r for r in hist if r.get("state") == WAITING), None)
         failed = st in (direct.UNDELIVERABLE, direct.REJECTED, direct.ESCALATED)
@@ -449,6 +451,7 @@ def outbound_items(now: datetime | None = None) -> list[dict]:
         files = sorted(outbox._outbox_dir().glob("*.json"))
     except OSError:
         files = []
+    posted: set[str] | None = None   # T-4348: read the hub ledger only if a notice needs it
     for f in files:
         try:
             msg = json.loads(f.read_text(encoding="utf-8"))
@@ -461,6 +464,14 @@ def outbound_items(now: datetime | None = None) -> list[dict]:
         got = rc.get(cid, {})
         if receipts.HANDED_OVER in got or receipts.REPLIED in got:
             continue
+        if msg.get("notice"):
+            # T-4348: no reply expected — closed once the hub took it (or the
+            # peer said it RECEIVED it). An undelivered notice is still listed.
+            if posted is None:
+                posted = {r.get("client_msg_id") for r in outbox._read_ledger()
+                          if r.get("state") in (outbox.HUB_ACCEPTED, outbox.INJECTED_LATER)}
+            if cid in posted or receipts.RECEIVED in got:
+                continue
         wrow = got.get(WAITING)
         age = _age_s(t0, now)
         if not (wrow or age >= thr):
@@ -586,8 +597,13 @@ def default_notifier(title: str, message: str, click_url: str = "") -> str:
     if url:
         env["NTFY_URL"] = url
     body = f"{message}\n{click_url}" if click_url else message
+    # T-3866: the dispatcher is a package module with a relative import, so it
+    # cannot run as `python3 <file>`; lib/notify_dispatch.py imports it from
+    # its package root and calls dispatch_alert(), the same path fw_notify uses.
+    helper = str(Path(__file__).resolve().parent.parent / "notify_dispatch.py")
     try:
-        proc = subprocess.run([sys.executable, dispatcher, "--trigger", "manual",
+        proc = subprocess.run([sys.executable, helper, "send", dispatcher,
+                               "--trigger", "manual",
                                "--title", title, "--message", body or title],
                               capture_output=True, text=True, timeout=60, env=env)
     except (OSError, subprocess.SubprocessError) as e:

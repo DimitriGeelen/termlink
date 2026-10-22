@@ -23,6 +23,9 @@ do_inception() {
         decide)
             do_inception_decide "$@"
             ;;
+        correct)
+            do_inception_correct "$@"
+            ;;
         sweep)
             do_inception_sweep "$@"
             ;;
@@ -47,6 +50,9 @@ show_inception_help() {
     echo "  start <name>                      Create inception task + set focus"
     echo "  status                            Show all inception tasks"
     echo "  decide <T-XXX> go|no-go|defer     Record go/no-go decision"
+    echo "  correct <T-XXX> go|no-go --reason '<why>'"
+    echo "                                    Re-record a mistaken decision, also on a"
+    echo "                                    completed inception (operator-only, logged, T-4324)"
     echo "  sweep [--dry-run]                 Retroactively finalize inceptions with"
     echo "                                    recorded decisions but unchecked Human ACs"
     echo "  retrofit-rec [--apply]            T-1716 retrofit: scan active inceptions"
@@ -155,14 +161,20 @@ do_inception_start() {
     # to create-task.sh so the CLI-mirror filing gate doesn't double-fire on this
     # path. The recommendation has already been validated above and will be
     # injected via _inject_recommendation_block after creation.
-    local output
+    # T-4597: `|| rc=$?` keeps a create-task refusal from aborting here under the
+    # caller's set -e, which used to swallow the captured error before it was echoed.
+    local output rc=0
     output=$(FW_INCEPTION_PRE_GATED=1 "$AGENTS_DIR/task-create/create-task.sh" \
         --name "$name" \
         --description "Inception: $name" \
         --type inception \
-        --owner "$owner" ${origin:+--origin "$origin"} 2>&1)
+        --owner "$owner" ${origin:+--origin "$origin"} 2>&1) || rc=$?
 
     echo "$output"
+    if [ "$rc" -ne 0 ]; then
+        echo -e "${RED}ERROR: inception task was not created (create-task exited $rc)${NC}" >&2
+        return "$rc"
+    fi
 
     # Extract task ID and set focus
     local task_id
@@ -820,6 +832,17 @@ EOF
                 echo "  $(_emit_user_command "task verify $task_id")" >&2
                 return "$_uts_rc"
             fi
+            # T-4534: verify the write stuck — update-task can exit 0 while another
+            # writer of the task file reverts its status line (lost write).
+            _current_status=$( { grep '^status:' "$task_file" 2>/dev/null || true; } | head -1 | sed 's/status:[[:space:]]*//')
+            if [ "$_current_status" != "started-work" ]; then
+                echo "" >&2
+                echo -e "${RED}ERROR: captured→started-work reported success but the task file says status: ${_current_status:-<none>} (lost write, T-4534)${NC}" >&2
+                echo -e "${YELLOW}Decision was recorded but status is stuck. Recover with:${NC}" >&2
+                echo "  $(_emit_user_command "task update $task_id --status started-work")" >&2
+                echo "  $(_emit_user_command "inception sweep")" >&2
+                return 1
+            fi
         fi
         # T-3586: --i-am-human — decide already refused agents (T-1259) before reaching here,
         # and a Watchtower-driven decide inherits CLAUDECODE=1 from the Flask process.
@@ -864,6 +887,135 @@ EOF
     fi
 }
 
+# T-4324: correct a mistaken GO/NO-GO. `decide` only finds active tasks, and a GO/NO-GO
+# moves the task to completed/ in the same call, so a mis-clicked verdict could only be
+# undone by hand-reverting commits (T-2899, 2026-10-18). This re-records the verdict in
+# place, active or completed, with a mandatory reason. Same sovereignty gate as decide.
+# The task stays where it is: GO and NO-GO both complete an inception. A correction to
+# DEFER is not offered — that reopens the exploration, which is a different act.
+do_inception_correct() {
+    local task_id="${1:-}"
+    local decision="${2:-}"
+    shift 2 2>/dev/null || true
+
+    if [ -z "$task_id" ] || [ -z "$decision" ]; then
+        echo -e "${RED}Usage: fw inception correct T-XXX go|no-go --reason 'why the recorded verdict was wrong'${NC}" >&2
+        exit 1
+    fi
+    case "$decision" in
+        go|no-go) ;;
+        *)
+            echo -e "${RED}Correction must be: go or no-go${NC}" >&2
+            echo "  To reopen an exploration (DEFER), move the task back and decide again." >&2
+            exit 1
+            ;;
+    esac
+
+    local reason="" i_am_human=false from_watchtower=false
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --reason|--rationale) reason="${2:-}"; shift 2 ;;
+            --i-am-human) i_am_human=true; shift ;;
+            --from-watchtower) from_watchtower=true; shift ;;
+            *) shift ;;
+        esac
+    done
+    if [ -z "$reason" ]; then
+        echo -e "${RED}Reason required: --reason 'why the recorded verdict was wrong'${NC}" >&2
+        exit 1
+    fi
+
+    # Target validation before the sovereignty gate (T-2964 ordering).
+    local task_file
+    task_file=$(find_task_file "$task_id")
+    if [ -z "$task_file" ]; then
+        echo -e "${RED}Task $task_id not found in active or completed tasks${NC}" >&2
+        exit 1
+    fi
+    if ! grep -q "^workflow_type: inception" "$task_file"; then
+        echo -e "${RED}ERROR: $task_id is not an inception task — nothing to correct${NC}" >&2
+        exit 1
+    fi
+    local old_upper new_upper
+    old_upper=$(grep -m1 -E '^\*\*Decision\*\*:' "$task_file" | sed -E 's/^\*\*Decision\*\*:[[:space:]]*//' | grep -oE '^(NO-GO|GO|DEFER)' || true)
+    new_upper=$(echo "$decision" | tr '[:lower:]' '[:upper:]')
+    if [ -z "$old_upper" ]; then
+        echo -e "${RED}ERROR: $task_id has no recorded decision — use 'fw inception decide', not correct${NC}" >&2
+        exit 1
+    fi
+    if [ "$old_upper" = "$new_upper" ]; then
+        echo -e "${RED}ERROR: $task_id is already recorded as $new_upper — nothing to correct${NC}" >&2
+        exit 1
+    fi
+
+    if [ "${CLAUDECODE:-}" = "1" ] && [ "$i_am_human" = false ] && [ "$from_watchtower" = false ]; then
+        echo -e "${RED}ERROR: Agents must not correct inception decisions (T-4324, T-1259)${NC}" >&2
+        echo "  The verdict belongs to the human. Ask the operator to run:" >&2
+        echo "    $(_emit_user_command "inception correct $task_id $decision --reason '<why>'")" >&2
+        exit 1
+    fi
+
+    local who="cli"
+    [ "$from_watchtower" = true ] && who="watchtower"
+    [ "$i_am_human" = true ] && who="i-am-human"
+    local timestamp
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local ledger="$PROJECT_ROOT/.context/inception-corrections.jsonl"
+
+    python3 - "$task_file" "$task_id" "$old_upper" "$new_upper" "$reason" "$timestamp" "$who" "$ledger" << 'PYCORRECT'
+import json, os, re, sys
+
+task_file, tid, old, new, reason, ts, who, ledger = sys.argv[1:9]
+with open(task_file) as f:
+    lines = f.read().split('\n')
+
+block = ['## Decision', '', f'**Decision**: {new}', '', f'**Rationale**: {reason}', '',
+         f'**Date**: {ts}', '', f'**Corrected**: from {old} ({who}, T-4324)']
+out, in_dec, written = [], False, False
+for line in lines:
+    if line.strip() == '## Decision':
+        in_dec = True
+        if not written:
+            out.extend(block)
+            written = True
+        continue
+    if in_dec:
+        if re.match(r'^#{2,} ', line):
+            in_dec = False
+            out.extend(['', line])
+        continue
+    out.append(line)
+if not written:
+    sys.exit(f"ERROR: {tid} has a **Decision** line but no '## Decision' section; nothing written")
+if out and out[-1] != '':
+    out.append('')
+out.extend([f'### {ts} — inception-decision-correction [inception-workflow]',
+            f'- **Action:** Corrected inception decision {old} → {new}',
+            f'- **Reason:** {reason}', f'- **By:** {who}', ''])
+with open(task_file, 'w') as f:
+    f.write('\n'.join(out))
+
+os.makedirs(os.path.dirname(ledger), exist_ok=True)
+with open(ledger, 'a') as f:
+    f.write(json.dumps({"ts": ts, "task": tid, "from": old, "to": new,
+                        "reason": reason, "by": who}) + '\n')
+PYCORRECT
+
+    # Commit with the subject the decision readers grep (operator_pending._commit_decision,
+    # watchtower_decision_revert.ANY_DECISION), so git history agrees with the file.
+    # Only these two paths are committed, whatever else is staged.
+    local _msg="$task_id: inception decision $new_upper (corrected from $old_upper)"
+    if git -C "$PROJECT_ROOT" add -- "$task_file" "$ledger" 2>/dev/null && \
+       git -C "$PROJECT_ROOT" commit -q -m "$_msg" -- "$task_file" "$ledger" >/dev/null 2>&1; then
+        echo "Committed: $_msg"
+    else
+        echo -e "${YELLOW}WARN: correction written but not committed. Commit it with:${NC}" >&2
+        echo "  cd $PROJECT_ROOT && git commit -m \"$_msg\" -- $task_file $ledger" >&2
+    fi
+
+    echo -e "${GREEN}Inception decision corrected${NC}: $task_id $old_upper → $new_upper"
+}
+
 # T-1423: Retroactive sweep — tick Human AC + finalize inceptions stuck in active/
 # with recorded decisions. Covers the pre-T-1324 backlog and hand-edited decisions
 # that bypassed do_inception_decide.
@@ -875,8 +1027,10 @@ do_inception_sweep() {
             -h|--help)
                 echo "fw inception sweep [--dry-run]"
                 echo ""
-                echo "Finds tasks in .tasks/active/ with status: work-completed AND a"
-                echo "recorded ## Decision block. Ticks Human AC, then finalizes."
+                echo "Finds tasks in .tasks/active/ with a recorded ## Decision block and"
+                echo "status work-completed, or captured/started-work + GO/NO-GO. Ticks the"
+                echo "Human AC, then closes through update-task.sh (every close gate applies;"
+                echo "a task a gate holds is reported and left as is, exit 1)."
                 return 0
                 ;;
         esac
@@ -896,6 +1050,8 @@ do_inception_sweep() {
     local moved=0
     local still_pending=0
     local skipped=""
+    local held=0
+    local held_list=""
 
     local promoted=0
     for f in "$active_dir"/T-*.md; do
@@ -924,6 +1080,12 @@ do_inception_sweep() {
                 else
                     continue
                 fi
+                ;;
+            captured)
+                # T-4535: GO/NO-GO recorded but never started — same recovery as
+                # class 2 (decide does captured → started-work → work-completed).
+                # captured + DEFER is already parked; leave it.
+                grep -qE '^\*\*Decision\*\*: (GO|NO-GO)' "$f" || continue
                 ;;
             *) continue ;;
         esac
@@ -960,22 +1122,47 @@ do_inception_sweep() {
             continue
         fi
 
-        # Class 2 recovery: status stuck at started-work + closing decision.
-        # Promote to work-completed in place — decision is already recorded, so
-        # the transition is just finishing what do_inception_decide started
-        # before T-1491's exit-code propagation fix landed.
-        if [ "$current_status" = "started-work" ]; then
-            local _now
-            _now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-            _sed_i 's/^status: started-work$/status: work-completed/' "$f"
-            _sed_i "s/^last_update:.*/last_update: $_now/" "$f"
-            promoted=$((promoted+1))
-            echo "  $tid: promoted started-work → work-completed (T-1491 class 2 recovery)"
-        fi
-
         # Tick the Human AC
         tick_inception_decide_acs "$f"
         ticked=$((ticked+1))
+
+        # Class 2 recovery: captured/started-work + closing decision. T-4535:
+        # close through update-task.sh, the same path do_inception_decide takes,
+        # never by editing status: — since T-1515 a started-work + GO task
+        # usually means a close gate (P-010, P-011, RCA …) refused, and the
+        # sweep must respect that refusal, not overwrite it. --skip-sovereignty
+        # is consumed only for owner: human and is itself refused for agents.
+        if [ "$current_status" = "captured" ] || [ "$current_status" = "started-work" ]; then
+            local _uts_out _uts_rc=0
+            if [ "$current_status" = "captured" ]; then
+                _uts_out=$("$AGENTS_DIR/task-create/update-task.sh" "$tid" --status started-work --skip-sovereignty --reason "T-4535 sweep: decision recorded, closing" 2>&1) || _uts_rc=$?
+            fi
+            if [ "$_uts_rc" -eq 0 ]; then
+                _uts_out=$("$AGENTS_DIR/task-create/update-task.sh" "$tid" --status work-completed --skip-sovereignty --reason "T-4535 sweep: decision recorded, closing" 2>&1) || _uts_rc=$?
+            fi
+            if [ "$_uts_rc" -ne 0 ]; then
+                held=$((held+1))
+                held_list+="$tid"$'\n'
+                echo "  $tid: decision recorded but a close gate refused (exit $_uts_rc) — held, left as $current_status"
+                # From the gate's ERROR line on (fall back to the tail when none).
+                if printf '%s\n' "$_uts_out" | grep -q 'ERROR'; then
+                    printf '%s\n' "$_uts_out" | sed -n '/ERROR/,$p' | head -12 | sed 's/^/      /'
+                else
+                    printf '%s\n' "$_uts_out" | tail -8 | sed 's/^/      /'
+                fi
+                continue
+            fi
+            promoted=$((promoted+1))
+            if [ ! -f "$f" ]; then
+                moved=$((moved+1))
+                echo "  $tid: closed via update-task (was $current_status)"
+            else
+                still_pending=$((still_pending+1))
+                skipped+="$tid (closed via update-task; Human AC still unchecked)"$'\n'
+                echo "  $tid: closed via update-task (was $current_status) — Human AC still unchecked, stays in active/"
+            fi
+            continue
+        fi
 
         # Recount Human ACs after ticking (grep -c returns exit 1 on zero matches under pipefail)
         # T-1620: strip <!-- ... --> blocks before counting. The default task
@@ -1006,11 +1193,18 @@ do_inception_sweep() {
         echo -e "${BOLD}Dry run:${NC} scanned=$scanned  eligible=$eligible"
         echo "Re-run without --dry-run to apply."
     else
-        echo -e "${BOLD}Sweep complete:${NC} scanned=$scanned  eligible=$eligible  promoted=$promoted  ticked=$ticked  moved=$moved  stays-pending=$still_pending"
+        echo -e "${BOLD}Sweep complete:${NC} scanned=$scanned  eligible=$eligible  promoted=$promoted  ticked=$ticked  moved=$moved  stays-pending=$still_pending  held=$held"
         if [ "$still_pending" -gt 0 ]; then
             echo ""
             echo -e "${YELLOW}Tasks with other Human ACs still pending (tick patterns didn't cover them):${NC}"
             echo "$skipped" | sed 's/^/  /'
+        fi
+        if [ "$held" -gt 0 ]; then
+            echo ""
+            echo -e "${RED}Tasks a close gate is holding (not closed; see the gate output above):${NC}"
+            echo "$held_list" | sed '/^$/d; s/^/  /'
+            echo "  Fix the blocker, then re-run the sweep. See: $(_emit_user_command "task verify <T-XXX>" 2>/dev/null || echo "fw task verify <T-XXX>")"
+            return 1
         fi
     fi
 }

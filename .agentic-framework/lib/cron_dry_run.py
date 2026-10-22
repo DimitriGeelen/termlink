@@ -37,6 +37,55 @@ import re
 import sys
 import yaml
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from cron_schedule import effective_schedule  # noqa: E402  T-4351
+
+
+def render_crontab(project_root: str, jobs: list, fw_path: str) -> str:
+    """The crontab text `fw cron generate` writes. T-4432: Watchtower's
+    pause/resume (web/blueprints/cron.py) calls this too, so there is one
+    renderer outside bin/fw's own copy and no third hand-written generator."""
+    slug = re.sub(r"[^a-z0-9_-]", "-", os.path.basename(project_root).lower())
+    cron_source = os.path.join(project_root, ".context", "cron",
+                               "agentic-audit.crontab")
+    cron_install = f"/etc/cron.d/agentic-audit-{slug}"
+    lines = [
+        "# Agentic Engineering Framework — Scheduled Jobs (managed by cron-registry.yaml)",
+        f"# Source of truth: {cron_source} (git-tracked)",
+        f"# Installed to: {cron_install}",
+        f"# Project: {project_root}",
+        "SHELL=/bin/bash",
+        "PATH=/usr/local/bin:/usr/bin:/bin",
+        "",
+    ]
+    for job in jobs:
+        schedule = effective_schedule(job, project_root)  # T-4351
+        command = job.get("command", "")
+        name = job.get("name", "")
+        status = job.get("status", "active")
+        if "fw " in command:
+            resolved = re.sub(r"\bfw\b", f'"{fw_path}"', command)
+            resolved = (f'cd "{project_root}" && '
+                        f'PROJECT_ROOT="{project_root}" {resolved}')
+        else:
+            resolved = f'cd "{project_root}" && {command}'
+        if "2>&1 | logger" not in resolved and "2>/dev/null" not in resolved:
+            resolved += " 2>&1 | logger -t agentic-cron"
+        elif "2>/dev/null" in resolved:
+            resolved = resolved.replace("2>/dev/null",
+                                        "2>&1 | logger -t agentic-cron")
+        # T-3162: the pipeline's status is logger's (always 0); hand cron
+        # the job's own. Mirrors bin/fw cron generate.
+        if "PIPESTATUS" not in resolved:
+            resolved += "; exit ${PIPESTATUS[0]}"
+        lines.append(f"# {name}")
+        if status == "paused":
+            lines.append(f"# PAUSED: {schedule} root {resolved}")
+        else:
+            lines.append(f"{schedule} root {resolved}")
+        lines.append("")
+    return "\n".join(lines)
+
 
 def main() -> int:
     if len(sys.argv) != 4:
@@ -52,42 +101,7 @@ def main() -> int:
               file=sys.stderr)
         return 3
     jobs = data.get("jobs", []) or []
-    slug = re.sub(r"[^a-z0-9_-]", "-", os.path.basename(project_root).lower())
-    cron_source = os.path.join(project_root, ".context", "cron",
-                               "agentic-audit.crontab")
-    cron_install = f"/etc/cron.d/agentic-audit-{slug}"
-    lines = [
-        "# Agentic Engineering Framework — Scheduled Jobs (managed by cron-registry.yaml)",
-        f"# Source of truth: {cron_source} (git-tracked)",
-        f"# Installed to: {cron_install}",
-        f"# Project: {project_root}",
-        "SHELL=/bin/bash",
-        "PATH=/usr/local/bin:/usr/bin:/bin",
-        "",
-    ]
-    for job in jobs:
-        schedule = job.get("schedule", "")
-        command = job.get("command", "")
-        name = job.get("name", "")
-        status = job.get("status", "active")
-        if "fw " in command:
-            resolved = re.sub(r"\bfw\b", f'"{fw_path}"', command)
-            resolved = (f'cd "{project_root}" && '
-                        f'PROJECT_ROOT="{project_root}" {resolved}')
-        else:
-            resolved = f'cd "{project_root}" && {command}'
-        if "2>&1 | logger" not in resolved and "2>/dev/null" not in resolved:
-            resolved += " 2>&1 | logger -t agentic-cron"
-        elif "2>/dev/null" in resolved:
-            resolved = resolved.replace("2>/dev/null",
-                                        "2>&1 | logger -t agentic-cron")
-        lines.append(f"# {name}")
-        if status == "paused":
-            lines.append(f"# PAUSED: {schedule} root {resolved}")
-        else:
-            lines.append(f"{schedule} root {resolved}")
-        lines.append("")
-    sys.stdout.write("\n".join(lines))
+    sys.stdout.write(render_crontab(project_root, jobs, fw_path))
     return 0
 
 

@@ -5,41 +5,47 @@
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 
+# Vector index incremental reindex (hourly)
+18 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" index reindex 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
+
 # Structural audits (30 min)
-*/30 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section structure,compliance,quality,discovery --cron 2>&1 | logger -t agentic-cron
+*/30 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section structure,compliance,quality,discovery --cron 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
 
 # Git traceability + episodic (hourly)
-0 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section traceability,episodic,discovery-trends --cron 2>&1 | logger -t agentic-cron
+0 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section traceability,episodic,discovery-trends --cron 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
 
 # Observations + gaps (6 hourly)
-0 */6 * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section observations,gaps --cron 2>&1 | logger -t agentic-cron
+0 */6 * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section observations,gaps --cron 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
 
 # OE fast checks (30 min)
-15,45 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-fast,oe-research --cron 2>&1 | logger -t agentic-cron
+15,45 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-fast,oe-research --cron 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
 
 # OE hourly checks
-30 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-hourly --cron 2>&1 | logger -t agentic-cron
+30 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-hourly --cron 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
 
 # OE daily checks
-0 7 * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-daily --cron 2>&1 | logger -t agentic-cron
+0 7 * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-daily --cron 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
 
 # OE weekly checks
-0 9 * * 1 root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-weekly --cron 2>&1 | logger -t agentic-cron
+0 9 * * 1 root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-weekly --cron 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
 
 # Full audit (daily)
-0 8 * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --cron 2>&1 | logger -t agentic-cron
+0 8 * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --cron 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
 
 # Component docs regeneration (daily)
-15 8 * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" docs --all 2>&1 | logger -t agentic-cron
+15 8 * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" docs --all 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
 
 # Cron audit file retention (daily)
-0 9 * * * root cd "/opt/termlink" && find .context/audits/cron -name '*.yaml' -mtime +7 -delete 2>&1 | logger -t agentic-cron
+0 9 * * * root cd "/opt/termlink" && find .context/audits/cron -name '*.yaml' -mtime +7 -delete 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
 
 # Pickup inbox processor (15 min)
-*/15 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" flock -n /var/lock/agentic-pickup-termlink.lock -c '"/opt/termlink/.agentic-framework/bin/fw" pickup process' 2>&1 | logger -t agentic-cron
+*/15 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" flock -n /var/lock/agentic-pickup-termlink.lock -c '"/opt/termlink/.agentic-framework/bin/fw" pickup process' 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
 
 # Pickup inbox drain (every minute)
-* * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" flock -n /var/lock/agentic-pickup-termlink.lock -c '"/opt/termlink/.agentic-framework/bin/fw" pickup process' 2>&1 | logger -t agentic-cron
+* * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" flock -n /var/lock/agentic-pickup-termlink.lock -c '"/opt/termlink/.agentic-framework/bin/fw" pickup process' 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
 
 # Revisit-due scan (daily 07:00, G-053)
-0 7 * * * root cd "/opt/termlink" && PROJECT_ROOT="$(pwd)" .agentic-framework/agents/context/revisit-due-scan.sh 2>&1 | logger -t agentic-cron
+0 7 * * * root cd "/opt/termlink" && PROJECT_ROOT="$(pwd)" .agentic-framework/agents/context/revisit-due-scan.sh 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
+
+# Sidecar ack-ledger sweep (5 min)
+3,8,13,18,23,28,33,38,43,48,53,58 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" flock -n /var/lock/agentic-cron-sidecar-sweep-5m-termlink.lock -c '"/opt/termlink/.agentic-framework/bin/fw" sidecar sweep' 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}

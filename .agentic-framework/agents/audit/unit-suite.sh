@@ -22,6 +22,15 @@
 #   FW_UNIT_SUITE_PY_RESERVE  seconds reserved for the pytest leg (default: 1800)
 #   FW_UNIT_SUITE_JOBS        files run concurrently (default: nproc/2, max 12)
 #   FW_UNIT_SUITE_FILE_TIMEOUT per-file seconds cap (default: 900)
+#   FW_UNIT_SUITE_TIER        fast | slow | perf (T-4377). Unset with a manifest
+#                             (tests/unit/tiers.yaml) present = run all three in turn.
+#   FW_UNIT_SUITE_FAST_FILE_TIMEOUT  fast tier's per-file cap (default: 120)
+#
+# Tiers (T-4377). fast is graded by the pre-push ratchet and writes the root
+# LATEST.yaml; slow and perf write <report-dir>/slow/ and <report-dir>/perf/.
+# In the fast tier a skipped test makes its file NOT DETERMINED, like a timeout.
+# perf runs serially. Membership is declared in tests/unit/tiers.yaml; see
+# agents/audit/unit_tier.py.
 #
 # Per-file execution (T-3602, OBS-587). The run used to be ONE `bats tests/unit`
 # process under one 5400s cap. It hit the cap on every nightly from 2026-09-08
@@ -50,6 +59,7 @@ PROJECT_ROOT="${PROJECT_ROOT:-$FRAMEWORK_ROOT}"
 SUITE_DIR="${FW_UNIT_SUITE_DIR:-$FRAMEWORK_ROOT/tests/unit}"
 REPORT_DIR="${FW_UNIT_SUITE_REPORT_DIR:-$PROJECT_ROOT/.context/audits/unit-suite}"
 LOCK_FILE="${FW_UNIT_SUITE_LOCK:-$PROJECT_ROOT/.context/locks/unit-suite.lock}"
+TREE_GUARD_REPORT_ROOT="$REPORT_DIR"   # T-4523: the runner's own writes, before tier subdirs
 TOTAL_TIMEOUT="${FW_UNIT_SUITE_TIMEOUT:-7200}"
 PY_RESERVE="${FW_UNIT_SUITE_PY_RESERVE:-1800}"
 # Degenerate configs must not invert the split: never reserve the whole window.
@@ -57,6 +67,46 @@ if [ "$PY_RESERVE" -ge "$TOTAL_TIMEOUT" ]; then
     PY_RESERVE=$(( TOTAL_TIMEOUT / 2 ))
 fi
 [ "$PY_RESERVE" -lt 1 ] && PY_RESERVE=1
+
+# ── T-4377: tiers ───────────────────────────────────────────────────────────
+# A manifest (tests/unit/tiers.yaml) splits the corpus into fast | slow | perf.
+# Tier unset + manifest present = run all three in turn, one child run each (its
+# own report and lock). A named tier runs only that tier. A manifest that does
+# not cover every discovered file exactly once refuses the run: exit 2, nothing
+# written, so no tier can silently grade a corpus it did not fully assign.
+TIER="${FW_UNIT_SUITE_TIER:-}"
+case "$TIER" in
+    ""|fast|slow|perf) ;;
+    *) echo "unit-suite: FW_UNIT_SUITE_TIER must be fast, slow or perf (got '$TIER')" >&2; exit 2 ;;
+esac
+if [ -f "$SUITE_DIR/tiers.yaml" ]; then
+    if [ -z "$TIER" ]; then
+        # T-4523: was the tree clean before ANY tier wrote? Each tier grades its own
+        # changes against this, not against what an earlier tier left behind.
+        _tg="$(mktemp)"
+        python3 -I "$SCRIPT_DIR/unit_tree_guard.py" snapshot "$SUITE_DIR" "$_tg" \
+            --exclude "$TREE_GUARD_REPORT_ROOT" --exclude "$LOCK_FILE" 2>/dev/null
+        FW_UNIT_SUITE_TREE_START="$(python3 -I "$SCRIPT_DIR/unit_tree_guard.py" state "$_tg" 2>/dev/null)"
+        export FW_UNIT_SUITE_TREE_START="${FW_UNIT_SUITE_TREE_START:-unknown}"
+        rm -f "$_tg"
+        ALL_RC=0
+        for _t in fast slow perf; do
+            FW_UNIT_SUITE_TIER="$_t" bash "${BASH_SOURCE[0]}"; _rc=$?
+            [ "$_rc" -gt "$ALL_RC" ] && ALL_RC=$_rc
+        done
+        exit "$ALL_RC"
+    fi
+    if ! _tier_check="$(python3 -I "$SCRIPT_DIR/unit_tier.py" check --dir "$SUITE_DIR" 2>&1)"; then
+        echo "unit-suite: tiers.yaml does not cover the corpus; refusing to run:" >&2
+        echo "$_tier_check" >&2
+        exit 2
+    fi
+    # Tier reports: fast keeps the root (the pre-push ratchet's files).
+    if [ "$TIER" != fast ]; then REPORT_DIR="$REPORT_DIR/$TIER"; fi
+elif [ -n "$TIER" ]; then
+    echo "unit-suite: FW_UNIT_SUITE_TIER=$TIER needs $SUITE_DIR/tiers.yaml" >&2
+    exit 2
+fi
 
 mkdir -p "$REPORT_DIR" "$(dirname "$LOCK_FILE")"
 RUN_LOG="$REPORT_DIR/runs.log"
@@ -71,7 +121,55 @@ fi
 
 STARTED="$(date -u +%FT%TZ)"
 START_EPOCH="$(date +%s)"
-echo "$STARTED START suite=$SUITE_DIR timeout=${TOTAL_TIMEOUT}s" >> "$RUN_LOG"
+
+# T-4381: the revision this run measures — HEAD and tree state of the repo
+# holding the suite, taken BEFORE any test runs (tests write into the tree).
+# Without it no red can be joined to the code it ran against. Outside a git
+# repo both are recorded as unknown rather than omitted.
+REV_COMMIT="$(git -C "$SUITE_DIR" rev-parse --verify -q HEAD 2>/dev/null)" || REV_COMMIT=""
+REV_TREE=unknown
+if [ -n "$REV_COMMIT" ] && _rev_status="$(git -C "$SUITE_DIR" status --porcelain 2>/dev/null)"; then
+    if [ -n "$_rev_status" ]; then REV_TREE=dirty; else REV_TREE=clean; fi
+fi
+echo "$STARTED START suite=$SUITE_DIR timeout=${TOTAL_TIMEOUT}s commit=${REV_COMMIT:-unknown} tree=$REV_TREE" >> "$RUN_LOG"
+
+# BEGIN _discover_pytest
+# _discover_pytest <dir> — the pytest leg's files (T-4381). pytest's own names
+# (test_*.py, *_test.py) always run: the name claims tests, so a file that
+# collects none is graded red (exit 5), not skipped. Any other module runs when
+# it defines a test (`def test…` / `class Test…`) — t2974_*.py-style files
+# held ~700 tests the old test_*.py glob never ran. conftest.py and _-prefixed
+# helpers never run; a helper module with no test definitions is not a test file.
+_discover_pytest() {
+    local f b
+    for f in "$1"/*.py; do
+        [ -f "$f" ] || continue
+        b="$(basename "$f")"
+        case "$b" in conftest.py|_*) continue ;; esac
+        case "$b" in
+            test_*.py|*_test.py) echo "$f" ;;
+            *) grep -qE '^[[:space:]]*(async[[:space:]]+)?def[[:space:]]+test|^class[[:space:]]+Test' "$f" \
+                   && echo "$f" ;;
+        esac
+    done
+    return 0
+}
+# END _discover_pytest
+
+# _suite_files <bats|pytest> — this run's files of one leg: the whole corpus when
+# untiered, else the manifest's files for FW_UNIT_SUITE_TIER (T-4377).
+_suite_files() {
+    if [ -z "$TIER" ]; then
+        if [ "$1" = bats ]; then ls "$SUITE_DIR"/*.bats 2>/dev/null; else _discover_pytest "$SUITE_DIR"; fi
+        return 0
+    fi
+    if [ "$1" = bats ]; then
+        python3 -I "$SCRIPT_DIR/unit_tier.py" files --tier "$TIER" --dir "$SUITE_DIR" | grep '\.bats$'
+    else
+        python3 -I "$SCRIPT_DIR/unit_tier.py" files --tier "$TIER" --dir "$SUITE_DIR" | grep -v '\.bats$'
+    fi
+    return 0
+}
 
 _remaining() {
     local _left=$(( TOTAL_TIMEOUT - ( $(date +%s) - START_EPOCH ) ))
@@ -94,18 +192,44 @@ if [ -z "$JOBS" ]; then
 fi
 [ "$JOBS" -lt 1 ] && JOBS=1
 FILE_TIMEOUT="${FW_UNIT_SUITE_FILE_TIMEOUT:-900}"
+# T-4377: the fast tier's own low cap; perf measures wall clock, so it runs alone.
+if [ "$TIER" = fast ]; then FILE_TIMEOUT="${FW_UNIT_SUITE_FAST_FILE_TIMEOUT:-120}"; fi
+if [ "$TIER" = perf ]; then JOBS=1; fi
 [ "$FILE_TIMEOUT" -lt 1 ] && FILE_TIMEOUT=1
 
 BATS_BUDGET=0 PY_BUDGET=0
 RESULTS="$(mktemp -d)"
-mkdir -p "$RESULTS/bats" "$RESULTS/pytest"
+mkdir -p "$RESULTS/bats" "$RESULTS/pytest" "$RESULTS/t"
+: > "$RESULTS/tmp-leaked"
 trap 'rm -rf "$RESULTS"' EXIT
+
+# T-4526: the run must leave no new aef-*/fw-* entry in the temp dir. ~406 of
+# them (1.7 GB) piled up on the shared host, each from a creator that cleaned up
+# on its happy path only. Snapshot before, diff in _finish, name them in the report.
+# Other processes on the host can add entries during the run, so this reports;
+# it does not change the exit code.
+TMP_ROOT="${TMPDIR:-/tmp}"
+_tmp_names() {
+    find "$TMP_ROOT" -mindepth 1 -maxdepth 1 \( -name 'aef-*' -o -name 'fw-*' \) \
+        -printf '%f\n' 2>/dev/null | LC_ALL=C sort
+}
+_tmp_names > "$RESULTS/tmp-before"
 
 # _run_one <leg> <deadline-epoch> <file> — one pool job. Writes
 # $RESULTS/<leg>/<basename>.out (tool output) and .meta, one line:
 #   <status> <rc> <seconds>   status: done | file-timeout | run-ceiling | not-run
 # "file-timeout" = killed by the per-file cap; "run-ceiling" = killed because
 # the leg's deadline arrived first. Both are named in the report.
+# _has_skip <leg> <out> — did this file's output report a skipped test? bats TAP
+# marks one `ok N name # skip …`; pytest's summary counts `N skipped`.
+_has_skip() {
+    if [ "$1" = bats ]; then
+        grep -qE '^ok [0-9]+ .*# skip' "$2"
+    else
+        grep -qE '^(=+ )?([0-9]+ [a-z]+, )*[0-9]+ skipped( in |, |$)' "$2"
+    fi
+}
+
 _run_one() {
     local leg="$1" deadline="$2" file="$3"
     local base out meta now left cap t0 rc st
@@ -116,34 +240,81 @@ _run_one() {
         echo "not-run 0 0" > "$meta"; return 0
     fi
     cap="$FILE_TIMEOUT"; [ "$left" -lt "$cap" ] && cap="$left"
+    # T-4450: the runner's own knobs (FW_UNIT_SUITE_TIER, _DIR, _REPORT, ...) are
+    # read into its variables at startup; a test must see the environment it gets
+    # when run alone. Leaked, a nested runner on a fixture corpus inherited
+    # tier=fast and refused (no tiers.yaml) — t4058 red 5/5 every nightly.
+    # T-4524: nor an agent session's variables. Launched from a Claude Code
+    # session (ring20's clean-room run), every test inherited CLAUDECODE=1 and
+    # each agent-refusal path took its agent branch. A test that needs one sets it.
+    # T-4523: nor the caller's PROJECT_ROOT. Exported by a session in another
+    # checkout, it sent every test that runs bin/fw from this checkout to write
+    # into THAT project (handovers, arcs, counters landed in the live repo from a
+    # run in a clone). Run alone, a test sees no PROJECT_ROOT.
+    local v; for v in $(compgen -e); do
+        case "$v" in
+            FW_UNIT_SUITE_*|CLAUDECODE|CLAUDE_*|TERMLINK_SESSION_ID|PROJECT_ROOT) unset "$v" ;;
+            FW_DISPATCHED_WORKER|FW_SIDECAR_*|FW_FOCUS_SESSION_KEY) unset "$v" ;;
+            FW_SESSION_SCOPED_FOCUS|FW_CLAUDE_FW_*) unset "$v" ;;
+        esac
+    done
+    # T-4215: each file gets its own TMPDIR under $RESULTS (removed on EXIT), and
+    # it is removed when the file ends. A file killed at its cap never runs its
+    # teardown, so bats-run-*, pytest-of-* and every mktemp it made used to stay
+    # in the shared /tmp (12,962 dirs / 9.1 GB on dimitri-mint-dev, P-015).
+    local ftmp; ftmp="$(mktemp -d "$RESULTS/t/XXXXXX")"
     t0=$(date +%s); rc=0
     if [ "$leg" = bats ]; then
-        ( cd "$FRAMEWORK_ROOT" && timeout -k 10 "$cap" bats --tap "$file" ) \
+        ( cd "$FRAMEWORK_ROOT" && TMPDIR="$ftmp" BATS_TMPDIR="$ftmp" timeout -k 10 "$cap" bats --tap "$file" ) \
             < /dev/null > "$out" 2>&1 || rc=$?
     else
         # --color=no + env scrub: FORCE_COLOR/PY_COLORS make pytest write ANSI into
         # the redirected file, and the ^FAILED name-parse finds nothing
         # (OBS-374 class — reproduced live under FORCE_COLOR=3, T-3302).
-        ( cd "$FRAMEWORK_ROOT" && timeout -k 10 "$cap" \
-            env -u FORCE_COLOR PY_COLORS=0 NO_COLOR=1 \
+        # T-4609: PYTHONDONTWRITEBYTECODE — importing the test file wrote
+        # __pycache__/*.pyc next to it, inside the tree the T-4523 guard grades;
+        # a corpus without a .gitignore for it read as a leak (t4381 red).
+        ( cd "$FRAMEWORK_ROOT" && TMPDIR="$ftmp" timeout -k 10 "$cap" \
+            env -u FORCE_COLOR PY_COLORS=0 NO_COLOR=1 PYTHONDONTWRITEBYTECODE=1 \
             python3 -m pytest "$file" -q -rf -p no:cacheprovider --color=no ) \
             < /dev/null > "$out" 2>&1 || rc=$?
+        # T-4381: pytest exits 5 both for "no tests collected" (red) and for a
+        # module-level skip (`pytest.skip(..., allow_module_level=True)`, an
+        # optional dependency absent). Only the second reports skips; it is a
+        # measured skip, counted as such, not a failure.
+        if [ "$rc" -eq 5 ] && grep -qE '^(=+ )?[0-9]+ skipped( in |, )' "$out"; then rc=0; fi
     fi
+    # T-4526 still names an aef-*/fw-* entry a test left behind: its creator has
+    # the bug, even though the host no longer keeps the entry.
+    find "$ftmp" -mindepth 1 -maxdepth 1 \( -name 'aef-*' -o -name 'fw-*' \) \
+        -printf '%f\n' 2>/dev/null >> "$RESULTS/tmp-leaked"
+    rm -rf "$ftmp"
     st=done
     # 143 = TERM from outside (the runner's signal trap stopping the pool).
     if [ "$rc" -eq 143 ]; then st=interrupted
     elif [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
         if [ "$cap" -lt "$FILE_TIMEOUT" ]; then st=run-ceiling; else st=file-timeout; fi
     fi
+    # T-4377: in the fast tier a skip is NOT DETERMINED, like a timeout. It
+    # measured nothing about that test; a skip that reads as ok is the hazard
+    # T-4382 found (audit.bats, fabric_coverage: skips reported as passes).
+    if [ "$TIER" = fast ] && [ "$st" = done ] && _has_skip "$leg" "$out"; then st=not-determined; fi
     echo "$st $rc $(( $(date +%s) - t0 ))" > "$meta"
 }
-export -f _run_one
-export RESULTS FRAMEWORK_ROOT FILE_TIMEOUT
+export -f _run_one _has_skip
+export RESULTS FRAMEWORK_ROOT FILE_TIMEOUT TIER
 # T-3915: no test may start a real Watchtower for its fixture project — 13 leaked
 # servers were found (up to 5 h old), and a detached one held bats' fd 3 open.
 export FW_WATCHTOWER_ENSURE=0
 # T-3933: doctor tests must not sweep the live Watchtower with the smoke probe.
 export FW_DOCTOR_SMOKE=0
+# T-4523: doctor's hook exercise runs every hook against the checkout, bumping the
+# tracked .hook-counter and .loop-detect.json. doctor_hook_exercise.bats unsets it.
+export FW_DOCTOR_HOOK_EXERCISE=0
+# T-4523: every bin/fw call a test makes from this checkout bumped the TRACKED
+# .context/working/.verb-counter (usage data the BVP usage axis ranks by). A
+# test that measures the counter sets its own (test_bvp_usage_axis.py pops it).
+export FW_VERB_TELEMETRY=0
 
 # _run_leg <leg> <deadline-epoch> <files...> — the pool. Files are fed
 # longest-first when the previous report measured them (LPT scheduling: a
@@ -212,13 +383,13 @@ _on_signal() {
     # Every file with no verdict record was never reached (or was in flight):
     # record it as not-run so the report names it.
     local f leg
-    for f in "$SUITE_DIR"/*.bats "$SUITE_DIR"/test_*.py; do
+    while IFS= read -r f; do
         [ -f "$f" ] || continue
         case "$f" in *.bats) leg=bats ;; *) leg=pytest ;; esac
         [ -f "$RESULTS/$leg/$(basename "$f").meta" ] || echo "not-run 0 0" > "$RESULTS/$leg/$(basename "$f").meta"
-    done
-    BATS_FILES=$(ls "$SUITE_DIR"/*.bats 2>/dev/null | wc -l | tr -d ' ')
-    PY_FILES=$(ls "$SUITE_DIR"/test_*.py 2>/dev/null | wc -l | tr -d ' ')
+    done < <(_suite_files bats; _suite_files pytest)
+    BATS_FILES=$(_suite_files bats | wc -l | tr -d ' ')
+    PY_FILES=$(_suite_files pytest | wc -l | tr -d ' ')
     echo "$(date -u +%FT%TZ) INTERRUPTED by signal — writing partial report" >> "$RUN_LOG"
     _finish
 }
@@ -237,7 +408,9 @@ _leg_rc() {
         [ -f "$m" ] || continue
         read -r st rc _ < "$m"
         case "$st" in
-            done) [ "$rc" -ne 0 ] && [ "$rc" -ne 5 ] && any_fail=1 ;;  # pytest 5 = nothing collected
+            # T-4381: pytest 5 (nothing collected) is red — a discovered file
+            # that runs no test measured nothing, it did not pass.
+            done) [ "$rc" -ne 0 ] && any_fail=1 ;;
             *) any_to=1 ;;
         esac
     done
@@ -245,6 +418,19 @@ _leg_rc() {
 }
 [ -z "$BATS_ERROR" ] && BATS_RC=$(_leg_rc "$RESULTS/bats")
 [ -z "$PY_ERROR" ] && PY_RC=$(_leg_rc "$RESULTS/pytest")
+
+# T-4523: what the run changed in the checkout (before the report is written, so
+# the runner's own writes never count). Leaked = enforced red on a clean start.
+TREE_LEAKED=""
+if [ -f "$RESULTS/tree-before.json" ]; then
+    python3 -I "$SCRIPT_DIR/unit_tree_guard.py" snapshot "$SUITE_DIR" "$RESULTS/tree-after.json" \
+        --exclude "$TREE_GUARD_REPORT_ROOT" --exclude "$LOCK_FILE" 2>/dev/null \
+        && python3 -I "$SCRIPT_DIR/unit_tree_guard.py" diff "$RESULTS/tree-before.json" \
+            "$RESULTS/tree-after.json" > "$RESULTS/tree-changed" 2>/dev/null
+fi
+[ -f "$RESULTS/tree-changed" ] || : > "$RESULTS/tree-changed"
+TREE_CHANGED=$(wc -l < "$RESULTS/tree-changed" | tr -d ' ')
+[ "${TREE_START:-unknown}" = clean ] && [ "$TREE_CHANGED" -gt 0 ] && TREE_LEAKED=1
 
 # T-4058: the EXIT trap removes $RESULTS, and with it every per-file .out — the
 # only place a red test's assertion text lives. Keep the output of each red file
@@ -275,6 +461,12 @@ _keep_failures() {
 }
 _keep_failures
 
+# T-4526: new aef-*/fw-* temp entries since the run started.
+_tmp_names | LC_ALL=C comm -13 "$RESULTS/tmp-before" - > "$RESULTS/tmp-new" 2>/dev/null || : > "$RESULTS/tmp-new"
+# T-4215: plus those a test left in its own per-file TMPDIR (removed since).
+LC_ALL=C sort -u -o "$RESULTS/tmp-new" "$RESULTS/tmp-new" "$RESULTS/tmp-leaked" 2>/dev/null || :
+TMP_LEFTOVERS=$(wc -l < "$RESULTS/tmp-new" | tr -d ' ')
+
 FINISHED="$(date -u +%FT%TZ)"
 
 # ── Report (A2): parse both legs, emit LATEST.yaml + dated sibling ──────────
@@ -283,6 +475,8 @@ FINISHED="$(date -u +%FT%TZ)"
 RUNNER_EXIT=0
 { [ "$BATS_RC" -ne 0 ] || [ "$PY_RC" -ne 0 ]; } && RUNNER_EXIT=1
 { [ "$BATS_ERROR" = "bats not installed" ] || [ "$PY_ERROR" = "pytest not installed" ]; } && RUNNER_EXIT=2
+# T-4523: a run that changed a clean checkout is red even when every test passed.
+[ -n "$TREE_LEAKED" ] && [ "$RUNNER_EXIT" -eq 0 ] && RUNNER_EXIT=1
 
 T3302_STARTED="$STARTED" T3302_FINISHED="$FINISHED" \
 T3302_SUITE_DIR="$SUITE_DIR" T3302_TIMEOUT="$TOTAL_TIMEOUT" \
@@ -293,6 +487,9 @@ T3302_BATS_BUDGET="$BATS_BUDGET" T3302_PY_BUDGET="$PY_BUDGET" \
 T3302_PY_RESERVE="$PY_RESERVE" T3602_JOBS="$JOBS" T3602_FILE_TIMEOUT="$FILE_TIMEOUT" \
 T3302_REPORT_DIR="$REPORT_DIR" T3602_INTERRUPTED="$INTERRUPTED" T3602_WALL=$(( $(date +%s) - START_EPOCH )) \
 T4058_FAILURES="$FAILURES_KEPT" \
+T4381_REV_COMMIT="$REV_COMMIT" T4381_REV_TREE="$REV_TREE" T4377_TIER="$TIER" \
+T4523_TREE_START="${TREE_START:-unknown}" T4523_TREE_LEAKED="$TREE_LEAKED" \
+T4526_TMP_ROOT="$TMP_ROOT" \
 python3 - "$RESULTS" <<'PY'
 import glob, os, re, sys, yaml, datetime
 
@@ -305,7 +502,7 @@ def _int(name):
 def _leg(leg):
     """Per-file records -> leg summary (T-3602 schema v2)."""
     s = {"tests": 0, "failed": [], "skipped": 0, "completed": 0,
-         "timed_out": [], "not_run": [], "durations": {}}
+         "timed_out": [], "not_run": [], "not_determined": [], "durations": {}}
     for meta in sorted(glob.glob(os.path.join(results, leg, "*.meta"))):
         name = os.path.basename(meta)[:-len(".meta")]
         st, rc, secs = (open(meta).read().split() + ["", "0", "0"])[:3]
@@ -320,6 +517,14 @@ def _leg(leg):
             s["timed_out"].append(name + " (killed at run ceiling)")
         elif st == "interrupted":
             s["timed_out"].append(name + " (interrupted)")
+        elif st == "not-determined":
+            # T-4377: a skip in the fast tier is NOT DETERMINED, like a timeout.
+            # It is listed as a plain timeout too, so the ratchet's completeness
+            # rule (done + timed-out == files) counts it the same way; the plain
+            # name (no ")" suffix) is what that rule tolerates. Its tests still
+            # count below.
+            s["not_determined"].append(name)
+            s["timed_out"].append(name)
         else:
             s["completed"] += 1
         try:
@@ -350,8 +555,12 @@ def _leg(leg):
                             if l.startswith(("FAILED ", "ERROR "))]
         # A file that exited non-zero on its own but recorded no failing test
         # (setup_file error, syntax error, import error) is still red.
-        if st == "done" and rc not in (0, 5) and len(s["failed"]) == before:
-            s["failed"].append("%s: exited rc=%d with no failing test recorded" % (name, rc))
+        if st == "done" and rc != 0 and len(s["failed"]) == before:
+            if leg == "pytest" and rc == 5:
+                # T-4381: pytest's "no tests collected" — red, not green.
+                s["failed"].append("%s: collected no tests (pytest exit 5)" % name)
+            else:
+                s["failed"].append("%s: exited rc=%d with no failing test recorded" % (name, rc))
     return s
 
 B, P = _leg("bats"), _leg("pytest")
@@ -362,6 +571,15 @@ timed_out = any(B["not_run"] or P["not_run"]) or any(
     t.endswith(("(killed at run ceiling)", "(interrupted)"))
     for t in B["timed_out"] + P["timed_out"])
 
+def _tree_guard():
+    try:
+        changed = [l.rstrip("\n") for l in open(os.path.join(results, "tree-changed")) if l.strip()]
+    except OSError:
+        changed = []
+    return {"start": env.get("T4523_TREE_START") or "unknown",
+            "changed_count": len(changed), "changed": changed[:200],
+            "leaked": env.get("T4523_TREE_LEAKED") == "1"}
+
 def _leg_report(s, leg):
     return {
         "files": _int("T3302_%s_FILES" % leg),
@@ -369,6 +587,8 @@ def _leg_report(s, leg):
         "files_timed_out": s["timed_out"],
         "files_not_run": len(s["not_run"]),
         "files_not_run_names": s["not_run"],
+        # T-4377: fast-tier files whose skips leave them undetermined (empty elsewhere).
+        "files_not_determined": s["not_determined"],
         "budget_seconds": _int("T3302_%s_BUDGET" % leg),
         "tests": s["tests"],
         "failed_count": len(s["failed"]),
@@ -383,6 +603,8 @@ def _leg_report(s, leg):
 report = {
     "schema": "unit-suite-report-v2",
     "task": "T-3302",
+    # T-4377: which tier this report grades (None = untiered run, the whole corpus).
+    "tier": env.get("T4377_TIER") or None,
     "started": env["T3302_STARTED"],
     "finished": env["T3302_FINISHED"],
     "suite_dir": env["T3302_SUITE_DIR"],
@@ -401,11 +623,28 @@ report = {
     # T-4058: where the failing files' output was kept (relative to the report
     # dir), or None when this run had no red file. The audit names it.
     "failures_dir": env.get("T4058_FAILURES") or None,
+    # T-4381: the code this run measured (taken before any test ran). tree is
+    # clean | dirty | unknown; commit is None outside a git repo.
+    "revision": {
+        "commit": env.get("T4381_REV_COMMIT") or None,
+        "tree": env.get("T4381_REV_TREE") or "unknown",
+    },
+    # T-4523: paths the run changed in the checkout (first 200 named, "XY path"
+    # as git status prints them; "->" = restored to the committed state).
+    # leaked is true when the tree was clean at the start: then the suite did it.
+    "tree_guard": _tree_guard(),
     "legs": {
         "bats": _leg_report(B, "BATS"),
         "pytest": _leg_report(P, "PY"),
     },
 }
+# T-4526: aef-*/fw-* entries the temp dir gained during the run (first 50 named).
+try:
+    _new = [l.strip() for l in open(os.path.join(results, "tmp-new")) if l.strip()]
+except OSError:
+    _new = []
+report["tmp_leftovers"] = {"dir": env.get("T4526_TMP_ROOT") or "/tmp",
+                           "count": len(_new), "names": _new[:50]}
 
 report_dir = env["T3302_REPORT_DIR"]
 dated = os.path.join(
@@ -417,7 +656,11 @@ paths = [dated, latest]
 # overwrites LATEST (and today's dated report); the pre-push ratchet grades
 # this file instead of a run that measured only part of the corpus. The audit
 # re-checks completeness itself; this is the runner's conservative half.
-if not report["interrupted"] and not timed_out and not B["not_run"] and not P["not_run"]:
+# T-4381: a file killed by its own per-file cap has no verdict either, so a run
+# with any per-file timeout is not complete (the audit's tolerance for a few
+# timeouts still applies when it grades LATEST or a dated report directly).
+if (not report["interrupted"] and not timed_out and not B["not_run"] and not P["not_run"]
+        and not B["timed_out"] and not P["timed_out"]):
     paths.append(os.path.join(report_dir, "LAST-COMPLETE.yaml"))
 for path in paths:
     tmp = path + ".tmp"
@@ -432,14 +675,36 @@ if [ "$WRITE_RC" -ne 0 ]; then
     exit 2
 fi
 
-echo "$FINISHED DONE runner_exit=$RUNNER_EXIT bats_rc=$BATS_RC pytest_rc=$PY_RC wall=$(( $(date +%s) - START_EPOCH ))s jobs=$JOBS" >> "$RUN_LOG"
+echo "$FINISHED DONE runner_exit=$RUNNER_EXIT bats_rc=$BATS_RC pytest_rc=$PY_RC wall=$(( $(date +%s) - START_EPOCH ))s jobs=$JOBS tmp_leftovers=$TMP_LEFTOVERS" >> "$RUN_LOG"
+if [ "$TMP_LEFTOVERS" -gt 0 ]; then
+    echo "unit-suite: WARN $TMP_LEFTOVERS new aef-*/fw-* entr(y/ies) left in $TMP_ROOT or a test's TMPDIR (T-4526) — see tmp_leftovers in the report" >&2
+fi
+if [ -n "$TREE_LEAKED" ]; then
+    echo "$FINISHED TREE-LEAK changed=$TREE_CHANGED (T-4523)" >> "$RUN_LOG"
+    echo "unit-suite: FAIL the run changed $TREE_CHANGED path(s) in the checkout it ran in (T-4523) — tests must write to temp copies; see tree_guard in the report:" >&2
+    head -20 "$RESULTS/tree-changed" | sed 's/^/  /' >&2
+elif [ "${TREE_CHANGED:-0}" -gt 0 ]; then
+    echo "unit-suite: WARN $TREE_CHANGED path(s) changed in the checkout during the run (tree was ${TREE_START:-unknown} at start, so other writers may share the blame; T-4523) — see tree_guard in the report" >&2
+fi
 echo "unit-suite: done runner_exit=$RUNNER_EXIT (bats: $BATS_FILES file(s) rc=$BATS_RC; pytest: $PY_FILES file(s) rc=$PY_RC) — report: $REPORT_DIR/LATEST.yaml"
 exit "$RUNNER_EXIT"
 }
 
+# ── T-4523: tree guard — the checkout's state before any test runs ──────────
+# Tests must write to temp copies, never the tree they run in. A clean-room run
+# left ~146 tracked files changed. The run is graded on what it changed (diffed
+# in _finish): a red when the tree was clean at the start, since nothing but the
+# suite can have changed it; reported only when it was already dirty (a live
+# checkout with other writers). The runner's own report dir and lock are excluded.
+TREE_START="${FW_UNIT_SUITE_TREE_START:-}"
+python3 -I "$SCRIPT_DIR/unit_tree_guard.py" snapshot "$SUITE_DIR" "$RESULTS/tree-before.json" \
+    --exclude "$TREE_GUARD_REPORT_ROOT" --exclude "$LOCK_FILE" 2>/dev/null \
+    || echo '{"git": false}' > "$RESULTS/tree-before.json"
+[ -n "$TREE_START" ] || TREE_START="$(python3 -I "$SCRIPT_DIR/unit_tree_guard.py" state "$RESULTS/tree-before.json" 2>/dev/null || echo unknown)"
+
 # ── Leg 1: bats (tests/unit/*.bats) ─────────────────────────────────────────
 BATS_LIST=()
-while IFS= read -r _f; do BATS_LIST+=("$_f"); done < <(ls "$SUITE_DIR"/*.bats 2>/dev/null)
+while IFS= read -r _f; do BATS_LIST+=("$_f"); done < <(_suite_files bats)
 BATS_FILES=${#BATS_LIST[@]}
 BATS_RC=0 BATS_ERROR=""
 if [ "$BATS_FILES" -eq 0 ]; then
@@ -452,13 +717,13 @@ else
     LEG_PID=$!; wait "$LEG_PID"; LEG_PID=""
 fi
 
-# ── Leg 2: pytest (tests/unit/test_*.py) ────────────────────────────────────
+# ── Leg 2: pytest (tests/unit/*.py per _discover_pytest) ────────────────────
 PY_LIST=()
-while IFS= read -r _f; do PY_LIST+=("$_f"); done < <(ls "$SUITE_DIR"/test_*.py 2>/dev/null)
+while IFS= read -r _f; do PY_LIST+=("$_f"); done < <(_suite_files pytest)
 PY_FILES=${#PY_LIST[@]}
 PY_RC=0 PY_ERROR=""
 if [ "$PY_FILES" -eq 0 ]; then
-    PY_ERROR="no test_*.py files in $SUITE_DIR"
+    PY_ERROR="no pytest files in $SUITE_DIR"
 elif ! python3 -c 'import pytest' >/dev/null 2>&1; then
     PY_ERROR="pytest not installed"
 else

@@ -86,12 +86,23 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def _atomic_write_text(path: Path, text: str) -> None:
+def _atomic_write_text(path: Path, text: str, expected: str | None = None) -> bool:
     """T-100191: same-dir temp + os.replace — a kill mid-write must not truncate
-    task frontmatter (L-493 non-atomic-YAML-write class)."""
+    task frontmatter (L-493 non-atomic-YAML-write class).
+
+    T-4534: when `expected` is given (the text the caller's read-modify-write
+    started from), skip the replace and return False if the file changed since —
+    another writer's edit (a status change) must not be reverted by ours."""
+    if expected is not None:
+        try:
+            if path.read_text() != expected:
+                return False
+        except OSError:
+            return False
     tmp = Path(str(path) + ".tmp")
     tmp.write_text(text)
     os.replace(tmp, path)
+    return True
 
 
 def _rubric_sha() -> str:
@@ -2318,6 +2329,40 @@ def _strip_template(text: str) -> str:
     return "\n".join(ln for ln in text.splitlines() if ln.strip() not in tpl)
 
 
+_HTML_COMMENT_RE = re.compile(r"<!--.*?(?:-->|\Z)", re.S)
+# The estimator's own output, wherever it lands below the frontmatter (a hand
+# copy, an unparseable frontmatter that leaves the whole file as body): the
+# YAML keys of a proposal entry, and evidence tokens like `D1=4 (body:...)`.
+_PRIOR_RATIONALE_RE = re.compile(
+    r"^\s*-?\s*(rationale|estimator|rubric_sha|bvp_scores_proposed|"
+    r"cost_estimate_proposed)\s*:"
+    r"|\b[\w-]+=\d+ \((body|body/components|components|tag|tags|no-signal|"
+    r"workflow|lines)\b")
+
+
+def _strip_unauthored(text: str) -> str:
+    """Drop text the task's author never wrote, before any body is scored.
+
+    T-4185 (832 OBS-409): HTML comment blocks are template guidance, and the
+    estimator's earlier rationale is its own output; both carried the very
+    keywords the heuristic handlers grep for (`completion gate`, `fw doctor`),
+    so every stub task scored the same D1-D4 vector. A rationale line can wrap,
+    so an indented continuation of a dropped rationale line is dropped too.
+    """
+    text = _HTML_COMMENT_RE.sub("", text)
+    out: list[str] = []
+    dropping = False
+    for ln in text.splitlines():
+        if _PRIOR_RATIONALE_RE.search(ln):
+            dropping = True
+            continue
+        if dropping and ln[:1] in (" ", "\t") and ln.strip():
+            continue
+        dropping = False
+        out.append(ln)
+    return "\n".join(out)
+
+
 def load_scoring_spec(driver_entry) -> dict | None:
     """Return the `scoring:` block of a driver entry, or None when absent.
 
@@ -2671,6 +2716,11 @@ def estimate_task(task_path: Path, drivers: dict[str, int]) -> dict:
     """
     t0 = time.monotonic()
     fm, body = parse_task(task_path)
+    # T-4185: comments and prior rationale out for every scorer; template
+    # guidance lines out for the heuristic handlers (score_declarative strips
+    # them itself, under its spec's own `strip_template:` switch).
+    body = _strip_unauthored(body)
+    hbody = _strip_template(body)
     tags = list(fm.get("tags") or [])
     is_inception = (fm.get("workflow_type") or "").lower() == "inception"
 
@@ -2707,11 +2757,11 @@ def estimate_task(task_path: Path, drivers: dict[str, int]) -> dict:
             specs.setdefault(_k, _v)
     for driver_id in drivers:
         if is_inception:
-            sc, ev = _score_inception_voi(fm, body, tags)
+            sc, ev = _score_inception_voi(fm, hbody, tags)
         elif driver_id in handlers:
-            sc, ev = handlers[driver_id](fm, body, tags)
+            sc, ev = handlers[driver_id](fm, hbody, tags)
         elif name_aliases.get(driver_id) in handlers:
-            sc, ev = handlers[name_aliases[driver_id]](fm, body, tags)
+            sc, ev = handlers[name_aliases[driver_id]](fm, hbody, tags)
         elif driver_id in specs or name_aliases.get(driver_id) in specs:
             # T-3428: declarative spec. Dispatch order is handler → alias →
             # spec → unscored, so a hand-written handler always wins: it is the
@@ -2826,7 +2876,8 @@ def write_proposed(task_path: Path, scores: dict[str, int],
     new_text = f"---\n{new_fm_text}\n---\n{body_text}"
     if dry_run:
         return False, "dry-run"
-    _atomic_write_text(task_path, new_text)
+    if not _atomic_write_text(task_path, new_text, expected=text):
+        return False, "file-changed-since-read"
     return True, "wrote"
 
 
@@ -3362,7 +3413,8 @@ def write_proposed_cost(task_path: Path, cost_estimate: dict,
     new_text = f"---\n{new_fm_text}\n---\n{body_text}"
     if dry_run:
         return False, "dry-run"
-    _atomic_write_text(task_path, new_text)
+    if not _atomic_write_text(task_path, new_text, expected=text):
+        return False, "file-changed-since-read"
     return True, "wrote"
 
 

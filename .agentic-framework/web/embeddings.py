@@ -228,6 +228,45 @@ def _embed(texts: list[str], host: str | None = None) -> list[bytes]:
     raise EmbedUnavailable(last)
 
 
+def _embed_workers() -> int:
+    """Concurrent embed requests for bulk reindex (FW_EMBED_WORKERS, default 1).
+
+    T-4475 (010-termlink T-3336): serial batches left their GPU ~11% busy;
+    measured on an RTX 5060 Ti with Ollama OLLAMA_NUM_PARALLEL=3: 1 worker
+    70 chunks/s, 2 = 98, 3 = 107, 4 = 104. The default stays 1 because the
+    right value is the embedding server's parallelism, which the framework
+    cannot see — 3 would triple the load on every consumer's server. Match it
+    to OLLAMA_NUM_PARALLEL. A malformed value falls back to 1: a typo in a
+    tuning knob must not fail the hourly reindex.
+    """
+    try:
+        return max(1, int(os.environ.get("FW_EMBED_WORKERS", "1")))
+    except ValueError:
+        return 1
+
+
+def _embed_batches(texts: list[str], batch_size: int,
+                   host: str | None = None) -> list[bytes]:
+    """Embed `texts` in `batch_size` batches, up to _embed_workers() at once.
+
+    The result is in input order whatever order the batches finish in
+    (`Executor.map` yields in submission order), so callers can zip it
+    against their metadata rows.
+    """
+    batches = [texts[j:j + batch_size] for j in range(0, len(texts), batch_size)]
+    workers = _embed_workers()
+    vecs: list[bytes] = []
+    if workers == 1 or len(batches) <= 1:
+        for batch in batches:
+            vecs.extend(_embed(batch, host=host))
+        return vecs
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=min(workers, len(batches))) as ex:
+        for batch_vecs in ex.map(lambda b: _embed(b, host=host), batches):
+            vecs.extend(batch_vecs)
+    return vecs
+
+
 # Query embedding cache — LRU avoids re-embedding repeated queries (T-263)
 @lru_cache(maxsize=256)
 def _embed_single_cached(text: str) -> bytes:
@@ -890,8 +929,8 @@ def index_one(path: str | Path) -> dict:
     within seconds rather than at the next scheduled reindex. The latency
     budget is <5s for a typical entry, which rules out every existing entry
     point — `build_index()` is a full corpus rebuild (hours) and
-    `reindex_incremental()` copies the whole database and swaps it, so both are
-    orders of magnitude past the budget for a single short document.
+    `reindex_incremental()` is a whole-corpus diff (every file is read and hashed),
+    so both are orders of magnitude past the budget for a single short document.
 
     Writes to the live DB in one transaction, reusing `_delete_path_rows` so a
     re-index of the same path replaces rather than duplicates its chunks.
@@ -899,7 +938,8 @@ def index_one(path: str | Path) -> dict:
     CONCURRENCY — this is the part that matters. `reindex_incremental()` builds
     on a copy and `os.replace()`s it over `DB_PATH`. Anything written to the
     live file while that copy is in flight is on the OLD inode and is silently
-    discarded by the swap. So this takes the SAME advisory lock, non-blocking,
+    discarded by the swap. (A small incremental run writes the live file in
+    place instead, T-4350, which is also safe only under the lock.) So this takes the SAME advisory lock, non-blocking,
     and when a reindex owns it returns `{"skipped": "reindex-in-progress"}`
     rather than writing into a file that is about to be replaced. Skipping is
     correct: the running reindex will pick the file up from disk anyway, so the
@@ -997,6 +1037,39 @@ def index_one(path: str | Path) -> dict:
     }
 
 
+# T-4350: an incremental run this small updates the live index in place. Above
+# it the run keeps the copy, because a large run is the one that must survive
+# a kill and resume (OBS-258) — and an in-place run that dies is rolled back.
+IN_PLACE_MAX_FILES = 32
+
+
+def _incremental_delta(db_path: Path) -> int | None:
+    """Files that differ from the file_state baseline of the index at db_path.
+    None when there is no baseline to diff against (bootstrap-baseline). Read-only."""
+    try:
+        probe = sqlite3.connect(str(db_path))
+        try:
+            existing = dict(probe.execute(
+                "SELECT path, content_hash FROM file_state").fetchall())
+        finally:
+            probe.close()
+    except sqlite3.Error:
+        return None
+    if not existing:
+        return None
+    changed = 0
+    for fpath in collect_files():
+        try:
+            content = fpath.read_text(errors="replace")
+        except Exception:
+            continue
+        if not content.strip():
+            continue
+        if existing.get(str(fpath.relative_to(PROJECT_ROOT))) != _content_hash(content):
+            changed += 1
+    return changed
+
+
 def reindex_incremental() -> dict:
     """Re-embed only what changed, then swap the result into place atomically.
 
@@ -1016,13 +1089,17 @@ def reindex_incremental() -> dict:
          are always replanted with a fresh token: that token, seen live by
          `corpus_health()`, is the thing a scheduled run exists to prove
          happened (T-3014 AC1).
-      3. Does all of that on a COPY of the database (`DB_PATH` + reindex.tmp),
-         inside one sqlite transaction, and only `os.replace()`s it over the
-         live file once the copy is fully committed. A process killed at any
-         point before that line leaves `DB_PATH` — and therefore the manifest,
-         which is written only *after* the swap — exactly as the previous run
-         left them. There is no window where a reader can see a half-built
-         index: it is either the old file or the new one, never a mixture.
+      3. Does all of that inside ONE sqlite transaction. With a baseline in
+         place (the steady state, T-4350) that transaction is on `DB_PATH`
+         itself: no copy is made, and the commit is the publish. Readers keep
+         the previous snapshot until it lands, and a process killed before
+         then is rolled back by sqlite, so `DB_PATH` — and therefore the
+         manifest, which is written only *after* the publish — is left exactly
+         as the previous run left it. A bootstrap-baseline or a resumed run
+         instead works on a COPY (`DB_PATH` + reindex.tmp) and only
+         `os.replace()`s it over the live file once the copy is committed.
+         Either way there is no window where a reader can see a half-built
+         index: it is the old state or the new one, never a mixture.
 
     Raises whatever the embedder / sqlite raise; the caller (`fw index reindex`)
     is expected to catch and report, same as `build_index`.
@@ -1095,6 +1172,15 @@ def reindex_incremental() -> dict:
             # Unreadable or schema-less: not worth trusting as a baseline.
             resume_path.unlink(missing_ok=True)
 
+    # T-4350: a small run writes the live database in place, inside ONE
+    # transaction, so it costs the changed chunks' bytes and not a second
+    # full-size index every hour. Readers keep the previous snapshot until
+    # commit, and a run that dies before commit is rolled back by sqlite.
+    # The scratch copy stays for a bootstrap-baseline (no file_state yet, so
+    # everything re-embeds), a parked resume, and any run too large to lose.
+    delta = None if resumable else _incremental_delta(DB_PATH)
+    in_place = delta is not None and delta <= IN_PLACE_MAX_FILES
+
     db = None
     swapped = False
     # True once tmp_path is a complete, consistent database. Only then may a
@@ -1105,20 +1191,31 @@ def reindex_incremental() -> dict:
     sig_guard = _signals_raise()
     sig_guard.__enter__()
     try:
-        # T-3860: refuse BEFORE writing a byte. A resume is a rename (no copy),
-        # so it needs only the growth margin; a fresh run needs a full copy.
-        _ensure_disk_space(DB_PATH.stat().st_size, not resumable, "incremental reindex")
-        if resumable:
-            shutil.move(str(resume_path), str(tmp_path))
+        if in_place:
+            # No copy: only the growth margin is needed.
+            _ensure_disk_space(DB_PATH.stat().st_size, False, "incremental reindex")
+            work_path = DB_PATH
         else:
-            shutil.copy2(DB_PATH, tmp_path)
-        scratch_ok = True
-        tmp_ino = tmp_path.stat().st_ino
+            # T-3860: refuse BEFORE writing a byte. A resume is a rename (no copy),
+            # so it needs only the growth margin; a fresh run needs a full copy.
+            _ensure_disk_space(DB_PATH.stat().st_size, not resumable, "incremental reindex")
+            if resumable:
+                shutil.move(str(resume_path), str(tmp_path))
+            else:
+                shutil.copy2(DB_PATH, tmp_path)
+            scratch_ok = True
+            tmp_ino = tmp_path.stat().st_ino
+            work_path = tmp_path
 
-        db = sqlite3.connect(str(tmp_path), check_same_thread=False)
+        db = sqlite3.connect(str(work_path), check_same_thread=False)
         db.enable_load_extension(True)
         sqlite_vec.load(db)
         db.enable_load_extension(False)
+        if in_place:
+            # Dirty pages spill into the live file mid-transaction, and a spill
+            # takes the exclusive lock readers wait on. A 64 MB page cache keeps
+            # a normal incremental run (a few files, ~600 chunks) spill-free.
+            db.execute("PRAGMA cache_size=-65536")
         db.execute("""
             CREATE TABLE IF NOT EXISTS file_state (
                 path TEXT PRIMARY KEY,
@@ -1167,7 +1264,10 @@ def reindex_incremental() -> dict:
         for path in removed:
             _delete_path_rows(db, path)
 
-        db.commit()  # removals are durable before any embedding starts
+        if not in_place:
+            # removals are durable before any embedding starts. In place they
+            # join the run's single transaction: a failure must leave none of it.
+            db.commit()
 
         # Embed and commit in file-sized groups rather than accumulating the
         # whole corpus first. Two reasons, both measured on the real index:
@@ -1199,22 +1299,7 @@ def reindex_incremental() -> dict:
         def _flush(meta_rows: list[dict], texts: list[str]) -> None:
             """Embed `texts`, insert their rows, and commit as one durable step."""
             nonlocal embedded_chunks
-            vecs: list[bytes] = []
-            # T-3336 (010-termlink): send batches CONCURRENTLY. Serial batches left
-            # the GPU ~11% busy; measured on this host (RTX 5060 Ti, Ollama
-            # NUM_PARALLEL=3): 1 worker 70 chunks/s, 2 = 98, 3 = 107, 4 = 104.
-            # `map` preserves order, so vectors stay aligned with meta_rows.
-            # FW_EMBED_WORKERS overrides; match it to the server's OLLAMA_NUM_PARALLEL.
-            _batches = [texts[j:j + BATCH_SIZE] for j in range(0, len(texts), BATCH_SIZE)]
-            _workers = max(1, int(os.environ.get("FW_EMBED_WORKERS", "3")))
-            if _workers == 1 or len(_batches) <= 1:
-                for _b in _batches:
-                    vecs.extend(_embed(_b, host=bulk_host))
-            else:
-                from concurrent.futures import ThreadPoolExecutor
-                with ThreadPoolExecutor(max_workers=_workers) as _ex:
-                    for _v in _ex.map(lambda b: _embed(b, host=bulk_host), _batches):
-                        vecs.extend(_v)
+            vecs = _embed_batches(texts, BATCH_SIZE, host=bulk_host)
             stamp = time.time()
             done: set[str] = set()
             for meta, emb in zip(meta_rows, vecs):
@@ -1235,7 +1320,8 @@ def reindex_incremental() -> dict:
                         "updated_at = excluded.updated_at",
                         (meta["path"], meta["content_hash"], meta["mtime"], stamp),
                     )
-            db.commit()
+            if not in_place:
+                db.commit()
             embedded_chunks += len(vecs)
 
         group_meta: list[dict] = []
@@ -1295,36 +1381,41 @@ def reindex_incremental() -> dict:
         # they must not land before the corpus they claim to vouch for.
         _flush(all_meta, all_chunks)
 
+        if in_place:
+            # The commit IS the publish: until this line, readers see the old
+            # snapshot; a raise above it rolls the whole run back.
+            db.commit()
         num_chunks = db.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
         num_docs = db.execute(
             "SELECT COUNT(DISTINCT path) FROM documents").fetchone()[0]
         db.close()
         db = None
 
-        # Refuse to publish a file that is not the one we just built. If our
-        # scratch file was unlinked and recreated by someone else, swapping it
-        # in would install a stranger's database over the live index — a silent
-        # wrong-data outcome, the worst class available here. Fail loudly and
-        # leave the previous index serving instead.
-        try:
-            live_ino = tmp_path.stat().st_ino
-        except FileNotFoundError:
-            raise RuntimeError(
-                f"reindex scratch file {tmp_path.name} vanished mid-run; "
-                "refusing to swap. The previous index is untouched."
-            ) from None
-        if live_ino != tmp_ino:
-            raise RuntimeError(
-                f"reindex scratch file {tmp_path.name} was replaced mid-run "
-                f"(inode {tmp_ino} -> {live_ino}); refusing to swap. "
-                "The previous index is untouched."
-            )
+        if not in_place:
+            # Refuse to publish a file that is not the one we just built. If our
+            # scratch file was unlinked and recreated by someone else, swapping it
+            # in would install a stranger's database over the live index — a silent
+            # wrong-data outcome, the worst class available here. Fail loudly and
+            # leave the previous index serving instead.
+            try:
+                live_ino = tmp_path.stat().st_ino
+            except FileNotFoundError:
+                raise RuntimeError(
+                    f"reindex scratch file {tmp_path.name} vanished mid-run; "
+                    "refusing to swap. The previous index is untouched."
+                ) from None
+            if live_ino != tmp_ino:
+                raise RuntimeError(
+                    f"reindex scratch file {tmp_path.name} was replaced mid-run "
+                    f"(inode {tmp_ino} -> {live_ino}); refusing to swap. "
+                    "The previous index is untouched."
+                )
 
-        # The only line that can make this run visible. Anything raised above
-        # this point leaves DB_PATH untouched — the tmp copy is discarded in
-        # `finally` and the previous index keeps serving.
-        os.replace(tmp_path, DB_PATH)
-        swapped = True
+            # The only line that can make this run visible. Anything raised above
+            # this point leaves DB_PATH untouched — the tmp copy is discarded in
+            # `finally` and the previous index keeps serving.
+            os.replace(tmp_path, DB_PATH)
+        swapped = True  # the live index now holds this run's result
     except BaseException as exc:
         failure = exc
         raise

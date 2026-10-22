@@ -39,7 +39,20 @@ import json
 import statistics
 from pathlib import Path
 
-PROJECT_ROOT = Path(os.environ['PROJECT_ROOT'])
+PROJECT_ROOT_RAW = os.environ['PROJECT_ROOT']
+PROJECT_ROOT = Path(PROJECT_ROOT_RAW)
+
+
+def _refuse_fs_root(raw):
+    """T-4406: python twin of lib/fs-root-guard.sh — False (and a message) when the
+    root is empty or resolves to the filesystem root, True when it is usable."""
+    if raw.rstrip('/') and Path(raw).resolve() != Path('/'):
+        return True
+    print(f"ERROR: PROJECT_ROOT='{raw}' is empty or the filesystem root — refusing to write under it (T-4406).", file=sys.stderr)
+    print("       Set PROJECT_ROOT to the project directory (the one holding .framework.yaml).", file=sys.stderr)
+    return False
+
+
 # T-2230 (T-2229 Slice 1): FRAMEWORK_ROOT exposed so `fw bvp driver --init` can
 # locate the canonical template `<FRAMEWORK_ROOT>/policy/value-drivers.yaml`
 # when bootstrapping the consumer's own copy at PROJECT_ROOT.
@@ -87,12 +100,12 @@ def _str_safe_load(text):
     return yaml.load(text, Loader=_L)
 
 
-# ------------------------------------------- T-3176 confirmation telemetry (LOCAL DIVERGENCE)
-# T-3176 (LOCAL DIVERGENCE, re-applied after the 1.8.3 re-vendor, T-3370). Upstream has no
-# equivalent ledger: it records provenance (confirmed_via) on the task, not what the
-# estimator guessed vs what was confirmed. The override env var exists BEFORE any test
-# suite does, deliberately: the ledger is append-only, so a fixture run that wrote into
-# the real one could never be cleaned up.
+# ------------------------------------------------- confirmation telemetry (T-4478)
+# Adapted from 010-termlink T-3176 (proposal 348). confirmed_via (T-3487) records WHO
+# confirmed; this ledger records how far the confirmed scores sit from what the
+# estimator proposed — the proposal itself is cleared on confirm (M3), so without it
+# the pair is gone. Append-only; the override env var exists so a fixture run never
+# writes into the real ledger, which could not be cleaned up afterwards.
 def _bvp_telemetry_path():
     override = os.environ.get('FW_BVP_TELEMETRY_PATH')
     if override:
@@ -101,12 +114,12 @@ def _bvp_telemetry_path():
 
 
 def _count_no_signal(proposal_entry, confirmed_keys):
-    """T-3176 (LOCAL DIVERGENCE, T-3370): how many drivers in this proposal were scored
-    with NO evidence. The estimator renders no-signal as 2, so an all-no-signal proposal
-    promotes unchanged and would log as `proposer_exact` — the estimator agreeing with
-    itself, recorded as accuracy. Read from the rationale string (the only place the
-    distinction survives). Returns (count, driver_count); count is None when the
-    rationale is unreadable — "did not measure" must not render as "measured, none"."""
+    """How many drivers in this proposal were scored with NO evidence. An
+    all-no-signal proposal confirmed unchanged would otherwise log as
+    `proposer_exact` — the estimator agreeing with itself, recorded as accuracy.
+    Read from the rationale string, the only place the distinction survives.
+    Returns (count, driver_count); count is None when the rationale is missing —
+    "did not measure" must not render as "measured, none"."""
     driver_count = len(confirmed_keys)
     if not isinstance(proposal_entry, dict):
         return None, driver_count
@@ -117,9 +130,8 @@ def _count_no_signal(proposal_entry, confirmed_keys):
 
 
 def _append_confirmation_row(row):
-    """T-3176 (LOCAL DIVERGENCE, T-3370): one NDJSON line per confirmation. Never
-    raises; returns (ok, error_text). A confirmation missing from the ledger must not
-    be silent (G-063 aimed at our own telemetry)."""
+    """One NDJSON line per confirmation. Never raises; returns (ok, error_text).
+    A confirmation missing from the ledger must not be silent (G-063)."""
     path = _bvp_telemetry_path()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -412,12 +424,11 @@ def value_axis_degenerate(bvp_vals):
 
 
 def _proposal_is_all_no_signal(fm):
-    """T-3185 (LOCAL DIVERGENCE, re-applied after the 1.8.3 re-vendor, T-3370): True when
-    EVERY driver in the latest proposal was scored with no evidence (`Dn=2 (no-signal)`).
-    RETURNS FALSE WHEN IT CANNOT TELL (absent/empty/unparseable rationale, no scores):
-    "could not measure" must not render as "measured, and empty" (T-3105), and wrongly
-    excluding a real task hides work while wrongly keeping an unassessed one only leaves
-    the old behaviour."""
+    """T-4486: True when EVERY driver in the latest proposal was scored with no evidence
+    (`Dn=0 (no-signal)` in the rationale). Returns False when it cannot tell (no
+    proposal, no scores, absent/empty rationale): "could not measure" must not render
+    as "measured, and empty" (T-3105), and wrongly keeping a task only leaves the old
+    behaviour."""
     proposed = (fm or {}).get('bvp_scores_proposed')
     if not proposed:
         return False
@@ -504,7 +515,6 @@ def cmd_rank(filter_quadrant=None, include_proposed=False, include_completed=Fal
             'cost': cost,
             'cost_src': src,
             'source': source,
-            # T-3185 (LOCAL DIVERGENCE, T-3370): was every driver scored with no evidence?
             'all_no_signal': _proposal_is_all_no_signal(fm) if source == 'proposed' else False,
         })
 
@@ -517,10 +527,9 @@ def cmd_rank(filter_quadrant=None, include_proposed=False, include_completed=Fal
             print("Or pass `--include-proposed` to see estimator-proposed scores (advisory).")
         return 0
 
-    # T-3185 (LOCAL DIVERGENCE, re-applied after the 1.8.3 re-vendor, T-3370): a fully
-    # unassessed proposal is excluded from the thresholds AND from quadrant assignment.
-    # Its score is untouched (option (d) rescores nothing) but a task the estimator knew
-    # nothing about must not be ranked as work nor drag the median for everyone else.
+    # T-4486: a fully unassessed proposal is excluded from the thresholds AND from
+    # quadrant assignment; its score is untouched, but a task the estimator knew nothing
+    # about must not be ranked as work nor drag the median for everyone else.
     _ranked = [r for r in rows if not r.get('all_no_signal')]
     bvp_vals = [r['bvp_norm'] for r in _ranked]
     # Medians are taken over KNOWN costs only — an unknown-cost task must not shift
@@ -532,7 +541,7 @@ def cmd_rank(filter_quadrant=None, include_proposed=False, include_completed=Fal
     # per rank rather than per-row — see value_axis_degenerate() docstring.
     _value_degenerate = value_axis_degenerate(bvp_vals)
     for r in rows:
-        if r.get('all_no_signal'):  # T-3185 (LOCAL DIVERGENCE, T-3370)
+        if r.get('all_no_signal'):  # T-4486
             r['quadrant'] = '-'
             continue
         r['quadrant'] = quadrant(r['bvp_norm'], r['cost'], bvp_median, cost_median,
@@ -547,19 +556,18 @@ def cmd_rank(filter_quadrant=None, include_proposed=False, include_completed=Fal
     # expected state, not an anomaly, and the operator needs to see its size to
     # know how much weight the quadrant split can carry.
     _n_total = len(rows)
-    # T-3185 (LOCAL DIVERGENCE, T-3370): disclose the exclusion before the table — these
-    # tasks are UNASSESSED, not low-value, and a silent filter reads as full coverage.
-    _n_nosignal = sum(1 for r in rows if r.get('all_no_signal'))
-    if _n_nosignal:
-        _pct_ns = 100.0 * _n_nosignal / _n_total if _n_total else 0.0
-        print(f"NOTE: {_n_nosignal}/{_n_total} task(s) ({_pct_ns:.0f}%) scored every driver "
-              f"no-signal — the estimator had nothing to read.")
+    # T-4486: disclose the exclusion before the table — these tasks are UNASSESSED,
+    # not low-value, and a silent filter reads as full coverage.
+    _nosignal_ids = [r['id'] for r in rows if r.get('all_no_signal')]
+    if _nosignal_ids:
+        _pct_ns = 100.0 * len(_nosignal_ids) / _n_total
+        print(f"NOTE: {len(_nosignal_ids)}/{_n_total} task(s) ({_pct_ns:.0f}%) scored every "
+              f"driver no-signal — the estimator had nothing to read.")
         print("      They are UNASSESSED, not low-value. Excluded from the quadrant and "
-              "from the")
-        print("      thresholds, so they neither top the ranking nor move anyone else's "
-              "placement.")
+              "from the thresholds (QUAD shows '-').")
         print("      Scores are unchanged; write a Context/AC body and re-run the "
-              "estimator (T-3185).")
+              "estimator (T-4486).")
+        print("      Unassessed: " + ", ".join(_nosignal_ids))
         print()
 
     _n_unknown = sum(1 for r in rows if r['cost'] is None)
@@ -567,10 +575,11 @@ def cmd_rank(filter_quadrant=None, include_proposed=False, include_completed=Fal
         _pct = 100.0 * _n_unknown / _n_total if _n_total else 0.0
         print(f"NOTE: {_n_unknown}/{_n_total} task(s) ({_pct:.0f}%) have no known cost "
               f"— blast_radius unmeasured, so no quadrant (COST/QUAD show '-').")
-        # T-3185 (LOCAL DIVERGENCE, T-3370): report the ACTUAL threshold population;
-        # total-minus-unknown over-reports once all-no-signal tasks are excluded too.
+        # T-4486: report the ACTUAL threshold population; total-minus-unknown
+        # over-reports once all-no-signal tasks are excluded too.
         print(f"      Quadrant thresholds are computed over the {len(cost_vals)} "
-              f"task(s) with a cost that were not excluded above.")
+              f"task(s) that do have one"
+              + (" and were not excluded above." if _nosignal_ids else "."))
         print("      Cost becomes measurable once `components:` is resolved; see T-3068.")
         print()
 
@@ -1056,6 +1065,10 @@ def _driver_init(args):
     function). Slice 2 (separate task) wires this into fw init/upgrade/vendor.
     """
     force = '--force' in args
+    # T-4406: PROJECT_ROOT=/ made this write /policy/{value-drivers.yaml,
+    # bvp-scoring-rubric.md}. Refuse before the template check, before any write.
+    if not _refuse_fs_root(PROJECT_ROOT_RAW):
+        return 2
     files = [
         ('policy/value-drivers.yaml',
          FRAMEWORK_ROOT / 'policy' / 'value-drivers.yaml',
@@ -1244,7 +1257,7 @@ def cmd_confirm(args):
                 confirmed.update({k: int(v) for k, v in (latest.get('scores') or {}).items()})
             else:
                 confirmed.update({k: int(v) for k, v in latest.items() if isinstance(v, (int, float)) and not isinstance(v, bool)})
-    # T-3176 (LOCAL DIVERGENCE, T-3370): snapshot the proposal BEFORE overrides land.
+    # T-4478: snapshot the proposal BEFORE overrides land — the telemetry row needs both.
     proposed_scores = dict(confirmed)
     confirmed.update(overrides)
 
@@ -1342,23 +1355,21 @@ def cmd_confirm(args):
     print(f"  Confirmed by: {fm['confirmed_by']}  at: {fm['confirmed_at']}  via: {fm['confirmed_via']}")
     print(f"  bvp_scores_proposed: cleared (M3 — estimator may re-propose if next pass diverges by ≥2)")
 
-    # T-3176 (LOCAL DIVERGENCE, re-applied after the 1.8.3 re-vendor, T-3370): record the
-    # confirmation. Human confirmations are recorded too — a ledger of only agent rows
-    # cannot answer "is the estimator better or worse than the operator". `path` is
-    # derived from upstream's confirmed_via provenance.
+    # T-4478: record the confirmation. Human confirmations are recorded too — a ledger
+    # of agent rows only cannot answer "is the estimator better or worse than the
+    # operator". A sticky skip returned above, so a skip never reaches here.
     delta = {k: [proposed_scores.get(k), v] for k, v in confirmed.items()
              if proposed_scores.get(k) != v}
     no_signal, driver_count = _count_no_signal(latest, confirmed.keys())
     row = {
         'ts': fm['confirmed_at'],
         'task': task_id,
-        'path': 'auto' if confirmed_via == 'agent' else 'human',
         'confirmed_via': confirmed_via,
         'confirmed_by': fm['confirmed_by'],
         'proposal_existed': bool(proposed_scores),
         'proposed': proposed_scores,
-        'confirmed': confirmed,
-        'overrides': overrides,
+        'confirmed': dict(confirmed),
+        'overrides': dict(overrides),
         'delta_vs_proposed': delta,
         'proposer_exact': bool(proposed_scores) and not delta and not overrides,
         'no_signal_count': no_signal,

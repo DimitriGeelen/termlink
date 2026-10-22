@@ -10,14 +10,55 @@
 # now clones to a tempdir and deletes it. There is no global install left to
 # update in place.
 
+# T-3135: order two release versions. Prints -1, 0 or 1 (a <, =, > b), or "?"
+# when either side is not MAJOR.MINOR.PATCH[-PRE] (leading "v" allowed). A
+# pre-release sorts below its release (semver §11). This replaced a bare
+# string inequality that offered any difference — a downgrade included — as
+# an update.
+_fw_version_cmp() {
+    local re='^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-([0-9A-Za-z.-]+))?$'
+    local a="$1" b="$2" i
+    [[ "$a" =~ $re ]] || { echo "?"; return 0; }
+    local -a va=("${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}")
+    local pa="${BASH_REMATCH[5]}"
+    [[ "$b" =~ $re ]] || { echo "?"; return 0; }
+    local -a vb=("${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}")
+    local pb="${BASH_REMATCH[5]}"
+    for i in 0 1 2; do
+        if (( 10#${va[i]} < 10#${vb[i]} )); then echo -1; return 0; fi
+        if (( 10#${va[i]} > 10#${vb[i]} )); then echo 1; return 0; fi
+    done
+    if [ "$pa" = "$pb" ]; then echo 0; return 0; fi
+    [ -z "$pa" ] && { echo 1; return 0; }
+    [ -z "$pb" ] && { echo -1; return 0; }
+    if [ "$(printf '%s\n%s\n' "$pa" "$pb" | sort -V | head -1)" = "$pa" ]; then echo -1; else echo 1; fi
+}
+
+# T-2657: vendor <upstream> into <project_root> with the upstream's own bin/fw,
+# so its includes list applies. Falls back to the running do_vendor (with a WARN)
+# when the upstream bin/fw does not define one.
+_update_vendor() {
+    local upstream="$1" project_root="$2"
+    shift 2
+    if [ -f "$upstream/bin/fw" ] && grep -q '^do_vendor()' "$upstream/bin/fw" 2>/dev/null; then
+        ( cd "$project_root" && env -u FRAMEWORK_ROOT -u FW_LIB_DIR PROJECT_ROOT="$project_root" \
+            bash "$upstream/bin/fw" vendor --source "$upstream" --target "$project_root" "$@" )
+        return $?
+    fi
+    echo "WARN: upstream bin/fw defines no do_vendor — vendoring with the running fw's includes list (new top-level includes may be missed)" >&2
+    do_vendor --source "$upstream" --target "$project_root" "$@"
+}
+
 do_update() {
     local check_only=false
+    local allow_downgrade=false  # T-3135
     local target_branch="${BRANCH:-master}"
     local -a _vendor_extra=()  # T-3850
 
     while [[ $# -gt 0 ]]; do
         case $1 in
             --check) check_only=true; shift ;;
+            --allow-downgrade) allow_downgrade=true; shift ;;
             --allow-delete-locals) _vendor_extra+=(--allow-delete-locals); shift ;;
             --branch) target_branch="$2"; shift 2 ;;
             --rollback)
@@ -33,6 +74,7 @@ do_update() {
                 echo "  --check         Check for updates without applying"
                 echo "  --branch NAME   Branch to update from (default: master)"
                 echo "  --rollback      Restore previous version"
+                echo "  --allow-downgrade  Apply an upstream OLDER than the vendored copy (T-3135)"
                 echo "  --allow-delete-locals  Let the re-vendor lose local files not listed in"
                 echo "                  .fwvendor-preserve.yaml (T-3850; logged, copies kept)"
                 echo "  -h, --help      Show this help"
@@ -82,7 +124,7 @@ do_update() {
     # (T-2854: the git-based branch this guarded against — _do_update_git — is
     # gone; a `.git`-carrying vendored_dir is now residue, handled below.)
     if [ -d "$vendored_dir" ] && [ -f "$vendored_dir/VERSION" ] && [ ! -d "$vendored_dir/.git" ]; then
-        _do_update_vendored "$project_root" "$vendored_dir" "$check_only" "$target_branch"
+        _do_update_vendored "$project_root" "$vendored_dir" "$check_only" "$target_branch" "$allow_downgrade"
     else
         # T-2854: reworded — the old text offered "install the framework
         # globally" as a remedy. There is no such thing since T-2800/D-377.
@@ -100,9 +142,17 @@ _do_update_vendored() {
     local vendored_dir="$2"
     local check_only="$3"
     local target_branch="$4"
+    local allow_downgrade="${5:-false}"
 
     local old_version
     old_version=$(cat "$vendored_dir/VERSION" 2>/dev/null || echo "unknown")
+    # T-3136: the upstream commit this copy was vendored from (vendor stamp,
+    # lib/vendor_preserve.py). Empty for copies vendored before it was recorded.
+    local old_base=""
+    if [ -f "$vendored_dir/.fw-vendor-stamp.json" ]; then
+        old_base=$(grep -o '"source_commit": *"[0-9a-f]*"' "$vendored_dir/.fw-vendor-stamp.json" 2>/dev/null \
+            | head -1 | sed 's/.*"\([0-9a-f]*\)"$/\1/' || true)
+    fi
 
     # Get upstream URL from .framework.yaml
     local upstream_url=""
@@ -137,6 +187,11 @@ _do_update_vendored() {
     echo "  Project:   $project_root"
     echo "  Vendored:  $vendored_dir"
     echo "  Current:   v${old_version}"
+    if [ -n "$old_base" ]; then
+        echo "  Base:      ${old_base:0:12} (upstream commit this copy was vendored from)"
+    else
+        echo "  Base:      not recorded (vendored before T-3136; the next vendor records it)"
+    fi
     echo "  Upstream:  $clone_url"
     echo "  Branch:    $target_branch"
     echo ""
@@ -168,14 +223,28 @@ _do_update_vendored() {
     local new_hash
     new_hash=$(git -C "$tmpdir/upstream" rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
-    # Compare versions
-    if [ "$old_version" = "$new_version" ]; then
+    # Compare versions — T-3135: by order, not by string inequality.
+    local _cmp
+    _cmp=$(_fw_version_cmp "$old_version" "$new_version")
+    if [ "$old_version" = "$new_version" ] || [ "$_cmp" = "0" ]; then
         echo -e "${GREEN}Already up to date${NC} (v${old_version})"
         echo ""
         echo "Upstream hash: $new_hash"
         rm -rf "$tmpdir"
         trap - EXIT
         return 0
+    fi
+    if [ "$_cmp" = "1" ] && [ "$allow_downgrade" != true ]; then
+        echo -e "${YELLOW}Vendored copy is newer than upstream${NC} (v${old_version} > v${new_version}, ${target_branch} ${new_hash})"
+        echo ""
+        echo "Nothing applied — updating would be a downgrade."
+        echo "To downgrade anyway: fw update --allow-downgrade${target_branch:+ --branch $target_branch}"
+        rm -rf "$tmpdir"
+        trap - EXIT
+        return 0
+    fi
+    if [ "$_cmp" = "?" ]; then
+        echo -e "${YELLOW}WARN: cannot order v${old_version} against v${new_version} (not MAJOR.MINOR.PATCH) — treating the difference as an update${NC}"
     fi
 
     # Show what's available
@@ -221,8 +290,15 @@ SENTINEL
     echo -e "${YELLOW}Applying update...${NC}"
     # T-3850: do_vendor refuses when local files would be lost; stop here
     # rather than stamping a new VERSION over a vendor that did not happen.
-    do_vendor --source "$tmpdir/upstream" --target "$project_root" ${_vendor_extra[@]+"${_vendor_extra[@]}"} 2>&1 | sed 's/^/  /'
-    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+    # T-2657: the includes list must be the NEW version's. do_vendor here is the
+    # running (old) bin/fw's, so an include the new version adds never arrived on
+    # the upgrade that introduced it. Run the fetched upstream's own vendor.
+    # Capture, not `| sed` + PIPESTATUS: under bin/fw's `set -euo pipefail` a failing
+    # pipeline exited fw before the abort message below could run.
+    local _vendor_out _vendor_rc=0
+    _vendor_out=$(_update_vendor "$tmpdir/upstream" "$project_root" ${_vendor_extra[@]+"${_vendor_extra[@]}"} 2>&1) || _vendor_rc=$?
+    [ -n "$_vendor_out" ] && printf '%s\n' "$_vendor_out" | sed 's/^/  /'
+    if [ "$_vendor_rc" -ne 0 ]; then
         echo -e "${RED}Update aborted — vendor step refused or failed (see above).${NC}" >&2
         echo -e "  Previous copy kept at .agentic-framework.rollback/ (fw update --rollback)." >&2
         rm -rf "$tmpdir"

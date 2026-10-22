@@ -4,7 +4,7 @@ files:
   - path: agents/context/check-active-task.sh
     reason: T-3270 commit-pending helper exception
   - path: agents/context/checkpoint.sh
-    reason: T-3316 unknown verb is a usage error, not HOOK CRASHED
+    reason: T-3316 usage to stderr (upstream T-4227 took the rest of our fix; filed upstream in the T-3554 field report)
   - path: agents/context/lib/safe-commands.sh
     reason: T-3178 Tier-1 write-gate bypass fix; /dev/stdout|stderr strip
   - path: agents/handover/handover.sh
@@ -13,17 +13,9 @@ files:
     reason: T-3188 target_blast_radius all types; T-3189 body-derived blast radius
   - path: lib/bvp.sh
     reason: T-3184 agent decides all five verbs; T-3185 no-signal quadrants; T-3176 telemetry ledger
-  - path: lib/pickup.sh
-    reason: T-2687 pickup fail-open (constant dedup hash)
   - path: web/blueprints/discovery.py
     reason: T-3337 never build index from a request; _db_opened_at ImportError fix
-  - path: web/embeddings.py
-    reason: T-3336 parallel embedding (FW_EMBED_WORKERS)
   # T-3489 (AEF 1.8.13): registered but previously unpreserved; AEF T-4463 confirms not carried.
-  - path: lib/arc.sh
-    reason: T-3472 approve-driver persists the scoring spec
-  - path: bin/claude-fw
-    reason: T-3464 sidecar socket injection (expect a 3-way conflict near upstream line ~1235)
   # T-3533 (notify doorbell): the sidecar rings via `termlink pty notify` with a
   # per-session notify token path, and records refused rings (status line).
   - path: lib/sidecar/inject.py

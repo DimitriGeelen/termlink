@@ -72,6 +72,20 @@ do_log_bypass() {
     log_bypass_entry "$commit" "$action" "$reason" "$authorized_by" "$retroactive_task"
 }
 
+# T-4373: emit a string as a YAML single-quoted scalar that is valid for any
+# input. Inside single quotes only ' is special (doubled); CR/LF collapse to a
+# space so the entry stays on one line; other C0 control chars (not allowed in
+# YAML scalars) are dropped. Backslashes, double quotes and colons pass verbatim.
+_bypass_yaml_sq() {
+    local s="$1"
+    s="${s//$'\r\n'/ }"
+    s="${s//$'\r'/ }"
+    s="${s//$'\n'/ }"
+    s=$(printf '%s' "$s" | tr -d '\000-\010\013\014\016-\037\177')
+    s="${s//\'/\'\'}"
+    printf "'%s'" "$s"
+}
+
 # Internal function to log a bypass entry
 log_bypass_entry() {
     local commit="$1"
@@ -106,14 +120,26 @@ EOF
         sed -i 's/^bypasses: \[\]$/bypasses:/' "$BYPASS_LOG"
     fi
 
+    # T-4349: match the indent the existing sequence uses. A PyYAML re-dump
+    # emits `- timestamp:` at column 0 (indentless); a 2-space item appended
+    # after that is a parse error. Default to the 2-space layout for new files.
+    local item_indent="  "
+    if grep -qE '^-[[:space:]]' "$BYPASS_LOG" 2>/dev/null; then
+        item_indent=""
+    fi
+
+    local action_q reason_q
+    action_q=$(_bypass_yaml_sq "$action")
+    reason_q=$(_bypass_yaml_sq "$reason")
+
     # Append the entry
     cat >> "$BYPASS_LOG" << EOF
-  - timestamp: $timestamp
-    action: "$action"
-    commit: $commit
-    authorized_by: $authorized_by
-    reason: "$reason"
-    retroactive_task: $retroactive_task
+${item_indent}- timestamp: $timestamp
+${item_indent}  action: $action_q
+${item_indent}  commit: $commit
+${item_indent}  authorized_by: $authorized_by
+${item_indent}  reason: $reason_q
+${item_indent}  retroactive_task: $retroactive_task
 EOF
 
     # F-21: a writer that can produce an unparseable audit trail without
@@ -121,11 +147,13 @@ EOF
     # written and surface it loudly rather than silently. Best-effort: skip
     # if python3/PyYAML aren't available rather than blocking the commit flow
     # the bypass log exists to audit.
+    # T-4349: a failed parse is now a hard error (non-zero return), not a warning.
     if command -v python3 >/dev/null 2>&1; then
         if ! python3 -c "import yaml; yaml.safe_load(open('$BYPASS_LOG'))" 2>/dev/null; then
-            echo -e "${RED}WARNING: $BYPASS_LOG is not valid YAML after this write.${NC}" >&2
+            echo -e "${RED}ERROR: $BYPASS_LOG is not valid YAML after this write.${NC}" >&2
             echo "  The bypass entry was appended but the file no longer parses." >&2
             echo "  Inspect and repair it manually — this is the audit trail for Tier-2 bypasses." >&2
+            return 1
         fi
     fi
 

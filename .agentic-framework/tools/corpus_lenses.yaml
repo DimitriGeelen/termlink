@@ -1,0 +1,52 @@
+# T-4402: audience lenses for AEF corpus maps — ONE definition, every reader.
+#
+# 832's T-281 (msg 514f95d3) asked for a single lens data file so the designer's lens
+# switch and `fw corpus explain --lens` can never disagree (T-2669's one-reader
+# condition). AEF owns it; Watchtower serves it at GET /api/lens-definition
+# (web/blueprints/designer_api.py) as {"ok": true, "definition": <this file>}.
+#
+# Shape = what designer 0.25.0's _lensResolve reads (vendor/designer/
+# aef-workflow-designer-0.25.0.html, T-1241):
+#   order:  lens names in select order ("all" is appended by the designer itself)
+#   lenses.<name>.label     select caption
+#   lenses.<name>.extends   parent lens; its lists are ADDED to this one's
+#   lenses.<name>.fields    AEF Extensions fields shown (keys of the designer's AEF_FIELDS, plus owner)
+#   lenses.<name>.bpmn      BPMN-section fields shown, by label text (Name, Slug, Display ID, UID, Lane)
+#   lenses.<name>.sections  panel sections shown (BPMN, Extensions, Other extensions, Constituents, I/O contract)
+#   lenses.<name>.canvas    canvas decorations shown (ids, findings, io, constituents, authority, ns)
+# A lens only NARROWS: it never shows a field the field profile hides, and it never
+# changes a saved byte. Every name below is pinned against the vendored designer by
+# tests/web/test_lens_definition.py — a name the designer does not know fails there.
+#
+# Allocation rule (see T-4402 ## Decisions): business = who decides what and what
+# comes out; logical = how the flow hangs together; technical = how it is built and run.
+# Where the process-layer package INSTRUCTIONS §2.2 and 832's T-281 speak, they win:
+# technical = "+ endpoints, contextReads/artifactsWrites, tiers, routing, components",
+# and ids and the authority decoration are for the technical reader. Where both are
+# silent (triggeredBy, emits, the authority field), this file matches 832's interim
+# lens-definition 0.25.0 was tested with (832 msg 98232bb9, 2026-10-22).
+order: [business, logical, technical]
+lenses:
+  business:
+    label: Business
+    fields: [owner, decisionInput, decisionOutputs, decisionOwner, note]
+    bpmn: [Name, Lane]
+    sections: [BPMN, Extensions]
+    canvas: []
+  logical:
+    label: Logical
+    extends: business
+    fields: [triggeredBy, emits, authority, workflowType, horizon, determinism,
+             workflowRef, name, targetWorkflow, linkId, errorStatus, timerSpec, busTopic,
+             hostRef, boundaryPos, interrupting]
+    bpmn: []
+    sections: [Constituents, I/O contract]
+    canvas: [io, constituents]
+  technical:
+    label: Technical
+    extends: logical
+    fields: [contextReads, artifactsWrites, scopeOf, tier, agentType, endpoint, sideEffect,
+             fabricRef, links]
+    bpmn: [Display ID, Slug, UID]
+    sections: [Other extensions]
+    canvas: [authority, ids, findings, ns]

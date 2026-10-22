@@ -485,11 +485,193 @@ case "$FILE_PATH" in
         ;;
 esac
 
+# Agent-control detection (T-1739) — see the fuller note at the focus-drift gate.
+_under_agent_control() {
+    [ "${CLAUDECODE:-}" = "1" ] && return 0
+    [ -n "${AI_AGENT:-}" ] && return 0
+    return 1
+}
+
+# T-4285 (832 OBS-437/T-1199): a closed record is judged by ITS OWN task, not by
+# focus. The .tasks/* exemption below runs before focus is even read, so without
+# this block a Write/Edit to .tasks/completed/T-*.md passed under any focus — the
+# protection of a closed record was an accident. Sanctioned routes:
+#   1. an Edit/MultiEdit that only APPENDS inside the record's ## Updates section
+#      (new_string starts with old_string, old_string lies in Updates, adds no
+#      "## " heading, not replace_all) — allowed and logged;
+#   2. FW_ALLOW_CLOSED_RECORD_EDIT=1 in the hook's environment (Tier-2, logged).
+# update-task.sh's own close-path writes are shell writes, which this Write/Edit
+# text gate never inspects (same boundary as T-2742).
+case "$FILE_PATH" in
+    "$PROJECT_ROOT"/.tasks/completed/*.md)
+        if _under_agent_control; then
+            _cr_task=$(basename "$FILE_PATH" | grep -oE '^T-[0-9]+' || true)
+            _cr_route=""
+            if [ "${FW_ALLOW_CLOSED_RECORD_EDIT:-0}" = "1" ]; then
+                _cr_route="FW_ALLOW_CLOSED_RECORD_EDIT"
+            elif [ -f "$FILE_PATH" ] && echo "$INPUT" | python3 -c "
+import json, re, sys
+try:
+    ti = json.load(sys.stdin).get('tool_input', {})
+    text = open(sys.argv[1], encoding='utf-8').read()
+except Exception:
+    sys.exit(1)
+edits = ti.get('edits') if isinstance(ti.get('edits'), list) else [ti]
+m = re.search(r'^## Updates[ \t]*$', text, re.M)
+if not m or not edits:
+    sys.exit(1)
+nxt = re.search(r'^## ', text[m.end():], re.M)
+lo, hi = m.end(), (m.end() + nxt.start()) if nxt else len(text)
+for e in edits:
+    old, new = e.get('old_string') or '', e.get('new_string')
+    if not isinstance(new, str) or not old or e.get('replace_all'):
+        sys.exit(1)
+    if not new.startswith(old) or re.search(r'^#{1,2} ', new[len(old):], re.M):
+        sys.exit(1)
+    if text.count(old) != 1:
+        sys.exit(1)
+    i = text.index(old)
+    if i < lo or i + len(old) > hi:
+        sys.exit(1)
+sys.exit(0)
+" "$FILE_PATH" 2>/dev/null; then
+                _cr_route="closed-record-updates-append"
+            fi
+            if [ -n "$_cr_route" ]; then
+                mkdir -p "$PROJECT_ROOT/.context/working" 2>/dev/null || true
+                {
+                    echo "- timestamp: '$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+                    echo "  task: '${_cr_task}'"
+                    echo "  flag: '${_cr_route}'"
+                    echo "  caller: 'check-active-task:closed-record'"
+                    echo "  file: '$(printf '%s' "$FILE_PATH" | tr -d "'")'"
+                } >> "$PROJECT_ROOT/.context/working/.gate-bypass-log.yaml" 2>/dev/null || true
+                echo "NOTE: $_cr_task is a closed record — allowing via $_cr_route (T-4285). Logged." >&2
+                exit 0
+            fi
+            echo "" >&2
+            echo "BLOCKED: $FILE_PATH is the closed record of ${_cr_task:-a completed task}." >&2
+            echo "" >&2
+            echo "A write under .tasks/completed/ is judged by that task, not by focus, and" >&2
+            echo "${_cr_task:-the task} is closed. Routes:" >&2
+            echo "  1. Append a dated entry to its ## Updates section with the Edit tool:" >&2
+            echo "     old_string = the last lines of ## Updates, new_string = the same text" >&2
+            echo "     followed by your entry (no new '## ' heading). Allowed and logged." >&2
+            echo "  2. For any other change, ask the operator; FW_ALLOW_CLOSED_RECORD_EDIT=1" >&2
+            echo "     set on the Claude process (not a command prefix) allows it, logged Tier-2." >&2
+            echo "" >&2
+            echo "Policy: T-4285 (closed-record gate, 832 OBS-437)" >&2
+            exit 2
+        fi
+        ;;
+esac
+
+# T-4639: .git/config, info/attributes and hooks/ are executable configuration,
+# not bookkeeping. A tool write there can name a diff driver, textconv,
+# core.fsmonitor, core.pager or core.hooksPath that a later allowlisted
+# "read-only" git diff/status/log then runs. So these paths are NOT exempt: they
+# need a task like source does, and when the gate allows one, a newly set
+# exec-capable key is flagged and logged. The framework itself never writes them
+# through Write/Edit (hook install and git config are shell writes). Matched on
+# the normalised path so .git//config or .git/hooks/../config cannot slip into
+# the exempt .git/* arm below.
+_git_exec_path=""
+if [ -n "$FILE_PATH" ]; then
+    _fp_norm=$(python3 -c 'import os,sys; print(os.path.normpath(sys.argv[1]))' "$FILE_PATH" 2>/dev/null || printf '%s' "$FILE_PATH")
+    case "$_fp_norm" in
+        "$PROJECT_ROOT"/.git/config|"$PROJECT_ROOT"/.git/config.worktree|\
+        "$PROJECT_ROOT"/.git/worktrees/*/config|"$PROJECT_ROOT"/.git/worktrees/*/config.worktree|\
+        "$PROJECT_ROOT"/.git/modules/*/config|"$PROJECT_ROOT"/.git/modules/*/hooks/*|\
+        "$PROJECT_ROOT"/.git/info/attributes|"$PROJECT_ROOT"/.git/hooks/*)
+            _git_exec_path="$_fp_norm" ;;
+    esac
+fi
+if [ -n "$_git_exec_path" ] && [ "${_FW_GIT_EXEC_INNER:-0}" != 1 ]; then
+    # Let the whole task gate below decide (re-run with the exemption withheld),
+    # then flag only a write it allowed — a blocked write is not logged as done.
+    echo "$INPUT" | _FW_GIT_EXEC_INNER=1 bash "${BASH_SOURCE[0]}"
+    _gx_rc=$?
+    if [ "$_gx_rc" -eq 0 ]; then
+        _gx_flags=$(echo "$INPUT" | python3 -c '
+import json, os, re, subprocess, sys, tempfile
+path = sys.argv[1]
+try:
+    ti = json.load(sys.stdin).get("tool_input", {})
+except Exception:
+    ti = {}
+try:
+    before = open(path, encoding="utf-8", errors="replace").read()
+except OSError:
+    before = ""
+after = before
+if isinstance(ti.get("content"), str):
+    after = ti["content"]
+else:
+    edits = ti.get("edits") if isinstance(ti.get("edits"), list) else [ti]
+    for e in edits:
+        old, new = e.get("old_string") or "", e.get("new_string") or ""
+        if old:
+            after = after.replace(old, new) if e.get("replace_all") else after.replace(old, new, 1)
+        else:
+            after = after + new
+flags = []
+if "/hooks/" in path:
+    flags.append("hook script " + os.path.basename(path) + " (runs on git operations)")
+elif path.endswith("/info/attributes"):
+    old = set(before.splitlines())
+    for line in after.splitlines():
+        if line not in old and re.search(r"(^|\s)(diff|filter|merge)=\S", line):
+            flags.append("attribute selects a driver: " + line.strip())
+else:
+    EXEC = re.compile(r"^(diff\..+\.(command|textconv)|diff\.external|core\.(fsmonitor|pager|hookspath|editor|sshcommand|askpass|gitproxy|alternaterefscommand)"
+                      r"|pager\..+|filter\..+\.(clean|smudge|process)|merge\..+\.driver|gpg\.(.+\.)?program|credential\.(.+\.)?helper"
+                      r"|include\.path|includeif\..+\.path|sequence\.editor|uploadpack\.packobjectshook|alias\..+)$")
+    def entries(text):
+        with tempfile.NamedTemporaryFile("w", suffix=".gitconfig", delete=False) as f:
+            f.write(text)
+        try:
+            r = subprocess.run(["git", "config", "--no-includes", "-f", f.name, "--list"],
+                               capture_output=True, text=True, timeout=10)
+            return set(r.stdout.splitlines()) if r.returncode == 0 else None
+        except Exception:
+            return None
+        finally:
+            os.unlink(f.name)
+    old, new = entries(before) or set(), entries(after)
+    if new is None:
+        flags.append("config not parseable by git config; exec-capable keys cannot be ruled out")
+    else:
+        for kv in sorted(new - old):
+            key, _, val = kv.partition("=")
+            if EXEC.match(key) and not (key.startswith("alias.") and not val.lstrip().startswith("!")):
+                flags.append(kv)
+print("\n".join(flags))
+' "$_git_exec_path" 2>/dev/null || echo "inspection failed; exec-capable keys cannot be ruled out")
+        if [ -n "$_gx_flags" ]; then
+            echo "" >&2
+            echo "WARNING (T-4639): this write to $_git_exec_path sets exec-capable git configuration:" >&2
+            printf '%s\n' "$_gx_flags" | sed 's/^/  - /' >&2
+            echo "A later git diff/status/log (allowlisted as read-only) can run it. Logged." >&2
+            _gx_task=$({ grep -E '^current_task:' "$PROJECT_ROOT/.context/working/focus.yaml" 2>/dev/null || true; } | head -1 | awk '{print $2}')
+            mkdir -p "$PROJECT_ROOT/.context/working" 2>/dev/null || true
+            {
+                echo "- timestamp: '$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+                echo "  task: '${_gx_task}'"
+                echo "  flag: 'git-exec-config'"
+                echo "  caller: 'check-active-task:git-exec-config'"
+                echo "  file: '$(printf '%s' "$_git_exec_path" | tr -d "'")'"
+                echo "  keys: '$(printf '%s' "$_gx_flags" | tr '\n' ';' | tr -d "'")'"
+            } >> "$PROJECT_ROOT/.context/working/.gate-bypass-log.yaml" 2>/dev/null || true
+        fi
+    fi
+    exit "$_gx_rc"
+fi
+
 # Exempt paths — framework operations that are part of task management itself
 # Anchored to PROJECT_ROOT to prevent matching arbitrary paths (e.g., /root/.claude/)
 case "$FILE_PATH" in
     "$PROJECT_ROOT"/.context/*|"$PROJECT_ROOT"/.tasks/*|"$PROJECT_ROOT"/.claude/*|"$PROJECT_ROOT"/.git/*)
-        exit 0
+        [ -n "$_git_exec_path" ] || exit 0   # T-4639: executable git config is judged below
         ;;
 esac
 
@@ -637,7 +819,8 @@ if [ -n "$CURRENT_TASK" ]; then
                 echo "  $(_fw_cmd) work-on T-XXX     (resume an existing task)" >&2
                 echo "" >&2
                 echo "Writes to .context/, .tasks/, .claude/ and .git/ are permitted here —" >&2
-                echo "that is what workflow management legitimately records." >&2
+                echo "that is what workflow management legitimately records — except .git/config," >&2
+                echo ".git/info/attributes and .git/hooks/, which are executable config (T-4639)." >&2
                 echo "Policy: T-3537 (WM scope fence — enforced, not advisory)" >&2
                 exit 2
             fi
@@ -716,11 +899,7 @@ fi
 # because tests/dev environments legitimately pipe JSON to the script and
 # would degrade to blocking. If both env vars get stripped by the host
 # runtime, the advisory log entry surfaces it via .gate-bypass-log.yaml.
-_under_agent_control() {
-    [ "${CLAUDECODE:-}" = "1" ] && return 0
-    [ -n "${AI_AGENT:-}" ] && return 0
-    return 1
-}
+# (Defined above the exempt-path check — T-4285's closed-record gate uses it there.)
 
 # --- Named exception: the pending-commit helper (T-3270, operator ruling SQ-23 opt 2) ---
 # scripts/commit-pending.sh commits files that UNATTENDED jobs wrote, under the task id the
@@ -748,6 +927,40 @@ if [ "$TOOL_NAME" = "Bash" ] && [ -n "$BASH_CMD" ] && [ -n "$CURRENT_TASK" ]; th
     # (_fw_extract_drift_target, top of file) so the fast-path test and the gate
     # cannot disagree about what counts as naming a task.
     TARGET_TASK="$DRIFT_TARGET"
+
+    # T-4182 (832 OBS-375): the closure commit of a JUST-completed task. The
+    # T-2054 exemption covers null focus and T-3179 covers work-completed focus;
+    # neither covers focus already sitting on another active task, so the
+    # task's own closure commit (moved task file, episodic) was refused with
+    # only Tier-2 remedies on offer. Narrow on three counts: the command must be
+    # a plain commit checkpoint (is_commit_checkpoint_command — no write
+    # pattern, no --no-verify, so the commit-msg hook still enforces P-002),
+    # the target must be in completed/, and its date_finished must lie inside
+    # the grace window. An old or undated target still blocks, as does every
+    # non-commit drift shape. Not logged as a bypass: it is no bypass.
+    _t4182_grace_secs=3600
+    _t4182_closure=0
+    if [ -n "$TARGET_TASK" ] && [ "$TARGET_TASK" != "$CURRENT_TASK" ] \
+       && type is_commit_checkpoint_command &>/dev/null \
+       && is_commit_checkpoint_command "$BASH_CMD"; then
+        _t4182_file=$(find_task_file "$TARGET_TASK" completed)
+        if [ -n "$_t4182_file" ]; then
+            _t4182_fin=$({ grep -m1 '^date_finished:' "$_t4182_file" 2>/dev/null || true; } \
+                | sed "s/^date_finished:[[:space:]]*//; s/[\"']//g; s/[[:space:]]*$//")
+            _t4182_epoch=""
+            [ -n "$_t4182_fin" ] && _t4182_epoch=$(date -u -d "$_t4182_fin" +%s 2>/dev/null || true)
+            if [ -n "$_t4182_epoch" ]; then
+                _t4182_age=$(( $(date -u +%s) - _t4182_epoch ))
+                if [ "$_t4182_age" -ge -300 ] && [ "$_t4182_age" -le "$_t4182_grace_secs" ]; then
+                    _t4182_closure=1
+                fi
+            fi
+        fi
+    fi
+    if [ "$_t4182_closure" = "1" ]; then
+        echo "NOTE: $TARGET_TASK completed $(( _t4182_age / 60 ))m ago — allowing its closure commit while focus is $CURRENT_TASK (T-4182). commit-msg hook still enforces T-XXX." >&2
+        TARGET_TASK=""
+    fi
 
     # If a target was identified and differs from focused task: drift
     if [ -n "$TARGET_TASK" ] && [ "$TARGET_TASK" != "$CURRENT_TASK" ]; then
@@ -827,6 +1040,10 @@ if [ "$TOOL_NAME" = "Bash" ] && [ -n "$BASH_CMD" ] && [ -n "$CURRENT_TASK" ]; th
                 echo "    ($TARGET_TASK is not active, so focus cannot point at it —" >&2
                 echo "     'context focus' would refuse it. Use 2 or 3 below; the" >&2
                 echo "     action stays attributed to $TARGET_TASK either way.)" >&2
+                echo "    (A plain 'git commit' for a task completed within the last" >&2
+                echo "     $(( _t4182_grace_secs / 60 )) minutes passes without a bypass — T-4182 closure" >&2
+                echo "     commit. This one is outside that window, not a plain commit," >&2
+                echo "     or not a commit at all.)" >&2
                 echo "" >&2
             fi
             echo "    2. Append --switch-focus to a fw command (logged Tier 2)." >&2
@@ -1135,6 +1352,8 @@ if [ -n "$ACTIVE_FILE" ] && grep -q "^workflow_type: inception" "$ACTIVE_FILE" 2
                 echo "         confidence: 0-3" >&2
                 echo "         disposition: answered|deferred|dissolved   # filled later" >&2
                 echo "         rationale: <one-line evidence>              # filled later" >&2
+                echo "     Then create the research artifact docs/reports/${CURRENT_TASK}-<topic>.md" >&2
+                echo "     (C-001) — this gate blocks it too, so the order is question first, artifact second." >&2
                 echo "" >&2
                 echo "  2. Or remove the '## Open Questions' section entirely (grandfathered)." >&2
                 echo "" >&2
@@ -1214,11 +1433,14 @@ if [ -n "$ACTIVE_FILE" ]; then
                     exit 0
                 fi
 
+                # T-4334: one name for the rule, used by the title AND the Policy
+                # label — they used to name two different things.
+                G020_RULE="Build readiness gate"
                 echo "" >&2
                 echo "BLOCKED: Task $CURRENT_TASK is a $WORKFLOW_TYPE task with placeholder/missing ACs." >&2
                 echo "" >&2
                 echo "Build tasks require real acceptance criteria before editing source files." >&2
-                echo "This prevents unscoped building. (G-020: Scope-Aware Task Gate)" >&2
+                echo "This prevents unscoped building. (G-020: $G020_RULE)" >&2
                 echo "" >&2
                 echo "To unblock:" >&2
                 echo "  1. Edit the task file with the Write/Edit TOOL: replace the placeholder" >&2
@@ -1233,7 +1455,7 @@ if [ -n "$ACTIVE_FILE" ]; then
                 _bootstrap_shape_hint "${BASH_CMD:-}"
                 echo "" >&2
                 echo "$(_blocked_subject)" >&2
-                echo "Policy: G-020 (Pickup message governance bypass prevention)" >&2
+                echo "Policy: G-020 ($G020_RULE) — origin: pickup messages bypassing scoping (T-469)" >&2
                 exit 2
             fi
             ;;

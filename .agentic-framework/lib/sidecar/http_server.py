@@ -13,6 +13,7 @@ T-3561 / T-3693 (arc-011 slice 1). Localhost HTTP, stdlib only.
 Authentication (T-3475): every POST must carry `Authorization: Bearer <token>`
 matching .context/sidecar/receiver.token, compared in constant time. The token
 is read BEFORE the port is bound; with no token the server refuses to start.
+A token rewritten while the server runs is accepted too (T-4560).
 A refused caller gets 401 and its message is never stored, so never injected.
 """
 
@@ -31,7 +32,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     __package__ = "lib.sidecar"
 
-from . import direct, inject, lifecycle, receipts, receiver  # noqa: E402
+from . import direct, identity, inject, lifecycle, receipts, receiver  # noqa: E402
 
 MAX_BODY = 10 * 1024 * 1024
 
@@ -54,10 +55,18 @@ class ReceiverHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _is_authorized(self) -> bool:
+        # T-4560: senders read receiver.token at send time, so the file is the
+        # truth. A start that rewrites it and then refuses (T-4208 rival, exit 3)
+        # leaves this process live with the token it read at startup; checking
+        # only that one made every send a 401 until the next restart (055's
+        # fbed1313, 10:59Z 2026-10-21). Accept the startup token or the current one.
         header = self.headers.get("Authorization", "")
         if not header.startswith("Bearer ") or not self.token:
             return False
-        return hmac.compare_digest(header[7:].strip().encode(), self.token.encode())
+        offered = header[7:].strip().encode()
+        current = lifecycle.read_token() or ""
+        return any(hmac.compare_digest(offered, t.encode())
+                   for t in {self.token, current} if t)
 
     def _read_json(self):
         length = int(self.headers.get("Content-Length", 0) or 0)
@@ -203,7 +212,9 @@ def serve(port: int, agent: str) -> int:
         server.serve_forever()
     finally:
         server.server_close()
-        info = lifecycle.read_triple_file()
+        # T-3777: the triple-file paths mkdir <root>/.context/sidecar — a project
+        # that is gone has no triple file to clear, and must not be recreated.
+        info = lifecycle.read_triple_file() if (receiver._root() / ".context").is_dir() else None
         if info and info.get("pid") == os.getpid():
             lifecycle.clear_triple_file()
         lifecycle.unregister(agent, os.getpid())
@@ -214,6 +225,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="arc-011 receiver sidecar (foreground)")
     ap.add_argument("--port", type=int, default=0)
     ap.add_argument("--agent", required=True)
+    identity.apply()  # T-4311: sign as the project key when configured
     args = ap.parse_args(argv)
     return serve(args.port, args.agent)
 

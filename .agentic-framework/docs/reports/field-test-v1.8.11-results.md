@@ -126,6 +126,118 @@ New, only visible on a clean machine: **blocker** — Watchtower cannot start, `
 PEP 668 blocks pip → T-4304. Also `/embeddings` 500 on an empty project → T-4305; `watchtower stop` reports failure on
 a zombie → T-4306; the P-013 render gate false-positives on the task template comment naming web/app.py → T-4307.
 
+## Release cut — 2026-10-18, master e42aa41bf, tag v1.8.11
+
+Operator answered "yes, release v1.8.11" after the explicit question (fixes without a positive field test were listed
+in it). Fixes that shipped with **no field result yet** — NOT EXERCISED, verified by tests and on this host only:
+
+| Fix | What | Re-test asked of |
+|---|---|---|
+| T-4303 | hooks route when bin/fw does not parse (G-118) | 055, 832 |
+| T-2746 | no implicit fw init outside a project | dimitri-mint-dev |
+| T-4298 | inherited-env notice once (install.sh), fw warns once per shell | dimitri-mint-dev |
+| T-4304 | Watchtower names missing Python modules | dimitri-mint-dev |
+| T-4305 | /embeddings empty state, no 500 | dimitri-mint-dev |
+| T-4307 | render gate ignores HTML comments | ring20 (T-2406), dimitri-mint-dev |
+| T-4308, T-4312 | inbox NOT CHECKED without termlink | dimitri-mint-dev |
+| T-4297 | no firewall change without opt-in | dimitri-mint-dev |
+| T-4264 | git global options read-only; git -c gated | 832 |
+| T-4232 | CLAUDE.md upgrade refuses instead of dropping project lines | 1409, 832 |
+| T-4286 | estate push-key leak | ring20-dashboard |
+| T-4296, T-4284, T-4283, T-4314 | init without HOME; boundary-gate false positives; orphan receiver; ledger audit outside git | — |
+| T-4249 | (from round 4) | 1409 |
+
+Test-only changes (no field test applicable): T-4293..T-4295, T-4300..T-4302, T-4313, T-4318.
+
+## Round 8 — on the released v1.8.11 (e42aa41bf), 2026-10-18 (T-4328)
+
+**ring20 (proxmox-ring20-management, T-2406, msg 69eca905):** upgrade 112c098b9 → v1.8.11 from a pinned tag clone,
+rc 0; 7 locally patched files 3-way merged clean; post-overlay verify 0 mismatches.
+
+| Fix | Verdict |
+|---|---|
+| T-4307 render gate ignores template comments | **WORKS** — fresh build task (unmodified template, 0 commits) closed with no render refusal |
+| T-4250 | **WORKS** (their G-235 closed) |
+| T-4232 CLAUDE.md refusal | NOT EXERCISED — "Already up to date", nothing of theirs inside managed sections |
+| T-4297 firewall | NOT EXERCISED — no ufw on that CT |
+
+**dimitri-mint-dev (T-130, msgs ecb1d433, e17f5580):** upgrade 1.8.10 → 1.8.11, doctor 0 failures; README A+
+byte-identical to their v2.2.1; testbed L1 against master: all 8 checks pass.
+
+| Fix | Verdict |
+|---|---|
+| T-4297 no firewall change without opt-in | **WORKS** — a Watchtower restart left ufw byte-identical |
+| T-4298 installer inherited-env warning | **WORKS** — L1 verdict diff vs bleeding-edge: T-4248-env-warning FAILS → WORKS |
+| T-4308 inbox exit 3 without termlink | **WORKS** (L1) |
+| T-4170, T-4171, T-4114/T-4126/T-4149 | **WORKS** |
+| T-4232 CLAUDE.md upgrade | WORKS — no project lines removed (their project section only names the project) |
+
+Pending from them: a level-2 run with prompt v2.2.1 for T-2746, T-4304, T-4305, T-4307, T-4312.
+
+## Round 9 — dimitri-mint-dev level-2 container run on v1.8.11 (T-133, msg 3f53e5e9, 2026-10-18)
+
+master e42aa41bf, prompt v2.2.1, throwaway container, token from Infisical. Phase 1 208 s, phase 2 241 s, rc 0,
+leak-clean, 11 findings, all fingerprints in the computed format. Verdicts read from the record.
+
+| Fix | Verdict |
+|---|---|
+| T-4298 inherited-env line | **WORKS** — exactly one line naming FRAMEWORK_ROOT, PROJECT_ROOT; install landed in the target |
+| T-4248 backup, T-4251, T-4265, T-4261, T-3083 (doctor 9 s) | **WORKS** |
+| T-4308 / T-4312 inbox without termlink | **WORKS** — NOT CHECKED, exit 3 |
+| T-4304 Watchtower missing modules | **WORKS** — one line naming flask_socketio, markdown2 + apt command; no traceback (cosmetic F-05: a port-allocation line precedes it) |
+| T-4305 /embeddings | **WORKS** — HTTP 200; all 37 nav pages 200 |
+| T-4307 render gate | **WORKS** |
+| T-2746 no silent init | **WORKS** — re-tested by hand (the run's header used a non-existent verb; prompt defect on their side): exit 1 "not in an AEF project", nothing created |
+| T-4297 firewall | no change made; printed-advisory path NOT EXERCISED (no ufw) → F-07, T-4330 |
+
+New findings filed: F-07 → T-4330 (no advisory when ufw absent); F-02 → T-4331 (installer's doctor exit 2 vs manual 0);
+F-06 → T-4306 (stale pid now blocks start and restart); F-08 → T-4332 (start exits 1 after "Health check passed");
+F-03 → T-4333 (skipped onboarding tasks stay active); F-09 → T-4334 (G-020 title vs Policy label); F-11 → existing
+T-2054 (close clears focus; next commit blocked).
+
+## Round 10 — upgrades from v1.8.10 (1023, 832), 2026-10-18
+
+**1023-portable-encrypted-chromium-vault (msgs 1517c120, 132b481c):** v1.8.11 **WORKS** — full tests/run-all.sh,
+26 suites, 1035 cases, 0 product failures; doctor PASS; hooks exercised (task gate, boundary, tier-0, human-AC
+guard); CLAUDE.md step changed only framework text, refused nothing. Upgrade commit fedd537.
+**FAILS (upgrade path from v1.8.10, not v1.8.11 code):** a bare `fw upgrade` runs v1.8.10's lib/upgrade.sh, which
+clones with `--depth=1` (v1.8.10 :1313) and refuses its own clone as foreign-source; the printed remedy names the
+already-deleted temp dir (:1469). Both fixed in v1.8.11 by T-3886, but the old code does the cloning. Mitigation:
+upgrade notes and the GitHub release now open with "Upgrading from v1.8.10" (full clone of v1.8.11, then
+`<clone>/bin/fw upgrade`); all waiting projects warned.
+
+**832-Workflow-designer (msg 9089e008):** upgraded via the full-clone route: VERSION 1.8.11, doctor PASS, identity
+settings kept, crontab ok; 36 of 38 local patches re-applied clean. T-4303/T-4264/T-4232 verdicts to follow.
+
+## Round 11 — 832-Workflow-designer on v1.8.11 (832 T-1204, msg 7422e8d9, 2026-10-18)
+
+| Fix | Verdict |
+|---|---|
+| T-4303 hooks survive a non-parsing bin/fw | **WORKS** — scratch copy of their patched vendored bin/fw broken above Main Command Routing (bash -n rc=2): real check-tier0 still BLOCKED a force push (rc=2), passed git status (rc=0); message names bin/fw, "does not parse", the repair; `fw version` still fails loudly |
+| T-4264 git global options | **WORKS** — 8/8 against their merged safe-commands.sh (read-only: git status, -C DIR status, --git-dir log, -C . diff; gated: -C . commit, -c core.pager, -c core.fsmonitor, -c alias) |
+| T-4232 CLAUDE.md refusal | **WORKS** — injected line under a managed heading: upgrade refused rc=1, CLAUDE.md byte-identical, line named, repair given; same line in a project-owned region: rc=0, "KEPT 1 project-owned region(s)" |
+
+Findings: the parse-error repair names "bin/fw from the framework repo root" where a consumer's file is
+.agentic-framework/bin/fw → T-4335; check-human-ac-tick refuses a shell write to a .tasks/ path outside the project
+→ T-4336. Note (not a defect): with local vendored patches, the T-3850 vendor-locals refusal fires before the CLAUDE.md
+step, so a patched consumer sees the T-4232 refusal only with --allow-delete-locals.
+
+## Round 12 — ring20-dashboard on v1.8.11 (msg 47d4e78e, 2026-10-18)
+
+Upgraded a75c25472 → v1.8.11 from a full clone pinned to the full sha (the "Upgrading from v1.8.10" route); Debian
+LXC, Python 3.11, git 2.39; 36 of 37 local patches carried with zero fuzz; ALL OK on run 3 (~12 min); doctor 0 FAIL
+before and after; fast lane 16740 passed, no new failures.
+
+| Fix | Verdict |
+|---|---|
+| T-4286 estate push-key leak | **WORKS** — with their own .secret-scan-patterns: an OpenSSH private key chunk is refused (reason private-key) and its body is in no upsert; redact() fires; missing/empty/non-compiling catalogue fails closed |
+| T-4305 /embeddings empty state | **WORKS** (indirect) — their own patch 0031 for the same 500 was dropped as identical to T-4305 |
+| T-4232 CLAUDE.md check | **WORKS** — passed, simulated beforehand with a stock copy + 1 project-owned region |
+| T-2746 no implicit init | Behaviour change hit their own doctor-guard tests (they ran fw doctor in a bare temp repo); fixed on their side with fw init first → upgrade-notes line added |
+
+Their runs 1-2 failures were their own (a lightweight-tag lookup; the T-2746 test change), not v1.8.11 defects.
+Committed to report: 832 (T-4303, T-4264, T-4232), 055 (T-4303), ring20-dashboard (T-4286), 1023 (general).
+
 ## Findings
 
 - **T-4203** (055 item 7): `_fw_is_own_launcher` / `cmd_classify._Ctx` refuse a consumer's tracked

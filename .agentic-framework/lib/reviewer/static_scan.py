@@ -540,7 +540,7 @@ def detect_swallowed_errors(verification_section: str) -> list[Finding]:
 # ── T-2728: HTTP assertions that cannot fail, and literal host:port URLs ──────
 #
 # Origin OBS-127: two shipped verification lines read
-#   curl -s -o /dev/null -w "%{http_code}\n" http://192.168.10.107:3000/api/...
+#   curl -s -o /dev/null -w "%{http_code}\n" http://<lan-host>:3000/api/...
 # `-w` only PRINTS the code; curl exits 0 on any successful connection, so 403/404/
 # 500 all pass. And the literal :3000 is the per-project-port anti-pattern (T-1376)
 # — this project serves on 3001, so the request reached a DIFFERENT project's
@@ -2675,6 +2675,37 @@ def detect_worktree_handoff_durability(body: str) -> list[Finding]:
     return findings
 
 
+# ───── silent-zero-store-grep detector (T-2680, T-2679 Slice 1) ─────
+#
+# Same rule set as `lib/silent_zero_scan.py` (which `fw audit` runs over lib/,
+# agents/, bin/), applied to the task's own `## Verification` lines: a check
+# that greps a store at a fixed indent, or folds a failed count into 0, passes
+# the day it is written and goes silently inert when the store is reshaped.
+
+
+def detect_silent_zero_store_grep(verification_section: str) -> list[Finding]:
+    """Verification greps a YAML store at a fixed indent, or counts a
+    `.context/` store with a zero fallback (T-2676 / T-2677 family).
+
+    Heuristic, partial lie-severity → CONCERN.
+    """
+    if not verification_section:
+        return []
+    from lib.silent_zero_scan import scan_text
+
+    return [
+        Finding(
+            pattern_id="silent-zero-store-grep",
+            pattern_name="Store grep can silently match zero: fixed-indent pattern or zero-fallback count (T-2680)",
+            detection_confidence="heuristic",
+            lie_severity="partial",
+            location=f"Verification:line {lineno}",
+            evidence=f"{rule}: {snippet}"[:200],
+        )
+        for _path, lineno, rule, snippet in scan_text(verification_section, "Verification")
+    ]
+
+
 # ───────────────────────── Orchestration ─────────────────────────
 
 
@@ -2691,6 +2722,26 @@ def compute_overall(findings: list[Finding], thresholds: dict) -> str:
     return "PASS"
 
 
+# T-4195 (832 OBS-466, their T-1150): Layer 1 matches what a task RUNS or
+# PLANS, not what it describes. A Verification line that is a `#` comment is
+# never executed; an AC's backticked or double-quoted span is a quotation.
+# Shell backticks are NOT stripped from Verification — there they execute.
+_ESC_QUOTED_RE = re.compile(r"`[^`\n]*`|\"[^\"\n]*\"|“[^”\n]*”")
+
+
+def _escalation_verification_text(verif_section: str) -> str:
+    """Verification minus HTML comments and full-line `#` comments."""
+    text = _strip_html_comments(verif_section)
+    return "\n".join(
+        "" if ln.lstrip().startswith("#") else ln for ln in text.split("\n")
+    )
+
+
+def _escalation_ac_text(ac_section: str) -> str:
+    """AC text minus HTML comments and quoted (backtick / double-quote) spans."""
+    return _ESC_QUOTED_RE.sub(" ", _strip_html_comments(ac_section))
+
+
 def evaluate_escalations(
     ac_section: str,
     verif_section: str,
@@ -2700,6 +2751,8 @@ def evaluate_escalations(
     """Layer 1: match Layer-1 escalation patterns against AC + verification text."""
     if not escalation_catalogue:
         return []
+    ac_section = _escalation_ac_text(ac_section or "")
+    verif_section = _escalation_verification_text(verif_section or "")
     triggers: list[EscalationTrigger] = []
     for trig in escalation_catalogue.get("triggers", []):
         for matcher in trig.get("match", []):
@@ -2807,6 +2860,9 @@ def scan_task(
     # handoff command chains a `.claude/worktrees/` cd-prefix to a verb that
     # outlives the session.
     findings.extend(detect_worktree_handoff_durability(body))
+    # v1.7 +3: T-2680 — silent-zero-store-grep (T-2679 Slice 1); same rules
+    # as lib/silent_zero_scan.py, which fw audit runs over the source tree.
+    findings.extend(detect_silent_zero_store_grep(verif_section))
 
     task_id = task_path.stem.split("-")[0] + "-" + task_path.stem.split("-")[1]
 

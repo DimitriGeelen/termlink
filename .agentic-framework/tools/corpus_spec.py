@@ -26,6 +26,7 @@ the spec is the source of truth for the whole rendered map.
 """
 
 import argparse
+import io
 import json
 import os
 import re
@@ -61,17 +62,119 @@ TYPE_TO_TAG = {
     "subprocess": "subProcess",
     "script": "scriptTask",
     "parallel-gateway": "parallelGateway",
+    # T-4374: sync sub-workflow call (832 T-282), round-trip only — AEF's corpus
+    # is descriptive, nothing here executes it. calledElement = called map's
+    # corpus id; aef:ioMapping + sibling aef:callRef carry data mapping/identity.
+    "call": "callActivity",
+    # T-4488: plain untyped activity (832 T-1215), round-trip only — third-party
+    # BPMN uses it widely; re-emitted as authored, never coerced to a typed task.
+    "task": "task",
+    # T-4495: decision-table activity (832 kitchen-sink.bpmn), round-trip only —
+    # AEF evaluates no DMN; re-emitted as authored, like the plain task above.
+    "business-rule": "businessRuleTask",
+    # T-4501: event attached to an activity's boundary (832 boundary-events /
+    # kitchen-sink goldens), round-trip only. attachedToRef + cancelActivity
+    # are carried as fields; event definitions ride raw_children verbatim.
+    "boundary": "boundaryEvent",
+    # T-4505: the rest of the BPMN 2.0 process flow nodes, round-trip only —
+    # added together against the spec's list instead of one per field report.
+    # Their own attributes (messageRef, instantiate, eventGatewayType, ordering,
+    # method, …) ride n["attrs"]; children (loop/completion conditions, nested
+    # flow elements) ride raw_children verbatim, as subProcess's already do.
+    "send": "sendTask",
+    "receive": "receiveTask",
+    "manual": "manualTask",
+    "inclusive-gateway": "inclusiveGateway",
+    "complex-gateway": "complexGateway",
+    "event-gateway": "eventBasedGateway",
+    "adhoc-subprocess": "adHocSubProcess",
+    "transaction": "transaction",
 }
 TAG_TO_TYPE = {v: k for k, v in TYPE_TO_TAG.items()}
 
+# T-4399: tags whose BPMN schema type defines the unprefixed `default`
+# attribute (tExclusive/tInclusive/tComplexGateway, tActivity) — the flow taken
+# when no condition holds.
+DEFAULT_FLOW_TAGS = {"exclusiveGateway", "inclusiveGateway", "complexGateway",
+                     "serviceTask", "userTask", "scriptTask", "subProcess",
+                     "callActivity", "task", "businessRuleTask", "sendTask",
+                     "receiveTask", "manualTask", "adHocSubProcess", "transaction"}
+
+#: BPMN 2.0 flow nodes that are deliberately NOT round-tripped, with the reason
+#: the parse refusal names. Choreography nodes belong to a bpmn:choreography,
+#: not a process; implicitThrowEvent is the spec's choreography-only event.
+REFUSED_FLOW_TAGS = {
+    "choreographyTask": "choreography node, not valid in a bpmn:process",
+    "subChoreography": "choreography node, not valid in a bpmn:process",
+    "callChoreography": "choreography node, not valid in a bpmn:process",
+    "implicitThrowEvent": "choreography-only event, not valid in a bpmn:process",
+}
+
+#: T-4505: unprefixed attributes the BPMN 2.0 schema defines on each tag and
+#: parse_map does not model as a named field (id, name, default, calledElement,
+#: attachedToRef, cancelActivity are). These ride n["attrs"] verbatim; any other
+#: unprefixed attribute is not BPMN and stays dropped (T-4389, T-4399).
+_ACTIVITY_ATTRS = ("isForCompensation", "startQuantity", "completionQuantity")
+_SUBPROCESS_ATTRS = _ACTIVITY_ATTRS + ("triggeredByEvent",)
+BPMN_SCHEMA_ATTRS = {
+    "task": _ACTIVITY_ATTRS,
+    "sendTask": _ACTIVITY_ATTRS + ("implementation", "messageRef", "operationRef"),
+    "receiveTask": _ACTIVITY_ATTRS + ("implementation", "instantiate", "messageRef",
+                                      "operationRef"),
+    "serviceTask": _ACTIVITY_ATTRS + ("implementation", "operationRef"),
+    "userTask": _ACTIVITY_ATTRS + ("implementation",),
+    "manualTask": _ACTIVITY_ATTRS,
+    "scriptTask": _ACTIVITY_ATTRS + ("scriptFormat",),
+    "businessRuleTask": _ACTIVITY_ATTRS + ("implementation",),
+    "subProcess": _SUBPROCESS_ATTRS,
+    "adHocSubProcess": _SUBPROCESS_ATTRS + ("cancelRemainingInstances", "ordering"),
+    "transaction": _SUBPROCESS_ATTRS + ("method",),
+    "callActivity": _ACTIVITY_ATTRS,
+    "startEvent": ("parallelMultiple", "isInterrupting"),
+    "intermediateCatchEvent": ("parallelMultiple",),
+    "boundaryEvent": ("parallelMultiple",),
+    "exclusiveGateway": ("gatewayDirection",),
+    "inclusiveGateway": ("gatewayDirection",),
+    "complexGateway": ("gatewayDirection",),
+    "parallelGateway": ("gatewayDirection",),
+    "eventBasedGateway": ("gatewayDirection", "instantiate", "eventGatewayType"),
+}
+
 # Known structured aef:* ext children; everything else is preserved verbatim.
-_KNOWN_EXT = {"uid", "position", "eventDef", "link", "meta", "workflowMeta", "laneMeta"}
+_KNOWN_EXT = {"uid", "position", "eventDef", "link", "meta", "workflowMeta", "laneMeta",
+              "callRef", "ioMapping"}
 
 # Register stable prefixes so verbatim ET.tostring round-trips keep the same
 # serialization on every pass (capture-from-source == capture-from-emit).
 ET.register_namespace("bpmn", BPMN_NS)
 ET.register_namespace("aef", AEF_NS)
 ET.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance")
+
+#: Prefixes the emitter declares on <bpmn:definitions> itself (plus xsi). A source
+#: document may never rebind these — registering one would re-prefix every map.
+_ROOT_NS = {"bpmn": BPMN_NS, "aef": AEF_NS,
+            "bpmndi": "http://www.omg.org/spec/BPMN/20100524/DI",
+            "dc": "http://www.omg.org/spec/DD/20100524/DC",
+            "di": "http://www.omg.org/spec/DD/20100524/DI",
+            "xsi": "http://www.w3.org/2001/XMLSchema-instance"}
+
+
+def _source_prefixes(xml_text: str) -> dict:
+    """uri → prefix as the SOURCE declared it (first declaration wins).
+
+    ElementTree drops prefixes at parse time, so verbatim parts would come back
+    as ns0: (T-4389). Foreign prefixes are registered so _raw_xml keeps them;
+    the reserved root prefixes are never rebound."""
+    out = {}
+    for _, (pfx, uri) in ET.iterparse(io.BytesIO(xml_text.encode("utf-8")),
+                                      events=("start-ns",)):
+        if pfx and uri not in out:
+            out[uri] = pfx
+            if (pfx not in _ROOT_NS and uri not in _ROOT_NS.values()
+                    and not re.fullmatch(r"ns\d+", pfx)):
+                ET.register_namespace(pfx, uri)
+    return out
+
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STORE = REPO_ROOT / ".context" / "designer" / "projects"
@@ -116,15 +219,257 @@ def _q(tag, ns=BPMN_NS):
     return f"{{{ns}}}{tag}"
 
 
-def _ext(el):
-    """aef:* extension children of a flow element's extensionElements block."""
+def _is_known_ext(c) -> bool:
+    """A structured aef:* child — namespace AND local name (T-4387): keyed on the
+    local name alone, a foreign <zeebe:uid> overwrote the node's aef:uid."""
+    return isinstance(c.tag, str) and c.tag in {_q(k, AEF_NS) for k in _KNOWN_EXT}
+
+
+#: T-4518: the plain attributes each structured aef:* element is modelled with
+#: (None = any plain attribute, carried as one dict). Other plain attributes
+#: ride the owner's ext_attrs verbatim (the designer stamps aef:workflowMeta
+#: uuid=…); a child element, text or a namespaced attribute inside one has no
+#: slot in the spec and is refused.
+_EXT_ATTRS = {"uid": {"value"}, "position": {"x", "y"}, "eventDef": None,
+              "link": {"linkId", "workflowRef", "targetWorkflow", "name"},
+              "meta": None, "callRef": {"workflowRef"}, "ioMapping": set(),
+              "workflowMeta": {"id", "version", "schemaVersion", "title", "tier_default"},
+              "laneMeta": {"abbr", "authority", "height"}}
+
+#: T-4518: the structured aef:* elements each context actually reads. A known
+#: name anywhere else (aef:position on a flow) rides ext_raw verbatim.
+_NODE_EXT = {"uid", "position", "eventDef", "link", "meta"}
+_CALL_EXT = _NODE_EXT | {"callRef", "ioMapping"}
+_FLOW_EXT = {"uid"}
+_PROCESS_EXT = {"workflowMeta"}
+_LANE_EXT = {"laneMeta"}
+
+
+def _ext_owner(el) -> str:
+    local = el.tag.split("}")[-1]
+    return f"<bpmn:{local} id=\"{el.get('id')}\">"
+
+
+def _is_read(c, known) -> bool:
+    return isinstance(c.tag, str) and c.tag in {_q(k, AEF_NS) for k in known}
+
+
+def _ext(el, known=_NODE_EXT):
+    """Structured aef:* children of a flow element's extensionElements block.
+
+    T-4518: content a structured element carries beyond its modelled shape, and
+    a repeat of one, used to be dropped silently — refused here instead."""
     out = {}
     ee = el.find(_q("extensionElements"))
     if ee is None:
         return out
     for c in ee:
+        if not _is_read(c, known):
+            continue
         local = c.tag.split("}")[-1]
+        if local in out:
+            raise SystemExit(
+                f"parse: {_ext_owner(el)} carries aef:{local} more than once — the "
+                f"spec holds one, so the others would be dropped (T-4518)")
+        nsattr = sorted(k for k in c.attrib if k.startswith("{"))
+        inner = local != "ioMapping"  # ioMapping entries are checked by _io_mapping
+        if nsattr or (inner and (len(c) or (c.text or "").strip())):
+            what = ([f"attribute {k}" for k in nsattr]
+                    + ([f"child <{x.tag.split('}')[-1]}>" for x in c
+                        if isinstance(x.tag, str)] if inner else [])
+                    + (["text"] if inner and (c.text or "").strip() else [])
+                    or ["a comment or processing instruction"])
+            raise SystemExit(
+                f"parse: {_ext_owner(el)} aef:{local} carries {', '.join(what)} "
+                f"outside its modelled shape — refusing rather than dropping it "
+                f"(T-4518). Put extra content in its own aef: element, which "
+                f"round-trips verbatim.")
         out[local] = dict(c.attrib)
+    return out
+
+
+def _ext_attrs(ext: dict) -> dict:
+    """T-4518: {element: {attr: value}} — plain attributes of structured aef:*
+    elements outside their modelled set, carried verbatim instead of dropped."""
+    out = {}
+    for local, attrs in ext.items():
+        allowed = _EXT_ATTRS[local]
+        extra = {k: v for k, v in attrs.items()
+                 if allowed is not None and k not in allowed}
+        if extra:
+            out[local] = extra
+    return out
+
+
+def _attrs_xml(extra: dict | None) -> str:
+    return "".join(f" {k}={quoteattr(v)}" for k, v in (extra or {}).items())
+
+
+def _io_mapping(el) -> dict:
+    """aef:ioMapping v1 (T-4374): aef:in / aef:out entries naming variables by
+    source and target, nothing else. Expressions are not part of v1 — anything
+    outside the shape is a hard error, not a silent drop (T-2614 class)."""
+    ee = el.find(_q("extensionElements"))
+    io = ee.find(_q("ioMapping", AEF_NS)) if ee is not None else None
+    if io is None:
+        return None
+    out = {"in": [], "out": []}
+    # T-4518: text and comments between entries were skipped silently.
+    if (io.text or "").strip() or any(not isinstance(c.tag, str) or (c.tail or "").strip()
+                                      for c in io):
+        raise SystemExit(
+            f"parse: <bpmn:callActivity id=\"{el.get('id')}\"> aef:ioMapping carries "
+            f"text or a comment between its entries, outside mapping v1 — refusing "
+            f"rather than dropping it (T-4518)")
+    for c in io:
+        local = c.tag.split("}")[-1]
+        if (c.tag not in (_q("in", AEF_NS), _q("out", AEF_NS))
+                or set(c.attrib) != {"source", "target"} or len(c)
+                or (c.text or "").strip()):
+            raise SystemExit(
+                f"parse: <bpmn:callActivity id=\"{el.get('id')}\"> aef:ioMapping "
+                f"entry <{local} {' '.join(sorted(c.attrib))}> is outside mapping v1 "
+                f"(aef:in / aef:out with exactly source and target, no expressions) "
+                f"— refusing rather than dropping it (T-4374)")
+        out[local].append({"source": c.get("source"), "target": c.get("target")})
+    return out
+
+
+#: T-4549: structured aef:io and the process-level aef:meta of mapping v1.1
+#: (policy/standards/aef-bpmn-mapping-v1.1-io.md). Each modelled element is
+#: {"attrs": {…verbatim, in source order}, <child list>: […], "raw": […]}: the
+#: children it knows go to the named list, anything else rides "raw" verbatim
+#: (rule 1.4). Lists are emitted in the order given here, so a source that
+#: interleaves e.g. aef:field and aef:expect settles after one pass.
+_IO_SCHEMA = {
+    "io": {"input": "items", "output": "items"},
+    "input": {"field": "fields", "expect": "expects", "example": "examples"},
+    "field": {"when": "when"},
+    "expect": {"value": "values"},
+    "when": {"value": "values"},
+    "example": {},
+    "meta": {"prefixes": "prefixes"},
+    "prefixes": {"prefix": "prefix"},
+    "prefix": {},
+}
+_IO_SCHEMA["output"] = _IO_SCHEMA["input"]
+#: Lists holding more than one element name record each entry's name.
+_IO_MIXED = {"items"}
+#: Mapping versions this reader knows (rule 1.5: anything else is refused).
+MAPPING_VERSIONS = ("1.1",)
+
+
+def _io_where(path) -> str:
+    return " > ".join(f"aef:{p}" for p in path)
+
+
+def _io_parse(el, local, owner, path=()) -> dict:
+    """One modelled aef element → its spec entry (T-4549). Text outside
+    aef:value has no slot and is refused naming the element, never dropped."""
+    path = path + (local,)
+    entry = {}
+    if el.attrib:
+        entry["attrs"] = dict(el.attrib)
+    if (el.text or "").strip() or any((c.tail or "").strip() for c in el):
+        raise SystemExit(
+            f"parse: {owner} {_io_where(path)} carries text outside mapping v1.1 — "
+            f"refusing rather than dropping it (T-4549, rule 1.4)")
+    kids = _IO_SCHEMA[local]
+    for c in el:
+        clocal = c.tag.split("}")[-1] if isinstance(c.tag, str) else None
+        key = kids.get(clocal) if isinstance(c.tag, str) and c.tag == _q(clocal, AEF_NS) else None
+        if key is None:
+            entry.setdefault("raw", []).append(_raw_xml(c))
+        elif clocal == "value":
+            if c.attrib or len(c):
+                raise SystemExit(
+                    f"parse: {owner} {_io_where(path)} > aef:value carries attributes "
+                    f"or children — a value is text only (rule 8); refusing rather "
+                    f"than dropping them (T-4549)")
+            entry.setdefault(key, []).append(c.text or "")
+        else:
+            sub = _io_parse(c, clocal, owner, path)
+            if key in _IO_MIXED:
+                sub = {"kind": clocal, **sub}
+            entry.setdefault(key, []).append(sub)
+    return entry
+
+
+def _io_element(entry, local, indent: int):
+    """Spec entry → ET element laid out at `indent` spaces (T-4549). Built as a
+    tree and serialized by ET, so the bytes match the verbatim ext_raw form
+    aef:io rode before it was modelled (v1.0 maps unchanged)."""
+    el = ET.Element(_q(local, AEF_NS), entry.get("attrs", {}))
+    kids = []
+    names = {}
+    for clocal, key in _IO_SCHEMA[local].items():
+        names.setdefault(key, clocal)
+    for key, clocal in names.items():
+        for sub in entry.get(key, []):
+            if key == "values":
+                kid = ET.Element(_q("value", AEF_NS))
+                kid.text = sub
+            else:
+                sub = dict(sub)
+                kid = _io_element(sub, sub.pop("kind") if key in _IO_MIXED else clocal,
+                                  indent + 2)
+            kids.append(kid)
+    for raw in entry.get("raw", []):
+        if raw.startswith("<!--"):
+            kids.append(ET.Comment(raw[4:-3]))
+        else:
+            kids.append(ET.fromstring(
+                raw, parser=ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))))
+    if kids:
+        el.text = "\n" + " " * (indent + 2)
+        for k in kids:
+            k.tail = "\n" + " " * (indent + 2)
+            el.append(k)
+        kids[-1].tail = "\n" + " " * indent
+    return el
+
+
+def _io_xml(entry, local, indent: int) -> str:
+    return ET.tostring(_io_element(entry, local, indent), encoding="unicode")
+
+
+def _io_take(el, local, known):
+    """The one aef:<local> child of el's extensionElements, parsed, and how many
+    ext_raw entries precede it (so emit puts it back in place) — or (None, None).
+    `known` is the context's structured set, i.e. what is NOT in ext_raw."""
+    ee = el.find(_q("extensionElements"))
+    if ee is None:
+        return None, None
+    found = [c for c in ee if isinstance(c.tag, str) and c.tag == _q(local, AEF_NS)]
+    if not found:
+        return None, None
+    owner = _ext_owner(el)
+    if len(found) > 1:
+        raise SystemExit(
+            f"parse: {owner} carries aef:{local} more than once — the spec holds one, "
+            f"so the others would be dropped (T-4549)")
+    at = 0
+    for c in ee:
+        if c is found[0]:
+            break
+        if isinstance(c.tag, str) and not _is_read(c, known):
+            at += 1
+    return _io_parse(found[0], local, owner), at
+
+
+def mapping_version(spec: dict) -> str | None:
+    """The map's declared mappingVersion (rule 1.1), None for a v1.0 map."""
+    return spec.get("process_meta", {}).get("attrs", {}).get("mappingVersion")
+
+
+def prefix_map(spec: dict) -> dict:
+    """{prefix name: its aef:prefix attributes} from the process aef:meta (§6)."""
+    out = {}
+    for group in spec.get("process_meta", {}).get("prefixes", []):
+        for p in group.get("prefix", []):
+            attrs = p.get("attrs", {})
+            if "name" in attrs:
+                out.setdefault(attrs["name"], attrs)
     return out
 
 
@@ -137,15 +482,17 @@ def _raw_xml(el) -> str:
     return ET.tostring(el, encoding="unicode").strip()
 
 
-def _ext_raw(el) -> list:
+def _ext_raw(el, known=_NODE_EXT) -> list:
     """Unrecognized ext children preserved verbatim (aef:constituents,
     aef:endpoint, aef:contextReads, …) — the parser dropping these silently
-    is the T-2614 data-loss class."""
+    is the T-2614 data-loss class. Foreign-namespace children land here too,
+    whatever their local name (T-4387), and so does a structured name in a
+    context that does not read it (T-4518)."""
     ee = el.find(_q("extensionElements"))
     if ee is None:
         return []
     return [_raw_xml(c) for c in ee
-            if isinstance(c.tag, str) and c.tag.split("}")[-1] not in _KNOWN_EXT]
+            if isinstance(c.tag, str) and not _is_read(c, known)]
 
 
 #: The emitter's own trailer, present in every generated file. Never a map's doc —
@@ -196,7 +543,42 @@ def _is_boilerplate_comment(text: str) -> bool:
     return len([ln for ln in stripped.splitlines() if ln.strip()]) == 1
 
 
+def _is_empty_shell(proc) -> bool:
+    """A process holding nothing a spec could carry: only childless, textless
+    documentation / laneSet / extensionElements (Bizagi's second-pool shell)."""
+    for c in proc:
+        if not isinstance(c.tag, str):
+            continue
+        if (c.tag.split("}")[-1] not in ("documentation", "laneSet", "extensionElements")
+                or len(c) or (c.text or "").strip()):
+            return False
+    return True
+
+
+def _single_process(root):
+    """T-4502: a spec models ONE process. A second one used to be skipped by
+    root.find() — exit 0, its tasks gone (832 multiple-diagrams). Refuse when an
+    extra process carries content; an empty shell is dropped with a warning."""
+    procs = root.findall(_q("process"))
+    if not procs:
+        raise SystemExit("parse: no <bpmn:process> in this document — nothing to derive")
+    extra = [p for p in procs[1:] if not _is_empty_shell(p)]
+    if extra:
+        named = ", ".join(
+            f"{p.get('id')!r} ({sum(isinstance(c.tag, str) for c in p)} child elements)"
+            for p in extra)
+        raise SystemExit(
+            f"parse: {len(procs)} <bpmn:process> elements; a spec models one "
+            f"({procs[0].get('id')!r}) and would drop {named} — refusing rather "
+            f"than losing them silently (T-4502). Split the document per process.")
+    for p in procs[1:]:
+        print(f"parse: warning: dropping empty process {p.get('id')!r} "
+              f"(name={p.get('name')!r}; no flow elements, lanes or text)", file=sys.stderr)
+    return procs[0]
+
+
 def parse_map(xml_text: str) -> dict:
+    prefixes = _source_prefixes(xml_text)
     parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
     root = ET.fromstring(xml_text, parser=parser)
 
@@ -216,8 +598,9 @@ def parse_map(xml_text: str) -> dict:
             doc = cand
         break
 
-    proc = root.find(_q("process"))
-    wm = _ext(proc).get("workflowMeta", {})
+    proc = _single_process(root)
+    proc_ext = _ext(proc, _PROCESS_EXT)
+    wm = proc_ext.get("workflowMeta", {})
     spec = {
         "spec_version": 1,
         "id": wm.get("id"),
@@ -225,6 +608,24 @@ def parse_map(xml_text: str) -> dict:
         "schema_version": int(wm.get("schemaVersion", "2")),
         "tier_default": int(wm.get("tier_default", "1")),
     }
+    # T-4518: unknown aef:/foreign siblings of aef:workflowMeta, verbatim.
+    proc_raw = _ext_raw(proc, _PROCESS_EXT | {"meta"})
+    if proc_raw:
+        spec["ext_raw"] = proc_raw
+    # T-4549: process-level aef:meta (mappingVersion, aef:prefixes — v1.1 §1, §6).
+    pmeta, at = _io_take(proc, "meta", _PROCESS_EXT)
+    if pmeta is not None:
+        spec["process_meta"] = pmeta
+        if at < len(proc_raw):
+            spec["process_meta_at"] = at
+        mv = mapping_version(spec)
+        if mv is not None and mv not in MAPPING_VERSIONS:
+            raise SystemExit(
+                f"parse: process aef:meta declares mappingVersion={mv!r}; this reader "
+                f"knows {', '.join(MAPPING_VERSIONS)} (v1.0 = no attribute) — refusing "
+                f"the map rather than misreading it (rule 1.5, T-4549)")
+    if _ext_attrs(proc_ext):
+        spec["ext_attrs"] = _ext_attrs(proc_ext)
     collab = root.find(_q("collaboration"))
     if collab is not None:
         part = collab.find(_q("participant"))
@@ -238,7 +639,8 @@ def parse_map(xml_text: str) -> dict:
     laneset = proc.find(_q("laneSet"))
     if laneset is not None:
         for lane in laneset.findall(_q("lane")):
-            lm = _ext(lane).get("laneMeta", {})
+            lane_ext = _ext(lane, _LANE_EXT)
+            lm = lane_ext.get("laneMeta", {})
             lanes.append({
                 "id": lane.get("id"),
                 "name": lane.get("name"),
@@ -246,6 +648,11 @@ def parse_map(xml_text: str) -> dict:
                 "authority": lm.get("authority"),
                 "height": _dim(lm["height"]) if lm.get("height") else None,
             })
+            lane_raw = _ext_raw(lane, _LANE_EXT)
+            if lane_raw:
+                lanes[-1]["ext_raw"] = lane_raw
+            if _ext_attrs(lane_ext):
+                lanes[-1]["ext_attrs"] = _ext_attrs(lane_ext)
             for ref in lane.findall(_q("flowNodeRef")):
                 node_lane[ref.text.strip()] = lane.get("id")
     spec["lanes"] = lanes
@@ -256,13 +663,35 @@ def parse_map(xml_text: str) -> dict:
     for el in proc:
         local = el.tag.split("}")[-1] if isinstance(el.tag, str) else None
         if local in TAG_TO_TYPE:
-            ext = _ext(el)
+            known = _CALL_EXT if local == "callActivity" else _NODE_EXT
+            ext = _ext(el, known)
             n = {
                 "id": el.get("id"),
                 "lane": node_lane.get(el.get("id")),
                 "type": TAG_TO_TYPE[local],
                 "name": el.get("name"),
             }
+            if local in DEFAULT_FLOW_TAGS and el.get("default"):
+                n["default"] = el.get("default")
+            if local == "boundaryEvent":
+                n["attached_to"] = el.get("attachedToRef")
+                if el.get("cancelActivity") is not None:
+                    n["cancel_activity"] = el.get("cancelActivity")
+            # T-4389: namespace-qualified attributes (camunda:asyncBefore, …)
+            # with the source prefix and the declaration they need.
+            schema_attrs = BPMN_SCHEMA_ATTRS.get(local, ())
+            for key, val in el.attrib.items():
+                if not key.startswith("{"):
+                    # T-4505: schema-defined plain attributes (messageRef,
+                    # instantiate, eventGatewayType, …) verbatim.
+                    if key in schema_attrs:
+                        n.setdefault("attrs", {})[key] = val
+                else:
+                    uri, local = key[1:].split("}", 1)
+                    pfx = prefixes.get(uri, "")
+                    n.setdefault("attrs", {})[f"{pfx}:{local}"] = val
+                    if _ROOT_NS.get(pfx) != uri:
+                        n.setdefault("xmlns", {})[pfx] = uri
             if "uid" in ext:
                 n["uid"] = ext["uid"].get("value")
             if "position" in ext:
@@ -288,9 +717,32 @@ def parse_map(xml_text: str) -> dict:
                 n["handoff"] = h
             if "meta" in ext:
                 n["meta"] = dict(ext["meta"])
-            raw = _ext_raw(el)
+            if n["type"] == "call":  # not `local`: rebound by the attrs loop
+                n["called_element"] = el.get("calledElement")
+                if "callRef" in ext:
+                    n["call_ref"] = ext["callRef"].get("workflowRef")
+                io = _io_mapping(el)
+                if io is not None:
+                    n["io_mapping"] = io
+            if _ext_attrs(ext):
+                n["ext_attrs"] = _ext_attrs(ext)
+            raw = _ext_raw(el, known | {"io"})
             if raw:
                 n["ext_raw"] = raw
+            # T-4549: aef:io modelled (mapping v1.1 attributes and children).
+            io_, at = _io_take(el, "io", known)
+            if io_ is not None:
+                n["io"] = io_
+                if at < len(raw):
+                    n["io_at"] = at
+            # T-4388: unmodelled node children (loop characteristics,
+            # ioSpecification, documentation, …) verbatim, as flows do.
+            # incoming/outgoing are derived from flows on emit.
+            raw = [_raw_xml(c) for c in el
+                   if isinstance(c.tag, str) and c.tag.split("}")[-1]
+                   not in ("extensionElements", "incoming", "outgoing")]
+            if raw:
+                n["raw_children"] = raw
             nodes.append(n)
         elif local == "sequenceFlow":
             f = {
@@ -300,9 +752,14 @@ def parse_map(xml_text: str) -> dict:
             }
             if el.get("name"):
                 f["name"] = el.get("name")
-            ext = _ext(el)
+            ext = _ext(el, _FLOW_EXT)
             if "uid" in ext:
                 f["uid"] = ext["uid"].get("value")
+            if _ext_attrs(ext):
+                f["ext_attrs"] = _ext_attrs(ext)
+            ext_raw = _ext_raw(el, _FLOW_EXT)
+            if ext_raw:
+                f["ext_raw"] = ext_raw
             # T-2614: preserve non-extension flow children verbatim
             # (conditionExpression with xsi:type + expression text).
             raw = [_raw_xml(c) for c in el
@@ -317,6 +774,12 @@ def parse_map(xml_text: str) -> dict:
             # gone through recreate, flows left dangling, map rendered
             # disconnected). Any identified process child we cannot round-trip
             # is now a hard error — extend TYPE_TO_TAG deliberately instead.
+            if local in REFUSED_FLOW_TAGS:
+                raise SystemExit(
+                    f"parse: refused BPMN element <bpmn:{local} "
+                    f"id=\"{el.get('id')}\"> — {REFUSED_FLOW_TAGS[local]}; "
+                    f"parse_map does not round-trip it (T-4505)."
+                )
             raise SystemExit(
                 f"parse: unsupported BPMN element <bpmn:{local} "
                 f"id=\"{el.get('id')}\"> — parse_map cannot round-trip this "
@@ -326,7 +789,50 @@ def parse_map(xml_text: str) -> dict:
             )
     spec["nodes"] = nodes
     spec["flows"] = flows
+    _check_default_flows(spec, "parse")
+    _check_boundary_hosts(spec, "parse")
     return spec
+
+
+def _check_default_flows(spec: dict, where: str) -> None:
+    """T-4399: a node's `default` must name a sequenceFlow leaving that node."""
+    src = {f["id"]: f["from"] for f in spec.get("flows", [])}
+    bad = []
+    for n in spec["nodes"]:
+        fid = n.get("default")
+        if fid is None:
+            continue
+        if fid not in src:
+            bad.append(f"node \"{n['id']}\" default=\"{fid}\" names no "
+                       f"sequenceFlow in this process")
+        elif src[fid] != n["id"]:
+            bad.append(f"node \"{n['id']}\" default=\"{fid}\" names a "
+                       f"sequenceFlow whose sourceRef is \"{src[fid]}\", "
+                       f"not \"{n['id']}\"")
+    if bad:
+        raise SystemExit(f"{where}: " + "; ".join(bad))
+
+
+#: Node types a boundaryEvent may attach to (BPMN tActivity subclasses).
+_ACTIVITY_TYPES = {"service", "user", "script", "subprocess", "call", "task",
+                   "business-rule", "send", "receive", "manual",
+                   "adhoc-subprocess", "transaction"}
+
+
+def _check_boundary_hosts(spec: dict, where: str) -> None:
+    """T-4501: attachedToRef is required and must name an activity in this map;
+    a boundary event emitted against a missing host is a dangling reference."""
+    types = {n["id"]: n["type"] for n in spec.get("nodes", [])}
+    for n in spec.get("nodes", []):
+        if n["type"] != "boundary":
+            continue
+        host = n.get("attached_to")
+        if not host:
+            raise SystemExit(f"{where}: boundaryEvent {n['id']} has no attachedToRef")
+        if types.get(host) not in _ACTIVITY_TYPES:
+            raise SystemExit(
+                f"{where}: boundaryEvent {n['id']} attachedToRef={host!r} names "
+                f"no activity in this map (found: {types.get(host) or 'nothing'})")
 
 
 def _dim(v: str):
@@ -342,6 +848,26 @@ def _dim(v: str):
 
 def _pos(v: float) -> str:
     return f"{v:.1f}" if v == int(v) else repr(v)
+
+
+#: tActivity's own children in schema sequence (BPMN 2.0 Semantic.xsd); loop
+#: characteristics close it. Anything else (subProcess flow elements, event
+#: definitions) ranks after and keeps source order (sort is stable).
+_ACTIVITY_ORDER = ("ioSpecification", "property", "dataInputAssociation",
+                   "dataOutputAssociation", "resourceRole")
+_LOOP_TAGS = ("standardLoopCharacteristics", "multiInstanceLoopCharacteristics")
+
+
+def _raw_local(raw: str) -> str:
+    """Local name of a verbatim-captured element's root tag."""
+    return re.match(r"<([^\s/>]+)", raw).group(1).split(":")[-1]
+
+
+def _node_child_rank(raw: str) -> int:
+    local = _raw_local(raw)
+    if local in _ACTIVITY_ORDER:
+        return _ACTIVITY_ORDER.index(local)
+    return len(_ACTIVITY_ORDER) + (0 if local in _LOOP_TAGS else 1)
 
 
 def _resolve_target(target: str, ghost_intent: bool, idx: dict) -> str:
@@ -363,13 +889,71 @@ def _resolve_target(target: str, ghost_intent: bool, idx: dict) -> str:
     )
 
 
+def call_findings(spec: dict, idx: dict | None = None) -> list:
+    """Cross-map reference check for callActivity nodes (T-4374, 832 proposal C).
+
+    calledElement must name a corpus map; callRef workflowRef, when present,
+    must be some map's meta.json uuid. The uuid identifies the called map and
+    calledElement is its readable name, so a disagreement is reported naming
+    both sides and the uuid wins — nothing is rewritten. No callRef is valid."""
+    idx = idx if idx is not None else store_index()
+    out = []
+    for n in spec.get("nodes", []):
+        if n.get("type") != "call":
+            continue
+        nid, ce, ref = n["id"], n.get("called_element"), n.get("call_ref")
+        if not ce:
+            out.append({"level": "error", "node": nid,
+                        "message": "callActivity has no calledElement"})
+        elif ce not in idx["by_id"]:
+            out.append({"level": "error", "node": nid,
+                        "message": f"calledElement '{ce}' is not a corpus map id"})
+        if ref is None:
+            continue
+        if ref not in idx["by_uuid"]:
+            out.append({"level": "error", "node": nid,
+                        "message": f"callRef workflowRef {ref} is no corpus map's uuid"})
+        elif ce and idx["by_uuid"][ref] != ce:
+            out.append({"level": "finding", "node": nid,
+                        "message": f"calledElement '{ce}' disagrees with callRef "
+                                   f"workflowRef {ref} (map '{idx['by_uuid'][ref]}'); "
+                                   f"the uuid wins, nothing rewritten"})
+    return out
+
+
+def _with_modelled(raws: list, owner: dict, key: str, local: str, indent: int) -> list:
+    """ext_raw with owner[key] (T-4549 modelled aef:io / process aef:meta)
+    serialized back into the slot it was read from (owner[key + "_at"])."""
+    if owner.get(key) is None:
+        return list(raws)
+    at = owner.get(f"{key}_at", len(raws))
+    return raws[:at] + [_io_xml(owner[key], local, indent)] + raws[at:]
+
+
 def emit_map(spec: dict, version: int = 1, compat_alias: bool | None = None) -> str:
     # T-2615: compat_alias None → derived from the pin capability flag (emit the
     # targetWorkflow alias only while the pinned editor cannot auto-resolve
     # uuid workflowRefs). Tests pass an explicit bool for hermeticity.
     if compat_alias is None:
         compat_alias = not _pin_resolves_workflow_ref()
+    # T-4496: the id names the map in every generated element id, so a spec
+    # without one (`id: null`, e.g. derived from a map with no aef:workflowMeta)
+    # used to die as an AttributeError deep in the emitter. Refuse up front.
+    if not isinstance(spec, dict):
+        raise SystemExit(f"generate: spec is not a mapping (got {type(spec).__name__}) "
+                         f"— an empty file? A spec needs at least `id:`")
+    if not isinstance(spec.get("id"), str) or not spec["id"].strip():
+        raise SystemExit(
+            f"generate: spec needs an id (top-level `id:` is {spec.get('id')!r}) "
+            f"— set it to the map's corpus id, e.g. `id: aef-my-map`; a map "
+            f"derived from BPMN without aef:workflowMeta carries none")
     idx = store_index()
+    errors = [f for f in call_findings(spec, idx) if f["level"] == "error"]
+    if errors:
+        raise SystemExit("generate: " + "; ".join(
+            f"{f['node']}: {f['message']}" for f in errors))
+    _check_default_flows(spec, "generate")
+    _check_boundary_hosts(spec, "generate")
     mid = spec["id"]
     L = []
     a = L.append
@@ -421,7 +1005,10 @@ def emit_map(spec: dict, version: int = 1, compat_alias: bool | None = None) -> 
     a(f'      <aef:workflowMeta id={quoteattr(mid)} version="{version}" '
       f'schemaVersion="{spec.get("schema_version", 2)}" '
       f'title={quoteattr(spec.get("title") or mid)} '
-      f'tier_default="{spec.get("tier_default", 1)}"/>')
+      f'tier_default="{spec.get("tier_default", 1)}"'
+      f'{_attrs_xml(spec.get("ext_attrs", {}).get("workflowMeta"))}/>')
+    for raw in _with_modelled(spec.get("ext_raw", []), spec, "process_meta", "meta", 6):
+        a(f"      {raw}")
     a("    </bpmn:extensionElements>")
 
     abbr = "".join(w[0] for w in mid.replace("aef-", "").split("-"))[:2]
@@ -432,7 +1019,10 @@ def emit_map(spec: dict, version: int = 1, compat_alias: bool | None = None) -> 
         attrs = f'abbr={quoteattr(lane["abbr"])} authority={quoteattr(lane["authority"])}'
         if lane.get("height") is not None:
             attrs += f' height="{lane["height"]}"'
+        attrs += _attrs_xml(lane.get("ext_attrs", {}).get("laneMeta"))
         a(f"          <aef:laneMeta {attrs}/>")
+        for raw in lane.get("ext_raw", []):
+            a(f"          {raw}")
         a("        </bpmn:extensionElements>")
         for n in spec["nodes"]:
             if n.get("lane") == lane["id"]:
@@ -450,12 +1040,34 @@ def emit_map(spec: dict, version: int = 1, compat_alias: bool | None = None) -> 
         a("")
         tag = TYPE_TO_TAG[n["type"]]
         name_attr = f" name={quoteattr(n['name'])}" if n.get("name") else ""
+        if n.get("called_element"):
+            name_attr += f" calledElement={quoteattr(n['called_element'])}"
+        if n.get("default"):
+            name_attr += f" default={quoteattr(n['default'])}"
+        if n["type"] == "boundary":
+            name_attr += f" attachedToRef={quoteattr(n['attached_to'])}"
+            if n.get("cancel_activity") is not None:
+                name_attr += f" cancelActivity={quoteattr(n['cancel_activity'])}"
+        name_attr += "".join(f" xmlns:{p}={quoteattr(u)}"
+                             for p, u in n.get("xmlns", {}).items())
+        name_attr += "".join(f" {k}={quoteattr(v)}"
+                             for k, v in n.get("attrs", {}).items())
         a(f'    <bpmn:{tag} id={quoteattr(n["id"])}{name_attr}>')
+        # T-4388: BPMN schema order — documentation precedes extensionElements;
+        # the rest follow incoming/outgoing, loop characteristics last in tActivity.
+        raws = n.get("raw_children", [])
+        for raw in raws:
+            if _raw_local(raw) == "documentation":
+                a(f"      {raw}")
+        after = sorted((r for r in raws if _raw_local(r) != "documentation"),
+                       key=_node_child_rank)
         a("      <bpmn:extensionElements>")
+        xa = n.get("ext_attrs", {})
         if n.get("uid"):
-            a(f'        <aef:uid value={quoteattr(n["uid"])}/>')
+            a(f'        <aef:uid value={quoteattr(n["uid"])}{_attrs_xml(xa.get("uid"))}/>')
         if n.get("pos"):
-            a(f'        <aef:position x="{_pos(n["pos"][0])}" y="{_pos(n["pos"][1])}"/>')
+            a(f'        <aef:position x="{_pos(n["pos"][0])}" y="{_pos(n["pos"][1])}"'
+              f'{_attrs_xml(xa.get("position"))}/>')
         if n.get("event"):
             attrs = " ".join(f"{k}={quoteattr(str(v))}" for k, v in n["event"].items())
             a(f"        <aef:eventDef {attrs}/>")
@@ -474,17 +1086,34 @@ def emit_map(spec: dict, version: int = 1, compat_alias: bool | None = None) -> 
             slug = idx["by_uuid"].get(wref) if compat_alias else None
             tw_part = f" targetWorkflow={quoteattr(slug)}" if slug else ""
             a(f'        <aef:link{tw_part} workflowRef={quoteattr(wref)}{name_part} '
-              f'linkId={quoteattr(h.get("link_id", ""))}/>')
+              f'linkId={quoteattr(h.get("link_id", ""))}{_attrs_xml(xa.get("link"))}/>')
         if n.get("meta"):
             attrs = " ".join(f"{k}={quoteattr(str(v))}" for k, v in n["meta"].items())
             a(f"        <aef:meta {attrs}/>")
-        for raw in n.get("ext_raw", []):
+        if n.get("call_ref"):
+            a(f'        <aef:callRef workflowRef={quoteattr(n["call_ref"])}'
+              f'{_attrs_xml(xa.get("callRef"))}/>')
+        if n.get("io_mapping") is not None:
+            io = n["io_mapping"]
+            io_attrs = _attrs_xml(xa.get("ioMapping"))
+            if not io["in"] and not io["out"]:
+                a(f"        <aef:ioMapping{io_attrs}/>")
+            else:
+                a(f"        <aef:ioMapping{io_attrs}>")
+                for kind in ("in", "out"):
+                    for e in io[kind]:
+                        a(f'          <aef:{kind} source={quoteattr(e["source"])} '
+                          f'target={quoteattr(e["target"])}/>')
+                a("        </aef:ioMapping>")
+        for raw in _with_modelled(n.get("ext_raw", []), n, "io", "io", 8):
             a(f"        {raw}")
         a("      </bpmn:extensionElements>")
         for fid in incoming.get(n["id"], []):
             a(f"      <bpmn:incoming>{escape(fid)}</bpmn:incoming>")
         for fid in outgoing.get(n["id"], []):
             a(f"      <bpmn:outgoing>{escape(fid)}</bpmn:outgoing>")
+        for raw in after:
+            a(f"      {raw}")
         a(f"    </bpmn:{tag}>")
 
     a("")
@@ -493,8 +1122,11 @@ def emit_map(spec: dict, version: int = 1, compat_alias: bool | None = None) -> 
         a(f'    <bpmn:sequenceFlow id={quoteattr(f["id"])}{name_attr} '
           f'sourceRef={quoteattr(f["from"])} targetRef={quoteattr(f["to"])}>')
         uid = f.get("uid")
-        if uid:
-            a(f'      <bpmn:extensionElements><aef:uid value={quoteattr(uid)}/>'
+        ext_raw = "".join(f.get("ext_raw", []))
+        uid_part = (f"<aef:uid value={quoteattr(uid)}"
+                    f"{_attrs_xml(f.get('ext_attrs', {}).get('uid'))}/>" if uid else "")
+        if uid_part or ext_raw:
+            a(f"      <bpmn:extensionElements>{uid_part}{ext_raw}"
               f"</bpmn:extensionElements>")
         for raw in f.get("raw_children", []):
             a(f"      {raw}")
@@ -722,6 +1354,9 @@ def main(argv=None):
     c = sub.add_parser("canon", help="BPMN → canonical semantic JSON")
     c.add_argument("source")
     c.add_argument("--v", type=int, default=None)
+    va = sub.add_parser("validate", help="callActivity cross-map refs; exit 1 on errors")
+    va.add_argument("source")
+    va.add_argument("--v", type=int, default=None)
     f = sub.add_parser("diff", help="semantic compare; exit 0 iff canonically identical")
     f.add_argument("a")
     f.add_argument("b")
@@ -778,6 +1413,13 @@ def main(argv=None):
     elif args.cmd == "canon":
         print(json.dumps(canonical(_load_xml(args.source, args.v)),
                          indent=2, ensure_ascii=False, sort_keys=True))
+    elif args.cmd == "validate":
+        found = call_findings(parse_map(_load_xml(args.source, args.v)))
+        for f in found:
+            print(f"{f['level'].upper()} {f['node']}: {f['message']}")
+        if not found:
+            print("no call findings")
+        return 1 if any(f["level"] == "error" for f in found) else 0
     elif args.cmd == "diff":
         ca = canonical(_load_xml(args.a, None))
         cb = canonical(_load_xml(args.b, None))

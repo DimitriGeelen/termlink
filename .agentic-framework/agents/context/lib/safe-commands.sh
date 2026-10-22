@@ -154,6 +154,40 @@ _fw_advance_cwd() {
     return 0
 }
 
+# T-4536: _fw_note_literal_vars <segment> <operator that ended it>. T-4512 made
+# the curl/wget check treat a word that begins with "$X" as a possible option,
+# which is right when X comes from the environment and wrong for the T-3644 idiom
+# `WURL=x; curl -sf "$WURL/"`, where the line itself fixed X. _FW_LIT_VARS holds
+# the names a literal assignment set to a value that cannot begin an option
+# (non-empty, no leading -, no $, backtick or backslash). It survives only `&&`
+# and `;`, and only into further literal assignments or a curl/wget clause: any
+# other segment (read, export, printf -v, eval, a loop ...) may reassign, so it
+# empties the set. Unknown stays unknown, which is the blocking direction.
+_fw_note_literal_vars() {
+    local _s="${1#"${1%%[![:space:]]*}"}" _b _n _v
+    _s="${_s%"${_s##*[![:space:]]}"}"
+    case "$2" in '&&'|';'|'') ;; *) _FW_LIT_VARS=" "; return 0 ;; esac
+    if [[ "$_s" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(([^[:space:]\"\'\`\;\&\|\<\>\(\)]|\"[^\"\`]*\"|\'[^\']*\')*)$ ]]; then
+        _n="${BASH_REMATCH[1]}"; _v="${BASH_REMATCH[2]}"
+        _FW_LIT_VARS="${_FW_LIT_VARS// $_n / }"
+        case "$_v" in *'$'*|*'\'*) return 0 ;; esac
+        _v="${_v//\"/}"; _v="${_v//\'/}"
+        [ -n "$_v" ] && [[ "$_v" != -* ]] && _FW_LIT_VARS+="$_n "
+        return 0
+    fi
+    _b="${_s%%[[:space:]]*}"; _b="${_b##*/}"
+    case "$_b" in curl|wget) ;; *) _FW_LIT_VARS=" " ;; esac
+    return 0
+}
+
+# T-4536: is this option word (kind E) an expansion of a name in _FW_LIT_VARS,
+# i.e. `$NAME` or `${NAME}` followed by nothing or a non-name character?
+_fw_word_is_literal_var() {
+    [[ "$1" =~ ^\$(\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*)([^A-Za-z0-9_]|$)) ]] || return 1
+    local _n="${BASH_REMATCH[2]:-${BASH_REMATCH[3]}}"
+    [[ "${_FW_LIT_VARS:- }" == *" $_n "* ]]
+}
+
 # T-4409: the shell's cwd at the start of a command line: the payload cwd when it is
 # absolute; else the hook's $PWD only when it IS PROJECT_ROOT; else empty (unknown).
 _fw_initial_git_cwd() {
@@ -167,7 +201,34 @@ _fw_initial_git_cwd() {
     return 0
 }
 
+# T-4511: does the text carry process substitution, `<(CMD)` or `>(CMD)`? Bash runs
+# CMD whatever the outer verb is, so `cat <(touch x)` executes touch, and the outer
+# redirect scan only sees `>`. A mention is not a use: a backslash-escaped character
+# is skipped, and so is single-quoted text, but only on a line with NO double quote.
+# Inside "…" a `'` is literal while inside "$(…)" it opens a quote again, so a
+# flat scan of a line mixing the two could misread where a quote ends and skip a
+# real `<(`; refusing every unescaped `<(` / `>(` there over-blocks toward the gate.
+_fw_has_process_subst() {
+    local s="$1" i n=${#1} ch sq=0 honour_sq=1
+    [[ "$s" == *'"'* ]] && honour_sq=0
+    for (( i=0; i<n; i++ )); do
+        ch="${s:i:1}"
+        if [ "$sq" -eq 1 ]; then
+            [ "$ch" = "'" ] && sq=0
+            continue
+        fi
+        case "$ch" in
+            "'") sq=$honour_sq ;;
+            '\') i=$((i+1)) ;;
+            '<'|'>') [ "${s:i+1:1}" = "(" ] && return 0 ;;
+        esac
+    done
+    return 1
+}
+
 is_bash_safe_command() {
+    # T-4511: process substitution runs a command anywhere on the line.
+    _fw_has_process_subst "$1" && return 1
     local _cmd="$1" _seg _n=0
     # T-4343: the cwd the git arm resolves -C / --git-dir against. Top level starts at
     # the shell's cwd from the hook payload. A nested call (F-15 `X=$(...)`) inherits
@@ -183,6 +244,9 @@ is_bash_safe_command() {
         _c0="$(_fw_initial_git_cwd)"
     fi
     local _FW_GIT_CWD="$_c0"
+    # T-4536: names this line assigned a literal that cannot read as an option
+    # (_fw_note_literal_vars). Never inherited: a nested `X=$(...)` starts empty.
+    local _FW_LIT_VARS=" "
     # T-4409: _FW_SEG_OPS[i] is the operator that ended kept segment i, read by
     # _fw_segments_are_safe to decide whether a cd carries into the next segment.
     local -a _segs=() _kept=() _FW_SEG_OPS=()
@@ -241,6 +305,9 @@ _fw_segments_are_safe() {
             _rest="${_s#"$_kw"}"
             _rest="${_rest#"${_rest%%[![:space:]]*}"}"
             case "$_kw" in
+                for|while|until) _FW_LIT_VARS=" " ;;
+            esac
+            case "$_kw" in
                 for)
                     [ -z "$_expect" ] || return 1
                     _fw_loop_for_header_is_safe "$_rest" || return 1
@@ -272,6 +339,11 @@ _fw_segments_are_safe() {
                     fi
                     _fw_single_command_is_safe "$_s" || return 1
                     _fw_advance_cwd "$_s" "${_FW_SEG_OPS[$_si]:-}"
+                    if [ "$_depth" -gt 0 ]; then
+                        _FW_LIT_VARS=" "
+                    else
+                        _fw_note_literal_vars "$_s" "${_FW_SEG_OPS[$_si]:-}"
+                    fi
                     ;;
             esac
             break
@@ -425,6 +497,10 @@ _fw_env_prefix_is_denied() {
         # early, never point it at another repository.
         # generic spawn-a-program hooks
         PAGER|EDITOR|VISUAL) return 0 ;;
+        # T-4626: an rg config file can carry --pre / --hostname-bin.
+        RIPGREP_CONFIG_PATH) return 0 ;;
+        # T-4630: journalctl (and every systemd tool) runs SYSTEMD_PAGER via a shell.
+        SYSTEMD_PAGER|SYSTEMD_PAGERSECURE) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -591,6 +667,387 @@ sys.exit(1 if s.git_output_risk(sys.argv[2]) else 3)' "$_FW_SAFE_COMMANDS_LIB" "
     return 0
 }
 _FW_SAFE_COMMANDS_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../lib" 2>/dev/null && pwd)"
+
+# T-4513: git grep -O[CMD] / --open-files-in-pager[=CMD] STARTS CMD (default: the
+# pager) on the matching files although the verb is a read. Judged on the dequoted
+# words (_fw_option_words): a short bundle with O before a letter that takes an
+# argument (-iO, -Ovim; not -eO, whose O is the pattern), any unambiguous prefix
+# of the long option (git accepts --op…), or a word that begins with an expansion.
+# Words after `--` are pathspecs but are refused as well (fail closed).
+# _fw_git_grep_opens_pager <normalised "git grep args...">; 0 = may open one.
+_fw_git_grep_opens_pager() {
+    local i j tok
+    _fw_option_words "$1" || return 0
+    for (( i=2; i<${#_FW_OW[@]}; i++ )); do
+        tok="${_FW_OW[i]}"
+        [ "${_FW_OWK[i]}" = E ] && return 0
+        case "$tok" in
+            --op*)
+                tok="${tok%%=*}"
+                case --open-files-in-pager in "$tok"*) return 0 ;; esac ;;
+            --*) ;;
+            -?*)
+                for (( j=1; j<${#tok}; j++ )); do
+                    case "${tok:j:1}" in
+                        O) return 0 ;;
+                        e|f|A|B|C|m|-) break ;;
+                    esac
+                done ;;
+        esac
+    done
+    return 1
+}
+
+# T-4631: git help -w / --web starts a web browser (via its web--browse helper) whatever the
+# configuration says, so it is an action, not a read. Judged on the dequoted words:
+# a short bundle holding w, any prefix of --web (git accepts --w, --we), or a word
+# that begins with an expansion. Words after `--` are refused as well.
+# _fw_git_help_opens_browser <normalised "git help args...">; 0 = may open one.
+_fw_git_help_opens_browser() {
+    local i tok
+    _fw_option_words "$1" || return 0
+    for (( i=2; i<${#_FW_OW[@]}; i++ )); do
+        tok="${_FW_OW[i]}"
+        [ "${_FW_OWK[i]}" = E ] && return 0
+        case "$tok" in
+            --?*) case --web in "${tok%%=*}"*) return 0 ;; esac ;;
+            -?*) case "${tok:1}" in *w*) return 0 ;; esac ;;
+        esac
+    done
+    return 1
+}
+
+# T-4629: git remote and git reflog are mixed verbs (T-2888's class): `remote add|
+# remove|set-url|…` write .git/config, `reflog expire|delete|drop` destroy history.
+# remote is admitted only bare, after -v/--verbose, or with show / get-url; reflog
+# unless any word is expire, delete or drop (its default is show, and an argument
+# that is not a sub-verb is a ref to show). Judged on the dequoted words; a word
+# that begins with an expansion, or words that cannot be resolved, are refused.
+# _fw_git_mixed_verb_is_read <normalised "git verb args...">; 0 = read.
+_fw_git_mixed_verb_is_read() {
+    local i tok
+    _fw_option_words "$1" || return 1
+    for (( i=2; i<${#_FW_OW[@]}; i++ )); do
+        [ "${_FW_OWK[i]}" = E ] && return 1
+    done
+    case "${_FW_OW[1]:-}" in
+        remote)
+            for (( i=2; i<${#_FW_OW[@]}; i++ )); do
+                tok="${_FW_OW[i]}"
+                case "$tok" in
+                    -v) continue ;;
+                    --v*) case --verbose in "$tok"*) continue ;; esac; return 1 ;;
+                    show|get-url) return 0 ;;
+                    *) return 1 ;;
+                esac
+            done
+            return 0 ;;
+        reflog)
+            for (( i=2; i<${#_FW_OW[@]}; i++ )); do
+                case "${_FW_OW[i]}" in expire|delete|drop) return 1 ;; esac
+            done
+            return 0 ;;
+    esac
+    return 1
+}
+
+# T-4627: git ls-remote / fetch --upload-pack=CMD and push --receive-pack=CMD /
+# --exec=CMD RUN CMD as the remote's pack program (local-path and ssh transports),
+# although the verbs are admitted by name. Judged on the dequoted words: any
+# unambiguous prefix of those long options (git accepts --u…, --rece…, --e…), any
+# short bundle holding u on ls-remote/fetch (-u is --upload-pack on ls-remote,
+# --update-head-ok on fetch: refused on both, fail closed), and a word that begins
+# with an expansion. Words after `--` are refused as well.
+# _fw_git_transport_runs_program <normalised "git verb args...">; 0 = may run one.
+_fw_git_transport_runs_program() {
+    local i j tok sub
+    _fw_option_words "$1" || return 0
+    sub="${_FW_OW[1]:-}"
+    for (( i=2; i<${#_FW_OW[@]}; i++ )); do
+        tok="${_FW_OW[i]}"
+        [ "${_FW_OWK[i]}" = E ] && return 0
+        case "$tok" in
+            --?*)
+                tok="${tok%%=*}"
+                [ "${#tok}" -ge 3 ] || continue
+                case "$sub" in
+                    push) case --receive-pack in "$tok"*) [ "${#tok}" -ge 4 ] && return 0 ;; esac
+                          case --exec in "$tok"*) return 0 ;; esac ;;
+                    *)    case --upload-pack in "$tok"*) return 0 ;; esac ;;
+                esac ;;
+            -?*)
+                [ "$sub" = push ] && continue
+                for (( j=1; j<${#tok}; j++ )); do
+                    [ "${tok:j:1}" = u ] && return 0
+                done ;;
+        esac
+    done
+    return 1
+}
+
+# T-4512: THE word list every option check reads. The find and curl/wget checks
+# matched quote-stripped words and sed/sort matched raw text, so -'exec', "-o",
+# $'-i' and -{o,u} hid the option they look for (G-121; T-4485 fixed git alone).
+# _fw_option_words <one clause> fills _FW_OW (words as the program gets them) and
+# _FW_OWK (L = literal, E = begins with a quoted expansion, content unknown).
+# Plain text is split in bash; anything with a quote, backslash, $, backtick, glob
+# or brace goes to lib/shell_write_scan.py option_words, the tokenizer git_output_risk
+# uses. Returns 1 when the words cannot be resolved (unquoted $, backtick, unquoted
+# glob, unterminated quote) or python3/the library fails: callers treat 1 as unsafe.
+_fw_option_words() {
+    _FW_OW=(); _FW_OWK=()
+    local _special="[]\$\`'\"\\\\*?[{]" _rec _ok=0
+    if ! [[ "$1" =~ $_special ]]; then
+        read -ra _FW_OW <<< "$1"
+        local _i
+        for _i in "${!_FW_OW[@]}"; do _FW_OWK[_i]=L; done
+        return 0
+    fi
+    while IFS= read -r -d '' _rec; do
+        if [ "$_rec" = OK ]; then _ok=1; break; fi
+        _FW_OWK+=("${_rec:0:1}"); _FW_OW+=("${_rec:1}")
+    done < <(python3 -I -c 'import sys
+sys.path.insert(0, sys.argv[1])
+import shell_write_scan as s
+words, why = s.option_words(sys.argv[2])
+if words is None:
+    sys.exit(1)
+sys.stdout.write("".join(k + w + "\0" for w, k in words) + "OK\0")' "$_FW_SAFE_COMMANDS_LIB" "$1" 2>/dev/null)
+    [ "$_ok" -eq 1 ] && return 0
+    _FW_OW=(); _FW_OWK=()
+    return 1
+}
+
+# T-4509: can this awk clause run a command? The arm below admitted awk on the
+# argument that its only write form needs a literal `>`, but awk also RUNS commands:
+# system("…"), "cmd" | getline, print | "cmd", gawk's |& coprocess. The program text
+# is judged by lib/shell_write_scan.py awk_program_risk (strings, regex literals and
+# comments are data). Options are a whitelist: -f/-E/-i/-l load code the text does
+# not show, -d/-D/-o/-p write files (gawk), and anything unknown fails closed, as do
+# a program that begins with an expansion and a missing python3 or library.
+_fw_awk_runs_command() {
+    local i tok n prog_seen=0
+    local -a progs=()
+    _fw_option_words "$1" || return 0
+    n=${#_FW_OW[@]}
+    for (( i=1; i<n; i++ )); do
+        tok="${_FW_OW[i]}"
+        [ "${_FW_OWK[i]}" = E ] && return 0
+        case "$tok" in
+            --) i=$((i + 1)); break ;;
+            -F|-v|--field-separator|--assign) i=$((i + 1)) ;;
+            -F?*|-v?*|--field-separator=*|--assign=*) ;;
+            -e|--source) i=$((i + 1)); progs+=("${_FW_OW[i]:-}"); prog_seen=1 ;;
+            --source=*) progs+=("${tok#--source=}"); prog_seen=1 ;;
+            -b|-c|-n|-N|-M|-O|-P|-r|-s|-S|-t|-L|-V|--posix|--traditional|--sandbox|--version|\
+            --characters-as-bytes|--non-decimal-data|--re-interval|--bignum|--optimize|\
+            --use-lc-numeric|--lint|--lint=*|--copyright) ;;
+            -*) return 0 ;;
+            *) break ;;
+        esac
+    done
+    if [ "$prog_seen" -eq 0 ]; then
+        [ "$i" -lt "$n" ] || return 1
+        [ "${_FW_OWK[i]}" = E ] && return 0
+        progs+=("${_FW_OW[i]}")
+    fi
+    python3 -I -c 'import sys
+sys.path.insert(0, sys.argv[1])
+import shell_write_scan as s
+sys.exit(1 if any(s.awk_program_risk(p) for p in sys.argv[2:]) else 3)' "$_FW_SAFE_COMMANDS_LIB" "${progs[@]}" 2>/dev/null
+    [ $? -eq 3 ] && return 1
+    return 0
+}
+
+# T-4510: can this sed clause run a command? GNU sed runs one with the `e` command
+# and the `e` flag of `s`. The scripts (-e/--expression, joined by newlines as sed
+# joins them, or the first operand when none is given) are judged by
+# lib/shell_write_scan.py sed_script_risk. Options are a whitelist: -f/--file loads
+# a script the text does not show, and anything unknown or ambiguous fails closed,
+# as do a word that begins with an expansion and a missing python3 or library.
+_fw_sed_runs_command() {
+    local i j tok n opt script_seen=0 script=""
+    local -a longs=(--expression= --file= --line-length= --quiet --silent --regexp-extended \
+        --separate --unbuffered --null-data --posix --debug --sandbox --binary \
+        --follow-symlinks --version --help --in-place)
+    _fw_option_words "$1" || return 0
+    n=${#_FW_OW[@]}
+    for (( i=1; i<n; i++ )); do
+        tok="${_FW_OW[i]}"
+        [ "${_FW_OWK[i]}" = E ] && return 0
+        case "$tok" in
+            --) i=$((i + 1)); break ;;
+            --?*)
+                opt=""
+                for j in "${longs[@]}"; do
+                    case "${j%=}" in "${tok%%=*}"*) [ -n "$opt" ] && return 0; opt="$j" ;; esac
+                done
+                case "$opt" in
+                    '') return 0 ;;
+                    --file=|--in-place=) return 0 ;;
+                    --expression=|--line-length=)
+                        if [ "${tok#*=}" != "$tok" ]; then j="${tok#*=}"
+                        else i=$((i + 1)); j="${_FW_OW[i]:-}"; [ "${_FW_OWK[i]:-}" = E ] && return 0; fi
+                        [ "$opt" = --expression= ] && { script+="${j}"$'\n'; script_seen=1; } ;;
+                esac ;;
+            -?*)
+                for (( j=1; j<${#tok}; j++ )); do
+                    case "${tok:j:1}" in
+                        n|E|r|s|u|z|b) ;;
+                        e|l)
+                            opt="${tok:j+1}"
+                            if [ -z "$opt" ]; then i=$((i + 1)); opt="${_FW_OW[i]:-}"; [ "${_FW_OWK[i]:-}" = E ] && return 0; fi
+                            [ "${tok:j:1}" = e ] && { script+="${opt}"$'\n'; script_seen=1; }
+                            break ;;
+                        *) return 0 ;;
+                    esac
+                done ;;
+            *) break ;;
+        esac
+    done
+    if [ "$script_seen" -eq 0 ]; then
+        [ "$i" -lt "$n" ] || return 1
+        [ "${_FW_OWK[i]}" = E ] && return 0
+        script="${_FW_OW[i]}"
+    fi
+    python3 -I -c 'import sys
+sys.path.insert(0, sys.argv[1])
+import shell_write_scan as s
+sys.exit(1 if s.sed_script_risk(sys.argv[2]) else 3)' "$_FW_SAFE_COMMANDS_LIB" "$script" 2>/dev/null
+    [ $? -eq 3 ] && return 1
+    return 0
+}
+
+# T-4512: does this sed/sort clause name its in-place / output option? The outer
+# has_bash_write_pattern regexes read the raw line, so a quoted or brace-built
+# `-i` / `-o` passed them. Judged on _fw_option_words; a word that cannot be
+# resolved, or one that begins with an expansion, counts as the option.
+_fw_filter_option_writes() {
+    local base="$1" i tok
+    _fw_option_words "$2" || return 0
+    for (( i=1; i<${#_FW_OW[@]}; i++ )); do
+        tok="${_FW_OW[i]}"
+        [ "${_FW_OWK[i]}" = E ] && return 0
+        [ "$tok" = -- ] && return 1
+        case "$base:$tok" in
+            sed:--i*|sort:--o*) return 0 ;;
+            *:--*) ;;
+            sed:-*i*|sort:-*o*) return 0 ;;
+        esac
+    done
+    return 1
+}
+
+# T-4628: does this uniq/xxd/gunzip clause write a file with no redirect? uniq and
+# xxd write their SECOND operand (`uniq IN OUT`, `xxd -r -p IN OUT`); gunzip replaces
+# X.gz with X unless it writes to stdout (-c) or only inspects (-t, -l). Operands are
+# counted on _fw_option_words with option values skipped: uniq -f/-s/-w and their long
+# forms (getopt permutes, so options may follow operands); xxd -c/-g/-l/-n/-o/-s/-R and
+# their long spellings, options only before the first operand (xxd stops there, so
+# `xxd IN -r` writes a file named -r); gunzip -S/--suffix. A word that cannot be
+# resolved, or one that begins with an expansion, counts as a write.
+_fw_filter_operand_writes() {
+    local base="$1" i j tok ops=0 out=0 opts=1
+    _fw_option_words "$2" || return 0
+    for (( i=1; i<${#_FW_OW[@]}; i++ )); do
+        tok="${_FW_OW[i]}"
+        [ "${_FW_OWK[i]}" = E ] && return 0
+        if [ "$opts" -eq 0 ] || [ "$tok" = - ] || [[ "$tok" != -* ]]; then
+            ops=$((ops + 1))
+            [ "$base" = xxd ] && opts=0
+            [ "$base" = gunzip ] && [ "$tok" = - ] && ops=$((ops - 1))
+            continue
+        fi
+        [ "$tok" = -- ] && { opts=0; continue; }
+        case "$base:$tok" in
+            uniq:--*=*|gunzip:--*=*) ;;
+            uniq:--*)
+                for j in --skip-fields --skip-chars --check-chars; do
+                    case "$j" in "$tok"*) i=$((i + 1)); break ;; esac
+                done ;;
+            uniq:-*)
+                for (( j=1; j<${#tok}; j++ )); do
+                    case "${tok:j:1}" in
+                        f|s|w) [ $((j + 1)) -eq ${#tok} ] && i=$((i + 1)); break ;;
+                    esac
+                done ;;
+            xxd:-c|xxd:-g|xxd:-l|xxd:-n|xxd:-o|xxd:-s|xxd:-R|xxd:-cols|xxd:-groupsize|\
+            xxd:-len|xxd:-name|xxd:-offset|xxd:-seek) i=$((i + 1)) ;;
+            xxd:-*) ;;
+            gunzip:--stdout|gunzip:--to-stdout|gunzip:--test|gunzip:--list) out=1 ;;
+            gunzip:--suffix) i=$((i + 1)) ;;
+            gunzip:--*) ;;
+            gunzip:-*)
+                for (( j=1; j<${#tok}; j++ )); do
+                    case "${tok:j:1}" in
+                        c|t|l) out=1 ;;
+                        S) [ $((j + 1)) -eq ${#tok} ] && i=$((i + 1)); break ;;
+                    esac
+                done ;;
+        esac
+    done
+    case "$base" in
+        uniq|xxd) [ "$ops" -ge 2 ] ;;
+        gunzip) [ "$ops" -ge 1 ] && [ "$out" -eq 0 ] ;;
+        *) return 1 ;;
+    esac
+}
+
+# T-4630: does this journalctl/dmesg clause change system state? journalctl's
+# maintenance options delete, rotate, flush or sync journal files, regenerate the
+# catalog or FSS keys, and --cursor-file=FILE rewrites FILE; dmesg -C/-c clear the
+# ring buffer and -D/-E/-n change console logging. Both use getopt_long, so any
+# prefix of a long option counts (an ambiguous one fails in the tool, so refusing it
+# costs nothing); `--cursor` itself is journalctl's read option and stays. dmesg
+# short bundles are scanned whole (fail closed). Judged on the dequoted words; a
+# word that cannot be resolved, or one that begins with an expansion, counts.
+_fw_option_changes_state() {
+    local base="$1" i j tok longs
+    case "$base" in
+        journalctl) longs="--vacuum-time --vacuum-size --vacuum-files --rotate --flush --sync --relinquish-var --smart-relinquish-var --update-catalog --setup-keys --cursor-file" ;;
+        dmesg) longs="--clear --read-clear --console-off --console-on --console-level" ;;
+        *) return 1 ;;
+    esac
+    _fw_option_words "$2" || return 0
+    for (( i=1; i<${#_FW_OW[@]}; i++ )); do
+        tok="${_FW_OW[i]}"
+        [ "${_FW_OWK[i]}" = E ] && return 0
+        [ "$tok" = -- ] && return 1
+        case "$tok" in
+            --?*)
+                tok="${tok%%=*}"
+                [ "$base:$tok" = journalctl:--cursor ] && continue
+                for j in $longs; do
+                    case "$j" in "$tok"*) return 0 ;; esac
+                done ;;
+            -?*)
+                [ "$base" = dmesg ] || continue
+                case "${tok:1}" in *[cCDEn]*) return 0 ;; esac ;;
+        esac
+    done
+    return 1
+}
+
+# T-4626: does this sort/rg clause name an option that STARTS a program? sort
+# --compress-program=CMD runs CMD when it spills to temp files (getopt accepts any
+# unambiguous prefix; `--c` alone is ambiguous with --check, so `--co…` is it). rg
+# --pre CMD runs CMD per searched file and --hostname-bin CMD runs it once; rg takes
+# no abbreviations. Judged on _fw_option_words like the write check above: a word
+# that cannot be resolved, or one that begins with an expansion, counts as the option.
+_fw_option_runs_program() {
+    local base="$1" i tok
+    _fw_option_words "$2" || return 0
+    for (( i=1; i<${#_FW_OW[@]}; i++ )); do
+        tok="${_FW_OW[i]}"
+        [ "${_FW_OWK[i]}" = E ] && return 0
+        [ "$tok" = -- ] && return 1
+        case "$base:${tok%%=*}" in
+            sort:--co*) case --compress-program in "${tok%%=*}"*) return 0 ;; esac ;;
+            rg:--pre|rg:--hostname-bin) return 0 ;;
+        esac
+    done
+    return 1
+}
 
 # Single (non-compound) command classification. This is the original
 # is_bash_safe_command body, unchanged apart from the name.
@@ -857,6 +1314,25 @@ _fw_single_command_is_safe() {
             git_sub=$(echo "$git_norm" | awk '{print $2}')
             # T-4367: --output[=FILE] on the diff-family verbs WRITES FILE.
             _fw_git_has_output_opt "$git_sub" "$git_norm" && return 1
+            # T-4513: git grep -O / --open-files-in-pager starts a program.
+            [ "$git_sub" = grep ] && _fw_git_grep_opens_pager "$git_norm" && return 1
+            # T-4627: --upload-pack / --receive-pack / --exec run a program.
+            case "$git_sub" in
+                ls-remote|fetch|push) _fw_git_transport_runs_program "$git_norm" && return 1 ;;
+            esac
+            # T-4631: git help -w / --web starts a browser.
+            [ "$git_sub" = help ] && _fw_git_help_opens_browser "$git_norm" && return 1
+            # T-4631 (decision): --ext-diff and --textconv are NOT refused. Measured on
+            # git 2.43: plain `git diff` already runs diff.external, and plain diff /
+            # show / log -p already run textconv drivers, so refusing the flags would
+            # close nothing. The programs come from configuration, and this arm trusts
+            # only configuration the command line cannot choose: the repository is held
+            # to PROJECT_ROOT (T-4343, T-4408), and -c, GIT_CONFIG_*, GIT_EXTERNAL_DIFF
+            # and the other injection channels are refused above. `git config` is gated.
+            # T-4639 closed the residual on the write side: the Write/Edit gate no longer
+            # exempts .git/config, info/attributes or hooks/ (check-active-task.sh), so
+            # naming a driver (or core.fsmonitor, which plain `git status` runs) needs a
+            # task, and a newly set exec-capable key is flagged and logged.
             case "$git_sub" in
                 # T-2888 added the second line. The first had grown one verb per
                 # incident — T-2052, T-2054, T-2462 and T-2878 each patched this
@@ -871,8 +1347,13 @@ _fw_single_command_is_safe() {
                 # residue: `git symbolic-ref HEAD refs/heads/x` writes. Same
                 # reason `config` stays out — a verb whose read and write forms
                 # differ only by an argument cannot be decided on the verb alone.
-                status|log|diff|show|remote|describe|rev-parse|shortlog|blame|ls-files|ls-tree|cat-file|name-rev|reflog)
+                status|log|diff|show|describe|rev-parse|shortlog|blame|ls-files|ls-tree|cat-file|name-rev)
                     return 0
+                    ;;
+                # T-4629: remote and reflog write on some sub-verbs.
+                remote|reflog)
+                    _fw_git_mixed_verb_is_read "$git_norm" && return 0
+                    return 1
                     ;;
                 # T-2889: branch, tag and stash are the same class as config —
                 # read and write forms differ only by arguments (`git stash`
@@ -927,6 +1408,8 @@ _fw_single_command_is_safe() {
 
         # Category 3: Searching
         grep|rg|which|where|type|command)
+            # T-4626: rg --pre / --hostname-bin run a program.
+            [ "$base" = rg ] && _fw_option_runs_program rg "$cmd" && return 1
             return 0
             ;;
 
@@ -971,7 +1454,9 @@ _fw_single_command_is_safe() {
         #
         # `awk` is here despite having a write form (`{print > "f"}`): that form needs a
         # literal `>`, which the outer redirect scan sees whether or not it sits inside
-        # quotes. Verified in the task's Decisions rather than assumed.
+        # quotes. Verified in the task's Decisions rather than assumed. That argument
+        # covers WRITING only: awk also runs commands, judged by _fw_awk_runs_command
+        # below (T-4509).
         #
         # `sed` is here despite `sed -i`: has_bash_write_pattern carries a dedicated
         # `\bsed\b.*-i` rule (:430), so in-place edits never reach this arm. Same
@@ -985,6 +1470,17 @@ _fw_single_command_is_safe() {
         # scope boundary (CLAUDE.md §Enforcement Tiers, T-2742): a file's contents are
         # not visible to a command-string scan, so executing one is never provably read-only.
         sed|awk|sort|uniq|cut|tr|nl|od|paste|join|fold|expand|unexpand|rev|comm|cmp|diff|colordiff|column|jq|seq|base64|md5sum|sha1sum|sha256sum|cksum|strings|xxd|tput|zcat|gunzip)
+            # T-4512: the outer sed -i / sort -o rules read raw text; a quoted or
+            # brace-built option is judged here on the dequoted words.
+            case "$base" in sed|sort) _fw_filter_option_writes "$base" "$cmd" && return 1 ;; esac
+            # T-4628: uniq/xxd write a second operand; gunzip writes in place.
+            case "$base" in uniq|xxd|gunzip) _fw_filter_operand_writes "$base" "$cmd" && return 1 ;; esac
+            # T-4626: sort --compress-program runs a program.
+            [ "$base" = sort ] && _fw_option_runs_program sort "$cmd" && return 1
+            # T-4509: awk runs commands with system(), | getline, print | and |&.
+            [ "$base" = awk ] && _fw_awk_runs_command "$cmd" && return 1
+            # T-4510: GNU sed runs commands with the e command and the e flag of s.
+            [ "$base" = sed ] && _fw_sed_runs_command "$cmd" && return 1
             return 0
             ;;
 
@@ -993,6 +1489,8 @@ _fw_single_command_is_safe() {
         # (`kill`, `ip`, `mount` and friends are NOT here — `ip addr` reads but `ip link
         # set` writes, and a verb-level split there is wider than this task measured).
         pgrep|pidof|getent|journalctl|dmesg|tty|logname|groups|locale|ulimit)
+            # T-4630: journalctl --vacuum-*/--rotate/… and dmesg -C/-c/-n change state.
+            _fw_option_changes_state "$base" "$cmd" && return 1
             return 0
             ;;
         systemctl)
@@ -1134,7 +1632,8 @@ _fw_single_command_is_safe() {
                     return 0
                     ;;
                 watchtower)
-                    case "$fw_sub3" in port|url|status) return 0 ;; esac
+                    # T-4562: reachable = do_url + an identity GET; writes nothing.
+                    case "$fw_sub3" in port|url|status|reachable) return 0 ;; esac
                     ;;
                 config)
                     case "$fw_sub3" in get|list|overrides) return 0 ;; esac
@@ -1260,7 +1759,10 @@ _fw_single_command_is_safe() {
                         # T-2052: `create` is task-bootstrap (writes only to the
                         # exempt .tasks/ dir) — must be allowed with no active task,
                         # else the gate deadlocks its own "create a task" advice.
-                        list|verify|review|create)
+                        # T-4115: `stale` only reads .tasks/active/ (bin/fw `stale)`
+                        # arm, no writes, every form incl. --days N) — and fw doctor's
+                        # Task-debt WARN tells the agent to run it, often at null focus.
+                        list|verify|review|create|stale)
                             return 0
                             ;;
                     esac
@@ -1353,9 +1855,9 @@ _fw_single_command_is_safe() {
         # Category 6: Validation
         python3|python)
             # Only safe if it's a parse/check command (no file writes)
-            if echo "$cmd" | grep -qE '^\s*(python3?)\s+-c\s'; then
+            if grep -qE '^\s*(python3?)\s+-c\s' <<< "$cmd"; then
                 # Check for write indicators in the inline script
-                if echo "$cmd" | grep -qE "(open\(.*, *['\"]w|\.write\(|shutil\.|os\.(rename|remove|unlink|makedirs|system))"; then
+                if grep -qE "(open\(.*, *['\"]w|\.write\(|shutil\.|os\.(rename|remove|unlink|makedirs|system))" <<< "$cmd"; then
                     return 1
                 fi
                 return 0
@@ -1363,7 +1865,7 @@ _fw_single_command_is_safe() {
             ;;
         bash|sh)
             # bash -n (syntax check only) is safe
-            if echo "$cmd" | grep -qE '^\s*(ba)?sh\s+-n\b'; then
+            if grep -qE '^\s*(ba)?sh\s+-n\b' <<< "$cmd"; then
                 return 0
             fi
             ;;
@@ -1432,6 +1934,15 @@ has_bash_write_pattern() {
     # and stay writes, and any OTHER redirect on the line still bites below.
     # (The T-3344 strip in is_bash_safe_command covers the allowlist side only;
     # check-active-task consults THIS scan first.)
+    # T-4479 (010-termlink T-3370): /dev/stdout and /dev/stderr join the strip;
+    # they are the command's own output streams, already visible to the caller.
+    # Same terminator rule, so `/dev/stdoutx` and `/dev/stderr.bak` stay writes.
+    #
+    # T-4479 (010-termlink T-3178): every rule below reads a HERESTRING, never
+    # an echo piped into `grep -qE`. The hook runs with pipefail; on a multi-line
+    # command over the 64KB pipe buffer, grep -q matches line 1 and exits, echo
+    # takes SIGPIPE, the pipeline returns 141, and a non-zero return here means
+    # "no write found": the gate failed OPEN on a match (measured 0/5 at HEAD).
     local _scan="$cmd" _sprev=""
     while [ "$_scan" != "$_sprev" ]; do
         _sprev="$_scan"
@@ -1470,11 +1981,14 @@ has_bash_write_pattern() {
         return 0
     fi
 
-    # In-place sed. Anchored on an actual FLAG, not a bare `-i` substring: the
-    # upstream rule '\bsed\b.*-i' matched `-in-` inside a filename and refused plain
-    # reads (the mirror of the bypass above). Matches `-i`, `-i.bak`, `--in-place` and
-    # clustered short flags like `-ni`; a following alphanumeric or `-` does not match.
-    if grep -qE '\bsed\b.*(^|[[:space:]])(-[a-zA-Z]*i([^a-zA-Z0-9-]|$)|--in-place)' <<< "$cmd"; then
+    # In-place sed. T-4479: anchored on a FLAG token, not a bare `-i` substring,
+    # which refused `sed -n p notes-in-x.md` as a write. A flag is a `-` not
+    # preceded by a word character, `.` or `-`, then either a short cluster
+    # containing `i` (`-i`, `-i.bak`, `-iE`, `-ni`) or any long option opening
+    # `--i` (GNU accepts `--in`, `--in-pl` for `--in-place`). Quote-preceded
+    # `"-i"` still counts. termlink's version required a non-alphanumeric after
+    # the `i`, which let `-iE` (in-place, suffix E) and `--in` through.
+    if grep -qE '\bsed\b.*(^|[^[:alnum:]_.-])-(-i|[a-zA-Z]*i)' <<< "$cmd"; then
         return 0
     fi
 
@@ -1584,10 +2098,17 @@ _fw_fetch_writes_file() {
     # (`-O-`, `-O -`, `--output-document=-`) or a no-download mode (`--spider`,
     # `--help`, `--version`) is present. The two trackers below carry that.
     local wget_stdout=0 wget_nofetch=0
-    stripped="$(_fw_strip_quoted "$cmd")" || return 0
-
-    # shellcheck disable=SC2086  # deliberate word-splitting: tokenising argv
-    set -- $stripped
+    # T-4512: the words curl/wget get (_fw_option_words), not quote-stripped ones:
+    # stripping turned `curl -'o' F URL` into `curl - F URL`. No value grammar is
+    # tracked here, so a word that begins with an expansion counts as a write.
+    _fw_option_words "$cmd" || return 0
+    # T-4536: except an expansion of a literal this line assigned.
+    local _wi
+    for _wi in "${!_FW_OWK[@]}"; do
+        [ "${_FW_OWK[_wi]}" = E ] || continue
+        _fw_word_is_literal_var "${_FW_OW[_wi]}" || return 0
+    done
+    set -- "${_FW_OW[@]}"
     [ $# -eq 0 ] && return 1
     base="${1##*/}"
     shift
@@ -1684,7 +2205,11 @@ _fw_fetch_writes_file() {
 _fw_git_refverb_is_read() {
     local verb="$1" cmd="$2"
     local -a words
-    read -ra words <<< "$cmd"
+    # T-4512: the words git gets, so `$'-D'` or `-'d'` is the flag it spells. A word
+    # that begins with an expansion may be any flag: not a read.
+    _fw_option_words "$cmd" || return 1
+    [[ " ${_FW_OWK[*]} " == *" E "* ]] && return 1
+    words=("${_FW_OW[@]}")
     # words[0]=git, words[1]=verb; arguments start at index 2.
     local args=("${words[@]:2}")
 
@@ -1739,16 +2264,26 @@ _fw_git_refverb_is_read() {
 # Failure direction is toward BLOCKING: an unparseable clause (unbalanced quote)
 # reads as carrying an action, which sends the command to the task gate rather
 # than past it — the same asymmetry argument as the compound-command judge.
+#
+# T-4512: quote-stripping hid a QUOTED predicate as well (`find . -'exec' touch {} \;`:
+# find gets -exec, the stripper left `-`). The words are now the ones find gets
+# (_fw_option_words), and the mention case is kept by the grammar instead: a test
+# that takes a value consumes the next word, so `-name "-delete"` is a name. A word
+# that begins with an expansion ("$X") in predicate position may be any predicate.
 _fw_find_has_action_predicate() {
-    local stripped tok
-    stripped="$(_fw_strip_quoted "$1")" || return 0
-    # shellcheck disable=SC2086  # deliberate word-splitting: tokenising argv
-    set -- $stripped
-    while [ $# -gt 0 ]; do
-        tok="$1"; shift
+    local i tok
+    _fw_option_words "$1" || return 0
+    for (( i=1; i<${#_FW_OW[@]}; i++ )); do
+        tok="${_FW_OW[i]}"
+        [ "${_FW_OWK[i]}" = E ] && return 0
         case "$tok" in
             -delete|-exec|-execdir|-ok|-okdir|-fprint|-fprintf|-fprint0|-fls)
                 return 0 ;;
+            -name|-iname|-path|-ipath|-wholename|-iwholename|-regex|-iregex|-lname|-ilname|\
+            -type|-xtype|-user|-group|-uid|-gid|-perm|-size|-mtime|-mmin|-atime|-amin|\
+            -ctime|-cmin|-newer|-anewer|-cnewer|-newer??|-samefile|-inum|-links|-maxdepth|\
+            -mindepth|-fstype|-context|-used|-regextype|-printf|-files0-from|-D)
+                i=$((i + 1)) ;;
         esac
     done
     return 1

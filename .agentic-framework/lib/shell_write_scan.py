@@ -56,13 +56,34 @@ from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 LEDGER_NAME = "human-ac-ticks.jsonl"
+# T-4165: the operator's standing-delegation grants are guarded the same way
+LEDGER_NAMES = (LEDGER_NAME, "standing-delegations.jsonl")
 
 # A mention of a guarded path anywhere in the command (quotes/backslashes removed).
 MENTION_RE = re.compile(
     r"\.tasks\b|tasks/(?:active|completed|templates)\b|/(?:active|completed)/T-\d"
-    r"|\bT-\d+[-\w]*\.md\b|human-ac-ticks\.jsonl|toggle-ac",
+    r"|human-ac-ticks\.jsonl|standing-delegations\.jsonl|toggle-ac",
     re.I,
 )
+# T-4159: a task-file NAME (`T-NNNN[-slug].md`) with the path word in front of it. It is
+# a mention only when nothing anchors it elsewhere: a bare name (the `cd .tasks/active &&
+# … T-1.md` case) or a directory that normalises to `.`/`..`. `docs/reports/T-1-x.md`
+# (the C-001 artefact convention) and `dispatch-T-1-prompt.md` are not task files; a
+# `.tasks/…/T-1.md` path is already a mention through MENTION_RE.
+TASK_NAME_RE = re.compile(r"([\w./-]*?)\bT-\d+[-\w]*\.md\b", re.I)
+
+
+def _mentions(text: str) -> bool:
+    if MENTION_RE.search(text):
+        return True
+    for m in TASK_NAME_RE.finditer(text):
+        prefix = m.group(1)
+        if prefix and not prefix.endswith("/"):
+            continue                    # part of a longer name: dispatch-T-1-prompt.md
+        d = os.path.normpath(prefix) if prefix else "."
+        if not d.startswith("/") and all(c in (".", "..") for c in d.split("/")):
+            return True
+    return False
 
 SEPARATORS = {";", ";;", "&&", "||", "|", "|&", "&", "(", ")", "\n", "!", "{", "}"}
 REDIRECT_WRITE = {">", ">>", ">|", "&>", "&>>", "<>", ">&", "&>|"}
@@ -103,6 +124,9 @@ class _Ctx:
     depth: int = 0
     # T-3768 read mode (scan_boundary_reads): every path-shaped WORD is judged.
     read_outside: Optional[Callable[[str], bool]] = None
+    # T-4487 boundary mode: a git diff-family word that may expand to --output; judged
+    # once the whole command is read (refused when the command names a guarded path).
+    pending_output: str = ""
 
 
 # T-4149: bash's `\cX` (control-X) consumes the character after `c` — a quote included —
@@ -131,7 +155,7 @@ def normalised(command: str) -> str:
 
 
 def mentions_guarded(command: str) -> bool:
-    return bool(MENTION_RE.search(normalised(command)))
+    return _mentions(normalised(command))
 
 
 OPERATORS = sorted([";;", "&&", "||", "|&", ">>", "&>>", "&>", ">&", ">|", "<>", "<<-", "<<<", "<<",
@@ -442,7 +466,8 @@ def _tokens(command: str, strip_heredocs: bool = True, masks: list | None = None
 
     T-4149: strip_heredocs=False when the caller already blanked bodies with the lexer;
     `masks`, when given, receives one string per token: 'u' for each unquoted character,
-    'q' for each quoted or escaped one (brace expansion only applies to unquoted text)."""
+    'q' for each quoted or escaped one (brace expansion only applies to unquoted text),
+    'd' for a `$` that expands inside double quotes (T-4512)."""
     cmd = _strip_heredoc_bodies(command) if strip_heredocs else command
     cmd = _decode_ansi_c_quoted(cmd).replace("`", "\n")
     out: list[str] = []
@@ -492,10 +517,13 @@ def _tokens(command: str, strip_heredocs: bool = True, masks: list | None = None
             mbuf.append("q" * (j - i - 1))
             inword, i = True, j + 1
         elif c == '"':
-            j, part = i + 1, []
+            # T-4512: pm marks a `$` that EXPANDS inside the quotes 'd' (one word, content
+            # unknown); every other quoted character is 'q'.
+            j, part, pm = i + 1, [], []
             while j < n and cmd[j] != '"':
                 if cmd[j] == "\\" and j + 1 < n and cmd[j + 1] in '"\\$`\n':
                     part.append(cmd[j + 1])
+                    pm.append("q")
                     j += 2
                 elif cmd.startswith(("$(", "${"), j) and not cmd.startswith("$((", j):
                     # T-4149: a nested "$(cmd "x")" / "${v:-"x"}" is one unit — its inner
@@ -506,15 +534,17 @@ def _tokens(command: str, strip_heredocs: bool = True, masks: list | None = None
                     except ParseError:
                         return None
                     part.append(cmd[j:e])
+                    pm.append("d" + "q" * (e - j - 1))
                     j = e
                 else:
                     part.append(cmd[j])
+                    pm.append("d" if cmd[j] == "$" and j + 1 < n and _EXPANDS.match(cmd[j + 1]) else "q")
                     j += 1
             if j >= n:
                 return None
             p = "".join(part)
             buf.append(p)
-            mbuf.append("q" * len(p))
+            mbuf.append("".join(pm))
             inword, i = True, j + 1
         else:
             op = next((o for o in OPERATORS if cmd.startswith(o, i)), None)
@@ -565,6 +595,280 @@ def git_output_risk(command: str) -> str | None:
     return None
 
 
+_EXPANDS = re.compile(r"[A-Za-z_0-9{(@*#?$!-]")
+# The framework's own documented idiom (CLAUDE.md §Watchtower Port): its output is a URL.
+_WATCHTOWER_URL_SUB = re.compile(r"\$\((?:bin/fw|fw|\.agentic-framework/bin/fw) watchtower url\)")
+
+
+def option_words(command: str) -> tuple[list[tuple[str, str]] | None, str | None]:
+    """T-4512: the words bash hands the program, for an option check on ONE simple
+    command. The read-only allowlist (agents/context/lib/safe-commands.sh) matched raw
+    or quote-stripped words, so `find . -'exec'` and `curl -'o' F` hid the option.
+    Words are dequoted, ANSI-C decoded and brace-expanded, each with a kind:
+      'L'  literal: exactly this word reaches the program
+      'E'  one word that BEGINS with a quoted expansion ("$X", "$(cmd)/x"): its
+           content is unknown, so it may be an option
+    A quoted expansion after a literal first character (`"Bearer $T"`) is 'L': whatever
+    it expands to, the word cannot start with `-`. Returns (None, reason) for what the
+    text cannot resolve: a backtick, an unquoted $ (may split into several words), an
+    unquoted glob, a brace expression left unexpanded, an unterminated quote."""
+    if "`" in command:
+        return None, "backtick substitution"
+    masks: list[str] = []
+    toks = _tokens(command, masks=masks)
+    if toks is None:
+        return None, "does not tokenise"
+    out: list[tuple[str, str]] = []
+    for t, m in zip(toks, masks):
+        if t in _OPSET:
+            continue
+        if t.startswith("\x00"):
+            t, m = t[1:], m[1:]
+        for e, em in _brace_expand(t, m):
+            u = "".join(c for k, c in enumerate(e) if em[k] == "u")
+            if "$" in u:
+                return None, "an unquoted expansion ($) may split into several words"
+            if any(c in "*?[" for c in u):
+                return None, "an unquoted glob"
+            if "{" in u and ("," in u or ".." in u):
+                return None, "a brace expression not expanded from the text"
+            kind = "L"
+            if em[:1] == "d":
+                kind = "E"
+                mt = _WATCHTOWER_URL_SUB.match(e)
+                if mt and "d" not in em[mt.end():]:
+                    e, kind = "http://watchtower" + e[mt.end():], "L"
+            out.append((e, kind))
+    return out, None
+
+
+# T-4509: tokens after which a `/` in awk opens a regex literal rather than dividing.
+_AWK_REGEX_AFTER = set("(,{};!~&|=<>+-*%^?:\n") | {""}
+_AWK_REGEX_KEYWORDS = {"print", "printf", "return", "in"}
+
+
+def awk_program_risk(prog: str) -> str | None:
+    """T-4509: why an awk program may run a command, or None. awk runs commands with
+    system(), `"cmd" | getline`, `print | "cmd"` / printf, and gawk's `|&` coprocess;
+    gawk's @load / @include pull in code. String literals, regex literals and comments
+    are skipped, so `/a|b/` and `"a|b"` are data; `||` is logical or. Every other `|`,
+    and `system` called as a function, is refused."""
+    code: list[str] = []
+    i, n, prev = 0, len(prog), ""
+    while i < n:
+        c = prog[i]
+        if c == '"':
+            i += 1
+            while i < n and prog[i] != '"':
+                i += 2 if prog[i] == "\\" else 1
+            if i >= n:
+                return "unterminated string"
+            i += 1
+            code.append(" S ")
+            prev = "S"
+        elif c == "/" and (prev in _AWK_REGEX_AFTER or prev in _AWK_REGEX_KEYWORDS):
+            i += 1
+            while i < n and prog[i] != "/":
+                if prog[i] == "\\":
+                    i += 2
+                elif prog[i] == "[":
+                    j = i + 1
+                    if j < n and prog[j] == "^":
+                        j += 1
+                    if j < n and prog[j] == "]":
+                        j += 1
+                    while j < n and prog[j] != "]":
+                        j += 1
+                    i = j + 1
+                elif prog[i] == "\n":
+                    return "unterminated regex"
+                else:
+                    i += 1
+            if i >= n:
+                return "unterminated regex"
+            i += 1
+            code.append(" R ")
+            prev = "R"
+        elif c == "#":
+            while i < n and prog[i] != "\n":
+                i += 1
+        elif c.isspace() and c != "\n":
+            code.append(c)
+            i += 1
+        elif c.isalnum() or c in "_$":
+            j = i
+            while j < n and (prog[j].isalnum() or prog[j] in "_$"):
+                j += 1
+            prev = prog[i:j]
+            code.append(prev)
+            i = j
+        else:
+            code.append(c)
+            prev = c
+            i += 1
+    text = "".join(code)
+    if "@" in text:
+        return "gawk @load/@include"
+    if re.search(r"(?<!\|)\|(?!\|)", text):
+        return "a pipe to or from a command (| getline, print |, |&)"
+    if re.search(r"\bsystem\s*\(", text):
+        return "system()"
+    return None
+
+
+def _sed_delimited(s: str, i: int, d: str, regex: bool = False) -> int:
+    """Index just past the closing delimiter `d` of a sed regex (regex=True) or
+    replacement starting at i, -1 when unterminated. Backslash escapes; in a regex a
+    bracket expression holds a literal `d` (GNU sed: `s/[/]/X/` replaces a slash), and
+    a `[:alpha:]`-style class inside it holds a literal `]`. Reading the delimiter
+    there as the end would desync the parse: `s/[/]/;b/e` hides its e flag."""
+    n = len(s)
+    while i < n:
+        if s[i] == "\\":
+            i += 2
+            continue
+        if s[i] == "\n" and d != "\n":
+            return -1
+        if regex and d != "[" and s[i] == "[":
+            j = i + 1
+            if j < n and s[j] == "^":
+                j += 1
+            if j < n and s[j] == "]":
+                j += 1
+            while j < n and s[j] != "]":
+                if s[j] == "[" and j + 1 < n and s[j + 1] in ":.=":
+                    k = s.find(s[j + 1] + "]", j + 2)
+                    if k < 0:
+                        return -1
+                    j = k + 2
+                    continue
+                if s[j] == "\n":
+                    return -1
+                j += 1
+            if j >= n:
+                return -1
+            i = j + 1
+            continue
+        if s[i] == d:
+            return i + 1
+        i += 1
+    return -1
+
+
+# commands that take no argument / a label / a filename / a text / a number
+_SED_PLAIN = set("=dDgGhHlnNpPxzF")
+_SED_LABEL = set(":btT")
+_SED_FILE = set("rRwW")
+_SED_TEXT = set("aic")
+_SED_NUM = set("qQlL")
+
+
+def _sed_address(s: str, i: int, first: bool) -> int:
+    """Index past one sed address at i (none is fine), -1 when unterminated:
+    N, $, first~step, /re/ or \\cREc with I/M flags, and (second address) +N, ~N."""
+    n = len(s)
+    if i < n and (s[i].isdigit() or s[i] == "$"):
+        i += 1
+        while i < n and (s[i].isdigit() or s[i] == "~"):
+            i += 1
+    elif i < n and s[i] in "/\\":
+        d = "/"
+        if s[i] == "\\":
+            if i + 1 >= n:
+                return -1
+            d, i = s[i + 1], i + 1
+        i = _sed_delimited(s, i + 1, d, regex=True)
+        if i < 0:
+            return -1
+        while i < n and s[i] in "IM":
+            i += 1
+    elif not first and i < n and s[i] in "+~":
+        i += 1
+        while i < n and s[i].isdigit():
+            i += 1
+    return i
+
+
+def sed_script_risk(script: str) -> str | None:
+    """T-4510: why a sed script may run a command or write a file, or None. GNU sed
+    runs commands with the `e` command (`e CMD`, `1e CMD`) and the `e` flag of `s`;
+    `w`/`W` and the `w` flag write a file. The script is parsed command by command
+    (addresses, `!`, `{}`, `s`/`y` with any delimiter, labels, text and file
+    arguments), so an `e` in a regex, a replacement or `a` text is data. Anything the
+    parser does not recognise is refused."""
+    s, i, n = script, 0, len(script)
+    while i < n:
+        c = s[i]
+        if c in " \t\n;}":
+            i += 1
+            continue
+        i = _sed_address(s, i, first=True)
+        if i >= 0 and i < n and s[i] == ",":
+            i += 1
+            while i < n and s[i] in " \t":
+                i += 1
+            i = _sed_address(s, i, first=False)
+        if i < 0:
+            return "unterminated address"
+        while i < n and s[i] in " \t!":
+            i += 1
+        if i >= n:
+            return None          # an address with no command: sed refuses to run
+        c = s[i]
+        i += 1
+        if c in "{}":
+            continue
+        if c == "e":
+            return "the e command runs a shell command"
+        if c in "sy":
+            if i >= n or s[i] in "\n\\":
+                return "unterminated s/y"
+            d = s[i]
+            i = _sed_delimited(s, i + 1, d, regex=(c == "s"))
+            if i < 0:
+                return "unterminated s/y"
+            i = _sed_delimited(s, i, d)
+            if i < 0:
+                return "unterminated s/y"
+            if c == "s":
+                j = i
+                while j < n and s[j] not in ";\n}":
+                    if s[j] == "e":
+                        return "the e flag of s runs the pattern space as a command"
+                    if s[j] in "wW":
+                        return "the w flag of s writes a file"
+                    j += 1
+                i = j
+            continue
+        if c in _SED_FILE:
+            if c in "wW":
+                return "w writes a file"
+            while i < n and s[i] != "\n":
+                i += 1
+            continue
+        if c in _SED_TEXT:
+            # GNU one-liner `a text` / classic `a\` + text: both run to end of line,
+            # and a trailing backslash continues the text onto the next line
+            while i < n and s[i] != "\n":
+                i += 2 if s[i] == "\\" else 1
+            continue
+        if c in _SED_LABEL:
+            while i < n and s[i] not in ";\n":
+                i += 1
+            continue
+        if c in _SED_NUM:
+            while i < n and (s[i].isdigit() or s[i] in " \t"):
+                i += 1
+            continue
+        if c in _SED_PLAIN or c == "#":
+            if c == "#":
+                while i < n and s[i] != "\n":
+                    i += 1
+            continue
+        return f"unrecognised sed command {c!r}"
+    return None
+
+
 def _decode_ansi_c_quoted(text: str) -> str:
     """Like _decode_ansi_c, but re-quote the decoded text so it stays ONE word."""
     def dec(m):
@@ -592,7 +896,29 @@ def _segments(tokens: list[str]) -> list[list[str]]:
 
 def is_guarded_path(path: str) -> bool:
     parts = path.replace("\\", "/").split("/")
-    return ".tasks" in parts or os.path.basename(path) == LEDGER_NAME
+    return ".tasks" in parts or os.path.basename(path) in LEDGER_NAMES
+
+
+def _provably_outside(path: str, root: str) -> bool:
+    """T-4336: True only when `path` is absolute and lies outside `root` (a realpath).
+
+    A relative path, or one under `root`, is NOT provably outside, so it stays guarded.
+    """
+    if not os.path.isabs(path):
+        return False
+    return not (path == root or path.startswith(root.rstrip("/") + "/"))
+
+
+def _guarded_within(root: str) -> Callable[[str], bool]:
+    """T-4336: the guard for a project at `root`. A `.tasks` path only counts when it is
+    not provably outside the project. The ledger name stays guarded everywhere, as the
+    Write/Edit leg already does, so the Bash leg is never more permissive than that one."""
+    def guarded(path: str) -> bool:
+        if os.path.basename(path) in LEDGER_NAMES:
+            return True
+        parts = path.replace("\\", "/").split("/")
+        return ".tasks" in parts and not _provably_outside(path, root)
+    return guarded
 
 
 def _resolve(target: str, ctx: _Ctx) -> tuple[bool, list[str]]:
@@ -803,7 +1129,8 @@ def _segment(seg: list[str], ctx: _Ctx) -> None:
         return
     ops = [a for a in args if not a.startswith("-")]
     if not ctx.boundary and \
-            any(os.path.basename(a) in ("human_ac_ticks.py", "human_ac_ticks") for a in ops[:2]) and "ack" in ops:
+            any(os.path.basename(a) in ("human_ac_ticks.py", "human_ac_ticks") for a in ops[:2]) and ("ack" in ops or ("delegation" in ops and
+                                                   ("grant" in ops or "revoke" in ops))):
         ctx.hits.append(Hit("records a Human-tick provenance row (the operator's act)"))
         return
     if verb in ("cd", "pushd"):
@@ -907,6 +1234,28 @@ def _segment(seg: list[str], ctx: _Ctx) -> None:
             if a.startswith("of="):
                 _check_target(a[3:], ctx, "dd of=")
         return
+    if verb == "truncate":
+        # T-3838: every operand is rewritten (`truncate -s 0 F` empties it). The value of
+        # -s/-r (also inside a cluster: `-cs 0`) and of an unabbreviated-or-abbreviated
+        # --size/--reference is not a target.
+        k, end = 0, False
+        while k < len(args):
+            a = args[k]
+            if not end and a == "--":
+                end = True
+            elif not end and a.startswith("--"):
+                name = a[2:].partition("=")[0]
+                if "=" not in a and (_is_long(name, "size") or _is_long(name, "reference")):
+                    k += 1
+            elif not end and a.startswith("-") and a != "-":
+                cluster = a[1:]
+                pos = min((cluster.find(c) for c in "sr" if c in cluster), default=-1)
+                if pos == len(cluster) - 1:
+                    k += 1          # value is the next word
+            else:
+                _check_target(a, ctx, "truncate")
+            k += 1
+        return
     if verb == "view" and not any(a in ("-c", "-s", "-es", "-e", "--cmd", "-S") or a.startswith("+") for a in args):
         return  # read-only vim; only its command options can write
     if verb in EDITORS:
@@ -941,6 +1290,10 @@ def _segment(seg: list[str], ctx: _Ctx) -> None:
             for a in rest[1:]:
                 if "$" in a or "`" in a:
                     _check_target(UNRESOLVED, ctx, f"git {sub} (an expanded argument may be --output)")
+                    lit = re.split(r"[$`]", a, 1)[0]   # T-4487: may this word be --output[=…]?
+                    if ctx.boundary and ("--output".startswith(lit) or
+                                         ("=" in lit and _GIT_OUTPUT_RE.match(lit))):
+                        ctx.pending_output = ctx.pending_output or f"git {sub} {a}"
                 for e, _m in _brace_expand(a, "u" * len(a)):
                     if re.search(r"[*?\[]", e):
                         if ctx.cwd is None:
@@ -959,7 +1312,7 @@ def _segment(seg: list[str], ctx: _Ctx) -> None:
                     else:
                         _check_target(UNRESOLVED, ctx, f"git {sub} {a}")
         if sub in ("checkout", "restore", "apply", "am", "stash", "switch", "reset") and \
-                not ctx.boundary and MENTION_RE.search(normalised(seg_text)):
+                not ctx.boundary and _mentions(normalised(seg_text)):
             ctx.hits.append(Hit(f"git {sub} names a guarded path (writes it from another revision/patch)"))
         elif sub in ("apply", "am"):
             _check_target(UNRESOLVED, ctx, f"git {sub} (paths named inside the patch)")
@@ -981,7 +1334,7 @@ def _segment(seg: list[str], ctx: _Ctx) -> None:
         flags = "".join(x.lstrip("-") for x in args if x.startswith("-")) + (args[0] if args and verb in ("tar", "bsdtar") and not args[0].startswith("-") else "")
         extracting = ((verb == "unzip" and not re.search(r"[lvtZpz]", flags)) or verb == "busybox" or ("x" in flags if verb in ("tar", "bsdtar", "7z", "7za") else "i" in flags)
                       or any(x in ("--extract", "--get") or (verb in ("7z", "7za") and x in ("x", "e")) for x in args))
-        if extracting and not ctx.boundary and MENTION_RE.search(normalised(seg_text)):
+        if extracting and not ctx.boundary and _mentions(normalised(seg_text)):
             ctx.hits.append(Hit(f"{verb} extracts into a guarded path"))
         return
     if verb in ("eval", "source", "."):
@@ -1096,13 +1449,101 @@ def _boundary_segment(exe: str, verb: str, args: list[str], ctx: _Ctx) -> bool:
 
 def _script_form(verb: str, seg_text: str, ctx: _Ctx) -> None:
     """`python3 tool.py ARGS`: the script is not opened (residual); its ARGUMENTS are seen."""
-    if not ctx.boundary and MENTION_RE.search(normalised(seg_text)):
+    if not ctx.boundary and _mentions(normalised(seg_text)):
         ctx.hits.append(Hit(f"{verb} script is handed a guarded path (the script itself is not inspected)"))
 
 
-def scan(command: str, cwd: str | None = None) -> list[Hit]:
-    """Every reason `command` writes (or may write) a guarded path. Empty list = no write seen."""
-    ctx = _Ctx(cwd=cwd, mentions=mentions_guarded(command))
+# T-4499: argument values that are a message, not shell. `_tokens` turns every backtick
+# into a command break and `_substitutions` reads `$(...)`/`` `...` `` even inside single
+# quotes, so a peer message quoting `git log --output="$F"` was scanned as a git command.
+# Only a SINGLE-quoted value is data: in double quotes bash runs the substitutions itself.
+_DATA_ARGS = {("sidecar", "send"): {"--body"}}
+_FW_VERB = re.compile(r"^(?:\S*/)?fw$")
+
+
+def _top_words(s: str) -> list[list[tuple[int, int, str]]]:
+    """Top-level words of `s` as (start, end, raw) grouped into simple commands, walked with
+    the lexer's own quoting rules. Raises ParseError on a heredoc or unbalanced text."""
+    segs, i, n, start = [[]], 0, len(s), None
+    while i < n:
+        c = s[i]
+        if c in " \t\r" or c in ";&|()\n<>":
+            if start is not None:
+                segs[-1].append((start, i, s[start:i]))
+                start = None
+            if c in ";&|()\n":
+                segs.append([])
+            elif c in "<>":
+                if s.startswith("<<", i) and not s.startswith("<<<", i):
+                    raise ParseError("heredoc")
+            i += 1
+            continue
+        if c == "#" and start is None:
+            j = s.find("\n", i)
+            i = n if j < 0 else j
+            continue
+        if start is None:
+            start = i
+        if c == "\\":
+            i += 2
+        elif c == "'":
+            i = _skip_squote(s, i + 1)
+        elif s.startswith("$'", i):
+            i = _skip_ansi(s, i + 2)
+        elif c == '"':
+            i = _dquote(s, i + 1, [], [])
+        elif c == "`":
+            i = _backtick(s, i + 1, [], [])
+        elif c == "$":
+            i = _dollar(s, i, [], [])
+        else:
+            i += 1
+    if start is not None:
+        segs[-1].append((start, n, s[start:n]))
+    return [seg for seg in segs if seg]
+
+
+def _blank_data_args(command: str) -> str:
+    """`command` with the interior of each single-quoted data argument (_DATA_ARGS) blanked."""
+    try:
+        segs = _top_words(command)
+    except ParseError:
+        return command
+    spans = []
+    for seg in segs:
+        k = 0
+        while k < len(seg) and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", seg[k][2]):
+            k += 1
+        raw = [w[2] for w in seg[k:]]
+        if len(raw) < 3 or not _FW_VERB.match(raw[0]):
+            continue
+        opts = _DATA_ARGS.get((raw[1], raw[2]))
+        if not opts:
+            continue
+        for j in range(k + 3, len(seg)):
+            a, b, w = seg[j]
+            name, eq, val = w.partition("=")
+            if eq and name in opts:
+                a, w = a + len(name) + 1, val
+            elif not (w in opts and j + 1 < len(seg)):
+                continue
+            else:
+                a, b, w = seg[j + 1]
+            # exactly one single-quoted string, nothing attached
+            if len(w) >= 2 and w[0] == "'" and w.find("'", 1) == len(w) - 1:
+                spans.append((a + 1, b - 1))
+    return _blank(command, spans)
+
+
+def scan(command: str, cwd: str | None = None, project_root: str | None = None) -> list[Hit]:
+    """Every reason `command` writes (or may write) a guarded path. Empty list = no write seen.
+
+    `project_root` (T-4336): when given, a `.tasks` target provably outside it is not a
+    guarded write. Without it every `.tasks` target is guarded, as before.
+    """
+    command = _blank_data_args(command)
+    guarded = _guarded_within(os.path.realpath(project_root)) if project_root else None
+    ctx = _Ctx(cwd=cwd, mentions=mentions_guarded(command), guarded=guarded)
     try:
         # the command itself, then every $(...) / `...` body found ANYWHERE in it — a
         # substitution inside double quotes still executes (review round 3); one inside
@@ -1227,16 +1668,48 @@ def _scan_boundary_text(text: str, ctx: _Ctx) -> None:
         ctx.depth -= 1
 
 
+_NAMED_PATH_RE = re.compile(r"(?<![\w.~})])(?:~|\.\.)?/[^\s$`{}()'\":;|&<>*?\[\]]+")
+
+
+def _names_guarded(command: str, cwd: str | None, ctx: _Ctx) -> str:
+    """T-4487: the first path-shaped piece of any word of `command` (an `=VALUE`, a
+    `${X:-VALUE}` default and $(...) bodies included) that `ctx.guarded` rejects, or ""."""
+    ctx = _Ctx(cwd=cwd, mentions=False, guarded=ctx.guarded, boundary=True)
+    try:
+        pieces = executed_texts(command)
+    except ParseError:
+        return ""
+    for piece in pieces:
+        for tok in _tokens(piece, strip_heredocs=False) or []:
+            for cand in _NAMED_PATH_RE.findall(tok):
+                ok, paths = _resolve(cand, ctx)
+                # a regex or URL fragment (`/^##`, `//host`) names no directory that exists;
+                # a write under a top-level directory that does not exist fails anyway
+                paths = [p for p in paths if os.path.isdir("/" + p.lstrip("/").split("/")[0])
+                         and p.strip("/")]
+                if ok and any((ctx.guarded or is_guarded_path)(p) for p in paths):
+                    return cand
+    return ""
+
+
 def scan_boundary(command: str, cwd: str | None, guarded, cd_ok) -> list[Hit]:
     """T-4149: every write the command makes to a path `guarded(path)` rejects, read as
     bash reads it (quote removal, `..`/symlink resolution via realpath+normpath, brace
     and tilde expansion, redirections anywhere, option clusters, $(...)/`...`/<(...)
     bodies, unquoted heredoc bodies, static `sh -c`/`eval` scripts). `cd_ok(path)` judges
     absolute cd destinations. A target only known at run time ($VAR, a path read from a
-    file) is not judged — no mention gate applies here. Unparseable text is a hit."""
+    file) is not judged — no mention gate applies here. Unparseable text is a hit.
+    T-4487 exception: a git diff-family word that may expand to --output is refused when
+    the command names a guarded path anywhere (`o=--output=/etc/x; git diff $o`). A value
+    that only a file or the environment supplies (`git diff $(cat f)`) is still not seen."""
     ctx = _Ctx(cwd=cwd, mentions=False, guarded=guarded, boundary=True, cd_ok=cd_ok)
     try:
         _scan_boundary_text(command, ctx)
+        if ctx.pending_output and not ctx.hits:
+            named = _names_guarded(command, cwd, ctx)
+            if named:
+                ctx.hits.append(Hit(ctx.pending_output + " (an expanded argument may be --output; "
+                                    "the command names a path outside the boundary)", named))
     except Exception as e:  # noqa: BLE001 — a scanner bug must not open the gate
         ctx.hits.append(Hit(f"boundary scanner error ({type(e).__name__}); refused rather than guessed"))
     return ctx.hits

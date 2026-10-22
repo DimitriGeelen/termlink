@@ -348,3 +348,7 @@ upgrades:
     from_version: "1.8.13"
     to_version: "1.8.14"
     framework_root: "/tmp/fw-upstream-UWjYb5/fw"
+  - timestamp: 2026-10-22T20:32:54Z
+    from_version: "1.8.14"
+    to_version: "1.8.14+987.g2ec39ef8e"
+    framework_root: "/tmp/claude-0/-opt-termlink/10c2f139-7c28-4c84-b41d-df672cbe37c4/scratchpad/aefsrc"

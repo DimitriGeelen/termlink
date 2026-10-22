@@ -1061,6 +1061,41 @@ head2 "11. Schedule the hourly vector-index reindex (T-3336)"
 schedule_reindex
 
 # ---------------------------------------------------------------------------
+# ACTION 11b — deploy the regenerated audit crontab after a framework upgrade (T-3554)
+#
+# `fw upgrade` regenerates .context/cron/agentic-audit.crontab when the framework's
+# cron renderer changes (v1.8.15-be.3 adds `; exit ${PIPESTATUS[0]}` so a failing
+# audit job is no longer reported as success through `| logger`), and says
+# "run 'fw cron install' to deploy". Writing /etc/cron.d is the operator's step.
+# Idempotent: skipped when the installed file already equals the source. Verified
+# byte-for-byte after installing. Seams (fixtures only): RUNME_AUDIT_CRON_SRC,
+# RUNME_AUDIT_CRON_FILE, RUNME_FW.
+# ---------------------------------------------------------------------------
+seam AUDIT_CRON_SRC RUNME_AUDIT_CRON_SRC "$PROJECT_ROOT/.context/cron/agentic-audit.crontab"
+
+sync_audit_crontab() {
+    local src="$AUDIT_CRON_SRC"
+    if [ ! -r "$src" ]; then
+        say "  FAILED  source missing: $src"; FAILED=$((FAILED+1)); return
+    fi
+    if cmp -s "$src" "$AUDIT_CRON_FILE"; then
+        say "  skip    $AUDIT_CRON_FILE already equals the registry source"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would run: fw cron install (deploy the regenerated registry crontab to $AUDIT_CRON_FILE)"; DONE=$((DONE+1)); return
+    fi
+    (cd "$PROJECT_ROOT" && $FW cron install >/dev/null 2>&1)
+    if cmp -s "$src" "$AUDIT_CRON_FILE"; then
+        say "  OK      registry crontab deployed and verified identical: $AUDIT_CRON_FILE"; DONE=$((DONE+1))
+    else
+        say "  FAILED  fw cron install ran but $AUDIT_CRON_FILE still differs from $src"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "11b. Deploy the regenerated audit crontab after the framework upgrade (T-3554)"
+sync_audit_crontab
+
+# ---------------------------------------------------------------------------
 # ACTION 12 — stop the stray second hub at /tmp/termlink-0 (T-3343, ruling B)
 #
 # T-3340: an agent's `hub restart` without TERMLINK_RUNTIME_DIR left a second hub

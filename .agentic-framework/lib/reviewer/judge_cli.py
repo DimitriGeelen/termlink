@@ -59,6 +59,7 @@ if str(_HERE.parent) not in sys.path:
     sys.path.insert(0, str(_HERE.parent))
 
 from lib import dispatch_tokens  # noqa: E402
+from lib import review_model_preflight  # noqa: E402
 from lib import review_policy  # noqa: E402
 from lib import task_commits  # noqa: E402
 from lib import verdict_ledger as vl  # noqa: E402
@@ -286,7 +287,54 @@ _rung_label = review_policy.rung_label
 # ── evidence: screenshots of the pages the task touched ──────────────────────
 
 _ROUTE_RE = re.compile(r"""@\w+\.route\(\s*["'](/[^"'<>]*)["']""")
-_URL_TOKEN_RE = re.compile(r"`(/[a-z][\w/.-]*)`")
+# T-4455: a criterion names pages as a backticked path with a query (`/search?q=a b`) or as
+# a full URL on this project's Watchtower, backticked or bare (http://<host>:3000/cron).
+_BACKTICK_RE = re.compile(r"`([^`\n]+)`")
+_PATH_QUERY_RE = re.compile(r"/[a-z][\w/.-]*(?:\?.*)?")
+_FULL_URL_RE = re.compile(r"https?://(?:<watchtower>|[\w.-]+)(?::\d+)?(?:/[^\s`<>()\[\]'\"]*)?")
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "<watchtower>"}
+
+
+def _page_of(path: str, query: str) -> str:
+    from urllib.parse import quote
+    page = path or "/"
+    if query:
+        page += "?" + quote(query.strip(), safe="=&+%/:,;@!$'*~-._")
+    return page
+
+
+def _own_page(url: str, own_netloc: str, own_port: str) -> str | None:
+    """Path+query of `url` when its origin is this project's Watchtower, else None (never foreign)."""
+    m = re.match(r"https?://((?:<watchtower>|[\w.-]+))(?::(\d+))?(/[^?#]*)?(?:\?([^#]*))?", url.strip())
+    if not m:
+        return None
+    host, port, path, query = m.group(1), m.group(2) or "", m.group(3) or "/", m.group(4) or ""
+    netloc = f"{host}:{port}" if port else host
+    if not (netloc == own_netloc or (host in _LOCAL_HOSTS and port == own_port)):
+        return None
+    return _page_of(path, query)
+
+
+def _criterion_pages(root: Path, body: str) -> list[str]:
+    from urllib.parse import urlsplit
+    own = urlsplit(_watchtower_url(root))
+    own_netloc = own.netloc
+    own_port = str(own.port) if own.port else review_policy.config_value(root, "PORT", "3000")
+    pages: list[str] = []
+    for span in _BACKTICK_RE.findall(body):
+        span = span.strip()
+        if _PATH_QUERY_RE.fullmatch(span):
+            path, _, query = span.partition("?")
+            pages.append(_page_of(path, query))
+        elif re.match(r"https?://", span):
+            p = _own_page(span, own_netloc, own_port)
+            if p:
+                pages.append(p)
+    for url in _FULL_URL_RE.findall(_BACKTICK_RE.sub(" ", body)):
+        p = _own_page(url.rstrip(".,;:!?"), own_netloc, own_port)
+        if p:
+            pages.append(p)
+    return pages
 
 
 def _changed_web_files(root: Path, task_id: str, text: str) -> list[str]:
@@ -305,7 +353,7 @@ def _pages_for(root: Path, task_id: str, task_text: str, criteria: list[dict]) -
     changed blueprints and of the blueprints rendering the changed templates."""
     pages: list[str] = []
     for c in criteria:
-        pages += _URL_TOKEN_RE.findall(c["body"])
+        pages += _criterion_pages(root, c["body"])
     changed = _changed_web_files(root, task_id, task_text)
     bp_dir = root / "web" / "blueprints"
     if bp_dir.is_dir():
@@ -402,13 +450,48 @@ def _gather_visual(root: Path, task_id: str, task_data: dict) -> dict:
         visual_checklist.section_body(task_data["text"]) or "")
     states = list(dict.fromkeys(cells[0] for cells in rows if cells and cells[0]))
     shots = []
+    problems = visual_checklist.check(task_data["path"], root, task_id, widths)
     for st in states:
+        steps, recorded = _steps_record(root, task_id, st, problems)
         for w in widths:
             f = root / VISUAL_DIR / task_id / f"{st}@{w}.png"
-            shots.append({"state": st, "width": w, "path": f"{VISUAL_DIR}/{task_id}/{st}@{w}.png",
-                          "sha256": vl._hash_path(f) if f.is_file() else ""})
-    problems = visual_checklist.check(task_data["path"], root, task_id, widths)
+            sh = {"state": st, "width": w, "path": f"{VISUAL_DIR}/{task_id}/{st}@{w}.png",
+                  "sha256": vl._hash_path(f) if f.is_file() else ""}
+            if steps:
+                # T-4391: an interaction state carries the hash of the steps that produced it, and
+                # its shot must be the one `fw ux shots` recorded for those steps.
+                sh["steps_sha256"] = steps
+                if sh["sha256"] and recorded.get(w) != sh["sha256"]:
+                    problems.append(f"state '{st}': {sh['path']} is not the one `fw ux shots` captured "
+                                    f"from its steps file at {w}px — re-run fw ux shots")
+            shots.append(sh)
     return {"widths": widths, "shots": shots, "problems": problems}
+
+
+def _steps_record(root: Path, task_id: str, state: str, problems: list[str]) -> tuple[str, dict]:
+    """T-4391: (steps_sha256, {width: shot sha256}) from the state's `fw ux shots` capture manifest
+    when it was captured from a steps file; ('', {}) for a URL state or no manifest. A manifest
+    that cannot be read, or whose steps file no longer hashes to the recorded value, is a problem."""
+    m = root / VISUAL_DIR / task_id / f"{state}.capture.json"
+    if not m.is_file():
+        return "", {}
+    try:
+        rec = json.loads(m.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        problems.append(f"state '{state}': capture manifest {m.name} is unreadable ({e})")
+        return "", {}
+    if rec.get("source") != "steps":
+        return "", {}
+    want = str(rec.get("steps_sha256") or "")
+    sf = Path(str(rec.get("steps_file") or ""))
+    sf = sf if sf.is_absolute() else root / sf
+    have = vl._hash_path(sf) if sf.is_file() else ""
+    if not want or have != want:
+        problems.append(f"state '{state}': steps file {rec.get('steps_file')!r} "
+                        + ("is missing" if not have else "changed since capture")
+                        + " — re-run fw ux shots")
+    shots = {int(x.get("width", 0)): str(x.get("sha256") or "") for x in rec.get("shots") or []}
+    return want or "missing", shots
 
 
 def _gather_evidence(root: Path, task_id: str, task_data: dict, criteria: list[dict],
@@ -547,6 +630,11 @@ def _build_brief(task_id: str, criteria: list[dict], *, rung: int = 1, rung_reas
             lines += ["", "### Visual evidence (every checklist state at every configured width)", ""]
             shots = vis.get("shots") or []
             lines += [f"- `{s['path']}`" if s["sha256"] else f"- MISSING: `{s['path']}`" for s in shots]
+            # T-4391: an interaction state names the steps that produced its shots.
+            stepped = {s["state"]: s["steps_sha256"] for s in shots if s.get("steps_sha256")}
+            lines += [f"State `{st}` was captured by `fw ux shots` from a steps file, sha256 `{h}` "
+                      f"(the steps are in `{VISUAL_DIR}/{task_id}/{st}.capture.json`)."
+                      for st, h in stepped.items()]
             if vis.get("problems") or any(not s["sha256"] for s in shots):
                 why = "; ".join(vis.get("problems") or ["a screenshot is missing"])
                 lines.append(f"**The Visual Verification evidence does NOT pass: {why}.** You MUST NOT "
@@ -610,8 +698,9 @@ def _build_brief(task_id: str, criteria: list[dict], *, rung: int = 1, rung_reas
         *[f"- Criterion {c['index']} → `--ac {c['ac_index']}`" for c in criteria],
         "",
         f"1. Write your evidence report to `{REPORT_DIR}/{task_id}/AC<N>-$FW_SIDECAR_AGENT_ID.md` "
-        "(what you checked and found). Copy any screenshot you cite into the same directory and "
-        "cite that copy.",
+        "(what you checked and found). Copy (`cp`) any screenshot you cite into the same directory "
+        "as `<name>-$FW_SIDECAR_AGENT_ID.png` and cite that copy. Files already in that directory "
+        "are other runs' recorded evidence: never move, rename, overwrite or delete them (T-4514).",
         f"2. Compute the digest you read: `bin/fw reviewer verdict digest {task_id} --ac <N>`",
         "3. Record it (replace <N>, <OUTCOME>, <DIGEST>, <REPORT>; run it exactly as written, so "
         "the shell expands `$FW_SIDECAR_AGENT_ID`):",
@@ -736,20 +825,46 @@ def _unavailable_reason(dispatch_id: str) -> str:
     except OSError:
         code = ""
     text = ""
-    for name in ("result.jsonl", "stderr.log"):
+    # result.md: antigravity prints its whole output (and its refusal) to stdout.
+    for name in ("result.jsonl", "stderr.log", "result.md"):
         try:
             text += (w / name).read_text(errors="replace").lower()
         except OSError:
             pass
+    # T-4456: a headless harness that needed a tool permission it cannot prompt for exits 0 with
+    # no verdict; say that, not a bare "exit 0".
     limit = ("usage limit" if "usage limit" in text else
-             "rate limit" if ("rate limit" in text or "429" in text) else "")
+             "rate limit" if ("rate limit" in text or "429" in text) else
+             "tool permission auto-denied (headless)" if "auto-denied" in text else "")
     if limit and code:
         return f"{limit} (exit {code})"
     if limit:
         return limit
     if code:
-        return f"exit {code}"
+        # T-4457: a harness that fails with a provider error prints it as {"type":"error",
+        # "error":{"name":..,"data":{"message":..}}}; name it rather than a bare "exit 1".
+        err = _stream_error(w / "result.jsonl")
+        return f"exit {code}: {err}" if err else f"exit {code}"
     return "no completion"
+
+
+def _stream_error(path: Path) -> str:
+    """The provider error a worker's JSON event stream carries (opencode shape), capped at 100
+    characters; '' when there is none."""
+    try:
+        lines = path.read_text(errors="replace").splitlines()
+    except OSError:
+        return ""
+    for line in reversed(lines):
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        err = ev.get("error") if isinstance(ev, dict) and ev.get("type") == "error" else None
+        if isinstance(err, dict):
+            msg = str(((err.get("data") or {}).get("message")) or err.get("name") or "")
+            return " ".join(msg.split())[:100]
+    return ""
 
 
 def _collect(root: Path, task_id: str, dispatch_id: str, criteria: list[dict],
@@ -770,7 +885,12 @@ def _collect(root: Path, task_id: str, dispatch_id: str, criteria: list[dict],
     led = ctx.ledger
     rows = [(r, i) for r, i in led.entries()
             if r.get("task") == task_id and r.get("dispatch_id") == dispatch_id]
-    unavailable = "" if (rows or led.faults) else (_unavailable_reason(dispatch_id) or "no completion")
+    # T-4456: a harness seat whose printed verdict `record-for-worker` refused also leaves no row,
+    # but it judged: name the ledger's refusal, never `unavailable: exit 0`.
+    refused = {} if rows else {
+        r.get("ac"): str(r.get("reason") or "") for r in vl._read(vl.REFUSALS, root)
+        if r.get("task") == task_id and r.get("dispatch_id") == dispatch_id}
+    unavailable = "" if (rows or refused or led.faults) else (_unavailable_reason(dispatch_id) or "no completion")
     out = []
     for c in criteria:
         mine = [(r, i) for r, i in rows if r.get("ac") == c["ac_index"]]
@@ -791,16 +911,22 @@ def _collect(root: Path, task_id: str, dispatch_id: str, criteria: list[dict],
                 if f is None:
                     res["outcome"] = row["outcome"]
                 else:
-                    res.update(source="ledger-row-invalid", why=f"{f[0]}: {f[1]}")
+                    res.update(source="ledger-row-invalid", why=f"{f[0]}: {f[1]}", fault=f[0])
                     if f[0] == "unseen-page":
                         res["flag"] = f"green-on-unseen-page: {f[1]}"
+        elif c["ac_index"] in refused:
+            res.update(source="verdict-refused",
+                       why=f"verdict refused by the ledger: {refused[c['ac_index']] or 'no reason given'}")
         out.append(res)
     return out
 
 
-def _final(root: Path, task_id: str, judged: list[dict], dispatches: list[dict]) -> tuple[dict, dict]:
+def _final(root: Path, task_id: str, judged: list[dict], dispatches: list[dict],
+           degradable: bool = False) -> tuple[dict, dict]:
     """(outcomes, why) per criterion AFTER the whole run: green only if `satisfying_verdict` - the
-    check `apply` uses, which requires every required seat and vendor - accepts it."""
+    check `apply` uses, which requires every required seat and vendor - accepts it.
+    `degradable` (T-4490): an UNAVAILABLE seat neither decides nor stops; the ledger decides
+    whether the panel closes green-degraded."""
     path, _ = vl._find_task(root, task_id)
     ctx = vl._Ctx(root, task_id, path, path.read_text(encoding="utf-8", errors="replace")) if path else None
     crits = {c.index: c for c in human_criteria(ctx.text)} if ctx else {}
@@ -809,7 +935,8 @@ def _final(root: Path, task_id: str, judged: list[dict], dispatches: list[dict])
         seat_res = [r for d in dispatches if d.get("dispatch_id") for r in d["results"]
                     if r["ac"] == c["ac_index"]]
         # T-3986: the last seat that EVALUATED decides; not-evaluated seats only report.
-        evaluated = [r for r in seat_res if r["outcome"] != vl.NOT_EVALUATED]
+        evaluated = [r for r in seat_res if r["outcome"] != vl.NOT_EVALUATED
+                     and not (degradable and r.get("unavailable"))]
         last = (evaluated or seat_res or [{"outcome": UNKNOWN, "why": "no seat was dispatched"}])[-1]
         if last["outcome"] in _CLEARS:
             good, why = (vl.satisfying_verdict(ctx, crits[c["ac_index"]])
@@ -818,6 +945,10 @@ def _final(root: Path, task_id: str, judged: list[dict], dispatches: list[dict])
                                        vl.NOT_EVALUATED if why.startswith("not-evaluated") else UNKNOWN)
             if not good:
                 whys[c["ac_index"]] = why
+            elif degradable:
+                deg = vl.green_degraded_of(ctx, crits[c["ac_index"]], good)
+                if deg:
+                    whys[c["ac_index"]] = f"{vl.GREEN_DEGRADED}: {deg}"
         else:
             outcomes[c["ac_index"]] = last["outcome"]
             if last.get("why"):
@@ -862,8 +993,13 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
           dispatcher: Dispatcher | None = None, capture: Capturer | None = None,
           now: datetime | None = None, worker_kinds: set[str] | None = None,
           kind_vendors: dict | None = None,
-          exclude_kinds: set[str] | frozenset = frozenset()) -> dict:
-    """Run one judgement. Returns a result dict; never writes a verdict."""
+          exclude_kinds: set[str] | frozenset = frozenset(),
+          model_preflight: Callable[[list[dict]], list[dict]] | None = None) -> dict:
+    """Run one judgement. Returns a result dict; never writes a verdict.
+
+    `model_preflight` (T-4506): checks each seat's pinned model against what its harness lists
+    (`lib/review_model_preflight.check`). It runs by default only when the dispatchable kinds come
+    from the real dispatcher (`worker_kinds` is None); a caller injecting kinds injects this too."""
     task_data = _load_task(task_id, root)
     if not task_data:
         return {"error": f"Task {task_id} not found", "code": 1}
@@ -895,9 +1031,22 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
     res.update(rung_due=due, rung=rung, rung_reason=reason, ceiling_note=note,
                impact=imp, weekly_spend=spent, ceiling=ceiling)
 
+    kinds = _dispatchable_kinds(root) if worker_kinds is None else set(worker_kinds)
+    # T-4506: a seat whose pinned model its harness no longer lists can only fail with an opaque
+    # provider error ('Unexpected server error' for a retired glm-5.2). Name it and do not
+    # dispatch that kind this run; a listing that fails is not a retirement.
+    preflight = model_preflight or (review_model_preflight.check if worker_kinds is None else None)
+    if preflight:
+        try:
+            pf = preflight(_backends(root)[0])
+        except Exception:  # noqa: BLE001 - the registry error is reported by _plan_seats below
+            pf = []
+        retired = review_model_preflight.retired_kinds(pf)
+        if retired:
+            res["model_retired"] = retired
+            kinds -= set(retired)
     try:
-        plan = _plan_seats(root, rung,
-                           _dispatchable_kinds(root) if worker_kinds is None else set(worker_kinds),
+        plan = _plan_seats(root, rung, kinds,
                            _kind_vendors(root) if kind_vendors is None else dict(kind_vendors),
                            exclude_kinds=set(exclude_kinds))
     except Exception as e:  # noqa: BLE001 - an unreadable registry is a refusal, not a default
@@ -952,6 +1101,14 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
     res["run_id"] = run_id
 
     res["dispatches"], res["cost_log_errors"], res["proposals"] = [], [], []
+    # T-4490: with green-degraded on, an UNAVAILABLE seat (no ledger row at all) does not stop a
+    # panel — it never dissents — so the remaining seats still sit and the ledger can judge whether
+    # the panel closes green-degraded. Amber, red, escalate and unknown rows still stop it.
+    degradable = rung >= 5 and vl.green_degraded_enabled(root)
+
+    def _stops(r: dict) -> bool:
+        return r["outcome"] not in _CLEARS and not (degradable and r.get("unavailable"))
+
     per_seat = RUNG_COST.get(rung, 2.0) / (PANEL_SIZE if rung >= 5 else 1)
     for s in plan["dispatch"]:
         seat = s["seat"]
@@ -975,11 +1132,11 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
                                   "dispatch_id": did, "results": results})
         # A panel is sequential and stops at the first seat that does not clear every criterion.
         # T-3986: a seat that could not evaluate does not stop it — the next seat may evaluate.
-        if any(r["outcome"] not in _CLEARS for r in results):
+        if any(_stops(r) for r in results):
             break
 
     # Seats no internal backend can fill: offer them to a paid backend, and WAIT. Never dispatched.
-    stopped = any(d.get("error") or any(r["outcome"] not in _CLEARS for r in d["results"])
+    stopped = any(d.get("error") or any(_stops(r) for r in d["results"])
                   for d in res["dispatches"])
     for s in plan["unfilled"]:
         if stopped:
@@ -1006,7 +1163,7 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
         for r in entry["results"]:
             r["source"] = entry["status"]
         res["dispatches"].append(entry)
-    res["outcomes"], res["why"] = _final(root, task_id, judged, res["dispatches"])
+    res["outcomes"], res["why"] = _final(root, task_id, judged, res["dispatches"], degradable)
     res["code"] = 0
     # T-4010 (dimitri-mint-dev G-010): seats were dispatched but none left a ledger row — in a
     # consumer this is every run when the dispatch could not register (no launchable kind).
@@ -1019,7 +1176,24 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
             f"— the dispatch likely could not register (check `fw termlink worker-kinds` and that "
             f"agents/termlink/termlink.sh and policy/review-backends.yaml are committed, T-4010)")
         res["code"] = 3
+    _flag_uncommitted(res)
     return res
+
+
+def _flag_uncommitted(res: dict) -> None:
+    """T-4033 (832 T-1114): a seat's verdict row that was appended but never committed never
+    counts, and the pre-push audit FAILs on it. The judge printed `unknown` and exited 0 — a
+    finished-looking run. Name every such row, with its commit error and the discard verb, and
+    exit 4 (unless an earlier error already set a code)."""
+    rows = [f"AC#{r['ac']} row {r.get('verdict_id') or '?'} — {r.get('why', '')}"
+            for d in res.get("dispatches") or [] for r in d.get("results") or []
+            if r.get("fault") == "uncommitted"]
+    if not rows:
+        res.pop("uncommitted", None)
+        return
+    res["uncommitted"] = rows
+    if not res.get("code"):
+        res["code"] = 4
 
 
 def _not_evaluated_kinds(res: dict, ac: int) -> set[str]:
@@ -1053,7 +1227,8 @@ def judge_with_reassign(task_id: str, root: Path, **kw) -> dict:
         return res
     res["reassigned"] = []
     for ac, outcome in list(res["outcomes"].items()):
-        if outcome != vl.NOT_EVALUATED and not _unavailable(res, ac):
+        # T-4490: a panel the ledger closed green-degraded is closed; it is not re-run.
+        if outcome == vl.GREEN or (outcome != vl.NOT_EVALUATED and not _unavailable(res, ac)):
             continue
         excluded = _not_evaluated_kinds(res, ac) | set(_unavailable(res, ac))
         unavailable = _unavailable(res, ac)
@@ -1105,6 +1280,7 @@ def judge_with_reassign(task_id: str, root: Path, **kw) -> dict:
         if names:
             res["no_seat_recorded"] += "; unavailable: " + ", ".join(
                 f"{k} ({v})" for k, v in sorted(names.items()))
+    _flag_uncommitted(res)
     return res
 
 
@@ -1125,6 +1301,8 @@ def _print_result(res: dict) -> None:
         print(f"  COST NOT LOGGED for seat {e['seat']}: {e['error']}")
     if res.get("ceiling_note"):
         print(f"  {res['ceiling_note']}")
+    for kind, why in sorted((res.get("model_retired") or {}).items()):
+        print(f"  seat kind {kind} not dispatched - pinned model retired: {why} (T-4506)")
     ev = res.get("evidence", {})
     if ev.get("needed"):
         print(f"Screenshots: {len(ev['shots'])} (pages: {', '.join(ev['pages']) or 'none'})"
@@ -1148,6 +1326,9 @@ def _print_result(res: dict) -> None:
         print(f"  final AC#{ac}: {res['outcomes'][ac]} - {why}")
     if res.get("no_seat_recorded"):
         print(f"ERROR: {res['no_seat_recorded']}", file=sys.stderr)
+    for u in res.get("uncommitted") or []:
+        print(f"ERROR: verdict row left uncommitted (it does not count, and fw audit FAILs on it): "
+              f"{u}", file=sys.stderr)
 
 
 def main(argv: list[str] | None = None, *, dispatcher: Dispatcher | None = None,

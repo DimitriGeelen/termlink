@@ -59,9 +59,12 @@ _resolve_commit_task() {
         COMMIT_TASK="T-012"
         return
     fi
-    # Look for any task with "handover" in its slug
+    # Reuse the dedicated handover task: the exact slug the auto-create below
+    # produces, in active/ only (T-1477). T-4230: the old '*handover*' glob over
+    # active+completed matched any task whose title mentions handover (bug
+    # reports about it), so commits were labelled with an unrelated task.
     local handover_task
-    handover_task=$(find "$TASKS_DIR/active" "$TASKS_DIR/completed" -maxdepth 1 -name '*handover*.md' -type f 2>/dev/null | head -1)
+    handover_task=$(find "$TASKS_DIR/active" -maxdepth 1 -name 'T-*-session-handover-maintenance.md' -type f 2>/dev/null | sort | head -1)
     if [ -n "$handover_task" ]; then
         COMMIT_TASK=$(basename "$handover_task" | grep -oE "T-[0-9]+" | head -1)
         if [ -n "$COMMIT_TASK" ]; then return; fi
@@ -108,6 +111,28 @@ _push_summary() {
         _ps_count=$(git -C "$PROJECT_ROOT" rev-list --count HEAD 2>/dev/null || echo "?")
         _ps_where="branch not yet on ${_first:-any remote}"
     fi
+}
+
+# T-3798: commit and push only when the handover lands inside PROJECT_ROOT.
+# HANDOVER_DIR is env-overridable for hermetic tests (T-2366); a test that set
+# it to a fixture but left PROJECT_ROOT on the real repo made the commit fail
+# (pathspec outside the repo) while _push_to_remotes still pushed the real
+# repo's HEAD to origin — twice, from inside the unit suite (T-3747 round 3).
+_handover_dir_in_project() {
+    local _hd _pr
+    _hd=$(cd "$HANDOVER_DIR" 2>/dev/null && pwd -P) || return 1
+    _pr=$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel 2>/dev/null) || return 1
+    _pr=$(cd "$_pr" 2>/dev/null && pwd -P) || return 1
+    case "$_hd/" in
+        "$_pr"/*) return 0 ;;
+    esac
+    return 1
+}
+
+_refuse_out_of_project_commit() {
+    echo ""
+    echo -e "${YELLOW}Skipping auto-commit and push (T-3798):${NC} HANDOVER_DIR=$HANDOVER_DIR is not inside the git repo at PROJECT_ROOT=$PROJECT_ROOT."
+    echo "  The handover was written; nothing was committed or pushed. Set PROJECT_ROOT to the repo that holds HANDOVER_DIR, or pass --no-commit."
 }
 
 # T-2588: Shared push leg for both normal handovers and --checkpoint commits.
@@ -332,19 +357,30 @@ mkdir -p "$HANDOVER_DIR"
 # surfacing — so the states the old field absorbed get their own fields. Union of
 # the four equals the directory listing; nothing is dropped.
 #
-# Sets: ACTIVE_TASKS, PARKED_TASKS, AWAITING_REVIEW_TASKS, UNKNOWN_STATUS_TASKS.
+#
+# T-4169: `captured` is split on horizon. Parked means horizon next/later only; a
+# captured task with horizon now (or none — `now` is the default) is ready work
+# and goes to READY_TASKS. Mapping it to parked hid ring20's bug T-2215 for 9 days.
+#
+# Sets: ACTIVE_TASKS, READY_TASKS, PARKED_TASKS, AWAITING_REVIEW_TASKS,
+# UNKNOWN_STATUS_TASKS.
 classify_active_tasks() {
-    ACTIVE_TASKS=""; PARKED_TASKS=""; AWAITING_REVIEW_TASKS=""; UNKNOWN_STATUS_TASKS=""
-    local f task_id task_status
+    ACTIVE_TASKS=""; READY_TASKS=""; PARKED_TASKS=""; AWAITING_REVIEW_TASKS=""; UNKNOWN_STATUS_TASKS=""
+    local f task_id task_status task_horizon
     shopt -s nullglob
     for f in "$TASKS_DIR/active"/*.md; do
         [ -f "$f" ] || continue
         task_id=$({ grep "^id:" "$f" 2>/dev/null || true; } | head -1 | cut -d: -f2 | tr -d ' ')
         [ -n "$task_id" ] || continue
         task_status=$({ grep "^status:" "$f" 2>/dev/null || true; } | head -1 | cut -d: -f2 | tr -d ' ')
+        task_horizon=$({ grep "^horizon:" "$f" 2>/dev/null || true; } | head -1 | cut -d: -f2 | tr -d " \"'")
         case "$task_status" in
             started-work|issues) ACTIVE_TASKS="$ACTIVE_TASKS$task_id, " ;;
-            captured)            PARKED_TASKS="$PARKED_TASKS$task_id, " ;;
+            captured)
+                case "$task_horizon" in
+                    next|later) PARKED_TASKS="$PARKED_TASKS$task_id, " ;;
+                    *)          READY_TASKS="$READY_TASKS$task_id, " ;;
+                esac ;;
             work-completed)      AWAITING_REVIEW_TASKS="$AWAITING_REVIEW_TASKS$task_id, " ;;
             # An unreadable or absent status is its own answer. Defaulting it into
             # `active` would turn a parse failure into a live-work assertion — the
@@ -354,6 +390,7 @@ classify_active_tasks() {
     done
     shopt -u nullglob
     ACTIVE_TASKS="${ACTIVE_TASKS%, }"
+    READY_TASKS="${READY_TASKS%, }"
     PARKED_TASKS="${PARKED_TASKS%, }"
     AWAITING_REVIEW_TASKS="${AWAITING_REVIEW_TASKS%, }"
     UNKNOWN_STATUS_TASKS="${UNKNOWN_STATUS_TASKS%, }"
@@ -399,6 +436,7 @@ timestamp: $TIMESTAMP
 enrichment_status: pending
 type: checkpoint
 tasks_active: [$ACTIVE_TASKS]
+tasks_ready: [$READY_TASKS]
 tasks_parked: [$PARKED_TASKS]
 tasks_awaiting_review: [$AWAITING_REVIEW_TASKS]
 tasks_unknown_status: [$UNKNOWN_STATUS_TASKS]
@@ -426,7 +464,9 @@ CHECKPOINT_EOF
     fi
 
     # Auto-commit
-    if [ "$AUTO_COMMIT" = true ]; then
+    if [ "$AUTO_COMMIT" = true ] && ! _handover_dir_in_project; then
+        _refuse_out_of_project_commit
+    elif [ "$AUTO_COMMIT" = true ]; then
         _resolve_commit_task
         GIT_AGENT=""
         if [ -f "$FRAMEWORK_ROOT/agents/git/git.sh" ]; then
@@ -828,6 +868,7 @@ timestamp: $TIMESTAMP
 enrichment_status: pending
 predecessor: $PREDECESSOR
 tasks_active: [$ACTIVE_TASKS]
+tasks_ready: [$READY_TASKS]
 tasks_parked: [$PARKED_TASKS]
 tasks_awaiting_review: [$AWAITING_REVIEW_TASKS]
 tasks_unknown_status: [$UNKNOWN_STATUS_TASKS]
@@ -1031,6 +1072,24 @@ def extract_verdict(content):
                   body, re.IGNORECASE)
     return v.group(1).upper() if v else '?'
 
+def is_bug_class(name, wf, tags):
+    """T-4169: same rule as the RCA gate (update-task.sh check_rca_section):
+    bug/bugfix/hotfix/rca/incident tag, or a defect word in the title that is
+    not part of a hyphenated compound. Non-bug workflow types never qualify."""
+    if wf in ('inception', 'specification', 'design', 'request', 'feature',
+              'enhancement', 'decommission'):
+        return False
+    if re.search(r'\b(feature|request|enhancement)\b', tags, re.I):
+        return False
+    if re.search(r'\b(bug|bugfix|hotfix|rca|incident)\b', tags, re.I):
+        return True
+    title = re.sub(r'\b(upstream )?(fix request|request to fix|ask to fix|fix proposal|'
+                   r'proposal to fix|feature request|enhancement request|feature[^.]*fix)\b',
+                   '', name, flags=re.I)
+    return bool(re.search(r'(^|[^\w-])(fix|bug|rca|broken|crash|error|regression|fail|hotfix)'
+                          r'([^\w-]|$)', title, re.I))
+
+
 horizon_order = {'now': 0, 'next': 1, 'later': 2}
 tasks = []
 
@@ -1059,10 +1118,12 @@ for f in sorted(glob.glob(os.path.join(tasks_dir, '*.md'))):
     # reader resuming a session needs.
     tlu = re.search(r'^last_update:\s*[\'"]?([^\'"\s]+)', content, re.M)
     lu = tlu.group(1) if tlu else ''
+    ttags = re.search(r'^tags:\s*(.*)', content, re.M)
+    bug = is_bug_class(tname, wf, ttags.group(1) if ttags else '')
     tasks.append((horizon_order.get(h, 0), tid.group(1).strip(),
                   tname,
                   tstatus.group(1).strip() if tstatus else '',
-                  h, verdict, wf, dec, lu))
+                  h, verdict, wf, dec, lu, bug))
 
 tasks.sort(key=lambda t: (t[0], t[1]))
 current_horizon = None
@@ -1083,7 +1144,7 @@ digest = os.environ.get('HANDOVER_DIGEST', '1') != '0'
 top_n = int(os.environ.get('DIGEST_TOP_N') or 5)
 
 wip = []
-for _, tid, tname, tstatus, h, verdict, wf, dec, lu in tasks:
+for _, tid, tname, tstatus, h, verdict, wf, dec, lu, bug in tasks:
     # T-1619: DEFER'd inceptions are parked (decision is final, not WIP).
     # Skip from WIP — they are surfaced in the "Deferred Inceptions"
     # section below (T-1517) which already covers visibility.
@@ -1094,23 +1155,41 @@ for _, tid, tname, tstatus, h, verdict, wf, dec, lu in tasks:
     if tstatus == 'work-completed':
         pending_completed.append((tid, tname, verdict, h))
         continue
-    wip.append((tid, tname, tstatus, h, lu))
+    wip.append((tid, tname, tstatus, h, lu, bug))
+
+
+def wip_rank(t):
+    """T-4169: in-flight, then captured+now (ready), then everything else."""
+    if t[2] in ('started-work', 'issues'):
+        return 0
+    if t[2] == 'captured' and t[3] == 'now':
+        return 1
+    return 2
+
 
 total_wip = len(wip)
 if digest and wip:
-    # started-work outranks captured; within each, most recently touched first.
-    # Two stable passes rather than one composite key: last_update is a string,
-    # so it sorts descending by reverse= and cannot be negated inside a tuple.
+    # In-flight outranks ready (captured+now) outranks parked; within each, most
+    # recently touched first. Two stable passes rather than one composite key:
+    # last_update is a string, so it sorts descending by reverse= and cannot be
+    # negated inside a tuple.
     wip.sort(key=lambda t: (t[4] or ''), reverse=True)
-    wip.sort(key=lambda t: t[2] != 'started-work')
-    wip = wip[:top_n]
-    print(f'Showing {len(wip)} of {total_wip} — in-flight first, then most recently '
-          f'touched. Every in-flight task ID is in frontmatter `tasks_active:`.')
+    wip.sort(key=wip_rank)
+    # T-4169: a ready bug is never elided by the top-N cut — an untouched
+    # captured+now bug otherwise loses to anything touched more recently and
+    # never surfaces (ring20 T-2215, 9 days).
+    kept = wip[:top_n]
+    kept += [t for t in wip[top_n:] if t[5] and wip_rank(t) == 1]
+    wip = kept
+    print(f'Showing {len(wip)} of {total_wip} — in-flight first, then ready '
+          f'(captured, horizon now; ready bugs always shown), then most recently '
+          f'touched. Every in-flight task ID is in frontmatter `tasks_active:`, '
+          f'every ready one in `tasks_ready:`.')
     print(f'Regenerate in full: `bin/fw task list --status started-work`')
     print()
 
 current_horizon = None
-for tid, tname, tstatus, h, lu in wip:
+for tid, tname, tstatus, h, lu, bug in wip:
     if h != current_horizon:
         current_horizon = h
         print(f'<!-- horizon: {h} -->')
@@ -1177,7 +1256,7 @@ inception_pending = []
 inception_deferred = []
 # T-1619: tuple grew to 8 elements (verdict, wf, dec). Reuse the captured
 # values; no need to re-read each task file.
-for _, tid, tname, tstatus, h, _verdict, wf, dec, _lu in tasks:
+for _, tid, tname, tstatus, h, _verdict, wf, dec, _lu, _bug in tasks:
     if tstatus == 'work-completed':
         continue
     if wf != 'inception':
@@ -1595,8 +1674,7 @@ for f in sorted(glob.glob(os.path.join(tasks_dir, '*.md'))):
 # T-1719 — a task in no other section except a bare id in tasks_active.
 focus_id = ''
 try:
-    # T-2882/T-3370 (local): fall back to PROJECT_ROOT/.context when CONTEXT_DIR is
-    # unset, so the focus lookup never silently reads '/working/focus.yaml'.
+    # T-4476: never read '/working/focus.yaml' when CONTEXT_DIR is empty.
     with open(os.path.join('${CONTEXT_DIR:-$PROJECT_ROOT/.context}', 'working', 'focus.yaml')) as fh:
         m = re.search(r'^current_task:\s*(\S+)', fh.read(), re.M)
         if m:
@@ -1622,11 +1700,11 @@ elif candidates:
 if _why:
     print(f'Continue {tid}: {tname}')
     print()
-    # T-2882 (LOCAL DIVERGENCE, re-applied after the 1.8.3 re-vendor, T-3370):
-    # a constant presented as advice reads as a recommendation; say what it is.
+    # T-4476 (termlink T-2882): a constant presented as advice reads as a
+    # recommendation; say what it is.
     print(f'_Mechanical fallback, ranked by {_why} — not a reasoned recommendation.'
-          ' This handover is \`enrichment_status: pending\`; the sections above are'
-          ' unfilled. Confirm against the task before acting on it._')
+          ' This handover is enrichment_status: pending until the sections above are'
+          ' filled. Confirm against the task before acting on it._')
 else:
     print('See active tasks')
 " 2>/dev/null || echo "See active tasks")
@@ -1692,7 +1770,9 @@ if [ -f "$FRAMEWORK_ROOT/lib/notify.sh" ]; then
 fi
 
 # Handle auto-commit
-if [ "$AUTO_COMMIT" = true ]; then
+if [ "$AUTO_COMMIT" = true ] && ! _handover_dir_in_project; then
+    _refuse_out_of_project_commit
+elif [ "$AUTO_COMMIT" = true ]; then
     _resolve_commit_task
 
     echo ""

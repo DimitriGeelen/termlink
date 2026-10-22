@@ -334,13 +334,13 @@ _auto_handover_at_critical() {
                 _directive_json=$(python3 -c "
 import yaml, json, sys
 try:
-with open('$_directive_file') as f:
-    d = yaml.safe_load(f) or {}
-v = d.get('directive')
-if isinstance(v, str) and v.strip():
-    print(',\"directive\":' + json.dumps(v.strip()))
+    with open('$_directive_file') as f:
+        d = yaml.safe_load(f) or {}
+    v = d.get('directive')
+    if isinstance(v, str) and v.strip():
+        print(',\"directive\":' + json.dumps(v.strip()))
 except Exception:
-pass
+    pass
 " 2>/dev/null) || _directive_json=""
             fi
             cat > "$restart_signal" << SIGNAL_EOF
@@ -764,11 +764,8 @@ else:
 "
         ;;
     *)
-        # T-3316 (local, vendor-divergence; residue re-applied after the 1.8.3
-        # re-vendor, T-3370): a wrong verb is a usage error, not a hook malfunction.
-        # Drop the T-821 crash trap so it does not print "HOOK CRASHED" or log a crash.
-        trap - EXIT
+        # 010-termlink T-3316 (local, filed upstream): usage goes to stderr, like any usage error.
         echo "Usage: checkpoint.sh {post-tool|reset|status|budget|baseline}" >&2
-        exit 1
+        fw_hook_usage_exit 1  # T-4227: usage error, not a hook crash
         ;;
 esac

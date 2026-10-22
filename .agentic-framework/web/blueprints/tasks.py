@@ -16,6 +16,7 @@ from web.shared import (
     extract_recommendation, extract_reviewer_verdict, render_markdown_safe,
     protect_path_underscores,
     _auto_link_files,
+    resolve_watchtower_refs, link_route_code_spans,
     count_human_acs,
     task_review_state,
 )
@@ -327,7 +328,7 @@ def _auto_link_task_refs(text):
     return _walk_skipping_existing_links(text, replacer)
 
 
-# T-1575: bare URLs in AC steps (e.g. "Open http://192.168.10.107:3000/review/T-1565")
+# T-1575: bare URLs in AC steps (e.g. "Open http://<host>:3000/review/T-1565")
 # rendered as plain text — markdown2's default doesn't auto-link. Without this, the
 # human can't click the link the agent wrote into the Steps. Same _walk_skipping
 # scaffolding so we don't double-wrap already-linked URLs.
@@ -351,7 +352,9 @@ def _auto_link_bare_urls(text):
 # HTML to wrap `<code>http(s)://...</code>` in an anchor while preserving the
 # code-span styling. This guarantees URLs are clickable regardless of how the
 # agent wrote them — the rendering layer is the contract, not agent discipline.
-_CODE_URL_HTML_RE = re_mod.compile(r"<code>(https?://[^<\s]+?)</code>")
+# T-4290: no quotes in the URL — markdown2 leaves " and ' unescaped inside a code
+# span, and the match is interpolated into href="…", so a quote would close it.
+_CODE_URL_HTML_RE = re_mod.compile(r"<code>(https?://[^<\s\"']+?)</code>")
 
 
 def _linkify_code_urls(html):
@@ -374,6 +377,7 @@ def _render_md_inline(text):
     """
     if not text:
         return ''
+    text = resolve_watchtower_refs(text)  # T-4624
     text = _auto_link_watchtower_paths(text)
     text = _auto_link_task_refs(text)
     text = _auto_link_bare_urls(text)
@@ -383,6 +387,7 @@ def _render_md_inline(text):
     if html.startswith('<p>') and html.endswith('</p>'):
         html = html[3:-4]
     html = _linkify_code_urls(html)
+    html = link_route_code_spans(html)  # T-4624
     # T-1722: artefact paths → /file/ anchors (existence-gated, idempotent).
     return _auto_link_files(html)
 
@@ -392,6 +397,7 @@ def _render_md_block(text):
     (Expected, If-not). T-1551."""
     if not text:
         return ''
+    text = resolve_watchtower_refs(text)  # T-4624
     text = _auto_link_watchtower_paths(text)
     text = _auto_link_task_refs(text)
     text = _auto_link_bare_urls(text)
@@ -399,6 +405,7 @@ def _render_md_block(text):
     text = protect_path_underscores(text)  # T-3587
     html = markdown2.markdown(text, safe_mode='escape').strip()
     html = _linkify_code_urls(html)
+    html = link_route_code_spans(html)  # T-4624
     # T-1722: artefact paths → /file/ anchors (existence-gated, idempotent).
     return _auto_link_files(html)
 

@@ -1353,7 +1353,32 @@ arc_review() {
         # shellcheck source=lib/task-audit.sh
         source "${FRAMEWORK_ROOT:-${PROJECT_ROOT:-.}}/lib/task-audit.sh" 2>/dev/null || true
     fi
-    if [ -z "$rec_file" ] || ! audit_inception_recommendation "$rec_file" 2>/dev/null; then
+    # T-4320: only CLOSE / KEEP-OPEN is a close verdict. An anchor inception's GO
+    # (or NO-GO / DEFER) decided whether to START the arc; accepting it here let
+    # that day-one verdict stand in for a close recommendation nobody had filed.
+    local rec_verdict=""
+    if [ -n "$rec_file" ] && audit_inception_recommendation "$rec_file" 2>/dev/null; then
+        rec_verdict=$(awk '
+            /^## Recommendation[[:space:]]*$/ { in_rec=1; next }
+            in_rec && /^#{2,} / { exit }
+            in_rec && /<!--/ { in_c=1 }
+            in_rec && !in_c && /^[[:space:]]*[-*]?[[:space:]]*\*\*Recommendation:\*\*/ {
+                sub(/^[[:space:]]*[-*]?[[:space:]]*\*\*Recommendation:\*\*[[:space:]]*\**/, "")
+                match($0, /^[A-Za-z_-]+/)
+                v = toupper(substr($0, RSTART, RLENGTH)); gsub(/_/, "-", v)
+                print v; exit
+            }
+            in_rec && /-->/ { in_c=0 }
+        ' "$rec_file")
+        rec_verdict="${rec_verdict%-}"
+    fi
+    local wrong_verdict=""
+    case "$rec_verdict" in
+        CLOSE|KEEP-OPEN) ;;
+        "") ;;
+        *) wrong_verdict="$rec_verdict" ;;
+    esac
+    if [ -z "$rec_file" ] || [ -z "$rec_verdict" ] || [ -n "$wrong_verdict" ]; then
         if [ "${FW_ALLOW_EMPTY_RECOMMENDATION:-}" = "1" ]; then
             if ! declare -F _log_empty_recommendation_bypass >/dev/null 2>&1; then
                 # shellcheck source=lib/review.sh
@@ -1365,7 +1390,12 @@ arc_review() {
             echo "NOTE: arc '$id' has no close recommendation — emitting anyway (FW_ALLOW_EMPTY_RECOMMENDATION=1, logged)." >&2
         else
             echo "BLOCKED: arc '$id' has no close recommendation — no close URL emitted." >&2
-            if [ -n "$rec_task" ]; then
+            if [ -n "$wrong_verdict" ]; then
+                echo "  $rec_task holds **Recommendation:** $wrong_verdict — a decision about starting the arc, not a close verdict (CLOSE or KEEP-OPEN)." >&2
+            fi
+            if [ -n "$wrong_verdict" ] && [ -z "$close_task" ]; then
+                echo "  Agent action: set close_task: T-XXX in $arc_path (the close-out task) and write it there:" >&2
+            elif [ -n "$rec_task" ]; then
                 local _src="anchor_task"
                 [ -n "$close_task" ] && _src="close_task"
                 echo "  Write it in the ## Recommendation section of $rec_task ($_src):" >&2
@@ -1562,18 +1592,18 @@ for sd in (d.get('scoped_drivers') or []):
         break
 PY
 )
-    # 010-termlink T-3472 (local, filed upstream): --scoring-file on a driver that is
-    # already approved ATTACHES the spec in place. Before this, the dedup check below
-    # refused, and remove + re-approve was the only route, which also loses the
-    # original approval record. Attaching changes how a sovereign-approved driver
-    # scores, so it takes the operator path (--i-am-human / --from-watchtower) only.
+    # T-4473 (010-termlink T-3472): --scoring-file on an already-approved driver
+    # ATTACHES the spec in place instead of hitting the dedup refusal below, which
+    # left remove + re-approve (losing the approval record) as the only route.
+    # Attaching changes how a sovereign-approved driver scores, so it takes the
+    # operator path (--i-am-human / --from-watchtower) only.
     if [ -n "$existing_ts" ] && [ -n "$scoring_file" ]; then
         if [ "$i_am_human" = "false" ] && [ "$from_watchtower" = "false" ]; then
             echo "Error: attaching a scoring spec to the approved driver '$name' needs the operator path." >&2
             echo "  Re-run with --i-am-human (human typing) or from Watchtower." >&2
             return 1
         fi
-        _arc_persist_scoring "$f" "$name" "$scoring_file" "attach" "${weight:-}" || return $?
+        _arc_persist_scoring "$f" "$name" "$scoring_file" "attach" "$weight" || return $?
         echo "OK: attached scoring spec to approved driver '$name' on arc '$id' (approval record kept)."
         return 0
     fi
@@ -1656,9 +1686,9 @@ PYREPORT
         echo "Reviewer PASS ($approved_by) — checks (a) scorable, (b) distinct, (c) distinguishes."
     fi
 
-    # 010-termlink T-3472: validate a --scoring-file BEFORE the entry exists, so an
-    # invalid spec never leaves an approved driver without one (the human paths skip
-    # the reviewer, which was the only place it was checked).
+    # T-4473: validate a --scoring-file BEFORE the entry exists, so an invalid spec
+    # never leaves an approved driver without one (the operator paths skip the
+    # reviewer, which was the only place it was checked).
     if [ -n "$scoring_file" ]; then
         _arc_persist_scoring "$f" "$name" "$scoring_file" "check" || return $?
     fi
@@ -1729,7 +1759,7 @@ else:
 os.replace(tmp_fn, fn)
 PY
 
-    # 010-termlink T-3472: the spec the reviewer passed is now actually stored.
+    # T-4473: the spec the reviewer passed is now actually stored on the entry.
     if [ -n "$scoring_file" ]; then
         _arc_persist_scoring "$f" "$name" "$scoring_file" "new" || return $?
     fi
@@ -2450,7 +2480,9 @@ _arc_approve_help() {
     echo "  On FAIL nothing is approved and the failed checks are named."
     echo "    Preview a verdict: fw arc review-driver <arc-id> \"<name>\" --dry-run"
     echo "    --scoring-file P   give an ad-hoc driver (one with no proposal behind it) the"
-    echo "                       scoring spec check (a) needs; schema in policy/value-drivers.yaml"
+    echo "                       scoring spec check (a) needs; schema in policy/value-drivers.yaml."
+    echo "                       Stored inline as scoring: on the entry. On an already-approved"
+    echo "                       driver it attaches the spec in place (operator path only, T-4473)"
     echo "    --all-reviewed     approve every proposed driver that passes, up to the cap"
     echo ""
     echo "  OVERRIDE PATH: --i-am-human / --from-watchtower approve WITHOUT the reviewer,"
@@ -2461,24 +2493,26 @@ _arc_approve_help() {
     echo "  logged to .context/audits/arc-scoped-driver-bypass.jsonl."
 }
 
-# 010-termlink T-3472 (local, filed upstream): persist a --scoring-file spec INLINE
-# on a scoped driver. arc_approve_driver used to hand the file to the reviewer only
-# and write an entry without `scoring:`, and the estimator reads only an inline
-# block (estimator.py load_scoring_spec), so every spec approved this way scored
-# nothing. Modes: check (validate only), new (entry just appended), attach (entry
-# already approved; approval fields untouched; --weight, if given, must match).
-# Exit: 0 ok, 2 invalid spec / weight mismatch, 3 driver not found.
+# T-4473 (010-termlink T-3472): persist a --scoring-file spec INLINE on a scoped
+# driver. arc_approve_driver used to hand the file to the reviewer only and write
+# an entry without `scoring:`; the estimator reads only an inline block
+# (estimator.py load_scoring_spec), so every spec approved this way scored
+# nothing. A relative path resolves against PROJECT_ROOT, as the reviewer's does.
+# Modes: check (validate only), new (entry just appended), attach (entry already
+# approved; approval fields untouched; --weight, if given, must match).
+# Exit: 0 ok, 2 invalid spec / weight mismatch / did not round-trip, 3 not found.
 _arc_persist_scoring() {
     local f="$1" name="$2" scoring_file="$3" mode="$4" weight="${5:-}"
-    FW_ROOT_FOR_EST="${FRAMEWORK_ROOT:-$PROJECT_ROOT}" python3 - "$f" "$name" "$scoring_file" "$mode" "$weight" <<'PY'
+    FW_ROOT_FOR_EST="${FRAMEWORK_ROOT:-$PROJECT_ROOT}" python3 - "$f" "$name" "$scoring_file" "$mode" "$weight" "$PROJECT_ROOT" <<'PY'
 import datetime, importlib.util, os, sys
 import yaml
-fn, name, sfile, mode, weight = sys.argv[1:6]
+fn, name, sfile, mode, weight, root = sys.argv[1:7]
 est_path = os.path.join(os.environ["FW_ROOT_FOR_EST"], "agents/termlink/bvp-estimator/estimator.py")
 spec = importlib.util.spec_from_file_location("bvp_estimator_persist", est_path)
 est = importlib.util.module_from_spec(spec); spec.loader.exec_module(est)
+spath = sfile if os.path.isabs(sfile) else os.path.join(root, sfile)
 try:
-    loaded = yaml.safe_load(open(sfile).read()) or {}
+    loaded = yaml.safe_load(open(spath).read()) or {}
 except Exception as e:
     print(f"Error: --scoring-file {sfile}: unreadable ({type(e).__name__}: {e})", file=sys.stderr); sys.exit(2)
 block = loaded.get("scoring") if isinstance(loaded, dict) and isinstance(loaded.get("scoring"), dict) else loaded
@@ -2490,7 +2524,7 @@ if mode == "check":
 try:
     from ruamel.yaml import YAML
     y = YAML(); y.preserve_quotes = True; y.indent(mapping=2, sequence=4, offset=2)
-    data = y.load(open(fn))
+    with open(fn) as fh: data = y.load(fh)
 except ImportError:
     y = None; data = yaml.safe_load(open(fn).read())
 entry = next((sd for sd in (data.get("scoped_drivers") or []) if sd.get("name") == name), None)
@@ -2504,12 +2538,16 @@ entry["scoring_source"] = sfile
 entry["scoring_attached_at"] = ts
 tmp = fn + ".tmp"
 with open(tmp, "w") as fh:
-    (y.dump(data, fh) if y else yaml.safe_dump(data, fh, sort_keys=False, default_flow_style=False))
+    if y:
+        y.dump(data, fh)
+    else:
+        yaml.safe_dump(data, fh, sort_keys=False, default_flow_style=False)
 os.replace(tmp, fn)
 # Round-trip: what the estimator will read must be what was validated.
-reread = yaml.safe_load(open(fn).read())
-e2 = next(sd for sd in reread.get("scoped_drivers") if sd.get("name") == name)
-if est.load_scoring_spec(e2) is None or est.validate_scoring_spec(est.load_scoring_spec(e2)):
+reread = yaml.safe_load(open(fn).read()) or {}
+e2 = next((sd for sd in (reread.get("scoped_drivers") or []) if sd.get("name") == name), None)
+s2 = est.load_scoring_spec(e2)
+if s2 is None or est.validate_scoring_spec(s2):
     print(f"Error: scoring spec for '{name}' did not survive the write", file=sys.stderr); sys.exit(2)
 PY
 }

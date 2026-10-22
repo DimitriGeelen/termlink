@@ -72,11 +72,30 @@ _t2864_reconcile_index() {
 # the invariant (rename staged in index; episodic added separately below and
 # untracked). Opt out with FW_QUIET_NEXT_HINT=1 for scripted callers that
 # parse stdout.
+#
+# T-4094: printed once, from the end-of-script staging postcondition, with the
+# exact pathspec that was staged — not at the move site, where the episodic did
+# not exist yet and the "rename staged" claim was false for a never-committed
+# task (plain `mv`, nothing staged). Args: tid, then the paths to commit.
 _print_move_next_hint() {
     [ "${FW_QUIET_NEXT_HINT:-0}" = "1" ] && return 0
-    local tid="${1:-$TASK_ID}"
-    printf '  \xe2\x86\xb3 rename staged in index; episodic added below (untracked)\n'
-    printf "  \xe2\x86\xb3 next: git add .context/episodic/%s.yaml && git commit -m '%s: close ...' && git push\n" "$tid" "$tid"
+    local tid="$1"; shift
+    printf '  \xe2\x86\xb3 close staged in index: %s\n' "$*"
+    printf "  \xe2\x86\xb3 next: git commit -m '%s: close ...' -- %s && git push\n" "$tid" "$*"
+}
+
+# T-4094: remember what the archive move started from, so the postcondition
+# knows whether the old active/ path belongs in the commit pathspec. Only a path
+# present at HEAD does: a never-committed file has no deletion to record, and
+# naming it makes `git commit -- <path>` fail with "pathspec did not match".
+_t4094_note_move_source() {
+    _T4094_SRC="$1"
+    _T4094_SRC_AT_HEAD=0
+    local rel="${1#"$PROJECT_ROOT"/}"
+    if [ -n "$(git -C "$PROJECT_ROOT" ls-tree --name-only HEAD -- "$rel" 2>/dev/null)" ]; then
+        _T4094_SRC_AT_HEAD=1
+    fi
+    return 0
 }
 
 # Bypass policy (T-3586). Runs at the moment a --skip-* flag is CONSUMED — i.e. a gate
@@ -192,6 +211,21 @@ check_human_sovereignty() {
         else
             echo -e "${RED}ERROR: Cannot complete human-owned task${NC}" >&2
             echo "Sovereignty gate (R-033): owner is human." >&2
+            # T-4199: with no Human criteria, /review/<id> shows 0/0 and has no close
+            # control — name the route that closes this class (T-4156) instead.
+            local _route=""
+            _route=$(PYTHONPATH="$FRAMEWORK_ROOT" python3 -m lib.unclosable_misfiled route "$TASK_FILE" 2>/dev/null || true)
+            if [ "$_route" = "delegate" ]; then
+                echo "This task has no Human criteria and every Agent AC is ticked, so the" >&2
+                echo "review page has nothing to approve. Route it to the reviewer ladder (T-4156):" >&2
+                echo "  cd $PROJECT_ROOT && bin/fw task delegate $TASK_ID && bin/fw reviewer judge $TASK_ID" >&2
+                echo "A green verdict closes it on the next --status work-completed (owner unchanged)." >&2
+                exit 1
+            elif [ "${_route%%$'\t'*}" = "operator" ]; then
+                echo "This task has no Human criteria, but it stays with the operator (${_route#*$'\t'})." >&2
+                echo "Operator, from your own terminal:" >&2
+                echo "  cd $PROJECT_ROOT && bin/fw task update $TASK_ID --status work-completed --skip-sovereignty --reason \"<why it is done>\"" >&2
+            fi
             echo "The human must review and approve via Watchtower:" >&2
             # T-1156: Show Watchtower review link instead of bare commands (PL-007)
             source "$FRAMEWORK_ROOT/lib/review.sh" 2>/dev/null
@@ -471,6 +505,25 @@ PYREC
             exit 1
             ;;
     esac
+}
+
+# Review-link Gate (T-4624, G-123): on the partial-complete transition the operator
+# is about to be sent to /review/<id>. Refuse BEFORE the flip when Human Steps or the
+# Recommendation hand them a shell expression or bare route instead of a literal URL.
+# emit_review runs the same check later, but after the flip and with its exit ignored.
+# Bypass: FW_ALLOW_REVIEW_LINK_HOMEWORK=1 (the validator logs it Tier-2).
+check_review_links_for_partial() {
+    [ "${PARTIAL_COMPLETE:-false}" = true ] || return 0
+    local validator="$FRAMEWORK_ROOT/lib/review_link_validator.py"
+    [ -f "$validator" ] || return 0
+    local base_url
+    base_url=$(cat "$PROJECT_ROOT/.context/working/watchtower.url" 2>/dev/null || true)
+    [ -n "$base_url" ] || base_url="http://localhost:3000"
+    if ! python3 "$validator" "$TASK_FILE" "$base_url" --enforce --links-only; then
+        echo -e "${RED}ERROR: Cannot reach partial-complete — review links are not literal full URLs (T-4624).${NC}" >&2
+        echo "Fix the findings above in $TASK_FILE, then retry." >&2
+        exit 1
+    fi
 }
 
 # T-679: Auto-emit review on partial-complete transition
@@ -1607,6 +1660,14 @@ run_verification_commands() {
     if [ "${FW_ALLOW_UNPARSEABLE_VERIFICATION:-0}" = "1" ]; then
         log_gate_bypass "FW_ALLOW_UNPARSEABLE_VERIFICATION" "verification block has unparseable line(s)" 2>/dev/null || true
     fi
+    # T-2958: a backtick outside single quotes parses fine and is substituted by
+    # the eval below — "``" collapses to "" and the line passes emptily.
+    if ! check_verification_backticks "$verify_cmds"; then
+        exit 1
+    fi
+    if [ "${FW_ALLOW_BACKTICK_VERIFICATION:-0}" = "1" ] && [ -n "$(find_unquoted_backtick_lines "$verify_cmds")" ]; then
+        log_gate_bypass "FW_ALLOW_BACKTICK_VERIFICATION" "verification block has backtick substitution" 2>/dev/null || true
+    fi
 
     check_verification_port_literals "$verify_cmds"
     check_verification_unjudged_test_runs "$verify_cmds"
@@ -1746,6 +1807,8 @@ NEW_STATUS=""
 NEW_OWNER=""
 NEW_TAGS=""
 ADD_TAGS=""
+ADD_RELATED=""   # T-4192: --related T-YYY[,..] appends to related_tasks:
+ADD_UNLOCKS=""   # T-4192: --unlocks T-AAA:decision-id[,..] appends to unlocks_inception_decision:
 NEW_HORIZON=""
 NEW_TYPE=""
 REASON=""
@@ -1787,6 +1850,8 @@ while [[ $# -gt 0 ]]; do
         --owner|-o) NEW_OWNER="$2"; shift 2 ;;
         --tags) NEW_TAGS="$2"; shift 2 ;;
         --add-tag) ADD_TAGS="$2"; shift 2 ;;
+        --related) ADD_RELATED="${ADD_RELATED:+$ADD_RELATED,}$2"; shift 2 ;;
+        --unlocks) ADD_UNLOCKS="${ADD_UNLOCKS:+$ADD_UNLOCKS,}$2"; shift 2 ;;
         --horizon) NEW_HORIZON="$2"; shift 2 ;;
         --type|-t) NEW_TYPE="$2"; shift 2 ;;
         --reason|-r) REASON="$2"; shift 2 ;;
@@ -1866,6 +1931,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --type, -t    Workflow type ($VALID_TYPES)"
             echo "  --tags        Replace tags (comma-separated)"
             echo "  --add-tag     Add tag(s) to existing (comma-separated)"
+            echo "  --related T-YYY[,..]   Append to related_tasks (refuses ids that do not resolve; T-4192)"
+            echo "  --unlocks T-AAA:id[,..] Append to unlocks_inception_decision (refuses unknown decisions; T-4192)"
             echo "  --horizon     Priority horizon: now, next, later"
             echo "  --reason, -r  Reason for status change (logged in Updates)"
             echo "  --happiness N Retrieval-happiness signal, -5..-1 or +1..+5 (T-1719 A2)"
@@ -1976,6 +2043,15 @@ print(json.dumps(row, sort_keys=True))
     echo -e "${GREEN}Happiness recorded:${NC} $_hv → .context/working/happiness.jsonl"
 fi
 
+# ── T-4192: --related / --unlocks — validated BEFORE any mutation (L-286) ────
+# An id that does not resolve refuses the whole invocation with the file untouched.
+if [ -n "$ADD_RELATED" ] || [ -n "$ADD_UNLOCKS" ]; then
+    if ! python3 "$FRAMEWORK_ROOT/lib/task_link_fields.py" validate "$TASK_FILE" "$PROJECT_ROOT" "$ADD_RELATED" "$ADD_UNLOCKS"; then
+        echo -e "${RED}Refused: nothing written to $TASK_ID (T-4192).${NC}" >&2
+        exit 1
+    fi
+fi
+
 # Acquire per-task lock to prevent concurrent modifications (T-587).
 # T-3306: bounded (120s) — an unguarded reentry path (a child process the
 # close-guard env didn't reach) must degrade to a loud timeout error, never
@@ -2002,6 +2078,21 @@ echo "File:    $TASK_FILE"
 # Track what changed
 CHANGES=()
 
+# T-4192: append related_tasks / unlocks_inception_decision before the status
+# gates, so a close in the same invocation sees the links (GO-scope gate reads
+# related_tasks). Re-validated under the task lock.
+if [ -n "$ADD_RELATED" ] || [ -n "$ADD_UNLOCKS" ]; then
+    if ! _link_out=$(python3 "$FRAMEWORK_ROOT/lib/task_link_fields.py" apply "$TASK_FILE" "$PROJECT_ROOT" "$ADD_RELATED" "$ADD_UNLOCKS"); then
+        echo -e "${RED}Refused: nothing written to $TASK_ID (T-4192).${NC}" >&2
+        exit 1
+    fi
+    while IFS= read -r _link_line; do
+        [ -z "$_link_line" ] && continue
+        echo "Links:   $_link_line"
+        CHANGES+=("$_link_line")
+    done <<< "$_link_out"
+fi
+
 # Update status
 if [ -n "$NEW_STATUS" ]; then
     # Validate status
@@ -2014,6 +2105,10 @@ if [ -n "$NEW_STATUS" ]; then
         if [ "$OLD_STATUS" = "work-completed" ] && [ "$(dirname "$TASK_FILE")" = "$TASKS_DIR/active" ]; then
             # T-193: Partial-complete re-run — check if human ACs now satisfied
             echo -e "${CYAN}Re-checking partial-complete status...${NC}"
+            # T-4465: read the verdict ledger here too, as the first close does (T-3579) —
+            # a green recorded after partial-complete ticks its criterion, and a tick whose
+            # verdict no longer validates is withdrawn (T-3581) before the count below.
+            apply_reviewer_verdicts
             # T-3148: anchored, FIRST-WINS extraction (lib/section-extract.sh).
             AC_SECTION=$(extract_ac_section "$TASK_FILE")
             # Strip HTML comments — template examples contain checkbox patterns.
@@ -2041,6 +2136,7 @@ if [ -n "$NEW_STATUS" ]; then
                 # as an unstaged working-tree change that pollutes subsequent
                 # commits and requires a cleanup follow-up.
                 _t1863_orig="$TASK_FILE"
+                _t4094_note_move_source "$TASK_FILE"
                 if git -C "$PROJECT_ROOT" ls-files --error-unmatch "$TASK_FILE" >/dev/null 2>&1; then
                     git -C "$PROJECT_ROOT" mv "$TASK_FILE" "$DEST" 2>/dev/null \
                         || mv "$TASK_FILE" "$DEST"
@@ -2073,7 +2169,7 @@ if [ -n "$NEW_STATUS" ]; then
                     exit 1
                 fi
                 echo -e "${GREEN}Moved to completed/${NC}"
-                _print_move_next_hint "$TASK_ID"
+                # T-4094: next-step hint is printed by the staging postcondition at the end.
 
                 # T-2345: clean orphan review marker — marker exists to unblock
                 # fw inception decide (T-973), moot once task is in completed/.
@@ -2252,24 +2348,8 @@ PY
             fi
         fi
 
-        # === BVP Estimator Trigger (T-1922) ===
-        # On transition to started-work ("ready"), fire the BVP estimator
-        # in the background. Heuristic engine is ~10ms so the update latency
-        # impact is negligible, but we background it anyway in case a future
-        # v2-LLM engine lands and goes over the budget. Failures are silent —
-        # the estimator's output is advisory; a missing proposed score does
-        # not block any downstream gate.
-        if [ "$NEW_STATUS" = "started-work" ] && [ -n "$TASK_ID" ]; then
-            # T-3051: -f + bash, not -x — git tracks this estimator as 100644.
-            if [ -f "$FRAMEWORK_ROOT/agents/termlink/bvp-estimator/bvp-estimator.sh" ]; then
-                (
-                    PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
-                    bash "$FRAMEWORK_ROOT/agents/termlink/bvp-estimator/bvp-estimator.sh" \
-                        one "$TASK_ID" >/dev/null 2>&1
-                ) &
-                disown 2>/dev/null || true
-            fi
-        fi
+        # BVP Estimator Trigger (T-1922) moved below the Updates append (T-4534):
+        # it used to fire here, in the background, BEFORE the status sed.
 
         # === Concurrent Started-Work Advisory (T-554) ===
         # Warn when starting work if other tasks are already started-work.
@@ -2327,6 +2407,7 @@ PY
         # Reviewers see /review/T-XXX — it must surface an agent advisory.
         if [ "$NEW_STATUS" = "work-completed" ]; then
             check_recommendation_for_review
+            check_review_links_for_partial
         fi
 
         # === RCA Gate (T-1550, G-019 structural remediation) ===
@@ -2419,6 +2500,22 @@ PY
         _sed_i "s/^status:.*/status: $NEW_STATUS/" "$TASK_FILE"
         echo "Status:  $OLD_STATUS → $NEW_STATUS"
         CHANGES+=("status: $OLD_STATUS → $NEW_STATUS")
+
+        # === GitHub issue lifecycle stages (T-4341, T-4039 stages 6-7) ===
+        # started-work → in-progress; work-completed (partial-complete too) → fixed-on-bleeding-edge.
+        # Never blocks or fails the transition: lib/issues.py records failures and exits 0.
+        if [ "${FW_ISSUES_LIFECYCLE:-1}" != "0" ] && [ -f "$FRAMEWORK_ROOT/lib/issues.py" ] \
+            && grep -q "^github_issue:" "$TASK_FILE" 2>/dev/null; then
+            case "$NEW_STATUS" in
+                started-work) _lc_event=started ;;
+                work-completed) _lc_event=closed ;;
+                *) _lc_event="" ;;
+            esac
+            if [ -n "$_lc_event" ]; then
+                PROJECT_ROOT="$PROJECT_ROOT" timeout 90 python3 "$FRAMEWORK_ROOT/lib/issues.py" \
+                    lifecycle "$TASK_ID" --event "$_lc_event" || true
+            fi
+        fi
 
         # === Invariant: started-work → horizon: now (T-1068) ===
         # Starting work means it's active NOW. Auto-promote horizon.
@@ -2624,6 +2721,27 @@ if [ ${#CHANGES[@]} -gt 0 ]; then
     } >> "$TASK_FILE"
 fi
 
+# === BVP Estimator Trigger (T-1922) ===
+# On transition to started-work ("ready"), run the BVP estimator. Failures are
+# silent — the output is advisory; a missing proposed score blocks nothing.
+#
+# T-4534: FOREGROUND, and AFTER this invocation's last write to the task file.
+# The estimator does a whole-file read-modify-write; backgrounded before the
+# status sed it read `status: captured` and its later os.replace reverted the
+# started-work write, so `fw inception decide` on a captured inception left the
+# task at captured and the closing update refused captured → work-completed.
+# Here it runs under our keylock with no concurrent writer in this process.
+if [ "$NEW_STATUS" = "started-work" ] && [ "$OLD_STATUS" != "$NEW_STATUS" ] && [ -n "$TASK_ID" ]; then
+    # T-3051: -f + bash, not -x — git tracks this estimator as 100644.
+    if [ -f "$FRAMEWORK_ROOT/agents/termlink/bvp-estimator/bvp-estimator.sh" ]; then
+        _t4534_timeout=""
+        command -v timeout >/dev/null 2>&1 && _t4534_timeout="timeout 60"
+        PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
+            $_t4534_timeout bash "$FRAMEWORK_ROOT/agents/termlink/bvp-estimator/bvp-estimator.sh" \
+            one "$TASK_ID" >/dev/null 2>&1 || true
+    fi
+fi
+
 # === AUTO-TRIGGERS ===
 
 # Trigger 1: issues/blocked → healing diagnosis
@@ -2700,6 +2818,7 @@ if [ -n "$NEW_STATUS" ] && [ "$NEW_STATUS" = "work-completed" ] && [ "$OLD_STATU
         if [ "$(dirname "$TASK_FILE")" != "$TASKS_DIR/completed" ]; then
             # T-1523: git mv when tracked so both rename sides stage atomically
             _t1863_orig="$TASK_FILE"
+            _t4094_note_move_source "$TASK_FILE"
             if git -C "$PROJECT_ROOT" ls-files --error-unmatch "$TASK_FILE" >/dev/null 2>&1; then
                 git -C "$PROJECT_ROOT" mv "$TASK_FILE" "$DEST" 2>/dev/null \
                     || mv "$TASK_FILE" "$DEST"
@@ -2722,7 +2841,7 @@ if [ -n "$NEW_STATUS" ] && [ "$NEW_STATUS" = "work-completed" ] && [ "$OLD_STATU
                 exit 1
             fi
             echo -e "${GREEN}Moved to completed/${NC}"
-            _print_move_next_hint "$TASK_ID"
+            # T-4094: next-step hint is printed by the staging postcondition at the end.
             # T-2345: clean orphan review marker — marker exists to unblock
             # fw inception decide (T-973), moot once task is in completed/.
             # Idempotent; sibling cleanup at lib/inception.sh:731.
@@ -3057,6 +3176,39 @@ fi
 if [ -n "${TASK_FILE:-}" ] && [ -f "$TASK_FILE" ] \
    && [ "$(dirname "$TASK_FILE")" = "$TASKS_DIR/completed" ]; then
     _sed_i "s/^horizon:.*/horizon: null/" "$TASK_FILE"
+fi
+
+# === CLOSE-STAGING POSTCONDITION (T-4094, peer dimitri-mint-dev G-012) ===
+#
+# A task this run moved into completed/ leaves the run STAGED: the completed
+# file and its episodic are in the index, whatever their state before. Every
+# earlier close guard (T-1523 git mv, T-2864 reconcile, T-1863 orphan check)
+# starts from "is the source tracked?", so a task created and closed between
+# two commits — plain `mv`, nothing staged — fell through all of them and its
+# files stayed untracked for weeks: invisible to dup-task-scan (reads the
+# index) and to the handover commit (pathspec-scoped, T-3090).
+#
+# Staged, not committed: this script runs inside Watchtower's decide window
+# and beside other workers sharing one index. The hint names the exact
+# pathspec, so `git commit -- <paths>` takes these files and nothing else.
+if [ -n "${_T4094_SRC:-}" ] && [ -n "${TASK_FILE:-}" ] && [ -f "$TASK_FILE" ] \
+   && [ "$(dirname "$TASK_FILE")" = "$TASKS_DIR/completed" ] \
+   && git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    _t4094_paths=()
+    for _t4094_p in "$TASK_FILE" "$CONTEXT_DIR/episodic/$TASK_ID.yaml"; do
+        [ -f "$_t4094_p" ] || continue
+        _t4094_rel="${_t4094_p#"$PROJECT_ROOT"/}"
+        git -C "$PROJECT_ROOT" add -- "$_t4094_rel" >/dev/null 2>&1 || true
+        if git -C "$PROJECT_ROOT" ls-files --error-unmatch -- "$_t4094_rel" >/dev/null 2>&1; then
+            _t4094_paths+=("$_t4094_rel")
+        else
+            echo -e "${YELLOW}WARNING: could not stage $_t4094_rel (ignored or index locked) — commit it by hand (T-4094)${NC}" >&2
+        fi
+    done
+    if [ "${_T4094_SRC_AT_HEAD:-0}" = 1 ]; then
+        _t4094_paths+=("${_T4094_SRC#"$PROJECT_ROOT"/}")
+    fi
+    [ "${#_t4094_paths[@]}" -gt 0 ] && _print_move_next_hint "$TASK_ID" "${_t4094_paths[@]}"
 fi
 
 echo ""

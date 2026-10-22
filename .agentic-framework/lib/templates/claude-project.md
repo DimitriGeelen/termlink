@@ -111,7 +111,7 @@ The `## Verification` section contains shell commands that **must pass** before 
 
 **What to verify:**
 - YAML/JSON files parse correctly: `python3 -c "import yaml; yaml.safe_load(open('file'))"`
-- Web pages load: `curl -sf "$(cat .context/working/watchtower.url 2>/dev/null || echo http://localhost:$(bin/fw config get PORT 2>/dev/null || echo 3000))/page"` — never hard-code `:3000`; the triple file `.context/working/watchtower.{pid,port,url}` is the source of truth for Watchtower's port
+- Web pages load: `curl -sf "$(cat .context/working/watchtower.url 2>/dev/null || echo http://localhost:$(.agentic-framework/bin/fw config get PORT 2>/dev/null || echo 3000))/page"` — never hard-code `:3000`; the triple file `.context/working/watchtower.{pid,port,url}` is the source of truth for Watchtower's port
 - Commands succeed: `fw doctor`
 - Output contains expected content: `grep -q "expected" output.txt`
 
@@ -234,7 +234,7 @@ fw handover --commit # Generate and commit handover
 fw task create --name "Fix bug" --type build --owner human
 ```
 
-**Path resolution:** `fw` finds the framework via `bin/fw`'s location (inside framework repo) or via `.framework.yaml` in the project root (shared tooling mode).
+**Path resolution:** in this project the launcher is `.agentic-framework/bin/fw` (the vendored copy — there is no `bin/fw` at the project root). It finds the framework via its own location and `.framework.yaml` in the project root.
 
 ## Agents
 
@@ -644,7 +644,7 @@ When giving the human a command to run (Tier 0 approvals, inception decisions, v
 
 1. **Single-line, copy-pasteable** — works when pasted into any terminal, from any directory
 2. **Prefixed with `cd`** — always include `cd /path/to/project &&` so directory context is explicit
-3. **Use `bin/fw` not `fw`** — the global `fw` may resolve to a different install
+3. **Use `.agentic-framework/bin/fw` not `fw`** — the global `fw` may resolve to a different install, and this project has no `bin/fw` at its root (that path exists only in the framework repo)
 4. **No bare multi-line** — if multiple commands are needed, chain with `&&` on one line
 
 ### Inception Discipline
@@ -654,7 +654,7 @@ When the active task has `workflow_type: inception`:
 3. **Do not write build artifacts** (production code, full apps) before `fw inception decide T-XXX go`
 4. **The commit-msg hook enforces this** — after 2 exploration commits, further commits are blocked until a decision is recorded
 5. After a GO decision, **create separate build tasks** for implementation — do not continue building under the inception task ID
-6. **Research artifact first (C-001)** — When starting inception work, create `docs/reports/T-XXX-*.md` BEFORE conducting research. Update the file incrementally as dialogue produces findings. Commit after each dialogue segment. The thinking trail IS the artifact — conversations are ephemeral, files are permanent.
+6. **Research artifact first (C-001)** — When starting inception work, first file at least one question (`- **IW-1: …**`) under the task's `## Open Questions`: the T-2194 gate blocks every write outside `.tasks/`, `.context/`, `.claude/` and `.git/`, the artifact included, until one exists. Then create `docs/reports/T-XXX-*.md` BEFORE conducting research. Update the file incrementally as dialogue produces findings. Commit after each dialogue segment. The thinking trail IS the artifact — conversations are ephemeral, files are permanent.
 7. **Dialogue log (C-001 extension)** — For phases involving human dialogue, include a `## Dialogue Log` section in the research artifact. Record: questions the human posed, answers given, course corrections, and the outcome/decision that resulted.
 
 ### Web App Startup
@@ -872,9 +872,11 @@ This gate is non-negotiable. The PreToolUse hook will block Write/Edit without a
 
 ## Auto-Restart (T-179)
 
-When context budget hits critical, `checkpoint.sh` auto-generates a handover and writes `.context/working/.restart-requested`. If the user started their session via `claude-fw` (instead of `claude`), the wrapper detects this signal on exit and auto-restarts with `claude -c`. The `SessionStart:resume` hook then injects handover context into the fresh session.
+When context budget hits critical, `checkpoint.sh` auto-generates a handover and writes `.context/working/.restart-requested`. If the user started their session via `claude-fw` (instead of `claude`), the wrapper detects this signal on exit and auto-restarts **a fresh session** — not `claude -c` (T-3166). The previous conversation is not restored, because restoring it would hand back the very context the restart exists to free. The wrapper leaves a `.auto-restart-pending` sentinel, and the SessionStart hook (`post-compact-resume.sh`, source `startup`) injects the handover, any armed directive and the loop counter into the new session.
 
-**Flow:** Budget critical → auto-handover → signal file → claude exits → wrapper detects → `sleep 3` → `claude -c` → context injected → `/resume` ready.
+**Flow:** Budget critical → auto-handover → signal file → claude exits → wrapper detects → `sleep 3` → new `claude` session → handover injected → `/resume` ready.
+
+**Restart mode:** `FW_RESTART_MODE=fresh` is the default. `FW_RESTART_MODE=continue` keeps the transcript instead: the wrapper resumes this session's recorded conversation (`--resume <id>`, never a bare `-c`, T-4497). It does not free context, so the next budget check can be critical again. The wrapper prints which mode fired (`Restart mode: …`) on every restart.
 
 **Safety:** 5-minute TTL on signal files, max 5 consecutive restarts, 3-second cancel window, opt-out via `--no-restart`.
 

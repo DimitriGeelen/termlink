@@ -175,7 +175,8 @@ fw_hook_crash_trap() {
     # shellcheck disable=SC2154 # _exit is assigned by $? inside the trap
     trap '
         _exit=$?
-        if [ $_exit -ne 0 ] && [ $_exit -ne 2 ]; then
+        # T-4227: a usage refusal (fw_hook_usage_exit) is not a crash.
+        if [ $_exit -ne 0 ] && [ $_exit -ne 2 ] && [ "${_FW_HOOK_USAGE_EXIT:-0}" != 1 ]; then
             echo "" >&2
             echo "╔══════════════════════════════════════════════════╗" >&2
             echo "║  HOOK CRASHED: '"$hook_name"' (exit $_exit)            ║" >&2
@@ -187,10 +188,56 @@ fw_hook_crash_trap() {
     ' EXIT
 }
 
+# fw_hook_usage_exit CODE MESSAGE — exit from a hook's own usage/argument path (T-4227).
+# Prints MESSAGE to stderr and exits CODE, marked so fw_hook_crash_trap neither
+# announces HOOK CRASHED nor appends to .hook-crashes.log: a usage error is the
+# script refusing bad input on purpose, not a malfunction.
+fw_hook_usage_exit() {
+    local code="${1:-1}"
+    shift 2>/dev/null || true
+    [ $# -gt 0 ] && echo "$*" >&2
+    _FW_HOOK_USAGE_EXIT=1
+    exit "$code"
+}
+
 # fw_config_list — List all FW_* overrides (for fw doctor / Watchtower)
 # Output: KEY=VALUE lines for each FW_* env var that is set
 fw_config_list() {
     env | grep "^FW_" | sort
+}
+
+# fw_config_canonical_key KEY — the FW_CONFIG_REGISTRY key KEY names, matched
+# case-insensitively (an FW_ prefix is ignored too). Empty when KEY is not
+# registered. T-3924: fw_config reads .framework.yaml by the exact uppercase
+# key, so `fw config set inception_commit_limit 15` wrote a key nothing read.
+fw_config_canonical_key() {
+    local want="${1:-}" entry name
+    want="${want^^}"
+    want="${want#FW_}"
+    [ -n "$want" ] || return 0
+    for entry in "${FW_CONFIG_REGISTRY[@]}"; do
+        name="${entry%%|*}"
+        if [ "$name" = "$want" ]; then
+            printf '%s' "$name"
+            return 0
+        fi
+    done
+    return 0
+}
+
+# fw_config_case_mismatches [FILE] — print FILE_KEY|REGISTRY_KEY for every
+# top-level .framework.yaml key that names a registry key in the wrong case.
+# Such a key is dead: fw_config never reads it (T-3924). Used by fw doctor.
+fw_config_case_mismatches() {
+    local file="${1:-${PROJECT_ROOT:-.}/.framework.yaml}" key canon
+    [ -f "$file" ] || return 0
+    while IFS= read -r key; do
+        key="${key%%:*}"
+        canon="$(fw_config_canonical_key "$key")"
+        if [ -n "$canon" ] && [ "$canon" != "$key" ]; then
+            printf '%s|%s\n' "$key" "$canon"
+        fi
+    done < <(grep -oE '^[A-Za-z_][A-Za-z0-9_]*:' "$file" || true)
 }
 
 # fw_consumer_yamls — Emit .framework.yaml paths for all consumer projects
@@ -216,10 +263,11 @@ FW_CONFIG_REGISTRY=(
     "UX_SHOT_WIDTHS|1024,1440,1920|Comma-separated viewport widths for fw ux shots (agents/ux-review/ux_shots.py). T-4202: a render-surface state is screenshotted at every width here; at least 3 entries, each 320-7680, no duplicates, validated at capture. Read by the check-visual-verification gate's width minimum. T-4212."
     "HOST|0.0.0.0|Watchtower bind address (env FW_HOST, read by web/config.py). A specific address makes the shell side probe and advertise that address instead of localhost; 0.0.0.0 or :: means all interfaces (T-4041, GitHub #88)"
     "WATCHTOWER_OPEN_FIREWALL|0|1 = Watchtower start may add a UFW allow rule for its port when UFW is active and the bind is not loopback. 0 (default) never changes the firewall; it prints the exact ufw command instead. A loopback bind never touches UFW (T-4297)"
+    "WATCHTOWER_START_TIMEOUT|60|Seconds watchtower start waits for the launched server to answer /api/_identity as this project's Watchtower. On expiry the start stops that server, clears the pid/port/url triple and exits 1, so no server runs without a url file (T-4460)"
     "PORT_SCAN_BASE|3000|First port tried when a project has no PORT set: fw serve scans 100 ports up from here, skips any held by another service, and records the chosen port as PORT in .framework.yaml (T-3662)"
     "CAPTURE_QUERY_TEXT|0|Keep the rendered prompt of a user query (fw ask) on disk in the dispatch blob. Default 0: the dispatch row keeps only prompt_sha256 and prompt_chars, so the typed query is not stored (arc-001 F-9, T-4061). Set 1 to opt in for debugging."
     "RAIL_IDENTITY_FILE||Project-owned termlink signing identity for outbound rail posts (T-2904). Empty = sign as host key, which is indistinguishable from co-resident agents. Created on first use."
-    "RAIL_PROJECT_LABEL||Canonical from_project label attached to outbound rail posts (T-2905). Empty = derived from the project directory name, normalised. Emitted, never typed at a call site."
+    "RAIL_PROJECT_LABEL||Canonical from_project label attached to outbound rail posts (T-2905). Empty = the verbatim project directory name (T-4327); a set label is normalised. Emitted, never typed at a call site."
     "DISPATCH_LIMIT|0|Built-in harness sub-agent (Agent tool) dispatches allowed before the TermLink gate blocks. Default 0 (operator ruling 2026-10-06, T-3910): sub-agents run as TermLink workers, never through a vendor harness's dispatcher"
     "BUDGET_RECHECK_INTERVAL|5|Re-read transcript every N tool calls"
     "BUDGET_STATUS_MAX_AGE|90|Max seconds before cached budget status is stale"
@@ -270,6 +318,9 @@ FW_CONFIG_REGISTRY=(
     # to make visible.
     "SIDECAR_CONSULT_WARN_HOURS|4|Hours an inbound peer consult may sit unread on the sidecar inbox before fw audit and fw doctor WARN (agents/audit/audit.sh, bin/fw doctor, lib/sidecar-audit.sh:fw_sidecar_inbox_stale_facts). Deliberately far below the sibling dm:* rail's 24: a dm: rail carries incidental posts, a consult is a PEER BLOCKED ON AN ANSWER. Origin T-3544/OBS-567 — 832-Workflow-designer waited six days and 010-termlink found 49 of ours unread on their own inbox. Raise it if the WARN nags; do not raise it to silence a real backlog."
     "SIDECAR_HELD_WARN_HOURS|24|Hours peer mail may sit in the receiver store, never shown to any session, before fw audit and fw doctor WARN (lib/sidecar-audit.sh:fw_sidecar_held_unsurfaced_facts, lib/sidecar/inject.py:held_unsurfaced). T-4207: with injection off (receiver --no-inject) the prompt hook is the only delivery path, and 050-email-archive held 58 messages for 51 h with no WARN. Raise it only if a deliberately parked inbox nags."
+    "SIDECAR_RAIL_IDENTITY|0|1 = every termlink call lib/sidecar makes signs with RAIL_IDENTITY_FILE (the same key fw rail post uses) instead of the host-shared key, unless TERMLINK_IDENTITY_FILE/TERMLINK_AGENT_ID/TERMLINK_IDENTITY_DIR is already set (lib/sidecar/identity.py, T-4311). Off by default: it changes which dm:* rails address this project, so turning it on is a coordination event with peers."
+    "SIDECAR_HOST_DM_TRANSITION|1|While SIDECAR_RAIL_IDENTITY moves the sidecar off the host key, keep reading the dm:* rails addressed to the old host fingerprint so DMs sent before the switch are not lost (lib/sidecar/dm.py:legacy_host_fingerprint, T-4311). Set 0 once peers address the project key: host rails are shared by every co-resident project (T-4252)."
+    "ISSUES_DECISIONS_STANDING_PERMISSION|0|1 = fw issues comment posts a decision stage (accepted / needs-info / duplicate / not-planned) without --approved-by-operator, and the ledger row records approved_by: standing-permission:operator-2026-10-19 (lib/issues.py:_standing_permission). Operator ruling 2026-10-19 (T-4347), superseding answer 1 of T-4039 for decision comments. 0 keeps the per-comment operator approval. Template stages, idempotence and the footer are unchanged either way."
     "SIDECAR_TICK|30|Seconds between ticks of the always-on sidecar watcher (lib/sidecar/watcher.py): each tick drains the agent's hub inbox topic(s) into the receiver, injects waiting peer messages (urgent at once, the rest only into a session whose own Stop hook reported it ready), escalates our own unconfirmed sends past their deadline, runs the loopback self-probe and writes .context/sidecar/liveness.yaml. Not live = no tick for 2 ticks. Values < 1 fall back to 30. T-3684/T-3685 (T-3397 design of record; operator 2026-10-02: 30 s)."
     "DELEGATION_SURFACE_WARN|50|Operator-only open-Human-criteria count above which fw audit and fw doctor WARN, but only while reviewer-closeable is 0 (agents/audit/audit.sh, lib/delegation.py:surface_verdict). T-3445 / D-626."
     "GITIGNORE_REGISTER_ADVISORY|1|Enable the audit WARN for .gitignore comment blocks that defer work without naming a T-/G-/OBS-/L- entry; 0 silences it (agents/audit/audit.sh, lib/gitignore-register.sh). T-2994."
@@ -291,6 +342,9 @@ FW_CONFIG_REGISTRY=(
     # doctor/audit/handover when these are exceeded — the reindex runs hourly, so
     # 24h is a full day of missed runs, not jitter.
     "INDEX_MAX_AGE_HOURS|24|Hours since the vector index manifest was written before the vector-index health check FAILs (fw doctor, fw audit corpus-health, handover, operator push). The reindex cron runs hourly. T-3783."
+    "INDEX_REINDEX_INTERVAL_HOURS|1|Hours between runs of the index-reindex-hourly cron job (1-24). 1 writes hour field '*', N writes '*/N'; read by fw cron generate (lib/cron_schedule.py). Raise for large, slowly changing indexes; keep it under INDEX_MAX_AGE_HOURS. The job's minute is derived per project unless the registry pins it. T-4351."
+    "EMBED_WORKERS|1|Concurrent embed requests the vector reindex sends to the bulk embedding host (web/embeddings.py:_embed_batches; order preserved). Match it to the server's OLLAMA_NUM_PARALLEL; 1 is serial. Measured 70 to 107 chunks/s at 3 on a 3-slot Ollama. Malformed or <1 means 1. T-4475."
+    "SEMANTIC_RECALL|1|1 = this host runs semantic recall (vector index, sqlite-vec, an embed host) and the vector-index health check FAILs when any of it is missing. 0 = deliberately absent on this host: the check reports one SKIP 'not configured on this host', fw index reindex does nothing, fw upgrade skips the prerequisite probe. Never inferred from a missing Ollama. T-3862."
     "INDEX_MAX_LAG|50|Task ids or learning ids on disk that the vector index has never seen before the vector-index health check FAILs. T-3783."
     "RECALL_FAIL_PCT_WARN|10|Percent of recall queries in 7 days that could not run (embed path failed mid-query) above which the vector-index health check WARNs. T-3783."
     # T-3028 (T-3025 GO, option 3). State dumps are 97.3% of a handover and the
@@ -309,6 +363,7 @@ FW_CONFIG_REGISTRY=(
     # This is the GRANT clock, not the request-staleness clock (how long a pending
     # card stays offerable: web/blueprints/approvals.py EXPIRY_SECONDS, T-3079).
     "TIER0_APPROVAL_TTL|300|Seconds a granted Tier 0 approval admits the command, for BOTH the 'fw tier0 approve' and Watchtower legs (agents/context/check-tier0.sh). Legacy TIER0_WATCHTOWER_TTL still wins when explicitly set. NOT the pending-request staleness window. T-3080."
+    "APPROVAL_PENDING_WARN_HOURS|24|Hours a pending Tier 0 approval card (.context/approvals/pending-*.yaml) may sit unanswered before fw doctor and fw audit WARN (lib/approval_queue_age.py). The request-staleness alarm, not the grant clock (TIER0_APPROVAL_TTL). Origin T-3079: three cards sat unseen for up to 3.5 months because only pull surfaces read them."
     # T-3127. AUDIT_TIMEOUT (section-scoped default 600, full-run default 3000
     # via FW_AUDIT_FULL_TIMEOUT, T-3070) is a pinned constant; the corpus a
     # full 'fw audit' scans grows with every task/learning/episodic/fabric
@@ -336,6 +391,9 @@ FW_CONFIG_REGISTRY=(
     # full mem/disk/cpu/net adaptive governor is slice S5b.
     "PROVISION_LOAD_MAX|0.8|Per-core normalized 1-minute loadavg threshold for the environmental governor's provisioning admission (lib/aef_governor.py). Under = allow, at/over = defer, at/over 2x = deny; bad values fall back to 0.8, logged. T-3311."
     "REVIEWER_JUDGE_WEEKLY_SPEND_CEILING|10000|Weekly USD spend ceiling for independent reviewer judgments via fw reviewer judge (T-3580, IW-7 rung selection). Estimated USD, read from the committed cost ledger (.context/costs/reviews.jsonl, reviewer-judge rows). When the due rung would pass it, the run is registered one rung lower; the SIGNED REVIEW RUN records the decision (due, granted, spend, ledger commit), the ticked criterion annotation shows rung granted/due/reason, and fw audit WARNs on every step-down. Floor 100: a value below it (0, negative, NaN, non-numeric) means no step-down, never always. T-3580."
+    # T-4490 (T-4466 GO, operator 2026-10-20). Project opt-out for green-degraded panel closes.
+    "BOUNDARY_EXTRA_READ_PATHS||Colon-separated absolute paths the project-boundary gate (agents/context/check-project-boundary.sh) lets Bash commands READ, on top of its built-in allowlist (which already covers \$HOME/.local and \$HOME/.claude of the running account). Writes are not widened. Relative entries and / are ignored. T-4361, GitHub #104."
+    "REVIEW_GREEN_DEGRADED|1|1 (default) lets a rung-5 review panel whose only missing seats were provably UNAVAILABLE (dispatched, started and completed by the signed runtime with no verdict) close a REVIEWER-JUDGES criterion as GREEN-DEGRADED when at least two seats of distinct vendors judged green and none dissented. Never for tier-0-or-bypass, act-in-the-world or sovereignty criteria. Each close is written on the criterion and WARNed by fw audit with a per-ISO-week count. Set 0 to opt out; any value other than 1/true/yes/on also means off (lib/verdict_ledger.py). T-4490."
 )
 
 # fw_config_registry — Print all known settings with current values

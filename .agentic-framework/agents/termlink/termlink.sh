@@ -245,15 +245,28 @@ finally:
 PY
 }
 
+# T-3709: build-class work never takes its model from the route cache. The cache ranks
+# by close-gate outcomes a worker can satisfy with its own tests, so it steered build
+# dispatches to the weakest model (haiku, 2026-10-02). These types resolve from config,
+# then the strongest model.
+_DISPATCH_BUILD_CLASS_TYPES="build design specification refactor"
+_DISPATCH_STRONGEST_MODEL="opus"
+
 _resolve_dispatch_model_and_fallback() {
     local explicit="$1" task_type="$2"
     if [ -n "$explicit" ]; then
         echo "${explicit}|false|explicit"
         return 0
     fi
+    local build_class=false
+    case " $_DISPATCH_BUILD_CLASS_TYPES " in
+        *" $task_type "*) [ -n "$task_type" ] && build_class=true ;;
+    esac
     if [ -n "$task_type" ]; then
-        local cached
-        cached=$(_route_cache_query_best_model "$task_type" 2>/dev/null || true)
+        local cached=""
+        if [ "$build_class" = false ]; then
+            cached=$(_route_cache_query_best_model "$task_type" 2>/dev/null || true)
+        fi
         if [ -n "$cached" ]; then
             echo "${cached}|true|route_cache"
             return 0
@@ -270,6 +283,8 @@ _resolve_dispatch_model_and_fallback() {
     d=$(fw_config "DISPATCH_MODEL_DEFAULT" "" 2>/dev/null || true)
     if [ -n "$d" ]; then
         echo "${d}|true|env-default"
+    elif [ "$build_class" = true ]; then
+        echo "${_DISPATCH_STRONGEST_MODEL}|true|strongest-default"
     else
         echo "||none"
     fi
@@ -386,8 +401,22 @@ cmd_spawn() {
     # that server's GLOBAL env is the env it was started with. Strip fw's path variables so a
     # first spawn cannot make another project's PROJECT_ROOT/FRAMEWORK_ROOT the server's global
     # env. The worker's run.sh exports its own paths (see the RUNEOF heredoc in cmd_dispatch).
-    env -u PROJECT_ROOT -u FRAMEWORK_ROOT -u _FW_PATHS_DERIVED_BY -u FW_ROUTED_FROM -u TASKS_DIR -u CONTEXT_DIR \
-        termlink spawn "${spawn_args[@]}"
+    # T-4636 (T-4635 RCA): run the spawn in its own systemd scope under agentic.slice, so a tmux
+    # server it starts — and every worker inside it — is outside the caller's login session and
+    # survives that session's forced teardown. Empty prefix (logged once) where systemd can't.
+    FW_AGENT_SCOPE_CMD=()
+    if [ -f "$FRAMEWORK_ROOT/lib/agent-scope.sh" ]; then
+        # shellcheck source=/dev/null
+        source "$FRAMEWORK_ROOT/lib/agent-scope.sh"
+        fw_agent_scope_prefix "termlink spawn $name"
+    fi
+    # T-4647 (SEV-1 T-4635): an ALLOW-LIST, not the name list above — any variable not on
+    # lib/spawn-env.sh's list (every FW_*, CONTEXT_DIR, TASKS_DIR, …) never reaches the spawn.
+    # shellcheck source=/dev/null
+    source "$FRAMEWORK_ROOT/lib/spawn-env.sh"
+    fw_spawn_env
+    env -i "${FW_SPAWN_ENV[@]}" \
+        ${FW_AGENT_SCOPE_CMD[@]+"${FW_AGENT_SCOPE_CMD[@]}"} termlink spawn "${spawn_args[@]}"
     echo -e "${GREEN}OK${NC}  Session '$name' registered"
     # T-4067: `if`, not `[ ] && echo` — as the function's last statement a false
     # test became its return status and aborted `fw termlink dispatch` under set -e.
@@ -423,11 +452,32 @@ _running_workers() {
         [ -f "$wdir/exit_code" ] && continue
         n=$(basename "$wdir")
         printf '%s\n' "$listed" | grep -qw -- "$n" || continue
-        proj=$(sed -n 's/^  "project": "\(.*\)",$/\1/p' "$wdir/meta.json" 2>/dev/null | head -1)
-        [ -n "$proj" ] || continue
-        [ "$(readlink -f "$proj" 2>/dev/null || echo "$proj")" = "$real" ] || continue
+        _worker_in_project "$wdir" "$real" || continue
         printf '%s\n' "$n"
     done
+}
+
+# T-4558: true when <wdir>/meta.json names the project whose resolved path is <real>.
+# A dir with no meta.json, or naming another project, is not this project's worker.
+_worker_in_project() {
+    local wdir="$1" real="$2" proj
+    proj=$(sed -n 's/^  "project": "\(.*\)",$/\1/p' "$wdir/meta.json" 2>/dev/null | head -1)
+    [ -n "$proj" ] || return 1
+    [ "$(readlink -f "$proj" 2>/dev/null || echo "$proj")" = "$real" ]
+}
+
+# T-4558: the ERE that marks a process as a live worker, derived from DISPATCH_WORKER_KINDS
+# so a new kind is covered by default. A kind whose process is not named after it maps here.
+_active_worker_re() {
+    local k re=""
+    for k in $DISPATCH_WORKER_KINDS; do
+        case "$k" in
+            ollama-loop) k='ollama-tool-loop' ;;       # tools/ollama-tool-loop.py
+            antigravity) k='antigravity|/agy( |$)' ;;  # binary is .../bin/agy (policy/review-backends.yaml)
+        esac
+        re="${re:+$re|}$k"
+    done
+    printf '%s' "$re"
 }
 
 # T-3910 (operator ruling 2026-10-06): at most TERMLINK_MAX_WORKERS (default 5)
@@ -447,6 +497,67 @@ _enforce_worker_cap() {
     exit 1
 }
 
+# T-4637 (T-4635 RCA): a worker SIGKILLed with its slice never writes exit_code, so
+# "no exit_code" alone reads as running forever and the parent's monitor never fires.
+# VANISHED = no exit_code, no run.sh or other process naming the dir, and its output
+# (result.jsonl, else the dir itself) unchanged for <minutes>. A dir still being set
+# up by cmd_dispatch is fresh, so it is not reported.
+_worker_vanished() {
+    local wdir="${1%/}" minutes="$2" out procs
+    [ -f "$wdir/exit_code" ] && return 1
+    _runtime_alive "$wdir" && return 1
+    # Capture first: in `ps | grep "$wdir/"` the grep's own argv would match.
+    procs=$(ps -eo args= 2>/dev/null) || procs=""
+    grep -qF -- "$wdir/" <<< "$procs" && return 1
+    out="$wdir"
+    [ -f "$wdir/result.jsonl" ] && out="$wdir/result.jsonl"
+    [ -n "$(find "$out" -maxdepth 0 -mmin "+$minutes" 2>/dev/null)" ]
+}
+
+cmd_vanished() {
+    local minutes json=false wdir n proj found=0 real
+    minutes=$(fw_config_int "TERMLINK_VANISHED_MINUTES" 10)
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --minutes) minutes="$2"; shift 2 ;;
+            --json) json=true; shift ;;
+            -h|--help)
+                cat <<'USAGE'
+Usage: fw termlink vanished [--minutes N] [--json]
+
+List dispatch workers that VANISHED: no exit_code, no live process, and output
+(result.jsonl, else the worker dir) unchanged for N minutes (default
+TERMLINK_VANISHED_MINUTES, 10). Such a worker was killed without finishing (T-4635);
+waiting on it never returns. Exit 1 when any vanished, 0 when none.
+USAGE
+                return 0 ;;
+            *) die "Unknown option: $1" ;;
+        esac
+    done
+    [[ "$minutes" =~ ^[0-9]+$ ]] || die "--minutes must be a non-negative integer"
+    [ -d "$DISPATCH_DIR" ] || return 0
+    $json && echo "["
+    for wdir in "$DISPATCH_DIR"/*/; do
+        [ -d "$wdir" ] || continue
+        _worker_vanished "$wdir" "$minutes" || continue
+        n=$(basename "$wdir")
+        proj=$(sed -n 's/^  "project": "\(.*\)",$/\1/p' "$wdir/meta.json" 2>/dev/null | head -1)
+        if $json; then
+            [ "$found" -gt 0 ] && echo ","
+            printf '  {"name": "%s", "dir": "%s", "project": "%s", "task": "%s"}' \
+                "$n" "${wdir%/}" "$proj" "$(cat "$wdir/task" 2>/dev/null)"
+        else
+            echo -e "${RED}VANISHED${NC}  $n  (${proj:-unknown project}) — no exit_code, no process, output quiet > ${minutes}m"
+        fi
+        found=$((found + 1))
+    done
+    if $json; then echo ""; echo "]"; fi
+    if [ "$found" -gt 0 ] && ! $json; then
+        echo "  The worker was killed before it could finish (T-4635). Read what it left (fw termlink result <name>), then re-dispatch." >&2
+    fi
+    [ "$found" -eq 0 ]
+}
+
 cmd_status() {
     ensure_termlink
 
@@ -454,6 +565,8 @@ cmd_status() {
 
     # Show dispatch workers with status (adapted from tl-dispatch.sh cmd_status)
     if [ -d "$DISPATCH_DIR" ]; then
+        local vanished_min
+        vanished_min=$(fw_config_int "TERMLINK_VANISHED_MINUTES" 10)
         for wdir in "$DISPATCH_DIR"/*/; do
             [ -d "$wdir" ] || continue
             local name
@@ -463,6 +576,8 @@ cmd_status() {
                 local ec
                 ec=$(cat "$wdir/exit_code")
                 [ "$ec" = "0" ] && status="complete" || status="failed (exit: $ec)"
+            elif _worker_vanished "$wdir" "$vanished_min"; then
+                status="VANISHED"   # T-4637: killed without exit_code
             fi
             local session_alive="no"
             termlink list 2>/dev/null | grep -q "$name" && session_alive="yes" || true
@@ -503,7 +618,8 @@ Stop the TermLink endpoint a finished worker left registered (T-4152: workers di
 before the exec fix kept their shell at its prompt, 'ready' forever) — only when the worker
 dir holds a run.sh, its exit_code is final (review workers: finalised) and run.sh is no
 longer running; never any session that is not such a dispatch worker.
-Active workers and unfinalised review workers are never removed.
+Active workers, unfinalised review workers and uncollected results are never removed.
+Only this project's workers (meta.json "project" = PROJECT_ROOT) are considered (T-4558).
 
   --dry-run, -n   print the plan (dirs to remove, PIDs to signal, endpoints to stop, uncollected
                   results); change nothing
@@ -536,10 +652,20 @@ USAGE
     # T-4152: one snapshot of the registered sessions, for the leaked-endpoint check below.
     local tl_json=""
     command -v termlink >/dev/null 2>&1 && tl_json=$(termlink list --json 2>/dev/null || true)
+    # T-4558: DISPATCH_DIR is shared by every project on the host — act only on this project's
+    # workers (meta.json "project"), the same scope _running_workers applies to the cap.
+    local project_dir="${PROJECT_ROOT:-$(pwd)}" real_project other_count=0
+    real_project=$(readlink -f "$project_dir" 2>/dev/null || echo "$project_dir")
+    local active_re
+    active_re=$(_active_worker_re)
     for wdir in "$DISPATCH_DIR"/*/; do
         [ -d "$wdir" ] || continue
         local wname
         wname=$(basename "$wdir")
+        if ! _worker_in_project "$wdir" "$real_project"; then
+            other_count=$((other_count + 1))
+            continue
+        fi
 
         # Finished workers. T-3580 round 7 (codex MEDIUM-3): a REVIEW worker is finished only
         # once its runtime has finalised it — `exit_code` is written BEFORE the completion is
@@ -547,7 +673,6 @@ USAGE
         # `_worker_done` applies for `fw termlink wait`.
         if [ -f "$wdir/exit_code" ]; then
             if _worker_done "$wdir"; then
-                remove+=("$wdir")
                 # T-4152: a finished dispatch worker whose session is still registered leaked
                 # its endpoint. Stop it only when this dir is provably a dispatch worker's
                 # (cmd_dispatch wrote run.sh) and its run.sh is no longer running.
@@ -556,9 +681,14 @@ USAGE
                     sid=$(_dispatch_session_id "$tl_json" "$wname")
                     [ -z "$sid" ] || endpoint_plan+=("$wname|$sid")
                 fi
-                # T-3651: a result nobody has read is the one thing cleanup must not destroy silently.
+                # T-3651/T-4558: a result nobody has read is never removed — the dir is kept
+                # (its endpoint above is still stopped) until `fw termlink result` collects it.
                 if [ ! -f "$wdir/collected" ] && { [ -s "$wdir/result.md" ] || [ -s "$wdir/result.jsonl" ]; }; then
                     uncollected+=("$wdir")
+                    echo -e "${YELLOW}KEPT${NC}    Worker '$wname' has an uncollected result — collect it with: fw termlink result $wname"
+                    kept_count=$((kept_count + 1))
+                else
+                    remove+=("$wdir")
                 fi
             else
                 echo -e "${YELLOW}KEPT${NC}    Worker '$wname' exited but its review completion is not finalised yet — not removed"
@@ -584,9 +714,8 @@ USAGE
         # T-843/T-972: Check if a worker process is actively running — if so, skip (not orphaned)
         # Must check BOTH the matched PIDs AND their child processes, because
         # run.sh (matched by grep $wdir) spawns claude -p as a child process
-        # whose args don't contain $wdir. T-3595: the ollama-loop worker kind runs
-        # tools/ollama-tool-loop.py instead of claude — that is active too.
-        local active_re='claude|ollama-tool-loop'
+        # whose args don't contain $wdir. T-3595/T-4558: every dispatch worker kind counts —
+        # $active_re is derived from DISPATCH_WORKER_KINDS (_active_worker_re), above the loop.
         local has_worker=false
         for pid in $worker_pids; do
             local cmd_line
@@ -623,7 +752,7 @@ USAGE
     # ---- plan ----
     local d
     for d in "${remove[@]}"; do
-        echo "PLAN    remove $(basename "$d")$([[ " ${uncollected[*]-} " == *" $d "* ]] && echo '  [UNCOLLECTED result]')"
+        echo "PLAN    remove $(basename "$d")"
     done
     local entry
     for entry in "${orphan_plan[@]}"; do
@@ -632,7 +761,7 @@ USAGE
     for entry in "${endpoint_plan[@]}"; do
         echo "PLAN    stop endpoint ${entry%%|*} (${entry#*|}) — worker finished, session still registered"
     done
-    echo "Plan: remove ${#remove[@]} dir(s) (${#uncollected[@]} with uncollected results), terminate ${orphan_count} orphan(s), stop ${#endpoint_plan[@]} leaked endpoint(s), keep $kept_count."
+    echo "Plan: remove ${#remove[@]} dir(s), terminate ${orphan_count} orphan(s), stop ${#endpoint_plan[@]} leaked endpoint(s), keep $kept_count (${#uncollected[@]} with uncollected results); ${other_count} other project(s)' worker dir(s) not touched."
 
     if [ "$dry_run" = true ]; then
         echo "Dry run — nothing changed."
@@ -826,6 +955,37 @@ _runtime_alive() {
     pgrep -f -- "${1%/}/run.sh" >/dev/null 2>&1
 }
 
+# T-4561: a dispatch into an existing worker dir must not inherit the previous run's
+# state. Re-dispatching w4523 rewrote meta.json/prompt.md/run.sh but left exit_code,
+# finished_at and close_state, so watchers saw the live worker as already finished.
+# Refuse while the previous run is live, unfinalised, or holds an uncollected result;
+# otherwise move every top-level file of it into prev-<timestamp>/.
+_clear_reused_wdir() {
+    local wdir="$1" name="$2" f prev moved=0
+    [ -d "$wdir" ] || return 0
+    if _runtime_alive "$wdir"; then
+        die "dispatch '$name': the previous run's run.sh in $wdir is still running. Wait for it (fw termlink wait $name) or pick another --name."
+    fi
+    if [ ! -f "$wdir/exit_code" ]; then
+        if { termlink list 2>/dev/null || true; } | grep -qw -- "$name"; then
+            die "dispatch '$name': a worker of that name is still running ($wdir has no exit_code). Wait for it (fw termlink wait $name) or pick another --name."
+        fi
+    elif ! _worker_done "$wdir"; then
+        die "dispatch '$name': the previous review run in $wdir exited but is not finalised yet. Wait for it (fw termlink wait $name) or pick another --name."
+    fi
+    if [ ! -f "$wdir/collected" ] && { [ -s "$wdir/result.md" ] || [ -s "$wdir/result.jsonl" ]; }; then
+        die "dispatch '$name': $wdir holds an uncollected result from the previous run. Collect it first: fw termlink result $name (or pick another --name)."
+    fi
+    prev="$wdir/prev-$(date -u +%Y%m%dT%H%M%SZ)-$$"
+    for f in "$wdir"/* "$wdir"/.[!.]*; do
+        [ -e "$f" ] || [ -L "$f" ] || continue
+        case "$(basename "$f")" in prev-*) continue ;; esac
+        [ "$moved" -eq 1 ] || { mkdir -p "$prev" || die "dispatch '$name': cannot create $prev"; moved=1; }
+        mv -- "$f" "$prev/" || die "dispatch '$name': cannot move $f aside into $prev"
+    done
+    [ "$moved" -eq 0 ] || echo "Previous run of '$name' moved aside: $prev" >&2
+}
+
 cmd_dispatch() {
     ensure_termlink
     local task="" name="" prompt="" prompt_file="" project_dir="" timeout="$TERMLINK_WORKER_TIMEOUT" model="" task_type="" tools="" worker_kind="" permission_mode="" mcp_config="" strict_mcp="" allowed_tools="" review_revision="" review_run="" review_seat=""
@@ -950,6 +1110,11 @@ cmd_dispatch() {
         [ -f "$prompt_file" ] || die "Prompt file not found: $prompt_file"
         prompt=$(cat "$prompt_file")
     fi
+    # T-3720: an empty prompt still launches a worker — the sidecar preamble alone reaches
+    # the model, with no task in it. Refuse before anything is spawned.
+    if [ -z "${prompt//[[:space:]]/}" ]; then
+        die "Dispatch refused: prompt is empty${prompt_file:+ (--prompt-file $prompt_file)}. Nothing was spawned — check that the prompt was written before dispatching."
+    fi
 
     # T-1643/W1: auto-derive task_type from focus.yaml when omitted.
     if [ -z "$task_type" ]; then
@@ -984,6 +1149,8 @@ cmd_dispatch() {
         _resolved=$(_resolve_dispatch_model_and_fallback "$model" "$task_type")
         IFS='|' read -r model fallback_used resolution_source <<< "$_resolved"
     fi
+    # T-3709: the model choice is visible at dispatch, not only in meta.json.
+    echo "Model: ${model:-worker default} (source: ${resolution_source:-none}, task type: ${task_type:-none})" >&2
     # JSON-safe: empty resolution → null (not the string "null"); non-empty model → quoted string.
     local model_used_json
     if [ -n "$model" ]; then
@@ -1000,6 +1167,7 @@ cmd_dispatch() {
     project_dir="${project_dir:-$(pwd)}"
     _enforce_worker_cap "$project_dir" "$name"
     local wdir="$DISPATCH_DIR/$name"
+    _clear_reused_wdir "$wdir" "$name"
     mkdir -p "$wdir"
 
     # T-3580 round 7: a review worker runs the binary resolved HERE, by absolute path (run.sh
@@ -1261,6 +1429,19 @@ METAEOF
     # Adapted from tl-dispatch.sh — battle-tested with 3 parallel workers
     cat > "$wdir/run.sh" <<'RUNEOF'
 #!/bin/bash
+# T-4647 (SEV-1 T-4635): start over from an ALLOW-LIST. The session shell carries the tmux
+# server's global env — another project's CONTEXT_DIR/TASKS_DIR/FW_* when a polluted spawn
+# started that server. Same list as lib/spawn-env.sh (t4647 bats pins them equal); this runtime
+# is self-contained, so it is copied, not sourced. Project paths are set below from PROJECT_DIR.
+if [ -z "${_FW_RUNTIME_ENV_CLEAN:-}" ]; then
+    FW_SPAWN_ENV_ALLOW='^(PATH|HOME|USER|LOGNAME|SHELL|LANG|LANGUAGE|LC_[A-Z_]+|TERM|COLORTERM|TZ|TMPDIR|TMUX|TMUX_PANE|TMUX_TMPDIR|TERMLINK_[A-Z0-9_]+|XDG_[A-Z_]+|DBUS_SESSION_BUS_ADDRESS|SSH_AUTH_SOCK|ANTHROPIC_[A-Z0-9_]+|CLAUDE_CONFIG_DIR|CLAUDE_CODE_OAUTH_TOKEN|http_proxy|https_proxy|no_proxy|HTTP_PROXY|HTTPS_PROXY|NO_PROXY|SSL_CERT_FILE|SSL_CERT_DIR|NODE_EXTRA_CA_CERTS)$'
+    _KEEP=()
+    while IFS= read -r _K; do
+        [[ "$_K" =~ $FW_SPAWN_ENV_ALLOW ]] && _KEEP+=("$_K=${!_K}")
+    done < <(compgen -e)
+    exec env -i "${_KEEP[@]}" _FW_RUNTIME_ENV_CLEAN=1 "$BASH" "$0" "$@"
+fi
+unset _FW_RUNTIME_ENV_CLEAN
 WORKER_NAME="$1"; PROJECT_DIR="$2"; WDIR="$3"; TIMEOUT="$4"; MODEL="$5"
 TASK_TYPE="$6"; FW_BIN="$7"
 cd "$PROJECT_DIR" || { echo "FATAL: cd $PROJECT_DIR failed" >> "$WDIR/stderr.log"; exit 1; }
@@ -1754,13 +1935,19 @@ cmd_wait() {
         local wdir="$DISPATCH_DIR/$name"
         [ -d "$wdir" ] || die "No worker named '$name'"
 
-        # Event-based wait first, file confirmation fallback
-        # (from tl-dispatch.sh — termlink event wait is faster than polling)
-        termlink list 2>/dev/null | grep -q "$name" && \
-            termlink event wait "$name" --topic worker.done --timeout "$timeout" >/dev/null 2>&1 || true
-
-        local deadline=$(($(date +%s) + timeout))
-        while ! _worker_done "$wdir" && [ "$(date +%s)" -lt "$deadline" ]; do sleep 1; done
+        # T-4582: the file is the truth, the event only a speed-up. `event wait` misses a
+        # worker.done emitted before it subscribes, so check the file first and wait on the
+        # event in short slices, re-checking between them, under one deadline.
+        local deadline=$(($(date +%s) + timeout)) left slice
+        while ! _worker_done "$wdir" && [ "$(date +%s)" -lt "$deadline" ]; do
+            left=$((deadline - $(date +%s))); slice=$(( left < 5 ? left : 5 ))
+            [ "$slice" -gt 0 ] || break
+            if termlink list 2>/dev/null | grep -q "$name"; then
+                termlink event wait "$name" --topic worker.done --timeout "$slice" >/dev/null 2>&1 || true
+            else
+                sleep 1
+            fi
+        done
 
         if _worker_done "$wdir"; then
             local ec
@@ -1879,6 +2066,7 @@ cmd_help() {
     echo -e "  ${GREEN}spawn${NC} --task T-XXX [--name N] Open tagged terminal session"
     echo -e "  ${GREEN}exec${NC} <session> <command>      Run command in session (structured output)"
     echo -e "  ${GREEN}status${NC}                       List active TermLink sessions"
+    echo -e "  ${GREEN}vanished${NC} [--minutes N]        List workers killed without exit_code (exit 1 if any)"
     echo -e "  ${GREEN}cleanup${NC}                      Deregister sessions, close terminal windows"
     echo -e "  ${GREEN}dispatch${NC} --name N --prompt P  Spawn claude -p worker in real terminal
                                      [--project DIR] [--model M] [--timeout S]
@@ -1934,6 +2122,7 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
         spawn)    cmd_spawn "$@" ;;
         exec)     cmd_exec "$@" ;;
         status)   cmd_status "$@" ;;
+        vanished) cmd_vanished "$@" ;;
         cleanup)  cmd_cleanup "$@" ;;
         worker-kinds) cmd_worker_kinds "$@" ;;
         dispatch) cmd_dispatch "$@" ;;

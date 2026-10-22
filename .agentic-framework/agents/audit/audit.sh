@@ -13,6 +13,7 @@
 # Sections: structure, compliance, quality, traceability, enforcement,
 #           learning, episodic, observations, gaps, handover, graduation,
 #           research, oe-research, discovery, discovery-trends, deployment
+# Default (no --section): all except deployment, which is opt-in (T-275, T-4410)
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FRAMEWORK_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -302,6 +303,8 @@ OUTPUT_DIR=""     # Custom output directory (empty = default AUDITS_DIR)
 QUIET=false       # Suppress terminal output
 CHECK_IDS=""      # T-4209: comma-separated check ids (empty = not a single-check run)
 LIST_CHECKS=false # T-4209: print the check ids and exit
+CRON_MODE=false   # T-4542: --cron run (yields to a waiting push)
+_AUDIT_ARGV=("$@") # T-4397: the lock holder re-runs this script with the same arguments
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -310,12 +313,12 @@ while [[ $# -gt 0 ]]; do
         --list-checks) LIST_CHECKS=true; shift ;;
         --output) OUTPUT_DIR="$2"; shift 2 ;;
         --quiet) QUIET=true; shift ;;
-        --cron) OUTPUT_DIR="$CONTEXT_DIR/audits/cron"; QUIET=true; shift ;;
+        --cron) OUTPUT_DIR="$CONTEXT_DIR/audits/cron"; QUIET=true; CRON_MODE=true; shift ;;
         -h|--help)
             echo "Usage: audit.sh [options]"
             echo ""
             echo "Options:"
-            echo "  --section NAMES   Comma-separated sections to run (default: all)"
+            echo "  --section NAMES   Comma-separated sections to run (default: all except deployment)"
             echo "  --check IDS       Run only these checks (comma-separated ids; see --list-checks)"
             echo "  --list-checks     Print the available check ids and their section"
             echo "  --output DIR      Write YAML report to custom directory"
@@ -326,6 +329,7 @@ while [[ $# -gt 0 ]]; do
             echo "          learning, episodic, observations, gaps, handover, graduation,"
             echo "          oe-research, oe-fast, oe-hourly, oe-daily, oe-weekly,"
             echo "          discovery, discovery-trends, deployment"
+            echo "          (deployment is opt-in: it runs only with --section deployment)"
             echo ""
             echo "Subcommands:"
             echo "  schedule install  Install cron entries for periodic audits"
@@ -397,10 +401,9 @@ _audit_load_functions() {
 #   75  DID NOT RUN — lock contention; the verdict is unknown, not clean
 #
 # Callers decide what "did not run" is worth. See agents/git/lib/hooks.sh (blocks) and
-# the cron note below (immune — every generated audit line pipes to logger, so the
-# pipeline exit code is logger's and no audit code ever reaches cron; pinned by
-# tests/unit/t2930_audit_contention_exit_code.bats so that immunity stops being an
-# accident that a future edit could silently revoke).
+# cron: since T-3162 every generated line ends '| logger ...; exit ${PIPESTATUS[0]}', so
+# a contended cron run reports 75 to cron (previously logger's 0 masked it); pinned by
+# tests/unit/t2930_audit_contention_exit_code.bats.
 #
 # Remedy shape accepted from 832 on the DM rail (539/541), filed here as OBS-224.
 AUDIT_LOCK_DIR="${CONTEXT_DIR}/locks"
@@ -602,13 +605,54 @@ _audit_record_section_run() {
 # holder dies, whatever the file's age. The mtime-based stale sweep and the
 # rm-on-exit both live only in the fallback arm below, where unlink IS the
 # release mechanism.
+
+# T-4542: who holds the lock, for a waiter to name. Written by the process that
+# took the lock, into a SEPARATE file — `exec 200>` truncates the lock file on
+# every contender's open, so nothing written into it survives. A reader trusts the
+# record only while its pid is alive.
+AUDIT_LOCK_HOLDER_FILE="$AUDIT_LOCK_DIR/audit.lock.holder"
+_audit_write_lock_holder() {
+    {
+        echo "pid=$$"
+        echo "since=$(date +%s)"
+        echo "job=audit.sh ${_AUDIT_ARGV[*]}"
+    } > "$AUDIT_LOCK_HOLDER_FILE.$$" 2>/dev/null \
+        && mv -f "$AUDIT_LOCK_HOLDER_FILE.$$" "$AUDIT_LOCK_HOLDER_FILE" 2>/dev/null
+    return 0
+}
+_audit_clear_lock_holder() {
+    grep -qx "pid=$$" "$AUDIT_LOCK_HOLDER_FILE" 2>/dev/null && rm -f "$AUDIT_LOCK_HOLDER_FILE"
+    return 0
+}
+# T-4542: a pre-push waiting on the lock leaves .context/locks/push-waiting (its
+# pid). Back-to-back cron audits used to re-take the lock the moment it freed, so
+# the push only ever saw it held and failed after its whole window. A cron audit
+# now yields while a live push waits: exit 75 (did not run), silent like any other
+# contended cron run. Foreground and pre-push audits are unaffected.
+AUDIT_PUSH_WAITING_FILE="$AUDIT_LOCK_DIR/push-waiting"
+if [ "$CRON_MODE" = true ] && [ -z "$CHECK_IDS" ] && [ -z "${_FW_AUDIT_LOCK_HOLDER:-}" ] \
+   && [ -f "$AUDIT_PUSH_WAITING_FILE" ]; then
+    _push_waiter=$(sed -n 's/^pid=//p' "$AUDIT_PUSH_WAITING_FILE" 2>/dev/null | head -1)
+    case "$_push_waiter" in
+        ''|*[!0-9]*) ;;
+        *) kill -0 "$_push_waiter" 2>/dev/null && exit 75 ;;
+    esac
+fi
+
 if [ -n "$CHECK_IDS" ]; then
     # T-4209: a single-check run is a read-only probe. It takes no lock, so it
     # neither waits for nor blocks a running full audit; and it starts no
     # watchdog or section ledger, because it runs no section. It also writes
     # neither the dated audit YAML nor history (see the dispatch after the header).
     :
-elif command -v flock >/dev/null 2>&1; then
+elif command -v flock >/dev/null 2>&1 && [ -z "${_FW_AUDIT_LOCK_HOLDER:-}" ]; then
+    # T-4397 — this process is the LOCK HOLDER and does no audit work. It takes the
+    # flock, then runs the audit body as a child with the lock fd CLOSED (200>&-).
+    # Bash does not close fd 200 for children, so when the audit itself held it, any
+    # descendant that outlived the audit kept the lock: a process-substitution child
+    # that backgrounded something holding its stdout did exactly that. Here no
+    # descendant of the body can inherit the lock fd, so the lock is released the
+    # moment this process exits, however it dies.
     exec 200>"$AUDIT_LOCK_FILE"
     if ! flock -n 200; then
         # Another audit is running. Cron mode (QUIET=true) stays silent; foreground
@@ -619,6 +663,27 @@ elif command -v flock >/dev/null 2>&1; then
         fi
         exit 75
     fi
+    _audit_write_lock_holder
+    _FW_AUDIT_LOCK_HOLDER=$$ bash "${BASH_SOURCE[0]}" "${_AUDIT_ARGV[@]}" 200>&- &
+    _audit_body_pid=$!
+    # TERM to the holder is forwarded to the body, whose own trap runs the section
+    # ledger write and exits 124. `wait` returns early on a trapped signal, so loop
+    # until the body is really gone before reporting its status.
+    trap 'kill -TERM "$_audit_body_pid" 2>/dev/null' TERM
+    wait "$_audit_body_pid"
+    _audit_rc=$?
+    while kill -0 "$_audit_body_pid" 2>/dev/null; do
+        wait "$_audit_body_pid"
+        _audit_rc=$?
+    done
+    _audit_clear_lock_holder
+    exit "$_audit_rc"
+elif command -v flock >/dev/null 2>&1; then
+    # T-4397 — the lock is held by the holder process that launched this body. The
+    # body takes no lock fd, and it is removed from the environment so a nested audit
+    # started by a section takes its own lock.
+    _audit_lock_holder="$_FW_AUDIT_LOCK_HOLDER"
+    unset _FW_AUDIT_LOCK_HOLDER
     # Apply timeout: kill self if still running after AUDIT_TIMEOUT seconds.
     # T-1464 + T-1772: detach EVERY inherited fd in the watchdog subshell, not
     # just stdio. The `sleep` child reparents to init when its subshell exits,
@@ -639,10 +704,25 @@ elif command -v flock >/dev/null 2>&1; then
           _n="${_fd##*/}"
           case "$_n" in 0|1|2) ;; *) eval "exec $_n>&-" 2>/dev/null ;; esac
       done
-      trap 'kill "${_watchdog_sleep_pid:-}" 2>/dev/null; exit 0' TERM
-      sleep "$AUDIT_TIMEOUT" &
-      _watchdog_sleep_pid=$!
-      wait "$_watchdog_sleep_pid" && kill -TERM $$ 2>/dev/null
+      # T-4545: the trap kills $!, not a pid copied into a variable. A TERM that
+      # lands between `sleep 1 &` and the copy would kill the previous, dead tick
+      # and orphan the live one. A subshell inherits the audit's own $!, so fork a
+      # no-op first: from here on $! names a child of this subshell.
+      : &
+      wait $!
+      trap 'kill $! 2>/dev/null; exit 0' TERM
+      # T-4397: tick once a second rather than sleeping AUDIT_TIMEOUT in one piece,
+      # so the watchdog also notices its lock holder has died. An orphaned body must
+      # not carry on unlocked alongside a new audit; it stops, and that stop is the
+      # TERM below.
+      _watchdog_left="$AUDIT_TIMEOUT"
+      while [ "$_watchdog_left" -gt 0 ]; do
+          sleep 1 &
+          wait $!
+          kill -0 "$_audit_lock_holder" 2>/dev/null || break
+          _watchdog_left=$(( _watchdog_left - 1 ))
+      done
+      kill -TERM $$ 2>/dev/null
     ) </dev/null >/dev/null 2>&1 &
     AUDIT_TIMEOUT_PID=$!
     trap "kill $AUDIT_TIMEOUT_PID 2>/dev/null" EXIT
@@ -689,8 +769,89 @@ else
         exit 75
     fi
     echo $$ > "$AUDIT_LOCK_FILE"
-    trap "rm -f '$AUDIT_LOCK_FILE'" EXIT
+    _audit_write_lock_holder
+    trap "rm -f '$AUDIT_LOCK_FILE' '$AUDIT_LOCK_HOLDER_FILE'" EXIT
 fi
+
+# T-4417 — every external read in the section path is bounded. Sections read git and
+# python3 output through pipes (`done < <(git ... log)`, `$(python3 ...)`), and a read
+# waits for EOF: the LAST holder of the pipe's write end must close it. A producer
+# that leaves a descendant holding its stdout exits, the descendant keeps the pipe
+# open, and the read blocks with no child to wait on until the body watchdog fires
+# (600 s scoped / 3000 s full). `timeout` on the producer alone cannot help — the
+# producer has already exited; it is the orphan that holds the pipe.
+#
+# So when stdout is a pipe, the producer writes to a temp file instead (an orphan
+# then holds a file nobody waits on) and the file is copied to the pipe once the
+# producer is done; stderr is merged into the same file when the caller merged it,
+# so `2>&1` keeps its order. Every call is also time-bounded (FW_AUDIT_READ_TIMEOUT,
+# default 300 s; 0 = no bound): on expiry the producer is stopped, the notice goes
+# to stderr and the call returns 124. The `git` and `python3` functions below route
+# every bare call in this body — and in the lib functions it sources — through it.
+_AUDIT_TIMEOUT_CMD=()
+_audit_timeout_probe() {
+    _AUDIT_TIMEOUT_CMD=()
+    local _t
+    for _t in timeout gtimeout; do
+        command -v "$_t" >/dev/null 2>&1 || continue
+        # --foreground keeps the producer in our process group (TTY reads and
+        # Ctrl-C behave as before); busybox timeout lacks it, so fall back.
+        if command "$_t" --foreground -k 1 5 true >/dev/null 2>&1; then
+            _AUDIT_TIMEOUT_CMD=("$_t" --foreground -k 5)
+            return 0
+        fi
+        if command "$_t" -k 1 5 true >/dev/null 2>&1; then
+            _AUDIT_TIMEOUT_CMD=("$_t" -k 5)
+            return 0
+        fi
+    done
+    return 0
+}
+
+# _audit_bounded [-t SECONDS] CMD [ARGS...]
+_audit_bounded() {
+    local _budget="${FW_AUDIT_READ_TIMEOUT:-300}"
+    if [ "${1:-}" = "-t" ]; then
+        _budget="$2"
+        shift 2
+    fi
+    local -a _run=(command)
+    if [ "${#_AUDIT_TIMEOUT_CMD[@]}" -gt 0 ] && [ "$_budget" -gt 0 ] 2>/dev/null; then
+        _run=("${_AUDIT_TIMEOUT_CMD[@]}" "$_budget")
+    fi
+    local _rc=0 _out="" _err=""
+    if [ -p /dev/stdout ]; then
+        _out=$(mktemp "${TMPDIR:-/tmp}/fw-audit-read.XXXXXX" 2>/dev/null) || _out=""
+    fi
+    if [ -z "$_out" ]; then
+        "${_run[@]}" "$@" || _rc=$?
+    elif [ /dev/fd/1 -ef /dev/fd/2 ]; then
+        "${_run[@]}" "$@" >"$_out" 2>&1 || _rc=$?
+    elif [ -p /dev/stderr ] && _err=$(mktemp "${TMPDIR:-/tmp}/fw-audit-read.XXXXXX" 2>/dev/null); then
+        "${_run[@]}" "$@" >"$_out" 2>"$_err" || _rc=$?
+    else
+        "${_run[@]}" "$@" >"$_out" || _rc=$?
+    fi
+    if [ -n "$_out" ]; then
+        command cat "$_out"
+        [ -n "$_err" ] && command cat "$_err" >&2
+        command rm -f "$_out" ${_err:+"$_err"}
+    fi
+    if [ "$_rc" -eq 124 ] && [ "${_run[0]}" != command ]; then
+        echo "audit: '$1 ${2:-}' exceeded its ${_budget}s read budget and was stopped (T-4417)" >&2
+    fi
+    return "$_rc"
+}
+
+git() {
+    _audit_bounded git "$@"
+}
+
+python3() {
+    _audit_bounded python3 "$@"
+}
+
+_audit_timeout_probe
 
 # Section filter: returns 0 (true) if section should run
 should_run_section() {
@@ -720,6 +881,31 @@ AUDIT_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 AUDIT_DATE=$(date +"%Y-%m-%d")
 AUDIT_DATETIME=$(date +"%Y-%m-%d-%H%M")
 
+# T-4183 (832 OBS-380): finding text says `bin/fw`, which exists only in the
+# framework checkout. A consumer's fw is .agentic-framework/bin/fw, so a pasted
+# mitigation failed. Rewrite a standalone `bin/fw` token to the framework this
+# audit runs from: project-relative when it lives under the project, absolute
+# otherwise, unchanged in the framework repo. An already-qualified
+# `.agentic-framework/bin/fw` is not a standalone token and is left alone.
+_FW_CMD_DISPLAY=""
+_fw_cmd_text() {
+    case "$1" in *bin/fw*) ;; *) printf '%s' "$1"; return 0 ;; esac
+    if [ -z "$_FW_CMD_DISPLAY" ]; then
+        local _fr _pr
+        _fr=$(cd "$FRAMEWORK_ROOT" 2>/dev/null && pwd) || _fr="$FRAMEWORK_ROOT"
+        _pr=$(cd "$PROJECT_ROOT" 2>/dev/null && pwd) || _pr="$PROJECT_ROOT"
+        case "$_fr" in
+            "$_pr") _FW_CMD_DISPLAY="bin/fw" ;;
+            "$_pr"/*) _FW_CMD_DISPLAY="${_fr#"$_pr"/}/bin/fw" ;;
+            *) _FW_CMD_DISPLAY="$_fr/bin/fw" ;;
+        esac
+    fi
+    if [ "$_FW_CMD_DISPLAY" = "bin/fw" ]; then printf '%s' "$1"; return 0; fi
+    local _d=$'\001' _rep="${_FW_CMD_DISPLAY//\\/\\\\}"
+    _rep="${_rep//&/\\&}"
+    printf '%s' "$1" | sed -E "s${_d}(^|[[:space:]'\"(\`])bin/fw([[:space:]'\"\`)]|\$)${_d}\1${_rep}\2${_d}g"
+}
+
 # Logging functions
 pass() {
     echo -e "${GREEN}[PASS]${NC} $1"
@@ -728,6 +914,7 @@ pass() {
 }
 
 warn() {
+    set -- "$(_fw_cmd_text "$1")" "$2" "$(_fw_cmd_text "$3")"
     echo -e "${YELLOW}[WARN]${NC} $1"
     echo "       Evidence: $2"
     echo "       Mitigation: $3"
@@ -754,6 +941,7 @@ warn() {
 fail() {
     local _scope="${4:-ref}" _reason="${5:-}"
     case "$_scope" in ref|worktree) ;; *) _scope="ref" ;; esac
+    set -- "$(_fw_cmd_text "$1")" "$2" "$(_fw_cmd_text "$3")"
     echo -e "${RED}[FAIL]${NC} $1"
     echo "       Evidence: $2"
     echo "       Mitigation: $3"
@@ -771,6 +959,7 @@ fail() {
 }
 
 info() {
+    set -- "$(_fw_cmd_text "$1")"
     echo -e "${CYAN}[INFO]${NC} $1"
     PASS_COUNT=$((PASS_COUNT + 1))
     FINDINGS+=("INFO|$1|")
@@ -1325,10 +1514,16 @@ fm_parse_out=$(
     } | python3 -c "
 import sys
 sys.path.insert(0, '$PROJECT_ROOT')
+import os
 try:
     from web.shared import parse_frontmatter
-except ImportError:
-    sys.exit(0)  # web/ not present (consumer project) — skip silently
+except ImportError as e:
+    if not os.path.exists(os.path.join('$PROJECT_ROOT', 'web', 'shared.py')):
+        sys.exit(0)  # web/ not present (consumer project) — skip silently
+    # T-4612: web/shared.py is here but this python3 cannot import it (e.g. flask
+    # installed for another interpreter). Skipping silently made the check vanish.
+    print(f'IMPORT\t{type(e).__name__}: {e}')
+    sys.exit(0)
 for line in sys.stdin:
     tf = line.rstrip('\n')
     if not tf:
@@ -1359,6 +1554,12 @@ for line in sys.stdin:
 while IFS=$'\t' read -r rc tf; do
     [ -z "$rc" ] && continue
     [ "$rc" = "0" ] && continue
+    if [ "$rc" = "IMPORT" ]; then
+        warn "Task frontmatter: check did not run — could not import web.shared with $(command -v python3)" \
+             "$tf" \
+             "The check reads frontmatter through web.shared.parse_frontmatter; install its dependencies (pyyaml, flask) for this python3, or put the interpreter that has them first on PATH."
+        continue
+    fi
     tf_rel="${tf#$PROJECT_ROOT/}"
     # T-2779: rc=4 is a separate class with a separate repair, so it gets its own counter.
     # Merging it into the unparseable count would tell the operator a number without
@@ -1490,7 +1691,7 @@ corpus_lint_findings=0
 corpus_lint_scanned=0
 _corpus_lint_py="$PROJECT_ROOT/tools/corpus_lint.py"
 if [ -f "$_corpus_lint_py" ] && [ -d "$PROJECT_ROOT/.context/designer/projects" ]; then
-    _cl_json=$(cd "$PROJECT_ROOT" && timeout 120 python3 "$_corpus_lint_py" --json 2>/dev/null)
+    _cl_json=$(cd "$PROJECT_ROOT" && _audit_bounded -t 0 timeout 120 python3 "$_corpus_lint_py" --json 2>/dev/null)
     _cl_rows=$(printf '%s' "$_cl_json" | python3 -c '
 import json, sys
 try:
@@ -1591,6 +1792,15 @@ for d in ('active', 'completed'):
             print(f'{path}\t{tag}')
 " 2>/dev/null)
 
+    # T-4623: ONE history walk for every arc. The per-arc `git log --since -- <tasks>` below
+    # walked the whole window once per in-progress arc (17 arcs x ~3,000 commits = ~50s of
+    # the pre-push budget on a loaded host). The set of task paths any commit in the window
+    # touched answers the same question for every arc. --no-renames lists both sides of an
+    # active->completed move, as the pathspec form matched either side.
+    recent_task_paths=$'\n'$(git -C "$PROJECT_ROOT" log --since="${stale_arc_threshold}.days.ago" \
+                                  --format= --name-only --no-renames --relative -- .tasks 2>/dev/null \
+                              | sort -u)$'\n'
+
     for af in "$PROJECT_ROOT/.context/arcs"/*.yaml; do
         [ -f "$af" ] || continue
 
@@ -1633,8 +1843,10 @@ for d in ('active', 'completed'):
         arcs_checked_for_staleness=$((arcs_checked_for_staleness + 1))
 
         # Any commit since the threshold touching any matching task → fresh.
-        recent=$(git -C "$PROJECT_ROOT" log --since="${stale_arc_threshold}.days.ago" \
-                     --format=%H -- "${matching_tasks[@]}" 2>/dev/null | head -1)
+        recent=""
+        for tp in "${matching_tasks[@]}"; do
+            case "$recent_task_paths" in *$'\n'"${tp#"$PROJECT_ROOT"/}"$'\n'*) recent=1; break;; esac
+        done
 
         if [ -z "$recent" ]; then
             warn "Arc '$arc_slug' has no task commits in the last ${stale_arc_threshold} days (${#matching_tasks[@]} task(s) in arc)" \
@@ -1894,18 +2106,36 @@ FRACTION = float(sys.argv[4])
 
 _FM_RE = re.compile(r'^---\n(.*?)\n---', re.S)
 
-def task_score(path, driver_id):
-    """Return int score for driver_id from task frontmatter, or None if absent."""
+# T-4375: each task's frontmatter is parsed once per run, not once per arc driver.
+# Pure-python YAML over ~4,400 task files was ~40 s of the pre-push audit.
+_FM_CACHE = {}
+
+def _frontmatter(path):
+    """Parsed frontmatter dict, or None (unreadable / no frontmatter / bad YAML)."""
+    if path in _FM_CACHE:
+        return _FM_CACHE[path]
+    fm = None
     try:
         text = path.read_text()
     except Exception:
-        return None
-    m = _FM_RE.match(text)
-    if not m:
-        return None
-    try:
-        fm = yaml.safe_load(m.group(1)) or {}
-    except yaml.YAMLError:
+        text = None
+    m = _FM_RE.match(text) if text is not None else None
+    if m:
+        try:
+            fm = yaml.safe_load(m.group(1)) or {}
+        except yaml.YAMLError:
+            fm = None
+    _FM_CACHE[path] = fm
+    return fm
+
+# A frontmatter whose only `arc_id` mentions sit on comment lines (the template's
+# `# arc_id:` hint) has no arc_id key: skip parsing it for the index.
+_ARC_ID_LINE_RE = re.compile(r'^(?![ \t]*#).*arc_id', re.M)
+
+def task_score(path, driver_id):
+    """Return int score for driver_id from task frontmatter, or None if absent."""
+    fm = _frontmatter(path)
+    if fm is None:
         return None
     scores = fm.get('bvp_scores') or {}
     if not isinstance(scores, dict):
@@ -1929,9 +2159,10 @@ for sub in ('active', 'completed'):
         m = _FM_RE.match(text)
         if not m:
             continue
-        try:
-            fm = yaml.safe_load(m.group(1)) or {}
-        except yaml.YAMLError:
+        if not _ARC_ID_LINE_RE.search(m.group(1)):
+            continue
+        fm = _frontmatter(p)
+        if fm is None:
             continue
         arc_id = fm.get('arc_id')
         if not arc_id:
@@ -2871,7 +3102,9 @@ elif [ -f "$_cron_registry" ]; then
     # T-1944: dry-run logic extracted to lib/cron_dry_run.py per L-332/L-408
     # (single source of truth + bash side stays parse-safe).
     if [ -f "$_cron_source" ]; then
-        _cron_dry_run=$(python3 "$FRAMEWORK_ROOT/lib/cron_dry_run.py" "$PROJECT_ROOT" "$_cron_registry" "$FRAMEWORK_ROOT/bin/fw" 2>/dev/null || echo "__SKIP__")
+        # T-4259: render with the fw path generate writes (cron_fw_path,
+        # lib/cron-registry.sh — sourced by the job-count test above).
+        _cron_dry_run=$(python3 "$FRAMEWORK_ROOT/lib/cron_dry_run.py" "$PROJECT_ROOT" "$_cron_registry" "$(cron_fw_path "$FRAMEWORK_ROOT" "$PROJECT_ROOT")" 2>/dev/null || echo "__SKIP__")
         if [ "$_cron_dry_run" != "__SKIP__" ] && [ -n "$_cron_dry_run" ]; then
             _cron_on_disk=$(cat "$_cron_source" 2>/dev/null)
             if [ "$_cron_dry_run" != "$_cron_on_disk" ]; then
@@ -2914,9 +3147,44 @@ fi
 # evidence paths inside the repo, and an introducing commit that exists and is not a
 # producer's. A torn line is a failure. FAIL, not WARN: an unverifiable row is exactly what
 # a forged close looks like, and it is a property of committed content.
+#
+# T-4623: this and the three detectors after it (Human-AC ticks, Watchtower decisions, index
+# reconcile) are independent, read-only, and each replays git history — ~9-12s apiece on a
+# loaded host, ~42s of the pre-push budget run one after another. They are started together
+# here and each block collects its own result. The ledger audit used to run three times
+# (twice more for step-downs and green-degraded below); those now read $_VL_AUDIT_OUT.
+_AUDIT_PF_DIR=$(mktemp -d)
+declare -A _AUDIT_PF_PID=()
+# _audit_prefetch NAME CMD... — run CMD in the background, output captured as $(CMD 2>&1) would.
+_audit_prefetch() {
+    local _n="$1"; shift
+    ( _pf_rc=0; "$@" >"$_AUDIT_PF_DIR/$_n.out" 2>&1 || _pf_rc=$?; echo "$_pf_rc" >"$_AUDIT_PF_DIR/$_n.rc" ) &
+    _AUDIT_PF_PID[$_n]=$!
+}
+# _audit_collect NAME — wait for NAME, set _PF_OUT and _PF_RC. A run that left no exit code
+# (killed) reads rc 1, so every caller takes its "could not run" branch, never its PASS.
+_audit_collect() {
+    local _n="$1"
+    wait "${_AUDIT_PF_PID[$_n]}" 2>/dev/null || true
+    _PF_OUT=$(cat "$_AUDIT_PF_DIR/$_n.out" 2>/dev/null || true)
+    _PF_RC=$(cat "$_AUDIT_PF_DIR/$_n.rc" 2>/dev/null || true)
+    _PF_RC=${_PF_RC:-1}
+}
+[ -f "$FRAMEWORK_ROOT/lib/verdict_ledger.py" ] && \
+    _audit_prefetch vl env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/verdict_ledger.py" audit
+[ -f "$FRAMEWORK_ROOT/lib/human_ac_ticks.py" ] && \
+    _audit_prefetch hat env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/human_ac_ticks.py" audit
+[ -f "$FRAMEWORK_ROOT/lib/watchtower_decision_revert.py" ] && \
+    _audit_prefetch wdr python3 -I "$FRAMEWORK_ROOT/lib/watchtower_decision_revert.py" --repo "$PROJECT_ROOT"
+[ -f "$FRAMEWORK_ROOT/lib/index_reconcile.py" ] && \
+    _audit_prefetch ir python3 -I "$FRAMEWORK_ROOT/lib/index_reconcile.py" --repo "$PROJECT_ROOT"
+
+_VL_AUDIT_OUT=""
 if [ -f "$FRAMEWORK_ROOT/lib/verdict_ledger.py" ]; then
-    _vl_out=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/verdict_ledger.py" audit 2>&1)
-    _vl_rc=$?
+    _audit_collect vl
+    _vl_out=$_PF_OUT
+    _vl_rc=$_PF_RC
+    _VL_AUDIT_OUT=$_vl_out
     if [ "$_vl_rc" -eq 0 ]; then
         pass "Reviewer-verdict ledger: $(echo "$_vl_out" | tail -1)"
     elif [ "$_vl_rc" -eq 2 ]; then
@@ -2928,10 +3196,12 @@ if [ -f "$FRAMEWORK_ROOT/lib/verdict_ledger.py" ]; then
              "Inspect: python3 lib/verdict_ledger.py audit — a row with no signed review dispatch, an introducing commit by a producer, or a torn line must be removed or re-recorded by a real review dispatch; a refusal caused by a FIXED framework defect: fw reviewer verdict acknowledge <row> --fixed-by T-XXXX --reason '...'"
     elif [ "$_vl_rc" -eq 3 ]; then
         # T-3657: every failing row carries a committed acknowledgement naming the completed task
-        # that fixed the defect behind it. WARN, never PASS — the rows still do not count.
-        warn "Reviewer-verdict ledger: acknowledged refusals only — $(echo "$_vl_out" | tail -1)" \
-             "$(echo "$_vl_out" | grep '^WARN acknowledged' | head -3 | tr '\n' ';')" \
-             "Inspect: python3 lib/verdict_ledger.py audit — acknowledged rows never count as verdicts"
+        # that fixed the defect behind it. T-4519: or is VOID (its worker was killed after
+        # committing; the runtime signed the non-zero exit) or PROVISIONAL (its dispatch is still
+        # running). WARN, never PASS — none of these rows counts.
+        warn "Reviewer-verdict ledger: non-counting rows only (acknowledged/void/provisional) — $(echo "$_vl_out" | tail -1)" \
+             "$(echo "$_vl_out" | grep '^WARN \(acknowledged\|void\|provisional\)' | head -3 | tr '\n' ';')" \
+             "Inspect: python3 lib/verdict_ledger.py audit — acknowledged, void and provisional rows never count as verdicts; a later verdict on the criterion supersedes a void one"
     else
         fail "Reviewer-verdict ledger: audit could not run (rc=$_vl_rc) — the ledger is UNVERIFIED" \
              "$(echo "$_vl_out" | tail -2 | tr '\n' ';')" \
@@ -2951,8 +3221,9 @@ fi
 # verify-acs auto-check, or a reviewer-verdict annotation) FAILs, and names an agent
 # identity when the committer is one.
 if [ -f "$FRAMEWORK_ROOT/lib/human_ac_ticks.py" ]; then
-    _hat_out=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/human_ac_ticks.py" audit 2>&1)
-    _hat_rc=$?
+    _audit_collect hat
+    _hat_out=$_PF_OUT
+    _hat_rc=$_PF_RC
     if [ "$_hat_rc" -eq 0 ]; then
         pass "Human-AC ticks: $(echo "$_hat_out" | tail -1)"
     elif [ "$_hat_rc" -eq 2 ]; then
@@ -2981,8 +3252,9 @@ fi
 # commit left the real index on the old blobs). WARN, not FAIL: recovery is operator-gated
 # (restored ticks need operator provenance), and a FAIL would jam every push until then.
 if [ -f "$FRAMEWORK_ROOT/lib/watchtower_decision_revert.py" ]; then
-    _wdr_out=$(python3 -I "$FRAMEWORK_ROOT/lib/watchtower_decision_revert.py" --repo "$PROJECT_ROOT" 2>&1)
-    _wdr_rc=$?
+    _audit_collect wdr
+    _wdr_out=$_PF_OUT
+    _wdr_rc=$_PF_RC
     if [ "$_wdr_rc" -eq 0 ]; then
         pass "Watchtower decisions: $(echo "$_wdr_out" | tail -1)"
     elif [ "$_wdr_rc" -eq 2 ]; then
@@ -2998,8 +3270,9 @@ fi
 
 # T-4166 / G-114: staged index entries that would revert committed decisions on the next commit.
 if [ -f "$FRAMEWORK_ROOT/lib/index_reconcile.py" ]; then
-    _ir_out=$(python3 -I "$FRAMEWORK_ROOT/lib/index_reconcile.py" --repo "$PROJECT_ROOT" 2>&1)
-    _ir_rc=$?
+    _audit_collect ir
+    _ir_out=$_PF_OUT
+    _ir_rc=$_PF_RC
     if [ "$_ir_rc" -eq 0 ]; then
         pass "Index reconcile: no armed stale index entries"
     elif [ "$_ir_rc" -eq 2 ]; then
@@ -3012,19 +3285,37 @@ if [ -f "$FRAMEWORK_ROOT/lib/index_reconcile.py" ]; then
              "Run: bin/fw git reconcile-index"
     fi
 fi
+rm -rf "$_AUDIT_PF_DIR"
 
 # T-3580 round 7: every spend-ceiling step-down (a review run registered one rung below what IW-7
 # requires) is a WARN — the lever must be visible even when it was exercised legitimately.
+# T-4623: this and the green-degraded check read the ledger audit collected above
+# ($_VL_AUDIT_OUT) rather than replaying the ledger twice more.
 _audit_review_step_downs() {
     [ -f "$FRAMEWORK_ROOT/lib/verdict_ledger.py" ] || return 0
     local _sd
-    _sd=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/verdict_ledger.py" audit 2>/dev/null | grep '^WARN step-down' || true)
+    _sd=$(printf '%s\n' "$_VL_AUDIT_OUT" | grep '^WARN step-down' || true)
     [ -z "$_sd" ] && return 0
     warn "Reviewer spend-ceiling step-downs: $(echo "$_sd" | wc -l | tr -d ' ') review run(s) granted a lower rung than IW-7 requires" \
          "$(echo "$_sd" | head -3 | tr '\n' ';')" \
          "Inspect: python3 lib/verdict_ledger.py audit — raise REVIEWER_JUDGE_WEEKLY_SPEND_CEILING to withdraw a step-down"
 }
 _audit_review_step_downs
+
+# T-4490 (T-4466 GO): every GREEN-DEGRADED close (a rung-5 panel closed on >=2 green vendors while
+# its other seats were provably unavailable) is a WARN, with the count per ISO week, so a seat that
+# is always broken gets fixed rather than routed around.
+_audit_review_green_degraded() {
+    [ -f "$FRAMEWORK_ROOT/lib/verdict_ledger.py" ] || return 0
+    local _gd _wk
+    _gd=$(printf '%s\n' "$_VL_AUDIT_OUT" | grep '^WARN green-degraded' || true)
+    [ -z "$_gd" ] && return 0
+    _wk=$(echo "$_gd" | grep '^WARN green-degraded weekly:' | sed 's/^WARN green-degraded weekly: //' | tr '\n' ';')
+    warn "Reviewer green-degraded closes: $(echo "$_gd" | grep -vc '^WARN green-degraded weekly:') criterion close(s) on a panel with unavailable seats (per ISO week: ${_wk})" \
+         "$(echo "$_gd" | grep -v '^WARN green-degraded weekly:' | head -3 | tr '\n' ';')" \
+         "Fix the unavailable seat kinds (fw reviewer judge names each reason); opt out per project: fw config set REVIEW_GREEN_DEGRADED 0"
+}
+_audit_review_green_degraded
 
 # T-3282 (G-104): the RUNNING Watchtower is a deployment surface of its own —
 # source can be fixed, tested, and closed green while the process serves the
@@ -3059,6 +3350,26 @@ if ! fw_is_linked_worktree "$PROJECT_ROOT" && [ -f "$_wt_cur_pid_f" ] \
         else
             pass "Watchtower currency: running pid $_wt_cur_pid is newer than every file under web/"
         fi
+    fi
+fi
+
+# T-4637 (T-4635 RCA): long-lived agent processes (claude-fw, Watchtower, the
+# TermLink hub, tmux servers) in a session-*.scope of a user without linger are
+# SIGKILLed when systemd force-tears that slice down under load — six workers and
+# the parent died at once on 2026-10-22, with nothing reporting it. Same predicate
+# as fw doctor's [host] WARN (G-079). WARN: host state, fixed by the operator.
+if ! fw_is_linked_worktree "$PROJECT_ROOT" && [ -f "$FRAMEWORK_ROOT/lib/process_placement.py" ]; then
+    _pp_rc=0
+    _pp_out=$(python3 "$FRAMEWORK_ROOT/lib/process_placement.py" \
+        --watchtower-pid-file "$PROJECT_ROOT/.context/working/watchtower.pid" 2>/dev/null) || _pp_rc=$?
+    if [ "$_pp_rc" -eq 1 ]; then
+        while IFS= read -r _pp_line; do
+            [ -n "$_pp_line" ] || continue
+            warn "Fragile process placement: ${_pp_line%% lives in *}" "$_pp_line" \
+                 "${_pp_line##*Fix: }"
+        done <<< "$_pp_out"
+    elif [ "$_pp_rc" -eq 0 ]; then
+        pass "Process placement: no long-lived agent process in a non-lingering session scope"
     fi
 fi
 
@@ -3372,6 +3683,14 @@ check_self_vendor_drift() {
     done < <(
         find "$FRAMEWORK_ROOT/.agentic-framework/bin" -type f ! -name "*.pyc" 2>/dev/null
         find "$FRAMEWORK_ROOT/.agentic-framework/lib" "$FRAMEWORK_ROOT/.agentic-framework/agents" "$FRAMEWORK_ROOT/.agentic-framework/web" -type f \( -name "*.sh" -o -name "*.py" -o -name "fw" -o -name "claude-fw" -o -name "*.md" \) 2>/dev/null
+        # T-4392: tools/ scanned whole (minus *.pyc), parity with _self_vendor_tools.
+        find "$FRAMEWORK_ROOT/.agentic-framework/tools" -path '*/__pycache__' -prune -o -type f ! -name "*.pyc" -print 2>/dev/null
+        # T-2661: root single-file payload, parity with lib/upgrade.sh
+        # _self_vendor_root_data (same list, kept literal here: audit does not
+        # source upgrade.sh).
+        for _svrd in .secret-scan-patterns .secret-scan-allowlist status-transitions.yaml metrics.sh; do
+            printf '%s\n' "$FRAMEWORK_ROOT/.agentic-framework/$_svrd"
+        done
     )
 
     # templates class: .agentic-framework/.tasks/templates/*.md vs source
@@ -3481,7 +3800,15 @@ check_invariant_suite() {
     fi
 
     local _out _red _total
-    _out=$(cd "$FRAMEWORK_ROOT" && timeout 300 bats tests/lint/ 2>&1) || true
+    # T-4623: file-parallel when GNU parallel is present (bats --jobs needs it). Serial, this
+    # suite was ~50-60s of the pre-push budget on a loaded host; 8 jobs ran it in ~21s with the
+    # same 149 results. Tests inside one file stay serial (--no-parallelize-within-files):
+    # several share a file-level fixture. Without parallel it runs serially, as before.
+    local -a _jobs_args=()
+    if command -v parallel >/dev/null 2>&1; then
+        _jobs_args=(--jobs 8 --no-parallelize-within-files)
+    fi
+    _out=$(cd "$FRAMEWORK_ROOT" && _audit_bounded -t 0 timeout 300 bats "${_jobs_args[@]}" tests/lint/ 2>&1) || true
     _red=$(printf '%s\n' "$_out" | grep -c '^not ok' || true)
     _total=$(printf '%s\n' "$_out" | grep -cE '^(not ok|ok) ' || true)
 
@@ -3708,12 +4035,22 @@ _audit_is_prepush_scope() {
     [ "${SECTIONS:-}" = "structure" ]
 }
 check_unit_suite_report() {
-    local _report="${FW_UNIT_SUITE_REPORT:-$CONTEXT_DIR/audits/unit-suite/LATEST.yaml}"
-    local _baseline="${FW_UNIT_SUITE_BASELINE:-$CONTEXT_DIR/audits/unit-suite/baseline.yaml}"
+    # T-4634: the same grader reads the integration-suite report
+    # (FW_UNIT_SUITE_KIND=integration); the kind names the corpus, its report,
+    # its cron job and its re-run command on every line.
+    local _us_kind="unit-suite" _us_name="Unit suite" _us_noun="unit test(s)"
+    local _us_rerun="agents/audit/unit-suite.sh"
+    if [ "${FW_UNIT_SUITE_KIND:-unit}" = integration ]; then
+        _us_kind="integration-suite" _us_name="Integration suite" _us_noun="integration test(s)"
+        _us_rerun="agents/audit/integration-suite.sh"
+    fi
+    local _us_cron="${_us_kind}-nightly" _us_rel=".context/audits/${_us_kind}/LATEST.yaml"
+    local _report="${FW_UNIT_SUITE_REPORT:-$CONTEXT_DIR/audits/${_us_kind}/LATEST.yaml}"
+    local _baseline="${FW_UNIT_SUITE_BASELINE:-$CONTEXT_DIR/audits/${_us_kind}/baseline.yaml}"
     if [ ! -f "$_report" ]; then
-        warn "Unit suite NOT CHECKED — no report at .context/audits/unit-suite/LATEST.yaml (T-3302)" \
-             "The nightly unit-suite runner has not produced a report; unit-suite reds are invisible until it does" \
-             "Run once by hand: agents/audit/unit-suite.sh — or wait for the nightly cron (unit-suite-nightly)"
+        warn "$_us_name NOT CHECKED — no report at $_us_rel (T-3302)" \
+             "The scheduled runner ($_us_cron) has not produced a report; its reds are invisible until it does" \
+             "Run once by hand: $_us_rerun — or wait for the nightly cron ($_us_cron)"
         return 0
     fi
 
@@ -3893,10 +4230,10 @@ except Exception:
 PYEOF
 )
     if [ -z "$_parsed" ]; then
-        warn_unenumerable ".context/audits/unit-suite/LATEST.yaml" \
-             "Unit suite green" \
+        warn_unenumerable "$_us_rel" \
+             "$_us_name green" \
              "The report exists but could not be parsed — 'could not read' must not render as green (T-3302)" \
-             "Inspect the report, then re-run: agents/audit/unit-suite.sh"
+             "Inspect the report, then re-run: $_us_rerun"
         return 0
     fi
 
@@ -3907,14 +4244,14 @@ PYEOF
     IFS='|' read -r _us_total _us_failed _us_rc _us_age _us_timedout _us_timeout_s _us_names \
         _us_ran _us_ftimed _us_partial _us_bl _us_nbase _us_nnew _us_nexp _us_new _us_exp _us_dir _us_fdir \
         _us_fb _us_fblabel _us_fbnote <<< "$_parsed"
-    local _us_label="Unit suite${_us_dir:+ ($_us_dir)}"
+    local _us_label="$_us_name${_us_dir:+ ($_us_dir)}"
 
     # T-3794: pre-push, incomplete LATEST, nothing complete to grade instead.
     # WARN would let the push through on a run that measured almost nothing.
     if [ "${_us_fb:-none}" = "missing" ]; then
         fail "$_us_label COULD NOT DETERMINE — the latest run is INCOMPLETE and no complete run is on record — pre-push ratchet (T-3794)" \
              "${_us_fbnote}. Grading only the files that ran would read the unmeasured rest as green" \
-             "Run the suite to completion and do not interrupt it: agents/audit/unit-suite.sh (a complete run writes LAST-COMPLETE.yaml; nightly cron: unit-suite-nightly)"
+             "Run the suite to completion and do not interrupt it: $_us_rerun (a complete run writes LAST-COMPLETE.yaml; nightly cron: $_us_cron)"
         return 0
     fi
     # T-3794: the fallback names the run it graded, on every line it emits.
@@ -3956,7 +4293,7 @@ PYEOF
             if [ "${_us_nnew:-0}" -gt 0 ] || [ "${_us_nexp:-0}" -gt 0 ]; then
                 fail "$_us_label: ${_us_nnew} NEW red(s), ${_us_nexp} EXPIRED baselined red(s) — pre-push ratchet (T-3621)" \
                      "${_us_incomplete}NEW (not in baseline): ${_us_new:-none}. EXPIRED (baselined, past expiry): ${_us_exp:-none}. ${_us_nbase} other baselined red(s) grade WARN" \
-                     "${_us_kept}New red: fix it or file a task (one bug = one task); only the operator may accept it into the baseline (python3 agents/audit/unit_suite_baseline.py add --i-am-human --name '<name>'). Expired: fix it, or the operator re-arms it the same way. Report: .context/audits/unit-suite/LATEST.yaml"
+                     "${_us_kept}New red: fix it or file a task (one bug = one task); only the operator may accept it into the baseline (python3 agents/audit/unit_suite_baseline.py add --i-am-human --name '<name>'). Expired: fix it, or the operator re-arms it the same way. Report: $_us_rel"
                 return 0
             fi
             warn "$_us_label: ${_us_nbase} BASELINED red(s), 0 new, 0 expired — pre-push ratchet grade; the full fw audit still FAILs them (T-3621)" \
@@ -3965,14 +4302,14 @@ PYEOF
             # Unchanged rule: a stale report is still called stale.
             if [ "$_us_age" -lt 0 ] || [ "$_us_age" -ge 48 ]; then
                 warn "$_us_label report STALE — last run ${_us_age}h ago, threshold 48h (T-3302)" \
-                     "The nightly unit-suite cron (unit-suite-nightly) has not produced a fresh report; reds since then are invisible" \
-                     "Check the schedule (fw cron status, grep 'agentic-cron' syslog) or run by hand: agents/audit/unit-suite.sh"
+                     "The scheduled cron ($_us_cron) has not produced a fresh report; reds since then are invisible" \
+                     "Check the schedule (fw cron status, grep 'agentic-cron' syslog) or run by hand: $_us_rerun"
             fi
             return 0
         fi
-        fail "$_us_label: $_us_failed of $_us_total unit test(s) RED (T-3302, T-3602)" \
+        fail "$_us_label: $_us_failed of $_us_total $_us_noun RED (T-3302, T-3602)" \
              "${_us_incomplete:-$_us_ran. }${_us_bl_note}runner_exit=$_us_rc; recorded failures: ${_us_names:-none listed}" \
-             "${_us_kept}Read the report (.context/audits/unit-suite/LATEST.yaml), fix or file per red (one bug = one task), re-run: agents/audit/unit-suite.sh"
+             "${_us_kept}Read the report ($_us_rel), fix or file per red (one bug = one task), re-run: $_us_rerun"
         return 0
     fi
 
@@ -3987,9 +4324,9 @@ PYEOF
     fi
 
     if [ "$_us_rc" -ne 0 ]; then
-        fail "$_us_label: $_us_failed of $_us_total unit test(s) RED (T-3302)" \
+        fail "$_us_label: $_us_failed of $_us_total $_us_noun RED (T-3302)" \
              "runner_exit=$_us_rc; first failures: ${_us_names:-none listed}" \
-             "${_us_kept}Read the report (.context/audits/unit-suite/LATEST.yaml), fix or file per red (one bug = one task), re-run: agents/audit/unit-suite.sh"
+             "${_us_kept}Read the report ($_us_rel), fix or file per red (one bug = one task), re-run: $_us_rerun"
         return 0
     fi
 
@@ -3997,16 +4334,33 @@ PYEOF
     # "checked two days ago" must not keep rendering as "checked".
     if [ "$_us_age" -lt 0 ] || [ "$_us_age" -ge 48 ]; then
         warn "$_us_label report STALE — last run ${_us_age}h ago, threshold 48h (T-3302)" \
-             "The nightly unit-suite cron (unit-suite-nightly) has not produced a fresh report; reds since then are invisible" \
-             "Check the schedule (fw cron status, grep 'agentic-cron' syslog) or run by hand: agents/audit/unit-suite.sh"
+             "The scheduled cron ($_us_cron) has not produced a fresh report; reds since then are invisible" \
+             "Check the schedule (fw cron status, grep 'agentic-cron' syslog) or run by hand: $_us_rerun"
         return 0
     fi
 
-    pass_over "$_us_total" "unit test(s)${_us_dir:+ ($_us_dir)}" "$_us_label green" \
+    pass_over "$_us_total" "${_us_noun}${_us_dir:+ ($_us_dir)}" "$_us_label green" \
          "report parsed but recorded zero tests across both legs — a harness error, not a green corpus (T-3302)" \
-         "Run manually and read the output: agents/audit/unit-suite.sh"
+         "Run manually and read the output: $_us_rerun"
 }
 check_unit_suite_report
+
+# T-4634: tests/integration ran in no gate — not at commit, not at pre-push, not
+# in the nightly unit run (T-4596 RCA: claude_fw_restart_terminator.bats broke
+# twice unseen). agents/audit/integration-suite.sh runs it nightly into its own
+# report; this grades it with the same reader. There is no integration baseline
+# and none may be created: every red FAILs, and the reds go to tasks. Skipped at
+# the pre-push scope only — with no baseline, the open reds would block every
+# push; the */30 cron and the daily audit grade it.
+check_integration_suite_report() {
+    if _audit_is_prepush_scope; then
+        info "Integration suite not graded at pre-push — graded by the */30 and daily audits (T-4634)"
+        return 0
+    fi
+    FW_UNIT_SUITE_KIND=integration FW_UNIT_SUITE_REPORT="${FW_INTEGRATION_SUITE_REPORT:-}" \
+        FW_UNIT_SUITE_BASELINE="" check_unit_suite_report
+}
+check_integration_suite_report
 
 # T-2577 (T-2571 S4): designer ghost↔task drift sweep, both directions.
 # The save-time mint is non-fatal by contract (a failed mint must never break
@@ -4176,6 +4530,48 @@ check_gitignore_register() {
 }
 check_gitignore_register
 
+# T-3861: the vector index is GiB-sized and lives in .context/working/, the
+# directory handovers commit from. A consumer whose ignore rules predate T-3861
+# commits it (ring20-dashboard: 1.2 GB blob in .git). WARN, never FAIL.
+check_vec_index_ignored() {
+    [ -f "$FRAMEWORK_ROOT/lib/vec-index-gitignore.sh" ] || return 0
+    # shellcheck source=/dev/null
+    source "$FRAMEWORK_ROOT/lib/vec-index-gitignore.sh"
+    local _why
+    if _why=$(fw_vec_index_unignored "$PROJECT_ROOT"); then
+        return 0
+    fi
+    warn "Vector index can be committed: $_why" \
+         "git check-ignore .context/working/fw-vec-index.db finds no rule (index is GiB-sized)" \
+         "Run: fw upgrade (adds the rules to .context/working/.gitignore); if tracked: git rm --cached .context/working/fw-vec-index.db (T-3861)"
+}
+check_vec_index_ignored
+
+# T-2680 (T-2679 Slice 1). A grep that pins a YAML key at an exact indent, or a
+# `grep -c` on a .context/ store whose failure is folded into 0, reads "none"
+# when the store is reshaped — exit 0, plausible output. T-2676 (harvest.sh) and
+# T-2677 (this file's graduation counter) were dead for months in exactly that
+# shape. Static scan only; whether a flagged grep currently matches is the
+# Slice 2 probe registry's job (T-2681). WARN, never FAIL.
+check_silent_zero_store_greps() {
+    [ -f "$FRAMEWORK_ROOT/lib/silent_zero_scan.py" ] || return 0
+    local _out _n
+    _out=$(python3 "$FRAMEWORK_ROOT/lib/silent_zero_scan.py" --root "$FRAMEWORK_ROOT" 2>&1) || {
+        warn "Silent-zero store greps: scanner did not run" "$(echo "$_out" | head -1)" \
+             "Run: python3 lib/silent_zero_scan.py --root \"$FRAMEWORK_ROOT\""
+        return 0
+    }
+    if [ -z "$_out" ]; then
+        pass "Silent-zero store greps: none (no fixed-indent or zero-fallback store greps in lib/ agents/ bin/)"
+        return 0
+    fi
+    _n=$(echo "$_out" | grep -c .)
+    warn "Silent-zero store greps: $_n grep(s) can read a reshaped store as empty" \
+         "$(echo "$_out" | head -3 | cut -c1-140 | paste -sd ';' -)" \
+         "Make the pattern indent-tolerant (^[[:space:]]*key:) or parse the YAML; for counts, fail loudly when the store is unreadable instead of '|| echo 0'. Full list: python3 lib/silent_zero_scan.py (T-2680)"
+}
+check_silent_zero_store_greps
+
 # T-3420 (arc-011 sidecar, slice 8). `fw sidecar status` (T-3417) exposes two
 # numbers that must not climb: `UNKNOWN` — consults the sweep has already
 # recorded as never delivered — and `expired_unswept` — STORED rows past their
@@ -4308,7 +4704,7 @@ check_sidecar_watcher() {
     [ -f "$FRAMEWORK_ROOT/lib/sidecar-audit.sh" ] || return 0
     # shellcheck source=/dev/null
     source "$FRAMEWORK_ROOT/lib/sidecar-audit.sh"
-    local _sw _sw_rc _sw_state _sw_seq _sw_age _sw_ms _sw_tl _sw_why _sw_wake
+    local _sw _sw_rc _sw_state _sw_seq _sw_age _sw_ms _sw_tl _sw_why _sw_wake _sw_warn
     _sw=$(fw_sidecar_watcher_facts "$PROJECT_ROOT"); _sw_rc=$?
     if [ "$_sw_rc" -ne 0 ]; then
         fail "Sidecar watcher liveness unreadable" \
@@ -4316,7 +4712,7 @@ check_sidecar_watcher() {
              "Run: bin/fw sidecar liveness — an unreadable liveness check is a deaf agent that cannot tell (T-3685)"
         return 0
     fi
-    IFS=$'\t' read -r _sw_state _sw_seq _sw_age _sw_ms _sw_tl _sw_why _sw_wake <<< "$_sw"
+    IFS=$'\t' read -r _sw_state _sw_seq _sw_age _sw_ms _sw_tl _sw_why _sw_wake _sw_warn <<< "$_sw"
     case "$_sw_state" in
         live)
             if [ "$_sw_tl" = "absent" ]; then
@@ -4336,12 +4732,21 @@ check_sidecar_watcher() {
                 fail "Sidecar inbox with nothing to wake it" \
                      "$_sw_why" \
                      "Start: bin/fw sidecar start — every session's SessionStart hook (sidecar-autostart) and claude-fw start it; stopped or dead means no message is noticed"
+            elif fw_sidecar_watcher_awaiting_first_session "$PROJECT_ROOT"; then
+                # T-4258: fresh init — the SessionStart hook starts it; not a gap yet.
+                info "No sidecar watcher yet — it starts at the first agent session (SessionStart sidecar-autostart)"
             else
                 warn "No sidecar watcher in this project" \
                      "$_sw_why" \
                      "R14: every agent runs a sidecar. Start: bin/fw sidecar start (claude-fw --termlink starts it)"
             fi ;;
     esac
+    # T-4423: enabled.json persisting a non-project agent id (a worker's start).
+    if [ -n "$_sw_warn" ] && [ "$_sw_warn" != "-" ]; then
+        warn "Sidecar enabled.json agent is not this project's agent" \
+             "$_sw_warn" \
+             "From the project's own session: bin/fw sidecar stop && bin/fw sidecar start (ensure already uses the project agent)"
+    fi
 }
 check_sidecar_watcher
 
@@ -4371,6 +4776,34 @@ check_sidecar_held_unsurfaced() {
     esac
 }
 check_sidecar_held_unsurfaced
+
+# T-4418 (arc-011 sidecar): unread project-level inboxes on this hub that no known
+# agent reads — mail sent to a nickname (ring20: 14 consults to
+# inbox:<hub>/ring20-manager, never fetched). Fact:
+# lib/sidecar-audit.sh:fw_sidecar_orphan_inbox_facts. Skipped without termlink.
+check_sidecar_orphan_inboxes() {
+    [ -f "$FRAMEWORK_ROOT/lib/sidecar-audit.sh" ] || return 0
+    command -v termlink >/dev/null 2>&1 || return 0
+    # shellcheck source=/dev/null
+    source "$FRAMEWORK_ROOT/lib/sidecar-audit.sh"
+    local _oi _oi_rc _oi_n
+    _oi=$(fw_sidecar_orphan_inbox_facts "$PROJECT_ROOT"); _oi_rc=$?
+    if [ "$_oi_rc" -ne 0 ]; then
+        warn "Orphan-inbox check could not run" \
+             "fw sidecar orphan-inboxes --json: the hub could not be asked" \
+             "Run: bin/fw sidecar orphan-inboxes (T-4418)"
+        return 0
+    fi
+    _oi_n=$(printf '%s\n' "$_oi" | grep -c .)
+    if [ "$_oi_n" -gt 0 ] 2>/dev/null; then
+        warn "$_oi_n orphan inbox(es) on this hub: unread posts no known agent reads" \
+             "$(printf '%s' "$_oi" | head -3 | tr '\t\n' ' ;')" \
+             "Mail sent to a nickname? Tell the senders the real circuit. Run: bin/fw sidecar orphan-inboxes (T-4418)"
+    else
+        pass "No orphan inboxes on this hub"
+    fi
+}
+check_sidecar_orphan_inboxes
 
 # T-3428 (OBS-463 leg 3, arc-006). A value driver that the estimator cannot
 # score is only a NAME. T-3427 stopped it distorting the ranking (an unscorable
@@ -4722,6 +5155,32 @@ check_register_requirements() {
 }
 check_register_requirements
 
+# T-4370 (G-119): a task with github_issue: whose issue ledger lacks the stage its state implies
+# (started-work -> in-progress, work-completed -> fixed-on-bleeding-edge, a commit in a v* tag ->
+# released). WARN, never FAIL: the fix is re-running the lifecycle/release verbs. Internal-author
+# issues (T-4342) are exempt. Read-only: no network, no gh.
+check_issue_ledger_lag() {
+    local _mod="$FRAMEWORK_ROOT/lib/issues_lag.py"
+    if [ ! -f "$_mod" ]; then
+        warn "Issue-ledger lag: lib/issues_lag.py missing — GitHub issue stages are UNCHECKED" "" \
+             "Restore it: bin/fw vendor self (or fw upgrade)"
+        return 0
+    fi
+    local lag_out lag_rc=0
+    lag_out=$(python3 "$_mod" audit --root "$PROJECT_ROOT" 2>&1) || lag_rc=$?
+    if [ $lag_rc -eq 0 ]; then
+        pass "Issue-ledger lag: every linked task's GitHub issue has the stage its state implies"
+    elif [ $lag_rc -eq 1 ]; then
+        warn "Issue-ledger lag: $(printf '%s\n' "$lag_out" | grep -c '^LAG ') linked issue(s) behind their task (G-119)" \
+             "$(printf '%s\n' "$lag_out" | sed 's/^LAG //' | head -5 | tr '\n' ';')" \
+             "Post the missing stage: bin/fw issues lifecycle T-XXXX --event started|closed; released: bin/fw issues release vX --range ..."
+    else
+        warn "Issue-ledger lag check could not run (rc=$lag_rc)" "$lag_out" \
+             "Run: python3 lib/issues_lag.py audit --root \"\$PROJECT_ROOT\""
+    fi
+}
+check_issue_ledger_lag
+
 echo ""
 fi # end structure
 
@@ -4778,7 +5237,7 @@ if [ -x "$SECRET_SCANNER" ]; then
         _ss_count=$(echo "$_ss_out" | grep -c "^  \[" || true)
         fail "Secret scan: $_ss_count finding(s) in tracked tree (T-1844)" \
              "$(echo "$_ss_out" | head -5)" \
-             "Remove the secret from source + history (filter-repo if already committed); allowlist false-positives in .secret-scan-allowlist"
+             "Remove the secret from source + history (filter-repo if already committed); allowlist false-positives in the project-root .secret-scan-allowlist (not .agentic-framework/, which fw upgrade replaces)"
     else
         pass "Secret scan: tracked tree clean"
     fi
@@ -5133,8 +5592,8 @@ if git -C "$PROJECT_ROOT" rev-parse --git-dir > /dev/null 2>&1; then
     # Only runs when both 'origin' and 'github' remotes are configured.
     if git -C "$PROJECT_ROOT" remote get-url github >/dev/null 2>&1 \
        && git -C "$PROJECT_ROOT" remote get-url origin >/dev/null 2>&1; then
-        _origin_head=$(timeout 10 git -C "$PROJECT_ROOT" ls-remote origin main 2>/dev/null | awk '"'"'{print $1}'"'"')
-        _github_head=$(timeout 10 git -C "$PROJECT_ROOT" ls-remote github main 2>/dev/null | awk '"'"'{print $1}'"'"')
+        _origin_head=$(_audit_bounded -t 0 timeout 10 git -C "$PROJECT_ROOT" ls-remote origin main 2>/dev/null | awk '"'"'{print $1}'"'"')
+        _github_head=$(_audit_bounded -t 0 timeout 10 git -C "$PROJECT_ROOT" ls-remote github main 2>/dev/null | awk '"'"'{print $1}'"'"')
         if [ -n "$_origin_head" ] && [ -n "$_github_head" ]; then
             if [ "$_origin_head" = "$_github_head" ]; then
                 pass "OneDev → GitHub mirror in sync (origin=github=${_origin_head:0:8})"
@@ -5331,6 +5790,28 @@ fi
 
 if [ "$tier0_violations" -eq 0 ]; then
     pass "No Tier 0 violations detected"
+fi
+
+# T-3079: Tier 0 approval cards left unanswered. Only pull surfaces (/approvals,
+# fw approvals pending) used to read .context/approvals/pending-*.yaml; three cards
+# sat unseen for months. Same predicate as fw doctor: lib/approval_queue_age.py.
+if [ -f "$FRAMEWORK_ROOT/lib/approval_queue_age.py" ]; then
+    _aq_hours="$(fw_config APPROVAL_PENDING_WARN_HOURS)"
+    _aq_rows=$(python3 "$FRAMEWORK_ROOT/lib/approval_queue_age.py" stale "$PROJECT_ROOT/.context/approvals" "${_aq_hours:-24}" 2>/dev/null) && _aq_rc=0 || _aq_rc=$?
+    if [ "$_aq_rc" -eq 2 ]; then
+        warn "Pending-approval age check could not run" \
+             "lib/approval_queue_age.py exited 2" \
+             "Run: python3 lib/approval_queue_age.py stale .context/approvals ${_aq_hours:-24}"
+    elif [ "$_aq_rc" -eq 0 ] && [ -n "$_aq_rows" ]; then
+        while IFS=$'\t' read -r _aq_file _aq_age _aq_kind _aq_preview; do
+            [ -z "$_aq_file" ] && continue
+            warn "Tier 0 approval request unanswered for ${_aq_age}h ($_aq_kind): $_aq_file" \
+                 "Command: $_aq_preview" \
+                 "Review: bin/fw approvals pending (or Watchtower /approvals); sweep: bin/fw approvals expire"
+        done <<< "$_aq_rows"
+    elif [ "$_aq_rc" -eq 0 ]; then
+        pass "No Tier 0 approval request pending over ${_aq_hours:-24}h"
+    fi
 fi
 
 echo ""
@@ -5843,7 +6324,7 @@ if [ -f "$LEARNINGS_FILE" ]; then
 
     if [ "$learning_count" -ge 20 ]; then
         # Check for promotion candidates using fw promote
-        promote_output=$(PROJECT_ROOT="$PROJECT_ROOT" "$FRAMEWORK_ROOT/bin/fw" promote suggest 2>/dev/null) || true
+        promote_output=$(PROJECT_ROOT="$PROJECT_ROOT" _audit_bounded "$FRAMEWORK_ROOT/bin/fw" promote suggest 2>/dev/null) || true
         # shellcheck disable=SC2034 # ready_count/almost_count used for debug logging
         ready_count=$(echo "$promote_output" | grep -c "ready for promotion" 2>/dev/null) || ready_count=0
         # shellcheck disable=SC2034
@@ -5921,6 +6402,7 @@ echo "=== RESEARCH PERSISTENCE OE CHECKS ==="
 # The two populations are counted and reported separately so widening the set does
 # not silently inflate a number the operator has learned to read one way.
 c001_missing=0
+c001_unreferenced=0
 if [ -n "$ACTIVE_SCAN" ]; then
     while IFS='|' read -r task_id issue_type issue_reason artifact_name; do
         [ -z "$task_id" ] && continue
@@ -5938,6 +6420,7 @@ if [ -n "$ACTIVE_SCAN" ]; then
             warn "C-001: Inception $task_id ($issue_reason) has artifact but task doesn't reference it" \
                  "$artifact_name exists but not linked in task Updates" \
                  "Add artifact reference to ## Updates section of $task_id"
+            c001_unreferenced=$((c001_unreferenced + 1))
         fi
     done < <(echo "$ACTIVE_SCAN" | python3 -c "
 import sys, json
@@ -5958,7 +6441,9 @@ print('%d|%d|%d|%d' % (
 " 2>/dev/null || echo "0|0|0|0")
 IFS='|' read -r _c001_n_started _c001_miss_started _c001_n_rec _c001_miss_rec <<< "$_c001_counts"
 
-if [ "$c001_missing" -eq 0 ]; then
+# T-3143: the PASS needs no C-001 issue of either kind — an unreferenced artefact
+# WARNs above, and a PASS beside it contradicts that WARN.
+if [ "$c001_missing" -eq 0 ] && [ "$c001_unreferenced" -eq 0 ]; then
     if [ $((_c001_n_started + _c001_n_rec)) -gt 0 ]; then
         pass "C-001: All inceptions have research artifacts — $_c001_n_started started-work, $_c001_n_rec awaiting decision"
     else
@@ -6127,6 +6612,8 @@ echo "=== OE-HOURLY: HOURLY CONTROL CHECKS ==="
 
 # CTL-008 OE: Task Reference Gate — recent commits have T-XXX prefix
 # T-590: Respect traceability baseline if set
+# T-2998: --no-merges — the commit-msg hook admits any MERGE_HEAD commit, so git's
+# default "Merge branch 'x'" subject is not a task-less commit (CTL-010 likewise).
 _ctl008_range=""
 _ctl008_baseline_file="$PROJECT_ROOT/.context/project/traceability-baseline"
 if [ -f "$_ctl008_baseline_file" ]; then
@@ -6137,16 +6624,16 @@ if [ -f "$_ctl008_baseline_file" ]; then
 fi
 if [ -n "$_ctl008_range" ]; then
     # shellcheck disable=SC2086 # _ctl008_range intentionally unquoted
-    total_recent=$(git -C "$PROJECT_ROOT" log --oneline -20 $_ctl008_range 2>/dev/null | wc -l | tr -d ' ')
+    total_recent=$(git -C "$PROJECT_ROOT" log --oneline -20 --no-merges $_ctl008_range 2>/dev/null | wc -l | tr -d ' ')
 else
-    total_recent=$(git -C "$PROJECT_ROOT" log --oneline -20 2>/dev/null | wc -l | tr -d ' ')
+    total_recent=$(git -C "$PROJECT_ROOT" log --oneline -20 --no-merges 2>/dev/null | wc -l | tr -d ' ')
 fi
 if [ "$total_recent" -gt 0 ]; then
     if [ -n "$_ctl008_range" ]; then
         # shellcheck disable=SC2086
-        without_task=$(git -C "$PROJECT_ROOT" log --oneline -20 $_ctl008_range 2>/dev/null | grep -cv '^[a-f0-9]* T-' || true)
+        without_task=$(git -C "$PROJECT_ROOT" log --oneline -20 --no-merges $_ctl008_range 2>/dev/null | grep -cv '^[a-f0-9]* T-' || true)
     else
-        without_task=$(git -C "$PROJECT_ROOT" log --oneline -20 2>/dev/null | grep -cv '^[a-f0-9]* T-' || true)
+        without_task=$(git -C "$PROJECT_ROOT" log --oneline -20 --no-merges 2>/dev/null | grep -cv '^[a-f0-9]* T-' || true)
     fi
     without_task=$(echo "$without_task" | tr -d '[:space:]')
     ratio=$(( (total_recent - without_task) * 100 / total_recent ))
@@ -6155,7 +6642,7 @@ if [ "$total_recent" -gt 0 ]; then
         pass "CTL-008: Task reference traceability ${ratio}% ($without_task/$total_recent without T-XXX)"
     elif [ "$ratio" -ge 80 ]; then
         grace_warn "CTL-008: Task reference traceability ${ratio}% ($without_task/$total_recent without T-XXX)" \
-             "$(git -C "$PROJECT_ROOT" log --oneline -20 ${_ctl008_range} | grep -v '^[a-f0-9]* T-' | head -3)" \
+             "$(git -C "$PROJECT_ROOT" log --oneline -20 --no-merges ${_ctl008_range} | grep -v '^[a-f0-9]* T-' | head -3)" \
              "Ensure all commits use T-XXX prefix (commit-msg hook)"
     else
         grace_fail "CTL-008: Task reference traceability ${ratio}% ($without_task/$total_recent without T-XXX)" \
@@ -6317,7 +6804,7 @@ if [ -f "$BYPASS_LOG" ]; then
     fi
 else
     # Check if any commits lack T-XXX (potential unlogged bypasses)
-    no_task=$(git -C "$PROJECT_ROOT" log --oneline -20 2>/dev/null | grep -cv '^[a-f0-9]* T-' || true)
+    no_task=$(git -C "$PROJECT_ROOT" log --oneline -20 --no-merges 2>/dev/null | grep -cv '^[a-f0-9]* T-' || true)
     no_task=$(echo "$no_task" | tr -d '[:space:]')
     if [ "$no_task" -gt 0 ]; then
         grace_warn "CTL-010: No bypass log but $no_task commit(s) without T-XXX prefix" \
@@ -6706,7 +7193,7 @@ if should_run_section "compliance" || should_run_section "oe-daily"; then
             [ -z "$task_id" ] && continue
             warn "CTL-029: $task_id has all Agent ACs ticked but status='$task_status' — completable, not closed" \
                  "Agent finished the work; task is shipped-but-unclosed (active/-side mirror of CTL-028)" \
-                 "Run: bin/fw task update $task_id --status work-completed"
+                 "Run: bin/fw task update $task_id --status work-completed (or sweep all: bin/fw task archive-eligible)"
             completable_warn=$((completable_warn + 1))
         done < <(python3 - "$PROJECT_ROOT/.tasks/active" <<'PYEOF' 2>/dev/null
 import os, re, sys
@@ -8260,7 +8747,7 @@ fi
 # Sibling to the existing framework-mcp scan block above; that one surfaces
 # scan-vs-baseline drift, this one surfaces emitter-vs-source drift.
 if [ -x "$PROJECT_ROOT/bin/fw" ] && [ -f "$PROJECT_ROOT/agents/mcp/manifest.py" ]; then
-    MCP_DRIFT_OUT=$("$PROJECT_ROOT/bin/fw" mcp check 2>&1)
+    MCP_DRIFT_OUT=$(_audit_bounded "$PROJECT_ROOT/bin/fw" mcp check 2>&1)
     MCP_DRIFT_EXIT=$?
     case "$MCP_DRIFT_EXIT" in
         0) pass "framework-mcp manifest: PASS — in sync with tool-set.yaml" ;;
@@ -8280,7 +8767,7 @@ fi
 #   2 → info  (source present but never emitted)
 # Both legs compare CONTENT (sha256) — touch / checkout / vendor-sync cannot trip it.
 if [ -x "$PROJECT_ROOT/bin/fw" ] && [ -f "$PROJECT_ROOT/policy/sandbox-profile.yaml" ]; then
-    SANDBOX_DRIFT_OUT=$("$PROJECT_ROOT/bin/fw" sandbox status 2>&1)
+    SANDBOX_DRIFT_OUT=$(_audit_bounded "$PROJECT_ROOT/bin/fw" sandbox status 2>&1)
     SANDBOX_DRIFT_EXIT=$?
     case "$SANDBOX_DRIFT_EXIT" in
         0) pass "sandbox profile: PASS — $(echo "$SANDBOX_DRIFT_OUT" | head -1)" ;;

@@ -21,7 +21,8 @@
         "serve"
       ],
       "env": {
-        "TERMLINK_AGENT_ID": "termlink-mcp"
+        "TERMLINK_AGENT_ID": "termlink-mcp",
+        "TERMLINK_RUNTIME_DIR": "/var/lib/termlink"
       }
     },
     "fw": {

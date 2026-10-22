@@ -123,6 +123,7 @@ from lib import review_cost  # noqa: E402
 from lib import review_policy  # noqa: E402
 from lib import task_commits  # noqa: E402
 from lib.delegation import (  # noqa: E402
+    GENERATED_ANNOTATION_RE,
     REVIEWER_JUDGES,
     classify,
     frontmatter,
@@ -151,7 +152,17 @@ COMPLETIONS = Path(".context/reviews/review-completions.jsonl")
 #: only moves that row's audit grade from FAIL to WARN; it never makes the row count.
 ACKS = Path(".context/reviews/acknowledged-refusals.jsonl")
 ACK_KIND = "acknowledged-refusal"
-#: `audit` exit code when every failing row is acknowledged: WARN, never PASS.
+#: T-3863: every verdict commit that git refused, with git's own error. The judge and the audit
+#: name it on the row's `uncommitted` fault instead of a bare "never committed".
+COMMIT_ERRORS = Path(".context/reviews/commit-errors.jsonl")
+#: T-3863: uncommitted rows an operator discarded (`discard`), each with the row and the reason.
+#: The only excuse `recorded.jsonl` accepts for a row that is gone; a committed row cannot be
+#: discarded — the append-only history check refuses its removal whatever this file says.
+DISCARDED = Path(".context/reviews/discarded.jsonl")
+#: T-4033: how long a verdict commit waits for another git process's .git/index.lock (seconds).
+INDEX_LOCK_WAIT_S = 60.0
+#: `audit` exit code when every failing row is acknowledged, void or provisional (T-4519): WARN,
+#: never PASS.
 AUDIT_WARN = 3
 #: Where a reviewer's evidence report lives (the judge's brief names the same directory).
 REPORT_DIR = ".context/reviews/evidence"
@@ -184,6 +195,13 @@ OUTCOMES = (GREEN, AMBER, RED, ESCALATE, NOT_EVALUATED)
 #: Fewest seats that must have EVALUATED a criterion for a multi-seat (rung-5) panel to close it
 #: when any of its seats did not.
 MIN_EVALUATING_SEATS = 2
+#: T-4490 (T-4466 GO, operator 2026-10-20): a rung-5 panel whose ONLY missing seats are provably
+#: UNAVAILABLE (dispatched, started and completed by the signed runtime, with no verdict at all)
+#: closes GREEN-DEGRADED when at least MIN_EVALUATING_SEATS seats of distinct vendors judged green
+#: and none dissented. Project opt-out: REVIEW_GREEN_DEGRADED=0. Every such close is written on
+#: the criterion, WARNed by `audit` and counted per ISO week.
+GREEN_DEGRADED_KEY = "REVIEW_GREEN_DEGRADED"
+GREEN_DEGRADED = "GREEN-DEGRADED"
 #: outcome → judge_verdict contract state. Escalate = "could not conclude".
 _STATE = {GREEN: judge_verdict.GREEN, AMBER: judge_verdict.AMBER,
           RED: judge_verdict.RED, ESCALATE: judge_verdict.UNKNOWN,
@@ -225,22 +243,78 @@ def _ledger_lock(root: Path):
 
 
 def _ledger_paths(root: Path, extra: list[str] | None = None) -> list[str]:
-    """What a verdict commit stages: the ledger files that exist, plus the row's evidence."""
+    """What a verdict commit stages: the ledger files that exist, plus the row's evidence.
+    T-4591: plus the provenance a row is verified against (dispatch registry, runs, completions).
+    Left uncommitted, a `git stash` in the shared checkout or a fresh clone loses those rows, and
+    every committed verdict citing them stops verifying."""
     paths = [str(p) for p in (extra or []) if (root / p).exists()]
-    return paths + [str(r) for r in (VERDICTS, RECORDED, REFUSALS, APPLIED) if (root / r).exists()]
+    return paths + [str(r) for r in (VERDICTS, RECORDED, REFUSALS, APPLIED, DISPATCHES, RUNS,
+                                      COMPLETIONS) if (root / r).exists()]
+
+
+def _restore_committed_evidence(root: Path, env: dict) -> list[str]:
+    """T-4514: evidence a recorded verdict cites is immutable. Restore from HEAD every committed
+    file under REPORT_DIR that is deleted or modified in the working tree, so a later worker that
+    moved or overwrote an earlier run's copy (T-4475: `config@1024.png` renamed to a `-<dispatch>`
+    name) cannot leave the earlier row citing a missing file. Untracked files are not touched."""
+    out = subprocess.run(["git", "diff", "--name-only", "--diff-filter=DM", "HEAD", "--", REPORT_DIR],
+                         cwd=str(root), env=env, capture_output=True, text=True)
+    damaged = [p for p in out.stdout.splitlines() if p] if out.returncode == 0 else []
+    if damaged:
+        subprocess.run(["git", "checkout", "HEAD", "--", *damaged], cwd=str(root), env=env,
+                       capture_output=True, text=True)
+        print(f"verdict ledger: restored {len(damaged)} committed evidence file(s) another run had "
+              f"moved, deleted or changed: {', '.join(damaged[:5])}", file=sys.stderr)
+    return damaged
 
 
 def _commit_rows(root: Path, paths: list[str], identity: str, message: str,
-                 email: str = "") -> tuple[str, str]:
+                 email: str = "", *, ids: list[str] | None = None, task: str = "",
+                 dispatch_id: str = "") -> tuple[str, str]:
     """Stage and commit exactly `paths` as `identity`. Returns (head_sha, error). Call only under
-    _ledger_lock, after the append, so the commit holds no other writer's row."""
+    _ledger_lock, after the append, so the commit holds no other writer's row. A refusal naming
+    `ids` is journalled to COMMIT_ERRORS with git's error (T-3863)."""
+    sha, err = _commit_rows_once(root, paths, identity, message, email)
+    if err and ids:
+        try:
+            _append(COMMIT_ERRORS, {"ts": _now(), "verdict_ids": list(ids), "task": task,
+                                    "dispatch_id": dispatch_id, "identity": identity,
+                                    "error": err}, root)
+        except OSError:
+            pass
+    return sha, err
+
+
+def commit_error_for(root: Path, verdict_id: str) -> str:
+    """The latest git error journalled for a verdict row's failed commit, or ''."""
+    hits = [r for r in _read(COMMIT_ERRORS, root) if verdict_id in (r.get("verdict_ids") or [])]
+    return str(hits[-1].get("error") or "") if hits else ""
+
+
+def _uncommitted_why(root: Path, row: dict) -> str:
+    why = f"row {row['id']} was never committed (no commit introduces it)"
+    err = commit_error_for(root, str(row["id"]))
+    if err:
+        why += f"; its commit failed: {err}"
+    return why + (" — commit it, or an operator discards it: fw reviewer verdict discard "
+                  f"{row['id']} --reason \"…\"")
+
+
+def _commit_rows_once(root: Path, paths: list[str], identity: str, message: str,
+                      email: str = "") -> tuple[str, str]:
     # T-3655: per-reviewer email, never a shared one.
     email = email or ("reviewer+" + re.sub(r"[^A-Za-z0-9._-]", "-", identity) + "@aef.local")
     env = {**os.environ, "GIT_AUTHOR_NAME": identity, "GIT_COMMITTER_NAME": identity,
            "GIT_AUTHOR_EMAIL": email, "GIT_COMMITTER_EMAIL": email}
     env.pop(_WORKER_ENV, None)
+    _restore_committed_evidence(root, env)
     err = ""
-    for attempt in range(5):        # another git process may hold .git/index.lock briefly
+    # T-4033: another git process may hold .git/index.lock. Wait against a bounded deadline, not
+    # a fixed 5 tries (~5 s): on 832 a parallel session's commit outlasted that, and a reviewer's
+    # row was left uncommitted.
+    deadline = time.monotonic() + INDEX_LOCK_WAIT_S
+    attempt = 0
+    while True:
         # T-4008: -f — every path here is named explicitly by the ledger. Without it a cited
         # screenshot (`*.png` is ignored repo-wide) made `git add` refuse the WHOLE call, the
         # commit never ran, and a reviewer's green stayed uncommitted, never to count.
@@ -251,10 +325,15 @@ def _commit_rows(root: Path, paths: list[str], identity: str, message: str,
         if not (add.returncode or com.returncode):
             return _head_sha(root), ""
         err = (add.stderr + com.stderr).strip()[-500:]
-        if "index.lock" not in err:
+        if "index.lock" not in err or time.monotonic() >= deadline:
             break
-        time.sleep(0.5 * (attempt + 1))
-    return "", err
+        attempt += 1
+        time.sleep(min(0.5 * attempt, 2.0, max(deadline - time.monotonic(), 0.05)))
+    # T-4469: a refused commit must not leave its rows staged — the next unrelated commit
+    # carried one on 832 and the append-only ledger then blocked every push.
+    subprocess.run(["git", "reset", "-q", "--", *paths], cwd=str(root), env=env,
+                   capture_output=True, text=True)
+    return "", err + " (the ledger paths were unstaged; the row stays uncommitted on disk)"
 
 
 def _brief_criteria(drec: dict) -> set[int]:
@@ -320,7 +399,8 @@ def title_digest(title: str) -> str:
 
 
 #: Lines the framework writes UNDER a criterion. Not part of what a reviewer judged.
-_GENERATED_RE = re.compile(r"^\s*\*\*Reviewer (verdict|escalation)\b")
+#: One definition, shared with the delegation classifier (T-3853).
+_GENERATED_RE = GENERATED_ANNOTATION_RE
 
 
 def criterion_body(crit) -> str:
@@ -1596,7 +1676,8 @@ def _record_for_worker_locked(root: Path, did: str, drec: dict, kind: str, here:
     if not touched:
         return res
     sha, err = _commit_rows(root, _ledger_paths(root, touched), identity,
-                            f"{task}: reviewer verdict ({kind} seat {seat}, recorded by the runtime)")
+                            f"{task}: reviewer verdict ({kind} seat {seat}, recorded by the runtime)",
+                            ids=[r["id"] for r in res["recorded"]], task=task, dispatch_id=did)
     if err:
         res["commit_error"] = err
     else:
@@ -1614,7 +1695,8 @@ def record_and_commit(task_id: str, ac_index: int, outcome: str, *, identity: st
     with _ledger_lock(root):
         rec = record(task_id, ac_index, outcome, root=root, **kw)
         sha, err = _commit_rows(root, _ledger_paths(root, kw.get("evidence")), identity,
-                                f"{task_id}: reviewer verdict", email=email)
+                                f"{task_id}: reviewer verdict", email=email, ids=[rec["id"]],
+                                task=task_id, dispatch_id=str(kw.get("dispatch_id") or ""))
     if err:
         raise VerdictRefused(f"verdict {rec['id']} appended but NOT committed: {err}")
     return {**rec, "commit": sha}
@@ -1737,7 +1819,10 @@ def register_run(run_id: str, task_id: str, *, acs: list[int], rung: str, seats:
         row["visual"] = {"widths": [int(w) for w in visual.get("widths") or []],
                          "problems": [str(p) for p in visual.get("problems") or []],
                          "shots": [{"state": str(x.get("state", "")), "width": int(x.get("width", 0)),
-                                    "path": str(x.get("path", "")), "sha256": str(x.get("sha256") or "")}
+                                    "path": str(x.get("path", "")), "sha256": str(x.get("sha256") or ""),
+                                    # T-4391: an interaction state names the steps that produced it
+                                    **({"steps_sha256": str(x["steps_sha256"])}
+                                       if "steps_sha256" in x else {})}
                                    for x in visual.get("shots") or []]}
     row["revision"] = (revision or "").strip() or _head_sha(root)
     row["registry"] = registry_pin(root, row["revision"])
@@ -2092,6 +2177,8 @@ def load_ledger(root: Path) -> Ledger:
             return led
         led.pending.append(obj)
     have = {r.get("id") for r, _ in led.entries()}
+    # T-3863: an operator-discarded uncommitted row is gone by decision, not deleted.
+    have |= {(d.get("row") or {}).get("id") for d in _read(DISCARDED, root)}
     for j in _read(RECORDED, root):
         if j.get("verdict_id") not in have:
             led.missing.append((str(j.get("verdict_id")), str(j.get("task"))))
@@ -2319,12 +2406,27 @@ def _completion_fault(base: _Base, row: dict) -> tuple[str, str] | None:
     if entry.get("verdict_sha256") != verdict_hash(row):
         return "verdict-tampered", ("the row's bytes differ from the verdict the worker left when it "
                                     "exited (verdict hash mismatch)")
+    if not comp.get("result_sha256"):
+        return "bad-completion", "the runtime recorded no result stream for the worker"
     if row.get("outcome") == GREEN and comp.get("exit_code") != 0:
         return "worker-failed", (f"the worker exited {comp.get('exit_code')} — a green from a "
                                  f"failed or killed review does not count")
-    if not comp.get("result_sha256"):
-        return "bad-completion", "the runtime recorded no result stream for the worker"
     return None
+
+
+def _in_flight(root: Path, dispatch_id: str) -> bool:
+    """T-4519 leg 2: the dispatch's runtime has signed its start but not yet its completion, and
+    its signed `complete_by` window is still open — a row its worker committed is PROVISIONAL
+    (never counts) until run.sh signs the exit. Past the window it is a plain no-completion."""
+    drec, _ = dispatch_record(root, dispatch_id)
+    starts = _starts_for(root, dispatch_id)
+    if drec is None or _completions_for(root, dispatch_id) or len(starts) != 1 \
+            or not _signed_ok(root, starts[0]) or starts[0].get("wdir") != drec.get("wdir"):
+        return False
+    try:
+        return int(_clock()) <= int(drec.get("complete_by"))
+    except (TypeError, ValueError):
+        return False
 
 
 def _row_fault(base: _Base, row: dict, intro: dict | None, *, need_commit: bool = True,
@@ -2344,14 +2446,17 @@ def _row_fault(base: _Base, row: dict, intro: dict | None, *, need_commit: bool 
     if why:
         return "no-provenance", why
     f = _worker_fault(base, row, intro) or (None if recording else _completion_fault(base, row))
-    if f:
+    # T-4519: a runtime-attested green from a worker that exited non-zero is VOID — it never
+    # counts, and `audit` grades it WARN — but only when every OTHER check below passes too.
+    void = f if f and f[0] == "worker-failed" else None
+    if f and not void:
         return f
     if row["outcome"] != GREEN:
         g = row.get("guidance")
         if not isinstance(g, str) or not g.strip():
             return "no-guidance", "a non-green verdict needs guidance"
         if need_commit and intro is None:
-            return "uncommitted", f"row {row['id']} was never committed (no commit introduces it)"
+            return "uncommitted", _uncommitted_why(base.root, row)
         return None
     if not row["evidence"] or not all(isinstance(e, str) and e.strip() for e in row["evidence"]):
         return "no-evidence", "a green verdict needs at least one evidence path"
@@ -2385,13 +2490,13 @@ def _row_fault(base: _Base, row: dict, intro: dict | None, *, need_commit: bool 
             f"{base.task_id}; the reviewer is never the producer")
     if need_commit:
         if intro is None:
-            return "uncommitted", f"row {row['id']} was never committed (no commit introduces it)"
+            return "uncommitted", _uncommitted_why(base.root, row)
         hit = next((p for i in intro["ids"] if (p := is_producer(i, prod))), "")
         if hit:
             return "introduced-by-producer", (
                 f"the commit that added this row ({intro['sha'][:9]}) was authored by "
                 f"{hit!r}, a producer of {base.task_id}")
-    return None
+    return void
 
 
 def _is_render_review(ctx: "_Ctx", crit) -> bool:
@@ -2437,22 +2542,32 @@ def _run_fault(ctx: "_Ctx", row: dict, crit, recording: bool) -> tuple[str, str]
                 return "unseen-page", f"the screenshot of {p!r} is not cited as evidence"
         # T-4214: the T-4202 evidence. Every checklist state at every configured width must have a
         # verified shot, the Visual Verification checklist must pass, and each shot must be cited.
-        vis = run.get("visual")
-        if vis is None:
-            return "visual-needs-run", ("a render criterion needs the multi-width screenshots and the "
-                                        "Visual Verification checklist recorded in its review run; "
-                                        "this run recorded neither (fw ux shots, then fw reviewer judge)")
-        if vis.get("problems"):
-            return "visual-missing", ("the Visual Verification checklist does not pass: "
-                                      + "; ".join(vis["problems"][:3]))
-        shots = vis.get("shots") or []
-        if not shots:
-            return "visual-missing", "no screenshot is recorded for the checklist states"
-        for sh in shots:
-            if not sh.get("sha256"):
-                return "visual-missing", f"no screenshot at {sh.get('path')!r} ({sh.get('state')} @ {sh.get('width')}px)"
-            if sh["sha256"] not in cited:
-                return "visual-uncited", f"the screenshot {sh.get('path')!r} is not cited as evidence"
+        return _visual_fault(run.get("visual"), cited)
+    return None
+
+
+def _visual_fault(vis: dict | None, cited: set) -> tuple[str, str] | None:
+    """T-4214: the run's T-4202 visual record backs a render green only when present, its checklist
+    passes, and every shot exists and is cited. T-4391: a shot captured from a steps file must name
+    a well-formed steps sha256; otherwise it is judged exactly as a URL-state shot."""
+    if vis is None:
+        return "visual-needs-run", ("a render criterion needs the multi-width screenshots and the "
+                                    "Visual Verification checklist recorded in its review run; "
+                                    "this run recorded neither (fw ux shots, then fw reviewer judge)")
+    if vis.get("problems"):
+        return "visual-missing", ("the Visual Verification checklist does not pass: "
+                                  + "; ".join(vis["problems"][:3]))
+    shots = vis.get("shots") or []
+    if not shots:
+        return "visual-missing", "no screenshot is recorded for the checklist states"
+    for sh in shots:
+        if not sh.get("sha256"):
+            return "visual-missing", f"no screenshot at {sh.get('path')!r} ({sh.get('state')} @ {sh.get('width')}px)"
+        if "steps_sha256" in sh and not re.fullmatch(r"[0-9a-f]{64}", str(sh["steps_sha256"])):
+            return "visual-missing", (f"the screenshot {sh.get('path')!r} names no valid steps sha256 "
+                                      f"({sh['steps_sha256']!r}) — re-run fw ux shots")
+        if sh["sha256"] not in cited:
+            return "visual-uncited", f"the screenshot {sh.get('path')!r} is not cited as evidence"
     return None
 
 
@@ -2974,7 +3089,89 @@ def satisfying_verdict(ctx: _Ctx, crit) -> tuple[dict | None, str]:
 
 
 def _panel_fault(ctx: _Ctx, crit, last: dict, mine: list[dict]) -> str:
-    """'' unless `last` belongs to a run whose requirements are not all met: every required seat
+    return _panel_state(ctx, crit, last, mine)[0]
+
+
+def green_degraded_enabled(root: Path) -> bool:
+    """T-4490 condition 5: the project opt-out. Default on; ONLY an explicit truthy value keeps it
+    on, so a malformed setting never relaxes the panel (fail closed)."""
+    v = review_policy.config_value(root, GREEN_DEGRADED_KEY, "1").strip().lower()
+    return v in ("1", "true", "yes", "on")
+
+
+def _unavailable_seat(ctx: _Ctx, run: dict, seat: str) -> tuple[str, str]:
+    """T-4490 condition 1: (reason, '') when `seat` of `run` is provably UNAVAILABLE for this task,
+    else ('', why not). Proof comes only from SIGNED runtime artefacts, never a caller's claim:
+    exactly one review dispatch registered for this run's seat and task at the run's pinned
+    revision; no ledger row from it at all (a seat that left any row — a not-evaluated included —
+    is a verdict, not unavailable); exactly one signed runtime start in its window; exactly one
+    signed runtime completion, emitted by that runtime in its window and listing NO verdict, on an
+    append-only completions file. The recorded reason is the completion's exit state."""
+    root, rid = ctx.root, str(run.get("run_id") or "")
+    dids = sorted({str(r.get("dispatch_id") or "") for r in _read(DISPATCHES, root)
+                   if r.get("run_id") == rid and r.get("seat") == seat})
+    if not dids:
+        return "", f"seat {seat!r} of run {rid} was never dispatched"
+    if len(dids) > 1:
+        return "", f"seat {seat!r} of run {rid} has {len(dids)} dispatches — ambiguous, refusing"
+    did = dids[0]
+    drec, why = dispatch_record(root, did)
+    if drec is None:
+        return "", why
+    if drec.get("task_type") != REVIEW_TASK_TYPE or drec.get("task") != ctx.task_id:
+        return "", f"dispatch {did!r} is not a review dispatch for {ctx.task_id}"
+    if str(drec.get("revision") or "") != str(run.get("revision") or ""):
+        return "", f"dispatch {did!r} is not at run {rid}'s pinned revision"
+    if any(r.get("dispatch_id") == did for r in _read(VERDICTS, root)):
+        return "", f"seat {seat!r} (dispatch {did}) left a ledger row — that is a verdict, not unavailable"
+    # T-4507: a printed verdict the ledger REFUSED lands in the refusal ledger, never in VERDICTS.
+    # The seat judged — its refused verdict could have been red — so it is not unavailable.
+    if any(r.get("dispatch_id") == did for r in _read(REFUSALS, root)):
+        return "", (f"seat {seat!r} (dispatch {did}) left a refused verdict — that is a verdict, "
+                    f"not unavailable")
+    starts = _starts_for(root, did)
+    if len(starts) != 1 or not _signed_ok(root, starts[0]) \
+            or starts[0].get("wdir") != drec.get("wdir"):
+        return "", f"dispatch {did!r} has no single signed runtime start — it never ran"
+    hist = history_fault(root, COMPLETIONS)
+    if hist:
+        return "", f"completions: {hist}"
+    comps = _completions_for(root, did)
+    if len(comps) != 1:
+        return "", (f"dispatch {did!r} has {len(comps)} runtime completion(s) — an unavailable seat "
+                    f"is proven by exactly one")
+    comp = comps[0]
+    if not _signed_ok(root, comp) or comp.get("source") != "runtime" or comp.get("session") != did \
+            or comp.get("wdir") != drec.get("wdir") \
+            or comp.get("worker_kind") != (drec.get("worker_kind") or "claude") \
+            or str(comp.get("revision") or "") != str(drec.get("revision") or ""):
+        return "", f"dispatch {did!r}'s completion was not signed by its own runtime"
+    try:
+        in_time = (int(starts[0]["epoch"]) <= int(drec["start_by"])
+                   and int(starts[0]["epoch"]) <= int(comp["epoch"]) <= int(drec["complete_by"]))
+    except (KeyError, TypeError, ValueError):
+        in_time = False
+    if not in_time:
+        return "", f"dispatch {did!r} started or completed outside its signed window"
+    if comp.get("verdicts"):
+        return "", f"dispatch {did!r}'s completion lists verdicts — not unavailable"
+    return f"exit {comp.get('exit_code')}, no verdict (dispatch {did})", ""
+
+
+def green_degraded_of(ctx: _Ctx, crit, last: dict) -> str:
+    """The GREEN-DEGRADED disclosure for a satisfying green `last` ('' when its panel was whole)."""
+    mine = [r for r, _i in ctx.ledger.entries() if r.get("task") == ctx.task_id
+            and r.get("ac") == crit.index and r.get("ac_digest") == criterion_digest(crit)]
+    fault, deg = _panel_state(ctx, crit, last, mine)
+    if fault or not deg:
+        return ""
+    return (f"run {deg['run_id']} closed on {len(deg['green'])} green seat(s) of distinct vendors "
+            f"({', '.join(f'{s} [{v}]' for s, v in deg['green'])}); unavailable: "
+            + "; ".join(f"{s} ({why})" for s, why in deg["unavailable"]))
+
+
+def _panel_state(ctx: _Ctx, crit, last: dict, mine: list[dict]) -> tuple[str, dict]:
+    """(fault, degraded). '' unless `last` belongs to a run whose requirements are not all met: every required seat
     needs its own valid, completed green for this criterion, and the seats must span the run's
     required number of distinct vendors (a single-vendor panel cannot satisfy a three-vendor one).
     A vendor is derived from each seat's registered worker KIND through the one mapping in
@@ -2984,20 +3181,24 @@ def _panel_fault(ctx: _Ctx, crit, last: dict, mine: list[dict]) -> str:
     root, led = ctx.root, ctx.ledger
     run, _bind, _why = run_for_dispatch(root, str(last["dispatch_id"]))
     if run is None:
-        return ""
+        return "", {}
     # Round 7: ONE binding for the whole run — its pinned revision and registry blob. The table
     # is derived once; a seat at another revision, or a registry that no longer hashes to the
     # pinned blob (an external framework checkout that moved), is refused.
     run_rev = str(run.get("revision") or "")
     pin = run.get("registry") or {}
     if not run_rev or not pin.get("sha256"):
-        return f"panel-unverified-vendor: run {run['run_id']} pins no revision or registry blob"
+        return f"panel-unverified-vendor: run {run['run_id']} pins no revision or registry blob", {}
     if registry_pin(root, run_rev).get("sha256") != pin.get("sha256"):
         return (f"panel-unverified-vendor: the registry at run {run['run_id']}'s revision "
-                f"{run_rev[:9]} no longer hashes to the blob the run pinned ({pin.get('where')})")
+                f"{run_rev[:9]} no longer hashes to the blob the run pinned ({pin.get('where')})"), {}
     table = verified_kind_vendors(root, run_rev)
     vendors: set[str] = set()
     evaluating, not_evaluated = 0, []
+    green_seats: list[tuple[str, str]] = []
+    unavailable: list[tuple[str, str]] = []
+    # T-4490: only a panel (rung 5) can close degraded, and only when the project has not opted out.
+    degradable = (review_policy.rung_number(run.get("rung")) or 0) >= 5 and green_degraded_enabled(root)
     for s in run["seats"]:
         seat_rows = []
         for r in mine:
@@ -3005,25 +3206,32 @@ def _panel_fault(ctx: _Ctx, crit, last: dict, mine: list[dict]) -> str:
             if rr is not None and rr["run_id"] == run["run_id"] and bb["seat"] == s["seat"]:
                 seat_rows.append((r, bb))
         if not seat_rows:
-            return f"panel-incomplete: required seat {s['seat']!r} of run {run['run_id']} has no verdict"
+            msg = f"panel-incomplete: required seat {s['seat']!r} of run {run['run_id']} has no verdict"
+            if not degradable:
+                return msg, {}
+            reason, why = _unavailable_seat(ctx, run, s["seat"])
+            if not reason:
+                return f"{msg} and is not provably unavailable ({why})", {}
+            unavailable.append((s["seat"], reason))
+            continue
         r, bb = seat_rows[-1]
         f = _fault(ctx, r, crit, led.intro(r["id"]))
         if f:
             return (f"panel-incomplete: seat {s['seat']!r} of run {run['run_id']} is unknown (its "
-                    f"latest verdict is invalid) — {f[0]}: {f[1]}")
+                    f"latest verdict is invalid) — {f[0]}: {f[1]}"), {}
         if r.get("outcome") == NOT_EVALUATED:
             # T-3986: the seat could not evaluate. It neither blocks nor counts; the seats that
             # did evaluate decide, and there must be enough of them (checked below).
             not_evaluated.append(s["seat"])
             continue
         if r.get("outcome") != GREEN:
-            return f"panel-incomplete: seat {s['seat']!r} of run {run['run_id']} is {r.get('outcome')!r}"
+            return f"panel-incomplete: seat {s['seat']!r} of run {run['run_id']} is {r.get('outcome')!r}", {}
         drec, _ = dispatch_record(root, str(r["dispatch_id"]))
         kind = str((drec or {}).get("worker_kind") or "claude")
         if str((drec or {}).get("revision") or "") != run_rev:
             return (f"panel-unverified-vendor: seat {s['seat']!r} of run {run['run_id']} was "
                     f"dispatched at revision {str((drec or {}).get('revision') or 'none')[:9]}, not the "
-                    f"run's pinned {run_rev[:9]} — every seat uses the run's one binding")
+                    f"run's pinned {run_rev[:9]} — every seat uses the run's one binding"), {}
         # Round 6/7: derived from the registry COMMITTED at the run's ONE pinned revision and the
         # kinds the dispatcher can launch as committed there — never the working tree.
         v = table.get(kind, "")
@@ -3031,25 +3239,43 @@ def _panel_fault(ctx: _Ctx, crit, last: dict, mine: list[dict]) -> str:
             return (f"panel-unverified-vendor: seat {s['seat']!r} of run {run['run_id']} registered "
                     f"vendor {(drec or {}).get('vendor')!r} for worker kind {kind!r}, but "
                     f"{BACKENDS} as committed (for a launchable kind) maps it to {v or 'nothing'!r} "
-                    f"— a vendor is derived from the worker kind, never taken from free text")
+                    f"— a vendor is derived from the worker kind, never taken from free text"), {}
         vendors.add(v)
+        green_seats.append((s["seat"], v))
         evaluating += 1
+    if unavailable:
+        # T-4490: GREEN-DEGRADED. Conditions 1, 2 and 4; every refusal says which one failed.
+        seats = ", ".join(s for s, _ in unavailable)
+        if not_evaluated:
+            return (f"panel-incomplete: seat(s) {seats} of run {run['run_id']} unavailable and "
+                    f"seat(s) {', '.join(not_evaluated)} not-evaluated — a green-degraded close "
+                    f"needs every missing seat UNAVAILABLE, never a not-evaluated"), {}
+        cls = ctx.classify(crit)
+        if cls.delegation_class != REVIEWER_JUDGES:
+            return (f"panel-incomplete: seat(s) {seats} of run {run['run_id']} unavailable — a "
+                    f"{cls.cls} criterion never closes green-degraded"), {}
+        if evaluating < MIN_EVALUATING_SEATS or len(vendors) < MIN_EVALUATING_SEATS:
+            return (f"panel-incomplete: seat(s) {seats} of run {run['run_id']} unavailable; "
+                    f"{evaluating} green seat(s) across {len(vendors)} vendor(s) remain, and a "
+                    f"green-degraded close needs at least {MIN_EVALUATING_SEATS} green seats of "
+                    f"distinct vendors"), {}
+        return "", {"run_id": run["run_id"], "green": green_seats, "unavailable": unavailable}
     if not_evaluated:
         if len(run["seats"]) < 2:
             return (f"not-evaluated: the only seat of run {run['run_id']} did not evaluate this "
-                    f"criterion — reassign it to a seat kind that can")
+                    f"criterion — reassign it to a seat kind that can"), {}
         if evaluating < MIN_EVALUATING_SEATS or len(vendors) < MIN_EVALUATING_SEATS:
             return (f"not-evaluated: seat(s) {', '.join(not_evaluated)} of run {run['run_id']} did "
                     f"not evaluate this criterion; {evaluating} seat(s) across {len(vendors)} "
                     f"vendor(s) did, and a panel closes only on at least {MIN_EVALUATING_SEATS} "
                     f"evaluating seats of distinct vendors — reassign the criterion to another "
-                    f"seat kind, then the operator")
-        return ""
+                    f"seat kind, then the operator"), {}
+        return "", {}
     if len(vendors) < int(run.get("required_vendors") or 1):
         return (f"degraded: run {run['run_id']} demands {run.get('required_vendors')} vendor(s), "
                 f"its seats span {len(vendors)} ({', '.join(sorted(vendors))}) — a single-vendor "
-                f"panel cannot satisfy a multi-vendor requirement")
-    return ""
+                f"panel cannot satisfy a multi-vendor requirement"), {}
+    return "", {}
 
 
 def _task_ctx(root: Path, task_id: str) -> _Ctx | None:
@@ -3331,6 +3557,37 @@ def release(task_id: str, ac: int, reason: str, root: Path | None = None) -> dic
     return {"task": task_id, "ac": ac, "verdict_id": vid, "released": True}
 
 
+_ESCALATION_RE = re.compile(r"^\s*\*\*Reviewer escalation \((V-[\w-]+)", re.IGNORECASE)
+
+
+def resolve_escalation(task_id: str, ac: int, reason: str, root: Path | None = None) -> dict:
+    """Operator action: mark a reviewer escalation resolved (T-3853). Removes every escalation
+    note under the criterion and records the resolution in the applied log. Ownership and the
+    tick are untouched — resolving the escalation is not answering the criterion. The CLI
+    refuses agents."""
+    root = root or _root()
+    ctx = _task_ctx(root, task_id)
+    if ctx is None:
+        raise VerdictRefused(f"{task_id} is not an active task")
+    if not (reason or "").strip():
+        raise VerdictRefused("a reason is required")
+    lines = ctx.text.split("\n")
+    crit = next((c for c in human_criteria(ctx.text) if c.index == ac), None)
+    if crit is None:
+        raise VerdictRefused(f"{task_id} has no Human criterion #{ac}")
+    hits = [(i, m.group(1)) for i in range(crit.start + 1, min(crit.end + 1, len(lines)))
+            for m in [_ESCALATION_RE.match(lines[i])] if m]
+    if not hits:
+        raise VerdictRefused(f"AC#{ac} of {task_id} carries no reviewer escalation — nothing to resolve")
+    for i, _vid in reversed(hits):
+        del lines[i]
+    ctx.path.write_text("\n".join(lines), encoding="utf-8")
+    vids = [v for _i, v in hits]
+    _append(APPLIED, {"ts": _now(), "task": task_id, "kind": "escalation-resolved", "ac": ac,
+                      "verdict_ids": vids, "reason": reason.strip()}, root)
+    return {"task": task_id, "ac": ac, "verdict_ids": vids, "resolved": True}
+
+
 def _annotation(lines: list[str], crit) -> tuple[int, str] | None:
     """(line index, verdict id) of the reviewer-verdict annotation under `crit`, if any."""
     for i in range(crit.start + 1, min(crit.end + 1, len(lines))):
@@ -3346,11 +3603,12 @@ def _step_down_of(root: Path, r: dict) -> str:
     return review_policy.disclosure((run or {}).get("ceiling_decision"))
 
 
-def _cite(r: dict, root: Path | None = None) -> str:
+def _cite(r: dict, root: Path | None = None, degraded: str = "") -> str:
     down = _step_down_of(root, r) if root is not None else ""
     return (f"  **Reviewer verdict:** green {r['id']} — {r['reviewer']} (rung {r['rung']}), "
             f"digest {r['ac_digest']}; dispatch {r['dispatch_id']}; "
             + (f"STEP-DOWN: {down}; " if down else "")
+            + (f"{GREEN_DEGRADED}: {degraded}; " if degraded else "")
             + f"evidence: {', '.join(r['evidence'])}; ledger {VERDICTS}")
 
 
@@ -3393,9 +3651,11 @@ def apply(task_id: str, root: Path | None = None) -> dict:
             continue
         r, why = satisfying_verdict(ctx, c)
         if r is not None:
-            if r["id"] != ann[1]:
-                lines[ann[0]] = _cite(r, root)
-                result["recited"].append({"ac": c.index, "verdict_id": r["id"]})
+            deg = green_degraded_of(ctx, c, r)
+            if r["id"] != ann[1] or (f"{GREEN_DEGRADED}:" in lines[ann[0]]) != bool(deg):
+                lines[ann[0]] = _cite(r, root, deg)
+                result["recited"].append({"ac": c.index, "verdict_id": r["id"],
+                                          **({"green_degraded": deg} if deg else {})})
             continue
         del lines[ann[0]]
         lines[c.start] = re.sub(r"\[[xX]\]", "[ ]", lines[c.start], count=1)
@@ -3410,11 +3670,12 @@ def apply(task_id: str, root: Path | None = None) -> dict:
             continue
         r, _ = satisfying_verdict(ctx, c)
         if r:
-            hits.append((c, r))
-    for c, r in sorted(hits, key=lambda h: -h[0].start):
+            hits.append((c, r, green_degraded_of(ctx, c, r)))
+    for c, r, deg in sorted(hits, key=lambda h: -h[0].start):
         lines[c.start] = re.sub(r"\[ \]", "[x]", lines[c.start], count=1)
-        lines.insert(c.end, _cite(r, root))
-        result["ticked"].append({"ac": c.index, "verdict_id": r["id"], "reviewer": r["reviewer"]})
+        lines.insert(c.end, _cite(r, root, deg))
+        result["ticked"].append({"ac": c.index, "verdict_id": r["id"], "reviewer": r["reviewer"],
+                                 **({"green_degraded": deg} if deg else {})})
     result["ticked"].sort(key=lambda t: t["ac"])
     result["withdrawn"].sort(key=lambda t: t["ac"])
     if not hits and not result["withdrawn"] and not result["recited"]:
@@ -3440,6 +3701,31 @@ def apply(task_id: str, root: Path | None = None) -> dict:
 # ── audit (fw audit) ─────────────────────────────────────────────────────────
 
 
+def green_degraded_lines(root: Path) -> list[str]:
+    """T-4490 conditions 3 and 6: one `WARN green-degraded:` line per criterion a degraded panel
+    closed (from the applied log, once per task/criterion/verdict), then the count per ISO week —
+    a seat that is always unavailable shows up as a weekly count that never drops, so it gets
+    fixed rather than routed around."""
+    seen: dict[tuple, str] = {}
+    for a in _read(APPLIED, root):
+        for t in (a.get("ticked") or []) + (a.get("recited") or []):
+            if isinstance(t, dict) and t.get("green_degraded"):
+                seen.setdefault((a.get("task"), t.get("ac"), t.get("verdict_id")),
+                                f"{a.get('ts', '')}\x1f{t['green_degraded']}")
+    out, weeks = [], {}
+    for (task, ac, vid), v in seen.items():
+        ts, what = v.split("\x1f", 1)
+        out.append(f"WARN green-degraded: {task} AC#{ac} {vid}: {what}")
+        try:
+            y, w, _d = datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").isocalendar()
+            wk = f"{y}-W{w:02d}"
+        except ValueError:
+            wk = "unknown-week"
+        weeks[wk] = weeks.get(wk, 0) + 1
+    out += [f"WARN green-degraded weekly: {wk} {n}" for wk, n in sorted(weeks.items())]
+    return out
+
+
 def audit(root: Path | None = None) -> tuple[int, list[str]]:
     """Cross-check the ledger's history AND every row. (exit code, lines): 0 clean, 2 on failure.
 
@@ -3458,10 +3744,11 @@ def audit(root: Path | None = None) -> tuple[int, list[str]]:
              f"{review_policy.disclosure(run['ceiling_decision'])}"
              for run in _read(RUNS, root)
              if run.get("kind") == "run" and review_policy.is_step_down(run.get("ceiling_decision"))]
+    downs += green_degraded_lines(root)
     if not n and not led.torn and not led.faults and not led.missing \
             and not _read(APPLIED, root) and not comps_exist:
         return 0, downs + ["verdict ledger: empty or absent (path is off until a review dispatch writes rows)"]
-    out, bad, acked = [], 0, 0
+    out, bad, acked, voided = [], 0, 0, 0
     acks, ack_lines = _committed_acks(root)
     for ln in ack_lines:
         if ln.startswith("FAIL"):
@@ -3506,6 +3793,20 @@ def audit(root: Path | None = None) -> tuple[int, list[str]]:
             tp, _sub = _find_task(root, task)
             bases[task] = _Base(root, task, tp.read_text(encoding="utf-8", errors="replace") if tp else "")
         f = _row_fault(bases[task], r, intro)
+        # T-4519: two runtime-attested non-counting states are WARN, never PASS and never FAIL —
+        # a green whose worker was killed after committing it (VOID: the runtime signed a
+        # non-zero exit), and a committed row whose dispatch is still running (PROVISIONAL until
+        # run.sh signs the exit). Neither ever counts; append-only history is checked as before.
+        if f and f[0] == "worker-failed":
+            voided += 1
+            out.append(f"WARN void: {rid} ({task}) worker failed — {f[1]}; never counts, a later "
+                       f"verdict on the criterion supersedes it")
+            continue
+        if f and f[0] == "no-completion" and _in_flight(root, str(r.get("dispatch_id"))):
+            voided += 1
+            out.append(f"WARN provisional: {rid} ({task}) its dispatch {r.get('dispatch_id')} is "
+                       f"still running — counts only once the runtime signs exit 0")
+            continue
         if f:
             ack, why = _ack_for(root, acks, r, f[0], committed=intro is not None)
             if ack is not None:
@@ -3517,8 +3818,9 @@ def audit(root: Path | None = None) -> tuple[int, list[str]]:
             out.append(f"FAIL {rid} ({task}): {f[0].replace('-', ' ')} — {f[1]}"
                        + (f" [acknowledgement not honoured: {why}]" if why else ""))
     out += downs
-    out.append(f"verdict ledger: {n} row(s), {bad} failure(s), {acked} acknowledged refusal(s)")
-    return (2 if bad else AUDIT_WARN if acked else 0), out
+    out.append(f"verdict ledger: {n} row(s), {bad} failure(s), {acked} acknowledged refusal(s), "
+               f"{voided} void/provisional row(s)")
+    return (2 if bad else AUDIT_WARN if acked or voided else 0), out
 
 
 # ── acknowledged refusals (T-3657) ───────────────────────────────────────────
@@ -3574,6 +3876,41 @@ def _ack_for(root: Path, acks: list[dict], row: dict, cls: str, *,
     if not _completed_task(root, str(a.get("fixed_by", ""))):
         return None, f"fixing task {a.get('fixed_by')!r} is not completed"
     return a, ""
+
+
+def discard(row_id: str, *, reason: str, root: Path | None = None, i_am_human: bool = False) -> dict:
+    """(operator, T-3863) Remove an UNCOMMITTED row from the working ledger — one whose worker
+    commit failed (050: `.context/*` gitignored) and that otherwise FAILs every audit with no exit:
+    removing it by hand is a 'deleted verdict', and an uncommitted row cannot be acknowledged.
+    The row and the reason are appended to DISCARDED, which is what `recorded.jsonl` accepts for
+    its absence. A committed row is refused: the ledger is append-only against git."""
+    root = root or _root()
+    if os.environ.get("CLAUDECODE") == "1" and not i_am_human:
+        raise VerdictRefused("discarding a verdict row is an operator action (--i-am-human)")
+    if not (reason or "").strip():
+        raise VerdictRefused("--reason is required")
+    with _ledger_lock(root):
+        led = load_ledger(root)
+        if led.faults:
+            raise VerdictRefused(f"the ledger does not verify as a whole ({led.faults[0]}) — "
+                                 f"discard removes one uncommitted row, it does not repair history")
+        if any(r.get("id") == row_id for r, _ in led.committed):
+            raise VerdictRefused(f"{row_id} is committed — the ledger is append-only; "
+                                 f"acknowledge it instead if a fixed defect refuses it")
+        row = next((r for r in led.pending if r.get("id") == row_id), None)
+        if row is None:
+            raise VerdictRefused(f"no uncommitted row {row_id!r} in {VERDICTS}")
+        p = root / VERDICTS
+        kept = [ln for ln in p.read_text(encoding="utf-8", errors="replace").splitlines()
+                if ln.strip() and (_parse(ln) or {}).get("id") != row_id]
+        rec = {"ts": _now(), "row": row, "reason": reason.strip(),
+               "commit_error": commit_error_for(root, row_id),
+               "by": "agent-override" if os.environ.get("CLAUDECODE") == "1" else "operator"}
+        _append(DISCARDED, rec, root)
+        tmp = p.with_name(p.name + ".discard.tmp")
+        tmp.write_text("".join(ln + "\n" for ln in kept), encoding="utf-8")
+        os.replace(tmp, p)
+    return {"discarded": row_id, **rec}
 
 
 def acknowledge(row_id: str, *, fixed_by: str, reason: str, root: Path | None = None) -> dict:
@@ -3730,6 +4067,13 @@ def _cli(argv: list[str] | None = None) -> int:
     rl.add_argument("--reason", required=True)
     rl.add_argument("--i-am-human", action="store_true")
 
+    re_ = sub.add_parser("resolve-escalation", help="(operator) mark a reviewer escalation on a "
+                         "criterion resolved: removes the note, logs the resolution")
+    re_.add_argument("task_id")
+    re_.add_argument("--ac", type=int, required=True)
+    re_.add_argument("--reason", required=True)
+    re_.add_argument("--i-am-human", action="store_true")
+
     ak = sub.add_parser("acknowledge", help="record that a refused ledger row was caused by a "
                         "framework defect a completed task has fixed (audit FAIL -> WARN; the row "
                         "never counts)")
@@ -3737,8 +4081,14 @@ def _cli(argv: list[str] | None = None) -> int:
     ak.add_argument("--fixed-by", required=True, help="completed task that fixed the defect")
     ak.add_argument("--reason", required=True)
 
+    dc = sub.add_parser("discard", help="(operator) remove an UNCOMMITTED ledger row whose commit "
+                        "failed; logged to " + str(DISCARDED) + " (T-3863)")
+    dc.add_argument("row_id")
+    dc.add_argument("--reason", required=True)
+    dc.add_argument("--i-am-human", action="store_true")
+
     sub.add_parser("audit", help="cross-check every ledger row; exit 2 on any failure, "
-                   f"{AUDIT_WARN} when every failing row is acknowledged")
+                   f"{AUDIT_WARN} when every failing row is acknowledged, void or provisional")
 
     ls = sub.add_parser("list", help="verdicts recorded for a task")
     ls.add_argument("task_id")
@@ -3881,6 +4231,17 @@ def _cli(argv: list[str] | None = None) -> int:
             print(f"REFUSED: {e}", file=sys.stderr)
             return 1
         return 0
+    if args.cmd == "resolve-escalation":
+        if os.environ.get("CLAUDECODE") == "1" and not args.i_am_human:
+            print("REFUSED: resolving a reviewer escalation is an operator action (--i-am-human)",
+                  file=sys.stderr)
+            return 1
+        try:
+            print(json.dumps(resolve_escalation(args.task_id, args.ac, args.reason)))
+        except VerdictRefused as e:
+            print(f"REFUSED: {e}", file=sys.stderr)
+            return 1
+        return 0
     if args.cmd == "check-render":
         vs = render_verdicts(args.task_id)
         if not vs:
@@ -3906,6 +4267,16 @@ def _cli(argv: list[str] | None = None) -> int:
         print(json.dumps(rec, sort_keys=True))
         print(f"appended to {ACKS} — commit it; audit grades {args.row_id} WARN, and it still "
               f"never counts", file=sys.stderr)
+        return 0
+    if args.cmd == "discard":
+        try:
+            rec = discard(args.row_id, reason=args.reason, i_am_human=args.i_am_human)
+        except VerdictRefused as e:
+            print(f"REFUSED: {e}", file=sys.stderr)
+            return 1
+        print(json.dumps(rec, sort_keys=True))
+        print(f"removed {args.row_id} from {VERDICTS}; logged to {DISCARDED} — commit both "
+              f"(git add -f {VERDICTS} {DISCARDED})", file=sys.stderr)
         return 0
     if args.cmd == "audit":
         code, lines = audit()

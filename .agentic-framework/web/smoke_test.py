@@ -60,12 +60,44 @@ def _discover_routes_from_app():
     return sorted(set(routes)), app
 
 
-def run_smoke_tests(port: int = 3000, use_test_client: bool = False) -> dict:
+# T-4363: the longest the HTTP probe waits for a server's startup cache warm-up
+# (web/warmup.py) before probing. A route probed mid-warm-up times out on the cold
+# build, which reads as a broken server; past this bound it probes anyway.
+WARMUP_WAIT_SECONDS = 180
+
+
+def wait_for_warmup(base: str, limit: float = WARMUP_WAIT_SECONDS, poll: float = 1.0) -> dict:
+    """Wait while ``base``'s /api/_identity reports ``warmup.state == "warming"``.
+
+    Returns ``{"state": <last state or "unknown">, "waited": seconds}``. A server
+    that predates the warm-up (no ``warmup`` key) or cannot be read is not waited on.
+    """
+    import time
+
+    t0 = time.monotonic()
+    state = "unknown"
+    while True:
+        try:
+            with urllib.request.urlopen(f"{base}/api/_identity", timeout=5) as resp:
+                state = (json.loads(resp.read().decode("utf-8")).get("warmup") or {}).get("state") or "unknown"
+        except Exception:
+            state = "unknown"
+        waited = time.monotonic() - t0
+        if state != "warming" or waited >= limit:
+            return {"state": state, "waited": round(waited, 1)}
+        time.sleep(poll)
+
+
+def run_smoke_tests(port: int = 3000, use_test_client: bool = False,
+                    base_url: str | None = None) -> dict:
     """Run smoke tests against Watchtower.
 
     Args:
         port: Port number for HTTP tests against running server.
         use_test_client: If True, use Flask test client (no server needed).
+        base_url: Server URL to probe (e.g. the one `fw doctor` resolved); when
+            unset, http://localhost:{port}. T-4354 (GH #97): a Watchtower bound
+            to one FW_HOST address does not answer on localhost.
 
     Returns:
         dict with keys: passed, failed, skipped, total, errors, results
@@ -113,7 +145,8 @@ def run_smoke_tests(port: int = 3000, use_test_client: bool = False) -> dict:
 
     else:
         # HTTP mode — test against running server
-        base = f"http://localhost:{port}"
+        base = (base_url or f"http://localhost:{port}").rstrip("/")
+        warmup = wait_for_warmup(base)
 
         for path in routes:
             url = f"{base}{path}"
@@ -147,13 +180,16 @@ def run_smoke_tests(port: int = 3000, use_test_client: bool = False) -> dict:
                 results.append({"path": path, "status": status, "ok": True})
                 passed += 1
 
-    return {
+    report = {
         "passed": passed,
         "failed": failed,
         "total": len(routes),
         "errors": [r for r in results if "error" in r],
         "results": results,
     }
+    if not use_test_client:
+        report["warmup"] = warmup
+    return report
 
 
 def print_report(report: dict) -> int:
@@ -182,12 +218,15 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Watchtower smoke test")
     parser.add_argument("--port", type=int, default=int(os.environ.get("FW_PORT", 3000)))
+    parser.add_argument("--url", default=None,
+                        help="Server URL to probe (default: http://localhost:PORT)")
     parser.add_argument("--test-client", action="store_true",
                         help="Use Flask test client (no running server needed)")
     parser.add_argument("--json", action="store_true", help="Output JSON")
     args = parser.parse_args()
 
-    report = run_smoke_tests(port=args.port, use_test_client=args.test_client)
+    report = run_smoke_tests(port=args.port, use_test_client=args.test_client,
+                             base_url=args.url)
 
     if args.json:
         print(json.dumps(report, indent=2))

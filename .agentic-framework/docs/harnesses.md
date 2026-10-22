@@ -56,7 +56,9 @@ The panel's criterion satisfied `satisfying_verdict`: three seats, three vendors
 - **Resume:**
   - `claude -c` (most recent conversation);
   - `claude --resume <session-id>`.
-  - `claude-fw` restarts with `claude -c` after a handover signal.
+  - `claude-fw` auto-restarts after a handover signal into a **fresh** session seeded from the
+    handover (`FW_RESTART_MODE=fresh`, the default, T-3166); `FW_RESTART_MODE=continue` resumes
+    the recorded conversation with `--resume <id>` instead (T-4497).
 - **Auth:** Claude subscription login, stored in the user's Claude config directory (`~/.claude/`).
   Reference name only.
 - **Session state:**
@@ -119,12 +121,12 @@ The panel's criterion satisfied `satisfying_verdict`: three seats, three vendors
 
 - **Binary / version:** `/root/.opencode/bin/opencode`, 1.18.31. **Verified.**
 - **Interactive:** `opencode` (*unverified here*).
-- **Headless (verified):** `opencode run -m zai-coding-plan/glm-5.2 "<prompt>" < /dev/null`
+- **Headless (verified):** `opencode run -m zai-coding-plan/glm-5.3 "<prompt>" < /dev/null`
   - The default format has ANSI escapes.
   - `--format json` emits raw JSON events, one per line: `step_start`, `text`, `step_finish`
     (verified).
 - **Headless, as a pinned review worker (verified; run.sh builds this):**
-  `opencode run -m zai-coding-plan/glm-5.2 --agent plan --pure --format json "<prompt>" < /dev/null`
+  `opencode run -m zai-coding-plan/glm-5.3 --agent plan --pure --format json "<prompt>" < /dev/null`
   - `--agent plan` is opencode's built-in no-edit agent.
   - `--pure` loads no external plugins.
 - **Resume (unverified, from `--help`):**
