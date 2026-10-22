@@ -19,6 +19,11 @@
 //!
 //! The caller's project variables are not forwarded at all. A session gets project values
 //! only from its launch spec (`--env K=V`, `--workdir`), which the shell command carries.
+//!
+//! T-3552 then takes the shared server out of the picture: each project's sessions run on that
+//! project's own server (`tmux -L tl-<slug>-<hash8>`, [`termlink_session::tmux_server`]), started
+//! with `-f /dev/null`, `exit-empty off` and an empty `update-environment`. The host's default
+//! server is left to the human and is never used or killed by TermLink.
 
 use std::process::Command;
 
@@ -29,8 +34,11 @@ fn sh_quote(s: &str) -> String {
 
 /// `/usr/bin/env -i K=V ... /bin/sh -c '<shell_cmd>'`: run `shell_cmd` with exactly `env`,
 /// whatever the environment of the process that runs this line.
+/// `TMUX`/`TMUX_PANE` are kept: tmux sets them in the pane, and they name this session's own
+/// server and pane, not a project. Without them a `tmux` call inside the session would talk to
+/// the default server instead of its own (T-3552).
 pub(crate) fn wrap_with_env(env: &[(String, String)], shell_cmd: &str) -> String {
-    let mut s = String::from("exec /usr/bin/env -i");
+    let mut s = String::from(r#"exec /usr/bin/env -i ${TMUX:+"TMUX=$TMUX"} ${TMUX_PANE:+"TMUX_PANE=$TMUX_PANE"}"#);
     for (k, v) in env {
         s.push(' ');
         s.push_str(&sh_quote(&format!("{k}={v}")));
@@ -40,29 +48,44 @@ pub(crate) fn wrap_with_env(env: &[(String, String)], shell_cmd: &str) -> String
     s
 }
 
-/// Build `tmux [-L socket] new-session -d -s <session> <wrapped shell_cmd>` on `base`
-/// (normally `Command::new("tmux")`), with the client's environment replaced by `env`.
-/// `socket` is for tests only: production always uses the default server.
+/// Build `tmux [-L server -f /dev/null] new-session -d -s <session> <wrapped shell_cmd>` on
+/// `base` (normally `Command::new("tmux")`), with the client's environment replaced by `env`.
+/// With a server, the same invocation sets `exit-empty off` (the server outlives its last
+/// session, so the next spawn does not start, and seed, a new one) and an empty
+/// `update-environment` (an attaching client never copies its environment in). `-f /dev/null`
+/// keeps a user's `~/.tmux.conf` from putting those back. `None` (the default server) is for
+/// tests of the pre-T-3552 shape only.
 pub(crate) fn tmux_new_session_from(
     mut base: Command,
     tmux_session: &str,
     shell_cmd: &str,
-    socket: Option<&str>,
+    server: Option<&str>,
     env: &[(String, String)],
 ) -> Command {
     base.env_clear();
     base.envs(env.iter().map(|(k, v)| (k, v)));
-    if let Some(s) = socket {
-        base.args(["-L", s]);
+    if let Some(s) = server {
+        base.args(["-L", s, "-f", "/dev/null"]);
     }
     base.args(["new-session", "-d", "-s", tmux_session]);
     base.arg(wrap_with_env(env, shell_cmd));
+    if server.is_some() {
+        base.args([";", "set-option", "-g", "exit-empty", "off", ";", "set-option", "-g", "update-environment", ""]);
+    }
     base
 }
 
-/// The production form: the default tmux server, this process's allowed environment.
-pub(crate) fn tmux_new_session(tmux_session: &str, shell_cmd: &str) -> Command {
-    tmux_new_session_from(Command::new("tmux"), tmux_session, shell_cmd, None, &termlink_session::child_env::child_env())
+/// The production form: the server of the project `dir` lies in ([`termlink_session::tmux_server`],
+/// `tl-host` outside any project), this process's allowed environment. Returns the command and
+/// the server name. A name that fails validation is refused, never passed to tmux.
+pub(crate) fn tmux_new_session(tmux_session: &str, shell_cmd: &str, dir: &std::path::Path) -> anyhow::Result<(Command, String)> {
+    use termlink_session::tmux_server::{is_valid_server_name, server_name_for};
+    let server = server_name_for(dir);
+    if !is_valid_server_name(&server) {
+        anyhow::bail!("refusing tmux server name {server:?} derived from {} (T-3552)", dir.display());
+    }
+    let cmd = tmux_new_session_from(Command::new("tmux"), tmux_session, shell_cmd, Some(&server), &termlink_session::child_env::child_env());
+    Ok((cmd, server))
 }
 
 #[cfg(test)]
@@ -95,7 +118,32 @@ mod tests {
     fn the_session_command_is_wrapped_in_env_i() {
         let c = tmux_new_session_from(Command::new("tmux"), "s", "echo 'hi'", None, &env_of(&[("HOME", "/root")]));
         let last = args(&c).pop().unwrap();
-        assert_eq!(last, r"exec /usr/bin/env -i 'HOME=/root' /bin/sh -c 'echo '\''hi'\'''");
+        assert_eq!(
+            last,
+            r#"exec /usr/bin/env -i ${TMUX:+"TMUX=$TMUX"} ${TMUX_PANE:+"TMUX_PANE=$TMUX_PANE"} 'HOME=/root' /bin/sh -c 'echo '\''hi'\'''"#
+        );
+    }
+
+    #[test]
+    fn a_project_server_is_started_bare_and_kept_clean() {
+        let a = args(&tmux_new_session_from(Command::new("tmux"), "s", "true", Some("tl-p-0123abcd"), &[]));
+        assert_eq!(&a[..4], &["-L", "tl-p-0123abcd", "-f", "/dev/null"], "no ~/.tmux.conf on a TermLink server");
+        let tail: Vec<&str> = a.iter().rev().take(10).rev().map(String::as_str).collect();
+        assert_eq!(
+            tail,
+            [";", "set-option", "-g", "exit-empty", "off", ";", "set-option", "-g", "update-environment", ""],
+            "{a:?}"
+        );
+    }
+
+    #[test]
+    fn production_puts_a_session_on_its_projects_server() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join(".framework.yaml"), "").unwrap();
+        let (c, server) = tmux_new_session("tl-x", "true", d.path()).unwrap();
+        assert_eq!(server, termlink_session::tmux_server::server_name_for(d.path()));
+        assert!(server.starts_with("tl-") && server != "tl-host", "{server}");
+        assert_eq!(&args(&c)[..2], &["-L".to_string(), server]);
     }
 
     #[test]
@@ -167,6 +215,13 @@ mod tests {
         assert!(tmux_new_session_from(leaking_caller(), "s", &cmd1, Some(&fresh), &env).status().unwrap().success());
         let fresh_global = global_has(&fresh, "ZZ_CANARY_T3550") || global_has(&fresh, "TASKS_DIR");
         let seen1 = wait_for(&out1);
+        // T-3552: the server keeps itself clean for the next spawn.
+        let opt = |name: &str| {
+            let o = Command::new("tmux").args(["-L", &fresh, "show-options", "-gv", name]).output().unwrap();
+            String::from_utf8_lossy(&o.stdout).trim().to_string()
+        };
+        let exit_empty = opt("exit-empty");
+        let update_env = opt("update-environment");
 
         // Scenario 2: the control's server is already polluted; spawn a session onto it.
         let out2 = dir.join("polluted.env");
@@ -180,6 +235,9 @@ mod tests {
 
         assert!(control_leaked, "control: the unscrubbed spawn should leak, else this test cannot see a leak");
         assert!(!fresh_global, "a server our spawn starts must not carry the caller's variables");
+        assert_eq!(exit_empty, "off", "the server must outlive its last session");
+        assert_eq!(update_env, "", "an attaching client must never copy its environment in");
+        assert!(seen1.lines().any(|l| l.starts_with("TMUX=")), "the session keeps its own TMUX:\n{seen1}");
         for (name, seen) in [("fresh server", &seen1), ("polluted server", &seen2)] {
             assert!(!seen.contains("ZZ_CANARY_T3550"), "{name}: canary reached the session:\n{seen}");
             assert!(!seen.contains("TASKS_DIR"), "{name}: TASKS_DIR reached the session:\n{seen}");

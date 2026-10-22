@@ -310,7 +310,7 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
         let resolved = resolve_spawn_backend(&backend);
         match resolved {
             SpawnBackend::Terminal => spawn_via_terminal(&worker_name, &shell_cmd)?,
-            SpawnBackend::Tmux => spawn_via_tmux(&worker_name, &shell_cmd)?,
+            SpawnBackend::Tmux => spawn_via_tmux(&worker_name, &shell_cmd, effective_workdir.as_deref())?,
             SpawnBackend::Background => spawn_via_background(&worker_name, &shell_cmd)?,
             SpawnBackend::Auto => unreachable!(),
         }
@@ -956,12 +956,16 @@ end tell"#
     Ok(())
 }
 
-fn spawn_via_tmux(session_name: &str, shell_cmd: &str) -> Result<()> {
+fn spawn_via_tmux(session_name: &str, shell_cmd: &str, workdir: Option<&str>) -> Result<()> {
     let tmux_session = format!("tl-{}", session_name);
     // T-3550: the session's environment is built by construction; nothing of the caller's project reaches it or the server.
-    let status = super::tmux_spawn::tmux_new_session(&tmux_session, shell_cmd)
-        .status()
-        .context("Failed to run tmux")?;
+    // T-3552: on the server of the worker's project (its --workdir / isolation worktree, else ours).
+    let dir = match workdir {
+        Some(wd) => std::path::PathBuf::from(wd),
+        None => std::env::current_dir().context("Cannot read the current directory")?,
+    };
+    let (mut cmd, _server) = super::tmux_spawn::tmux_new_session(&tmux_session, shell_cmd, &dir)?;
+    let status = cmd.status().context("Failed to run tmux")?;
 
     if !status.success() {
         anyhow::bail!(

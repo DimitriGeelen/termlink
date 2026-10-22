@@ -697,9 +697,10 @@ end tell"#
 fn spawn_via_tmux(session_name: &str, shell_cmd: &str) -> Result<()> {
     let tmux_session = format!("tl-{}", session_name);
     // T-3550: the session's environment is built by construction; nothing of the caller's project reaches it or the server.
-    let status = super::tmux_spawn::tmux_new_session(&tmux_session, shell_cmd)
-        .status()
-        .context("Failed to run tmux — is tmux installed?")?;
+    // T-3552: on the server of the project this spawn runs in (tmux starts the session in this directory).
+    let dir = std::env::current_dir().context("Cannot read the current directory")?;
+    let (mut cmd, _server) = super::tmux_spawn::tmux_new_session(&tmux_session, shell_cmd, &dir)?;
+    let status = cmd.status().context("Failed to run tmux — is tmux installed?")?;
 
     if !status.success() {
         anyhow::bail!("Failed to create tmux session '{}' for TermLink session '{}'", tmux_session, session_name);
