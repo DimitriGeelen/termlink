@@ -25,7 +25,14 @@
 set -euo pipefail
 
 BIN="${TERMLINK_BIN:-target/release/termlink}"
-PORT="${DEMO_WS_PORT:-9199}"
+# T-3556: a fixed port collided between back-to-back and overlapping runs (a killed hub still held
+# it), and the arc-claim-drift canary reported arc-004 CLAIM-FAILED for a claim that held. Pick a
+# free loopback port once, here: the blip test below restarts the hub on the SAME address.
+free_port() {
+  python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])' 2>/dev/null
+}
+PORT="${DEMO_WS_PORT:-$(free_port)}"
+PORT="${PORT:-9199}"
 HUBADDR="127.0.0.1:${PORT}"
 TOPIC="inbox:demo-ws-$$"
 
@@ -46,6 +53,10 @@ CONS_PID=""
 cleanup() {
   [ -n "$CONS_PID" ] && kill "$CONS_PID" 2>/dev/null || true
   [ -n "$HUB_PID" ]  && kill "$HUB_PID"  2>/dev/null || true
+  # T-3556: do not return while the hub still holds its port (bounded: 5 s).
+  if [ -n "$HUB_PID" ]; then
+    for _ in $(seq 1 50); do kill -0 "$HUB_PID" 2>/dev/null || break; sleep 0.1; done
+  fi
   rm -rf "$RT" "$HM" "$OUT" "$ERR" "$HUBLOG" 2>/dev/null || true
 }
 trap cleanup EXIT

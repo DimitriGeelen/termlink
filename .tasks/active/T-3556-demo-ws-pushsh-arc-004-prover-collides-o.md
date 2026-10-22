@@ -1,13 +1,18 @@
 ---
 id: T-3556
-name: "demo-ws-push.sh (arc-004 prover) collides on fixed port 9199: a killed test hub holds it, the next run fails CLAIM-FAILED"
+name: "demo-ws-push.sh (arc-004 prover) collides on fixed port 9199: a killed test
+  hub holds it, the next run fails CLAIM-FAILED"
 description: >
-  Measured 2026-10-22 (T-3554): back-to-back runs failed rc 1 and rc 3 (Failed to bind TCP 127.0.0.1:9199: Address already in use) while the previous run's hub was still exiting; a run on a free port passed (135 ms). The arc-claim-drift canary and the guard layer then report arc-004 CLAIM-FAILED, a false alarm. Fix: pick a free port (bind :0 or probe), and wait for the hub to exit in cleanup.
+  Measured 2026-10-22 (T-3554): back-to-back runs failed rc 1 and rc 3 (Failed to
+  bind TCP 127.0.0.1:9199: Address already in use) while the previous run's hub was
+  still exiting; a run on a free port passed (135 ms). The arc-claim-drift canary
+  and the guard layer then report arc-004 CLAIM-FAILED, a false alarm. Fix: pick a
+  free port (bind :0 or probe), and wait for the hub to exit in cleanup.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [flake, arc-004]
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T21:11:26Z
-last_update: 2026-10-22T21:11:26Z
-date_finished: null
+last_update: 2026-10-22T22:35:21Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +55,19 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-22T22:33:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3556: demo-ws-push.sh (arc-004 prover) collides on fixed port 9199: a killed test hub holds it, the next run fails CLAIM-FAILED
@@ -62,8 +80,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Without DEMO_WS_PORT the prover binds a free loopback port chosen at start (kept for the blip restart); DEMO_WS_PORT still overrides
+- [x] Cleanup waits (bounded) for the isolated hub to exit, so the port is free when the script returns
+- [x] Two back-to-back runs and two concurrent runs all PASS (the shapes that failed on 2026-10-22); control: two concurrent runs forced onto DEMO_WS_PORT=9199 still fail with "Address already in use"
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -268,7 +287,21 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash -n scripts/demo-ws-push.sh
+grep -q "free_port()" scripts/demo-ws-push.sh && grep -q 'PORT="${DEMO_WS_PORT:-$(free_port)}"' scripts/demo-ws-push.sh
+bash -c 'timeout 120 bash scripts/demo-ws-push.sh > /tmp/.t3556a 2>&1 & timeout 120 bash scripts/demo-ws-push.sh > /tmp/.t3556b 2>&1 & wait' && grep -q "RESULT: PASS" /tmp/.t3556a && grep -q "RESULT: PASS" /tmp/.t3556b
+
 ## RCA
+
+**Symptom:** on 2026-10-22 the guard layer and the arc-claim-drift check reported arc-004 CLAIM-FAILED (prover rc 1,
+then rc 3 "Failed to bind TCP 127.0.0.1:9199: Address already in use") while the push-wake claim held; a run on a
+free port passed in 135 ms.
+**Root cause:** `scripts/demo-ws-push.sh` started its isolated hub on a fixed port (9199), and its cleanup sent SIGTERM
+without waiting, so a run right after (or beside) another found the port still held.
+**Why structurally allowed:** the prover was written for one run at a time; the guard layer, the daily canary and
+ad-hoc runs can overlap, and nothing exercised two runs together.
+**Prevention:** a free port chosen per run (kept for the in-run blip restart), a bounded wait in cleanup, and a
+verification line that runs two provers concurrently.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -364,3 +397,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3556-demo-ws-pushsh-arc-004-prover-collides-o.md
 - **Context:** Initial task creation
+
+### 2026-10-22T22:33:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

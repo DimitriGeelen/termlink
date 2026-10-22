@@ -85,10 +85,10 @@ start on the default socket today with an allow-listed client env (their 34e78fe
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [ ] Interface draft `docs/reports/T-3552-per-project-tmux-interface.md` written and sent to 055 on sev1-tmux-env-leak-2026-10-22 before any interface is fixed; their answer recorded
-- [ ] Socket name derived only from the T-3551 project rule (`project_of`), validated `^tl-[a-z0-9-]{1,24}-[0-9a-f]{8}$`, used only with `-L`; unit tests for slug, hash, validation and a refused unsafe name
-- [ ] tmux spawn/dispatch put new sessions on the project's server, started under the T-3550 allow-list with `-f /dev/null`, `exit-empty off`, `update-environment ""`; live test on a private server; the default server is never killed
-- [ ] `termlink tmux socket|list|attach` take a project path; `list --json` reports dead servers instead of skipping them; registration metadata carries `tmux_server`
-- [ ] session-zombies.py and the env-leak canary enumerate every `tl-*` server; their fixtures cover a project server
+- [x] Socket name derived only from the T-3551 project rule (`project_of`), validated `^tl-[a-z0-9-]{1,24}-[0-9a-f]{8}$`, used only with `-L`; unit tests for slug, hash, validation and a refused unsafe name
+- [x] tmux spawn/dispatch put new sessions on the project's server, started under the T-3550 allow-list with `-f /dev/null`, `exit-empty off`, `update-environment ""`; live test on a private server; the default server is never killed
+- [x] `termlink tmux socket|list|attach` take a project path; `list --json` reports dead servers instead of skipping them; registration metadata carries `tmux_server`
+- [x] session-zombies.py and the env-leak canary enumerate every `tl-*` server; their fixtures cover a project server
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
