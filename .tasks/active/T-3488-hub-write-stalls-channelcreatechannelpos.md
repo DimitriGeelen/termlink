@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T10:56:05Z
-last_update: 2026-10-21T09:01:18Z
+last_update: 2026-10-22T08:42:22Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -399,6 +399,12 @@ grep -q '"synchronous", "NORMAL"' crates/termlink-bus/src/meta.rs
   commit still runs for tens of seconds. Suspect: SQLite's default WAL auto-checkpoint (meta.db-wal = 4.16 MB, right at
   1000 pages; never configured) runs in the committing connection, under our mutex, with an fsync of meta.db. Filed
   as **T-3541**, to measure before changing anything. The full 24 h read is still owed after 22:38 CEST today.
+- **T-3541 result, same day:** the checkpoint suspicion is disproved as the main cause. In an A/B on a scratch copy it
+  costs at most a few hundred ms. The long holds track filesystem fsync stalls: topic-log `sync_data` took over 5 s 109
+  times (max 83 s), and 13 of the 22 `note_fetch` holds over 5 s overlap one. The store is on the root btrfs (89% full).
+  The hub can only pay less of that latency; it cannot remove it. Two levers, both the operator's: (a) group commit /
+  fewer fsyncs per post (revisits T-3461's durability ruling); (b) the bus store on a filesystem with lower fsync
+  latency. Unless one of them is taken, expect this AC to stay unmet on this host.
 
 ### 2026-10-20T10:56:05Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent

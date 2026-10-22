@@ -1,10 +1,20 @@
 ---
 id: T-3541
-name: "Hub meta write lock held up to 87 s by note_fetch: suspected WAL auto-checkpoint inside the commit"
+name: "Hub meta write lock held up to 87 s by note_fetch: suspected WAL auto-checkpoint
+  inside the commit"
 description: >
-  T-3488 re-measure (2026-10-22, hub up since 2026-10-21 22:38 CEST, ~12.5 h): 1597 slow-lock lines; note_fetch (meta.rs:1254, subscribe telemetry, synchronous=NORMAL) held the meta write lock in 1183 of them, up to 87 s; posts (meta.rs:272) waited up to 78 s and creates (148) up to 82 s, while nvme0n1 10-min %util stayed below 90 (peak 89.5). meta.db-wal is 4.16 MB, i.e. at SQLite's default wal_autocheckpoint (1000 pages), which is never set: so the commit that crosses it runs the checkpoint, with an fsync of meta.db, while holding the write mutex. Hypothesis to test first: time checkpoints (sqlite3_wal_hook or a timed wrapper) and correlate with held>5s lines. If confirmed: wal_autocheckpoint=0 on the writer and a PASSIVE checkpoint from a separate connection on a timer, outside the write mutex.
+  T-3488 re-measure (2026-10-22, hub up since 2026-10-21 22:38 CEST, ~12.5 h): 1597
+  slow-lock lines; note_fetch (meta.rs:1254, subscribe telemetry, synchronous=NORMAL)
+  held the meta write lock in 1183 of them, up to 87 s; posts (meta.rs:272) waited
+  up to 78 s and creates (148) up to 82 s, while nvme0n1 10-min %util stayed below
+  90 (peak 89.5). meta.db-wal is 4.16 MB, i.e. at SQLite's default wal_autocheckpoint
+  (1000 pages), which is never set: so the commit that crosses it runs the checkpoint,
+  with an fsync of meta.db, while holding the write mutex. Hypothesis to test first:
+  time checkpoints (sqlite3_wal_hook or a timed wrapper) and correlate with held>5s
+  lines. If confirmed: wal_autocheckpoint=0 on the writer and a PASSIVE checkpoint
+  from a separate connection on a timer, outside the write mutex.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +48,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T08:41:44Z
-last_update: 2026-10-22T08:41:44Z
-date_finished: null
+last_update: 2026-10-22T08:42:57Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +60,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-22T08:43:03Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3541: Hub meta write lock held up to 87 s by note_fetch: suspected WAL auto-checkpoint inside the commit
@@ -62,8 +86,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Hypothesis tested before any hub change: an A/B on a scratch copy of meta.db on the same filesystem, timing each note_fetch-shaped commit at `synchronous=NORMAL` with the default auto-checkpoint vs `wal_autocheckpoint=0`, with the result (counts, p99, max, >1 s) recorded here. A result that does not separate the modes is recorded as disproving the hypothesis, and the task changes course. **Result (2026-10-22, load 75, 5000 commits each, script kept at the scratchpad path in Updates):** A default p50 0.1 ms, p99 15.5 ms, max 441 ms, 7 over 100 ms, 0 over 1 s; B `wal_autocheckpoint=0` p50 0.1 ms, p99 10.8 ms, max 142 ms, 3 over 100 ms, 0 over 1 s. The checkpoint costs at most a few hundred ms; it **does not explain** holds of tens of seconds. The hypothesis is disproved as the main cause
+- [x] Course change (replaces "if supported, move checkpoints off the mutex"; that would save at most about 0.3 s per occurrence). The long holds were correlated with filesystem fsync stalls: in the same window the topic-log `sync_data` (a plain fsync, no SQLite) took over 5 s **109 times**, up to 83 s, and 13 of the 22 `note_fetch` holds over 5 s overlap one. The store is on the root btrfs (`stat -f` → btrfs), 89% full. The second NVMe (`nvme1n1`) is a Windows/NTFS disk reporting 0 B, so it is not an option. Root cause class: fsync latency of the host filesystem under load, which every durable post pays (the T-3461 durability ruling)
+- [x] The remaining levers are operator decisions, and they are recorded on T-3488 rather than built here: (a) group commit / fewer fsyncs per post, which revisits T-3461's durability ruling; (b) the bus store on a filesystem with lower fsync latency, which is host configuration. Nothing in the hub was changed by this task
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +139,7 @@ date_finished: null
 -->
 
 ## Verification
+# verification: none — a measurement task; its evidence is the A/B result and the journal correlation recorded in the ACs, and no code changed
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +390,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3541-hub-meta-write-lock-held-up-to-87-s-by-n.md
 - **Context:** Initial task creation
+
+### 2026-10-22T08:42:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
