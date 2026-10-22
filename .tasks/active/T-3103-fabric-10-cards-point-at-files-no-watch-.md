@@ -25,7 +25,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:55:11Z
-last_update: 2026-10-22T08:22:04Z
+last_update: 2026-10-22T10:05:37Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -269,6 +269,17 @@ true
 -->
 
 ## Decisions
+
+### 2026-10-22 — how to clear the 9 carded-but-unwatched locations (operator ruling)
+- **Chose:** A′1, after external review (docs/reports/T-3103-consult/: codex and antigravity both said "modified A";
+  opencode returned empty). Card all 34 slash commands with real dependencies, and cover `.claude/commands/*.md`. Add a
+  non-vendored workflow adoption manifest plus a check (every designer project folder adopted at version N or declined
+  with a reason; cards match the adopted version's steps; warn on a newer version). Only then skip workflow-step cards
+  in coverage. Built in **T-3544**.
+- **Why:** an exemption is honest only if another check notices a new or changed workflow (antigravity's test). Explicit
+  version selection makes upgrades reviewable (codex).
+- **Rejected:** a bare type exemption (silencing under another name); A′2, auto-follow the newest version (adopts upstream
+  semantic changes silently); B, card old versions; C, drop capture.md; D, status quo.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
