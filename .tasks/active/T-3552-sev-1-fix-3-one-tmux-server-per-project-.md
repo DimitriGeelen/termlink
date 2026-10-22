@@ -58,6 +58,11 @@ date_finished: null
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
+Consumer requirement (055-agentic-fleet-cockpit, 2026-10-22, conversation sev1-tmux-env-leak-2026-10-22): the
+attach/list wrappers take a **project path**, not a socket path. Send them the interface draft on that
+conversation before it is fixed. 055's own launchers (claude-fleet-start.sh, fleet-rehome.sh, cockpit-server.py)
+start on the default socket today with an allow-listed client env (their 34e78fe1).
+
 ## Acceptance Criteria
 
 ### Agent

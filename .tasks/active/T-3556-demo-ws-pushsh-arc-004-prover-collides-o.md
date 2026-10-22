@@ -1,14 +1,14 @@
 ---
-id: T-3554
-name: "Re-vendor AEF v1.8.15-be.3 (SEV-1 T-4647 dispatch allow-list)"
+id: T-3556
+name: "demo-ws-push.sh (arc-004 prover) collides on fixed port 9199: a killed test hub holds it, the next run fails CLAIM-FAILED"
 description: >
-  Operator 2026-10-22: do the framework upgrade. fw upgrade v1.8.14 -> v1.8.15-be.3 (tag commit 2ec39ef8e) from a non-shallow upstream clone, per the .vendor-divergence.yaml checklist: ancestry check, rehearsal, 3-way merge of preserved files, full guard layer, CLAUDE.md diff; then WORKS/FAILS field report to AEF on aef-v1815-be3.
+  Measured 2026-10-22 (T-3554): back-to-back runs failed rc 1 and rc 3 (Failed to bind TCP 127.0.0.1:9199: Address already in use) while the previous run's hub was still exiting; a run on a free port passed (135 ms). The arc-claim-drift canary and the guard layer then report arc-004 CLAIM-FAILED, a false alarm. Fix: pick a free port (bind :0 or probe), and wait for the hub to exit in cleanup.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
-tags: [vendor, sev1]
+horizon: next
+tags: [flake, arc-004]
 components: []
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
@@ -37,8 +37,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-22T19:47:57Z
-last_update: 2026-10-22T20:40:50Z
+created: 2026-10-22T21:11:26Z
+last_update: 2026-10-22T21:11:26Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -52,7 +52,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-3554: Re-vendor AEF v1.8.15-be.3 (SEV-1 T-4647 dispatch allow-list)
+# T-3556: demo-ws-push.sh (arc-004 prover) collides on fixed port 9199: a killed test hub holds it, the next run fails CLAIM-FAILED
 
 ## Context
 
@@ -62,12 +62,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] v1.8.14 (2328ae76b) is an ancestor of v1.8.15-be.3 on a full (non-shallow) upstream clone; vendor-divergence check clean before the run
-- [x] Rehearsed on a throwaway copy of this repo first (rc 0), with FRAMEWORK_ROOT/PROJECT_ROOT/FW_ROUTED_FROM unset
-- [x] Every preserved file upstream changed is 3-way merged (base v1.8.14) in the same change; none left as our stale copy
-- [x] CLAUDE.md part above `## Core Principle` byte-identical after the run (diff against CLAUDE.md.prevendor)
-- [ ] Full guard layer and `fw doctor` show no new FAIL against the pre-upgrade baseline; `.vendor-divergence.yaml` last_vendor_event updated
-- [x] WORKS/FAILS field report per exercised fix (T-4647 first) sent to AEF on conversation aef-v1815-be3 (client_msg_id 6829fbaa)
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -272,32 +268,6 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-grep -qx "1.8.14+987.g2ec39ef8e" .agentic-framework/VERSION
-bash scripts/check-vendor-divergence.sh > /tmp/.t3554a 2>&1
-bash tests/vendor-divergence-fixtures.sh > /tmp/.t3554b 2>&1 && grep -q "failed: 0" /tmp/.t3554b
-bash tests/checkpoint-verb-fixtures.sh > /tmp/.t3554c 2>&1 && grep -q "ALL PASS" /tmp/.t3554c
-bash tests/safe-commands-checkpoint-fixtures.sh > /tmp/.t3554d 2>&1 && grep -q "ALL PASS" /tmp/.t3554d
-bash tests/safe-commands-write-pattern-fixtures.sh > /tmp/.t3554e 2>&1 && grep -q "Fail: 0" /tmp/.t3554e
-bash scripts/check-framework-tracking-drift.sh --quiet > /tmp/.t3554f 2>&1
-test "$(grep -c '^  - path:' .fwvendor-preserve.yaml)" -eq 9
-
-## Decisions
-
-### 2026-10-22 — preserved files whose fix landed upstream are taken from upstream, without --allow-delete-locals
-- **Chose:** reset pickup/embeddings/arc/claude-fw to their exact v1.8.14 content before the run, so the vendor
-  step's normal path replaced them with be.3; drop them from `.fwvendor-preserve.yaml` (13 -> 9).
-- **Why:** each 3-way merge resolved to upstream byte-for-byte (our fix landed as T-4473/T-4474/_embed_batches/T-2687).
-  `--allow-delete-locals` is a logged Tier-2 bypass and was not needed for an identical result.
-- **Rejected:** keeping them preserved (a stale copy would hide future upstream fixes, the T-3489 lesson).
-
-### 2026-10-22 — kept local: checkpoint usage on stderr, safe-commands trailing '>', handover [TODO:
-- **checkpoint.sh:** upstream T-4227 fixed the false HOOK CRASHED but prints usage on stdout; our fixture (T-3316)
-  expects stderr. One line kept, reported upstream.
-- **safe-commands.sh:** measured after the commit: upstream already catches `2> f`, `&> f`, `>| f`, `1>f`; ours
-  differs only in failing closed on a truncated trailing `>`. The commit message overstated this; corrected in
-  the register. Took upstream's stricter `sed -i` rule (T-4479).
-- **handover.sh:** `/resume` warns on unfilled `[TODO:` sections; upstream writes "Not recorded" there.
-
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -390,7 +360,7 @@ test "$(grep -c '^  - path:' .fwvendor-preserve.yaml)" -eq 9
 
 ## Updates
 
-### 2026-10-22T19:47:57Z — task-created [task-create-agent]
+### 2026-10-22T21:11:26Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3554-re-vendor-aef-v1815-be3-sev-1-t-4647-dis.md
+- **Output:** /opt/termlink/.tasks/active/T-3556-demo-ws-pushsh-arc-004-prover-collides-o.md
 - **Context:** Initial task creation
