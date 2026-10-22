@@ -4,7 +4,7 @@ name: "wc/0.3: which remaining vector capabilities are hub obligations"
 description: >
   Inception: wc/0.3: which remaining vector capabilities are hub obligations
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-10-21T14:44:17Z
-last_update: 2026-10-21T14:44:17Z
-date_finished: null
+last_update: 2026-10-22T08:32:38Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -23,6 +23,19 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
 voi_score: 0.6                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
                                   # T-3172: deliberately EMPTY — set a considered value. 0.5 (and 0.3/0.4) score 2, the same as "not assessed".
+bvp_scores_proposed:
+  - ts: '2026-10-22T08:32:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 3
+      D3: 3
+      D4: 3
+      F-RECALL: 3
+      F-ORCH: 3
+    rationale: D1=3 (no-signal); D2=3 (no-signal); D3=3 (no-signal); D4=3 
+      (no-signal); F-RECALL=3 (no-signal); F-ORCH=3 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3524: wc/0.3: which remaining vector capabilities are hub obligations
@@ -52,6 +65,27 @@ voi_score: 0.6                    # float 0..1. Value of Information — expecte
      §Disposition Gate. Bypass: --skip-disposition-gate "rationale" (direct) or
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
+
+- **IW-1: Is a bounded `wait` on a dispatch record (CC-08) a hub surface, or a client poll of `dispatch.get`?**
+  confidence: 2
+  disposition:
+  rationale:
+- **IW-2: For a hub backend, is a partition (CC-09) the existing absent-registration rule (two sweeps + G, `probe_undecided`), or does the hub need its own worker-host contact model?**
+  confidence: 2
+  disposition:
+  rationale:
+- **IW-3: Are the parent-session-loss queue entry and `adopt` (CC-10) hub obligations (spec §4.6), or dispatcher tooling outside the hub?**
+  confidence: 1
+  disposition:
+  rationale:
+- **IW-4: Should `hold_lock` (CC-13) be exercised through the adapter against the real SQLite lock, or is T-3531's unit coverage the accepted evidence?**
+  confidence: 2
+  disposition:
+  rationale:
+- **IW-5: Are `consume` refusals (CC-19, CC-22) AEF's evaluation layer (n/a for a backend), or should the hub derive a `finished_work` fact?**
+  confidence: 2
+  disposition:
+  rationale:
 
 ## Exploration Plan
 
@@ -144,3 +178,6 @@ Shaping in progress: needs AEF and ring20's view per capability (consume, partit
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-10-22T08:32:38Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
