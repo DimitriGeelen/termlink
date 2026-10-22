@@ -25,7 +25,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:55:11Z
-last_update: 2026-10-22T08:20:43Z
+last_update: 2026-10-22T08:22:04Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -134,7 +134,7 @@ cost_estimate_proposed:
 ## Verification
 
 python3 .agentic-framework/agents/fabric/lib/expand_patterns.py .fabric/watch-patterns.yaml . > /tmp/.t3103-exp 2>&1 && grep -qx ".context/cron/canary-aliveness-sweep.crontab" /tmp/.t3103-exp
-test "$(ls .fabric/components/context-cron-*.yaml | wc -l)" = "31"
+for f in .context/cron/*.crontab; do test -f ".fabric/components/context-cron-$(basename "$f" .crontab).yaml" || { echo "no card: $f"; exit 1; }; done
 python3 -c "import yaml,glob; [yaml.safe_load(open(f)) for f in glob.glob('.fabric/components/context-cron-*.yaml')]"
 grep -q 'glob: ".context/cron/\*.crontab"' .fabric/watch-patterns.yaml
 
