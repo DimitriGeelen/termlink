@@ -282,6 +282,11 @@ pub struct SessionMetadata {
     /// pre-T-1436 registrations or when identity loading failed.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub identity_fingerprint: Option<String>,
+    /// T-3552: the per-project tmux server (`tmux -L` name) this session runs on, read from the
+    /// pane's `TMUX` and kept only when it is a validated TermLink server name. Absent outside
+    /// tmux, on the default server, or for a registration older than T-3552.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tmux_server: Option<String>,
 }
 
 /// Configuration for creating a new session registration.
@@ -343,6 +348,7 @@ impl Registration {
                 // any failure (no HOME, IO error, etc.) so registration in
                 // unprivileged or sandboxed contexts doesn't fail.
                 identity_fingerprint: load_identity_fingerprint_best_effort(),
+                tmux_server: crate::tmux_server::from_tmux_env(std::env::var("TMUX").ok().as_deref()),
             },
             token_secret: None,
             allowed_commands: None,
@@ -740,6 +746,7 @@ mod tests {
             termlink_version: Some("0.9.0".into()),
             data_socket: Some("/tmp/data.sock".into()),
             identity_fingerprint: Some("a1b2c3d4e5f6".into()),
+            tmux_server: Some("tl-p-0123abcd".into()),
         };
         let json = serde_json::to_string(&meta).unwrap();
         let parsed: SessionMetadata = serde_json::from_str(&json).unwrap();

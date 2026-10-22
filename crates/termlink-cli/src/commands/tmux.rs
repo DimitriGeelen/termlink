@@ -61,8 +61,20 @@ pub(crate) fn cmd_tmux_socket(path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// A registered TermLink session, as `tmux list` matches it: pid, id, display name, tmux server.
+type Reg = (u32, String, String, Option<String>);
+
+/// The registration for a tmux session: one on the same server whose spawn name `tl-<display>`
+/// is this session (T-3552 metadata), else one whose pid is the pane's own process.
+fn registered_id(regs: &[Reg], server: &str, session: &str, pane_pids: &[u32]) -> Option<String> {
+    regs.iter()
+        .find(|(_, _, name, srv)| srv.as_deref() == Some(server) && session == format!("tl-{name}"))
+        .or_else(|| regs.iter().find(|(pid, ..)| pane_pids.contains(pid)))
+        .map(|(_, id, ..)| id.clone())
+}
+
 /// One row of `termlink tmux list`.
-fn sessions_on(server: &str, project: Option<&Path>, regs: &[(u32, String)]) -> serde_json::Value {
+fn sessions_on(server: &str, project: Option<&Path>, regs: &[Reg]) -> serde_json::Value {
     let present = socket_dir().join(server).exists();
     let Some(sessions) = tmux_on(server, &["list-sessions", "-F", "#{session_name}\t#{session_attached}\t#{session_created}"]) else {
         return serde_json::json!({
@@ -81,15 +93,13 @@ fn sessions_on(server: &str, project: Option<&Path>, regs: &[(u32, String)]) -> 
             .lines()
             .filter_map(|l| {
                 let p: Vec<&str> = l.split('\t').collect();
-                (p.len() >= 3 && p[0] == f[0]).then(|| {
-                    let pid: u32 = p[1].parse().unwrap_or(0);
-                    let reg = regs.iter().find(|(rp, _)| *rp == pid).map(|(_, id)| id.clone());
-                    serde_json::json!({"pid": pid, "cmd": p[2], "registered_session_id": reg})
-                })
+                (p.len() >= 3 && p[0] == f[0]).then(|| serde_json::json!({"pid": p[1].parse::<u32>().unwrap_or(0), "cmd": p[2]}))
             })
             .collect();
+        let pids: Vec<u32> = pane_rows.iter().filter_map(|p| p["pid"].as_u64().map(|v| v as u32)).collect();
         rows.push(serde_json::json!({
             "session": f[0],
+            "registered_session_id": registered_id(regs, server, f[0], &pids),
             "attached": f[1].parse::<u32>().unwrap_or(0) > 0,
             "created": f[2].parse::<u64>().unwrap_or(0),
             "panes": pane_rows,
@@ -103,8 +113,8 @@ fn sessions_on(server: &str, project: Option<&Path>, regs: &[(u32, String)]) -> 
 
 /// `termlink tmux list [<path> | --all] [--json]`.
 pub(crate) fn cmd_tmux_list(path: Option<&Path>, all: bool, json: bool) -> Result<()> {
-    let regs: Vec<(u32, String)> = termlink_session::manager::list_sessions(false)
-        .map(|v| v.into_iter().map(|r| (r.pid, r.id.to_string())).collect())
+    let regs: Vec<Reg> = termlink_session::manager::list_sessions(false)
+        .map(|v| v.into_iter().map(|r| (r.pid, r.id.to_string(), r.display_name, r.metadata.tmux_server)).collect())
         .unwrap_or_default();
     let servers: Vec<serde_json::Value> = if all {
         present_servers().iter().map(|s| sessions_on(s, None, &regs)).collect()
@@ -170,6 +180,19 @@ pub(crate) fn cmd_tmux_attach(path: &Path, session: Option<&str>) -> Result<()> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_session_is_matched_to_its_registration() {
+        let regs: Vec<Reg> = vec![
+            (10, "tl-aaa".into(), "w1".into(), Some("tl-p-0123abcd".into())),
+            (20, "tl-bbb".into(), "w1".into(), Some("tl-q-0123abcd".into())),
+            (30, "tl-ccc".into(), "shell".into(), None),
+        ];
+        assert_eq!(registered_id(&regs, "tl-p-0123abcd", "tl-w1", &[99]).as_deref(), Some("tl-aaa"));
+        assert_eq!(registered_id(&regs, "tl-q-0123abcd", "tl-w1", &[99]).as_deref(), Some("tl-bbb"), "same name, other server");
+        assert_eq!(registered_id(&regs, "tl-p-0123abcd", "other", &[30]).as_deref(), Some("tl-ccc"), "pid fallback");
+        assert_eq!(registered_id(&regs, "tl-p-0123abcd", "other", &[99]), None);
+    }
 
     #[test]
     fn foreign_socket_names_are_never_listed() {

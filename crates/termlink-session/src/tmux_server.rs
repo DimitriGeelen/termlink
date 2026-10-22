@@ -66,9 +66,28 @@ pub fn is_valid_server_name(name: &str) -> bool {
     slug_ok && hash_ok
 }
 
+/// The TermLink server a process runs on, from tmux's `TMUX` value (`<socket path>,<pid>,<index>`):
+/// the socket's file name when it is a valid TermLink server name, else `None` (the default
+/// server, a human's own `-L` server, or not in tmux at all).
+pub fn from_tmux_env(tmux: Option<&str>) -> Option<String> {
+    let path = tmux?.split(',').next()?;
+    let name = Path::new(path).file_name()?.to_str()?;
+    is_valid_server_name(name).then(|| name.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tmux_env_names_only_termlink_servers() {
+        assert_eq!(from_tmux_env(Some("/tmp/tmux-0/tl-p-0123abcd,4242,0")).as_deref(), Some("tl-p-0123abcd"));
+        assert_eq!(from_tmux_env(Some("/tmp/tmux-0/tl-host,1,0")).as_deref(), Some(HOST_SERVER));
+        assert_eq!(from_tmux_env(Some("/tmp/tmux-0/default,4242,0")), None, "the default server is not a TermLink server");
+        assert_eq!(from_tmux_env(Some("/tmp/tmux-0/mine,1,0")), None);
+        assert_eq!(from_tmux_env(Some("")), None);
+        assert_eq!(from_tmux_env(None), None);
+    }
 
     #[test]
     fn slug_is_safe_and_bounded() {

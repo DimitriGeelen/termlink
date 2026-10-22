@@ -1,0 +1,101 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3558: Re-vendor AEF v1.8.15-be.3 -> be.4 (b19757443): T-4665/T-4666 worker env, T-4652 fail-closed hooks
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-22T22:29:54Z
+# ============================================================================
+
+task_id: T-3558
+task_name: "Re-vendor AEF v1.8.15-be.3 -> be.4 (b19757443): T-4665/T-4666 worker env, T-4652 fail-closed hooks"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-22T21:50:35Z
+completed: 2026-10-22T22:29:32Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-22T23:58:43+02:00
+last_commit: 2026-10-22T23:59:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.15-be.3 -> be.4 (b19757443): T-4665/T-4666 worker env, T-4652 fail-closed hooks, T-4653, T-4659, T-4650, T-4568. pin vendor baseline 643193f58; be.4 field report sent to AEF
+
+# Key outcomes
+outcomes:
+  - 'be.3 (2ec39ef8e) is an ancestor of be.4 (b19757443) on a full upstream clone; vendor-divergence check clean before the run'
+  - 'Rehearsed on a throwaway clone first (rc 0), env hygiene per the checklist'
+  - 'Every preserved file upstream changed is 3-way merged (base be.3); files that become identical to upstream leave the preserve list (2 changed, both merged clean, neither became identical; list stays 9)'
+  - 'CLAUDE.md part above `## Core Principle` byte-identical; fw doctor no new FAIL; key fixtures pass; guard layer no new red vs a baseline (be.4 guard layer: exit 0, 226 members, 0 FAIL-tier red, 0 errored; the 5 reds are WARN/INFO members already red on be.3. The first run''s output was lost when /tmp/claude-0 was deleted at ~00:07; re-run to .context/working/t3558/)'
+  - '`.vendor-divergence.yaml` last_vendor_event updated; WORKS/FAILS per be.4 fix sent to AEF on aef-v1815-be3 (client_msg_id abd75be9)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/context/check-project-boundary.sh'
+  - '.agentic-framework/agents/context/check-tier0.sh'
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/docs/reports/field-test-submitter-confirmations.md'
+  - '.agentic-framework/docs/reports/T-4635-session-kill-rca.md'
+  - '.agentic-framework/docs/reports/T-4649-ring20-patch-triage.md'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/lib/hook-degraded.sh'
+  - '.agentic-framework/lib/issues.py'
+  - '.agentic-framework/lib/operator_pending.py'
+  - '.agentic-framework/lib/shell_write_scan.py'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/spawn-env.sh'
+  - '.agentic-framework/.upstream'
+  - '.agentic-framework/VERSION'
+  - '.context/audits/upgrades.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-3558-re-vendor-aef-v1815-be3---be4-b19757443-.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-22T23:58:43'
+    action: 'T-3558: re-vendor AEF v1.8.15-be.3 -> be.4 (b19757443): T-4665/T-4666 worker env, T-4652 fail-closed hooks, T-4653, T-4659, T-4650, T-4568'
+  - time: '2026-10-22T23:59:11'
+    action: 'T-3558: pin vendor baseline 643193f58; be.4 field report sent to AEF'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 38 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [vendor, sev1]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 38
+  commits: 2
+  files_changed: 22
+  lines_added: 1252
+  lines_removed: 55
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3558-re-vendor-aef-v1815-be3---be4-b19757443-.md
+generated_by: context-agent-hybrid
