@@ -6,12 +6,12 @@ description: >
   Second slice of the T-2026 GO. Blocked on the design slice. MCP parity per the repo
   convention.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent_work.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/main.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-mcp/tests/parity.rs]
 related_tasks: [T-2026, T-3469, T-3471]
 arc_id: arc-parallel-substrate
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
@@ -41,8 +41,8 @@ arc_id: arc-parallel-substrate
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T20:42:05Z
-last_update: 2026-10-21T10:42:13Z
-date_finished:
+last_update: 2026-10-22T08:19:00Z
+date_finished: 2026-10-22T08:19:00Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -337,6 +337,11 @@ cargo test -p termlink -p termlink-mcp > /tmp/.t3470 2>&1 && ! grep -q "test res
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-22 — the audit topic is per claim topic, not per agent
+- **What changed:** the AC was filed as "the per-agent audit topic". The design locked in T-3469 §2.5 chose `agent-work:<claim topic>`, with `agent_id` in the body. That way a reader of one work queue sees every worker's checkout and commit in order, and the per-agent view is a filter on the body. The build follows the design, and the AC was ticked against it with that stated.
+- **Plan impact:** the optional `binding` field (§2.5) stays unfilled because no worker-binding source reaches the CLI yet. Separately, the Verification line named `-p termlink-cli`, but the package is `termlink`, so it would have failed without running a test. It was corrected before the close.
+- **Triggered:** nothing new. The binding field will follow when a worker-binding env or argument exists.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -418,3 +423,20 @@ cargo test -p termlink -p termlink-mcp > /tmp/.t3470 2>&1 && ! grep -q "test res
   `subvolume sync` in the hot path. No qgroups.
 - **Follow-up (open, this task or a slice):** create the work root and per-repo template as subvolumes when on btrfs;
   re-measure snapshot vs reflink with that layout; make snapshot the default if it holds; plus AC 6 live proof.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c5509a4a
+- **Timestamp:** 2026-10-22T08:20:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-22T08:19:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
