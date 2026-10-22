@@ -831,14 +831,29 @@ pub(crate) fn cmd_hub_dispatch_resolve(
     as_state: &str,
     reason: &str,
     override_reason: Option<&str>,
+    outcome: Option<&str>,
+    evidence: Option<&std::path::Path>,
     json_output: bool,
 ) -> Result<()> {
+    use termlink_hub::dispatch_contract as dc;
     let bus_root = termlink_session::discovery::runtime_dir().join("bus");
-    let session = termlink_hub::dispatch_contract::ResolveSession {
+    let session = dc::ResolveSession {
         agent: std::env::var("CLAUDECODE").is_ok_and(|v| v == "1"),
         override_reason: override_reason.map(str::to_string),
     };
-    let rec = termlink_hub::dispatch_contract::resolve_on_host(&bus_root, dispatch_id, attempt, as_state, reason, &session)
+    // T-3539: the evidence file is read whole but small; anything else fails loudly.
+    let material = match evidence {
+        Some(p) => {
+            let text = std::fs::read_to_string(p)
+                .map_err(|e| anyhow::anyhow!("dispatch resolve: cannot read {}: {e}", p.display()))?;
+            let v: serde_json::Value = serde_json::from_str(&text)
+                .map_err(|e| anyhow::anyhow!("dispatch resolve: {} is not JSON: {e}", p.display()))?;
+            Some(dc::evidence_material_from_json(&v).map_err(|e| anyhow::anyhow!("dispatch resolve: {e}"))?)
+        }
+        None => None,
+    };
+    let done = dc::ResolveDone { outcome: outcome.map(str::to_string), material };
+    let rec = dc::resolve_on_host(&bus_root, dispatch_id, attempt, as_state, reason, &session, &done)
         .map_err(|e| anyhow::anyhow!("dispatch resolve: {e}"))?;
     if json_output {
         println!("{}", json!({"ok": true, "record": rec}));

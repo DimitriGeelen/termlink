@@ -1366,6 +1366,18 @@ pub(crate) enum HubAction {
         #[arg(long = "override", value_name = "WHY")]
         override_reason: Option<String>,
 
+        /// T-3539: with `--as done` and no bound evidence, the outcome you attest
+        /// (`succeeded` or `failed`). The record says `attested: true` and carries no
+        /// evidence digest: an attestation is not finished work.
+        #[arg(long, value_name = "succeeded|failed")]
+        outcome: Option<String>,
+
+        /// T-3539: with `--as done`, a JSON file holding the attempt's own completion
+        /// ({nonce, evidence_digest, exit_code, handback, persisted_at}). It binds only if the
+        /// nonce is this attempt's; then the outcome is derived from it, not chosen.
+        #[arg(long, value_name = "FILE")]
+        evidence: Option<std::path::PathBuf>,
+
         /// Output the resulting record as JSON
         #[arg(long)]
         json: bool,

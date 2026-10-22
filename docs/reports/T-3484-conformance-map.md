@@ -51,7 +51,7 @@ vectors: AEF 25f56ed68 (https://raw.githubusercontent.com/DimitriGeelen/agentic-
   CC-20  pass             Lost attempt seen alive
   CC-21  pass             Dispatched never seen
   CC-22  not-implemented  Attested done is not finished work
-         [no-material] op:consume (no consumer surface; refusals of review_verdict / pass_rate live outside the store) | [unbound-material] T7d material binding (ResolveRequest carries no material or outcome) | [bound-evidence] T7d material binding (ResolveRequest carries no material or outcome)
+         [no-material] op:consume (no consumer surface; refusals of review_verdict / pass_rate live outside the store) | [unbound-material] op:consume (no consumer surface; refusals of review_verdict / pass_rate live outside the store)
   CC-23  pass             The nonce alone cannot complete
   CC-24  pass             Late T5 whose evidence postdates the lost entry
   CC-25  pass             Backend-initiated stop
@@ -92,7 +92,7 @@ the backend, and the verdict is the honest state until they land.
 ## Not-implemented, by missing piece
 
 - **Operator notices: done (T-3521).** See the section below. What still stops these cases is not notices: CC-08 stops at `wait`
-  (no worker-side wait surface), CC-15 at the `agent_session` refusal, CC-22 at `consume` and the T7d material binding.
+  (no worker-side wait surface), and CC-22 at `consume` (T-3540). CC-15 passes since T-3527.
 - **Partition and worker-host contact (`partition`, `heal`) — CC-09.** The hub has no model of it.
   `probe_undecided` is the closest op and is mapped to a sweep that cannot see (`listing_complete` false).
 - **Locks (`hold_lock`) — CC-13 (lock-timeout variant).** The per-write lock is SQLite IMMEDIATE, with no
@@ -100,8 +100,11 @@ the backend, and the verdict is the honest state until they land.
 - **Consumers (`consume`) — CC-19, 22.** No consumer surface. Refusals `not_finished_work` live outside the store.
 - **Worker wait / collect (`ask_wait`) — CC-11 (n/a), CC-08 (wait).** No worker-side wait surface.
 - **Dispatcher ownership (`adopt`) and inspect surfaces (`operator_queue`, `worker_topics`) — CC-10.**
-- **T7d material — CC-22 (T-3539).** `ResolveRequest` carries no material or outcome, and no consumer surface refuses an
-  attested done. The CC-15 agent-session speed bump landed in T-3527 (`resolve_gate`: `CLAUDECODE=1` without
+- **Consumers — CC-22, CC-19 (T-3540).** No consumer surface refuses an attested done or a paused attempt; whether it is a
+  hub obligation is inception T-3524. The T7d material binding landed in T-3539: an attested done records the
+  operator's outcome with no evidence digest, and bound evidence (the attempt's own nonce) derives the outcome and is
+  not attested. CC-22's bound-evidence variant passes; the other two stop only at `consume`. The CC-15 agent-session
+  speed bump landed in T-3527 (`resolve_gate`: `CLAUDECODE=1` without
   `--override` is refused by name; with it the override is recorded in history). `via: remote` is refused by
   construction: resolve is not an RPC.
 - **Backend addressing (`complete.args.backend`) — CC-09.** `dispatch.transition` has no backend address.
@@ -151,9 +154,8 @@ CC-03 no-evidence), which §3.4 and CC-17 require.
 These are not in the verdicts, because the step that reaches them is not-implemented or fails first. Treat
 them as suspicions for a follow-up, not as findings:
 
-- **CC-22 (attested done).** `resolve_tx` sets `evidence_digest` to `operator:<sha256 of reason>`, and the
-  no-material variant expects `evidence_digest: null`. It also leaves `outcome` NULL, and the vector expects
-  `succeeded`. Both would diverge if the `then` were reached.
+- **CC-22 (attested done).** Confirmed and fixed in T-3539: `resolve_tx` wrote `evidence_digest =
+  operator:<sha256 of reason>` and no outcome. It now writes the operator's outcome and a NULL digest.
 
 ## Earlier map, superseded
 

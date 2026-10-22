@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T23:31:07Z
-last_update: 2026-10-22T07:23:30Z
+last_update: 2026-10-22T07:24:55Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -82,10 +82,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `resolve --as done` without bound evidence needs an operator outcome (`succeeded` or `failed`; missing or other is `invalid`) and writes `state done, outcome <it>, attested true, attested_by operator, result_kind none, evidence_digest NULL`. Unbound material (a kind other than evidence) is still an attestation, and its kind is noted in the history cause
-- [ ] `resolve --as done` with bound evidence (the attempt's nonce plus evidence digest, exit code, hand-back, persisted_at) is checked against the attempt's nonce in the same transaction. A wrong nonce is refused (`bad_nonce`) and writes nothing. A bound one writes `attested false`, the evidence digest, and the outcome derived by the T3 rule (`derive_outcome`); an operator `outcome` given alongside is ignored for the derivation and noted in the cause
-- [ ] CLI: `termlink hub dispatch-resolve` gains `--outcome succeeded|failed` and `--evidence <file.json>` (fields: nonce, evidence_digest, exit_code, handback, persisted_at), and the help text says an attestation is not finished work
-- [ ] Tests: the attested done (fields as above, digest null), unbound material, bound evidence (outcome derived, attested false), wrong nonce refused, and a done with no outcome or evidence refused. The conformance adapter maps `outcome` and `material` (kind evidence → the vector's bound evidence; any other kind → unbound); vectors at 25f56ed68 keep fail=0, and CC-22's only remaining gap is `op:consume` (T-3540)
+- [x] `resolve --as done` without bound evidence needs an operator outcome (`succeeded` or `failed`; missing or other is `invalid`) and writes `state done, outcome <it>, attested true, attested_by operator, result_kind none, evidence_digest NULL`. Unbound material (a kind other than evidence) is still an attestation, and its kind is noted in the history cause
+- [x] `resolve --as done` with bound evidence (the attempt's nonce plus evidence digest, exit code, hand-back, persisted_at) is checked against the attempt's nonce in the same transaction. A wrong nonce is refused (`bad_nonce`) and changes no state. (Amended: like every refused write it leaves one refusal row outside the lifecycle, the existing `refuse` convention.) A bound one writes `attested false`, the evidence digest, and the outcome derived by the T3 rule (`derive_outcome`); an operator `outcome` given alongside is ignored for the derivation and noted in the cause
+- [x] CLI: `termlink hub dispatch-resolve` gains `--outcome succeeded|failed` and `--evidence <file.json>` (fields: nonce, evidence_digest, exit_code, handback, persisted_at), and the help text says an attestation is not finished work
+- [x] Tests (`cc15_unknown_resolution_by_operator` updated to the outcome rule, `cc22_resolve_material_bound_evidence_and_unbound`, hub `resolve_on_host` test; bus worker_contract 57/0, hub dispatch_contract 10/0): the attested done (fields as above, digest null), unbound material, bound evidence (outcome derived, attested false), wrong nonce refused, and a done with no outcome or evidence refused. The conformance adapter maps `outcome` and `material` (kind evidence → the vector's bound evidence; any other kind → unbound); vectors at 25f56ed68 keep fail=0, and CC-22's only remaining gap is `op:consume` (T-3540)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

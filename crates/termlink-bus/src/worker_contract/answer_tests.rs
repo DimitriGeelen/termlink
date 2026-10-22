@@ -342,18 +342,29 @@ fn resolve(a: &Allocation, as_state: &str, reason: &str) -> ResolveRequest {
 }
 
 /// CC-15: an operator resolves an `unknown` attempt; the reason is in history; the record
-/// says it was attested, with no invented outcome; anything but `unknown` is refused.
+/// says it was attested, with the operator's outcome and no evidence digest (T-3539: §3.3
+/// asks for an operator-attested outcome); anything but `unknown` is refused.
 #[test]
 fn cc15_unknown_resolution_by_operator() {
     let (_d, s) = store();
     let a = unknown_attempt(&s);
     assert!(matches!(s.resolve(&resolve(&a, "done", "  "), 9), Err(WcError::Invalid(_))));
     assert!(matches!(s.resolve(&resolve(&a, "running", "x"), 9), Err(WcError::Invalid(_))));
-    let rec = s.resolve(&resolve(&a, "done", "worker finished, checked the branch"), 500_000).unwrap();
+    // T-3539: a done with neither an outcome nor bound evidence is refused, and so is an
+    // outcome outside succeeded|failed.
+    assert!(matches!(s.resolve(&resolve(&a, "done", "no outcome"), 9), Err(WcError::Invalid(_))));
+    let mut odd = resolve(&a, "done", "odd");
+    odd.outcome = Some("paused".into());
+    assert!(matches!(s.resolve(&odd, 9), Err(WcError::Invalid(_))));
+    let mut ok = resolve(&a, "done", "worker finished, checked the branch");
+    ok.outcome = Some("succeeded".into());
+    let rec = s.resolve(&ok, 500_000).unwrap();
     assert_eq!(rec["state"], "done");
     assert_eq!(rec["attested"], true);
     assert_eq!(rec["attested_by"], "operator");
-    assert_eq!(rec["outcome"], Value::Null);
+    assert_eq!(rec["outcome"], "succeeded");
+    assert_eq!(rec["evidence_digest"], Value::Null);
+    assert_eq!(rec["result"]["kind"], "none");
     let hist = rec["history"].as_array().unwrap().last().unwrap().clone();
     assert_eq!(hist["writer"], "operator");
     assert_eq!((hist["from"].as_str(), hist["to"].as_str()), (Some("unknown"), Some("done")));
@@ -374,6 +385,54 @@ fn cc15_unknown_resolution_by_operator() {
     let dsp = s.allocate(&AllocateRequest::default(), 0).unwrap();
     assert_eq!(reason_of(s.resolve(&resolve(&dsp, "lost", "no"), 700_000).unwrap_err()), "cas_mismatch");
     assert!(matches!(s.resolve(&resolve(&dsp, "lost", "x").clone_with_id("D-nope"), 1), Err(WcError::NotFound(_))));
+}
+
+/// T-3539 (CC-22): bound evidence binds by the attempt's nonce and the outcome is derived;
+/// unbound material is an attestation noted in the cause; a wrong nonce writes nothing.
+#[test]
+fn cc22_resolve_material_bound_evidence_and_unbound() {
+    use super::answer::ResolveMaterial;
+    let (_d, s) = store();
+    let a = unknown_attempt(&s);
+    let evidence = |nonce: &str| ResolveMaterial::Evidence {
+        nonce: nonce.into(),
+        evidence_digest: "E1".into(),
+        exit_code: Some(0),
+        handback: Some(Handback {
+            attempt: Some(a.attempt),
+            nonce: Some(a.nonce.clone()),
+            status: Some("complete".into()),
+            summary: None,
+        }),
+        persisted_at: Some(10),
+        result_kind: None,
+        result_value: None,
+    };
+    let mut bad = resolve(&a, "done", "signed completion found");
+    bad.material = Some(evidence("not-the-nonce"));
+    assert_eq!(reason_of(s.resolve(&bad, 500_000).unwrap_err()), "bad_nonce");
+    assert_eq!(s.get(&a.dispatch_id).unwrap()["attempts"][0]["state"], "unknown", "a refusal writes no state");
+
+    let mut good = resolve(&a, "done", "signed completion found");
+    good.material = Some(evidence(&a.nonce));
+    good.outcome = Some("failed".into()); // ignored: the evidence decides
+    let rec = s.resolve(&good, 500_100).unwrap();
+    assert_eq!(rec["state"], "done");
+    assert_eq!(rec["outcome"], "succeeded");
+    assert_eq!(rec["attested"], false);
+    assert_eq!(rec["evidence_digest"], "E1");
+    let cause = rec["history"].as_array().unwrap().last().unwrap()["cause"].as_str().unwrap().to_string();
+    assert!(cause.contains("bound evidence") && cause.contains("failed not used"), "{cause}");
+
+    let b = unknown_attempt(&s);
+    let mut pasted = resolve(&b, "done", "log attached");
+    pasted.outcome = Some("succeeded".into());
+    pasted.material = Some(ResolveMaterial::Unbound { kind: "pasted_log".into() });
+    let rec = s.resolve(&pasted, 600_000).unwrap();
+    assert_eq!(rec["attested"], true);
+    assert_eq!(rec["evidence_digest"], Value::Null);
+    let cause = rec["history"].as_array().unwrap().last().unwrap()["cause"].as_str().unwrap().to_string();
+    assert!(cause.contains("unbound material: pasted_log"), "{cause}");
 }
 
 impl ResolveRequest {

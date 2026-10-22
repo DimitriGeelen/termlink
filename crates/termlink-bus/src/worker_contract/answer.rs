@@ -75,6 +75,29 @@ pub struct ResolveRequest {
     /// keys on it. The session gate itself is the host CLI's (`resolve_on_host`): the store
     /// only records what the caller was.
     pub actor: String,
+    /// T-3539: the operator's attested outcome for `--as done` without bound evidence
+    /// (`succeeded` | `failed`). Ignored for the derivation when bound evidence is given.
+    pub outcome: Option<String>,
+    /// T-3539: what the operator supplied besides the reason, if anything.
+    pub material: Option<ResolveMaterial>,
+}
+
+/// T-3539 (§3.3 T7d): material offered with a `done` resolve. Only `Evidence` whose nonce
+/// binds it to the attempt is evidence; everything else makes the write an attestation.
+#[derive(Debug, Clone)]
+pub enum ResolveMaterial {
+    /// The attempt's signed completion as T7b would carry it.
+    Evidence {
+        nonce: String,
+        evidence_digest: String,
+        exit_code: Option<i64>,
+        handback: Option<super::Handback>,
+        persisted_at: Option<i64>,
+        result_kind: Option<String>,
+        result_value: Option<String>,
+    },
+    /// Anything not bound to the attempt (a pasted log, a description). Noted, not trusted.
+    Unbound { kind: String },
 }
 
 /// Result of an answer-path write: the row as stored, and whether it was a replay.
@@ -526,14 +549,74 @@ fn resolve_tx(tx: &Transaction, req: &ResolveRequest, now: i64) -> WcResult<Valu
     };
     let actor = "operator";
     if req.as_state == "done" {
-        // Attested, not evidenced: no outcome is invented, and the record says who vouched.
-        let digest = format!("operator:{}", sha256_hex(reason));
-        tx.execute(
-            "UPDATE wc_attempts SET state='done', attested=1, attested_by='operator', evidence_digest=?3,
-                result_kind='none' WHERE dispatch_id=?1 AND attempt=?2",
-            params![id, req.attempt, digest],
-        )?;
-        append_history(tx, id, req.attempt, Some("unknown"), "done", actor, now, Some(&digest), Some(&cause), None)?;
+        match &req.material {
+            Some(ResolveMaterial::Evidence {
+                nonce, evidence_digest, exit_code, handback, persisted_at, result_kind, result_value,
+            }) => {
+                // T-3539: bound evidence, verified in the same step as the write; the outcome is
+                // derived by the T3 rule, never chosen by the operator.
+                if sha256_hex(nonce) != row.nonce_sha {
+                    return refuse(
+                        tx, id, req.attempt, &row.state, "operator", now, FenceReason::BadNonce,
+                        "evidence nonce does not bind to this attempt".into(),
+                    );
+                }
+                let t = super::TransitionRequest {
+                    dispatch_id: id.clone(),
+                    attempt: req.attempt,
+                    nonce: nonce.clone(),
+                    exit_code: *exit_code,
+                    handback: handback.clone(),
+                    ..Default::default()
+                };
+                let outcome = super::derive_outcome(&t);
+                tx.execute(
+                    "UPDATE wc_attempts SET state='done', outcome=?3, exit_code=?4, result_kind=?5,
+                        result_value=?6, persisted_at=?7, evidence_digest=?8, handback_status=?9,
+                        attested=0, attested_by=NULL
+                     WHERE dispatch_id=?1 AND attempt=?2",
+                    params![
+                        id,
+                        req.attempt,
+                        outcome,
+                        exit_code,
+                        result_kind.as_deref().unwrap_or("none"),
+                        result_value,
+                        persisted_at,
+                        evidence_digest,
+                        handback.as_ref().and_then(|h| h.status.clone())
+                    ],
+                )?;
+                let cause = match req.outcome.as_deref() {
+                    Some(o) => format!("{cause} (bound evidence; operator outcome {o} not used)"),
+                    None => format!("{cause} (bound evidence)"),
+                };
+                append_history(tx, id, req.attempt, Some("unknown"), "done", actor, now, Some(evidence_digest), Some(&cause), None)?;
+            }
+            material => {
+                // Attested, not evidenced (§3.3): the operator's outcome, `attested`, and no
+                // evidence digest. Unbound material is noted in the cause, never trusted.
+                let outcome = match req.outcome.as_deref() {
+                    Some(o @ ("succeeded" | "failed")) => o,
+                    Some(o) => return Err(WcError::Invalid(format!("attested outcome must be succeeded or failed, not {o}"))),
+                    None => {
+                        return Err(WcError::Invalid(
+                            "resolve --as done needs an operator outcome or bound evidence".into(),
+                        ));
+                    }
+                };
+                tx.execute(
+                    "UPDATE wc_attempts SET state='done', outcome=?3, attested=1, attested_by='operator',
+                        evidence_digest=NULL, result_kind='none' WHERE dispatch_id=?1 AND attempt=?2",
+                    params![id, req.attempt, outcome],
+                )?;
+                let cause = match material {
+                    Some(ResolveMaterial::Unbound { kind }) => format!("{cause} (attested; unbound material: {kind})"),
+                    _ => format!("{cause} (attested)"),
+                };
+                append_history(tx, id, req.attempt, Some("unknown"), "done", actor, now, None, Some(&cause), None)?;
+            }
+        }
         close_ended_answers_tx(tx, id, req.attempt, "done", now)?;
     } else {
         tx.execute(

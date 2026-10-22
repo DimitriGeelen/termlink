@@ -21,7 +21,7 @@ use std::path::PathBuf;
 
 use serde_json::{Map, Value, json};
 use termlink_bus::Bus;
-use termlink_bus::worker_contract::answer::{AckRequest, AnswerRequest, AskRequest, ResolveRequest, resolve_at};
+use termlink_bus::worker_contract::answer::{AckRequest, AnswerRequest, AskRequest, ResolveMaterial, ResolveRequest, resolve_at};
 use termlink_bus::worker_contract::sweep::{SweepObservation, SweepReport};
 use termlink_bus::worker_contract::{AllocateRequest, Allocation, Handback, StopRequest, TransitionRequest, WcError};
 use termlink_hub::dispatch_contract::{AGENT_SESSION_REFUSAL, ResolveSession, resolve_gate};
@@ -719,9 +719,6 @@ impl Hub {
     }
 
     fn resolve(&mut self, args: &Value) -> Res<Map<String, Value>> {
-        if args.get("material").is_some() {
-            return missing("T7d material binding (ResolveRequest carries no material or outcome)");
-        }
         if args["via"].as_str() == Some("remote") {
             // resolve is not an RPC: resolve_on_host is reached only from the host CLI, so no remote
             // caller can reach it. The refusal holds by construction.
@@ -740,12 +737,32 @@ impl Hub {
         let d = self.dispatch_id()?;
         let n = args["attempt"].as_i64().unwrap_or(1);
         let reason = args["reason"].as_str().unwrap_or_default().to_string();
+        // T-3539: material of kind `evidence` is the vector's bound evidence (its own nonce, as
+        // `complete` would present it); any other kind is unbound and makes it an attestation.
+        let material = match args.get("material") {
+            Some(m) if m["kind"].as_str() == Some("evidence") => {
+                let c = self.complete_for(m["ref"].as_str().unwrap_or_default(), n, None, None)?;
+                Some(ResolveMaterial::Evidence {
+                    nonce: c.nonce,
+                    evidence_digest: c.digest,
+                    exit_code: c.exit_code,
+                    handback: c.handback,
+                    persisted_at: c.persisted_at,
+                    result_kind: None,
+                    result_value: None,
+                })
+            }
+            Some(m) => Some(ResolveMaterial::Unbound { kind: m["kind"].as_str().unwrap_or("unknown").to_string() }),
+            None => None,
+        };
         let req = ResolveRequest {
             dispatch_id: d.clone(),
             attempt: n,
             as_state: args["as"].as_str().unwrap_or_default().to_string(),
             reason: reason.clone(),
             actor,
+            outcome: args["outcome"].as_str().map(str::to_string),
+            material,
         };
         match resolve_at(&self.root(), &req, self.clock) {
             Ok(_) => {

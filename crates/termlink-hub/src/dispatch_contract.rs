@@ -11,6 +11,8 @@ use std::path::PathBuf;
 
 use serde_json::{json, Value};
 use termlink_bus::Bus;
+// T-3539: re-exported so the CLI can build `--evidence` material without depending on the bus.
+pub use termlink_bus::worker_contract::answer::ResolveMaterial;
 use termlink_bus::worker_contract::sweep::SweepObservation;
 use termlink_bus::worker_contract::answer::{
     resolve_at, AckRequest, AnswerRequest, AskRequest, ResolveRequest,
@@ -135,6 +137,41 @@ pub struct ResolveSession {
     pub override_reason: Option<String>,
 }
 
+/// T-3539 (§3.3 T7d): what a `done` resolve carries besides the reason: the operator's
+/// attested outcome, and/or material (bound evidence makes it evidenced; anything else is
+/// an attestation). Both are ignored for `--as lost`.
+#[derive(Debug, Clone, Default)]
+pub struct ResolveDone {
+    pub outcome: Option<String>,
+    pub material: Option<ResolveMaterial>,
+}
+
+/// T-3539: parse the `--evidence <file.json>` the CLI reads into bound-evidence material:
+/// `{nonce, evidence_digest, exit_code?, handback?{attempt, nonce, status}, persisted_at?,
+/// result?{kind, value}}`. `nonce` and `evidence_digest` are required; whether they bind is
+/// the store's check, made in the same step as the write.
+pub fn evidence_material_from_json(v: &Value) -> Result<ResolveMaterial, String> {
+    let (Some(nonce), Some(digest)) = (s(v, "nonce"), s(v, "evidence_digest")) else {
+        return Err("evidence needs nonce and evidence_digest".into());
+    };
+    let handback = v.get("handback").filter(|h| h.is_object()).map(|h| Handback {
+        attempt: h.get("attempt").and_then(Value::as_i64),
+        nonce: h.get("nonce").and_then(Value::as_str).map(str::to_string),
+        status: h.get("status").and_then(Value::as_str).map(str::to_string),
+        summary: h.get("summary").and_then(Value::as_str).map(str::to_string),
+    });
+    let result = v.get("result");
+    Ok(ResolveMaterial::Evidence {
+        nonce,
+        evidence_digest: digest,
+        exit_code: i(v, "exit_code"),
+        handback,
+        persisted_at: i(v, "persisted_at"),
+        result_kind: result.and_then(|r| r.get("kind")).and_then(Value::as_str).map(str::to_string),
+        result_value: result.and_then(|r| r.get("value")).and_then(Value::as_str).map(str::to_string),
+    })
+}
+
 /// The refusal an agent session gets without an override. Named so a caller can match it.
 pub const AGENT_SESSION_REFUSAL: &str = "agent_session";
 
@@ -166,6 +203,7 @@ pub fn resolve_on_host(
     as_state: &str,
     reason: &str,
     session: &ResolveSession,
+    done: &ResolveDone,
 ) -> Result<Value, String> {
     let actor = resolve_gate(session)?;
     let req = ResolveRequest {
@@ -174,6 +212,8 @@ pub fn resolve_on_host(
         as_state: as_state.to_string(),
         reason: reason.to_string(),
         actor,
+        outcome: done.outcome.clone(),
+        material: done.material.clone(),
     };
     resolve_at(bus_root, &req, now_ms()).map_err(|e| match e {
         WcError::NotFound(d) => format!("not found: {d}"),
@@ -629,7 +669,7 @@ mod tests {
         let id = a["dispatch_id"].as_str().unwrap();
         let op = ResolveSession::default();
         // Still `dispatched`: refused, and the refusal names the reason.
-        let e = resolve_on_host(d.path(), id, 1, "lost", "operator says so", &op).unwrap_err();
+        let e = resolve_on_host(d.path(), id, 1, "lost", "operator says so", &op, &ResolveDone::default()).unwrap_err();
         assert!(e.contains("cas_mismatch"), "{e}");
         // Past the dispatched deadline the sweep makes it `unknown`; then resolve works.
         let past = a["deadline_dispatched"].as_i64().unwrap() + 1;
@@ -638,10 +678,15 @@ mod tests {
             past,
         )
         .unwrap();
-        let rec = resolve_on_host(d.path(), id, 1, "done", "checked by hand", &op).unwrap();
+        let no_outcome = resolve_on_host(d.path(), id, 1, "done", "checked by hand", &op, &ResolveDone::default());
+        assert!(no_outcome.unwrap_err().contains("operator outcome or bound evidence"));
+        let attested = ResolveDone { outcome: Some("succeeded".into()), material: None };
+        let rec = resolve_on_host(d.path(), id, 1, "done", "checked by hand", &op, &attested).unwrap();
+        assert_eq!(rec["outcome"], "succeeded");
+        assert!(rec["evidence_digest"].is_null());
         assert_eq!(rec["state"], "done");
         assert_eq!(rec["attested"], true);
-        let e = resolve_on_host(d.path(), "D-01J9ZZZZZZZZZZZZZZZZZZZZZZ", 1, "lost", "x", &op).unwrap_err();
+        let e = resolve_on_host(d.path(), "D-01J9ZZZZZZZZZZZZZZZZZZZZZZ", 1, "lost", "x", &op, &ResolveDone::default()).unwrap_err();
         assert!(e.starts_with("not found"), "{e}");
     }
 
@@ -663,14 +708,14 @@ mod tests {
         let before = bus.wc_get(&id).unwrap();
 
         let agent = ResolveSession { agent: true, override_reason: None };
-        let e = resolve_on_host(d.path(), &id, 1, "lost", "host reimaged", &agent).unwrap_err();
+        let e = resolve_on_host(d.path(), &id, 1, "lost", "host reimaged", &agent, &ResolveDone::default()).unwrap_err();
         assert!(e.contains(AGENT_SESSION_REFUSAL), "{e}");
         let blank = ResolveSession { agent: true, override_reason: Some("  ".into()) };
-        assert!(resolve_on_host(d.path(), &id, 1, "lost", "host reimaged", &blank).unwrap_err().contains(AGENT_SESSION_REFUSAL));
+        assert!(resolve_on_host(d.path(), &id, 1, "lost", "host reimaged", &blank, &ResolveDone::default()).unwrap_err().contains(AGENT_SESSION_REFUSAL));
         assert_eq!(bus.wc_get(&id).unwrap(), before, "a refused resolve writes nothing");
 
         let over = ResolveSession { agent: true, override_reason: Some("operator asked me to".into()) };
-        let rec = resolve_on_host(d.path(), &id, 1, "lost", "host reimaged", &over).unwrap();
+        let rec = resolve_on_host(d.path(), &id, 1, "lost", "host reimaged", &over, &ResolveDone::default()).unwrap();
         assert_eq!(rec["state"], "lost");
         let got = bus.wc_get(&id).unwrap();
         let row = got["attempts"][0]["history"].as_array().unwrap().last().unwrap().clone();
