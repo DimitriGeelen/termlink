@@ -7,7 +7,7 @@ description: >
   so coverage is measured over a subset. Widen watch-patterns.yaml, or remove the
   cards if they are not really components.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -25,7 +25,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:55:11Z
-last_update: 2026-09-28T23:29:12Z
+last_update: 2026-10-22T08:20:43Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -291,6 +291,22 @@ true
 
 ## Updates
 
+### 2026-10-22 — what the 9 now are (agent)
+- The audit's "9 card(s) point at files no watch pattern covers" is no longer the cron set (that was closed with the
+  `.context/cron/*.crontab` glob). Recomputed with the audit's own predicate (registered location, file exists, not in
+  `expand_patterns.py` output): **8 BPMN workflow cards** under `.agentic-framework/.context/designer/projects/*/`
+  (the latest version of each of 8 projects), plus `.claude/commands/capture.md` (already recorded in
+  watch-patterns.yaml as an open scope decision).
+- The BPMN set has the same shape as capture.md. The natural boundary `designer/projects/*/*.bpmn` holds 13 files, and
+  5 of them are older versions with no card, so widening would newly flag those 5. Globbing exactly the 8 latest is the
+  hand-shaped glob that watch-patterns.yaml (T-2722, PL-341) rules out. Honest options: (a) widen and register all 13,
+  or (b) drop the 8 cards if workflow models are not fabric components. A third angle: the files live in the vendored
+  tree, which re-vendoring replaces wholesale.
+- Not done here: this is a scope decision, so it was not taken as a side effect of clearing a warning. The current
+  Verification line pins `context-cron-*.yaml` count == 31, and there are now 43 (T-3538 registered more crontabs).
+  That is a mutable-count anchor (T-3326) and will fail; it wants an invariant ("every .context/cron/*.crontab has a
+  card") before this task can close.
+
 ### 2026-09-24T23:55:11Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3103-fabric-10-cards-point-at-files-no-watch-.md
@@ -308,3 +324,6 @@ true
 ### 2026-09-28T23:29:12Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
 - **Reason:** Parked R2: 9 carded-unwatched files remain on two Sovereign scope questions (vendored BPMN cards; slash-command singleton) — see .context/runs/T-3211-R2-handback.md
+
+### 2026-10-22T08:20:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
