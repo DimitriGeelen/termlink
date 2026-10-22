@@ -1,13 +1,22 @@
 ---
 id: T-3526
-name: "wc/0.3 hub: a running attempt never seen alive gets no end confirmation (CC-03 no-evidence, CC-06 expects T4 at clock 20) - needs AEF ruling"
+name: "wc/0.3 hub: a running attempt never seen alive gets no end confirmation (CC-03
+  no-evidence, CC-06 expects T4 at clock 20) - needs AEF ruling"
 description: >
-  Found by T-3522 (conformance adapter, AEF vectors wc/0.3 afe974124). CC-06 step confirm_end (hub, attempt 1, no evidence, the attempt running and never seen alive) expects accepted T4. CC-03 no-evidence variant expects the same. The store answers no_transition, correctly under section 3.4 as AEF's CC-17 pins it (absence counts only for an attempt seen alive at the current epoch; deadlines only otherwise) and as the S2 sweep tests state (never seen, so no end was observed). CC-06 also has the confirm at clock 20, before G. The vectors therefore conflict with CC-17 unless last-seen epoch means the epoch at T2 start. Needs an AEF ruling before any backend change. Do not change the backend to satisfy CC-06 alone.
+  Found by T-3522 (conformance adapter, AEF vectors wc/0.3 afe974124). CC-06 step
+  confirm_end (hub, attempt 1, no evidence, the attempt running and never seen alive)
+  expects accepted T4. CC-03 no-evidence variant expects the same. The store answers
+  no_transition, correctly under section 3.4 as AEF's CC-17 pins it (absence counts
+  only for an attempt seen alive at the current epoch; deadlines only otherwise) and
+  as the S2 sweep tests state (never seen, so no end was observed). CC-06 also has
+  the confirm at clock 20, before G. The vectors therefore conflict with CC-17 unless
+  last-seen epoch means the epoch at T2 start. Needs an AEF ruling before any backend
+  change. Do not change the backend to satisfy CC-06 alone.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
-horizon: next
+horizon: now
 tags: [arc:arc-011, wc-conformance]
 components: []
 related_tasks: [T-3522, T-3517, T-3484]
@@ -39,8 +48,8 @@ origin: {kind: "agent"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:52:54Z
-last_update: 2026-10-21T14:52:54Z
-date_finished: null
+last_update: 2026-10-22T10:23:06Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +60,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-22T10:17:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3526: wc/0.3 hub: a running attempt never seen alive gets no end confirmation (CC-03 no-evidence, CC-06 expects T4 at clock 20) - needs AEF ruling
@@ -98,6 +121,11 @@ date_finished: null
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids (T-3370: the 1.8.3 template prescribed it again).
 -->
+- [ ] [REVIEW] Close-readiness: the work meets its Agent criteria and the Verification section passes (T-3526, reviewer-judged, T-4156)
+  **Steps:**
+  1. Run `cd /opt/termlink && .agentic-framework/bin/fw reviewer judge T-3526`
+  **Expected:** an independent reviewer records a green verdict for this criterion's current text
+  **If not:** remediate the findings the reviewer lists, then re-run the judge
 
 <!--
   Render-touching build tasks (web/templates, web/static, web/blueprints, web/shared.py,
@@ -311,6 +339,11 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3526-wc 2>&1; grep -qE "^  CC-03 +pass "
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-22 — the conflict was in the vectors, not the store
+- **What changed:** this was filed as a possible backend change (give a never-seen attempt an end confirmation). AEF ruled that §3.4 and CC-17 stay strict and fixed the CC-03/CC-06 vectors instead (adding `seen_alive_epoch`, 25f56ed68). The store was right; nothing in the hub changed.
+- **Plan impact:** no backend work. CC-03 and CC-06 pass at 25f56ed68 (vector run 2026-10-22: pass 18, fail 0).
+- **Triggered:** nothing; closed through the reviewer-delegation path (`fw task delegate`, `fw reviewer judge`).
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -367,3 +400,11 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3526-wc 2>&1; grep -qE "^  CC-03 +pass "
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3526-wc03-hub-a-running-attempt-never-seen-al.md
 - **Context:** Initial task creation
+
+### 2026-10-22T10:17:24Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-22T10:23:06Z — delegate ready-to-close [fw-task-delegate]
+- **Ruling:** D-626 / T-3557 / T-4156 — no Human criteria, Agent criteria done: one reviewer-judged close-readiness criterion added; owner unchanged.
+- **Close path:** `.agentic-framework/bin/fw reviewer judge T-3526`; a green verdict ticks it, red/amber returns findings to remediate.
