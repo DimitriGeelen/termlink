@@ -229,6 +229,20 @@ What it needs, and what today's code does:
 - Injection safety: **already holds** at the hub for Interact tokens (finding 26). The build does
   not weaken it; the risk is the replay and mint gaps above.
 
+### Option 1-lite — operator-minted Interact token, no secret on node1 (small BUILD; added by the orchestrator after review)
+
+- Finding 12 says "the secret or a token minted from it". The second half matters: a token minted on `.122` with
+  scope **Interact** and a TTL is not the secret. The hub refuses inject and exec to it (finding 7: `command.inject`
+  and `command.signal` are Control, `command.execute` is Execute), and it expires (7-day ceiling, finding 5).
+- What is missing is only the tooling. There is (a) no user-facing verb that prints a hub token (the CLI mints one
+  internally per call, `remote.rs:771`), and (b) no client path that **presents** a token instead of reading
+  `secret_file` (profiles and `channel post --hub` take a secret; the sidecar uses the CLI, `termlink_transport.py`).
+  A `hub token mint --scope interact --ttl` on `.122` plus a profile `token_file` key the CLI uses as-is would close
+  it.
+- What remains true with it: no per-topic ACL (an Interact holder can post into any topic, though always under its
+  own signed identity, finding 13; Observe reads every topic). Replay within the TTL (no nonce store). Revocation only
+  by rotating `hub.secret` or waiting out the TTL. These are the costs of Option 1-lite against the full Option 1.
+
 ### Option 2 — `.122` dials node1's hub, node1 holds only its own secret (partly exists, needs firewall + profile work)
 
 What it needs:
@@ -239,8 +253,9 @@ What it needs:
   and a TOFU pin (`crates/termlink-cli/src/config.rs:7-8`, `:69-86`; the hub-probe and TOFU verbs in
   CLAUDE.md). Then `.122`-side clients post and read node1's topics with `channel post --hub <node1>`
   (`channel.rs:519`, `:623`) — explicit cross-posting, consistent with finding 16.
-- The network must allow `.122 → node1:9100`. Today it is one-way (per the brief: node1 reaches `.122`,
-  `.122` reaches node1 only from ring20/operator addresses). That is a firewall/WireGuard policy change, not code.
+- The network must allow `.122 → node1:9100`. Per the brief, home → node1 is allowed "only from ring20/operator
+  addresses". `.122` is ring20-management, so this may already hold; ring20 can confirm with one `termlink hub probe`
+  from `.122` once node1's hub listens on its tunnel address.
 - Inverse trust: `.122` now holds a credential that can act on node1's hub (Execute, for an
   operator-minted token). This is the reverse of the stated threat model, and it is acceptable only if
   the operator decides ring20 trusts node1 less than home. Decision, not a code gap.
