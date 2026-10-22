@@ -1,13 +1,17 @@
 ---
 id: T-3552
-name: "SEV-1 fix 3: one tmux server per project via a single controlled launcher; project-aware attach/list for cockpits; migrate sessions by controlled replacement"
+name: "SEV-1 fix 3: one tmux server per project via a single controlled launcher;
+  project-aware attach/list for cockpits; migrate sessions by controlled replacement"
 description: >
-  Operator ruling A on T-3549. Socket derived from the registered project identity (validated name, never an unchecked path to -S/-L); the launcher creates and re-creates servers with a clean env (update-environment empty, exit-empty off); attach/list wrappers and cockpit enumeration; never kill the shared default server to migrate.
+  Operator ruling A on T-3549. Socket derived from the registered project identity
+  (validated name, never an unchecked path to -S/-L); the launcher creates and re-creates
+  servers with a clean env (update-environment empty, exit-empty off); attach/list
+  wrappers and cockpit enumeration; never kill the shared default server to migrate.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [incident, sev1]
 components: []
 related_tasks: []
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T14:05:04Z
-last_update: 2026-10-22T14:05:04Z
-date_finished: null
+last_update: 2026-10-22T22:08:54Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +54,19 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-22T22:07:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3552: SEV-1 fix 3: one tmux server per project via a single controlled launcher; project-aware attach/list for cockpits; migrate sessions by controlled replacement
@@ -67,8 +84,11 @@ start on the default socket today with an allow-listed client env (their 34e78fe
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Interface draft `docs/reports/T-3552-per-project-tmux-interface.md` written and sent to 055 on sev1-tmux-env-leak-2026-10-22 before any interface is fixed; their answer recorded
+- [ ] Socket name derived only from the T-3551 project rule (`project_of`), validated `^tl-[a-z0-9-]{1,24}-[0-9a-f]{8}$`, used only with `-L`; unit tests for slug, hash, validation and a refused unsafe name
+- [ ] tmux spawn/dispatch put new sessions on the project's server, started under the T-3550 allow-list with `-f /dev/null`, `exit-empty off`, `update-environment ""`; live test on a private server; the default server is never killed
+- [ ] `termlink tmux socket|list|attach` take a project path; `list --json` reports dead servers instead of skipping them; registration metadata carries `tmux_server`
+- [ ] session-zombies.py and the env-leak canary enumerate every `tl-*` server; their fixtures cover a project server
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -369,3 +389,7 @@ start on the default socket today with an allow-listed client env (their 34e78fe
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3552-sev-1-fix-3-one-tmux-server-per-project-.md
 - **Context:** Initial task creation
+
+### 2026-10-22T22:07:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
