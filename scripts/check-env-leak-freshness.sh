@@ -79,7 +79,7 @@ if firing:
         for f in fs:
             print(f"    pid {f['pid']}: {f['name']}={f['value']}  (belongs to {f['value_project']})")
     for v in d["server_global"]:
-        print(f"  tmux default server GLOBAL env: {v['name']}={v['value']} (every new session inherits it)")
+        print(f"  tmux {v.get('server', 'default')} server GLOBAL env: {v['name']}={v['value']} (every new session inherits it)")
     print("  action: relaunch the named processes from a clean shell; `tmux set-environment -gu <VAR>` for server globals")
 else:
     print("env-leak: healthy — no foreign project variables, tmux server global env holds no project")

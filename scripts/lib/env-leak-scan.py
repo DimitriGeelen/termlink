@@ -9,7 +9,8 @@ the same rule as `termlink_session::child_env::foreign_project_vars`, which `ter
 enforces at start; this script finds the processes that started before it existed.
 
 Scanned: every registered session's root process (pid from `termlink list --json`), judged
-against the session's registered cwd, plus the default tmux server's GLOBAL environment, which must hold no project variable at all
+against the session's registered cwd, plus the GLOBAL environment of the default tmux server and of every per-project TermLink server
+(T-3552), which must hold no project variable at all
 (every session started on that server inherits it).
 
 Output: one JSON object on stdout. Exit 0 = scanned (findings or not), 2 = could not scan
@@ -21,6 +22,8 @@ import json
 import os
 import subprocess
 import sys
+
+import tmux_servers  # T-3552: per-project servers (same directory)
 
 PROJECT_VARS = ["PROJECT_ROOT", "TASKS_DIR", "CONTEXT_DIR", "CLAUDE_PROJECT_DIR", "_FW_PATHS_DERIVED_BY"]
 # The server's global environment must not name any project at all, FRAMEWORK_ROOT included.
@@ -140,15 +143,17 @@ def main():
     server = []
     if a.tmux_env is not None:
         with open(a.tmux_env) as f:
-            text = f.read()
+            texts = [(None, f.read())]
     else:
-        r = subprocess.run(["tmux", "show-environment", "-g"], capture_output=True, text=True, timeout=10)
-        text = r.stdout if r.returncode == 0 else ""  # no server: nothing global to hold a project
-    for line in text.splitlines():
-        if "=" in line and not line.startswith("-"):
-            k, v = line.split("=", 1)
-            if k in SERVER_VARS:
-                server.append({"name": k, "value": v})
+        # T-3552: the default server AND every per-project TermLink server. No server, or a
+        # server that does not answer, holds nothing global (and the zombie check reports it).
+        texts = [(srv, t or "") for srv, t in tmux_servers.run_on_each(["show-environment", "-g"])]
+    for srv, text in texts:
+        for line in text.splitlines():
+            if "=" in line and not line.startswith("-"):
+                k, v = line.split("=", 1)
+                if k in SERVER_VARS:
+                    server.append({"name": k, "value": v, "server": srv or "default"})
 
     print(json.dumps({
         "sessions": len(sessions),

@@ -26,7 +26,9 @@ Inputs (seams for fixtures, PL-213):
   --ps FILE      output of `ps -eo pid,ppid,etimes,args --no-headers`
                  (default: run ps)
   --tmux FILE    output of `tmux list-panes -a -F '#{pane_pid} #{session_name}
-                 #{session_attached}'` (default: run tmux; no server = no panes)
+                 #{session_attached}'` (default: run tmux on the default server AND every
+                 per-project TermLink server, T-3552; no server = no panes)
+  --tmux-socket-dir DIR  where per-project servers' sockets live (default: this uid's tmux dir)
   --dir DIR      sessions dir to scan for orphans (repeatable)
 Output: one JSON object on stdout. Exit 2 if ps cannot be read (fail-closed).
 """
@@ -36,6 +38,8 @@ import os
 import subprocess
 import sys
 import time
+
+import tmux_servers  # T-3552: per-project servers (same directory)
 
 
 def read_table(path, cmd):
@@ -148,6 +152,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ps")
     ap.add_argument("--tmux")
+    ap.add_argument("--tmux-socket-dir")  # T-3552 seam: where per-project servers' sockets live
     ap.add_argument("--dir", action="append", default=[])
     ap.add_argument("--min-age", type=int, default=86400)
     ap.add_argument("--orphan-age", type=int, default=3600)
@@ -157,11 +162,26 @@ def main():
     if not ps_text:
         print("session-zombies: could not read the process table", file=sys.stderr)
         return 2
-    tmux_text = read_table(
-        a.tmux,
-        ["tmux", "list-panes", "-a", "-F", "#{pane_pid} #{session_name} #{session_attached}"],
-    )
+    fmt = ["list-panes", "-a", "-F", "#{pane_pid} #{session_name} #{session_attached}"]
+    dead = []
+    if a.tmux:
+        tmux_text = read_table(a.tmux, None)
+    else:
+        # T-3552: the default server plus every per-project TermLink server; a pane on a
+        # project server is named `<server>:<session>` so the operator can find it.
+        parts = []
+        for server, text in tmux_servers.run_on_each(fmt, sdir=a.tmux_socket_dir):
+            if text is None:
+                dead.append(server)
+                continue
+            for line in text.splitlines():
+                f = line.split()
+                if server and len(f) >= 3:
+                    f[1] = f"{server}:{f[1]}"
+                parts.append(" ".join(f))
+        tmux_text = "\n".join(parts)
     res = classify(ps_text, tmux_text, a.min_age)
+    res["dead_tmux_servers"] = dead
     res["orphans"] = orphans(a.dir, a.orphan_age, time.time())
     res["min_age_s"] = a.min_age
     res["orphan_age_s"] = a.orphan_age

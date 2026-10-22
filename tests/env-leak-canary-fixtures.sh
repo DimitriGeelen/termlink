@@ -82,7 +82,7 @@ ENV_LEAK_LIST_JSON="$LIST" ENV_LEAK_PROC_DIR="$PROC" ENV_LEAK_TMUX_ENV_FILE="$TM
 
 # Mutant: disable the project comparison. Case 2 must then go silent, proving it bites.
 MUT="$W/mut"; mkdir -p "$MUT/scripts/lib"
-cp "$CANARY" "$MUT/scripts/"; sed 's/if vp is not None and vp != own:/if False:/' "$SCAN" > "$MUT/scripts/lib/env-leak-scan.py"
+cp "$CANARY" "$MUT/scripts/"; cp "$ROOT/scripts/lib/tmux_servers.py" "$MUT/scripts/lib/";sed 's/if vp is not None and vp != own:/if False:/' "$SCAN" > "$MUT/scripts/lib/env-leak-scan.py"
 grep -q "if False:" "$MUT/scripts/lib/env-leak-scan.py" || bad "M1 mutant did not apply"
 reset; session 19 "$A" "TASKS_DIR=$B/.tasks"
 rc="$(ENV_LEAK_LIST_JSON="$LIST" ENV_LEAK_PROC_DIR="$PROC" ENV_LEAK_TMUX_ENV_FILE="$TMUXENV" bash "$MUT/scripts/check-env-leak-freshness.sh" --no-heartbeat >/dev/null 2>&1; echo $?)"

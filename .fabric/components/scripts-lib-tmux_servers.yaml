@@ -1,0 +1,21 @@
+id: scripts/lib/tmux_servers.py
+name: tmux_servers
+type: script
+subsystem: operations
+location: scripts/lib/tmux_servers.py
+tags: []
+
+purpose: "T-3552: enumerate the tmux servers TermLink sessions can live on."
+purpose_source: docstring
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-22
+created_by: unknown
