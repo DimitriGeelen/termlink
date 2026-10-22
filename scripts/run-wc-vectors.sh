@@ -27,17 +27,28 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-URL="https://raw.githubusercontent.com/DimitriGeelen/agentic-engineering-framework/${REF}/tests/conformance/worker-contract/vectors.yaml"
+URL="${WC_VECTORS_URL:-https://raw.githubusercontent.com/DimitriGeelen/agentic-engineering-framework/${REF}/tests/conformance/worker-contract/vectors.yaml}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
+# T-3545: a copy per exact REF, gitignored (AEF's file is never committed here), so a
+# host or sandbox without internet (the reviewer seats) can still run the pinned vectors.
+CACHE_DIR="${WC_VECTORS_CACHE_DIR:-$REPO/.context/working/wc-vectors}"
+CACHED="$CACHE_DIR/${REF}.yaml"
 TMP="$(mktemp -d)" || { echo "run-wc-vectors: mktemp failed" >&2; exit 2; }
 trap 'rm -rf "$TMP"' EXIT
 
-if ! curl -fsSL --max-time 60 "$URL" -o "$TMP/vectors.yaml"; then
-    echo "run-wc-vectors: tooling: could not fetch $URL" >&2
+if curl -fsSL --max-time 60 "$URL" -o "$TMP/vectors.yaml"; then
+    mkdir -p "$CACHE_DIR" 2>/dev/null && cp "$TMP/vectors.yaml" "$CACHED.tmp" 2>/dev/null && mv "$CACHED.tmp" "$CACHED"
+    echo "vectors: AEF ${REF} (${URL})"
+elif [ -s "$CACHED" ]; then
+    cp "$CACHED" "$TMP/vectors.yaml"
+    echo "vectors: AEF ${REF} (cached copy ${CACHED}; fetch of ${URL} failed)"
+else
+    echo "run-wc-vectors: tooling: could not fetch $URL and no cached copy for ${REF}" >&2
     echo "run-wc-vectors: no vectors, so nothing was judged (not a pass)" >&2
     exit 2
 fi
-echo "vectors: AEF ${REF} (${URL})"
+# Test seam (fixtures only): stop once the vectors file is chosen.
+[ "${WC_VECTORS_SELECT_ONLY:-}" = "1" ] && exit 0
 
 OUT="$TMP/run.out"
 (

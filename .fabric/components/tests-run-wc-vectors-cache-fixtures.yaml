@@ -1,0 +1,21 @@
+id: tests/run-wc-vectors-cache-fixtures.sh
+name: run-wc-vectors-cache-fixtures
+type: script
+subsystem: guard-layer
+location: tests/run-wc-vectors-cache-fixtures.sh
+tags: []
+
+purpose: "guard-layer: source"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-22
+created_by: unknown
