@@ -41,7 +41,7 @@ arc_id: arc-parallel-substrate
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T20:42:05Z
-last_update: 2026-10-21T10:41:48Z
+last_update: 2026-10-21T10:42:13Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -89,7 +89,7 @@ Clone strategy (agent choice, 2026-10-21): 0909 has not answered on snapshot vs 
 - [x] The commit-fails case keeps the claim (tested)
 - [x] agent.commit refuses a scope that is not a live claim held by the caller (CLAIM_NOT_OWNED / CLAIM_NOT_FOUND), tested
 - [x] Optional release-on-commit releases the named claim only after the commit exists, tested including the commit-fails case (claim kept)
-- [ ] Each call posts a structured event to the per-agent audit topic, with bounded retention
+- [x] Each call posts a structured event to the per-agent audit topic, with bounded retention. As locked in design §2.5, the topic is `agent-work:<claim topic>`, created with retention `messages:1000`, and the body carries `{verb, agent_id, hub8, claim_id}` plus the return shape (agent_work.rs `post_event` / `event_body`). Refusals are events too, and a failed post never fails the verb. Pinned by `checkout_clones_branches_and_posts_one_event`, the refusal-event test and the commit-event test (agent_work 17/0, 2026-10-22). The optional `binding` field is not filled: no worker-binding source reaches the CLI yet (no env or arg carries it), so it waits for one rather than being guessed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -141,7 +141,8 @@ Clone strategy (agent choice, 2026-10-21): 0909 has not answered on snapshot vs 
 
 ## Verification
 
-cargo test -p termlink-cli -p termlink-mcp > /tmp/.t3470 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3470
+# The CLI package is named `termlink` (crates/termlink-cli/Cargo.toml); `-p termlink-cli` matches no package.
+cargo test -p termlink -p termlink-mcp > /tmp/.t3470 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3470
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
