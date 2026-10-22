@@ -1754,7 +1754,7 @@ async fn cmd_remote_send_file_inner(
         let manifest = ArtifactManifest {
             filename: filename.clone(),
             size,
-            from: format!("remote-cli-{}", std::process::id()),
+            from: identity.fingerprint().to_string(), // T-3140
             transfer_id: Some(transfer_id.clone()),
             content_type: None,
         };

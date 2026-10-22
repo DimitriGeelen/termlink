@@ -11,7 +11,7 @@ description: >
   a real hub (channel.post error -32014). Every one of these three paths is broken
   today for any peer/hub pairing that enforces T-1427 identity verification.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T10:22:14Z
-last_update: '2026-09-27T21:34:09Z'
+last_update: 2026-10-22T08:22:51Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,8 +77,9 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Root fix: `send_artifact_via_client` (crates/termlink-session/src/artifact.rs) sets the signed `channel.post` `sender_id` from the identity it signs with (`identity.fingerprint()`), not from `manifest.from`, so no caller can mint a sender the hub rejects (-32014)
+- [x] The three callers (cli `file.rs` send path, cli `remote.rs` remote send, mcp `tools.rs` file_send) set `manifest.from` to the identity fingerprint, as `artifact.rs` (T-3134) already does, so the manifest a receiver reads names the real sender
+- [x] (`small_payload_uses_inline_path_no_artifact_put` now asserts `sender_id == identity.fingerprint()` with a `test-sender` manifest; against the old line it fails `left: "test-sender"`, with the fix 10/10 artifact tests pass; CLI + MCP build clean) A test fails first on the old code: a send through `send_artifact_via_client` with a `manifest.from` label that is not the fingerprint posts `sender_id == identity.fingerprint()` (observed on the request the test client receives)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +115,8 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+! grep -n '"sender_id": manifest.from' crates/termlink-session/src/artifact.rs
+cargo test -p termlink-session --lib artifact > /tmp/.t3140 2>&1 && ! grep -q "test result: FAILED" /tmp/.t3140
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -270,3 +273,6 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3140-artifact-manifestfrom-must-be-identity-f.md
 - **Context:** Initial task creation
+
+### 2026-10-22T08:22:51Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

@@ -245,7 +245,9 @@ pub async fn send_artifact_via_client(
         "payload_b64": B64.encode(&channel_payload),
         "artifact_ref": artifact_ref,
         "ts": ts_unix_ms,
-        "sender_id": manifest.from.clone(),
+        // T-3140: the sender is the identity that signs, never a caller-chosen label. The hub
+        // rejects a sender_id that is not the pubkey's fingerprint (T-1427, -32014).
+        "sender_id": identity.fingerprint().to_string(),
         "sender_pubkey_hex": identity.public_key_hex().to_string(),
         "signature_hex": hex_of(&sig.to_bytes()),
     });
@@ -838,6 +840,9 @@ mod tests {
         let post = &posts.lock().unwrap()[0];
         assert_eq!(post["msg_type"], "artifact");
         assert!(post["artifact_ref"].is_null(), "inline → no artifact_ref");
+        // T-3140: the manifest says "test-sender"; the signed post's sender is the identity
+        // that signed it, or the hub refuses it (-32014).
+        assert_eq!(post["sender_id"], identity.fingerprint().to_string());
     }
 
     #[tokio::test]

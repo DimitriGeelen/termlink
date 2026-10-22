@@ -144,7 +144,7 @@ async fn try_send_via_artifact(
     let manifest = ArtifactManifest {
         filename: filename.to_string(),
         size,
-        from: format!("cli-{}", std::process::id()),
+        from: identity.fingerprint().to_string(), // T-3140: the signing identity, not a label
         transfer_id: None,
         content_type: None,
     };
