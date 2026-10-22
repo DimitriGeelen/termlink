@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T13:20:42Z
-last_update: 2026-10-22T13:20:42Z
+last_update: 2026-10-22T13:49:59Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -340,6 +340,19 @@ date_finished: null
 -->
 
 ## Decisions
+
+### 2026-10-22 — remediation (operator ruling: "A, as recommended")
+- **Chose:** A, the full package staged. **T-3550** (now): env built by construction (env_clear + allow-list) on every
+  spawn path, including the hub and tl-claude.sh. **T-3551** (now): detector (refuse at spawn; live-process and
+  server-env canary). **T-3552** (next): one tmux server per project via one controlled launcher, with project-aware
+  attach/list. **T-3553** (inception, later): supervised lifetimes and separate Unix users.
+- **Why:** six independent reviews (operator accepted six instead of seven) agree that the defect is identity from
+  ambient environment across a shared process; a deny-list cannot hold, and T-3445 removed the framework's detector.
+  Synthesis: docs/reports/T-3549-incident/synthesis-six.md.
+- **Rejected:** B (parts 1-2 only: the shared server stays a cross-project single point); C (add the two names to the
+  list: the T-3445 mistake, rejected by all six).
+- **Open:** cross-project damage reports for 050, 0506, 1023 (AEF escalated to the operator); relaunching other
+  projects' affected agents (operator's call); AEF's own side (dispatch allow-list, refuse-not-warn, version floor).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
