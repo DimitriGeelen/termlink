@@ -13,10 +13,10 @@ description: >
   last-seen epoch means the epoch at T2 start. Needs an AEF ruling before any backend
   change. Do not change the backend to satisfy CC-06 alone.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: [arc:arc-011, wc-conformance]
 components: []
 related_tasks: [T-3522, T-3517, T-3484]
@@ -48,8 +48,8 @@ origin: {kind: "agent"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-21T14:52:54Z
-last_update: 2026-10-22T10:23:06Z
-date_finished:
+last_update: 2026-10-22T10:58:18Z
+date_finished: 2026-10-22T10:58:18Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -121,7 +121,7 @@ bvp_scores_proposed:
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids (T-3370: the 1.8.3 template prescribed it again).
 -->
-- [ ] [REVIEW] Close-readiness: the work meets its Agent criteria and the Verification section passes (T-3526, reviewer-judged, T-4156)
+- [x] [REVIEW] Close-readiness: the work meets its Agent criteria and the Verification section passes (T-3526, reviewer-judged, T-4156)
   **Steps:**
   1. Run `cd /opt/termlink && .agentic-framework/bin/fw reviewer judge T-3526`
   **Expected:** an independent reviewer records a green verdict for this criterion's current text
@@ -141,6 +141,7 @@ bvp_scores_proposed:
   listed state needs screenshots at every UX_SHOT_WIDTHS width:
   fw ux shots <T-ID> <state>=<URL>. This comment is inert: the gate ignores it.
 -->
+  **Reviewer verdict:** green V-20261022-04815d44 — reviewer-judge-t-3526-r3-d3e97d34392f:reviewer (rung rung-3-termlink-single-reviewer), digest 9fcc3fb8b1f2; dispatch judge-t-3526-r3-d3e97d34392f; evidence: .context/reviews/evidence/T-3526/AC1-judge-t-3526-r3-d3e97d34392f.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 
@@ -408,3 +409,15 @@ bash scripts/run-wc-vectors.sh > /tmp/.t3526-wc 2>&1; grep -qE "^  CC-03 +pass "
 ### 2026-10-22T10:23:06Z — delegate ready-to-close [fw-task-delegate]
 - **Ruling:** D-626 / T-3557 / T-4156 — no Human criteria, Agent criteria done: one reviewer-judged close-readiness criterion added; owner unchanged.
 - **Close path:** `.agentic-framework/bin/fw reviewer judge T-3526`; a green verdict ticks it, red/amber returns findings to remediate.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-0221d678
+- **Timestamp:** 2026-10-22T11:01:35Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-22T10:58:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
