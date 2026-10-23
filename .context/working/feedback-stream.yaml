@@ -19724,3 +19724,21 @@ scan_id: R-598151a1
 task_id: T-3567
 payload:
   task_file: .tasks/active/T-3567-re-vendor-aef-v1815-be7---be10-e82e3d9a7.md
+---
+kind: scan_emitted
+timestamp: '2026-10-23T20:30:13Z'
+scan_id: R-a51e2fc8
+task_id: T-3568
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-23T20:30:13Z'
+scan_id: R-a51e2fc8
+task_id: T-3568
+payload:
+  task_file: .tasks/active/T-3568-re-vendor-aef-v1815-be10---be11-42086fee.md

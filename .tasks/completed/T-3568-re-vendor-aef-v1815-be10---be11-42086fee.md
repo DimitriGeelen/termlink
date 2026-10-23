@@ -4,12 +4,12 @@ name: "Re-vendor AEF v1.8.15-be.10 -> be.11 (42086fee3): post-close commit works
 description: >
   Operator go 2026-10-23. Same procedure as T-3567. After: fw git install-hooks; the new Watchtower keep-alive cron goes in via a runme action (fw cron install writes /etc/cron.d); Watchtower restart onto current code.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [vendor]
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-23T16:40:21Z
-last_update: 2026-10-23T20:30:04Z
-date_finished: null
+last_update: 2026-10-23T20:30:08Z
+date_finished: 2026-10-23T20:30:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -372,3 +372,20 @@ grep -q "=== runme.sh finished rc=0" .context/working/runme-logs/runme-20261023T
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3568-re-vendor-aef-v1815-be10---be11-42086fee.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a51e2fc8
+- **Timestamp:** 2026-10-23T20:30:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-23T20:30:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

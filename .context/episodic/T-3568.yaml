@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3568: Re-vendor AEF v1.8.15-be.10 -> be.11 (42086fee3): post-close commit works (T-4707), doctor shell-test hooks (T-4708), Watchtower keep-alive scope (T-4706)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T20:30:28Z
+# ============================================================================
+
+task_id: T-3568
+task_name: "Re-vendor AEF v1.8.15-be.10 -> be.11 (42086fee3): post-close commit works (T-4707), doctor shell-test hooks (T-4708), Watchtower keep-alive scope (T-4706)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-23T16:40:21Z
+completed: 2026-10-23T20:30:08Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-23T18:52:42+02:00
+last_commit: 2026-10-23T22:30:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.15-be.10 -> be.11 (42086fee3, 28 commits); Watchtower keep-alive declared in our registry; runme 11c restarts a stale Watchtower. vendor baseline f440d0692; runme 11b/11c ran (keep-alive cron installed, Watchtower in its own scope on current code); guard results recorded
+
+# Key outcomes
+outcomes:
+  - 'be.10 (e82e3d9a7) is an ancestor of be.11 (28 commits); rehearsed from one fresh clone, real run from another (rc 0 both); check-active-task.sh changed upstream (T-4707) and 3-way merged clean'
+  - 'CLAUDE.md part above `## Core Principle` byte-identical; fw doctor rc 0 with no FAIL (T-4708 cleared the "script not found: [" false positive); 5 key fixture suites pass'
+  - 'T-4707: the bare printed close command is run as printed at this task''s close (focus cleared) and the result is reported to AEF afterwards; not gateable before the close itself'
+  - 'The Watchtower keep-alive cron reaches /etc/cron.d through runme 11b (runme-20261023T200858Z rc=0, check-cron-install-drift clean); runme 11c restarted Watchtower onto current code, now in its own aef.slice scope (was inside 055''s agentic-fleet-cockpit.service), `fw watchtower current` exit 0, HTTP 200'
+  - 'Full guard layer (231 members): one FAIL-tier red, runme-fixtures ERROR at the 300 s member timeout (passes alone 165/165; same in the be.10 run) — explained and filed as T-3571; `.vendor-divergence.yaml` baseline f440d0692; WORKS/FAILS sent to AEF'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/context/check-active-task.sh'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/bin/watchtower.sh'
+  - '.agentic-framework/lib/agent-scope.sh'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/watchtower-ensure.sh'
+  - '.context/audits/upgrades.yaml'
+  - '.context/cron-registry.yaml'
+  - '.context/cron/agentic-audit.crontab'
+  - '.framework.yaml'
+  - '.tasks/active/T-3568-re-vendor-aef-v1815-be10---be11-42086fee.md'
+  - '.vendor-divergence.yaml'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-23T18:52:42'
+    action: 'T-3568: re-vendor AEF v1.8.15-be.10 -> be.11 (42086fee3, 28 commits); Watchtower keep-alive declared in our registry; runme 11c restarts a stale Watchtower'
+  - time: '2026-10-23T22:30:04'
+    action: 'T-3568: vendor baseline f440d0692; runme 11b/11c ran (keep-alive cron installed, Watchtower in its own scope on current code); guard results recorded'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 229 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [vendor]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 229
+  commits: 3
+  files_changed: 19
+  lines_added: 846
+  lines_removed: 53
+  footprint_refreshed_at: '2026-10-23T20:30:38Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3568-re-vendor-aef-v1815-be10---be11-42086fee.md
+generated_by: context-agent-hybrid
