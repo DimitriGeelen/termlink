@@ -1,14 +1,14 @@
 ---
-id: T-3563
-name: "hub-binary-swap-fixtures race: checks read the fake setsid's record before the backgrounded relaunch wrote it"
+id: T-3562
+name: "Re-vendor AEF v1.8.15-be.6 -> be.7 (ce8075dba): T-4685 override must name its project, T-4684, T-4687"
 description: >
-  Guard layer on be.7 (2026-10-23): hub-binary-swap-fixtures FAIL 4/5/6/8 'r1.env: No such file'; reproduced 1 of 3 runs. scripts/lib/hub-swap-remote.sh:53 starts the hub with 'setsid ... &' and the fixture's fake sleep/ss return at once, so checks race the background write. Case 9 asserts an absence on a file that may not exist yet, so it can pass vacuously. Fix: the fixture waits (bounded) for the record before checking.
+  Operator 2026-10-23 ruling A: be.7 closes the TermLink-reported residual (T-4685). Same procedure (fresh clone per run, T-4688 open); one guard-layer run after it also settles T-3559/T-3560.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: [flake, guard-layer]
+horizon: null
+tags: [vendor, sev1]
 components: []
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
@@ -37,9 +37,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-23T10:55:47Z
-last_update: 2026-10-23T10:56:48Z
-date_finished: null
+created: 2026-10-23T10:33:29Z
+last_update: 2026-10-23T11:14:03Z
+date_finished: 2026-10-23T11:14:03Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -52,7 +52,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-3563: hub-binary-swap-fixtures race: checks read the fake setsid's record before the backgrounded relaunch wrote it
+# T-3562: Re-vendor AEF v1.8.15-be.6 -> be.7 (ce8075dba): T-4685 override must name its project, T-4684, T-4687
 
 ## Context
 
@@ -62,8 +62,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The fixture waits (bounded, 5 s) for the fake setsid's `.argv` record, written last, before any check reads it; a missing record after the wait is a FAIL, never a vacuous pass
-- [x] 20 consecutive runs pass (before: 1 failure in 3)
+- [x] be.6 (797875a32) is an ancestor of be.7 (ce8075dba); rehearsed from one fresh clone, real run from another (T-4688); preserved files changed upstream are 3-way merged
+- [x] CLAUDE.md part above `## Core Principle` byte-identical; fw doctor no new FAIL; key fixtures pass
+- [x] T-4685 probed: a bare FW_TASKS_DIR_OVERRIDE=1 with the sentinel stripped no longer keeps another project's TASKS_DIR/CONTEXT_DIR; =<this project root> still does
+- [x] Full guard layer with no FAIL-tier red (2026-10-23 re-run after T-3563: exit 0, 227 members, 0 FAIL-tier, 0 errored; the first be.7 run's one red was the T-3563 fixture race) (settles T-3559 and T-3560 too); `.vendor-divergence.yaml` updated; WORKS/FAILS sent to AEF
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -268,20 +270,13 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-bash -c 'for i in 1 2 3 4 5; do bash tests/hub-binary-swap-fixtures.sh > /tmp/.t3563 2>&1 || exit 1; done' && grep -q " 0 failed" /tmp/.t3563
+grep -q "be.6 -> be.7 (ce8075dba" .vendor-divergence.yaml && grep -q "^1.8.14+1" .agentic-framework/VERSION
+bash scripts/check-vendor-divergence.sh > /tmp/.t3562a 2>&1
+bash tests/safe-commands-write-pattern-fixtures.sh > /tmp/.t3562b 2>&1 && grep -q "Fail: 0" /tmp/.t3562b
+git check-ignore -q .context/dispatch/x
+python3 -c "import json,sys; d=json.load(open('.context/working/t3559/guard8.json')); sys.exit(0 if not [m for m in d['members'] if m['class']=='fail' and m['verdict'] not in ('PASS','SKIP')] else 1)"
 
 ## RCA
-
-**Symptom:** the be.7 guard layer (2026-10-23) went red on `hub-binary-swap-fixtures.sh` (cases 4, 5, 6, 8:
-"r1.env: No such file or directory"); reproduced in 1 of 3 standalone runs.
-**Root cause:** `scripts/lib/hub-swap-remote.sh:53` relaunches the hub with `setsid nohup ... &`. In the fixture,
-setsid is a fake that records its env and argv, and every wait in the relaunch script is a fake that returns at
-once, so the script can exit before the backgrounded fake has written its record.
-**Why structurally allowed:** the fixture checked the record right after the script returned; on a quiet host
-the background write usually won. Case 9 asserts an ABSENCE in that record, so it could pass without the record
-existing at all.
-**Prevention:** `run_relaunch` now waits (bounded, 5 s) for the `.argv` record, which is written last; after the
-wait a missing record fails the checks rather than racing them. 20 consecutive runs pass.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -373,7 +368,24 @@ wait a missing record fails the checks rather than racing them. 20 consecutive r
 
 ## Updates
 
-### 2026-10-23T10:55:47Z — task-created [task-create-agent]
+### 2026-10-23T10:33:29Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3563-hub-binary-swap-fixtures-race-checks-rea.md
+- **Output:** /opt/termlink/.tasks/active/T-3562-re-vendor-aef-v1815-be6---be7-ce8075dba-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-31b9da21
+- **Timestamp:** 2026-10-23T11:14:06Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-23T11:14:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

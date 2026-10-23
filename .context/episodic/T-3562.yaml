@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3562: Re-vendor AEF v1.8.15-be.6 -> be.7 (ce8075dba): T-4685 override must name its project, T-4684, T-4687
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T11:14:15Z
+# ============================================================================
+
+task_id: T-3562
+task_name: "Re-vendor AEF v1.8.15-be.6 -> be.7 (ce8075dba): T-4685 override must name its project, T-4684, T-4687"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-23T10:33:29Z
+completed: 2026-10-23T11:14:03Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-23T12:39:14+02:00
+last_commit: 2026-10-23T12:39:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.15-be.6 -> be.7 (ce8075dba): T-4685 override must name its project, T-4684, T-4687. pin vendor baseline 0e28afee4
+
+# Key outcomes
+outcomes:
+  - 'be.6 (797875a32) is an ancestor of be.7 (ce8075dba); rehearsed from one fresh clone, real run from another (T-4688); preserved files changed upstream are 3-way merged'
+  - 'CLAUDE.md part above `## Core Principle` byte-identical; fw doctor no new FAIL; key fixtures pass'
+  - 'T-4685 probed: a bare FW_TASKS_DIR_OVERRIDE=1 with the sentinel stripped no longer keeps another project''s TASKS_DIR/CONTEXT_DIR; =<this project root> still does'
+  - 'Full guard layer with no FAIL-tier red (2026-10-23 re-run after T-3563: exit 0, 227 members, 0 FAIL-tier, 0 errored; the first be.7 run''s one red was the T-3563 fixture race) (settles T-3559 and T-3560 too); `.vendor-divergence.yaml` updated; WORKS/FAILS sent to AEF'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/lib/dispatch-gitignore.sh'
+  - '.agentic-framework/lib/init.sh'
+  - '.agentic-framework/lib/paths.sh'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/VERSION'
+  - '.context/.gitignore'
+  - '.framework.yaml'
+  - '.tasks/active/T-3562-re-vendor-aef-v1815-be6---be7-ce8075dba-.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-23T12:39:14'
+    action: 'T-3562: re-vendor AEF v1.8.15-be.6 -> be.7 (ce8075dba): T-4685 override must name its project, T-4684, T-4687'
+  - time: '2026-10-23T12:39:20'
+    action: 'T-3562: pin vendor baseline 0e28afee4'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 40 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [vendor, sev1]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 40
+  commits: 2
+  files_changed: 11
+  lines_added: 539
+  lines_removed: 29
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3562-re-vendor-aef-v1815-be6---be7-ce8075dba-.md
+generated_by: context-agent-hybrid

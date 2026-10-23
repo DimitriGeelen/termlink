@@ -1,14 +1,14 @@
 ---
-id: T-3559
-name: "Re-vendor AEF v1.8.15-be.4 -> be.5 (fea3e4c76): T-4667, T-4670, T-4675"
+id: T-3561
+name: "Keep TermLink's temp files off the shared 8G /tmp tmpfs (CLAUDE_CODE_TMPDIR + test/guard TMPDIR on disk)"
 description: >
-  Operator 2026-10-23 ruling A: take be.5 now, same procedure as T-3558 (full clone outside the project, ancestry, rehearsal, 3-way merge of preserved files, guard-layer compare, CLAUDE.md diff); WORKS/FAILS per fix to AEF on aef-v1815-be3.
+  2026-10-22/23: /tmp (tmpfs, 8G, shared by every project) hit 100%; this session lost its scratchpad, tool output and a guard-layer result, and pushes failed. TermLink's own users of /tmp: Claude Code task output (CLAUDE_CODE_TMPDIR), cargo test temp dirs, guard-layer and fixture mktemp, dispatch worker dirs (/tmp/tl-dispatch). Proposal: CLAUDE_CODE_TMPDIR and TMPDIR for this project's runs on a disk-backed dir (e.g. /var/tmp/termlink), created by runme; tests that assume TMPDIR is outside every project fixed (two already, T-3552). Measure the remaining /tmp writers first. Changes .claude/settings.json (enforcement baseline).
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
-tags: [vendor, sev1]
+horizon: next
+tags: [infra, tmp]
 components: []
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
@@ -37,8 +37,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-23T09:40:46Z
-last_update: 2026-10-23T09:53:35Z
+created: 2026-10-23T10:08:12Z
+last_update: 2026-10-23T10:08:12Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -52,7 +52,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-3559: Re-vendor AEF v1.8.15-be.4 -> be.5 (fea3e4c76): T-4667, T-4670, T-4675
+# T-3561: Keep TermLink's temp files off the shared 8G /tmp tmpfs (CLAUDE_CODE_TMPDIR + test/guard TMPDIR on disk)
 
 ## Context
 
@@ -62,11 +62,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] be.4 (b19757443) is an ancestor of be.5 (fea3e4c76) on a full upstream clone outside the project tree; vendor-divergence check clean before the run
-- [x] Rehearsed on a throwaway clone first (rc 0), env hygiene per the checklist
-- [x] Every preserved file upstream changed is 3-way merged (base be.4); files that become identical to upstream leave the preserve list (expected: checkpoint.sh, now that T-4667 carries our fix) — checkpoint.sh dropped, list 9 -> 8
-- [ ] CLAUDE.md part above `## Core Principle` byte-identical; fw doctor no new FAIL; key fixtures pass; guard layer no FAIL-tier red
-- [x] `.vendor-divergence.yaml` last_vendor_event updated; WORKS/FAILS per exercised be.5 fix sent to AEF on aef-v1815-be3 (client_msg_id 4d03fd26)
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -271,13 +268,6 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-grep -qx "1.8.14+1064.gfea3e4c76" .agentic-framework/VERSION
-bash scripts/check-vendor-divergence.sh > /tmp/.t3559a 2>&1
-bash tests/checkpoint-verb-fixtures.sh > /tmp/.t3559b 2>&1 && grep -q "ALL PASS" /tmp/.t3559b
-bash tests/safe-commands-checkpoint-fixtures.sh > /tmp/.t3559c 2>&1 && grep -q "ALL PASS" /tmp/.t3559c
-bash tests/safe-commands-write-pattern-fixtures.sh > /tmp/.t3559d 2>&1 && grep -q "Fail: 0" /tmp/.t3559d
-test "$(grep -c '^  - path:' .fwvendor-preserve.yaml)" -eq 8
-
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -370,7 +360,7 @@ test "$(grep -c '^  - path:' .fwvendor-preserve.yaml)" -eq 8
 
 ## Updates
 
-### 2026-10-23T09:40:46Z — task-created [task-create-agent]
+### 2026-10-23T10:08:12Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3559-re-vendor-aef-v1815-be4---be5-fea3e4c76-.md
+- **Output:** /opt/termlink/.tasks/active/T-3561-keep-termlinks-temp-files-off-the-shared.md
 - **Context:** Initial task creation

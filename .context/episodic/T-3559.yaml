@@ -1,0 +1,113 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3559: Re-vendor AEF v1.8.15-be.4 -> be.5 (fea3e4c76): T-4667, T-4670, T-4675
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T11:14:39Z
+# ============================================================================
+
+task_id: T-3559
+task_name: "Re-vendor AEF v1.8.15-be.4 -> be.5 (fea3e4c76): T-4667, T-4670, T-4675"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-23T09:40:46Z
+completed: 2026-10-23T11:14:27Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-23T11:53:09+02:00
+last_commit: 2026-10-23T11:53:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.15-be.4 -> be.5 (fea3e4c76): T-4667, T-4670, T-4675 and ~30 more. pin vendor baseline 7733fe7b1; be.5 field report sent to AEF
+
+# Key outcomes
+outcomes:
+  - 'be.4 (b19757443) is an ancestor of be.5 (fea3e4c76) on a full upstream clone outside the project tree; vendor-divergence check clean before the run'
+  - 'Rehearsed on a throwaway clone first (rc 0), env hygiene per the checklist'
+  - 'Every preserved file upstream changed is 3-way merged (base be.4); files that become identical to upstream leave the preserve list (expected: checkpoint.sh, now that T-4667 carries our fix) — checkpoint.sh dropped, list 9 -> 8'
+  - 'CLAUDE.md part above `## Core Principle` byte-identical; fw doctor no new FAIL; key fixtures pass; guard layer no FAIL-tier red (be.5 was superseded by be.6/be.7 within the hour; the guard layer was settled once on the be.7 tree, T-3562: exit 0, 0 FAIL-tier)'
+  - '`.vendor-divergence.yaml` last_vendor_event updated; WORKS/FAILS per exercised be.5 fix sent to AEF on aef-v1815-be3 (client_msg_id 4d03fd26)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/context/checkpoint.sh'
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.agentic-framework/agents/fabric/lib/drift.sh'
+  - '.agentic-framework/agents/fabric/lib/location_kind.py'
+  - '.agentic-framework/agents/git/lib/hooks.sh'
+  - '.agentic-framework/agents/git/lib/stock-hook-lines.txt'
+  - '.agentic-framework/agents/termlink/bvp-estimator/estimator.py'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/lib/dispatch_tokens.py'
+  - '.agentic-framework/lib/mirror.sh'
+  - '.agentic-framework/lib/paths.sh'
+  - '.agentic-framework/lib/release.sh'
+  - '.agentic-framework/lib/release-tags.sh'
+  - '.agentic-framework/lib/termlink_worker.py'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/metrics.sh'
+  - '.agentic-framework/tools/gen-stock-hook-digests.sh'
+  - '.agentic-framework/tools/wait-dispatch.sh'
+  - '.agentic-framework/.upstream'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/web/blueprints/api.py'
+  - '.agentic-framework/web/blueprints/arcs.py'
+  - '.agentic-framework/web/blueprints/tasks.py'
+  - '.agentic-framework/web/shared.py'
+  - '.agentic-framework/web/templates/tasks.html'
+  - '.context/audits/upgrades.yaml'
+  - '.framework.yaml'
+  - '.fwvendor-preserve.yaml'
+  - '.tasks/active/T-3559-re-vendor-aef-v1815-be4---be5-fea3e4c76-.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-23T11:53:09'
+    action: 'T-3559: re-vendor AEF v1.8.15-be.4 -> be.5 (fea3e4c76): T-4667, T-4670, T-4675 and ~30 more'
+  - time: '2026-10-23T11:53:35'
+    action: 'T-3559: pin vendor baseline 7733fe7b1; be.5 field report sent to AEF'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 93 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [vendor, sev1]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 93
+  commits: 2
+  files_changed: 34
+  lines_added: 2563
+  lines_removed: 164
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3559-re-vendor-aef-v1815-be4---be5-fea3e4c76-.md
+generated_by: context-agent-hybrid

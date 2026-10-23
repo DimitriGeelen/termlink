@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3563: hub-binary-swap-fixtures race: checks read the fake setsid's record before the backgrounded relaunch wrote it
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T10:57:02Z
+# ============================================================================
+
+task_id: T-3563
+task_name: "hub-binary-swap-fixtures race: checks read the fake setsid's record before the backgrounded relaunch wrote it"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-23T10:55:47Z
+completed: 2026-10-23T10:56:49Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-23T12:56:48+02:00
+last_commit: 2026-10-23T12:56:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub-binary-swap fixtures wait for the backgrounded fake setsid's record (race; 1 in 3 before, 20/20 after)
+
+# Key outcomes
+outcomes:
+  - 'The fixture waits (bounded, 5 s) for the fake setsid''s `.argv` record, written last, before any check reads it; a missing record after the wait is a FAIL, never a vacuous pass'
+  - '20 consecutive runs pass (before: 1 failure in 3)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'hub-binary-swap fixtures wait for the backgrounded fake setsid''s record (race; 1 in 3 before, 20/20 after)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3563-hub-binary-swap-fixtures-race-checks-rea.md'
+  - 'tests/hub-binary-swap-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-23T12:56:48'
+    action: 'T-3563: hub-binary-swap fixtures wait for the backgrounded fake setsid''s record (race; 1 in 3 before, 20/20 after)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [flake, guard-layer]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 385
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3563-hub-binary-swap-fixtures-race-checks-rea.md
+generated_by: context-agent-hybrid
