@@ -461,6 +461,16 @@ pub fn create_token(
     CapabilityToken { raw, payload }
 }
 
+/// Read a token's payload WITHOUT checking its signature (T-3543). For a client that holds a
+/// token but not the secret: it can tell an expired or wrong-scope token apart before the hub
+/// refuses it, and say so. Never use this to grant anything; [`validate_token`] does that.
+pub fn peek_token_payload(token_str: &str) -> Option<TokenPayload> {
+    use base64::Engine;
+    let payload_b64 = token_str.split_once('.')?.0;
+    let json = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload_b64).ok()?;
+    serde_json::from_slice(&json).ok()
+}
+
 /// Validate a token string and return the decoded payload with its scope.
 ///
 /// Checks: format, HMAC signature, expiry, and optionally session ID.

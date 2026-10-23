@@ -1,13 +1,23 @@
 ---
 id: T-3543
-name: "Scoped hub token for remote nodes: 'hub token mint' on the hub host + profile token_file used as-is by CLI and sidecar transport"
+name: "Scoped hub token for remote nodes: 'hub token mint' on the hub host + profile
+  token_file used as-is by CLI and sidecar transport"
 description: >
-  From T-3542 (ring20 node1 fleet-join). A remote node must not hold hub.secret, but a token minted from it with scope interact and a TTL already cannot inject or exec at the hub (server.rs hub_method_scope; command.inject/signal are Control, execute is Execute). Missing: (1) a hub-host verb that prints such a token (CLI mints internally only, remote.rs ~771); (2) a hubs.toml profile key token_file that the CLI (and so the sidecar's CLI transport) presents in hub.auth instead of minting from secret_file. Known residuals to state in docs, not fix here: no per-topic ACL (Interact can post into any topic under its own signed identity; Observe reads all), replay within TTL (no nonce store), revocation only by rotating hub.secret or TTL expiry. Whether to close those is a trust-model question for an inception.
+  From T-3542 (ring20 node1 fleet-join). A remote node must not hold hub.secret, but
+  a token minted from it with scope interact and a TTL already cannot inject or exec
+  at the hub (server.rs hub_method_scope; command.inject/signal are Control, execute
+  is Execute). Missing: (1) a hub-host verb that prints such a token (CLI mints internally
+  only, remote.rs ~771); (2) a hubs.toml profile key token_file that the CLI (and
+  so the sidecar's CLI transport) presents in hub.auth instead of minting from secret_file.
+  Known residuals to state in docs, not fix here: no per-topic ACL (Interact can post
+  into any topic under its own signed identity; Observe reads all), replay within
+  TTL (no nonce store), revocation only by rotating hub.secret or TTL expiry. Whether
+  to close those is a trust-model question for an inception.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +48,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T09:01:58Z
-last_update: 2026-10-22T09:01:58Z
-date_finished: null
+last_update: '2026-10-23T13:27:24Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +60,19 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-23T13:27:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3543: Scoped hub token for remote nodes: 'hub token mint' on the hub host + profile token_file used as-is by CLI and sidecar transport
@@ -58,12 +81,28 @@ date_finished: null
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
+### Progress 2026-10-23 (session ended at the budget limit mid-build)
+- DONE (uncommitted at handover, in `crates/termlink-session/src/auth.rs`): `peek_token_payload(token) -> Option<TokenPayload>`
+  (reads scope/expiry without the secret; never grants). Its unit test was blocked by the budget gate; add
+  `peek_reads_scope_and_expiry_without_the_secret` (create interact token, peek scope+expiry, garbage -> None,
+  forged-secret token peeks but validate_token rejects it).
+- NEXT, in order:
+  1. `crates/termlink-doctor/src/hubs_config.rs` HubEntry: add `#[serde(default, skip_serializing_if = "Option::is_none")] pub token_file: Option<String>`; fix every `HubEntry { ... }` literal (cli config.rs tests ~8, infrastructure.rs ~4, others: `grep -rn "HubEntry {" crates`).
+  2. Hub verb `termlink hub token --out FILE [--scope observe|notify|interact] [--ttl SECS] [--force] [--json]`: HubAction in cli.rs (beside ExportSecret ~1375), impl beside `cmd_hub_export_secret` (infrastructure.rs:699, reuse its atomic 0600 write + `termlink_hub::server::hub_secret_path()`); refuse control/execute; never print the token; report scope + expires_at.
+  3. Present token_file instead of minting at the three CLI sites: `connect_remote_hub` (remote.rs:721, add `token_file` to `RemoteConn` and every `RemoteConn {` in main.rs ~705-730), the channel TCP path (`resolve_hub_secret_hex` channel.rs:337, `rpc_call_authed` ~487, `mint_tcp_hub_token` ~525), the fleet net probe (remote.rs ~6470-6492). Read via `auth::read_token_source(TokenSource::File)`; on peek: expired -> error naming file, expiry, remedy.
+  4. `remote profile add --token-file`; `remote profile list` shows type token.
+  5. Live test on a temp hub (TERMLINK_RUNTIME_DIR temp, port free): mint interact token, profile with only token_file, `channel post/list --hub` OK, `command.inject`/exec refused.
+  6. `docs/operations/remote-node-token.md` with the residuals in the description. Then reply to ring20 (T-3542 thread) that B6 is unblocked.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `termlink hub token --out FILE [--scope observe|notify|interact] [--ttl SECS] [--force] [--json]` on the hub host mints a token from the live hub.secret, writes it to FILE at mode 0600 (atomic, refuses an existing file without --force), never prints it, reports scope and expiry; control/execute are refused; TTL bounded by the existing ceiling
+- [ ] A hubs.toml profile key `token_file` (and `remote profile add --token-file`) makes every CLI TCP auth path present that token in hub.auth instead of minting from a secret: `connect_remote_hub` (remote commands), the channel TCP path (channel post/subscribe/... --hub), and the fleet net probe; the file is read through `read_token_source` (owner-only mode, bounded size)
+- [ ] An expired or wrong-scope token_file fails with a message naming the file, its expiry and the remedy (`termlink hub token` on the hub host), without printing the token
+- [ ] Live on a temp hub: a minted interact token in a profile lets `channel post/list --hub` work and is refused for `command.inject`/`exec`; a profile holding only token_file never needs hub.secret
+- [ ] `docs/operations/remote-node-token.md` states the recipe and the residuals (no per-topic ACL, replay within TTL, revocation only by secret rotation or expiry)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +403,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3543-scoped-hub-token-for-remote-nodes-hub-to.md
 - **Context:** Initial task creation
+
+### 2026-10-23T13:27:23Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
