@@ -19796,3 +19796,57 @@ scan_id: R-c85ff717
 task_id: T-3117
 payload:
   task_file: .tasks/active/T-3117-arc-arc-008-hit-80-closure-threshold-253.md
+---
+kind: scan_emitted
+timestamp: '2026-10-23T22:06:08Z'
+scan_id: R-586e83ad
+task_id: T-2015
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-23T22:06:08Z'
+scan_id: R-586e83ad
+task_id: T-2015
+payload:
+  task_file: .tasks/active/T-2015-fw-upgrade-claudemd-clobber--propagate-t.md
+---
+kind: scan_emitted
+timestamp: '2026-10-23T22:07:27Z'
+scan_id: R-503d09c9
+task_id: T-2016
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-23T22:07:27Z'
+scan_id: R-503d09c9
+task_id: T-2016
+payload:
+  task_file: .tasks/active/T-2016-fw-upgrade-bare-from-consumer-replay-dro.md
+---
+kind: scan_emitted
+timestamp: '2026-10-23T22:10:22Z'
+scan_id: R-ae2fb78f
+task_id: T-3184
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-23T22:10:22Z'
+scan_id: R-ae2fb78f
+task_id: T-3184
+payload:
+  task_file: .tasks/active/T-3184-bvp-scoring-becomes-an-agent-decision-op.md

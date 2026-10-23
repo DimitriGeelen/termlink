@@ -1,0 +1,107 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3184: BVP scoring becomes an agent decision: open all five verbs, sticky human override, rationale without the 30-char floor
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T22:10:32Z
+# ============================================================================
+
+task_id: T-3184
+task_name: "BVP scoring becomes an agent decision: open all five verbs, sticky human override, rationale without the 30-char floor"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-27T10:42:54Z
+completed: 2026-10-23T22:10:04Z
+duration_days: 26
+updates_count: 3
+first_commit: 2026-09-27T12:50:57+02:00
+last_commit: 2026-10-24T00:06:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  BVP scoring becomes an agent decision, with a sticky human override. filed upstream at offset 203, read-back verified byte-identical. routed to operator review. delegate close-readiness to the reviewer. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - 'Divergence registered in `.vendor-divergence.yaml` BEFORE the code change, with'
+  - 'All FIVE verbs reachable by an agent with no `--i-am-human`: `confirm`,'
+  - 'Implemented as a config DEFAULT, not a deletion. Setting `BVP_HUMAN_APPROVAL`'
+  - '`--i-am-human` and `--from-watchtower` still work unchanged. The human path is'
+  - '**STICKY OVERRIDE — the load-bearing criterion.** A human-set score records'
+  - 'Two states only, no third. `human` or freely-recomputed — 832''s design at offsets'
+  - '`--rationale` still required on `weight --set` / `driver --add` / `driver --remove`,'
+  - 'Fixtures fail against the pre-change code extracted from git, not a synthetic'
+  - 'Filed upstream at `framework:pickup` for incorporation into the framework, verified'
+  - '[REVIEW] Close-readiness: the work meets its Agent criteria and the Verification section passes (T-3184, reviewer-judged, T-4156)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/lib/bvp.sh'
+  - '.context/reviews/applied.jsonl'
+  - '.context/reviews/evidence/T-3184/AC1-judge-t-3184-r3-767d48de89e7.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.context/working/.budget-status'
+  - '.context/working/.hook-counter'
+  - '.context/working/focus.yaml'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-3184-bvp-scoring-becomes-an-agent-decision-op.md'
+  - '.vendor-divergence.yaml'
+  - 'tests/bvp-auto-confirm-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-27T12:50:57'
+    action: 'T-3184: BVP scoring becomes an agent decision, with a sticky human override'
+  - time: '2026-09-27T12:52:27'
+    action: 'T-3184: filed upstream at offset 203, read-back verified byte-identical'
+  - time: '2026-09-27T12:52:35'
+    action: 'T-3184: routed to operator review'
+  - time: '2026-10-24T00:04:44'
+    action: 'T-3184: delegate close-readiness to the reviewer'
+  - time: '2026-10-24T00:06:56'
+    action: 'T-3184: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 38127 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 38127
+  commits: 6
+  files_changed: 18
+  lines_added: 1081
+  lines_removed: 339
+  footprint_refreshed_at: '2026-10-23T22:10:39Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3184-bvp-scoring-becomes-an-agent-decision-op.md
+generated_by: context-agent-hybrid

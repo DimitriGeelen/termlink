@@ -38,12 +38,12 @@ description: >
   per the operator: implement in the vendored copy AND file upstream at framework:pickup
   for incorporation into the framework itself.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
-components: []
+components: [tests/bvp-auto-confirm-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -56,8 +56,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-27T10:42:54Z
-last_update: 2026-10-23T22:04:44Z
-date_finished:
+last_update: 2026-10-23T22:10:04Z
+date_finished: 2026-10-23T22:10:04Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -161,11 +161,12 @@ cost_estimate_proposed:
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
-- [ ] [REVIEW] Close-readiness: the work meets its Agent criteria and the Verification section passes (T-3184, reviewer-judged, T-4156)
+- [x] [REVIEW] Close-readiness: the work meets its Agent criteria and the Verification section passes (T-3184, reviewer-judged, T-4156)
   **Steps:**
   1. Run `cd /opt/termlink && .agentic-framework/bin/fw reviewer judge T-3184`
   **Expected:** an independent reviewer records a green verdict for this criterion's current text
   **If not:** remediate the findings the reviewer lists, then re-run the judge
+  **Reviewer verdict:** green V-20261023-e0e6f692 — reviewer-judge-t-3184-r3-767d48de89e7:reviewer (rung rung-3-termlink-single-reviewer), digest 1798b00aaccf; dispatch judge-t-3184-r3-767d48de89e7; evidence: .context/reviews/evidence/T-3184/AC1-judge-t-3184-r3-767d48de89e7.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 
@@ -369,3 +370,15 @@ bash scripts/check-vendor-divergence.sh
 ### 2026-10-23T22:04:02Z — delegate ready-to-close [fw-task-delegate]
 - **Ruling:** D-626 / T-3557 / T-4156 — no Human criteria, Agent criteria done: one reviewer-judged close-readiness criterion added; owner unchanged.
 - **Close path:** `.agentic-framework/bin/fw reviewer judge T-3184`; a green verdict ticks it, red/amber returns findings to remediate.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ae2fb78f
+- **Timestamp:** 2026-10-23T22:10:22Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-23T22:10:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
