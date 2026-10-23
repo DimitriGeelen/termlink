@@ -1,0 +1,18 @@
+# T-2985 (value review C-19) — file a task for every canary that is FIRING, ERRORING or STALE
+# Source of truth: /opt/termlink/.context/cron/canary-escalation.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-canary-escalation (USER field syntax — do NOT load into a user crontab)
+#
+# Canaries detect; until now the response was one human reading /canaries, and canaries
+# fired for days with no task naming them. scripts/canary-escalation-file.sh files ONE task
+# per bad canary (de-duplicated by a body marker, re-filed only 24 h after a close while still
+# bad), leaves it UNCOMMITTED and records it in the pending-commit manifest, which the next
+# session commits by name (SQ-22 option C). It never fixes anything.
+#
+# This is not a canary: its log records decisions (FILED/OPEN/WAIT lines), not findings, and
+# its name deliberately does not end in -canary.log so /canaries does not read it as one.
+# Tooling errors go to the .stderr sink (T-2685).
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 09:15 UTC — after the 07:xx–08:xx canary runs, so it sees today's verdicts.
+15 9 * * * root cd /opt/termlink && bash scripts/canary-escalation-file.sh >> .context/working/canary-escalation.log 2>> .context/working/canary-escalation.log.stderr

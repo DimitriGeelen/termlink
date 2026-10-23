@@ -292,6 +292,8 @@ install_crontab sidecar-backstop.crontab          "$CRON_DIR/termlink-sidecar-ba
 # push-wake rail armed (--expect-armed dropped); agents not expected armed are named
 # in .context/checks/waker-not-expected-allowlist. Revisit at arc-011 W2.
 install_crontab waker-liveness-canary.crontab     "$CRON_DIR/termlink-waker-liveness-canary"
+# T-2985 (value review C-19): a FIRING/ERRORING/STALE canary files a de-duplicated task daily.
+install_crontab canary-escalation.crontab         "$CRON_DIR/termlink-canary-escalation"
 
 # close_task <T-ID> <reason>
 # Closes a task the operator has ALREADY approved closing, then VERIFIES it

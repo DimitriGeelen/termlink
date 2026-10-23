@@ -6,10 +6,10 @@ description: >
   to auto-file de-duplicated tasks so findings enter the ledger structurally. Evidence:
   docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-19.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -24,7 +24,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:09:11Z
-last_update: '2026-09-20T08:45:19Z'
+last_update: 2026-10-23T23:07:51Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,6 +50,18 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-10-23T22:45:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-20T08:45:19Z'
     estimator: bvp-estimator-v1-heuristic
@@ -66,14 +78,23 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Value review C-19 (`docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md`): canaries fire
+for days with no task naming them; detection works, the response layer is one human reading
+`/canaries`. Recommendation: auto-file a task on firing, de-duplicated by canary name ("de-dup is
+load-bearing: a naive filer spams duplicates per cron cycle"). The project already has the
+pattern for WARN guard members (`scripts/warn-escalation-file.sh`, T-3267): body marker for
+de-dup, refuse under CI, leave filed tasks uncommitted and record them in the pending-commit
+manifest (SQ-22 option C) so the next session commits them by name. This task mirrors it for
+canaries, reading `scripts/canary-status.sh --json`.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/canary-escalation-file.sh` files ONE task per canary that is FIRING, ERRORING or STALE (marker `<!-- canary-escalation: canary=<name> -->`), quoting the canary's signal line; never while a task with that marker is open; after a close, files again only if the canary is still bad 24 h past the close
+- [x] It refuses under `$CI`, never fixes anything, leaves filed tasks uncommitted and records each in the pending-commit manifest; tooling failure (canary-status unreadable, no tasks dir) exits 2, never a silent 0; `--dry-run` prints WOULD lines — real-tree dry run: `WOULD FIRING dead-letter-canary`
+- [x] Hermetic fixtures `tests/canary-escalation-file-fixtures.sh` cover file, de-dup, re-file window, CI refusal, dry-run and tooling error, with at least one mutant proving de-dup is load-bearing — 11/11, mutant M1 (no open-task check) files a duplicate
+- [x] Scheduled: a daily crontab `.context/cron/canary-escalation.crontab` (stderr to `.stderr`, T-2685) installed by runme action 1 — line added; canary-log-hygiene clean; runme fixtures 165/165. The /etc/cron.d copy lands on the next operator runme run (cron-install-drift reports it MISSING until then)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -168,6 +189,8 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash tests/canary-escalation-file-fixtures.sh > .context/working/.t2985a 2>&1 && grep -q "11 passed, 0 failed" .context/working/.t2985a
+grep -q "install_crontab canary-escalation.crontab" runme.sh && bash scripts/check-canary-log-hygiene.sh > .context/working/.t2985b 2>&1
 
 ## RCA
 
@@ -208,6 +231,11 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-24 — mirrored the WARN-escalation filer instead of designing anew
+- **What changed:** `scripts/warn-escalation-file.sh` (T-3267) already solved de-dup, CI refusal and the SQ-22 commit rule for guard members; the canary filer copies its structure so the two cannot drift apart. The filer's log is named `canary-escalation.log` (not `*-canary.log`) so /canaries does not read the filer as a canary.
+- **Plan impact:** STALE is filed too (a canary whose cron stopped completing is as actionable as a firing one); NOT_SCHEDULED is left to check-cron-install-drift (T-2561).
+- **Triggered:** none.
 
 ## Recommendation
 
@@ -268,3 +296,7 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:28Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-10-23T22:45:45Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

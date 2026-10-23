@@ -1,0 +1,21 @@
+id: scripts/canary-escalation-file.sh
+name: canary-escalation-file
+type: script
+subsystem: operations
+location: scripts/canary-escalation-file.sh
+tags: []
+
+purpose: "canary-escalation-file.sh — T-2985 (value review C-19): turn a firing canary into a FILED TASK. Canaries detect; until now the response was one human reading /canaries, and canaries fired for days with no task naming them."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-23
+created_by: unknown

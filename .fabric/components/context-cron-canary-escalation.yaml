@@ -1,0 +1,21 @@
+id: .context/cron/canary-escalation.crontab
+name: canary-escalation
+type: script
+subsystem: guard-layer-cron
+location: .context/cron/canary-escalation.crontab
+tags: []
+
+purpose: "T-2985 (value review C-19) — file a task for every canary that is FIRING, ERRORING or STALE Source of truth: /opt/termlink/.context/cron/canary-escalation.crontab (git-tracked) Installed to: /etc/cron.d/termlink-canary-escalation (USER…"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-23
+created_by: unknown
