@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2990: Close out arc-005 bookkeeping + shorten remaining MCP description outliers
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T22:41:38Z
+# ============================================================================
+
+task_id: T-2990
+task_name: "Close out arc-005 bookkeeping + shorten remaining MCP description outliers"
+workflow_type: refactor
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T22:13:50Z
+completed: 2026-10-23T22:41:27Z
+duration_days: 34
+updates_count: 3
+first_commit: 2026-10-24T00:41:26+02:00
+last_commit: 2026-10-24T00:41:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  trim the last MCP descriptions over 1,000 chars (help, agent_contact, agent_inbox); lower the budget guard to 860 / 107,500
+
+# Key outcomes
+outcomes:
+  - 'Every description over 1,000 characters is trimmed to its contract (what it does, key params'' meaning, what it returns, when to use it instead of a sibling); task-ID archaeology and restated schema params removed; no behaviour change (descriptions only) — termlink_help 1,546, agent_contact 1,103 and agent_inbox 986 trimmed; none over 1,000 remain (max 843)'
+  - '`scripts/test-mcp-desc-budget.sh` ceilings lowered to the new measured max and total (with small headroom) so the cut cannot regrow; it passes; before/after bytes recorded — 108,755 -> 107,139 bytes; ceilings 1560/109000 -> 860/107500'
+  - '`cargo build -p termlink-mcp` and the MCP crate''s tests pass; the arc-close half is left to T-2408''s operator criterion (cited, not duplicated) — 941 + 102 + 41 pass; the first trim broke `help_macro_description_documents_post_t1953_fields` (arc-005 pins that termlink_help names every mode and filter param), fixed by keeping the names as a compact list'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2990-close-out-arc-005-bookkeeping--shorten-r.md'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'scripts/test-mcp-desc-budget.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-24T00:41:26'
+    action: 'T-2990: trim the last MCP descriptions over 1,000 chars (help, agent_contact, agent_inbox); lower the budget guard to 860 / 107,500'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 48987 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 48987
+  commits: 2
+  files_changed: 6
+  lines_added: 162
+  lines_removed: 17
+  footprint_refreshed_at: '2026-10-23T22:41:45Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2990-close-out-arc-005-bookkeeping--shorten-r.md
+generated_by: context-agent-hybrid
