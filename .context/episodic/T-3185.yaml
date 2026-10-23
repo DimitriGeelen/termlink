@@ -1,0 +1,104 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3185: Unassessed tasks sort to the top: exclude all-no-signal proposals from the ranking
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T22:11:20Z
+# ============================================================================
+
+task_id: T-3185
+task_name: "Unassessed tasks sort to the top: exclude all-no-signal proposals from the ranking"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-27T12:12:29Z
+completed: 2026-10-23T22:11:00Z
+duration_days: 26
+updates_count: 3
+first_commit: 2026-09-27T14:15:43+02:00
+last_commit: 2026-10-24T00:09:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  unassessed tasks stop topping the ranking. filed upstream at offset 204, read-back verified. ground-truth lookup made immune to the comment trap, in all three suites. delegate close-readiness to the reviewer. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - 'Divergence registered in `.vendor-divergence.yaml` BEFORE the code change.'
+  - 'A task whose latest proposal is FULLY no-signal gets no quadrant, and is excluded'
+  - 'NO SCORE CHANGES. Option (d) was chosen precisely because it rescores nothing and'
+  - 'Excluded tasks are COUNTED AND REPORTED before the table, never silently dropped —'
+  - 'A proposal whose rationale cannot be read is NOT treated as no-signal. "Could not'
+  - 'Measured before and after on the real corpus, with both figures recorded — the'
+  - 'Fixtures pin the behaviour and fail against the pre-change code extracted from git,'
+  - 'Filed upstream at `framework:pickup`, verified by read-back (T-2876), `filed_at`'
+  - '[REVIEW] Close-readiness: the work meets its Agent criteria and the Verification section passes (T-3185, reviewer-judged, T-4156)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/lib/bvp.sh'
+  - '.context/reviews/evidence/T-3185/AC1-judge-t-3185-r3-ba3814ce7e99.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.fabric/components/tests-bvp-no-signal-ranking-fixtures.yaml'
+  - '.tasks/active/T-3185-unassessed-tasks-sort-to-the-top-exclude.md'
+  - '.vendor-divergence.yaml'
+  - 'tests/bvp-auto-confirm-fixtures.sh'
+  - 'tests/bvp-no-signal-ranking-fixtures.sh'
+  - 'tests/safe-commands-write-pattern-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-27T14:15:43'
+    action: 'T-3185: unassessed tasks stop topping the ranking'
+  - time: '2026-09-27T14:16:54'
+    action: 'T-3185: filed upstream at offset 204, read-back verified'
+  - time: '2026-09-27T14:19:44'
+    action: 'T-3185: ground-truth lookup made immune to the comment trap, in all three suites'
+  - time: '2026-10-24T00:04:24'
+    action: 'T-3185: delegate close-readiness to the reviewer'
+  - time: '2026-10-24T00:09:17'
+    action: 'T-3185: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 38038 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 38038
+  commits: 6
+  files_changed: 16
+  lines_added: 903
+  lines_removed: 51
+  footprint_refreshed_at: '2026-10-23T22:11:27Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3185-unassessed-tasks-sort-to-the-top-exclude.md
+generated_by: context-agent-hybrid
