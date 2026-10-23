@@ -100,6 +100,8 @@ Thumbs.db
 .context/working/.session-start-ts
 .context/working/.compact-log
 .context/working/.fleet-failure-state.json
+# T-3566: the vendored session-silent-scanner appends ~1850 lines every 15 min (551 MB found)
+.context/working/.session-silent-scanner.log
 
 # T-1624: cron audit snapshots are 15-min telemetry. On-disk rotation
 # (audit.sh:119: find -mtime +7 -delete) doesn't sync to git → ~600 dirty
