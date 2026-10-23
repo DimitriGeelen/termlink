@@ -1094,6 +1094,39 @@ sync_audit_crontab() {
 
 head2 "11b. Deploy the regenerated audit crontab after the framework upgrade (T-3554)"
 sync_audit_crontab
+# ---------------------------------------------------------------------------
+# ACTION 11c — Watchtower onto the current web/ code (T-3568)
+#
+# A framework upgrade replaces .agentic-framework/web/, but the running Watchtower
+# keeps serving the code it started with: every review and decision page shows the
+# old behaviour (G-104). `fw watchtower current` says whether the process predates
+# web/ (exit 1). The be.11 keep-alive (`fw watchtower ensure`, cron) only starts a
+# DEAD Watchtower; it never replaces a stale running one, so this action does.
+# Idempotent: current -> skip. Verified after: current exits 0 and status exits 0.
+# Seam (fixtures only): RUNME_FW.
+# ---------------------------------------------------------------------------
+watchtower_onto_current() {
+    local rc
+    (cd "$PROJECT_ROOT" && $FW watchtower current >/dev/null 2>&1); rc=$?
+    if [ "$rc" = 0 ]; then
+        say "  skip    Watchtower already serves the current web/ code"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$rc" != 1 ]; then
+        say "  FAILED  fw watchtower current could not decide (exit $rc)"; FAILED=$((FAILED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would run: fw watchtower restart (the running Watchtower predates web/)"; DONE=$((DONE+1)); return
+    fi
+    (cd "$PROJECT_ROOT" && $FW watchtower restart >/dev/null 2>&1)
+    if (cd "$PROJECT_ROOT" && $FW watchtower current >/dev/null 2>&1) \
+        && (cd "$PROJECT_ROOT" && $FW watchtower status >/dev/null 2>&1); then
+        say "  OK      Watchtower restarted onto the current web/ code and running (verified)"; DONE=$((DONE+1))
+    else
+        say "  FAILED  fw watchtower restart ran but Watchtower is still stale or not running"; FAILED=$((FAILED+1))
+    fi
+}
+head2 "11c. Watchtower onto the current web/ code after the framework upgrade (T-3568)"
+watchtower_onto_current
 
 # ---------------------------------------------------------------------------
 # ACTION 12 — stop the stray second hub at /tmp/termlink-0 (T-3343, ruling B)

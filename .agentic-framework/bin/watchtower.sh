@@ -420,10 +420,22 @@ do_start() {
     # that group) killed the server. setsid gives it its own session — it is
     # not a group leader here (no job control), so setsid execs in place and
     # $! is the server's pid. nohup is the fallback where setsid is absent.
+    # T-4706: setsid leaves the server in the LAUNCHER's systemd unit (a worker
+    # scope, the cockpit service), and stopping that unit SIGKILLs it with no
+    # record. Give it a scope of its own under FW_WATCHTOWER_SLICE (aef.slice).
+    # systemd-run --scope execs in place, so $! stays the server's pid. Empty
+    # prefix where systemd cannot, or FW_AGENT_SCOPE=0 (lib/agent-scope.sh).
+    FW_AGENT_SCOPE_CMD=()
+    if [ -f "$FRAMEWORK_ROOT/lib/agent-scope.sh" ]; then
+        # shellcheck source=/dev/null
+        source "$FRAMEWORK_ROOT/lib/agent-scope.sh"
+        FW_AGENT_SLICE="${FW_WATCHTOWER_SLICE:-aef.slice}" \
+            fw_agent_scope_prefix "watchtower" "aef-watchtower-$(date +%s)-$$"
+    fi
     if command -v setsid >/dev/null 2>&1; then
-        setsid python3 -m web.app --port "$port" < /dev/null > "$LOG_FILE" 2>&1 &
+        ${FW_AGENT_SCOPE_CMD[@]+"${FW_AGENT_SCOPE_CMD[@]}"} setsid python3 -m web.app --port "$port" < /dev/null > "$LOG_FILE" 2>&1 &
     else
-        nohup python3 -m web.app --port "$port" < /dev/null > "$LOG_FILE" 2>&1 &
+        ${FW_AGENT_SCOPE_CMD[@]+"${FW_AGENT_SCOPE_CMD[@]}"} nohup python3 -m web.app --port "$port" < /dev/null > "$LOG_FILE" 2>&1 &
     fi
     local new_pid=$!
     echo "$new_pid" > "$PID_FILE"
@@ -725,7 +737,37 @@ do_url() {
 cmd="${1:-}"
 shift || true
 
+# T-4706: a test must never start, stop or restart the Watchtower of the checkout
+# it runs from — that is the operator's live server (2026-10-23: down ~1h47m,
+# nothing noticed). Under bats or pytest the "live checkout" is the git toplevel
+# of the test file (bats) or of the cwd (pytest); a test points PROJECT_ROOT at a
+# temp project instead. FW_WATCHTOWER_ALLOW_LIVE_IN_TEST=1 overrides.
+_watchtower_live_test_refusal() {
+    [ -n "${BATS_TEST_FILENAME:-}${PYTEST_CURRENT_TEST:-}" ] || return 0
+    [ "${FW_WATCHTOWER_ALLOW_LIVE_IN_TEST:-0}" = 1 ] && return 0
+    local from live ours
+    if [ -n "${BATS_TEST_FILENAME:-}" ]; then from=$(dirname "$BATS_TEST_FILENAME"); else from=$PWD; fi
+    live=$(git -C "$from" rev-parse --show-toplevel 2>/dev/null) || return 0
+    live=$(readlink -f "$live" 2>/dev/null || echo "$live")
+    ours=$(readlink -f "$PROJECT_ROOT" 2>/dev/null || echo "$PROJECT_ROOT")
+    [ "$ours" = "$live" ] || return 0
+    log_error "Refusing '$1' from a test: PROJECT_ROOT is the live checkout ($live) — its Watchtower is the operator's (T-4706)."
+    log_error "  Point PROJECT_ROOT at a temp project, or set FW_WATCHTOWER_ALLOW_LIVE_IN_TEST=1."
+    exit 4
+}
 case "$cmd" in
+    start|stop|restart|ensure) _watchtower_live_test_refusal "$cmd" ;;
+esac
+
+case "$cmd" in
+    # T-4706: the cron keep-alive. Starts a dead Watchtower and records the outage
+    # (lib/watchtower-ensure.sh); `fw doctor` WARNs on a recent one.
+    ensure)
+        # shellcheck source=/dev/null
+        . "$FRAMEWORK_ROOT/lib/watchtower-ensure.sh"
+        export PROJECT_ROOT FRAMEWORK_ROOT
+        FW_WATCHTOWER_ENSURE_BY="${FW_WATCHTOWER_ENSURE_BY:-cron}" fw_watchtower_ensure
+        ;;
     start)   do_start "$@" ;;
     stop)    do_stop ;;
     restart) do_restart "$@" ;;
@@ -746,6 +788,7 @@ case "$cmd" in
         echo "  port                           Print current port (triple-file source of truth; T-1376 B5)"
         echo "  url                            Print current URL (triple-file source of truth; T-1376 B5)"
         echo "  current                        Exit 1 if the running process predates web/ source (T-3282)"
+        echo "  ensure                         Start it if dead and record the outage (cron keep-alive; T-4706)"
         echo ""
         echo "Environment:"
         echo "  FW_PORT  Default port (default: 3000)"

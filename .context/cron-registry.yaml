@@ -159,3 +159,11 @@ jobs:
     origin_task: T-3673
     status: active
     description: "Walks the peer-consult ack ledger and escalates unacked consults (T-3418, T-3673). Without this job unacked consults never escalate."
+  - id: watchtower-ensure-5m
+    name: Watchtower keep-alive (5 min)
+    schedule: '*/5 * * * *'
+    command: flock -n /var/lock/agentic-cron-watchtower-ensure-termlink.lock -c 'fw watchtower ensure'
+    source_file: agentic-audit.crontab
+    origin_task: T-3568
+    status: active
+    description: "AEF T-4706 (be.11): start Watchtower when dead (no-op while running) and append the outage to .context/working/watchtower-outages.jsonl, which fw doctor WARNs on for 7 days. be.11 ships the verb but seeds this job only into AEF's own registry, so it is declared here (T-3568). Disable with FW_WATCHTOWER_ENSURE=0."

@@ -49,3 +49,6 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 # Sidecar ack-ledger sweep (5 min)
 3,8,13,18,23,28,33,38,43,48,53,58 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" flock -n /var/lock/agentic-cron-sidecar-sweep-5m-termlink.lock -c '"/opt/termlink/.agentic-framework/bin/fw" sidecar sweep' 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}
+
+# Watchtower keep-alive (5 min)
+*/5 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" flock -n /var/lock/agentic-cron-watchtower-ensure-termlink.lock -c '"/opt/termlink/.agentic-framework/bin/fw" watchtower ensure' 2>&1 | logger -t agentic-cron; exit ${PIPESTATUS[0]}

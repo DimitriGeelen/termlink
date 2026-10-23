@@ -178,6 +178,14 @@ cat > "$TMP/fake-fw" <<'EOF'
 # fake `fw task update <id> --status <s> [...]` enforcing the REAL transition rule:
 # captured -> work-completed is refused ("Invalid transition"), as fw does.
 [ "$1 $2" = "task review" ] && exit 0      # T-3285: review marker step (a no-op here)
+if [ "$1" = "watchtower" ]; then            # T-3568 (action 11c): stale iff the marker file exists
+    case "$2" in
+        current) [ -e "$TMP_WT_STALE" ] && exit 1; exit 0 ;;
+        restart) [ -n "${FAKE_WT_RESTART_NOOP:-}" ] || rm -f "$TMP_WT_STALE"; exit 0 ;;
+        status)  exit 0 ;;
+    esac
+    exit 9
+fi
 if [ "$1 $2" = "cron install" ]; then       # T-3336: writes ONLY the fixture's audit cron file
     [ -n "${FAKE_CRON_NOINSTALL:-}" ] && exit 0
     # T-3554: like the real verb, deploy the registry source verbatim (action 11b case).
@@ -204,6 +212,7 @@ EOF
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/noop-fw"   # claims success, moves nothing
 chmod +x "$TMP/fake-fw" "$TMP/noop-fw"
 export RUNME_TASKS_DIR="$TMP/tasks" RUNME_FW="$TMP/fake-fw"
+export TMP_WT_STALE="$TMP/watchtower-stale"   # T-3568: absent = Watchtower current, so other cases skip 11c
 # T-3336 (action 11) + T-3370 (action 13): default = reindex AND sidecar sweep already
 # scheduled, so every other case skips both.
 export RUNME_AUDIT_CRON_FILE="$TMP/agentic-audit-termlink"
@@ -516,7 +525,7 @@ else bad "log path printed" "$out"; fi
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 32 ))   # +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 33 ))   # +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1064,6 +1073,25 @@ if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    .* already equals the regis
 else bad "audit crontab idempotent" "rc=$rc: $out"; fi
 export RUNME_AUDIT_CRON_SRC="$SRC_SAVED"
 cron_both
+
+# 25c. T-3568 — restart a stale Watchtower onto current web/ code; skip a current one.
+: > "$TMP_WT_STALE"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would run: fw watchtower restart" && [ -e "$TMP_WT_STALE" ]; then
+    ok "watchtower: --dry-run reports and restarts nothing"
+else bad "watchtower dry-run" "rc=$rc: $out"; fi
+out=$(FAKE_WT_RESTART_NOOP=1 run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  fw watchtower restart ran but Watchtower is still stale"; then
+    ok "watchtower: a restart that leaves it stale is FAILED, not OK"
+else bad "watchtower restart-noop" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      Watchtower restarted onto the current web/ code" && [ ! -e "$TMP_WT_STALE" ]; then
+    ok "watchtower: stale -> restarted and verified current"
+else bad "watchtower restart" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    Watchtower already serves the current web/ code"; then
+    ok "watchtower: second run skips (idempotent)"
+else bad "watchtower idempotent" "rc=$rc: $out"; fi
 
 # 25. T-3370 — install the cron jobs AEF 1.8.3 added (sidecar sweep), temp file only.
 echo '20 * * * * root cd "/x" && "/x/fw" index reindex' > "$RUNME_AUDIT_CRON_FILE"
