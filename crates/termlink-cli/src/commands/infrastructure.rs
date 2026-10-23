@@ -767,6 +767,106 @@ pub(crate) fn cmd_hub_export_secret(out: Option<&str>, json_output: bool) -> Res
     Ok(())
 }
 
+/// T-3543: what `hub token` wrote. Never carries the token itself.
+#[derive(Debug)]
+pub(crate) struct MintedTokenFile {
+    pub scope: &'static str,
+    pub expires_at: u64,
+    pub ttl_secs: u64,
+    pub clamped: bool,
+}
+
+/// T-3543: sign a scoped token with `secret_hex` and write it to `out` at mode 600.
+/// Control and execute are refused: a remote node gets at most interact, and the
+/// secret's holder keeps everything above it. The file is created 0600 from the
+/// start (no window at a wider mode) and renamed into place.
+pub(crate) fn mint_hub_token_file(
+    secret_hex: &str,
+    out: &std::path::Path,
+    scope: &str,
+    ttl: u64,
+    force: bool,
+) -> Result<MintedTokenFile> {
+    use std::io::Write;
+    use termlink_session::auth::{self, PermissionScope};
+
+    let (scope_name, perm) = match scope {
+        "observe" => ("observe", PermissionScope::Observe),
+        "notify" => ("notify", PermissionScope::Notify),
+        "interact" => ("interact", PermissionScope::Interact),
+        "control" | "execute" => anyhow::bail!(
+            "refusing to mint a '{scope}' token for a remote node: control and execute stay with \
+             the hub secret's holder (allowed: observe, notify, interact)"
+        ),
+        other => anyhow::bail!("unknown scope '{other}' (allowed: observe, notify, interact)"),
+    };
+    let hex = secret_hex.trim();
+    if hex.len() != 64 {
+        anyhow::bail!("hub secret must be 64 hex characters, got {}", hex.len());
+    }
+    let mut secret: auth::TokenSecret = [0u8; 32];
+    for (i, b) in secret.iter_mut().enumerate() {
+        *b = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).context("hub secret is not hex")?;
+    }
+    if out.exists() && !force {
+        anyhow::bail!("{} already exists; pass --force to replace it", out.display());
+    }
+
+    let (ttl_secs, clamped) = auth::clamp_token_ttl(ttl);
+    let token = auth::create_token(&secret, perm, "", ttl_secs);
+
+    let dir = out.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or_else(|| std::path::Path::new("."));
+    std::fs::create_dir_all(dir).with_context(|| format!("create {}", dir.display()))?;
+    let tmp = out.with_extension(format!("tmp.{}", std::process::id()));
+    {
+        let mut opts = std::fs::OpenOptions::new();
+        opts.create_new(true).write(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            opts.mode(0o600);
+        }
+        let mut f = opts.open(&tmp).with_context(|| format!("open {} for write", tmp.display()))?;
+        f.write_all(token.raw.as_bytes())?;
+        f.sync_all().ok();
+    }
+    std::fs::rename(&tmp, out).with_context(|| format!("rename {} -> {}", tmp.display(), out.display()))?;
+
+    Ok(MintedTokenFile { scope: scope_name, expires_at: token.payload.expires_at, ttl_secs, clamped })
+}
+
+/// T-3543: `termlink hub token` — mint a scoped token for a remote node from the
+/// LIVE hub secret (same never-the-cache rule as `export-secret`).
+pub(crate) fn cmd_hub_token(out: &str, scope: &str, ttl: u64, force: bool, json_output: bool) -> Result<()> {
+    let live_path = termlink_hub::server::hub_secret_path();
+    let result = std::fs::read_to_string(&live_path)
+        .map_err(|e| anyhow::anyhow!("no hub.secret at {} — run this on the hub host ({e})", live_path.display()))
+        .and_then(|hex| mint_hub_token_file(&hex, std::path::Path::new(out), scope, ttl, force));
+    let m = match result {
+        Ok(m) => m,
+        Err(e) => {
+            if json_output {
+                super::json_error_exit(json!({"ok": false, "out": out, "error": format!("{e:#}")}));
+            }
+            return Err(e);
+        }
+    };
+    if json_output {
+        println!(
+            "{}",
+            json!({"ok": true, "out": out, "scope": m.scope, "expires_at": m.expires_at,
+                   "ttl_secs": m.ttl_secs, "clamped": m.clamped})
+        );
+    } else {
+        if m.clamped {
+            eprintln!("warning: --ttl {ttl} exceeds the ceiling; clamped to {}s", m.ttl_secs);
+        }
+        println!("Wrote {} (chmod 600): {} token, expires at unix {} ({}s)", out, m.scope, m.expires_at, m.ttl_secs);
+        println!("On the node: set `token_file = \"<path>\"` in its hubs.toml profile; it needs no hub secret.");
+    }
+    Ok(())
+}
+
 /// T-1657: print sha256 fingerprint of <runtime_dir>/hub.cert.pem.
 ///
 /// Output matches `KnownHubStore`'s `sha256:<hex>` form, so values printed
@@ -1226,6 +1326,46 @@ pub(crate) async fn cmd_tofu_verify(host: &str, json_output: bool) -> Result<()>
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+
+    #[test]
+    fn hub_token_file_is_0600_valid_scoped_and_refuses_overwrite_and_high_scopes() {
+        // T-3543: the minted file validates against the hub secret with the asked
+        // scope, is owner-only, is not overwritten without --force, and control /
+        // execute are never minted for a remote node.
+        use termlink_session::auth;
+        let dir = tempfile::tempdir().unwrap();
+        let out = dir.path().join("node.token");
+        let secret = auth::generate_secret();
+        let hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
+        let m = super::mint_hub_token_file(&hex, &out, "interact", 3600, false).unwrap();
+        assert_eq!(m.scope, "interact");
+        let raw = std::fs::read_to_string(&out).unwrap();
+        let (_, scope) = auth::validate_token(&secret, &raw, None).unwrap();
+        assert_eq!(scope, auth::PermissionScope::Interact);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&out).unwrap().permissions().mode() & 0o777, 0o600);
+        }
+
+        assert!(super::mint_hub_token_file(&hex, &out, "observe", 3600, false).is_err(), "no silent overwrite");
+        assert_eq!(std::fs::read_to_string(&out).unwrap(), raw);
+        super::mint_hub_token_file(&hex, &out, "observe", 3600, true).unwrap();
+        assert_ne!(std::fs::read_to_string(&out).unwrap(), raw);
+
+        for high in ["control", "execute"] {
+            let p = dir.path().join(high);
+            let e = super::mint_hub_token_file(&hex, &p, high, 3600, false).unwrap_err();
+            assert!(format!("{e}").contains("refusing"), "{high}: {e}");
+            assert!(!p.exists());
+        }
+        let leftovers: Vec<_> = std::fs::read_dir(dir.path()).unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains(".tmp."))
+            .collect();
+        assert!(leftovers.is_empty(), "no temp files left behind");
+    }
 
     fn t3340_dirs(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
         let base = std::env::temp_dir().join(format!("tl-3340-cli-{}-{tag}", std::process::id()));

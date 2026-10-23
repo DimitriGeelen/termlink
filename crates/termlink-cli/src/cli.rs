@@ -1366,6 +1366,34 @@ pub(crate) enum HubAction {
         #[arg(long)]
         governor: bool,
     },
+    /// Mint a scoped hub token for a remote node (T-3543, hub host only)
+    ///
+    /// Signs a capability token with the live <runtime_dir>/hub.secret and writes it
+    /// to FILE at mode 600. The node puts FILE in its hubs.toml profile as
+    /// `token_file` and never holds the hub secret. The token is never printed.
+    /// Only observe, notify and interact can be minted; control and execute stay
+    /// with holders of the secret. Expiry is capped by TERMLINK_MAX_TOKEN_TTL_SECS.
+    Token {
+        /// Write the token here (atomic, chmod 600). Refuses an existing file without --force.
+        #[arg(long)]
+        out: String,
+
+        /// observe | notify | interact
+        #[arg(long, default_value = "interact")]
+        scope: String,
+
+        /// Lifetime in seconds (clamped to the configured ceiling, default 7 days)
+        #[arg(long, default_value_t = termlink_session::auth::DEFAULT_MAX_TOKEN_TTL_SECS)]
+        ttl: u64,
+
+        /// Replace an existing FILE
+        #[arg(long)]
+        force: bool,
+
+        /// Output as JSON: {"ok","out","scope","expires_at","ttl_secs","clamped"}
+        #[arg(long)]
+        json: bool,
+    },
     /// Export the live hub HMAC secret from <runtime_dir>/hub.secret
     ///
     /// G-011 R3 facet 2: always reads the live file, never the IP-keyed
