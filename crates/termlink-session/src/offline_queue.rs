@@ -105,6 +105,10 @@ pub type Result<T> = std::result::Result<T, QueueError>;
 /// Default outbound queue cap. Override via `TERMLINK_OUTBOUND_CAP=N`.
 pub const DEFAULT_CAP: u64 = 1000;
 
+/// How long a queue operation waits for another process's lock on the shared
+/// queue file before giving up with SQLITE_BUSY (T-3565).
+pub const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+
 /// File name of the on-disk queue under `~/.termlink/` (spec'd by T-1155/T-1161).
 pub const DEFAULT_FILE_NAME: &str = "outbound.sqlite";
 
@@ -194,6 +198,10 @@ impl OfflineQueue {
             std::fs::create_dir_all(parent)?;
         }
         let conn = Connection::open(p)?;
+        // T-3565: every termlink process on the host shares this file. Without a
+        // busy timeout, a lock held for a moment by any of them fails our read at
+        // once with SQLITE_BUSY.
+        conn.busy_timeout(BUSY_TIMEOUT)?;
         conn.execute_batch(SCHEMA)?;
         let cap = read_cap_from_env();
         let log_path = Some(p.with_file_name(QUEUE_LOG_FILE_NAME));

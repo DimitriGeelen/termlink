@@ -307,6 +307,18 @@ impl BusClient {
             let (id, post, attempts) = match self.queue.peek_oldest_with_attempts() {
                 Ok(Some(triple)) => triple,
                 Ok(None) => break, // queue empty — normal drain exit
+                // T-3565: only a blob that fails to DESERIALIZE is corrupt. Any other
+                // error (SQLite busy/locked on this shared queue, I/O) says nothing
+                // about the row; quarantining on it dead-lettered valid posts.
+                // Break and let the next tick retry.
+                Err(e) if !matches!(e, crate::offline_queue::QueueError::Json(_)) => {
+                    tracing::error!(
+                        error = %e,
+                        "flush: cannot read queue head (DB fault, not a corrupt row) — aborting pass"
+                    );
+                    report.failed += 1;
+                    break;
+                }
                 Err(e) => {
                     // Corrupt head row: quarantine it into the durable dead-letter
                     // store (dead_letter copies the raw post_json blob — no
@@ -898,6 +910,50 @@ mod tests {
         // And it's recoverable in the durable dead-letter store — zero silent loss.
         let q = crate::offline_queue::OfflineQueue::open(&queue_path).unwrap();
         assert_eq!(q.dead_letter_count().unwrap(), 1);
+
+        drop(client);
+        let _ = tokio::time::timeout(Duration::from_secs(2), handle).await;
+    }
+
+    #[tokio::test]
+    async fn flush_keeps_valid_head_row_when_queue_is_locked_by_another_process() {
+        // T-3565: a lock held by another process on the shared queue file makes the
+        // head read fail with SQLITE_BUSY. That says nothing about the row, so it must
+        // stay queued — before the fix it was dead-lettered as "corrupt".
+        let dir = tempfile::tempdir().unwrap();
+        let queue_path = dir.path().join("outbound.sqlite");
+        {
+            let seed = crate::offline_queue::OfflineQueue::open(&queue_path).unwrap();
+            seed.enqueue(&sample_post("t-locked")).unwrap();
+        }
+        let (client, handle) = BusClient::connect_with_interval(
+            TransportAddr::unix(dir.path().join("nope.sock")),
+            &queue_path,
+            Duration::from_secs(3600),
+        )
+        .unwrap();
+
+        // Hold the lock just past the busy timeout: the head read gives up with
+        // SQLITE_BUSY, and the lock is gone before the id-only re-read would give up.
+        // That window is the one that dead-lettered real posts on 2026-10-21.
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        let lock_path = queue_path.clone();
+        let locker = std::thread::spawn(move || {
+            let c = rusqlite::Connection::open(&lock_path).unwrap();
+            c.execute_batch("BEGIN EXCLUSIVE").unwrap();
+            ready_tx.send(()).unwrap();
+            std::thread::sleep(crate::offline_queue::BUSY_TIMEOUT + Duration::from_millis(500));
+            c.execute_batch("ROLLBACK").unwrap();
+        });
+        ready_rx.recv().unwrap();
+        let report = client.flush().await;
+        locker.join().unwrap();
+
+        assert_eq!(report.dropped_poison, 0, "a locked queue is not a corrupt row");
+        assert_eq!(report.failed, 1, "the pass ends on the DB fault");
+        assert_eq!(client.queue_size(), 1, "the valid row is still queued");
+        let q = crate::offline_queue::OfflineQueue::open(&queue_path).unwrap();
+        assert_eq!(q.dead_letter_count().unwrap(), 0);
 
         drop(client);
         let _ = tokio::time::timeout(Duration::from_secs(2), handle).await;
