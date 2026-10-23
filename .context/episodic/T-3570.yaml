@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3570: Re-vendor AEF v1.8.15-be.11 -> be.14 (965dbcdc5): bg-daemon conversation holder (T-4714), keep-alive defers to systemd Watchtower (T-4711), close-hint and upgrade-list fixes (T-4710/T-4712)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T20:56:13Z
+# ============================================================================
+
+task_id: T-3570
+task_name: "Re-vendor AEF v1.8.15-be.11 -> be.14 (965dbcdc5): bg-daemon conversation holder (T-4714), keep-alive defers to systemd Watchtower (T-4711), close-hint and upgrade-list fixes (T-4710/T-4712)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-23T20:27:06Z
+completed: 2026-10-23T20:56:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-23T22:37:18+02:00
+last_commit: 2026-10-23T22:55:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.15-be.11 -> be.14 (965dbcdc5, 25 commits): bg-daemon conversation holder (T-4714), keep-alive defers to systemd Watchtower (T-4711), close-hint and upgrade-list fixes (T-4710/T-4712). vendor baseline '034701160' (quoted: YAML read the all-digit hash as octal); guard results and probes recorded
+
+# Key outcomes
+outcomes:
+  - 'be.11 (42086fee3) is an ancestor of be.14 (25 commits); rehearsed from one fresh clone, real run from another (rc 0 both); none of the 8 preserved files changed upstream (verified: no merge needed)'
+  - 'CLAUDE.md part above `## Core Principle` byte-identical; fw doctor rc 0, no FAIL; 5 key fixture suites pass'
+  - 'T-4714 present: lib/conversation-holder.sh:165 ignores `claude daemon` / `bg-pty-host` cmdlines, lib/sidecar/adapter.py `_CLAUDE_INFRA`. T-4711: our Watchtower has no systemd unit and the keep-alive cron logs "ok: already running" every 5 min (ensure still handles it)'
+  - 'Full guard layer (231 members): one FAIL-tier red, runme-fixtures ERROR at the 300 s member timeout (same as the be.10/be.11 runs; filed T-3571). `.vendor-divergence.yaml` baseline ''034701160'' (quoted: unquoted, YAML read the all-digit hash as octal 7570032 and the check failed closed). WORKS/FAILS sent to AEF'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 're-vendor AEF v1.8.15-be.11 -> be.14 (965dbcdc5, 25 commits): bg-daemon conversation holder (T-4714), keep-alive defers to systemd Watchtower (T-4711), close-hint and upgrade-list fixes (T-4710/T-4712)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/bin/watchtower.sh'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/conversation-holder.sh'
+  - '.agentic-framework/lib/release.sh'
+  - '.agentic-framework/lib/scratch-size.sh'
+  - '.agentic-framework/lib/sidecar/adapter.py'
+  - '.agentic-framework/lib/upgrade_commit_list.py'
+  - '.agentic-framework/lib/watchtower-ensure.sh'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.context/audits/upgrades.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-3570-re-vendor-aef-v1815-be11---be14-965dbcdc.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-23T22:37:18'
+    action: 'T-3570: re-vendor AEF v1.8.15-be.11 -> be.14 (965dbcdc5, 25 commits): bg-daemon conversation holder (T-4714), keep-alive defers to systemd Watchtower (T-4711), close-hint and upgrade-list fixes (T-4710/T-4712)'
+  - time: '2026-10-23T22:55:59'
+    action: 'T-3570: vendor baseline ''034701160'' (quoted: YAML read the all-digit hash as octal); guard results and probes recorded'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 28 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [vendor]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 28
+  commits: 3
+  files_changed: 19
+  lines_added: 862
+  lines_removed: 38
+  footprint_refreshed_at: '2026-10-23T20:56:20Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3570-re-vendor-aef-v1815-be11---be14-965dbcdc.md
+generated_by: context-agent-hybrid

@@ -19742,3 +19742,21 @@ scan_id: R-a51e2fc8
 task_id: T-3568
 payload:
   task_file: .tasks/active/T-3568-re-vendor-aef-v1815-be10---be11-42086fee.md
+---
+kind: scan_emitted
+timestamp: '2026-10-23T20:56:03Z'
+scan_id: R-89c2cb91
+task_id: T-3570
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-23T20:56:03Z'
+scan_id: R-89c2cb91
+task_id: T-3570
+payload:
+  task_file: .tasks/active/T-3570-re-vendor-aef-v1815-be11---be14-965dbcdc.md
