@@ -66,6 +66,22 @@ pub fn is_valid_server_name(name: &str) -> bool {
     slug_ok && hash_ok
 }
 
+/// Host switch for per-project servers (operator ruling A, 2026-10-23): off by default until the
+/// fleet cockpit (055) reads them. On when this file exists ...
+pub const PER_PROJECT_SWITCH_FILE: &str = "/etc/termlink/tmux-per-project";
+/// ... or when this variable is `1` in the spawning process.
+pub const PER_PROJECT_ENV: &str = "TERMLINK_TMUX_PER_PROJECT";
+
+/// Whether new tmux sessions go to per-project servers, from the env value and the switch file.
+pub fn per_project_enabled_from(env_val: Option<&str>, switch_file_exists: bool) -> bool {
+    switch_file_exists || env_val == Some("1")
+}
+
+/// Whether new tmux sessions go to per-project servers on this host.
+pub fn per_project_enabled() -> bool {
+    per_project_enabled_from(std::env::var(PER_PROJECT_ENV).ok().as_deref(), Path::new(PER_PROJECT_SWITCH_FILE).exists())
+}
+
 /// The TermLink server a process runs on, from tmux's `TMUX` value (`<socket path>,<pid>,<index>`):
 /// the socket's file name when it is a valid TermLink server name, else `None` (the default
 /// server, a human's own `-L` server, or not in tmux at all).
@@ -78,6 +94,15 @@ pub fn from_tmux_env(tmux: Option<&str>) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_switch_is_off_unless_set() {
+        assert!(!per_project_enabled_from(None, false), "default: off");
+        assert!(!per_project_enabled_from(Some("0"), false));
+        assert!(!per_project_enabled_from(Some("yes"), false), "only exactly 1");
+        assert!(per_project_enabled_from(Some("1"), false));
+        assert!(per_project_enabled_from(None, true), "the host file switches it on");
+    }
 
     #[test]
     fn tmux_env_names_only_termlink_servers() {
@@ -118,8 +143,8 @@ mod tests {
 
     #[test]
     fn no_project_means_the_host_server() {
-        let d = tempfile::tempdir().unwrap();
-        assert_eq!(server_name_for(d.path()), HOST_SERVER);
+        // Not a temp dir: TMPDIR may itself lie inside a project (it did, while /tmp was full).
+        assert_eq!(server_name_for(Path::new("/nonexistent-t3552/x")), HOST_SERVER);
     }
 
     #[test]

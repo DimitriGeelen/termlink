@@ -240,9 +240,9 @@ mod tests {
 
     #[test]
     fn unknown_is_never_foreign() {
-        let (d, a, _b) = two_projects();
-        let tmp = d.path().join("scratch");
-        std::fs::create_dir_all(&tmp).unwrap();
+        let (_d, a, _b) = two_projects();
+        // Outside every project. Not a temp dir: TMPDIR may itself lie inside a project.
+        let tmp = std::path::PathBuf::from("/nonexistent-t3551/scratch");
         // A value outside every project (a test's temp dir).
         assert!(foreign_project_vars([("TASKS_DIR", tmp.display().to_string())], &a).is_empty());
         // A process outside every project.

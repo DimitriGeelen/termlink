@@ -964,7 +964,8 @@ fn spawn_via_tmux(session_name: &str, shell_cmd: &str, workdir: Option<&str>) ->
         Some(wd) => std::path::PathBuf::from(wd),
         None => std::env::current_dir().context("Cannot read the current directory")?,
     };
-    let (mut cmd, _server) = super::tmux_spawn::tmux_new_session(&tmux_session, shell_cmd, &dir)?;
+    let per_project = termlink_session::tmux_server::per_project_enabled();
+    let (mut cmd, _server) = super::tmux_spawn::tmux_new_session(&tmux_session, shell_cmd, &dir, per_project)?;
     let status = cmd.status().context("Failed to run tmux")?;
 
     if !status.success() {

@@ -1284,6 +1284,10 @@ pub(crate) enum TmuxAction {
     Socket {
         /// A directory inside the project
         path: std::path::PathBuf,
+        /// Start the server if it is not running, with TermLink's recipe (clean env, -f /dev/null,
+        /// exit-empty off, empty update-environment), then print the name
+        #[arg(long)]
+        ensure: bool,
     },
     /// List sessions on the project's server, or on every TermLink server with --all
     List {
@@ -1302,6 +1306,12 @@ pub(crate) enum TmuxAction {
         path: std::path::PathBuf,
         /// Session name (default: the only session, if there is exactly one)
         session: Option<String>,
+        /// Attach with `-f ignore-size`: this client never resizes the session (viewers)
+        #[arg(long)]
+        ignore_size: bool,
+        /// Attach read-only (`-r`)
+        #[arg(short = 'r', long)]
+        read_only: bool,
     },
 }
 

@@ -75,17 +75,28 @@ pub(crate) fn tmux_new_session_from(
     base
 }
 
-/// The production form: the server of the project `dir` lies in ([`termlink_session::tmux_server`],
-/// `tl-host` outside any project), this process's allowed environment. Returns the command and
-/// the server name. A name that fails validation is refused, never passed to tmux.
-pub(crate) fn tmux_new_session(tmux_session: &str, shell_cmd: &str, dir: &std::path::Path) -> anyhow::Result<(Command, String)> {
+/// The production form, with this process's allowed environment. When per-project servers are
+/// switched on for this host ([`termlink_session::tmux_server::per_project_enabled`], off by default
+/// until the cockpit reads them — operator ruling A, T-3552): the server of the project `dir` lies in
+/// (`tl-host` outside any project), returned as `Some(name)`; a name that fails validation is
+/// refused, never passed to tmux. Switched off: the default server, `None`.
+pub(crate) fn tmux_new_session(
+    tmux_session: &str,
+    shell_cmd: &str,
+    dir: &std::path::Path,
+    per_project: bool,
+) -> anyhow::Result<(Command, Option<String>)> {
     use termlink_session::tmux_server::{is_valid_server_name, server_name_for};
+    let env = termlink_session::child_env::child_env();
+    if !per_project {
+        return Ok((tmux_new_session_from(Command::new("tmux"), tmux_session, shell_cmd, None, &env), None));
+    }
     let server = server_name_for(dir);
     if !is_valid_server_name(&server) {
         anyhow::bail!("refusing tmux server name {server:?} derived from {} (T-3552)", dir.display());
     }
-    let cmd = tmux_new_session_from(Command::new("tmux"), tmux_session, shell_cmd, Some(&server), &termlink_session::child_env::child_env());
-    Ok((cmd, server))
+    let cmd = tmux_new_session_from(Command::new("tmux"), tmux_session, shell_cmd, Some(&server), &env);
+    Ok((cmd, Some(server)))
 }
 
 #[cfg(test)]
@@ -140,10 +151,22 @@ mod tests {
     fn production_puts_a_session_on_its_projects_server() {
         let d = tempfile::tempdir().unwrap();
         std::fs::write(d.path().join(".framework.yaml"), "").unwrap();
-        let (c, server) = tmux_new_session("tl-x", "true", d.path()).unwrap();
+        let (c, server) = tmux_new_session("tl-x", "true", d.path(), true).unwrap();
+        let server = server.expect("switched on: a project server");
         assert_eq!(server, termlink_session::tmux_server::server_name_for(d.path()));
         assert!(server.starts_with("tl-") && server != "tl-host", "{server}");
         assert_eq!(&args(&c)[..2], &["-L".to_string(), server]);
+    }
+
+    #[test]
+    fn switched_off_production_stays_on_the_default_server() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join(".framework.yaml"), "").unwrap();
+        let (c, server) = tmux_new_session("tl-x", "true", d.path(), false).unwrap();
+        assert_eq!(server, None);
+        let a = args(&c);
+        assert_eq!(&a[..2], &["new-session", "-d"], "no -L: the default server, as before T-3552");
+        assert!(a.last().unwrap().starts_with("exec /usr/bin/env -i"), "still the T-3550 wrapper: {a:?}");
     }
 
     #[test]

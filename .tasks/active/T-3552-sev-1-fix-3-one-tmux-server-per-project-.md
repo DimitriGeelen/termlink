@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T14:05:04Z
-last_update: 2026-10-22T22:30:23Z
+last_update: 2026-10-23T09:04:10Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -363,6 +363,19 @@ start on the default socket today with an allow-listed client env (their 34e78fe
 -->
 
 ## Decisions
+
+### 2026-10-23 — cutover gate: host switch, default OFF until 055's readers move (operator ruling)
+- **Chose:** A. New spawns go to per-project servers only when `/etc/termlink/tmux-per-project` exists or
+  `TERMLINK_TMUX_PER_PROJECT=1` is set; otherwise they stay on the default server, still protected by T-3550/T-3551.
+  055 switches its readers (capture-pane, list-clients, attach -f ignore-size, ...) and tells us; turning the
+  switch on is then one runme action. Greenfield's deploy goes ahead meanwhile.
+- **Why:** 055's cockpit reads only the default server; an unconditional switch blinds it the moment the binary is
+  installed. The leak itself is already blocked by construction, so server separation can wait on the reader side.
+- **Rejected:** B, on by default with an opt-out every spawner must honour (one that does not blinds the cockpit);
+  C, holding all deploys until 055 has switched.
+- **Operator:** "proceed as suggested" (2026-10-23), on the brief recommending A.
+- **Also agreed with 055 (msg 1c466385):** `socket --ensure`, attach passes `-f ignore-size`/`-r` through, richer
+  `list --json` fields; `tl-host` and path hashing as drafted.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

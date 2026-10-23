@@ -316,9 +316,11 @@ async fn main() -> Result<()> {
             McpAction::Serve => termlink_mcp::server::run_stdio().await,
         },
         Command::Tmux { action } => match action {
-            TmuxAction::Socket { path } => commands::tmux::cmd_tmux_socket(&path),
+            TmuxAction::Socket { path, ensure } => commands::tmux::cmd_tmux_socket(&path, ensure),
             TmuxAction::List { path, all, json } => commands::tmux::cmd_tmux_list(path.as_deref(), all, json),
-            TmuxAction::Attach { path, session } => commands::tmux::cmd_tmux_attach(&path, session.as_deref()),
+            TmuxAction::Attach { path, session, ignore_size, read_only } => {
+                commands::tmux::cmd_tmux_attach(&path, session.as_deref(), ignore_size, read_only)
+            }
         },
         Command::Token { action } => match action {
             TokenAction::Create { target, scope, ttl, json } => {

@@ -50,15 +50,35 @@ fn tmux_on(server: &str, args: &[&str]) -> Option<String> {
 
 /// `termlink tmux socket <path>`: print the `-L` name of the project's server. Exit 2 when the
 /// path lies in no project (its sessions would be on `tl-host`, which is not a project server).
-pub(crate) fn cmd_tmux_socket(path: &Path) -> Result<()> {
+pub(crate) fn cmd_tmux_socket(path: &Path, ensure: bool) -> Result<()> {
     let dir = resolve_dir(Some(path))?;
     let server = server_name_for(&dir);
     if server == HOST_SERVER {
         eprintln!("{} is in no project (no .framework.yaml or .git above it); its sessions use {HOST_SERVER}", dir.display());
         std::process::exit(2);
     }
+    if ensure && tmux_on(&server, &["list-sessions"]).is_none() {
+        let st = ensure_command(&server).status().context("Failed to run tmux — is tmux installed?")?;
+        if !st.success() || tmux_on(&server, &["show-options", "-g", "exit-empty"]).is_none() {
+            eprintln!("could not start tmux server {server}");
+            std::process::exit(1);
+        }
+    }
     println!("{server}");
     Ok(())
+}
+
+/// `tmux -L <server> -f /dev/null start-server ; set exit-empty off ; set update-environment ""`
+/// under TermLink's allowed environment: the same recipe a spawn uses (T-3550, T-3552), so a server
+/// started for 055's launcher is indistinguishable from one a spawn started.
+fn ensure_command(server: &str) -> Command {
+    debug_assert!(is_valid_server_name(server));
+    let mut c = Command::new("tmux");
+    c.env_clear();
+    c.envs(termlink_session::child_env::child_env());
+    c.args(["-L", server, "-f", "/dev/null", "start-server", ";", "set-option", "-g", "exit-empty", "off"]);
+    c.args([";", "set-option", "-g", "update-environment", ""]);
+    c
 }
 
 /// A registered TermLink session, as `tmux list` matches it: pid, id, display name, tmux server.
@@ -145,7 +165,7 @@ pub(crate) fn cmd_tmux_list(path: Option<&Path>, all: bool, json: bool) -> Resul
 
 /// `termlink tmux attach <path> [<session>]`: replace this process with a tmux client on the
 /// project's server. Without a session, attaches when there is exactly one, else lists them.
-pub(crate) fn cmd_tmux_attach(path: &Path, session: Option<&str>) -> Result<()> {
+pub(crate) fn cmd_tmux_attach(path: &Path, session: Option<&str>, ignore_size: bool, read_only: bool) -> Result<()> {
     use std::os::unix::process::CommandExt;
     let dir = resolve_dir(Some(path))?;
     let server = server_name_for(&dir);
@@ -173,13 +193,51 @@ pub(crate) fn cmd_tmux_attach(path: &Path, session: Option<&str>) -> Result<()> 
             }
         }
     };
-    let err = Command::new("tmux").args(["-L", &server, "attach-session", "-t", &target]).exec();
+    let err = attach_command(&server, &target, ignore_size, read_only).exec();
     Err(anyhow::anyhow!("could not exec tmux: {err}"))
+}
+
+/// `tmux -L <server> attach-session [-f ignore-size] [-r] -t <session>` (055: a viewer must never
+/// resize an agent's session).
+fn attach_command(server: &str, target: &str, ignore_size: bool, read_only: bool) -> Command {
+    let mut c = Command::new("tmux");
+    c.args(["-L", server, "attach-session"]);
+    if ignore_size {
+        c.args(["-f", "ignore-size"]);
+    }
+    if read_only {
+        c.arg("-r");
+    }
+    c.args(["-t", target]);
+    c
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn args(c: &Command) -> Vec<String> {
+        c.get_args().map(|a| a.to_string_lossy().into_owned()).collect()
+    }
+
+    #[test]
+    fn attach_passes_viewer_flags_through() {
+        assert_eq!(args(&attach_command("tl-p-0123abcd", "s", false, false)), ["-L", "tl-p-0123abcd", "attach-session", "-t", "s"]);
+        assert_eq!(
+            args(&attach_command("tl-p-0123abcd", "s", true, true)),
+            ["-L", "tl-p-0123abcd", "attach-session", "-f", "ignore-size", "-r", "-t", "s"]
+        );
+    }
+
+    #[test]
+    fn ensure_uses_the_spawn_recipe() {
+        let c = ensure_command("tl-p-0123abcd");
+        let a = args(&c);
+        assert_eq!(&a[..5], &["-L", "tl-p-0123abcd", "-f", "/dev/null", "start-server"]);
+        assert!(a.windows(4).any(|w| w == ["-g", "exit-empty", "off", ";"]), "{a:?}");
+        assert_eq!(&a[a.len() - 4..], &["set-option", "-g", "update-environment", ""]);
+        assert!(c.get_envs().all(|(k, _)| k == "PATH" || termlink_session::child_env::is_allowed(&k.to_string_lossy())));
+    }
 
     #[test]
     fn a_session_is_matched_to_its_registration() {
