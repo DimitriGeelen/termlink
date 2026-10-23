@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3557: Greenfield (.132) hub down after reboot: ask dimitri-mint-dev to restart it and supervise it under systemd
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T14:51:17Z
+# ============================================================================
+
+task_id: T-3557
+task_name: "Greenfield (.132) hub down after reboot: ask dimitri-mint-dev to restart it and supervise it under systemd"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-22T21:16:10Z
+completed: 2026-10-23T14:50:57Z
+duration_days: 1
+updates_count: 1
+first_commit: 2026-10-23T15:01:43+02:00
+last_commit: 2026-10-23T15:01:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  operator ruling: permanent supervised exec endpoint on greenfield (relayed to dimitri-mint-dev)
+
+# Key outcomes
+outcomes:
+  - 'Request sent to dimitri-mint-dev (delivered after the sweep retry; acknowledged 2026-10-22, msg 33f35c6e: waiting for its operator''s OK to act on .132) with the exact ask: restart the .132 hub with its existing runtime dir (secret + cert unchanged) and put it under a systemd unit'
+  - 'greenfield answers on 192.168.10.132:9100 and runme deploys there (runme log rc=0) — runme-20261023T143554Z-1473426.log rc=0: greenfield 0.12.966 -> 0.12.1084 through termlink-hub.service, fleet doctor ok, tofu verify ok; greenfield-exec (supervised termlink-exec.service) reconnected'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-23 — remote exec on greenfield: permanent supervised endpoint (operator ruling)'
+    chose: '1, a permanent supervised exec session on .132 (systemd unit in WSL beside the hub), so deploys and upgrades reach greenfield unattended like the other hubs.'
+    alternatives_rejected: ['2, an exec session started only for each deploy (smaller standing exposure on a personal laptop, one manual step per deploy). The agent leaned to 2; the operator chose 1. - **Relayed** to dimitri-mint-dev (msg d6edcc6a), which builds it on .132 after confirming with the operator there.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3557-greenfield-132-hub-down-after-reboot-ask.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-23T15:01:43'
+    action: 'T-3557: operator ruling: permanent supervised exec endpoint on greenfield (relayed to dimitri-mint-dev)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1054 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [fleet, greenfield]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1054
+  commits: 1
+  files_changed: 1
+  lines_added: 381
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3557-greenfield-132-hub-down-after-reboot-ask.md
+generated_by: context-agent-hybrid

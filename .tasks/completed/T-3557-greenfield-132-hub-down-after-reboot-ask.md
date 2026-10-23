@@ -4,10 +4,10 @@ name: "Greenfield (.132) hub down after reboot: ask dimitri-mint-dev to restart 
 description: >
   runme 2026-10-22 21:06Z FAILED only on greenfield: host answers ping and ssh, nothing on :9100; the hub runs detached (no unit) so it does not survive a reboot. Operator 2026-10-22: ask dimitri-mint-dev (set up that machine, full access) to arrange it.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [fleet, greenfield]
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T21:16:10Z
-last_update: 2026-10-23T13:01:43Z
-date_finished: null
+last_update: 2026-10-23T14:50:57Z
+date_finished: 2026-10-23T14:50:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -71,7 +71,7 @@ reachable-boot.sh checks hub status in the DEFAULT runtime dir, so at logon it t
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Request sent to dimitri-mint-dev (delivered after the sweep retry; acknowledged 2026-10-22, msg 33f35c6e: waiting for its operator's OK to act on .132) with the exact ask: restart the .132 hub with its existing runtime dir (secret + cert unchanged) and put it under a systemd unit
-- [ ] greenfield answers on 192.168.10.132:9100 and runme deploys there (runme log rc=0)
+- [x] greenfield answers on 192.168.10.132:9100 and runme deploys there (runme log rc=0) — runme-20261023T143554Z-1473426.log rc=0: greenfield 0.12.966 -> 0.12.1084 through termlink-hub.service, fleet doctor ok, tofu verify ok; greenfield-exec (supervised termlink-exec.service) reconnected
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -275,6 +275,8 @@ reachable-boot.sh checks hub status in the DEFAULT runtime dir, so at logon it t
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q "OK      upgraded and verified: greenfield serves 0.12.1084" .context/working/runme-logs/runme-20261023T143554Z-1473426.log
+grep -q "=== runme.sh finished rc=0" .context/working/runme-logs/runme-20261023T143554Z-1473426.log
 
 ## RCA
 
@@ -379,3 +381,20 @@ reachable-boot.sh checks hub status in the DEFAULT runtime dir, so at logon it t
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3557-greenfield-132-hub-down-after-reboot-ask.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-981842a6
+- **Timestamp:** 2026-10-23T14:51:00Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-23T14:50:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
