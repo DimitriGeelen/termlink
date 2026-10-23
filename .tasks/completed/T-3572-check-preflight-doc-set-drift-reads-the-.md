@@ -4,12 +4,12 @@ name: "check-preflight-doc-set-drift reads the /preflight row from CLAUDE.md, wh
 description: >
   T-3245 moved the substrate + skills reference table (including the /preflight catalog row) out of CLAUDE.md. scripts/check-preflight-doc-set-drift.sh (FAIL tier, guard layer + cron canary) lists catalog:CLAUDE.md as one of its five surfaces, so it now finds no count there. Point the catalog surface at the new file, run the check and its fixtures, and record why the consumer search in T-3245 missed it.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-preflight-doc-set-drift.sh, tests/preflight-doc-set-drift-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-23T22:15:17Z
-last_update: 2026-10-23T22:17:05Z
-date_finished: null
+last_update: 2026-10-23T22:17:07Z
+date_finished: 2026-10-23T22:17:07Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -374,3 +374,20 @@ bash tests/preflight-doc-set-drift-fixtures.sh > .context/working/.t3572b 2>&1 &
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3572-check-preflight-doc-set-drift-reads-the-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-647c9a8f
+- **Timestamp:** 2026-10-23T22:17:10Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-23T22:17:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
