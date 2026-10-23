@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-23T20:27:06Z
-last_update: 2026-10-23T20:37:18Z
+last_update: 2026-10-23T20:55:58Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -78,10 +78,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] be.11 (42086fee3) is an ancestor of be.14; rehearsed from one fresh clone, real run from another; none of the 8 preserved files changed upstream (verified: no merge needed)
-- [ ] CLAUDE.md part above `## Core Principle` byte-identical; fw doctor no FAIL; key fixtures pass
-- [ ] T-4714 probed: the conversation holder ignores a `claude daemon` / `bg-pty-host` cmdline; T-4711 probed: our Watchtower (no systemd unit) is still handled by ensure/restart
-- [ ] Full guard layer with no unexplained FAIL-tier red; `.vendor-divergence.yaml` updated; WORKS/FAILS sent to AEF
+- [x] be.11 (42086fee3) is an ancestor of be.14 (25 commits); rehearsed from one fresh clone, real run from another (rc 0 both); none of the 8 preserved files changed upstream (verified: no merge needed)
+- [x] CLAUDE.md part above `## Core Principle` byte-identical; fw doctor rc 0, no FAIL; 5 key fixture suites pass
+- [x] T-4714 present: lib/conversation-holder.sh:165 ignores `claude daemon` / `bg-pty-host` cmdlines, lib/sidecar/adapter.py `_CLAUDE_INFRA`. T-4711: our Watchtower has no systemd unit and the keep-alive cron logs "ok: already running" every 5 min (ensure still handles it)
+- [x] Full guard layer (231 members): one FAIL-tier red, runme-fixtures ERROR at the 300 s member timeout (same as the be.10/be.11 runs; filed T-3571). `.vendor-divergence.yaml` baseline '034701160' (quoted: unquoted, YAML read the all-digit hash as octal 7570032 and the check failed closed). WORKS/FAILS sent to AEF
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -285,6 +285,9 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q "be.11 -> be.14 (965dbcdc5" .vendor-divergence.yaml && grep -q "^1.8.14+1193" .agentic-framework/VERSION
+bash scripts/check-vendor-divergence.sh > .context/working/.t3570a 2>&1
+grep -q "bg-pty-host" .agentic-framework/lib/conversation-holder.sh && grep -q "_CLAUDE_INFRA" .agentic-framework/lib/sidecar/adapter.py
 
 ## RCA
 
