@@ -45,6 +45,12 @@ ENVB=$(grep '^HUB_ENV_B64=' <<< "$out" | cut -d= -f2-); ARGVB=$(grep '^HUB_ARGV_
 run_relaunch() { # <script> <rec>
     printf '#!/bin/sh\necho 0.0.0\n' > "$T/termlink"; chmod +x "$T/termlink"; : > "$T/termlink.bak"
     ( cd "$T" && REC="$2" TERMLINK_CALLER_LEAK=exec-session PATH="$T/bin:$PATH" bash "$1" ) > "$T/run.out" 2>&1
+    local rc=$?
+    # T-3563: the relaunch starts the hub with `setsid ... &` and every wait in it is faked to return
+    # at once, so the fake setsid may not have written its record yet. Wait (bounded) for .argv,
+    # which it writes last; an absent record then fails the checks instead of racing them.
+    for _ in $(seq 1 50); do [ -s "$2.argv" ] && break; sleep 0.1; done
+    return $rc
 }
 has_env() { local -a e=(); local x; mapfile -d '' e < "$1.env" 2>/dev/null; for x in "${e[@]}"; do [ "$x" = "$2" ] && return 0; done; return 1; }
 write_swap_relaunch "$T/rb.sh" rollback "$T/staged" 201 "$ENVB" "$ARGVB" "$T/termlink" "$T/hub.log"
