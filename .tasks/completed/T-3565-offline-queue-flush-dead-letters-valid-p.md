@@ -4,12 +4,12 @@ name: "Offline-queue flush dead-letters valid posts on a transient SQLite error"
 description: >
   BusClient flush treats ANY Err from peek_oldest_with_attempts as a corrupt row and dead-letters it. A transient SQLite fault (busy/locked on the shared ~/.termlink/outbound.sqlite) therefore poison-drops a valid post. Two such rows (2026-10-21, channel:learnings + agent-chat-arc) deserialize cleanly with the current PendingPost and fire the dead-letter canary. Quarantine only on a JSON error; break and retry on any other.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-session/src/bus_client.rs, crates/termlink-session/src/offline_queue.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-23T14:01:08Z
-last_update: 2026-10-23T14:06:06Z
-date_finished: null
+last_update: 2026-10-23T14:06:10Z
+date_finished: 2026-10-23T14:06:10Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -381,3 +381,20 @@ bash scripts/check-dead-letter-freshness.sh --no-heartbeat
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3565-offline-queue-flush-dead-letters-valid-p.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e5c645bb
+- **Timestamp:** 2026-10-23T14:06:20Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — The queue's SQLite connection sets a busy timeout, so a lock held briefly by another process on the shared `~/.termlink/outbound.sqlite` waits instead of failing at once.
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/outbound.sqlite in: The queue's SQLite connection sets a busy timeout, so a lock held briefly by another process on the shared `~/.termlink/outbound.sqlite` waits instead`
+
+### 2026-10-23T14:06:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
