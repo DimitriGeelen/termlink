@@ -10,20 +10,20 @@ description: >
   >7 days; G-055 codifies the gap. Upstream fix needed: template-merge that preserves
   project-specific blocks, or operator-acceptable opt-out per CLAUDE.md section.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [scripts/check-cron-install-drift.sh, scripts/check-framework-pickup-freshness.sh, scripts/check-framework-tracking-drift.sh, scripts/check-vendor-divergence.sh, scripts/check-verification-pipefail.sh, scripts/fw-upgrade-safe.sh, scripts/remediate-main-checkout.sh, tests/cron-drift-firing-fixtures.sh, tests/framework-dangling-ref-fixtures.sh, tests/framework-tracking-drift-fixtures.sh, tests/gitignore-framework-scope-fixtures.sh, tests/gitignore-working-scope-fixtures.sh, tests/pickup-canary-selffilter-fixtures.sh, tests/pickup-failopen-fixtures.sh, tests/remediate-main-checkout-fixtures.sh, tests/verification-pipefail-check-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-06T11:14:02Z
-last_update: '2026-09-27T21:34:04Z'
-date_finished:
+last_update: 2026-10-23T22:06:05Z
+date_finished: 2026-10-23T22:06:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -107,7 +107,7 @@ This task is the TermLink-side tracker. The fix lands upstream in `agentic-engin
 ### Agent
 - [x] RCA captured in `## RCA` block below
 - [x] Framework-agent prompt artifact written to `docs/reports/T-2015-fw-upgrade-claudemd-clobber-framework-prompt.md` for operator copy-paste
-- [ ] After upstream fix lands in vendored `.agentic-framework/lib/upgrade.sh`, re-run `fw upgrade` and confirm CLAUDE.md is left intact (or only the framework-template block within it is updated, leaving project-specific blocks unchanged)
+- [x] After upstream fix lands in vendored `.agentic-framework/lib/upgrade.sh`, re-run `fw upgrade` and confirm CLAUDE.md is left intact (or only the framework-template block within it is updated, leaving project-specific blocks unchanged) — 2026-10-24: landed upstream as T-3150 (declared `<!-- project-owned -->` regions, upgrade.sh:1095-1185) + T-4232 (governance lines at risk are reported before the rewrite). Three re-vendors on 2026-10-23 (be.7->be.10 27d2a34b4, be.10->be.11 f440d0692, be.11->be.14 034701160) each left CLAUDE.md byte-unchanged (`git diff --stat <c>~1 <c> -- CLAUDE.md` empty) and the project part above `## Core Principle` identical in rehearsal and real run
 
 ### Human
 > **2026-08-20 — overtaken; filed directly instead.** The artifact existed so an operator
@@ -382,3 +382,20 @@ fix goes first.
 top of `.vendor-divergence.yaml` (`cp CLAUDE.md CLAUDE.md.prevendor` before, `diff` after), and
 CLAUDE.md records the hazard next to the divergence register. The remaining Agent AC stays
 unticked — it waits on an upstream fix, and filing is not fixing.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-586e83ad
+- **Timestamp:** 2026-10-23T22:06:08Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — After upstream fix lands in vendored `.agentic-framework/lib/upgrade.sh`, re-run `fw upgrade` and confirm CLAUDE.md is left intact (or only the framework-template block within it is updated, leaving p
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=agentic-framework/lib/upgrade.sh in: After upstream fix lands in vendored `.agentic-framework/lib/upgrade.sh`, re-run `fw upgrade` and confirm CLAUDE.md is left intact (or only the framew`
+
+### 2026-10-23T22:06:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
