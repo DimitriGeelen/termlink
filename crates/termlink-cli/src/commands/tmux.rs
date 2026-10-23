@@ -172,11 +172,20 @@ pub(crate) fn cmd_tmux_attach(path: &Path, session: Option<&str>, ignore_size: b
     let target = match session {
         Some(s) => s.to_string(),
         None => {
-            let names: Vec<String> = tmux_on(&server, &["list-sessions", "-F", "#{session_name}"])
-                .unwrap_or_default()
-                .lines()
-                .map(str::to_string)
-                .collect();
+            // T-3560 codex review: a failed tmux call is not "no sessions". Say which it was.
+            let listed = Command::new("tmux").args(["-L", &server, "list-sessions", "-F", "#{session_name}"]).output();
+            let names: Vec<String> = match listed {
+                Err(e) => {
+                    eprintln!("could not run tmux: {e}");
+                    std::process::exit(1);
+                }
+                Ok(o) if !o.status.success() => {
+                    let why = String::from_utf8_lossy(&o.stderr).trim().to_string();
+                    eprintln!("tmux server {server} for {} is not available: {why}", dir.display());
+                    std::process::exit(1);
+                }
+                Ok(o) => String::from_utf8_lossy(&o.stdout).lines().map(str::to_string).collect(),
+            };
             match names.as_slice() {
                 [one] => one.clone(),
                 [] => {
