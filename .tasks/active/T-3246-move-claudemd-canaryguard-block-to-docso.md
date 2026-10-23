@@ -6,10 +6,10 @@ description: >
   docs/operations/ leaving a one-line-per-guard index in CLAUDE.md. Blocked on the
   @path spike.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [value-review, arc:arc-009, go-slice]
 components: []
 related_tasks: [T-2989]
@@ -24,7 +24,7 @@ related_tasks: [T-2989]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:55:13Z
-last_update: '2026-09-29T19:57:59Z'
+last_update: 2026-10-23T22:39:29Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,6 +50,18 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-10-23T22:14:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-29T19:57:59Z'
     estimator: bvp-estimator-v1-heuristic
@@ -66,14 +78,24 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2989 GO step 3. Same gate as T-3245 (T-3244: `@` imports are inlined, so the move is to a
+plain path). Under `## CI / Release Flow`, CLAUDE.md carries ~45 subsections documenting every
+canary and static check (the mirror-drift canary through "The stderr sink had no reader") —
+~37k tokens of per-guard rationale, flags, seams and fixtures, most of it duplicated in each
+script's header. It moves verbatim to `docs/operations/guard-layer-and-canaries.md`; CLAUDE.md
+keeps the release-flow intro and a one-line-per-guard index (name, script, one-line purpose)
+plus a pointer saying when to open the doc. T-3572 is the lesson from step 2: a check named
+CLAUDE.md as a data source through a variable and broke silently, so this step searches for the
+bare string and runs the full guard layer before closing.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Every moved subsection is byte-identical in `docs/operations/guard-layer-and-canaries.md`; nothing lost — the 156,755-byte block (45 subsections) is a verbatim substring of the doc
+- [x] CLAUDE.md keeps the CI/Release Flow intro, a plain (no `@`) pointer saying when to open the doc, and an index with one line per moved subsection — 45 index lines naming each guard's script, plus 6 everyday rules lifted out of the moved sections (verification redirect form, re-vendor checklist, cron PROJECT_ROOT, stderr sink, no real supervisor loop in tests, exit-code contract)
+- [x] Every script/test that names CLAUDE.md (bare-string search, not only tool+path lines) is checked against the moved text and still passes — 7 readers found; error-code-docs, command-hints, env-var-docs, budget-ladder, preflight-doc-set rc 0; the two doc lints report the same pre-existing drift counts before and after (2 and 21), none in the moved text
+- [x] Full guard layer shows no NEW FAIL-tier red versus the be.14 run (known: runme-fixtures timeout, T-3571); CLAUDE.md byte size recorded before/after — 231 members, 225 pass, only FAIL-tier red is runme-fixtures ERROR at 300 s (T-3571). CLAUDE.md 252,798 -> ~101.7 KB (316,310 before T-3245)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -196,6 +218,10 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+test -f docs/operations/guard-layer-and-canaries.md && grep -q "### Mirror drift canary" docs/operations/guard-layer-and-canaries.md && grep -q "### The stderr sink had no reader" docs/operations/guard-layer-and-canaries.md
+grep -q "docs/operations/guard-layer-and-canaries.md" CLAUDE.md && ! grep -q "^### Mirror drift canary" CLAUDE.md && ! grep -q "@docs/operations/guard-layer" CLAUDE.md
+bash scripts/check-preflight-doc-set-drift.sh --no-heartbeat > .context/working/.t3246a 2>&1
+bash scripts/check-budget-ladder-drift.sh > .context/working/.t3246b 2>&1
 
 ## RCA
 
@@ -236,6 +262,11 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-24 — index alone would have hidden working rules
+- **What changed:** a pure one-line-per-guard index would have taken six rules out of every session's view (verification redirect form, re-vendor checklist, cron PROJECT_ROOT, stderr sink, no real supervisor loop in tests, exit codes). They are lifted next to the index; the rest is reference.
+- **Plan impact:** the first auto-built index picked the first script named in each section, which was wrong for 4 of 45 (e.g. the stuck-claims canary named substrate-smoke.sh); corrected by hand. T-3572 (step 2's missed consumer) set the bar: bare-string search plus a full guard layer before closing.
+- **Triggered:** T-3247 (step 4) re-measures preload against the 20k-token target.
 
 ## Recommendation
 
@@ -293,3 +324,7 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3246-move-claudemd-canaryguard-block-to-docso.md
 - **Context:** Initial task creation
+
+### 2026-10-23T22:14:38Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
