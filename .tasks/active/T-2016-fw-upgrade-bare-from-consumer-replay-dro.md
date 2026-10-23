@@ -12,20 +12,20 @@ description: >
   to bypass the bare-from-consumer code path. Sibling to T-2014/T-2099 (same handoff
   site).
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [scripts/fw-upgrade-safe.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-06T11:17:04Z
-last_update: '2026-09-27T21:34:04Z'
-date_finished:
+last_update: 2026-10-23T22:07:25Z
+date_finished: 2026-10-23T22:07:25Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -102,7 +102,7 @@ This task is the TermLink-side tracker. The fix lands upstream in `agentic-engin
 > This AC stays unticked: filing is not fixing, and ticking it would be the
 > installation-vs-outcome error logged four times this session.
 >
-- [ ] After upstream fix lands in vendored `.agentic-framework/lib/upgrade.sh`, re-run `fw upgrade --force-downgrade` and confirm the flag survives through the bare-from-consumer handoff (split-brain refusal no longer fires when --force-downgrade is on)
+- [x] After upstream fix lands in vendored `.agentic-framework/lib/upgrade.sh`, re-run `fw upgrade --force-downgrade` and confirm the flag survives through the bare-from-consumer handoff (split-brain refusal no longer fires when --force-downgrade is on) — 2026-10-24: landed upstream as T-4424 (declared flag grammar `_FW_UPGRADE_SWITCH_FLAGS` includes --force-downgrade; `_upgrade_build_replay` forwards every declared flag and REFUSES an undeclared one instead of dropping it). Exercised against the vendored be.14 copy rather than a live downgrade: `_upgrade_build_replay /x/target --force-downgrade --dry-run` -> `[upgrade] [/x/target] [--force-downgrade] [--dry-run]`; `--bogus` -> rc 1 "refusing to guess". A real downgrade was not run: there is no older target to take and it would rewrite the pin
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -448,3 +448,20 @@ Offset 28 closes on obligations written where no reader looks. This is the
 inverse: a report written without looking where the reader already wrote. Same
 root, opposite direction — and the cheap guard against it is to read a task's
 AC block, not just its description, before claiming novelty.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-503d09c9
+- **Timestamp:** 2026-10-23T22:07:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — After upstream fix lands in vendored `.agentic-framework/lib/upgrade.sh`, re-run `fw upgrade --force-downgrade` and confirm the flag survives through the bare-from-consumer handoff (split-brain refusa
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=agentic-framework/lib/upgrade.sh in: After upstream fix lands in vendored `.agentic-framework/lib/upgrade.sh`, re-run `fw upgrade --force-downgrade` and confirm the flag survives through `
+
+### 2026-10-23T22:07:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
