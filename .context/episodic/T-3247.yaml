@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3247: Re-measure CLAUDE.md preload against the 20k-token target
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T22:44:13Z
+# ============================================================================
+
+task_id: T-3247
+task_name: "Re-measure CLAUDE.md preload against the 20k-token target"
+workflow_type: test
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T19:55:25Z
+completed: 2026-10-23T22:44:02Z
+duration_days: 24
+updates_count: 2
+first_commit: 2026-10-24T00:44:00+02:00
+last_commit: 2026-10-24T00:44:00+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLAUDE.md preload re-measured: 125,869 -> 39,743 tokens after T-3245/T-3246; 20k target needs the framework tail slimmed
+
+# Key outcomes
+outcomes:
+  - 'Preload measured three ways with the T-3244 method: empty CLAUDE.md, the pre-T-3245 CLAUDE.md, the current one; numbers recorded in `docs/reports/T-3247-claudemd-preload-remeasure.md` — CLAUDE.md cost 125,869 -> 39,743 tokens (-86,126, 68%)'
+  - 'The report states the gap to the 20k-token target and the largest remaining sections by size, and recommends the next cut (expected: Hub Auth Rotation Protocol); nothing in CLAUDE.md is changed by this task — gap ~19.7k; the framework governance tail alone is ~18.6k, so 20k is unreachable from this repo; next cut Hub Auth Rotation (~8.6k)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3247-re-measure-claudemd-preload-against-the-.md'
+  - 'docs/reports/T-3247-claudemd-preload-remeasure.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-24T00:44:00'
+    action: 'T-3247: CLAUDE.md preload re-measured: 125,869 -> 39,743 tokens after T-3245/T-3246; 20k target needs the framework tail slimmed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 34728 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009, go-slice]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 34728
+  commits: 2
+  files_changed: 5
+  lines_added: 203
+  lines_removed: 10
+  footprint_refreshed_at: '2026-10-23T22:44:20Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3247-re-measure-claudemd-preload-against-the-.md
+generated_by: context-agent-hybrid

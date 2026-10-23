@@ -5,10 +5,10 @@ description: >
   T-2989 GO step 4: after steps 2-3, measure preloaded tokens; remaining gap expected
   to be the Hub Auth Rotation Protocol (~6k).
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009, go-slice]
 components: []
 related_tasks: [T-2989]
@@ -23,8 +23,8 @@ related_tasks: [T-2989]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:55:25Z
-last_update: 2026-10-23T22:44:00Z
-date_finished:
+last_update: 2026-10-23T22:44:02Z
+date_finished: 2026-10-23T22:44:02Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -317,3 +317,15 @@ test -f docs/reports/T-3247-claudemd-preload-remeasure.md && grep -q "39,743" do
 ### 2026-10-23T22:40:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-deda9412
+- **Timestamp:** 2026-10-23T22:44:04Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-23T22:44:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
