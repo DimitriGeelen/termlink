@@ -54,7 +54,7 @@ mkdir -p "$RUNME_PACK_DEST" && tar -xzf "$TMP/pack-good.tgz" -C "$RUNME_PACK_DES
 # "<kind> <value> <count>" in $FAKE_FEDPROBE_STATE; default = already bounded, so
 # every other case below skips action 9 without touching a real hub.
 export FAKE_FEDPROBE_STATE="$TMP/fedprobe.state"
-echo "messages 100 100" > "$FAKE_FEDPROBE_STATE"
+echo "latest_per_cv_key 0 1" > "$FAKE_FEDPROBE_STATE"
 cat > "$TMP/fake-tl-fedprobe" <<'EOS'
 #!/usr/bin/env bash
 read -r kind value count < "$FAKE_FEDPROBE_STATE"
@@ -63,10 +63,13 @@ case "$1 $2" in
     [ -n "${FAKE_FEDPROBE_MISSING:-}" ] && { echo "unknown topic" >&2; exit 1; }
     printf '{"topic":"%s","count":%s,"retention":{"kind":"%s","value":%s}}\n' "$3" "$count" "$kind" "$value" ;;
   "channel set-retention")
-    spec="$5"; echo "${spec%%:*} ${spec#*:} $count" > "$FAKE_FEDPROBE_STATE" ;;
+    spec="$5"
+    if [ "$spec" = "latest-per-cv-key" ]; then echo "latest_per_cv_key 0 $count" > "$FAKE_FEDPROBE_STATE"
+    else echo "${spec%%:*} ${spec#*:} $count" > "$FAKE_FEDPROBE_STATE"; fi ;;
   "channel sweep")
     [ -n "${FAKE_FEDPROBE_NOSWEEP:-}" ] && exit 0
     [ "$kind" = "messages" ] && [ "$count" -gt "$value" ] && count=$value
+    [ "$kind" = "latest_per_cv_key" ] && count=1   # one probe source, every record tagged
     echo "$kind $value $count" > "$FAKE_FEDPROBE_STATE" ;;
 esac
 EOS
@@ -974,29 +977,30 @@ else bad "identity env idempotent" "rc=$rc: $out"; fi
 # ---------------------------------------------------------------------------
 # 21. T-2988 — bound health:ring20-fedprobe (fake termlink, scratch state only).
 # ---------------------------------------------------------------------------
-echo "forever 0 2777" > "$FAKE_FEDPROBE_STATE"
+# State at the first run's end (messages:100, 104 records) -> latest-per-cv-key.
+echo "messages 100 104" > "$FAKE_FEDPROBE_STATE"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would set health:ring20-fedprobe retention forever -> messages 100" && grep -q "^forever 0 2777$" "$FAKE_FEDPROBE_STATE"; then
+if echo "$out" | grep -q "would set health:ring20-fedprobe retention messages -> latest-per-cv-key" && grep -q "^messages 100 104$" "$FAKE_FEDPROBE_STATE"; then
     ok "fedprobe: --dry-run reports and changes nothing"
 else bad "fedprobe dry-run" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      health:ring20-fedprobe now keeps the last 100; swept to 100 records (verified)" && grep -q "^messages 100 100$" "$FAKE_FEDPROBE_STATE"; then
-    ok "fedprobe: retention set, swept to 100, verified"
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      health:ring20-fedprobe now keeps the latest record per cv_key; swept to 1 records (verified)" && grep -q "^latest_per_cv_key 0 1$" "$FAKE_FEDPROBE_STATE"; then
+    ok "fedprobe: latest-per-cv-key set, swept to one record, verified"
 else bad "fedprobe bound" "rc=$rc: $out $(cat "$FAKE_FEDPROBE_STATE")"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    health:ring20-fedprobe already keeps the last 100"; then
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    health:ring20-fedprobe already keeps the latest record per cv_key"; then
     ok "fedprobe: second run skips (idempotent)"
 else bad "fedprobe idempotent" "rc=$rc: $out"; fi
 echo "forever 0 2777" > "$FAKE_FEDPROBE_STATE"
 out=$(FAKE_FEDPROBE_NOSWEEP=1 run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  health:ring20-fedprobe: after set-retention + sweep it reads 'messages 100 2777'"; then
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  health:ring20-fedprobe: after set-retention + sweep it reads 'latest_per_cv_key 0 2777'"; then
     ok "fedprobe: a sweep that does not take effect is FAILED, not OK"
 else bad "fedprobe no-sweep" "rc=$rc: $out"; fi
 out=$(FAKE_FEDPROBE_MISSING=1 run); rc=$?
 if echo "$out" | grep -q "skip    health:ring20-fedprobe not found on the local hub"; then
     ok "fedprobe: missing topic is a skip"
 else bad "fedprobe missing" "rc=$rc: $out"; fi
-echo "messages 100 100" > "$FAKE_FEDPROBE_STATE"
+echo "latest_per_cv_key 0 1" > "$FAKE_FEDPROBE_STATE"
 
 # ---------------------------------------------------------------------------
 # 22. T-3325 — restart stale notify-sidecars (fake detector/kill/supervisor only).

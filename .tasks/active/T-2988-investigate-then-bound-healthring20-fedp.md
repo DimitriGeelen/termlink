@@ -25,7 +25,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:12:00Z
-last_update: 2026-10-01T22:23:35Z
+last_update: 2026-10-23T22:49:04Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -82,7 +82,7 @@ C-15 (the rate-based trigger that would have surfaced this) is agent work, but i
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Ring20 manager asked the purpose question (is the fed-probe a checked round-trip canary? will they tag cv_key?) on a durable DM, offset recorded (operator: SQ-10 b)
 - [x] runme action bounds `health:ring20-fedprobe` retention (latest-per-cv-key if ring20 tags, else keep the last 100) and sweeps once, verified by `channel info` count (operator: SQ-10 a) — done 2026-10-01: runme action 9, log runme-20261001T221519Z (rc=0): retention messages:100, swept 2,792 -> 100, verified by channel info (count 100); live subscribe from 0 now reports gap {oldest_offset 2693, skipped 2693} (T-3307)
-- [ ] Ring20's answer recorded; if nothing checks the round trip, the probe's stop/re-target is requested
+- [x] Ring20's answer recorded; if nothing checks the round trip, the probe's stop/re-target is requested — 2026-10-24 (re-asked on the sidecar inbox, conversation t2988-fedprobe; the 2026-10-01 DM was never seen): the probe IS read (ring20 `scripts/check-termlink-federation.sh` posts the FED-PROBE-RT marker, reads it back, alerts on failure) and every post carries `metadata.cv_key=ring20-fedprobe-ring20-manager` (all 104 records tagged). So no stop is requested; the SQ-10 ruling's first branch applies: runme action 9 now sets latest-per-cv-key (one record per probe source) and verifies it; it takes effect on the next operator runme run
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -177,6 +177,8 @@ C-15 (the rate-based trigger that would have surfaced this) is agent work, but i
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q 'set-retention "$FEDPROBE_TOPIC" --retention latest-per-cv-key' runme.sh
+TMPDIR=/var/tmp bash tests/runme-fixtures.sh > .context/working/.t2988a 2>&1 && grep -q "fedprobe: latest-per-cv-key set, swept to one record, verified" .context/working/.t2988a
 
 ## RCA
 

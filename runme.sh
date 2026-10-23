@@ -911,21 +911,24 @@ head2 "8. Claude sessions sign with claude-termlink's own key (T-3303, T-3302 GO
 set_agent_identity_env
 
 # ---------------------------------------------------------------------------
-# ACTION 9 — bound health:ring20-fedprobe to its last 100 records
+# ACTION 9 — keep one record per probe source on health:ring20-fedprobe
 # (T-2988; operator ruling SQ-10 a+b, 2026-10-01)
 #
-# ring20's federation round-trip probe posts ~90-100 tokens a day to this hub,
-# retention "forever" (2,777 records when measured), and nothing here reads it.
-# The operator ruled: bound it and sweep once. The last 100 posts (~1 day) stay
-# readable, so ring20's own round-trip check is unaffected. If ring20 later tags
-# its posts with a stable metadata.cv_key, this becomes latest-per-cv-key.
-# Idempotent: skips when already "messages 100" with <= 100 records; verifies
-# by re-reading retention and count after the sweep. A missing topic is a skip.
+# ring20's federation round-trip probe (scripts/check-termlink-federation.sh on .122)
+# posts a FED-PROBE-RT marker here every ~15 min, reads it back, and alerts on a
+# failed round trip; it needs only the latest record. The operator ruled: bound it,
+# "latest-per-cv-key if ring20 tags, else keep the last 100". The first run (2026-10-01)
+# applied messages:100. ring20 now tags every post metadata.cv_key=ring20-fedprobe-<host>
+# (confirmed 2026-10-24, msg 28f8b888; all 104 records tagged), so this applies the
+# ruling's first branch: latest-per-cv-key, i.e. one record per probe source. Untagged
+# records would be kept, never dropped, so the count cannot fall below what is untagged.
+# Idempotent: skips when already latest_per_cv_key with <= FEDPROBE_MAX_AFTER records;
+# verifies by re-reading retention and count after the sweep. A missing topic is a skip.
 # Seam (fixtures only): RUNME_FEDPROBE_TL (the termlink CLI).
 # ---------------------------------------------------------------------------
 seam FEDPROBE_TL RUNME_FEDPROBE_TL "termlink"
 FEDPROBE_TOPIC="health:ring20-fedprobe"
-FEDPROBE_KEEP=100
+FEDPROBE_MAX_AFTER=10   # one per probe source; ring20 runs one source today
 
 fedprobe_state() {  # -> "<kind> <value> <count>" or "missing"
     $FEDPROBE_TL channel info "$FEDPROBE_TOPIC" --json 2>/dev/null | python3 -c '
@@ -947,23 +950,23 @@ bound_fedprobe() {
         say "  skip    $FEDPROBE_TOPIC not found on the local hub (nothing to bound)"; SKIPPED=$((SKIPPED+1)); return
     fi
     read -r kind value count <<< "$st"
-    if [ "$kind" = "messages" ] && [ "$value" = "$FEDPROBE_KEEP" ] && [ "$count" -le "$FEDPROBE_KEEP" ]; then
-        say "  skip    $FEDPROBE_TOPIC already keeps the last $FEDPROBE_KEEP ($count records)"; SKIPPED=$((SKIPPED+1)); return
+    if [ "$kind" = "latest_per_cv_key" ] && [ "$count" -le "$FEDPROBE_MAX_AFTER" ]; then
+        say "  skip    $FEDPROBE_TOPIC already keeps the latest record per cv_key ($count records)"; SKIPPED=$((SKIPPED+1)); return
     fi
     if [ "$DRY_RUN" = "1" ]; then
-        say "  [DRY]   would set $FEDPROBE_TOPIC retention $kind -> messages $FEDPROBE_KEEP and sweep ($count records now)"; DONE=$((DONE+1)); return
+        say "  [DRY]   would set $FEDPROBE_TOPIC retention $kind -> latest-per-cv-key and sweep ($count records now)"; DONE=$((DONE+1)); return
     fi
-    $FEDPROBE_TL channel set-retention "$FEDPROBE_TOPIC" --retention "messages:$FEDPROBE_KEEP" >/dev/null 2>&1
+    $FEDPROBE_TL channel set-retention "$FEDPROBE_TOPIC" --retention latest-per-cv-key >/dev/null 2>&1
     $FEDPROBE_TL channel sweep "$FEDPROBE_TOPIC" >/dev/null 2>&1
     read -r kind value count <<< "$(fedprobe_state)"
-    if [ "$kind" = "messages" ] && [ "$value" = "$FEDPROBE_KEEP" ] && [ "${count:-999999}" -le "$FEDPROBE_KEEP" ]; then
-        say "  OK      $FEDPROBE_TOPIC now keeps the last $FEDPROBE_KEEP; swept to $count records (verified)"; DONE=$((DONE+1))
+    if [ "$kind" = "latest_per_cv_key" ] && [ "${count:-999999}" -le "$FEDPROBE_MAX_AFTER" ]; then
+        say "  OK      $FEDPROBE_TOPIC now keeps the latest record per cv_key; swept to $count records (verified)"; DONE=$((DONE+1))
     else
         say "  FAILED  $FEDPROBE_TOPIC: after set-retention + sweep it reads '$kind $value $count'"; FAILED=$((FAILED+1))
     fi
 }
 
-head2 "9. Bound health:ring20-fedprobe to its last $FEDPROBE_KEEP records (T-2988, SQ-10)"
+head2 "9. Keep one record per probe source on health:ring20-fedprobe (T-2988, SQ-10)"
 bound_fedprobe
 
 # ---------------------------------------------------------------------------
