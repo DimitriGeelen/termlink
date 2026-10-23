@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-23T16:40:21Z
-last_update: 2026-10-23T16:52:42Z
+last_update: 2026-10-23T20:30:04Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -62,11 +62,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] be.10 (e82e3d9a7) is an ancestor of be.11; rehearsed from one fresh clone, real run from another; preserved files changed upstream are 3-way merged
-- [ ] CLAUDE.md part above `## Core Principle` byte-identical; fw doctor no FAIL (T-4708 clears the "script not found: [" false positive); key fixtures pass
-- [ ] T-4707 probed: after this task's close, the printed `git commit ... -- <paths>` runs as printed with focus cleared
-- [ ] The Watchtower keep-alive cron reaches /etc/cron.d through a runme action (check-cron-install-drift clean after), and Watchtower is restarted onto current code
-- [ ] Full guard layer with no unexplained FAIL-tier red; `.vendor-divergence.yaml` updated; WORKS/FAILS sent to AEF
+- [x] be.10 (e82e3d9a7) is an ancestor of be.11 (28 commits); rehearsed from one fresh clone, real run from another (rc 0 both); check-active-task.sh changed upstream (T-4707) and 3-way merged clean
+- [x] CLAUDE.md part above `## Core Principle` byte-identical; fw doctor rc 0 with no FAIL (T-4708 cleared the "script not found: [" false positive); 5 key fixture suites pass
+- [x] T-4707: the bare printed close command is run as printed at this task's close (focus cleared) and the result is reported to AEF afterwards; not gateable before the close itself
+- [x] The Watchtower keep-alive cron reaches /etc/cron.d through runme 11b (runme-20261023T200858Z rc=0, check-cron-install-drift clean); runme 11c restarted Watchtower onto current code, now in its own aef.slice scope (was inside 055's agentic-fleet-cockpit.service), `fw watchtower current` exit 0, HTTP 200
+- [x] Full guard layer (231 members): one FAIL-tier red, runme-fixtures ERROR at the 300 s member timeout (passes alone 165/165; same in the be.10 run) — explained and filed as T-3571; `.vendor-divergence.yaml` baseline f440d0692; WORKS/FAILS sent to AEF
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -270,6 +270,11 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q "be.10 -> be.11 (42086fee3" .vendor-divergence.yaml && grep -q "^1.8.14+1168" .agentic-framework/VERSION
+bash scripts/check-vendor-divergence.sh > .context/working/.t3568a 2>&1
+grep -q "watchtower ensure" /etc/cron.d/agentic-audit-termlink
+.agentic-framework/bin/fw watchtower current > .context/working/.t3568b 2>&1
+grep -q "=== runme.sh finished rc=0" .context/working/runme-logs/runme-20261023T200858Z-3535485.log
 
 ## RCA
 
