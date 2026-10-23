@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T14:05:04Z
-last_update: 2026-10-23T10:12:16Z
+last_update: 2026-10-23T13:06:16Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -79,6 +79,11 @@ Consumer requirement (055-agentic-fleet-cockpit, 2026-10-22, conversation sev1-t
 attach/list wrappers take a **project path**, not a socket path. Send them the interface draft on that
 conversation before it is fixed. 055's own launchers (claude-fleet-start.sh, fleet-rehome.sh, cockpit-server.py)
 start on the default socket today with an allow-listed client env (their 34e78fe1).
+
+Second consumer (050-email-archive, 2026-10-23, msg d6d3364a): `scripts/pen-live-agent-ctl.sh ensure_host_tmux_server`
+probes the DEFAULT socket and starts `systemd-run --unit=pen-tmux-server tmux -D` when nothing listens. They will
+switch it to `termlink tmux socket <path> --ensure` and read `[ -e /etc/termlink/tmux-per-project ]`. Message
+sev1-tmux-env-leak-2026-10-22 before the switch flips on .107.
 
 ## Acceptance Criteria
 
