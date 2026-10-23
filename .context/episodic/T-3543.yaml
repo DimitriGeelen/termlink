@@ -1,0 +1,107 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3543: Scoped hub token for remote nodes: 'hub token mint' on the hub host + profile token_file used as-is by CLI and sidecar transport
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T14:22:36Z
+# ============================================================================
+
+task_id: T-3543
+task_name: "Scoped hub token for remote nodes: 'hub token mint' on the hub host + profile token_file used as-is by CLI and sidecar transport"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-22T09:01:58Z
+completed: 2026-10-23T14:20:56Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-10-22T11:02:38+02:00
+last_commit: 2026-10-23T16:20:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file the scoped hub token build (mint verb + token_file) from T-3542. WIP - auth::peek_token_payload (scope/expiry without the secret); criteria and step-by-step plan recorded (session hit the budget limit). hubs.toml token_file field (all HubEntry literals updated) + peek_token_payload unit test. termlink hub token — mint an observe/notify/interact token from the live hub secret to a 0600 file (never printed; control/execute refused). present a profile's token_file in hub.auth (remote commands, channel --hub TCP path incl. WS push, fleet probes, net test) when no secret is set. remote profile add --token-file (list shows type token); live e2e on a throwaway hub (15/15); remote-node-token.md with recipe and residuals
+
+# Key outcomes
+outcomes:
+  - '`termlink hub token --out FILE [--scope observe|notify|interact] [--ttl SECS] [--force] [--json]` on the hub host mints a token from the live hub.secret, writes it to FILE at mode 0600 (atomic, refuses an existing file without --force), never prints it, reports scope and expiry; control/execute are refused; TTL bounded by the existing ceiling'
+  - 'A hubs.toml profile key `token_file` (and `remote profile add --token-file`) makes every CLI TCP auth path present that token in hub.auth instead of minting from a secret: `connect_remote_hub` (remote commands), the channel TCP path (channel post/subscribe/... --hub), and the fleet net probe; the file is read through `read_token_source` (owner-only mode, bounded size)'
+  - 'An expired token_file fails with a message naming the file, its expiry and the remedy (`termlink hub token` on the hub host), without printing the token; a token below the command''s scope prints a note naming the file and its scope, and the hub''s refusal names the scope mismatch (see Decisions 2026-10-23)'
+  - 'Live on a temp hub: a minted interact token in a profile lets `channel post/list --hub` work and is refused for `command.inject`/`exec`; a profile holding only token_file never needs hub.secret'
+  - '`docs/operations/remote-node-token.md` states the recipe and the residuals (no per-topic ACL, replay within TTL, revocation only by secret rotation or expiry)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-23 — a token below the command''s scope: note, not a local refusal'
+    chose: 'the node refuses an expired token itself (naming file, expiry, remedy), but a token below the scope a command asks for only prints a note naming the file and its scope; the hub then refuses any method above it with its "SCOPE mismatch" error.'
+    rationale: 'many callers ask for a scope higher than they use (fleet doctor/governor probes default to `execute` but only need `hub.auth` + observe reads). A local refusal would block exactly the probes a token node should be able to run.'
+    alternatives_rejected: ['refusing locally on any scope shortfall (breaks fleet doctor on token nodes); silent pass-through (the user gets a bare hub refusal with no hint which file to replace).']
+  - decision: '2026-10-23 — precedence when a profile has both a secret and a token_file'
+    chose: 'the secret wins; token_file is used only when no secret is configured or passed.'
+    rationale: 'keeps every existing profile''s behaviour byte-identical; `profile add` rejects passing both at once.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.fabric/components/tests-hub-token-e2e.yaml'
+  - '.tasks/active/T-3543-scoped-hub-token-for-remote-nodes-hub-to.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/commands/push.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-cli/src/commands/substrate.rs'
+  - 'crates/termlink-cli/src/config.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-doctor/src/hubs_config.rs'
+  - 'crates/termlink-session/src/auth.rs'
+  - 'docs/operations/remote-node-token.md'
+  - 'tests/hub-token-e2e.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-22T11:02:38'
+    action: 'T-3543: file the scoped hub token build (mint verb + token_file) from T-3542'
+  - time: '2026-10-23T15:30:55'
+    action: 'T-3543: WIP - auth::peek_token_payload (scope/expiry without the secret); criteria and step-by-step plan recorded (session hit the budget limit)'
+  - time: '2026-10-23T16:08:50'
+    action: 'T-3543: hubs.toml token_file field (all HubEntry literals updated) + peek_token_payload unit test'
+  - time: '2026-10-23T16:10:50'
+    action: 'T-3543: termlink hub token — mint an observe/notify/interact token from the live hub secret to a 0600 file (never printed; control/execute refused)'
+  - time: '2026-10-23T16:14:49'
+    action: 'T-3543: present a profile''s token_file in hub.auth (remote commands, channel --hub TCP path incl. WS push, fleet probes, net test) when no secret is set'
+  - time: '2026-10-23T16:20:53'
+    action: 'T-3543: remote profile add --token-file (list shows type token); live e2e on a throwaway hub (15/15); remote-node-token.md with recipe and residuals'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 1758 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1758
+  commits: 6
+  files_changed: 14
+  lines_added: 1072
+  lines_removed: 93
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3543-scoped-hub-token-for-remote-nodes-hub-to.md
+generated_by: context-agent-hybrid
