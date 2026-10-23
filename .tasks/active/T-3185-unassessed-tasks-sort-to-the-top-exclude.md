@@ -51,7 +51,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-27T12:12:29Z
-last_update: '2026-09-27T21:34:09Z'
+last_update: 2026-10-23T22:04:24Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -152,6 +152,11 @@ cost_estimate_proposed:
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
+- [ ] [REVIEW] Close-readiness: the work meets its Agent criteria and the Verification section passes (T-3185, reviewer-judged, T-4156)
+  **Steps:**
+  1. Run `cd /opt/termlink && .agentic-framework/bin/fw reviewer judge T-3185`
+  **Expected:** an independent reviewer records a green verdict for this criterion's current text
+  **If not:** remediate the findings the reviewer lists, then re-run the judge
 
 ## Verification
 
@@ -350,3 +355,7 @@ bash scripts/check-vendor-divergence.sh
 
 ### 2026-09-27T12:12:44Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-23T22:04:19Z — delegate ready-to-close [fw-task-delegate]
+- **Ruling:** D-626 / T-3557 / T-4156 — no Human criteria, Agent criteria done: one reviewer-judged close-readiness criterion added; owner unchanged.
+- **Close path:** `.agentic-framework/bin/fw reviewer judge T-3185`; a green verdict ticks it, red/amber returns findings to remediate.
