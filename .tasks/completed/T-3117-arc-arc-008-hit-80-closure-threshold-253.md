@@ -10,10 +10,10 @@ description: >
   and a fresh arc opened per remediation cycle, or should its ratio-based closure-pressure
   check be exempted for arcs explicitly designated as recurring?
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -28,8 +28,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:58:49Z
-last_update: 2026-10-23T21:58:44Z
-date_finished:
+last_update: 2026-10-23T22:02:30Z
+date_finished: 2026-10-23T22:02:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -145,11 +145,12 @@ opt-out, so the mechanism fix is upstream (G-062).
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
-- [ ] [REVIEW] Close-readiness: the work meets its Agent criteria and the Verification section passes (T-3117, reviewer-judged, T-4156)
+- [x] [REVIEW] Close-readiness: the work meets its Agent criteria and the Verification section passes (T-3117, reviewer-judged, T-4156)
   **Steps:**
   1. Run `cd /opt/termlink && .agentic-framework/bin/fw reviewer judge T-3117`
   **Expected:** an independent reviewer records a green verdict for this criterion's current text
   **If not:** remediate the findings the reviewer lists, then re-run the judge
+  **Reviewer verdict:** green V-20261023-7daf3eb9 — reviewer-judge-t-3117-r1-71ac931101fa:reviewer (rung rung-1-same-vendor-independent), digest f3420266e348; dispatch judge-t-3117-r1-71ac931101fa; evidence: .context/reviews/evidence/T-3117/AC1-judge-t-3117-r1-71ac931101fa.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 
@@ -212,7 +213,9 @@ opt-out, so the mechanism fix is upstream (G-062).
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-true
+# The ruling (EXEMPT, keep arc-008 open) holds and its mechanism follow-up exists.
+grep -qE "^status: *in-progress" .context/arcs/arc-008.yaml
+ls .tasks/*/T-3171-*.md > /dev/null
 
 ## RCA
 
@@ -253,6 +256,11 @@ true
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-26 — the closure premise lapsed; arc-008 is an intake queue
+- **What changed:** filed at 25/30 (83%); by the ruling it was 40/72 (0.556) because every new audit finding joins arc-008, so its denominator grows faster than completions.
+- **Plan impact:** closing arc-008 is wrong; the operator ruled EXEMPT (standing remediation home). This task closes as answered, not by closing the arc.
+- **Triggered:** T-3171 (per-arc exemption from the closure-pressure check; upstream, G-062).
 
 ## Recommendation
 
@@ -317,3 +325,20 @@ true
 ### 2026-10-23T21:58:38Z — delegate ready-to-close [fw-task-delegate]
 - **Ruling:** D-626 / T-3557 / T-4156 — no Human criteria, Agent criteria done: one reviewer-judged close-readiness criterion added; owner unchanged.
 - **Close path:** `.agentic-framework/bin/fw reviewer judge T-3117`; a green verdict ticks it, red/amber returns findings to remediate.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c85ff717
+- **Timestamp:** 2026-10-23T22:02:41Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 62
+     - evidence: `ls .tasks/*/T-3171-*.md > /dev/null`
+
+### 2026-10-23T22:02:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

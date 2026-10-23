@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3117: Arc arc-008 hit 80% closure threshold (25/30) without explicit fw arc close
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T22:03:00Z
+# ============================================================================
+
+task_id: T-3117
+task_name: "Arc arc-008 hit 80% closure threshold (25/30) without explicit fw arc close"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T23:58:49Z
+completed: 2026-10-23T22:02:30Z
+duration_days: 29
+updates_count: 3
+first_commit: 2026-09-26T20:08:11+02:00
+last_commit: 2026-10-24T00:00:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  operator ruled EXEMPT — and the task had already said why. delegate close-readiness to the reviewer (no Human criteria, Agent criteria done). reviewer verdict
+
+# Key outcomes
+outcomes:
+  - 'Human decides whether arc-008 should be closed and superseded by a fresh arc per remediation cycle, or exempted from the closure-pressure check as a recurring arc, and records the decision'
+  - '[REVIEW] Close-readiness: the work meets its Agent criteria and the Verification section passes (T-3117, reviewer-judged, T-4156)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/applied.jsonl'
+  - '.context/reviews/evidence/T-3117/AC1-judge-t-3117-r1-71ac931101fa.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-3117-arc-arc-008-hit-80-closure-threshold-253.md'
+  - '.tasks/active/T-3171-per-arc-exemption-from-the-closure-press.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-26T20:08:11'
+    action: 'T-3117: operator ruled EXEMPT — and the task had already said why'
+  - time: '2026-10-23T23:58:44'
+    action: 'T-3117: delegate close-readiness to the reviewer (no Human criteria, Agent criteria done)'
+  - time: '2026-10-24T00:00:14'
+    action: 'T-3117: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 41643 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 41643
+  commits: 4
+  files_changed: 12
+  lines_added: 569
+  lines_removed: 11
+  footprint_refreshed_at: '2026-10-23T22:03:10Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3117-arc-arc-008-hit-80-closure-threshold-253.md
+generated_by: context-agent-hybrid
