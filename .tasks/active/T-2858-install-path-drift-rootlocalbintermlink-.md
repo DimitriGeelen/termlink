@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-30T10:13:13Z
-last_update: '2026-09-27T21:34:06Z'
+last_update: 2026-10-23T22:05:09Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -107,7 +107,7 @@ re-stated verbally each session.
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] The drift is measured and recorded with per-path version and mtime (see Context)
 - [x] The blocked action is attributed to the specific gate that refused it (T-559 project boundary), not left as an unexplained omission
-- [ ] [REVIEWER] All known install paths agree on one version — no install-path drift
+- [x] [REVIEWER] All known install paths agree on one version — no install-path drift (2026-10-24: runme T-3287/T-3289 installs every copy; ~/.cargo/bin, /usr/local/bin, ~/.local/bin all 0.12.1084; check-installed-binary-drift: "installed paths agree: 0.12.1084")
   **Converted from a `### Human` `[RUBBER-STAMP]` AC on 2026-09-26 (T-3156, operator GO on SQ-1).**
   **The literal Expected string is STALE and I substituted the current equivalent — flagged rather than done quietly.** The original clause required the last line to read `check-installed-binary-drift: clean`. That string **no longer exists** in the script's output (`grep -c` → 0); its verdict line is now `installed paths agree: <version>`. The semantic claim is unchanged — all known paths on one version — and rc 0 confirms it, but a reviewer should know the assertion was rewritten rather than matched.
   **Measured 2026-09-26:** `check-installed-binary-drift.sh` → `installed paths agree: 0.12.13`, rc 0, across 4 known install paths. The AC was written when the target was 0.11.1766 with two paths stale at 0.11.1716; the tree has since moved past both, so the condition is satisfied more strongly than it was specified.
