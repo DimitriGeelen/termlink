@@ -16,7 +16,7 @@ bad() { FAIL=$((FAIL+1)); printf '  FAIL %s\n' "$1"; }
 [ -r "$SCRIPT" ] || { echo "TOOLING: cannot read $SCRIPT" >&2; exit 2; }
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 
-SURFACES="scripts/substrate-preflight.sh CLAUDE.md .claude/commands/preflight.md
+SURFACES="scripts/substrate-preflight.sh docs/operations/termlink-skills-reference.md .claude/commands/preflight.md
 docs/operations/substrate-cron-recipes.md docs/operations/substrate-getting-started.md"
 
 mkrepo() { # dir — a consistent copy of the five surfaces

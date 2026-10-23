@@ -13,7 +13,7 @@
 #
 # Surfaces audited:
 #   1. scripts/substrate-preflight.sh        — the script's own usage()
-#   2. CLAUDE.md                              — /preflight catalog row
+#   2. docs/operations/termlink-skills-reference.md — /preflight catalog row (in CLAUDE.md until T-3245 moved the table, T-3572)
 #   3. .claude/commands/preflight.md          — skill description + "What it checks" table
 #   4. docs/operations/substrate-cron-recipes.md — cron-recipe "N checks are categorical"
 #   5. docs/operations/substrate-getting-started.md — sample-output "Summary: N pass" (T-2192, PL-211)
@@ -75,7 +75,7 @@ if [ "$HEARTBEAT" = 1 ]; then trap _canary_hb EXIT; fi
 REPO_ROOT="${REPO_ROOT:-$(pwd)}"
 SURFACES=(
     "script:scripts/substrate-preflight.sh"
-    "catalog:CLAUDE.md"
+    "catalog:docs/operations/termlink-skills-reference.md"
     "skill:.claude/commands/preflight.md"
     "cron:docs/operations/substrate-cron-recipes.md"
     "getting-started:docs/operations/substrate-getting-started.md"
@@ -122,7 +122,7 @@ extract_count() {
             fi
             ;;
         catalog)
-            # CLAUDE.md /preflight row: "Five checks:" near the start of the cell.
+            # /preflight catalog row: "Five checks:" near the start of the cell (moved out of CLAUDE.md by T-3245).
             word=$(printf '%s\n' "$body" | grep -oE '(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten) checks: ' | head -n 1 | awk '{print $1}')
             if [ -n "$word" ]; then
                 word_to_num "$word"
