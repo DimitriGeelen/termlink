@@ -6,10 +6,10 @@ description: >
   close the arc properly and shorten the remaining description outliers. Evidence:
   docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-05.
 
-status: captured
+status: started-work
 workflow_type: refactor
 owner: agent
-horizon: next
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -24,7 +24,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:13:50Z
-last_update: '2026-09-20T08:45:20Z'
+last_update: 2026-10-23T22:41:26Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,6 +50,19 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=3 (body:portability-abstraction); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-10-23T22:22:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-20T08:45:20Z'
     estimator: bvp-estimator-v1-heuristic
@@ -66,14 +79,22 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Value review C-05 (`docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md`). Measured
+2026-10-24: 264 MCP tool descriptions, 108,755 bytes (~27k tokens per agent per session),
+longest 1,546 chars; `scripts/test-mcp-desc-budget.sh` passes but sits at its ceilings (1,560
+single, 109,000 total). The arc-close half is already queued for the operator as the
+`[RUBBER-STAMP]` criterion on T-2408 (`fw arc close mcp-slimming`), so this task does the
+agent half: trim the outliers, then lower the guard's ceilings to the new measurement so the
+saving cannot regrow. The biggest single cut (removing the off-charter tools, C-01/C-02) is
+T-2548's decision, not this task's.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Every description over 1,000 characters is trimmed to its contract (what it does, key params' meaning, what it returns, when to use it instead of a sibling); task-ID archaeology and restated schema params removed; no behaviour change (descriptions only) — termlink_help 1,546, agent_contact 1,103 and agent_inbox 986 trimmed; none over 1,000 remain (max 843)
+- [x] `scripts/test-mcp-desc-budget.sh` ceilings lowered to the new measured max and total (with small headroom) so the cut cannot regrow; it passes; before/after bytes recorded — 108,755 -> 107,139 bytes; ceilings 1560/109000 -> 860/107500
+- [x] `cargo build -p termlink-mcp` and the MCP crate's tests pass; the arc-close half is left to T-2408's operator criterion (cited, not duplicated) — 941 + 102 + 41 pass; the first trim broke `help_macro_description_documents_post_t1953_fields` (arc-005 pins that termlink_help names every mode and filter param), fixed by keeping the names as a compact list
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -168,6 +189,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash scripts/test-mcp-desc-budget.sh > .context/working/.t2990a 2>&1 && grep -q "RESULT: PASS" .context/working/.t2990a && grep -q "ceiling 860" .context/working/.t2990a
 
 ## RCA
 
@@ -208,6 +230,11 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-24 — the outlier tail was already short
+- **What changed:** the value review measured 26.4k tokens and "outliers"; by now only 2 descriptions exceeded 1,000 chars, so the trim saves ~1.6 KB, not a large cut. The big lever remains C-01/C-02 (removing the off-charter tools, T-2548's decision).
+- **Plan impact:** the arc-close half needs no new work: it already sits as T-2408's `[RUBBER-STAMP]` operator criterion.
+- **Triggered:** none.
 
 ## Recommendation
 
@@ -268,3 +295,7 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:30Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-10-23T22:22:44Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
