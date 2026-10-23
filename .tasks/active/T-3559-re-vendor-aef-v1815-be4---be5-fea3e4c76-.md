@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-23T09:40:46Z
-last_update: 2026-10-23T09:53:09Z
+last_update: 2026-10-23T09:53:35Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -62,11 +62,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] be.4 (b19757443) is an ancestor of be.5 (fea3e4c76) on a full upstream clone outside the project tree; vendor-divergence check clean before the run
-- [ ] Rehearsed on a throwaway clone first (rc 0), env hygiene per the checklist
-- [ ] Every preserved file upstream changed is 3-way merged (base be.4); files that become identical to upstream leave the preserve list (expected: checkpoint.sh, now that T-4667 carries our fix)
+- [x] be.4 (b19757443) is an ancestor of be.5 (fea3e4c76) on a full upstream clone outside the project tree; vendor-divergence check clean before the run
+- [x] Rehearsed on a throwaway clone first (rc 0), env hygiene per the checklist
+- [x] Every preserved file upstream changed is 3-way merged (base be.4); files that become identical to upstream leave the preserve list (expected: checkpoint.sh, now that T-4667 carries our fix) — checkpoint.sh dropped, list 9 -> 8
 - [ ] CLAUDE.md part above `## Core Principle` byte-identical; fw doctor no new FAIL; key fixtures pass; guard layer no FAIL-tier red
-- [ ] `.vendor-divergence.yaml` last_vendor_event updated; WORKS/FAILS per exercised be.5 fix sent to AEF on aef-v1815-be3
+- [x] `.vendor-divergence.yaml` last_vendor_event updated; WORKS/FAILS per exercised be.5 fix sent to AEF on aef-v1815-be3 (client_msg_id 4d03fd26)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -270,6 +270,13 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+grep -qx "1.8.14+1064.gfea3e4c76" .agentic-framework/VERSION
+bash scripts/check-vendor-divergence.sh > /tmp/.t3559a 2>&1
+bash tests/checkpoint-verb-fixtures.sh > /tmp/.t3559b 2>&1 && grep -q "ALL PASS" /tmp/.t3559b
+bash tests/safe-commands-checkpoint-fixtures.sh > /tmp/.t3559c 2>&1 && grep -q "ALL PASS" /tmp/.t3559c
+bash tests/safe-commands-write-pattern-fixtures.sh > /tmp/.t3559d 2>&1 && grep -q "Fail: 0" /tmp/.t3559d
+test "$(grep -c '^  - path:' .fwvendor-preserve.yaml)" -eq 8
 
 ## RCA
 
