@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3246: Move CLAUDE.md canary/guard block to docs/operations with an index
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T22:39:45Z
+# ============================================================================
+
+task_id: T-3246
+task_name: "Move CLAUDE.md canary/guard block to docs/operations with an index"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T19:55:13Z
+completed: 2026-10-23T22:39:31Z
+duration_days: 24
+updates_count: 2
+first_commit: 2026-10-24T00:39:29+02:00
+last_commit: 2026-10-24T00:39:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  move the canary/static-check block out of CLAUDE.md to docs/operations/guard-layer-and-canaries.md, leaving an index and six everyday rules
+
+# Key outcomes
+outcomes:
+  - 'Every moved subsection is byte-identical in `docs/operations/guard-layer-and-canaries.md`; nothing lost — the 156,755-byte block (45 subsections) is a verbatim substring of the doc'
+  - 'CLAUDE.md keeps the CI/Release Flow intro, a plain (no `@`) pointer saying when to open the doc, and an index with one line per moved subsection — 45 index lines naming each guard''s script, plus 6 everyday rules lifted out of the moved sections (verification redirect form, re-vendor checklist, cron PROJECT_ROOT, stderr sink, no real supervisor loop in tests, exit-code contract)'
+  - 'Every script/test that names CLAUDE.md (bare-string search, not only tool+path lines) is checked against the moved text and still passes — 7 readers found; error-code-docs, command-hints, env-var-docs, budget-ladder, preflight-doc-set rc 0; the two doc lints report the same pre-existing drift counts before and after (2 and 21), none in the moved text'
+  - 'Full guard layer shows no NEW FAIL-tier red versus the be.14 run (known: runme-fixtures timeout, T-3571); CLAUDE.md byte size recorded before/after — 231 members, 225 pass, only FAIL-tier red is runme-fixtures ERROR at 300 s (T-3571). CLAUDE.md 252,798 -> ~101.7 KB (316,310 before T-3245)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3246-move-claudemd-canaryguard-block-to-docso.md'
+  - 'CLAUDE.md'
+  - 'docs/operations/guard-layer-and-canaries.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-24T00:39:29'
+    action: 'T-3246: move the canary/static-check block out of CLAUDE.md to docs/operations/guard-layer-and-canaries.md, leaving an index and six everyday rules'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 34724 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009, go-slice]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 34724
+  commits: 2
+  files_changed: 6
+  lines_added: 2440
+  lines_removed: 2223
+  footprint_refreshed_at: '2026-10-23T22:39:52Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3246-move-claudemd-canaryguard-block-to-docso.md
+generated_by: context-agent-hybrid

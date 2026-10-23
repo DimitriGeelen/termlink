@@ -19904,3 +19904,21 @@ scan_id: R-647c9a8f
 task_id: T-3572
 payload:
   task_file: .tasks/active/T-3572-check-preflight-doc-set-drift-reads-the-.md
+---
+kind: scan_emitted
+timestamp: '2026-10-23T22:39:34Z'
+scan_id: R-49ad92cd
+task_id: T-3246
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-23T22:39:34Z'
+scan_id: R-49ad92cd
+task_id: T-3246
+payload:
+  task_file: .tasks/active/T-3246-move-claudemd-canaryguard-block-to-docso.md
