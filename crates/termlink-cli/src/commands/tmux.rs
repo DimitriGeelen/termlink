@@ -81,6 +81,27 @@ fn ensure_command(server: &str) -> Command {
     c
 }
 
+/// `list-panes -F` for `tmux list --json`: session, then the fields [`pane_json`] reads, in order.
+const PANE_FORMAT: &str = "#{session_name}\t#{pane_pid}\t#{pane_current_command}\t#{pane_id}\t#{pane_dead}\t#{pane_in_mode}\t#{alternate_on}\t#{window_width}\t#{window_height}\t#{window_activity}\t#{pane_current_path}";
+
+/// One pane of [`PANE_FORMAT`] output as JSON (055's field names; tmux's 0/1 flags as booleans).
+fn pane_json(p: &[&str]) -> serde_json::Value {
+    let num = |i: usize| p.get(i).and_then(|v| v.parse::<u64>().ok());
+    let flag = |i: usize| p.get(i).map(|v| *v == "1");
+    serde_json::json!({
+        "pid": num(1).unwrap_or(0),
+        "cmd": p.get(2).copied().unwrap_or(""),
+        "pane_id": p.get(3).copied(),
+        "pane_dead": flag(4),
+        "pane_in_mode": flag(5),
+        "alternate_on": flag(6),
+        "window_width": num(7),
+        "window_height": num(8),
+        "window_activity": num(9),
+        "pane_current_path": p.get(10).copied(),
+    })
+}
+
 /// A registered TermLink session, as `tmux list` matches it: pid, id, display name, tmux server.
 type Reg = (u32, String, String, Option<String>);
 
@@ -102,7 +123,9 @@ fn sessions_on(server: &str, project: Option<&Path>, regs: &[Reg]) -> serde_json
             "state": if present { "dead" } else { "absent" }, "sessions": [],
         });
     };
-    let panes = tmux_on(server, &["list-panes", "-a", "-F", "#{session_name}\t#{pane_pid}\t#{pane_current_command}"]).unwrap_or_default();
+    // 055 (T-3552 item B): the pane and window fields the cockpit reads today, so it need not call tmux
+    // for them. Tab-separated; pane_current_path goes last because a path may contain anything but a tab.
+    let panes = tmux_on(server, &["list-panes", "-a", "-F", PANE_FORMAT]).unwrap_or_default();
     let mut rows = Vec::new();
     for line in sessions.lines() {
         let f: Vec<&str> = line.split('\t').collect();
@@ -113,7 +136,7 @@ fn sessions_on(server: &str, project: Option<&Path>, regs: &[Reg]) -> serde_json
             .lines()
             .filter_map(|l| {
                 let p: Vec<&str> = l.split('\t').collect();
-                (p.len() >= 3 && p[0] == f[0]).then(|| serde_json::json!({"pid": p[1].parse::<u32>().unwrap_or(0), "cmd": p[2]}))
+                (p.len() >= 3 && p[0] == f[0]).then(|| pane_json(&p))
             })
             .collect();
         let pids: Vec<u32> = pane_rows.iter().filter_map(|p| p["pid"].as_u64().map(|v| v as u32)).collect();
@@ -121,6 +144,7 @@ fn sessions_on(server: &str, project: Option<&Path>, regs: &[Reg]) -> serde_json
             "session": f[0],
             "registered_session_id": registered_id(regs, server, f[0], &pids),
             "attached": f[1].parse::<u32>().unwrap_or(0) > 0,
+            "attached_count": f[1].parse::<u32>().unwrap_or(0),
             "created": f[2].parse::<u64>().unwrap_or(0),
             "panes": pane_rows,
         }));
@@ -227,6 +251,26 @@ mod tests {
 
     fn args(c: &Command) -> Vec<String> {
         c.get_args().map(|a| a.to_string_lossy().into_owned()).collect()
+    }
+
+    #[test]
+    fn pane_fields_parse_and_tolerate_short_rows() {
+        let row = "s\t42\tbash\t%3\t0\t1\t1\t200\t50\t1792700000\t/opt/p";
+        let f: Vec<&str> = row.split('\t').collect();
+        let j = pane_json(&f);
+        assert_eq!(j["pid"], 42);
+        assert_eq!(j["pane_id"], "%3");
+        assert_eq!(j["pane_dead"], false);
+        assert_eq!(j["pane_in_mode"], true);
+        assert_eq!(j["alternate_on"], true);
+        assert_eq!(j["window_width"], 200);
+        assert_eq!(j["window_activity"], 1792700000u64);
+        assert_eq!(j["pane_current_path"], "/opt/p");
+        assert_eq!(PANE_FORMAT.split('\t').count(), f.len(), "format and parser agree on the field count");
+        // An older tmux that leaves fields empty must not panic or invent values.
+        let short = pane_json(&["s", "7", "sh"]);
+        assert_eq!(short["pid"], 7);
+        assert!(short["pane_id"].is_null() && short["window_width"].is_null());
     }
 
     #[test]
