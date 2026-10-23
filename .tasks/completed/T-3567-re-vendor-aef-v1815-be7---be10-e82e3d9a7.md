@@ -4,10 +4,10 @@ name: "Re-vendor AEF v1.8.15-be.7 -> be.10 (e82e3d9a7): scanner scope + log rota
 description: >
   Operator GO 2026-10-23. Skips be.8/be.9 (be.10 contains both). Same procedure as T-3562: fresh clone per run, 3-way merge preserved files upstream changed, rehearsal then real run, CLAUDE.md project part byte-identical, full guard layer, WORKS/FAILS to AEF.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [vendor]
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-23T15:04:11Z
-last_update: 2026-10-23T15:38:50Z
-date_finished: null
+last_update: 2026-10-23T15:38:51Z
+date_finished: 2026-10-23T15:38:51Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -371,3 +371,20 @@ git check-ignore -q .context/working/.session-silent-scanner.log.1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3567-re-vendor-aef-v1815-be7---be10-e82e3d9a7.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-598151a1
+- **Timestamp:** 2026-10-23T15:38:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-23T15:38:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
