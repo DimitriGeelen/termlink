@@ -5,10 +5,10 @@ description: >
   T-2989 GO step 4: after steps 2-3, measure preloaded tokens; remaining gap expected
   to be the Hub Auth Rotation Protocol (~6k).
 
-status: captured
+status: started-work
 workflow_type: test
 owner: agent
-horizon: later
+horizon: now
 tags: [value-review, arc:arc-009, go-slice]
 components: []
 related_tasks: [T-2989]
@@ -23,7 +23,7 @@ related_tasks: [T-2989]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:55:25Z
-last_update: '2026-09-29T19:58:00Z'
+last_update: 2026-10-23T22:44:00Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -49,6 +49,18 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-10-23T22:40:05Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-29T19:58:00Z'
     estimator: bvp-estimator-v1-heuristic
@@ -65,14 +77,17 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2989 GO step 4, after T-3245 (skills table) and T-3246 (canary/guard block) moved ~214 KB out of
+CLAUDE.md. Measure what CLAUDE.md now costs at launch with the T-3244 method (identical scratch
+projects differing only in CLAUDE.md; same `claude -p` prompt; compare total input tokens), against
+the 20k-token target, and name what is left between the measurement and the target.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Preload measured three ways with the T-3244 method: empty CLAUDE.md, the pre-T-3245 CLAUDE.md, the current one; numbers recorded in `docs/reports/T-3247-claudemd-preload-remeasure.md` — CLAUDE.md cost 125,869 -> 39,743 tokens (-86,126, 68%)
+- [x] The report states the gap to the 20k-token target and the largest remaining sections by size, and recommends the next cut (expected: Hub Auth Rotation Protocol); nothing in CLAUDE.md is changed by this task — gap ~19.7k; the framework governance tail alone is ~18.6k, so 20k is unreachable from this repo; next cut Hub Auth Rotation (~8.6k)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -195,6 +210,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+test -f docs/reports/T-3247-claudemd-preload-remeasure.md && grep -q "39,743" docs/reports/T-3247-claudemd-preload-remeasure.md && grep -q "125,869" docs/reports/T-3247-claudemd-preload-remeasure.md
 
 ## RCA
 
@@ -235,6 +251,11 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-24 — the target is partly framework-owned
+- **What changed:** measured, not estimated: the file tokenises at ~2.5 bytes/token, so the cut (86k) was larger than the byte-based estimate, and the framework governance tail (~18.6k tokens, rewritten by every `fw upgrade`) is nearly the whole 20k budget on its own.
+- **Plan impact:** T-2989's 20k target is not reachable from this repo. The next project-side cut is Hub Auth Rotation (~8.6k), which would bring CLAUDE.md to ~31k.
+- **Triggered:** the Hub Auth move is recommended in the report, not filed: it is a new slice of a GO'd inception whose step list ends here, so the operator decides whether to extend it.
 
 ## Recommendation
 
@@ -292,3 +313,7 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3247-re-measure-claudemd-preload-against-the-.md
 - **Context:** Initial task creation
+
+### 2026-10-23T22:40:04Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
