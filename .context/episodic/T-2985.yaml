@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2985: Wire firing canaries to de-duplicated auto task-filing
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T23:08:09Z
+# ============================================================================
+
+task_id: T-2985
+task_name: "Wire firing canaries to de-duplicated auto task-filing"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T22:09:11Z
+completed: 2026-10-23T23:07:53Z
+duration_days: 34
+updates_count: 3
+first_commit: 2026-10-24T01:07:51+02:00
+last_commit: 2026-10-24T01:07:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  firing/erroring/stale canaries file a de-duplicated task daily (canary-escalation-file.sh + crontab via runme action 1)
+
+# Key outcomes
+outcomes:
+  - '`scripts/canary-escalation-file.sh` files ONE task per canary that is FIRING, ERRORING or STALE (marker `<!-- canary-escalation: canary=<name> -->`), quoting the canary''s signal line; never while a task with that marker is open; after a close, files again only if the canary is still bad 24 h past the close'
+  - 'It refuses under `$CI`, never fixes anything, leaves filed tasks uncommitted and records each in the pending-commit manifest; tooling failure (canary-status unreadable, no tasks dir) exits 2, never a silent 0; `--dry-run` prints WOULD lines — real-tree dry run: `WOULD FIRING dead-letter-canary`'
+  - 'Hermetic fixtures `tests/canary-escalation-file-fixtures.sh` cover file, de-dup, re-file window, CI refusal, dry-run and tooling error, with at least one mutant proving de-dup is load-bearing — 11/11, mutant M1 (no open-task check) files a duplicate'
+  - 'Scheduled: a daily crontab `.context/cron/canary-escalation.crontab` (stderr to `.stderr`, T-2685) installed by runme action 1 — line added; canary-log-hygiene clean; runme fixtures 165/165. The /etc/cron.d copy lands on the next operator runme run (cron-install-drift reports it MISSING until then)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'firing/erroring/stale canaries file a de-duplicated task daily (canary-escalation-file.sh + crontab via runme action 1)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/canary-escalation.crontab'
+  - '.fabric/components/context-cron-canary-escalation.yaml'
+  - '.fabric/components/scripts-canary-escalation-file.yaml'
+  - '.fabric/components/tests-canary-escalation-file-fixtures.yaml'
+  - '.tasks/active/T-2985-wire-firing-canaries-to-de-duplicated-au.md'
+  - 'runme.sh'
+  - 'scripts/canary-escalation-file.sh'
+  - 'tests/canary-escalation-file-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-24T01:07:51'
+    action: 'T-2985: firing/erroring/stale canaries file a de-duplicated task daily (canary-escalation-file.sh + crontab via runme action 1)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 49018 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 49018
+  commits: 2
+  files_changed: 11
+  lines_added: 554
+  lines_removed: 11
+  footprint_refreshed_at: '2026-10-23T23:08:15Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2985-wire-firing-canaries-to-de-duplicated-au.md
+generated_by: context-agent-hybrid

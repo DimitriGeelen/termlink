@@ -6,12 +6,12 @@ description: >
   to auto-file de-duplicated tasks so findings enter the ledger structurally. Evidence:
   docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-19.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009]
-components: []
+components: [runme.sh, scripts/canary-escalation-file.sh, tests/canary-escalation-file-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -24,8 +24,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:09:11Z
-last_update: 2026-10-23T23:07:51Z
-date_finished:
+last_update: 2026-10-23T23:07:53Z
+date_finished: 2026-10-23T23:07:53Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -300,3 +300,22 @@ grep -q "install_crontab canary-escalation.crontab" runme.sh && bash scripts/che
 ### 2026-10-23T22:45:45Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b3603920
+- **Timestamp:** 2026-10-23T23:07:59Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/canary-escalation-file.sh` files ONE task per canary that is FIRING, ERRORING or STALE (marker `<!-- canary-escalation: canary=<name> -->`), quoting the canary's signal line; never while a ta
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/canary-escalation-file.sh in: `scripts/canary-escalation-file.sh` files ONE task per canary that is FIRING, ERRORING or STALE (marker `<!-- canary-escalation: canary=<name> -->`), `
+- **AC#4 (Agent)** — Scheduled: a daily crontab `.context/cron/canary-escalation.crontab` (stderr to `.stderr`, T-2685) installed by runme action 1 — line added; canary-log-hygiene clean; runme fixtures 165/165. The /etc/
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=etc/cron.d in: Scheduled: a daily crontab `.context/cron/canary-escalation.crontab` (stderr to `.stderr`, T-2685) installed by runme action 1 — line added; canary-lo`
+
+### 2026-10-23T23:07:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

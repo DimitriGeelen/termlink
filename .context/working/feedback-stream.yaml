@@ -19976,3 +19976,21 @@ scan_id: R-b8e4da84
 task_id: T-2988
 payload:
   task_file: .tasks/active/T-2988-investigate-then-bound-healthring20-fedp.md
+---
+kind: scan_emitted
+timestamp: '2026-10-23T23:07:59Z'
+scan_id: R-b3603920
+task_id: T-2985
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-23T23:07:59Z'
+scan_id: R-b3603920
+task_id: T-2985
+payload:
+  task_file: .tasks/active/T-2985-wire-firing-canaries-to-de-duplicated-au.md
