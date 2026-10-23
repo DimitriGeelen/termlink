@@ -1,0 +1,2 @@
+# T-4684: dispatch worker dirs (prompt, env.sh, results, logs) — runtime state.
+/dispatch/
