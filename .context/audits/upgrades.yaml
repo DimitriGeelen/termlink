@@ -376,3 +376,7 @@ upgrades:
     from_version: "1.8.14+1140.ge82e3d9a7"
     to_version: "1.8.14+1168.g42086fee3"
     framework_root: "/var/tmp/t3559/aef11r"
+  - timestamp: 2026-10-23T20:34:34Z
+    from_version: "1.8.14+1168.g42086fee3"
+    to_version: "1.8.14+1193.g965dbcdc5"
+    framework_root: "/var/tmp/t3559/aef14r"
