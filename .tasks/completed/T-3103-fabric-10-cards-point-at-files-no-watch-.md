@@ -7,10 +7,10 @@ description: >
   so coverage is measured over a subset. Widen watch-patterns.yaml, or remove the
   cards if they are not really components.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -25,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:55:11Z
-last_update: 2026-10-22T10:05:37Z
-date_finished:
+last_update: 2026-10-23T13:23:18Z
+date_finished: 2026-10-23T13:23:18Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -95,8 +95,8 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Either widen .fabric/watch-patterns.yaml to cover the 10 files, or remove the cards if they are not real components
-- [ ] fw fabric drift no longer reports these 10 as uncovered
+- [x] Either widen .fabric/watch-patterns.yaml to cover the 10 files, or remove the cards if they are not real components (built in T-3544 per ruling A'1: slash commands covered and carded from what they run; adopted workflow diagrams watched one version each, pinned to a manifest by a guard check)
+- [x] fw fabric drift no longer reports these 10 as uncovered (fw audit 2026-10-23: no "card(s) point at files no watch pattern covers" line; was 9)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -137,6 +137,8 @@ python3 .agentic-framework/agents/fabric/lib/expand_patterns.py .fabric/watch-pa
 for f in .context/cron/*.crontab; do test -f ".fabric/components/context-cron-$(basename "$f" .crontab).yaml" || { echo "no card: $f"; exit 1; }; done
 python3 -c "import yaml,glob; [yaml.safe_load(open(f)) for f in glob.glob('.fabric/components/context-cron-*.yaml')]"
 grep -q 'glob: ".context/cron/\*.crontab"' .fabric/watch-patterns.yaml
+bash scripts/check-workflow-adoption.sh > /tmp/.t3103-wa 2>&1 && grep -q " 0 failure" /tmp/.t3103-wa
+python3 scripts/fabric-command-cards.py --check > /tmp/.t3103-cc 2>&1 && grep -q " 0 problem" /tmp/.t3103-cc
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -196,8 +198,6 @@ grep -q 'glob: ".context/cron/\*.crontab"' .fabric/watch-patterns.yaml
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-
-true
 
 ## RCA
 
@@ -338,3 +338,15 @@ true
 
 ### 2026-10-22T08:20:43Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-902a96b4
+- **Timestamp:** 2026-10-23T13:23:24Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-23T13:23:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

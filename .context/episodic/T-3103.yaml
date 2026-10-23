@@ -1,0 +1,121 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3103: Fabric: 10 cards point at files no watch pattern covers
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T13:23:35Z
+# ============================================================================
+
+task_id: T-3103
+task_name: "Fabric: 10 cards point at files no watch pattern covers"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-24T23:55:11Z
+completed: 2026-10-23T13:23:18Z
+duration_days: 29
+updates_count: 7
+first_commit: 2026-09-29T01:29:01+02:00
+last_commit: 2026-10-22T12:05:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cover .context/cron/*.crontab in watch-patterns — 31 cron-declaration cards registered; 9 carded-unwatched files remain on two scope questions. recompute the 9 uncovered cards (8 BPMN + capture.md); record the scope decision and the rotted count anchor. verification pins the invariant (every crontab has a card) instead of a rotted count (31 vs 43). external review brief (coverage-check exemption vs widening). external reviews (codex, antigravity; opencode empty)
+
+# Key outcomes
+outcomes:
+  - 'Either widen .fabric/watch-patterns.yaml to cover the 10 files, or remove the cards if they are not real components (built in T-3544 per ruling A''1: slash commands covered and carded from what they run; adopted workflow diagrams watched one version each, pinned to a manifest by a guard check)'
+  - 'fw fabric drift no longer reports these 10 as uncovered (fw audit 2026-10-23: no "card(s) point at files no watch pattern covers" line; was 9)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-22 — how to clear the 9 carded-but-unwatched locations (operator ruling)'
+    chose: 'A′1, after external review (docs/reports/T-3103-consult/: codex and antigravity both said "modified A"; opencode returned empty). Card all 34 slash commands with real dependencies, and cover `.claude/commands/*.md`. Add a non-vendored workflow adoption manifest plus a check (every designer project folder adopted at version N or declined with a reason; cards match the adopted version''s steps; warn on a newer version). Only then skip workflow-step cards in coverage. Built in **T-3544**.'
+    rationale: 'an exemption is honest only if another check notices a new or changed workflow (antigravity''s test). Explicit version selection makes upgrades reviewable (codex).'
+    alternatives_rejected: ['a bare type exemption (silencing under another name); A′2, auto-follow the newest version (adopts upstream semantic changes silently); B, card old versions; C, drop capture.md; D, status quo.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3103-consult/antigravity.md'
+  - 'docs/reports/T-3103-consult/brief.md'
+  - 'docs/reports/T-3103-consult/codex.md'
+  - '.fabric/components/context-cron-agentic-audit.yaml'
+  - '.fabric/components/context-cron-canary-aliveness-sweep.yaml'
+  - '.fabric/components/context-cron-charter-drift-canary.yaml'
+  - '.fabric/components/context-cron-charter-sentence-drift-canary.yaml'
+  - '.fabric/components/context-cron-dead-letter-canary.yaml'
+  - '.fabric/components/context-cron-fleet-adoption-snapshot.yaml'
+  - '.fabric/components/context-cron-fleet-binary-canary.yaml'
+  - '.fabric/components/context-cron-fleet-capability-canary.yaml'
+  - '.fabric/components/context-cron-fleet-doorbell-mail-canary.yaml'
+  - '.fabric/components/context-cron-forever-archival-canary.yaml'
+  - '.fabric/components/context-cron-framework-pickup-canary.yaml'
+  - '.fabric/components/context-cron-frozen-husk-canary.yaml'
+  - '.fabric/components/context-cron-heartbeat.yaml'
+  - '.fabric/components/context-cron-hook-counter-integrity-canary.yaml'
+  - '.fabric/components/context-cron-notify-sidecar-canary.yaml'
+  - '.fabric/components/context-cron-notify-sidecar-supervisor.yaml'
+  - '.fabric/components/context-cron-notify-wake-supervisor.yaml'
+  - '.fabric/components/context-cron-preflight-doc-set-drift-canary.yaml'
+  - '.fabric/components/context-cron-presence-sweep.yaml'
+  - '.fabric/components/context-cron-release-mirror-canary.yaml'
+  - '.fabric/components/context-cron-session-control-canary.yaml'
+  - '.fabric/components/context-cron-stale-sidecar-code-canary.yaml'
+  - '.fabric/components/context-cron-stale-waker-code-canary.yaml'
+  - '.fabric/components/context-cron-stuck-claims-canary.yaml'
+  - '.fabric/components/context-cron-substrate-preflight-canary.yaml'
+  - '.fabric/components/context-cron-substrate-smoke-canary.yaml'
+  - '.fabric/components/context-cron-task-finalization-canary.yaml'
+  - '.fabric/components/context-cron-topic-growth-canary.yaml'
+  - '.fabric/components/context-cron-unconfirmed-delivery-canary.yaml'
+  - '.fabric/components/context-cron-waker-liveness-canary.yaml'
+  - '.fabric/components/context-cron-woken-silent-triage.yaml'
+  - '.fabric/watch-patterns.yaml'
+  - '.tasks/active/T-3103-fabric-10-cards-point-at-files-no-watch-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T01:29:01'
+    action: 'T-3103: cover .context/cron/*.crontab in watch-patterns — 31 cron-declaration cards registered; 9 carded-unwatched files remain on two scope questions'
+  - time: '2026-10-22T10:22:03'
+    action: 'T-3103: recompute the 9 uncovered cards (8 BPMN + capture.md); record the scope decision and the rotted count anchor'
+  - time: '2026-10-22T11:27:12'
+    action: 'T-3103: verification pins the invariant (every crontab has a card) instead of a rotted count (31 vs 43)'
+  - time: '2026-10-22T12:03:51'
+    action: 'T-3103: external review brief (coverage-check exemption vs widening)'
+  - time: '2026-10-22T12:05:34'
+    action: 'T-3103: external reviews (codex, antigravity; opencode empty)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 41128 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 41128
+  commits: 5
+  files_changed: 36
+  lines_added: 816
+  lines_removed: 32
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3103-fabric-10-cards-point-at-files-no-watch-.md
+generated_by: context-agent-hybrid

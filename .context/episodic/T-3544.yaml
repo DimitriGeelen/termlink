@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3544: Fabric: card all 34 slash commands with dependencies + workflow adoption manifest and check; then coverage skips workflow-step cards (T-3103 ruling A′1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T13:22:16Z
+# ============================================================================
+
+task_id: T-3544
+task_name: "Fabric: card all 34 slash commands with dependencies + workflow adoption manifest and check; then coverage skips workflow-step cards (T-3103 ruling A′1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-22T10:14:31Z
+completed: 2026-10-23T13:21:57Z
+duration_days: 1
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Operator ruling 2026-10-22 on T-3103, option A′1 after external review (docs/reports/T-3103-consult/). (1) Widen watch-patterns.yaml to .claude/commands/*.md and card all 34 command files, recording each command's real dependencies (scripts/CLI it calls), not header-only purposes. (2) Add a non-vendored manifest listing every <vendored>/designer/projects/<name>/ folder as adopted-at-version-N or not-adopted-with-reason. (3) A check (guard layer) fails when a project folder is missing from the manifest, an adopted version's file is gone, or step cards do not match the adopted diagram's steps; warns when a newer vN exists than the adopted one. (4) Only then make the coverage check skip type workflow-step cards (local check, documented in watch-patterns.yaml). Close T-3103 after.
+
+# Key outcomes
+outcomes:
+  - '(1) `.fabric/watch-patterns.yaml` covers `.claude/commands/*.md`; every command file has a card whose `depends_on` lists the repo scripts it actually invokes (read from the file, not its header) and whose `interfaces` names the `termlink`/`fw` verbs it calls; `fw fabric drift` reports no unregistered command file'
+  - '(2) A non-vendored manifest lists every designer project folder as adopted-at-vN or not-adopted with a reason'
+  - '(3) A guard-layer check fails on a project folder missing from the manifest, an adopted version''s file gone, or step cards not matching the adopted diagram''s steps; warns when a newer vN exists; fixtures with a mutant'
+  - '(4) The coverage check skips `workflow-step` cards, documented in watch-patterns.yaml; T-3103 closed after — done by WATCHING exactly the adopted diagrams instead of skipping (see Decisions); the audit''s carded-but-unwatched warning is gone'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-23 — step 4: watch the adopted diagrams instead of skipping workflow-step cards'
+    chose: 'list exactly the adopted (workflow, version) diagrams in `.fabric/watch-patterns.yaml`, with `check-workflow-adoption.sh` failing when that list and the manifest disagree.'
+    rationale: 'the coverage count is computed in vendored `agents/audit/audit.sh` (carded-but-unwatched by location); a type skip would mean patching vendored code, erased at the next upgrade (G-062). Watching the adopted versions puts the step cards inside measured coverage rather than exempting them, which meets the ruling''s own test ("an exemption is honest only if another check notices a new or changed workflow") without any exemption.'
+    alternatives_rejected: ['patching the vendored audit; a blanket glob over all `v*.bpmn` (would report every unadopted older version as unregistered).']
+  - decision: '2026-10-23 — command cards record what a command RUNS'
+    chose: 'dependencies are scripts and `termlink`/`fw` verbs inside code (fenced blocks, inline backticks); prose mentions are pointers. `/peers` names 8 scripts and runs one; its card lists one.'
+    alternatives_rejected: ['every mention (the mutant in the fixtures shows it turns pointers into dependencies).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1627 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1627
+  commits: 1
+  files_changed: 2
+  lines_added: 378
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3544-fabric-card-all-34-slash-commands-with-d.md
+generated_by: context-agent-hybrid
