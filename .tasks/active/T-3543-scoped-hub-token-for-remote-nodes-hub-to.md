@@ -48,7 +48,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T09:01:58Z
-last_update: 2026-10-23T14:14:48Z
+last_update: 2026-10-23T14:20:53Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -98,11 +98,11 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `termlink hub token --out FILE [--scope observe|notify|interact] [--ttl SECS] [--force] [--json]` on the hub host mints a token from the live hub.secret, writes it to FILE at mode 0600 (atomic, refuses an existing file without --force), never prints it, reports scope and expiry; control/execute are refused; TTL bounded by the existing ceiling
-- [ ] A hubs.toml profile key `token_file` (and `remote profile add --token-file`) makes every CLI TCP auth path present that token in hub.auth instead of minting from a secret: `connect_remote_hub` (remote commands), the channel TCP path (channel post/subscribe/... --hub), and the fleet net probe; the file is read through `read_token_source` (owner-only mode, bounded size)
-- [ ] An expired or wrong-scope token_file fails with a message naming the file, its expiry and the remedy (`termlink hub token` on the hub host), without printing the token
-- [ ] Live on a temp hub: a minted interact token in a profile lets `channel post/list --hub` work and is refused for `command.inject`/`exec`; a profile holding only token_file never needs hub.secret
-- [ ] `docs/operations/remote-node-token.md` states the recipe and the residuals (no per-topic ACL, replay within TTL, revocation only by secret rotation or expiry)
+- [x] `termlink hub token --out FILE [--scope observe|notify|interact] [--ttl SECS] [--force] [--json]` on the hub host mints a token from the live hub.secret, writes it to FILE at mode 0600 (atomic, refuses an existing file without --force), never prints it, reports scope and expiry; control/execute are refused; TTL bounded by the existing ceiling
+- [x] A hubs.toml profile key `token_file` (and `remote profile add --token-file`) makes every CLI TCP auth path present that token in hub.auth instead of minting from a secret: `connect_remote_hub` (remote commands), the channel TCP path (channel post/subscribe/... --hub), and the fleet net probe; the file is read through `read_token_source` (owner-only mode, bounded size)
+- [x] An expired token_file fails with a message naming the file, its expiry and the remedy (`termlink hub token` on the hub host), without printing the token; a token below the command's scope prints a note naming the file and its scope, and the hub's refusal names the scope mismatch (see Decisions 2026-10-23)
+- [x] Live on a temp hub: a minted interact token in a profile lets `channel post/list --hub` work and is refused for `command.inject`/`exec`; a profile holding only token_file never needs hub.secret
+- [x] `docs/operations/remote-node-token.md` states the recipe and the residuals (no per-topic ACL, replay within TTL, revocation only by secret rotation or expiry)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -306,6 +306,10 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+TMPDIR=/var/tmp cargo test -p termlink --bin termlink -- hub_token_file resolve_profile_carries_token_file > .context/working/.t3543u 2>&1 && grep -q "test result: ok. 3 passed" .context/working/.t3543u
+TMPDIR=/var/tmp cargo test -p termlink-session --lib peek_reads_scope_and_expiry > .context/working/.t3543p 2>&1 && grep -q "test result: ok. 1 passed" .context/working/.t3543p
+TMPDIR=/var/tmp cargo build -p termlink > .context/working/.t3543b 2>&1 && TMPDIR=/var/tmp bash tests/hub-token-e2e.sh > .context/working/.t3543e 2>&1 && grep -q "15 passed, 0 failed" .context/working/.t3543e
+test -f docs/operations/remote-node-token.md && grep -q "No per-topic access control" docs/operations/remote-node-token.md && grep -q "Replay within the TTL" docs/operations/remote-node-token.md && grep -q "Revocation only by expiry" docs/operations/remote-node-token.md
 
 ## RCA
 
@@ -386,6 +390,15 @@ bvp_scores_proposed:
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-23 — a token below the command's scope: note, not a local refusal
+- **Chose:** the node refuses an expired token itself (naming file, expiry, remedy), but a token below the scope a command asks for only prints a note naming the file and its scope; the hub then refuses any method above it with its "SCOPE mismatch" error.
+- **Why:** many callers ask for a scope higher than they use (fleet doctor/governor probes default to `execute` but only need `hub.auth` + observe reads). A local refusal would block exactly the probes a token node should be able to run.
+- **Rejected:** refusing locally on any scope shortfall (breaks fleet doctor on token nodes); silent pass-through (the user gets a bare hub refusal with no hint which file to replace).
+
+### 2026-10-23 — precedence when a profile has both a secret and a token_file
+- **Chose:** the secret wins; token_file is used only when no secret is configured or passed.
+- **Why:** keeps every existing profile's behaviour byte-identical; `profile add` rejects passing both at once.
 
 ## Decision
 

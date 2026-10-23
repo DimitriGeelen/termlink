@@ -1,0 +1,21 @@
+id: tests/hub-token-e2e.sh
+name: hub-token-e2e
+type: script
+subsystem: tests
+location: tests/hub-token-e2e.sh
+tags: []
+
+purpose: "T-3543 — live proof that a node holding ONLY a hub token (no hub secret) can use the channel rail over TCP, and is refused above the token's scope."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-23
+created_by: unknown

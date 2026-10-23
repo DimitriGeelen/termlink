@@ -4595,6 +4595,12 @@ pub(crate) enum ProfileAction {
         #[arg(long)]
         bootstrap_from: Option<String>,
 
+        /// T-3543: path to a token minted on the hub host with `termlink hub token`
+        /// (mode 600). Used when the profile has no secret: this node never holds
+        /// the hub secret.
+        #[arg(long, conflicts_with_all = ["secret_file", "secret"])]
+        token_file: Option<String>,
+
         /// Output as JSON
         #[arg(long)]
         json: bool,

@@ -1019,7 +1019,7 @@ pub(crate) async fn resolve_remote_target(
 
 pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
     match action {
-        ProfileAction::Add { name, address, secret_file, secret, scope, bootstrap_from, json } => {
+        ProfileAction::Add { name, address, secret_file, secret, scope, bootstrap_from, token_file, json } => {
             if !address.contains(':') {
                 if json {
                     super::json_error_exit(serde_json::json!({"ok": false, "error": "Address must be in host:port format (e.g., 192.168.10.107:9100)"}));
@@ -1045,7 +1045,8 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
             let mut config = crate::config::load_hubs_config_strict()?;
             let is_update = config.hubs.contains_key(&name);
             // T-1651: capture before move so we can emit the heal-readiness tip below.
-            let bootstrap_omitted = bootstrap_from.is_none();
+            // T-3543: a token profile heals by a fresh `hub token`, not by fetching a secret.
+            let bootstrap_omitted = bootstrap_from.is_none() && token_file.is_none();
             // Derive a host suggestion for the tip from the address.
             let host_for_tip = address.split(':').next().unwrap_or(&address).to_string();
             config.hubs.insert(name.clone(), HubEntry {
@@ -1053,7 +1054,7 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 secret_file,
                 secret,
                 scope,
-                token_file: None,
+                token_file,
                 bootstrap_from,
             });
             save_hubs_config(&config)?;
@@ -1108,6 +1109,7 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                             "scope": entry.scope,
                             "secret_type": if entry.secret_file.is_some() { "file" }
                                 else if entry.secret.is_some() { "inline" }
+                                else if entry.token_file.is_some() { "token" }
                                 else { "none" },
                             // T-1650: surface declarative heal anchor for parity with T-1291.
                             "bootstrap_from": entry.bootstrap_from,
@@ -1139,6 +1141,8 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                     "file"
                 } else if entry.secret.is_some() {
                     "inline"
+                } else if entry.token_file.is_some() {
+                    "token"
                 } else {
                     "none"
                 };
