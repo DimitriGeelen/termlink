@@ -7,12 +7,12 @@ description: >
   rate (not only absolute count) fires. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-14, C-15.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009]
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -25,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:12:00Z
-last_update: 2026-10-23T22:49:04Z
-date_finished:
+last_update: 2026-10-23T22:55:04Z
+date_finished: 2026-10-23T22:55:04Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -220,6 +220,11 @@ TMPDIR=/var/tmp bash tests/runme-fixtures.sh > .context/working/.t2988a 2>&1 && 
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-24 — the probe is read; the rate trigger was built elsewhere
+- **What changed:** the premise "nothing here reads it" held only for THIS host. ring20 reads the round trip from its side (`check-termlink-federation.sh`) and had already tagged every post with a stable `cv_key`. The 2026-10-01 question sat unseen on the old DM rail until it was re-asked on the sidecar inbox.
+- **Plan impact:** no stop/re-target request; the SQ-10 ruling's first branch (latest-per-cv-key) replaces messages:100 in runme action 9. The "rate-based forever-topic trigger" half of this task's title (C-15) shipped separately as T-3220 (completed; `check-forever-archival-freshness.sh` line 57).
+- **Triggered:** none; the retention switch lands with the next operator runme run.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -290,3 +295,20 @@ TMPDIR=/var/tmp bash tests/runme-fixtures.sh > .context/working/.t2988a 2>&1 && 
 ### 2026-10-01T16:56:02Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b8e4da84
+- **Timestamp:** 2026-10-23T23:00:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — Ring20's answer recorded; if nothing checks the round trip, the probe's stop/re-target is requested — 2026-10-24 (re-asked on the sidecar inbox, conversation t2988-fedprobe; the 2026-10-01 DM was neve
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/check-termlink-federation.sh in: Ring20's answer recorded; if nothing checks the round trip, the probe's stop/re-target is requested — 2026-10-24 (re-asked on the sidecar inbox, conve`
+
+### 2026-10-23T22:55:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

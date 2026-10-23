@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2988: Investigate-then-bound health:ring20-fedprobe + rate-based forever-topic trigger
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-23T23:00:43Z
+# ============================================================================
+
+task_id: T-2988
+task_name: "Investigate-then-bound health:ring20-fedprobe + rate-based forever-topic trigger"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-19T22:12:00Z
+completed: 2026-10-23T22:55:04Z
+duration_days: 34
+updates_count: 3
+first_commit: 2026-10-01T18:56:41+02:00
+last_commit: 2026-10-24T00:49:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  SQ-10 ruled (a+b + purpose): ring20 federation round-trip canary, value unverifiable from here; refocus proposed (latest-per-cv-key + cv_key); DM sent to ring20 manager (.122 offset 1); retention action queued. runme action 9 bounds health:ring20-fedprobe to its last 100 records and sweeps once (operator ruling SQ-10 a+b): idempotent, verified by re-reading retention and count, missing topic = skip; fixture case 21 (dry-run, set+verify, idempotent, ineffective sweep = FAILED, missing topic), runme fixtures 75/75; T-3304 decision entry retired to history (recorded rc=0). runme action 9 ran (rc=0) — health:ring20-fedprobe now retention messages:100, swept 2,792 -> 100 records, verified; AC ticked. Same run deployed T-3307 + T-2573 (termlink 0.12.73 on .107 and .122); live subscribe from 0 reports gap {oldest 2693, skipped 2693}. ring20 confirmed the fed-probe is read and cv_key-tagged; runme action 9 now applies SQ-10's first branch (latest-per-cv-key, one record per probe source)
+
+# Key outcomes
+outcomes:
+  - 'Ring20 manager asked the purpose question (is the fed-probe a checked round-trip canary? will they tag cv_key?) on a durable DM, offset recorded (operator: SQ-10 b)'
+  - 'runme action bounds `health:ring20-fedprobe` retention (latest-per-cv-key if ring20 tags, else keep the last 100) and sweeps once, verified by `channel info` count (operator: SQ-10 a) — done 2026-10-01: runme action 9, log runme-20261001T221519Z (rc=0): retention messages:100, swept 2,792 -> 100, verified by channel info (count 100); live subscribe from 0 now reports gap {oldest_offset 2693, skipped 2693} (T-3307)'
+  - 'Ring20''s answer recorded; if nothing checks the round trip, the probe''s stop/re-target is requested — 2026-10-24 (re-asked on the sidecar inbox, conversation t2988-fedprobe; the 2026-10-01 DM was never seen): the probe IS read (ring20 `scripts/check-termlink-federation.sh` posts the FED-PROBE-RT marker, reads it back, alerts on failure) and every post carries `metadata.cv_key=ring20-fedprobe-ring20-manager` (all 104 records tagged). So no stop is requested; the SQ-10 ruling''s first branch applies: runme action 9 now sets latest-per-cv-key (one record per probe source) and verifies it; it takes effect on the next operator runme run'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 9 bounds health:ring20-fedprobe to its last 100 records and sweeps once (operator ruling SQ-10 a+b): idempotent, verified by re-reading retention and count, missing topic = skip; fixture case 21 (dry-run, set+verify, idempotent, ineffective sweep = FAILED, missing topic), runme fixtures 75/75; T-3304 decision entry retired to history (recorded rc=0)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-01 — SQ-10 RULED by the operator: a + b, plus the purpose question'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2988-investigate-then-bound-healthring20-fedp.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T18:56:41'
+    action: 'T-2988: SQ-10 ruled (a+b + purpose): ring20 federation round-trip canary, value unverifiable from here; refocus proposed (latest-per-cv-key + cv_key); DM sent to ring20 manager (.122 offset 1); retention action queued'
+  - time: '2026-10-02T00:04:51'
+    action: 'T-2988: runme action 9 bounds health:ring20-fedprobe to its last 100 records and sweeps once (operator ruling SQ-10 a+b): idempotent, verified by re-reading retention and count, missing topic = skip; fixture case 21 (dry-run, set+verify, idempotent, ineffective sweep = FAILED, missing topic), runme fixtures 75/75; T-3304 decision entry retired to history (recorded rc=0)'
+  - time: '2026-10-02T00:23:35'
+    action: 'T-2988: runme action 9 ran (rc=0) — health:ring20-fedprobe now retention messages:100, swept 2,792 -> 100 records, verified; AC ticked. Same run deployed T-3307 + T-2573 (termlink 0.12.73 on .107 and .122); live subscribe from 0 reports gap {oldest 2693, skipped 2693}'
+  - time: '2026-10-24T00:49:04'
+    action: 'T-2988: ring20 confirmed the fed-probe is read and cv_key-tagged; runme action 9 now applies SQ-10''s first branch (latest-per-cv-key, one record per probe source)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 49003 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 49003
+  commits: 5
+  files_changed: 6
+  lines_added: 296
+  lines_removed: 43
+  footprint_refreshed_at: '2026-10-23T23:00:50Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2988-investigate-then-bound-healthring20-fedp.md
+generated_by: context-agent-hybrid
