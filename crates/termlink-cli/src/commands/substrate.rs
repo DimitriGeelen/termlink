@@ -45,7 +45,7 @@ use std::time::Duration;
 use termlink_protocol::control::method;
 use termlink_protocol::transport::TransportAddr;
 
-use super::remote::{connect_remote_hub, governor_hub_is_pressured};
+use super::remote::{connect_remote_hub_with_token, governor_hub_is_pressured};
 
 // ────────────────────────────────────────────────────────────────────────────
 // Result types
@@ -320,10 +320,11 @@ async fn fetch_backpressure(only_pressured: bool, timeout_secs: u64) -> SubResul
         let entry = &config.hubs[*name];
         let timeout_dur = Duration::from_secs(timeout_secs);
         let probe = async {
-            let mut client = connect_remote_hub(
+            let mut client = connect_remote_hub_with_token(
                 &entry.address,
                 entry.secret_file.as_deref(),
                 entry.secret.as_deref(),
+                entry.token_file.as_deref(),
                 entry.scope.as_deref().unwrap_or("execute"),
             )
             .await?;

@@ -703,56 +703,56 @@ async fn main() -> Result<()> {
         Command::Remote { action } => match action {
             RemoteAction::Ping { hub, session, secret_file, secret, scope, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe") };
+                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe"), token_file: p.token_file.as_deref() };
                 commands::remote::cmd_remote_ping(&conn, session.as_deref(), json, timeout).await
             }
             RemoteAction::List { hub, secret_file, secret, scope, name, tags, roles, cap, count, first, names, ids, no_header, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe") };
+                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe"), token_file: p.token_file.as_deref() };
                 let display = ListDisplayOpts { count, first, names, ids, no_header, json };
                 commands::remote::cmd_remote_list(&conn, name.as_deref(), tags.as_deref(), roles.as_deref(), cap.as_deref(), &display, timeout).await
             }
             RemoteAction::Status { hub, session, secret_file, secret, scope, json, short, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe") };
+                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe"), token_file: p.token_file.as_deref() };
                 let session = commands::remote::resolve_remote_target(session, &conn).await?;
                 commands::remote::cmd_remote_status(&conn, &session, json, short, timeout).await
             }
             RemoteAction::Inject { hub, session, text, secret_file, secret, enter, key, delay_ms, by_id, scope, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("control") };
+                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("control"), token_file: p.token_file.as_deref() };
                 let inject_opts = commands::remote::RemoteInjectOpts { session: &session, text: &text, enter, key: key.as_deref(), delay_ms, by_id, json, timeout_secs: timeout };
                 commands::remote::cmd_remote_inject(&conn, &inject_opts).await
             }
             RemoteAction::SendFile { hub, session, path, secret_file, secret, chunk_size, scope, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("control") };
+                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("control"), token_file: p.token_file.as_deref() };
                 commands::remote::cmd_remote_send_file(&conn, &session, &path, chunk_size, json, timeout).await
             }
             RemoteAction::Events { hub, secret_file, secret, scope, topic, targets, interval, count, json, payload_only } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe") };
+                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe"), token_file: p.token_file.as_deref() };
                 commands::remote::cmd_remote_events(&conn, topic.as_deref(), targets.as_deref(), interval, count, json, payload_only).await
             }
             RemoteAction::Exec { hub, session, command, secret_file, secret, scope, timeout, cwd, json } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("execute") };
+                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("execute"), token_file: p.token_file.as_deref() };
                 commands::remote::cmd_remote_exec(&conn, &session, &command, timeout, cwd.as_deref(), json).await
             }
             RemoteAction::Push { hub, session, file, message, secret_file, secret, scope, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("execute") };
+                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("execute"), token_file: p.token_file.as_deref() };
                 commands::push::cmd_push(&conn, &session, file.as_deref(), message.as_deref(), json, timeout).await
             }
             RemoteAction::Inbox { hub, action, secret_file, secret, scope, timeout } => {
                 let action = action.unwrap_or(RemoteInboxAction::Status { json: false });
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe") };
+                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe"), token_file: p.token_file.as_deref() };
                 commands::remote::cmd_remote_inbox(&conn, action, timeout).await
             }
             RemoteAction::Doctor { hub, secret_file, secret, scope, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
-                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe") };
+                let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("observe"), token_file: p.token_file.as_deref() };
                 commands::remote::cmd_remote_doctor(&conn, json, timeout).await
             }
             RemoteAction::Profile { action } => {

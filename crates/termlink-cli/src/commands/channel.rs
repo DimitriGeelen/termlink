@@ -335,6 +335,39 @@ fn profile_missing_secret_msg(name: &str) -> String {
     )
 }
 
+/// T-3543: the token a TCP channel call presents in `hub.auth`. A matching
+/// profile's secret wins (an Execute token is minted from it, as before); a
+/// profile with no secret but a `token_file` presents that file's token as-is.
+fn tcp_hub_auth_token(addr: &TransportAddr) -> Result<String> {
+    use termlink_session::auth::{self, PermissionScope};
+    if let Some(tf) = matching_profile_token_file(addr) {
+        return super::remote::load_hub_token_file(&tf, "interact");
+    }
+    let hex = resolve_hub_secret_hex(addr)?;
+    if hex.len() != 64 {
+        anyhow::bail!("hub secret must be 64 hex chars, got {}", hex.len());
+    }
+    let mut bytes = [0u8; 32];
+    for i in 0..32 {
+        bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16)
+            .context("invalid hex in hub secret")?;
+    }
+    let secret: auth::TokenSecret = bytes;
+    Ok(auth::create_token(&secret, PermissionScope::Execute, "", 3600).raw)
+}
+
+/// T-3543: `token_file` of the hubs.toml profile at this TCP address, only when
+/// that profile carries no secret.
+fn matching_profile_token_file(addr: &TransportAddr) -> Option<String> {
+    let (host, port) = addr.as_tcp()?;
+    let want = format!("{host}:{port}");
+    let cfg = crate::config::load_hubs_config();
+    cfg.hubs
+        .values()
+        .find(|e| e.address == want && e.secret_file.is_none() && e.secret.is_none())
+        .and_then(|e| e.token_file.clone())
+}
+
 fn resolve_hub_secret_hex(addr: &TransportAddr) -> Result<String> {
     let (host, port) = addr
         .as_tcp()
@@ -436,7 +469,6 @@ async fn rpc_call_authed(
     params: Value,
 ) -> std::result::Result<termlink_protocol::jsonrpc::RpcResponse, termlink_session::client::ClientError>
 {
-    use termlink_session::auth::{self, PermissionScope};
     // T-2432 (PL-218): every channel RPC through this funnel carries a stable
     // identity `from` so hub rate buckets accumulate per caller, not per pid.
     let params = stamp_identity_from(params);
@@ -458,33 +490,9 @@ async fn rpc_call_authed(
         std::time::Duration::from_secs(10),
     )
     .await?;
-    let hex = match resolve_hub_secret_hex(addr) {
-        Ok(h) => h,
-        Err(e) => {
-            return Err(termlink_session::client::ClientError::Io(
-                std::io::Error::other(e.to_string()),
-            ))
-        }
-    };
-    if hex.len() != 64 {
-        return Err(termlink_session::client::ClientError::Io(
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("hub secret must be 64 hex chars, got {}", hex.len()),
-            ),
-        ));
-    }
-    let mut bytes = [0u8; 32];
-    for i in 0..32 {
-        bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).map_err(|e| {
-            termlink_session::client::ClientError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("invalid hex in secret: {e}"),
-            ))
-        })?;
-    }
-    let secret: auth::TokenSecret = bytes;
-    let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+    let token = tcp_hub_auth_token(addr).map_err(|e| {
+        termlink_session::client::ClientError::Io(std::io::Error::other(format!("{e:#}")))
+    })?;
     // T-2354: bound the RPC READS, not just the connect. A hub that accepts
     // the connection but never writes a response line (wedged record-walk —
     // the T-2258 blocking-pool starvation class; field: `channel info/unread
@@ -496,7 +504,7 @@ async fn rpc_call_authed(
         .call_with_timeout(
             "hub.auth",
             json!("channel-auth"),
-            json!({"token": token.raw}),
+            json!({"token": token}),
             read_timeout,
         )
         .await?;
@@ -517,19 +525,7 @@ fn hex_of(bytes: &[u8]) -> String {
 /// TCP hub, reusing the same secret-resolution + token logic as
 /// `rpc_call_authed`. Returns the raw token string for `hub.auth` over the WS.
 fn mint_tcp_hub_token(addr: &TransportAddr) -> Result<String> {
-    use termlink_session::auth::{self, PermissionScope};
-    let hex = resolve_hub_secret_hex(addr)?;
-    if hex.len() != 64 {
-        anyhow::bail!("hub secret must be 64 hex chars, got {}", hex.len());
-    }
-    let mut bytes = [0u8; 32];
-    for i in 0..32 {
-        bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16)
-            .context("invalid hex in hub secret")?;
-    }
-    let secret: auth::TokenSecret = bytes;
-    let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
-    Ok(token.raw)
+    tcp_hub_auth_token(addr)
 }
 
 /// T-2309: outcome of the WS push attempt, so the caller knows whether to

@@ -4,7 +4,7 @@ use base64::Engine;
 use termlink_protocol::jsonrpc::RpcResponse;
 use termlink_session::client;
 
-use crate::commands::remote::{connect_remote_hub, RemoteConn};
+use crate::commands::remote::RemoteConn;
 
 const INBOX_DIR: &str = "/tmp/termlink-inbox";
 
@@ -73,7 +73,7 @@ async fn cmd_push_inner(
     let inbox_path = format!("{INBOX_DIR}/{filename}");
 
     // Connect once, reuse for both RPCs
-    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
+    let mut rpc_client = match conn.connect().await {
         Ok(c) => c,
         Err(e) => {
             if json {

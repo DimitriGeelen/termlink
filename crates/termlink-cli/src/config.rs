@@ -7,6 +7,9 @@ pub(crate) struct HubProfile {
     pub secret_file: Option<String>,
     pub secret: Option<String>,
     pub scope: Option<String>,
+    /// T-3543: scoped token minted on the hub host. Used only when no secret is
+    /// configured or passed — a secret, when present, still wins.
+    pub token_file: Option<String>,
 }
 
 // T-3214: the hubs.toml model, config-dir resolver and read-only loader moved to
@@ -74,10 +77,12 @@ fn resolve_hub_profile_with_config(
         // address-only (caller must supply a secret).
         let mut secret_file = cli_secret_file.map(String::from);
         let mut secret = cli_secret.map(String::from);
+        let mut token_file = None;
         if secret_file.is_none() && secret.is_none() {
             if let Some(entry) = config.hubs.values().find(|e| e.address == hub_arg) {
                 secret_file = entry.secret_file.clone();
                 secret = entry.secret.clone();
+                token_file = entry.token_file.clone();
             }
         }
         return Ok(HubProfile {
@@ -85,6 +90,7 @@ fn resolve_hub_profile_with_config(
             secret_file,
             secret,
             scope: Some(cli_scope.to_string()),
+            token_file,
         });
     }
 
@@ -100,6 +106,7 @@ fn resolve_hub_profile_with_config(
         secret_file: cli_secret_file.map(String::from).or_else(|| entry.secret_file.clone()),
         secret: cli_secret.map(String::from).or_else(|| entry.secret.clone()),
         scope: Some(cli_scope.to_string()).or_else(|| entry.scope.clone()),
+        token_file: entry.token_file.clone(),
     })
 }
 
@@ -192,6 +199,25 @@ mod tests {
         assert_eq!(p.address, "prod.example.com:9100");
         assert_eq!(p.secret_file.as_deref(), Some("/etc/termlink/prod.key"));
         assert_eq!(p.scope.as_deref(), Some("observe"));
+    }
+
+    #[test]
+    fn resolve_profile_carries_token_file_by_name_and_by_address() {
+        // T-3543: a node profile with only token_file resolves to it either way.
+        let mut config = HubsConfig::default();
+        config.hubs.insert("node".to_string(), HubEntry {
+            address: "hub.example:9100".to_string(),
+            secret_file: None,
+            secret: None,
+            scope: Some("interact".to_string()),
+            token_file: Some("~/.termlink/node.token".to_string()),
+            bootstrap_from: None,
+        });
+        for arg in ["node", "hub.example:9100"] {
+            let p = resolve_hub_profile_with_config(arg, None, None, "interact", &config).unwrap();
+            assert_eq!(p.token_file.as_deref(), Some("~/.termlink/node.token"), "{arg}");
+            assert!(p.secret_file.is_none() && p.secret.is_none(), "{arg}");
+        }
     }
 
     #[test]

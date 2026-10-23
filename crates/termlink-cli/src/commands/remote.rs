@@ -714,6 +714,59 @@ pub(crate) struct RemoteConn<'a> {
     pub secret_file: Option<&'a str>,
     pub secret_hex: Option<&'a str>,
     pub scope: &'a str,
+    /// T-3543: used when neither secret is set.
+    pub token_file: Option<&'a str>,
+}
+
+impl RemoteConn<'_> {
+    /// Connect and authenticate with this connection's credentials (T-3543).
+    pub(crate) async fn connect(&self) -> Result<client::Client> {
+        connect_remote_hub_with_token(self.hub, self.secret_file, self.secret_hex, self.token_file, self.scope).await
+    }
+}
+
+/// T-3543: load a hub token minted by `termlink hub token`, for presenting as-is in
+/// `hub.auth`. The file must be owner-only (`read_token_source`). An expired token
+/// is refused here, naming the file, its expiry and the remedy, so the user is not
+/// left with a bare hub refusal. A token below the requested scope is allowed
+/// through (the hub decides per method) with a note on stderr. Never prints the token.
+pub(crate) fn load_hub_token_file(raw_path: &str, requested_scope: &str) -> Result<String> {
+    use termlink_session::auth;
+    let path = expand_secret_file_path(raw_path);
+    let token = auth::read_token_source(auth::TokenSource::File(&path)).map_err(anyhow::Error::new)?;
+    let payload = auth::peek_token_payload(&token).ok_or_else(|| {
+        anyhow::anyhow!(
+            "{} is not a hub token — mint one on the hub host with `termlink hub token --out <file>`",
+            path.display()
+        )
+    })?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    if payload.expires_at <= now {
+        anyhow::bail!(
+            "hub token {} expired at unix {} ({}s ago) — mint a new one on the hub host: \
+             termlink hub token --out <file> --scope {} --force, then copy it here (mode 600)",
+            path.display(),
+            payload.expires_at,
+            now - payload.expires_at,
+            payload.scope
+        );
+    }
+    if let (Ok(have), Ok(want)) = (auth::parse_scope(&payload.scope), auth::parse_scope(requested_scope))
+        && !have.satisfies(want)
+    {
+        eprintln!(
+            "note: hub token {} carries scope '{}', below the '{}' this command asks for; \
+             the hub will refuse methods above '{}'",
+            path.display(),
+            payload.scope,
+            requested_scope,
+            payload.scope
+        );
+    }
+    Ok(token)
 }
 
 /// Connect to a remote hub via TOFU TLS and authenticate.
@@ -722,6 +775,18 @@ pub(crate) async fn connect_remote_hub(
     hub: &str,
     secret_file: Option<&str>,
     secret_hex: Option<&str>,
+    scope: &str,
+) -> Result<client::Client> {
+    connect_remote_hub_with_token(hub, secret_file, secret_hex, None, scope).await
+}
+
+/// T-3543: as [`connect_remote_hub`], but with no secret given a `token_file`
+/// is presented as-is instead of minting a token from a secret.
+pub(crate) async fn connect_remote_hub_with_token(
+    hub: &str,
+    secret_file: Option<&str>,
+    secret_hex: Option<&str>,
+    token_file: Option<&str>,
     scope: &str,
 ) -> Result<client::Client> {
     use termlink_session::auth::{self, PermissionScope};
@@ -735,6 +800,13 @@ pub(crate) async fn connect_remote_hub(
     let port: u16 = parts[1].parse()
         .context(format!("Invalid port in '{}'", hub))?;
 
+    if secret_file.is_none() && secret_hex.is_none()
+        && let Some(tf) = token_file
+    {
+        let token = load_hub_token_file(tf, scope)?;
+        return authenticate_remote(hub, host, port, &token).await;
+    }
+
     // --- Read secret ---
     let hex = if let Some(path) = secret_file {
         std::fs::read_to_string(path)
@@ -744,7 +816,7 @@ pub(crate) async fn connect_remote_hub(
     } else if let Some(h) = secret_hex {
         h.to_string()
     } else {
-        anyhow::bail!("Either --secret-file or --secret is required");
+        anyhow::bail!("Either --secret-file or --secret is required (or a token_file in the hub's profile)");
     };
 
     // --- Parse hex to bytes ---
@@ -770,7 +842,11 @@ pub(crate) async fn connect_remote_hub(
 
     // --- Generate auth token ---
     let token = auth::create_token(&secret, perm_scope, "", 3600);
+    authenticate_remote(hub, host, port, &token.raw).await
+}
 
+/// Connect via TOFU TLS and present `token` in `hub.auth`.
+async fn authenticate_remote(hub: &str, host: String, port: u16, token: &str) -> Result<client::Client> {
     // --- Connect via TOFU TLS (T-1677: bounded to 10s — unreachable hubs
     // would otherwise hang for the OS TCP retry budget, 30–60s.) ---
     let addr = termlink_protocol::TransportAddr::Tcp { host, port };
@@ -782,7 +858,7 @@ pub(crate) async fn connect_remote_hub(
     .map_err(|e| render_connect_failure(hub, e))?;
 
     // --- Authenticate ---
-    match rpc_client.call("hub.auth", serde_json::json!("auth"), serde_json::json!({"token": token.raw})).await {
+    match rpc_client.call("hub.auth", serde_json::json!("auth"), serde_json::json!({"token": token})).await {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
             // T-2625: name the recovery path (Directive #3). The hub-restart /
@@ -842,7 +918,7 @@ pub(crate) async fn pick_remote_session(
         anyhow::bail!("No session specified and stdin is not a terminal (cannot prompt)");
     }
 
-    let mut rpc_client = connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await?;
+    let mut rpc_client = conn.connect().await?;
 
     let resp = rpc_client
         .call("session.discover", serde_json::json!("discover"), serde_json::json!({}))
@@ -1174,7 +1250,7 @@ async fn cmd_remote_ping_inner(
     json: bool,
 ) -> Result<()> {
     let start = std::time::Instant::now();
-    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
+    let mut rpc_client = match conn.connect().await {
         Ok(c) => c,
         Err(e) => {
             if json {
@@ -1314,7 +1390,7 @@ async fn cmd_remote_list_inner(
     cap: Option<&str>,
     display: &ListDisplayOpts,
 ) -> Result<()> {
-    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
+    let mut rpc_client = match conn.connect().await {
         Ok(c) => c,
         Err(e) => {
             if display.json {
@@ -1485,7 +1561,7 @@ async fn cmd_remote_status_inner(
     json: bool,
     short: bool,
 ) -> Result<()> {
-    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
+    let mut rpc_client = match conn.connect().await {
         Ok(c) => c,
         Err(e) => {
             if json {
@@ -1617,7 +1693,7 @@ pub(crate) fn remote_inject_params(session: &str, keys: Vec<serde_json::Value>, 
 
 async fn cmd_remote_inject_inner(conn: &RemoteConn<'_>, opts: &RemoteInjectOpts<'_>) -> Result<()> {
     let RemoteInjectOpts { session, text, enter, key, delay_ms, by_id, json, .. } = *opts;
-    let mut client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
+    let mut client = match conn.connect().await {
         Ok(c) => c,
         Err(e) => {
             if json {
@@ -1730,7 +1806,7 @@ async fn cmd_remote_send_file_inner(
     hasher.update(&file_data);
     let sha256 = format!("{:x}", hasher.finalize());
 
-    let mut client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
+    let mut client = match conn.connect().await {
         Ok(c) => c,
         Err(e) => {
             if json {
@@ -1958,7 +2034,7 @@ pub(crate) async fn cmd_remote_events(
     json: bool,
     payload_only: bool,
 ) -> Result<()> {
-    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
+    let mut rpc_client = match conn.connect().await {
         Ok(c) => c,
         Err(e) => {
             if json {
@@ -2095,7 +2171,7 @@ pub(crate) async fn cmd_remote_exec(
     cwd: Option<&str>,
     json: bool,
 ) -> Result<()> {
-    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
+    let mut rpc_client = match conn.connect().await {
         Ok(c) => c,
         Err(e) => {
             if json {
@@ -2182,7 +2258,7 @@ async fn cmd_remote_inbox_inner(
     conn: &RemoteConn<'_>,
     action: RemoteInboxAction,
 ) -> Result<()> {
-    let mut rpc_client = connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope)
+    let mut rpc_client = conn.connect()
         .await
         .context("Failed to connect to remote hub")?;
 
@@ -2416,10 +2492,11 @@ pub(crate) async fn cmd_fleet_status(
 
         let result = tokio::time::timeout(
             timeout_dur,
-            connect_remote_hub(
+            connect_remote_hub_with_token(
                 &entry.address,
                 entry.secret_file.as_deref(),
                 entry.secret.as_deref(),
+                entry.token_file.as_deref(),
                 entry.scope.as_deref().unwrap_or("execute"),
             ),
         ).await;
@@ -2826,10 +2903,11 @@ pub(crate) async fn cmd_fleet_governor_status(
         let timeout_dur = std::time::Duration::from_secs(timeout_secs);
 
         let probe = async {
-            let mut client = connect_remote_hub(
+            let mut client = connect_remote_hub_with_token(
                 &entry.address,
                 entry.secret_file.as_deref(),
                 entry.secret.as_deref(),
+                entry.token_file.as_deref(),
                 entry.scope.as_deref().unwrap_or("execute"),
             )
             .await?;
@@ -5219,10 +5297,11 @@ pub(crate) async fn cmd_fleet_doctor(
         let timeout_dur = std::time::Duration::from_secs(timeout_secs);
         let result = tokio::time::timeout(
             timeout_dur,
-            connect_remote_hub(
+            connect_remote_hub_with_token(
                 &entry.address,
                 entry.secret_file.as_deref(),
                 entry.secret.as_deref(),
+                entry.token_file.as_deref(),
                 entry.scope.as_deref().unwrap_or("execute"),
             ),
         ).await;
@@ -6451,6 +6530,15 @@ async fn net_probe_auth(
 
     let start = Instant::now();
 
+    // T-3543: a profile with only a token_file presents that token as-is.
+    if entry.secret_file.is_none() && entry.secret.is_none()
+        && let Some(tf) = entry.token_file.as_deref()
+    {
+        let token = load_hub_token_file(tf, entry.scope.as_deref().unwrap_or("interact"))
+            .map_err(|e| (start.elapsed().as_millis() as u64, format!("{e:#}")))?;
+        return net_probe_present(rpc_client, &token, start, timeout_dur).await;
+    }
+
     // Read secret (file or inline)
     let hex = match (entry.secret_file.as_deref(), entry.secret.as_deref()) {
         (Some(path), _) => match std::fs::read_to_string(path) {
@@ -6491,11 +6579,20 @@ async fn net_probe_auth(
             format!("invalid scope '{}'", scope_str))),
     };
     let token = auth::create_token(&secret, perm_scope, "", 3600);
+    net_probe_present(rpc_client, &token.raw, start, timeout_dur).await
+}
 
+/// Present `token` in `hub.auth` for the net test's AUTH layer.
+async fn net_probe_present(
+    rpc_client: &mut client::Client,
+    token: &str,
+    start: std::time::Instant,
+    timeout_dur: std::time::Duration,
+) -> std::result::Result<u64, (u64, String)> {
     let auth_result = tokio::time::timeout(
         timeout_dur,
         rpc_client.call("hub.auth", serde_json::json!("net-auth"),
-            serde_json::json!({"token": token.raw})),
+            serde_json::json!({"token": token})),
     ).await;
 
     let latency = start.elapsed().as_millis() as u64;
@@ -8537,7 +8634,7 @@ async fn cmd_remote_doctor_inner(
 
     // 1. Connectivity — connect + auth
     let connect_start = std::time::Instant::now();
-    let mut rpc_client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
+    let mut rpc_client = match conn.connect().await {
         Ok(c) => {
             let latency = connect_start.elapsed().as_millis();
             check!("connectivity", pass, format!("connected in {}ms", latency));
@@ -8635,6 +8732,40 @@ mod tests {
         assert_eq!(with["target"], "sess-1");
         let without = remote_inject_params("sess-1", vec![], 10, false);
         assert!(without.get("exact_id").is_none(), "default request must not change: {without}");
+    }
+
+    /// T-3543: write `body` to `dir/name` at `mode`, return the path as a String.
+    fn t3543_file(dir: &std::path::Path, name: &str, body: &str, mode: u32) -> String {
+        use std::os::unix::fs::PermissionsExt;
+        let p = dir.join(name);
+        std::fs::write(&p, body).unwrap();
+        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(mode)).unwrap();
+        p.display().to_string()
+    }
+
+    #[test]
+    fn hub_token_file_loads_valid_and_refuses_expired_loose_or_garbage_without_leaking() {
+        use termlink_session::auth;
+        let dir = tempfile::tempdir().unwrap();
+        let secret = auth::generate_secret();
+
+        let live = auth::create_token(&secret, auth::PermissionScope::Interact, "", 600).raw;
+        let ok = t3543_file(dir.path(), "live", &live, 0o600);
+        assert_eq!(super::load_hub_token_file(&ok, "interact").unwrap(), live);
+
+        let dead = auth::create_token(&secret, auth::PermissionScope::Interact, "", 0).raw;
+        let p = t3543_file(dir.path(), "dead", &dead, 0o600);
+        let msg = format!("{:#}", super::load_hub_token_file(&p, "interact").unwrap_err());
+        assert!(msg.contains(&p) && msg.contains("expired") && msg.contains("termlink hub token"), "{msg}");
+        assert!(!msg.contains(&dead), "the token must never appear in an error");
+
+        let loose = t3543_file(dir.path(), "loose", &live, 0o644);
+        let msg = format!("{:#}", super::load_hub_token_file(&loose, "interact").unwrap_err());
+        assert!(msg.contains("chmod 600") && !msg.contains(&live), "{msg}");
+
+        let junk = t3543_file(dir.path(), "junk", "not-a-token", 0o600);
+        let msg = format!("{:#}", super::load_hub_token_file(&junk, "interact").unwrap_err());
+        assert!(msg.contains("not a hub token"), "{msg}");
     }
 
     const VALID_SECRET_HEX: &str =
