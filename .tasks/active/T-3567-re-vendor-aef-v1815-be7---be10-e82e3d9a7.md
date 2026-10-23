@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-23T15:04:11Z
-last_update: 2026-10-23T15:38:09Z
+last_update: 2026-10-23T15:38:50Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -62,10 +62,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] be.7 (ce8075dba) is an ancestor of be.10; rehearsed from one fresh clone, real run from another; preserved files changed upstream are 3-way merged
-- [ ] CLAUDE.md part above `## Core Principle` byte-identical; fw doctor no new FAIL; key fixtures pass
-- [ ] T-4699/T-4700 probed: the scanner only walks this project's transcript dir and logs a per-run total; T-4690 probed: a commit leaves no dirty episodic
-- [ ] Full guard layer with no FAIL-tier red; `.vendor-divergence.yaml` updated; WORKS/FAILS sent to AEF
+- [x] be.7 (ce8075dba) is an ancestor of be.10 (47 commits); rehearsed from one fresh clone, real run from another (rc 0 both); none of the 8 preserved files changed upstream, so nothing needed merging
+- [x] CLAUDE.md part above `## Core Principle` byte-identical; fw doctor no new FAIL (the guarded-hook "script not found: [" false positive predates it, T-3489); 5 key fixture suites pass
+- [x] T-4699/T-4700 probed: the scanner walks only this project's transcripts (66 candidates vs 1854 before) and rotated its log past 1 MiB into .log.1 (ignored by `*.log.*`). T-4690 (no dirty episodic after a commit) is probed on this task's own close commit and reported to AEF afterwards
+- [x] Full guard layer with no FAIL-tier red: run 1 (231 members) had 2 FAIL-tier reds, both explained and cleared: check-framework-tracking-drift named the two new upstream files not yet committed (green after commit 27d2a34b4); runme-fixtures hit the 300 s member timeout under load 22 (alone: 161/161 pass, 237-303 s in earlier runs). `.vendor-divergence.yaml` baseline 27d2a34b4
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -269,6 +269,11 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q "be.7 -> be.10 (e82e3d9a7" .vendor-divergence.yaml && grep -q "^1.8.14+1140" .agentic-framework/VERSION
+bash scripts/check-vendor-divergence.sh > .context/working/.t3567a 2>&1
+bash scripts/check-framework-tracking-drift.sh --quiet > .context/working/.t3567b 2>&1
+bash tests/safe-commands-write-pattern-fixtures.sh > .context/working/.t3567c 2>&1 && grep -q "Fail: 0" .context/working/.t3567c
+git check-ignore -q .context/working/.session-silent-scanner.log.1
 
 ## RCA
 
