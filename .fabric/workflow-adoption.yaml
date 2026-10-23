@@ -1,0 +1,43 @@
+# Workflow adoption manifest (T-3544, operator ruling A'1 on T-3103).
+#
+# Every designer project folder vendored under .agentic-framework/.context/designer/projects/<name>/
+# is listed here, either ADOPTED at a version (its steps are carded as `type: workflow-step` by
+# scripts/fabric-register-workflow.sh, and those cards point at v<version>.bpmn) or NOT ADOPTED with a
+# reason. This file is the project's own record: it is not vendored, so a framework upgrade that adds,
+# removes or re-versions a diagram is noticed instead of silently changing what the fabric claims.
+#
+# Checked by scripts/check-workflow-adoption.sh (guard layer):
+#   FAIL  a project folder missing from this file; an adopted version's .bpmn gone; step cards that do
+#         not match the adopted diagram's steps (same step kinds as the adoption tool); a card whose
+#         location names a different version than the one adopted here
+#   WARN  a newer v<N> exists than the adopted one (re-adopt deliberately, or record why not)
+#
+# To adopt a new or newer workflow: bash scripts/fabric-register-workflow.sh <name>, then set its
+# version here. To decline one: status: not-adopted with a one-line reason.
+
+workflows:
+  aef-audit-cron:
+    status: adopted
+    version: 1
+  aef-dispatch-loop:
+    status: adopted
+    version: 3
+  aef-existing-project-onboarding:
+    status: adopted
+    version: 1
+  aef-greenfield-onboarding:
+    status: adopted
+    version: 2
+  aef-inception-flow:
+    status: adopted
+    version: 1
+  aef-session-lifecycle:
+    status: adopted
+    version: 1
+  aef-task-lifecycle:
+    status: adopted
+    version: 3
+    note: "v4 exists upstream (since be.3); its steps carry the same 8 uids, so the cards stay valid. Re-adopt at v4 deliberately when its changes matter here."
+  aef-tier0-escalation:
+    status: adopted
+    version: 1

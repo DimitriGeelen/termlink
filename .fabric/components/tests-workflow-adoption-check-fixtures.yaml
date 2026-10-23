@@ -1,0 +1,21 @@
+id: tests/workflow-adoption-check-fixtures.sh
+name: workflow-adoption-check-fixtures
+type: script
+subsystem: guard-layer
+location: tests/workflow-adoption-check-fixtures.sh
+tags: []
+
+purpose: "T-3544 — fixtures for scripts/check-workflow-adoption.sh. Hermetic: a temp repo root with its own manifest, cards and designer projects dir (WORKFLOW_ADOPTION_ROOT / WORKFLOW_ADOPTION_PROJECTS)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-23
+created_by: unknown

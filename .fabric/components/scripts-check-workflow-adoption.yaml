@@ -1,0 +1,21 @@
+id: scripts/check-workflow-adoption.sh
+name: check-workflow-adoption
+type: script
+subsystem: guard-layer
+location: scripts/check-workflow-adoption.sh
+tags: []
+
+purpose: "guard-layer: source T-3544 (operator ruling A'1 on T-3103) — the designer workflows this project has adopted still match their step cards, and every vendored workflow is either adopted or declined on purpose."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-23
+created_by: unknown
