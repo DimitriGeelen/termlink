@@ -184,6 +184,7 @@ mod tests {
             secret_file: Some("/etc/termlink/prod.key".to_string()),
             secret: None,
             scope: Some("observe".to_string()),
+            token_file: None,
             bootstrap_from: None,
         });
 
@@ -201,6 +202,7 @@ mod tests {
             secret_file: Some("/default/key".to_string()),
             secret: None,
             scope: Some("observe".to_string()),
+            token_file: None,
             bootstrap_from: None,
         });
 
@@ -235,6 +237,7 @@ mod tests {
             secret_file: Some("/root/.termlink/secrets/ring20-management.hex".to_string()),
             secret: None,
             scope: Some("observe".to_string()),
+            token_file: None,
             bootstrap_from: None,
         });
 
@@ -261,6 +264,7 @@ mod tests {
             secret_file: Some("/profile/key".to_string()),
             secret: None,
             scope: Some("observe".to_string()),
+            token_file: None,
             bootstrap_from: None,
         });
 
@@ -280,6 +284,7 @@ mod tests {
             secret_file: Some("/other/key".to_string()),
             secret: None,
             scope: None,
+            token_file: None,
             bootstrap_from: None,
         });
 
@@ -299,6 +304,7 @@ mod tests {
             secret_file: Some("/keys/staging.key".to_string()),
             secret: None,
             scope: Some("control".to_string()),
+            token_file: None,
             bootstrap_from: None,
         });
         config.hubs.insert("minimal".to_string(), HubEntry {
@@ -306,6 +312,7 @@ mod tests {
             secret_file: None,
             secret: None,
             scope: None,
+            token_file: None,
             bootstrap_from: None,
         });
 
@@ -446,6 +453,7 @@ mod tests {
             secret_file: None,
             secret: Some("s3cret".to_string()),
             scope: None,
+            token_file: None,
             bootstrap_from: None,
         });
 

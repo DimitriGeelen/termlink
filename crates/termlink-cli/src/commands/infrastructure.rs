@@ -1711,6 +1711,7 @@ mod tests {
                 ),
                 secret: None,
                 scope: None,
+                token_file: None,
                 bootstrap_from: None,
             },
         );
@@ -1744,6 +1745,7 @@ mod tests {
                 ),
                 secret: None,
                 scope: None,
+                token_file: None,
                 bootstrap_from: None,
             },
         );
@@ -1765,6 +1767,7 @@ mod tests {
                 secret_file: Some(secrets_dir.join("local.hex").to_string_lossy().to_string()),
                 secret: None,
                 scope: None,
+                token_file: None,
                 bootstrap_from: None,
             },
         );
@@ -1776,6 +1779,7 @@ mod tests {
                 secret_file: Some(secrets_dir.join("v6.hex").to_string_lossy().to_string()),
                 secret: None,
                 scope: None,
+                token_file: None,
                 bootstrap_from: None,
             },
         );

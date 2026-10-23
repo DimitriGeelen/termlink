@@ -25,6 +25,10 @@ pub struct HubEntry {
     /// Same scheme vocabulary as T-1055 (`file:<path>`, `ssh:<host>`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bootstrap_from: Option<String>,
+    /// T-3543: a scoped token minted on the hub host (`termlink hub token`). When set,
+    /// clients present it as-is in `hub.auth` and need no hub secret at all.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token_file: Option<String>,
 }
 
 pub fn hubs_config_path() -> std::path::PathBuf {

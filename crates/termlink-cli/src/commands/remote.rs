@@ -977,6 +977,7 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 secret_file,
                 secret,
                 scope,
+                token_file: None,
                 bootstrap_from,
             });
             save_hubs_config(&config)?;
@@ -10192,6 +10193,7 @@ mod tests {
             secret_file: Some("/root/.termlink/secrets/192.168.10.109.hex".to_string()),
             secret: None,
             scope: Some("execute".to_string()),
+            token_file: None,
             bootstrap_from: None,
         };
         let out = render_fleet_reauth_plan("ring20-management", &entry);
@@ -10225,6 +10227,7 @@ mod tests {
             secret_file: None,
             secret: Some("aa".repeat(32)),
             scope: None,
+            token_file: None,
             bootstrap_from: None,
         };
         let out = render_fleet_reauth_plan("inline-hub", &entry);
@@ -10240,6 +10243,7 @@ mod tests {
             secret_file: None,
             secret: None,
             scope: None,
+            token_file: None,
             bootstrap_from: None,
         };
         let out = render_fleet_reauth_plan("broken-hub", &entry);
@@ -10605,6 +10609,7 @@ secret_file = "/tmp/other.hex"
             secret: None,
             secret_file: Some("~/.termlink/secrets/ring20-management.hex".to_string()),
             scope: None,
+            token_file: None,
             bootstrap_from: Some("ssh:192.168.10.122".to_string()),
         };
         let hint = heal_bootstrap_hint(&entry, &entry.address);
@@ -10620,6 +10625,7 @@ secret_file = "/tmp/other.hex"
             secret: None,
             secret_file: Some("/tmp/x.hex".to_string()),
             scope: None,
+            token_file: None,
             bootstrap_from: None,
         };
         let hint = heal_bootstrap_hint(&entry, &entry.address);
@@ -10638,16 +10644,19 @@ secret_file = "/tmp/other.hex"
         hubs.insert("declared".to_string(), HubEntry {
             address: "10.0.0.1:9100".to_string(),
             secret: None, secret_file: Some("/x".to_string()), scope: None,
+            token_file: None,
             bootstrap_from: Some("ssh:10.0.0.1".to_string()),
         });
         hubs.insert("undeclared-a".to_string(), HubEntry {
             address: "10.0.0.2:9100".to_string(),
             secret: None, secret_file: Some("/y".to_string()), scope: None,
+            token_file: None,
             bootstrap_from: None,
         });
         hubs.insert("undeclared-b".to_string(), HubEntry {
             address: "10.0.0.3:9100".to_string(),
             secret: None, secret_file: Some("/z".to_string()), scope: None,
+            token_file: None,
             bootstrap_from: None,
         });
         let msg = heal_readiness_footer(&hubs).expect("must emit when any undeclared");
@@ -10666,11 +10675,13 @@ secret_file = "/tmp/other.hex"
         hubs.insert("a".to_string(), HubEntry {
             address: "10.0.0.1:9100".to_string(),
             secret: None, secret_file: Some("/x".to_string()), scope: None,
+            token_file: None,
             bootstrap_from: Some("ssh:10.0.0.1".to_string()),
         });
         hubs.insert("b".to_string(), HubEntry {
             address: "10.0.0.2:9100".to_string(),
             secret: None, secret_file: Some("/y".to_string()), scope: None,
+            token_file: None,
             bootstrap_from: Some("file:/etc/x".to_string()),
         });
         assert!(heal_readiness_footer(&hubs).is_none(),
@@ -10692,6 +10703,7 @@ secret_file = "/tmp/other.hex"
             secret: None,
             secret_file: Some("~/.termlink/secrets/ring20-management.hex".to_string()),
             scope: None,
+            token_file: None,
             bootstrap_from: Some("ssh:192.168.10.122".to_string()),
         };
         let diag = format_hmac_mismatch_diagnosis("ring20-management", &entry);
@@ -10711,6 +10723,7 @@ secret_file = "/tmp/other.hex"
             secret: None,
             secret_file: Some("/tmp/x.hex".to_string()),
             scope: None,
+            token_file: None,
             bootstrap_from: None,
         };
         let diag = format_hmac_mismatch_diagnosis("ring20-dashboard", &entry);

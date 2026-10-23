@@ -532,6 +532,25 @@ pub fn validate_token(
 mod tests {
     use super::*;
 
+    #[test]
+    fn peek_reads_scope_and_expiry_without_the_secret() {
+        // T-3543: a node holding only a token file must be able to say what it holds
+        // (scope, expiry) without the hub secret — and peeking must never grant.
+        let secret = generate_secret();
+        let tok = create_token(&secret, PermissionScope::Interact, "", 600);
+        let p = peek_token_payload(&tok.raw).expect("a well-formed token peeks");
+        assert_eq!(p.scope, tok.payload.scope);
+        assert_eq!(p.expires_at, tok.payload.expires_at);
+        assert!(p.expires_at > p.issued_at);
+
+        assert!(peek_token_payload("garbage").is_none());
+        assert!(peek_token_payload("!!!.sig").is_none());
+
+        let forged = create_token(&generate_secret(), PermissionScope::Execute, "", 600);
+        assert!(peek_token_payload(&forged.raw).is_some(), "peek does not check the signature");
+        assert!(validate_token(&secret, &forged.raw, None).is_err(), "validation still refuses it");
+    }
+
     #[tokio::test]
     async fn peer_credentials_from_connected_socket() {
         use std::sync::atomic::{AtomicU32, Ordering};
