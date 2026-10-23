@@ -4,5 +4,6 @@
 # check-release-publication-freshness.sh, which escalates after 14 days.
 # Do not hand-edit a date to silence escalation — fix the member, or reclassify it.
 check-audit-warning-acknowledgement.sh  2026-10-21T05:41:01Z
+check-task-id-collisions.sh  2026-10-23T05:41:01Z
 standing-controls.sh  2026-10-12T05:41:01Z
 voi-prompt.sh  2026-10-20T05:41:01Z
