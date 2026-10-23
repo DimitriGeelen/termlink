@@ -3,8 +3,6 @@
 files:
   - path: agents/context/check-active-task.sh
     reason: T-3270 commit-pending helper exception
-  - path: agents/context/checkpoint.sh
-    reason: T-3316 usage to stderr (upstream T-4227 took the rest of our fix; filed upstream in the T-3554 field report)
   - path: agents/context/lib/safe-commands.sh
     reason: T-3178 redirect rule fails closed on a trailing bare '>' (upstream now catches the rest of the class, measured T-3554); /dev/stdout|stderr strip
   - path: agents/handover/handover.sh

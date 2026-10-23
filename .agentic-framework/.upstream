@@ -8,4 +8,4 @@
 # .framework.yaml upstream_repo:, then this sentinel. After a successful
 # sentinel-driven recovery, upgrade.sh persists the URL to .framework.yaml
 # so subsequent upgrades skip this fallback. Do not edit by hand.
-/tmp/claude-0/-opt-termlink/10c2f139-7c28-4c84-b41d-df672cbe37c4/scratchpad/aef
+https://github.com/DimitriGeelen/agentic-engineering-framework.git

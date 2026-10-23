@@ -2846,9 +2846,11 @@ if [ -d "$PROJECT_ROOT/.fabric/components" ]; then
     fabric_cards=$(find "$PROJECT_ROOT/.fabric/components/" -maxdepth 1 -name '*.yaml' -type f 2>/dev/null | wc -l)
     if [ "$fabric_cards" -gt 0 ]; then
         drift_result=$(python3 -c "
-import yaml, glob, os, re
+import yaml, glob, os, re, sys
 
 PROJECT_ROOT = '$PROJECT_ROOT'
+sys.path.insert(0, os.path.join('$FRAMEWORK_ROOT', 'agents', 'fabric', 'lib'))
+from location_kind import is_path_location
 FABRIC_DIR = os.path.join(PROJECT_ROOT, '.fabric')
 COMP_DIR = os.path.join(FABRIC_DIR, 'components')
 WATCH_FILE = os.path.join(FABRIC_DIR, 'watch-patterns.yaml')
@@ -2877,11 +2879,12 @@ for card_path in glob.glob(os.path.join(COMP_DIR, '*.yaml')):
         data = yaml.safe_load(f)
     if data and data.get('location'):
         loc = data['location']
-        # T-3049: skip URL locations. Same fix as agents/fabric/lib/drift.sh —
-        # both sites answer 'is this card's file still there', and a hosted
-        # service has no file to be missing. They must agree, or the CLI and the
-        # daily audit report different orphan counts for one corpus.
-        if re.match(r'^[a-zA-Z][a-zA-Z0-9+.-]*://', loc):
+        # T-3049, T-4654: skip locations that are not file paths (URL, IPv4,
+        # CIDR, host:port, descriptive text). This count and
+        # agents/fabric/lib/drift.sh both answer 'is this card's file still
+        # there' through the one shared predicate, so the CLI and the daily
+        # audit cannot report different orphan counts for one corpus.
+        if not is_path_location(loc):
             continue
         if not os.path.exists(os.path.join(PROJECT_ROOT, loc)):
             orphaned += 1
@@ -8231,7 +8234,11 @@ esac
 
 # D12: Bypass Log Growth (Score 12, T-248)
 # Track --no-verify usage and bypass log entries
-BYPASS_LOG="$PROJECT_ROOT/.context/project/bypass-log.yaml"
+# T-4656: the path every writer uses (agents/git/lib/common.sh, check-tier0.sh,
+# lib/tier0_action.py) and CTL-010 reads. It used to read
+# .context/project/bypass-log.yaml, which nothing writes, so D12 reported
+# "no log file" forever.
+BYPASS_LOG="$CONTEXT_DIR/bypass-log.yaml"
 if [ -f "$BYPASS_LOG" ]; then
     d12_result=$(python3 << D12EOF
 import yaml
@@ -8247,6 +8254,12 @@ try:
     entries = data.get("bypasses", []) if data else []
 except Exception:
     entries = []
+
+# T-4656: the Tier-0 gate logs each human-approved fw inception decide with
+# risk "INCEPTION DECISION: ..." (check-tier0.sh). That is the sanctioned way to
+# record a GO/NO-GO, not a bypass. A forced decide ("FW FORCE: ...") still counts.
+entries = [e for e in (entries or []) if isinstance(e, dict)
+           and not str(e.get("risk", "")).startswith("INCEPTION DECISION")]
 
 recent = 0
 for e in entries:
