@@ -58,6 +58,12 @@ date_finished: null
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
+2026-10-23 (T-3567, be.10): newest upstream copies parked in `.context/working/vendor-upstream-be10/`
+(6 slash commands, 13 scripts; template copies left as `.tasks/templates/*.md.upstream`).
+`scripts/rail-post.sh` is written by `fw upgrade` and is sourced only by the UPSTREAM versions of
+agent-send / agent-respond / chat-arc-broadcast / listener-heartbeat; none of our kept copies use it.
+It stays untracked until this reconciliation decides to take the upstream toolkit (then commit it with them).
+
 ## Acceptance Criteria
 
 ### Agent

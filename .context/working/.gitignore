@@ -65,3 +65,16 @@ decide/
 episodic-gen/
 litellm/
 ollama-pulls/
+.fleet-failure-state.json
+vector-index-health.json
+.checkpoint.handover.stderr
+.terminator.handover.out
+.handover-cooldown
+.inception-research-warnings
+.inception-checkpoint-log
+watchtower.firewall
+escalation-drift-LATEST*.yaml
+estate-ingest-audit.jsonl
+estate-push-refused.jsonl
+judge-evidence/
+vendor-backup/
