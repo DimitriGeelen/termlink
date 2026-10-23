@@ -1,0 +1,21 @@
+id: tests/fabric-command-cards-fixtures.sh
+name: fabric-command-cards-fixtures
+type: script
+subsystem: guard-layer
+location: tests/fabric-command-cards-fixtures.sh
+tags: []
+
+purpose: "T-3544 — fixtures for scripts/fabric-command-cards.py (slash-command fabric cards from what a command RUNS). Hermetic: a temp repo root with its own .claude/commands, scripts/ and .fabric/components."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-23
+created_by: unknown

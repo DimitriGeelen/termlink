@@ -1,0 +1,25 @@
+id: .claude/commands/claim-transfer.md
+name: claim-transfer
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/claim-transfer.md
+tags:
+- slash-command
+purpose: /claim-transfer — atomic cooperative claim handoff (T-2099 skill-layer wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /claim-transfer
+- type: cli
+  tool: termlink
+  commands:
+  - channel claim-force-release
+  - channel claim-transfer
+  - channel claims-history
+  - fleet doctor
+  - fleet reauth
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

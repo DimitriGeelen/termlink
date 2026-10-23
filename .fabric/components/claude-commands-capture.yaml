@@ -1,0 +1,20 @@
+id: .claude/commands/capture.md
+name: capture
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/capture.md
+tags:
+- slash-command
+purpose: /capture - Emergency Conversation Capture
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /capture
+- type: cli
+  tool: fw
+  commands:
+  - git commit
+  - work-on
+depends_on: []
+depended_by: []
+created_by: T-3544

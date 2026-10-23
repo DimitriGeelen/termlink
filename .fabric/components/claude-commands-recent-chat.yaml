@@ -1,0 +1,26 @@
+id: .claude/commands/recent-chat.md
+name: recent-chat
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/recent-chat.md
+tags:
+- slash-command
+purpose: /recent-chat — show recent agent-chat-arc posts across the fleet (T-1849
+  wrapper)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /recent-chat
+- type: cli
+  tool: termlink
+  commands:
+  - channel post
+  - channel subscribe
+  - fleet doctor
+depends_on:
+- target: scripts/agent-chat-arc-recent.sh
+  type: calls
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

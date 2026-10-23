@@ -1,0 +1,23 @@
+id: .claude/commands/find-idle-history.md
+name: find-idle-history
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/find-idle-history.md
+tags:
+- slash-command
+purpose: /find-idle-history — retrospective of agent idle/busy transitions (T-2209
+  skill-layer wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /find-idle-history
+- type: cli
+  tool: termlink
+  commands:
+  - agent find-idle
+  - agent find-idle-history
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

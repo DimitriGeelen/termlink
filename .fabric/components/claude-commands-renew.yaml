@@ -1,0 +1,24 @@
+id: .claude/commands/renew.md
+name: renew
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/renew.md
+tags:
+- slash-command
+purpose: /renew — extend a claim's lease (T-2101 skill-layer wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /renew
+- type: cli
+  tool: termlink
+  commands:
+  - channel claims-history
+  - channel renew
+  - fleet doctor
+  - fleet reauth
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

@@ -1,0 +1,23 @@
+id: .claude/commands/substrate-history.md
+name: substrate-history
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/substrate-history.md
+tags:
+- slash-command
+purpose: /substrate-history — retrospective of substrate health flips (T-2209 skill-layer
+  wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /substrate-history
+- type: cli
+  tool: termlink
+  commands:
+  - substrate history
+  - substrate status
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

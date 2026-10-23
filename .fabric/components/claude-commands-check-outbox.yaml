@@ -1,0 +1,17 @@
+id: .claude/commands/check-outbox.md
+name: check-outbox
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/check-outbox.md
+tags:
+- slash-command
+purpose: /check-outbox — OUTBOUND complement of /check-arc (T-1891)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /check-outbox
+depends_on:
+- target: scripts/check-outbox.sh
+  type: calls
+depended_by: []
+created_by: T-3544

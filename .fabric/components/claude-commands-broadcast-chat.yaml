@@ -1,0 +1,19 @@
+id: .claude/commands/broadcast-chat.md
+name: broadcast-chat
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/broadcast-chat.md
+tags:
+- slash-command
+purpose: /broadcast-chat — fan a chat-arc post to every hub in the fleet (T-1856 wrapper)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /broadcast-chat
+depends_on:
+- target: scripts/chat-arc-broadcast.sh
+  type: calls
+- target: scripts/check-fleet-doorbell-mail-health.sh
+  type: calls
+depended_by: []
+created_by: T-3544

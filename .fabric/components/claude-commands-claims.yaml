@@ -1,0 +1,25 @@
+id: .claude/commands/claims.md
+name: claims
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/claims.md
+tags:
+- slash-command
+purpose: /claims — list active claims on a topic (T-2093 skill-layer wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /claims
+- type: cli
+  tool: termlink
+  commands:
+  - channel claim
+  - channel claim-force-release
+  - channel claim-transfer
+  - channel claims-summary
+  - topics
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

@@ -1,13 +1,23 @@
 ---
 id: T-3544
-name: "Fabric: card all 34 slash commands with dependencies + workflow adoption manifest and check; then coverage skips workflow-step cards (T-3103 ruling A′1)"
+name: "Fabric: card all 34 slash commands with dependencies + workflow adoption manifest
+  and check; then coverage skips workflow-step cards (T-3103 ruling A′1)"
 description: >
-  Operator ruling 2026-10-22 on T-3103, option A′1 after external review (docs/reports/T-3103-consult/). (1) Widen watch-patterns.yaml to .claude/commands/*.md and card all 34 command files, recording each command's real dependencies (scripts/CLI it calls), not header-only purposes. (2) Add a non-vendored manifest listing every <vendored>/designer/projects/<name>/ folder as adopted-at-version-N or not-adopted-with-reason. (3) A check (guard layer) fails when a project folder is missing from the manifest, an adopted version's file is gone, or step cards do not match the adopted diagram's steps; warns when a newer vN exists than the adopted one. (4) Only then make the coverage check skip type workflow-step cards (local check, documented in watch-patterns.yaml). Close T-3103 after.
+  Operator ruling 2026-10-22 on T-3103, option A′1 after external review (docs/reports/T-3103-consult/).
+  (1) Widen watch-patterns.yaml to .claude/commands/*.md and card all 34 command files,
+  recording each command's real dependencies (scripts/CLI it calls), not header-only
+  purposes. (2) Add a non-vendored manifest listing every <vendored>/designer/projects/<name>/
+  folder as adopted-at-version-N or not-adopted-with-reason. (3) A check (guard layer)
+  fails when a project folder is missing from the manifest, an adopted version's file
+  is gone, or step cards do not match the adopted diagram's steps; warns when a newer
+  vN exists than the adopted one. (4) Only then make the coverage check skip type
+  workflow-step cards (local check, documented in watch-patterns.yaml). Close T-3103
+  after.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +48,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T10:14:31Z
-last_update: 2026-10-22T10:14:31Z
-date_finished: null
+last_update: 2026-10-23T13:11:03Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +60,19 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-23T13:06:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3544: Fabric: card all 34 slash commands with dependencies + workflow adoption manifest and check; then coverage skips workflow-step cards (T-3103 ruling A′1)
@@ -62,8 +85,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] (1) `.fabric/watch-patterns.yaml` covers `.claude/commands/*.md`; every command file has a card whose `depends_on` lists the repo scripts it actually invokes (read from the file, not its header) and whose `interfaces` names the `termlink`/`fw` verbs it calls; `fw fabric drift` reports no unregistered command file
+- [ ] (2) A non-vendored manifest lists every designer project folder as adopted-at-vN or not-adopted with a reason
+- [ ] (3) A guard-layer check fails on a project folder missing from the manifest, an adopted version's file gone, or step cards not matching the adopted diagram's steps; warns when a newer vN exists; fixtures with a mutant
+- [ ] (4) The coverage check skips `workflow-step` cards, documented in watch-patterns.yaml; T-3103 closed after
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +389,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3544-fabric-card-all-34-slash-commands-with-d.md
 - **Context:** Initial task creation
+
+### 2026-10-23T13:06:29Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

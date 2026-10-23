@@ -1,0 +1,38 @@
+id: .claude/commands/check-arc.md
+name: check-arc
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/check-arc.md
+tags:
+- slash-command
+purpose: /check-arc - Pending Chat-Arc DM Inbox (RECEIVE-side companion to /agent-handoff)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /check-arc
+- type: cli
+  tool: termlink
+  commands:
+  - agent identity
+  - channel ack
+  - channel dm
+  - channel info
+  - channel list
+  - channel subscribe
+  - channel unread
+  - inject
+depends_on:
+- target: scripts/agent-respond.sh
+  type: calls
+- target: scripts/agent-send.sh
+  type: calls
+- target: scripts/peer-presence-lookup.sh
+  type: calls
+- target: scripts/relay-hop-check.sh
+  type: calls
+- target: scripts/wake-confirm.sh
+  type: calls
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

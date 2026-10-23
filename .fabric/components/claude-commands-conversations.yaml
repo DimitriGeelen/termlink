@@ -1,0 +1,23 @@
+id: .claude/commands/conversations.md
+name: conversations
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/conversations.md
+tags:
+- slash-command
+purpose: /conversations — list active doorbell+mail threads on a topic (T-1864 wrapper)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /conversations
+- type: cli
+  tool: termlink
+  commands:
+  - channel list
+depends_on:
+- target: scripts/agent-conversation-list.sh
+  type: calls
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

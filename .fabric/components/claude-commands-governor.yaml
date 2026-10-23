@@ -1,0 +1,25 @@
+id: .claude/commands/governor.md
+name: governor
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/governor.md
+tags:
+- slash-command
+purpose: /governor — fleet backpressure snapshot (T-2095 skill-layer wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /governor
+- type: cli
+  tool: termlink
+  commands:
+  - channel cv-keys
+  - fleet doctor
+  - fleet governor-history
+  - fleet governor-status
+  - fleet verify
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

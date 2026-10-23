@@ -1,0 +1,26 @@
+id: .claude/commands/release.md
+name: release
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/release.md
+tags:
+- slash-command
+purpose: /release — release (or retry) a claim (T-2098 / T-2100-fixed skill-layer
+  wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /release
+- type: cli
+  tool: termlink
+  commands:
+  - channel claim-force-release
+  - channel claims-history
+  - channel release
+  - fleet doctor
+  - fleet reauth
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

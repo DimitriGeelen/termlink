@@ -1,0 +1,23 @@
+id: .claude/commands/queue-history.md
+name: queue-history
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/queue-history.md
+tags:
+- slash-command
+purpose: /queue-history — retrospective of offline-queue backpressure (T-2209 skill-layer
+  wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /queue-history
+- type: cli
+  tool: termlink
+  commands:
+  - channel queue-history
+  - channel queue-status
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

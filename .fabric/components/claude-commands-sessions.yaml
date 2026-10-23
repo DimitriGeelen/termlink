@@ -1,0 +1,34 @@
+id: .claude/commands/sessions.md
+name: sessions
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/sessions.md
+tags:
+- slash-command
+purpose: /sessions — Registered Terminal Sessions (SESSION-CONTROL read verb)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /sessions
+- type: cli
+  tool: termlink
+  commands:
+  - clean
+  - exec
+  - list
+  - mirror
+  - not found
+  - pty inject
+  - pty output
+  - pty stream
+  - remote list
+  - run
+  - signal
+  - spawn
+depends_on:
+- target: scripts/session-selftest.sh
+  type: calls
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

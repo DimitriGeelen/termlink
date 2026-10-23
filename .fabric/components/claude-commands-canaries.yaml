@@ -1,0 +1,19 @@
+id: .claude/commands/canaries.md
+name: canaries
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/canaries.md
+tags:
+- slash-command
+purpose: /canaries — unified cron-canary visibility (T-2172)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /canaries
+depends_on:
+- target: scripts/canary-status.sh
+  type: calls
+- target: scripts/check-cron-install-drift.sh
+  type: calls
+depended_by: []
+created_by: T-3544

@@ -1,0 +1,25 @@
+id: .claude/commands/peers.md
+name: peers
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/peers.md
+tags:
+- slash-command
+purpose: /peers — list reachable agents across the fleet (T-1837 skill-layer wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /peers
+- type: cli
+  tool: termlink
+  commands:
+  - agent find-idle
+  - channel subscribe
+  - fleet doctor
+depends_on:
+- target: scripts/agent-listeners-fleet.sh
+  type: calls
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

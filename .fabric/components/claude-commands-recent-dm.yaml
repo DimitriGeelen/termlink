@@ -1,0 +1,24 @@
+id: .claude/commands/recent-dm.md
+name: recent-dm
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/recent-dm.md
+tags:
+- slash-command
+purpose: /recent-dm — per-peer DM conversation history (T-1862 wrapper)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /recent-dm
+- type: cli
+  tool: termlink
+  commands:
+  - channel post
+  - channel subscribe
+depends_on:
+- target: scripts/recent-dm.sh
+  type: calls
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

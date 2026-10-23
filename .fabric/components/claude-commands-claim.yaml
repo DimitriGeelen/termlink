@@ -1,0 +1,27 @@
+id: .claude/commands/claim.md
+name: claim
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/claim.md
+tags:
+- slash-command
+purpose: /claim — reserve an offset on a topic (T-2097 / T-2100-fixed skill-layer
+  wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /claim
+- type: cli
+  tool: termlink
+  commands:
+  - channel claim
+  - channel renew
+  - channel subscribe
+  - fleet doctor
+  - fleet reauth
+  - topics
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

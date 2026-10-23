@@ -1,0 +1,21 @@
+id: scripts/fabric-command-cards.py
+name: fabric-command-cards
+type: script
+subsystem: operations
+location: scripts/fabric-command-cards.py
+tags: []
+
+purpose: "T-3544 (operator ruling A'1 on T-3103): fabric cards for the slash commands in .claude/commands/."
+purpose_source: docstring
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-23
+created_by: unknown

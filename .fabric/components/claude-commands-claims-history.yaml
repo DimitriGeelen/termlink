@@ -1,0 +1,23 @@
+id: .claude/commands/claims-history.md
+name: claims-history
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/claims-history.md
+tags:
+- slash-command
+purpose: /claims-history — retrospective of stuck-claim state changes (T-2209 skill-layer
+  wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /claims-history
+- type: cli
+  tool: termlink
+  commands:
+  - channel claims-history
+  - channel claims-summary
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

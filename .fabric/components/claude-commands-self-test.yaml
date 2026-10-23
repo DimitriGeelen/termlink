@@ -1,0 +1,31 @@
+id: .claude/commands/self-test.md
+name: self-test
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/self-test.md
+tags:
+- slash-command
+purpose: /self-test — Framework E2E Validation via TermLink
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /self-test
+- type: cli
+  tool: termlink
+  commands:
+  - clean
+  - interact
+  - list
+  - register
+- type: cli
+  tool: fw
+  commands:
+  - audit
+  - context init
+  - doctor
+  - metrics
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

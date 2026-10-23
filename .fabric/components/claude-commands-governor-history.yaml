@@ -1,0 +1,23 @@
+id: .claude/commands/governor-history.md
+name: governor-history
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/governor-history.md
+tags:
+- slash-command
+purpose: /governor-history — retrospective of hub backpressure events (T-2209 skill-layer
+  wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /governor-history
+- type: cli
+  tool: termlink
+  commands:
+  - fleet governor-history
+  - fleet governor-status
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

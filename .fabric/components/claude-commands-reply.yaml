@@ -1,0 +1,27 @@
+id: .claude/commands/reply.md
+name: reply
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/reply.md
+tags:
+- slash-command
+purpose: /reply — one-keystroke ad-hoc reply to a peer (T-1880)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /reply
+- type: cli
+  tool: termlink
+  commands:
+  - agent contact
+depends_on:
+- target: scripts/agent-reply.sh
+  type: calls
+- target: scripts/agent-respond.sh
+  type: calls
+- target: scripts/agent-send.sh
+  type: calls
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

@@ -1,0 +1,24 @@
+id: .claude/commands/closeable.md
+name: closeable
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/closeable.md
+tags:
+- slash-command
+purpose: /closeable — list agent-closeable backlog tasks (T-2207)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /closeable
+- type: cli
+  tool: fw
+  commands:
+  - task update
+  - task verify
+depends_on:
+- target: scripts/list-closeable.sh
+  type: calls
+- target: scripts/orchestrator-backlog-drain.sh
+  type: calls
+depended_by: []
+created_by: T-3544

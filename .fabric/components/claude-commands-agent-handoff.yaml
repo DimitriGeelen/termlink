@@ -1,0 +1,35 @@
+id: .claude/commands/agent-handoff.md
+name: agent-handoff
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/agent-handoff.md
+tags:
+- slash-command
+purpose: /agent-handoff - Cross-Host Agent Contact (T-1429 wrapper; T-2295 confirm-default)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /agent-handoff
+- type: cli
+  tool: termlink
+  commands:
+  - agent contact
+  - channel info
+  - channel list
+  - channel post
+  - channel subscribe
+  - remote push
+  - session
+- type: cli
+  tool: fw
+  commands:
+  - work-on
+depends_on:
+- target: scripts/agent-send.sh
+  type: calls
+- target: scripts/test-agent-send.sh
+  type: calls
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

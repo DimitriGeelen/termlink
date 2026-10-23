@@ -1,0 +1,26 @@
+id: .claude/commands/substrate.md
+name: substrate
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/substrate.md
+tags:
+- slash-command
+purpose: /substrate — single-shot substrate cold-start digest (T-2096 composition)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /substrate
+- type: cli
+  tool: termlink
+  commands:
+  - agent find-idle
+  - channel claims-summary
+  - channel queue-status
+  - fleet governor-status
+  - substrate history
+  - substrate status
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

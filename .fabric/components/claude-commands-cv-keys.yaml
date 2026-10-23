@@ -1,0 +1,25 @@
+id: .claude/commands/cv-keys.md
+name: cv-keys
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/cv-keys.md
+tags:
+- slash-command
+purpose: /cv-keys — inspect hub-side cv_index for a topic (T-2121 skill-layer wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /cv-keys
+- type: cli
+  tool: termlink
+  commands:
+  - channel
+  - channel cv-keys
+  - channel list
+  - channel subscribe
+  - fleet governor-status
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

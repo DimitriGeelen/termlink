@@ -1,0 +1,23 @@
+id: .claude/commands/find-idle.md
+name: find-idle
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/find-idle.md
+tags:
+- slash-command
+purpose: /find-idle — list currently-idle agents available for dispatch (T-2092 skill-layer
+  wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /find-idle
+- type: cli
+  tool: termlink
+  commands:
+  - agent find-idle
+  - fleet doctor
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

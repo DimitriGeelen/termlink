@@ -1,0 +1,19 @@
+id: .claude/commands/pulse.md
+name: pulse
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/pulse.md
+tags:
+- slash-command
+purpose: /pulse — single-shot conversation arc digest (T-1860 composition)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /pulse
+depends_on:
+- target: scripts/agent-chat-arc-recent.sh
+  type: calls
+- target: scripts/agent-listeners-fleet.sh
+  type: calls
+depended_by: []
+created_by: T-3544

@@ -1,0 +1,15 @@
+id: .claude/commands/decision-brief.md
+name: decision-brief
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/decision-brief.md
+tags:
+- slash-command
+purpose: /decision-brief — take the operator through ONE decision (T-3305)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /decision-brief
+depends_on: []
+depended_by: []
+created_by: T-3544

@@ -1,0 +1,31 @@
+id: .claude/commands/preflight.md
+name: preflight
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/preflight.md
+tags:
+- slash-command
+purpose: /preflight — deploy-time substrate correctness check (T-2158 skill-layer
+  wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /preflight
+- type: cli
+  tool: termlink
+  commands:
+  - hub status
+  - remote profile
+- type: cli
+  tool: fw
+  commands:
+  - doctor
+depends_on:
+- target: scripts/check-cron-install-drift.sh
+  type: calls
+- target: scripts/substrate-preflight.sh
+  type: calls
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544

@@ -1,0 +1,17 @@
+id: .claude/commands/heartbeat.md
+name: heartbeat
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/heartbeat.md
+tags:
+- slash-command
+purpose: /heartbeat - Post agent presence to local chat-arc
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /heartbeat
+depends_on:
+- target: scripts/chat-arc-multicast.sh
+  type: calls
+depended_by: []
+created_by: T-3544

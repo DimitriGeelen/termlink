@@ -1,0 +1,26 @@
+id: .claude/commands/resume.md
+name: resume
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/resume.md
+tags:
+- slash-command
+purpose: /resume - Context Recovery for Agentic Engineering Framework
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /resume
+- type: cli
+  tool: fw
+  commands:
+  - config get
+  - doctor
+  - runme pending
+  - sidecar alerts
+depends_on:
+- target: scripts/commit-pending.sh
+  type: calls
+- target: scripts/session-start-alerts.sh
+  type: calls
+depended_by: []
+created_by: T-3544

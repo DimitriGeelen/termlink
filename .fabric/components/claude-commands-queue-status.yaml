@@ -1,0 +1,25 @@
+id: .claude/commands/queue-status.md
+name: queue-status
+type: slash-command
+subsystem: claude-commands
+location: .claude/commands/queue-status.md
+tags:
+- slash-command
+purpose: /queue-status — inspect this host's offline-queue depth (T-2094 skill-layer
+  wrap)
+purpose_source: header-comment
+interfaces:
+- type: slash-command
+  command: /queue-status
+- type: cli
+  tool: termlink
+  commands:
+  - channel queue-history
+  - channel queue-status
+  - fleet doctor
+  - hub status
+depends_on:
+- target: crates/termlink-cli/src/main.rs
+  type: calls
+depended_by: []
+created_by: T-3544
