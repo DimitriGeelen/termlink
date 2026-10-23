@@ -27,6 +27,7 @@ setup() { # a clean tree: wf1 adopted at v1 with two steps (a task and a catch e
       echo '</bpmn:definitions>'; } > "$P/wf1/v1.bpmn"
     card "$R" wf1 s_one 1; card "$R" wf1 s_wait 1
     printf 'workflows:\n  wf1:\n    status: adopted\n    version: 1\n' > "$R/.fabric/workflow-adoption.yaml"
+    printf 'patterns:\n  - glob: "scripts/**/*.sh"\n  - glob: ".agentic-framework/.context/designer/projects/wf1/v1.bpmn"\n' > "$R/.fabric/watch-patterns.yaml"
 }
 run() { WORKFLOW_ADOPTION_ROOT="$R" WORKFLOW_ADOPTION_PROJECTS="$P" bash "${CHECK:-$CHK}" > "$W/out" 2>&1; echo $?; }
 
@@ -55,6 +56,12 @@ setup c8; printf 'workflows:\n  wf1:\n    status: not-adopted\n' > "$R/.fabric/w
 
 setup c9; rm "$R/.fabric/workflow-adoption.yaml"
 [ "$(run)" = 2 ] && ok "9 a missing manifest is a tooling error, never clean" || bad "9: $(cat "$W/out")"
+
+setup c11; printf 'patterns:\n  - glob: "scripts/**/*.sh"\n' > "$R/.fabric/watch-patterns.yaml"
+[ "$(run)" = 1 ] && grep -q "adopted v1 is not in watch-patterns.yaml" "$W/out" && ok "11 an adopted diagram missing from watch-patterns fails" || bad "11: $(cat "$W/out")"
+
+setup c12; printf '  - glob: ".agentic-framework/.context/designer/projects/wf1/v2.bpmn"\n' >> "$R/.fabric/watch-patterns.yaml"
+[ "$(run)" = 1 ] && grep -q "watches v2, which the manifest does not adopt" "$W/out" && ok "12 a watched version the manifest does not adopt fails" || bad "12: $(cat "$W/out")"
 
 # The check's notion of a step must be the adoption tool's, character for character.
 tool_re="$(grep -o "r'<bpmn:(serviceTask[^']*'" "$ROOT/scripts/fabric-register-workflow.sh" | head -1)"

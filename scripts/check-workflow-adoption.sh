@@ -12,6 +12,7 @@
 #   - a manifest entry whose project folder is gone, or whose adopted v<N>.bpmn is gone
 #   - an adopted workflow whose step cards differ from the adopted diagram's steps (missing or stale)
 #   - a step card whose location names a different version than the one the manifest adopted
+#   - .fabric/watch-patterns.yaml not watching exactly the adopted (workflow, version) diagrams
 # WARN (printed, exit 0): a newer v<N> exists than the adopted one.
 # Exit 2: tooling (manifest unreadable, no projects dir, no python3/PyYAML) — never a clean result.
 #
@@ -94,6 +95,21 @@ for name, entry in sorted(man.items()):
     vs = versions(d)
     if vs and vs[-1] > v:
         warns.append(f"{name}: v{vs[-1]} exists, adopted v{v}")
+
+# Step 4 of the ruling: the adopted diagrams are watched one exact version each, so their step cards sit
+# inside coverage. The watch list must name exactly the adopted (workflow, version) pairs.
+wp_path = os.path.join(root, ".fabric", "watch-patterns.yaml")
+try:
+    globs = [p.get("glob", "") for p in (yaml.safe_load(open(wp_path)) or {}).get("patterns", []) if isinstance(p, dict)]
+except (OSError, yaml.YAMLError) as e:
+    print(f"check-workflow-adoption: cannot read {wp_path}: {e}", file=sys.stderr); sys.exit(2)
+watched = {(m.group(1), int(m.group(2))) for g in globs
+           if (m := re.fullmatch(r"\.agentic-framework/\.context/designer/projects/([^/]+)/v(\d+)\.bpmn", g))}
+adopted_pairs = {(n, e.get("version")) for n, e in man.items() if (e or {}).get("status") == "adopted"}
+for n, v in sorted(adopted_pairs - watched):
+    fails.append(f"{n}: adopted v{v} is not in watch-patterns.yaml (its step cards fall outside coverage)")
+for n, v in sorted(watched - adopted_pairs):
+    fails.append(f"{n}: watch-patterns.yaml watches v{v}, which the manifest does not adopt")
 
 for w in warns:
     print(f"WARN {w}")

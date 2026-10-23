@@ -48,7 +48,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T10:14:31Z
-last_update: 2026-10-23T13:18:46Z
+last_update: 2026-10-23T13:21:55Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -86,9 +86,9 @@ bvp_scores_proposed:
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] (1) `.fabric/watch-patterns.yaml` covers `.claude/commands/*.md`; every command file has a card whose `depends_on` lists the repo scripts it actually invokes (read from the file, not its header) and whose `interfaces` names the `termlink`/`fw` verbs it calls; `fw fabric drift` reports no unregistered command file
-- [ ] (2) A non-vendored manifest lists every designer project folder as adopted-at-vN or not-adopted with a reason
-- [ ] (3) A guard-layer check fails on a project folder missing from the manifest, an adopted version's file gone, or step cards not matching the adopted diagram's steps; warns when a newer vN exists; fixtures with a mutant
-- [ ] (4) The coverage check skips `workflow-step` cards, documented in watch-patterns.yaml; T-3103 closed after
+- [x] (2) A non-vendored manifest lists every designer project folder as adopted-at-vN or not-adopted with a reason
+- [x] (3) A guard-layer check fails on a project folder missing from the manifest, an adopted version's file gone, or step cards not matching the adopted diagram's steps; warns when a newer vN exists; fixtures with a mutant
+- [x] (4) The coverage check skips `workflow-step` cards, documented in watch-patterns.yaml; T-3103 closed after — done by WATCHING exactly the adopted diagrams instead of skipping (see Decisions); the audit's carded-but-unwatched warning is gone
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -293,6 +293,12 @@ bvp_scores_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+python3 scripts/fabric-command-cards.py --check > /tmp/.t3544a 2>&1 && grep -q " 0 problem" /tmp/.t3544a
+bash tests/fabric-command-cards-fixtures.sh > /tmp/.t3544b 2>&1 && grep -q " 0 failed" /tmp/.t3544b
+bash scripts/check-workflow-adoption.sh > /tmp/.t3544c 2>&1 && grep -q " 0 failure" /tmp/.t3544c
+bash tests/workflow-adoption-check-fixtures.sh > /tmp/.t3544d 2>&1 && grep -q " 0 failed" /tmp/.t3544d
+grep -q '^  - glob: ".claude/commands/\*.md"' .fabric/watch-patterns.yaml
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -363,6 +369,22 @@ bvp_scores_proposed:
 -->
 
 ## Decisions
+
+### 2026-10-23 — step 4: watch the adopted diagrams instead of skipping workflow-step cards
+- **Chose:** list exactly the adopted (workflow, version) diagrams in `.fabric/watch-patterns.yaml`, with
+  `check-workflow-adoption.sh` failing when that list and the manifest disagree.
+- **Why:** the coverage count is computed in vendored `agents/audit/audit.sh` (carded-but-unwatched by location); a
+  type skip would mean patching vendored code, erased at the next upgrade (G-062). Watching the adopted versions puts
+  the step cards inside measured coverage rather than exempting them, which meets the ruling's own test ("an
+  exemption is honest only if another check notices a new or changed workflow") without any exemption.
+- **Rejected:** patching the vendored audit; a blanket glob over all `v*.bpmn` (would report every unadopted older
+  version as unregistered).
+- **Result:** `fw audit` no longer warns "N card(s) point at files no watch pattern covers" (was 9, then 8).
+
+### 2026-10-23 — command cards record what a command RUNS
+- **Chose:** dependencies are scripts and `termlink`/`fw` verbs inside code (fenced blocks, inline backticks); prose
+  mentions are pointers. `/peers` names 8 scripts and runs one; its card lists one.
+- **Rejected:** every mention (the mutant in the fixtures shows it turns pointers into dependencies).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

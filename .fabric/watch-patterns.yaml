@@ -35,6 +35,18 @@ patterns:
   # are components. Their cards are generated from what each file RUNS (scripts and termlink/fw verbs in
   # code), not from its header: `python3 scripts/fabric-command-cards.py` refreshes, `--check` detects drift.
   - glob: ".claude/commands/*.md"
+  # T-3544 (ruling A'1 on T-3103, step 4): the ADOPTED designer diagrams, one exact version each, so the
+  # workflow-step cards that point at them sit inside measured coverage instead of being exempted.
+  # Mirrors .fabric/workflow-adoption.yaml; scripts/check-workflow-adoption.sh fails if the two disagree
+  # (a re-adoption must move both). Older and newer versions stay unwatched on purpose.
+  - glob: ".agentic-framework/.context/designer/projects/aef-audit-cron/v1.bpmn"
+  - glob: ".agentic-framework/.context/designer/projects/aef-dispatch-loop/v3.bpmn"
+  - glob: ".agentic-framework/.context/designer/projects/aef-existing-project-onboarding/v1.bpmn"
+  - glob: ".agentic-framework/.context/designer/projects/aef-greenfield-onboarding/v2.bpmn"
+  - glob: ".agentic-framework/.context/designer/projects/aef-inception-flow/v1.bpmn"
+  - glob: ".agentic-framework/.context/designer/projects/aef-session-lifecycle/v1.bpmn"
+  - glob: ".agentic-framework/.context/designer/projects/aef-task-lifecycle/v3.bpmn"
+  - glob: ".agentic-framework/.context/designer/projects/aef-tier0-escalation/v1.bpmn"
   # T-3103: the cron declarations under .context/cron/ are the git-tracked source
   # of truth for every canary's TRIGGER (check-cron-install-drift.sh compares each
   # against its installed /etc/cron.d copy). One of the 31 carried a card, so the
