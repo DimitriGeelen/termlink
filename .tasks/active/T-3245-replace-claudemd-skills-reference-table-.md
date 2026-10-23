@@ -6,10 +6,10 @@ description: >
   to a pointer (.claude/commands + docs). Blocked on the @path spike. Must stay above
   ## Core Principle (T-2015 clobber boundary).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [value-review, arc:arc-009, go-slice]
 components: []
 related_tasks: [T-2989]
@@ -24,7 +24,7 @@ related_tasks: [T-2989]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:55:01Z
-last_update: '2026-09-29T19:57:59Z'
+last_update: 2026-10-23T22:14:05Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,6 +50,18 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-10-23T22:12:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-29T19:57:59Z'
     estimator: bvp-estimator-v1-heuristic
@@ -66,14 +78,22 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2989 GO step 2. The gate (step 1, T-3244) is answered: an `@path` import is INLINED at
+launch (measured +60,663 tokens for a 137 KB import, `docs/reports/T-3244-claudemd-import-loading.md`),
+so the only split that reduces preload is a PLAIN path reference the agent reads when it needs it.
+The "TermLink Substrate + Skills Reference" table in CLAUDE.md is a per-verb catalogue whose rows
+duplicate `.claude/commands/*.md` (each skill surfaces lazily anyway) and the per-primitive ops docs.
+It moves verbatim to `docs/operations/termlink-skills-reference.md`; CLAUDE.md keeps the
+clobber-boundary note and a pointer that says WHEN to open the file. The "Session rules the
+governance template does not carry" subsection is operator rules, not reference, and stays.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The table moves verbatim (every row byte-identical) to `docs/operations/termlink-skills-reference.md`; nothing is lost — 33/33 rows present; the governor row's tail, split off into a stray session-rules bullet ending in ` |`, rejoined to its row
+- [x] CLAUDE.md keeps a plain (no `@`) pointer that names the file and says when to open it; the session-rules subsection and everything above `## Core Principle` otherwise unchanged
+- [x] CLAUDE.md shrinks by the table's size (bytes measured before/after); no script or guard that reads CLAUDE.md breaks (check-budget-ladder-drift, charter checks, fixture suites that grep it) — 316,310 -> 252,798 bytes (-63,512, ~16-18k tokens); check-budget-ladder-drift rc 0; no script/test greps the moved rows
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -196,6 +216,10 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+test -f docs/operations/termlink-skills-reference.md && grep -q "Conversation index (THREADS)" docs/operations/termlink-skills-reference.md && grep -q "cv_overflow_hits_total" docs/operations/termlink-skills-reference.md
+grep -q "docs/operations/termlink-skills-reference.md" CLAUDE.md && ! grep -q "^| \*\*Find idle agents (DISPATCH)\*\*" CLAUDE.md
+! grep -q "@docs/operations/termlink-skills-reference" CLAUDE.md
+bash scripts/check-budget-ladder-drift.sh > .context/working/.t3245a 2>&1
 
 ## RCA
 
@@ -236,6 +260,11 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-24 — scoped as a plain reference, and a split row found
+- **What changed:** T-3244 answered the gate: `@` imports are inlined, so the move is to a file CLAUDE.md names but does not import. While moving, the "Hub governor status" row turned out to be split: its T-2068..T-2119 tail sat as a stray bullet (ending in ` |`) in "Session rules the governance template does not carry", most likely from an earlier upgrade's line handling.
+- **Plan impact:** none; the row is rejoined in the doc, which removes ~5.5 KB of reference text from the operator-rules list as a side effect.
+- **Triggered:** T-3246 (step 3, canary/guard block) is next; T-3247 re-measures after it.
 
 ## Recommendation
 
@@ -293,3 +322,7 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3245-replace-claudemd-skills-reference-table-.md
 - **Context:** Initial task creation
+
+### 2026-10-23T22:12:23Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
