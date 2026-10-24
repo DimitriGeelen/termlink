@@ -6,10 +6,10 @@ description: >
   make reads in-bounds (upstream filing if the gate is vendored, G-062). Evidence:
   docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-23.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -24,8 +24,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:23:03Z
-last_update: '2026-09-20T08:45:20Z'
-date_finished:
+last_update: 2026-10-24T10:37:29Z
+date_finished: 2026-10-24T10:37:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +50,18 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-10-24T10:34:03Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-20T08:45:20Z'
     estimator: bvp-estimator-v1-heuristic
@@ -72,8 +84,12 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The gate is vendored (`check-project-boundary`), so the fix is filed upstream rather than
+      patched here (G-062). AEF acknowledged it as **T-4731**: the gate refuses reads of this
+      project's own `~/.termlink` and the hub runtime dir, and judges the literal and the
+      expanded path differently (`/root/...` blocked, `$HOME/...` passes). Ack: sidecar msg c73f59eb, 2026-10-24.
+- [x] No local patch taken, so no `.vendor-divergence.yaml` entry; the workaround until the
+      re-vendor (use `$HOME`, not a literal path) is recorded in the session handover constraints.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -110,6 +126,8 @@ cost_estimate_proposed:
 
 ## Verification
 
+test -f .agentic-framework/agents/context/check-project-boundary.sh
+! grep -q 'check-project-boundary' .vendor-divergence.yaml
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -185,6 +203,22 @@ cost_estimate_proposed:
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** the project-boundary gate refuses read-only commands on this project's own state
+(`~/.termlink`, the hub runtime dir) as "another project"; the same read with `$HOME` in place
+of the literal path is allowed.
+
+**Root cause:** the gate decides "outside the project" from the literal text of the command,
+before variable expansion, and has no notion of a project's declared runtime state living outside
+the repo. So it both over-blocks (own state is out of bounds) and under-blocks (a variable hides
+any path from it).
+
+**Why structurally allowed:** the gate is vendored, and its tests cover repo-relative paths only;
+no consumer's runtime-state location is part of the framework's model, so nothing exercised it.
+
+**Prevention:** upstream, AEF T-4731 covers both halves (own runtime state in bounds for reads;
+literal and expanded path judged the same). Here, no local patch (G-062); the `$HOME` workaround
+is recorded in the session handover constraints until the re-vendor.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -208,6 +242,13 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-24 — fix is upstream, and the defect is wider than filed
+- **What changed:** besides refusing reads of `~/.termlink` and the hub runtime dir, the gate
+  judges a literal path and its variable form differently (`/root/...` refused, `$HOME/...`
+  allowed), so it is neither a reliable block nor a reliable allow. AEF filed both as T-4731.
+- **Plan impact:** no local patch (vendored, G-062); `$HOME` remains the working form until re-vendor.
+- **Triggered:** nothing new here.
 
 ## Recommendation
 
@@ -268,3 +309,19 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:34Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-10-24T10:34:02Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6366789f
+- **Timestamp:** 2026-10-24T10:37:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-24T10:37:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
