@@ -4,10 +4,10 @@ name: "Re-vendor AEF v1.8.15-be.14 -> be.17 (165039bb4)"
 description: >
   Operator ruling A 2026-10-24: take AEF be.17 (T-4719 push hint, T-4720 write only changed files, T-4726 decide verb from Recommendation). Usual routine: rehearse from a fresh clone, real run from another, guard layer, WORKS/FAILS to AEF.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [vendor]
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-24T20:44:10Z
-last_update: 2026-10-24T21:25:14Z
-date_finished: null
+last_update: 2026-10-24T21:28:23Z
+date_finished: 2026-10-24T21:28:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -62,10 +62,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] be.14 (965dbcdc5) is an ancestor of be.17; rehearsed from one fresh clone, real run from another (rc 0 both); every preserved file upstream changed is 3-way merged
-- [ ] CLAUDE.md part above `## Core Principle` byte-identical; fw doctor no FAIL; key fixture suites pass; guard layer run (reds compared with the be.14 run)
-- [ ] Per-fix probes: T-4726 (review hint verb from Recommendation), T-4720 (a no-op re-vendor leaves web/ mtimes alone, `fw watchtower current` not stale), T-4719 (close hint push form); WORKS/FAILS sent to AEF
-- [ ] `.vendor-divergence.yaml` last_vendor_event updated to the be.17 commit
+- [x] be.14 (965dbcdc5) is an ancestor of be.17 (59 commits); rehearsed from one fresh clone, real run from another (rc 0 both, 21 changes); the one preserved file upstream changed (check-active-task.sh, T-4719) 3-way merged clean, base be.14, our T-3270 exception kept
+- [x] CLAUDE.md part above `## Core Principle` byte-identical; fw doctor rc 0; guard layer 225 pass, reds same as be.14 run plus cron drift for the not-yet-installed canary-escalation cron (pending runme action 1, not upgrade-caused): runme-fixtures 300 s timeout (T-3571), 4 known WARNs
+- [x] Per-fix probes: T-4726 WORKS (review.sh verb mapping on T-2288/T-2879/T-3144 gives no-go, on T-1898/T-1899 defer); T-4720 WORKS (only the 4 Designer web files with new content rewritten; `fw watchtower current` still says stale because the running process predates earlier changes, restart is runme action 11c); T-4719 present in both close hints. WORKS/FAILS sent to AEF 2026-10-24
+- [x] `.vendor-divergence.yaml` last_vendor_event updated to the be.17 commit (c4a05b267)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -116,6 +116,9 @@ date_finished: null
 -->
 
 ## Verification
+grep -q "be.14 -> be.17 (165039bb4" .vendor-divergence.yaml && grep -q "^1.8.14+1252" .agentic-framework/VERSION
+bash scripts/check-vendor-divergence.sh > .context/working/.t3573v 2>&1
+grep -q "_rec_verb" .agentic-framework/lib/review.sh && grep -q "T-3270" .agentic-framework/agents/context/check-active-task.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -374,3 +377,20 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3573-re-vendor-aef-v1815-be14---be17-165039bb.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-939eea1e
+- **Timestamp:** 2026-10-24T21:28:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-24T21:28:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

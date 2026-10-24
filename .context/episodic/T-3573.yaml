@@ -1,0 +1,105 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3573: Re-vendor AEF v1.8.15-be.14 -> be.17 (165039bb4)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-24T21:28:45Z
+# ============================================================================
+
+task_id: T-3573
+task_name: "Re-vendor AEF v1.8.15-be.14 -> be.17 (165039bb4)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-24T20:44:10Z
+completed: 2026-10-24T21:28:23Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-24T23:25:14+02:00
+last_commit: 2026-10-24T23:25:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.15-be.14 -> be.17 (165039bb4, 59 commits; operator ruling A)
+
+# Key outcomes
+outcomes:
+  - 'be.14 (965dbcdc5) is an ancestor of be.17 (59 commits); rehearsed from one fresh clone, real run from another (rc 0 both, 21 changes); the one preserved file upstream changed (check-active-task.sh, T-4719) 3-way merged clean, base be.14, our T-3270 exception kept'
+  - 'CLAUDE.md part above `## Core Principle` byte-identical; fw doctor rc 0; guard layer 225 pass, reds same as be.14 run plus cron drift for the not-yet-installed canary-escalation cron (pending runme action 1, not upgrade-caused): runme-fixtures 300 s timeout (T-3571), 4 known WARNs'
+  - 'Per-fix probes: T-4726 WORKS (review.sh verb mapping on T-2288/T-2879/T-3144 gives no-go, on T-1898/T-1899 defer); T-4720 WORKS (only the 4 Designer web files with new content rewritten; `fw watchtower current` still says stale because the running process predates earlier changes, restart is runme action 11c); T-4719 present in both close hints. WORKS/FAILS sent to AEF 2026-10-24'
+  - '`.vendor-divergence.yaml` last_vendor_event updated to the be.17 commit (c4a05b267)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-24 — take be.17 now? (operator ruling)'
+    chose: 'A, re-vendor be.14 -> be.17 now ("Proceed, A.").'
+    rationale: 'carries our requested fixes T-4719, T-4720 and T-4726 (the last stops `fw task review` handing the operator a `go` command for a NO-GO recommendation); T-4728/T-4735 have no date.'
+    alternatives_rejected: ['B wait for T-4728/T-4735 in the same tag (misleading hint stays live, undated); C stay on be.14. - **Left open:** T-2957/T-2958 stay open for T-4728/T-4735; re-deciding T-2288/T-2879/T-3144 returns to the operator.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/context/check-active-task.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/generated/components/agents-context-session-silent-scanner.md'
+  - '.agentic-framework/docs/generated/components/lib-dispatch-gitignore.md'
+  - '.agentic-framework/docs/generated/components/lib-scratch-size.md'
+  - '.agentic-framework/docs/generated/components/tools-working-ignore-rail.md'
+  - '.agentic-framework/docs/reports/T-1549-escalation-scan-v0.md'
+  - '.agentic-framework/docs/reports/T-4737-designer-data-apis.md'
+  - '.agentic-framework/lib/context_tokens.py'
+  - '.agentic-framework/lib/review.sh'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/upgrade_commit_list.py'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.26.0.html'
+  - '.agentic-framework/web/blueprints/designer.py'
+  - '.agentic-framework/web/templates/designer_ghosts.html'
+  - '.agentic-framework/web/templates/designer_landing.html'
+  - '.agentic-framework/web/templates/designer_overlay.html'
+  - '.context/audits/upgrades.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-3573-re-vendor-aef-v1815-be14---be17-165039bb.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-24T23:25:14'
+    action: 'T-3573: re-vendor AEF v1.8.15-be.14 -> be.17 (165039bb4, 59 commits; operator ruling A)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 44 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [vendor]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 44
+  commits: 2
+  files_changed: 28
+  lines_added: 1207
+  lines_removed: 144
+  footprint_refreshed_at: '2026-10-24T21:29:25Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3573-re-vendor-aef-v1815-be14---be17-165039bb.md
+generated_by: context-agent-hybrid
