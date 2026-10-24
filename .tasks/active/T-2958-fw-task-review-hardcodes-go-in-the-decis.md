@@ -353,3 +353,7 @@ cost_estimate_proposed:
   the Recommendation, via `decision_matches_recommendation`). AEF will report when T-4726 lands in a be tag.
 - Still open here: AC "emitter corrected BEFORE any re-decide" waits on that be tag plus a re-vendor;
   the re-decide-a-completed-inception path (no verb exists) was asked of AEF in the same reply.
+- AEF answered (msg 21be59fd): **T-4734** (the refusal says the inception is archived in
+  `.tasks/completed`, not missing) and **T-4735** (a documented, logged way for the operator, not
+  agents, to re-record the decision on a completed inception). Correcting T-2288, T-2879 and T-3144
+  is therefore an operator action once T-4726 and T-4735 are in our vendored copy.
