@@ -89,12 +89,45 @@ if ! mkdir -p "$LOG_DIR" 2>/dev/null || [ ! -w "$LOG_DIR" ]; then
     LOG_NOTE="log dir $LOG_DIR not writable — using fallback"
     LOG_DIR="${TMPDIR:-/tmp}/runme-logs-$(id -u)"; mkdir -p "$LOG_DIR" 2>/dev/null
 fi
+
+# T-3574 — ONE RUN AT A TIME. On 2026-10-24 two runs overlapped: both staged the new
+# binary at the same remote /tmp path and wrote the same per-hub deploy log, the first
+# run's staging FAILED and the second run overwrote the evidence of why. A second start
+# now refuses before doing anything, naming the run that holds the lock.
+# A lock DIRECTORY holding the pid, not flock: runme starts long-lived children
+# (Watchtower, sidecars) that would inherit a flock fd and hold the lock forever.
+# A lock whose pid is gone, or is no longer a runme.sh, is stale and is taken over.
+# Checked BEFORE the log is created, so a refusal does not repoint latest.log away
+# from the run that is actually in progress; refusals are appended to refused.log.
+RUNME_LOCK="$LOG_DIR/.runme.lock"
+RUNME_LOCK_HELD=0
+release_lock() { [ "$RUNME_LOCK_HELD" = "1" ] && rm -rf "$RUNME_LOCK" 2>/dev/null; RUNME_LOCK_HELD=0; }
+lock_holder_alive() {  # lock_holder_alive <pid>: true when <pid> runs and is a runme.sh
+    [ -n "$1" ] && kill -0 "$1" 2>/dev/null && ps -p "$1" -o args= 2>/dev/null | grep -q 'runme'
+}
+if ! mkdir "$RUNME_LOCK" 2>/dev/null; then
+    holder="$(cat "$RUNME_LOCK/pid" 2>/dev/null)"
+    # An empty pid file is a lock being taken this instant: treat it as held.
+    if [ -z "$holder" ] || lock_holder_alive "$holder"; then
+        msg="runme: another run is already in progress (pid ${holder:-?}, log $(cat "$RUNME_LOCK/log" 2>/dev/null || echo '?')). Nothing was applied. Wait for it to finish; its log ends with a 'finished rc=' line (T-3574)."
+        echo "$msg" >&2
+        printf '%s %s\n' "$(date -u +%FT%TZ)" "$msg" >> "$LOG_DIR/refused.log" 2>/dev/null
+        exit 2
+    fi
+    echo "runme: taking over a stale lock (pid $holder is gone) (T-3574)" >&2
+    rm -rf "$RUNME_LOCK"
+    mkdir "$RUNME_LOCK" 2>/dev/null || { echo "runme: could not take the lock at $RUNME_LOCK. Nothing was applied." >&2; exit 2; }
+fi
+RUNME_LOCK_HELD=1
+echo "$$" > "$RUNME_LOCK/pid"
+trap release_lock EXIT
 RUNME_LOG="$LOG_DIR/runme-$(date -u +%Y%m%dT%H%M%SZ)-$$.log"
 if : > "$RUNME_LOG" 2>/dev/null; then
     ln -sfn "$(basename "$RUNME_LOG")" "$LOG_DIR/latest.log" 2>/dev/null || true
     exec > >(tee -a "$RUNME_LOG") 2>&1
     # The rc line is the reader's success/failure signal; print it on every exit path.
-    trap 'rc=$?; printf "\n=== runme.sh finished rc=%s at %s — log: %s ===\n" "$rc" "$(date -u +%FT%TZ)" "$RUNME_LOG"' EXIT
+    echo "$RUNME_LOG" > "$RUNME_LOCK/log"
+    trap 'rc=$?; release_lock; printf "\n=== runme.sh finished rc=%s at %s — log: %s ===\n" "$rc" "$(date -u +%FT%TZ)" "$RUNME_LOG"' EXIT
 else
     LOG_NOTE="${LOG_NOTE:+$LOG_NOTE; }could not create any log file — output is terminal-only"
     RUNME_LOG=""

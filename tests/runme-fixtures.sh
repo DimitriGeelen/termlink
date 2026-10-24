@@ -519,6 +519,36 @@ else bad "run is logged" "$(ls -la "$TMP/logs"; cat "$LOGF" 2>/dev/null | head -
 if echo "$out" | grep -q "^log: $TMP/logs/runme-"; then ok "the log's full path is printed to the operator"
 else bad "log path printed" "$out"; fi
 
+# T-3574: one run at a time. The lock lives in the (scratch) log dir.
+LOCK="$TMP/logs/.runme.lock"
+if [ ! -e "$LOCK" ]; then ok "lock: a finished run leaves no lock behind"
+else bad "lock: released at exit" "$(ls -la "$LOCK")"; fi
+# A live runme.sh holds the lock: a second start refuses, applies nothing and leaves
+# latest.log on the running run's log.
+bash -c 'exec -a runme.sh sleep 60' & HOLDER=$!
+mkdir -p "$LOCK"; echo "$HOLDER" > "$LOCK/pid"; echo "$TMP/logs/the-running-one.log" > "$LOCK/log"
+before="$(readlink "$TMP/logs/latest.log")"
+out=$(run --dry-run); rc=$?
+if [ "$rc" = "2" ] && echo "$out" | grep -q "already in progress (pid $HOLDER, log $TMP/logs/the-running-one.log)" \
+   && ! echo "$out" | grep -q "would install" && [ "$(readlink "$TMP/logs/latest.log")" = "$before" ] \
+   && grep -q "already in progress (pid $HOLDER" "$TMP/logs/refused.log" && [ -d "$LOCK" ]; then
+    ok "lock: a second start refuses (exit 2), names the holder, does nothing, keeps latest.log"
+else bad "lock: second start refused" "rc=$rc latest=$(readlink "$TMP/logs/latest.log") before=$before: $out"; fi
+kill "$HOLDER" 2>/dev/null; wait "$HOLDER" 2>/dev/null
+# The holder is gone: the lock is stale and is taken over, then released at exit.
+out=$(run --dry-run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "taking over a stale lock (pid $HOLDER is gone)" && [ ! -e "$LOCK" ]; then
+    ok "lock: a stale lock (holder gone) is taken over and released"
+else bad "lock: stale takeover" "rc=$rc: $out"; fi
+# Control for the name check: a live process that is NOT a runme.sh (pid reuse) is stale too.
+sleep 60 & OTHER=$!
+mkdir -p "$LOCK"; echo "$OTHER" > "$LOCK/pid"
+out=$(run --dry-run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "taking over a stale lock (pid $OTHER" && [ ! -e "$LOCK" ]; then
+    ok "lock: a live pid that is not a runme.sh does not hold the lock (pid reuse)"
+else bad "lock: pid-reuse control" "rc=$rc: $out"; fi
+kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
+
 # T-3237: cases 3-9 perform a REAL run, and runme.sh refuses non-root by design
 # (case 11 pins that). A GitHub runner is non-root, so there these cases can only
 # fail on the refusal they are not testing. Skip them ONLY when CI is set AND we
