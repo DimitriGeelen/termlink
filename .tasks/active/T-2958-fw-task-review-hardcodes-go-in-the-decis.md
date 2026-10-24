@@ -345,3 +345,11 @@ cost_estimate_proposed:
 
 ### 2026-09-27T09:19:36Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-24 — upstream task ids received [agent]
+- AEF acknowledged the re-sent filing (sidecar msg 774faf1d, conversation aef-v1815-be3) and filed
+  **T-4726** (review.sh hint takes the decide verb from the parsed Recommendation; placeholder
+  `go|no-go|defer` when unparseable) and **T-4727** (decide warns when the recorded verb differs from
+  the Recommendation, via `decision_matches_recommendation`). AEF will report when T-4726 lands in a be tag.
+- Still open here: AC "emitter corrected BEFORE any re-decide" waits on that be tag plus a re-vendor;
+  the re-decide-a-completed-inception path (no verb exists) was asked of AEF in the same reply.
