@@ -20048,3 +20048,21 @@ scan_id: R-939eea1e
 task_id: T-3573
 payload:
   task_file: .tasks/active/T-3573-re-vendor-aef-v1815-be14---be17-165039bb.md
+---
+kind: scan_emitted
+timestamp: '2026-10-24T22:04:15Z'
+scan_id: R-4f82c170
+task_id: T-3574
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-24T22:04:15Z'
+scan_id: R-4f82c170
+task_id: T-3574
+payload:
+  task_file: .tasks/active/T-3574-runmesh-refuse-a-second-concurrent-run-l.md
