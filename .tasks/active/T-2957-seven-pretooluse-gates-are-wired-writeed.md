@@ -9,7 +9,7 @@ description: >
   heredoc ticks Human ACs with no block and no Tier-2 log. Reported by 050-email-archive
   (P-EMAIL-ARCHIVE-001), verified live here.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -27,7 +27,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-11T19:53:26Z
-last_update: '2026-09-18T18:42:31Z'
+last_update: '2026-10-24T10:33:28Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -53,6 +53,18 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-10-24T10:33:28Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-18T18:42:31Z'
     estimator: bvp-estimator-v1-heuristic
@@ -75,8 +87,12 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Filed upstream and acknowledged: AEF **T-4728** (six task-file gates are wired Write|Edit
+      only, so a Bash heredoc rewrite of a task file bypasses them). AEF routes the settings.json
+      rewiring to its own operator. Ack: sidecar msg c73f59eb, conversation aef-v1815-be3, 2026-10-24.
+- [ ] After the re-vendor that carries T-4728, each of the six gates is wired on Bash in this
+      project's `.claude/settings.json`, and a Bash heredoc that ticks a `### Human` box in a
+      scratch task file is refused.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -271,3 +287,6 @@ cost_estimate_proposed:
 
 ### 2026-09-11T19:55:43Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-008
+
+### 2026-10-24T10:33:27Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
