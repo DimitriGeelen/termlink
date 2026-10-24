@@ -7,10 +7,10 @@ description: >
   with file:line and fix, register in .vendor-divergence.yaml. Evidence: consolidated
   C-16, C-17.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -25,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:04:20Z
-last_update: '2026-09-20T08:45:19Z'
-date_finished:
+last_update: 2026-10-24T10:36:33Z
+date_finished: 2026-10-24T10:36:33Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +51,18 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-10-24T10:33:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-20T08:45:19Z'
     estimator: bvp-estimator-v1-heuristic
@@ -73,8 +85,12 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Both dispatch-gate defects are filed upstream and acknowledged with task ids: AEF
+      **T-4729** (check-agent-dispatch counts blocked attempts and has no per-session reset) and
+      **T-4730** (`fw termlink dispatch --help` answers "Unknown option", so the gate's remediation
+      text points at a verb that cannot be read). Ack: sidecar msg c73f59eb, conversation aef-v1815-be3, 2026-10-24.
+- [x] No local patch was taken, so `.vendor-divergence.yaml` needs no entry (G-062: a local fix to
+      vendored code is deleted by the next re-vendor); the fixes arrive with the next re-vendor.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -111,6 +127,8 @@ cost_estimate_proposed:
 
 ## Verification
 
+test -f .agentic-framework/agents/context/check-agent-dispatch.sh
+! grep -q 'check-agent-dispatch' .vendor-divergence.yaml
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -210,6 +228,13 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-24 — one filing became two upstream tasks
+- **What changed:** the first filing at `framework:pickup` was not picked up for a month; a direct
+  sidecar re-send got an acknowledgement the same day. AEF split it per finding: counter semantics
+  (T-4729) and the unreadable `--help` behind the remediation text (T-4730).
+- **Plan impact:** none locally; no divergence entry because no local patch was taken.
+- **Triggered:** nothing new here; the fixes arrive with the next re-vendor.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -269,3 +294,19 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:08:35Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-10-24T10:33:44Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e0c8cd1d
+- **Timestamp:** 2026-10-24T10:36:35Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-24T10:36:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
