@@ -4,12 +4,12 @@ name: "Hub refuses to start after reboot: stale hub.pid whose pid was reused by 
 description: >
   2026-10-25 boot: hub.pid held 9549 from the previous boot; pid 9549 is now a termlink register session, so 'Hub is already running' and systemd crash-looped the unit (413 restarts, local hub down ~36 min). The liveness check must confirm the pid is actually this runtime_dir's hub, not merely alive.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, hub]
-components: []
+components: [crates/termlink-hub/src/pidfile.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-25T11:28:38Z
-last_update: 2026-10-25T11:34:54Z
-date_finished: null
+last_update: 2026-10-25T11:34:57Z
+date_finished: 2026-10-25T11:34:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -383,3 +383,22 @@ written it) is independent of what the process is called, and is pinned by a uni
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3575-hub-refuses-to-start-after-reboot-stale-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a601ada8
+- **Timestamp:** 2026-10-25T11:35:08Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Service restored: the stale hub.pid (pid 9549; file mtime 11:40, boot 11:52:05, pid 9549 started 11:52:22 as `termlink register`) removed after confirming its age; unit active, hub pid 1544890, fleet 
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/working/t3575-hub.pid in: Service restored: the stale hub.pid (pid 9549; file mtime 11:40, boot 11:52:05, pid 9549 started 11:52:22 as `termlink register`) removed after confir`
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-25T11:34:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

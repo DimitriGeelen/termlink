@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3575: Hub refuses to start after reboot: stale hub.pid whose pid was reused by another process
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-25T11:35:22Z
+# ============================================================================
+
+task_id: T-3575
+task_name: "Hub refuses to start after reboot: stale hub.pid whose pid was reused by another process"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-25T11:28:38Z
+completed: 2026-10-25T11:34:57Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-25T12:34:54+01:00
+last_commit: 2026-10-25T12:34:54+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub pidfile — a process that started after the pidfile was written is not its hub
+
+# Key outcomes
+outcomes:
+  - 'Service restored: the stale hub.pid (pid 9549; file mtime 11:40, boot 11:52:05, pid 9549 started 11:52:22 as `termlink register`) removed after confirming its age; unit active, hub pid 1544890, fleet doctor 6/7 ok (the 7th, .141, has no route: host off); pid 9549 untouched; copy of the stale file in .context/working/t3575-hub.pid.stale'
+  - '`pidfile::check` reads Stale when the pid''s process started AFTER the pidfile was written (procfs: /proc/<pid>/stat starttime + /proc/stat btime vs pidfile mtime, 2 s slack), so a pid reused by another termlink process after a reboot no longer blocks start; platforms without procfs keep today''s behaviour'
+  - 'Unit tests: `check_pid_of_process_started_after_pidfile_is_stale` and `process_start_epoch_secs_reads_own_start`; pidfile tests 23/23; mutant (comparison forced false) fails the new test (22/23). Full termlink-hub suite 559/560, the one red is `subscribe_walk_deadline_pages_union_is_lossless`, unrelated and passing 3/3 alone (a real zero-progress bug; filed separately)'
+  - 'Deploy of the fixed binary is left to the operator''s next runme run (the unit runs /root/.cargo/bin/termlink); noted in the handover'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.framework.yaml'
+  - '.tasks/active/T-3575-hub-refuses-to-start-after-reboot-stale-.md'
+  - 'crates/termlink-hub/src/pidfile.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-25T12:34:54'
+    action: 'T-3575: hub pidfile — a process that started after the pidfile was written is not its hub'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, hub]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6
+  commits: 2
+  files_changed: 6
+  lines_added: 592
+  lines_removed: 6
+  footprint_refreshed_at: '2026-10-25T11:35:51Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3575-hub-refuses-to-start-after-reboot-stale-.md
+generated_by: context-agent-hybrid
