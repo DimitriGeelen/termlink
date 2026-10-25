@@ -20102,3 +20102,21 @@ scan_id: R-2a22e4a2
 task_id: T-3576
 payload:
   task_file: .tasks/active/T-3576-channel-walks-can-return-a-deadline-page.md
+---
+kind: scan_emitted
+timestamp: '2026-10-25T12:13:33Z'
+scan_id: R-4b7ec198
+task_id: T-3577
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-25T12:13:33Z'
+scan_id: R-4b7ec198
+task_id: T-3577
+payload:
+  task_file: .tasks/active/T-3577-workspace-clippy-clean--d-warnings-so-li.md

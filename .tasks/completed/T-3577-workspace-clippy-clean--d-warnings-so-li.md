@@ -4,12 +4,12 @@ name: "Workspace clippy clean (-D warnings) so lint checks reach every crate"
 description: >
   cargo clippy --workspace --all-targets -D warnings fails on 14+ style findings in termlink-bus and termlink-session (clippy 0.1.94), which stops it before later crates (seen during T-3576). CI does not run clippy, so the debt accumulated unseen. Fix the findings mechanically (behaviour-neutral), verify tests, then decide separately whether to gate on clippy.
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-bus/src/reclaim.rs, crates/termlink-bus/src/worker_contract.rs, crates/termlink-bus/src/worker_contract/sweep.rs, crates/termlink-bus/src/worker_contract/tests.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/agent_find_idle.rs, crates/termlink-cli/src/commands/agent_work.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/commands/file.rs, crates/termlink-cli/src/commands/help.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/commands/substrate.rs, crates/termlink-cli/src/commands/tmux_spawn.rs, crates/termlink-cli/src/commands/webhook.rs, crates/termlink-cli/src/config.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/cv_index.rs, crates/termlink-hub/src/governor.rs, crates/termlink-hub/src/inbox.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-hub/tests/wc_conformance.rs, crates/termlink-hub/tests/wc_conformance/hub.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-mcp/tests/mcp_integration.rs, crates/termlink-mcp/tests/parity.rs, crates/termlink-session/src/bus_client.rs, crates/termlink-session/src/child_env.rs, crates/termlink-session/src/event_log.rs, crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/pty.rs, crates/termlink-session/src/registration.rs, crates/termlink-session/tests/claim_client_integration.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-25T11:42:33Z
-last_update: 2026-10-25T12:12:55Z
-date_finished: null
+last_update: 2026-10-25T12:12:58Z
+date_finished: 2026-10-25T12:12:58Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -368,3 +368,20 @@ TMPDIR=/var/tmp /root/.cargo/bin/cargo clippy -q --workspace --all-targets -- -D
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3577-workspace-clippy-clean--d-warnings-so-li.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4b7ec198
+- **Timestamp:** 2026-10-25T12:13:33Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-25T12:12:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
