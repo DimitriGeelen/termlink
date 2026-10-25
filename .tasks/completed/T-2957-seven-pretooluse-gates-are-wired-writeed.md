@@ -9,10 +9,10 @@ description: >
   heredoc ticks Human ACs with no block and no Tier-2 log. Reported by 050-email-archive
   (P-EMAIL-ARCHIVE-001), verified live here.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-11T19:53:26Z
-last_update: '2026-10-24T10:33:28Z'
-date_finished:
+last_update: 2026-10-25T12:15:42Z
+date_finished: 2026-10-25T12:15:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -90,9 +90,16 @@ cost_estimate_proposed:
 - [x] Filed upstream and acknowledged: AEF **T-4728** (six task-file gates are wired Write|Edit
       only, so a Bash heredoc rewrite of a task file bypasses them). AEF routes the settings.json
       rewiring to its own operator. Ack: sidecar msg c73f59eb, conversation aef-v1815-be3, 2026-10-24.
-- [ ] After the re-vendor that carries T-4728, each of the six gates is wired on Bash in this
-      project's `.claude/settings.json`, and a Bash heredoc that ticks a `### Human` box in a
-      scratch task file is refused.
+- [x] A Bash heredoc rewrite of a task file (carrying both an unresolvable `arc_id` and a ticked
+      box) is refused in this project. **Superseded scope, per AEF T-4728 (resolved as dissolved,
+      msg 59975399):** rewiring the six gates on Bash is unnecessary, because `check-human-ac-tick`
+      on Bash (T-3695, already in our vendored settings at be.17) refuses EVERY agent shell write to
+      `.tasks/**`, so the write never reaches the content validators. Proven here 2026-10-25:
+      `cat > .tasks/active/T-9999-t2957-probe.md <<'EOF' ...` refused with "SHELL WRITE TO A TASK
+      FILE BLOCKED" (redirect detected), no file created. Upstream pins the heredoc, python-heredoc
+      and tee shapes in tests/unit/t4728_bash_task_rewrite_refused.bats. The residual gap AEF's own
+      gate names (a script or a path built at run time is not inspected) is caught after the fact by
+      `fw audit`'s Human-tick provenance check.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -128,6 +135,8 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+grep -q 'check-human-ac-tick' .claude/settings.json
+grep -q 'SHELL WRITE TO A TASK FILE' .agentic-framework/agents/context/check-human-ac-tick.py
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -204,6 +213,19 @@ cost_estimate_proposed:
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** a task file rewritten from a Bash heredoc could tick Human ACs (or carry an invalid
+arc_id / inception schema) with no block, because seven task-file gates matched Write|Edit only.
+
+**Root cause:** each gate was written for the Edit/Write tools; nothing asked how a Bash write to the
+same file is judged, so the shell path had no content gate at all.
+
+**Why structurally allowed:** gates were registered per tool matcher, and no test drove a Bash write
+of a task file through the hook chain.
+
+**Prevention:** upstream T-3695 put check-human-ac-tick on Bash and made it refuse every agent shell
+write to `.tasks/**` (proven here 2026-10-25), and T-4728 pins the heredoc / python-heredoc / tee
+shapes in t4728_bash_task_rewrite_refused.bats; the residual run-time-path gap is caught by fw audit.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -227,6 +249,12 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-25 — the fix was one gate, not six rewirings
+- **What changed:** AEF resolved T-4728 as dissolved: refusing every agent shell write to `.tasks/**`
+  (T-3695) makes per-gate Bash legs unnecessary; the content validators only ever see Write/Edit.
+- **Plan impact:** the planned "wire the six gates on Bash after re-vendor" step is dropped.
+- **Triggered:** nothing new; verified in this project at be.17 instead.
 
 ## Recommendation
 
@@ -290,3 +318,15 @@ cost_estimate_proposed:
 
 ### 2026-10-24T10:33:27Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-7f50bd7e
+- **Timestamp:** 2026-10-25T12:15:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-25T12:15:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

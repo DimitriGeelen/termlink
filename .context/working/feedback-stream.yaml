@@ -20120,3 +20120,21 @@ scan_id: R-4b7ec198
 task_id: T-3577
 payload:
   task_file: .tasks/active/T-3577-workspace-clippy-clean--d-warnings-so-li.md
+---
+kind: scan_emitted
+timestamp: '2026-10-25T12:15:43Z'
+scan_id: R-7f50bd7e
+task_id: T-2957
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-25T12:15:43Z'
+scan_id: R-7f50bd7e
+task_id: T-2957
+payload:
+  task_file: .tasks/active/T-2957-seven-pretooluse-gates-are-wired-writeed.md
