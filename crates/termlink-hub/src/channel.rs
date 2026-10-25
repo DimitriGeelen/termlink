@@ -1283,6 +1283,12 @@ fn subscribe_deadline_data(
 /// BEFORE the fetched record is processed — so `last_offset` only ever
 /// covers fully-processed records and the caller-computed resume cursor
 /// (`last_offset + 1`) never skips one.
+/// T-3576: except for the FIRST record, which is always processed. If the first
+/// fetch outlasted the deadline (load, slow disk), checking before it returned a
+/// page with nothing scanned and `next_cursor == cursor`: the reader resumed at
+/// the same place and could repeat that for as long as the slowness lasted. One
+/// record per page guarantees progress and cannot hold the thread any longer
+/// than the fetch already did.
 fn walk_subscribe_records(
     iter: termlink_bus::SubscribeIter,
     conversation_id_filter: Option<String>,
@@ -1299,7 +1305,7 @@ fn walk_subscribe_records(
     let mut records_scanned: u64 = 0;
     let mut limit_hit = false;
     for item in iter {
-        if started.elapsed() >= deadline {
+        if records_scanned > 0 && started.elapsed() >= deadline {
             deadline_hit = true;
             break;
         }
@@ -2920,8 +2926,10 @@ mod tests {
         }))
     }
 
+    /// T-3576: even a deadline that has already passed processes the first record,
+    /// so the resume cursor always advances (it used to stay put: zero progress).
     #[test]
-    fn subscribe_walk_zero_deadline_hits_before_any_record() {
+    fn subscribe_walk_zero_deadline_still_processes_first_record() {
         let walk = walk_subscribe_records(
             walk_test_iter(5, 0),
             None,
@@ -2930,10 +2938,10 @@ mod tests {
             std::time::Duration::ZERO,
             false,
         );
-        assert!(walk.deadline_hit, "zero deadline must trip immediately");
-        assert_eq!(walk.records_scanned, 0);
-        assert_eq!(walk.last_offset, None, "no record processed → resume at original cursor");
-        assert!(walk.messages.is_empty());
+        assert!(walk.deadline_hit, "zero deadline must trip after the first record");
+        assert_eq!(walk.records_scanned, 1, "exactly one record per page when the deadline has passed");
+        assert_eq!(walk.last_offset, Some(0), "resume cursor advances past the first record");
+        assert_eq!(walk.messages.len(), 1);
         assert!(walk.error_msg.is_none());
     }
 
