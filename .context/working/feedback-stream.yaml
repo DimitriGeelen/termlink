@@ -20138,3 +20138,21 @@ scan_id: R-7f50bd7e
 task_id: T-2957
 payload:
   task_file: .tasks/active/T-2957-seven-pretooluse-gates-are-wired-writeed.md
+---
+kind: scan_emitted
+timestamp: '2026-10-25T12:18:15Z'
+scan_id: R-2ce6a5f0
+task_id: T-2958
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-25T12:18:15Z'
+scan_id: R-2ce6a5f0
+task_id: T-2958
+payload:
+  task_file: .tasks/active/T-2958-fw-task-review-hardcodes-go-in-the-decis.md
