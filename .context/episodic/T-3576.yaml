@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3576: channel walks can return a deadline page with zero progress (resume cursor never advances)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-25T11:40:07Z
+# ============================================================================
+
+task_id: T-3576
+task_name: "channel walks can return a deadline page with zero progress (resume cursor never advances)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-25T11:36:35Z
+completed: 2026-10-25T11:39:49Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-25T12:39:48+01:00
+last_commit: 2026-10-25T12:39:48+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel.subscribe walk always processes the first record, so a deadline page always advances
+
+# Key outcomes
+outcomes:
+  - '`walk_subscribe_records` processes the first fetched record before honouring the deadline, so a deadline page always scans >= 1 record when one exists and `next_cursor` advances. (`walk_receipt_records` is left as is: it has no resume cursor and refuses the whole aggregate on a deadline, so it cannot stall a resuming reader.)'
+  - 'The subscribe zero-deadline test is rewritten to pin the new guarantee (zero deadline: exactly one record scanned, deadline_hit true); the deadline-pages union test passes; a mutant restoring the old check fails the rewritten tests'
+  - 'Full termlink-hub suite passes (560/560 + doc/integration groups); the hub response shape (`WALK_DEADLINE_EXCEEDED` + data) is unchanged. Clippy could not reach the hub crate: pre-existing findings in termlink-bus/termlink-session stop it first (not touched here)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3576-channel-walks-can-return-a-deadline-page.md'
+  - 'crates/termlink-hub/src/channel.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-25T12:39:48'
+    action: 'T-3576: channel.subscribe walk always processes the first record, so a deadline page always advances'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, hub]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 2
+  files_changed: 5
+  lines_added: 516
+  lines_removed: 11
+  footprint_refreshed_at: '2026-10-25T11:40:32Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3576-channel-walks-can-return-a-deadline-page.md
+generated_by: context-agent-hybrid

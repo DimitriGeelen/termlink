@@ -4,12 +4,12 @@ name: "channel walks can return a deadline page with zero progress (resume curso
 description: >
   walk_subscribe_records / walk_receipt_records check the deadline before processing the first fetched record; when the first fetch outlasts the deadline (load, slow disk) the page scans 0 records and next_cursor == cursor, so a resuming client retries the same position. Seen as a flaky subscribe_walk_deadline_pages_union_is_lossless under suite load (2026-10-25). Fix: always process the first fetched record.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, hub]
-components: []
+components: [crates/termlink-hub/src/channel.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-25T11:36:35Z
-last_update: 2026-10-25T11:39:48Z
-date_finished: null
+last_update: 2026-10-25T11:39:49Z
+date_finished: 2026-10-25T11:39:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -381,3 +381,20 @@ both claimed resumption "always progresses". The two claims contradicted each ot
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3576-channel-walks-can-return-a-deadline-page.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2a22e4a2
+- **Timestamp:** 2026-10-25T11:39:57Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-25T11:39:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

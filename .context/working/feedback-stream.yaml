@@ -20084,3 +20084,21 @@ scan_id: R-a601ada8
 task_id: T-3575
 payload:
   task_file: .tasks/active/T-3575-hub-refuses-to-start-after-reboot-stale-.md
+---
+kind: scan_emitted
+timestamp: '2026-10-25T11:39:57Z'
+scan_id: R-2a22e4a2
+task_id: T-3576
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-25T11:39:57Z'
+scan_id: R-2a22e4a2
+task_id: T-3576
+payload:
+  task_file: .tasks/active/T-3576-channel-walks-can-return-a-deadline-page.md
