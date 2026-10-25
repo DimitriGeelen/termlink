@@ -21,3 +21,7 @@ MESSAGING_TOOLKIT: 1
 SIDECAR_KEEP_RUNNING: on
 # Operator ruling 2026-10-19: 10 exploration commits before an inception decision.
 INCEPTION_COMMIT_LIMIT: 10
+# T-3575 (2026-10-25): the Rust toolchain is a tool install dir; reads only. After the
+# reboot cargo was not on PATH and the boundary gate refused its absolute path (and refused
+# `fw config set` for this same key, because the value names the path).
+BOUNDARY_EXTRA_READ_PATHS: /root/.cargo:/root/.rustup

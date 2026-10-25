@@ -34,13 +34,61 @@ pub fn check(pidfile: &Path) -> PidfileStatus {
     match read_pid(pidfile) {
         None => PidfileStatus::NotRunning,
         Some(pid) => {
-            if liveness::process_exists(pid) && is_termlink_process(pid) {
+            if liveness::process_exists(pid)
+                && is_termlink_process(pid)
+                && !started_after_pidfile(pid, pidfile)
+            {
                 PidfileStatus::Running(pid)
             } else {
                 PidfileStatus::Stale(pid)
             }
         }
     }
+}
+
+/// T-3575: the hub writes its pidfile after it starts, so the writer's start time is
+/// never later than the pidfile's mtime. A process that started after the file was
+/// written cannot be the hub that wrote it: its pid was reused. Seen on 2026-10-25,
+/// when a reboot handed the old hub's pid to a `termlink register` session; that is a
+/// termlink process, so T-3340's command-line check let it through and the unit
+/// crash-looped on "already running". Without procfs it cannot tell and answers false
+/// (today's behaviour). Slack covers btime's whole-second resolution.
+const START_AFTER_PIDFILE_SLACK_SECS: f64 = 2.0;
+
+fn started_after_pidfile(pid: u32, pidfile: &Path) -> bool {
+    let Some(started) = process_start_epoch_secs(pid) else {
+        return false;
+    };
+    let Some(written) = fs::metadata(pidfile)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs_f64())
+    else {
+        return false;
+    };
+    started > written + START_AFTER_PIDFILE_SLACK_SECS
+}
+
+/// Start time of `pid` as seconds since the epoch, from procfs: field 22 of
+/// /proc/<pid>/stat (clock ticks since boot) plus `btime` from /proc/stat.
+fn process_start_epoch_secs(pid: u32) -> Option<f64> {
+    let stat = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    // comm (field 2) may contain spaces and parentheses: split after the LAST ')'.
+    let rest = &stat[stat.rfind(')')? + 1..];
+    // rest starts at field 3 (state); starttime is field 22, i.e. index 19 here.
+    let ticks: f64 = rest.split_whitespace().nth(19)?.parse().ok()?;
+    let btime: f64 = fs::read_to_string("/proc/stat")
+        .ok()?
+        .lines()
+        .find_map(|l| l.strip_prefix("btime ").map(|v| v.trim().to_string()))?
+        .parse()
+        .ok()?;
+    let hz = unsafe { libc::sysconf(libc::_SC_CLK_TCK) };
+    if hz <= 0 {
+        return None;
+    }
+    Some(btime + ticks / hz as f64)
 }
 
 /// T-3340: is `pid` a termlink process? Reads the process command line where the
@@ -195,6 +243,37 @@ mod tests {
         write(&path).unwrap();
         assert_eq!(check(&path), PidfileStatus::Running(std::process::id()));
         let _ = fs::remove_file(&path);
+    }
+
+    /// T-3575: a pidfile naming a live termlink process (ourselves) but written
+    /// BEFORE that process started reads Stale: its pid was reused (the reboot case).
+    #[test]
+    fn check_pid_of_process_started_after_pidfile_is_stale() {
+        if !Path::new("/proc/self/stat").exists() {
+            return;
+        }
+        let path = test_pidfile();
+        write(&path).unwrap();
+        let started = process_start_epoch_secs(std::process::id()).unwrap();
+        let before = std::time::UNIX_EPOCH
+            + std::time::Duration::from_secs_f64(started - 3600.0);
+        fs::File::options().write(true).open(&path).unwrap().set_modified(before).unwrap();
+        assert_eq!(check(&path), PidfileStatus::Stale(std::process::id()));
+        let _ = fs::remove_file(&path);
+    }
+
+    /// T-3575: our own start time reads back, and is not in the future.
+    #[test]
+    fn process_start_epoch_secs_reads_own_start() {
+        if !Path::new("/proc/self/stat").exists() {
+            return;
+        }
+        let started = process_start_epoch_secs(std::process::id()).unwrap();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs_f64();
+        assert!(started <= now + 2.0 && started > now - 86_400.0, "started={started} now={now}");
     }
 
     /// T-3340: other_live_hubs finds a live hub in another dir and ignores its own
