@@ -2028,6 +2028,11 @@ else any ERROR → exit 2; else 0 — findings dominate tooling errors, mirrorin
 with 600s per member** (T-3281, SQ-21). The slowest member took 226s and timed out once on the
 contended .107 host, while GitHub runners took 6m24s for the whole layer. So 600s is insurance
 against a flake holding a release, and push CI keeps 300s.
+**Per-member limit (T-3571).** A member may declare `# guard-layer-timeout: <1..1800>  # <reason>`
+in its header. It only ever raises the limit (the larger of the declaration and
+`GUARD_LAYER_TIMEOUT` applies), and a value with no reason or out of range is reported MALFORMED
+and ignored. `tests/runme-fixtures.sh` declares 900s: 137 full runme runs measured 183-303s here
+under load, so it sat on the 300s line as ERROR for a timing reason, not a finding.
 
 **Wired into CI by T-2686.** `doc-lint.yml` gains a `guard-layer` job (runs on every
 push and PR — no Rust build, but **~16 minutes, not seconds**: measured 945s wall on

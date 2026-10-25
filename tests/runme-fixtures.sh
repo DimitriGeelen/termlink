@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # T-3052 — fixtures for runme.sh, the operator-action script.
+# guard-layer-timeout: 900  # 137 full runme runs at ~1.3 s each; measured 183-303 s on this host under load (T-3571)
 #
 # The whole reason runme.sh exists is that a human running a command and assuming
 # it worked is the silent-failure class this repo guards against everywhere else.
@@ -486,6 +487,8 @@ export FAKE_ZOMBIE_DIR="$Z" RUNME_ZOMBIE_DETECT="$Z/detect" RUNME_ZOMBIE_PROC="$
 # T-3273: logs go to scratch (world-writable so the non-root case logs here too).
 mkdir -p "$TMP/logs" && chmod 1777 "$TMP/logs"
 export RUNME_LOG_DIR="$TMP/logs"
+# T-3571: no wall-clock polling waits in fixture runs (the fakes change state per call).
+export RUNME_NAP=0
 
 echo "T-3052 runme.sh fixtures"
 echo ""

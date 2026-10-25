@@ -48,6 +48,11 @@ seam() {  # seam <VAR> <RUNME_SEAM> <real default>
     printf -v "$1" '%s' "$3"
 }
 
+# T-3571: every local polling sleep goes through nap, so a fixture run (RUNME_NAP=0)
+# does not spend wall-clock time waiting for fakes that change state on the next call.
+# Real runs leave RUNME_NAP unset and sleep the stated seconds.
+nap() { sleep "${RUNME_NAP:-$1}"; }
+
 seam CRON_DIR RUNME_CRON_DIR "/etc/cron.d"
 # Keep the drift checker pointed at the same place, or the verification step would
 # arbitrate against a directory this run never touched.
@@ -630,7 +635,7 @@ restart_hub() {
     for i in $(seq 1 "$HUB_WAIT"); do
         active="$("$HUB_SYSTEMCTL" is-active "$HUB_UNIT" 2>/dev/null)"; npid="$(hub_mainpid)"
         if [ "$active" = "active" ] && [ -n "$npid" ] && [ "$npid" != "0" ] && [ "$npid" != "$pid" ]; then break; fi
-        sleep 1
+        nap 1
     done
     nexe="$(hub_exe "$npid")"
     local problems=""
@@ -646,7 +651,7 @@ restart_hub() {
     for i in $(seq 1 "$HUB_WAIT"); do
         st="$("$HUB_BIN" hub status --json 2>/dev/null)"
         case "$st" in *"\"pid\":$npid"*'"status":"running"'*|*'"status":"running"'*"\"pid\":$npid"*) ok_status=1; break ;; esac
-        sleep 1
+        nap 1
     done
     [ "$ok_status" = 1 ] || problems="$problems hub-status-not-running-as-$npid;"
     if [ -z "$problems" ]; then
@@ -696,7 +701,7 @@ install_hub_unit() {
     for i in $(seq 1 "$HUB_WAIT"); do
         active="$("$HUB_SYSTEMCTL" is-active "$HUB_UNIT" 2>/dev/null)"; pid="$(hub_mainpid)"
         [ "$active" = "active" ] && [ -n "$pid" ] && [ "$pid" != "0" ] && [ "$pid" != "$old_pid" ] && break
-        sleep 1
+        nap 1
     done
     local problems=""
     cmp -s "$HUB_UNIT_SRC" "$HUB_UNIT_DEST" || problems="$problems installed-unit-differs;"
@@ -834,7 +839,7 @@ upgrade_fleet_hubs() {
             fi
         fi
         for i in $(seq 1 "$FLEET_WAIT"); do
-            [ "$(fleet_hub_field "$hub" hub_version)" = "$want" ] && break; sleep 1
+            [ "$(fleet_hub_field "$hub" hub_version)" = "$want" ] && break; nap 1
         done
         have="$(fleet_hub_field "$hub" hub_version)"; st="$(fleet_hub_field "$hub" status)"
         if [ "$have" = "$want" ] && [ "$st" = "ok" ] && $TOFU "$addr" >/dev/null 2>&1; then
@@ -1052,10 +1057,10 @@ restart_stale_sidecars() {
     for i in ${list//,/ }; do
         pid="${i%%:*}"
         $SIDECAR_KILL "$pid" 2>/dev/null && n=$((n+1))
-        for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+        for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || break; nap 1; done
     done
     $SIDECAR_SUPERVISOR >/dev/null 2>&1
-    sleep 2
+    nap 2
     read -r stale current list <<< "$(sidecar_state)"
     if [ "$stale" = "0" ] && [ "${current:-0}" -ge "$n" ] 2>/dev/null; then
         say "  OK      restarted $n sidecar(s) onto current code:$agents (verified: 0 stale, $current current)"; DONE=$((DONE+1))
@@ -1214,7 +1219,7 @@ stop_stray_hub() {
         say "  [DRY]   would stop stray hub pid $pid ($STRAY_DIR); canonical hub is pid ${canon_pid:-?} ($CANON_DIR)"; DONE=$((DONE+1)); return
     fi
     TERMLINK_RUNTIME_DIR="$STRAY_DIR" $STRAY_TL hub stop >/dev/null 2>&1
-    for i in $(seq 1 15); do $STRAY_ALIVE "$pid" 2>/dev/null || break; sleep 1; done
+    for i in $(seq 1 15); do $STRAY_ALIVE "$pid" 2>/dev/null || break; nap 1; done
     if $STRAY_ALIVE "$pid" 2>/dev/null; then
         say "  FAILED  stray hub pid $pid still alive 15 s after 'hub stop' (no SIGKILL by design; inspect it)"; FAILED=$((FAILED+1)); return
     fi
@@ -1714,7 +1719,7 @@ enable_sweep_122() {
         *) say "  FAILED  drop-in/restart on $SWEEP_HUB did not confirm: $(printf '%s' "$out" | tail -1)"; FAILED=$((FAILED+1)); return ;;
     esac
     for i in $(seq 1 "$FLEET_WAIT"); do
-        [ "$(sweep_interval_of "$SWEEP_HUB")" = "$SWEEP_SECS" ] && break; sleep 1
+        [ "$(sweep_interval_of "$SWEEP_HUB")" = "$SWEEP_SECS" ] && break; nap 1
     done
     now="$(sweep_interval_of "$SWEEP_HUB")"
     if [ "$now" = "$SWEEP_SECS" ] && [ "$(fleet_hub_field "$SWEEP_HUB" status)" = "ok" ] && $TOFU "$addr" >/dev/null 2>&1; then

@@ -166,7 +166,10 @@ Exit: 0 all passed · 1 a member fired · 2 a member errored or enumeration fail
 Findings dominate tooling errors.
 
 Test seams: GUARD_LAYER_SCRIPTS_DIR, GUARD_LAYER_TESTS_DIR (point at fixture
-dirs), GUARD_LAYER_TIMEOUT (per-member seconds, default 300).
+dirs), GUARD_LAYER_TIMEOUT (per-member seconds, default 300). A member may
+declare its own limit in its header (T-3571):
+    # guard-layer-timeout: <1..1800>  # <reason — required>
+An unexplained or out-of-range value is reported MALFORMED and the default is used.
 Fixtures: bash tests/guard-layer-runner-fixtures.sh
 EOF
 }
@@ -203,7 +206,7 @@ fi
 
 # ---------------------------------------------------------------- discovery ---
 # Parallel arrays; bash 3.2-compatible (no associative arrays — macOS ships 3.2).
-m_name=(); m_kind=(); m_cmd=(); m_class=(); m_reason=()
+m_name=(); m_kind=(); m_cmd=(); m_class=(); m_reason=(); m_timeout=()
 unclassified=()
 malformed=()   # "<member>: <why>" — a demotion that was refused (member runs as FAIL)
 
@@ -228,8 +231,37 @@ parse_marker() {
             else malformed+=("$(basename "$1"): '$word' with no '# <reason>' — runs as FAIL"); fi ;;
     esac
 }
-add_member() { # <name> <kind> <cmd> <class> <reason>
+add_member() { # <name> <kind> <cmd> <class> <reason> [<file> for a declared timeout]
     m_name+=("$1"); m_kind+=("$2"); m_cmd+=("$3"); m_class+=("$4"); m_reason+=("$5")
+    M_TIMEOUT=""
+    [ -n "${6:-}" ] && member_timeout "$1" "$6"   # not in $(...): it records into malformed[]
+    m_timeout+=("$M_TIMEOUT")
+}
+
+# T-3571: a member may declare its own time limit in its header:
+#     # guard-layer-timeout: <seconds>  # <reason — required>
+# For a suite whose honest run time sits near the default on a loaded host (runme-fixtures:
+# 137 full runme runs, 183-303 s), so a slow day reads as ERROR rather than as a finding.
+# 1..1800 s, reason required; anything else is refused, reported MALFORMED, and the
+# member keeps the default — the same rule as an unexplained severity demotion.
+member_timeout() { # <member-name> <file> — sets M_TIMEOUT to the declared seconds, or leaves it empty
+    local line secs why
+    line="$(grep -m1 -E '^#[[:space:]]*guard-layer-timeout:' "$2" 2>/dev/null || true)"
+    [ -n "$line" ] || return 0
+    secs="$(printf '%s' "$line" | sed -nE 's/^#[[:space:]]*guard-layer-timeout:[[:space:]]*([0-9]+)[[:space:]]*(#.*)?$/\1/p')"
+    why="$(printf '%s' "$line" | sed -nE 's/^[^#]*#[^#]*#[[:space:]]*(.*[^[:space:]])[[:space:]]*$/\1/p')"
+    if [ -z "$secs" ] || [ "$secs" -lt 1 ] || [ "$secs" -gt 1800 ] || [ -z "$why" ]; then
+        malformed+=("$1: guard-layer-timeout needs <1..1800 seconds> and a '# <reason>' — default ${MEMBER_TIMEOUT}s used")
+        return 0
+    fi
+    M_TIMEOUT="$secs"
+}
+# member_eff_timeout <index> — the limit a member runs under. A declaration only ever
+# RAISES it, so the release gate's larger GUARD_LAYER_TIMEOUT (600 s, T-3281) is never
+# cut down by a smaller declared value.
+member_eff_timeout() {
+    local t="${m_timeout[$1]:-0}"
+    if [ "$t" -gt "$MEMBER_TIMEOUT" ] 2>/dev/null; then echo "$t"; else echo "$MEMBER_TIMEOUT"; fi
 }
 
 # Static checks: opt in via the header marker, which also carries the invocation.
@@ -243,7 +275,7 @@ for f in "$SCRIPTS_DIR"/check-*.sh; do
     # Everything after `source` (bar a severity word and a `# comment`) is the
     # declared invocation (usually --no-heartbeat).
     parse_marker "$f" "$marker"
-    add_member "$(basename "$f")" static-check "bash $f $P_EXTRA" "$P_CLASS" "$P_REASON"
+    add_member "$(basename "$f")" static-check "bash $f $P_EXTRA" "$P_CLASS" "$P_REASON" "$f"
 done
 
 # Fixture suites: members by naming convention, hermetic by construction.
@@ -259,7 +291,7 @@ if [ -d "$TESTS_DIR" ]; then
             malformed+=("$(basename "$f"): fixture suites are always FAIL — '$P_CLASS' ignored")
             P_CLASS=fail; P_REASON=""
         fi
-        add_member "$(basename "$f")" fixture-suite "bash $f" "$P_CLASS" "$P_REASON"
+        add_member "$(basename "$f")" fixture-suite "bash $f" "$P_CLASS" "$P_REASON" "$f"
     done
 fi
 
@@ -281,7 +313,7 @@ for f in "$SCRIPTS_DIR"/test-*.sh "$TESTS_DIR"/*.sh; do
         continue
     fi
     parse_marker "$f" "$marker"
-    add_member "$(basename "$f")" suite "bash $f $P_EXTRA" "$P_CLASS" "$P_REASON"
+    add_member "$(basename "$f")" suite "bash $f $P_EXTRA" "$P_CLASS" "$P_REASON" "$f"
 done
 
 # T-2935: membership is the MARKER, not the filename. The three passes above key on
@@ -307,7 +339,7 @@ for f in "$SCRIPTS_DIR"/*.sh; do
     marker="$(grep -m1 -E '^#[[:space:]]*guard-layer:[[:space:]]*source' "$f" 2>/dev/null || true)"
     [ -n "$marker" ] || continue
     parse_marker "$f" "$marker"
-    add_member "$b" static-check "bash $f $P_EXTRA" "$P_CLASS" "$P_REASON"
+    add_member "$b" static-check "bash $f $P_EXTRA" "$P_CLASS" "$P_REASON" "$f"
 done
 
 if [ "$WITH_TESTS" -eq 1 ]; then
@@ -408,7 +440,7 @@ red_age_days() {
 i=0
 while [ "$i" -lt "$total" ]; do
     t0="$(date +%s.%N)"
-    out="$(timeout "$MEMBER_TIMEOUT" bash -c "${m_cmd[$i]}" 2>&1)"; rc=$?
+    out="$(timeout "$(member_eff_timeout "$i")" bash -c "${m_cmd[$i]}" 2>&1)"; rc=$?
     t1="$(date +%s.%N)"
     elapsed="$(awk -v a="$t0" -v b="$t1" 'BEGIN{printf "%.3f", (b-a)}')"
     # `timeout` reports 124 on expiry — a member that hangs is a tooling error,
@@ -459,7 +491,7 @@ while [ "$i" -lt "$total" ]; do
             if [ "$outlines" -gt "$OUTPUT_LINES" ]; then
                 echo "        │ … $((outlines - OUTPUT_LINES)) more line(s) suppressed — run: ${m_cmd[$i]}"
             fi
-            [ "$rc" -eq 124 ] && echo "        │ (timed out after ${MEMBER_TIMEOUT}s)"
+            [ "$rc" -eq 124 ] && echo "        │ (timed out after $(member_eff_timeout "$i")s)"
         fi
     fi
     i=$((i+1))

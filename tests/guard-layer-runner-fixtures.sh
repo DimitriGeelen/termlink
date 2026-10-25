@@ -145,6 +145,37 @@ rc="$(GUARD_LAYER_SCRIPTS_DIR="$S" GUARD_LAYER_TESTS_DIR="$T" GUARD_LAYER_TIMEOU
     bash "$RUNNER" >/dev/null 2>&1; echo $?)"
 assert_rc "a hanging member is a tooling error, not a pass" 2 "$rc"
 
+# --- fixture 10b (T-3571): a declared, explained per-member timeout is honoured ---
+# Default 1 s; the member sleeps 2 s and declares 5 s, so it must PASS.
+reset
+printf '#!/usr/bin/env bash\n# guard-layer: source\n# guard-layer-timeout: 5  # slow but bounded\nsleep 2\n' > "$S/check-slow.sh"
+rc="$(GUARD_LAYER_SCRIPTS_DIR="$S" GUARD_LAYER_TESTS_DIR="$T" GUARD_LAYER_TIMEOUT=1 \
+    bash "$RUNNER" >/dev/null 2>&1; echo $?)"
+assert_rc "a member's declared timeout replaces the default" 0 "$rc"
+# The same declaration with no reason is refused: default applies, so it times out.
+printf '#!/usr/bin/env bash\n# guard-layer: source\n# guard-layer-timeout: 5\nsleep 2\n' > "$S/check-slow.sh"
+out="$(GUARD_LAYER_SCRIPTS_DIR="$S" GUARD_LAYER_TESTS_DIR="$T" GUARD_LAYER_TIMEOUT=1 bash "$RUNNER" 2>&1)"; rc=$?
+assert_rc "an unexplained timeout is not honoured (default 1 s, member times out)" 2 "$rc"
+assert_eq "and it is reported malformed" "1" \
+    "$(printf '%s' "$out" | grep -c 'guard-layer-timeout needs')"
+# Out of range (above 1800) is refused too.
+printf '#!/usr/bin/env bash\n# guard-layer: source\n# guard-layer-timeout: 99999  # too long\nexit 0\n' > "$S/check-slow.sh"
+out="$(GUARD_LAYER_SCRIPTS_DIR="$S" GUARD_LAYER_TESTS_DIR="$T" bash "$RUNNER" 2>&1)"
+assert_eq "an out-of-range timeout is reported malformed" "1" \
+    "$(printf '%s' "$out" | grep -c 'guard-layer-timeout needs')"
+# A declaration never LOWERS a larger default (the release gate runs at 600 s): declared 1 s,
+# default 5 s, member sleeps 2 s -> PASS.
+printf '#!/usr/bin/env bash\n# guard-layer: source\n# guard-layer-timeout: 1  # short\nsleep 2\n' > "$S/check-slow.sh"
+rc="$(GUARD_LAYER_SCRIPTS_DIR="$S" GUARD_LAYER_TESTS_DIR="$T" GUARD_LAYER_TIMEOUT=5 \
+    bash "$RUNNER" >/dev/null 2>&1; echo $?)"
+assert_rc "a smaller declared timeout does not cut a larger default" 0 "$rc"
+# A fixture suite (member by naming convention) can declare one as well.
+reset
+printf '#!/usr/bin/env bash\n# guard-layer-timeout: 5  # slow suite\nsleep 2\n' > "$T/slow-fixtures.sh"
+rc="$(GUARD_LAYER_SCRIPTS_DIR="$S" GUARD_LAYER_TESTS_DIR="$T" GUARD_LAYER_TIMEOUT=1 \
+    bash "$RUNNER" >/dev/null 2>&1; echo $?)"
+assert_rc "a fixture suite's declared timeout is honoured" 0 "$rc"
+
 # --- fixture 11: fixture suites are discovered by naming convention ------------
 reset
 mk_fixture solo 0
