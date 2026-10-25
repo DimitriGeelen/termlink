@@ -1553,11 +1553,10 @@ pub(crate) async fn cmd_agent_contact(
                  pass --hub to override)"
             );
         }
-        if reachability.any_link_broken() {
-            if let Some(diag) = &reachability.diagnosis {
+        if reachability.any_link_broken()
+            && let Some(diag) = &reachability.diagnosis {
                 eprintln!("WARNING: {diag}");
             }
-        }
     }
 
     // T-1480 (Q3 deferred): pre-flight presence check — fail-fast when peer
@@ -2088,7 +2087,7 @@ pub(crate) async fn cmd_agent_presence(
 }
 
 /// T-1487: operator-facing one-shot presence check. Single-line output
-/// + exit code semantics (0 online, 1 offline). Composes the existing
+/// and exit code semantics (0 online, 1 offline). Composes the existing
 /// chat-arc presence probe (T-1480) and local name resolution (T-1483)
 /// — pure UX wrapper, no new wire protocol.
 pub(crate) async fn cmd_agent_ping(
@@ -2273,11 +2272,10 @@ pub(crate) async fn cmd_agent_recent(
             if let Some(t) = filter_thread {
                 filter_suffix.push_str(&format!(" | thread={t}"));
             }
-            if let Some(types) = filter_msg_types {
-                if !types.is_empty() {
+            if let Some(types) = filter_msg_types
+                && !types.is_empty() {
                     filter_suffix.push_str(&format!(" | msg_type={}", types.join(",")));
                 }
-            }
             if let Some(g) = filter_grep {
                 filter_suffix.push_str(&format!(" | grep={g}"));
             }
@@ -2370,8 +2368,8 @@ pub(crate) async fn cmd_agent_recent(
                 serde_json::Value::String(p.to_string()),
             );
         }
-        if let Some(types) = filter_msg_types {
-            if !types.is_empty() {
+        if let Some(types) = filter_msg_types
+            && !types.is_empty() {
                 out_obj.insert(
                     "filter_msg_types".to_string(),
                     serde_json::Value::Array(
@@ -2379,15 +2377,13 @@ pub(crate) async fn cmd_agent_recent(
                     ),
                 );
             }
-        }
-        if let Some(g) = filter_grep {
-            if !g.is_empty() {
+        if let Some(g) = filter_grep
+            && !g.is_empty() {
                 out_obj.insert(
                     "filter_grep".to_string(),
                     serde_json::Value::String(g.to_string()),
                 );
             }
-        }
         let posts_json: Vec<serde_json::Value> = posts.iter().map(|p| p.to_json()).collect();
         out_obj.insert("posts".to_string(), serde_json::Value::Array(posts_json));
         println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
@@ -2402,11 +2398,10 @@ pub(crate) async fn cmd_agent_recent(
     if let Some(t) = filter_thread {
         filter_suffix.push_str(&format!(" thread={t}"));
     }
-    if let Some(types) = filter_msg_types {
-        if !types.is_empty() {
+    if let Some(types) = filter_msg_types
+        && !types.is_empty() {
             filter_suffix.push_str(&format!(" msg_type={}", types.join(",")));
         }
-    }
     if let Some(g) = filter_grep {
         filter_suffix.push_str(&format!(" grep={g}"));
     }
@@ -2506,11 +2501,10 @@ pub(crate) async fn cmd_agent_timeline(
             if let Some(p) = filter_project {
                 filter_suffix.push_str(&format!(" | project={p}"));
             }
-            if let Some(types) = filter_msg_types {
-                if !types.is_empty() {
+            if let Some(types) = filter_msg_types
+                && !types.is_empty() {
                     filter_suffix.push_str(&format!(" | msg_type={}", types.join(",")));
                 }
-            }
             if let Some(g) = filter_grep {
                 filter_suffix.push_str(&format!(" | grep={g}"));
             }
@@ -2582,8 +2576,8 @@ pub(crate) async fn cmd_agent_timeline(
         if let Some(p) = filter_project {
             out_obj.insert("filter_project".to_string(), serde_json::Value::String(p.to_string()));
         }
-        if let Some(types) = filter_msg_types {
-            if !types.is_empty() {
+        if let Some(types) = filter_msg_types
+            && !types.is_empty() {
                 out_obj.insert(
                     "filter_msg_types".to_string(),
                     serde_json::Value::Array(
@@ -2591,15 +2585,13 @@ pub(crate) async fn cmd_agent_timeline(
                     ),
                 );
             }
-        }
-        if let Some(g) = filter_grep {
-            if !g.is_empty() {
+        if let Some(g) = filter_grep
+            && !g.is_empty() {
                 out_obj.insert(
                     "filter_grep".to_string(),
                     serde_json::Value::String(g.to_string()),
                 );
             }
-        }
         let posts_json: Vec<serde_json::Value> = posts.iter().map(|p| p.to_json()).collect();
         out_obj.insert("posts".to_string(), serde_json::Value::Array(posts_json));
         println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
@@ -2613,11 +2605,10 @@ pub(crate) async fn cmd_agent_timeline(
     if let Some(p) = filter_project {
         filter_suffix.push_str(&format!(" project={p}"));
     }
-    if let Some(types) = filter_msg_types {
-        if !types.is_empty() {
+    if let Some(types) = filter_msg_types
+        && !types.is_empty() {
             filter_suffix.push_str(&format!(" msg_type={}", types.join(",")));
         }
-    }
     if let Some(g) = filter_grep {
         filter_suffix.push_str(&format!(" grep={g}"));
     }
@@ -3047,11 +3038,10 @@ pub(crate) async fn cmd_agent_on_thread(
             if let Some(p) = filter_project {
                 filter_suffix.push_str(&format!(" | project={p}"));
             }
-            if let Some(types) = filter_msg_types {
-                if !types.is_empty() {
+            if let Some(types) = filter_msg_types
+                && !types.is_empty() {
                     filter_suffix.push_str(&format!(" | msg_type={}", types.join(",")));
                 }
-            }
             if let Some(g) = filter_grep {
                 filter_suffix.push_str(&format!(" | grep={g}"));
             }
@@ -3148,8 +3138,8 @@ pub(crate) async fn cmd_agent_on_thread(
                 serde_json::Value::String(fp.clone()),
             );
         }
-        if let Some(types) = filter_msg_types {
-            if !types.is_empty() {
+        if let Some(types) = filter_msg_types
+            && !types.is_empty() {
                 out_obj.insert(
                     "filter_msg_types".to_string(),
                     serde_json::Value::Array(
@@ -3157,15 +3147,13 @@ pub(crate) async fn cmd_agent_on_thread(
                     ),
                 );
             }
-        }
-        if let Some(g) = filter_grep {
-            if !g.is_empty() {
+        if let Some(g) = filter_grep
+            && !g.is_empty() {
                 out_obj.insert(
                     "filter_grep".to_string(),
                     serde_json::Value::String(g.to_string()),
                 );
             }
-        }
         let posts_json: Vec<serde_json::Value> = posts.iter().map(|p| p.to_json()).collect();
         out_obj.insert("posts".to_string(), serde_json::Value::Array(posts_json));
         println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
@@ -3180,11 +3168,10 @@ pub(crate) async fn cmd_agent_on_thread(
     if let Some(fp) = &resolved_peer_fp {
         suffix.push_str(&format!(" peer_fp={fp}"));
     }
-    if let Some(types) = filter_msg_types {
-        if !types.is_empty() {
+    if let Some(types) = filter_msg_types
+        && !types.is_empty() {
             suffix.push_str(&format!(" msg_type={}", types.join(",")));
         }
-    }
     if let Some(g) = filter_grep {
         suffix.push_str(&format!(" grep={g}"));
     }
@@ -3315,8 +3302,8 @@ fn render_overview_body(msgs: &[serde_json::Value], window_secs: u64, top: usize
         println!("(no peers active)");
     } else {
         println!(
-            "{:<18} {:>14} {:>8}  {}",
-            "PEER_FP", "LAST_SEEN", "POSTS", "TOP_PROJECT"
+            "{:<18} {:>14} {:>8}  TOP_PROJECT",
+            "PEER_FP", "LAST_SEEN", "POSTS"
         );
         for r in display_peers {
             let last_seen_str = match r.last_seen_ms {
@@ -3339,8 +3326,8 @@ fn render_overview_body(msgs: &[serde_json::Value], window_secs: u64, top: usize
         println!("(no projects active — no tagged posts in window)");
     } else {
         println!(
-            "{:<24} {:>8} {:>8} {:<18}  {}",
-            "PROJECT", "POSTS", "PEERS", "TOP_PEER", "LAST_SEEN"
+            "{:<24} {:>8} {:>8} {:<18}  LAST_SEEN",
+            "PROJECT", "POSTS", "PEERS", "TOP_PEER"
         );
         for r in display_projects {
             let last_seen_str = match r.last_seen_ms {
@@ -3570,8 +3557,8 @@ fn render_presence_text(
         println!("# filter_thread={}", t);
     }
     println!(
-        "{:<18} {:>14} {:>8}  {}",
-        "PEER_FP", "LAST_SEEN", "POSTS", "TOP_PROJECT"
+        "{:<18} {:>14} {:>8}  TOP_PROJECT",
+        "PEER_FP", "LAST_SEEN", "POSTS"
     );
     let total_peers = rows.len();
     let display_rows: &[super::channel::FleetPeerRow] = match top {
@@ -3658,8 +3645,8 @@ fn render_by_project_text(
         println!("# filter_thread={}", t);
     }
     println!(
-        "{:<24} {:>8} {:>8} {:<18}  {}",
-        "PROJECT", "POSTS", "PEERS", "TOP_PEER", "LAST_SEEN"
+        "{:<24} {:>8} {:>8} {:<18}  LAST_SEEN",
+        "PROJECT", "POSTS", "PEERS", "TOP_PEER"
     );
     let total_projects = rows.len();
     let display_rows: &[super::channel::FleetProjectRow] = match top {

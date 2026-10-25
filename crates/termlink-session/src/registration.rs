@@ -799,8 +799,10 @@ mod tests {
     #[test]
     fn session_metadata_identity_fingerprint_round_trip() {
         let fp = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-        let mut meta = SessionMetadata::default();
-        meta.identity_fingerprint = Some(fp.to_string());
+        let meta = SessionMetadata {
+            identity_fingerprint: Some(fp.to_string()),
+            ..Default::default()
+        };
         let json = serde_json::to_string(&meta).unwrap();
         assert!(json.contains("identity_fingerprint"));
         let parsed: SessionMetadata = serde_json::from_str(&json).unwrap();

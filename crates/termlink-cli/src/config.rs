@@ -78,13 +78,12 @@ fn resolve_hub_profile_with_config(
         let mut secret_file = cli_secret_file.map(String::from);
         let mut secret = cli_secret.map(String::from);
         let mut token_file = None;
-        if secret_file.is_none() && secret.is_none() {
-            if let Some(entry) = config.hubs.values().find(|e| e.address == hub_arg) {
+        if secret_file.is_none() && secret.is_none()
+            && let Some(entry) = config.hubs.values().find(|e| e.address == hub_arg) {
                 secret_file = entry.secret_file.clone();
                 secret = entry.secret.clone();
                 token_file = entry.token_file.clone();
             }
-        }
         return Ok(HubProfile {
             address: hub_arg.to_string(),
             secret_file,

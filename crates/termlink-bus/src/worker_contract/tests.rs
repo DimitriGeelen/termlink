@@ -269,6 +269,8 @@ fn cc14_stale_supervisor_generation() {
 
 // CC-16 + CC-19
 #[test]
+// T-3577: the inline tuple type documents the table's columns; a type alias would hide them.
+#[allow(clippy::type_complexity)]
 fn cc16_outcome_derivation_and_cc19_paused() {
     let cases: [(&str, Option<i64>, bool, Option<&str>, bool, &str); 6] = [
         // name, exit, refused, hb status, hb nonce ok, expected

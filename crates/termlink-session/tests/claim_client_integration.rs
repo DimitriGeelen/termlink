@@ -96,6 +96,8 @@ impl FakeHub {
     }
 }
 
+// T-3577: a fake hub's one-off row tuple; a named alias would add a type nobody else uses.
+#[allow(clippy::type_complexity)]
 async fn handle_call(method: &str, id: Value, params: Value, state: Arc<Mutex<HubState>>) -> Value {
     let mut s = state.lock().await;
     match method {

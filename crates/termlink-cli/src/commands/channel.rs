@@ -69,15 +69,13 @@ where
     // shared host default) so the wire-envelope sender_id and the
     // SessionMetadata fingerprint agree. Co-resident agents on a shared host
     // thus sign with DISTINCT per-agent keys (RC1, T-2291).
-    if get("TERMLINK_IDENTITY_DIR").is_none() {
-        if let Some(agent_id) = get("TERMLINK_AGENT_ID").filter(|s| !s.trim().is_empty()) {
-            if let Some(home) = get("HOME") {
+    if get("TERMLINK_IDENTITY_DIR").is_none()
+        && let Some(agent_id) = get("TERMLINK_AGENT_ID").filter(|s| !s.trim().is_empty())
+            && let Some(home) = get("HOME") {
                 let base = PathBuf::from(home).join(".termlink");
                 let path = per_agent_identity_path(&base, &agent_id);
                 return Ok(IdentitySource::PerAgent { path, agent_id });
             }
-        }
-    }
     let base = match get("TERMLINK_IDENTITY_DIR") {
         Some(dir) => PathBuf::from(dir),
         None => {
@@ -413,11 +411,10 @@ fn stamp_from_with(mut params: Value, fp: Option<&str>, opt_out: bool) -> Value 
     if opt_out {
         return params;
     }
-    if let (Some(obj), Some(fp)) = (params.as_object_mut(), fp) {
-        if !obj.contains_key("from") {
+    if let (Some(obj), Some(fp)) = (params.as_object_mut(), fp)
+        && !obj.contains_key("from") {
             obj.insert("from".to_string(), Value::String(fp.to_string()));
         }
-    }
     params
 }
 
@@ -2174,7 +2171,7 @@ pub(crate) async fn wait_for_peer_ack(
 /// T-1480: probe the canonical liveness topic for peer presence. Walks the
 /// last 500 envelopes of `agent-chat-arc` (cap chosen so even busy hubs see
 /// >>5min of slice — chat-arc heartbeats fire ~1/min/peer, so 500 ≈ 8h on a
-/// 4-peer fleet). Returns presence signal computed by `evaluate_presence`.
+/// > > 4-peer fleet). Returns presence signal computed by `evaluate_presence`.
 ///
 /// Tradeoff: with retention=forever and a long-lived hub, we don't walk the
 /// whole topic. False-negative risk is tiny because the failure mode would
@@ -2662,20 +2659,18 @@ pub(crate) fn extract_recent_posts(
             continue;
         }
         // T-1499: msg_type allowlist — applies after meta exclusion.
-        if let Some(allowed) = filter_msg_types {
-            if !allowed.contains(&mt) {
+        if let Some(allowed) = filter_msg_types
+            && !allowed.contains(&mt) {
                 continue;
             }
-        }
         let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
         if sender.is_empty() {
             continue;
         }
-        if let Some(want) = filter_peer_fp {
-            if sender != want {
+        if let Some(want) = filter_peer_fp
+            && sender != want {
                 continue;
             }
-        }
         let ts = m
             .get("ts_unix_ms")
             .and_then(|v| v.as_i64())
@@ -2696,16 +2691,14 @@ pub(crate) fn extract_recent_posts(
             .and_then(|md| md.get("thread").or_else(|| md.get("_thread")))
             .and_then(|v| v.as_str())
             .map(String::from);
-        if let Some(want) = filter_thread {
-            if thread.as_deref() != Some(want) {
+        if let Some(want) = filter_thread
+            && thread.as_deref() != Some(want) {
                 continue;
             }
-        }
-        if let Some(want) = filter_project {
-            if project.as_deref() != Some(want) {
+        if let Some(want) = filter_project
+            && project.as_deref() != Some(want) {
                 continue;
             }
-        }
         // Content extraction — payload shape varies. Real wire envelopes
         // (T-1502) carry `payload_b64` (base64 UTF-8); historical/test
         // shapes use `payload.text` / payload-as-string. Try in order:
@@ -2742,11 +2735,10 @@ pub(crate) fn extract_recent_posts(
             content_raw
         };
         // T-1501: case-insensitive substring grep — match against rendered content.
-        if let Some(needle) = grep_lower.as_deref() {
-            if !content.to_lowercase().contains(needle) {
+        if let Some(needle) = grep_lower.as_deref()
+            && !content.to_lowercase().contains(needle) {
                 continue;
             }
-        }
         let offset = m
             .get("offset")
             .and_then(|v| v.as_u64())
@@ -4713,11 +4705,10 @@ pub(crate) fn count_unread(msgs: &[Value], up_to: Option<u64>) -> (u64, Option<u
     let mut first: Option<u64> = None;
     for m in msgs {
         let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
-        if let Some(bound) = up_to {
-            if off <= bound {
+        if let Some(bound) = up_to
+            && off <= bound {
                 continue;
             }
-        }
         let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
         if UNREAD_META_TYPES.contains(&mt) {
             continue;
@@ -9966,11 +9957,10 @@ pub(crate) async fn cmd_channel_subscribe(
         // T-3307: the hub reports when `cursor` was already swept by retention.
         // Warn on stderr (stdout stays the message stream) only when the cursor
         // was our own — then records really were lost to this reader.
-        if cursor_is_ours {
-            if let Some(warning) = retention_gap_warning(topic, &result, json_output) {
+        if cursor_is_ours
+            && let Some(warning) = retention_gap_warning(topic, &result, json_output) {
                 eprintln!("{warning}");
             }
-        }
         cursor_is_ours = true;
         // T-2105: render cv_index snapshot BEFORE the messages stream.
         // Snapshot is one-shot — clear the flag so paginated calls don't re-fetch.
@@ -10796,17 +10786,15 @@ fn append_queue_log_line(
     now_secs: u64,
     queue_path: &std::path::Path,
 ) {
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+            && let Err(e) = std::fs::create_dir_all(parent) {
                 eprintln!(
                     "# queue log: failed to create parent dir {}: {e}",
                     parent.display()
                 );
                 return;
             }
-        }
-    }
     let mut line = render_queue_log_line(ev, now_secs, queue_path);
     line.push('\n');
     match std::fs::OpenOptions::new()
@@ -10992,11 +10980,10 @@ pub(crate) fn parse_queue_log(
                 continue;
             }
         };
-        if let Some(want) = kind_filter {
-            if kind != want {
+        if let Some(want) = kind_filter
+            && kind != want {
                 continue;
             }
-        }
         if entry_secs < cutoff_secs {
             continue;
         }
@@ -12093,8 +12080,8 @@ pub(crate) async fn cmd_channel_claims(
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
     println!(
-        "{:>8}  {:<20}  {:<24}  {:>10}  {}",
-        "offset", "claimer", "claim_id", "remain_ms", "state"
+        "{:>8}  {:<20}  {:<24}  {:>10}  state",
+        "offset", "claimer", "claim_id", "remain_ms"
     );
     for c in &claims {
         let remain = c.claimed_until - now_ms;
@@ -12604,15 +12591,14 @@ fn append_claim_log_line(
     if let Some(parent) = path.parent() {
         // Empty parent path () means "current dir" — skip create_dir_all for
         // an empty path to avoid a noisy stderr warning on `--log foo.log`.
-        if !parent.as_os_str().is_empty() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
+        if !parent.as_os_str().is_empty()
+            && let Err(e) = std::fs::create_dir_all(parent) {
                 eprintln!(
                     "# claim log: cannot create parent dir {:?} (continuing): {e}",
                     parent
                 );
                 return;
             }
-        }
     }
     let line = render_claim_log_line(event, hub, ts_secs);
     let line_with_newline = format!("{}\n", line);
@@ -12718,11 +12704,10 @@ pub(crate) fn parse_claims_log(
             continue;
         }
         // Topic filter.
-        if let Some(want) = topic_filter {
-            if topic != want {
+        if let Some(want) = topic_filter
+            && topic != want {
                 continue;
             }
-        }
         // Time window. `entry_secs` was computed (and validated) at the ts
         // gate above (T-2621).
         if entry_secs < cutoff_secs {
@@ -13268,6 +13253,7 @@ fn render_claims_summary_text_with_annotation(
 }
 
 #[cfg(test)]
+#[allow(clippy::await_holding_lock)] // T-3577: the *_ENV_LOCKs serialise env-changing tests across awaits on purpose
 mod tests {
     use super::*;
 
@@ -13576,7 +13562,7 @@ mod tests {
         );
 
         // The message must be durable: a row is present in the offline queue.
-        let q = OfflineQueue::open(&default_queue_path()).expect("open offline queue");
+        let q = OfflineQueue::open(default_queue_path()).expect("open offline queue");
         assert_eq!(
             q.size().expect("queue size"),
             1,
@@ -13767,8 +13753,8 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].kind, ClaimChangeKind::Transition);
         assert_eq!(events[0].topic, "work-queue");
-        assert_eq!(events[0].old.as_ref().unwrap().stuck, false);
-        assert_eq!(events[0].new.as_ref().unwrap().stuck, true);
+        assert!(!events[0].old.as_ref().unwrap().stuck);
+        assert!(events[0].new.as_ref().unwrap().stuck);
     }
 
     #[test]
@@ -13780,8 +13766,8 @@ mod tests {
         let events = diff_claim_states(&prev, &curr);
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].kind, ClaimChangeKind::Transition);
-        assert_eq!(events[0].old.as_ref().unwrap().stuck, true);
-        assert_eq!(events[0].new.as_ref().unwrap().stuck, false);
+        assert!(events[0].old.as_ref().unwrap().stuck);
+        assert!(!events[0].new.as_ref().unwrap().stuck);
     }
 
     #[test]
@@ -14081,7 +14067,7 @@ mod tests {
         assert_eq!(stuck_count, 1, "footer count keeps fleet-wide truth");
         assert_eq!(rendered.len(), 1, "only stuck topic rendered");
         assert_eq!(rendered[0].0, "work-queue");
-        assert_eq!(rendered[0].1, true);
+        assert!(rendered[0].1);
         assert!(!healthy, "healthy_affirmative is false when ≥1 stuck");
     }
 
@@ -20495,7 +20481,7 @@ mod tests {
             "payload": "x",
         });
         let posts = extract_recent_posts(
-            &[m.clone()], 10, 3_600_000, now,
+            std::slice::from_ref(&m), 10, 3_600_000, now,
             None, Some("T-1500"), None, None, None,
         );
         assert_eq!(posts.len(), 1, "metadata.thread (no underscore) recognized");
@@ -20534,7 +20520,7 @@ mod tests {
         let mt_map: std::collections::HashMap<_, _> = stats.by_msg_type.iter().cloned().collect();
         assert_eq!(mt_map.get("note").copied(), Some(2));
         assert_eq!(mt_map.get("status").copied(), Some(1));
-        assert!(mt_map.get("reaction").is_none(), "reaction is meta");
+        assert!(!mt_map.contains_key("reaction"), "reaction is meta");
     }
 
     #[test]

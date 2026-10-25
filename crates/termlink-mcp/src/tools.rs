@@ -535,6 +535,7 @@ fn hub_down_err() -> String {
 ///     `Semaphore::new` `assert!`-panic the async tool handler (DoS);
 ///   - `0` yields a zero-permit semaphore whose `acquire().await` never
 ///     resolves, wedging the batch call forever and leaking spawned tasks.
+///
 /// Lower bound 1 fixes the hang; upper bound 256 fixes the panic (and matches
 /// the fleet's 256 connection-cap convention). An upper bound above the actual
 /// item count is harmless — the semaphore simply never blocks.
@@ -647,11 +648,10 @@ pub(crate) fn parse_claims_log(
             malformed += 1;
             continue;
         }
-        if let Some(want) = topic_filter {
-            if topic != want {
+        if let Some(want) = topic_filter
+            && topic != want {
                 continue;
             }
-        }
         if ts_secs < cutoff_secs {
             continue;
         }
@@ -756,19 +756,17 @@ pub(crate) fn parse_find_idle_log_mcp(
                 continue;
             }
         };
-        if let Some(want) = agent_id_filter {
-            if agent_id != want {
+        if let Some(want) = agent_id_filter
+            && agent_id != want {
                 continue;
             }
-        }
         // T-3224 (port of CLI T-2208): exact-match `kind` filter. Permissive —
         // a value other than the emitted kinds (`new`/`removed`) yields zero
         // matches, never an error.
-        if let Some(want_kind) = kind_filter {
-            if kind != want_kind {
+        if let Some(want_kind) = kind_filter
+            && kind != want_kind {
                 continue;
             }
-        }
         if ts_secs < cutoff_secs {
             continue;
         }
@@ -914,11 +912,10 @@ pub(crate) fn parse_queue_log_mcp(
                 continue;
             }
         };
-        if let Some(want) = kind_filter {
-            if kind != want {
+        if let Some(want) = kind_filter
+            && kind != want {
                 continue;
             }
-        }
         if ts_secs < cutoff_secs {
             continue;
         }
@@ -997,11 +994,10 @@ pub(crate) fn parse_substrate_log_mcp(
                 continue;
             }
         };
-        if let Some(want) = field_filter {
-            if field != want {
+        if let Some(want) = field_filter
+            && field != want {
                 continue;
             }
-        }
         if ts_secs < cutoff_secs {
             continue;
         }
@@ -1379,6 +1375,7 @@ fn is_deprecated(description: &str) -> bool {
 ///   - the parser is conservative: no fuzzy matching, exact `(use ` + ` instead)`
 ///     fences, single name (no spaces) between them. Returns the inner name
 ///     trimmed of whitespace, or None if no marker is present / malformed.
+///
 /// Surfaced in tool_detail, name_filter matches, and default-mode rows when the
 /// tool is deprecated. Locked by the
 /// `every_deprecated_tool_has_replacement_hint` and
@@ -1843,6 +1840,8 @@ fn nearest_categories(unknown: &str, categories: &[(&str, Vec<(&str, &str)>)], l
 /// are considered; `name_filter` triggers flat substring search across each
 /// tool's name AND description (case-insensitive). When both are set the search
 /// is scoped to the named category.
+// T-3577: one argument per help option (the tool's own parameters); a struct would only rename them.
+#[allow(clippy::too_many_arguments)]
 fn build_help_json(
     categories: &[(&str, Vec<(&str, &str)>)],
     category: Option<&str>,
@@ -1968,11 +1967,10 @@ fn build_help_json(
             // includes `(use NAME instead)`. Live tools and deprecated tools
             // without a marker stay quiet (field omitted) — distinct from a
             // populated null which would force the LLM to handle two shapes.
-            if deprecated {
-                if let Some(hint) = extract_replacement_hint(short) {
+            if deprecated
+                && let Some(hint) = extract_replacement_hint(short) {
                     out["replacement_hint"] = serde_json::json!(hint);
                 }
-            }
             return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
         }
         // T-1958: if the target matches a known category name, the LLM most
@@ -2344,7 +2342,7 @@ fn build_help_json(
                 // — the hint below explains the conflict.
                 let dep_flag = is_deprecated(desc);
                 let dep_pred_exclude = !(exclude_deprecated && dep_flag);
-                let dep_pred_only = !(deprecated_only && !dep_flag);
+                let dep_pred_only = !deprecated_only || dep_flag;
                 let deprecated_predicate = dep_pred_exclude && dep_pred_only;
                 if name_predicate && arity_predicate && deprecated_predicate {
                     // T-1960: include deprecated flag so search results carry
@@ -2376,11 +2374,10 @@ fn build_help_json(
                         "parameter_count": pc,
                         "parameter_required_count": prc,
                     });
-                    if dep {
-                        if let Some(hint) = extract_replacement_hint(desc) {
+                    if dep
+                        && let Some(hint) = extract_replacement_hint(desc) {
                             row["replacement_hint"] = serde_json::json!(hint);
                         }
-                    }
                     matches.push(row);
                 }
             }
@@ -2479,7 +2476,7 @@ fn build_help_json(
             && !requested.is_empty()
         {
             for req in requested {
-                if ALLOWED_FIELDS.iter().any(|a| *a == req.as_str()) {
+                if ALLOWED_FIELDS.contains(&req.as_str()) {
                     if !fields_applied_values.iter().any(|v| v == req) {
                         fields_applied_values.push(req.clone());
                     }
@@ -2631,6 +2628,9 @@ fn build_help_json(
             // in one round-trip. Skip the empty-needle paths (standalone arity
             // filter, bulk paging) and the conflicting-deprecated-filter path
             // — none of those have a needle to compare against.
+            // T-3577: clippy's De Morgan form (`!(is_none() || ...)`) reads worse than
+            // this list of conditions that must all hold.
+            #[allow(clippy::nonminimal_bool)]
             let has_real_needle = needle.is_some()
                 && !needle_ref.is_empty()
                 && !standalone_arity_filter
@@ -2681,11 +2681,10 @@ fn build_help_json(
                     "parameter_count": pc,
                     "parameter_required_count": prc,
                 });
-                if dep {
-                    if let Some(hint) = extract_replacement_hint(desc) {
+                if dep
+                    && let Some(hint) = extract_replacement_hint(desc) {
                         row["replacement_hint"] = serde_json::json!(hint);
                     }
-                }
                 row
             })
             .collect();
@@ -2693,12 +2692,13 @@ fn build_help_json(
         result[cat_name] = serde_json::json!(tools_json);
     }
 
-    if category.is_some() && tool_count == 0 {
+    if let Some(unknown_name) = category
+        && tool_count == 0
+    {
         // T-1949: derive the available-categories list from the same source
         // the function walks, so the hint cannot drift from `help_categories()`.
         // Prior hard-coded list silently went stale at T-1943/44/45 (6 missing).
         let available: Vec<&str> = categories.iter().map(|(name, _)| *name).collect();
-        let unknown_name = category.unwrap();
         // T-1954: include `did_you_mean` (5 nearest categories by Levenshtein)
         // so typos like "chanel" -> "channel" resolve in one round-trip.
         let suggestions = nearest_categories(unknown_name, categories, 5);
@@ -2721,8 +2721,8 @@ fn build_help_json(
     // list_categories → category drill flow so LLMs see "I'm in X, which
     // has N live tools / M deprecated" at the same response as the row
     // enumeration. Derives from category_descriptions() + the existing walk.
-    if let Some(filter) = category {
-        if let Some((_, tools)) = categories.iter().find(|(n, _)| *n == filter) {
+    if let Some(filter) = category
+        && let Some((_, tools)) = categories.iter().find(|(n, _)| *n == filter) {
             let desc = category_descriptions().get(filter).copied().unwrap_or("");
             let dep_count = tools.iter().filter(|(_, d)| is_deprecated(d)).count();
             let live_count = tools.len() - dep_count;
@@ -2734,7 +2734,6 @@ fn build_help_json(
                 "live_tool_count": live_count,
             });
         }
-    }
 
     serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
 }
@@ -2785,6 +2784,7 @@ pub fn registry_category_names() -> &'static std::collections::HashSet<&'static 
 /// against the canonical `help_categories()` registry. Axis surface mirrors
 /// `HelpParams` exactly — adding an axis to `HelpParams` requires growing
 /// this wrapper too (the parity test catches drift at compile/test time).
+#[allow(clippy::too_many_arguments)] // T-3577: as build_help_json
 pub fn build_cli_help_json(
     category: Option<String>,
     name_filter: Option<String>,
@@ -2830,6 +2830,7 @@ pub fn build_cli_help_json(
 /// (CLI, T-1448 (b)). Accepts:
 ///   - `<name>`            → (name, None)
 ///   - `<name>:<project>`  → (name, Some(project))
+///
 /// Rejects empty input, empty name, empty project, or multi-`:`.
 fn split_target_project(input: &str) -> Result<(String, Option<String>), String> {
     if input.is_empty() {
@@ -2952,11 +2953,10 @@ fn count_unread_mcp(msgs: &[serde_json::Value], up_to: Option<u64>) -> (u64, Opt
     let mut first: Option<u64> = None;
     for m in msgs {
         let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
-        if let Some(bound) = up_to {
-            if off <= bound {
+        if let Some(bound) = up_to
+            && off <= bound {
                 continue;
             }
-        }
         let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
         if META_MSG_TYPES.contains(&mt) {
             continue;
@@ -3459,7 +3459,7 @@ fn build_reply_child_map(
         if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
             let child_off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if !child_off.is_empty() {
-                parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(child_off);
+                parent_to_children.entry(parent.to_string()).or_default().push(child_off);
             }
         }
     }
@@ -3626,12 +3626,11 @@ fn compute_who_is(all: &[serde_json::Value], target_sender: &str) -> serde_json:
         if is_content_msg_type(env) {
             post_count += 1;
         }
-        if let Some(dn) = env.get("metadata").and_then(|m| m.get("display_name")).and_then(|v| v.as_str()) {
-            if ts >= display_name_ts {
+        if let Some(dn) = env.get("metadata").and_then(|m| m.get("display_name")).and_then(|v| v.as_str())
+            && ts >= display_name_ts {
                 display_name = Some(dn.to_string());
                 display_name_ts = ts;
             }
-        }
     }
     serde_json::json!({
         "sender_id": target_sender,
@@ -4147,6 +4146,7 @@ impl RecentPostMcp {
 ///   2. `payload.text` — historical
 ///   3. `payload` as &str — historical
 ///   4. `payload.to_string()` — last-resort raw JSON
+#[allow(clippy::too_many_arguments)] // T-3577: one argument per tool filter parameter
 fn extract_recent_posts_mcp(
     msgs: &[serde_json::Value],
     n: usize,
@@ -4171,20 +4171,18 @@ fn extract_recent_posts_mcp(
         if META.contains(&mt) {
             continue;
         }
-        if let Some(allowed) = filter_msg_types {
-            if !allowed.contains(&mt) {
+        if let Some(allowed) = filter_msg_types
+            && !allowed.contains(&mt) {
                 continue;
             }
-        }
         let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
         if sender.is_empty() {
             continue;
         }
-        if let Some(want) = filter_peer_fp {
-            if sender != want {
+        if let Some(want) = filter_peer_fp
+            && sender != want {
                 continue;
             }
-        }
         let ts = m
             .get("ts_unix_ms")
             .and_then(|v| v.as_i64())
@@ -4203,16 +4201,14 @@ fn extract_recent_posts_mcp(
             .and_then(|md| md.get("thread").or_else(|| md.get("_thread")))
             .and_then(|v| v.as_str())
             .map(String::from);
-        if let Some(want) = filter_thread {
-            if thread.as_deref() != Some(want) {
+        if let Some(want) = filter_thread
+            && thread.as_deref() != Some(want) {
                 continue;
             }
-        }
-        if let Some(want) = filter_project {
-            if project.as_deref() != Some(want) {
+        if let Some(want) = filter_project
+            && project.as_deref() != Some(want) {
                 continue;
             }
-        }
         let content_raw = m
             .get("payload_b64")
             .and_then(|v| v.as_str())
@@ -4237,11 +4233,10 @@ fn extract_recent_posts_mcp(
         } else {
             content_raw
         };
-        if let Some(needle) = grep_lower.as_deref() {
-            if !content.to_lowercase().contains(needle) {
+        if let Some(needle) = grep_lower.as_deref()
+            && !content.to_lowercase().contains(needle) {
                 continue;
             }
-        }
         let offset = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
         hits.push(RecentPostMcp {
             offset,
@@ -4428,11 +4423,10 @@ fn summarize_fleet_presence_mcp(
             .get("metadata")
             .and_then(|md| md.get("from_project"))
             .and_then(|v| v.as_str());
-        if let Some(want) = filter_project {
-            if from_project != Some(want) {
+        if let Some(want) = filter_project
+            && from_project != Some(want) {
                 continue;
             }
-        }
         if let Some(want) = filter_thread {
             let from_thread = m
                 .get("metadata")
@@ -4558,11 +4552,10 @@ fn summarize_fleet_by_project_mcp(
             Some(p) if !p.is_empty() => p.to_string(),
             _ => continue,
         };
-        if let Some(want) = filter_project {
-            if from_project != want {
+        if let Some(want) = filter_project
+            && from_project != want {
                 continue;
             }
-        }
         if let Some(want) = filter_thread {
             let from_thread = m
                 .get("metadata")
@@ -6489,8 +6482,8 @@ fn compute_ancestors_mcp(
 }
 
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
-/// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
-/// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
+/// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing,
+/// base64-decode and cert_fingerprint chain (infrastructure.rs:946-969).
 /// Pure — no filesystem access.
 ///
 /// Returns Err with a human-readable message if the PEM is malformed.
@@ -6743,7 +6736,7 @@ impl ForwardOfRowMcp {
 }
 
 /// T-1736: pure helper — read `metadata.forwarded_from` (as `<topic>:<u64>`)
-/// + `metadata.forwarded_sender`. Mirror of CLI's `extract_forward`
+/// and `metadata.forwarded_sender`. Mirror of CLI's `extract_forward`
 /// (channel.rs:7644). Both fields must be present; topics may contain
 /// colons (e.g. `dm:a:b`) so split on the LAST colon. Returns
 /// `Some((origin_topic, origin_offset, origin_sender))` or `None`.
@@ -7390,6 +7383,8 @@ fn aggregate_bus_state_summary(hub_results: &[serde_json::Value]) -> serde_json:
 /// per-hub JSON object. Caller decides whether to invoke this based on the
 /// `include_pin_check` flag. Tuple shape mirrors fleet_verify so MCP
 /// consumers see one shape across both tools.
+// T-3577: the pin-check row tuple is used here and in one test only.
+#[allow(clippy::type_complexity)]
 fn inject_pin_check(
     hub_obj: &mut serde_json::Value,
     address: &str,
@@ -11350,7 +11345,7 @@ pub(crate) fn derive_watch_conn_mcp(hub: &serde_json::Value) -> String {
         let err_msg = hub
             .get("error")
             .and_then(|s| s.as_str())
-            .unwrap_or_else(|| {
+            .unwrap_or({
                 // T-1713: when error is an object (e.g. structured json_err),
                 // serialize-and-search the JSON form. Mirrors how CLI handles
                 // its anyhow chain via {:#} formatting.
@@ -18709,13 +18704,12 @@ impl TermLinkTools {
         Parameters(p): Parameters<FleetReauthParams>,
     ) -> String {
         // R2: reject command: scheme explicitly (Tier-2 has the same exclusion).
-        if let Some(src) = p.bootstrap_from.as_deref() {
-            if src.starts_with("command:") {
+        if let Some(src) = p.bootstrap_from.as_deref()
+            && src.starts_with("command:") {
                 return json_err(
                     "bootstrap_from scheme `command:` rejected (R2 — arbitrary shell anchor requires explicit security review; not yet allowed). Use `file:<path>` or `ssh:<host>`.",
                 );
             }
-        }
 
         let timeout = p.timeout_secs.unwrap_or(10).clamp(1, 120);
 
@@ -20434,14 +20428,13 @@ impl TermLinkTools {
                 ),
             );
         }
-        if let Some(g) = p.filter_grep.as_deref() {
-            if !g.is_empty() {
+        if let Some(g) = p.filter_grep.as_deref()
+            && !g.is_empty() {
                 out.insert(
                     "filter_grep".to_string(),
                     serde_json::Value::String(g.to_string()),
                 );
             }
-        }
         out.insert("posts".to_string(), serde_json::Value::Array(posts_json));
         serde_json::to_string_pretty(&serde_json::Value::Object(out)).unwrap_or_else(json_err)
     }
@@ -24869,7 +24862,7 @@ impl TermLinkTools {
                 .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
                 .unwrap_or(0);
             if ts <= 0 { continue; }
-            if let Some(cutoff) = cutoff_ms { if ts < cutoff { continue; } }
+            if let Some(cutoff) = cutoff_ms && ts < cutoff { continue; }
             let day_secs = ts / 1000;
             // Compute UTC date from epoch seconds (no chrono dep — simple integer math)
             let days_since_epoch = day_secs / 86_400;
@@ -25228,13 +25221,12 @@ impl TermLinkTools {
                 }
                 "topic_metadata" => {
                     use base64::Engine;
-                    if let Some(p_b64) = env.get("payload_b64").and_then(|v| v.as_str()) {
-                        if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                    if let Some(p_b64) = env.get("payload_b64").and_then(|v| v.as_str())
+                        && let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(p_b64) {
                             description = String::from_utf8_lossy(&bytes).to_string();
                             description_ts = ts;
                             if ts > last_update_ts { last_update_ts = ts; }
                         }
-                    }
                 }
                 _ => {}
             }
@@ -26189,7 +26181,7 @@ impl TermLinkTools {
             if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
                 let child_off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
                 if !child_off.is_empty() {
-                    parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(child_off);
+                    parent_to_children.entry(parent.to_string()).or_default().push(child_off);
                 }
             }
         }
@@ -26226,11 +26218,9 @@ impl TermLinkTools {
                 let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
                 if !sender.is_empty() { senders.insert(sender); }
             }
-            if msg_type == "reaction" {
-                if let Some(reply_to) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
-                    if thread_set.contains(reply_to) { emoji_count += 1; }
-                }
-            }
+            if msg_type == "reaction"
+                && let Some(reply_to) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str())
+                    && thread_set.contains(reply_to) { emoji_count += 1; }
         }
         let now_ms: i64 = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -26295,7 +26285,7 @@ impl TermLinkTools {
             if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
                 let child_off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
                 if !child_off.is_empty() {
-                    parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(child_off);
+                    parent_to_children.entry(parent.to_string()).or_default().push(child_off);
                 }
             }
         }
@@ -26389,7 +26379,7 @@ impl TermLinkTools {
             if off.is_empty() { continue; }
             if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
                 child_to_parent.insert(off.clone(), parent.to_string());
-                parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(off);
+                parent_to_children.entry(parent.to_string()).or_default().push(off);
             }
         }
         let mut path_set: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -26495,7 +26485,7 @@ impl TermLinkTools {
             };
             if emoji.is_empty() { continue; }
             let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            by_emoji.entry(emoji).or_insert_with(std::collections::HashSet::new).insert(sender);
+            by_emoji.entry(emoji).or_default().insert(sender);
             total += 1;
         }
         let mut entries: Vec<serde_json::Value> = by_emoji.into_iter()
@@ -26697,7 +26687,7 @@ impl TermLinkTools {
             if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
                 let child_off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
                 if !child_off.is_empty() {
-                    parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(child_off);
+                    parent_to_children.entry(parent.to_string()).or_default().push(child_off);
                 }
             }
         }
@@ -26897,7 +26887,7 @@ impl TermLinkTools {
             if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
                 let child_off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
                 if !child_off.is_empty() {
-                    parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(child_off);
+                    parent_to_children.entry(parent.to_string()).or_default().push(child_off);
                 }
             }
         }
@@ -27034,11 +27024,10 @@ impl TermLinkTools {
         }
         let mut latencies_sec: Vec<i64> = Vec::new();
         for (off, parent_t) in &parent_ts {
-            if let Some(reply_t) = min_reply.get(off) {
-                if *reply_t >= *parent_t {
+            if let Some(reply_t) = min_reply.get(off)
+                && *reply_t >= *parent_t {
                     latencies_sec.push((reply_t - parent_t) / 1000);
                 }
-            }
         }
         latencies_sec.sort();
         let n = latencies_sec.len();
@@ -27306,12 +27295,11 @@ impl TermLinkTools {
                 if ts < first_ts { first_ts = ts; }
                 if ts > last_ts { last_ts = ts; }
             }
-            if let Some(name) = env.get("metadata").and_then(|m| m.get("display_name")).and_then(|v| v.as_str()) {
-                if ts > latest_display_ts {
+            if let Some(name) = env.get("metadata").and_then(|m| m.get("display_name")).and_then(|v| v.as_str())
+                && ts > latest_display_ts {
                     latest_display_name = name.to_string();
                     latest_display_ts = ts;
                 }
-            }
             match mt {
                 "post" => {
                     posts += 1;
@@ -27866,11 +27854,10 @@ impl TermLinkTools {
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if off.is_empty() { continue; }
             by_offset.insert(off.clone(), env);
-            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
-                if !parent.is_empty() {
+            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str())
+                && !parent.is_empty() {
                     children.entry(parent.to_string()).or_default().push(off);
                 }
-            }
         }
         let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
         fn collect_descendants(
@@ -28054,11 +28041,10 @@ impl TermLinkTools {
             if !is_content_msg_type(env) { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if off.is_empty() { continue; }
-            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
-                if !parent.is_empty() {
+            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str())
+                && !parent.is_empty() {
                     children.entry(parent.to_string()).or_default().push(off);
                 }
-            }
         }
         let mut depths: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
         let mut histogram: std::collections::BTreeMap<u64, u64> = std::collections::BTreeMap::new();
@@ -28780,9 +28766,8 @@ impl TermLinkTools {
             total += 1;
             let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
             *by_type.entry(mt.to_string()).or_insert(0) += 1;
-            if let Some(s) = env.get("sender_id").and_then(|v| v.as_str()) {
-                if !s.is_empty() { senders.insert(s.to_string()); }
-            }
+            if let Some(s) = env.get("sender_id").and_then(|v| v.as_str())
+                && !s.is_empty() { senders.insert(s.to_string()); }
             let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
                 .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
                 .unwrap_or(0);
@@ -28798,8 +28783,8 @@ impl TermLinkTools {
                         children.entry(parent.to_string()).or_default().push(off);
                     }
                 }
-            } else if mt == "topic_metadata" {
-                if ts > latest_meta_ts {
+            } else if mt == "topic_metadata"
+                && ts > latest_meta_ts {
                     latest_meta_ts = ts;
                     let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
                     description = match base64::engine::general_purpose::STANDARD.decode(p_b64) {
@@ -28807,7 +28792,6 @@ impl TermLinkTools {
                         Err(_) => String::new(),
                     };
                 }
-            }
         }
         fn count_d(off: &str, map: &std::collections::HashMap<String, Vec<String>>, seen: &mut std::collections::HashSet<String>) -> u64 {
             if !seen.insert(off.to_string()) { return 0; }
@@ -28911,9 +28895,8 @@ impl TermLinkTools {
         for env in &all {
             let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("").to_string();
             *by_msg_type.entry(mt.clone()).or_insert(0) += 1;
-            if let Some(s) = env.get("sender_id").and_then(|v| v.as_str()) {
-                if !s.is_empty() { senders.insert(s.to_string()); }
-            }
+            if let Some(s) = env.get("sender_id").and_then(|v| v.as_str())
+                && !s.is_empty() { senders.insert(s.to_string()); }
             let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
                 .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
                 .unwrap_or(0);
@@ -29770,11 +29753,10 @@ impl TermLinkTools {
         if let Some(r) = p.role {
             params["role"] = serde_json::json!(r);
         }
-        if let Some(caps) = p.capabilities {
-            if !caps.is_empty() {
+        if let Some(caps) = p.capabilities
+            && !caps.is_empty() {
                 params["capabilities"] = serde_json::json!(caps);
             }
-        }
         if let Some(n) = p.limit {
             params["limit"] = serde_json::json!(n);
         }
@@ -30300,7 +30282,7 @@ impl TermLinkTools {
             }
             if off > ack_up_to {
                 unread_count += 1;
-                if first_unread.map_or(true, |f| off < f) {
+                if first_unread.is_none_or(|f| off < f) {
                     first_unread = Some(off);
                 }
             }
@@ -34942,12 +34924,10 @@ YW\tJ
     #[test]
     fn ancestors_linear_chain_returns_root_to_leaf() {
         // 10 ← 11 ← 12 ← 13 (leaf)
-        let envs = vec![
-            reply_env_ancestors(10, None),
+        let envs = [reply_env_ancestors(10, None),
             reply_env_ancestors(11, Some(10)),
             reply_env_ancestors(12, Some(11)),
-            reply_env_ancestors(13, Some(12)),
-        ];
+            reply_env_ancestors(13, Some(12))];
         let map: std::collections::HashMap<u64, &serde_json::Value> = envs
             .iter()
             .map(|e| (e.get("offset").and_then(|v| v.as_u64()).unwrap(), e))
@@ -34958,7 +34938,7 @@ YW\tJ
 
     #[test]
     fn ancestors_leaf_with_no_parent_returns_only_leaf() {
-        let envs = vec![reply_env_ancestors(42, None)];
+        let envs = [reply_env_ancestors(42, None)];
         let map: std::collections::HashMap<u64, &serde_json::Value> = envs
             .iter()
             .map(|e| (e.get("offset").and_then(|v| v.as_u64()).unwrap(), e))
@@ -34969,7 +34949,7 @@ YW\tJ
 
     #[test]
     fn ancestors_missing_leaf_returns_empty() {
-        let envs = vec![reply_env_ancestors(10, None)];
+        let envs = [reply_env_ancestors(10, None)];
         let map: std::collections::HashMap<u64, &serde_json::Value> = envs
             .iter()
             .map(|e| (e.get("offset").and_then(|v| v.as_u64()).unwrap(), e))
@@ -34981,11 +34961,9 @@ YW\tJ
     #[test]
     fn ancestors_cycle_stops_at_revisit() {
         // 10 → 11 → 12 → 10 (cycle)
-        let envs = vec![
-            reply_env_ancestors(10, Some(12)),
+        let envs = [reply_env_ancestors(10, Some(12)),
             reply_env_ancestors(11, Some(10)),
-            reply_env_ancestors(12, Some(11)),
-        ];
+            reply_env_ancestors(12, Some(11))];
         let map: std::collections::HashMap<u64, &serde_json::Value> = envs
             .iter()
             .map(|e| (e.get("offset").and_then(|v| v.as_u64()).unwrap(), e))
@@ -34998,13 +34976,11 @@ YW\tJ
     #[test]
     fn ancestors_max_depth_caps_chain() {
         // Linear 5-deep chain, depth=3 yields only 3 elements (top 3 of walk).
-        let envs = vec![
-            reply_env_ancestors(1, None),
+        let envs = [reply_env_ancestors(1, None),
             reply_env_ancestors(2, Some(1)),
             reply_env_ancestors(3, Some(2)),
             reply_env_ancestors(4, Some(3)),
-            reply_env_ancestors(5, Some(4)),
-        ];
+            reply_env_ancestors(5, Some(4))];
         let map: std::collections::HashMap<u64, &serde_json::Value> = envs
             .iter()
             .map(|e| (e.get("offset").and_then(|v| v.as_u64()).unwrap(), e))
@@ -35017,10 +34993,8 @@ YW\tJ
     #[test]
     fn ancestors_missing_parent_breaks_chain() {
         // 11's parent is 10, but 10 isn't in the map.
-        let envs = vec![
-            reply_env_ancestors(11, Some(10)),
-            reply_env_ancestors(12, Some(11)),
-        ];
+        let envs = [reply_env_ancestors(11, Some(10)),
+            reply_env_ancestors(12, Some(11))];
         let map: std::collections::HashMap<u64, &serde_json::Value> = envs
             .iter()
             .map(|e| (e.get("offset").and_then(|v| v.as_u64()).unwrap(), e))
@@ -36168,7 +36142,7 @@ YW\tJ
 
     #[test]
     fn channel_poll_start_options_join_with_pipe() {
-        let opts = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let opts = ["a".to_string(), "b".to_string(), "c".to_string()];
         assert_eq!(opts.join("|"), "a|b|c");
     }
 
@@ -36184,7 +36158,7 @@ YW\tJ
 
     #[test]
     fn channel_poll_start_rejects_pipe_in_labels() {
-        let bad = vec!["a|b".to_string(), "c".to_string()];
+        let bad = ["a|b".to_string(), "c".to_string()];
         assert!(bad.iter().any(|o| o.contains('|')));
     }
 
@@ -36331,7 +36305,7 @@ YW\tJ
         let state = compute_poll_state_mcp(&envs, 42).expect("state present");
         assert_eq!(state.poll_id, 42);
         assert_eq!(state.question, "lunch?");
-        assert_eq!(state.closed, false);
+        assert!(!state.closed);
         assert_eq!(state.total_votes, 3);
         assert_eq!(state.options.len(), 3);
         assert_eq!(state.options[0].label, "pizza");
@@ -36797,7 +36771,7 @@ YW\tJ
     fn channel_reply_mentions_join_format() {
         // Verify the wire-shape this tool emits for mentions —
         // matches CLI cmd_channel_reply: comma-joined string.
-        let mentions = vec!["alice".to_string(), "bob".to_string()];
+        let mentions = ["alice".to_string(), "bob".to_string()];
         let joined = mentions.join(",");
         assert_eq!(joined, "alice,bob");
     }
@@ -40689,9 +40663,8 @@ YW\tJ
             "tool_detail must include `deprecated` as bool — got {:?}",
             v["deprecated"]
         );
-        assert_eq!(
+        assert!(
             v["deprecated"].as_bool().unwrap(),
-            true,
             "termlink_inbox_status must be flagged deprecated"
         );
 
@@ -40702,9 +40675,8 @@ YW\tJ
             v2["deprecated"].is_boolean(),
             "tool_detail must include `deprecated` for live tools too"
         );
-        assert_eq!(
-            v2["deprecated"].as_bool().unwrap(),
-            false,
+        assert!(
+            !v2["deprecated"].as_bool().unwrap(),
             "termlink_agent_post must NOT be flagged deprecated"
         );
     }
@@ -42466,7 +42438,7 @@ YW\tJ
             let pc = row["parameter_count"].as_u64().unwrap_or(0) as usize;
             let name = row["name"].as_str().unwrap_or("?");
             assert!(
-                pc >= 2 && pc <= 4,
+                (2..=4).contains(&pc),
                 "{name}: arity {pc} outside [2,4] arity window"
             );
         }
@@ -42689,7 +42661,7 @@ YW\tJ
             let dep = row["deprecated"].as_bool().unwrap_or(true);
             let name = row["name"].as_str().unwrap_or("?");
             assert!(
-                pc >= 2 && pc <= 4,
+                (2..=4).contains(&pc),
                 "{name}: arity {pc} outside [2,4] under paged request"
             );
             assert!(
@@ -42835,8 +42807,8 @@ YW\tJ
                     if let (Some(pc), Some(prc)) = (
                         row["parameter_count"].as_u64(),
                         row["parameter_required_count"].as_u64(),
-                    ) {
-                        if pc == 0 {
+                    )
+                        && pc == 0 {
                             let name = row["name"].as_str().unwrap_or("?");
                             assert_eq!(
                                 prc, 0,
@@ -42844,7 +42816,6 @@ YW\tJ
                             );
                             zero_arity_seen += 1;
                         }
-                    }
                 }
             }
         }
@@ -43594,7 +43565,7 @@ YW\tJ
         let arr = vec!["channel".to_string(), "agent_chat".to_string()];
         let v = help_with_categories(&cats, Some("post"), None, Some(&arr), None, None);
         let matches = v["matches"].as_array().unwrap();
-        assert!(matches.len() > 0);
+        assert!(!matches.is_empty());
         for row in matches {
             let row_cat = row["category"].as_str().unwrap();
             assert!(
@@ -44556,6 +44527,7 @@ YW\tJ
     }
 
     #[test]
+    #[allow(clippy::type_complexity)] // T-3577: mirrors inject_pin_check's map type
     fn fleet_doctor_inject_pin_check_no_op_when_empty_map() {
         // include_pin_check=false → empty map → no `pin_check` field added.
         let mut hub_obj = serde_json::json!({"hub": "h1", "address": "1.2.3.4:9100"});
@@ -45403,6 +45375,9 @@ not-json
     /// shape matches the CLI's contract. Holds HOME_TEST_LOCK for the
     /// duration to keep HOME stable for this test's MCP call.
     #[tokio::test]
+    // T-3577: HOME_TEST_LOCK serialises tests that point HOME elsewhere; it must be
+    // held across the awaits, or another test runs against this test's HOME.
+    #[allow(clippy::await_holding_lock)]
     async fn fleet_history_e2e_merges_rotation_and_heal() {
         let _guard = HOME_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         use std::io::Write;
@@ -45504,6 +45479,7 @@ not-json
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // T-3577: HOME_TEST_LOCK, as above
     async fn fleet_history_e2e_empty_state_returns_hint() {
         let _guard = HOME_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
@@ -46007,6 +45983,7 @@ not-json
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // T-3577: HOME_TEST_LOCK, as above
     async fn fleet_history_e2e_analyze_returns_pl021_shape() {
         // End-to-end: synthetic rotation.log with two double rotations on one
         // hub + a clean cert-only on another. analyze=true returns CLI T-1690
@@ -46032,7 +46009,7 @@ not-json
         // One cert-only on ring20-x → cert-only.
         let ts1 = unix_to_rfc3339(now_secs - 3 * one_day);
         let ts2 = unix_to_rfc3339(now_secs - 2 * one_day);
-        let ts3 = unix_to_rfc3339(now_secs - 1 * one_day);
+        let ts3 = unix_to_rfc3339(now_secs - one_day);
         writeln!(
             f,
             r#"{{"ts":"{ts1}","hub":"ring20-mgmt","kind":"transition","old_pin":"ok","new_pin":"drift","old_conn":"ok","new_conn":"auth-mismatch"}}"#
@@ -46101,6 +46078,7 @@ not-json
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // T-3577: HOME_TEST_LOCK, as above
     async fn fleet_history_e2e_analyze_empty_state_returns_analyze_shape() {
         // Empty-state path with analyze=true must return the analyze shape
         // (hubs=[], pl021_candidates=false), NOT the listing shape.

@@ -375,9 +375,7 @@ fn ordered_chunk_paths_checked(xfer_dir: &Path) -> Option<Vec<std::path::PathBuf
         let path = chunk_file.path();
         // Validate readability up front so a corrupt chunk aborts BEFORE any
         // partial delivery (and before the caller deletes the spool).
-        if read_entry(&path).is_none() {
-            return None;
-        }
+        read_entry(&path)?;
         paths.push(path);
     }
     Some(paths)
@@ -1083,9 +1081,8 @@ mod tests {
 
         // Spool a legitimate chunk 0.
         let good = json!({ "transfer_id": xfer, "index": 0, "data": "R09PRA==" }); // "GOOD"
-        assert_eq!(
+        assert!(
             deposit(target, "file.chunk", &good, Some("sender")).unwrap(),
-            true,
             "valid chunk 0 should spool"
         );
         let chunk0 = transfer_dir(target, xfer).join("chunk-0000.json");
@@ -1093,9 +1090,8 @@ mod tests {
 
         // A malformed chunk with NO index must be rejected, not overwrite chunk 0.
         let bad = json!({ "transfer_id": xfer, "data": "QkFE" }); // "BAD", no index
-        assert_eq!(
-            deposit(target, "file.chunk", &bad, Some("sender")).unwrap(),
-            false,
+        assert!(
+            !deposit(target, "file.chunk", &bad, Some("sender")).unwrap(),
             "missing-index chunk must be rejected"
         );
 
@@ -1118,9 +1114,8 @@ mod tests {
         let target = "offline-sess2";
         let xfer = "xfer-noninteger";
         let bad = json!({ "transfer_id": xfer, "index": "seven", "data": "QkFE" });
-        assert_eq!(
-            deposit(target, "file.chunk", &bad, Some("sender")).unwrap(),
-            false,
+        assert!(
+            !deposit(target, "file.chunk", &bad, Some("sender")).unwrap(),
             "non-integer index must be rejected"
         );
         assert!(
@@ -1143,9 +1138,8 @@ mod tests {
         let target = "offline-sess3";
         let xfer = "xfer-happy";
         let good = json!({ "transfer_id": xfer, "index": 42, "data": "dGVzdA==" });
-        assert_eq!(
+        assert!(
             deposit(target, "file.chunk", &good, Some("sender")).unwrap(),
-            true,
             "valid chunk should spool"
         );
         assert!(

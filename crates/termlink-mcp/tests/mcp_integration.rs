@@ -890,7 +890,7 @@ async fn test_clean_empty_env() {
 
     let parsed: serde_json::Value = serde_json::from_str(&result).expect("clean should return valid JSON");
     // T-1922: envelope now matches CLI shape: {ok, action, count, sessions, cleaned_*, total}
-    assert_eq!(parsed["ok"].as_bool().unwrap_or(false), true, "envelope missing ok=true");
+    assert!(parsed["ok"].as_bool().unwrap_or(false), "envelope missing ok=true");
     assert_eq!(parsed["total"].as_u64().unwrap_or(999), 0, "nothing to clean in empty env");
     assert_eq!(parsed["count"].as_u64().unwrap_or(999), 0, "count should be 0 in empty env");
     assert!(parsed["sessions"].as_array().unwrap().is_empty());

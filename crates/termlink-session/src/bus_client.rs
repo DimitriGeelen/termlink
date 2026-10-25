@@ -81,7 +81,7 @@ pub const TRANSPORT_STREAK_WARN: u64 = 12;
 
 /// T-2616: should this transport-failure streak be surfaced above `debug!`?
 pub(crate) fn transport_streak_is_loud(streak: u64) -> bool {
-    streak >= TRANSPORT_STREAK_WARN && streak % TRANSPORT_STREAK_WARN == 0
+    streak >= TRANSPORT_STREAK_WARN && streak.is_multiple_of(TRANSPORT_STREAK_WARN)
 }
 
 /// T-1439: After this many hub-reject responses on the same head-of-queue
@@ -1110,18 +1110,14 @@ mod tests {
     fn spawn_black_hole(socket_path: std::path::PathBuf) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
-            loop {
-                if let Ok((stream, _)) = listener.accept().await {
-                    tokio::spawn(async move {
-                        let mut reader = tokio::io::BufReader::new(stream);
-                        let mut line = String::new();
-                        use tokio::io::AsyncBufReadExt;
-                        let _ = reader.read_line(&mut line).await;
-                        tokio::time::sleep(Duration::from_secs(3600)).await;
-                    });
-                } else {
-                    break;
-                }
+            while let Ok((stream, _)) = listener.accept().await {
+                tokio::spawn(async move {
+                    let mut reader = tokio::io::BufReader::new(stream);
+                    let mut line = String::new();
+                    use tokio::io::AsyncBufReadExt;
+                    let _ = reader.read_line(&mut line).await;
+                    tokio::time::sleep(Duration::from_secs(3600)).await;
+                });
             }
         })
     }
@@ -1132,6 +1128,9 @@ mod tests {
     /// makes the black-hole hang the calls, tripping the outer 6s guard
     /// (load-bearing).
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    // T-3577: the std lock serialises the tests that change the process env; it must
+    // be held for the whole test, awaits included, or another test sees our value.
+    #[allow(clippy::await_holding_lock)]
     async fn post_and_flush_are_bounded_on_black_hole_hub() {
         let _g = BUS_RPC_TIMEOUT_ENV_LOCK.lock().unwrap();
         let prev = std::env::var("TERMLINK_RPC_READ_TIMEOUT_SECS").ok();
@@ -1189,6 +1188,8 @@ mod tests {
     /// stuck flush would block ~30s and the 3s join assertion would fail — i.e.
     /// this test is load-bearing for the detached-task inner-select change.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    // T-3577: env-serialising lock held across awaits on purpose (see the test above).
+    #[allow(clippy::await_holding_lock)]
     async fn shutdown_interrupts_a_stuck_flush() {
         let _g = BUS_RPC_TIMEOUT_ENV_LOCK.lock().unwrap();
         let prev = std::env::var("TERMLINK_RPC_READ_TIMEOUT_SECS").ok();

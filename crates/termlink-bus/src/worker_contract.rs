@@ -222,16 +222,14 @@ impl WcStore {
                 "give dispatch_id (new dispatch) or attempt_of (next attempt), not both".into(),
             ));
         }
-        if let Some(id) = &req.dispatch_id {
-            if !is_valid_dispatch_id(id) {
+        if let Some(id) = &req.dispatch_id
+            && !is_valid_dispatch_id(id) {
                 return Err(WcError::BadId(id.clone()));
             }
-        }
-        if let Some(id) = &req.attempt_of {
-            if !is_valid_dispatch_id(id) {
+        if let Some(id) = &req.attempt_of
+            && !is_valid_dispatch_id(id) {
                 return Err(WcError::BadId(id.clone()));
             }
-        }
         self.with_tx(|tx| {
             let spawn = req.spawn_timeout_ms.unwrap_or(DEFAULT_SPAWN_TIMEOUT_MS).max(0);
             let deadline_dispatched = now_ms + spawn + GRACE_MS;
@@ -344,7 +342,7 @@ impl WcStore {
             ))?;
             let mut attempts = Vec::new();
             let nums: Vec<Value> = st
-                .query_map(params![dispatch_id], |r| attempt_json(r))?
+                .query_map(params![dispatch_id], attempt_json)?
                 .collect::<std::result::Result<_, _>>()?;
             for mut a in nums {
                 let n = a["attempt"].as_i64().unwrap_or(0);
@@ -676,7 +674,7 @@ fn attempt_record(tx: &Transaction, id: &str, attempt: i64) -> WcResult<Value> {
     let mut v = tx.query_row(
         &format!("SELECT {ATTEMPT_COLS} FROM wc_attempts WHERE dispatch_id=?1 AND attempt=?2"),
         params![id, attempt],
-        |r| attempt_json(r),
+        attempt_json,
     )?;
     v["dispatch_id"] = json!(id);
     v["history"] = history_json(tx, id, attempt)?;

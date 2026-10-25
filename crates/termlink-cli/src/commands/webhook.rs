@@ -56,12 +56,11 @@ fn read_config(path: &Path) -> Result<WebhookConfig> {
 /// Atomically persist `cfg` to `path` (write temp + rename), pretty-printed.
 fn write_config_atomic(path: &Path, cfg: &WebhookConfig) -> Result<()> {
     let json = serde_json::to_string_pretty(cfg).context("serialize webhook config")?;
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("create config dir {}", parent.display()))?;
         }
-    }
     let tmp = path.with_extension("json.tmp");
     std::fs::write(&tmp, json.as_bytes())
         .with_context(|| format!("write temp config {}", tmp.display()))?;

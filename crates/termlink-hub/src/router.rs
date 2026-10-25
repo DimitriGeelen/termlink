@@ -2013,6 +2013,8 @@ mod tests {
     // (Err(JoinError)) as Failed — NOT silently collapse it into the Ok(None)
     // no-op the way the old bare `if let Ok(Some(..))` did.
     #[tokio::test]
+    // T-3577: the JoinSet item type is spelled out to mirror the collector's own.
+    #[allow(clippy::type_complexity)]
     async fn collect_join_action_classifies_panicked_task_as_failed() {
         let mut js: tokio::task::JoinSet<Option<(String, Vec<serde_json::Value>, Option<serde_json::Value>)>> =
             tokio::task::JoinSet::new();
@@ -2023,6 +2025,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::type_complexity)] // T-3577: as above
     async fn collect_join_action_classifies_ok_some_as_deliver_and_ok_none_as_skip() {
         let mut js: tokio::task::JoinSet<Option<(String, Vec<serde_json::Value>, Option<serde_json::Value>)>> =
             tokio::task::JoinSet::new();

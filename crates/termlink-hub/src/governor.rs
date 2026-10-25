@@ -329,7 +329,7 @@ impl RateGovernor {
 /// T-2137: Spawn the periodic rate-bucket eviction loop. Idempotent
 /// across multiple calls (each call spawns one loop; in practice this
 /// is only called once per hub instance, from [`init`]). Reads cadence
-/// + threshold from env vars `TERMLINK_RATE_EVICT_INTERVAL_SEC` (clamped
+/// and threshold from env vars `TERMLINK_RATE_EVICT_INTERVAL_SEC` (clamped
 /// 5..=3600) and `TERMLINK_RATE_EVICT_IDLE_THRESHOLD_MS` (clamped
 /// 1000..=3_600_000), falling back to
 /// `DEFAULT_RATE_EVICT_INTERVAL_SEC` / `DEFAULT_RATE_EVICT_IDLE_THRESHOLD_MS`.

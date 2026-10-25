@@ -1175,7 +1175,7 @@ mod tests {
         assert!(!receive_should_bail_on_rpc_errors(1), "one blip is tolerated");
         assert!(!receive_should_bail_on_rpc_errors(RECEIVE_RPC_ERROR_BAIL_AFTER - 1));
         assert!(receive_should_bail_on_rpc_errors(RECEIVE_RPC_ERROR_BAIL_AFTER));
-        assert!(RECEIVE_RPC_ERROR_BAIL_AFTER <= 5, "a long streak is the silent wait again");
+        const { assert!(RECEIVE_RPC_ERROR_BAIL_AFTER <= 5, "a long streak is the silent wait again") };
     }
 
     // Structural: the instant-error arm must count and consult the bail helper, and

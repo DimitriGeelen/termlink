@@ -347,11 +347,10 @@ fn clone_into(repo: &str, dir: &Path) -> Result<(), WorkError> {
 /// Resolve `ref` to a commit: `origin/<ref>` first (a branch), then `<ref>` (a tag or sha).
 fn resolve_base(dir: &Path, git_ref: &str) -> Result<String, WorkError> {
     for candidate in [format!("origin/{git_ref}^{{commit}}"), format!("{git_ref}^{{commit}}")] {
-        if let Ok(sha) = git(Some(dir), &["rev-parse", "--verify", "--quiet", &candidate]) {
-            if !sha.is_empty() {
+        if let Ok(sha) = git(Some(dir), &["rev-parse", "--verify", "--quiet", &candidate])
+            && !sha.is_empty() {
                 return Ok(sha);
             }
-        }
     }
     Err(WorkError::Git {
         what: "resolve ref".into(),
@@ -814,6 +813,9 @@ async fn run_commit(
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+// T-3577: ENV_LOCK serialises tests that change the process env; it is held across
+// awaits on purpose, or a concurrent test would see this test's values.
+#[allow(clippy::await_holding_lock)]
 mod tests {
     use super::*;
     use crate::test_env_lock::ENV_LOCK;

@@ -2437,11 +2437,10 @@ pub(crate) fn secret_file_perms_warning(_path: &std::path::Path) -> Option<Strin
 /// — the perms helper silently returns None on stat failure, so an unexpanded
 /// path becomes a no-op warning rather than a false alarm.
 pub(crate) fn expand_secret_file_path(raw: &str) -> std::path::PathBuf {
-    if let Some(rest) = raw.strip_prefix("~/") {
-        if let Ok(home) = std::env::var("HOME") {
+    if let Some(rest) = raw.strip_prefix("~/")
+        && let Ok(home) = std::env::var("HOME") {
             return std::path::PathBuf::from(home).join(rest);
         }
-    }
     std::path::PathBuf::from(raw)
 }
 
@@ -3899,8 +3898,8 @@ pub(crate) fn cmd_fleet_history(
 
     // T-1686: also harvest heal.log entries when --include-heals.
     let mut heal_malformed: usize = 0;
-    if include_heals {
-        if let Some(hpath) = heal_log_path()
+    if include_heals
+        && let Some(hpath) = heal_log_path()
             && hpath.exists()
         {
             let htext = std::fs::read_to_string(&hpath)
@@ -3941,7 +3940,6 @@ pub(crate) fn cmd_fleet_history(
                 entries.push(entry);
             }
         }
-    }
     // T-1686: chronologically interleave both sources by ts when --include-heals.
     if include_heals {
         entries.sort_by_key(|e| {
@@ -5755,11 +5753,10 @@ pub(crate) async fn cmd_fleet_doctor(
                 // field). The same caller→count data lives inside `by_method`,
                 // just keyed by `from` instead of `id`. Derive it on the
                 // client side so the fleet aggregator sees something.
-                if parsed.is_empty() {
-                    if let Some(by_method) = lu.get("by_method") {
+                if parsed.is_empty()
+                    && let Some(by_method) = lu.get("by_method") {
                         parsed = derive_top_callers_from_by_method(by_method);
                     }
-                }
                 if !parsed.is_empty() {
                     hub_top_callers.insert(name.clone(), parsed);
                 }
@@ -6024,7 +6021,7 @@ pub(crate) async fn cmd_fleet_doctor(
         let (points, trajectory) = compute_legacy_trend(&series);
         // T-1470: forecast ETA-to-zero from the trend points. Returns None
         // when the fit isn't meaningful (flat, growing, single point, ...).
-        let eta = compute_eta_to_zero(&points, snapshot_ts_ms as u64);
+        let eta = compute_eta_to_zero(&points, snapshot_ts_ms);
         if !json {
             print_legacy_trend_block(&points, &trajectory, eta.as_ref());
         }
@@ -6248,13 +6245,11 @@ fn is_rfc1918(host: &str) -> bool {
     if host.starts_with("10.") || host.starts_with("192.168.") {
         return true;
     }
-    if let Some(rest) = host.strip_prefix("172.") {
-        if let Some(second_octet) = rest.split('.').next() {
-            if let Ok(n) = second_octet.parse::<u8>() {
+    if let Some(rest) = host.strip_prefix("172.")
+        && let Some(second_octet) = rest.split('.').next()
+            && let Ok(n) = second_octet.parse::<u8>() {
                 return (16..=31).contains(&n);
             }
-        }
-    }
     false
 }
 

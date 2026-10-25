@@ -100,7 +100,7 @@ impl Bus {
 
 impl WcStore {
     pub(crate) fn begin_hub_epoch(&self) -> WcResult<i64> {
-        self.with_tx(|tx| bump_epoch(tx))
+        self.with_tx(bump_epoch)
     }
 
     pub(crate) fn sweep(&self, obs: &SweepObservation, now_ms: i64) -> WcResult<SweepReport> {

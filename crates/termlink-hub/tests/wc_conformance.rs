@@ -29,7 +29,7 @@ enum Tri {
 fn match_value(actual: &Value, expected: &Value) -> bool {
     if let Some(o) = expected.as_object() {
         if o.len() == 1 && o.contains_key("present") {
-            return !actual.is_null() == o["present"].as_bool().unwrap_or(false);
+            return actual.is_null() != o["present"].as_bool().unwrap_or(false);
         }
         if let Some(alts) = o.get("any_of").and_then(Value::as_array) {
             return alts.iter().any(|e| match_value(actual, e));
@@ -58,11 +58,10 @@ fn match_expect(res: &Map<String, Value>, exp: &Value) -> Tri {
         return tri_all(alts.iter().map(|e| match_expect(res, e)));
     }
     for key in ["accepted", "fence_reject", "error", "refused", "response", "no_transition", "ok"] {
-        if let Some(want) = exp.get(key) {
-            if res.get(key) != Some(want) {
+        if let Some(want) = exp.get(key)
+            && res.get(key) != Some(want) {
                 return Tri::No;
             }
-        }
     }
     if let Some(n) = exp.get("notices") {
         match res.get("notices") {

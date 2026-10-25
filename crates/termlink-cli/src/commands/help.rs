@@ -186,8 +186,8 @@ fn render_human(value: &Value) {
             if let Some(hint) = value.get("hint").and_then(|v| v.as_str()) {
                 eprintln!("hint: {hint}");
             }
-            if let Some(suggestions) = value.get("did_you_mean").and_then(|v| v.as_array()) {
-                if !suggestions.is_empty() {
+            if let Some(suggestions) = value.get("did_you_mean").and_then(|v| v.as_array())
+                && !suggestions.is_empty() {
                     eprintln!("did you mean:");
                     for s in suggestions {
                         if let Some(name) = s.as_str() {
@@ -195,7 +195,6 @@ fn render_human(value: &Value) {
                         }
                     }
                 }
-            }
         }
         return;
     }
@@ -403,8 +402,8 @@ fn render_tool_detail(value: &Value) {
         println!("\n{full}");
     }
 
-    if let Some(params) = value.get("parameters").and_then(|v| v.as_array()) {
-        if !params.is_empty() {
+    if let Some(params) = value.get("parameters").and_then(|v| v.as_array())
+        && !params.is_empty() {
             println!("\nParameters:");
             for p in params {
                 let pname = p.get("name").and_then(|v| v.as_str()).unwrap_or("");
@@ -418,10 +417,9 @@ fn render_tool_detail(value: &Value) {
                 }
             }
         }
-    }
 
-    if let Some(rel) = value.get("related_tools").and_then(|v| v.as_array()) {
-        if !rel.is_empty() {
+    if let Some(rel) = value.get("related_tools").and_then(|v| v.as_array())
+        && !rel.is_empty() {
             println!("\nRelated tools:");
             for r in rel {
                 if let Some(n) = r.as_str() {
@@ -429,7 +427,6 @@ fn render_tool_detail(value: &Value) {
                 }
             }
         }
-    }
 }
 
 fn render_summary(value: &Value) {
@@ -452,8 +449,8 @@ fn render_summary(value: &Value) {
         println!("  {z} zero-arg tools");
     }
 
-    if let Some(large) = value.get("largest_categories").and_then(|v| v.as_array()) {
-        if !large.is_empty() {
+    if let Some(large) = value.get("largest_categories").and_then(|v| v.as_array())
+        && !large.is_empty() {
             println!("\nLargest categories:");
             for c in large {
                 let n = c.get("name").and_then(|v| v.as_str()).unwrap_or("");
@@ -461,10 +458,9 @@ fn render_summary(value: &Value) {
                 println!("  {n}  ({t})");
             }
         }
-    }
 
-    if let Some(high) = value.get("highest_arity_tools").and_then(|v| v.as_array()) {
-        if !high.is_empty() {
+    if let Some(high) = value.get("highest_arity_tools").and_then(|v| v.as_array())
+        && !high.is_empty() {
             println!("\nHighest-arity tools:");
             for t in high {
                 let n = t.get("name").and_then(|v| v.as_str()).unwrap_or("");
@@ -472,7 +468,6 @@ fn render_summary(value: &Value) {
                 println!("  {n}  ({a} params)");
             }
         }
-    }
 }
 
 fn render_essentials(rows: &[Value], total: Option<u64>) {

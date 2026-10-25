@@ -394,7 +394,7 @@ mod tests {
         let snap: HashMap<_, _> = idx.current_values("topic-x").into_iter().collect();
         assert_eq!(snap.get("k1"), Some(&99));
         assert_eq!(snap.get("k2"), Some(&2));
-        assert!(snap.get("k3").is_none());
+        assert!(!snap.contains_key("k3"));
 
         // Overflow count unchanged by the update.
         assert_eq!(idx.overflow_total(), 1);

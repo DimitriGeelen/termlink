@@ -78,6 +78,8 @@ pub fn should_reclaim(file_bytes: u64, live_bytes: u64, c: &Ceilings) -> bool {
 /// Test seam: points at which a simulated crash abandons the rewrite exactly as
 /// a killed process would (no cleanup runs).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// T-3577: the shared `After` prefix is the meaning (points in time in the rewrite).
+#[allow(clippy::enum_variant_names)]
 pub(crate) enum CrashPoint {
     AfterTempWrite,
     AfterRename,

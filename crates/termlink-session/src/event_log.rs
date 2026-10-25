@@ -54,7 +54,7 @@ fn write_one(path: &Path, line: &str, cap: u64) {
     }
     if let Err(e) = append_line_capped(path, line, cap) {
         let n = FAILED.fetch_add(1, Ordering::Relaxed);
-        if n % 100 == 0 {
+        if n.is_multiple_of(100) {
             eprintln!("# event log: write failed for {}: {e} (best-effort, continuing)", path.display());
         }
     }
@@ -99,7 +99,7 @@ pub fn append_capped(path: &Path, line: String, cap: u64) {
         Ok(()) => {}
         Err(TrySendError::Full(_)) | Err(TrySendError::Disconnected(_)) => {
             let n = DROPPED.fetch_add(1, Ordering::Relaxed) + 1;
-            if n == 1 || n % 100 == 0 {
+            if n == 1 || n.is_multiple_of(100) {
                 eprintln!("# event log: writer behind, {n} line(s) dropped");
             }
         }

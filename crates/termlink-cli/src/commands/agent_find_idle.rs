@@ -254,17 +254,15 @@ pub(crate) fn render_idle_log_line(ev: &IdleChangeEvent, now_secs: u64) -> Strin
 /// the watch loop continues. The watch must NEVER crash because the
 /// audit trail can't be written — that would silently kill observability.
 fn append_idle_log_line(path: &std::path::Path, ev: &IdleChangeEvent, now_secs: u64) {
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+            && let Err(e) = std::fs::create_dir_all(parent) {
                 eprintln!(
                     "# find-idle log: failed to create parent dir {}: {e}",
                     parent.display()
                 );
                 return;
             }
-        }
-    }
     let mut line = render_idle_log_line(ev, now_secs);
     line.push('\n');
     match std::fs::OpenOptions::new()
@@ -554,19 +552,17 @@ pub(crate) fn parse_find_idle_log(
                 continue;
             }
         };
-        if let Some(want) = agent_id_filter {
-            if agent_id != want {
+        if let Some(want) = agent_id_filter
+            && agent_id != want {
                 continue;
             }
-        }
         // T-2208: --kind filter mirrors queue-history. Permissive: any
         // value other than the actual emitted kinds (`new`, `removed`)
         // just yields zero matches without panic.
-        if let Some(want_kind) = kind_filter {
-            if kind != want_kind {
+        if let Some(want_kind) = kind_filter
+            && kind != want_kind {
                 continue;
             }
-        }
         if entry_secs < cutoff_secs {
             continue;
         }

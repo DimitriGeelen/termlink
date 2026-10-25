@@ -953,17 +953,15 @@ pub(crate) fn render_log_line(field: &str, old: &str, new: &str, ts: &str) -> St
 /// that would silently kill observability for the operator who already
 /// has a failing host.
 fn append_log_line(path: &std::path::Path, field: &str, old: &str, new: &str, ts: &str) {
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+            && let Err(e) = std::fs::create_dir_all(parent) {
                 eprintln!(
                     "# substrate log: failed to create parent dir {}: {e}",
                     parent.display()
                 );
                 return;
             }
-        }
-    }
     let mut line = render_log_line(field, old, new, ts);
     line.push('\n');
     match std::fs::OpenOptions::new()
@@ -1255,11 +1253,10 @@ pub(crate) fn parse_substrate_log(
                 continue;
             }
         };
-        if let Some(want) = field_filter {
-            if field != want {
+        if let Some(want) = field_filter
+            && field != want {
                 continue;
             }
-        }
         if entry_secs < cutoff_secs {
             continue;
         }

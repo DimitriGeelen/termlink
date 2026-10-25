@@ -1010,6 +1010,7 @@ fn spawn_via_background(session_name: &str, shell_cmd: &str) -> Result<()> {
 }
 
 #[cfg(test)]
+#[allow(clippy::await_holding_lock)] // T-3577: test_env_lock::ENV_LOCK, held across awaits on purpose
 mod tests {
     use super::*;
 

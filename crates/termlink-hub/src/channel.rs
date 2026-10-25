@@ -1045,7 +1045,7 @@ pub(crate) async fn handle_channel_post_with_peer(
                 let dedupe = crate::dedupe::post_dedupe();
                 if dedupe.is_cold(now)
                     && let Some((offset, ts)) =
-                        crate::dedupe::find_stored_post(&bus, &topic, &sender_id, cid)
+                        crate::dedupe::find_stored_post(bus, &topic, &sender_id, cid)
                 {
                     dedupe.record_offset(&sender_id, cid, now, offset, ts);
                     return Response::success(
@@ -2999,7 +2999,7 @@ mod tests {
                 }
                 std::thread::sleep(std::time::Duration::from_millis(4));
                 let mut env = walk_test_env(n, "note", None);
-                if n % 3 == 0 {
+                if n.is_multiple_of(3) {
                     env.metadata.insert("conversation_id".to_string(), "c".to_string());
                 }
                 let item = Ok((n, env));
@@ -4903,7 +4903,7 @@ mod tests {
 
     async fn subscribe_msgs(bus: &Bus, topic: &str, with_signature: bool) -> Vec<Value> {
         let params = json!({"topic": topic, "cursor": 0, "with_signature": with_signature});
-        let v = unwrap_success(handle_channel_subscribe_with(&bus, json!(9), &params).await);
+        let v = unwrap_success(handle_channel_subscribe_with(bus, json!(9), &params).await);
         v["messages"].as_array().unwrap().clone()
     }
 
@@ -5910,7 +5910,7 @@ mod observed_addr_tests {
         md.insert("observed_addr".to_string(), "10.0.0.1:9999".to_string()); // client-supplied
         md.insert("addr".to_string(), "self-reported:9100".to_string());
         apply_observed_addr(&mut md, None);
-        assert!(md.get("observed_addr").is_none(), "un-attested observed_addr must be stripped");
+        assert!(!md.contains_key("observed_addr"), "un-attested observed_addr must be stripped");
         // self-reported addr (T-2293) is a different key and stays.
         assert_eq!(md.get("addr").map(String::as_str), Some("self-reported:9100"));
     }

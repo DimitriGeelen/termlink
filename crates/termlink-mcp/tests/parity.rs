@@ -32,7 +32,7 @@ use rmcp::model::CallToolRequestParams;
 use rmcp::{RoleClient, ServiceExt};
 use serde_json::{json, Value};
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::Path;
 use termlink_test_utils::{find_termlink_bin, find_termlink_bin_fresh, start_session, termlink_cmd, TestDir};
 use tokio::sync::Mutex;
 
@@ -75,7 +75,7 @@ async fn call_mcp(client: &McpClient, name: &'static str, args: Value) -> String
 /// Returns Err only when the binary fails to spawn OR stdout is not
 /// parseable JSON. The exit code is captured via the JSON shape (e.g.
 /// `{"ok": false, ...}` for failures).
-fn call_cli(binary: &PathBuf, runtime_dir: &PathBuf, argv: &[&str]) -> Result<Value, String> {
+fn call_cli(binary: &Path, runtime_dir: &Path, argv: &[&str]) -> Result<Value, String> {
     let output = termlink_cmd(binary, runtime_dir)
         .args(argv)
         .output()

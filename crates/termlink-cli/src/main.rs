@@ -1,3 +1,10 @@
+// T-3577: command handlers take one argument per CLI flag (clap fields), so long
+// argument lists are the design here, not a smell; bundling them would only rename them.
+#![allow(clippy::too_many_arguments)]
+// T-3577: doc lists here align continuation lines under the item text (a column
+// layout used across the CLI's help-bearing docs); the lint only wants less indent.
+#![allow(clippy::doc_overindented_list_items)]
+
 mod cli;
 mod commands;
 mod config;
@@ -28,33 +35,6 @@ fn cli_verb_path(matches: &ArgMatches) -> String {
         cur = sub;
     }
     parts.join(" ")
-}
-
-#[cfg(test)]
-mod cli_verb_path_tests {
-    use super::*;
-
-    fn verb(args: &[&str]) -> String {
-        let m = Cli::command().try_get_matches_from(args).expect("args parse");
-        cli_verb_path(&m)
-    }
-
-    #[test]
-    fn top_level_verb() {
-        assert_eq!(verb(&["termlink", "list"]), "list");
-    }
-
-    #[test]
-    fn nested_verb_is_the_full_chain() {
-        assert_eq!(verb(&["termlink", "channel", "list"]), "channel list");
-    }
-
-    #[test]
-    fn positional_values_are_never_recorded() {
-        let v = verb(&["termlink", "ping", "secret-session-name-xyz"]);
-        assert_eq!(v, "ping");
-        assert!(!v.contains("secret-session-name-xyz"));
-    }
 }
 
 #[tokio::main]
@@ -2032,4 +2012,31 @@ fn print_agent_help() {
     println!("Surface: {} verbs across {} categories.",
         sections.iter().map(|(_, r)| r.len()).sum::<usize>(),
         sections.len());
+}
+
+#[cfg(test)]
+mod cli_verb_path_tests {
+    use super::*;
+
+    fn verb(args: &[&str]) -> String {
+        let m = Cli::command().try_get_matches_from(args).expect("args parse");
+        cli_verb_path(&m)
+    }
+
+    #[test]
+    fn top_level_verb() {
+        assert_eq!(verb(&["termlink", "list"]), "list");
+    }
+
+    #[test]
+    fn nested_verb_is_the_full_chain() {
+        assert_eq!(verb(&["termlink", "channel", "list"]), "channel list");
+    }
+
+    #[test]
+    fn positional_values_are_never_recorded() {
+        let v = verb(&["termlink", "ping", "secret-session-name-xyz"]);
+        assert_eq!(v, "ping");
+        assert!(!v.contains("secret-session-name-xyz"));
+    }
 }

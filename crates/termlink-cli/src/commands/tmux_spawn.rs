@@ -214,11 +214,10 @@ mod tests {
         // What the session's own process saw, written to a file it leaves behind.
         let wait_for = |p: &std::path::Path| {
             for _ in 0..100 {
-                if let Ok(s) = std::fs::read_to_string(p) {
-                    if s.contains("PATH=") {
+                if let Ok(s) = std::fs::read_to_string(p)
+                    && s.contains("PATH=") {
                         return s;
                     }
-                }
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
             panic!("the session never wrote {}", p.display());

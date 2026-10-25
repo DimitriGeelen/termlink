@@ -172,7 +172,7 @@ impl PtySession {
         // way it would under any other terminal rather than uniquely badly.
         // `mut` + `&mut` below: apple libc declares openpty's winsize `*mut`, Linux
         // `*const`. `&mut T` coerces to both; `&T` compiles only on Linux (T-3265).
-        let mut initial_ws = libc::winsize {
+        let initial_ws = libc::winsize {
             ws_row: DEFAULT_PTY_ROWS,
             ws_col: DEFAULT_PTY_COLS,
             ws_xpixel: 0,
@@ -185,7 +185,7 @@ impl PtySession {
                 &mut slave_fd,
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
-                &mut initial_ws,
+                &initial_ws,
             )
         };
         if ret != 0 {

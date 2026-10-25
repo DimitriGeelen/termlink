@@ -549,11 +549,10 @@ impl Hub {
     }
 
     fn complete(&mut self, step: &Value, n: i64) -> Res<Map<String, Value>> {
-        if let Some(b) = step["args"]["backend"].as_str() {
-            if b != "hub" {
+        if let Some(b) = step["args"]["backend"].as_str()
+            && b != "hub" {
                 return missing("refusal:backend_fixed (dispatch.transition has no backend address; every write is the hub's)");
             }
-        }
         let ev = step["evidence"].as_str().unwrap_or_default().to_string();
         let nonce = self.nonce_for(step, n)?;
         let token = self.token_for(step, n);
@@ -626,11 +625,10 @@ impl Hub {
 
     fn answer(&mut self, step: &Value, n: i64) -> Res<Map<String, Value>> {
         // The store's answer TTL is fixed; a vector deadline must agree with it or the step is not judged.
-        if let Some(dl) = step["args"]["deadline"].as_i64() {
-            if dl != self.clock / 1000 - BASE_MS / 1000 + ANSWER_TTL_S {
+        if let Some(dl) = step["args"]["deadline"].as_i64()
+            && dl != self.clock / 1000 - BASE_MS / 1000 + ANSWER_TTL_S {
                 return missing("answer deadline argument (the store fixes the answer TTL)");
             }
-        }
         let d = self.dispatch_id()?;
         let req = AnswerRequest {
             dispatch_id: d,

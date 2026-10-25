@@ -780,41 +780,7 @@ fn host_port_str(addr: &TransportAddr) -> String {
 mod tests {
     use super::*;
 
-    /// T-1310: env-var injection helper. Uses a unique env-var name guard
-    /// pattern to avoid contaminating other tests in the binary; we save and
-    /// restore the original value rather than relying on test isolation.
-    /// Uses `serial_test`-free approach via SAFETY: tests in this block do
-    /// not run concurrently with the env var set because we restore on drop.
-    struct EnvGuard {
-        key: &'static str,
-        prev: Option<String>,
-    }
-    impl EnvGuard {
-        fn set(key: &'static str, value: &str) -> Self {
-            let prev = std::env::var(key).ok();
-            // SAFETY: cargo test runs with multiple threads but tests using
-            // this guard hold the env var only briefly within a single test
-            // function; collisions with concurrent reads in this module are
-            // benign (helper is idempotent in shape).
-            unsafe { std::env::set_var(key, value) };
-            Self { key, prev }
-        }
-        fn unset(key: &'static str) -> Self {
-            let prev = std::env::var(key).ok();
-            unsafe { std::env::remove_var(key) };
-            Self { key, prev }
-        }
-    }
-    impl Drop for EnvGuard {
-        fn drop(&mut self) {
-            unsafe {
-                match &self.prev {
-                    Some(v) => std::env::set_var(self.key, v),
-                    None => std::env::remove_var(self.key),
-                }
-            }
-        }
-    }
+    // T-3577: the T-1310 EnvGuard helper was removed; its last user went with T-1415.
 
     // T-1415: params_with_session_from_all_scenarios test deleted — function
     // it covered (params_with_session_from) deleted alongside legacy fallback paths.

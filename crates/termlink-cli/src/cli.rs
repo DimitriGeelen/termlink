@@ -4237,6 +4237,7 @@ pub(crate) enum FleetAction {
         ///   - at capacity (connections_active ≥ connections_max)
         ///   - has refused any connections (capacity_hits_total > 0)
         ///   - has refused any RPCs (rate_hits_total > 0)
+        ///
         /// Mirror of `fleet verify --exit-on-drift-only` (T-1661). Incompatible
         /// with `--watch` (the watch loop emits per-hub change events, so the
         /// filter would silently drop transitions that move OUT of pressure).
@@ -4468,7 +4469,7 @@ pub(crate) enum FleetAction {
     /// performing any heal. Operator scenario: "I declared
     /// `bootstrap_from = ssh:host` on profile X. Will it actually work
     /// when `--auto-heal` fires?" Runs `fetch_bootstrap_secret(source)`
-    /// + `normalize_and_validate_secret_hex(raw)` and reports per-profile
+    /// and `normalize_and_validate_secret_hex(raw)` and reports per-profile
     /// status. Never writes the secret file.
     ///
     /// Status taxonomy:

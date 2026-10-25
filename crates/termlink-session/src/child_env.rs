@@ -135,16 +135,14 @@ pub fn project_of(path: &Path) -> Option<std::path::PathBuf> {
 /// A worktree's `.git` is a file `gitdir: <main>/.git/worktrees/<name>`; map it to `<main>`.
 fn main_checkout(root: &Path) -> std::path::PathBuf {
     let g = root.join(".git");
-    if g.is_file() {
-        if let Ok(text) = std::fs::read_to_string(&g) {
+    if g.is_file()
+        && let Ok(text) = std::fs::read_to_string(&g) {
             let line = text.lines().next().unwrap_or("").trim();
-            if let Some(dir) = line.strip_prefix("gitdir:") {
-                if let Some((main, _)) = dir.trim().split_once("/.git/worktrees/") {
+            if let Some(dir) = line.strip_prefix("gitdir:")
+                && let Some((main, _)) = dir.trim().split_once("/.git/worktrees/") {
                     return std::path::PathBuf::from(main);
                 }
-            }
         }
-    }
     root.to_path_buf()
 }
 
@@ -175,11 +173,10 @@ where
         if !PROJECT_VARS.contains(&k.as_str()) || !v.starts_with('/') {
             continue;
         }
-        if let Some(vp) = project_of(Path::new(&v)) {
-            if vp != own {
+        if let Some(vp) = project_of(Path::new(&v))
+            && vp != own {
                 out.push(ForeignVar { name: k, value: v, value_project: vp, own_project: own.clone() });
             }
-        }
     }
     out
 }

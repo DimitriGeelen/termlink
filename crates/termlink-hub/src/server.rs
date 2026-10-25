@@ -1599,7 +1599,7 @@ async fn handle_ws_connection<S>(
                     );
                     break;
                 }
-                if sink.send(Message::Ping(Vec::new().into())).await.is_err() { break; }
+                if sink.send(Message::Ping(Vec::new())).await.is_err() { break; }
             }
 
             // ---- client → hub: request frames (same dispatch as the line path) ----
@@ -1620,12 +1620,11 @@ async fn handle_ws_connection<S>(
                         if let Some(reply) = maybe_handle_ws_subscribe(
                             txt.as_str(), &granted_scope, &mut topic_filter, peer_pid, &peer_addr,
                         ) {
-                            if sink.send(Message::Text(reply.into())).await.is_err() { break; }
+                            if sink.send(Message::Text(reply)).await.is_err() { break; }
                         } else if let Some(json) = process_request_message(
                             txt.as_str(), &token_secret, &mut granted_scope, peer_pid, &peer_addr,
-                        ).await {
-                            if sink.send(Message::Text(json.into())).await.is_err() { break; }
-                        }
+                        ).await
+                            && sink.send(Message::Text(json)).await.is_err() { break; }
                     }
                     Message::Binary(bin) => {
                         // Permissive: accept JSON-RPC in a binary frame too.
@@ -1633,12 +1632,11 @@ async fn handle_ws_connection<S>(
                             if let Some(reply) = maybe_handle_ws_subscribe(
                                 &txt, &granted_scope, &mut topic_filter, peer_pid, &peer_addr,
                             ) {
-                                if sink.send(Message::Text(reply.into())).await.is_err() { break; }
+                                if sink.send(Message::Text(reply)).await.is_err() { break; }
                             } else if let Some(json) = process_request_message(
                                 &txt, &token_secret, &mut granted_scope, peer_pid, &peer_addr,
-                            ).await {
-                                if sink.send(Message::Text(json.into())).await.is_err() { break; }
-                            }
+                            ).await
+                                && sink.send(Message::Text(json)).await.is_err() { break; }
                         }
                     }
                     Message::Ping(p) => { let _ = sink.send(Message::Pong(p)).await; }
@@ -1660,7 +1658,7 @@ async fn handle_ws_connection<S>(
                                 "method": "hub.event",
                                 "params": event,
                             });
-                            if sink.send(Message::Text(push.to_string().into())).await.is_err() {
+                            if sink.send(Message::Text(push.to_string())).await.is_err() {
                                 break;
                             }
                         }
@@ -2060,7 +2058,7 @@ mod tests {
     #[tokio::test]
     async fn read_capped_line_rejects_overlong() {
         // 20 bytes, no newline, cap 8 → abort as TooLong, do NOT buffer it all.
-        let data = vec![b'x'; 20];
+        let data = [b'x'; 20];
         let mut reader = BufReader::new(&data[..]);
         let mut buf = Vec::new();
         match read_capped_line(&mut reader, &mut buf, 8).await {
@@ -2811,7 +2809,7 @@ mod tests {
     {
         use futures_util::{SinkExt, StreamExt};
         use tokio_tungstenite::tungstenite::Message;
-        ws.send(Message::Text(req.to_string().into())).await.unwrap();
+        ws.send(Message::Text(req.to_string())).await.unwrap();
         loop {
             match ws.next().await.unwrap().unwrap() {
                 Message::Text(t) => return serde_json::from_str(t.as_str()).unwrap(),
@@ -3570,7 +3568,7 @@ mod tests {
 
         // Durable bus the forward-path post writes to. A unique inbox target keeps
         // this test's doorbell distinct from any parallel test's injected events.
-        let bus = termlink_bus::Bus::open(&dir.join("bus")).unwrap();
+        let bus = termlink_bus::Bus::open(dir.join("bus")).unwrap();
         let target = format!("s4-{}", TEST_COUNTER.fetch_add(1, Ordering::SeqCst));
         let inbox_topic = format!("inbox:{target}");
         bus.create_topic(&inbox_topic, termlink_bus::Retention::Forever)
@@ -4193,7 +4191,6 @@ mod tests {
                 .expect("a deleted socket must warn");
             assert!(msg.contains(&sock.display().to_string()), "WARN must name the path: {msg}");
             assert!(msg.contains("re-created"), "message: {msg}");
-            drop(serve);
             assert_eq!(served.len(), 1, "the new listener must be handed to an accept loop");
             assert_eq!(*ours.lock().unwrap(), socket_identity(&sock), "ownership must follow the new socket");
             assert!(probe_hub_socket(&sock, std::time::Duration::from_secs(2)).await.is_ok(),
@@ -4222,7 +4219,6 @@ mod tests {
             assert!(msg.contains("another live listener"), "message: {msg}");
             assert!(socket_watch_tick(&sock, &ours, &mut last, &mut serve).await.is_none(),
                 "the same replacement must not warn every tick");
-            drop(serve);
             assert_eq!(served, 0, "must not bind over a live listener");
             assert_eq!(socket_identity(&sock), theirs, "the live replacement was touched");
             assert!(probe_hub_socket(&sock, std::time::Duration::from_secs(2)).await.is_ok());
@@ -4247,7 +4243,6 @@ mod tests {
             let msg = socket_watch_tick(&sock, &ours, &mut last, &mut serve).await
                 .expect("a dead replacement must warn");
             assert!(msg.contains("re-created"), "message: {msg}");
-            drop(serve);
             assert_eq!(served, 1);
             assert_ne!(socket_identity(&sock), dead);
             assert!(!dir.join("hub.sock.new").exists(), "temp socket left behind");
