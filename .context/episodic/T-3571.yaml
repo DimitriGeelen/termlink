@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3571: runme-fixtures exceeds the guard layer's 300 s per-member timeout on this host (ERROR in two consecutive full runs)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-25T12:36:51Z
+# ============================================================================
+
+task_id: T-3571
+task_name: "runme-fixtures exceeds the guard layer's 300 s per-member timeout on this host (ERROR in two consecutive full runs)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-23T20:29:23Z
+completed: 2026-10-25T12:36:29Z
+duration_days: 2
+updates_count: 2
+first_commit: 2026-10-25T13:36:28+01:00
+last_commit: 2026-10-25T13:36:28+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  per-member guard-layer timeout marker; runme-fixtures declares 900 s
+
+# Key outcomes
+outcomes:
+  - 'Measured: the suite''s wall time alone and where it goes (per-case cost, which cases dominate), recorded here. 2026-10-25: 209 s alone at load 15-25; 137 full `runme.sh` runs at ~1.3-1.5 s each are almost all of it (fixed setup per run, not a few slow cases). Routing runme''s 8 local polling sleeps through `nap` (fixtures set `RUNME_NAP=0`) gave 183 s at a lower load: a small gain, not a fix'
+  - 'The guard layer no longer reports `runme-fixtures.sh` as ERROR (timeout) on this host, by making the suite faster or by a declared, reasoned per-member timeout; the change is covered by `tests/guard-layer-runner-fixtures.sh` if the runner changes. Done: `# guard-layer-timeout: <1..1800>  # <reason>` header marker (only raises the limit; unexplained or out-of-range is MALFORMED and ignored); runme-fixtures declares 900 s; runner fixtures 63/63 (+6), mutant (reason check removed) fails 2; doc updated in guard-layer-and-canaries.md'
+  - '`tests/runme-fixtures.sh` still passes in full (169/169)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'per-member guard-layer timeout marker; runme-fixtures declares 900 s'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3571-runme-fixtures-exceeds-the-guard-layers-.md'
+  - 'docs/operations/guard-layer-and-canaries.md'
+  - 'runme.sh'
+  - 'scripts/run-guard-layer.sh'
+  - 'tests/guard-layer-runner-fixtures.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-25T13:36:28'
+    action: 'T-3571: per-member guard-layer timeout marker; runme-fixtures declares 900 s'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2407 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2407
+  commits: 2
+  files_changed: 9
+  lines_added: 610
+  lines_removed: 22
+  footprint_refreshed_at: '2026-10-25T12:36:59Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3571-runme-fixtures-exceeds-the-guard-layers-.md
+generated_by: context-agent-hybrid

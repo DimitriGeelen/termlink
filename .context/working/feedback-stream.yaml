@@ -20156,3 +20156,21 @@ scan_id: R-2ce6a5f0
 task_id: T-2958
 payload:
   task_file: .tasks/active/T-2958-fw-task-review-hardcodes-go-in-the-decis.md
+---
+kind: scan_emitted
+timestamp: '2026-10-25T12:36:44Z'
+scan_id: R-6cb63163
+task_id: T-3571
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-25T12:36:44Z'
+scan_id: R-6cb63163
+task_id: T-3571
+payload:
+  task_file: .tasks/active/T-3571-runme-fixtures-exceeds-the-guard-layers-.md
