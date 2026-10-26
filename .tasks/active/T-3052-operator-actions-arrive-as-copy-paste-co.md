@@ -338,3 +338,8 @@ confirm cron executes them. First real evidence will be
 
 ### 2026-09-21T22:32:46Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-10-26 — operator approved the close (T-3592 stage 4, group A2)
+- **Approval:** operator "proceed as suggested" on the stage 4 list, group A (docs/reports/T-3592-operator-list.md).
+- **Evidence 2026-10-26:** notify-rail crons installed: termlink-notify-sidecar-supervisor, termlink-notify-sidecar-canary, termlink-notify-wake-supervisor; check-cron-install-drift: 45 installed + matching.
+- **Close path:** runme action 2 (approved closures), run by the operator.

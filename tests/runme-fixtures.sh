@@ -747,7 +747,7 @@ else ok "plugin cleanup absent from a default run"; fi
 # 15. T-3276 — the REAL shape: with no approved closures and no pending decisions
 #     (seams unset), a run shows no closures section and says decisions are none.
 # ---------------------------------------------------------------------------
-eout=$(env -u RUNME_TEST_CLOSES -u RUNME_TEST_DECISIONS RUNME_TEST_APPROVED_DECISIONS= RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --dry-run 2>&1); rc=$?
+eout=$(env -u RUNME_TEST_DECISIONS RUNME_TEST_CLOSES= RUNME_TEST_APPROVED_DECISIONS= RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --dry-run 2>&1); rc=$?
 if [ "$rc" = "0" ] && ! echo "$eout" | grep -q "Approved closures" && ! echo "$eout" | grep -q "Approved inception decisions" && echo "$eout" | grep -q "none pending"; then
     ok "empty lists: no closures section, decisions read 'none pending'"
 else bad "empty lists render cleanly" "rc=$rc: $eout"; fi

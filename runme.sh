@@ -378,10 +378,21 @@ close_task() {
 # cannot run, so the operator does, by running this script. Remove entries once the
 # log shows them closed (a finished action is removed, CLAUDE.md runme rule).
 # History: T-3132/T-3128/T-3130 (SQ-3) closed 2026-09-30, log runme-20260930T103733Z.
-# RUNME_TEST_CLOSES is a FIXTURE seam (newline-separated entries), never set by hand.
+# RUNME_TEST_CLOSES is a FIXTURE seam (newline-separated entries), never set by hand;
+# when SET (even empty) it replaces the real list (T-3592), like RUNME_TEST_APPROVED_DECISIONS.
+# T-3592 stage 4 group A (operator "proceed as suggested", 2026-10-26; approval recorded in
+# each task's Updates with the evidence): criteria already satisfied, close approved.
 # ---------------------------------------------------------------------------
-APPROVED_CLOSES=()
-[ -n "${RUNME_TEST_CLOSES:-}" ] && mapfile -t APPROVED_CLOSES <<< "$RUNME_TEST_CLOSES"
+APPROVED_CLOSES=(
+    "T-1696|T-3592 A1: release-mirror canary cron installed and byte-identical (operator approved 2026-10-26)"
+    "T-3052|T-3592 A2: notify-rail crons installed (operator approved 2026-10-26)"
+    "T-1691|T-3592 A3: v0.11.0 published with macOS + Linux binaries (operator approved 2026-10-26)"
+    "T-1635|T-3592 A5: GO recorded 2026-05-15, close outstanding (operator approved 2026-10-26)"
+)
+if [ -n "${RUNME_TEST_CLOSES+x}" ]; then
+    APPROVED_CLOSES=()
+    [ -n "$RUNME_TEST_CLOSES" ] && mapfile -t APPROVED_CLOSES <<< "$RUNME_TEST_CLOSES"
+fi
 if [ "${#APPROVED_CLOSES[@]}" -gt 0 ]; then
     head2 "2. Approved closures"
     for entry in "${APPROVED_CLOSES[@]}"; do

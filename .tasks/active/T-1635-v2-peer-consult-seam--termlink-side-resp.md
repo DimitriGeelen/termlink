@@ -136,3 +136,8 @@ Evidence: See docs/reports/v2-peer-consult-seam-response.md.
 ### 2026-05-15T19:36:19Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Inception decision: GO
+
+### 2026-10-26 — operator approved the close (T-3592 stage 4, group A5)
+- **Approval:** operator "proceed as suggested" on the stage 4 list, group A (docs/reports/T-3592-operator-list.md).
+- **Evidence:** the GO decision is already recorded (2026-05-15); only the close was outstanding.
+- **Close path:** runme action 2 (approved closures), run by the operator.

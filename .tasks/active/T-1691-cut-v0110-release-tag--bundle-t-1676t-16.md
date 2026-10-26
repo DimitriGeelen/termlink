@@ -185,3 +185,8 @@ curl -sL "https://api.github.com/repos/DimitriGeelen/termlink/releases/tags/v0.1
 
 ### 2026-05-18T08:48:35Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-10-26 — operator approved the close (T-3592 stage 4, group A3)
+- **Approval:** operator "proceed as suggested" on the stage 4 list, group A (docs/reports/T-3592-operator-list.md).
+- **Evidence 2026-10-26:** `gh release list -R DimitriGeelen/termlink`: v0.11.0 published 2026-05-18T20:32:46Z; assets termlink-darwin-aarch64, termlink-darwin-x86_64, termlink-linux-aarch64, termlink-linux-x86_64, termlink-linux-x86_64-static, checksums.txt (macOS + Linux binaries).
+- **Close path:** runme action 2 (approved closures), run by the operator.

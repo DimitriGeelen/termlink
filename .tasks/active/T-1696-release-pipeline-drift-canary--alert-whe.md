@@ -188,3 +188,8 @@ The 126-commit drift is the underlying G-058 / T-1695 mirror failure (separate t
 - **AC:** `[RUBBER-STAMP] Cron entry installed in /etc/cron.d on .107`
 - **Dispositive evidence:** `/etc/cron.d/termlink-release-mirror-canary` present (installed 2026-06-06, 1575 bytes); confirmed PASS in today's audit (`cron(release-mirror-canary): USER-field syntax installed`). Canary log `.context/working/.release-mirror-canary.log` is 0 lines = firing and finding no drift.
 - **Suggested close (human, one command):** `.agentic-framework/bin/fw task update T-1696 --status work-completed` after ticking the [RUBBER-STAMP] box — evidence above satisfies it. (Agent did NOT tick the Human AC per governance.)
+
+### 2026-10-26 — operator approved the close (T-3592 stage 4, group A1)
+- **Approval:** operator "proceed as suggested" on the stage 4 list, group A (docs/reports/T-3592-operator-list.md).
+- **Evidence re-checked 2026-10-26:** /etc/cron.d/termlink-release-mirror-canary byte-identical to .context/cron/release-mirror-canary.crontab; check-cron-install-drift: 45 installed + matching.
+- **Close path:** runme action 2 (approved closures), run by the operator.

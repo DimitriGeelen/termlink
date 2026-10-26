@@ -397,3 +397,7 @@ as the recovery path.
 
 ### 2026-06-13T09:37:51Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-10-26 — release criterion evidenced; task NOT closed (T-3592 stage 4, group A4)
+- **Evidence 2026-10-26:** `gh release list`: v0.10.0, v0.11.0, v0.11.1 all published 2026-05-18, which satisfies the "Releases published" criterion.
+- **Not closed:** two other criteria stay open and are the operator's: re-enable the OneDev auto-mirror, and revoke the diagnostic PAT (a credential; never closed on a reviewer's word).

@@ -360,6 +360,14 @@ date_finished: null
 
 ## Updates
 
+### 2026-10-26 — second instance, same signature [agent]
+- `reindex: --dry-run reports and installs nothing` failed once (177/178) and passed on the
+  immediate rerun (178/178). Its precondition is `: > $RUNME_AUDIT_CRON_FILE` then a dry run;
+  the failure means the file was non-empty after the reset, i.e. something wrote it after the
+  case cleared it. Same shape as the zombie case (marker present right after zombie_reset).
+- Hypothesis to test first: a background process left by an earlier case (a fake fw or a
+  `setsid` child) still writing into the scratch tree. Check with `pgrep` at each case boundary.
+
 ### 2026-10-26T10:43:37Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3588-runme-fixtures-zombie-idempotent-case-fl.md
