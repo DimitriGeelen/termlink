@@ -1588,6 +1588,12 @@ if [ -z "${_FW_RUNTIME_ENV_CLEAN:-}" ]; then
     _DIRS=("$_FWB")
     for _K in claude termlink node "$(cat "$3/worker_bin" 2>/dev/null)"; do
         _K=$(command -v "$_K" 2>/dev/null) || continue
+        # T-4775: same rule as fw_spawn_path — an npm claude yields to the native ~/.local/bin one.
+        case "$_K" in */claude)
+            case "$(readlink -f "$_K" 2>/dev/null)" in */node_modules/@anthropic-ai/claude-code/*)
+                [ -n "${HOME:-}" ] && [ -x "$HOME/.local/bin/claude" ] && _DIRS+=("$HOME/.local/bin") ;;
+            esac ;;
+        esac
         case "$_K" in /*) _DIRS+=("${_K%/*}") ;; esac
     done
     [ -n "${HOME:-}" ] && _DIRS+=("$HOME/.local/bin" "$HOME/.cargo/bin")
@@ -1605,6 +1611,28 @@ unset _FW_RUNTIME_ENV_CLEAN
 WORKER_NAME="$1"; PROJECT_DIR="$2"; WDIR="$3"; TIMEOUT="$4"; MODEL="$5"
 TASK_TYPE="$6"; FW_BIN="$7"
 cd "$PROJECT_DIR" || { echo "FATAL: cd $PROJECT_DIR failed" >> "$WDIR/stderr.log"; exit 1; }
+
+# --- T-4776 watchdog (start)
+# Kill watchdog for the worker process: TERM at TIMEOUT, then KILL after WATCHDOG_KILL_GRACE
+# seconds if it is still alive. TERM alone left a claude blocked in a dialog running 28 h
+# past its timeout, and `wait` with it, so exit_code was never written. Run it backgrounded:
+#   ( _fw_watchdog "$PID" ) &
+WATCHDOG_KILL_GRACE="${WATCHDOG_KILL_GRACE:-10}"
+_fw_watchdog() {
+    local pid="$1" i=0
+    sleep "$TIMEOUT"
+    kill "$pid" 2>/dev/null || return 0
+    : > "$WDIR/timed_out"
+    echo "TIMEOUT" >> "$WDIR/stderr.log"
+    while [ "$i" -lt "$WATCHDOG_KILL_GRACE" ]; do
+        sleep 1; i=$((i + 1))
+        kill -0 "$pid" 2>/dev/null || return 0
+    done
+    kill -KILL "$pid" 2>/dev/null && \
+        echo "TIMEOUT: pid $pid still alive ${WATCHDOG_KILL_GRACE}s after SIGTERM — sent SIGKILL" >> "$WDIR/stderr.log"
+    return 0
+}
+# --- T-4776 watchdog (end)
 
 # T-3580 round 6: the completion secret is ISSUED to this runtime by its authenticated start
 # (below), never written to disk by registration. Deliberately NOT exported; it reaches
@@ -1782,7 +1810,7 @@ if [ "$WORKER_KIND" = "ollama-loop" ]; then
         [ -n "$MODEL" ] && export OLLAMA_LOOP_MODEL="$MODEL"
         ( python3 "$LOOP_BIN" --wdir "$WDIR" >"$WDIR/stdout.log" 2>>"$WDIR/stderr.log" ) &
         LOOP_PID=$!
-        (sleep "$TIMEOUT" && kill "$LOOP_PID" 2>/dev/null && echo "TIMEOUT" >> "$WDIR/stderr.log") &
+        ( _fw_watchdog "$LOOP_PID" ) &
         WATCHDOG_PID=$!
         wait "$LOOP_PID" 2>/dev/null
         EXIT_CODE=$?
@@ -1839,7 +1867,7 @@ elif [ -n "$HARNESS" ]; then
                 ;;
         esac
         HARNESS_PID=$!
-        (sleep "$TIMEOUT" && kill "$HARNESS_PID" 2>/dev/null && echo "TIMEOUT" >> "$WDIR/stderr.log") &
+        ( _fw_watchdog "$HARNESS_PID" ) &
         WATCHDOG_PID=$!
         wait "$HARNESS_PID" 2>/dev/null
         EXIT_CODE=$?
@@ -1883,13 +1911,17 @@ else
         echo "FATAL: review worker binary not resolved to an absolute path" >> "$WDIR/stderr.log"
         CLAUDE_PID=""
     else
+        # T-4775: name the binary that actually runs, and its version — a stale claude on the
+        # constructed PATH was invisible after the fact.
+        _WB=$(command -v "$WORKER_BIN" 2>/dev/null || echo "$WORKER_BIN")
+        echo "worker binary: $_WB ($(timeout 20 "$_WB" --version 2>&1 < /dev/null | head -1))" >> "$WDIR/stderr.log"
         "$WORKER_BIN" -p "$(cat "$WDIR/prompt.md")" $MODEL_FLAG $SETTING_SOURCES_FLAG $TOOLS_FLAG $PERMISSION_MODE_FLAG $MCP_CONFIG_FLAG $STRICT_MCP_FLAG $ALLOWED_TOOLS_FLAG --output-format stream-json --verbose > "$WDIR/result.jsonl" 2>>"$WDIR/stderr.log" &
         CLAUDE_PID=$!
     fi
     if [ -z "$CLAUDE_PID" ]; then
         EXIT_CODE=1
     else
-    (sleep "$TIMEOUT" && kill "$CLAUDE_PID" 2>/dev/null && echo "TIMEOUT" >> "$WDIR/stderr.log") &
+    ( _fw_watchdog "$CLAUDE_PID" ) &
     WATCHDOG_PID=$!
     wait "$CLAUDE_PID" 2>/dev/null
     EXIT_CODE=$?
@@ -1975,6 +2007,7 @@ fi
 #                (partial-complete, waiting on a Human AC — the worker did its part)
 #   n/a        — no task dispatched, no task file found, non-zero exit, or any
 #                other status (nothing to assert)
+#   timeout    — the kill watchdog fired (T-4776: run.sh's timed_out marker)
 CLOSE_TASK=""
 [ -f "$WDIR/task" ] && CLOSE_TASK=$(cat "$WDIR/task" 2>/dev/null)
 CLOSE_STATE="n/a"
@@ -2000,6 +2033,7 @@ if [ -n "$CLOSE_TASK" ] && [ "${EXIT_CODE:-1}" = "0" ]; then
         done
     fi
 fi
+[ -f "$WDIR/timed_out" ] && CLOSE_STATE="timeout"
 echo "$CLOSE_STATE" > "$WDIR/close_state"
 if [ "$CLOSE_STATE" = "incomplete" ]; then
     echo "WARNING: worker exited 0 but $CLOSE_TASK is still started-work — close not run"

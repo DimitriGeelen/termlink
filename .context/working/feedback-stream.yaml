@@ -20995,3 +20995,21 @@ scan_id: R-dc1a8ca9
 task_id: T-2873
 payload:
   task_file: .tasks/active/T-2873-termlinkremoteinject-sends-bare-string-k.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T22:15:18Z'
+scan_id: R-47eb9ef6
+task_id: T-1453
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T22:15:18Z'
+scan_id: R-47eb9ef6
+task_id: T-1453
+payload:
+  task_file: .tasks/active/T-1453-fw-task-revisit-due-cli-verb-t-1449-phas.md

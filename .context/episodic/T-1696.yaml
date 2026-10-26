@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1696: Release pipeline drift canary — alert when OneDev HEAD diverges from GitHub HEAD >24h (G-058 prevention)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T22:35:50Z
+# ============================================================================
+
+task_id: T-1696
+task_name: "Release pipeline drift canary — alert when OneDev HEAD diverges from GitHub HEAD >24h (G-058 prevention)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-05-18T10:44:52Z
+completed: 2026-06-06T12:51:56Z
+duration_days: 19
+updates_count: 2
+first_commit: 2026-05-18T12:49:49+02:00
+last_commit: 2026-06-06T14:51:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  wire mirror-drift canary to daily cron + extend with tag-drift check (G-058 prevention, PL-168). fresh re-smoke evidence for [RUBBER-STAMP] human-AC — install identical, canary firing on G-058 drift as designed
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-mirror-freshness.sh` extended to also check tag drift — the most-recent local tag (`git describe --tags --abbrev=0`) must exist on `github` remote; missing tag flips exit status to drift'
+  - 'Smoke test against current state confirms drift detection still works AND the new tag-drift path fires (v0.11.1 is on OneDev but not on GitHub) — verified: `534 commit(s) behind` + `Latest tag v0.11.1 is NOT on GitHub (tag mirror broken)`'
+  - '`.context/cron/release-mirror-canary.crontab` written with a daily ~07:00Z entry running `scripts/check-mirror-freshness.sh --quiet`, appending to `.context/working/.release-mirror-canary.log`, with cwd set to `/opt/termlink`'
+  - 'CLAUDE.md "CI / Release Flow" section gets one new paragraph describing the canary, log location, and the action triggered on drift (open T-1695 sibling task / page operator)'
+  - 'Existing `cargo test`/clippy pipeline NOT touched — pure tooling addition, no Rust changes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/release-mirror-canary.crontab'
+  - '.context/project/concerns.yaml'
+  - '.context/project/learnings.yaml'
+  - 'scripts/check-mirror-freshness.sh'
+  - '.tasks/active/T-1695-restore-onedev-github-mirror--add-releas.md'
+  - '.tasks/active/T-1696-release-pipeline-drift-canary--alert-whe.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-18T12:49:49'
+    action: 'T-1696: wire mirror-drift canary to daily cron + extend with tag-drift check (G-058 prevention, PL-168)'
+  - time: '2026-06-06T14:51:56'
+    action: 'T-1696: fresh re-smoke evidence for [RUBBER-STAMP] human-AC — install identical, canary firing on G-058 drift as designed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 27487 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [release, observability, canary, G-058]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 27487
+  commits: 3
+  files_changed: 37
+  lines_added: 1535
+  lines_removed: 100
+  footprint_refreshed_at: '2026-10-26T23:28:38Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1696-release-pipeline-drift-canary--alert-whe.md
+generated_by: context-agent-hybrid
