@@ -72,3 +72,6 @@ crates/termlink-cli/src/commands/metadata.rs::procfs_probe_reports_unavailable_o
 crates/termlink-mcp/src/tools.rs::mcp_procfs_probe_matches_cli_semantics::proc-root                      # T-3266: runtime cfg! branch — true on Linux, false + unavailable-no-procfs elsewhere
 crates/termlink-hub/src/pidfile.rs::is_termlink_process::proc-root  # T-3340: probes /proc/self/cmdline first; without procfs (macOS) returns true, i.e. pre-T-3340 existence-only liveness, documented in the fn comment
 crates/termlink-hub/src/pidfile.rs::check_reused_pid_of_non_termlink_process_is_stale::proc-path  # T-3340: test returns early when /proc/self/cmdline is absent (macOS CI), by design
+crates/termlink-hub/src/pidfile.rs::process_start_epoch_secs::proc-path  # T-3575: every /proc read is `?`-chained; without procfs it returns None and started_after_pidfile answers false, i.e. the pre-T-3575 check (documented in the fn comment)
+crates/termlink-hub/src/pidfile.rs::check_pid_of_process_started_after_pidfile_is_stale::proc-path  # T-3575: test returns early when /proc/self/stat is absent (macOS CI), by design
+crates/termlink-hub/src/pidfile.rs::process_start_epoch_secs_reads_own_start::proc-path  # T-3575: test returns early when /proc/self/stat is absent (macOS CI), by design

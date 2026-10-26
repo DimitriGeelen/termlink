@@ -40,7 +40,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-25T12:19:25Z
-last_update: '2026-10-25T12:20:57Z'
+last_update: 2026-10-26T09:27:53Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -78,8 +78,8 @@ bvp_scores_proposed:
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Rehearsal (2026-10-25, before any operator go): be.17 (165039bb4) is an ancestor of be.18 (5259a14be, 53 commits); throwaway clone upgraded rc 0, 24 changes; CLAUDE.md project part identical; 7 web files rewritten (content changes); only preserved file changed upstream, check-active-task.sh (T-4738), 3-way merges clean (base be.17) with our T-3270 exception intact
-- [ ] Operator go recorded in ## Decisions (re-vendors have each had one)
-- [ ] Real run from a second fresh clone rc 0; merged check-active-task.sh installed; fw doctor rc 0; guard layer reds no worse than the be.17 run
+- [x] Operator go recorded in ## Decisions (re-vendors have each had one)
+- [x] Real run from a second fresh clone rc 0; merged check-active-task.sh installed; fw doctor rc 0; guard layer reds no worse than the be.17 run. 2026-10-26: real run rc 0, 22 changes, CLAUDE.md identical, BOUNDARY_EXTRA_READ_PATHS kept; guard 224 pass, runme-fixtures now PASS (T-3571). Three new FAIL-tier reds, none upgrade-caused, all resolved: (a) tracking drift, be.18's new web/llm/anthropic_provider.py untracked until this commit (read first: key passed in, nothing embedded); (b) 5 TOFU first-pin events from processes started after the reboot, each fingerprint matched against the live probe and `fleet verify` (no drift), then acked; (c) platform-lock on T-3575's /proc reads, allowlisted with how they degrade off Linux
 - [ ] Per-fix probes sent to AEF as WORKS/FAILS: T-4727 (decide warns on a verdict that differs from the Recommendation), T-4731 (boundary allows reads of ~/.termlink and the hub runtime dir), T-4740 (no identical-content metadata rewrites), T-4741 (`fw task review T-1899` no longer refused), T-4748 (never-installed crontab is a WARN)
 - [ ] `.vendor-divergence.yaml` last_vendor_event updated
 
@@ -356,6 +356,11 @@ bvp_scores_proposed:
 -->
 
 ## Decisions
+
+### 2026-10-26 — take be.18? (operator ruling)
+- **Chose:** re-vendor be.17 -> be.18 ("go ahead with be.18").
+- **Why:** rehearsal clean; carries T-4727, T-4729/T-4730/T-4731/T-4734/T-4740/T-4741 (mostly our filings) and the v1.8.15 release blockers.
+- **Left open:** be.19 and be.21 were tagged after the brief (be.20 never published); the ruling names be.18, so moving further is a separate operator decision.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
