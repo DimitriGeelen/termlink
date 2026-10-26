@@ -20228,3 +20228,21 @@ scan_id: R-fc286058
 task_id: T-3582
 payload:
   task_file: .tasks/active/T-3582-canary-fleet-doorbell-mail-canary-is-sta.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T09:37:03Z'
+scan_id: R-220f0091
+task_id: T-3583
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T09:37:03Z'
+scan_id: R-220f0091
+task_id: T-3583
+payload:
+  task_file: .tasks/active/T-3583-canary-framework-pickup-canary-is-firing.md
