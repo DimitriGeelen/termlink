@@ -4,12 +4,12 @@ name: "runme: acknowledge hub flap residue (systemctl reset-failed termlink-hub 
 description: >
   Operator ruling 2026-10-26 ('add the reset-failed to runme'): the T-3575 outage left termlink-hub NRestarts=433; substrate-preflight warns 'flap residue awaiting acknowledgment' and clearing it is the operator's acknowledge (scripts/substrate-preflight.sh:739-743). Closes T-3585 once run.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-26T10:24:15Z
-last_update: 2026-10-26T10:44:15Z
-date_finished: null
+last_update: 2026-10-26T13:15:42Z
+date_finished: 2026-10-26T13:15:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -65,7 +65,7 @@ date_finished: null
 - [x] runme action 5b runs `systemctl reset-failed termlink-hub` only when the unit is active and NRestarts exceeds the preflight max (TERMLINK_PREFLIGHT_NRESTARTS_MAX, default 5); skips at or below it; refuses (FAILED) a unit that is not active
 - [x] It verifies by reading NRestarts back and reports FAILED when the counter did not clear
 - [x] Hermetic fixture cases through RUNME_HUB_SYSTEMCTL: skip, refuse-not-active, clears (OK), does-not-clear (FAILED); `tests/runme-fixtures.sh` passes in full. 6 cases (+dry-run, +idempotent second run); 175/175 on two consecutive runs. One earlier run failed an unrelated zombie case, filed as T-3588
-- [ ] The operator's next runme run shows 5b OK (or skip) in latest.log, and substrate-preflight no longer warns hub-unit; then T-3585 closes
+- [x] The operator's next runme run shows 5b OK (or skip) in latest.log, and substrate-preflight no longer warns hub-unit; then T-3585 closes. 2026-10-26 run (runme-20261026T125855Z-2795648.log, rc=0): action 5's `systemctl restart` onto 0.12.1160 already reset NRestarts 433 -> 0, so 5b logged `skip termlink-hub NRestarts=0 (max 5)`; substrate-preflight now `[PASS] hub-unit ... NRestarts=0`, 8 pass 0 warn. Learned: a manual restart clears the counter too; 5b remains for flap residue left when no restart follows
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -116,6 +116,8 @@ date_finished: null
 -->
 
 ## Verification
+grep -q '^ack_hub_flap$' runme.sh
+bash scripts/substrate-preflight.sh > .context/working/.t3587v 2>&1; grep -q 'PASS\] hub-unit' .context/working/.t3587v
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -366,3 +368,22 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3587-runme-acknowledge-hub-flap-residue-syste.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1e8161ff
+- **Timestamp:** 2026-10-26T13:15:44Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — Hermetic fixture cases through RUNME_HUB_SYSTEMCTL: skip, refuse-not-active, clears (OK), does-not-clear (FAILED); `tests/runme-fixtures.sh` passes in full. 6 cases (+dry-run, +idempotent second run);
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/runme-fixtures.sh in: Hermetic fixture cases through RUNME_HUB_SYSTEMCTL: skip, refuse-not-active, clears (OK), does-not-clear (FAILED); `tests/runme-fixtures.sh` passes in`
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-26T13:15:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3587: runme: acknowledge hub flap residue (systemctl reset-failed termlink-hub when NRestarts exceeds the preflight max)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T13:15:51Z
+# ============================================================================
+
+task_id: T-3587
+task_name: "runme: acknowledge hub flap residue (systemctl reset-failed termlink-hub when NRestarts exceeds the preflight max)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-26T10:24:15Z
+completed: 2026-10-26T13:15:42Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-26T11:44:15+01:00
+last_commit: 2026-10-26T11:44:15+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 5b acknowledges hub flap residue (reset-failed when active and NRestarts > max)
+
+# Key outcomes
+outcomes:
+  - 'runme action 5b runs `systemctl reset-failed termlink-hub` only when the unit is active and NRestarts exceeds the preflight max (TERMLINK_PREFLIGHT_NRESTARTS_MAX, default 5); skips at or below it; refuses (FAILED) a unit that is not active'
+  - 'It verifies by reading NRestarts back and reports FAILED when the counter did not clear'
+  - 'Hermetic fixture cases through RUNME_HUB_SYSTEMCTL: skip, refuse-not-active, clears (OK), does-not-clear (FAILED); `tests/runme-fixtures.sh` passes in full. 6 cases (+dry-run, +idempotent second run); 175/175 on two consecutive runs. One earlier run failed an unrelated zombie case, filed as T-3588'
+  - 'The operator''s next runme run shows 5b OK (or skip) in latest.log, and substrate-preflight no longer warns hub-unit; then T-3585 closes. 2026-10-26 run (runme-20261026T125855Z-2795648.log, rc=0): action 5''s `systemctl restart` onto 0.12.1160 already reset NRestarts 433 -> 0, so 5b logged `skip termlink-hub NRestarts=0 (max 5)`; substrate-preflight now `[PASS] hub-unit ... NRestarts=0`, 8 pass 0 warn. Learned: a manual restart clears the counter too; 5b remains for flap residue left when no restart follows'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3587-runme-acknowledge-hub-flap-residue-syste.md'
+  - '.tasks/active/T-3588-runme-fixtures-zombie-idempotent-case-fl.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-26T11:44:15'
+    action: 'T-3587: runme action 5b acknowledges hub flap residue (reset-failed when active and NRestarts > max)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 171 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 171
+  commits: 2
+  files_changed: 9
+  lines_added: 1090
+  lines_removed: 14
+  footprint_refreshed_at: '2026-10-26T13:15:57Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3587-runme-acknowledge-hub-flap-residue-syste.md
+generated_by: context-agent-hybrid

@@ -20246,3 +20246,39 @@ scan_id: R-220f0091
 task_id: T-3583
 payload:
   task_file: .tasks/active/T-3583-canary-framework-pickup-canary-is-firing.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T13:15:02Z'
+scan_id: R-f0af902d
+task_id: T-3585
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T13:15:02Z'
+scan_id: R-f0af902d
+task_id: T-3585
+payload:
+  task_file: .tasks/active/T-3585-canary-substrate-preflight-canary-is-fir.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T13:15:44Z'
+scan_id: R-1e8161ff
+task_id: T-3587
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T13:15:44Z'
+scan_id: R-1e8161ff
+task_id: T-3587
+payload:
+  task_file: .tasks/active/T-3587-runme-acknowledge-hub-flap-residue-syste.md
