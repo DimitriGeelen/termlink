@@ -724,6 +724,53 @@ head2 "5. Local hub onto the installed binary (T-3290)"
 restart_hub
 
 # ---------------------------------------------------------------------------
+# ACTION 5b — acknowledge hub flap residue (T-3587; operator ruling 2026-10-26)
+#
+# After a crash loop the unit's NRestarts counter stays high once the hub is
+# healthy again, and substrate-preflight warns "flap residue awaiting
+# acknowledgment" (scripts/substrate-preflight.sh:739-743): clearing it is the
+# operator's acknowledgement. 2026-10-25's stale-pidfile outage (T-3575) left 433.
+# Runs `systemctl reset-failed` only when the unit is ACTIVE and NRestarts exceeds
+# the preflight's max: a unit still failing is a live incident, not residue, and is
+# never acknowledged. Verified by reading NRestarts back. Idempotent: at or below
+# the max => skip.
+# Seams (fixtures only): RUNME_HUB_SYSTEMCTL (from action 5).
+# ---------------------------------------------------------------------------
+HUB_NRESTARTS_MAX="${TERMLINK_PREFLIGHT_NRESTARTS_MAX:-5}"
+
+ack_hub_flap() {
+    local n state n2
+    n="$("$HUB_SYSTEMCTL" show -p NRestarts --value "$HUB_UNIT" 2>/dev/null)"
+    if [ -z "$n" ]; then
+        say "  skip    $HUB_UNIT has no NRestarts here (no unit) — nothing to acknowledge"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if ! [[ "$n" =~ ^[0-9]+$ ]]; then
+        say "  FAILED  unreadable NRestarts for $HUB_UNIT: '$n'"; FAILED=$((FAILED+1)); return
+    fi
+    if [ "$n" -le "$HUB_NRESTARTS_MAX" ]; then
+        say "  skip    $HUB_UNIT NRestarts=$n (max $HUB_NRESTARTS_MAX) — no flap residue"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    state="$("$HUB_SYSTEMCTL" is-active "$HUB_UNIT" 2>/dev/null)"
+    if [ "$state" != "active" ]; then
+        say "  FAILED  $HUB_UNIT is '${state:-unknown}' with NRestarts=$n — a live crash loop, not residue; not acknowledging"; FAILED=$((FAILED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would run: systemctl reset-failed $HUB_UNIT (NRestarts=$n, unit active)"; DONE=$((DONE+1)); return
+    fi
+    "$HUB_SYSTEMCTL" reset-failed "$HUB_UNIT" 2>/dev/null
+    n2="$("$HUB_SYSTEMCTL" show -p NRestarts --value "$HUB_UNIT" 2>/dev/null)"
+    state="$("$HUB_SYSTEMCTL" is-active "$HUB_UNIT" 2>/dev/null)"
+    if [[ "$n2" =~ ^[0-9]+$ ]] && [ "$n2" -le "$HUB_NRESTARTS_MAX" ] && [ "$state" = "active" ]; then
+        say "  OK      acknowledged: $HUB_UNIT NRestarts $n -> $n2, unit still active"; DONE=$((DONE+1))
+    else
+        say "  FAILED  reset-failed did not clear the counter: NRestarts=${n2:-?} (was $n), unit '${state:-unknown}'"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "5b. Acknowledge hub flap residue (T-3587, the 2026-10-25 outage)"
+ack_hub_flap
+
+# ---------------------------------------------------------------------------
 # ACTION 6 — upgrade remote fleet hubs we have a foothold on (T-3290; operator
 # authorized forced upgrades of .122 and .121, 2026-09-30)
 #

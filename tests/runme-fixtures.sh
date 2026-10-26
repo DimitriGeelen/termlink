@@ -365,7 +365,10 @@ cat > "$H/systemctl" <<'EOS'
 #!/usr/bin/env bash
 H="${FAKE_HUB_DIR:?}"; pid=$(cat "$H/pid")
 case "$1" in
-  show) echo "$pid" ;;
+  # T-3587: NRestarts lives in a file (default 0, so other cases skip action 5b);
+  # reset-failed zeroes it unless FAKE_HUB_RESET_STICKY=1.
+  show) if [ "${3:-}" = "NRestarts" ]; then cat "$H/nrestarts" 2>/dev/null || echo 0; else echo "$pid"; fi ;;
+  reset-failed) echo reset-failed >> "$H/resets"; [ "${FAKE_HUB_RESET_STICKY:-0}" = 1 ] || echo 0 > "$H/nrestarts" ;;
   is-active) echo "${FAKE_HUB_ACTIVE:-active}" ;;
   restart)
     echo restart >> "$H/restarts"
@@ -561,7 +564,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 33 ))   # +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 34 ))   # +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -800,6 +803,33 @@ out=$(FAKE_HUB_STATUS_LAG=999 run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "hub-status-not-running-as-461"; then
     ok "hub (T-3450): hub status that never reads running still FAILS, named"
 else bad "hub status never running" "rc=$rc: $out"; fi
+# T-3587 action 5b: acknowledge flap residue with reset-failed (hub already current, so 5 skips).
+hub_state 100 "$H/hubbin"; rm -f "$H/resets"
+echo 3 > "$H/nrestarts"; out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    termlink-hub NRestarts=3 (max 5)" && [ ! -e "$H/resets" ]; then
+    ok "flap ack: NRestarts at or below the max is a skip, nothing reset"
+else bad "flap ack skip" "rc=$rc: $out"; fi
+echo 433 > "$H/nrestarts"; out=$(run --dry-run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "would run: systemctl reset-failed termlink-hub (NRestarts=433" && [ ! -e "$H/resets" ]; then
+    ok "flap ack: --dry-run names the reset and performs none"
+else bad "flap ack dry-run" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      acknowledged: termlink-hub NRestarts 433 -> 0" && [ "$(wc -l < "$H/resets")" = "1" ]; then
+    ok "flap ack: active unit above the max is reset once and verified (433 -> 0)"
+else bad "flap ack reset" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    termlink-hub NRestarts=0" && [ "$(wc -l < "$H/resets")" = "1" ]; then
+    ok "flap ack: second run skips (idempotent)"
+else bad "flap ack idempotent" "rc=$rc: $out"; fi
+echo 433 > "$H/nrestarts"; rm -f "$H/resets"; out=$(FAKE_HUB_ACTIVE=activating run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "live crash loop, not residue; not acknowledging" && [ ! -e "$H/resets" ]; then
+    ok "flap ack: a unit that is not active is a live incident => FAILED, never reset"
+else bad "flap ack not active" "rc=$rc: $out"; fi
+out=$(FAKE_HUB_RESET_STICKY=1 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "reset-failed did not clear the counter: NRestarts=433"; then
+    ok "flap ack: a reset that does not clear the counter is FAILED, not OK"
+else bad "flap ack sticky" "rc=$rc: $out"; fi
+echo 0 > "$H/nrestarts"; rm -f "$H/resets"
 hub_state 500 "/old/termlink (deleted)"
 out=$(FAKE_HUB_RESTART_MODE=rotate run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "hub.secret-CHANGED"; then
