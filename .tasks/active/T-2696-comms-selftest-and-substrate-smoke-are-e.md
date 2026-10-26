@@ -8,7 +8,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: [scripts/canary-status.sh, scripts/check-cron-install-drift.sh]
@@ -18,7 +18,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T08:01:43Z
-last_update: 2026-09-08T07:47:50Z
+last_update: 2026-10-26T15:21:34Z
 date_finished: 2026-09-08T07:47:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -286,3 +286,7 @@ grep -q "all eighteen follow" CLAUDE.md
 
 ### 2026-09-08T07:47:50Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-10-26T15:21:34Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion

@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: [scripts/check-canary-aliveness.sh, scripts/check-hook-counter-integrity.sh, tests/canary-aliveness-sweep-fixtures.sh, tests/hook-counter-integrity-fixtures.sh]
@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-01T22:08:08Z
-last_update: 2026-09-01T22:27:35Z
+last_update: 2026-10-26T15:21:35Z
 date_finished: 2026-09-01T22:27:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -410,3 +410,7 @@ writes neither log nor heartbeat and is invisible to it — that remains
 
 ### 2026-09-01T22:27:35Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-10-26T15:21:35Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion

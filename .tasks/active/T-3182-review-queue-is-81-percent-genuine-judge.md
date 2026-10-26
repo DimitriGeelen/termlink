@@ -31,7 +31,7 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -47,7 +47,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-27T08:13:28Z
-last_update: '2026-09-27T21:34:09Z'
+last_update: 2026-10-26T15:21:43Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -397,3 +397,7 @@ on a number that differs from it.
 
 ### 2026-09-27T08:14:10Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-26T15:21:43Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion

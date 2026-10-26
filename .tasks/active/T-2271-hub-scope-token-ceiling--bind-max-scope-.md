@@ -10,7 +10,7 @@ description: >
 
 status: captured
 workflow_type: build
-owner: human
+owner: agent
 horizon: next
 tags: []
 components: []
@@ -20,7 +20,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T07:51:08Z
-last_update: '2026-09-08T21:30:38Z'
+last_update: 2026-10-26T15:21:33Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -202,3 +202,7 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2271-hub-scope-token-ceiling--bind-max-scope-.md
 - **Context:** Initial task creation
+
+### 2026-10-26T15:21:33Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion

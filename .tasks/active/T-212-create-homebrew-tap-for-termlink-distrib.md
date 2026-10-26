@@ -8,13 +8,13 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: human
+owner: agent
 horizon: later
 tags: [homebrew]
 components: []
 related_tasks: []
 created: 2026-03-21T15:43:22Z
-last_update: '2026-09-27T21:34:04Z'
+last_update: 2026-10-26T15:21:32Z
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:36Z'
@@ -170,3 +170,7 @@ test "$(curl -sf -o /dev/null -w '%{http_code}' https://github.com/DimitriGeelen
 ### 2026-05-15T17:56:24Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-10-26T15:21:32Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion

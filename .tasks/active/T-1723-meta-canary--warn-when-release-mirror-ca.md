@@ -6,13 +6,13 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: [canary, meta, release, G-058, prevention, observability]
 components: [scripts/check-canary-aliveness.sh, scripts/check-mirror-freshness.sh]
 related_tasks: [T-1721, T-1696, T-1695]
 created: 2026-05-20T07:07:06Z
-last_update: 2026-06-06T12:54:51Z
+last_update: 2026-10-26T15:21:32Z
 date_finished: 2026-05-26T22:34:36Z
 ---
 
@@ -187,3 +187,7 @@ $ ls -la .context/working/.release-mirror-canary.heartbeat
 ### 2026-05-26T22:34:36Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Agent ACs verified 7/7; Recommendation block added; Human AC (cron install) pending operator
+
+### 2026-10-26T15:21:32Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion
