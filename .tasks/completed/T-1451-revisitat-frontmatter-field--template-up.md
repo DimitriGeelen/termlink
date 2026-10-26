@@ -8,16 +8,16 @@ description: >
   the field on status changes. Document in CLAUDE.md inception section. ~30 LOC +
   1 template + doc.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [framework, governance, T-1449, phase-1, channel-1-mirror]
 components: []
 related_tasks: [T-1449, T-1428]
 created: 2026-05-02T22:21:29Z
-last_update: 2026-10-26T15:21:32Z
-date_finished:
+last_update: 2026-10-26T15:23:47Z
+date_finished: 2026-10-26T15:23:47Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
     estimator: bvp-estimator-v1-heuristic
@@ -140,3 +140,24 @@ Verified live: this session's handover (`.context/handovers/LATEST.md`) was gene
 ### 2026-10-26T15:21:32Z — status-update [task-update-agent]
 - **Change:** owner: human → agent
 - **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-38c8fed1
+- **Timestamp:** 2026-10-26T15:23:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — `.agentic-framework/agents/task-create/update-task.sh` preserves both fields on status / horizon / owner / tags updates (regression test in `.agentic-framework/agents/task-create/tests/revisit-at-pres
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=agentic-framework/agents/task-create/update-task.sh in: `.agentic-framework/agents/task-create/update-task.sh` preserves both fields on status / horizon / owner / tags updates (regression test in `.agentic-`
+
+- **Layer-1 escalations:** 1
+  1. **destructive-action** (high) — Destructive operation in verification or AC
+     - matched: `rm -rf`
+
+### 2026-10-26T15:23:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

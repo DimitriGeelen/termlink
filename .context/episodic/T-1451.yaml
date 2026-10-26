@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1451: revisit_at frontmatter field + template update (T-1449 Phase-1 #1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T15:24:01Z
+# ============================================================================
+
+task_id: T-1451
+task_name: "revisit_at frontmatter field + template update (T-1449 Phase-1 #1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-02T22:21:29Z
+completed: 2026-10-26T15:23:47Z
+duration_days: 177
+updates_count: 4
+first_commit: 2026-05-15T20:42:28+02:00
+last_commit: 2026-06-01T01:14:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLAUDE.md Inception Discipline #8 — DEFER sets revisit_at (G-053). tick channel-1 mirror AC — upstream commit aaf7f69b on master. closure-ready — revisit_at field + governance rule shipped, T-1452 cron consumes it (G-053 prevention loop closed)
+
+# Key outcomes
+outcomes:
+  - '`.agentic-framework/.tasks/templates/default.md` frontmatter includes a commented opt-in hint for `revisit_at: YYYY-MM-DD` with explanation "Set on DEFER decisions to enable G-053 daily revisit scan". Commented (not active) so new tasks don''t carry empty placeholders that confuse YAML parsers.'
+  - '`.agentic-framework/.tasks/templates/default.md` frontmatter includes a paired commented opt-in hint for `revisit_evidence_needed:` (one-line string); comment: "What evidence makes the revisit actionable"'
+  - '`.agentic-framework/.tasks/templates/inception.md` frontmatter includes the same two commented hints'
+  - '`.agentic-framework/agents/task-create/update-task.sh` preserves both fields on status / horizon / owner / tags updates (regression test in `.agentic-framework/agents/task-create/tests/revisit-at-preservation-test.sh`)'
+  - 'CLAUDE.md "Inception Discipline" section documents the field: "When choosing DEFER, set `revisit_at: <ISO-date>` to enable the G-053 daily scan"'
+  - 'Channel-1 mirror: same patch pushed upstream to `agentic-engineering-framework` master at commit `aaf7f69b` (rebased onto remote 2e5f3cfb / T-077 handover head); cloned to /tmp/aef-channel1, patched, tested, pushed. The `termlink dispatch --workdir` path no longer works because the project-boundary hook (T-559/T-1702) blocks `/opt/999-AEF` references that aren''t on the read-side allowlist — used /tmp clone-and-push instead.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-08-27 — Verification asserted tip identity, not the property it cared about'
+    chose: 'Rewrite the upstream-mirror verification to assert the patch CONTENT is present on upstream master, rather than that master''s tip SHA equals `aaf7f69b`.'
+    rationale: '`git ls-remote <url> master` returns only the current tip. Upstream master has since advanced to `35aaaaed`, so the line failed even though the claim holds. Verified by full-depth fetch (8678 commits): `aaf7f69b` EXISTS and IS an ancestor of the tip, and upstream''s `.tasks/templates/default.md` carries the `revisit_at` hint. The AC''s substance ("patch pushed upstream") was true; the line tested a property that decays the moment any third party pushes.'
+    alternatives_rejected: ['Pinning a newer SHA — it would decay identically on the next upstream push. Rejected `--force` — the claim was verifiable, so bypassing would have discarded real evidence.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-1451-revisitat-frontmatter-field--template-up.md'
+  - 'CLAUDE.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-15T20:42:28'
+    action: 'T-1451: CLAUDE.md Inception Discipline #8 — DEFER sets revisit_at (G-053)'
+  - time: '2026-05-15T20:47:36'
+    action: 'T-1451: tick channel-1 mirror AC — upstream commit aaf7f69b on master'
+  - time: '2026-06-01T01:14:44'
+    action: 'T-1451: closure-ready — revisit_at field + governance rule shipped, T-1452 cron consumes it (G-053 prevention loop closed)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 254462 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework, governance, T-1449, phase-1, channel-1-mirror]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 254462
+  commits: 4
+  files_changed: 7
+  lines_added: 304
+  lines_removed: 32
+  footprint_refreshed_at: '2026-10-26T15:27:23Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1451-revisitat-frontmatter-field--template-up.md
+generated_by: context-agent-hybrid

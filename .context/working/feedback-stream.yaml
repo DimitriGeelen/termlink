@@ -20318,3 +20318,39 @@ scan_id: R-eb4b5304
 task_id: T-3590
 payload:
   task_file: .tasks/active/T-3590-re-vendor-aef-v1815-be24---be25-2ffe3a27.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:23:05Z'
+scan_id: R-91bf9b24
+task_id: T-1428
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:23:05Z'
+scan_id: R-91bf9b24
+task_id: T-1428
+payload:
+  task_file: .tasks/active/T-1428-foundation-soak-audit--t-1426--t-1427-sh.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:23:54Z'
+scan_id: R-38c8fed1
+task_id: T-1451
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:23:54Z'
+scan_id: R-38c8fed1
+task_id: T-1451
+payload:
+  task_file: .tasks/active/T-1451-revisitat-frontmatter-field--template-up.md
