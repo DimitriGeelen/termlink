@@ -20282,3 +20282,21 @@ scan_id: R-1e8161ff
 task_id: T-3587
 payload:
   task_file: .tasks/active/T-3587-runme-acknowledge-hub-flap-residue-syste.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T13:38:47Z'
+scan_id: R-5cb4b540
+task_id: T-3589
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T13:38:47Z'
+scan_id: R-5cb4b540
+task_id: T-3589
+payload:
+  task_file: .tasks/active/T-3589-re-vendor-aef-v1815-be18---be24-43de42ea.md

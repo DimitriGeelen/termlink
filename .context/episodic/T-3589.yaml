@@ -1,0 +1,124 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3589: Re-vendor AEF v1.8.15-be.18 -> be.24 (43de42eae)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T13:38:54Z
+# ============================================================================
+
+task_id: T-3589
+task_name: "Re-vendor AEF v1.8.15-be.18 -> be.24 (43de42eae)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-26T13:19:04Z
+completed: 2026-10-26T13:38:45Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-26T14:38:21+01:00
+last_commit: 2026-10-26T14:38:21+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.15-be.18 -> be.24 (43de42eae, 73 commits; operator go 2026-10-26)
+
+# Key outcomes
+outcomes:
+  - 'be.18 (5259a14be) is an ancestor of be.24 (43de42eae, 73 commits); rehearsed from one fresh clone, real run from another (rc 0 both); every preserved file upstream changed is 3-way merged. Only lib/sidecar_cli.py changed upstream (T-4753, T-4757, T-4761); merged clean, base be.18, our T-3533 doorbell warning kept'
+  - 'CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer reds no worse than the be.18 run. Guard layer PASS (gate=all): every FAIL-tier member clean, only the 4 known WARN reds'
+  - 'Per-fix probes sent to AEF as WORKS/FAILS, at least: T-4762 (`fw task review T-1899` no longer refused), T-4763 (backtick inside single quotes passes the guard), T-4751 (`fw config set BOUNDARY_EXTRA_READ_PATHS ...` passes the boundary gate), T-4729/T-4730. All WORKS (2026-10-26); also T-4757 present, T-4740 holds. T-4729''s counter semantics not separately exercised (no dispatch run)'
+  - '`.vendor-divergence.yaml` last_vendor_event updated (13738cb14)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-26 — take be.24? (operator ruling)'
+    chose: 're-vendor be.18 -> be.24 ("go ahead with be.24"). - **Left open:** be.25 (T-4768, T-4769) tagged after the ruling; a separate decision.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/context/check-project-boundary.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/generated/components/agents-context-check-agent-dispatch.md'
+  - '.agentic-framework/docs/generated/components/install-launcher-aef-start.md'
+  - '.agentic-framework/docs/generated/components/tests-integration-fw_self_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-_hermetic.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-helpers-hermetic.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4729_agent_dispatch_counter.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4730_termlink_subcommand_help.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4731_boundary_termlink_state_reads.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4736_upgrade_prunes_root_designer.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_hermetic_fixture.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t4745_discovered_modules_define_tests.md'
+  - '.agentic-framework/docs/generated/components/tests-web-test_t4749_anthropic_provider.md'
+  - '.agentic-framework/docs/generated/components/web-llm-anthropic_provider.md'
+  - '.agentic-framework/docs/reports/T-1549-escalation-scan-v0.md'
+  - '.agentic-framework/docs/reports/T-3659-p01-zero-to-running.md'
+  - '.agentic-framework/docs/reports/T-4752/received/README.md'
+  - '.agentic-framework/docs/reports/T-4752/received/conformance-map-v0.3.3.yaml'
+  - '.agentic-framework/docs/reports/T-4752/received/wc-mapping-check.py'
+  - '.agentic-framework/docs/reports/T-4752/review.md'
+  - '.agentic-framework/docs/reports/T-4752/spec-proposal.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.15-results.md'
+  - '.agentic-framework/lib/ac_placeholder.py'
+  - '.agentic-framework/lib/design_register.py'
+  - '.agentic-framework/lib/shell_write_scan.py'
+  - '.agentic-framework/lib/sidecar/outbox.py'
+  - '.agentic-framework/lib/sidecar/retry.py'
+  - '.agentic-framework/lib/sidecar/status.py'
+  - '.agentic-framework/lib/sidecar/waiting.py'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/task-audit.sh'
+  - '.agentic-framework/lib/termlink-runtime.sh'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/working-gitignore.sh'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.28.0.html'
+  - '.context/audits/upgrades.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-3589-re-vendor-aef-v1815-be18---be24-43de42ea.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-26T14:38:21'
+    action: 'T-3589: re-vendor AEF v1.8.15-be.18 -> be.24 (43de42eae, 73 commits; operator go 2026-10-26)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 19 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 19
+  commits: 2
+  files_changed: 49
+  lines_added: 2194
+  lines_removed: 132
+  footprint_refreshed_at: '2026-10-26T13:39:00Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3589-re-vendor-aef-v1815-be18---be24-43de42ea.md
+generated_by: context-agent-hybrid

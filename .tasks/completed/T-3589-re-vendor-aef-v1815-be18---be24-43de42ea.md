@@ -4,10 +4,10 @@ name: "Re-vendor AEF v1.8.15-be.18 -> be.24 (43de42eae)"
 description: >
   Operator ruling 2026-10-26 'go ahead with be.24'. Carries be.19 (T-4751 boundary config-set remedy, T-4701, T-4721, T-4722, T-4698), be.21 (T-4753 sidecar project guard), be.22 (T-4762, T-4763 our reports), be.23 (T-4757 settle-sent), be.24 (T-4766). be.25 tagged after the ruling, not taken.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-26T13:19:04Z
-last_update: 2026-10-26T13:38:20Z
-date_finished: null
+last_update: 2026-10-26T13:38:45Z
+date_finished: 2026-10-26T13:38:45Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -64,8 +64,8 @@ date_finished: null
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] be.18 (5259a14be) is an ancestor of be.24 (43de42eae, 73 commits); rehearsed from one fresh clone, real run from another (rc 0 both); every preserved file upstream changed is 3-way merged. Only lib/sidecar_cli.py changed upstream (T-4753, T-4757, T-4761); merged clean, base be.18, our T-3533 doorbell warning kept
 - [x] CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer reds no worse than the be.18 run. Guard layer PASS (gate=all): every FAIL-tier member clean, only the 4 known WARN reds
-- [ ] Per-fix probes sent to AEF as WORKS/FAILS, at least: T-4762 (`fw task review T-1899` no longer refused), T-4763 (backtick inside single quotes passes the guard), T-4751 (`fw config set BOUNDARY_EXTRA_READ_PATHS ...` passes the boundary gate), T-4729/T-4730
-- [ ] `.vendor-divergence.yaml` last_vendor_event updated
+- [x] Per-fix probes sent to AEF as WORKS/FAILS, at least: T-4762 (`fw task review T-1899` no longer refused), T-4763 (backtick inside single quotes passes the guard), T-4751 (`fw config set BOUNDARY_EXTRA_READ_PATHS ...` passes the boundary gate), T-4729/T-4730. All WORKS (2026-10-26); also T-4757 present, T-4740 holds. T-4729's counter semantics not separately exercised (no dispatch run)
+- [x] `.vendor-divergence.yaml` last_vendor_event updated (13738cb14)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -116,6 +116,9 @@ date_finished: null
 -->
 
 ## Verification
+grep -q "be.18 -> be.24 (43de42eae" .vendor-divergence.yaml && grep -q "^1.8.14+1378" .agentic-framework/VERSION
+grep -q "T-3533" .agentic-framework/lib/sidecar_cli.py && grep -q "def cmd_settle_sent" .agentic-framework/lib/sidecar_cli.py
+grep -q "^BOUNDARY_EXTRA_READ_PATHS: /root/.cargo:/root/.rustup" .framework.yaml
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -370,3 +373,20 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3589-re-vendor-aef-v1815-be18---be24-43de42ea.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5cb4b540
+- **Timestamp:** 2026-10-26T13:38:47Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-26T13:38:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
