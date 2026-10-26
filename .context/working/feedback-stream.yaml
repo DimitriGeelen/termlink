@@ -20300,3 +20300,21 @@ scan_id: R-5cb4b540
 task_id: T-3589
 payload:
   task_file: .tasks/active/T-3589-re-vendor-aef-v1815-be18---be24-43de42ea.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T13:56:39Z'
+scan_id: R-eb4b5304
+task_id: T-3590
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T13:56:39Z'
+scan_id: R-eb4b5304
+task_id: T-3590
+payload:
+  task_file: .tasks/active/T-3590-re-vendor-aef-v1815-be24---be25-2ffe3a27.md

@@ -4,10 +4,10 @@ name: "Re-vendor AEF v1.8.15-be.24 -> be.25 (2ffe3a27e)"
 description: >
   Operator ruling 2026-10-26 'go ahead with be.25'. be.25: T-4768 (CLI fw inception decide commits the Human-tick provenance row with the decision), T-4769 (ticks audit names an uncommitted provenance row).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-26T13:40:23Z
-last_update: 2026-10-26T13:56:21Z
-date_finished: null
+last_update: 2026-10-26T13:56:38Z
+date_finished: 2026-10-26T13:56:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -64,8 +64,8 @@ date_finished: null
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] be.24 (43de42eae) is an ancestor of be.25 (2ffe3a27e, 6 commits); rehearsed from one fresh clone, real run from another (rc 0 both); every preserved file upstream changed is 3-way merged. No preserved file changed upstream: nothing to merge
 - [x] CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer still PASS. 21 changes applied; guard PASS (gate=all), only the 4 known WARN reds
-- [ ] Per-fix probes sent to AEF as WORKS/FAILS: T-4768 and T-4769 (code present; decide is operator-only, so not exercised live unless the operator records one)
-- [ ] `.vendor-divergence.yaml` last_vendor_event updated
+- [x] Per-fix probes sent to AEF as WORKS/FAILS: T-4768 and T-4769 (code present; decide is operator-only, so not exercised live unless the operator records one). Present: inception.sh:431/951 (T-4768), human_ac_ticks.py:510/532 (T-4769); not exercised live
+- [x] `.vendor-divergence.yaml` last_vendor_event updated (2fad62ce7)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -116,6 +116,8 @@ date_finished: null
 -->
 
 ## Verification
+grep -q "be.24 -> be.25 (2ffe3a27e" .vendor-divergence.yaml && grep -q "^1.8.14+1384" .agentic-framework/VERSION
+grep -q "T-4768" .agentic-framework/lib/inception.sh && grep -q "T-4769" .agentic-framework/lib/human_ac_ticks.py
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -369,3 +371,20 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3590-re-vendor-aef-v1815-be24---be25-2ffe3a27.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-eb4b5304
+- **Timestamp:** 2026-10-26T13:56:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-26T13:56:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

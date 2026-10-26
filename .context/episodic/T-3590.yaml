@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3590: Re-vendor AEF v1.8.15-be.24 -> be.25 (2ffe3a27e)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T13:56:47Z
+# ============================================================================
+
+task_id: T-3590
+task_name: "Re-vendor AEF v1.8.15-be.24 -> be.25 (2ffe3a27e)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-26T13:40:23Z
+completed: 2026-10-26T13:56:38Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-26T14:56:21+01:00
+last_commit: 2026-10-26T14:56:21+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.15-be.24 -> be.25 (2ffe3a27e, 6 commits; operator go 2026-10-26)
+
+# Key outcomes
+outcomes:
+  - 'be.24 (43de42eae) is an ancestor of be.25 (2ffe3a27e, 6 commits); rehearsed from one fresh clone, real run from another (rc 0 both); every preserved file upstream changed is 3-way merged. No preserved file changed upstream: nothing to merge'
+  - 'CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer still PASS. 21 changes applied; guard PASS (gate=all), only the 4 known WARN reds'
+  - 'Per-fix probes sent to AEF as WORKS/FAILS: T-4768 and T-4769 (code present; decide is operator-only, so not exercised live unless the operator records one). Present: inception.sh:431/951 (T-4768), human_ac_ticks.py:510/532 (T-4769); not exercised live'
+  - '`.vendor-divergence.yaml` last_vendor_event updated (2fad62ce7)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-26 — take be.25? (operator ruling)'
+    chose: 're-vendor be.24 -> be.25 ("go ahead with be.25").'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/docs/reports/T-4737-designer-data-apis.md'
+  - '.agentic-framework/lib/human_ac_ticks.py'
+  - '.agentic-framework/lib/inception.sh'
+  - '.context/audits/upgrades.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-3590-re-vendor-aef-v1815-be24---be25-2ffe3a27.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-26T14:56:21'
+    action: 'T-3590: re-vendor AEF v1.8.15-be.24 -> be.25 (2ffe3a27e, 6 commits; operator go 2026-10-26)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 16
+  commits: 2
+  files_changed: 12
+  lines_added: 619
+  lines_removed: 28
+  footprint_refreshed_at: '2026-10-26T13:56:53Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3590-re-vendor-aef-v1815-be24---be25-2ffe3a27.md
+generated_by: context-agent-hybrid
