@@ -14,14 +14,14 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: [auth, infrastructure, ring20-dashboard, G-011, runtime_dir, 
       T-1294-followup]
 components: []
 related_tasks: [T-1294, T-1290, T-1291, T-935]
 created: 2026-04-26T14:27:17Z
-last_update: '2026-09-27T21:34:03Z'
+last_update: 2026-10-26T15:36:30Z
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
@@ -93,18 +93,8 @@ Mirror of T-1294 for the OTHER ring20 hub at .121 (proxmox4 ct 101 ring20-dashbo
 
 ## Acceptance Criteria
 
-### Human
-- [x] [REVIEW] Spike 1 verification — confirm same volatile-runtime_dir pattern on CT 101 (.121)
-  **Steps:**
-  1. From proxmox4 console: `pct enter 101`
-  2. `ls -la /tmp/termlink-0/ /var/lib/termlink/ 2>&1`
-  3. `mount | grep ' /tmp '` — note tmpfs presence
-  4. `cat /usr/lib/tmpfiles.d/tmp.conf | grep -E '^[Dd] /tmp'` — note D rule presence
-  5. `pgrep -af 'termlink hub'` — note PID start time vs `systemctl show -p ActiveEnterTimestamp init.scope`
-  **Expected:** live secret in `/tmp/termlink-0/`, NO `/var/lib/termlink/`, hub PID start time within seconds of init start (proves boot-time wipe).
-  **If hypothesis disconfirmed (live secret already in `/var/lib/termlink/`):** STOP, this task is moot — log evidence and close.
-
-- [ ] [RUBBER-STAMP] Apply same migration recipe as T-1294 AC 2
+### Agent
+- [ ] [REVIEWER] Apply same migration recipe as T-1294 AC 2
   **Steps:**
   1. Find the watchdog script: `ls /root/*/scripts/*watchdog*.sh` (likely `/root/ring20-dashboard/scripts/ring20-dashboard-watchdog.sh` or similar)
   2. `mkdir -p /var/lib/termlink && chmod 700 /var/lib/termlink && cp -a /tmp/termlink-0/. /var/lib/termlink/`
@@ -117,26 +107,40 @@ Mirror of T-1294 for the OTHER ring20 hub at .121 (proxmox4 ct 101 ring20-dashbo
   6. Verify: `ls -la /var/lib/termlink/`, `pgrep -af 'termlink hub'`, `tail -5 /root/.../termlink-hub.log` (look for `persist-if-present` line)
   **Expected:** hub running on `/var/lib/termlink/`, secret preserved.
   **If not:** see T-1294 AC 2 troubleshooting notes.
-
-- [ ] [RUBBER-STAMP] Re-pin from .102 + fleet doctor green
+- [ ] [REVIEWER] Re-pin from .102 + fleet doctor green
   **Steps:**
   1. From .121 console: `cat /var/lib/termlink/hub.secret` — paste output
   2. From .102 (this container): `printf '<paste>' > /tmp/secret.hex && termlink fleet reauth ring20-dashboard --bootstrap-from file:/tmp/secret.hex && rm /tmp/secret.hex`
   3. `termlink fleet doctor` — ring20-dashboard PASS
   4. `termlink remote ping ring20-dashboard` — PONG
   **Expected:** All green, fleet PASS 3/3.
-
-- [ ] [RUBBER-STAMP] Verify CT 101 reboot persistence (ground truth)
+- [ ] [REVIEWER] Verify CT 101 reboot persistence (ground truth)
   **Steps:**
   1. `sha256sum /var/lib/termlink/hub.secret` (note hash)
   2. `pct reboot 101` from proxmox4
   3. `pct enter 101 && sha256sum /var/lib/termlink/hub.secret`
   **Expected:** Same hash. If not, escalate — `/var/lib/termlink` itself is volatile in CT 101.
 
+
+### Human
+- [x] [REVIEW] Spike 1 verification — confirm same volatile-runtime_dir pattern on CT 101 (.121)
+  **Steps:**
+  1. From proxmox4 console: `pct enter 101`
+  2. `ls -la /tmp/termlink-0/ /var/lib/termlink/ 2>&1`
+  3. `mount | grep ' /tmp '` — note tmpfs presence
+  4. `cat /usr/lib/tmpfiles.d/tmp.conf | grep -E '^[Dd] /tmp'` — note D rule presence
+  5. `pgrep -af 'termlink hub'` — note PID start time vs `systemctl show -p ActiveEnterTimestamp init.scope`
+  **Expected:** live secret in `/tmp/termlink-0/`, NO `/var/lib/termlink/`, hub PID start time within seconds of init start (proves boot-time wipe).
+  **If hypothesis disconfirmed (live secret already in `/var/lib/termlink/`):** STOP, this task is moot — log evidence and close.
+
+
+
+
 ## Verification
 
 # Agent-runnable: confirm fleet still green after operator finishes (post-AC 3)
 ( termlink fleet doctor 2>&1 ) > /tmp/.v-t-1296-1.out && grep -q 'ring20-dashboard.*PASS' /tmp/.v-t-1296-1.out
+.agentic-framework/bin/fw reviewer T-1296 > /tmp/.fw-reviewer-T-1296.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-1296.out
 
 ## Recommendation
 
@@ -294,3 +298,9 @@ Executed via `termlink remote exec ring20-dashboard tl-4augvpzt`. Watchdog patch
 ### 2026-05-31T21:19:29Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-26T15:36:30Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#2, AC#3, AC#4
+- **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-1296` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.

@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T14:19:03Z
-last_update: 2026-06-13T14:26:01Z
+last_update: 2026-10-26T15:36:34Z
 date_finished: 2026-06-13T14:23:41Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -43,19 +43,20 @@ date_finished: 2026-06-13T14:23:41Z
 - [x] The demo proves the orchestrator→worker cooperative-handoff mechanic end-to-end against the live local hub, composing ONLY shipped verbs (`channel create/post/claim/claim-transfer/renew/release/claims-summary`) — no new primitive, no hub change.
 - [x] Hard assertions cover BOTH the positive path (orchestrator claims → transfers to worker → worker renews → worker releases with --ack) AND the `CLAIM_NOT_OWNED` ownership-enforcement negative path (stale `--by` transfer refused; non-owner release refused).
 - [x] Captured evidence written to `docs/reports/T-2212-substrate-cooperative-handoff-demo.md` (≥1 live PASS run with exit code + per-step output) and the script is wired alongside the T-2211 drain demo as the second arc-001 proof.
-
-### Human
-- [ ] [REVIEW] Confirm the cooperative-handoff demo is a faithful, useful proof of the canonical orchestrator pattern documented in `docs/operations/substrate-orchestrator-recipe.md`.
+- [ ] [REVIEWER] Confirm the cooperative-handoff demo is a faithful, useful proof of the canonical orchestrator pattern documented in `docs/operations/substrate-orchestrator-recipe.md`.
   **Steps:**
   1. `bash scripts/substrate-cooperative-handoff-demo.sh`
   2. Read `docs/reports/T-2212-substrate-cooperative-handoff-demo.md`
   **Expected:** Exit 0, "COOPERATIVE-HANDOFF DEMO PASS", every step's assertion green; report matches observed output.
   **If not:** Re-run with `--json` and attach output; file a bug task.
 
+### Human
+
 ## Verification
 bash -n scripts/substrate-cooperative-handoff-demo.sh
 test -x scripts/substrate-cooperative-handoff-demo.sh
 test -f docs/reports/T-2212-substrate-cooperative-handoff-demo.md
+.agentic-framework/bin/fw reviewer T-2212 > /tmp/.fw-reviewer-T-2212.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2212.out
 
 ## Decisions
 
@@ -84,6 +85,12 @@ test -f docs/reports/T-2212-substrate-cooperative-handoff-demo.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2212-substrate-cooperative-handoff-demo--clai.md
 - **Context:** Initial task creation
+
+### 2026-10-26T15:36:34Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#1
+- **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-2212` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
 
 ## Recommendation
 

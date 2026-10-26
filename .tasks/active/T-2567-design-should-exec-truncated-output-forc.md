@@ -17,7 +17,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T11:23:56Z
-last_update: '2026-09-27T21:34:05Z'
+last_update: 2026-10-26T15:36:35Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -105,6 +105,12 @@ task is the WIRE-BEHAVIOUR question the prover work deferred.
 
 ## Acceptance Criteria
 
+### Agent
+- [ ] [REVIEWER] If "force -1" is chosen, file a build task with the code change + a regression
+      test; if "keep + document", ensure the truncated-field contract is documented
+      at every consumer surface.
+
+
 ### Human
 - [ ] [REVIEW] Decide: should `execute_capped` force `exit_code = -1` (or a distinct sentinel)
       whenever `truncated == true`, so exit-code-only consumers cannot mistake a
@@ -113,9 +119,6 @@ task is the WIRE-BEHAVIOUR question the prover work deferred.
 - [ ] [REVIEW] Consumer-contract audit: enumerate every `exec` / `termlink_run` / `batch_run`
       caller and confirm each checks `truncated` alongside `exit_code` (or would be
       protected by the forced -1). List the unprotected callers.
-- [ ] [RUBBER-STAMP] If "force -1" is chosen, file a build task with the code change + a regression
-      test; if "keep + document", ensure the truncated-field contract is documented
-      at every consumer surface.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -180,6 +183,7 @@ task is the WIRE-BEHAVIOUR question the prover work deferred.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+.agentic-framework/bin/fw reviewer T-2567 > /tmp/.fw-reviewer-T-2567.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2567.out
 
 ## RCA
 
@@ -308,3 +312,9 @@ build task. `scripts/session-selftest.sh` F3 already covers the prover side.
 ### 2026-08-09T11:26:26Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-10-26T15:36:35Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#3
+- **Left under ### Human:** unclassified: AC#1, AC#2 (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-2567` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.

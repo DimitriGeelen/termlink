@@ -12,13 +12,13 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: [governance, gitignore, clean-clone, static-checks]
 components: [scripts/check-cron-install-drift.sh, scripts/check-framework-pickup-freshness.sh, scripts/check-framework-tracking-drift.sh, scripts/check-verification-pipefail.sh, tests/framework-dangling-ref-fixtures.sh, tests/framework-tracking-drift-fixtures.sh, tests/gitignore-framework-scope-fixtures.sh, tests/pickup-canary-selffilter-fixtures.sh, tests/pickup-failopen-fixtures.sh, tests/verification-pipefail-check-fixtures.sh]
 related_tasks: [T-2819, T-2814, T-2817, T-2527, T-2531, T-2666, T-2672, T-2821]
 created: 2026-08-20
-last_update: 2026-08-23T20:41:38Z
+last_update: 2026-10-26T15:36:37Z
 date_finished: 2026-08-23T20:41:38Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:38Z'
@@ -159,9 +159,7 @@ committing; an allowlist is a record of governance decisions and deserves that l
       "fixes" this that way later
 - [x] Fixture proves the ignored-by-design paths are still ignored
 - [x] Fixture is host-independent — scratch repo, no real `.context/working`
-
-### Human
-- [ ] [RUBBER-STAMP] Commit the four static-check allowlists so the checks are clean off this machine.
+- [ ] [REVIEWER] Commit the four static-check allowlists so the checks are clean off this machine.
       **Steps:**
       1. `cd /opt/termlink && git status --short .context/working/ | head -30`
       2. Read the list — confirm nothing machine-local or secret-bearing appears. Expect the
@@ -178,10 +176,13 @@ committing; an allowlist is a record of governance decisions and deserves that l
       **If not:** the check names the site still unacknowledged; either it is a genuine new
       finding worth clamping, or it needs adding to the allowlist with a reason.
 
+### Human
+
 ## Verification
 
 bash tests/gitignore-working-scope-fixtures.sh
 test -z "$(git status --porcelain .context/working/ | grep -v '^ M')"
+.agentic-framework/bin/fw reviewer T-2822 > /tmp/.fw-reviewer-T-2822.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2822.out
 
 ## RCA
 
@@ -286,3 +287,9 @@ half is T-2819 (`owner: human`, still open) — the two are siblings, not duplic
 ### 2026-09-25T00:09:54Z — audit-remediation [T-3104]
 - **Action:** Added the missing ## Updates section flagged by fw audit's task-compliance check (arc-008 T-3104)
 - **Context:** This file had dated status-update entries embedded under other headings but no Updates heading of its own
+
+### 2026-10-26T15:36:37Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#1
+- **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-2822` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.

@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-01T10:44:04Z
-last_update: 2026-09-02T06:15:34Z
+last_update: 2026-10-26T15:36:38Z
 date_finished: 2026-09-02T06:15:34Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -75,15 +75,15 @@ tools buys something real.
 - [x] **The version-skew hypothesis is disproved, with evidence.** `fleet doctor` puts .122 at `0.11.1411`, not `0.9.0`; the `0.9.0` reading came from session metadata, which is the T-2744 defect (`termlink-session` stamped the Cargo.toml constant into every session ever created, while the same binary reported `0.11.720` from `--version`). The failure reproduced **byte-identically against the local `0.11.1716` hub** — the newest binary in the fleet — so no hub version is implicated. Control on the same hub and same session: the CLI path injected 20 bytes successfully while the MCP path failed.
 - [x] **The parity census reason is corrected rather than cleared.** `termlink_remote_inject` stays in `.context/checks/mcp-parity-census-allowlist` because no `parity.rs` assertion exists yet and deleting the line would make the census claim coverage it does not have (T-2680). Its reason now records that the tool is no longer *unexamined* — it was examined and was broken — and that a full MCP-vs-CLI case is still owed under T-2748. Census re-runs clean: 260 tools, 24 asserted, 236 acknowledged, 0 unexamined.
 - [x] **End-to-end through the MCP server.** PROVEN 2026-09-01, and proven on the RECEIVER rather than the sender. The blocker was never the fix — it was that the MCP server attached to this session is a long-lived process still running pre-fix code, which cannot be restarted from inside the session it serves. That does not require a restart to verify: a **fresh `termlink mcp serve` was spawned from the rebuilt binary** (`/root/.cargo/bin/termlink`, mtime 13:38, postdating the fix commit `93cb3d8d9` at 12:55) and driven over stdio with a real MCP handshake — `initialize` → `notifications/initialized` → `tools/call termlink_remote_inject`. Two runs: against a non-PTY tmux session the call returned `ok:false` with `"No PTY session"` — note the `-32602 Invalid keys format` is **gone**, so the `KeyEntry` payload now deserializes and reaches session resolution; against a PTY-backed session (`spawn --shell --backend background`) it returned `{"ok": true, "result": {"status": "injected", "bytes_len": 21}}`. **The hub saying `injected` is not proof** — that is this task's own finding — so `termlink output t2873pty` was read and shows `echo T2873_INJECT_OK` echoed and its output `T2873_INJECT_OK` on the following line. The command was injected AND executed. Server identified itself as `termlink-mcp 0.11.1766`.
-
-### Human
-- [ ] [RUBBER-STAMP] Restart the MCP server so the fixed `termlink_remote_inject` goes live.
+- [ ] [REVIEWER] Restart the MCP server so the fixed `termlink_remote_inject` goes live.
   **Steps:**
   1. The fix is committed and `cargo build --release -p termlink-mcp` succeeds, but the MCP server serving this session is a long-lived process still running the pre-fix code — re-invoking the tool after the build still returns `-32602`, failing on the first character of the new text.
   2. Restart the MCP server (or the Claude Code session holding the `termlink` MCP connection) so it re-execs the rebuilt binary.
   3. Re-run an inject against a scratch session: spawn one with `termlink spawn --name probe -- bash -l`, then call `termlink_remote_inject` with `hub=192.168.10.107:9100`, `session=probe`, `text=echo OK`, `enter=true`.
   **Expected:** `{"ok": true, ...}` instead of `-32602 Invalid keys format`.
   **If not:** confirm the server actually re-execed — `/proc/<pid>/exe` showing `(deleted)` means it is still the old image (PL-209). This is the same shipped-vs-live trap as G-069 / preflight Check 5.
+
+### Human
 
 
 ## Verification
@@ -152,6 +152,7 @@ grep -q "fn build_inject_keys" crates/termlink-mcp/src/tools.rs
 timeout 600 cargo test -p termlink-mcp inject_keys > /tmp/.t2873.txt 2>&1 && grep -q "build_inject_keys_round_trips_through_the_wire_type ... ok" /tmp/.t2873.txt && grep -q "build_inject_keys_appends_enter_as_a_key_entry ... ok" /tmp/.t2873.txt
 timeout 600 cargo test -p termlink-mcp bare_string_keys > /tmp/.t2873b.txt 2>&1 && grep -q "bare_string_keys_are_rejected_by_the_wire_type ... ok" /tmp/.t2873b.txt
 timeout 200 bash scripts/check-mcp-parity-census.sh > /tmp/.t2873c.txt 2>&1
+.agentic-framework/bin/fw reviewer T-2873 > /tmp/.fw-reviewer-T-2873.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2873.out
 
 ## RCA
 
@@ -349,6 +350,12 @@ session it serves.
   for, but checking a `### Human` AC is not an agent action under any delegation
   (CLAUDE.md § Agent/Human AC Split). This entry exists so the human can stamp it
   in one read rather than re-running the probe.
+
+### 2026-10-26T15:36:38Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#1
+- **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-2873` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
 
 ## Reviewer Verdict (v1.5)
 

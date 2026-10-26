@@ -6,13 +6,13 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T13:21:59Z
-last_update: 2026-05-04T13:31:15Z
+last_update: 2026-10-26T15:36:32Z
 date_finished: 2026-05-04T13:31:15Z
 ---
 
@@ -38,15 +38,15 @@ activity-summary code path. Mutually exclusive with `--target-fp`.
 - [x] cargo build --release -p termlink clean
 - [x] Live smoke against `--target ollama-smoke-1` (a registered local session, see `termlink list`): resolves and produces same output as `--target-fp <its-fp>` would
 - [x] Live smoke against `--target nonexistent-session-xyz`: exit 1, error names the missing session
-
-### Human
-- [ ] [REVIEW] Verify error messages name the failing input clearly
+- [ ] [REVIEWER] Verify error messages name the failing input clearly
   **Steps:**
   1. `target/release/termlink agent who --target nonexistent-session-xyz` (run from /opt/termlink)
   2. `target/release/termlink agent who --target some-name --target-fp deadbeefdead` 
   3. `target/release/termlink agent who` (no args)
   **Expected:** each error names the offending flag combo or session and points to the right next step
   **If not:** describe the unclear wording, suggest concrete improvement
+
+### Human
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -69,6 +69,7 @@ activity-summary code path. Mutually exclusive with `--target-fp`.
 ( target/release/termlink agent who --help 2>&1 ) > /tmp/.v-t-1483-2.out && grep -q -- "--target " /tmp/.v-t-1483-2.out
 out=$(target/release/termlink agent who --target some-x --target-fp dead 2>&1 || true); echo "$out" | grep -qE "mutually exclusive|specify either" && ! echo "$out" | grep -qi panicked
 out=$(target/release/termlink agent who 2>&1 || true); echo "$out" | grep -qE "must specify either|required" && ! echo "$out" | grep -qi panicked
+.agentic-framework/bin/fw reviewer T-1483 > /tmp/.fw-reviewer-T-1483.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-1483.out
 
 ## RCA
 
@@ -137,3 +138,9 @@ out=$(target/release/termlink agent who 2>&1 || true); echo "$out" | grep -qE "m
   [exit=1]
   ```
 - **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.
+
+### 2026-10-26T15:36:32Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#1
+- **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-1483` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.

@@ -17,7 +17,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T11:21:41Z
-last_update: '2026-09-27T21:34:05Z'
+last_update: 2026-10-26T15:36:35Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -90,13 +90,16 @@ These interact with the offline-queue design (T-2051) and presence semantics
 
 ## Acceptance Criteria
 
+### Agent
+- [ ] [REVIEWER] If either decision is "change behaviour", a follow-up build task is filed with
+      concrete ACs; if "keep status quo", the T-2564 warn is confirmed as sufficient.
+
+
 ### Human
 - [ ] [REVIEW] Decision recorded on Q1 (queue / drop / coalesce presence on hub-unreachable),
       with rationale tied to the offline-queue capacity + presence-TTL trade-off.
 - [ ] [REVIEW] Decision recorded on Q2 (loop exit-after-N-queued: yes/no, N value, opt-in?),
       with rationale tied to supervisor restart behaviour vs flap risk.
-- [ ] [RUBBER-STAMP] If either decision is "change behaviour", a follow-up build task is filed with
-      concrete ACs; if "keep status quo", the T-2564 warn is confirmed as sufficient.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -161,6 +164,7 @@ These interact with the offline-queue design (T-2051) and presence semantics
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+.agentic-framework/bin/fw reviewer T-2566 > /tmp/.fw-reviewer-T-2566.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2566.out
 
 ## RCA
 
@@ -293,3 +297,9 @@ defensible outcome and should be recorded as one, not left open.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2566-design-ephemeral-presence-queue-vs-drop-.md
 - **Context:** Initial task creation
+
+### 2026-10-26T15:36:35Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#3
+- **Left under ### Human:** unclassified: AC#1, AC#2 (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-2566` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.

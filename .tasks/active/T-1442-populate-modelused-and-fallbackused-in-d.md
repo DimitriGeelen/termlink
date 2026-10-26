@@ -6,13 +6,13 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T20:42:49Z
-last_update: 2026-06-06T16:33:02Z
+last_update: 2026-10-26T15:36:31Z
 date_finished: 2026-05-01T21:03:11Z
 ---
 
@@ -46,9 +46,7 @@ the substrate's resolution decision.
 - [x] `cargo check --workspace` passes.
 - [x] `bash -n scripts/tl-dispatch.sh` passes.
 - [x] `tests/test_tl_dispatch_meta.sh` exits 0.
-
-### Human
-- [ ] [REVIEW] Spot-check by running cmd_spawn against a live hub and confirm `cat /tmp/tl-dispatch/spot/meta.json | python3 -m json.tool` shows `model_used: "haiku"`, `fallback_used: false`, `task_type: "build"`.
+- [ ] [REVIEWER] Spot-check by running cmd_spawn against a live hub and confirm `cat /tmp/tl-dispatch/spot/meta.json | python3 -m json.tool` shows `model_used: "haiku"`, `fallback_used: false`, `task_type: "build"`.
   **Steps:**
   1. `cd /opt/termlink && cargo build --release -p termlink-cli`
   2. `./target/release/termlink hub start &` (if no hub is running)
@@ -58,11 +56,14 @@ the substrate's resolution decision.
   **Expected:** JSON shows `task_type: "build"`, `model: "haiku"`, `model_used: "haiku"`, `fallback_used: false`.
   **If not:** Re-run the regression test (`bash tests/test_tl_dispatch_meta.sh`) — if THAT passes but live spawn doesn't, the bug is in spawn argument plumbing.
 
+### Human
+
 ## Verification
 
 bash -n scripts/tl-dispatch.sh
 bash tests/test_tl_dispatch_meta.sh
 cargo check --workspace
+.agentic-framework/bin/fw reviewer T-1442 > /tmp/.fw-reviewer-T-1442.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-1442.out
 
 ## Recommendation
 
@@ -163,3 +164,9 @@ Plus bonus: `resolution_source` field (provides traceability for the model choic
   (live spawn against running hub: mutation not executed)
   ```
 - **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.
+
+### 2026-10-26T15:36:31Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#1
+- **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-1442` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.

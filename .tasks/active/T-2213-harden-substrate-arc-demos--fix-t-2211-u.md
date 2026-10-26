@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T14:44:29Z
-last_update: 2026-06-13T14:47:41Z
+last_update: 2026-10-26T15:36:34Z
 date_finished: 2026-06-13T14:47:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -43,18 +43,19 @@ date_finished: 2026-06-13T14:47:26Z
 - [x] `scripts/substrate-smoke.sh` gains two new stages that run the two arc demos as regression gates: the N-way work-stealing race (T-2211) and the cooperative-handoff ownership-gate demo (T-2212) — coverage the existing happy-path smoke lacked.
 - [x] `scripts/substrate-smoke.sh` still exits 0 end-to-end with the new stages wired in (verified live on the local hub).
 - [x] `bash -n` clean on both edited scripts.
-
-### Human
-- [ ] [REVIEW] Confirm the smoke suite is the right home for the two arc-demo regression gates (vs a separate CI entry).
+- [ ] [REVIEWER] Confirm the smoke suite is the right home for the two arc-demo regression gates (vs a separate CI entry).
   **Steps:**
   1. `bash scripts/substrate-smoke.sh`
   **Expected:** Exit 0; stages include the drain-demo (work-stealing) and cooperative-handoff (ownership-gate) gates.
   **If not:** Re-run with `--json`; file a bug task.
 
+### Human
+
 ## Verification
 bash -n scripts/substrate-drain-demo.sh
 bash -n scripts/substrate-smoke.sh
 grep -q 'messages:' scripts/substrate-drain-demo.sh
+.agentic-framework/bin/fw reviewer T-2213 > /tmp/.fw-reviewer-T-2213.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2213.out
 
 ## Decisions
 
@@ -83,6 +84,12 @@ grep -q 'messages:' scripts/substrate-drain-demo.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2213-harden-substrate-arc-demos--fix-t-2211-u.md
 - **Context:** Initial task creation
+
+### 2026-10-26T15:36:34Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#1
+- **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-2213` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
 
 ## Recommendation
 

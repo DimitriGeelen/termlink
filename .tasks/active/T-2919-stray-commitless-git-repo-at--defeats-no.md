@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: [scripts/remediate-main-checkout.sh, tests/remediate-main-checkout-fixtures.sh]
@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-08T07:18:16Z
-last_update: 2026-09-08T07:21:29Z
+last_update: 2026-10-26T15:36:39Z
 date_finished: 2026-09-08T07:21:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -58,14 +58,14 @@ boundary (T-559) → Human AC.
 - [x] `scripts/remediate-main-checkout.sh` exits 2 with an actionable message when `--root` is inside a repo but not its toplevel (the stray-enclosing-repo class)
 - [x] `bash tests/remediate-main-checkout-fixtures.sh` is fully green (28/28, two new T-2919 assertions) on this host WITHOUT removing `/.git` — the guard, not host cleanliness, carries the contract
 - [x] Normal operation unaffected: `--root <real repo toplevel>` still passes the guard (all pre-existing clean-tree fixture cases green)
-
-### Human
-- [ ] [RUBBER-STAMP] Remove the stray commitless repo at `/`
+- [ ] [REVIEWER] Remove the stray commitless repo at `/`
   **Steps:**
   1. `ls /.git/objects -R | head -5 && git -C / log --oneline -1; true` — confirm still 0 objects / no commits
   2. `cd / && sudo rm -rf /.git`
   **Expected:** step 1 shows no objects and "does not have any commits"; after step 2, `git -C /tmp rev-parse --git-dir` prints a fatal error (guards fail closed again host-wide)
   **If not:** if step 1 shows objects or commits, STOP — something started using the repo; investigate before removing.
+
+### Human
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -164,6 +164,7 @@ boundary (T-559) → Human AC.
 bash tests/remediate-main-checkout-fixtures.sh > /tmp/.t2919-fix 2>&1 && grep -qE "2[7-9] passed, 0 failed" /tmp/.t2919-fix
 R=$(mktemp -d); git -C "$R" init -q; mkdir -p "$R/sub"; bash scripts/remediate-main-checkout.sh --root "$R/sub" > /tmp/.t2919-guard 2>&1; rc=$?; rm -rf "$R"; test "$rc" -eq 2
 grep -q "not the root of a git repository" /tmp/.t2919-guard
+.agentic-framework/bin/fw reviewer T-2919 > /tmp/.fw-reviewer-T-2919.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2919.out
 
 ## RCA
 
@@ -288,6 +289,12 @@ inside-some-repo shape are a candidate follow-up sweep, deliberately not bundled
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2919-stray-commitless-git-repo-at--defeats-no.md
 - **Context:** Initial task creation
+
+### 2026-10-26T15:36:39Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#1
+- **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-2919` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
 
 ## Reviewer Verdict (v1.5)
 

@@ -17,7 +17,7 @@ components: [scripts/check-verification-pipefail.sh,
       scripts/T-1884-S2-dryrun.py, scripts/T-1884-S3-cli-watch.py]
 related_tasks: []
 created: 2026-05-30T21:58:06Z
-last_update: 2026-08-23T20:55:02Z
+last_update: 2026-10-26T15:36:33Z
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:36Z'
@@ -89,6 +89,12 @@ with the MVP scope narrowed to local-only validators. This is the v0.1 build.
 - [x] Verb supports batch-by-default + filters: `fw independent-review` (all), `--task T-XXX`, `--since 7d`, `--class <class>`, `--resume`
 - [x] State journaled to `.context/working/.independent-review-state.json` for crash-safe resume
 - [x] Dry-run on the current 41-AC scope produces a summary table: how many PASS-ROBUST, PASS-LOOSE, FAIL, INCONCLUSIVE, OPERATOR-ONLY, OTHER
+- [ ] [REVIEWER] At least one FAIL produced an auto-followup task with a useful RCA stub
+  **Steps:**
+  1. `ls .tasks/active/ | grep investigate` (should show ≥1 new T-XXXX)
+  2. Open the most recent one and verify it has G-019 RCA section + source-task link
+  **Expected:** Auto-followup tasks are well-formed and operator-actionable.
+  **If not:** Diagnose which source-task FAILed and why the stub failed to populate.
 
 ### Human
 - [ ] [REVIEW] Run `fw independent-review --dry-run` and verify the per-task verdict lines read naturally — operator can scan for which tasks have evidence-of-PASS available
@@ -98,12 +104,6 @@ with the MVP scope narrowed to local-only validators. This is the v0.1 build.
   3. Spot-check 3 PASS tasks via `fw task review T-XXX` to verify the evidence renders in Watchtower
   **Expected:** Verdict lines are clear, evidence is operator-actionable, no spammy noise.
   **If not:** Report which lines are unclear and which Updates entries are missing context.
-- [ ] [RUBBER-STAMP] At least one FAIL produced an auto-followup task with a useful RCA stub
-  **Steps:**
-  1. `ls .tasks/active/ | grep investigate` (should show ≥1 new T-XXXX)
-  2. Open the most recent one and verify it has G-019 RCA section + source-task link
-  **Expected:** Auto-followup tasks are well-formed and operator-actionable.
-  **If not:** Diagnose which source-task FAILed and why the stub failed to populate.
 
 ## Verification
 
@@ -114,6 +114,7 @@ bash -c "(scripts/independent-review.py --help 2>&1 || .agentic-framework/agents
 ( python3 scripts/independent-review.py --dry-run 2>&1 ) > /tmp/.v-t-1885-1.out && grep -qE 'PASS|FAIL|INCONCLUSIVE' /tmp/.v-t-1885-1.out
 # Classifier preserved (re-run S1, confidence ≥80%)
 ( python3 scripts/T-1884-S1-classify.py 2>&1 ) > /tmp/.v-t-1885-2.out && grep -qE 'PASS$|Overall confidence: (8[0-9]|9[0-9]|100)' /tmp/.v-t-1885-2.out
+.agentic-framework/bin/fw reviewer T-1885 > /tmp/.fw-reviewer-T-1885.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-1885.out
 
 ## RCA
 
@@ -217,6 +218,12 @@ assumed. Worth a `revisit_at` if the corpus doubles.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1885-fw-independent-review-v01--local-only-or.md
 - **Context:** Initial task creation
+
+### 2026-10-26T15:36:33Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#2
+- **Left under ### Human:** taste: AC#1 (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-1885` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
 
 ## Reviewer Verdict (v1.5)
 

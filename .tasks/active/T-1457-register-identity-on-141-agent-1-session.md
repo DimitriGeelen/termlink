@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-03T20:52:09Z
-last_update: '2026-09-27T21:34:03Z'
+last_update: 2026-10-26T15:36:31Z
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:36Z'
@@ -82,6 +82,15 @@ Counterpart on .122 (`tl-vtvvv2tj` / `9219671e28054458`) demonstrates the workin
 - [x] FP confirmation: 6604a2af482f0cf7 posts as .141's chat-arc participant — verified 2026-05-03T20:54Z (33 posts, last 21:37 UTC)
 - [x] Direct dm: post smoke-tested — `agent contact --hub laptop-141 --target-fp 6604a2af482f0cf7` lands on offset=1 of dm:6604a2af482f0cf7:d1993c2c3ec44c94 — verified 2026-05-03T20:54Z
 - [ ] `termlink remote exec laptop-141 tl-gibzucwp 'termlink whoami'` shows non-empty `Identity FP: 6604a2af482f0cf7` (requires session re-registration with --identity)
+- [ ] [REVIEWER] Operator action on .141 (only if peer Claude is required)
+  **Steps:**
+  1. Open SSH or WSL session on .141 as user dimitri
+  2. Stop the existing `tl-gibzucwp` agent-1 session (`pkill -f 'termlink register'` or wait for natural exit)
+  3. Re-register with explicit identity: `termlink register --name agent-1 --identity-key ~/.termlink/identity.key --tags 'role:agent,host:dimitrixpro'`
+  4. Verify: `termlink whoami` shows `Identity FP: 6604a2af482f0cf7`
+  5. Attach a Claude Code session that subscribes to chat-arc + dm:6604a2af:* topics
+  **Expected:** From .107, `termlink agent contact --hub laptop-141 --target-fp 6604a2af482f0cf7 --message "ping"` produces a reply within ~30s.
+  **If not:** Re-check identity key path; verify session metadata via `termlink remote list laptop-141` shows non-`-` FP column.
 
 ### Human
 - [ ] [REVIEW] Decide whether .141 needs a peer Claude attached at all, or whether heartbeat-only target is the desired end state for that host
@@ -91,15 +100,6 @@ Counterpart on .122 (`tl-vtvvv2tj` / `9219671e28054458`) demonstrates the workin
   **Expected:** Clear scope decision. If "vendored agent", proceed with operator action below.
   **If not (heartbeat-only target):** Close this task as out-of-scope — current state is the desired end state.
 
-- [ ] [RUBBER-STAMP] Operator action on .141 (only if peer Claude is required)
-  **Steps:**
-  1. Open SSH or WSL session on .141 as user dimitri
-  2. Stop the existing `tl-gibzucwp` agent-1 session (`pkill -f 'termlink register'` or wait for natural exit)
-  3. Re-register with explicit identity: `termlink register --name agent-1 --identity-key ~/.termlink/identity.key --tags 'role:agent,host:dimitrixpro'`
-  4. Verify: `termlink whoami` shows `Identity FP: 6604a2af482f0cf7`
-  5. Attach a Claude Code session that subscribes to chat-arc + dm:6604a2af:* topics
-  **Expected:** From .107, `termlink agent contact --hub laptop-141 --target-fp 6604a2af482f0cf7 --message "ping"` produces a reply within ~30s.
-  **If not:** Re-check identity key path; verify session metadata via `termlink remote list laptop-141` shows non-`-` FP column.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -128,6 +128,7 @@ Counterpart on .122 (`tl-vtvvv2tj` / `9219671e28054458`) demonstrates the workin
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
 out=$(./target/release/termlink remote exec laptop-141 tl-gibzucwp 'termlink whoami' 2>&1); echo "$out" | grep -E "^Identity FP: [0-9a-f]{16}" >/dev/null
 out=$(./target/release/termlink channel members --hub laptop-141 agent-chat-arc 2>&1); { echo "$out" | grep -vE "^d1993c2c|^0000" | grep -cE "^[0-9a-f]{16}" || true; } | (read n; [ "$n" -ge 1 ])
+.agentic-framework/bin/fw reviewer T-1457 > /tmp/.fw-reviewer-T-1457.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-1457.out
 
 ## RCA
 
@@ -235,3 +236,9 @@ Refreshed evidence so the [REVIEW] taste-call is actionable today.
 - Memory `[.141 pickup partial]` already classifies current state as "Hub UP but no peer-agent listener... broadcast-only" — picking heartbeat-only just formalizes the status quo.
 
 **Agent AC 3 (session re-registration on .141)** remains unsatisfied — requires operator SSH/WSL action on .141 host (cannot drive from .107).
+
+### 2026-10-26T15:36:31Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#2
+- **Left under ### Human:** unclassified: AC#1 (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-1457` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.

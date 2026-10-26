@@ -6,13 +6,13 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: [cron, doctor, lint, PL-173, G-058, prevention]
 components: []
 related_tasks: [T-1721, T-1696]
 created: 2026-05-20T07:06:58Z
-last_update: 2026-05-26T22:44:25Z
+last_update: 2026-10-26T15:36:33Z
 date_finished: 2026-05-26T22:44:25Z
 ---
 
@@ -40,20 +40,21 @@ on every `fw audit` invocation, including the project's own scheduled audit.
 - [x] Negative-tested by staging a temporary USER-field crontab in `.context/cron/__test-T1722.crontab` with no install, running the audit section, and confirming the FAIL appears with the install command in the suggestion. Then removing the test file and confirming the FAIL disappears.
 - [x] Channel-1 mirror: identical patch landed at `/opt/999-Agentic-Engineering-Framework/agents/audit/audit.sh` on `origin/master` as commit `a3566cb3`. Verified via `git ls-remote https://onedev.docker.ring20.geelenandcompany.com/agentic-engineering-framework master` → `a3566cb37ea76bef4d10712141ba9cccb7a4110b`.
 - [x] `bash -n .agentic-framework/agents/audit/audit.sh` passes; `fw audit --section structure` returns clean (no spurious WARN/FAIL added; existing PASS lines unaffected — 3 new PASS lines added).
-
-### Human
-
-- [ ] [RUBBER-STAMP] Upstream landed on `/opt/999-AEF` `origin/master`.
+- [ ] [REVIEWER] Upstream landed on `/opt/999-AEF` `origin/master`.
   **Steps:**
   1. From any host that can reach OneDev: `git ls-remote https://onedev.docker.ring20.geelenandcompany.com/agentic-engineering-framework master | awk '{print $1}'`
   2. Compare against the Channel-1 commit SHA recorded in Updates.
   **Expected:** OneDev master SHA matches the Channel-1 push.
   **If not:** Re-fire the Channel-1 push via `termlink_run` from /opt/termlink; check upstream OneDev for branch-protection rejection.
 
+### Human
+
+
 ## Verification
 
 bash -n .agentic-framework/agents/audit/audit.sh
 test "$(.agentic-framework/bin/fw audit --section structure 2>&1 | grep -cE 'cron\(|Cron registry')" -ge 3
+.agentic-framework/bin/fw reviewer T-1722 > /tmp/.fw-reviewer-T-1722.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-1722.out
 
 ## RCA
 
@@ -178,6 +179,12 @@ $ .agentic-framework/bin/fw audit --section structure | grep -E 'cron'
 ### 2026-05-26T22:37:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-26T15:36:33Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#1
+- **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-1722` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
 
 ## Reviewer Verdict (v1.4)
 

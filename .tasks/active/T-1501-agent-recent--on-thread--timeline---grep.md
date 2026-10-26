@@ -6,13 +6,13 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T21:46:00Z
-last_update: 2026-05-04T22:01:55Z
+last_update: 2026-10-26T15:36:32Z
 date_finished: 2026-05-04T22:08:00Z
 ---
 
@@ -40,15 +40,15 @@ The arc reading verbs (T-1492 recent, T-1493 on-thread, T-1500 timeline) all wal
 - [x] All existing extract_recent_posts unit tests pass (signature change additive — None preserves prior behavior)
 - [x] `cargo build --release -p termlink` clean
 - [x] Live smoke: `agent timeline --window-secs 86400 --grep T-1438` returns only posts containing T-1438 in content (or "no posts found" if none in window)
-
-### Human
-- [ ] [REVIEW] Verify --grep filtering output is operator-readable
+- [ ] [REVIEWER] Verify --grep filtering output is operator-readable
   **Steps:**
   1. `target/release/termlink agent timeline --window-secs 86400 --grep T-1438` (run from /opt/termlink)
   2. `target/release/termlink agent timeline --window-secs 86400 --grep agent --n 10`
   3. `target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window-secs 86400 --grep T-1500`
   **Expected:** Only posts whose content matches the pattern shown; header shows `grep=<pattern>` suffix; JSON envelope includes `filter_grep` when --json
   **If not:** suggest header layout / regex support / case-sensitive flag worth adding
+
+### Human
 
 ## Verification
 
@@ -58,6 +58,7 @@ The arc reading verbs (T-1492 recent, T-1493 on-thread, T-1500 timeline) all wal
 ( target/release/termlink agent on-thread --help 2>&1 ) > /tmp/.v-t-1501-4.out && grep -q -- "--grep" /tmp/.v-t-1501-4.out
 ( target/release/termlink agent timeline --help 2>&1 ) > /tmp/.v-t-1501-5.out && grep -q -- "--grep" /tmp/.v-t-1501-5.out
 target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T-1438 --json > /tmp/.t1501.out 2>&1 && grep -qE '"filter_grep":"T-1438"' /tmp/.t1501.out
+.agentic-framework/bin/fw reviewer T-1501 > /tmp/.fw-reviewer-T-1501.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-1501.out
 
 ## RCA
 
@@ -153,3 +154,9 @@ target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T-1438 
   [11h ago] [d1993c2c] @3180 msg_type=chat thread=T-1438 project=010-termlink
   ```
 - **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.
+
+### 2026-10-26T15:36:32Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#1
+- **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-1501` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.

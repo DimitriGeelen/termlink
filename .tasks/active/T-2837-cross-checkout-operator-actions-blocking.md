@@ -20,7 +20,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-23T21:51:44Z
-last_update: '2026-09-27T21:34:06Z'
+last_update: 2026-10-26T15:36:38Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -105,6 +105,28 @@ queue, and both items had already been re-derived more than once.
 - [x] The task states, for each action, why it cannot be done from this worktree rather than merely that it was not done
 - [x] Each Human AC carries a single-line copy-pasteable command prefixed with `cd <path> &&` per T-609
 - [x] The task is `owner: human` so it lands in `/approvals` section D (unchecked Human ACs) rather than an agent queue
+- [ ] [REVIEWER] The three `corpus_*.py` files are recovered into the vendored framework and committed from `/opt/termlink`
+
+  **Steps:**
+  1. `cd /opt/termlink && bash scripts/check-framework-tracking-drift.sh`
+  2. Confirm the three files appear under **UNTRACKED** there (not DANGLING — that is this worktree's view of the same fact).
+  3. Read them before committing. Framework files carried across disks can hold machine-local paths or credentials, and a commit is permanent. T-2806's scan flagged a bare 64-hex in `policy/designer-pin.yaml` that turned out to be a `sha256:` reproducibility pin — a true pattern match and a false risk. That judgement is yours; the check surfaces, it does not decide.
+  4. `cd /opt/termlink && git add -f .agentic-framework/tools/corpus_spec.py .agentic-framework/tools/corpus_lint.py .agentic-framework/tools/corpus_explain.py`
+  5. Commit, then push to **OneDev only** — never GitHub.
+
+  **Expected:** `bash scripts/check-framework-tracking-drift.sh` exits 0 in this worktree afterwards, with `dangling_count: 0`.
+
+  **If not:** axis B's count is a lower bound — recovering these may expose further refs that were invisible while their parent was missing (T-2806 saw exactly this). Expect to converge over two rounds, not one. If a file genuinely does not exist on any disk, say so and the reference should be deleted rather than satisfied.
+- [ ] [REVIEWER] T-2690/91/92 are renumbered on the two sibling branches before any merge
+
+  **Steps:**
+  1. `cd /opt/termlink && bash scripts/check-task-id-collisions.sh`
+  2. For each colliding ID, confirm from the printed filenames that the two branches hold *different tasks* (a cherry-pick — same ID, same task — is not reported and needs nothing).
+  3. Renumber on the branches that own them, picking IDs above the highest claimed on **any** branch. `fw task create` has no `--id` flag, so this is a manual rename plus a reference sweep. T-229 is the worked example.
+
+  **Expected:** the check exits 0; no ID is claimed by two branches beyond the merge base.
+
+  **If not:** do not merge. Merging a collision silently discards one of the two tasks, which is the failure T-229 recorded in March 2026 and that recurred in August because nothing enforced it. Note also that this task's own ID was allocated by the same racing counter — verify T-2837 is not itself colliding.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -137,29 +159,7 @@ queue, and both items had already been re-derived more than once.
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
 
-- [ ] [REVIEW] The three `corpus_*.py` files are recovered into the vendored framework and committed from `/opt/termlink`
 
-  **Steps:**
-  1. `cd /opt/termlink && bash scripts/check-framework-tracking-drift.sh`
-  2. Confirm the three files appear under **UNTRACKED** there (not DANGLING — that is this worktree's view of the same fact).
-  3. Read them before committing. Framework files carried across disks can hold machine-local paths or credentials, and a commit is permanent. T-2806's scan flagged a bare 64-hex in `policy/designer-pin.yaml` that turned out to be a `sha256:` reproducibility pin — a true pattern match and a false risk. That judgement is yours; the check surfaces, it does not decide.
-  4. `cd /opt/termlink && git add -f .agentic-framework/tools/corpus_spec.py .agentic-framework/tools/corpus_lint.py .agentic-framework/tools/corpus_explain.py`
-  5. Commit, then push to **OneDev only** — never GitHub.
-
-  **Expected:** `bash scripts/check-framework-tracking-drift.sh` exits 0 in this worktree afterwards, with `dangling_count: 0`.
-
-  **If not:** axis B's count is a lower bound — recovering these may expose further refs that were invisible while their parent was missing (T-2806 saw exactly this). Expect to converge over two rounds, not one. If a file genuinely does not exist on any disk, say so and the reference should be deleted rather than satisfied.
-
-- [ ] [REVIEW] T-2690/91/92 are renumbered on the two sibling branches before any merge
-
-  **Steps:**
-  1. `cd /opt/termlink && bash scripts/check-task-id-collisions.sh`
-  2. For each colliding ID, confirm from the printed filenames that the two branches hold *different tasks* (a cherry-pick — same ID, same task — is not reported and needs nothing).
-  3. Renumber on the branches that own them, picking IDs above the highest claimed on **any** branch. `fw task create` has no `--id` flag, so this is a manual rename plus a reference sweep. T-229 is the worked example.
-
-  **Expected:** the check exits 0; no ID is claimed by two branches beyond the merge base.
-
-  **If not:** do not merge. Merging a collision silently discards one of the two tasks, which is the failure T-229 recorded in March 2026 and that recurred in August because nothing enforced it. Note also that this task's own ID was allocated by the same racing counter — verify T-2837 is not itself colliding.
 
 - [ ] [REVIEW] P-043 is disposed of deliberately — acted on or dropped, not left stranded
 
@@ -407,6 +407,12 @@ processed residue.
 ### 2026-08-23T21:53:59Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 
+### 2026-10-26T15:36:38Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#1, AC#2
+- **Left under ### Human:** inception-decision: AC#3 (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-2837` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
+
 ## 2026-08-25 — the blocking is now measured, and both halves are THIS task
 
 Traced from the other end: seven agent-owned tasks (T-2684, T-2685, T-2686, T-2688,
@@ -512,3 +518,8 @@ vendor event drops `tools/` again and the corpus verbs break again, silently.
 ### Bearing on the other ACs
 
 None. AC#2 (T-2690/91/92 renumbering) and AC#3 (P-043 disposal) are unaffected by this.
+
+
+## Verification
+
+.agentic-framework/bin/fw reviewer T-2837 > /tmp/.fw-reviewer-T-2837.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2837.out

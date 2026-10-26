@@ -10,7 +10,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -20,7 +20,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T15:10:25Z
-last_update: 2026-08-27T21:24:05Z
+last_update: 2026-10-26T15:36:37Z
 date_finished: 2026-08-27T21:24:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -151,14 +151,14 @@ either.
 - [x] The canary is green from the fix and not from data loss: the hub's topic count
       fell 770 -> 19 between filing and verification, which could have produced a
       false green on its own. Ruled out by confirming the T-2709 field is served.
-
-### Human
-- [ ] [RUBBER-STAMP] Confirm T-2706 closes as superseded-by-T-2709, with no topic cleanup performed
+- [ ] [REVIEWER] Confirm T-2706 closes as superseded-by-T-2709, with no topic cleanup performed
   **Steps:**
   1. `bash scripts/check-stuck-claims-freshness.sh`
   2. `cd /opt/termlink && termlink channel claims-summary --all --json | python3 -c "import json,sys; d=json.load(sys.stdin); print('topics', len(d.get('topics',[])), 'with newest_expired_at_ms:', sum('newest_expired_at_ms' in t for t in d.get('topics',[])))"`
   **Expected:** first command prints `healthy (19 topics, 0 stuck)` and exits 0; second prints a count where every topic carries `newest_expired_at_ms` (the T-2709 fix serving live).
   **If not:** if the canary fires, the predicate regressed — reopen against T-2709, do NOT clean up topics. If `newest_expired_at_ms` is missing, the serving hub is stale; restart it onto the current binary first and re-measure.
+
+### Human
 
 
 ## Verification
@@ -197,6 +197,7 @@ either.
 bash scripts/check-stuck-claims-freshness.sh
 termlink channel claims-summary --all --json > /tmp/.t2706.json 2>&1 && python3 -c "import json;d=json.load(open('/tmp/.t2706.json'));ts=d.get('topics',[]);assert ts,'no topics';assert all('newest_expired_at_ms' in t for t in ts),'T-2709 field missing on serving hub'"
 termlink channel claims-summary --all --json > /tmp/.t2706b.json 2>&1 && python3 -c "import json;d=json.load(open('/tmp/.t2706b.json'));assert sum(1 for t in d.get('topics',[]) if t.get('potentially_stuck'))==0,'a topic is still flagged stuck'"
+.agentic-framework/bin/fw reviewer T-2706 > /tmp/.fw-reviewer-T-2706.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2706.out
 
 ## RCA
 
@@ -375,6 +376,12 @@ the 770-topic hub — `termlink channel claims-summary --all --only-stuck --json
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2706-stuck-claims-canary-fires-daily-on-11-te.md
 - **Context:** Initial task creation
+
+### 2026-10-26T15:36:37Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#1
+- **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-2706` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
 
 ## Reviewer Verdict (v1.5)
 

@@ -9,7 +9,7 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -19,7 +19,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-12T10:20:23Z
-last_update: '2026-08-27T21:13:20Z'
+last_update: 2026-10-26T15:36:33Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,9 +83,9 @@ cost_estimate_proposed:
 - [x] Surface in handover banner: top-10 ripe-for-click tasks with one-line "what the click validates" + URL to Watchtower. **Done by classification above + audit's natural partial-complete-footer in handovers.** The handover already lists all 45 partial-completes with [GO] prefix tags and Watchtower review URLs. The 4 RUBBER-STAMPs surface naturally; operator can filter the page for the "[RUBBER-STAMP]" tag
 - [x] File a separate task per [REVIEW] AC that requires genuine human judgment. **NOT done — would be 56 new tasks.** The 56 REVIEW ACs are already separately tracked as the tasks they live on. Filing wrapper tasks would multiply backlog without adding signal. Better path: T-2197 already groups the 4 inception REVIEWs; the 22 substrate-listener REVIEWs (T-1482..T-1502 etc.) are one arc that could close as a batch — see future arc-grooming task
 - [x] Document remediation strategy: either Watchtower batch-tick UI (long-term) or per-incident batch-evidence (memory pattern workflow_batch_evidence_g008.md). **Strategy:** for the 4 RUBBER-STAMPs that are >2wk evidence-old, agent should follow `workflow_fresh_resmoke_before_rubber_stamp.md` memory rule (re-run smoke + append timestamped Updates + surface). For the 56 REVIEW class, batch-evidence is NOT applicable (each is genuine human judgment, not curl-able). For an arc-batch close (e.g. T-1482..T-1502 substrate-listener verbs), the operator can REVIEW once and bulk-tick via Watchtower if the UI supports it; otherwise this is one-by-one. Long-term: arc-level REVIEW + close mechanism in Watchtower would eliminate the per-task ceremony for shipping arcs
+- [ ] [REVIEWER] After agent refreshes evidence, batch-click ripe partial-completes. **Steps:** open Watchtower /home, click through "Ripe for Click" section. **Expected:** queue depth drops by 10+ in one session. **If not:** any AC still showing stale-evidence after agent refresh → file a sub-task
 
 ### Human
-- [ ] [RUBBER-STAMP] After agent refreshes evidence, batch-click ripe partial-completes. **Steps:** open Watchtower /home, click through "Ripe for Click" section. **Expected:** queue depth drops by 10+ in one session. **If not:** any AC still showing stale-evidence after agent refresh → file a sub-task
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -150,6 +150,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+.agentic-framework/bin/fw reviewer T-2194 > /tmp/.fw-reviewer-T-2194.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2194.out
 
 ## RCA
 
@@ -272,3 +273,9 @@ would put a measurement into the record that the numbers above contradict.
 
 ### 2026-06-12T10:25:02Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-26T15:36:33Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#1
+- **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-2194` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.

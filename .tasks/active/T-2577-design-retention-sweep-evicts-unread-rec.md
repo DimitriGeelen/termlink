@@ -24,7 +24,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T15:11:56Z
-last_update: '2026-09-27T21:34:05Z'
+last_update: 2026-10-26T15:36:37Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -101,6 +101,13 @@ different cost/telemetry/compat profile — a human/design call.
 
 ## Acceptance Criteria
 
+### Agent
+- [ ] [REVIEWER] If "change behaviour", file a build task with concrete ACs + a load-bearing
+      test (a lagging subscriber whose span was swept is told, not silently
+      skipped); if "document only", record that the opt-in gap verbs are the
+      sanctioned detection path and where that contract is stated.
+
+
 ### Human
 - [ ] [REVIEW] Decide the remedy among (a) sweep-side guard below min live cursor, (b)
       inline gap indicator in the subscribe response, (c) keep opt-in gap verbs +
@@ -109,10 +116,6 @@ different cost/telemetry/compat profile — a human/design call.
 - [ ] [REVIEW] Confirm the boundary vs T-2562 (forever-archival guard) and the existing
       `gap_before`/`oldest_offset` primitives so the chosen remedy does not
       duplicate or contradict them.
-- [ ] [RUBBER-STAMP] If "change behaviour", file a build task with concrete ACs + a load-bearing
-      test (a lagging subscriber whose span was swept is told, not silently
-      skipped); if "document only", record that the opt-in gap verbs are the
-      sanctioned detection path and where that contract is stated.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -177,6 +180,7 @@ different cost/telemetry/compat profile — a human/design call.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+.agentic-framework/bin/fw reviewer T-2577 > /tmp/.fw-reviewer-T-2577.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2577.out
 
 ## RCA
 
@@ -297,3 +301,9 @@ written in Context, asserted to return a gap rather than a clean read.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2577-design-retention-sweep-evicts-unread-rec.md
 - **Context:** Initial task creation
+
+### 2026-10-26T15:36:37Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#3
+- **Left under ### Human:** unclassified: AC#1, AC#2 (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-2577` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.

@@ -25,7 +25,7 @@ tags: [agent-chat-arc, T-1384, T-1385, channel, multi-agent, fleet-rollout,
 components: [target/release/termlink]
 related_tasks: [T-1384, T-1385, T-1386, T-1387, T-1418]
 created: 2026-04-30T09:09:16Z
-last_update: '2026-08-27T21:12:51Z'
+last_update: 2026-10-26T15:36:31Z
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
@@ -189,6 +189,14 @@ termlink remote exec laptop-141 "$SID" \
 - [x] Verification recipe extracts channel cmd count from .141 via remote exec; PASS condition is 53/53.
 - [x] Task name + tag prefix per user convention ("agent chat arc:" prefix in name; tags include `agent-chat-arc`).
 - [x] .107 fleet inventory captured: 24 sessions sampled across multiple worker dispatches (T-1597 blind-review, T-1602 consumer, T-1565 approval-arc, T-1529 validate-dedup, T-561 push, T-1246 g046-mirror, T-1539, T-1540, T-1245), all sampled sessions report 0.9.1542+ and 53/53 channel cmds. .107 is NOT a deployment gap.
+- [ ] [REVIEWER] .141 hub restarted on new binary
+  **Steps:**
+  1. `pgrep -af 'termlink hub'` on .141 — note PID
+  2. `kill $PID`
+  3. Wait for watchdog respawn OR restart manually with the new binary path
+  4. `pgrep -af 'termlink hub'` — confirm new PID
+  **Expected:** new hub PID, started time recent, listening on 0.0.0.0:9100.
+  **If not:** if no watchdog manages it, the manual restart command is in Method A above.
 
 ### Human
 - [ ] [RUBBER-STAMP] Binary deployed on .141 — Method A or B
@@ -199,14 +207,6 @@ termlink remote exec laptop-141 "$SID" \
   **Expected:** `--version` reports 0.9.1591 or newer; `channel --help` lists 53 subcommands.
   **If not:** check disk space, check write permissions on `/mnt/c/...` (NTFS-WSL quirks may need `chmod +x`).
 
-- [ ] [RUBBER-STAMP] .141 hub restarted on new binary
-  **Steps:**
-  1. `pgrep -af 'termlink hub'` on .141 — note PID
-  2. `kill $PID`
-  3. Wait for watchdog respawn OR restart manually with the new binary path
-  4. `pgrep -af 'termlink hub'` — confirm new PID
-  **Expected:** new hub PID, started time recent, listening on 0.0.0.0:9100.
-  **If not:** if no watchdog manages it, the manual restart command is in Method A above.
 
 - [ ] [REVIEW] Full chat arc parity confirmed via fleet check
   **Steps:**
@@ -228,6 +228,7 @@ test -f target/release/termlink
 ( ./target/release/termlink remote exec laptop-141 "$(./target/release/termlink remote list laptop-141 2>/dev/null | tail -n +3 | awk 'NF>0 {print $1}' | head -1)" 'PATH=/home/dimitri/bin:/usr/local/bin:/usr/bin:/bin termlink --version' 2>&1 ) > /tmp/.v-t-1420-1.out && grep -qE "termlink 0\.9\.(15[0-9]{2}|1[6-9][0-9]{2}|[2-9][0-9]{3})" /tmp/.v-t-1420-1.out
 ( ./target/release/termlink remote exec laptop-141 "$(./target/release/termlink remote list laptop-141 2>/dev/null | tail -n +3 | awk 'NF>0 {print $1}' | head -1)" 'PATH=/home/dimitri/bin:/usr/local/bin:/usr/bin:/bin termlink channel --help' 2>&1 | grep -cE '^  [a-z]' ) > /tmp/.v-t-1420-2.out && grep -q "^53$" /tmp/.v-t-1420-2.out
 ( ./target/release/termlink channel members --hub laptop-141 agent-chat-arc 2>/dev/null ) > /tmp/.v-t-1420-3.out && grep -q "6604a2af482f0cf7" /tmp/.v-t-1420-3.out
+.agentic-framework/bin/fw reviewer T-1420 > /tmp/.fw-reviewer-T-1420.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-1420.out
 
 ## Recommendation
 
@@ -473,3 +474,9 @@ Despite PL-145 fix being durable, /tmp/heartbeat.log showed five+ hourly fires q
 **Verification section updated** to assert these end-to-end evidence points (was previously pinned to a stale local-binary sha). 4/4 PASS via `fw task verify T-1420`.
 
 **Suggested action for the human:** review the evidence above; if satisfied, tick the three [RUBBER-STAMP]/[REVIEW] boxes and run `fw task update T-1420 --status work-completed`. The verification gate will not block (already 4/4 PASS).
+
+### 2026-10-26T15:36:31Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#2
+- **Left under ### Human:** act-in-the-world: AC#1; unclassified: AC#3 (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-1420` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.

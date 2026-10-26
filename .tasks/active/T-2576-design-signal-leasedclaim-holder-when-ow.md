@@ -23,7 +23,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T15:10:18Z
-last_update: '2026-09-27T21:34:05Z'
+last_update: 2026-10-26T15:36:36Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -90,6 +90,13 @@ worker recovers) is a design decision, not a mechanical fix.
 
 ## Acceptance Criteria
 
+### Agent
+- [ ] [REVIEWER] If "change the contract", file a build task with concrete ACs + a
+      load-bearing test (a worker that sees ownership-in-doubt stops acting); if
+      "warn! is sufficient", record that T-2575 closes the practical risk and this
+      is knowingly deferred.
+
+
 ### Human
 - [ ] [REVIEW] Decide the contract shape: an at-risk signal on `LeasedClaim` (e.g.
       `ownership_in_doubt()` derived from `now >= claimed_until`, or a state the
@@ -99,10 +106,6 @@ worker recovers) is a design decision, not a mechanical fix.
 - [ ] [REVIEW] Decide whether the renew loop should also proactively surface this to the
       operator/orchestrator (beyond T-2575's warn!) — e.g. a metric or presence
       annotation — or whether the holder-side check is sufficient.
-- [ ] [RUBBER-STAMP] If "change the contract", file a build task with concrete ACs + a
-      load-bearing test (a worker that sees ownership-in-doubt stops acting); if
-      "warn! is sufficient", record that T-2575 closes the practical risk and this
-      is knowingly deferred.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -167,6 +170,7 @@ worker recovers) is a design decision, not a mechanical fix.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+.agentic-framework/bin/fw reviewer T-2576 > /tmp/.fw-reviewer-T-2576.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2576.out
 
 ## RCA
 
@@ -289,3 +293,9 @@ shipping.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2576-design-signal-leasedclaim-holder-when-ow.md
 - **Context:** Initial task creation
+
+### 2026-10-26T15:36:36Z — delegate [fw-task-delegate]
+- **Ruling:** D-626 — reviewer-closeable delegation (operator ruling 2026-09-23)
+- **Converted to [REVIEWER] Agent criteria:** AC#3
+- **Left under ### Human:** unclassified: AC#1, AC#2 (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
+- **Close path:** `.agentic-framework/bin/fw reviewer T-2576` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
