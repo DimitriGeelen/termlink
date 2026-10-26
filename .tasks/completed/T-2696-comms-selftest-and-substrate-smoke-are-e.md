@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [scripts/canary-status.sh, scripts/check-cron-install-drift.sh]
 related_tasks: []
@@ -18,7 +18,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T08:01:43Z
-last_update: 2026-10-26T15:21:34Z
+last_update: 2026-10-26T15:28:21Z
 date_finished: 2026-09-08T07:47:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -92,7 +92,7 @@ Scoped 2026-09-07 (ground truth re-measured — the filing still holds):
 - [x] `.context/cron/substrate-smoke-canary.crontab` written with the `# Installed to:`
       header and the T-2685 split-stream redirect idiom; `check-cron-install-drift.sh`
       sees it (fires MISSING until the human installs — that is the intended signal).
-- [ ] [REVIEWER] The smoke-canary crontab is installed and not drifted from the tracked source
+- [x] [REVIEWER] The smoke-canary crontab is installed and not drifted from the tracked source. 2026-10-26 (T-3592): .context/cron/substrate-smoke-canary.crontab and /etc/cron.d/termlink-substrate-smoke-canary are byte-identical (cmp); check-cron-install-drift: 45 installed + matching
   **Converted from a `### Human` `[RUBBER-STAMP]` AC on 2026-09-26 (T-3154, operator GO on SQ-1).** Its Expected clause was the output of a command, so per T-1811/T-1878 it belongs here with the check in `## Verification`. **Measured 2026-09-26:** `check-cron-install-drift.sh` → *healthy, 30 installed + matching*, `ok:true`, missing 0 / uninstalled_jobs 0 / drift 0, rc 0; `/etc/cron.d/termlink-substrate-smoke-canary` byte-identical to source (`cmp` clean). **Left unticked deliberately** — conversion is not closure.
 - [x] CLAUDE.md canary section gains the new canary paragraph (18th), same
       empty-log-healthy convention.
@@ -176,8 +176,9 @@ bash scripts/check-canary-log-hygiene.sh > /tmp/.t2696-hyg 2>&1
 # both states prove the check SEES it (state-tolerant so the human's finalize re-run passes post-install).
 test -f /etc/cron.d/termlink-substrate-smoke-canary || { bash scripts/check-cron-install-drift.sh > /tmp/.t2696-drift 2>&1; grep -q "MISSING: substrate-smoke-canary.crontab" /tmp/.t2696-drift; }
 # AC5: CLAUDE.md paragraph present, chain count updated.
-grep -q "### Substrate-smoke canary (T-2696" CLAUDE.md
-grep -q "all eighteen follow" CLAUDE.md
+# 2026-10-26 (T-3592): the canary sections moved out of CLAUDE.md into this doc (T-3246).
+grep -q "### Substrate-smoke canary (T-2696" docs/operations/guard-layer-and-canaries.md
+grep -q "all eighteen follow" docs/operations/guard-layer-and-canaries.md
 #
 # Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
 # (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your

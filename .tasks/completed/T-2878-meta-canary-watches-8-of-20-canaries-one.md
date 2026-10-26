@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [scripts/check-canary-aliveness.sh, scripts/check-hook-counter-integrity.sh, tests/canary-aliveness-sweep-fixtures.sh, tests/hook-counter-integrity-fixtures.sh]
 related_tasks: []
@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-01T22:08:08Z
-last_update: 2026-10-26T15:21:35Z
+last_update: 2026-10-26T15:28:27Z
 date_finished: 2026-09-01T22:27:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -103,7 +103,7 @@ that never names canaries individually and therefore cannot be forgotten for one
 - [x] **A canary that git schedules no cron for is not reported as dead.** The sweep reuses `canary-status.sh`'s own predicate — a genuine canary crontab names the log it appends to — so the source-level static checks that carry a heartbeat but no crontab are excluded rather than read STALE forever. Without this the sweep reproduces the exact noise T-2826 removed from `/canaries`.
 - [x] **The sweep fails closed.** A missing working dir, an absent cron source dir, or zero discovered canaries exits 2, never 0 — a sweep reporting "all alive" because it found nothing to look at is the false assurance this task exists to remove.
 - [x] **It is load-bearing, proven by mutation.** Fixtures drive the sweep against fixture dirs via `CANARY_SWEEP_WORKING_DIR` / `CANARY_SWEEP_CRON_DIR` (PL-213) with no live cron: a stale heartbeat fires, a fresh one does not, a log with no heartbeat companion fires as `NO-HEARTBEAT`, a heartbeat with no crontab is excluded, and an empty discovery set exits 2. Removing the `NO-HEARTBEAT` walk turns the hook-counter case green — the mutant that proves that arm carries weight.
-- [ ] [REVIEWER] The sweep crontab is installed and not drifted, so the coverage net actually fires daily
+- [x] [REVIEWER] The sweep crontab is installed and not drifted, so the coverage net actually fires daily. 2026-10-26 (T-3592): .context/cron/canary-aliveness-sweep.crontab and /etc/cron.d/termlink-canary-aliveness-sweep are byte-identical (cmp); the sweep ran today (canary-aliveness heartbeat 09:53, HEALTHY)
   **Converted from a `### Human` `[RUBBER-STAMP]` AC on 2026-09-26 (T-3161, operator GO on SQ-1).** Its Expected clause was the output of `check-cron-install-drift.sh`, so per T-1811/T-1878 it belongs here with the check in `## Verification`. The `sudo cp` install was an operator act already performed.
   **Measured 2026-09-26:** `/etc/cron.d/termlink-canary-aliveness-sweep` exists (4167 bytes, mode 0644, root); `check-cron-install-drift.sh` reports *healthy — 30 installed + matching*, **0 MISSING and 0 UNINSTALLED_JOBS**, rc 0. Until this was installed the sweep was shipped-but-dark — the exact G-069 state it exists to detect in others.
   **Left unticked deliberately** — conversion is not closure.
@@ -204,7 +204,8 @@ _The `[RUBBER-STAMP]` AC that was here has moved to `### Agent` as a `[REVIEWER]
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-bash tests/canary-aliveness-sweep-fixtures.sh > /tmp/.t2878a.txt 2>&1 && grep -q "25 passed, 0 failed" /tmp/.t2878a.txt
+# 2026-10-26 (T-3592): was pinned to "25 passed"; the suite has grown (29), so assert no failures instead.
+bash tests/canary-aliveness-sweep-fixtures.sh > /tmp/.t2878a.txt 2>&1 && grep -qE "[0-9]+ passed, 0 failed" /tmp/.t2878a.txt
 bash scripts/check-canary-aliveness.sh --all > /tmp/.t2878b.txt 2>&1 && grep -q "cron-scheduled canaries alive" /tmp/.t2878b.txt
 bash scripts/check-canary-aliveness.sh --help > /tmp/.t2878h.txt 2>&1 && grep -q -- "--all            # sweep every cron-scheduled canary" /tmp/.t2878h.txt
 grep -q "HOOK_COUNTER_HEARTBEAT_FILE" scripts/check-hook-counter-integrity.sh

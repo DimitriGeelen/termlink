@@ -1,0 +1,126 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2696: comms-selftest and substrate-smoke are executed by nothing
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T15:28:26Z
+# ============================================================================
+
+task_id: T-2696
+task_name: "comms-selftest and substrate-smoke are executed by nothing"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-14T08:01:43Z
+completed: 2026-10-26T15:26:12Z
+duration_days: 73
+updates_count: 3
+first_commit: 2026-08-20T08:58:59+02:00
+last_commit: 2026-09-08T09:50:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  commit the live canary stderr-split back to git + read it in canary-status. scoped from measured ground truth — comms half closes via guard-layer fixture wrapper (hermetic harness exists, executed by nothing), smoke half needs T-2557-pattern canary with hub-down→exit-2 remap (smoke exits 1 on dead hub, the F2/G3 trap); real ACs replace placeholders. both un-executed provers now executed — comms harness joins the guard layer via tests/comms-selftest-fixtures.sh wrapper (runs on every push/PR); substrate-smoke gets the 18th canary with fixture-pinned hub-down→exit-2 F2/G3 remap (16/16 green), crontab + CLAUDE.md §18; install queued as Human AC
+
+# Key outcomes
+outcomes:
+  - '`tests/comms-selftest-fixtures.sh` exists and exec''s `scripts/test-comms-selftest.sh`,'
+  - '`scripts/check-substrate-smoke-freshness.sh` exists, mirroring the T-2557 verdict'
+  - 'Fixture suite for the canary wrapper (tests/…-fixtures.sh) pins all four verdict'
+  - '`.context/cron/substrate-smoke-canary.crontab` written with the `# Installed to:`'
+  - '[REVIEWER] The smoke-canary crontab is installed and not drifted from the tracked source. 2026-10-26 (T-3592): .context/cron/substrate-smoke-canary.crontab and /etc/cron.d/termlink-substrate-smoke-canary are byte-identical (cmp); check-cron-install-drift: 45 installed + matching'
+  - 'CLAUDE.md canary section gains the new canary paragraph (18th), same'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'both un-executed provers now executed — comms harness joins the guard layer via tests/comms-selftest-fixtures.sh wrapper (runs on every push/PR); substrate-smoke gets the 18th canary with fixture-pinned hub-down→exit-2 F2/G3 remap (16/16 green), crontab + CLAUDE.md §18; install queued as Human AC'
+    source: git-mined
+  - description: 'scoped from measured ground truth — comms half closes via guard-layer fixture wrapper (hermetic harness exists, executed by nothing), smoke half needs T-2557-pattern canary with hub-down→exit-2 remap (smoke exits 1 on dead hub, the F2/G3 trap); real ACs replace placeholders'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/charter-drift-canary.crontab'
+  - '.context/cron/charter-sentence-drift-canary.crontab'
+  - '.context/cron/dead-letter-canary.crontab'
+  - '.context/cron/fleet-adoption-snapshot.crontab'
+  - '.context/cron/fleet-binary-canary.crontab'
+  - '.context/cron/fleet-capability-canary.crontab'
+  - '.context/cron/fleet-doorbell-mail-canary.crontab'
+  - '.context/cron/forever-archival-canary.crontab'
+  - '.context/cron/framework-pickup-canary.crontab'
+  - '.context/cron/frozen-husk-canary.crontab'
+  - '.context/cron/preflight-doc-set-drift-canary.crontab'
+  - '.context/cron/release-mirror-canary.crontab'
+  - '.context/cron/session-control-canary.crontab'
+  - '.context/cron/stale-waker-code-canary.crontab'
+  - '.context/cron/stuck-claims-canary.crontab'
+  - '.context/cron/substrate-preflight-canary.crontab'
+  - '.context/cron/substrate-smoke-canary.crontab'
+  - '.context/cron/task-finalization-canary.crontab'
+  - '.context/cron/topic-growth-canary.crontab'
+  - '.context/cron/unconfirmed-delivery-canary.crontab'
+  - '.context/cron/waker-liveness-canary.crontab'
+  - '.context/cron/woken-silent-triage.crontab'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/.hook-counter'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/focus.yaml'
+  - '.fabric/components/scripts-check-substrate-smoke-freshness.yaml'
+  - '.fabric/components/tests-comms-selftest-fixtures.yaml'
+  - '.fabric/components/tests-substrate-smoke-canary-fixtures.yaml'
+  - '.tasks/active/T-2696-canary-tooling-errors-poison-the-firing-.md'
+  - '.tasks/active/T-2696-comms-selftest-and-substrate-smoke-are-e.md'
+  - '.termlink-task'
+  - 'CLAUDE.md'
+  - 'scripts/canary-status.sh'
+  - 'scripts/check-substrate-smoke-freshness.sh'
+  - 'tests/canary-tooling-class-fixtures.sh'
+  - 'tests/comms-selftest-fixtures.sh'
+  - 'tests/substrate-smoke-canary-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-20T08:58:59'
+    action: 'T-2696: commit the live canary stderr-split back to git + read it in canary-status'
+  - time: '2026-09-07T22:44:59'
+    action: 'T-2696: scoped from measured ground truth — comms half closes via guard-layer fixture wrapper (hermetic harness exists, executed by nothing), smoke half needs T-2557-pattern canary with hub-down→exit-2 remap (smoke exits 1 on dead hub, the F2/G3 trap); real ACs replace placeholders'
+  - time: '2026-09-08T09:50:15'
+    action: 'T-2696: both un-executed provers now executed — comms harness joins the guard layer via tests/comms-selftest-fixtures.sh wrapper (runs on every push/PR); substrate-smoke gets the 18th canary with fixture-pinned hub-down→exit-2 F2/G3 remap (16/16 green), crontab + CLAUDE.md §18; install queued as Human AC'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 105564 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 105564
+  commits: 4
+  files_changed: 45
+  lines_added: 1508
+  lines_removed: 114
+  footprint_refreshed_at: '2026-10-26T15:28:55Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2696-comms-selftest-and-substrate-smoke-are-e.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2878: Meta-canary watches 8 of 20 canaries; one canary cannot be watched at all
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T15:28:30Z
+# ============================================================================
+
+task_id: T-2878
+task_name: "Meta-canary watches 8 of 20 canaries; one canary cannot be watched at all"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-01T22:08:08Z
+completed: 2026-10-26T15:26:44Z
+duration_days: 55
+updates_count: 1
+first_commit: 2026-09-02T00:24:57+02:00
+last_commit: 2026-09-02T00:24:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the meta-canary watched 8 of 20 canaries, and one could not be watched at all
+
+# Key outcomes
+outcomes:
+  - '**The blind spot is measured, not asserted.** The count comes from parsing real cron JOB lines (comments, blanks and `VAR=value` stripped) out of the git-tracked `.context/cron/*.crontab`, not from grepping whole files — a script named only in a crontab''s remediation prose is not a scheduled job. Measured: 20 canary crontabs, 8 declare a `check-canary-aliveness.sh` meta job, 12 do not.'
+  - '**`check-hook-counter-integrity.sh` touches a heartbeat.** It is the only cron-scheduled canary that writes a canary log and never writes a heartbeat, so it cannot be watched even in principle. The touch happens BEFORE the check runs (the T-1723 convention: prove the canary ran even on a healthy cycle), and `--no-heartbeat` opts out for the guard-layer runner so a source-level run cannot mask a dead cron.'
+  - '**The stale-log latch is released as a consequence, and shown to be.** `canary-status.sh::classify` sends a heartbeat-less canary with a non-empty log to FIRING with no path back to HEALTHY — a stale entry keeps it red forever, which is the stuck-on direction of the T-2685 one-bit channel. With a fresh heartbeat the same file classifies HEALTHY via the `log_mtime >= heartbeat_mtime` arm. Demonstrated by running the classifier before and after.'
+  - '**One sweep covers every canary instead of 12 more cron jobs.** `check-canary-aliveness.sh --all` walks every heartbeat under the working dir and fires on any stale one. Per-canary jobs are left in place — they carry a `CANARY_PROBE_CMD` drift-fold the sweep cannot do generically — so the sweep is a coverage net, not a replacement.'
+  - '**The sweep is not blind to the canary that has no heartbeat.** A sweep that walks only heartbeats reports "all alive" while a heartbeat-less canary sits unwatched — most confident exactly where it is most wrong (the T-2680 / preflight-Check-1 shape). The sweep therefore ALSO walks canary logs and fires on any whose heartbeat companion is absent, as a distinct `NO-HEARTBEAT` class.'
+  - '**A canary that git schedules no cron for is not reported as dead.** The sweep reuses `canary-status.sh`''s own predicate — a genuine canary crontab names the log it appends to — so the source-level static checks that carry a heartbeat but no crontab are excluded rather than read STALE forever. Without this the sweep reproduces the exact noise T-2826 removed from `/canaries`.'
+  - '**The sweep fails closed.** A missing working dir, an absent cron source dir, or zero discovered canaries exits 2, never 0 — a sweep reporting "all alive" because it found nothing to look at is the false assurance this task exists to remove.'
+  - '**It is load-bearing, proven by mutation.** Fixtures drive the sweep against fixture dirs via `CANARY_SWEEP_WORKING_DIR` / `CANARY_SWEEP_CRON_DIR` (PL-213) with no live cron: a stale heartbeat fires, a fresh one does not, a log with no heartbeat companion fires as `NO-HEARTBEAT`, a heartbeat with no crontab is excluded, and an empty discovery set exits 2. Removing the `NO-HEARTBEAT` walk turns the hook-counter case green — the mutant that proves that arm carries weight.'
+  - '[REVIEWER] The sweep crontab is installed and not drifted, so the coverage net actually fires daily. 2026-10-26 (T-3592): .context/cron/canary-aliveness-sweep.crontab and /etc/cron.d/termlink-canary-aliveness-sweep are byte-identical (cmp); the sweep ran today (canary-aliveness heartbeat 09:53, HEALTHY)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/canary-aliveness-sweep.crontab'
+  - '.fabric/components/context-cron-canary-aliveness-sweep.yaml'
+  - '.fabric/components/tests-canary-aliveness-sweep-fixtures.yaml'
+  - '.tasks/active/T-2878-meta-canary-watches-8-of-20-canaries-one.md'
+  - 'scripts/check-canary-aliveness.sh'
+  - 'scripts/check-hook-counter-integrity.sh'
+  - 'tests/canary-aliveness-sweep-fixtures.sh'
+  - 'tests/hook-counter-integrity-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-02T00:24:57'
+    action: 'T-2878: the meta-canary watched 8 of 20 canaries, and one could not be watched at all'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 78798 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 78798
+  commits: 2
+  files_changed: 14
+  lines_added: 1217
+  lines_removed: 25
+  footprint_refreshed_at: '2026-10-26T15:28:55Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2878-meta-canary-watches-8-of-20-canaries-one.md
+generated_by: context-agent-hybrid
