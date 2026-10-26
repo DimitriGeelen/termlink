@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3582: Canary fleet-doorbell-mail-canary is STALE — investigate and fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T09:34:49Z
+# ============================================================================
+
+task_id: T-3582
+task_name: "Canary fleet-doorbell-mail-canary is STALE — investigate and fix"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-26T08:15:13Z
+completed: 2026-10-26T09:34:36Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-26T10:30:22+01:00
+last_commit: 2026-10-26T10:30:22+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  commit unattended write — canary escalation filed (fleet-doorbell-mail-canary) by canary-escalation-file.sh
+
+# Key outcomes
+outcomes:
+  - '`fleet-doorbell-mail-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false). 2026-10-26: HEALTHY, heartbeat 09:23. Cause: shutdown/reboot window plus the local hub outage 2026-10-25 11:52-12:30 (T-3575); its last logged line was a ring20-dashboard setup-fail from that window, and the next scheduled run completed. No code change.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3582-canary-fleet-doorbell-mail-canary-is-sta.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-26T10:30:22'
+    action: 'T-3582: commit unattended write — canary escalation filed (fleet-doorbell-mail-canary) by canary-escalation-file.sh'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 79 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [canary-escalation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 79
+  commits: 2
+  files_changed: 6
+  lines_added: 672
+  lines_removed: 12
+  footprint_refreshed_at: '2026-10-26T09:34:56Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3582-canary-fleet-doorbell-mail-canary-is-sta.md
+generated_by: context-agent-hybrid

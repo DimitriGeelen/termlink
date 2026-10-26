@@ -1,13 +1,15 @@
 ---
-id: T-3581
-name: "Canary canary-aliveness is STALE — investigate and fix"
+id: T-3582
+name: "Canary fleet-doorbell-mail-canary is STALE — investigate and fix"
 description: >
-  The canary-aliveness canary reports STALE on /canaries. Filed automatically by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary always has a task naming it.
+  The fleet-doorbell-mail-canary canary reports STALE on /canaries. Filed automatically
+  by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary
+  always has a task naming it.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [canary-escalation]
 components: []
 related_tasks: []
@@ -37,9 +39,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-26T08:15:03Z
-last_update: 2026-10-26T08:15:03Z
-date_finished: null
+created: 2026-10-26T08:15:13Z
+last_update: 2026-10-26T09:34:36Z
+date_finished: 2026-10-26T09:34:36Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,23 +52,37 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-26T09:33:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 1
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-3581: Canary canary-aliveness is STALE — investigate and fix
+# T-3582: Canary fleet-doorbell-mail-canary is STALE — investigate and fix
 
 ## Context
 
-<!-- canary-escalation: canary=canary-aliveness -->
+<!-- canary-escalation: canary=fleet-doorbell-mail-canary -->
 Filed automatically by scripts/canary-escalation-file.sh (T-2985) from the daily canary cron.
 
-- **Canary:** `canary-aliveness` — status **STALE** (`bash scripts/canary-status.sh`)
-- **Findings log:** `.context/working/.canary-aliveness.log` (tooling errors: `.log.stderr`)
+- **Canary:** `fleet-doorbell-mail-canary` — status **STALE** (`bash scripts/canary-status.sh`)
+- **Findings log:** `.context/working/.fleet-doorbell-mail-canary.log` (tooling errors: `.log.stderr`)
 - **What each status means:** FIRING = the watched thing is broken; ERRORING = the canary could not run; STALE = its cron has stopped completing. Per-canary operator action: `docs/operations/guard-layer-and-canaries.md`.
 
 **Latest signal line:**
 
 ```
-CANARY SWEEP FIRING: 22 cron-scheduled canaries checked, 21 alive
+  - ring20-dashboard@192.168.10.121:9100: verdict=setup-fail elapsed=3101ms
 ```
 
 Closing this task while the canary is still bad files a new one 24h after the close.
@@ -75,7 +91,7 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `canary-aliveness` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
+- [x] `fleet-doorbell-mail-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false). 2026-10-26: HEALTHY, heartbeat 09:23. Cause: shutdown/reboot window plus the local hub outage 2026-10-25 11:52-12:30 (T-3575); its last logged line was a ring20-dashboard setup-fail from that window, and the next scheduled run completed. No code change.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -127,6 +143,7 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 
 ## Verification
 
+bash scripts/canary-status.sh > .context/working/.t3582v 2>&1; grep -qE 'HEALTHY.* fleet-doorbell-mail-canary ' .context/working/.t3582v
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -296,6 +313,17 @@ Closing this task while the canary is still bad files a new one 24h after the cl
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** fleet-doorbell-mail-canary read STALE at the 2026-10-26 09:15 escalation run; its last
+logged line was a ring20-dashboard setup-fail.
+
+**Root cause:** not a canary defect. Host shutdown 2026-10-24 evening, reboot 2026-10-25 11:52, and the
+local hub down until 12:30 (T-3575): the run in that window failed setup and no run completed until today.
+
+**Why structurally allowed:** STALE is the intended signal for a cron that stopped completing.
+
+**Prevention:** none needed here; the hub-start defect behind the outage is fixed by T-3575 (pending
+binary deploy via runme).
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -372,7 +400,27 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 
 ## Updates
 
-### 2026-10-26T08:15:03Z — task-created [task-create-agent]
+### 2026-10-26T08:15:13Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3581-canary-canary-aliveness-is-stale--invest.md
+- **Output:** /opt/termlink/.tasks/active/T-3582-canary-fleet-doorbell-mail-canary-is-sta.md
 - **Context:** Initial task creation
+
+### 2026-10-26T09:33:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-fc286058
+- **Timestamp:** 2026-10-26T09:34:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-26T09:34:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
