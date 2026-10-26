@@ -7,10 +7,10 @@ description: >
   our report; T-4782 check-tier0 approval-card trap behind the .107 tmux kills; T-4774,
   T-4775, T-4776, T-4777, T-4779, T-4780).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-26T22:32:27Z
-last_update: 2026-10-26T23:28:33Z
-date_finished:
+last_update: 2026-10-26T23:31:11Z
+date_finished: 2026-10-26T23:31:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -78,10 +78,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] be.25 (2ffe3a27e) is an ancestor of be.27 (eea53bb06, 35 commits); rehearsed from one fresh clone, real run from another (rc 0 both); the two preserved files upstream changed (handover.sh T-4774, sidecar/inject.py T-4773) 3-way merged with our T-3269/T-2882/T-3533 edits intact
-- [ ] The real run waits until the T-3592 close loop (which runs vendored fw scripts) has finished
-- [ ] CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer still PASS
-- [ ] Per-fix probes sent to AEF: T-4778 (no auto-tick when needs_human), T-4773 (doorbell carries its typed time), T-4782; `.vendor-divergence.yaml` updated
+- [x] be.25 (2ffe3a27e) is an ancestor of be.27 (eea53bb06, 35 commits); rehearsed from one fresh clone, real run from another (rc 0 both); the two preserved files upstream changed (handover.sh T-4774, sidecar/inject.py T-4773) 3-way merged with our T-3269/T-2882/T-3533 edits intact
+- [x] The real run waits until the T-3592 close loop (which runs vendored fw scripts) has finished. The loop was stopped (by PID) before the run
+- [x] CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer still PASS. Three reds, all resolved: tracking drift (new upstream files, fixed by the vendor commit), 4 TOFU first pins after the operator's runme redeploy (fingerprints identical to those verified live 2026-10-26, acked), pin-events fixture needing target/debug/termlink (removed by the operator-approved cleanup; rebuilt, 15/15)
+- [x] Per-fix probes sent to AEF: T-4778 (no auto-tick when needs_human), T-4773 (doorbell carries its typed time), T-4782; `.vendor-divergence.yaml` updated. Present: T-4778 in lib/reviewer/static_scan.py, T-4773 in lib/sidecar/inject.py (merged); baseline 0b150f49d. Live field checks of T-4778/T-4773 come with the next reviewer run and the next replayed doorbell
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -133,6 +133,9 @@ bvp_scores_proposed:
 
 ## Verification
 
+grep -q "be.25 -> be.27 (eea53bb06" .vendor-divergence.yaml && grep -q "^1.8.14+1419" .agentic-framework/VERSION
+grep -q "T-3533" .agentic-framework/lib/sidecar/inject.py && grep -q "T-3269" .agentic-framework/agents/handover/handover.sh
+grep -q "T-4778" .agentic-framework/lib/reviewer/static_scan.py
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -388,3 +391,20 @@ bvp_scores_proposed:
 
 ### 2026-10-26T22:33:43Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5fee3126
+- **Timestamp:** 2026-10-26T23:31:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-26T23:31:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

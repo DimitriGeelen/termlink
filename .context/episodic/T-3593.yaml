@@ -1,0 +1,114 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3593: Re-vendor AEF v1.8.15-be.25 -> be.27 (eea53bb06)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T23:31:42Z
+# ============================================================================
+
+task_id: T-3593
+task_name: "Re-vendor AEF v1.8.15-be.25 -> be.27 (eea53bb06)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-26T22:32:27Z
+completed: 2026-10-26T23:31:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-26T23:34:06+01:00
+last_commit: 2026-10-27T00:28:52+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor be.25 -> be.27 (operator go); kept-file merges clean. re-vendor AEF v1.8.15-be.25 -> be.27 (eea53bb06, 35 commits; operator go 2026-10-26). divergence baseline 0b150f49d (be.27)
+
+# Key outcomes
+outcomes:
+  - 'be.25 (2ffe3a27e) is an ancestor of be.27 (eea53bb06, 35 commits); rehearsed from one fresh clone, real run from another (rc 0 both); the two preserved files upstream changed (handover.sh T-4774, sidecar/inject.py T-4773) 3-way merged with our T-3269/T-2882/T-3533 edits intact'
+  - 'The real run waits until the T-3592 close loop (which runs vendored fw scripts) has finished. The loop was stopped (by PID) before the run'
+  - 'CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer still PASS. Three reds, all resolved: tracking drift (new upstream files, fixed by the vendor commit), 4 TOFU first pins after the operator''s runme redeploy (fingerprints identical to those verified live 2026-10-26, acked), pin-events fixture needing target/debug/termlink (removed by the operator-approved cleanup; rebuilt, 15/15)'
+  - 'Per-fix probes sent to AEF: T-4778 (no auto-tick when needs_human), T-4773 (doorbell carries its typed time), T-4782; `.vendor-divergence.yaml` updated. Present: T-4778 in lib/reviewer/static_scan.py, T-4773 in lib/sidecar/inject.py (merged); baseline 0b150f49d. Live field checks of T-4778/T-4773 come with the next reviewer run and the next replayed doorbell'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-26 — take be.27? (operator ruling)'
+    chose: 're-vendor be.25 -> be.27 ("go ahead with be.27").'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/context/check-tier0.sh'
+  - '.agentic-framework/agents/handover/handover.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/reports/T-4737-designer-data-apis.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.15-results.md'
+  - '.agentic-framework/lib/arc_focus_health.py'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/reviewer/static_scan.py'
+  - '.agentic-framework/lib/sidecar/hooks.py'
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - '.agentic-framework/lib/spawn-env.sh'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/tools/hook-python-c-substitution-lint.py'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.29.0.html'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.context/audits/upgrades.yaml'
+  - '.context/episodic/T-1453.yaml'
+  - '.context/episodic/T-1691.yaml'
+  - '.context/episodic/T-1696.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-3593-re-vendor-aef-v1815-be25---be27-eea53bb0.md'
+  - '.tasks/completed/T-1453-fw-task-revisit-due-cli-verb-t-1449-phas.md'
+  - '.tasks/completed/T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md'
+  - '.tasks/completed/T-1696-release-pipeline-drift-canary--alert-whe.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-26T23:34:06'
+    action: 'T-3593: re-vendor be.25 -> be.27 (operator go); kept-file merges clean'
+  - time: '2026-10-27T00:28:33'
+    action: 'T-3593: re-vendor AEF v1.8.15-be.25 -> be.27 (eea53bb06, 35 commits; operator go 2026-10-26)'
+  - time: '2026-10-27T00:28:52'
+    action: 'T-3593: divergence baseline 0b150f49d (be.27)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 58 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 58
+  commits: 4
+  files_changed: 33
+  lines_added: 1696
+  lines_removed: 105
+  footprint_refreshed_at: '2026-10-26T23:32:09Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3593-re-vendor-aef-v1815-be25---be27-eea53bb0.md
+generated_by: context-agent-hybrid
