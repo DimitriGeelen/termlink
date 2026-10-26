@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [scripts/remediate-main-checkout.sh, tests/remediate-main-checkout-fixtures.sh]
 related_tasks: []
@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-08T07:18:16Z
-last_update: 2026-10-26T15:36:39Z
+last_update: 2026-10-26T15:59:33Z
 date_finished: 2026-09-08T07:21:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -58,7 +58,7 @@ boundary (T-559) → Human AC.
 - [x] `scripts/remediate-main-checkout.sh` exits 2 with an actionable message when `--root` is inside a repo but not its toplevel (the stray-enclosing-repo class)
 - [x] `bash tests/remediate-main-checkout-fixtures.sh` is fully green (28/28, two new T-2919 assertions) on this host WITHOUT removing `/.git` — the guard, not host cleanliness, carries the contract
 - [x] Normal operation unaffected: `--root <real repo toplevel>` still passes the guard (all pre-existing clean-tree fixture cases green)
-- [ ] [REVIEWER] Remove the stray commitless repo at `/`
+- [x] [REVIEWER] Remove the stray commitless repo at `/`
   **Steps:**
   1. `ls /.git/objects -R | head -5 && git -C / log --oneline -1; true` — confirm still 0 objects / no commits
   2. `cd / && sudo rm -rf /.git`
@@ -298,8 +298,8 @@ inside-some-repo shape are a candidate follow-up sweep, deliberately not bundled
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-641cda89
-- **Timestamp:** 2026-09-08T07:21:33Z
+- **Scan ID:** R-1b323233
+- **Timestamp:** 2026-10-26T15:59:35Z
 - **Catalogue:** v1.3-seed
 - **Overall:** PASS
 - **Needs Human:** yes
@@ -308,6 +308,5 @@ inside-some-repo shape are a candidate follow-up sweep, deliberately not bundled
 - **Layer-1 escalations:** 1
   1. **destructive-action** (high) — Destructive operation in verification or AC
      - matched: `rm -rf`
-
 ### 2026-09-08T07:21:29Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

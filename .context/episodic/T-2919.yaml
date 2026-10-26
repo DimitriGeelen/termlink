@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2919: Stray commitless git repo at / defeats not-a-git-repo guards; remediate-main-checkout guard must require toplevel
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T15:59:36Z
+# ============================================================================
+
+task_id: T-2919
+task_name: "Stray commitless git repo at / defeats not-a-git-repo guards; remediate-main-checkout guard must require toplevel"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-08T07:18:16Z
+completed: 2026-10-26T15:36:39Z
+duration_days: 48
+updates_count: 2
+first_commit: 2026-09-08T09:21:08+02:00
+last_commit: 2026-09-08T09:21:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  a commitless /.git (accidental init, Sep 5) made 'not a git repo' guards pass from anywhere — remediate-main-checkout now requires --root to BE the toplevel; 2 fixture assertions pin the enclosing-repo class; /.git removal queued as Human AC
+
+# Key outcomes
+outcomes:
+  - '`scripts/remediate-main-checkout.sh` exits 2 with an actionable message when `--root` is inside a repo but not its toplevel (the stray-enclosing-repo class)'
+  - '`bash tests/remediate-main-checkout-fixtures.sh` is fully green (28/28, two new T-2919 assertions) on this host WITHOUT removing `/.git` — the guard, not host cleanliness, carries the contract'
+  - 'Normal operation unaffected: `--root <real repo toplevel>` still passes the guard (all pre-existing clean-tree fixture cases green)'
+  - '[REVIEWER] Remove the stray commitless repo at `/`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'a commitless /.git (accidental init, Sep 5) made ''not a git repo'' guards pass from anywhere — remediate-main-checkout now requires --root to BE the toplevel; 2 fixture assertions pin the enclosing-repo class; /.git removal queued as Human AC'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2919-stray-commitless-git-repo-at--defeats-no.md'
+  - 'scripts/remediate-main-checkout.sh'
+  - 'tests/remediate-main-checkout-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-08T09:21:08'
+    action: 'T-2919: a commitless /.git (accidental init, Sep 5) made ''not a git repo'' guards pass from anywhere — remediate-main-checkout now requires --root to BE the toplevel; 2 fixture assertions pin the enclosing-repo class; /.git removal queued as Human AC'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 69618 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 69618
+  commits: 2
+  files_changed: 8
+  lines_added: 552
+  lines_removed: 12
+  footprint_refreshed_at: '2026-10-26T16:01:29Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2919-stray-commitless-git-repo-at--defeats-no.md
+generated_by: context-agent-hybrid

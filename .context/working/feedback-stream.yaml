@@ -20959,3 +20959,39 @@ scan_id: R-56f4bfa3
 task_id: T-2822
 payload:
   task_file: .tasks/active/T-2822-blanket-contextworking-gitignore-makes-s.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:59:35Z'
+scan_id: R-1b323233
+task_id: T-2919
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:59:35Z'
+scan_id: R-1b323233
+task_id: T-2919
+payload:
+  task_file: .tasks/active/T-2919-stray-commitless-git-repo-at--defeats-no.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T16:01:17Z'
+scan_id: R-dc1a8ca9
+task_id: T-2873
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T16:01:17Z'
+scan_id: R-dc1a8ca9
+task_id: T-2873
+payload:
+  task_file: .tasks/active/T-2873-termlinkremoteinject-sends-bare-string-k.md

@@ -1,0 +1,120 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2873: termlink_remote_inject sends bare-string keys; broken against every hub
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T16:01:19Z
+# ============================================================================
+
+task_id: T-2873
+task_name: "termlink_remote_inject sends bare-string keys; broken against every hub"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-01T10:44:04Z
+completed: 2026-10-26T15:36:38Z
+duration_days: 55
+updates_count: 4
+first_commit: 2026-09-01T12:55:03+02:00
+last_commit: 2026-09-02T08:15:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_remote_inject sent bare-string keys — broken against every hub, not version skew. session state — guard layer 88/88 after the remote_inject fix. rebuild 0.11.1766, install over the in-use binary, stop the pre-fix MCP server. proven live through a fresh MCP server, asserted on the PTY not the hub. human AC step 3 re-verified live through a reconnected MCP server
+
+# Key outcomes
+outcomes:
+  - '**The MCP tool sends a valid `KeyEntry` payload.** Construction extracted to `build_inject_keys(text, enter)` and fixed to emit `[{"type":"text","value":<text>}]` plus `{"type":"key","value":"Enter"}`. One Text entry for the whole string, matching the CLI sibling. Extracted rather than fixed in place because the old construction was inline in an async fn that needs a live hub to reach, which is exactly why no test could see it.'
+  - '**The wire shape is proven, and proven able to fail.** Three tests decode the built array against the REAL `KeyEntry` type from `termlink-protocol`, not a hand-written JSON shape — a shape assertion would pass just as happily against the bare strings that caused the outage, since both are valid JSON (the PL-148 tautology). Load-bearing: restoring the exact pre-fix construction fails both positive tests (`MUTANT_RC=101`); restoring the fix returns green. A third test pins the regression directly — bare `["p"]` must NOT decode as `KeyEntry`; if it ever does, this diagnosis was wrong.'
+  - '**The version-skew hypothesis is disproved, with evidence.** `fleet doctor` puts .122 at `0.11.1411`, not `0.9.0`; the `0.9.0` reading came from session metadata, which is the T-2744 defect (`termlink-session` stamped the Cargo.toml constant into every session ever created, while the same binary reported `0.11.720` from `--version`). The failure reproduced **byte-identically against the local `0.11.1716` hub** — the newest binary in the fleet — so no hub version is implicated. Control on the same hub and same session: the CLI path injected 20 bytes successfully while the MCP path failed.'
+  - '**The parity census reason is corrected rather than cleared.** `termlink_remote_inject` stays in `.context/checks/mcp-parity-census-allowlist` because no `parity.rs` assertion exists yet and deleting the line would make the census claim coverage it does not have (T-2680). Its reason now records that the tool is no longer *unexamined* — it was examined and was broken — and that a full MCP-vs-CLI case is still owed under T-2748. Census re-runs clean: 260 tools, 24 asserted, 236 acknowledged, 0 unexamined.'
+  - '**End-to-end through the MCP server.** PROVEN 2026-09-01, and proven on the RECEIVER rather than the sender. The blocker was never the fix — it was that the MCP server attached to this session is a long-lived process still running pre-fix code, which cannot be restarted from inside the session it serves. That does not require a restart to verify: a **fresh `termlink mcp serve` was spawned from the rebuilt binary** (`/root/.cargo/bin/termlink`, mtime 13:38, postdating the fix commit `93cb3d8d9` at 12:55) and driven over stdio with a real MCP handshake — `initialize` → `notifications/initialized` → `tools/call termlink_remote_inject`. Two runs: against a non-PTY tmux session the call returned `ok:false` with `"No PTY session"` — note the `-32602 Invalid keys format` is **gone**, so the `KeyEntry` payload now deserializes and reaches session resolution; against a PTY-backed session (`spawn --shell --backend background`) it returned `{"ok": true, "result": {"status": "injected", "bytes_len": 21}}`. **The hub saying `injected` is not proof** — that is this task''s own finding — so `termlink output t2873pty` was read and shows `echo T2873_INJECT_OK` echoed and its output `T2873_INJECT_OK` on the following line. The command was injected AND executed. Server identified itself as `termlink-mcp 0.11.1766`.'
+  - '[REVIEWER] Restart the MCP server so the fixed `termlink_remote_inject` goes live.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'rebuild 0.11.1766, install over the in-use binary, stop the pre-fix MCP server'
+    source: git-mined
+  - description: 'session state — guard layer 88/88 after the remote_inject fix'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-09-01.yaml'
+  - '.context/audits/2026-09-02.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/checks/mcp-parity-census-allowlist'
+  - '.context/handovers/S-2026-0901-1307.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0901-2050.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0901-2259.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0901-2341.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0901-2348.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0902-0028.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0902-0029.discard-manifest.yaml'
+  - '.context/pickup/auto-deferred/P-055-bug-report.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/.hook-counter'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2872-channel-ack-cannot-reach-unread0-on-a-to.md'
+  - '.tasks/active/T-2873-termlinkremoteinject-sends-bare-string-k.md'
+  - '.tasks/active/T-2878-meta-canary-watches-8-of-20-canaries-one.md'
+  - '.termlink-task'
+  - 'VERSION'
+  - 'crates/termlink-mcp/src/tools.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-01T12:55:03'
+    action: 'T-2873: termlink_remote_inject sent bare-string keys — broken against every hub, not version skew'
+  - time: '2026-09-01T13:03:25'
+    action: 'T-2873: session state — guard layer 88/88 after the remote_inject fix'
+  - time: '2026-09-01T13:40:05'
+    action: 'T-2873: rebuild 0.11.1766, install over the in-use binary, stop the pre-fix MCP server'
+  - time: '2026-09-01T23:18:57'
+    action: 'T-2873: proven live through a fresh MCP server, asserted on the PTY not the hub'
+  - time: '2026-09-02T08:15:26'
+    action: 'T-2873: human AC step 3 re-verified live through a reconnected MCP server'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 79492 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 79492
+  commits: 6
+  files_changed: 33
+  lines_added: 6632
+  lines_removed: 4677
+  footprint_refreshed_at: '2026-10-26T16:01:29Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2873-termlinkremoteinject-sends-bare-string-k.md
+generated_by: context-agent-hybrid
