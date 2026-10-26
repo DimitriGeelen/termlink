@@ -390,6 +390,56 @@ if [ "${#APPROVED_CLOSES[@]}" -gt 0 ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# ACTION 2b — hand human-owned tasks back to the agent (T-3592 stage 1; operator
+# ruling A, 2026-10-26, recorded in T-3592 ## Decisions)
+#
+# These tasks are owner: human only because the old rule sent every `### Human`
+# criterion to the operator; none of them has an open `### Human` criterion. Human
+# ownership is protected (R-033) and the bypass is refused to agents, so the
+# operator carries out the recorded ruling by running this script. Excluded on
+# purpose: tasks whose close confirms an act in the world (T-2858, T-2938, T-2939,
+# T-3178), work addressed to the operator (T-3578, T-3259, T-3315, T-2994) and
+# inceptions (the GO/NO-GO is the operator's). Verified on disk: owner: agent.
+# Idempotent: already agent-owned or no longer active => skip.
+# RUNME_TEST_HANDBACKS is a FIXTURE seam; when SET (even empty) it replaces the list.
+# ---------------------------------------------------------------------------
+HANDBACKS=(T-1428 T-1451 T-1665 T-1723 T-212 T-2271 T-2371 T-2534 T-2541 T-2586
+           T-2696 T-2700 T-2701 T-2704 T-2878 T-2916 T-2917 T-2993 T-3040 T-3100
+           T-3107 T-3109 T-3110 T-3111 T-3112 T-3114 T-3115 T-3118 T-3119 T-3120
+           T-3121 T-3122 T-3123 T-3124 T-3125 T-3126 T-3179 T-3180 T-3181 T-3182
+           T-3183 T-3188 T-3250)
+if [ -n "${RUNME_TEST_HANDBACKS+x}" ]; then
+    HANDBACKS=()
+    [ -n "$RUNME_TEST_HANDBACKS" ] && read -r -a HANDBACKS <<< "$RUNME_TEST_HANDBACKS"
+fi
+
+handback_task() {  # <T-ID>
+    local id="$1" f
+    f=$(ls "$TASKS_DIR"/active/"$id"-*.md 2>/dev/null | head -1)
+    if [ -z "$f" ]; then
+        say "  skip    $id is no longer active"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if grep -q '^owner: agent' "$f"; then
+        say "  skip    $id already owner: agent"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would hand $id back to owner: agent"; DONE=$((DONE+1)); return
+    fi
+    "$FW" task update "$id" --owner agent --skip-human-ownership \
+        --reason "T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion" >>/tmp/.runme-handback-"$id" 2>&1
+    if grep -q '^owner: agent' "$f"; then
+        say "  OK      handed back and verified: $id owner: agent"; DONE=$((DONE+1))
+    else
+        say "  FAILED  $id still not owner: agent (fw output: /tmp/.runme-handback-$id)"; FAILED=$((FAILED+1))
+    fi
+}
+
+if [ "${#HANDBACKS[@]}" -gt 0 ]; then
+    head2 "2b. Hand ${#HANDBACKS[@]} human-owned tasks with no Human criterion back to the agent (T-3592, ruling A)"
+    for id in "${HANDBACKS[@]}"; do handback_task "$id"; done
+fi
+
+# ---------------------------------------------------------------------------
 # ACTION 3 — inception decisions the operator has ALREADY made (T-3285)
 #
 # One "T-ID|verdict|rationale" per entry (verdict: go | no-go | defer). An entry

@@ -205,6 +205,10 @@ fi
 id="$3"; new="$5"
 f=$(ls "$RUNME_TASKS_DIR"/active/"$id"-*.md 2>/dev/null | head -1)
 [ -n "$f" ] || exit 1
+if [ "$4" = "--owner" ]; then   # T-3592: hand-back; FAKE_HANDBACK_REFUSE=1 claims success, changes nothing
+    [ "${FAKE_HANDBACK_REFUSE:-0}" = 1 ] && exit 0
+    sed -i "s/^owner: .*/owner: $5/" "$f"; exit 0
+fi
 cur=$(sed -n 's/^status: //p' "$f")
 if [ "$cur" = "captured" ] && [ "$new" = "work-completed" ]; then
     echo "ERROR: Invalid transition 'captured' → 'work-completed'"; exit 1
@@ -289,6 +293,9 @@ export RUNME_TEST_DECISIONS="T-9055"
 # T-3285: approved inception decisions go through their own seam (SET replaces the real list).
 printf -- '---\nid: T-9284\nworkflow_type: inception\n---\n' > "$TMP/tasks/active/T-9284-fixture.md"
 export RUNME_TEST_APPROVED_DECISIONS="T-9284|go|fixture approved decision"
+# T-3592 action 2b: hand-backs go through their own seam (SET replaces the real list).
+# Default = empty, so ordinary cases run no hand-back and never touch a real task.
+export RUNME_TEST_HANDBACKS=""
 # T-3287: the termlink install action must NEVER build or touch ~/.cargo/bin in a
 # fixture. A fake "built" binary that accepts --no-create (exit 3, writes nothing),
 # and an "old" one that rejects it, as installed binaries would.
@@ -830,6 +837,25 @@ if [ "$rc" = "1" ] && echo "$out" | grep -q "reset-failed did not clear the coun
     ok "flap ack: a reset that does not clear the counter is FAILED, not OK"
 else bad "flap ack sticky" "rc=$rc: $out"; fi
 echo 0 > "$H/nrestarts"; rm -f "$H/resets"
+# T-3592 action 2b: hand human-owned tasks back to the agent (scratch tasks only).
+printf -- '---\nid: T-9592\nstatus: captured\nowner: human\n---\n' > "$TMP/tasks/active/T-9592-fixture.md"
+printf -- '---\nid: T-9593\nstatus: captured\nowner: agent\n---\n' > "$TMP/tasks/active/T-9593-fixture.md"
+out=$(RUNME_TEST_HANDBACKS="T-9592 T-9593 T-9594" run --dry-run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "would hand T-9592 back" && grep -q '^owner: human' "$TMP/tasks/active/T-9592-fixture.md"; then
+    ok "handback: --dry-run names the hand-back and changes nothing"
+else bad "handback dry-run" "rc=$rc: $out"; fi
+out=$(RUNME_TEST_HANDBACKS="T-9592 T-9593 T-9594" run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      handed back and verified: T-9592 owner: agent" \
+   && echo "$out" | grep -q "skip    T-9593 already owner: agent" && echo "$out" | grep -q "skip    T-9594 is no longer active" \
+   && grep -q '^owner: agent' "$TMP/tasks/active/T-9592-fixture.md"; then
+    ok "handback: human-owned task handed back and verified; agent-owned and missing ones skip"
+else bad "handback run" "rc=$rc: $out"; fi
+sed -i 's/^owner: .*/owner: human/' "$TMP/tasks/active/T-9592-fixture.md"
+out=$(FAKE_HANDBACK_REFUSE=1 RUNME_TEST_HANDBACKS="T-9592" run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  T-9592 still not owner: agent"; then
+    ok "handback: fw that claims success but changes nothing => FAILED, not OK"
+else bad "handback refuse" "rc=$rc: $out"; fi
+rm -f "$TMP/tasks/active/T-9592-fixture.md" "$TMP/tasks/active/T-9593-fixture.md"
 hub_state 500 "/old/termlink (deleted)"
 out=$(FAKE_HUB_RESTART_MODE=rotate run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "hub.secret-CHANGED"; then
