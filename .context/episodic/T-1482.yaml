@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1482: agent presence — fleet-wide peer activity summary (companion to agent who)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T23:47:31Z
+# ============================================================================
+
+task_id: T-1482
+task_name: "agent presence — fleet-wide peer activity summary (companion to agent who)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-05-04T13:07:24Z
+completed: 2026-05-04T13:19:46Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T15:15:35+02:00
+last_commit: 2026-10-26T22:59:16+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent presence — fleet-wide peer activity summary. complete (work-completed) — agent presence shipped. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - '`termlink agent presence` parses via `--help`; no required flags'
+  - '`--window-secs <N>` (default 3600) bounds the slice. Clamped [60, 604800]'
+  - 'Output (text, default): one row per active peer, columns = peer_fp (16 chars), last_seen_ago, posts, top from_project. Sorted by posts desc, then peer_fp asc. Header row + alignment'
+  - 'Output (JSON, --json): { window_secs, peers: [{peer_fp, last_seen_ms, posts, top_project}, ...] }'
+  - 'Empty fleet: text mode prints "(no peers active in window)"; JSON returns empty peers array'
+  - 'Pure helper `summarize_fleet_presence(msgs, now_ms, window_ms) -> Vec<FleetPeerRow>` in `commands/channel.rs` — no I/O'
+  - '5+ unit tests for `summarize_fleet_presence`: empty msgs / single peer / multi-peer sorted by posts desc / meta-msg filter / top_project picks most-frequent then alphabetic on tie'
+  - '`cargo build --release -p termlink` clean'
+  - '`cargo test --release -p termlink --bin termlink fleet_presence` passes (>=5 tests)'
+  - 'Live smoke: own hub returns ≥1 peer (own FP at minimum) with sane numbers; --json output parses correctly'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1482/AC1-judge-t-1482-r3-2c136199a372.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1482-agent-presence--fleet-wide-peer-activity.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-04T15:15:35'
+    action: 'T-1482: agent presence — fleet-wide peer activity summary'
+  - time: '2026-05-04T15:21:24'
+    action: 'T-1482: complete (work-completed) — agent presence shipped'
+  - time: '2026-10-26T22:59:16'
+    action: 'T-1482: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 12
+  commits: 4
+  files_changed: 26
+  lines_added: 1565
+  lines_removed: 18
+  footprint_refreshed_at: '2026-10-26T23:52:23Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1482-agent-presence--fleet-wide-peer-activity.md
+generated_by: context-agent-hybrid

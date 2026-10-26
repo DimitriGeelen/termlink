@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1488: agent who --thread <T-XXX> — thread-scoped peer activity filter
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T23:48:43Z
+# ============================================================================
+
+task_id: T-1488
+task_name: "agent who --thread <T-XXX> — thread-scoped peer activity filter"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-05-04T15:50:55Z
+completed: 2026-05-04T16:00:12Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T18:00:08+02:00
+last_commit: 2026-10-26T23:04:20+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent who --thread <T-XXX> — thread-scoped peer activity filter. complete (work-completed) — agent who --thread shipped. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - '`--thread <name>` flag added to `agent who` (clap parses via `--help`)'
+  - 'When set: only posts with `metadata._thread == <name>` count toward posts_in_window / from_projects (last_seen still walks whole peer history for "really how active is this peer at all")'
+  - 'When unset: behavior identical to T-1481 baseline (regression-safe — JSON envelope omits `filter_thread`)'
+  - '`summarize_peer_activity` helper extended with `filter_thread: Option<&str>` parameter (signature change with all callers updated)'
+  - 'JSON envelope echoes `filter_thread` field when filter is set (omitted otherwise to stay backward-compatible)'
+  - 'Text mode: header line `# filter_thread=<name>` printed when filter is set; existing layout otherwise unchanged'
+  - '4+ unit tests: filter-matches / filter-excludes-untagged / no-match-returns-zero / last-seen-independent-of-filter'
+  - '`cargo build --release -p termlink` clean'
+  - '`cargo test --release -p termlink --bin termlink peer_activity` passes (10/10 — 6 baseline + 4 new)'
+  - 'Live smoke: `agent who --target-fp d1993c2c3ec44c94 --thread T-1487 --window-secs 86400` returns 0 posts_in_window (chat-arc has no T-1487-tagged posts — expected) but last_seen stays populated'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1488/AC1-judge-t-1488-r3-1af9d3ed2fba.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1488-agent-who---thread-t-xxx--thread-scoped-.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-04T18:00:08'
+    action: 'T-1488: agent who --thread <T-XXX> — thread-scoped peer activity filter'
+  - time: '2026-05-04T18:05:41'
+    action: 'T-1488: complete (work-completed) — agent who --thread shipped'
+  - time: '2026-10-26T23:04:20'
+    action: 'T-1488: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 4
+  files_changed: 26
+  lines_added: 1400
+  lines_removed: 32
+  footprint_refreshed_at: '2026-10-26T23:52:24Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1488-agent-who---thread-t-xxx--thread-scoped-.md
+generated_by: context-agent-hybrid

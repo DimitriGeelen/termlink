@@ -1,0 +1,106 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1492: agent recent <peer> — show last N posts from a peer on chat-arc
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T23:49:44Z
+# ============================================================================
+
+task_id: T-1492
+task_name: "agent recent <peer> — show last N posts from a peer on chat-arc"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T17:11:54Z
+completed: 2026-05-04T17:21:46Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T19:21:42+02:00
+last_commit: 2026-10-26T23:10:19+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent recent <peer> — show last N posts from a peer. complete (work-completed) — agent recent shipped. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - 'New `agent recent` subcommand registered (clap parses via `--help`)'
+  - 'Positional `<TARGET>` (display name resolved locally) OR `--target-fp <hex>` (cross-host disambiguation); mutually exclusive; one required'
+  - '`--n N` flag controls count (default 10, clamped to [1, 200])'
+  - '`--window-secs N` flag bounds the walk (default 86400 / 1 day, clamped to [60, 604800])'
+  - '`--thread <T-XXX>` filters by `metadata._thread`'
+  - '`--project <name>` filters by `metadata.from_project`'
+  - '`--hub <addr>` overrides default hub'
+  - '`--json` outputs structured envelope: `{target, peer_fp, window_secs, n, posts: [...]}` with `filter_thread`/`filter_project` echoed when set'
+  - 'Pure helper `extract_recent_posts_for_peer(msgs, peer_fp, n, window_ms, now_ms, filter_thread, filter_project) -> Vec<RecentPost>`; testable'
+  - 'RecentPost has: ts_ms, msg_type, content (string, possibly truncated), thread, project'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-05-04 — Chronological ASC (oldest first) instead of DESC'
+    chose: 'Sort posts oldest-first, newest-last.'
+    rationale: 'Natural reading flow — operator pages down to see how a conversation evolved. Mirrors how `git log --reverse` and chat clients display threads.'
+    alternatives_rejected: ['Desc (newest first) — feels right for "give me the latest" but breaks the conversation-flow read; would need separate flag.']
+  - decision: '2026-05-04 — Content cap at 200 chars + ellipsis'
+    chose: 'Truncate content to 200 chars in the helper, suffix `…`.'
+    rationale: '`agent recent` is a quick-glance verb, not a full-message reader. Keeps tables compact. JSON envelope honors the same cap so callers can''t accidentally pull megabyte payloads.'
+    alternatives_rejected: ['No cap — could blow up output for long posts; operator can always fall back to `events --topic agent-chat-arc --since N | jq` for full content.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1492/AC1-judge-t-1492-r3-369757dfe9af.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1492-agent-recent-peer--show-last-n-posts-fro.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-04T19:21:42'
+    action: 'T-1492: agent recent <peer> — show last N posts from a peer'
+  - time: '2026-05-04T19:22:10'
+    action: 'T-1492: complete (work-completed) — agent recent shipped'
+  - time: '2026-10-26T23:10:19'
+    action: 'T-1492: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 4
+  files_changed: 26
+  lines_added: 1761
+  lines_removed: 18
+  footprint_refreshed_at: '2026-10-26T23:52:24Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1492-agent-recent-peer--show-last-n-posts-fro.md
+generated_by: context-agent-hybrid

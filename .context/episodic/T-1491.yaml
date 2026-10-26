@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1491: agent presence --by-project — fleet activity aggregated by project
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T23:49:24Z
+# ============================================================================
+
+task_id: T-1491
+task_name: "agent presence --by-project — fleet activity aggregated by project"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T17:00:50Z
+completed: 2026-05-04T17:10:54Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T19:10:50+02:00
+last_commit: 2026-10-26T23:08:41+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent presence --by-project — fleet activity by project. complete (work-completed) — agent presence --by-project shipped. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - '`--by-project` flag added to `agent presence` (clap parses via `--help`)'
+  - 'When set: output is one row per project with posts/peers/top_peer/last_seen'
+  - 'When unset: behavior identical to T-1490 baseline (per-peer rows; backward-compat)'
+  - '`summarize_fleet_by_project` helper added: `(msgs, now_ms, window_ms, filter_project, filter_thread) -> Vec<FleetProjectRow>`'
+  - 'FleetProjectRow has: project, posts, distinct_peers (count), top_peer_fp, last_seen_ms'
+  - 'Sort: posts desc, then project asc (alpha tie-break)'
+  - 'Untagged posts are excluded entirely (a `from_project` tag is required for by-project aggregation)'
+  - 'JSON envelope: when `--by-project` set, `peers` key replaced with `projects` (array of FleetProjectRow); `view: "by-project"` field added so callers can disambiguate'
+  - 'Text mode: PROJECT/POSTS/PEERS/TOP_PEER/LAST_SEEN columns; footer "(N of M)" truncation honored when --top set'
+  - 'Composes with `--top`, `--filter-project`, `--thread`, `--watch`, `--hub` unchanged (watch loop branches on by_project)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-05-04 — Untagged posts excluded unconditionally'
+    chose: 'In by-project view, posts without `from_project` are dropped entirely (not bucketed under "(untagged)" or similar).'
+    rationale: 'Project IS the aggregation key — a row labelled "(untagged)" would be a different shape than other rows and the `top_peer_fp` would be misleading (it''d be "the peer with most untagged posts" rather than "the peer most active on this project"). Heartbeats and meta-traffic don''t carry project tags by design; including them would dilute the signal.'
+    alternatives_rejected: ['"(untagged)" pseudo-row — would conflate noise with signal; operator can fall back to default by-peer view if they need to see untagged activity.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1491/AC1-judge-t-1491-r3-38facb214fd3.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1491-agent-presence---by-project--fleet-activ.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-04T19:10:50'
+    action: 'T-1491: agent presence --by-project — fleet activity by project'
+  - time: '2026-05-04T19:11:24'
+    action: 'T-1491: complete (work-completed) — agent presence --by-project shipped'
+  - time: '2026-10-26T23:08:41'
+    action: 'T-1491: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 10
+  commits: 4
+  files_changed: 26
+  lines_added: 1676
+  lines_removed: 36
+  footprint_refreshed_at: '2026-10-26T23:52:24Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1491-agent-presence---by-project--fleet-activ.md
+generated_by: context-agent-hybrid

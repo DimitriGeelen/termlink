@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1490: agent presence --thread T-XXX — fleet-wide thread activity filter
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T23:49:04Z
+# ============================================================================
+
+task_id: T-1490
+task_name: "agent presence --thread T-XXX — fleet-wide thread activity filter"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-05-04T16:46:14Z
+completed: 2026-05-04T16:59:07Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T18:56:26+02:00
+last_commit: 2026-10-26T23:07:17+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent presence --thread <T-XXX> — fleet-wide thread activity filter. complete (work-completed) — agent presence --thread shipped. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - '`--thread <name>` flag added to `agent presence` (clap parses via `--help`)'
+  - 'When set: only posts whose `metadata._thread == <name>` count toward presence; peers with zero matching posts are excluded'
+  - 'When unset: behavior identical to T-1484/1486/1489 baseline (JSON omits `filter_thread` field; backward-compat)'
+  - '`--thread` AND-composes with `--filter-project`: when both set, only posts matching both pass'
+  - '`summarize_fleet_presence` helper extended with `filter_thread: Option<&str>` parameter (signature change; all callers + tests updated)'
+  - '`fetch_fleet_presence_via_chat_arc` wrapper extended with the same parameter'
+  - 'JSON envelope echoes `filter_thread` field when filter is set (omitted otherwise)'
+  - 'Text mode: header line `# filter_thread=<name>` printed when filter is set; empty-message phrasing includes thread; footer suffix mentions thread'
+  - '4+ unit tests: filter-thread-matches / filter-thread-excludes-untagged / no-match-returns-empty / AND-compose-with-project'
+  - '`cargo build --release -p termlink` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1490/AC1-judge-t-1490-r3-1ef5d25277f8.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1490-agent-presence---thread-t-xxx--fleet-wid.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-04T18:56:26'
+    action: 'T-1490: agent presence --thread <T-XXX> — fleet-wide thread activity filter'
+  - time: '2026-05-04T18:59:24'
+    action: 'T-1490: complete (work-completed) — agent presence --thread shipped'
+  - time: '2026-10-26T23:07:17'
+    action: 'T-1490: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 12
+  commits: 4
+  files_changed: 26
+  lines_added: 1410
+  lines_removed: 46
+  footprint_refreshed_at: '2026-10-26T23:52:24Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1490-agent-presence---thread-t-xxx--fleet-wid.md
+generated_by: context-agent-hybrid

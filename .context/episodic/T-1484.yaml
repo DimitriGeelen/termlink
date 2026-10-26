@@ -1,0 +1,100 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1484: agent presence --filter-project <name> — project-scoped fleet view
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T23:47:51Z
+# ============================================================================
+
+task_id: T-1484
+task_name: "agent presence --filter-project <name> — project-scoped fleet view"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-05-04T14:51:25Z
+completed: 2026-05-04T15:00:35Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T17:00:31+02:00
+last_commit: 2026-10-26T23:00:46+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent presence --filter-project <name> — project-scoped fleet view. complete (work-completed) — agent presence --filter-project shipped. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - '`--filter-project <name>` flag added to `agent presence` (clap parses via `--help`)'
+  - 'When set: only posts with `metadata.from_project == <name>` count toward presence; peers with zero matching in-window posts are excluded'
+  - 'When unset: behavior identical to T-1482 baseline (regression-safe)'
+  - '`summarize_fleet_presence` helper extended with `filter_project: Option<&str>` parameter (signature change with all callers updated)'
+  - 'Empty result with filter: text mode prints "(no peers active in window matching project=<name>)"; JSON returns empty peers array with filter echoed in envelope'
+  - 'JSON envelope includes `filter_project` field when filter is set (omitted otherwise to stay backward-compatible)'
+  - '4+ unit tests for filter behavior: filter-matches / filter-excludes / filter-with-no-tagged-posts / filter-changes-top-project'
+  - '`cargo build --release -p termlink` clean'
+  - '`cargo test --release -p termlink --bin termlink fleet_presence` passes (>=11 tests — 7 baseline + 4 new)'
+  - 'Live smoke against own hub: `--filter-project 010-termlink` returns ≥1 peer; `--filter-project nonexistent-xyz` returns empty with the filter-mention message'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1484/AC1-judge-t-1484-r3-84a8a73586bc.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-1484-agent-presence---filter-project-name--pr.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-04T17:00:31'
+    action: 'T-1484: agent presence --filter-project <name> — project-scoped fleet view'
+  - time: '2026-05-04T17:06:00'
+    action: 'T-1484: complete (work-completed) — agent presence --filter-project shipped'
+  - time: '2026-10-26T23:00:46'
+    action: 'T-1484: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 4
+  files_changed: 27
+  lines_added: 1406
+  lines_removed: 53
+  footprint_refreshed_at: '2026-10-26T23:52:23Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1484-agent-presence---filter-project-name--pr.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1485: agent contact --ack-required — synchronous engagement (T-1425 Phase-2 backlog)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T23:48:23Z
+# ============================================================================
+
+task_id: T-1485
+task_name: "agent contact --ack-required — synchronous engagement (T-1425 Phase-2 backlog)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-05-04T15:06:54Z
+completed: 2026-05-04T15:21:48Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T17:21:44+02:00
+last_commit: 2026-10-26T23:02:26+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent contact --ack-required — synchronous engagement (T-1425 Q4). complete (work-completed) — agent contact --ack-required shipped. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - '`--ack-required` boolean flag added to `agent contact` (clap parses via `--help`)'
+  - '`--ack-timeout-secs <N>` flag added (default 60, clamped to [5, 600])'
+  - 'After successful post: poll the dm topic for a non-meta message from peer_fp with ts > send_ts_ms; return as soon as found'
+  - 'On ack: exit 0; non-JSON prints "ack received from <peer_fp> after <Ns>"; JSON envelope `{"ok": true, "ack": {"ts_ms": ..., "wait_secs": ...}}`'
+  - 'On timeout: exit 10 (non-JSON) / exit 1 with `exit_code: 10` field (JSON, established codebase convention); error names peer_fp + timeout + recovery hints'
+  - 'Pure helper `detect_ack_in_msgs(msgs, peer_fp, send_ts_ms) -> Option<i64>` in commands/channel.rs'
+  - 'Async helper `wait_for_peer_ack(topic, peer_fp, send_ts_ms, hub, timeout_secs) -> Result<Option<i64>>` polling at ~1s cadence'
+  - 'Generic `fetch_topic_msgs(topic, hub, slice_size)` extracted from chat-arc helper; `fetch_recent_chat_arc_msgs` now thin wrapper'
+  - 'Combines correctly with `--require-online`: pre-flight first, then post, then ack-wait'
+  - '5+ unit tests for `detect_ack_in_msgs` (7 actual): empty / no-match-by-fp / ts-before-send / at-exact-ts (strict) / meta-msgs-skipped / first-match-wins / post-after-send-returns-ts'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1485/AC1-judge-t-1485-r3-677b8075d0f0.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1485-agent-contact---ack-required--synchronou.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-04T17:21:44'
+    action: 'T-1485: agent contact --ack-required — synchronous engagement (T-1425 Q4)'
+  - time: '2026-05-04T17:27:29'
+    action: 'T-1485: complete (work-completed) — agent contact --ack-required shipped'
+  - time: '2026-10-26T23:02:26'
+    action: 'T-1485: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 14 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 14
+  commits: 4
+  files_changed: 26
+  lines_added: 1510
+  lines_removed: 31
+  footprint_refreshed_at: '2026-10-26T23:52:24Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1485-agent-contact---ack-required--synchronou.md
+generated_by: context-agent-hybrid
