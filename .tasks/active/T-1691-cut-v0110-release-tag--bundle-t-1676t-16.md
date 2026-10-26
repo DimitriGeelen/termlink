@@ -58,7 +58,8 @@ date_finished: 2026-05-18T08:48:35Z
 
 ## Verification
 
-( target/release/termlink --version 2>&1 ) > /tmp/.v-t-1691-1.out && grep -qE 'termlink 0\.11\.' /tmp/.v-t-1691-1.out
+# 2026-10-26 (T-3592): was pinned to 0.11.x; the build has moved on (0.12.x), so assert at least 0.11.
+( target/release/termlink --version 2>&1 ) > /tmp/.v-t-1691-1.out && grep -qE 'termlink 0\.(1[1-9]|[2-9][0-9])\.' /tmp/.v-t-1691-1.out
 ( git tag -l v0.11.0 ) > /tmp/.v-t-1691-2.out && grep -q v0.11.0 /tmp/.v-t-1691-2.out
 ( git ls-remote --tags origin v0.11.0 2>&1 ) > /tmp/.v-t-1691-3.out && grep -q v0.11.0 /tmp/.v-t-1691-3.out
 

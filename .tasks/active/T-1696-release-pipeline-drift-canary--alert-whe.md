@@ -64,7 +64,9 @@ specific failure mode where main mirrors but tags don't.
 ## Verification
 
 # Smoke-test against current state — drift IS present right now (G-058), so canary should fire
-bash scripts/check-mirror-freshness.sh; test $? -eq 1
+# 2026-10-26 (T-3592): was `test $? -eq 1` (assumed drift at the time); the canary is healthy now, so assert
+# only that it runs and reaches a verdict (0 clean / 1 firing), never a tooling error (2).
+bash scripts/check-mirror-freshness.sh > /dev/null 2>&1; r=$?; test "$r" -eq 0 -o "$r" -eq 1
 # File exists, executable
 test -x scripts/check-mirror-freshness.sh
 # Crontab fragment present and well-formed

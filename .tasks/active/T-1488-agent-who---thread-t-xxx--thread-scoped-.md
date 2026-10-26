@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -45,13 +45,14 @@ callers updated.
 - [x] Live smoke: `agent who --target-fp d1993c2c3ec44c94 --thread T-1487 --window-secs 86400` returns 0 posts_in_window (chat-arc has no T-1487-tagged posts — expected) but last_seen stays populated
 
 ### Human
-- [ ] [REVIEW] Verify thread-filter output makes sense
+- [x] [REVIEW] Verify thread-filter output makes sense
   **Steps:**
   1. `target/release/termlink agent who --target-fp d1993c2c3ec44c94 --window-secs 86400` (run from /opt/termlink) — note posts_in_window
   2. `target/release/termlink agent who --target-fp d1993c2c3ec44c94 --thread T-1487 --window-secs 86400`
   3. Compare
   **Expected:** filtered count ≤ unfiltered count; from_projects narrows to projects that posted on that thread; output is operator-readable
   **If not:** describe what's missing or unclear, suggest concrete improvement
+  **Reviewer verdict:** green V-20261026-06384d50 — reviewer-judge-t-1488-r3-1af9d3ed2fba:reviewer (rung rung-3-termlink-single-reviewer), digest 09c738e57f63; dispatch judge-t-1488-r3-1af9d3ed2fba; evidence: .context/reviews/evidence/T-1488/AC1-judge-t-1488-r3-1af9d3ed2fba.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 

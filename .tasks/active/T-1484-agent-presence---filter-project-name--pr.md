@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -44,12 +44,13 @@ posts). Pure helper extension; no hub changes.
 - [x] Live smoke against own hub: `--filter-project 010-termlink` returns ≥1 peer; `--filter-project nonexistent-xyz` returns empty with the filter-mention message
 
 ### Human
-- [ ] [REVIEW] Verify the empty-with-filter message reads naturally
+- [x] [REVIEW] Verify the empty-with-filter message reads naturally
   **Steps:**
   1. `target/release/termlink agent presence --filter-project nonexistent-xyz` (run from /opt/termlink)
   2. Observe the empty-state message
   **Expected:** the message names the filter so operator knows the filter was applied (vs. fleet truly being silent)
   **If not:** describe the unclear wording, suggest concrete improvement
+  **Reviewer verdict:** green V-20261026-29e7557d — reviewer-judge-t-1484-r3-84a8a73586bc:reviewer (rung rung-3-termlink-single-reviewer), digest eaedfcc7374a; dispatch judge-t-1484-r3-84a8a73586bc; evidence: .context/reviews/evidence/T-1484/AC1-judge-t-1484-r3-84a8a73586bc.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 

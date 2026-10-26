@@ -14,12 +14,12 @@ workflow_type: inception
 target_blast_radius: 5  # T-3376: agent estimate replacing the T-3948 default — cross-repo seam
 voi_score: 0.2  # T-3376: mostly answered since by arc-011 (T-3344)
 owner: human
-horizon: now
+horizon: null
 tags: [inception, cross-repo, arc:peer-consult]
 components: []
 related_tasks: []
 created: 2026-05-13T00:00:00Z
-last_update: 2026-05-15T19:36:19Z
+last_update: 2026-10-26T22:12:13Z
 date_finished: 2026-05-15T19:36:19Z
 ---
 

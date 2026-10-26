@@ -187,7 +187,8 @@ bvp_scores_proposed:
 
 # The suite is hermetic: RUNME_CRON_DIR points every install at a scratch dir, so
 # proving this script's behaviour writes no real host state.
-bash tests/runme-fixtures.sh > /tmp/.t3052-f 2>&1 && grep -q "11 passed, 0 failed" /tmp/.t3052-f
+# 2026-10-26 (T-3592): was pinned to "11 passed"; the suite has grown (178), so assert no failures.
+bash tests/runme-fixtures.sh > /tmp/.t3052-f 2>&1 && grep -qE "[0-9]+ passed, 0 failed" /tmp/.t3052-f
 
 # The properties that make an operator script trustworthy, pinned by name:
 # idempotence (safe to re-run), tamper-detection (presence is not trusted), a
@@ -201,7 +202,9 @@ test -x runme.sh && git ls-files --error-unmatch runme.sh > /dev/null 2>&1
 
 # --dry-run is the mode a human reads before granting root, so it must exit 0 and
 # write nothing even when pointed at a directory it could write to.
-d=$(mktemp -d) && RUNME_CRON_DIR="$d" bash runme.sh --dry-run > /tmp/.t3052-d 2>&1 && grep -q "would install" /tmp/.t3052-d && test -z "$(ls -A "$d")"
+# 2026-10-26 (T-3592): own log dir, so the T-3574 single-run lock (kept in the log dir) does not refuse this
+# dry run when the close itself runs inside runme action 2.
+d=$(mktemp -d) && RUNME_CRON_DIR="$d" RUNME_LOG_DIR="$d/logs" bash runme.sh --dry-run > /tmp/.t3052-d 2>&1 && grep -q "would install" /tmp/.t3052-d && test -z "$(ls -A "$d")"
 
 ## RCA
 

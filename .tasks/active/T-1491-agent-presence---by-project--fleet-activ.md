@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -49,11 +49,12 @@ protocol. Composes with `--filter-project`, `--thread`, `--top N`,
 - [x] Live smoke: `agent presence --by-project --window-secs 86400` emits 3-project table (010-termlink/002-Claude-Partner-Network/user-override-val); JSON envelope shape verified
 
 ### Human
-- [ ] [REVIEW] Verify the by-project table is operator-readable
+- [x] [REVIEW] Verify the by-project table is operator-readable
   **Steps:**
   1. `target/release/termlink agent presence --by-project --window-secs 86400` (run from /opt/termlink)
   **Expected:** Table is scannable with PROJECT in leftmost column; footer reports project count + window
   **If not:** suggest column-order or wording changes
+  **Reviewer verdict:** green V-20261026-a438ab77 — reviewer-judge-t-1491-r3-38facb214fd3:reviewer (rung rung-3-termlink-single-reviewer), digest d3f2ba040655; dispatch judge-t-1491-r3-38facb214fd3; evidence: .context/reviews/evidence/T-1491/AC1-judge-t-1491-r3-38facb214fd3.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 

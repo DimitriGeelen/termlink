@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -50,12 +50,13 @@ engagement). Pairs with T-1480 (Q3, fail-fast pre-flight).
 - [x] Live smoke timeout: `--ack-required --ack-timeout-secs 5` against a never-responding peer-FP returns exit 10 within ~5-6s with operator-actionable error
 
 ### Human
-- [ ] [REVIEW] Verify timeout error wording is operator-actionable
+- [x] [REVIEW] Verify timeout error wording is operator-actionable
   **Steps:**
   1. `target/release/termlink agent contact --target-fp deadbeefdeadbeef --message hi --ack-required --ack-timeout-secs 5` (run from /opt/termlink)
   2. Observe the timeout error on stderr
   **Expected:** error names the peer_fp, the timeout, and the next-step (e.g. "rerun without --ack-required to fire-and-forget" or similar)
   **If not:** describe unclear wording, suggest concrete improvement
+  **Reviewer verdict:** green V-20261026-88baebca — reviewer-judge-t-1485-r3-677b8075d0f0:reviewer (rung rung-3-termlink-single-reviewer), digest 00488b4f532e; dispatch judge-t-1485-r3-677b8075d0f0; evidence: .context/reviews/evidence/T-1485/AC1-judge-t-1485-r3-677b8075d0f0.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 

@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -43,12 +43,13 @@ hub changes; reuses T-1481's `summarize_peer_activity` extension.
 - [x] Live smoke: own hub returns ≥1 peer (own FP at minimum) with sane numbers; --json output parses correctly
 
 ### Human
-- [ ] [REVIEW] Verify text-mode table is scannable for fleet observability
+- [x] [REVIEW] Verify text-mode table is scannable for fleet observability
   **Steps:**
   1. `target/release/termlink agent presence --window-secs 86400` (run from /opt/termlink)
   2. Observe row layout, alignment, header
   **Expected:** rows aligned in columns; header readable; you'd reach for this before grepping chat-arc
   **If not:** describe what's misaligned or unclear, suggest concrete layout
+  **Reviewer verdict:** green V-20261026-f1f524f8 — reviewer-judge-t-1482-r3-2c136199a372:reviewer (rung rung-3-termlink-single-reviewer), digest 48f172bdb3f4; dispatch judge-t-1482-r3-2c136199a372; evidence: .context/reviews/evidence/T-1482/AC1-judge-t-1482-r3-2c136199a372.md; ledger .context/reviews/verdicts.jsonl
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

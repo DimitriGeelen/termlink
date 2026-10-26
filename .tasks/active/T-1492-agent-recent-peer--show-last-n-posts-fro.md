@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -53,11 +53,12 @@ gap without operator falling back to `events --topic agent-chat-arc | jq`.
 - [x] Live smoke: `agent recent --target-fp d1993c2c3ec44c94 --window-secs 3600 --n 3` returns 3 chronologically-ordered posts (msg_types: chat/status/star) — content empty because chat-arc on this fleet is heartbeat-only, but verb correctly extracts and orders
 
 ### Human
-- [ ] [REVIEW] Verify the recent-post output is operator-readable
+- [x] [REVIEW] Verify the recent-post output is operator-readable
   **Steps:**
   1. `target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window-secs 3600 --n 5` (run from /opt/termlink)
   **Expected:** Output is scannable — each post clearly delimited, timestamp + content visible at a glance
   **If not:** suggest format changes (block separator, indent depth, content truncation length)
+  **Reviewer verdict:** green V-20261026-9f6337e7 — reviewer-judge-t-1492-r3-369757dfe9af:reviewer (rung rung-3-termlink-single-reviewer), digest ff08cb233733; dispatch judge-t-1492-r3-369757dfe9af; evidence: .context/reviews/evidence/T-1492/AC1-judge-t-1492-r3-369757dfe9af.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 

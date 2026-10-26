@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -46,11 +46,12 @@ to `agent presence` so the fleet-wide post-walk filters by
 - [x] Live smoke: `agent presence --thread T-1490` returns empty rows with naturally-phrased message; compose `--filter-project 010-termlink --thread T-1490` works without panic, names both filters in empty message
 
 ### Human
-- [ ] [REVIEW] Verify the empty-with-thread message reads naturally
+- [x] [REVIEW] Verify the empty-with-thread message reads naturally
   **Steps:**
   1. `target/release/termlink agent presence --thread T-1487 --window-secs 86400` (run from /opt/termlink)
   **Expected:** Output names both the window AND the thread filter so the operator understands why no rows came back
   **If not:** suggest a clearer phrasing
+  **Reviewer verdict:** green V-20261026-6f1af23e — reviewer-judge-t-1490-r3-1ef5d25277f8:reviewer (rung rung-3-termlink-single-reviewer), digest a4926f2a9167; dispatch judge-t-1490-r3-1ef5d25277f8; evidence: .context/reviews/evidence/T-1490/AC1-judge-t-1490-r3-1ef5d25277f8.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 
