@@ -186,10 +186,10 @@ $ .agentic-framework/bin/fw audit --section structure | grep -E 'cron'
 - **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
 - **Close path:** `.agentic-framework/bin/fw reviewer T-1722` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
 
-## Reviewer Verdict (v1.4)
+## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-5b51a70a
-- **Timestamp:** 2026-05-26T22:44:30Z
+- **Scan ID:** R-d51140f3
+- **Timestamp:** 2026-10-26T15:36:57Z
 - **Catalogue:** v1.3-seed
 - **Overall:** CONCERN
 - **Needs Human:** no
@@ -203,7 +203,6 @@ $ .agentic-framework/bin/fw audit --section structure | grep -E 'cron'
   - **AC-verify-mismatch** (narrow, heuristic) — `path=etc/cron.d in: Live verification on this repo: lint emits PASS for `release-mirror-canary.crontab` (installed at `/etc/cron.d/termlink-release-mirror-canary`) and PA`
 - **AC#4 (Agent)** — Channel-1 mirror: identical patch landed at `/opt/999-Agentic-Engineering-Framework/agents/audit/audit.sh` on `origin/master` as commit `a3566cb3`. Verified via `git ls-remote https://onedev.docker.ri
   - **AC-verify-mismatch** (narrow, heuristic) — `path=opt/999-Agentic-Engineering-Framework/agents/audit/audit.sh in: Channel-1 mirror: identical patch landed at `/opt/999-Agentic-Engineering-Framework/agents/audit/audit.sh` on `origin/master` as commit `a3566cb3`. Ve`
-
 ### 2026-05-26T22:44:25Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Verification gate fixed (pipefail-safe with grep -c)

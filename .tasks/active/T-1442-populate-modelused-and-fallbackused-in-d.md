@@ -170,3 +170,17 @@ Plus bonus: `resolution_source` field (provides traceability for the model choic
 - **Converted to [REVIEWER] Agent criteria:** AC#1
 - **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
 - **Close path:** `.agentic-framework/bin/fw reviewer T-1442` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-86603fee
+- **Timestamp:** 2026-10-26T15:36:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/tl-dispatch.sh cmd_spawn` accepts `--model <m>` and `--task-type <t>` flags (matching the framework's `agents/termlink/termlink.sh` contract).
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=agents/termlink/termlink.sh in: `scripts/tl-dispatch.sh cmd_spawn` accepts `--model <m>` and `--task-type <t>` flags (matching the framework's `agents/termlink/termlink.sh` contract)`
