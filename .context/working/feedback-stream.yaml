@@ -20174,3 +20174,21 @@ scan_id: R-6cb63163
 task_id: T-3571
 payload:
   task_file: .tasks/active/T-3571-runme-fixtures-exceeds-the-guard-layers-.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T09:28:20Z'
+scan_id: R-796907d4
+task_id: T-3579
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T09:28:20Z'
+scan_id: R-796907d4
+task_id: T-3579
+payload:
+  task_file: .tasks/active/T-3579-re-vendor-aef-v1815-be17---be18-5259a14b.md

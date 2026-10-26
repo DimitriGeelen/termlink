@@ -6,10 +6,10 @@ description: >
   mismatch, T-4729/T-4730/T-4731/T-4734/T-4736/T-4738/T-4740/T-4741 (most are our
   filings). Rehearsal done ahead; the real run waits for the operator's go.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -40,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-25T12:19:25Z
-last_update: 2026-10-26T09:27:53Z
-date_finished:
+last_update: 2026-10-26T09:28:19Z
+date_finished: 2026-10-26T09:28:19Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -80,8 +80,8 @@ bvp_scores_proposed:
 - [x] Rehearsal (2026-10-25, before any operator go): be.17 (165039bb4) is an ancestor of be.18 (5259a14be, 53 commits); throwaway clone upgraded rc 0, 24 changes; CLAUDE.md project part identical; 7 web files rewritten (content changes); only preserved file changed upstream, check-active-task.sh (T-4738), 3-way merges clean (base be.17) with our T-3270 exception intact
 - [x] Operator go recorded in ## Decisions (re-vendors have each had one)
 - [x] Real run from a second fresh clone rc 0; merged check-active-task.sh installed; fw doctor rc 0; guard layer reds no worse than the be.17 run. 2026-10-26: real run rc 0, 22 changes, CLAUDE.md identical, BOUNDARY_EXTRA_READ_PATHS kept; guard 224 pass, runme-fixtures now PASS (T-3571). Three new FAIL-tier reds, none upgrade-caused, all resolved: (a) tracking drift, be.18's new web/llm/anthropic_provider.py untracked until this commit (read first: key passed in, nothing embedded); (b) 5 TOFU first-pin events from processes started after the reboot, each fingerprint matched against the live probe and `fleet verify` (no drift), then acked; (c) platform-lock on T-3575's /proc reads, allowlisted with how they degrade off Linux
-- [ ] Per-fix probes sent to AEF as WORKS/FAILS: T-4727 (decide warns on a verdict that differs from the Recommendation), T-4731 (boundary allows reads of ~/.termlink and the hub runtime dir), T-4740 (no identical-content metadata rewrites), T-4741 (`fw task review T-1899` no longer refused), T-4748 (never-installed crontab is a WARN)
-- [ ] `.vendor-divergence.yaml` last_vendor_event updated
+- [x] Per-fix probes sent to AEF as WORKS/FAILS (2026-10-26): T-4740 WORKS (26 rewritten = 26 changed); T-4730 WORKS (dispatch --help rc 0); T-4727 present in inception.sh:696-721, not exercised (decide is operator-only); T-4741 FAILS on our case (T-1899's code span crosses a folded-scalar line break, so per-line stripping misses it; reported with the shape). T-4731 and T-4748 not separately probed: T-4731 already observed 2026-10-25 ($HOME judged like the literal path), and no crontab was uninstalled to exercise T-4748
+- [x] `.vendor-divergence.yaml` last_vendor_event updated (07173b0bf)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -132,6 +132,9 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+grep -q "be.17 -> be.18 (5259a14be" .vendor-divergence.yaml && grep -q "^1.8.14+1305" .agentic-framework/VERSION
+grep -q "T-3270" .agentic-framework/agents/context/check-active-task.sh && grep -q "CLOSE_HINT_PUSH" .agentic-framework/agents/context/check-active-task.sh
+git ls-files --error-unmatch .agentic-framework/web/llm/anthropic_provider.py
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -391,3 +394,20 @@ bvp_scores_proposed:
 ### 2026-10-25T12:20:56Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-796907d4
+- **Timestamp:** 2026-10-26T09:28:20Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-26T09:28:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

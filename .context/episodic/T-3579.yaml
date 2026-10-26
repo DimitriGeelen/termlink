@@ -1,0 +1,113 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3579: Re-vendor AEF v1.8.15-be.17 -> be.18 (5259a14be)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T09:28:27Z
+# ============================================================================
+
+task_id: T-3579
+task_name: "Re-vendor AEF v1.8.15-be.17 -> be.18 (5259a14be)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-25T12:19:25Z
+completed: 2026-10-26T09:28:19Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-10-25T13:21:16+01:00
+last_commit: 2026-10-26T10:27:53+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  be.18 rehearsal clean (rc 0, 24 changes, CLAUDE.md identical, check-active-task.sh merges clean); real run awaits operator go. re-vendor AEF v1.8.15-be.17 -> be.18 (5259a14be, 53 commits; operator go 2026-10-26)
+
+# Key outcomes
+outcomes:
+  - 'Rehearsal (2026-10-25, before any operator go): be.17 (165039bb4) is an ancestor of be.18 (5259a14be, 53 commits); throwaway clone upgraded rc 0, 24 changes; CLAUDE.md project part identical; 7 web files rewritten (content changes); only preserved file changed upstream, check-active-task.sh (T-4738), 3-way merges clean (base be.17) with our T-3270 exception intact'
+  - 'Operator go recorded in ## Decisions (re-vendors have each had one)'
+  - 'Real run from a second fresh clone rc 0; merged check-active-task.sh installed; fw doctor rc 0; guard layer reds no worse than the be.17 run. 2026-10-26: real run rc 0, 22 changes, CLAUDE.md identical, BOUNDARY_EXTRA_READ_PATHS kept; guard 224 pass, runme-fixtures now PASS (T-3571). Three new FAIL-tier reds, none upgrade-caused, all resolved: (a) tracking drift, be.18''s new web/llm/anthropic_provider.py untracked until this commit (read first: key passed in, nothing embedded); (b) 5 TOFU first-pin events from processes started after the reboot, each fingerprint matched against the live probe and `fleet verify` (no drift), then acked; (c) platform-lock on T-3575''s /proc reads, allowlisted with how they degrade off Linux'
+  - 'Per-fix probes sent to AEF as WORKS/FAILS (2026-10-26): T-4740 WORKS (26 rewritten = 26 changed); T-4730 WORKS (dispatch --help rc 0); T-4727 present in inception.sh:696-721, not exercised (decide is operator-only); T-4741 FAILS on our case (T-1899''s code span crosses a folded-scalar line break, so per-line stripping misses it; reported with the shape). T-4731 and T-4748 not separately probed: T-4731 already observed 2026-10-25 ($HOME judged like the literal path), and no crontab was uninstalled to exercise T-4748'
+  - '`.vendor-divergence.yaml` last_vendor_event updated (07173b0bf)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-26 — take be.18? (operator ruling)'
+    chose: 're-vendor be.17 -> be.18 ("go ahead with be.18").'
+    rationale: 'rehearsal clean; carries T-4727, T-4729/T-4730/T-4731/T-4734/T-4740/T-4741 (mostly our filings) and the v1.8.15 release blockers. - **Left open:** be.19 and be.21 were tagged after the brief (be.20 never published); the ruling names be.18, so moving further is a separate operator decision.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/context/check-active-task.sh'
+  - '.agentic-framework/agents/context/check-agent-dispatch.sh'
+  - '.agentic-framework/agents/context/check-project-boundary.sh'
+  - '.agentic-framework/agents/context/stop-driver.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/reports/T-4737-designer-data-apis.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.15-results.md'
+  - '.agentic-framework/lib/ac_placeholder.py'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/inception.sh'
+  - '.agentic-framework/lib/task-audit.sh'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/vendor_preserve.py'
+  - '.agentic-framework/lib/working-gitignore.sh'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.agentic-framework/web/blueprints/settings.py'
+  - '.agentic-framework/web/llm/anthropic_provider.py'
+  - '.agentic-framework/web/llm/manager.py'
+  - '.agentic-framework/web/requirements.txt'
+  - '.agentic-framework/web/secrets_store.py'
+  - '.agentic-framework/web/templates/settings.html'
+  - '.context/audits/upgrades.yaml'
+  - '.context/checks/platform-lock-allowlist'
+  - '.framework.yaml'
+  - '.tasks/active/T-3579-re-vendor-aef-v1815-be17---be18-5259a14b.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-25T13:21:16'
+    action: 'T-3579: be.18 rehearsal clean (rc 0, 24 changes, CLAUDE.md identical, check-active-task.sh merges clean); real run awaits operator go'
+  - time: '2026-10-26T10:27:53'
+    action: 'T-3579: re-vendor AEF v1.8.15-be.17 -> be.18 (5259a14be, 53 commits; operator go 2026-10-26)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1268 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1268
+  commits: 3
+  files_changed: 34
+  lines_added: 1926
+  lines_removed: 98
+  footprint_refreshed_at: '2026-10-26T09:28:32Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3579-re-vendor-aef-v1815-be17---be18-5259a14b.md
+generated_by: context-agent-hybrid
