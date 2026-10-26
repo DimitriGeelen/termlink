@@ -27,6 +27,7 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -631,6 +632,23 @@ def cmd_sweep(args) -> int:
     for action in report["actions"]:
         detail = action.get("reason") or action.get("state") or ""
         print(f"  {action['verb']:<22} {action['client_msg_id']}  {detail}")
+    return 0
+
+
+def cmd_settle_sent(args) -> int:
+    """T-4757: settle one of OUR outstanding consults (answered out of band, or
+    obsolete). The sweep stops re-posting and nudging it and never dead-letters
+    it. Appends to our own ledgers only; nothing is posted to the peer."""
+    try:
+        row = retry.settle_sent(args.id, args.reason)
+    except retry.SettleRefusal as exc:
+        print(f"fw sidecar settle-sent: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(row, indent=2))
+        return 0
+    print(f"settled {row['client_msg_id']} (to {_meta(row.get('target'))}) by "
+          f"{row['settled_by']}: {row['reason']}")
     return 0
 
 
@@ -1443,6 +1461,14 @@ def build_parser() -> argparse.ArgumentParser:
                          "default: the real clock)")
     sw.set_defaults(func=cmd_sweep)
 
+    ss_ = sub.add_parser("settle-sent", help="settle one of this agent's own outstanding "
+                         "consults (answered out of band, or obsolete): the retry sweep stops "
+                         "nudging it and never dead-letters it; nothing is sent to the peer (T-4757)")
+    ss_.add_argument("id", help="client_msg_id of the consult this agent sent")
+    ss_.add_argument("--reason", required=True, help="why it no longer needs an answer")
+    ss_.add_argument("--json", action="store_true")
+    ss_.set_defaults(func=cmd_settle_sent)
+
     ee = sub.add_parser("e2e", help="live end-to-end check: real hub, real dispatched "
                         "worker, every hop verified from both sides (T-3423)")
     ee.add_argument("--task", default=None,
@@ -1516,11 +1542,15 @@ def build_parser() -> argparse.ArgumentParser:
     recv_start.add_argument("--force", action="store_true",
                             help="persist an --agent that is not this project's agent (T-4423)")
     recv_start.add_argument("--i-am-human", action="store_true", dest="i_am_human")
+    recv_start.add_argument("--project", default=None,
+                            help="act on this project root (default: the one this runs in; T-4753)")
     recv_start.set_defaults(func=cmd_receiver_start)
 
     recv_stop = recv_sub.add_parser("stop", help="stop the receiver")
     recv_stop.add_argument("--agent", default=None)
     recv_stop.add_argument("--quiet", action="store_true")
+    recv_stop.add_argument("--project", default=None,
+                           help="act on this project root (default: the one this runs in; T-4753)")
     recv_stop.set_defaults(func=cmd_receiver_stop)
 
     recv_status = recv_sub.add_parser("status", help="pid/port/url and health")
@@ -1552,11 +1582,15 @@ def build_parser() -> argparse.ArgumentParser:
     st_.add_argument("--force", action="store_true",
                      help="persist an --agent that is not this project's agent (T-4423)")
     st_.add_argument("--i-am-human", action="store_true", dest="i_am_human")
+    st_.add_argument("--project", default=None,
+                     help="act on this project root (default: the one this runs in; T-4753)")
     st_.set_defaults(func=cmd_start)
 
     sp_ = sub.add_parser("stop", help="stop and disable the watcher and the receiver")
     sp_.add_argument("--agent", default=None)
     sp_.add_argument("--quiet", action="store_true")
+    sp_.add_argument("--project", default=None,
+                     help="act on this project root (default: the one this runs in; T-4753)")
     sp_.set_defaults(func=cmd_stop)
 
     en_ = sub.add_parser("ensure", help="restart an enabled sidecar whose supervisor is gone "
@@ -1616,9 +1650,58 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _cwd_project():
+    """T-4753: the project the command is run in — the nearest ancestor of cwd
+    that is a project root (vendored copies marked .fw-not-a-project skipped,
+    as bin/fw's find_project_root does). None outside any project or at $HOME."""
+    cwd = Path.cwd().resolve()
+    home = Path.home().resolve()
+    for d in (cwd, *cwd.parents):
+        if (d / ".fw-not-a-project").is_file():
+            continue
+        if receiver._is_project_root(d):
+            return None if d == home else d
+    return None
+
+
+def _lifecycle_target_refusal(args):
+    """T-4753: start/stop act on the project they are run in. An agent shell
+    carries the session's PROJECT_ROOT, and bin/fw keeps a valid inherited one
+    (env wins), so a stop typed inside a temp test project stopped the live
+    project's sidecar twice. When PROJECT_ROOT and the cwd name two different
+    projects the intent is ambiguous: refuse, and let --project say which."""
+    explicit = getattr(args, "project", None)
+    if explicit:
+        target = Path(explicit).resolve()
+        if not receiver._is_project_root(target):
+            return f"--project {explicit}: not a project root (no .framework.yaml)"
+        os.environ["PROJECT_ROOT"] = str(target)
+        return None
+    env = os.environ.get("PROJECT_ROOT")
+    here = _cwd_project()
+    if not env or here is None or Path(env).resolve() == here:
+        return None
+    return (f"refusing: PROJECT_ROOT={env} but this command runs inside {here}. "
+            f"A start/stop acts on one project only (T-4753). "
+            f"Run it with --project {here} (this project) or --project {env}, "
+            f"or from inside the project you mean.")
+
+
+_LIFECYCLE_VERBS = (cmd_start, cmd_stop, cmd_receiver_start, cmd_receiver_stop)
+
+
 def main(argv=None) -> int:
+    try:
+        args = build_parser().parse_args(argv)
+    except SystemExit:
+        identity.apply()  # T-4761: --help/usage exits still leave the identity installed (T-4311)
+        raise
+    if args.func in _LIFECYCLE_VERBS:
+        why = _lifecycle_target_refusal(args)
+        if why:
+            print(f"sidecar: {why}", file=sys.stderr)
+            return 2
     identity.apply()  # T-4311: sign as the project key when configured
-    args = build_parser().parse_args(argv)
     return args.func(args)
 
 

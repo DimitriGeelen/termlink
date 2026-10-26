@@ -332,6 +332,28 @@ _resolve_dispatch_model_and_fallback() {
 ensure_termlink() {
     command -v termlink >/dev/null 2>&1 || die "termlink not found on PATH
   Install: git clone https://onedev.docker.ring20.geelenandcompany.com/termlink && cd termlink && cargo install --path crates/termlink-cli"
+    _tl_resolve_runtime_dir
+}
+
+# T-4722 (after T-3779): with TERMLINK_RUNTIME_DIR unset and no hub in the
+# default dir, spawn/dispatch would register where no hub listens. Export the
+# hub's dir on a `supplied` verdict and say once which source it came from.
+_tl_resolve_runtime_dir() {
+    [ -n "${TERMLINK_RUNTIME_DIR:-}" ] && return 0
+    [ -f "$FRAMEWORK_ROOT/lib/termlink-runtime.sh" ] || return 0
+    # shellcheck source=/dev/null
+    . "$FRAMEWORK_ROOT/lib/termlink-runtime.sh"
+    local v
+    v=$(fw_termlink_runtime_resolve)
+    case "$v" in
+        supplied\ *)
+            v=${v#supplied }
+            export TERMLINK_RUNTIME_DIR="${v%% *}"
+            echo "fw termlink: TERMLINK_RUNTIME_DIR was unset; using the hub's runtime dir $TERMLINK_RUNTIME_DIR (${v##*; }) (T-4722)" >&2 ;;
+        ambiguous\ *)
+            echo "fw termlink: WARNING: TermLink runtime: ${v#* } (T-4722)" >&2 ;;
+    esac
+    return 0
 }
 
 # --- Platform detection ---
@@ -378,7 +400,13 @@ _check_hub_store_parity() {
 cmd_check() {
     if command -v termlink >/dev/null 2>&1; then
         local version
-        version=$(termlink --version 2>/dev/null | head -1)
+        # T-4641: a termlink that is on PATH but does not run must be reported, not
+        # abort the script under set -e with no output.
+        if ! version=$(termlink --version 2>/dev/null | head -1) || [ -z "$version" ]; then
+            echo -e "${YELLOW}WARN${NC}  TermLink found at $(command -v termlink) but 'termlink --version' failed"
+            echo "  Repo: https://onedev.docker.ring20.geelenandcompany.com/termlink"
+            return 1
+        fi
         echo -e "${GREEN}OK${NC}  TermLink installed: $version"
         echo "  Path: $(command -v termlink)"
         echo "  Repo: https://onedev.docker.ring20.geelenandcompany.com/termlink"
