@@ -318,3 +318,15 @@ build task. `scripts/session-selftest.sh` F3 already covers the prover side.
 - **Converted to [REVIEWER] Agent criteria:** AC#3
 - **Left under ### Human:** unclassified: AC#1, AC#2 (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
 - **Close path:** `.agentic-framework/bin/fw reviewer T-2567` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b10ae0a2
+- **Timestamp:** 2026-10-26T15:36:58Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+- **Auto-ticked:** 1 AC(s)
+  - AC #1: 35d9168398bb [[REVIEWER] If "force -1" is chosen, file a build task with the code change + a r]

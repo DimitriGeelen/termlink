@@ -20354,3 +20354,608 @@ scan_id: R-38c8fed1
 task_id: T-1451
 payload:
   task_file: .tasks/active/T-1451-revisitat-frontmatter-field--template-up.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:55Z'
+scan_id: R-cbc555b1
+task_id: T-1296
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 3
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:55Z'
+scan_id: R-cbc555b1
+task_id: T-1296
+payload:
+  task_file: .tasks/active/T-1296-migrate-ring20-dashboard-hub-runtimedir-.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:55Z'
+scan_id: R-cbc555b1
+task_id: T-1296
+payload:
+  key: auto_tick:T-1296:1:035d76ee2917
+  ac_index: 1
+  digest: 035d76ee2917
+  text_excerpt: '[REVIEWER] Apply same migration recipe as T-1294 AC 2'
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:55Z'
+scan_id: R-cbc555b1
+task_id: T-1296
+payload:
+  key: auto_tick:T-1296:2:6b9e89ecaf5a
+  ac_index: 2
+  digest: 6b9e89ecaf5a
+  text_excerpt: '[REVIEWER] Re-pin from .102 + fleet doctor green'
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:55Z'
+scan_id: R-cbc555b1
+task_id: T-1296
+payload:
+  key: auto_tick:T-1296:3:baff158c4984
+  ac_index: 3
+  digest: baff158c4984
+  text_excerpt: '[REVIEWER] Verify CT 101 reboot persistence (ground truth)'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:55Z'
+scan_id: R-1cd9fbac
+task_id: T-1420
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:55Z'
+scan_id: R-1cd9fbac
+task_id: T-1420
+payload:
+  task_file: .tasks/active/T-1420-agent-chat-arc-deploy-091591-to-laptop-1.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:55Z'
+scan_id: R-1cd9fbac
+task_id: T-1420
+payload:
+  key: auto_tick:T-1420:9:90b7be129518
+  ac_index: 9
+  digest: 90b7be129518
+  text_excerpt: '[REVIEWER] .141 hub restarted on new binary'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:55Z'
+scan_id: R-86603fee
+task_id: T-1442
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:55Z'
+scan_id: R-86603fee
+task_id: T-1442
+payload:
+  task_file: .tasks/active/T-1442-populate-modelused-and-fallbackused-in-d.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:56Z'
+scan_id: R-7129d155
+task_id: T-1457
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:56Z'
+scan_id: R-7129d155
+task_id: T-1457
+payload:
+  task_file: .tasks/active/T-1457-register-identity-on-141-agent-1-session.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:56Z'
+scan_id: R-dcb2a936
+task_id: T-1483
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:56Z'
+scan_id: R-dcb2a936
+task_id: T-1483
+payload:
+  task_file: .tasks/active/T-1483-agent-who---target-name--local-resolved-.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:56Z'
+scan_id: R-dcb2a936
+task_id: T-1483
+payload:
+  key: auto_tick:T-1483:9:0b2db7b684e1
+  ac_index: 9
+  digest: 0b2db7b684e1
+  text_excerpt: '[REVIEWER] Verify error messages name the failing input clearly'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:56Z'
+scan_id: R-41b9ebe8
+task_id: T-1501
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:56Z'
+scan_id: R-41b9ebe8
+task_id: T-1501
+payload:
+  task_file: .tasks/active/T-1501-agent-recent--on-thread--timeline---grep.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:56Z'
+scan_id: R-41b9ebe8
+task_id: T-1501
+payload:
+  key: auto_tick:T-1501:16:c7bab003b736
+  ac_index: 16
+  digest: c7bab003b736
+  text_excerpt: '[REVIEWER] Verify --grep filtering output is operator-readable'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:57Z'
+scan_id: R-d51140f3
+task_id: T-1722
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:57Z'
+scan_id: R-d51140f3
+task_id: T-1722
+payload:
+  task_file: .tasks/active/T-1722-doctoraudit-lint--cron-misload-detection.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:57Z'
+scan_id: R-95dccfcb
+task_id: T-1885
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:57Z'
+scan_id: R-95dccfcb
+task_id: T-1885
+payload:
+  task_file: .tasks/active/T-1885-fw-independent-review-v01--local-only-or.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:57Z'
+scan_id: R-c5f3b19a
+task_id: T-2194
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:57Z'
+scan_id: R-c5f3b19a
+task_id: T-2194
+payload:
+  task_file: .tasks/active/T-2194-audit-d2-fail--human-review-queue-38-par.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:57Z'
+scan_id: R-c5f3b19a
+task_id: T-2194
+payload:
+  key: auto_tick:T-2194:6:3771be842309
+  ac_index: 6
+  digest: 3771be842309
+  text_excerpt: '[REVIEWER] After agent refreshes evidence, batch-click ripe partial-completes.
+    *'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:57Z'
+scan_id: R-e04fd9bc
+task_id: T-2212
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:57Z'
+scan_id: R-e04fd9bc
+task_id: T-2212
+payload:
+  task_file: .tasks/active/T-2212-substrate-cooperative-handoff-demo--clai.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:57Z'
+scan_id: R-e04fd9bc
+task_id: T-2212
+payload:
+  key: auto_tick:T-2212:5:9fce2c2ff81f
+  ac_index: 5
+  digest: 9fce2c2ff81f
+  text_excerpt: '[REVIEWER] Confirm the cooperative-handoff demo is a faithful, useful
+    proof of t'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:58Z'
+scan_id: R-a77e3c60
+task_id: T-2213
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:58Z'
+scan_id: R-a77e3c60
+task_id: T-2213
+payload:
+  task_file: .tasks/active/T-2213-harden-substrate-arc-demos--fix-t-2211-u.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:58Z'
+scan_id: R-a77e3c60
+task_id: T-2213
+payload:
+  key: auto_tick:T-2213:5:95511b8446ce
+  ac_index: 5
+  digest: 95511b8446ce
+  text_excerpt: '[REVIEWER] Confirm the smoke suite is the right home for the two
+    arc-demo regres'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:58Z'
+scan_id: R-860cb703
+task_id: T-2566
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:58Z'
+scan_id: R-860cb703
+task_id: T-2566
+payload:
+  task_file: .tasks/active/T-2566-design-ephemeral-presence-queue-vs-drop-.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:58Z'
+scan_id: R-860cb703
+task_id: T-2566
+payload:
+  key: auto_tick:T-2566:1:8c7c52d1cf19
+  ac_index: 1
+  digest: 8c7c52d1cf19
+  text_excerpt: '[REVIEWER] If either decision is "change behaviour", a follow-up
+    build task is f'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:58Z'
+scan_id: R-b10ae0a2
+task_id: T-2567
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:58Z'
+scan_id: R-b10ae0a2
+task_id: T-2567
+payload:
+  task_file: .tasks/active/T-2567-design-should-exec-truncated-output-forc.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:58Z'
+scan_id: R-b10ae0a2
+task_id: T-2567
+payload:
+  key: auto_tick:T-2567:1:35d9168398bb
+  ac_index: 1
+  digest: 35d9168398bb
+  text_excerpt: '[REVIEWER] If "force -1" is chosen, file a build task with the code
+    change + a r'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:58Z'
+scan_id: R-e4f32f4c
+task_id: T-2570
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:58Z'
+scan_id: R-e4f32f4c
+task_id: T-2570
+payload:
+  task_file: .tasks/active/T-2570-defer-orchestration-policy-creep-guard-f.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:58Z'
+scan_id: R-e4f32f4c
+task_id: T-2570
+payload:
+  key: auto_tick:T-2570:1:2bdb69cb3331
+  ac_index: 1
+  digest: 2bdb69cb3331
+  text_excerpt: '[REVIEWER] Record the decision; if "no automated guard", close with
+    that rationa'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:59Z'
+scan_id: R-e185d97b
+task_id: T-2576
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:59Z'
+scan_id: R-e185d97b
+task_id: T-2576
+payload:
+  task_file: .tasks/active/T-2576-design-signal-leasedclaim-holder-when-ow.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:59Z'
+scan_id: R-e185d97b
+task_id: T-2576
+payload:
+  key: auto_tick:T-2576:1:1e8280a3e9c2
+  ac_index: 1
+  digest: 1e8280a3e9c2
+  text_excerpt: '[REVIEWER] If "change the contract", file a build task with concrete
+    ACs + a'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:59Z'
+scan_id: R-11f41554
+task_id: T-2577
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:59Z'
+scan_id: R-11f41554
+task_id: T-2577
+payload:
+  task_file: .tasks/active/T-2577-design-retention-sweep-evicts-unread-rec.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:59Z'
+scan_id: R-11f41554
+task_id: T-2577
+payload:
+  key: auto_tick:T-2577:1:56b63bf57e38
+  ac_index: 1
+  digest: 56b63bf57e38
+  text_excerpt: '[REVIEWER] If "change behaviour", file a build task with concrete
+    ACs + a load-b'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:36:59Z'
+scan_id: R-92b14ca6
+task_id: T-2706
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:36:59Z'
+scan_id: R-92b14ca6
+task_id: T-2706
+payload:
+  task_file: .tasks/active/T-2706-stuck-claims-canary-fires-daily-on-11-te.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:36:59Z'
+scan_id: R-92b14ca6
+task_id: T-2706
+payload:
+  key: auto_tick:T-2706:7:782ec029a411
+  ac_index: 7
+  digest: 782ec029a411
+  text_excerpt: '[REVIEWER] Confirm T-2706 closes as superseded-by-T-2709, with no
+    topic cleanup '
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:37:00Z'
+scan_id: R-dceaccec
+task_id: T-2822
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:37:00Z'
+scan_id: R-dceaccec
+task_id: T-2822
+payload:
+  task_file: .tasks/active/T-2822-blanket-contextworking-gitignore-makes-s.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:37:00Z'
+scan_id: R-dceaccec
+task_id: T-2822
+payload:
+  key: auto_tick:T-2822:9:52f537c2dc6f
+  ac_index: 9
+  digest: 52f537c2dc6f
+  text_excerpt: '[REVIEWER] Commit the four static-check allowlists so the checks
+    are clean off t'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:37:00Z'
+scan_id: R-b35af571
+task_id: T-2837
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:37:00Z'
+scan_id: R-b35af571
+task_id: T-2837
+payload:
+  task_file: .tasks/active/T-2837-cross-checkout-operator-actions-blocking.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:37:00Z'
+scan_id: R-68179a76
+task_id: T-2873
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:37:00Z'
+scan_id: R-68179a76
+task_id: T-2873
+payload:
+  task_file: .tasks/active/T-2873-termlinkremoteinject-sends-bare-string-k.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:37:00Z'
+scan_id: R-68179a76
+task_id: T-2873
+payload:
+  key: auto_tick:T-2873:6:5a7beb6e401c
+  ac_index: 6
+  digest: 5a7beb6e401c
+  text_excerpt: '[REVIEWER] Restart the MCP server so the fixed `termlink_remote_inject`
+    goes liv'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:37:01Z'
+scan_id: R-f82205ff
+task_id: T-2919
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 1
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:37:01Z'
+scan_id: R-f82205ff
+task_id: T-2919
+payload:
+  task_file: .tasks/active/T-2919-stray-commitless-git-repo-at--defeats-no.md
+---
+kind: auto_tick
+timestamp: '2026-10-26T15:37:01Z'
+scan_id: R-f82205ff
+task_id: T-2919
+payload:
+  key: auto_tick:T-2919:4:133a8bcd45f2
+  ac_index: 4
+  digest: 133a8bcd45f2
+  text_excerpt: '[REVIEWER] Remove the stray commitless repo at `/`'
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:38:42Z'
+scan_id: R-ec8672e9
+task_id: T-2706
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:38:42Z'
+scan_id: R-ec8672e9
+task_id: T-2706
+payload:
+  task_file: .tasks/active/T-2706-stuck-claims-canary-fires-daily-on-11-te.md
+---
+kind: scan_emitted
+timestamp: '2026-10-26T15:39:01Z'
+scan_id: R-56f4bfa3
+task_id: T-2822
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-26T15:39:01Z'
+scan_id: R-56f4bfa3
+task_id: T-2822
+payload:
+  task_file: .tasks/active/T-2822-blanket-contextworking-gitignore-makes-s.md

@@ -144,3 +144,15 @@ out=$(target/release/termlink agent who 2>&1 || true); echo "$out" | grep -qE "m
 - **Converted to [REVIEWER] Agent criteria:** AC#1
 - **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
 - **Close path:** `.agentic-framework/bin/fw reviewer T-1483` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-dcb2a936
+- **Timestamp:** 2026-10-26T15:36:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+- **Auto-ticked:** 1 AC(s)
+  - AC #9: 0b2db7b684e1 [[REVIEWER] Verify error messages name the failing input clearly]

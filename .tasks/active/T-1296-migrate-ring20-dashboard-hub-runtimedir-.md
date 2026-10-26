@@ -304,3 +304,21 @@ Executed via `termlink remote exec ring20-dashboard tl-4augvpzt`. Watchdog patch
 - **Converted to [REVIEWER] Agent criteria:** AC#2, AC#3, AC#4
 - **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
 - **Close path:** `.agentic-framework/bin/fw reviewer T-1296` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-cbc555b1
+- **Timestamp:** 2026-10-26T15:36:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `fleet doctor`
+
+- **Auto-ticked:** 3 AC(s)
+  - AC #1: 035d76ee2917 [[REVIEWER] Apply same migration recipe as T-1294 AC 2]
+  - AC #2: 6b9e89ecaf5a [[REVIEWER] Re-pin from .102 + fleet doctor green]
+  - AC #3: baff158c4984 [[REVIEWER] Verify CT 101 reboot persistence (ground truth)]

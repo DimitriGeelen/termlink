@@ -13,12 +13,12 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, gitignore, clean-clone, static-checks]
 components: [scripts/check-cron-install-drift.sh, scripts/check-framework-pickup-freshness.sh, scripts/check-framework-tracking-drift.sh, scripts/check-verification-pipefail.sh, tests/framework-dangling-ref-fixtures.sh, tests/framework-tracking-drift-fixtures.sh, tests/gitignore-framework-scope-fixtures.sh, tests/pickup-canary-selffilter-fixtures.sh, tests/pickup-failopen-fixtures.sh, tests/verification-pipefail-check-fixtures.sh]
 related_tasks: [T-2819, T-2814, T-2817, T-2527, T-2531, T-2666, T-2672, T-2821]
 created: 2026-08-20
-last_update: 2026-10-26T15:36:37Z
+last_update: 2026-10-26T15:39:00Z
 date_finished: 2026-08-23T20:41:38Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:38Z'
@@ -159,7 +159,7 @@ committing; an allowlist is a record of governance decisions and deserves that l
       "fixes" this that way later
 - [x] Fixture proves the ignored-by-design paths are still ignored
 - [x] Fixture is host-independent — scratch repo, no real `.context/working`
-- [ ] [REVIEWER] Commit the four static-check allowlists so the checks are clean off this machine.
+- [x] [REVIEWER] Commit the four static-check allowlists so the checks are clean off this machine.
       **Steps:**
       1. `cd /opt/termlink && git status --short .context/working/ | head -30`
       2. Read the list — confirm nothing machine-local or secret-bearing appears. Expect the
@@ -272,13 +272,12 @@ half is T-2819 (`owner: human`, still open) — the two are siblings, not duplic
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-086c7e5f
-- **Timestamp:** 2026-08-23T20:41:40Z
+- **Scan ID:** R-56f4bfa3
+- **Timestamp:** 2026-10-26T15:39:01Z
 - **Catalogue:** v1.3-seed
 - **Overall:** PASS
 - **Needs Human:** no
 - **Findings:** none
-
 ### 2026-08-23T20:41:38Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 

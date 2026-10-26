@@ -145,3 +145,15 @@ against the actual installed binary.
 
 ### 2026-06-13T14:47:26Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a77e3c60
+- **Timestamp:** 2026-10-26T15:36:58Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+- **Auto-ticked:** 1 AC(s)
+  - AC #5: 95511b8446ce [[REVIEWER] Confirm the smoke suite is the right home for the two arc-demo regres]

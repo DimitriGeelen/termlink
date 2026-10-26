@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2706: Stuck-claims canary fires daily on 11 test-residue topics
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-26T15:38:43Z
+# ============================================================================
+
+task_id: T-2706
+task_name: "Stuck-claims canary fires daily on 11 test-residue topics"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-14T15:10:25Z
+completed: 2026-10-26T15:36:37Z
+duration_days: 73
+updates_count: 2
+first_commit: 2026-08-14T17:14:01+02:00
+last_commit: 2026-08-14T17:24:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  live substrate diagnostics — stale MCP binary (0.11.720 vs 0.11.1231), stuck-claims canary firing on test residue, laptop-141 down. correct laptop-141 diagnosis to host-level (no route), record DURABLE verdict across all 4 reachable hubs
+
+# Key outcomes
+outcomes:
+  - 'The predicate fix (T-2709, `newest_expired_at_ms` recency window replacing the'
+  - '`stuck_count` now reflects genuine stuck work: measured 0 stuck across 19'
+  - 'The 11 originally-flagged topics need NO disposition, and this is recorded as'
+  - '`work-queue` was judged separately from the `substrate-drain-demo*` /'
+  - 'No exclusion list and no threshold bump was added. The canary returns to green'
+  - 'The canary is green from the fix and not from data loss: the hub''s topic count'
+  - '[REVIEWER] Confirm T-2706 closes as superseded-by-T-2709, with no topic cleanup performed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-08-27 — Closed as superseded by T-2709; original ACs preserved'
+    chose: 'Rewrite the Agent ACs to the verification this task''s own Context says is all that remains, and replace the moot Human AC, rather than performing the cleanup the original ACs asked for.'
+    rationale: 'The Context section (written 2026-08-14) already refutes both original remedies. Cleaning the 11 topics works exactly once; excluding them hides a latch affecting every topic. T-2709 fixed the predicate. Leaving the original Human AC ("decide cleanup vs exclusion") would have sent the operator an approval asking them to choose between two options the task itself proved wrong — an empty form, which is a defect to create, not a handoff to complete.'
+    alternatives_rejected: ['`--force` past P-010 (discards the evidence); deleting the 11 topics (works once, re-latches on the next abandoned claim); an exclusion allowlist (hides the defect for every other topic). - **Original ACs, verbatim:** ```']
+  - decision: 'Agent'
+  - decision: 'Human'
+  - decision: 'Human'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2703-the-spoke-to-spoke-mesh-invariant-is-gua.md'
+  - '.tasks/active/T-2705-vendored-framework-is-internally-inconsi.md'
+  - '.tasks/active/T-2706-stuck-claims-canary-fires-daily-on-11-te.md'
+  - '.tasks/active/T-2707-mcp-server-runs-011720-while-project-ver.md'
+  - '.tasks/active/T-2708-fleet-hub-laptop-141-unreachable.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-14T17:14:01'
+    action: 'T-2706: live substrate diagnostics — stale MCP binary (0.11.720 vs 0.11.1231), stuck-claims canary firing on test residue, laptop-141 down'
+  - time: '2026-08-14T17:24:45'
+    action: 'T-2706: correct laptop-141 diagnosis to host-level (no route), record DURABLE verdict across all 4 reachable hubs'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 105146 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 105146
+  commits: 3
+  files_changed: 23
+  lines_added: 1543
+  lines_removed: 18
+  footprint_refreshed_at: '2026-10-26T15:59:10Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2706-stuck-claims-canary-fires-daily-on-11-te.md
+generated_by: context-agent-hybrid

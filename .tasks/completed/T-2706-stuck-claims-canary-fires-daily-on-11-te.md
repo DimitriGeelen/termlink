@@ -11,7 +11,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -20,7 +20,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T15:10:25Z
-last_update: 2026-10-26T15:36:37Z
+last_update: 2026-10-26T15:38:40Z
 date_finished: 2026-08-27T21:24:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -151,7 +151,7 @@ either.
 - [x] The canary is green from the fix and not from data loss: the hub's topic count
       fell 770 -> 19 between filing and verification, which could have produced a
       false green on its own. Ruled out by confirming the T-2709 field is served.
-- [ ] [REVIEWER] Confirm T-2706 closes as superseded-by-T-2709, with no topic cleanup performed
+- [x] [REVIEWER] Confirm T-2706 closes as superseded-by-T-2709, with no topic cleanup performed
   **Steps:**
   1. `bash scripts/check-stuck-claims-freshness.sh`
   2. `cd /opt/termlink && termlink channel claims-summary --all --json | python3 -c "import json,sys; d=json.load(sys.stdin); print('topics', len(d.get('topics',[])), 'with newest_expired_at_ms:', sum('newest_expired_at_ms' in t for t in d.get('topics',[])))"`
@@ -385,12 +385,11 @@ the 770-topic hub — `termlink channel claims-summary --all --only-stuck --json
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-53bc7cfe
-- **Timestamp:** 2026-08-27T21:24:06Z
+- **Scan ID:** R-ec8672e9
+- **Timestamp:** 2026-10-26T15:38:42Z
 - **Catalogue:** v1.3-seed
 - **Overall:** PASS
 - **Needs Human:** no
 - **Findings:** none
-
 ### 2026-08-27T21:24:05Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

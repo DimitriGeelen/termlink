@@ -160,3 +160,15 @@ target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T-1438 
 - **Converted to [REVIEWER] Agent criteria:** AC#1
 - **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
 - **Close path:** `.agentic-framework/bin/fw reviewer T-1501` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-41b9ebe8
+- **Timestamp:** 2026-10-26T15:36:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+- **Auto-ticked:** 1 AC(s)
+  - AC #16: c7bab003b736 [[REVIEWER] Verify --grep filtering output is operator-readable]
