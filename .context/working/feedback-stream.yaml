@@ -21211,3 +21211,21 @@ scan_id: R-8fcc91b6
 task_id: T-3610
 payload:
   task_file: .tasks/active/T-3610-t-3609-r01-value-review-gather-phase-0-s.md
+---
+kind: scan_emitted
+timestamp: '2026-10-27T21:45:03Z'
+scan_id: R-9ff75973
+task_id: T-3611
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-27T21:45:03Z'
+scan_id: R-9ff75973
+task_id: T-3611
+payload:
+  task_file: .tasks/active/T-3611-commit-52-task-file-changes-left-uncommi.md

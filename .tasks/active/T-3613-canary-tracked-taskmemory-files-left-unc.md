@@ -1,19 +1,13 @@
 ---
-id: T-3611
-name: "Commit 52 task-file changes left uncommitted since 2026-09-30 (rulings, ticks,
-  statuses) so the ledger and GitHub mirror are complete"
+id: T-3613
+name: "Canary: tracked task/memory files left uncommitted longer than 24 h (G-019 for T-3611)"
 description: >
-  Found 2026-10-27 before an external purpose review of the GitHub repo: 52 tracked
-  task files carry uncommitted changes dating 2026-09-30..10-26 (operator rulings
-  such as T-3477 DEFER, status/horizon changes, 22 added ticks incl. [REVIEW] go/no-go
-  boxes) plus 5 untracked task files. Commit them with provenance checked: files with
-  added Human ticks only when an operator approval record exists. Also find why they
-  were never committed (G-019).
+  T-3611 found 52 task files and project-memory changes uncommitted for up to 4 weeks (oldest 2026-09-30), invisible to every canary and to the GitHub mirror. Writers outside an agent commit cycle (fw inception decide under runme, Watchtower decisions, sessions killed before their commit) leave changes that no session owns. Add a check that FIRES when a tracked file under .tasks/ or .context/project|episodic|handovers|arcs has been modified on disk but not committed for more than 24 h, naming the files and their age; wire it into the canary layer.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -43,9 +37,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-27T20:56:10Z
-last_update: '2026-10-27T20:56:48Z'
-date_finished:
+created: 2026-10-27T21:44:19Z
+last_update: 2026-10-27T21:44:19Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -56,22 +50,9 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-10-27T20:56:48Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 0
-      D2: 0
-      D3: 0
-      D4: 0
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
-      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3611: Commit 52 task-file changes left uncommitted since 2026-09-30 (rulings, ticks, statuses) so the ledger and GitHub mirror are complete
+# T-3613: Canary: tracked task/memory files left uncommitted longer than 24 h (G-019 for T-3611)
 
 ## Context
 
@@ -81,10 +62,8 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Every uncommitted task-file change is either committed or explained; files adding ### Human ticks are committed only with an operator approval record found
-- [ ] The 5 untracked task files are committed or explained
-- [ ] Why these sat uncommitted (some since 2026-09-30) is found and recorded, with a follow-up if it is a framework gap
-- [ ] git status shows no .tasks changes; origin and the GitHub mirror match HEAD
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -381,10 +360,7 @@ bvp_scores_proposed:
 
 ## Updates
 
-### 2026-10-27T20:56:10Z — task-created [task-create-agent]
+### 2026-10-27T21:44:19Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3611-commit-52-task-file-changes-left-uncommi.md
+- **Output:** /opt/termlink/.tasks/active/T-3613-canary-tracked-taskmemory-files-left-unc.md
 - **Context:** Initial task creation
-
-### 2026-10-27T20:56:47Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
