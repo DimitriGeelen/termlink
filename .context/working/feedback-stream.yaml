@@ -21085,3 +21085,21 @@ scan_id: R-59de3ab6
 task_id: T-3599
 payload:
   task_file: .tasks/active/T-3599-wc03-conformance-hand-back-commission-no.md
+---
+kind: scan_emitted
+timestamp: '2026-10-27T11:12:50Z'
+scan_id: R-6260f049
+task_id: T-3600
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-27T11:12:50Z'
+scan_id: R-6260f049
+task_id: T-3600
+payload:
+  task_file: .tasks/active/T-3600-wc-233-an-absent-hand-back-commission-is.md

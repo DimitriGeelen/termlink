@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3600: wc §2/§3.3: an absent hand-back commission is handback-malformed (step 2 of the T-4803 sequence)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T11:12:57Z
+# ============================================================================
+
+task_id: T-3600
+task_name: "wc §2/§3.3: an absent hand-back commission is handback-malformed (step 2 of the T-4803 sequence)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-27T11:04:42Z
+completed: 2026-10-27T11:12:43Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-27T12:12:42+01:00
+last_commit: 2026-10-27T12:12:42+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  wc §2 — an absent hand-back commission is handback-malformed; vector pin -> cc5842d89 (be.37)
+
+# Key outcomes
+outcomes:
+  - '`commission_matches` treats an absent commission as a mismatch, so a hand-back without one is `handback-malformed`; the unit test''s "absent" case now expects malformed; a mutant restoring "absent passes" fails it'
+  - 'Every other worker-contract test that builds a hand-back expecting a good outcome carries the dispatch''s own commission. 8 bus test literals + the hub dispatch_contract lifecycle helper'
+  - 'AEF''s live vectors (`scripts/run-wc-vectors.sh`, be.37) pass on our runner, including CC-16 handback-wrong-commission; bus and hub suites pass. The script pins its vector ref (it does NOT fetch live; correcting what I told AEF): default moved 25f56ed68 -> cc5842d89 (be.37); 25 cases: 17 pass, 0 fail, 7 not-implemented, 1 n/a. Bus+hub 779 passed; clippy clean'
+  - 'AEF told (step 3 of the agreed sequence)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3600-wc-233-an-absent-hand-back-commission-is.md'
+  - 'crates/termlink-bus/src/worker_contract.rs'
+  - 'crates/termlink-bus/src/worker_contract/answer_tests.rs'
+  - 'crates/termlink-bus/src/worker_contract/notices_tests.rs'
+  - 'crates/termlink-bus/src/worker_contract/sweep_tests.rs'
+  - 'crates/termlink-bus/src/worker_contract/tests.rs'
+  - 'crates/termlink-hub/src/dispatch_contract.rs'
+  - 'scripts/run-wc-vectors.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-27T12:12:42'
+    action: 'T-3600: wc §2 — an absent hand-back commission is handback-malformed; vector pin -> cc5842d89 (be.37)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 8
+  commits: 2
+  files_changed: 11
+  lines_added: 530
+  lines_removed: 22
+  footprint_refreshed_at: '2026-10-27T11:55:46Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3600-wc-233-an-absent-hand-back-commission-is.md
+generated_by: context-agent-hybrid
