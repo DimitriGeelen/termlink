@@ -7,10 +7,10 @@ description: >
   fw-agents; fw doctor WARNs when one fw-agents* server carries sessions of more than
   one project. Relevant to SEV-1 T-3549/T-3552.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-26T23:34:15Z
-last_update: 2026-10-27T08:19:50Z
-date_finished:
+last_update: 2026-10-27T09:05:32Z
+date_finished: 2026-10-27T09:05:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -78,10 +78,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] be.27 (eea53bb06) is an ancestor of be.28 (81c2d5e82, 5 commits); rehearsed from one fresh clone, real run from another (rc 0 both); lib/sidecar/inject.py (preserved, changed upstream for T-4781) 3-way merged with our T-3533 edit intact
-- [ ] The real run waits until the T-3592 close job (detached, runs vendored fw scripts) has finished
-- [ ] CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0 (note its new T-4781 WARN if one fw-agents* server carries sessions of more than one project); guard layer reds explained
-- [ ] `.vendor-divergence.yaml` updated; AEF told the result
+- [x] be.27 (eea53bb06) is an ancestor of be.28 (81c2d5e82, 5 commits); rehearsed from one fresh clone, real run from another (rc 0 both); lib/sidecar/inject.py (preserved, changed upstream for T-4781) 3-way merged with our T-3533 edit intact
+- [x] The real run waits until the T-3592 close job (detached, runs vendored fw scripts) has finished. It had finished (all 7 closed) before the real run started
+- [x] CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0 (note its new T-4781 WARN if one fw-agents* server carries sessions of more than one project); guard layer reds explained. 21 changes; doctor rc 0 with no shared-fw-agents WARN (this session runs in AEF's fleet-* tmux server, not a claude-fw fw-agents one); guard PASS (gate=all), 6 WARN reds: the 4 known plus check-go-propagation (operator GO backlog) and check-vendor-divergence (cleared by the baseline update)
+- [x] `.vendor-divergence.yaml` updated; AEF told the result. Baseline 0a468d562; AEF is told with the be.31 report (taken right after, operator go)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -132,6 +132,8 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+grep -q "be.27 -> be.28 (81c2d5e82" .vendor-divergence.yaml && grep -q "^1.8.14+1424" .agentic-framework/VERSION
+grep -q "T-3533" .agentic-framework/lib/sidecar/inject.py && grep -q "T-4781" .agentic-framework/lib/sidecar/inject.py
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -388,3 +390,20 @@ bvp_scores_proposed:
 
 ### 2026-10-27T08:17:47Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b57110d8
+- **Timestamp:** 2026-10-27T09:05:33Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-27T09:05:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

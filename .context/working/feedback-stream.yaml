@@ -21031,3 +21031,21 @@ scan_id: R-5fee3126
 task_id: T-3593
 payload:
   task_file: .tasks/active/T-3593-re-vendor-aef-v1815-be25---be27-eea53bb0.md
+---
+kind: scan_emitted
+timestamp: '2026-10-27T09:05:33Z'
+scan_id: R-b57110d8
+task_id: T-3597
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-27T09:05:33Z'
+scan_id: R-b57110d8
+task_id: T-3597
+payload:
+  task_file: .tasks/active/T-3597-re-vendor-aef-v1815-be27---be28-81c2d5e8.md

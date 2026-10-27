@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3597: Re-vendor AEF v1.8.15-be.27 -> be.28 (81c2d5e82)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T09:05:40Z
+# ============================================================================
+
+task_id: T-3597
+task_name: "Re-vendor AEF v1.8.15-be.27 -> be.28 (81c2d5e82)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-26T23:34:15Z
+completed: 2026-10-27T09:05:32Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-10-27T09:19:50+01:00
+last_commit: 2026-10-27T10:05:32+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.15-be.27 -> be.28 (81c2d5e82, 5 commits; operator go 2026-10-27). divergence baseline 0a468d562 (be.28)
+
+# Key outcomes
+outcomes:
+  - 'be.27 (eea53bb06) is an ancestor of be.28 (81c2d5e82, 5 commits); rehearsed from one fresh clone, real run from another (rc 0 both); lib/sidecar/inject.py (preserved, changed upstream for T-4781) 3-way merged with our T-3533 edit intact'
+  - 'The real run waits until the T-3592 close job (detached, runs vendored fw scripts) has finished. It had finished (all 7 closed) before the real run started'
+  - 'CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0 (note its new T-4781 WARN if one fw-agents* server carries sessions of more than one project); guard layer reds explained. 21 changes; doctor rc 0 with no shared-fw-agents WARN (this session runs in AEF''s fleet-* tmux server, not a claude-fw fw-agents one); guard PASS (gate=all), 6 WARN reds: the 4 known plus check-go-propagation (operator GO backlog) and check-vendor-divergence (cleared by the baseline update)'
+  - '`.vendor-divergence.yaml` updated; AEF told the result. Baseline 0a468d562; AEF is told with the be.31 report (taken right after, operator go)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-27 — take be.28? (operator ruling)'
+    chose: 're-vendor be.27 -> be.28 ("go ahead with be.28").'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/reports/T-4784-obs-triage-c.md'
+  - '.agentic-framework/lib/doctor-tmux.sh'
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - '.context/audits/upgrades.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-3597-re-vendor-aef-v1815-be27---be28-81c2d5e8.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-27T09:19:50'
+    action: 'T-3597: re-vendor AEF v1.8.15-be.27 -> be.28 (81c2d5e82, 5 commits; operator go 2026-10-27)'
+  - time: '2026-10-27T10:05:32'
+    action: 'T-3597: divergence baseline 0a468d562 (be.28)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 571 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 571
+  commits: 3
+  files_changed: 14
+  lines_added: 390
+  lines_removed: 52
+  footprint_refreshed_at: '2026-10-27T09:06:01Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3597-re-vendor-aef-v1815-be27---be28-81c2d5e8.md
+generated_by: context-agent-hybrid
