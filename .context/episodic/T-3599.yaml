@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3599: wc/0.3 conformance: hand-back commission not checked (rule 1, §3.3) — foreign commission comes out succeeded
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T10:28:17Z
+# ============================================================================
+
+task_id: T-3599
+task_name: "wc/0.3 conformance: hand-back commission not checked (rule 1, §3.3) — foreign commission comes out succeeded"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-27T10:18:50Z
+completed: 2026-10-27T10:28:04Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-27T11:28:03+01:00
+last_commit: 2026-10-27T11:28:03+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  wc §3.3 rule 1 — a hand-back naming another dispatch (commission) is handback-malformed
+
+# Key outcomes
+outcomes:
+  - '`Handback` carries `commission`; the hub reads it from the hand-back JSON at every place it builds a `Handback`. Both hub parse sites in dispatch_contract.rs, and the wc_conformance adapter (resolved like the nonce, ready for T-4803)'
+  - '`derive_outcome`: a present commission that does not equal the dispatch id (after stripping a `<backend>:` prefix) gives `handback-malformed`; an absent commission is unchanged (today''s vectors omit it, AEF T-4803). Via `commission_matches`'
+  - 'Unit tests: matching commission (bare and prefixed) -> succeeded; foreign commission -> handback-malformed; absent -> succeeded; a mutant removing the check fails the foreign-commission test. `handback_commission_must_name_this_dispatch`; mutant (always-true) fails it'
+  - 'termlink-bus and termlink-hub tests pass; AEF told. 779 passed, 0 failed; workspace clippy clean (one `large_enum_variant` allow with reason on ResolveMaterial)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3599-wc03-conformance-hand-back-commission-no.md'
+  - 'crates/termlink-bus/src/worker_contract.rs'
+  - 'crates/termlink-bus/src/worker_contract/answer.rs'
+  - 'crates/termlink-bus/src/worker_contract/answer_tests.rs'
+  - 'crates/termlink-bus/src/worker_contract/notices_tests.rs'
+  - 'crates/termlink-bus/src/worker_contract/sweep_tests.rs'
+  - 'crates/termlink-bus/src/worker_contract/tests.rs'
+  - 'crates/termlink-hub/src/dispatch_contract.rs'
+  - 'crates/termlink-hub/tests/wc_conformance/hub.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-27T11:28:03'
+    action: 'T-3599: wc §3.3 rule 1 — a hand-back naming another dispatch (commission) is handback-malformed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 2
+  files_changed: 12
+  lines_added: 594
+  lines_removed: 5
+  footprint_refreshed_at: '2026-10-27T10:28:44Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3599-wc03-conformance-hand-back-commission-no.md
+generated_by: context-agent-hybrid
