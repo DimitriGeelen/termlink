@@ -1,0 +1,105 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3603: Re-vendor AEF v1.8.15 be.31 -> be.39, then run AEF field test A-H
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T13:41:32Z
+# ============================================================================
+
+task_id: T-3603
+task_name: "Re-vendor AEF v1.8.15 be.31 -> be.39, then run AEF field test A-H"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-27T12:28:11Z
+completed: 2026-10-27T13:41:21Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-27T14:25:35+01:00
+last_commit: 2026-10-27T14:40:59+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.15-be.31 -> be.39 (567523f69, 43 commits; operator go 2026-10-27). divergence baseline 4f9cb225c (be.39)
+
+# Key outcomes
+outcomes:
+  - 'be.31 (0cd951409) is an ancestor of be.39; preserved-file diff done (any changed file 3-way merged); rehearsed on a fresh clone, real run from a second clone (rc 0 both). 43 commits; no preserved file changed upstream, nothing to merge; rc 0 both (24 / 21 changes)'
+  - 'CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer reds explained; .upstream copies parked. Guard PASS (gate=all), 6 known WARN reds (vendor-divergence red only until the baseline commit); 18 parked in vendor-upstream-be39/'
+  - '`.vendor-divergence.yaml` updated with the be.39 baseline. Baseline 4f9cb225c (commit 59c9849ca)'
+  - 'AEF field test A-H answered WORKS/FAILS/N/A on aef-v1815-be3, naming be.39 as the tested version. Sent 829aeb6d: A, B, D, E, H WORKS; C WORKS with one message bug (wrong segment named); G N/A; close/reviewer results as a follow-up'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/task-create/create-task.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/docs/generated/components/lib-arc_focus_health.md'
+  - '.agentic-framework/docs/generated/components/lib-doctor-tmux.md'
+  - '.agentic-framework/docs/generated/components/tests-conformance-worker-contract-check_mapping.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4426_claude_fw_tmux_redraw.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_worker_contract_mapping.md'
+  - '.agentic-framework/docs/generated/components/tools-hook-python-c-substitution-lint.md'
+  - '.agentic-framework/docs/reports/T-1549-escalation-scan-v0.md'
+  - '.agentic-framework/docs/reports/T-4649-ring20-patch-triage.md'
+  - '.agentic-framework/docs/reports/T-4800-wc-v034-draft.md'
+  - '.agentic-framework/docs/reports/T-4801-local-reference-backend.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.15-results.md'
+  - '.agentic-framework/docs/specs/shared-worker-contract-transitions.md'
+  - '.agentic-framework/lib/continuous-mode.sh'
+  - '.agentic-framework/lib/dispatch_records.py'
+  - '.agentic-framework/lib/inception.sh'
+  - '.agentic-framework/lib/task_updates.py'
+  - '.context/audits/upgrades.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-3603-re-vendor-aef-v1815-be31---be39-then-run.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-27T14:25:35'
+    action: 'T-3603: re-vendor AEF v1.8.15-be.31 -> be.39 (567523f69, 43 commits; operator go 2026-10-27)'
+  - time: '2026-10-27T14:40:59'
+    action: 'T-3603: divergence baseline 4f9cb225c (be.39)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 73 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 73
+  commits: 3
+  files_changed: 28
+  lines_added: 2058
+  lines_removed: 66
+  footprint_refreshed_at: '2026-10-27T13:42:04Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3603-re-vendor-aef-v1815-be31---be39-then-run.md
+generated_by: context-agent-hybrid

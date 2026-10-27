@@ -7,10 +7,10 @@ description: >
   rehearsal on a fresh clone, real run from a second clone, guard layer, .vendor-divergence.yaml),
   then report WORKS/FAILS/N/A for items A-H to AEF on aef-v1815-be3.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-27T12:28:11Z
-last_update: '2026-10-27T12:28:23Z'
-date_finished:
+last_update: 2026-10-27T13:41:21Z
+date_finished: 2026-10-27T13:41:21Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -78,10 +78,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] be.31 (0cd951409) is an ancestor of be.39; preserved-file diff done (any changed file 3-way merged); rehearsed on a fresh clone, real run from a second clone (rc 0 both)
-- [ ] CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer reds explained; .upstream copies parked
-- [ ] `.vendor-divergence.yaml` updated with the be.39 baseline
-- [ ] AEF field test A-H answered WORKS/FAILS/N/A on aef-v1815-be3, naming be.39 as the tested version
+- [x] be.31 (0cd951409) is an ancestor of be.39; preserved-file diff done (any changed file 3-way merged); rehearsed on a fresh clone, real run from a second clone (rc 0 both). 43 commits; no preserved file changed upstream, nothing to merge; rc 0 both (24 / 21 changes)
+- [x] CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer reds explained; .upstream copies parked. Guard PASS (gate=all), 6 known WARN reds (vendor-divergence red only until the baseline commit); 18 parked in vendor-upstream-be39/
+- [x] `.vendor-divergence.yaml` updated with the be.39 baseline. Baseline 4f9cb225c (commit 59c9849ca)
+- [x] AEF field test A-H answered WORKS/FAILS/N/A on aef-v1815-be3, naming be.39 as the tested version. Sent 829aeb6d: A, B, D, E, H WORKS; C WORKS with one message bug (wrong segment named); G N/A; close/reviewer results as a follow-up
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -132,6 +132,10 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+grep -q "^1.8.14+1483" .agentic-framework/VERSION
+grep -q "be.31 -> be.39 (567523f69" .vendor-divergence.yaml
+bash scripts/check-vendor-divergence.sh > .context/working/.t3603.out 2>&1 && grep -q "since 4f9cb225c" .context/working/.t3603.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -385,3 +389,20 @@ bvp_scores_proposed:
 
 ### 2026-10-27T12:28:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-27T13:41:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c41bb00a
+- **Timestamp:** 2026-10-27T13:41:22Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
