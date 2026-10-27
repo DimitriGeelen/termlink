@@ -7,12 +7,13 @@
 # adapter is crates/termlink-hub/tests/wc_conformance.rs (with wc_conformance/hub.rs). Vectors are
 # DATA: the script reads them through the adapter and never runs anything from them.
 #
-# Usage: scripts/run-wc-vectors.sh [--ref <aef-commit>]     (default ref: cc5842d89)
+# Usage: scripts/run-wc-vectors.sh [--ref <aef-commit>]     (default ref: 18c6e0042)
 #        History: afe974124 first published; b4c168aa9 fixed CC-11/12 (question asked first);
 #        25f56ed68 added seen_alive_epoch preconditions for confirm_end (CC-01/02/03/06/09/25);
 #        cc5842d89 (be.37, AEF T-4803) put commission in every hand-back and added CC-16
 #        handback-wrong-commission. Our hub requires commission since T-3600, so refs before
-#        cc5842d89 now fail every positive case by design.
+#        cc5842d89 now fail every positive case by design. 18c6e0042 (be.39, AEF T-4818) added
+#        CC-16 handback-absent-commission (T-3602).
 # Exit:  0 no case fails (not-implemented cases are listed, not hidden)
 #        1 at least one case fails against the hub backend
 #        2 tooling: fetch failed, build failed, or the adapter did not reach its summary line
@@ -21,11 +22,11 @@
 
 set -uo pipefail
 
-REF="cc5842d89"
+REF="18c6e0042"
 while [ $# -gt 0 ]; do
     case "$1" in
         --ref) REF="${2:?--ref needs an AEF commit}"; shift 2 ;;
-        -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
         *) echo "run-wc-vectors: unknown argument: $1" >&2; exit 2 ;;
     esac
 done
