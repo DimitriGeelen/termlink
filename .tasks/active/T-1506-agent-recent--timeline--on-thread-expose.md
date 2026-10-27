@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -52,12 +52,13 @@ T-1505 shipped `agent quote <offset>` but the operator-fluent path requires `age
          **Expected:** All panels visible, no console errors
          **If not:** Screenshot the broken panel and note the console error
 -->
-- [ ] [REVIEW] Verify offset rendering reads naturally
+- [x] [REVIEW] Verify offset rendering reads naturally
   **Steps:**
   1. `target/release/termlink agent timeline --window-secs 3600 --n 3`
   2. `target/release/termlink agent recent <peer-fp> --window-secs 3600 --n 3` (any peer from the timeline output)
   **Expected:** each post header line includes `@<offset>` (e.g. `[5m ago] @316 msg_type=note ...`).
   **If not:** suggest a different format / position for the offset token.
+  **Reviewer verdict:** green V-20261027-7ecdf6f3 — reviewer-judge-t-1506-r1-953d54d60bd8:reviewer (rung rung-1-same-vendor-independent), digest b85e8427f422; dispatch judge-t-1506-r1-953d54d60bd8; evidence: .context/reviews/evidence/T-1506/AC1-judge-t-1506-r1-953d54d60bd8.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 

@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -47,11 +47,12 @@ the existing `extract_recent_posts` is already idempotent.
 - [x] Refactor: `render_on_thread_text` now renders ONLY the data body; one-shot caller and watch loop each print their own informative header (avoids two-header duplication on every tick)
 
 ### Human
-- [ ] [REVIEW] Verify the watch view is steady (no flicker) and readable
+- [x] [REVIEW] Verify the watch view is steady (no flicker) and readable
   **Steps:**
   1. `target/release/termlink agent on-thread T-1438 --watch --watch-interval 5 --window-secs 86400 --n 5` (run from /opt/termlink); let it tick 2x; Ctrl-C
   **Expected:** Each tick fully redraws without flicker; header line shows current ts; posts visible
   **If not:** suggest layout / interval changes
+  **Reviewer verdict:** green V-20261027-92a14ccb — reviewer-judge-t-1494-r3-e3b972c31816:reviewer (rung rung-3-termlink-single-reviewer), digest 390ccebf2ade; dispatch judge-t-1494-r3-e3b972c31816; evidence: .context/reviews/evidence/T-1494/AC1-judge-t-1494-r3-e3b972c31816.md, .context/reviews/evidence/T-1494/typescript-judge-t-1494-r3-e3b972c31816.txt, .context/reviews/evidence/T-1494/timing-judge-t-1494-r3-e3b972c31816.txt; ledger .context/reviews/verdicts.jsonl
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

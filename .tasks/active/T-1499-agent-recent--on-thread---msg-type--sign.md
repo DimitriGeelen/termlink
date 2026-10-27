@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -52,12 +52,13 @@ flag plumbing in cli/main/agent.
 - [x] Live smoke: `agent recent --target-fp d1993c2c3ec44c94 --window-secs 86400 --msg-type note --n 5` returns only msg_type=note posts; same with `--msg-type note,status` returns both types
 
 ### Human
-- [ ] [REVIEW] Verify --msg-type filtering output is operator-readable
+- [x] [REVIEW] Verify --msg-type filtering output is operator-readable
   **Steps:**
   1. `target/release/termlink agent recent --target-fp <fp> --window-secs 86400 --msg-type note` (run from /opt/termlink); compare to no-filter run
   2. Same for `agent on-thread <T-XXX> --msg-type note,status`
   **Expected:** Only listed msg_types shown; header includes `msg_type=<csv>` suffix; JSON includes `filter_msg_types: [...]` when --json
   **If not:** suggest header layout / additional msg-type variants worth surfacing
+  **Reviewer verdict:** green V-20261027-75a8d74d — reviewer-judge-t-1499-r3-54eeabf9383e:reviewer (rung rung-3-termlink-single-reviewer), digest bfc78b720cb7; dispatch judge-t-1499-r3-54eeabf9383e; evidence: .context/reviews/evidence/T-1499/AC1-judge-t-1499-r3-54eeabf9383e.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 

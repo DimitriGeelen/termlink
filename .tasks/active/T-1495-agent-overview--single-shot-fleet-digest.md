@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -51,11 +51,12 @@ verb — reuses existing pure helpers (`summarize_fleet_presence`,
 - [x] Live smoke: `agent overview --window-secs 86400 --top 3` renders 3 sections (1 peer, 3 projects, 3 recent posts); `--json --top 2` returns valid envelope with peers/projects/recent_posts arrays + total counts
 
 ### Human
-- [ ] [REVIEW] Verify the overview is operator-readable as a "first command" of a session
+- [x] [REVIEW] Verify the overview is operator-readable as a "first command" of a session
   **Steps:**
   1. `target/release/termlink agent overview --window-secs 86400` (run from /opt/termlink)
   **Expected:** Three clearly delimited sections; can scan in <5 seconds to know fleet state
   **If not:** suggest section ordering or layout changes
+  **Reviewer verdict:** green V-20261027-027cf06d — reviewer-judge-t-1495-r3-bde97ce1eeef:reviewer (rung rung-3-termlink-single-reviewer), digest ad37e306a403; dispatch judge-t-1495-r3-bde97ce1eeef; evidence: .context/reviews/evidence/T-1495/AC1-judge-t-1495-r3-bde97ce1eeef.md; ledger .context/reviews/verdicts.jsonl
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

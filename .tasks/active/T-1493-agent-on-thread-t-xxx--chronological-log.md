@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -53,11 +53,12 @@ one extraction primitive (`extract_recent_posts`). RecentPost gains a
 - [x] Live smoke: `agent on-thread T-1438 --window-secs 86400 --n 5` returns 5 chronological rows (peer fp shortened to 12 chars, project labeled per row)
 
 ### Human
-- [ ] [REVIEW] Verify the on-thread reading view scans well
+- [x] [REVIEW] Verify the on-thread reading view scans well
   **Steps:**
   1. `target/release/termlink agent on-thread T-1438 --window-secs 86400 --n 5` (run from /opt/termlink)
   **Expected:** Posts in chronological order, peer FP visible per post, content readable
   **If not:** suggest layout changes
+  **Reviewer verdict:** green V-20261027-55bd9225 — reviewer-judge-t-1493-r3-87a0448443f3:reviewer (rung rung-3-termlink-single-reviewer), digest 834b007ec7a9; dispatch judge-t-1493-r3-87a0448443f3; evidence: .context/reviews/evidence/T-1493/AC1-judge-t-1493-r3-87a0448443f3.md; ledger .context/reviews/verdicts.jsonl
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

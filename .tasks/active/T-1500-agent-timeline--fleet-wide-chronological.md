@@ -6,7 +6,7 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -39,13 +39,14 @@ T-1492 (agent recent <peer>) shows posts from one peer; T-1493 (agent on-thread 
 - [x] Live smoke: `agent timeline --json --window-secs 86400 --n 5 --msg-type note` JSON envelope includes filter_msg_types: ["note"]
 
 ### Human
-- [ ] [REVIEW] Verify timeline output is operator-readable as fleet "tail -f"
+- [x] [REVIEW] Verify timeline output is operator-readable as fleet "tail -f"
   **Steps:**
   1. `target/release/termlink agent timeline --window-secs 86400 --n 20` (run from /opt/termlink)
   2. `target/release/termlink agent timeline --window-secs 3600 --watch` (Ctrl+C to exit)
   3. `target/release/termlink agent timeline --msg-type note --window-secs 86400 --n 10`
   **Expected:** Posts ordered chronologically, peer-short prefix lets you see who posted each line, --watch refreshes without flicker, --msg-type filter works.
   **If not:** suggest layout improvements / additional filter fields worth surfacing.
+  **Reviewer verdict:** green V-20261027-08bd8e3b — reviewer-judge-t-1500-r3-f2afe01dc83f:reviewer (rung rung-3-termlink-single-reviewer), digest c96c54647bea; dispatch judge-t-1500-r3-f2afe01dc83f; evidence: .context/reviews/evidence/T-1500/AC1-judge-t-1500-r3-f2afe01dc83f.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 
