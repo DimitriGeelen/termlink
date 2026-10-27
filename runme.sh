@@ -386,12 +386,11 @@ close_task() {
 # when SET (even empty) it replaces the real list (T-3592), like RUNME_TEST_APPROVED_DECISIONS.
 # T-3592 stage 4 group A (operator "proceed as suggested", 2026-10-26; approval recorded in
 # each task's Updates with the evidence): criteria already satisfied, close approved.
+# A1 T-1696, A2 T-3052, A3 T-1691, A5 T-1635 closed 2026-10-27 (logs runme-20261027T111448Z,
+# runme-20261027T140637Z) and removed.
 # ---------------------------------------------------------------------------
 APPROVED_CLOSES=(
-    "T-1696|T-3592 A1: release-mirror canary cron installed and byte-identical (operator approved 2026-10-26)"
-    "T-3052|T-3592 A2: notify-rail crons installed (operator approved 2026-10-26)"
-    "T-1691|T-3592 A3: v0.11.0 published with macOS + Linux binaries (operator approved 2026-10-26)"
-    "T-1635|T-3592 A5: GO recorded 2026-05-15, close outstanding (operator approved 2026-10-26)"
+    "T-2013|T-3592 A6: fix live on .122 and .121; .141 out of scope while it is down (operator ruling 2026-10-27, follow-up T-3607)"
 )
 if [ -n "${RUNME_TEST_CLOSES+x}" ]; then
     APPROVED_CLOSES=()

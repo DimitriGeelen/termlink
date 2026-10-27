@@ -164,6 +164,12 @@ worker takes 16+ seconds to free.
 
 ## Decisions
 
+### 2026-10-27 — Is .141 still owed for the Human AC? (operator ruling)
+- **Chose:** .141 is out of scope for now. The operator: ".141 is down, maybe it will be up at some time, and then we'll deal with .141." T-2013 closes on the .122/.121 evidence.
+- **Why:** the fix is in code and deployed on every reachable hub (.122, .121 serve 0.12.1207 since the 2026-10-27 runme run; 5/5 channel info at 0.3 s in June). .141 has no route (2026-10-27 probe), and runme action 6 already excludes it (customer machine, ruling 2026-10-13).
+- **Rejected:** keep T-2013 open until .141 returns (waits on a machine nobody maintains); sweep all ~20 .141 tasks now (not asked for).
+- **Left open:** .141 when it is back up, parked as T-3607 (horizon later).
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -197,6 +203,9 @@ worker takes 16+ seconds to free.
 - Operator deploy steps under Human AC `[RUBBER-STAMP]` — staged musl-static binary mtime 2026-06-06
 
 ## Updates
+
+### 2026-10-27 — operator approval to close (T-3592 A6)
+- The operator ruled .141 out of scope for now (see Decisions); the Human AC is satisfied for .122 and .121. Close approved; it runs through runme action 2 (APPROVED_CLOSES). .141 follow-up is T-3607.
 
 ### 2026-06-05T23:28:06Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
