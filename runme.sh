@@ -157,6 +157,10 @@ if [ "$DRY_RUN" = "0" ] && [ -z "$DECIDE" ] && [ "$DISABLE_MISMATCH" = "0" ] && 
 fi
 
 DONE=0; SKIPPED=0; FAILED=0
+# T-3606: HELD = the action correctly refused to act because a safety condition is not met yet
+# (e.g. an inbox reader has not passed the cut). Listed and counted, but not a failure: there
+# is nothing to remediate, it resolves when the condition does.
+HELD=0
 INSTALLED_NAMES=()   # basenames this run is responsible for
 
 say()  { printf '%s\n' "$*"; }
@@ -1629,16 +1633,17 @@ bound_one_inbox() {  # <topic> <marker file or empty>
     cut=$((newest - INBOX_KEEP))   # offsets <= cut are deleted by the sweep
     if [ "$cut" -ge 0 ]; then
         if [ "$minr" = "none" ] && [ -z "$marker" ]; then
-            say "  FAILED  $topic: refused — no reader position is known, so deleting offsets 0..$cut could drop unread mail (nothing changed)"; FAILED=$((FAILED+1)); return
+            say "  HELD    $topic: refused — no reader position is known, so deleting offsets 0..$cut could drop unread mail (nothing changed)"; HELD=$((HELD+1)); return
         fi
         [ "$minr" != "none" ] && [ "$minr" -lt "$cut" ] && behind="hub receipt at $minr"
         if [ -n "$marker" ]; then
             m="$(tr -dc '0-9' < "$marker" 2>/dev/null)"
-            if [ -z "$m" ]; then behind="${behind:+$behind, }alert marker unreadable ($marker)"
+            if [ -z "$m" ]; then
+                say "  FAILED  $topic: alert marker unreadable ($marker); nothing changed"; FAILED=$((FAILED+1)); return
             elif [ "$m" -lt "$cut" ]; then behind="${behind:+$behind, }alert marker at $m"; fi
         fi
         if [ -n "$behind" ]; then
-            say "  FAILED  $topic: refused — a reader is behind the cut point $cut ($behind); nothing changed"; FAILED=$((FAILED+1)); return
+            say "  HELD    $topic: refused — a reader is behind the cut point $cut ($behind); nothing changed"; HELD=$((HELD+1)); return
         fi
     fi
     if [ "$DRY_RUN" = "1" ]; then
@@ -2029,7 +2034,8 @@ else
 fi
 
 head2 "Summary"
-say "  $DONE done, $SKIPPED already-done, $FAILED failed"
+say "  $DONE done, $SKIPPED already-done, $HELD held, $FAILED failed"
+[ "$HELD" -gt 0 ] && say "  HELD lines are safety refusals that clear on their own; nothing to fix."
 if [ "$FAILED" -gt 0 ]; then
     say ""
     say "  Something did not verify. Nothing here is destructive and it is safe to"

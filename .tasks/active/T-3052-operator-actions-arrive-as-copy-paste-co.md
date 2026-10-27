@@ -204,7 +204,8 @@ test -x runme.sh && git ls-files --error-unmatch runme.sh > /dev/null 2>&1
 # write nothing even when pointed at a directory it could write to.
 # 2026-10-26 (T-3592): own log dir, so the T-3574 single-run lock (kept in the log dir) does not refuse this
 # dry run when the close itself runs inside runme action 2.
-d=$(mktemp -d) && RUNME_CRON_DIR="$d" RUNME_LOG_DIR="$d/logs" bash runme.sh --dry-run > /tmp/.t3052-d 2>&1 && grep -q "would install" /tmp/.t3052-d && test -z "$(ls -A "$d")"
+# T-3606: the dry run's own rc reflects live host state (any held or failed action), and runme now writes its log under $d/logs (T-3273); this line asserts only what it is for: a dry run plans installs and installs nothing.
+d=$(mktemp -d) && RUNME_CRON_DIR="$d" RUNME_LOG_DIR="$d/logs" bash runme.sh --dry-run > /tmp/.t3052-d 2>&1; grep -q "would install" /tmp/.t3052-d && test -z "$(ls -A "$d" | grep -vx logs)"
 
 ## RCA
 

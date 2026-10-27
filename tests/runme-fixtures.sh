@@ -1398,19 +1398,24 @@ if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    inbox:t/010 already keeps t
 else bad "inbox idempotent" "rc=$rc: $out"; fi
 echo "forever 0 1500 1499 300" > "$FAKE_INBOX_STATE"
 out=$(run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "refused — a reader is behind the cut point 499 (hub receipt at 300)" && grep -q "^forever 0 1500 1499 300$" "$FAKE_INBOX_STATE"; then
-    ok "inbox: a hub reader behind the cut is refused, nothing changed"
+if [ "$rc" = "0" ] && echo "$out" | grep -q "HELD    inbox:t/010: refused — a reader is behind the cut point 499 (hub receipt at 300)" && echo "$out" | grep -q " 1 held, 0 failed" && grep -q "^forever 0 1500 1499 300$" "$FAKE_INBOX_STATE"; then
+    ok "inbox: a hub reader behind the cut is HELD (rc 0, T-3606), nothing changed"
 else bad "inbox receipt behind" "rc=$rc: $out"; fi
 echo "forever 0 1500 1499 1499" > "$FAKE_INBOX_STATE"; echo 200 > "$TMP/inbox.marker"
 out=$(run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "alert marker at 200" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
-    ok "inbox: our own alert marker behind the cut is refused"
+if [ "$rc" = "0" ] && echo "$out" | grep -q "HELD .*alert marker at 200" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
+    ok "inbox: our own alert marker behind the cut is HELD"
 else bad "inbox marker behind" "rc=$rc: $out"; fi
 echo "forever 0 1500 1499 none" > "$FAKE_INBOX_STATE"
 out=$(RUNME_INBOX_TOPICS="inbox:t/aef|" run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "refused — no reader position is known" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
-    ok "inbox: no known reader position is refused, never assumed read"
+if [ "$rc" = "0" ] && echo "$out" | grep -q "HELD    inbox:t/aef: refused — no reader position is known" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
+    ok "inbox: no known reader position is HELD, never assumed read"
 else bad "inbox no readers" "rc=$rc: $out"; fi
+echo "forever 0 1500 1499 1499" > "$FAKE_INBOX_STATE"; printf 'x' > "$TMP/inbox.marker"
+out=$(run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  inbox:t/010: alert marker unreadable" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
+    ok "inbox: an unreadable alert marker is FAILED (could not look), not HELD"
+else bad "inbox marker unreadable" "rc=$rc: $out"; fi
 echo "forever 0 1500 1499 1499" > "$FAKE_INBOX_STATE"; echo 1499 > "$TMP/inbox.marker"
 out=$(FAKE_INBOX_NOSWEEP=1 run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  inbox:t/010: after set-retention + sweep it reads 'messages 1000 1500'"; then

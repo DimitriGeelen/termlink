@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3606: runme action 18: a reader-safety refusal is HELD, not FAILED; repoint T-3052's stale dry-run check
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T13:58:27Z
+# ============================================================================
+
+task_id: T-3606
+task_name: "runme action 18: a reader-safety refusal is HELD, not FAILED; repoint T-3052's stale dry-run check"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-27T13:49:47Z
+completed: 2026-10-27T13:55:04Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  The 11:14 operator run (2026-10-27) ended rc=1 only because T-3052's close failed its 4th verification line, which expects an empty temp dir although runme now writes its log there (T-3273), and which depends on the live dry-run rc. Since then action 18 also refuses inbox 832 (no reader position known) as FAILED, so every run ends rc=1 although the refusal is the decided policy (T-3443 decision 6 B: cut only where every reader is past the cut). Make reader-safety refusals a HELD outcome (listed, counted in the summary, rc unaffected) and repoint T-3052's line.
+
+# Key outcomes
+outcomes:
+  - 'Action 18 reports "no reader position known" and "reader behind the cut" as HELD (counted in the summary, rc unaffected); an unreadable alert marker stays FAILED'
+  - 'tests/runme-fixtures.sh expects HELD and rc 0 for the two refusal cases and still FAILED/rc 1 for an unreadable marker; whole suite 0 failed (179 passed, 0 failed)'
+  - 'T-3052''s 4th Verification line no longer depends on live dry-run rc or on the log dir; it passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 6
+  lines_added: 527
+  lines_removed: 11
+  footprint_refreshed_at: '2026-10-27T13:58:35Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3606-runme-action-18-a-reader-safety-refusal-.md
+generated_by: context-agent-hybrid
