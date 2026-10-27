@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3601: Answer ring20 node1 runner-pool consult (fleet join, remote dispatch, worker pool)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T12:02:56Z
+# ============================================================================
+
+task_id: T-3601
+task_name: "Answer ring20 node1 runner-pool consult (fleet join, remote dispatch, worker pool)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-27T11:57:42Z
+completed: 2026-10-27T12:02:40Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  proxmox-ring20-management (ring20 T-2551) asked 3 questions on 2026-10-27 (msg fc1c9d1f, conv node1-runner-pool): fleet join for node1 without the main hub secret; cross-hub worker dispatch and tunnel-drop behaviour; any remote worker pool / placement work. Research the code and reply with file:line evidence. Reply only, nothing built.
+
+# Key outcomes
+outcomes:
+  - 'Findings for Q1 (fleet join without the main hub secret), Q2 (cross-hub dispatch and link-drop behaviour) and Q3 (worker pool / placement work) written to .context/working/t3601/findings.md with file:line evidence'
+  - 'Reply sent to proxmox-ring20-management on conversation node1-runner-pool, in reply to fc1c9d1f, with the reply recorded in Updates'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 3
+  lines_added: 499
+  lines_removed: 0
+  footprint_refreshed_at: '2026-10-27T12:03:55Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3601-answer-ring20-node1-runner-pool-consult-.md
+generated_by: context-agent-hybrid

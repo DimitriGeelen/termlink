@@ -21103,3 +21103,21 @@ scan_id: R-6260f049
 task_id: T-3600
 payload:
   task_file: .tasks/active/T-3600-wc-233-an-absent-hand-back-commission-is.md
+---
+kind: scan_emitted
+timestamp: '2026-10-27T12:02:42Z'
+scan_id: R-4301a0ed
+task_id: T-3601
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-27T12:02:42Z'
+scan_id: R-4301a0ed
+task_id: T-3601
+payload:
+  task_file: .tasks/active/T-3601-answer-ring20-node1-runner-pool-consult-.md
