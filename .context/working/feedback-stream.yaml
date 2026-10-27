@@ -21121,3 +21121,21 @@ scan_id: R-4301a0ed
 task_id: T-3601
 payload:
   task_file: .tasks/active/T-3601-answer-ring20-node1-runner-pool-consult-.md
+---
+kind: scan_emitted
+timestamp: '2026-10-27T12:13:31Z'
+scan_id: R-2154826a
+task_id: T-3602
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-27T12:13:31Z'
+scan_id: R-2154826a
+task_id: T-3602
+payload:
+  task_file: .tasks/active/T-3602-move-wc-vector-pin-to-aef-18c6e0042-be39.md

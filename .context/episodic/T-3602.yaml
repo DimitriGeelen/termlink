@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3602: Move wc vector pin to AEF 18c6e0042 (be.39, CC-16 absent-commission case)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T12:13:38Z
+# ============================================================================
+
+task_id: T-3602
+task_name: "Move wc vector pin to AEF 18c6e0042 (be.39, CC-16 absent-commission case)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-27T12:11:51Z
+completed: 2026-10-27T12:13:30Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-27T13:13:26+01:00
+last_commit: 2026-10-27T13:13:26+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  wc vector pin -> 18c6e0042 (AEF be.39, CC-16 handback-absent-commission); 17 pass / 0 fail
+
+# Key outcomes
+outcomes:
+  - '`scripts/run-wc-vectors.sh --ref 18c6e0042` reports 0 fail against our hub, CC-16 included (2026-10-27: 25 cases, pass=17 fail=0 not-implemented=7 n/a=1)'
+  - 'Default REF in scripts/run-wc-vectors.sh is 18c6e0042, with a history note'
+  - 'AEF told the result on shared-worker-contract-3way (reply to 5ccc499e)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/run-wc-vectors.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-27T13:13:26'
+    action: 'T-3602: wc vector pin -> 18c6e0042 (AEF be.39, CC-16 handback-absent-commission); 17 pass / 0 fail'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 2
+  files_changed: 4
+  lines_added: 506
+  lines_removed: 4
+  footprint_refreshed_at: '2026-10-27T12:13:59Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3602-move-wc-vector-pin-to-aef-18c6e0042-be39.md
+generated_by: context-agent-hybrid
