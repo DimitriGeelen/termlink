@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3052: Operator actions arrive as copy-paste commands instead of a runnable script
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T14:10:09Z
+# ============================================================================
+
+task_id: T-3052
+task_name: "Operator actions arrive as copy-paste commands instead of a runnable script"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-21T22:28:18Z
+completed: 2026-09-21T22:32:46Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-22T00:32:07+02:00
+last_commit: 2026-09-22T00:32:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme.sh — operator actions that verify themselves. fill the Recommendation — never present a blank decision (T-679)
+
+# Key outcomes
+outcomes:
+  - '`runme.sh` exists at the project root, is executable, and is git-tracked — an'
+  - 'IDEMPOTENT: a second run performs nothing and says so per action, so the operator'
+  - 'It VERIFIES each action after performing it and exits non-zero if the verification'
+  - '`--dry-run` prints exactly what it would do and changes nothing, so the human can'
+  - 'Refuses loudly (non-zero, nothing applied) when not run as root, rather than'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'runme.sh'
+  - '.tasks/active/T-3052-operator-actions-arrive-as-copy-paste-co.md'
+  - '.tasks/completed/T-3051-no-canary-detects-a-dead-notify-sidecar-.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-22T00:32:07'
+    action: 'T-3052: runme.sh — operator actions that verify themselves'
+  - time: '2026-09-22T00:32:41'
+    action: 'T-3052: fill the Recommendation — never present a blank decision (T-679)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 4
+  files_changed: 10
+  lines_added: 1108
+  lines_removed: 6
+  footprint_refreshed_at: '2026-10-27T14:10:40Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3052-operator-actions-arrive-as-copy-paste-co.md
+generated_by: context-agent-hybrid
