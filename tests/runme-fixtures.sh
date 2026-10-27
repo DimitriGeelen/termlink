@@ -571,7 +571,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 34 ))   # +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 36 ))   # +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1262,8 +1262,10 @@ if echo "$out" | grep -q "OK      recorded that you ticked T-3351 Human AC#1" \
    && echo "$out" | grep -q "OK      recorded that you ticked T-3388 Human AC#1" \
    && echo "$out" | grep -q "OK      recorded that you ticked T-3291 Human AC#1" \
    && echo "$out" | grep -q "OK      recorded that you ticked T-3302 Human AC#1" \
-   && [ "$(grep -c '"via": "operator-ack"' "$RUNME_HUMAN_TICKS_LEDGER")" = "5" ]; then
-    ok "operator tick: all five listed ticks recorded, one ledger row each"
+   && echo "$out" | grep -q "OK      recorded that you ticked T-3006 Human AC#1" \
+   && echo "$out" | grep -q "OK      recorded that you ticked T-3200 Human AC#1" \
+   && [ "$(grep -c '"via": "operator-ack"' "$RUNME_HUMAN_TICKS_LEDGER")" = "7" ]; then
+    ok "operator tick: all seven listed ticks recorded, one ledger row each"
 else bad "tick record all" "rows=$(grep -c operator-ack "$RUNME_HUMAN_TICKS_LEDGER"): $out"; fi
 out=$(run); rc=$?
 if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    T-3349 Human AC#1: your tick is already recorded"; then
