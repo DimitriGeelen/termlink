@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T22:03:42Z
-last_update: 2026-10-20T19:24:48Z
+last_update: 2026-10-20T20:22:17Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -478,3 +478,15 @@ from its own evidence, and accept a supervisor writing on behalf of a worker wit
 
 ### 2026-10-19T22:04:12Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-27 — wc v0.3.4 DRAFT awaiting the operator's adoption [agent]
+- AEF draft on bleeding-edge b4cbccd2a: spec docs/specs/shared-worker-contract-transitions.md,
+  summary docs/reports/T-4800-wc-v034-draft.md, vectors tests/conformance/worker-contract/vectors.yaml
+  (msg 909b0f5b, conversation shared-worker-contract-3way). v0.3.3 stays in force until each
+  operator adopts; version field stays wc/0.3.
+- Changes: (1) §3.3 rule 1 applies to a worker that ran, so a refusal is `refused` even with no
+  hand-back; (2) new §4.7: a backend MAY close a dispatch once its last attempt is terminal;
+  a T1 then gets `fence_reject(dispatch_closed)`; CC-15/CC-19 accept T1 or dispatch_closed.
+- TermLink impact, checked 2026-10-26: none. derive_outcome (crates/termlink-bus/src/worker_contract.rs:605-628)
+  already checks refused before the hand-back; our hub never closes dispatches, so it never emits
+  dispatch_closed and our FenceReason list needs no change. Adoption = the operator's yes/no.
