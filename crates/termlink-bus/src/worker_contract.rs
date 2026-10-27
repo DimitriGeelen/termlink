@@ -168,6 +168,8 @@ pub struct Handback {
     pub nonce: Option<String>,
     pub status: Option<String>,
     pub summary: Option<String>,
+    /// T-3599: the dispatch the worker says it handed back (§3.3 rule 1, ring20 N4).
+    pub commission: Option<String>,
 }
 
 /// Result of a transition: the attempt as stored and whether it was a T8 replay.
@@ -601,12 +603,24 @@ fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcRe
     Ok(TransitionOutcome { record: attempt_record(tx, id, req.attempt)?, deduped: false })
 }
 
+/// T-3599: §3.3 rule 1 — a hand-back whose commission names another dispatch is
+/// malformed. An external backend may prefix the id (`<backend>:<dispatch_id>`), so the
+/// part after the last `:` is compared too. An absent commission is not checked: the
+/// conformance vectors omit it until AEF T-4803 adds it.
+fn commission_matches(commission: Option<&str>, dispatch_id: &str) -> bool {
+    match commission {
+        None => true,
+        Some(c) => c == dispatch_id || c.rsplit_once(':').is_some_and(|(_, id)| id == dispatch_id),
+    }
+}
+
 /// `outcome` derivation, in the spec's order (§3.3).
 fn derive_outcome(req: &TransitionRequest) -> &'static str {
     let hb_ok = req.handback.as_ref().is_some_and(|h| {
         h.attempt == Some(req.attempt)
             && h.nonce.as_deref() == Some(req.nonce.as_str())
             && h.status.is_some()
+            && commission_matches(h.commission.as_deref(), &req.dispatch_id)
     });
     // The refused flag outranks the handback check (CC-16, CC-21): a refusal carries no
     // handback. An unrefused exit with an absent handback stays malformed (CC-25).

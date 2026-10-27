@@ -36,6 +36,7 @@ fn t3(a: &Allocation, digest: &str) -> TransitionRequest {
             nonce: Some(a.nonce.clone()),
             status: Some("complete".into()),
             summary: None,
+            commission: None,
         }),
         ..t2(a)
     }
@@ -293,6 +294,7 @@ fn cc16_outcome_derivation_and_cc19_paused() {
             nonce: Some(if nonce_ok { a.nonce.clone() } else { "other".into() }),
             status: Some(st.into()),
             summary: None,
+            commission: None,
         });
         let out = s.transition(&r, 12).unwrap();
         assert_eq!(out.record["state"], "done", "{name}");
@@ -303,6 +305,39 @@ fn cc16_outcome_derivation_and_cc19_paused() {
             let n = s.allocate(&AllocateRequest { attempt_of: Some(a.dispatch_id.clone()), ..Default::default() }, 13).unwrap();
             assert_eq!(n.attempt, 2);
         }
+    }
+}
+
+// T-3599: §3.3 rule 1 commission clause (ring20 N4). A hand-back naming another dispatch
+// is malformed even with the right attempt and nonce; the own id, bare or with a
+// `<backend>:` prefix, passes; an absent commission is not checked (vectors omit it).
+#[test]
+fn handback_commission_must_name_this_dispatch() {
+    let (_d, s) = store();
+    let probe = alloc(&s, 10);
+    let own = probe.dispatch_id.clone();
+    let cases: [(&str, Option<String>, &str); 4] = [
+        ("own-bare", Some(own.clone()), "succeeded"),
+        ("own-prefixed", Some(format!("ext-backend:{own}")), "succeeded"),
+        ("absent", None, "succeeded"),
+        ("foreign", Some("D-someone-else".into()), "handback-malformed"),
+    ];
+    let mut t = 20;
+    for (name, commission, want) in cases {
+        let a = if name == "own-bare" { probe.clone() } else { t += 10; alloc(&s, t) };
+        s.transition(&t2(&a), t + 1).unwrap();
+        let mut r = t3(&a, "D");
+        r.exit_code = Some(0);
+        let commission = commission.map(|c| c.replace(&own, &a.dispatch_id));
+        r.handback = Some(Handback {
+            attempt: Some(1),
+            nonce: Some(a.nonce.clone()),
+            status: Some("complete".into()),
+            summary: None,
+            commission,
+        });
+        let out = s.transition(&r, t + 2).unwrap();
+        assert_eq!(out.record["outcome"], want, "{name}");
     }
 }
 

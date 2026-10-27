@@ -85,6 +85,10 @@ pub struct ResolveRequest {
 /// T-3539 (§3.3 T7d): material offered with a `done` resolve. Only `Evidence` whose nonce
 /// binds it to the attempt is evidence; everything else makes the write an attestation.
 #[derive(Debug, Clone)]
+// T-3599: Handback gained `commission`, pushing Evidence past the lint's size ratio. One
+// value per resolve RPC, never stored in bulk, so the size is irrelevant; boxing would only
+// add churn at every construction site.
+#[allow(clippy::large_enum_variant)]
 pub enum ResolveMaterial {
     /// The attempt's signed completion as T7b would carry it.
     Evidence {

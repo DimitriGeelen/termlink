@@ -380,6 +380,8 @@ impl Hub {
             nonce: h.get("nonce").and_then(Value::as_str).map(|s| self.resolve_sym(s)),
             status: h.get("status").and_then(Value::as_str).map(str::to_string),
             summary: None,
+            // T-3599: pass a vector's commission through (resolved like the nonce), ready for AEF T-4803.
+            commission: h.get("commission").and_then(Value::as_str).map(|s| self.resolve_sym(s)),
         });
         Ok(Complete {
             dispatch: self.dispatch_id()?,

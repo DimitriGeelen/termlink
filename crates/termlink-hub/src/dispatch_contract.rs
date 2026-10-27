@@ -159,6 +159,7 @@ pub fn evidence_material_from_json(v: &Value) -> Result<ResolveMaterial, String>
         nonce: h.get("nonce").and_then(Value::as_str).map(str::to_string),
         status: h.get("status").and_then(Value::as_str).map(str::to_string),
         summary: h.get("summary").and_then(Value::as_str).map(str::to_string),
+        commission: h.get("commission").and_then(Value::as_str).map(str::to_string),
     });
     let result = v.get("result");
     Ok(ResolveMaterial::Evidence {
@@ -384,6 +385,7 @@ pub(crate) fn transition_with(bus: &Bus, id: Value, params: &Value, now: i64) ->
         nonce: h.get("nonce").and_then(|v| v.as_str()).map(str::to_string),
         status: h.get("status").and_then(|v| v.as_str()).map(str::to_string),
         summary: h.get("summary").and_then(|v| v.as_str()).map(str::to_string),
+        commission: h.get("commission").and_then(|v| v.as_str()).map(str::to_string),
     });
     let req = TransitionRequest {
         dispatch_id,
