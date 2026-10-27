@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2013: Fix channel.subscribe + channel.receipts tokio worker starvation (T-2012 fix)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T14:41:16Z
+# ============================================================================
+
+task_id: T-2013
+task_name: "Fix channel.subscribe + channel.receipts tokio worker starvation (T-2012 fix)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-05T23:28:06Z
+completed: 2026-06-13T09:38:11Z
+duration_days: 8
+updates_count: 6
+first_commit: 2026-06-06T01:28:16+02:00
+last_commit: 2026-06-06T14:20:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file fix task — spawn_blocking wrap for channel.subscribe/receipts (T-2012 follow-up). wrap channel.subscribe + channel.receipts iter walks in block_in_place (fixes T-2012 worker starvation on ring20 hubs, 37 channel tests + regression test pass under multi_thread runtime). correct deploy AC — fleet-deploy-binary.sh takes HUB display name + --probe + --swap-restart (not made-up --target IP form). fleet-deploy to 3 hubs + Human AC step 4 evidence + T-2017 follow-up for .141 residual
+
+# Key outcomes
+outcomes:
+  - '`handle_channel_subscribe_with` iter walk wrapped in `tokio::task::block_in_place` so worker thread is freed during the blocking syscalls (`crates/termlink-hub/src/channel.rs:625-647`)'
+  - '`handle_channel_receipts_with` iter walk wrapped in `tokio::task::block_in_place` (`crates/termlink-hub/src/channel.rs:697-723`)'
+  - 'All existing `#[tokio::test]` annotations on tests that call these two `_with` handlers updated to `#[tokio::test(flavor = "multi_thread", worker_threads = 2)]` (else `block_in_place` panics) — all 37 channel::tests annotations updated'
+  - 'Audit comment added near each block_in_place site pointing at T-2013 + RCA + invariant ("any future iter-walking handler must follow this pattern")'
+  - '`cargo check -p termlink-hub -p termlink-bus -p termlink-session` clean'
+  - '`cargo test -p termlink-hub --lib channel::tests` passes (all existing tests still green under multi_thread runtime) — 37 channel tests passed, 306/306 hub tests overall'
+  - 'New regression test added that exercises the wedge scenario: 1100 envelopes seeded, 5 sequential `handle_channel_subscribe_with` calls with interleaved writes between each. Each call asserted to complete <2s. Test name: `channel_subscribe_no_worker_starvation_under_concurrent_writes`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'wrap channel.subscribe + channel.receipts iter walks in block_in_place (fixes T-2012 worker starvation on ring20 hubs, 37 channel tests + regression test pass under multi_thread runtime)'
+    source: git-mined
+  - description: 'file fix task — spawn_blocking wrap for channel.subscribe/receipts (T-2012 follow-up)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-27 — Is .141 still owed for the Human AC? (operator ruling)'
+    chose: '.141 is out of scope for now. The operator: ".141 is down, maybe it will be up at some time, and then we''ll deal with .141." T-2013 closes on the .122/.121 evidence.'
+    rationale: 'the fix is in code and deployed on every reachable hub (.122, .121 serve 0.12.1207 since the 2026-10-27 runme run; 5/5 channel info at 0.3 s in June). .141 has no route (2026-10-27 probe), and runme action 6 already excludes it (customer machine, ruling 2026-10-13).'
+    alternatives_rejected: ['keep T-2013 open until .141 returns (waits on a machine nobody maintains); sweep all ~20 .141 tasks now (not asked for). - **Left open:** .141 when it is back up, parked as T-3607 (horizon later).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/channel.rs'
+  - '.tasks/active/T-2013-fix-channelsubscribe--channelreceipts-to.md'
+  - '.tasks/active/T-2017-t-2013-follow-up-141-channelinfo-wedges-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-06-06T01:28:16'
+    action: 'T-2013: file fix task — spawn_blocking wrap for channel.subscribe/receipts (T-2012 follow-up)'
+  - time: '2026-06-06T08:48:00'
+    action: 'T-2013: wrap channel.subscribe + channel.receipts iter walks in block_in_place (fixes T-2012 worker starvation on ring20 hubs, 37 channel tests + regression test pass under multi_thread runtime)'
+  - time: '2026-06-06T09:00:35'
+    action: 'T-2013: correct deploy AC — fleet-deploy-binary.sh takes HUB display name + --probe + --swap-restart (not made-up --target IP form)'
+  - time: '2026-06-06T14:20:27'
+    action: 'T-2013: fleet-deploy to 3 hubs + Human AC step 4 evidence + T-2017 follow-up for .141 residual'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 10690 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 10690
+  commits: 5
+  files_changed: 5
+  lines_added: 721
+  lines_removed: 132
+  footprint_refreshed_at: '2026-10-27T14:42:08Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2013-fix-channelsubscribe--channelreceipts-to.md
+generated_by: context-agent-hybrid
