@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1499: agent recent / on-thread --msg-type — signal vs noise filter
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T16:29:56Z
+# ============================================================================
+
+task_id: T-1499
+task_name: "agent recent / on-thread --msg-type — signal vs noise filter"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T20:08:44Z
+completed: 2026-05-04T20:24:00Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T22:27:20+02:00
+last_commit: 2026-10-27T16:31:18+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent recent / on-thread --msg-type — signal vs noise filter. complete (work-completed) — agent recent/on-thread --msg-type shipped (G-054 workaround). reviewer verdict
+
+# Key outcomes
+outcomes:
+  - '`extract_recent_posts` gains `filter_msg_types: Option<&[&str]>` param — when Some, posts whose msg_type is NOT in the list are skipped'
+  - 'AND-composes with existing peer / thread / project filters (any/all may be set independently)'
+  - 'Meta exclusion (reaction/edit/redaction/topic_metadata/receipt) still applies first — `--msg-type edit` does NOT bypass meta exclusion (intentional: edits are not direct-readable content)'
+  - '`--msg-type <type[,type...]>` flag on Recent variant (clap parses comma-sep into Vec<String>)'
+  - '`--msg-type <type[,type...]>` flag on OnThread variant (same shape)'
+  - 'main.rs propagates new value through both AgentAction::Recent and AgentAction::OnThread dispatches'
+  - 'cmd_agent_recent passes filter to all 3 callsites (one-shot json, one-shot text, watch loop)'
+  - 'cmd_agent_on_thread passes filter to all 3 callsites (one-shot json, one-shot text, watch loop)'
+  - 'Text-mode header includes `msg_type=<csv>` suffix when set (for both verbs, both one-shot and watch)'
+  - 'JSON envelope includes `filter_msg_types: [...]` when set (omitted when unset, matches existing field-omission convention)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-05-04 — Allowlist (--msg-type) vs denylist (--exclude-msg-type)'
+    chose: 'Allowlist semantics; meta types (reaction/edit/redaction/topic_metadata/receipt) always excluded regardless of allowlist.'
+    rationale: 'Allowlist matches operator intent — they want to focus on a few types, not enumerate all noise types to exclude. Meta exclusion is structural (these types are not direct-readable content); allowing them via --msg-type would surface stale data and confuse the reading view.'
+    alternatives_rejected: ['Denylist semantics (--exclude-msg-type) — would require operator to know the full type vocabulary. Could add later if real demand surfaces.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1499/AC1-judge-t-1499-r3-54eeabf9383e.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1499-agent-recent--on-thread---msg-type--sign.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-04T22:27:20'
+    action: 'T-1499: agent recent / on-thread --msg-type — signal vs noise filter'
+  - time: '2026-05-04T22:28:16'
+    action: 'T-1499: complete (work-completed) — agent recent/on-thread --msg-type shipped (G-054 workaround)'
+  - time: '2026-10-27T16:31:18'
+    action: 'T-1499: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 15
+  commits: 4
+  files_changed: 25
+  lines_added: 1161
+  lines_removed: 46
+  footprint_refreshed_at: '2026-10-27T16:33:27Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1499-agent-recent--on-thread---msg-type--sign.md
+generated_by: context-agent-hybrid

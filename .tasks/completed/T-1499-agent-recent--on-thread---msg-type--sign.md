@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T20:08:44Z
-last_update: 2026-05-04T20:24:00Z
+last_update: 2026-10-27T16:29:49Z
 date_finished: 2026-05-04T20:24:00Z
 ---
 
@@ -63,7 +63,8 @@ flag plumbing in cli/main/agent.
 ## Verification
 
 ( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1499-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1499-1.out
-( cargo test --release -p termlink --lib commands::channel::tests::recent_posts 2>&1 | tail -3 ) > /tmp/.v-t-1499-2.out && grep -qE "test result: ok" /tmp/.v-t-1499-2.out
+# T-3592: the termlink package has no lib target any more ("no library targets found"); these tests live in the binary.
+( cargo test --release -p termlink --bin termlink commands::channel::tests::recent_posts 2>&1 | tail -3 ) > /tmp/.v-t-1499-2.out && grep -qE "test result: ok" /tmp/.v-t-1499-2.out
 ( target/release/termlink agent recent --help 2>&1 ) > /tmp/.v-t-1499-3.out && grep -q -- "--msg-type" /tmp/.v-t-1499-3.out
 ( target/release/termlink agent on-thread --help 2>&1 ) > /tmp/.v-t-1499-4.out && grep -q -- "--msg-type" /tmp/.v-t-1499-4.out
 target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window-secs 86400 --msg-type note --n 5 > /tmp/.t1499.out 2>&1 && grep -qE "msg_type=note|no posts found" /tmp/.t1499.out

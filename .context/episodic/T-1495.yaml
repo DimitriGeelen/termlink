@@ -1,0 +1,109 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1495: agent overview — single-shot fleet digest combining presence + by-project + recent posts
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T15:58:49Z
+# ============================================================================
+
+task_id: T-1495
+task_name: "agent overview — single-shot fleet digest combining presence + by-project + recent posts"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T17:46:11Z
+completed: 2026-05-04T17:52:36Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T19:52:33+02:00
+last_commit: 2026-10-27T16:02:00+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent overview — single-shot fleet digest. complete (work-completed) — agent overview shipped. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - 'New `agent overview` subcommand registered (clap parses via `--help`)'
+  - '`--window-secs N` flag (default 3600 / 1h, clamped [60, 604800])'
+  - '`--top N` flag (default 5, clamped [1, 50]) — applies to all 3 sections symmetrically'
+  - '`--hub <addr>` overrides default hub'
+  - '`--json` outputs envelope: `{window_secs, top, peers: [...], projects: [...], recent_posts: [...], total_peers, total_projects}` — three arrays each capped at `top` rows + total counts so caller can disambiguate "exactly N" vs "N truncated"'
+  - 'Single chat-arc fetch (one RPC round-trip); all three summaries computed from the same `msgs` slice'
+  - 'Text mode: 3 sections separated by blank lines, each with a `## Header` heading; ends with single footer line `# overview: window=Xs, top=N, total_peers=X, total_projects=Y`'
+  - 'Section 1 (Top Peers): PEER_FP / LAST_SEEN / POSTS / TOP_PROJECT (re-uses FleetPeerRow output)'
+  - 'Section 2 (Top Projects): PROJECT / POSTS / PEERS / TOP_PEER / LAST_SEEN (re-uses FleetProjectRow output)'
+  - 'Section 3 (Recent Posts): chronological asc, with peer_short / msg_type / thread / project labels per post + first-line content preview (capped at 100 chars + ellipsis if multi-line or truncated)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-05-04 — Single fetch + three views vs three separate fetches'
+    chose: 'One `fetch_recent_chat_arc_msgs(2000)` call, three pure helpers compute their summaries from the same msgs slice.'
+    rationale: 'Three RPC round-trips would triple latency and chat-arc network load for no benefit — all three summaries derive from the same data. Pure helpers don''t share state, just msgs.'
+    alternatives_rejected: ['Three separate fetches via existing `fetch_*_via_chat_arc` wrappers — simpler call sites but worse latency and load.']
+  - decision: '2026-05-04 — Symmetric --top vs per-section flags'
+    chose: 'Single `--top N` controls all three sections.'
+    rationale: 'Operator wants "give me a digest" — calibrating per-section depth is overkill for a "first command of session" verb. If they want more depth, they reach for the specific verb (`agent presence`, `agent on-thread`).'
+    alternatives_rejected: ['`--top-peers N --top-projects M --top-posts P` — three flags, ambiguous default behavior, no clear win.']
+  - decision: '2026-05-04 — Content preview capped at 100 chars in overview vs 200 in `recent`/`on-thread`'
+    chose: 'Stricter truncation in overview (100-char first-line preview, ellipsis if multi-line OR over 100 chars).'
+    rationale: 'Overview is a digest — operator drills in via the specific verb for full content. 100 chars is a single-line scan limit.'
+    alternatives_rejected: ['Same 200-char cap as `recent` — wastes vertical space on a digest where each post should be 1-2 lines.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1495/AC1-judge-t-1495-r3-bde97ce1eeef.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1495-agent-overview--single-shot-fleet-digest.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-04T19:52:33'
+    action: 'T-1495: agent overview — single-shot fleet digest'
+  - time: '2026-05-04T19:53:06'
+    action: 'T-1495: complete (work-completed) — agent overview shipped'
+  - time: '2026-10-27T16:02:00'
+    action: 'T-1495: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6
+  commits: 4
+  files_changed: 24
+  lines_added: 1154
+  lines_removed: 22
+  footprint_refreshed_at: '2026-10-27T16:33:24Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1495-agent-overview--single-shot-fleet-digest.md
+generated_by: context-agent-hybrid

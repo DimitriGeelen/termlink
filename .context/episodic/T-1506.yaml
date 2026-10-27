@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1506: agent recent / timeline / on-thread expose offset in render and JSON
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T16:27:58Z
+# ============================================================================
+
+task_id: T-1506
+task_name: "agent recent / timeline / on-thread expose offset in render and JSON"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-05-05T06:43:04Z
+completed: 2026-06-07T10:47:40Z
+duration_days: 33
+updates_count: 4
+first_commit: 2026-05-05T08:52:25+02:00
+last_commit: 2026-10-27T16:36:21+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  surface chat-arc offset in agent recent/timeline/on-thread renders + JSON (work-completed). fresh re-smoke evidence — @<offset> renders in timeline + recent text mode (matches AC @316 example). reviewer verdict
+
+# Key outcomes
+outcomes:
+  - '`RecentPost` struct gains `offset: u64` field'
+  - '`RecentPost::to_json` includes `offset`'
+  - '`extract_recent_posts` populates offset from `m.get("offset")` (default 0 if missing)'
+  - '`render_recent_body` shows `@<offset>` token in header line'
+  - '`render_timeline_body` shows `@<offset>` token in header line'
+  - '`render_on_thread_text` shows `@<offset>` token in header line'
+  - 'New unit test: extract_recent_posts populates offset from envelope''s `offset` field'
+  - 'New unit test: missing `offset` field defaults to 0 (no panic, no skip)'
+  - 'All existing channel.rs unit tests still pass'
+  - '`cargo build --release -p termlink` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1506/AC1-judge-t-1506-r1-953d54d60bd8.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1506-agent-recent--timeline--on-thread-expose.md'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-05T08:52:25'
+    action: 'T-1506: surface chat-arc offset in agent recent/timeline/on-thread renders + JSON (work-completed)'
+  - time: '2026-06-07T12:47:40'
+    action: 'T-1506: fresh re-smoke evidence — @<offset> renders in timeline + recent text mode (matches AC @316 example)'
+  - time: '2026-10-27T16:36:21'
+    action: 'T-1506: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 47764 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 47764
+  commits: 4
+  files_changed: 23
+  lines_added: 973
+  lines_removed: 21
+  footprint_refreshed_at: '2026-10-27T16:33:29Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1506-agent-recent--timeline--on-thread-expose.md
+generated_by: context-agent-hybrid

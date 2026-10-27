@@ -1,0 +1,106 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1493: agent on-thread <T-XXX> — chronological log of all posts on a thread across all peers
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T15:58:00Z
+# ============================================================================
+
+task_id: T-1493
+task_name: "agent on-thread <T-XXX> — chronological log of all posts on a thread across all peers"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T17:22:46Z
+completed: 2026-05-04T17:33:01Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T19:32:58+02:00
+last_commit: 2026-10-27T15:59:00+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent on-thread <T-XXX> — chronological thread reading view. complete (work-completed) — agent on-thread shipped. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - 'Refactor `extract_recent_posts_for_peer` → `extract_recent_posts(msgs, n, window_ms, now_ms, filter_peer_fp, filter_thread, filter_project)` with all filters optional'
+  - '`RecentPost` gains `peer_fp: String` field; `to_json` echoes it'
+  - 'Update existing 7 unit tests to use new signature; all still pass'
+  - 'T-1492 `cmd_agent_recent` updated to call new signature with `Some(peer_fp)`'
+  - 'New `agent on-thread` subcommand registered (clap parses via `--help`)'
+  - 'Positional `<THREAD>` (T-XXX style) is required'
+  - '`--n N` controls count (default 50, clamped to [1, 500] — bigger than `recent` because thread logs are denser)'
+  - '`--window-secs N` bounds the walk (default 86400, clamped [60, 604800])'
+  - '`--project <name>` further filters by `metadata.from_project`'
+  - '`--peer <name>` / `--peer-fp <hex>` further narrows to one peer (essentially equivalent to `agent recent --thread`; useful for confirmation)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-05-04 — Refactor extract_recent_posts_for_peer → extract_recent_posts'
+    chose: 'Generalize the existing helper to take an optional peer filter; both `agent recent` and `agent on-thread` call the same primitive.'
+    rationale: 'Duplicate logic for content extraction, payload-shape handling, and content truncation would inevitably drift. Single helper means filter semantics stay consistent. The signature change is internal — only one external caller (cmd_agent_recent) needed update.'
+    alternatives_rejected: ['Two parallel helpers (`extract_recent_posts_for_peer` + `extract_recent_posts_for_thread`) — would have meant copy-pasting ~60 lines of payload extraction logic; small bug fixes would need to be replicated.']
+  - decision: '2026-05-04 — Add peer_fp to RecentPost'
+    chose: 'RecentPost gains `peer_fp: String`; `to_json` echoes it.'
+    rationale: 'Cross-peer rendering (`agent on-thread`) needs to label each post with its sender. Single-peer rendering (`agent recent`) ignores the field but its presence is harmless and the JSON envelope is now self-describing.'
+    alternatives_rejected: ['Separate ThreadPost struct — would have required two near-identical to_json methods and downstream rendering branches.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1493/AC1-judge-t-1493-r3-87a0448443f3.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1493-agent-on-thread-t-xxx--chronological-log.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-04T19:32:58'
+    action: 'T-1493: agent on-thread <T-XXX> — chronological thread reading view'
+  - time: '2026-05-04T19:33:33'
+    action: 'T-1493: complete (work-completed) — agent on-thread shipped'
+  - time: '2026-10-27T15:59:00'
+    action: 'T-1493: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 10
+  commits: 4
+  files_changed: 25
+  lines_added: 1260
+  lines_removed: 47
+  footprint_refreshed_at: '2026-10-27T16:33:23Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1493-agent-on-thread-t-xxx--chronological-log.md
+generated_by: context-agent-hybrid

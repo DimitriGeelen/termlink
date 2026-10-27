@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T20:29:04Z
-last_update: 2026-05-04T21:45:19Z
+last_update: 2026-10-27T16:30:12Z
 date_finished: 2026-05-04T21:44:28Z
 ---
 
@@ -55,7 +55,8 @@ T-1492 (agent recent <peer>) shows posts from one peer; T-1493 (agent on-thread 
 ( target/release/termlink agent timeline --help 2>&1 ) > /tmp/.v-t-1500-3.out && grep -q -- "--window-secs" /tmp/.v-t-1500-3.out
 ( target/release/termlink agent timeline --help 2>&1 ) > /tmp/.v-t-1500-4.out && grep -q -- "--watch" /tmp/.v-t-1500-4.out
 ( target/release/termlink agent timeline --help 2>&1 ) > /tmp/.v-t-1500-5.out && grep -q -- "--msg-type" /tmp/.v-t-1500-5.out
-target/release/termlink agent timeline --window-secs 86400 --n 5 --json > /tmp/.t1500.out 2>&1 && grep -qE '"posts":\[' /tmp/.t1500.out
+# T-3592: the JSON is pretty-printed ("posts": [ with a space); the old pattern '"posts":\[' could never match.
+target/release/termlink agent timeline --window-secs 86400 --n 5 --json > /tmp/.t1500.out 2>&1 && grep -qE '"posts": ?\[' /tmp/.t1500.out
 
 ## RCA
 

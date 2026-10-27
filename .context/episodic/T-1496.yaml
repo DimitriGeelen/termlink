@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1496: agent overview --watch — live fleet dashboard
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T16:29:33Z
+# ============================================================================
+
+task_id: T-1496
+task_name: "agent overview --watch — live fleet dashboard"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T17:53:27Z
+completed: 2026-05-04T18:00:08Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T20:00:04+02:00
+last_commit: 2026-10-27T16:04:07+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent overview --watch — live fleet dashboard. complete (work-completed) — agent overview --watch shipped. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - '`--watch` flag added to `agent overview` (clap parses via `--help`)'
+  - '`--watch-interval N` flag (default 5, clamped to [1, 300]) — same convention as agent presence/on-thread --watch'
+  - 'When set: ANSI clear-home + per-tick watch-mode header + body re-render every interval until Ctrl-C'
+  - 'Fetch errors per-tick are NON-fatal (printed and retried)'
+  - 'Per-tick header: `# agent overview --watch | interval=Ns | window=Xs | top=N | <RFC3339-ts>`'
+  - '`--watch` + `--json` REJECTED (incompatible); error envelope `{"ok":false,"error":"--watch and --json are incompatible: ..."}` exits 1'
+  - 'When unset: behavior identical to T-1495 baseline (regression-checked: text mode prints same 3 sections)'
+  - 'Refactor: extracted body of `cmd_agent_overview` into `render_overview_body` (text) and `compose_overview_json` (JSON) — both pure helpers shared between one-shot and watch paths'
+  - '`cargo build --release -p termlink` clean'
+  - 'No new unit tests required (pure UX extension; underlying helpers covered by 32 existing tests)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-05-04 — Two helpers (render_overview_body + compose_overview_json) vs body-only refactor'
+    chose: 'Two pure helpers — text body and JSON envelope — both consume `&[Value]` (msgs slice).'
+    rationale: 'Watch loop only needs the text body (--json is rejected with --watch). One-shot needs both paths. Two helpers cleanly separate concerns and avoid having a single helper that branches on `json: bool`.'
+    alternatives_rejected: ['Single combined helper with `output_format: enum {Text, Json}` — leaks render concern into a data-shape helper.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1496/AC1-judge-t-1496-r3-18cef88239bd.md'
+  - '.context/reviews/evidence/T-1496/watch-transcript-judge-t-1496-r3-18cef88239bd.txt'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1496-agent-overview---watch--live-fleet-dashb.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-04T20:00:04'
+    action: 'T-1496: agent overview --watch — live fleet dashboard'
+  - time: '2026-05-04T20:00:35'
+    action: 'T-1496: complete (work-completed) — agent overview --watch shipped'
+  - time: '2026-10-27T16:04:07'
+    action: 'T-1496: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6
+  commits: 4
+  files_changed: 25
+  lines_added: 1128
+  lines_removed: 82
+  footprint_refreshed_at: '2026-10-27T16:33:27Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1496-agent-overview---watch--live-fleet-dashb.md
+generated_by: context-agent-hybrid

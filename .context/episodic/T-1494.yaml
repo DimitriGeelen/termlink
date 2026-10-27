@@ -1,0 +1,103 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1494: agent on-thread --watch — live thread-following view
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T16:29:04Z
+# ============================================================================
+
+task_id: T-1494
+task_name: "agent on-thread --watch — live thread-following view"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T17:34:05Z
+completed: 2026-05-04T17:45:17Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T19:45:14+02:00
+last_commit: 2026-10-27T16:00:39+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent on-thread --watch — live thread-following view. complete (work-completed) — agent on-thread --watch shipped. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - '`--watch` flag added to `agent on-thread` (clap parses via `--help`)'
+  - '`--watch-interval N` flag (default 5, clamped to [1, 300]) — same convention as `agent presence --watch`'
+  - 'When set: ANSI clear-home + per-tick header + re-render every interval until Ctrl-C'
+  - 'Errors on per-tick fetch are NON-fatal (printed and retried) — operator should not lose the dashboard for a transient hub blip'
+  - 'Per-tick header includes: `# agent on-thread <T-XXX> --watch | interval=Ns | window=Xs | n=Y | <RFC3339-ts>`'
+  - '`--watch` + `--json` REJECTED at verb level (incompatible — streaming text vs one-shot JSON); error message names both flags'
+  - 'Composes with `--n`, `--window-secs`, `--project`, `--peer` / `--peer-fp`, `--hub` unchanged'
+  - 'When unset: behavior identical to T-1493 baseline (one-shot output, exit on completion)'
+  - '`cargo build --release -p termlink` clean'
+  - 'No new unit tests required (pure UX extension; existing `extract_recent_posts` tests cover the data path)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-05-04 — Body-only renderer + per-mode headers'
+    chose: 'Extract render_on_thread_text into body-only (data block + empty-state + footer); both watch loop and one-shot caller print their own header line.'
+    rationale: 'Initial implementation had render_on_thread_text print a standard header AND watch loop print a watch-specific header → duplicate headers per tick. Cleaner: each mode owns its header. One-shot prints `# agent on-thread <T> | window=Xs | n=Y`; watch prints `# agent on-thread <T> --watch | interval=Ns | window=Xs | n=Y | <RFC3339-ts>`.'
+    alternatives_rejected: ['Pass `print_header: bool` flag to renderer — leaks UI concern into a body renderer; per-mode headers belong in the per-mode caller.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1494/AC1-judge-t-1494-r3-e3b972c31816.md'
+  - '.context/reviews/evidence/T-1494/timing-judge-t-1494-r3-e3b972c31816.txt'
+  - '.context/reviews/evidence/T-1494/typescript-judge-t-1494-r3-e3b972c31816.txt'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1494-agent-on-thread---watch--live-thread-fol.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-04T19:45:14'
+    action: 'T-1494: agent on-thread --watch — live thread-following view'
+  - time: '2026-05-04T19:45:46'
+    action: 'T-1494: complete (work-completed) — agent on-thread --watch shipped'
+  - time: '2026-10-27T16:00:39'
+    action: 'T-1494: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 11
+  commits: 4
+  files_changed: 26
+  lines_added: 1061
+  lines_removed: 30
+  footprint_refreshed_at: '2026-10-27T16:33:24Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1494-agent-on-thread---watch--live-thread-fol.md
+generated_by: context-agent-hybrid
