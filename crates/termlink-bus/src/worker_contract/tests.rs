@@ -36,7 +36,7 @@ fn t3(a: &Allocation, digest: &str) -> TransitionRequest {
             nonce: Some(a.nonce.clone()),
             status: Some("complete".into()),
             summary: None,
-            commission: None,
+            commission: Some(a.dispatch_id.clone()),
         }),
         ..t2(a)
     }
@@ -294,7 +294,7 @@ fn cc16_outcome_derivation_and_cc19_paused() {
             nonce: Some(if nonce_ok { a.nonce.clone() } else { "other".into() }),
             status: Some(st.into()),
             summary: None,
-            commission: None,
+            commission: Some(a.dispatch_id.clone()),
         });
         let out = s.transition(&r, 12).unwrap();
         assert_eq!(out.record["state"], "done", "{name}");
@@ -310,7 +310,7 @@ fn cc16_outcome_derivation_and_cc19_paused() {
 
 // T-3599: §3.3 rule 1 commission clause (ring20 N4). A hand-back naming another dispatch
 // is malformed even with the right attempt and nonce; the own id, bare or with a
-// `<backend>:` prefix, passes; an absent commission is not checked (vectors omit it).
+// `<backend>:` prefix, passes. T-3600: an absent commission is malformed too (§2).
 #[test]
 fn handback_commission_must_name_this_dispatch() {
     let (_d, s) = store();
@@ -319,7 +319,7 @@ fn handback_commission_must_name_this_dispatch() {
     let cases: [(&str, Option<String>, &str); 4] = [
         ("own-bare", Some(own.clone()), "succeeded"),
         ("own-prefixed", Some(format!("ext-backend:{own}")), "succeeded"),
-        ("absent", None, "succeeded"),
+        ("absent", None, "handback-malformed"),
         ("foreign", Some("D-someone-else".into()), "handback-malformed"),
     ];
     let mut t = 20;

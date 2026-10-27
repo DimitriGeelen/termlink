@@ -463,7 +463,8 @@ mod tests {
             "dispatch_id": a["dispatch_id"], "attempt": a["attempt"], "nonce": a["nonce"],
             "supervisor_token": a["supervisor_token"], "expected_prior": prior, "to": to,
             "supervisor_gen": 1, "evidence_digest": "E1", "exit_code": 0,
-            "handback": {"attempt": a["attempt"], "nonce": a["nonce"], "status": "complete"},
+            "handback": {"attempt": a["attempt"], "nonce": a["nonce"], "status": "complete",
+                         "commission": a["dispatch_id"]},
         })
     }
 

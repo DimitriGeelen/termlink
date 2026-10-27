@@ -41,7 +41,7 @@ fn done_req(a: &Allocation, prior: &str, digest: &str, persisted_at: Option<i64>
             nonce: Some(a.nonce.clone()),
             status: Some("complete".into()),
             summary: None,
-            commission: None,
+            commission: Some(a.dispatch_id.clone()),
         }),
         ..req(a, prior, "done")
     }

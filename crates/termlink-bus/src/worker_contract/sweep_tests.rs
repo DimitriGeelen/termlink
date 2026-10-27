@@ -55,7 +55,7 @@ fn t3_done(s: &WcStore, a: &Allocation, now: i64) {
                 nonce: Some(a.nonce.clone()),
                 status: Some("complete".into()),
                 summary: None,
-                commission: None,
+                commission: Some(a.dispatch_id.clone()),
             }),
             ..Default::default()
         },
@@ -287,7 +287,7 @@ fn reappearing_binding_after_lost_is_noticed_not_resurrected_and_t5_still_upgrad
                     nonce: Some(a.nonce.clone()),
                     status: Some("complete".into()),
                     summary: None,
-                    commission: None,
+                    commission: Some(a.dispatch_id.clone()),
                 }),
                 ..Default::default()
             },

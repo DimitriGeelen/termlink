@@ -605,11 +605,11 @@ fn transition_tx(tx: &Transaction, req: &TransitionRequest, now_ms: i64) -> WcRe
 
 /// T-3599: §3.3 rule 1 — a hand-back whose commission names another dispatch is
 /// malformed. An external backend may prefix the id (`<backend>:<dispatch_id>`), so the
-/// part after the last `:` is compared too. An absent commission is not checked: the
-/// conformance vectors omit it until AEF T-4803 adds it.
+/// part after the last `:` is compared too. T-3600: commission is part of the hand-back
+/// (§2), so an absent one is malformed as well (AEF T-4803 put it in every vector).
 fn commission_matches(commission: Option<&str>, dispatch_id: &str) -> bool {
     match commission {
-        None => true,
+        None => false,
         Some(c) => c == dispatch_id || c.rsplit_once(':').is_some_and(|(_, id)| id == dispatch_id),
     }
 }

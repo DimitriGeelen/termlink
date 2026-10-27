@@ -164,7 +164,7 @@ fn credentials_and_attempt_fence_the_answer_path() {
                 nonce: Some(a.nonce.clone()),
                 status: Some("complete".into()),
                 summary: None,
-                commission: None,
+                commission: Some(a.dispatch_id.clone()),
             }),
             ..Default::default()
         },
@@ -258,7 +258,7 @@ fn answer_to_an_attempt_that_ended_is_undelivered() {
                 nonce: Some(a.nonce.clone()),
                 status: Some("complete".into()),
                 summary: None,
-                commission: None,
+                commission: Some(a.dispatch_id.clone()),
             }),
             ..Default::default()
         },
@@ -405,7 +405,7 @@ fn cc22_resolve_material_bound_evidence_and_unbound() {
             nonce: Some(a.nonce.clone()),
             status: Some("complete".into()),
             summary: None,
-            commission: None,
+            commission: Some(a.dispatch_id.clone()),
         }),
         persisted_at: Some(10),
         result_kind: None,
