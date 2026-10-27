@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3598: Re-vendor AEF v1.8.15-be.28 -> be.31 (0cd951409)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T09:36:00Z
+# ============================================================================
+
+task_id: T-3598
+task_name: "Re-vendor AEF v1.8.15-be.28 -> be.31 (0cd951409)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-27T08:46:14Z
+completed: 2026-10-27T09:35:50Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-27T10:21:41+01:00
+last_commit: 2026-10-27T10:35:49+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.15-be.28 -> be.31 (0cd951409, 16 commits; operator go 2026-10-27). divergence baseline d8bbff8b0 (be.31)
+
+# Key outcomes
+outcomes:
+  - 'be.28 (81c2d5e82) is an ancestor of be.31 (0cd951409, 16 commits); rehearsed from one fresh clone, real run from another (rc 0 both); no preserved file changed upstream'
+  - 'CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer reds explained. 21 changes; guard PASS (gate=all), only the known WARN reds; tracking drift clean after the vendor commit'
+  - 'T-4783 present: the destructive-command gate refuses a tmux kill-server/kill-session that names no -S/-L socket. In .agentic-framework/agents/context/check-tier0.sh:347'
+  - '`.vendor-divergence.yaml` updated; AEF told the result. Baseline d8bbff8b0; AEF told'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-27 — take be.31? (operator ruling)'
+    chose: 're-vendor be.28 -> be.31 ("go ahead with be.31").'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/context/check-tier0.sh'
+  - '.agentic-framework/docs/reports/T-4784-obs-triage-a.md'
+  - '.agentic-framework/docs/reports/T-4784-obs-triage-b.md'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.30.0.html'
+  - '.context/audits/upgrades.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-3484-shared-dispatched-worker-contract-reach-.md'
+  - '.tasks/active/T-3598-re-vendor-aef-v1815-be28---be31-0cd95140.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-27T10:21:41'
+    action: 'T-3598: re-vendor AEF v1.8.15-be.28 -> be.31 (0cd951409, 16 commits; operator go 2026-10-27)'
+  - time: '2026-10-27T10:35:49'
+    action: 'T-3598: divergence baseline d8bbff8b0 (be.31)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 49 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 49
+  commits: 3
+  files_changed: 15
+  lines_added: 976
+  lines_removed: 32
+  footprint_refreshed_at: '2026-10-27T09:36:22Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3598-re-vendor-aef-v1815-be28---be31-0cd95140.md
+generated_by: context-agent-hybrid

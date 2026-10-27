@@ -7,10 +7,10 @@ description: >
   kill-server/kill-session naming no -S/-L socket; T-4795 designer 0.30.0; T-4796
   CC-08 equivalent route.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-27T08:46:14Z
-last_update: 2026-10-27T09:21:41Z
-date_finished:
+last_update: 2026-10-27T09:35:50Z
+date_finished: 2026-10-27T09:35:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -78,10 +78,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] be.28 (81c2d5e82) is an ancestor of be.31 (0cd951409, 16 commits); rehearsed from one fresh clone, real run from another (rc 0 both); no preserved file changed upstream
-- [ ] CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer reds explained
-- [ ] T-4783 present: the destructive-command gate refuses a tmux kill-server/kill-session that names no -S/-L socket
-- [ ] `.vendor-divergence.yaml` updated; AEF told the result
+- [x] be.28 (81c2d5e82) is an ancestor of be.31 (0cd951409, 16 commits); rehearsed from one fresh clone, real run from another (rc 0 both); no preserved file changed upstream
+- [x] CLAUDE.md part above `## Core Principle` byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0; guard layer reds explained. 21 changes; guard PASS (gate=all), only the known WARN reds; tracking drift clean after the vendor commit
+- [x] T-4783 present: the destructive-command gate refuses a tmux kill-server/kill-session that names no -S/-L socket. In .agentic-framework/agents/context/check-tier0.sh:347
+- [x] `.vendor-divergence.yaml` updated; AEF told the result. Baseline d8bbff8b0; AEF told
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -132,6 +132,8 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+grep -q "be.28 -> be.31 (0cd951409" .vendor-divergence.yaml && grep -q "^1.8.14+1440" .agentic-framework/VERSION
+grep -q "T-4783" .agentic-framework/agents/context/check-tier0.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -388,3 +390,20 @@ bvp_scores_proposed:
 
 ### 2026-10-27T09:14:26Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-48c45d77
+- **Timestamp:** 2026-10-27T09:35:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-27T09:35:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
