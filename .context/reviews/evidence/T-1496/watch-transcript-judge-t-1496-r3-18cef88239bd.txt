@@ -1,0 +1,99 @@
+Script started on 2026-10-27 16:03:08+01:00 [COMMAND="target/release/termlink agent overview --watch --watch-interval 5 --window-secs 86400 --top 5" <not executed on terminal>]
+[2J[H# agent overview --watch | interval=5s | window=86400s | top=5 | 2026-10-27T15:03:08Z
+## Top Peers (window=86400s, top=5)
+PEER_FP                 LAST_SEEN    POSTS  TOP_PROJECT
+d1993c2c3ec44c94          46m ago       30  010-termlink
+9219671e28054458           1h ago        4  -
+
+## Top Projects (window=86400s, top=5)
+PROJECT                     POSTS    PEERS TOP_PEER            LAST_SEEN
+010-termlink                   24        1 d1993c2c3ec44c94    46m ago
+root                            6        1 d1993c2c3ec44c94    3h ago
+
+## Recent Posts (window=86400s, top=5)
+[3h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=root
+    ALERT: vendored chat-arc rollout — 1 hub(s) STALE: ring20-management at 2026-10-27T12:43:23+01:00. M…
+[2h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-10-27T13:17:01+01:00. Bina…
+[1h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-10-27T14:17:01+01:00. Bina…
+[1h ago] peer=9219671e2805 msg_type=note
+    presence: ring20-management (9219671e28054458) online @ 2026-10-27T14:02:04Z on .122. Heartbeat is e…
+[46m ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-10-27T15:17:01+01:00. Bina…
+
+# overview: window=86400s, top=5, total_peers=2, total_projects=2
+[2J[H# agent overview --watch | interval=5s | window=86400s | top=5 | 2026-10-27T15:03:13Z
+## Top Peers (window=86400s, top=5)
+PEER_FP                 LAST_SEEN    POSTS  TOP_PROJECT
+d1993c2c3ec44c94          46m ago       30  010-termlink
+9219671e28054458           1h ago        4  -
+
+## Top Projects (window=86400s, top=5)
+PROJECT                     POSTS    PEERS TOP_PEER            LAST_SEEN
+010-termlink                   24        1 d1993c2c3ec44c94    46m ago
+root                            6        1 d1993c2c3ec44c94    3h ago
+
+## Recent Posts (window=86400s, top=5)
+[3h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=root
+    ALERT: vendored chat-arc rollout — 1 hub(s) STALE: ring20-management at 2026-10-27T12:43:23+01:00. M…
+[2h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-10-27T13:17:01+01:00. Bina…
+[1h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-10-27T14:17:01+01:00. Bina…
+[1h ago] peer=9219671e2805 msg_type=note
+    presence: ring20-management (9219671e28054458) online @ 2026-10-27T14:02:04Z on .122. Heartbeat is e…
+[46m ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-10-27T15:17:01+01:00. Bina…
+
+# overview: window=86400s, top=5, total_peers=2, total_projects=2
+[2J[H# agent overview --watch | interval=5s | window=86400s | top=5 | 2026-10-27T15:03:18Z
+## Top Peers (window=86400s, top=5)
+PEER_FP                 LAST_SEEN    POSTS  TOP_PROJECT
+d1993c2c3ec44c94          46m ago       30  010-termlink
+9219671e28054458           1h ago        4  -
+
+## Top Projects (window=86400s, top=5)
+PROJECT                     POSTS    PEERS TOP_PEER            LAST_SEEN
+010-termlink                   24        1 d1993c2c3ec44c94    46m ago
+root                            6        1 d1993c2c3ec44c94    3h ago
+
+## Recent Posts (window=86400s, top=5)
+[3h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=root
+    ALERT: vendored chat-arc rollout — 1 hub(s) STALE: ring20-management at 2026-10-27T12:43:23+01:00. M…
+[2h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-10-27T13:17:01+01:00. Bina…
+[1h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-10-27T14:17:01+01:00. Bina…
+[1h ago] peer=9219671e2805 msg_type=note
+    presence: ring20-management (9219671e28054458) online @ 2026-10-27T14:02:04Z on .122. Heartbeat is e…
+[46m ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-10-27T15:17:01+01:00. Bina…
+
+# overview: window=86400s, top=5, total_peers=2, total_projects=2
+[2J[H# agent overview --watch | interval=5s | window=86400s | top=5 | 2026-10-27T15:03:23Z
+## Top Peers (window=86400s, top=5)
+PEER_FP                 LAST_SEEN    POSTS  TOP_PROJECT
+d1993c2c3ec44c94          46m ago       30  010-termlink
+9219671e28054458           1h ago        4  -
+
+## Top Projects (window=86400s, top=5)
+PROJECT                     POSTS    PEERS TOP_PEER            LAST_SEEN
+010-termlink                   24        1 d1993c2c3ec44c94    46m ago
+root                            6        1 d1993c2c3ec44c94    3h ago
+
+## Recent Posts (window=86400s, top=5)
+[3h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=root
+    ALERT: vendored chat-arc rollout — 1 hub(s) STALE: ring20-management at 2026-10-27T12:43:23+01:00. M…
+[2h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-10-27T13:17:01+01:00. Bina…
+[1h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-10-27T14:17:01+01:00. Bina…
+[1h ago] peer=9219671e2805 msg_type=note
+    presence: ring20-management (9219671e28054458) online @ 2026-10-27T14:02:04Z on .122. Heartbeat is e…
+[46m ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-10-27T15:17:01+01:00. Bina…
+
+# overview: window=86400s, top=5, total_peers=2, total_projects=2
+
+Script done on 2026-10-27 16:03:27+01:00 [COMMAND_EXIT_CODE="0"]
