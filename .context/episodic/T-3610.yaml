@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3610: T-3609 r01 value review gather: Phase 0 snapshot + Phase 1 yardstick/datamap
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-27T18:15:44Z
+# ============================================================================
+
+task_id: T-3610
+task_name: "T-3609 r01 value review gather: Phase 0 snapshot + Phase 1 yardstick/datamap"
+workflow_type: specification
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-27T17:59:16Z
+completed: 2026-10-27T18:15:37Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Gatherer stage of T-3609 round 01: orient, snapshot usage data, write yardstick and data availability map for operator confirmation. Read-only on repo/fleet.
+
+# Key outcomes
+outcomes:
+  - 'Usage snapshot recorded before review-generated data (`.context/working/t3609/round-01/snapshot/usage-snapshot.txt`)'
+  - 'Yardstick written, max 10 lines (`.context/working/t3609/yardstick.md`)'
+  - 'Data availability map written with a status for every Layer A/B row (`.context/working/t3609/datamap.md`)'
+  - 'Handback written with operator questions, under 150 lines (`.context/working/t3609/round-01/review-gather-a.handback.md`)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 16
+  commits: 1
+  files_changed: 3
+  lines_added: 278
+  lines_removed: 0
+  footprint_refreshed_at: '2026-10-27T18:16:21Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3610-t-3609-r01-value-review-gather-phase-0-s.md
+generated_by: context-agent-hybrid
