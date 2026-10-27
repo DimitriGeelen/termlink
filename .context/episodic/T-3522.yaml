@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3522: wc/0.3 hub: confirm_end entry point that reads signed evidence before confirming an end (CC-01,02,03,06)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-22T07:53:14Z
+# ============================================================================
+
+task_id: T-3522
+task_name: "wc/0.3 hub: confirm_end entry point that reads signed evidence before confirming an end (CC-01,02,03,06)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-21T14:43:50Z
+completed: 2026-10-22T07:49:24Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-10-21T16:46:05+02:00
+last_commit: 2026-10-21T16:54:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  ACs + verification (confirm_end: adapter mapping vs backend gap, decided from the vector text). wc/0.3 hub confirm_end mapped to the sweep; done-attempt end refused (CC-02 pass); CC-01/03/06 stay failing, filed T-3525 (signed-evidence intake) and T-3526 (never-seen absence, AEF ruling)
+
+# Key outcomes
+outcomes:
+  - 'Decided and recorded in Decisions, with the vector text quoted: AEF''s vocabulary defines `confirm_end` for the hub as "two sweeps at the last-seen epoch then G" (evidence read first is the hubless form). Whether the S2 sweep (`absent_twice_then_lost_only_after_grace`, `done_evidence_inside_grace_prevents_lost`) already is that behaviour, so the gap is the adapter''s mapping, or whether the backend lacks something (e.g. reading fenced done evidence before T4)'
+  - 'The conformance adapter maps `confirm_end` for the hub to the real sweep path (driving the sweeps with the injected clock, never a shortcut that writes the state directly), and CC-01, CC-02, CC-03 and CC-06 each report pass, or fail with the diverging step named; any backend change is minimal, comes with a failing-first unit test, and changes no case that already passes (CC-04, 07, 14, 16, 18, 23)'
+  - 'Every case still failing after this is filed as its own bug task with the diverging step; the conformance map is updated from the adapter''s output'
+  - '`cargo test -p termlink-bus -p termlink-hub` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-21 — adapter mapping or backend gap for confirm_end'
+    chose: 'Both, split by case. The adapter maps `confirm_end` to the real sweep path: `Bus::wc_confirm_end` refuses a done attempt with `forbidden_transition`, otherwise runs two sweeps at the current epoch and one more G later on the injected clock. The backend changes only where a case showed a real divergence: a hub end over a done attempt answered nothing where CC-02 expects the refusal. CC-01 and CC-03 (evidence-present) and CC-03 (no-evidence) plus CC-06 stay failing with the diverging step named, filed as T-3525 and T-3526. - **Quoted vector text:** vocabulary `confirm_end`: "the sweep writer confirms the attempt''s end by the backend''s own evidence (hub two sweeps at the last-seen epoch then G; hubless independent probe, evidence read first) and acts on it". CC-02: `complete` accepted T3, then `confirm_end` expects `{fence_reject: forbidden_transition}`. CC-06: a running attempt with no `seen_alive_epoch`, clock 20, `confirm_end` expects `{accepted: T4}`.'
+    rationale: 'S2 `absence()` counts absence only for an attempt whose binding was seen at the current epoch. That is §3.4 as CC-17 pins it ("acted on by deadlines only"), and `dispatched_never_seen_goes_unknown…` says "never seen, so no end was observed". So the sweep is right for seen attempts, and the two-sweeps-then-G mapping fits them. CC-06 and CC-03 (no-evidence) want T4 on a never-seen attempt before G, which contradicts §3.4, so this needs an AEF ruling, not a backend patch (T-3526). CC-01 and CC-03 (evidence-present) need the hub to read signed evidence persisted before the end; the store has no hub-side evidence intake (T-3525).'
+    alternatives_rejected: ['(a) writing T4 directly from the adapter: a shortcut around the state machine, which the task forbids. (b) letting the sweep count never-seen attempts: CC-06 would pass, but §3.4 and CC-17 would be weakened, and both are pinned by tests. (c) marking CC-01/03/06 n/a: the vectors set `n_a_allowed: false` for transition subjects (§6.6 N2).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/worker_contract/sweep.rs'
+  - 'crates/termlink-bus/src/worker_contract/sweep_tests.rs'
+  - 'crates/termlink-hub/tests/wc_conformance/hub.rs'
+  - 'docs/reports/T-3484-conformance-map.md'
+  - '.tasks/active/T-3522-wc03-hub-confirmend-entry-point-that-rea.md'
+  - '.tasks/active/T-3525-wc03-hub-confirmend-does-not-read-signed.md'
+  - '.tasks/active/T-3526-wc03-hub-a-running-attempt-never-seen-al.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T16:46:05'
+    action: 'T-3522: ACs + verification (confirm_end: adapter mapping vs backend gap, decided from the vector text)'
+  - time: '2026-10-21T16:54:21'
+    action: 'T-3522: wc/0.3 hub confirm_end mapped to the sweep; done-attempt end refused (CC-02 pass); CC-01/03/06 stay failing, filed T-3525 (signed-evidence intake) and T-3526 (never-seen absence, AEF ruling)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1025 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1025
+  commits: 3
+  files_changed: 330
+  lines_added: 29971
+  lines_removed: 7766
+  footprint_refreshed_at: '2026-10-27T20:59:23Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3522-wc03-hub-confirmend-entry-point-that-rea.md
+generated_by: context-agent-hybrid

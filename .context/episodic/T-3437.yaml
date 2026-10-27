@@ -81,12 +81,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 1478
-  commits: 3
+  commits: 4
   files_changed: 11
-  lines_added: 795
-  lines_removed: 83
-  footprint_refreshed_at: '2026-10-14T19:49:11Z'
-  footprint_refreshed_by_commit: 5639cd1a6
+  lines_added: 801
+  lines_removed: 87
+  footprint_refreshed_at: '2026-10-14T19:49:17Z'
+  footprint_refreshed_by_commit: c285b6a4b
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3437-fleet-deploy-binary---swap-restart-moves.md

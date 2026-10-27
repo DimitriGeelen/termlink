@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3527: wc/0.3 hub: T7d agent-session gate and material binding on resolve (CC-15, CC-22)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T23:42:28Z
+# ============================================================================
+
+task_id: T-3527
+task_name: "wc/0.3 hub: T7d agent-session gate and material binding on resolve (CC-15, CC-22)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T15:03:06Z
+completed: 2026-10-21T23:41:14Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-22T01:39:47+02:00
+last_commit: 2026-10-22T01:39:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T7d agent-session speed bump — CLAUDECODE=1 resolve refused (agent_session) unless --override is given, which is recorded in the history cause; writer stays operator so the notice fires; adapter uses the same gate; CC-15 pass, vectors 17/0/7/1
+
+# Key outcomes
+outcomes:
+  - '`resolve_on_host` takes the caller''s session kind and an optional override reason. An agent session with no override is refused by name (`agent_session`) and writes nothing. An agent session WITH an override is accepted and records the override in history (actor names the agent session and the override reason). An operator session is accepted as today'
+  - '`termlink hub dispatch-resolve` treats `CLAUDECODE=1` as an agent session and gains `--override "<reason>"` (non-empty reason required); the refusal message says it is a speed bump, not identity, and how to override (demonstrated against a temp runtime dir: refused with `agent_session`, rc 1; with `--override` it passes the gate)'
+  - 'History rows written by resolve name who resolved: the row''s cause reads `operator_resolve [agent session, override: <why>]: <reason>` for an overridden agent session, and `operator_resolve: <reason>` for the operator. **Amended from "replace the fixed operator writer":** the writer column must stay `operator`, because it names the T7d role and the operator-notice trigger keys on it (notices.rs:89); replacing it would have silenced the detective-control notice for exactly the agent case'
+  - 'Tests: agent without override refused and the record unchanged (a blank override is refused too); agent with override accepted, with the override in the cause and writer `operator`; operator accepted (`resolve_refuses_an_agent_session_without_a_recorded_override`, plus the existing resolve test). The conformance adapter calls the same `resolve_gate` and reports `logged_actor`/`logged_reason` read back from the history row; `scripts/run-wc-vectors.sh` at 25f56ed68: CC-15 pass, summary pass=17 fail=0'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/worker_contract/answer.rs'
+  - 'crates/termlink-bus/src/worker_contract/answer_tests.rs'
+  - 'crates/termlink-bus/src/worker_contract/notices_tests.rs'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-hub/src/dispatch_contract.rs'
+  - 'crates/termlink-hub/tests/wc_conformance/hub.rs'
+  - 'docs/reports/T-3484-conformance-map.md'
+  - '.tasks/active/T-3527-wc03-hub-t7d-agent-session-gate-and-mate.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-22T01:39:47'
+    action: 'T-3527: T7d agent-session speed bump — CLAUDECODE=1 resolve refused (agent_session) unless --override is given, which is recorded in the history cause; writer stays operator so the notice fires; adapter uses the same gate; CC-15 pass, vectors 17/0/7/1'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 518 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 518
+  commits: 3
+  files_changed: 334
+  lines_added: 29229
+  lines_removed: 7751
+  footprint_refreshed_at: '2026-10-27T20:59:25Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3527-wc03-hub-t7d-agent-session-gate-and-mate.md
+generated_by: context-agent-hybrid

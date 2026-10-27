@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3432: arc-011 FX-5: baseline 9 (artifact store), new-writer allowlist check, plaintext field size cap
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T16:42:16Z
+# ============================================================================
+
+task_id: T-3432
+task_name: "arc-011 FX-5: baseline 9 (artifact store), new-writer allowlist check, plaintext field size cap"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-13T16:12:01Z
+completed: 2026-10-17T16:41:42Z
+duration_days: 4
+updates_count: 2
+first_commit: 2026-10-17T18:40:59+02:00
+last_commit: 2026-10-17T18:41:40+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  criteria met (runme fixtures 138/138 with the new crontab). evolution recorded (cap vs chunked transfer; fourth writer)
+
+# Key outcomes
+outcomes:
+  - '(a) `count-hub-plaintext-fields.sh` counts the artifact store (anchor: the hub''s `put_streaming` call); the real tree totals 9; its fixtures and the T-3427 report say 9'
+  - '(b) A guard-layer static check fires on (1) any `artifact.put` emitter other than `upload_artifact_chunked` and (2) any caller of `send_artifact_via_client` not in a git-tracked allowlist; the current callers (four, see Context) are listed with reasons; fixtures cover both firing rules, the clean tree, comments and fail-closed tooling, with a mutant'
+  - '(c) The hub refuses a plaintext message field above a size cap with a named error, the cap chosen from the largest field measured on this hub plus margin; unit tests pin refusal and acceptance; the hub crate''s tests pass apart from timing-only tests unrelated to the change (named in the commit)'
+  - '(c2, ruling C) A daily canary names new file-shaped posts outside the artifact path (fixtures incl. fail-closed tooling; crontab installed by runme action 1; existing posts acknowledged after being reported)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'criteria met (runme fixtures 138/138 with the new crontab)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-17 — FX-5 part (c): what the plaintext size cap should be (operator ruling)'
+    chose: 'C — a 512 KB backstop cap per plaintext field on `channel.post` (`PLAINTEXT_FIELD_TOO_LARGE`, -32025) plus a daily canary (`scripts/check-file-shaped-posts.sh`) that names new file-shaped messages outside the artifact path; refusal of such messages waits for P15''s encrypted path. Operator: "proceed as you see fit and suggested", read as the recommended C.'
+    rationale: 'measured 2026-10-17 on .107 (9,442 records): p50 1.1 KB, p99 27 KB, p99.9 118 KB, max 296 KB, and peers already move files as `document` / 40 KB `artifact-chunk` messages. A cap low enough to bite breaks real traffic (pickup filings to 275 KB) and is bypassed by chunking; only a detector sees the chunked route. Scored C +16, A +7, D −4, B −26 (indicative; the drivers cannot price confidentiality).'
+    alternatives_rejected: ['A cap only (never fires); B 64 KB cap (breaks filings, still bypassed); D defer all of (c) (the route stays unmeasured). - **Left open:** whether and when to refuse file-shaped posts once P15 exists; whether the files already on `xfer-*` topics (91 messages in 5 topics at first run, 8 of them sent by 010-termlink) change the FX-5 baseline under the "workflow" reading.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3432-arc-011-fx-5-baseline-9-artifact-store-n.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-17T18:40:59'
+    action: 'T-3432: criteria met (runme fixtures 138/138 with the new crontab)'
+  - time: '2026-10-17T18:41:40'
+    action: 'T-3432: evolution recorded (cap vs chunked transfer; fourth writer)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5789 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5789
+  commits: 4
+  files_changed: 325
+  lines_added: 29049
+  lines_removed: 7722
+  footprint_refreshed_at: '2026-10-27T20:59:13Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3432-arc-011-fx-5-baseline-9-artifact-store-n.md
+generated_by: context-agent-hybrid

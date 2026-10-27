@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3545: run-wc-vectors.sh: offline fallback to a gitignored cache of AEF's vectors (reviewer sandboxes have no internet)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-22T10:37:42Z
+# ============================================================================
+
+task_id: T-3545
+task_name: "run-wc-vectors.sh: offline fallback to a gitignored cache of AEF's vectors (reviewer sandboxes have no internet)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-22T10:35:13Z
+completed: 2026-10-22T10:37:19Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-22T12:37:08+02:00
+last_commit: 2026-10-22T12:37:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  run-wc-vectors falls back to a gitignored per-REF cache when it cannot fetch (reviewer sandboxes have no internet); fixtures 4/0
+
+# Key outcomes
+outcomes:
+  - 'After a successful fetch the script stores the file at `.context/working/wc-vectors/<REF>.yaml` (gitignored). When the fetch fails and that exact REF is cached, it uses the copy and the `vectors:` line says "cached copy"; with no copy it still exits 2 ("nothing was judged")'
+  - '(tests/run-wc-vectors-cache-fixtures.sh 4/0; cache seeded for 25f56ed68, 52555 bytes) A hermetic test (network blocked via a bad URL seam) covers both: a cache hit runs and says "cached", a miss exits 2'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'run-wc-vectors falls back to a gitignored per-REF cache when it cannot fetch (reviewer sandboxes have no internet); fixtures 4/0'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.fabric/components/tests-run-wc-vectors-cache-fixtures.yaml'
+  - 'scripts/run-wc-vectors.sh'
+  - '.tasks/active/T-3545-run-wc-vectorssh-offline-fallback-to-a-g.md'
+  - 'tests/run-wc-vectors-cache-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-22T12:37:08'
+    action: 'T-3545: run-wc-vectors falls back to a gitignored per-REF cache when it cannot fetch (reviewer sandboxes have no internet); fixtures 4/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 3
+  files_changed: 328
+  lines_added: 29496
+  lines_removed: 7727
+  footprint_refreshed_at: '2026-10-27T20:59:30Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3545-run-wc-vectorssh-offline-fallback-to-a-g.md
+generated_by: context-agent-hybrid

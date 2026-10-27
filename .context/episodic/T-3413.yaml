@@ -1,0 +1,112 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3413: arc-011 PH-1 B12: fail-closed matrix and mutation runner (X2) - remaining FC tests, arc011-mutants.sh, FC-17 secret scan, FC matrix report
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T23:29:38Z
+# ============================================================================
+
+task_id: T-3413
+task_name: "arc-011 PH-1 B12: fail-closed matrix and mutation runner (X2) - remaining FC tests, arc011-mutants.sh, FC-17 secret scan, FC matrix report"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-11T23:14:30Z
+completed: 2026-10-11T23:28:18Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T01:28:17+02:00
+last_commit: 2026-10-12T01:28:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  B12 fail-closed matrix and mutation runner (FC-1..FC-17, all 17 mutants killed)
+
+# Key outcomes
+outcomes:
+  - 'The FC tests missing so far exist under `fc_` names: FC-1 hub half (the hub refuses a forged post), FC-2 ENOSPC on a size-limited tmpfs inside the estate (no STORED), FC-8 hub down then back (WAITING, then UNKNOWN past the deadline, then delivered with no loss), FC-17 secret scan of everything a real two-sidecar run produced'
+  - 'One mutation patch per FC row of 9.1 under `crates/termlink-sidecar/tests/mutants/`, each naming the test it must turn red'
+  - '`scripts/arc011-mutants.sh` applies each patch in a scratch copy of the tree (never the working tree), rebuilds, runs the named test, prints a table, and exits 0 only if every mutant turned its test red (2 on tooling errors)'
+  - '`docs/reports/arc011-ph1-fc-matrix.md`: FC-1..FC-17, the test for each, its negative control, and the mutation run''s table'
+  - '`cargo test -p termlink-sidecar fc_` passes and the full suite stays green; no production path is touched'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-12 — Mutants run in a scratch copy with their own target dir'
+    chose: 'copy the workspace sources (no .git, no target) to a temp dir, build with `target/arc011-mutants`, apply and revert each patch there; check the unpatched suite is green first.'
+    rationale: '9.3 forbids mutating the working tree; a separate target dir keeps rebuilds incremental without invalidating the main build; a red baseline would make every "killed" meaningless.'
+    alternatives_rejected: ['`git stash`/apply in place (touches the working tree a live session is using).']
+  - decision: '2026-10-12 — FC-6''s negative control'
+    chose: '"a ready session is taken as evidence of hand-over".'
+    rationale: '9.1 names "flag raised accepted as evidence"; the ready flag is the only flag a session raises in PH-1. The hook-less agent half of FC-6 (STORED, sender STUCK) shares FC-7''s label test.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/pull.rs'
+  - 'crates/termlink-sidecar/src/store.rs'
+  - 'crates/termlink-sidecar/src/testkit.rs'
+  - 'crates/termlink-sidecar/tests/deliver_tests.rs'
+  - 'crates/termlink-sidecar/tests/fc_matrix.rs'
+  - 'crates/termlink-sidecar/tests/mutants/fc-01-verify-accepts-any-signature.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-02-stored-reported-on-write-error.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-03-stored-line-before-the-record.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-04-no-claim-file.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-05-missing-flag-reads-ready.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-06-ready-flag-taken-as-evidence.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-07-storage-counted-as-delivery.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-08-drop-on-hub-error.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-09-no-store-lock.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-10-no-digest-comparison.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-11-any-record-is-evidence.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-12-frame-without-boundary.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-13-unreadable-read-as-absent.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-14-no-hub-id-check.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-15-no-chain-check.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-16-acceptance-called-delivered.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-17-environment-logged.patch'
+  - 'docs/design/arc-011-ph1-architecture.md'
+  - 'docs/reports/arc011-ph1-fc-matrix.md'
+  - 'scripts/arc011-mutants.sh'
+  - '.tasks/active/T-3413-arc-011-ph-1-b12-fail-closed-matrix-and-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T01:28:17'
+    action: 'T-3413: B12 fail-closed matrix and mutation runner (FC-1..FC-17, all 17 mutants killed)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 13
+  commits: 3
+  files_changed: 351
+  lines_added: 30268
+  lines_removed: 7739
+  footprint_refreshed_at: '2026-10-27T20:59:11Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3413-arc-011-ph-1-b12-fail-closed-matrix-and-.md
+generated_by: context-agent-hybrid

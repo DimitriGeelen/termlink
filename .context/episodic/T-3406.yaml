@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3406: arc-011 PH-1 B5: local API on an owner-only socket, plus the status call
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T18:34:08Z
+# ============================================================================
+
+task_id: T-3406
+task_name: "arc-011 PH-1 B5: local API on an owner-only socket, plus the status call"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T18:26:07Z
+completed: 2026-10-11T18:33:50Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-11T20:33:45+02:00
+last_commit: 2026-10-11T20:33:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  local API on owner-only unix sockets (SO_PEERCRED, three scopes) and the status view
+
+# Key outcomes
+outcomes:
+  - '`api.rs` serves JSON-lines on an owner-only unix socket (dir 0700, socket 0600); on accept reads SO_PEERCRED and refuses a uid other than the owner''s with a structured error'
+  - 'Three scope socket files (send, status, admin) exist as paths; an op sent to a socket of the wrong scope is refused; the agent (send/status) sockets cannot reach the admin op `delivery`; unknown op or scope is refused, never ignored'
+  - '`status` returns stage rows, chain head, hub id, own strength flags and names the missing ones ("no per-agent accounts", "no operator key", "tail truncation: not yet detectable"); it never says "delivered" unless a HANDED_OVER row exists'
+  - 'No verb accepts a path; error replies are `{error, code, hint}`'
+  - 'Tests `api_*` pass under plain `cargo test -p termlink-sidecar` and use only the testkit estate'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/store.rs'
+  - 'crates/termlink-sidecar/tests/api_tests.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T20:33:45'
+    action: 'T-3406: local API on owner-only unix sockets (SO_PEERCRED, three scopes) and the status view'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7
+  commits: 2
+  files_changed: 327
+  lines_added: 29729
+  lines_removed: 7716
+  footprint_refreshed_at: '2026-10-27T20:59:08Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3406-arc-011-ph-1-b5-local-api-on-an-owner-on.md
+generated_by: context-agent-hybrid

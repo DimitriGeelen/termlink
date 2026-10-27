@@ -4,12 +4,12 @@ name: "runme: record operator ticks for T-3291 and T-3302 GO reviews (uncommitte
 description: >
   runme: record operator ticks for T-3291 and T-3302 GO reviews (uncommitted decide output committed under agent name; push blocked)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-17T23:39:08Z
-last_update: 2026-10-18T08:42:34Z
-date_finished: null
+last_update: 2026-10-18T08:43:58Z
+date_finished: 2026-10-18T08:43:58Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -61,9 +61,9 @@ Commit 01e51bb88 (T-3451, linking GO inceptions) staged `.tasks/completed/T-3291
 ## Acceptance Criteria
 
 ### Agent
-- [ ] runme action 14 (`OPERATOR_TICKS`) includes the two review criteria by their Human-AC number, with a comment citing the rulings
-- [ ] `tests/runme-fixtures.sh` passes with the extended list
-- [ ] After the operator's run, `human-ac-ticks.jsonl` has operator-ack rows for T-3291 and T-3302 and `git push origin main` passes its audit
+- [x] runme action 14 (`OPERATOR_TICKS`) includes the two review criteria by their Human-AC number, with a comment citing the rulings
+- [x] `tests/runme-fixtures.sh` passes with the extended list (140/140)
+- [x] After the operator's run, `human-ac-ticks.jsonl` has operator-ack rows for T-3291 and T-3302 and `git push origin main` passes its audit (runme 2026-10-18T08:42Z rc=0; pushed 56f80eae5..0aff0208c)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -126,6 +126,8 @@ Commit 01e51bb88 (T-3451, linking GO inceptions) staged `.tasks/completed/T-3291
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+grep -q '"task": "T-3291".*operator-ack\|operator-ack.*"task": "T-3291"' .context/reviews/human-ac-ticks.jsonl
+grep -q '"task": "T-3302".*operator-ack\|operator-ack.*"task": "T-3302"' .context/reviews/human-ac-ticks.jsonl
 #
 # ── Mutable-corpus anchor (T-3326) ────────────────────────────────────────────
 # Do NOT anchor a verification line (or a unit test it runs) to MUTABLE corpus
@@ -284,6 +286,11 @@ Commit 01e51bb88 (T-3451, linking GO inceptions) staged `.tasks/completed/T-3291
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** pre-push audit FAIL "2 unprovenanced ### Human ticks" (T-3291, T-3302) after commit 01e51bb88; every push blocked.
+**Root cause:** `fw inception decide` output (status, decision, ticked review AC) for two operator GO rulings sat uncommitted in `.tasks/completed/` for 2.5 weeks; staging those files for an unrelated edit committed it under the agent's name.
+**Why structurally allowed:** nothing flags a completed task file with uncommitted changes; the dirty baseline here is ~600 files, so it was invisible.
+**Prevention:** before staging a whole task file for a small edit, check `git diff` for that file first (done here only after the fact); the provenance audit caught it at push time as designed.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -364,3 +371,22 @@ Commit 01e51bb88 (T-3451, linking GO inceptions) staged `.tasks/completed/T-3291
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3460-runme-record-operator-ticks-for-t-3291-a.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-865ed167
+- **Timestamp:** 2026-10-18T08:44:00Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — `tests/runme-fixtures.sh` passes with the extended list (140/140)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/runme-fixtures.sh in: `tests/runme-fixtures.sh` passes with the extended list (140/140)`
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-18T08:43:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

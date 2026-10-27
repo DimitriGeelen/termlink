@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3459: check-go-propagation counts an open inception's filing-time Recommendation: GO as a GO decision (false fires on T-3372, T-3385)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T23:34:14Z
+# ============================================================================
+
+task_id: T-3459
+task_name: "check-go-propagation counts an open inception's filing-time Recommendation: GO as a GO decision (false fires on T-3372, T-3385)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-17T23:31:14Z
+completed: 2026-10-17T23:33:59Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-18T01:33:57+02:00
+last_commit: 2026-10-18T01:33:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  go-propagation no longer reads an OPEN inception's filing-time recommendation as a GO decision (false fires T-3372, T-3385); decided inceptions keep recommendation-first (11 closed with 'decide go' under NO-GO/DEFER recommendations); fixtures 55/55, mutant fails 2
+
+# Key outcomes
+outcomes:
+  - 'An open inception''s `**Recommendation:**` no longer counts: only an explicit decision line can make an OPEN inception GO; a `work-completed` inception keeps the original recommendation-first reading (decision-first was tried and rejected: it fired on 11 completed inceptions closed with `decide go` meaning "accept the NO-GO/DEFER recommendation", e.g. T-2879 "There is nothing to build", T-942)'
+  - 'Fixtures: open recommend-only inception does not fire; the same at work-completed fires; open with explicit `**Decision**: GO` fires; completed DEFER-recommendation closed with GO does not fire; 55/55 pass; the pre-fix script fails the 2 open-inception cases'
+  - 'The live check no longer lists T-3372 or T-3385: 175 GO inceptions, 104 linked, 0 firing, 71 acknowledged'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'go-propagation no longer reads an OPEN inception''s filing-time recommendation as a GO decision (false fires T-3372, T-3385); decided inceptions keep recommendation-first (11 closed with ''decide go'' under NO-GO/DEFER recommendations); fixtures 55/55, mutant fails 2'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/check-go-propagation.sh'
+  - '.tasks/active/T-3459-check-go-propagation-counts-an-open-ince.md'
+  - 'tests/go-propagation-check-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-18T01:33:57'
+    action: 'T-3459: go-propagation no longer reads an OPEN inception''s filing-time recommendation as a GO decision (false fires T-3372, T-3385); decided inceptions keep recommendation-first (11 closed with ''decide go'' under NO-GO/DEFER recommendations); fixtures 55/55, mutant fails 2'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 2
+  files_changed: 326
+  lines_added: 29457
+  lines_removed: 7723
+  footprint_refreshed_at: '2026-10-27T20:59:20Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3459-check-go-propagation-counts-an-open-ince.md
+generated_by: context-agent-hybrid

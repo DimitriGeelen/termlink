@@ -4611,3 +4611,9 @@ learnings:
   task: T-3474
   date: 2026-10-19
   context: Added via context agent
+- id: PL-403
+  learning: "Keep spawned processes out of other projects by building their environment by construction (env_clear + host allow-list + fixed PATH), never with a deny-list of names: a deny-list fails open for every variable its author did not think of (T-3445 missed TASKS_DIR/CONTEXT_DIR). On tmux, clear the client env AND wrap the session command in env -i, because a server someone else already polluted hands its global env to every new session. Test with variable names nobody listed and a pre-polluted private server."
+  source: P-001
+  task: T-3550
+  date: 2026-10-22
+  context: Added via context agent

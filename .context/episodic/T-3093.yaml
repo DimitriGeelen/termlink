@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3093: Orchestrate [Review, Audit, procAsFit] x4 over TermLink — 12 dispatched steps, each fed the previous
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-22T08:21:04Z
+# ============================================================================
+
+task_id: T-3093
+task_name: "Orchestrate [Review, Audit, procAsFit] x4 over TermLink — 12 dispatched steps, each fed the previous"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T23:05:41Z
+completed: 2026-10-22T08:20:47Z
+duration_days: 28
+updates_count: 2
+first_commit: 2026-09-25T01:07:41+02:00
+last_commit: 2026-09-25T13:04:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  orchestrate [Review, Audit, procAsFit] x4 — scaffold + R1S1 dispatched. R1S1/R1S2 recorded, R1S3 dispatched — plus a capacity finding worth knowing early. file T-3127 — .budget-status is shared across dispatched workers. R2S2 complete-partial; R2S3 dispatched into an UNBLOCKED arc-011. round 2 closed; R3S1 dispatched. R3S1 complete; R3S2 dispatched with accumulated audit knowledge. R3S2 recorded; R3S3 dispatched with the ASK loop closed. close the sequence at 9 of 12 — operator decision, and a count correction
+
+# Key outcomes
+outcomes:
+  - 'All three prompts exist on disk under `docs/prompts/` and each is verified against the pasted text before dispatch, with the verification method recorded (not asserted)'
+  - 'A durable run record at `.context/runs/T-3093-*.yaml` declares exactly **12** steps (R1S1..R4S3) — 9 run (3 full rounds), round 4 cancelled by operator decision and recorded as such with `feeds`/`fed_by` ordering, and **passes `check-run-record-parse.sh`** at every update'
+  - 'Every step is dispatched to its OWN TermLink worker — no step executed in the orchestrator''s context'
+  - 'Every step produces a handback file verified to exist and be non-empty **by reading it**, never by the dispatch return code (T-2876)'
+  - 'Every dispatched prompt carries both T-3089 fixes verbatim: the non-interactive-worker warning (never background-and-end-turn) and the at-the-moment re-read protocol'
+  - 'The run record''s per-step `state` reflects the true outcome of every step, including halts at the review''s Phase-5 `[ASK]` gate and any step that failed or was not run, with the reason recorded'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/runs/T-3093-review-audit-procasfit-x4.yaml'
+  - 'docs/prompts/audit-remediation.md'
+  - '.tasks/active/T-3093-orchestrate-review-audit-procasfit-x4-ov.md'
+  - '.tasks/active/T-3127-budget-status-is-shared-across-dispatche.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-25T01:07:41'
+    action: 'T-3093: orchestrate [Review, Audit, procAsFit] x4 — scaffold + R1S1 dispatched'
+  - time: '2026-09-25T07:45:01'
+    action: 'T-3093: R1S1/R1S2 recorded, R1S3 dispatched — plus a capacity finding worth knowing early'
+  - time: '2026-09-25T08:33:10'
+    action: 'T-3093: file T-3127 — .budget-status is shared across dispatched workers'
+  - time: '2026-09-25T09:10:05'
+    action: 'T-3093: R2S2 complete-partial; R2S3 dispatched into an UNBLOCKED arc-011'
+  - time: '2026-09-25T09:48:03'
+    action: 'T-3093: round 2 closed; R3S1 dispatched'
+  - time: '2026-09-25T10:07:59'
+    action: 'T-3093: R3S1 complete; R3S2 dispatched with accumulated audit knowledge'
+  - time: '2026-09-25T12:05:10'
+    action: 'T-3093: R3S2 recorded; R3S3 dispatched with the ASK loop closed'
+  - time: '2026-09-25T13:04:27'
+    action: 'T-3093: close the sequence at 9 of 12 — operator decision, and a count correction'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 9 commit(s), 39435 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 39435
+  commits: 11
+  files_changed: 332
+  lines_added: 30288
+  lines_removed: 7874
+  footprint_refreshed_at: '2026-10-27T20:58:57Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3093-orchestrate-review-audit-procasfit-x4-ov.md
+generated_by: context-agent-hybrid

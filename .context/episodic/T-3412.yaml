@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3412: arc-011 PH-1 B11: reply and record print (BV-6, BV-7) - reply op, REPLIED stage, sender five-row record, FC-16 vocabulary lint
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T23:13:00Z
+# ============================================================================
+
+task_id: T-3412
+task_name: "arc-011 PH-1 B11: reply and record print (BV-6, BV-7) - reply op, REPLIED stage, sender five-row record, FC-16 vocabulary lint"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-11T23:05:51Z
+completed: 2026-10-11T23:12:04Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T01:12:03+02:00
+last_commit: 2026-10-12T01:12:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  B11 reply and record print (from_instance on the wire, reply op, REPLIED stage, five-row record, FC-16 vocabulary)
+
+# Key outcomes
+outcomes:
+  - 'Wire: the signed payload carries `from_instance` (the sender''s exact instance), so a reply can be addressed to it; the golden vector is regenerated deliberately and everything else about signing and verifying is unchanged'
+  - '`reply` op (conv, in_reply_to, body): only for a message this agent STORED and did not refuse; addressed back to that message''s sender agent and exact instance (SI-26); once the reply is SENT, REPLIED is recorded on the original and reported to its sender as a signed stage (forward-only after HANDED_OVER)'
+  - 'Record print (BV-7): `status` gives each message a five-row record SENT, RECEIVED, STORED, HANDED_OVER, REPLIED with times (the receiver''s own time for the stages it reported), an absent row shown as absent; over a live hub, A''s record for m1 shows all five in order with times'
+  - 'FC-16 vocabulary: for a message without HANDED_OVER, every sender-side output (send answer, status) uses only accepted/stored vocabulary from a fixed allow-list; a message stuck at SENT/POSTED past the deadline shows UNKNOWN'
+  - '`cargo test -p termlink-sidecar --test record_print` passes and the full suite stays green; no production path is touched'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-12 — `from_instance` in the signed payload, inside v1'
+    chose: 'add `from_instance` to the v1 payload and regenerate the golden vector.'
+    rationale: 'a reply must reach the exact instance that wrote (SI-26) and nothing else carries it; it belongs inside the signature with the other identity fields. PH-1 has no deployed peers, so changing v1 before acceptance breaks nothing.'
+    alternatives_rejected: ['a peer instance directory in config (unsigned, can go stale); v2 with a dual parser (complexity with no deployed v1 to keep).']
+  - decision: '2026-10-12 — Reply linkage is the signed REPLIED stage'
+    chose: 'the reply is an ordinary message in the same conversation; the link to the original is B''s signed REPLIED stage naming the original msg_id (and B''s chain line naming the reply).'
+    alternatives_rejected: ['an `in_reply_to` metadata field (outside the signature).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/send.rs'
+  - 'crates/termlink-sidecar/src/wire.rs'
+  - 'crates/termlink-sidecar/tests/api_tests.rs'
+  - 'crates/termlink-sidecar/tests/deliver_tests.rs'
+  - 'crates/termlink-sidecar/tests/golden/wire_v1.json'
+  - 'crates/termlink-sidecar/tests/policy_tests.rs'
+  - 'crates/termlink-sidecar/tests/receive_hub.rs'
+  - 'crates/termlink-sidecar/tests/record_print.rs'
+  - 'crates/termlink-sidecar/tests/send_hub.rs'
+  - 'docs/design/arc-011-ph1-architecture.md'
+  - '.tasks/active/T-3412-arc-011-ph-1-b11-reply-and-record-print-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T01:12:03'
+    action: 'T-3412: B11 reply and record print (from_instance on the wire, reply op, REPLIED stage, five-row record, FC-16 vocabulary)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6
+  commits: 3
+  files_changed: 337
+  lines_added: 29765
+  lines_removed: 7728
+  footprint_refreshed_at: '2026-10-27T20:59:10Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3412-arc-011-ph-1-b11-reply-and-record-print-.md
+generated_by: context-agent-hybrid

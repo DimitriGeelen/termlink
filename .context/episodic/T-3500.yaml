@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3500: Cloud-session spike: run guard layer + workspace tests in a cloud session instead of on .107; measure cost and result
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T22:07:43Z
+# ============================================================================
+
+task_id: T-3500
+task_name: "Cloud-session spike: run guard layer + workspace tests in a cloud session instead of on .107; measure cost and result"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-20T19:55:25Z
+completed: 2026-10-21T22:07:31Z
+duration_days: 1
+updates_count: 6
+first_commit: 2026-10-20T22:01:20+02:00
+last_commit: 2026-10-21T14:25:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cloud test spike — setup steps and pinned no-push prompt; billing and push facts from the routines docs. cloud prompts for job (c) independent review and (d) crash/fuzz of T-3322 and T-3462, pinned to 717e8fb80 (mirror synced). two real guard-layer reds found by ring20's off-host run — error-swallowing allowlist for the T-3227 MCP presence fast path (None already surfaces as ABSENT); planted-default J2 pins the invariant, not the mutable field name. record ring20's off-host run (b) — 4052/1/9, fc_2 already fixed, 2 real guard reds fixed, cost not measurable. record cloud jobs (c), (d) and the T-3511 re-derivation — 3 real defects found by review, 0 by 1545-kill stress
+
+# Key outcomes
+outcomes:
+  - 'One cloud session clones the GitHub mirror (read-only; the mirror verified in sync with OneDev first) at an exact pinned commit, and runs `bash scripts/run-guard-layer.sh --json` and `cargo test --workspace`; no credentials, hub secrets or identity keys are given to it, and it pushes nothing anywhere'
+  - 'Result recorded in Updates: pass/fail per suite against the same commit''s local result, wall time, and what in the guard layer cannot run off-host (SKIP/ERROR because no hub or no identity), so a cloud green is never mistaken for a full green'
+  - 'Cost recorded as measured (credit balance before/after or the session''s reported usage); if it cannot be measured, said so'
+  - 'Recommendation in Updates: keep using it before deploys (and how it is triggered), adjust, or drop'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'record ring20''s off-host run (b) — 4052/1/9, fc_2 already fixed, 2 real guard reds fixed, cost not measurable'
+    source: git-mined
+  - description: 'two real guard-layer reds found by ring20''s off-host run — error-swallowing allowlist for the T-3227 MCP presence fast path (None already surfaces as ABSENT); planted-default J2 pins the invariant, not the mutable field name'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/error-swallowing-allowlist'
+  - '.tasks/active/T-3500-cloud-session-spike-run-guard-layer--wor.md'
+  - 'tests/planted-default-gate-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T22:01:20'
+    action: 'T-3500: cloud test spike — setup steps and pinned no-push prompt; billing and push facts from the routines docs'
+  - time: '2026-10-20T23:42:34'
+    action: 'T-3500: cloud prompts for job (c) independent review and (d) crash/fuzz of T-3322 and T-3462, pinned to 717e8fb80 (mirror synced)'
+  - time: '2026-10-21T11:04:21'
+    action: 'T-3500: two real guard-layer reds found by ring20''s off-host run — error-swallowing allowlist for the T-3227 MCP presence fast path (None already surfaces as ABSENT); planted-default J2 pins the invariant, not the mutable field name'
+  - time: '2026-10-21T11:04:58'
+    action: 'T-3500: record ring20''s off-host run (b) — 4052/1/9, fc_2 already fixed, 2 real guard reds fixed, cost not measurable'
+  - time: '2026-10-21T14:25:20'
+    action: 'T-3500: record cloud jobs (c), (d) and the T-3511 re-derivation — 3 real defects found by review, 0 by 1545-kill stress'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 1572 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1572
+  commits: 7
+  files_changed: 327
+  lines_added: 29559
+  lines_removed: 7729
+  footprint_refreshed_at: '2026-10-27T20:59:22Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3500-cloud-session-spike-run-guard-layer--wor.md
+generated_by: context-agent-hybrid

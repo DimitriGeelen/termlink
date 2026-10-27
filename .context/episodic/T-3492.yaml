@@ -72,10 +72,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 106
-  commits: 1
-  files_changed: 4
-  lines_added: 569
-  lines_removed: 6
+  commits: 2
+  files_changed: 6
+  lines_added: 673
+  lines_removed: 11
+  footprint_refreshed_at: '2026-10-20T16:25:48Z'
+  footprint_refreshed_by_commit: 18c5c6b0a
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3492-discoverlist-with-unset-termlinkruntimed.md

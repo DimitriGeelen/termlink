@@ -1,0 +1,105 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3339: Adopt ring20's role-chain documentation layer (T-2222 v0.2), operator ruling C
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-04T10:42:50Z
+# ============================================================================
+
+task_id: T-3339
+task_name: "Adopt ring20's role-chain documentation layer (T-2222 v0.2), operator ruling C"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-04T10:39:58Z
+completed: 2026-10-04T10:42:40Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-04T12:42:36+02:00
+last_commit: 2026-10-04T12:42:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  adopt ring20's role-chain documentation layer (T-2222 v0.2) — cards/adapter/schema verbatim with hashes, termlink profile, README, arc-011 chain; driver deferred to re-vendor (operator ruling C)
+
+# Key outcomes
+outcomes:
+  - 'Role cards (`_common.md` + 8), AEF adapter, hand-back schema copied verbatim under `docs/design/roles/`, each byte-identical to ring20 @ eaccc22 (sha256 listed in the README)'
+  - 'ring20''s profile, agent rules, role-chain.yaml and roles plan kept verbatim under `docs/design/roles/upstream-ring20/` as provenance only'
+  - '`docs/design/roles/profiles/termlink.md` written: this estate''s systems, incidents and constraints, in the same headings as ring20''s profile'
+  - '`docs/design/roles/README.md`: provenance, what was adopted and what was not (driver, review panel: deferred to the re-vendor decision), the prompt order for a role session mapped to our files, the output skeleton, the two step-task acceptance criteria, and ring20''s 14 lessons referenced'
+  - '`docs/design/interactive-agent-communication-role-chain.yaml`: the arc-011 chain in ring20''s format (steps, roles, inputs, outputs, decides); step tasks not yet created'
+  - '`tests/test-role-cards-portable.py` copied with only the cards path changed, and passing'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-04 — how to adopt ring20''s role chain now (operator ruling)'
+    chose: 'C — adopt the documentation layer now (cards, common rules, adapter, schema, skeleton, step ACs, lessons, our profile, the arc-011 chain); driver and review panel arrive with a re-vendor.'
+    rationale: 'the operator asked for "the documentation and the different roles in the same fashion"; the driver gates on `fw reviewer judge`/`verdict apply`, absent in vendored AEF 1.6.29; a local stand-in would be the parallel review policy ring20''s lesson 5.13 warns against.'
+    alternatives_rejected: ['A re-vendor first (separate decision, next in queue); B local review stand-in (parallel policy); D wait for AEF. - **Left open:** the re-vendor to bleeding-edge AEF; whether the arc-011 requirements document becomes step 1.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/design/interactive-agent-communication-role-chain.yaml'
+  - 'docs/design/roles/adapters/aef.md'
+  - 'docs/design/roles/cards/architect.md'
+  - 'docs/design/roles/cards/_common.md'
+  - 'docs/design/roles/cards/evidence-specialist.md'
+  - 'docs/design/roles/cards/mvp-specialist.md'
+  - 'docs/design/roles/cards/planner.md'
+  - 'docs/design/roles/cards/pseudo-coder.md'
+  - 'docs/design/roles/cards/requirements-collector.md'
+  - 'docs/design/roles/cards/review-panel.md'
+  - 'docs/design/roles/cards/threat-modeler.md'
+  - 'docs/design/roles/profiles/termlink.md'
+  - 'docs/design/roles/README.md'
+  - 'docs/design/roles/schemas/role-handback-1.schema.json'
+  - 'docs/design/roles/upstream-ring20/agent-rules.md'
+  - 'docs/design/roles/upstream-ring20/profile-ring20.md'
+  - 'docs/design/roles/upstream-ring20/role-chain-arc-008.yaml'
+  - 'docs/design/roles/upstream-ring20/roles-plan.md'
+  - 'docs/design/roles/upstream-ring20/SHA256SUMS'
+  - 'docs/design/roles/upstream-ring20/T-2222-inception-protocol.md'
+  - '.tasks/active/T-3339-adopt-ring20s-role-chain-documentation-l.md'
+  - 'tests/test-role-cards-portable.py'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-04T12:42:36'
+    action: 'T-3339: adopt ring20''s role-chain documentation layer (T-2222 v0.2) — cards/adapter/schema verbatim with hashes, termlink profile, README, arc-011 chain; driver deferred to re-vendor (operator ruling C)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 3
+  files_changed: 346
+  lines_added: 31341
+  lines_removed: 7720
+  footprint_refreshed_at: '2026-10-27T20:59:05Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3339-adopt-ring20s-role-chain-documentation-l.md
+generated_by: context-agent-hybrid

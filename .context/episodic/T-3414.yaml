@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3414: arc-011 PH-1 B13: soak H-16/H-17 (X5) - random kill-point runner, orphan-claim recovery, open-attempt sweep
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-12T00:09:59Z
+# ============================================================================
+
+task_id: T-3414
+task_name: "arc-011 PH-1 B13: soak H-16/H-17 (X5) - random kill-point runner, orphan-claim recovery, open-attempt sweep"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-11T23:31:56Z
+completed: 2026-10-11T23:56:41Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T01:56:36+02:00
+last_commit: 2026-10-12T01:56:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  B13 soak H-16/H-17 (1000 kill points: 0 lost, 0 handed over twice; orphan-claim recovery, open-attempt sweep)
+
+# Key outcomes
+outcomes:
+  - 'Deliver-side kill points exist (after the claim, after the attempt record, before HANDED_OVER, before ABSENT) beside the store''s write-sequence kill points, compiled only in test builds'
+  - 'A claim whose frame provably never left (no CLAIMED line for that attempt) is closed at start-up as an orphan (ABSENT with the reason), so a crash between claim and frame cannot block a message forever; an open attempt is never closed this way'
+  - 'Open attempts are swept through the finalizer by the sidecar (UNCERTAIN only on the final check), so a crash after the frame left does not leave an attempt nobody decides'
+  - '`soak_h16` (seeded, 1000 kill points by default) ends with every injected message STORED once and HANDED_OVER once, the agent''s transcript holding each message''s frame at most once; numbers recorded in `docs/reports/arc011-ph1-soak.md`'
+  - '`soak_h17` checks the B12 matrix: 17 FC rows, each with an existing test and a killed control'
+  - '`cargo test -p termlink-sidecar --release soak_ -- --ignored` passes and the full suite stays green'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-12 — Orphan rule: "no CLAIMED line for the attempt", at start-up only'
+    chose: 'close a claim as an orphan only when its attempt has no CLAIMED line, and only in `Deliverer::new` (start-up).'
+    rationale: '`pull` builds the frame strictly after claim, record and CLAIMED, so a missing CLAIMED line proves no frame left; at start-up no pull of this process can be half-way, so an in-flight claim is never mistaken for an orphan.'
+    alternatives_rejected: ['closing orphans on every pull (races a concurrent pull between its claim and its CLAIMED line: a double frame).']
+  - decision: '2026-10-12 — Soak in-process, no hub'
+    chose: 'drive the store, claim and record directly with a scripted harness.'
+    rationale: 'H-16 is about crashes of the store, the claim and the record; the receive path''s network half is covered by the live-hub tests, and 1000 hub restarts would measure the hub, not the sidecar.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/deliver.rs'
+  - 'crates/termlink-sidecar/src/store.rs'
+  - 'crates/termlink-sidecar/tests/deliver_tests.rs'
+  - 'crates/termlink-sidecar/tests/soak.rs'
+  - 'docs/design/arc-011-ph1-architecture.md'
+  - 'docs/reports/arc011-ph1-soak.md'
+  - '.tasks/active/T-3414-arc-011-ph-1-b13-soak-h-16h-17-x5---rand.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T01:56:36'
+    action: 'T-3414: B13 soak H-16/H-17 (1000 kill points: 0 lost, 0 handed over twice; orphan-claim recovery, open-attempt sweep)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 24 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 24
+  commits: 3
+  files_changed: 332
+  lines_added: 30059
+  lines_removed: 7722
+  footprint_refreshed_at: '2026-10-27T20:59:11Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3414-arc-011-ph-1-b13-soak-h-16h-17-x5---rand.md
+generated_by: context-agent-hybrid

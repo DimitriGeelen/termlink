@@ -111,10 +111,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 41128
-  commits: 5
-  files_changed: 36
-  lines_added: 816
-  lines_removed: 32
+  commits: 6
+  files_changed: 40
+  lines_added: 1063
+  lines_removed: 44
+  footprint_refreshed_at: '2026-10-23T13:24:05Z'
+  footprint_refreshed_by_commit: 0c013a691
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3103-fabric-10-cards-point-at-files-no-watch-.md

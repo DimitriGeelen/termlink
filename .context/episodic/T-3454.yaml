@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3454: Answer stale consults: 832 T-1115 noninjectable delivery, 055 T-305 send-without-confirmation, dimitri-mint-dev tl-xhub-sidecar inception ask
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T21:57:27Z
+# ============================================================================
+
+task_id: T-3454
+task_name: "Answer stale consults: 832 T-1115 noninjectable delivery, 055 T-305 send-without-confirmation, dimitri-mint-dev tl-xhub-sidecar inception ask"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-17T21:48:03Z
+completed: 2026-10-17T21:57:13Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-17T23:51:37+02:00
+last_commit: 2026-10-17T23:57:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  stale consults checked - 832 and AEF already answered; 055 T-305 and dimitri-mint-dev tl-xhub-sidecar answered today (RECEIVED); cross-hub inception put to the operator. operator ruled B - cross-hub sidecar delivery folded into arc-011 PH-3; gaps parked in T-3455 (DEFER); dimitri-mint-dev told
+
+# Key outcomes
+outcomes:
+  - 'For each of 832 / 055 / dimitri-mint-dev: establish from the hub whether 010-termlink already replied on that conversation (offset cited)'
+  - 'Each still-unanswered sender gets a reply on its own conversation that states current facts (verified this session) and, for the inception ask, that the decision is put to the operator'
+  - 'The cross-hub inception ask is put to the operator as a single decision, not opened unilaterally'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-17 — Cross-hub sidecar delivery: inception now or in PH-3? (operator ruling)'
+    chose: 'B — fold into arc-011 PH-3. The measured gaps are parked in T-3455 (inception, horizon later, recommendation DEFER); shaping starts at PH-2 exit, with the operator.'
+    rationale: 'cross-host is PH-3 scope (arc-011-ph2-architecture.md:328) and depends on PH-2 outputs still being built (P10 hub signing key, revocation, W2 measurements). Scored A +13, B +24, C −26.'
+    alternatives_rejected: ['A (a separate inception now, run alongside the W1/W2 trial; it would design on decisions not yet made); C (decline, which leaves cross-hub on DM + inject with no retry or confirmation). - **Left open:** when PH-3 starts; the PH-3 inception is run with the operator. Gap 6a (credentialed probe) was found already fixed upstream (AEF T-3806), so nothing was filed upstream.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3454-answer-stale-consults-832-t-1115-noninje.md'
+  - '.tasks/active/T-3455-arc-011-ph-3-input-cross-hub-sidecar-del.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-17T23:51:37'
+    action: 'T-3454: stale consults checked - 832 and AEF already answered; 055 T-305 and dimitri-mint-dev tl-xhub-sidecar answered today (RECEIVED); cross-hub inception put to the operator'
+  - time: '2026-10-17T23:57:12'
+    action: 'T-3454: operator ruled B - cross-hub sidecar delivery folded into arc-011 PH-3; gaps parked in T-3455 (DEFER); dimitri-mint-dev told'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 4
+  files_changed: 326
+  lines_added: 29569
+  lines_removed: 7718
+  footprint_refreshed_at: '2026-10-27T20:59:18Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3454-answer-stale-consults-832-t-1115-noninje.md
+generated_by: context-agent-hybrid

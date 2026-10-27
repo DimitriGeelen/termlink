@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3298: File upstream: vendored fw termlink dispatch + claude-fw --termlink leave their shell idle forever (T-3291 S3a)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T07:13:05Z
+# ============================================================================
+
+task_id: T-3298
+task_name: "File upstream: vendored fw termlink dispatch + claude-fw --termlink leave their shell idle forever (T-3291 S3a)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-01T07:10:37Z
+completed: 2026-10-01T07:12:50Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-01T09:12:49+02:00
+last_commit: 2026-10-01T09:12:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  filed upstream at framework:pickup offset 254 (read back byte-identical, sha a604b6425f05c584) — vendored fw termlink dispatch injects run.sh with no exit and cmd_cleanup never ends sessions on Linux; claude-fw --termlink relies on an EXIT-trap inject. Proposed: inject '...; exit', end finished workers' sessions in cmd_cleanup, SIGTERM the master register pid. T-3291 S3a.
+
+# Key outcomes
+outcomes:
+  - 'Report written to `docs/reports/T-3298-upstream-dispatch-zombie-sessions.md`: the two vendored sources with file:line, measured impact, proposed fix, and the local containment already shipped'
+  - 'Posted to `framework:pickup` (msg_type note, kind=bug-report, task=T-3298, from_project=010-termlink); read back by offset and compared to the source (sha256), offset recorded here'
+  - '`.vendor-divergence.yaml` needs no entry (no vendored file was changed); stated in Decisions'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3298-upstream-dispatch-zombie-sessions.md'
+  - '.tasks/active/T-3298-file-upstream-vendored-fw-termlink-dispa.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T09:12:49'
+    action: 'T-3298: filed upstream at framework:pickup offset 254 (read back byte-identical, sha a604b6425f05c584) — vendored fw termlink dispatch injects run.sh with no exit and cmd_cleanup never ends sessions on Linux; claude-fw --termlink relies on an EXIT-trap inject. Proposed: inject ''...; exit'', end finished workers'' sessions in cmd_cleanup, SIGTERM the master register pid. T-3291 S3a.'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 2
+  files_changed: 325
+  lines_added: 29339
+  lines_removed: 7716
+  footprint_refreshed_at: '2026-10-27T20:59:02Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3298-file-upstream-vendored-fw-termlink-dispa.md
+generated_by: context-agent-hybrid

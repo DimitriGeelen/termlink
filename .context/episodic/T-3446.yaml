@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3446: termlink spawn/dispatch also strip FW_ROUTED_FROM from the tmux client env (T-3445 follow-up, 055)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T08:45:13Z
+# ============================================================================
+
+task_id: T-3446
+task_name: "termlink spawn/dispatch also strip FW_ROUTED_FROM from the tmux client env (T-3445 follow-up, 055)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-17T08:41:49Z
+completed: 2026-10-17T08:44:23Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-17T10:44:22+02:00
+last_commit: 2026-10-17T10:44:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  spawn/dispatch also keep FW_ROUTED_FROM (newer AEF) out of the tmux client env and pass it to the session with -e; test pinned (tmux_spawn 5/5)
+
+# Key outcomes
+outcomes:
+  - '`FW_ROUTED_FROM` is in `PROJECT_SCOPED_ENV`, so it is removed from the tmux client env and passed to the session with `-e`'
+  - 'A unit test pins that a caller''s `FW_ROUTED_FROM` reaches the session as `-e` and is removed from the client env; the `tmux_spawn` tests pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/tmux_spawn.rs'
+  - '.tasks/active/T-3446-termlink-spawndispatch-also-strip-fwrout.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-17T10:44:22'
+    action: 'T-3446: spawn/dispatch also keep FW_ROUTED_FROM (newer AEF) out of the tmux client env and pass it to the session with -e; test pinned (tmux_spawn 5/5)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 3
+  files_changed: 326
+  lines_added: 29417
+  lines_removed: 7716
+  footprint_refreshed_at: '2026-10-27T20:59:15Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3446-termlink-spawndispatch-also-strip-fwrout.md
+generated_by: context-agent-hybrid

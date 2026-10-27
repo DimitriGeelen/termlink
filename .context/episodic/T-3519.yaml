@@ -62,10 +62,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 23
-  commits: 1
-  files_changed: 2
-  lines_added: 77
-  lines_removed: 16
+  commits: 2
+  files_changed: 4
+  lines_added: 176
+  lines_removed: 20
+  footprint_refreshed_at: '2026-10-21T14:51:46Z'
+  footprint_refreshed_by_commit: bf11e11da
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3519-wc03-cc-21-refused-before-start-exit-wit.md

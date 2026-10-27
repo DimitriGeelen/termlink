@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3306: File upstream: BVP driver scale -2..+2 (task + arc level) with normalization for negative scores
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T18:52:15Z
+# ============================================================================
+
+task_id: T-3306
+task_name: "File upstream: BVP driver scale -2..+2 (task + arc level) with normalization for negative scores"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-01T18:48:38Z
+completed: 2026-10-01T18:52:06Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-01T20:52:05+02:00
+last_commit: 2026-10-01T20:52:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  proposed upstream — BVP driver scale -2..+2 at task/project/arc level; signed normalisation raw/(2W) in [-1,+1] for negative totals, missing driver = 0 over all active weights, bvp_norm_min recalibrated, scale marker for migration (termlink: 0 confirmed scores, 538 proposals); framework:pickup offset 295, read back byte-identical (sha 083c00ac5e9e9fb3)
+
+# Key outcomes
+outcomes:
+  - 'Proposal written to `docs/reports/T-3306-upstream-bvp-scale.md` citing the current mechanics with file:line (0..5 rubric, `compute_bvp` normalization `raw/(5*sum w)`, `bvp_norm_min`, quadrant split, score range validation, estimator) and proposing the -2..+2 semantics, the normalization for negative totals, threshold recalibration, and migration of existing scores (measured here: 0 confirmed task scores, 538 proposals, 9 arcs with empty scores)'
+  - 'Filed upstream at `framework:pickup` (msg_type note, kind=feature-proposal, task=T-3306, from_project=010-termlink); read back by offset and compared by sha256; offset recorded here — **offset 295**, 4,491 bytes, byte-identical to `docs/reports/T-3306-upstream-bvp-scale.md` (sha256 prefix 083c00ac5e9e9fb3)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3306-upstream-bvp-scale.md'
+  - '.tasks/active/T-3306-file-upstream-bvp-driver-scale--22-task-.md'
+  - '.tasks/completed/T-3305-decision-brief-command-one-decision-revi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T20:52:05'
+    action: 'T-3306: proposed upstream — BVP driver scale -2..+2 at task/project/arc level; signed normalisation raw/(2W) in [-1,+1] for negative totals, missing driver = 0 over all active weights, bvp_norm_min recalibrated, scale marker for migration (termlink: 0 confirmed scores, 538 proposals); framework:pickup offset 295, read back byte-identical (sha 083c00ac5e9e9fb3)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 2
+  files_changed: 326
+  lines_added: 29374
+  lines_removed: 7716
+  footprint_refreshed_at: '2026-10-27T20:59:04Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3306-file-upstream-bvp-driver-scale--22-task-.md
+generated_by: context-agent-hybrid

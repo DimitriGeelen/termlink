@@ -82,10 +82,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 169115
-  commits: 3
-  files_changed: 6
-  lines_added: 396
-  lines_removed: 33
+  commits: 4
+  files_changed: 11
+  lines_added: 427
+  lines_removed: 52
+  footprint_refreshed_at: '2026-10-18T18:29:56Z'
+  footprint_refreshed_by_commit: fbff70019
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-2250-r5-telemetry-plane-design--local-first-p.md

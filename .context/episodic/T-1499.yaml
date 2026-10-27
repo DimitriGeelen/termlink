@@ -90,12 +90,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 15
-  commits: 4
-  files_changed: 25
-  lines_added: 1161
-  lines_removed: 46
-  footprint_refreshed_at: '2026-10-27T16:33:27Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 11
+  lines_added: 424
+  lines_removed: 28
+  footprint_refreshed_at: '2026-10-27T16:33:33Z'
+  footprint_refreshed_by_commit: 3fcd46a3d
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-1499-agent-recent--on-thread---msg-type--sign.md

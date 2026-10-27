@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3508: voi-prompt.sh rewrites tracked voi-decisions.yaml on every guard-layer run
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T22:19:15Z
+# ============================================================================
+
+task_id: T-3508
+task_name: "voi-prompt.sh rewrites tracked voi-decisions.yaml on every guard-layer run"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T09:05:27Z
+completed: 2026-10-21T22:18:58Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-21T11:05:44+02:00
+last_commit: 2026-10-22T00:18:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  filed — voi-prompt.sh mutates a tracked file on every guard-layer run. voi-prompt --check keeps its run counter in an untracked file; the tracked store is written only by --record (fixture 7b + mutant)
+
+# Key outcomes
+outcomes:
+  - '`voi-prompt.sh --check` writes only an untracked counter (`.context/working/.voi-runs` for the default store, `<store>.runs` for any other, or `FW_VOI_RUNS_FILE`); the tracked `voi-decisions.yaml` is written only by `--record`, and its `runs` value becomes a floor (the live count is the larger of the two, so neither a fresh clone nor an old store resets snoozes)'
+  - 'Fixtures pin it: Case 7b (three checks leave the store byte-identical, the counter advances, a snooze still expires on it); a mutant that writes the store on check fails 7b; suite 37/0'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'voi-prompt --check keeps its run counter in an untracked file; the tracked store is written only by --record (fixture 7b + mutant)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/voi-prompt.sh'
+  - '.tasks/active/T-3508-voi-promptsh-rewrites-tracked-voi-decisi.md'
+  - 'tests/voi-prompt-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T11:05:44'
+    action: 'T-3508: filed — voi-prompt.sh mutates a tracked file on every guard-layer run'
+  - time: '2026-10-22T00:18:51'
+    action: 'T-3508: voi-prompt --check keeps its run counter in an untracked file; the tracked store is written only by --record (fixture 7b + mutant)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 793 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 793
+  commits: 4
+  files_changed: 327
+  lines_added: 29504
+  lines_removed: 7740
+  footprint_refreshed_at: '2026-10-27T20:59:23Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3508-voi-promptsh-rewrites-tracked-voi-decisi.md
+generated_by: context-agent-hybrid

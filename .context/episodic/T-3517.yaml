@@ -79,10 +79,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 71
-  commits: 2
-  files_changed: 10
-  lines_added: 2849
-  lines_removed: 44
+  commits: 3
+  files_changed: 12
+  lines_added: 2959
+  lines_removed: 48
+  footprint_refreshed_at: '2026-10-21T15:27:03Z'
+  footprint_refreshed_by_commit: b18e8cc83
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3517-hub-conformance-adapter-run-aefs-shared-.md

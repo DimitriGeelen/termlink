@@ -64,10 +64,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 2193
-  commits: 0
-  files_changed: 0
-  lines_added: 0
-  lines_removed: 0
+  commits: 1
+  files_changed: 2
+  lines_added: 121
+  lines_removed: 9
+  footprint_refreshed_at: '2026-10-06T12:11:29Z'
+  footprint_refreshed_by_commit: d211b551a
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3012-sovereign-question-review-session-12-que.md

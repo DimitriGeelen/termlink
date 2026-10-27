@@ -86,10 +86,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 9357
-  commits: 1
-  files_changed: 19
-  lines_added: 376
+  commits: 2
+  files_changed: 21
+  lines_added: 472
   lines_removed: 54
+  footprint_refreshed_at: '2026-10-12T22:13:59Z'
+  footprint_refreshed_by_commit: 50d32f91c
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3365-termlink-sidecar-in-the-binary-to-the-st.md

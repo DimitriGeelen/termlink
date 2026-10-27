@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3299: Hub sweep silently cannot delete in /tmp/termlink-0 - unit ProtectSystem=strict makes it read-only (T-3295 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T07:49:23Z
+# ============================================================================
+
+task_id: T-3299
+task_name: "Hub sweep silently cannot delete in /tmp/termlink-0 - unit ProtectSystem=strict makes it read-only (T-3295 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-01T07:21:36Z
+completed: 2026-10-01T07:48:19Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-01T09:29:54+02:00
+last_commit: 2026-10-01T09:29:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub could not delete in /tmp/termlink-0 (unit ProtectSystem=strict, ReadWritePaths only /var/lib/termlink) and said nothing — unit grants -/tmp/termlink-0; reap reports delete failures (ReapOutcome, warn with first error); runme action 5a installs the unit and verifies the pool is rw in the hub's own mountinfo
+
+# Key outcomes
+outcomes:
+  - '`.context/systemd/termlink-hub.service` grants `ReadWritePaths=/var/lib/termlink -/tmp/termlink-0` (optional path) with a comment citing T-3295/T-3299'
+  - 'runme action installs the unit when it differs (idempotent), `daemon-reload` + restart, and verifies in the hub''s own mount namespace that `/tmp/termlink-0` is writable and the hub is active; fixture cases via seams'
+  - '`reap_orphan_data_sockets` reports delete failures (count + first error) and the sweep logs them at warn; unit test pins a failure being counted, not swallowed'
+  - 'After the operator''s run: 0 orphans older than 1h in /tmp/termlink-0 (session-leak canary healthy)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'hub could not delete in /tmp/termlink-0 (unit ProtectSystem=strict, ReadWritePaths only /var/lib/termlink) and said nothing — unit grants -/tmp/termlink-0; reap reports delete failures (ReapOutcome, warn with first error); runme action 5a installs the unit and verifies the pool is rw in the hub''s own mountinfo'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-01 — a fixture run overwrote the real hub unit (incident, fixed structurally)'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/systemd/termlink-hub.service'
+  - 'crates/termlink-hub/src/supervisor.rs'
+  - 'crates/termlink-session/src/liveness.rs'
+  - 'runme.sh'
+  - '.tasks/active/T-3299-hub-sweep-silently-cannot-delete-in-tmpt.md'
+  - '.tasks/completed/T-3298-file-upstream-vendored-fw-termlink-dispa.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T09:29:54'
+    action: 'T-3299: hub could not delete in /tmp/termlink-0 (unit ProtectSystem=strict, ReadWritePaths only /var/lib/termlink) and said nothing — unit grants -/tmp/termlink-0; reap reports delete failures (ReapOutcome, warn with first error); runme action 5a installs the unit and verifies the pool is rw in the hub''s own mountinfo'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 26 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 26
+  commits: 2
+  files_changed: 330
+  lines_added: 29525
+  lines_removed: 7752
+  footprint_refreshed_at: '2026-10-27T20:59:02Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3299-hub-sweep-silently-cannot-delete-in-tmpt.md
+generated_by: context-agent-hybrid

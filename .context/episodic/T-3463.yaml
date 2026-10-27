@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3463: Keep TERMLINK_SIDECAR_SOCKET out of processes the main agent starts itself (Bash tool children, background spawn) - P7-1 A after 055 T-563
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-18T12:46:44Z
+# ============================================================================
+
+task_id: T-3463
+task_name: "Keep TERMLINK_SIDECAR_SOCKET out of processes the main agent starts itself (Bash tool children, background spawn) - P7-1 A after 055 T-563"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-18T09:43:20Z
+completed: 2026-10-18T12:46:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-18T11:43:51+02:00
+last_commit: 2026-10-18T14:46:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file - keep the sidecar socket out of processes the main agent starts itself (055 T-563 caveat). sidecar sockets are launch-scoped - termlink spawn (tmux and background) never forwards them; sidecar hook is a no-op in a Claude started by a Claude; tests + 2 mutants; corrects the earlier claim that T-3445 already stripped them. deployed (runme rc=0, 0.12.665), live checks recorded, RCA
+
+# Key outcomes
+outcomes:
+  - '`termlink sidecar hook <event>` is a no-op (prints nothing, exit 0) when the Claude process running it has a `claude` ancestor; the top-level session still joins'
+  - 'Unit tests on a fake process tree: top-level joins, nested does not, unreadable ancestry keeps today''s behaviour (joins) and says so'
+  - '`termlink spawn` never forwards TERMLINK_SIDECAR_SOCKET / TERMLINK_SIDECAR_STATUS_SOCKET: the tmux path removes them and passes no `-e` for them; the background path removes them from the child (tests on both; project vars still forwarded on tmux)'
+  - 'Live check in this session after deploy: hooks still deliver (a PostToolUse pull works), and a nested `claude -p` started from Bash with the socket inherited does not register with the sidecar'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/execution.rs'
+  - 'crates/termlink-cli/src/commands/tmux_spawn.rs'
+  - 'crates/termlink-sidecar/src/hook.rs'
+  - 'crates/termlink-sidecar/tests/hooks_tests.rs'
+  - '.tasks/active/T-3463-keep-termlinksidecarsocket-out-of-proces.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-18T11:43:51'
+    action: 'T-3463: file - keep the sidecar socket out of processes the main agent starts itself (055 T-563 caveat)'
+  - time: '2026-10-18T14:14:20'
+    action: 'T-3463: sidecar sockets are launch-scoped - termlink spawn (tmux and background) never forwards them; sidecar hook is a no-op in a Claude started by a Claude; tests + 2 mutants; corrects the earlier claim that T-3445 already stripped them'
+  - time: '2026-10-18T14:46:06'
+    action: 'T-3463: deployed (runme rc=0, 0.12.665), live checks recorded, RCA'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 183 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 183
+  commits: 5
+  files_changed: 329
+  lines_added: 29590
+  lines_removed: 7735
+  footprint_refreshed_at: '2026-10-27T20:59:20Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3463-keep-termlinksidecarsocket-out-of-proces.md
+generated_by: context-agent-hybrid

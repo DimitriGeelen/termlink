@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3416: runme action 15: install current native Claude Code for testdev (arc-011 B14 prep, OQ-3)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-12T09:05:14Z
+# ============================================================================
+
+task_id: T-3416
+task_name: "runme action 15: install current native Claude Code for testdev (arc-011 B14 prep, OQ-3)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-12T08:52:43Z
+completed: 2026-10-12T09:02:28Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T11:02:25+02:00
+last_commit: 2026-10-12T11:02:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 15 - current native Claude Code for testdev (arc-011 B14 prep)
+
+# Key outcomes
+outcomes:
+  - 'runme.sh action 15 installs the native Claude Code for testdev with the official installer run AS testdev (nothing copied from root''s home or credentials), skips when `/home/testdev/.local/bin/claude` already reports >= 2.1.296, and verifies the version on disk after installing (FAILED otherwise)'
+  - 'Every real path and the install command go through `seam`; tests/runme-fixtures.sh covers dry-run, install+verify, idempotent skip, and an install that leaves an old or no binary (FAILED), with fakes only'
+  - '`bash tests/runme-fixtures.sh` passes and `bash runme.sh --dry-run` lists the action'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'runme.sh'
+  - '.tasks/active/T-3416-runme-action-15-install-current-native-c.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T11:02:25'
+    action: 'T-3416: runme action 15 - current native Claude Code for testdev (arc-011 B14 prep)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 3
+  files_changed: 327
+  lines_added: 29487
+  lines_removed: 7722
+  footprint_refreshed_at: '2026-10-27T20:59:11Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3416-runme-action-15-install-current-native-c.md
+generated_by: context-agent-hybrid

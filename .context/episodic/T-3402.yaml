@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3402: arc-011 PH-1 B2: termlink-sidecar crate skeleton, estate guard, disposable-estate test kit
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T18:13:21Z
+# ============================================================================
+
+task_id: T-3402
+task_name: "arc-011 PH-1 B2: termlink-sidecar crate skeleton, estate guard, disposable-estate test kit"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T18:09:17Z
+completed: 2026-10-11T18:13:07Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-11T20:12:43+02:00
+last_commit: 2026-10-11T20:12:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink-sidecar crate skeleton, estate guard (C-1), disposable-estate test kit (C-12 core)
+
+# Key outcomes
+outcomes:
+  - 'New workspace crate crates/termlink-sidecar (lib + thin `termlink-sidecar` bin) builds; cargo fmt clean, clippy clean on new code'
+  - 'C-1 estate guard: the sidecar refuses to start (exit 2, stated reason) when HOME, runtime dir or store root is not inside one marked throwaway tree (marker .termlink-estate written only by the harness)'
+  - 'C-12 core: `Estate::create/drop` creates the marked tree, isolates HOME/TERMLINK_RUNTIME_DIR/XDG_RUNTIME_DIR, generates keys into $ESTATE/keys, exports the secret canary, starts a throwaway hub, and tears down with no surviving estate process'
+  - 'Path-open audit reports zero production paths (~/.termlink, /var/lib/termlink) for the estate hub; secret scan helper finds the canary when planted'
+  - 'Tests `cargo test -p termlink-sidecar estate_` pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'Cargo.lock'
+  - 'Cargo.toml'
+  - 'crates/termlink-sidecar/Cargo.toml'
+  - 'crates/termlink-sidecar/src/estate.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/main.rs'
+  - 'crates/termlink-sidecar/src/testkit.rs'
+  - 'crates/termlink-sidecar/tests/estate_kit.rs'
+  - '.tasks/active/T-3402-arc-011-ph-1-b2-termlink-sidecar-crate-s.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T20:12:43'
+    action: 'T-3402: termlink-sidecar crate skeleton, estate guard (C-1), disposable-estate test kit (C-12 core)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 3
+  files_changed: 333
+  lines_added: 29991
+  lines_removed: 7721
+  footprint_refreshed_at: '2026-10-27T20:59:08Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3402-arc-011-ph-1-b2-termlink-sidecar-crate-s.md
+generated_by: context-agent-hybrid

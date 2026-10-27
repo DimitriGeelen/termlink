@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3535: Sidecar/hub tests time out on a loaded host: fixture hub.version 5s, T-2258 60s walk bound
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T23:25:49Z
+# ============================================================================
+
+task_id: T-3535
+task_name: "Sidecar/hub tests time out on a loaded host: fixture hub.version 5s, T-2258 60s walk bound"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T21:31:02Z
+completed: 2026-10-21T23:24:42Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-21T23:31:17+02:00
+last_commit: 2026-10-22T01:19:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file load-sensitive test timeouts found while closing T-3533. sidecar Estate::hub_id deadline scales by TERMLINK_TEST_TIME_FACTOR (same dial as the hub tests); parsing pinned by a unit test
+
+# Key outcomes
+outcomes:
+  - '`Estate::hub_id`''s 90 s deadline scales by `TERMLINK_TEST_TIME_FACTOR` (default 1, same parsing as the hub''s `test_budget`), so one env var widens both crates'' load-sensitive bounds; the default stays 90 s'
+  - 'The sidecar suite passes with `TERMLINK_BIN` set (`test result: ok`, no `FAILED`); the factor''s parsing is pinned by `testkit::tests::time_factor_defaults_to_one_and_never_shrinks`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/testkit.rs'
+  - '.tasks/active/T-3535-sidecarhub-tests-time-out-on-a-loaded-ho.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T23:31:17'
+    action: 'T-3535: file load-sensitive test timeouts found while closing T-3533'
+  - time: '2026-10-22T01:19:01'
+    action: 'T-3535: sidecar Estate::hub_id deadline scales by TERMLINK_TEST_TIME_FACTOR (same dial as the hub tests); parsing pinned by a unit test'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 113 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 113
+  commits: 4
+  files_changed: 327
+  lines_added: 29507
+  lines_removed: 7737
+  footprint_refreshed_at: '2026-10-27T20:59:27Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3535-sidecarhub-tests-time-out-on-a-loaded-ho.md
+generated_by: context-agent-hybrid

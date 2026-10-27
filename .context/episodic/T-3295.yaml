@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3295: Hub never sweeps the legacy /tmp/termlink-UID pool when TERMLINK_RUNTIME_DIR is set (T-3291 gap 3)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T23:36:54Z
+# ============================================================================
+
+task_id: T-3295
+task_name: "Hub never sweeps the legacy /tmp/termlink-UID pool when TERMLINK_RUNTIME_DIR is set (T-3291 gap 3)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T23:35:31Z
+completed: 2026-09-30T23:36:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-01T01:36:37+02:00
+last_commit: 2026-10-01T01:36:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub sweep also covers the legacy /tmp/termlink-<uid> pool — TERMLINK_RUNTIME_DIR (set by every hub unit) made the sweep exclusive to that dir, so sessions registered in /tmp/termlink-<uid> (275 live here, from an env -i tmux server) had no janitor. Also records T-3294 done.
+
+# Key outcomes
+outcomes:
+  - 'The hub supervisor''s sweep targets include `/tmp/termlink-<uid>/sessions` when it exists and is not already a target (whatever `TERMLINK_RUNTIME_DIR` says)'
+  - 'Unit test pins the target selection (legacy added when present, never duplicated, absent -> not added) without touching real dirs'
+  - '`cargo test -p termlink-hub --lib supervisor` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/supervisor.rs'
+  - '.tasks/active/T-3295-hub-never-sweeps-the-legacy-tmptermlink-.md'
+  - '.tasks/completed/T-3294-register---shell-outlives-its-shell---se.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T01:36:37'
+    action: 'T-3295: hub sweep also covers the legacy /tmp/termlink-<uid> pool — TERMLINK_RUNTIME_DIR (set by every hub unit) made the sweep exclusive to that dir, so sessions registered in /tmp/termlink-<uid> (275 live here, from an env -i tmux server) had no janitor. Also records T-3294 done.'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 2
+  files_changed: 326
+  lines_added: 29332
+  lines_removed: 7721
+  footprint_refreshed_at: '2026-10-27T20:59:01Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3295-hub-never-sweeps-the-legacy-tmptermlink-.md
+generated_by: context-agent-hybrid

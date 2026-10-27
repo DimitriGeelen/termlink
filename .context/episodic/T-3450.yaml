@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3450: runme hub restart: the hub-status check is one-shot and races the new hub's startup (false FAILED 2026-10-17)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T19:05:06Z
+# ============================================================================
+
+task_id: T-3450
+task_name: "runme hub restart: the hub-status check is one-shot and races the new hub's startup (false FAILED 2026-10-17)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-17T18:59:27Z
+completed: 2026-10-17T19:04:49Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-17T21:04:47+02:00
+last_commit: 2026-10-17T21:04:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme hub restart re-reads hub status within HUB_WAIT instead of once (false FAILED at load ~30 on 2026-10-17); fake hub can lag; fixtures 140/140 incl. slow start passes and never-running still FAILS
+
+# Key outcomes
+outcomes:
+  - '`restart_hub` re-reads `hub status` within the HUB_WAIT window and fails only if it never reads running as the new pid'
+  - 'Fixtures: a status that turns good on a later read passes; one that never does still FAILS with `hub-status-not-running-as-`; runme fixtures pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme hub restart re-reads hub status within HUB_WAIT instead of once (false FAILED at load ~30 on 2026-10-17); fake hub can lag; fixtures 140/140 incl. slow start passes and never-running still FAILS'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'runme.sh'
+  - '.tasks/active/T-3450-runme-hub-restart-the-hub-status-check-i.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-17T21:04:47'
+    action: 'T-3450: runme hub restart re-reads hub status within HUB_WAIT instead of once (false FAILED at load ~30 on 2026-10-17); fake hub can lag; fixtures 140/140 incl. slow start passes and never-running still FAILS'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 3
+  files_changed: 327
+  lines_added: 29462
+  lines_removed: 7721
+  footprint_refreshed_at: '2026-10-27T20:59:17Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3450-runme-hub-restart-the-hub-status-check-i.md
+generated_by: context-agent-hybrid

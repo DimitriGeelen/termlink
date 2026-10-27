@@ -77,12 +77,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 229458
-  commits: 4
-  files_changed: 11
-  lines_added: 513
-  lines_removed: 39
-  footprint_refreshed_at: '2026-10-26T15:28:55Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 5
+  lines_added: 193
+  lines_removed: 27
+  footprint_refreshed_at: '2026-10-26T15:28:57Z'
+  footprint_refreshed_by_commit: 04de36478
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-1723-meta-canary--warn-when-release-mirror-ca.md

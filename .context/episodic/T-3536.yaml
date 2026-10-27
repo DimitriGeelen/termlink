@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3536: Doorbell tmux route still types its line with send-keys, bypassing the notify scope (T-3533 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T22:11:19Z
+# ============================================================================
+
+task_id: T-3536
+task_name: "Doorbell tmux route still types its line with send-keys, bypassing the notify scope (T-3533 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-21T22:08:33Z
+completed: 2026-10-21T22:11:03Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-22T00:10:56+02:00
+last_commit: 2026-10-22T00:10:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  a failed doorbell ring names the route it used (tmux send-keys vs termlink pty notify); tmux route has no lock to bypass, recorded
+
+# Key outcomes
+outcomes:
+  - 'A failed ring''s report reason names the route it actually used (`tmux send-keys` vs `termlink pty notify`); a test pins both'
+  - 'The change is registered in `.vendor-divergence.yaml` (local-only until upstream carries it) and the "tmux has no lock to bypass" finding is recorded in Decisions'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-22 — the tmux route is left as it is; only its error message changes'
+    chose: 'keep the tmux route (c2) typing directly, and fix only the mislabelled failure reason.'
+    rationale: 'c2 runs only when no TermLink session is registered (`choose_target`, inject.py:310), and a refused notify never falls back to it. With no session there is no lock to respect. The pane is reached through the uid''s own tmux socket, an OS permission that a TermLink token could not add to.'
+    alternatives_rejected: ['routing tmux through `pty notify`, because there is no session to notify; refusing tmux when a token exists, because no session means no token.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - '.tasks/active/T-3536-doorbell-tmux-route-still-types-its-line.md'
+  - 'tests/sidecar_doorbell_test.py'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-22T00:10:56'
+    action: 'T-3536: a failed doorbell ring names the route it used (tmux send-keys vs termlink pty notify); tmux route has no lock to bypass, recorded'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 4
+  files_changed: 328
+  lines_added: 29137
+  lines_removed: 7734
+  footprint_refreshed_at: '2026-10-27T20:59:28Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3536-doorbell-tmux-route-still-types-its-line.md
+generated_by: context-agent-hybrid

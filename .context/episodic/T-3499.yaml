@@ -69,10 +69,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 84
-  commits: 1
-  files_changed: 5
-  lines_added: 591
-  lines_removed: 57
+  commits: 2
+  files_changed: 7
+  lines_added: 692
+  lines_removed: 62
+  footprint_refreshed_at: '2026-10-20T20:41:52Z'
+  footprint_refreshed_by_commit: be19112a8
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3499-scriptshub-binary-swapsh-drops-the-hubs-.md

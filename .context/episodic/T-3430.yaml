@@ -76,10 +76,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 1
-  commits: 1
-  files_changed: 10
-  lines_added: 530
-  lines_removed: 9
+  commits: 2
+  files_changed: 12
+  lines_added: 638
+  lines_removed: 14
+  footprint_refreshed_at: '2026-10-13T10:57:10Z'
+  footprint_refreshed_by_commit: 05cc3e2c1
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3430-arc-011-ph-2-row-p5-needs-attention-surf.md

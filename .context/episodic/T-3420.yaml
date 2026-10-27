@@ -163,10 +163,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 26
-  commits: 5
-  files_changed: 86
-  lines_added: 5851
-  lines_removed: 251
+  commits: 6
+  files_changed: 88
+  lines_added: 6040
+  lines_removed: 255
+  footprint_refreshed_at: '2026-10-12T12:28:10Z'
+  footprint_refreshed_by_commit: 1e3960be2
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3420-field-test-aef-ed683536a-re-vendor-fw-do.md

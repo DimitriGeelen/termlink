@@ -67,10 +67,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 871
-  commits: 1
-  files_changed: 2
-  lines_added: 405
-  lines_removed: 1
+  commits: 2
+  files_changed: 4
+  lines_added: 504
+  lines_removed: 6
+  footprint_refreshed_at: '2026-10-21T11:53:58Z'
+  footprint_refreshed_by_commit: fcb3756f4
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3505-sidecar-fault-matrix-test-fc2afulldiskne.md

@@ -71,10 +71,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 83
-  commits: 2
-  files_changed: 4
-  lines_added: 499
-  lines_removed: 50
+  commits: 3
+  files_changed: 6
+  lines_added: 625
+  lines_removed: 57
+  footprint_refreshed_at: '2026-10-20T15:47:51Z'
+  footprint_refreshed_by_commit: ac8e8a854
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3491-automatic-daily-zombie-session-reap-cron.md

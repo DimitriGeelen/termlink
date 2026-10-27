@@ -74,10 +74,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 138
-  commits: 2
-  files_changed: 6
-  lines_added: 446
-  lines_removed: 21
+  commits: 3
+  files_changed: 8
+  lines_added: 556
+  lines_removed: 26
+  footprint_refreshed_at: '2026-10-21T13:52:51Z'
+  footprint_refreshed_by_commit: 6e6682905
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3514-sidecar-start-up-can-exceed-100-s-under-.md

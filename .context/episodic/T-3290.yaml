@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3290: Restart local hub onto current binary via runme (hub runs a replaced, older build)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T23:09:35Z
+# ============================================================================
+
+task_id: T-3290
+task_name: "Restart local hub onto current binary via runme (hub runs a replaced, older build)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T20:50:11Z
+completed: 2026-09-30T23:08:58Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-30T23:29:58+02:00
+last_commit: 2026-09-30T23:29:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme actions 5 (restart local hub onto installed binary) + 6 (upgrade .122 via fleet-deploy-binary --probe --swap-restart) — operator authorized hub restart and forced upgrades of .122/.121, and asked for them in runme.sh
+
+# Key outcomes
+outcomes:
+  - 'Preconditions measured before any restart is offered: runtime_dir persistent (preflight check 1), hub.secret + TLS cert fingerprint recorded, what registered sessions do on a hub restart (reconnect or orphan) established from code/evidence'
+  - 'runme action restarts through `systemctl restart termlink-hub` only when the running hub''s exe is not the installed binary (idempotent skip otherwise); verifies after: unit active, new MainPID exe not `(deleted)`, hub reports the installed version, secret + cert fingerprint UNCHANGED; any mismatch => FAILED'
+  - 'Hermetic fixture cases via seams (no real systemctl, no real hub); tests/runme-fixtures.sh passes'
+  - 'After the operator''s run: hub serves the installed version, fleet doctor / preflight show no auth regression'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'runme.sh'
+  - '.tasks/active/T-3290-restart-local-hub-onto-current-binary-vi.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-30T23:29:58'
+    action: 'T-3290: runme actions 5 (restart local hub onto installed binary) + 6 (upgrade .122 via fleet-deploy-binary --probe --swap-restart) — operator authorized hub restart and forced upgrades of .122/.121, and asked for them in runme.sh'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 138 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 138
+  commits: 2
+  files_changed: 326
+  lines_added: 29611
+  lines_removed: 7717
+  footprint_refreshed_at: '2026-10-27T20:58:59Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3290-restart-local-hub-onto-current-binary-vi.md
+generated_by: context-agent-hybrid

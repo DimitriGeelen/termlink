@@ -96,10 +96,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 32397
-  commits: 3
-  files_changed: 23
-  lines_added: 1493
-  lines_removed: 1303
+  commits: 4
+  files_changed: 25
+  lines_added: 1621
+  lines_removed: 1310
+  footprint_refreshed_at: '2026-10-21T11:54:48Z'
+  footprint_refreshed_by_commit: 10488d9d7
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3214-mcp-termlinkdoctor-lacks-3-checks-the-cl.md

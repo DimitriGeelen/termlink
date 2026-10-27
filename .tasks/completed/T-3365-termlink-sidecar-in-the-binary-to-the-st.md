@@ -6,13 +6,13 @@ description: >
   switch per host after the two-agent acceptance test with a negative control, retiring
   AEF's receiver on that host.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 arc_id: arc-011
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/main.rs]
 related_tasks: [T-3344]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -25,8 +25,8 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:16:37Z
-last_update: 2026-10-12T22:11:38Z
-date_finished:
+last_update: 2026-10-12T22:13:46Z
+date_finished: 2026-10-12T22:13:46Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -127,6 +127,11 @@ cargo test -p termlink-sidecar --test production_mode --test cli_prefix --test e
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-13 — scope narrowed to PH-2 row P1; production mode added
+- **What changed:** filed (step 1) as "the whole sidecar in the binary"; PH-1 built the sidecar as its own crate and binary, so what remained was the subcommand plus a way to run outside a test estate. Folding in exposed two traps not in the plan: `termlink` runs inside a tokio runtime and the sidecar builds its own (nested runtime panics; fixed by a plain thread), and the hook's detached finalizer re-executes `current_exe`, which under `termlink` must carry the `sidecar` prefix.
+- **Plan impact:** the earlier ACs moved to their PH-2 rows (stages done in PH-1; consumer list P17; two-agent acceptance P24/W4). The production marker is written only by the operator, so row P7's runme action creates it.
+- **Triggered:** none new; P7 carries the marker creation.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -187,3 +192,15 @@ cargo test -p termlink-sidecar --test production_mode --test cli_prefix --test e
 ### 2026-10-12T21:49:03Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-efb707b5
+- **Timestamp:** 2026-10-12T22:13:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-12T22:13:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

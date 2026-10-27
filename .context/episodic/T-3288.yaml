@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3288: Arc-claim-drift never runs where its provers can run - arc-003/004 claims unverified automatically
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T20:11:41Z
+# ============================================================================
+
+task_id: T-3288
+task_name: "Arc-claim-drift never runs where its provers can run - arc-003/004 claims unverified automatically"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T19:51:51Z
+completed: 2026-09-30T20:11:16Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-30T21:54:56+02:00
+last_commit: 2026-09-30T21:56:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-claim-drift daily host canary — the check only ever ran in CI, where arc-003/004 provers are SKIP(CI); host guard-layer run is WARN-tier only, so nothing re-verified closed arcs' claims. runme action 1 heading names every crontab it installs
+
+# Key outcomes
+outcomes:
+  - 'Measured: check-arc-claim-drift.sh passes (rc 0, arc-003 + arc-004 VERIFIED) under a cron-like `env -i` environment with the PATH the crontab declares'
+  - '`.context/cron/arc-claim-drift-canary.crontab` exists: daily, T-2685 split-stream redirect, `# Installed to:` header, PATH includes /root/.cargo/bin; check-canary-log-hygiene.sh passes'
+  - 'runme.sh action 1 installs it (idempotent, disk-verified); tests/runme-fixtures.sh passes with the new action counted'
+  - 'CLAUDE.md documents the canary above `## Core Principle`, stating why CI can never verify these claims'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/arc-claim-drift-canary.crontab'
+  - 'runme.sh'
+  - 'scripts/check-arc-claim-drift.sh'
+  - '.tasks/active/T-3288-arc-claim-drift-never-runs-where-its-pro.md'
+  - 'tests/arc-claim-drift-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-30T21:54:56'
+    action: 'T-3288: arc-claim-drift daily host canary — the check only ever ran in CI, where arc-003/004 provers are SKIP(CI); host guard-layer run is WARN-tier only, so nothing re-verified closed arcs'' claims'
+  - time: '2026-09-30T21:56:48'
+    action: 'T-3288: runme action 1 heading names every crontab it installs'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 19 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 19
+  commits: 4
+  files_changed: 330
+  lines_added: 29394
+  lines_removed: 7718
+  footprint_refreshed_at: '2026-10-27T20:58:59Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3288-arc-claim-drift-never-runs-where-its-pro.md
+generated_by: context-agent-hybrid

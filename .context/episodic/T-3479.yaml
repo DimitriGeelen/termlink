@@ -68,10 +68,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 15
-  commits: 1
-  files_changed: 2
-  lines_added: 434
-  lines_removed: 7
+  commits: 2
+  files_changed: 4
+  lines_added: 534
+  lines_removed: 12
+  footprint_refreshed_at: '2026-10-19T15:47:22Z'
+  footprint_refreshed_by_commit: a87663281
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3479-two-hub-tests-flake-under-host-load-sinc.md

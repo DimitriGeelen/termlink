@@ -1792,3 +1792,297 @@ decisions:
     date: 2026-10-20
     task: T-3440
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-250
+    decision: "B — start with four event signals: `queue_flap` (offline-queue pending/drained),"
+    scope: project
+    date: 2026-10-20
+    task: T-3465
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-251
+    decision: "both, by topic. `inbox:<id>` and `dm:<a>:<b>` are delivered. The WS subscribes to their wake event (`inbox.queued` / `dm.queued`) and keeps only events whose `payload.channel` is this topic. Each such event triggers a durable fetch from the cursor that prints the envelopes (`[push] <topic> offset=N sender: payload`). The backlog is fetched first, and a fetch also runs every 30 s as a safety net. Every other channel topic (`agent-presence`, `framework:pickup`, ...) is refused at once, before any hub contact, with a hint naming `--follow` and the event topics. Hub event topics (dotted with no `:`, or a `*` pattern) keep today's behaviour, so the pushwaker's `inbox.queued --push` / `dm.queued --push` are untouched."
+    scope: project
+    date: 2026-10-20
+    task: T-3338
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-252
+    decision: "fire only when the UNFILTERED live set is empty, then probe every candidate dir regardless of `TERMLINK_RUNTIME_DIR` (`/var/lib/termlink`, `$XDG_RUNTIME_DIR/termlink`, `$TMPDIR/termlink-$UID`, `/tmp/termlink-$UID`), excluding the resolved dir. A dir with live sessions is named with its count, and the fix names the one with the most. An unreadable `sessions/` dir is also reported (\"could not be read (Permission denied)\"). Stderr in every mode, `runtime_dir_hint` field in the `--json` envelopes (sessions / count / names / ids). Text stdout is unchanged."
+    scope: project
+    date: 2026-10-20
+    task: T-3492
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-253
+    decision: "same dev+inode as the socket this hub bound = intact (no self-connect each tick); a path that is gone, or holds a dead socket (connect refused), is free and is re-created (bind directly when gone; `.new` + rename over a dead socket, as start does); a path another listener answers on, or holding a non-socket file, is left alone with one WARN per distinct file."
+    scope: project
+    date: 2026-10-20
+    task: T-3495
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-254
+    decision: "keep `status: \"running\"` (the process is alive), add `socket_ok` / `socket_error`, set `ok:false`; `--short` prints `running <pid> socket-unreachable`; `--check` exits 1. Plain `hub status` still exits 0, as it does for `not_running`."
+    scope: project
+    date: 2026-10-20
+    task: T-3495
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-255
+    decision: "B, each worker owns its own clone per claim under `/var/lib/termlink/work/<hub8>/<claim_id>`,"
+    scope: project
+    date: 2026-10-20
+    task: T-3469
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-256
+    decision: "a neutral `termlink-doctor` crate both the CLI and `termlink-mcp` depend on. Mirror `strict` into the CLI envelope and make the CLI's `ok` honour it. Annotate `termlink_doctor` with `readOnlyHint: true` and a `title`. **Rejected:** checks inside `termlink-mcp`; a subprocess; duplicated helpers."
+    scope: project
+    date: 2026-10-21
+    task: T-3214
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-257
+    decision: "`run_doctor` takes `fix`, and MCP always passes `false`. **Why:** the read-only annotation must be true, and remediation stays an explicit operator CLI action. **Rejected:** a `fix` MCP param, which would make the tool destructive and contradict the ruled annotation."
+    scope: project
+    date: 2026-10-21
+    task: T-3214
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-258
+    decision: "the hub stamps `metadata.client_msg_id` on the stored envelope (metadata is outside the signed bytes), and a dedupe miss within one TTL of cache creation (`PostDedupe::is_cold`) scans the topic's newest 1024 records for the same (sender_id, client_msg_id) before appending (`dedupe::find_stored_post`)."
+    scope: project
+    date: 2026-10-21
+    task: T-3515
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-259
+    decision: "no store change; AEF (msg a075812c) ruled an answer must name a question already on the attempt (spec 5.3) and fixed the vector in b4c168aa9."
+    scope: project
+    date: 2026-10-21
+    task: T-3520
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-260
+    decision: "B′, as recommended after external review (operator: \"as recommended\"):"
+    scope: project
+    date: 2026-10-21
+    task: T-3493
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-261
+    decision: "B: the [RUBBER-STAMP] \"peer mail reaches this session without nudging\" criterion becomes an Agent criterion"
+    scope: project
+    date: 2026-10-21
+    task: T-3370
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-262
+    decision: "A — full re-vendor to v1.8.3 now, following the analysis §5 safe sequence."
+    scope: project
+    date: 2026-10-21
+    task: T-3370
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-263
+    decision: "keep the tmux route (c2) typing directly, and fix only the mislabelled failure reason."
+    scope: project
+    date: 2026-10-21
+    task: T-3536
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-264
+    decision: "a new `notify` permission scope ranking below `interact` (Observe < Notify < Interact < Control < Execute), plus a dedicated `command.notify` RPC whose only input is message ids. The session composes the doorbell line itself (`doorbell_line`, byte-identical to the sidecar's `injection_line`). Authentication stays in the `auth.token` handshake."
+    scope: project
+    date: 2026-10-21
+    task: T-3533
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-265
+    decision: "one `# hub: ...` comment line inside each applicability block of the 15 cases where the hub interprets the case or lacks a piece (CC-01, 03, 06, 08, 09, 10, 11, 12, 13, 14, 15, 17, 19, 22, 25), each stating the adapter verdict at 25f56ed68 and the missing piece."
+    scope: project
+    date: 2026-10-22
+    task: T-3530
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-266
+    decision: "table `wc_notices`, filled by `AFTER INSERT` triggers on `wc_history` for every history-backed kind; the sweep writes"
+    scope: project
+    date: 2026-10-22
+    task: T-3521
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-267
+    decision: "Both, split by case. The adapter maps `confirm_end` to the real sweep path: `Bus::wc_confirm_end` refuses a done attempt with `forbidden_transition`, otherwise runs two sweeps at the current epoch and one more G later on the injected clock. The backend changes only where a case showed a real divergence: a hub end over a done attempt answered nothing where CC-02 expects the refusal. CC-01 and CC-03 (evidence-present) and CC-03 (no-evidence) plus CC-06 stay failing with the diverging step named, filed as T-3525 and T-3526."
+    scope: project
+    date: 2026-10-22
+    task: T-3522
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-268
+    decision: "clear the tmux client's environment AND wrap the session command in `/usr/bin/env -i <allowed> /bin/sh -c`."
+    scope: project
+    date: 2026-10-22
+    task: T-3550
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-269
+    decision: "forward nothing project-scoped; project values come only from the launch spec (`--env`, `--workdir`,"
+    scope: project
+    date: 2026-10-22
+    task: T-3550
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-270
+    decision: "the binary's own dir, `$HOME/.local/bin`, `$HOME/.cargo/bin`, then system dirs."
+    scope: project
+    date: 2026-10-22
+    task: T-3550
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-271
+    decision: "`hub restart` (CLI and MCP) starts the hub with the allow-list plus the caller's `TERMLINK_*` settings."
+    scope: project
+    date: 2026-10-22
+    task: T-3550
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-272
+    decision: "root process only, judged against `metadata.cwd`."
+    scope: project
+    date: 2026-10-22
+    task: T-3551
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-273
+    decision: "`register` and `register --self` fail with a message naming each variable and both projects."
+    scope: project
+    date: 2026-10-22
+    task: T-3551
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-274
+    decision: "reset pickup/embeddings/arc/claude-fw to their exact v1.8.14 content before the run, so the vendor"
+    scope: project
+    date: 2026-10-22
+    task: T-3554
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-275
+    decision: "list exactly the adopted (workflow, version) diagrams in `.fabric/watch-patterns.yaml`, with"
+    scope: project
+    date: 2026-10-23
+    task: T-3544
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-276
+    decision: "dependencies are scripts and `termlink`/`fw` verbs inside code (fenced blocks, inline backticks); prose"
+    scope: project
+    date: 2026-10-23
+    task: T-3544
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-277
+    decision: "A′1, after external review (docs/reports/T-3103-consult/: codex and antigravity both said \"modified A\";"
+    scope: project
+    date: 2026-10-23
+    task: T-3103
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-278
+    decision: "deleted dead_letters rows 13 and 14; raw JSON kept in `.context/working/t3565-dead-letter-rows-2026-10-21.jsonl`."
+    scope: project
+    date: 2026-10-23
+    task: T-3565
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-279
+    decision: "the node refuses an expired token itself (naming file, expiry, remedy), but a token below the scope a command asks for only prints a note naming the file and its scope; the hub then refuses any method above it with its \"SCOPE mismatch\" error."
+    scope: project
+    date: 2026-10-23
+    task: T-3543
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-280
+    decision: "the secret wins; token_file is used only when no secret is configured or passed."
+    scope: project
+    date: 2026-10-23
+    task: T-3543
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-281
+    decision: "1, a permanent supervised exec session on .132 (systemd unit in WSL beside the hub), so deploys and"
+    scope: project
+    date: 2026-10-23
+    task: T-3557
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-282
+    decision: "A, re-vendor be.14 -> be.17 now (\"Proceed, A.\")."
+    scope: project
+    date: 2026-10-24
+    task: T-3573
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-283
+    decision: "re-vendor be.17 -> be.18 (\"go ahead with be.18\")."
+    scope: project
+    date: 2026-10-26
+    task: T-3579
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-284
+    decision: "re-vendor be.18 -> be.24 (\"go ahead with be.24\")."
+    scope: project
+    date: 2026-10-26
+    task: T-3589
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-285
+    decision: "re-vendor be.24 -> be.25 (\"go ahead with be.25\")."
+    scope: project
+    date: 2026-10-26
+    task: T-3590
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-286
+    decision: "**GO** — proceed with T-1166 legacy-primitive retirement (event.broadcast, inbox.push, file.send/receive)"
+    scope: project
+    date: 2026-10-26
+    task: T-1428
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-287
+    decision: "Rewrite the fleet-status verification line (ANSI-strip + file-redirect form) rather than `--force` past the gate."
+    scope: project
+    date: 2026-10-26
+    task: T-1428
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-288
+    decision: "Rewrite the upstream-mirror verification to assert the patch CONTENT is present on upstream master, rather than that master's tip SHA equals `aaf7f69b`."
+    scope: project
+    date: 2026-10-26
+    task: T-1451
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-289
+    decision: "re-vendor be.25 -> be.27 (\"go ahead with be.27\")."
+    scope: project
+    date: 2026-10-26
+    task: T-3593
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-290
+    decision: "re-vendor be.27 -> be.28 (\"go ahead with be.28\")."
+    scope: project
+    date: 2026-10-27
+    task: T-3597
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-291
+    decision: "re-vendor be.28 -> be.31 (\"go ahead with be.31\")."
+    scope: project
+    date: 2026-10-27
+    task: T-3598
+    rationale: "Auto-captured from task file on completion"

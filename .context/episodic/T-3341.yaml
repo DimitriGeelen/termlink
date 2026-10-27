@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3341: Rehearse re-vendor to AEF bleeding-edge 1.7.424 in a scratch clone (operator ruling C)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-04T11:45:14Z
+# ============================================================================
+
+task_id: T-3341
+task_name: "Rehearse re-vendor to AEF bleeding-edge 1.7.424 in a scratch clone (operator ruling C)"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-04T11:02:52Z
+completed: 2026-10-04T11:45:04Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-04T13:45:03+02:00
+last_commit: 2026-10-04T13:45:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor rehearsal to AEF 1.7.424 — NO-GO straight, GO planned: 30 new guard reds (7 cleared by restoring toolkit), toolkit overwrite, resume.md replaced, second receiver, H1 present; CLAUDE.md loses only 7 stale lines
+
+# Key outcomes
+outcomes:
+  - 'The upgrade''s steps were read before running, and every write outside the target directory (cron, hooks, global settings, pushes) is listed and was prevented or contained'
+  - 'A plain scratch clone of this repo (never a git worktree) was upgraded from the 1.7.424 clone, with the full log kept'
+  - 'Every one of the 26 `.vendor-divergence.yaml` entries is classified carried / lost / changed in the rehearsal tree, with evidence'
+  - 'The `CLAUDE.md` diff (lines dropped from the project-specific region and the governance region) is recorded'
+  - 'The hazard DETECT lines, the vector-index fixture and freshness checks, the T-3337 reader fixture and the guard layer were run in the rehearsal tree, results recorded'
+  - 'Report `docs/reports/T-3341-revendor-rehearsal.md` ends with a GO/NO-GO recommendation for the real re-vendor and the exact steps it would take'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-04 — re-vendor to AEF bleeding-edge (operator ruling)'
+    chose: 'C — rehearse in a scratch clone first; the real re-vendor comes back as a GO/NO-GO with evidence.'
+    rationale: '26 registered divergences (16 unconfirmed upstream), H1 measured present at 1.7.424, CLAUDE.md clobber risk.'
+    alternatives_rejected: ['A re-vendor now; B `fw upgrade` default branch (unverified); D defer.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3341-revendor-rehearsal.md'
+  - '.tasks/active/T-3341-rehearse-re-vendor-to-aef-bleeding-edge-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-04T13:45:03'
+    action: 'T-3341: re-vendor rehearsal to AEF 1.7.424 — NO-GO straight, GO planned: 30 new guard reds (7 cleared by restoring toolkit), toolkit overwrite, resume.md replaced, second receiver, H1 present; CLAUDE.md loses only 7 stale lines'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 42 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 42
+  commits: 3
+  files_changed: 326
+  lines_added: 29517
+  lines_removed: 7720
+  footprint_refreshed_at: '2026-10-27T20:59:06Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3341-rehearse-re-vendor-to-aef-bleeding-edge-.md
+generated_by: context-agent-hybrid

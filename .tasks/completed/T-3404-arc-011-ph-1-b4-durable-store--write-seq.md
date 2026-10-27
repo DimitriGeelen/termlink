@@ -7,10 +7,10 @@ description: >
   B4 (ACs and verification there); section 4 store format and durability (SI-15, SI-16,
   SI-22, SI-4, SI-30).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-11T18:16:40Z
-last_update: 2026-10-11T18:18:08Z
-date_finished:
+last_update: 2026-10-11T18:21:11Z
+date_finished: 2026-10-11T18:21:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -372,3 +372,15 @@ cargo test -p termlink-sidecar --features failpoints store_ > /tmp/.t3404 2>&1 &
 
 ### 2026-10-11T18:18:08Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4244201e
+- **Timestamp:** 2026-10-11T18:21:18Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-11T18:21:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -71,10 +71,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 207
-  commits: 3
-  files_changed: 5
-  lines_added: 1278
-  lines_removed: 14
+  commits: 4
+  files_changed: 7
+  lines_added: 1383
+  lines_removed: 19
+  footprint_refreshed_at: '2026-10-21T12:38:16Z'
+  footprint_refreshed_by_commit: b14e0f9f3
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3511-sidecar-resend-while-the-hub-is-down-pil.md

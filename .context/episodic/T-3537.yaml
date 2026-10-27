@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3537: register --token-secret --verbose prints the session secret to stdout (T-3533 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T23:17:22Z
+# ============================================================================
+
+task_id: T-3537
+task_name: "register --token-secret --verbose prints the session secret to stdout (T-3533 follow-up)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T22:08:40Z
+completed: 2026-10-21T23:16:10Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-22T01:16:02+02:00
+last_commit: 2026-10-22T01:16:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  register --token-secret never prints the secret (--json carries token_auth: true; default output says enabled, not the value); test fails first against the old output
+
+# Key outcomes
+outcomes:
+  - '`termlink register --token-secret` prints the secret''s value neither under `--verbose` (session.rs:451) nor in `--json` (session.rs:491, field `token_secret`); `--json` carries `token_auth: true` instead. No consumer reads the JSON field (grep 2026-10-22: `token create` and MCP read the registration file), so dropping it breaks nothing'
+  - 'CHANGELOG notes the `--json` field change'
+  - 'A test pins it: registering with `--token-secret` in a temp runtime dir, in `--json` and in the default (verbose) output, produces output that does not contain the stored `token_secret` (`cli_register_token_secret_is_never_printed`; fails against the previous session.rs: "json: output printed the token secret")'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CHANGELOG.md'
+  - 'crates/termlink-cli/src/commands/session.rs'
+  - 'crates/termlink-cli/tests/cli_integration.rs'
+  - '.tasks/active/T-3537-register---token-secret---verbose-prints.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-22T01:16:02'
+    action: 'T-3537: register --token-secret never prints the secret (--json carries token_auth: true; default output says enabled, not the value); test fails first against the old output'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 67 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 67
+  commits: 5
+  files_changed: 331
+  lines_added: 29893
+  lines_removed: 7740
+  footprint_refreshed_at: '2026-10-27T20:59:28Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3537-register---token-secret---verbose-prints.md
+generated_by: context-agent-hybrid

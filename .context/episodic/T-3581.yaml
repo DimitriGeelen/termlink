@@ -64,12 +64,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 79
-  commits: 2
-  files_changed: 6
-  lines_added: 672
-  lines_removed: 12
-  footprint_refreshed_at: '2026-10-26T09:34:56Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 1
+  files_changed: 1
+  lines_added: 378
+  lines_removed: 0
+  footprint_refreshed_at: '2026-10-26T09:34:57Z'
+  footprint_refreshed_by_commit: b15d26c94
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3581-canary-canary-aliveness-is-stale--invest.md

@@ -7,12 +7,12 @@ description: >
   exit 2 and are SKIP(CI); the host cron runs WARN-tier only. Nothing re-verifies
   the closed arcs' claims automatically. Add a daily host canary.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, scripts/check-arc-claim-drift.sh, tests/arc-claim-drift-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -25,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-30T19:51:51Z
-last_update: 2026-09-30T19:52:19Z
-date_finished:
+last_update: 2026-09-30T20:11:16Z
+date_finished: 2026-09-30T20:11:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -265,3 +265,16 @@ awk '/^### Arc-claim-drift canary/{a=NR} /^## Core Principle/{c=NR} END{exit !(a
 
 ### 2026-09-30T19:52:19Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-01312299
+- **Timestamp:** 2026-09-30T20:11:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-30T20:11:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

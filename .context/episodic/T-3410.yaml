@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3410: arc-011 PH-1 B9: frame, claim, deliver (C-8, C-9) - random-boundary frame, atomic claim, nonce, evidence finalizer, HANDED_OVER only on harness evidence, UNCERTAIN
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T22:48:39Z
+# ============================================================================
+
+task_id: T-3410
+task_name: "arc-011 PH-1 B9: frame, claim, deliver (C-8, C-9) - random-boundary frame, atomic claim, nonce, evidence finalizer, HANDED_OVER only on harness evidence, UNCERTAIN"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-11T22:31:14Z
+completed: 2026-10-11T22:47:52Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T00:47:51+02:00
+last_commit: 2026-10-12T00:47:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  B9 frame, claim, deliver (random-boundary frame, O_EXCL claims, HANDED_OVER only on harness evidence, UNCERTAIN, proof of absence)
+
+# Key outcomes
+outcomes:
+  - 'frame.rs (C-8): a fixed header line (with the nonce), fixed untrusted-data wording, per-message fields from verified/computed values only, the body between a fresh 128-bit random boundary pair; a body containing the boundary forces a new boundary; bodies are never cut; batching stops at FRAME_CAP with a visible "N more waiting" line (FC-12)'
+  - 'deliver.rs (C-9) `pull`: reads the delivery switch and re-runs the policy on every call (SI-23, 7.1 second run), offers only STORED, allow-listed, not handed-over messages with no open attempt, urgent first; takes an O_EXCL claim per message before any content leaves the store and records CLAIMED (SI-30)'
+  - 'Double delivery is impossible: concurrent `pull` calls on one store never hand out the same message twice (stress test); a killed sidecar''s open claim blocks a second hand-over after restart (FC-4)'
+  - 'Evidence reader: HANDED_OVER only when the nonce header is found in an `attachment`/`hook_additional_context` record; the nonce in assistant, user, tool_result or hook_success records is not evidence (FC-11); an unreadable transcript (missing, permissions, broken line) records UNCERTAIN plus needs-attention and keeps the attempt open (FC-13)'
+  - 'Proof of absence: with the tool call''s id, an assistant record after its tool_result and no evidence in between closes the attempt (ABSENT) and allows attempt n+1; without a completeness point the attempt stays open (UNCERTAIN on the final check), never re-delivered on a timeout alone (CR-17)'
+  - 'HANDED_OVER goes back to the sender as a signed stage record and the sender records it forward-only after STORED'
+  - 'The API serves `pull`, `claim` and `handed-over` (no verb takes a path); `cargo test -p termlink-sidecar frame_` and `deliver_` pass and the full suite stays green; no production path is touched'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-12 — Bodies are never cut'
+    chose: 'FRAME_CAP limits batching only; a body is always whole, a message larger than the cap travels alone.'
+    rationale: 'HANDED_OVER must mean the whole message reached the agent; AEF''s BODY_CAP truncation would make it a partial claim.'
+    alternatives_rejected: ['AEF''s BODY_CAP cut (makes HANDED_OVER false for long bodies).']
+  - decision: '2026-10-12 — Completeness point'
+    chose: 'an assistant record after the tool_result of the tool call the hook fired for (hook passes `tool_use_id`).'
+    rationale: 'the B1 fixture shows the harness writes tool_result, then the call''s hook attachments, then the next assistant record; once that record exists, the slot for the frame has passed.'
+    alternatives_rejected: ['a time window (CR-17: a timeout alone never re-delivers); the trailing `last-prompt` record (only at session end).']
+  - decision: '2026-10-12 — `handed-over` takes a nonce, not a transcript path'
+    chose: 'the transcript is bound to the session at registration; the op takes `nonce` (+ `msg_id`, `final`).'
+    rationale: 'note 3.3 says no verb takes a path; a caller-supplied path would let a caller point the finalizer at a file it wrote.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/adapter/claude.rs'
+  - 'crates/termlink-sidecar/src/adapter/mod.rs'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/deliver.rs'
+  - 'crates/termlink-sidecar/src/frame.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/wire.rs'
+  - 'crates/termlink-sidecar/tests/api_tests.rs'
+  - 'crates/termlink-sidecar/tests/deliver_tests.rs'
+  - 'docs/design/arc-011-ph1-architecture.md'
+  - '.tasks/active/T-3410-arc-011-ph-1-b9-frame-claim-deliver-c-8-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T00:47:51'
+    action: 'T-3410: B9 frame, claim, deliver (random-boundary frame, O_EXCL claims, HANDED_OVER only on harness evidence, UNCERTAIN, proof of absence)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 16
+  commits: 3
+  files_changed: 335
+  lines_added: 30766
+  lines_removed: 7734
+  footprint_refreshed_at: '2026-10-27T20:59:10Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3410-arc-011-ph-1-b9-frame-claim-deliver-c-8-.md
+generated_by: context-agent-hybrid

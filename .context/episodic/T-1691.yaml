@@ -73,12 +73,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 34
-  commits: 3
-  files_changed: 33
-  lines_added: 1448
-  lines_removed: 102
-  footprint_refreshed_at: '2026-10-26T23:28:37Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 2
+  files_changed: 3
+  lines_added: 305
+  lines_removed: 8
+  footprint_refreshed_at: '2026-10-26T23:28:41Z'
+  footprint_refreshed_by_commit: 0b150f49d
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md

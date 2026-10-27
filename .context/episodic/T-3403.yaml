@@ -73,12 +73,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 4
-  commits: 2
-  files_changed: 7
-  lines_added: 1022
-  lines_removed: 0
-  footprint_refreshed_at: '2026-10-11T18:21:52Z'
-  footprint_refreshed_by_commit: 5b020e5ff
+  commits: 3
+  files_changed: 9
+  lines_added: 1128
+  lines_removed: 4
+  footprint_refreshed_at: '2026-10-11T18:21:58Z'
+  footprint_refreshed_by_commit: de7245e4c
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3403-arc-011-ph-1-b3-wire-format-signing-veri.md

@@ -7,12 +7,12 @@ description: >
   Add a runme action that restarts it through its systemd unit and verifies the running
   hub serves the installed version, with secret/cert persistence preconditions checked.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -25,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-30T20:50:11Z
-last_update: 2026-09-30T20:50:39Z
-date_finished:
+last_update: 2026-09-30T23:08:58Z
+date_finished: 2026-09-30T23:08:58Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -63,10 +63,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Preconditions measured before any restart is offered: runtime_dir persistent (preflight check 1), hub.secret + TLS cert fingerprint recorded, what registered sessions do on a hub restart (reconnect or orphan) established from code/evidence
-- [ ] runme action restarts through `systemctl restart termlink-hub` only when the running hub's exe is not the installed binary (idempotent skip otherwise); verifies after: unit active, new MainPID exe not `(deleted)`, hub reports the installed version, secret + cert fingerprint UNCHANGED; any mismatch => FAILED
-- [ ] Hermetic fixture cases via seams (no real systemctl, no real hub); tests/runme-fixtures.sh passes
-- [ ] After the operator's run: hub serves the installed version, fleet doctor / preflight show no auth regression
+- [x] Preconditions measured before any restart is offered: runtime_dir persistent (preflight check 1), hub.secret + TLS cert fingerprint recorded, what registered sessions do on a hub restart (reconnect or orphan) established from code/evidence
+- [x] runme action restarts through `systemctl restart termlink-hub` only when the running hub's exe is not the installed binary (idempotent skip otherwise); verifies after: unit active, new MainPID exe not `(deleted)`, hub reports the installed version, secret + cert fingerprint UNCHANGED; any mismatch => FAILED
+- [x] Hermetic fixture cases via seams (no real systemctl, no real hub); tests/runme-fixtures.sh passes
+- [x] After the operator's run: hub serves the installed version, fleet doctor / preflight show no auth regression
 
 
 ## Verification
@@ -157,6 +157,12 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash -n runme.sh
+bash tests/runme-fixtures.sh
+test "$(readlink /proc/$(systemctl show -p MainPID --value termlink-hub)/exe)" = /root/.cargo/bin/termlink
+systemctl is-active termlink-hub
+bash scripts/check-fleet-binary-freshness.sh --no-heartbeat
 
 ## RCA
 
@@ -257,3 +263,20 @@ bvp_scores_proposed:
 
 ### 2026-09-30T20:50:39Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e80b31bd
+- **Timestamp:** 2026-09-30T23:09:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Reviewer:** inline
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **secret-handling** (high) — Secret or credential changes
+     - matched: `TLS cert`
+
+### 2026-09-30T23:08:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -74,10 +74,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 15
-  commits: 3
-  files_changed: 5
-  lines_added: 712
-  lines_removed: 6
+  commits: 4
+  files_changed: 7
+  lines_added: 818
+  lines_removed: 11
+  footprint_refreshed_at: '2026-10-19T22:51:38Z'
+  footprint_refreshed_by_commit: 4177386d7
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3485-termlink-identity-sign--verify-detached-.md

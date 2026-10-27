@@ -68,10 +68,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 20507
-  commits: 1
-  files_changed: 2
-  lines_added: 302
-  lines_removed: 107
+  commits: 2
+  files_changed: 4
+  lines_added: 397
+  lines_removed: 112
+  footprint_refreshed_at: '2026-10-20T16:25:43Z'
+  footprint_refreshed_by_commit: 9a6555a51
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3367-hub-start-unlinks-a-live-hubs-socket-bef.md

@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3300: Builds leave CPUs idle - measure per-crate parallelism of the runme rebuild and speed up the long pole
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T08:06:13Z
+# ============================================================================
+
+task_id: T-3300
+task_name: "Builds leave CPUs idle - measure per-crate parallelism of the runme rebuild and speed up the long pole"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-01T07:49:31Z
+completed: 2026-10-01T08:06:03Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-01T09:50:06+02:00
+last_commit: 2026-10-01T10:06:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  prep — record T-3299 done (operator run rc=0: unit installed, /tmp/termlink-0 rw in the hub's namespace, hub reaped 185 orphans there with 0 failures; session-leak canary healthy: 0 zombies, 0 orphans). measurement 1 recorded (rebuild = ~1-core phases for termlink_mcp + termlink front ends, then 24-core codegen, then ~70s thin-LTO/link tail); experimental local-nolto profile (not used by runme) for measurement 2. measurement 2 — local-nolto rebuild 200s vs local-fast 170s on the same commit: LTO is not the bottleneck (hypothesis disproved); experiment profile removed. Rebuild ~3 min is two large crates compiled single-threaded on stable rustc; options recorded (crate split / nightly parallel front end / mold), none taken now
+
+# Key outcomes
+outcomes:
+  - 'Measured during a real version-change rebuild: busy cores over time and which crate(s) rustc was compiling, recorded in the task'
+  - 'Root cause of idle CPUs stated from that data (not assumed), with the options and a recommendation'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-01 — measurement 1: where a post-commit rebuild spends its time (local-fast)'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'Cargo.toml'
+  - '.tasks/active/T-3300-builds-leave-cpus-idle---measure-per-cra.md'
+  - '.tasks/completed/T-3297-one-time-reap-of-idle-zombie-register-se.md'
+  - '.tasks/completed/T-3299-hub-sweep-silently-cannot-delete-in-tmpt.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T09:50:06'
+    action: 'T-3300: prep — record T-3299 done (operator run rc=0: unit installed, /tmp/termlink-0 rw in the hub''s namespace, hub reaped 185 orphans there with 0 failures; session-leak canary healthy: 0 zombies, 0 orphans)'
+  - time: '2026-10-01T09:59:21'
+    action: 'T-3300: measurement 1 recorded (rebuild = ~1-core phases for termlink_mcp + termlink front ends, then 24-core codegen, then ~70s thin-LTO/link tail); experimental local-nolto profile (not used by runme) for measurement 2'
+  - time: '2026-10-01T10:06:01'
+    action: 'T-3300: measurement 2 — local-nolto rebuild 200s vs local-fast 170s on the same commit: LTO is not the bottleneck (hypothesis disproved); experiment profile removed. Rebuild ~3 min is two large crates compiled single-threaded on stable rustc; options recorded (crate split / nightly parallel front end / mold), none taken now'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 16
+  commits: 4
+  files_changed: 327
+  lines_added: 29356
+  lines_removed: 7725
+  footprint_refreshed_at: '2026-10-27T20:59:03Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3300-builds-leave-cpus-idle---measure-per-cra.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3457: Investigate .107 hub handshake stalls reported by ring20 (simultaneous TLS handshake failures, probe >10s)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-18T00:35:21Z
+# ============================================================================
+
+task_id: T-3457
+task_name: "Investigate .107 hub handshake stalls reported by ring20 (simultaneous TLS handshake failures, probe >10s)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-17T22:29:12Z
+completed: 2026-10-18T00:35:09Z
+duration_days: 1
+updates_count: 1
+first_commit: 2026-10-18T00:33:28+02:00
+last_commit: 2026-10-18T02:35:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  .107 hub stalls - bursts are accept-loop stalls of 43-57s (journal silent, queued connections accepted at once then EOF); suspect meta.rs single std Mutex convoy; read-only /proc capture running 2h; interim findings sent to ring20. .107 hub stalls root-caused - bus meta SQLite commits fsync (journal=delete, sync=FULL, btrfs) on tokio workers under one mutex; /proc capture caught it 12/12; fix filed T-3461; ring20 told
+
+# Key outcomes
+outcomes:
+  - 'What the hub was doing at the three burst seconds is established from its journal and code (sweeps, locks, fsync, retention, handshake fan-in), with evidence cited, or stated as not determinable and why'
+  - 'Whether a TLS handshake timeout and the tokio worker count are configurable is answered from the code (file:line) — `TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS` (server.rs:964, default 30 s, applies only after accept); workers follow `TOKIO_WORKER_THREADS` (tokio 1.50; `#[tokio::main]` main.rs:60, default = cores = 24). Neither addresses an fsync convoy. The 10 s ring20 hit is the AEF sender probe timeout (termlink_transport.py:191).'
+  - 'ring20 gets the findings on conv hub-107-stalls-t2402; any code change is filed as its own task (T-3461)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: '.107 hub stalls root-caused - bus meta SQLite commits fsync (journal=delete, sync=FULL, btrfs) on tokio workers under one mutex; /proc capture caught it 12/12; fix filed T-3461; ring20 told'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3457-investigate-107-hub-handshake-stalls-rep.md'
+  - '.tasks/active/T-3461-hub-bus-meta-sqlite-commits-fsync-on-tok.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-18T00:33:28'
+    action: 'T-3457: .107 hub stalls - bursts are accept-loop stalls of 43-57s (journal silent, queued connections accepted at once then EOF); suspect meta.rs single std Mutex convoy; read-only /proc capture running 2h; interim findings sent to ring20'
+  - time: '2026-10-18T02:35:08'
+    action: 'T-3457: .107 hub stalls root-caused - bus meta SQLite commits fsync (journal=delete, sync=FULL, btrfs) on tokio workers under one mutex; /proc capture caught it 12/12; fix filed T-3461; ring20 told'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 125 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 125
+  commits: 4
+  files_changed: 326
+  lines_added: 29779
+  lines_removed: 7720
+  footprint_refreshed_at: '2026-10-27T20:59:19Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3457-investigate-107-hub-handshake-stalls-rep.md
+generated_by: context-agent-hybrid

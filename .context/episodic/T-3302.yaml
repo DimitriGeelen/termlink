@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3302: Canonical identity for claude-termlink - shared host key or per-agent key
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T13:25:58Z
+# ============================================================================
+
+task_id: T-3302
+task_name: "Canonical identity for claude-termlink - shared host key or per-agent key"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-01T08:46:25Z
+completed: 2026-10-01T13:25:50Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-01T10:47:34+02:00
+last_commit: 2026-10-01T15:04:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  canonical-identity decision brief for claude-termlink — measured: 126 sessions sign as the shared host key d1993, none as per-agent 6738; 11 dm topics on d1993; systemd agents already use per-agent keys (attribution forgeable under the shared key). Recommendation: B (per-agent canonical, dual mailbox during transition). brief scored against the joint value drivers (A -33, B +38, C -12) with steelman/strawman per option; B's honest case is reliability/attribution, not security (any root agent can read every key)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3302-identity-canonical-brief.md'
+  - '.tasks/active/T-3302-canonical-identity-for-claude-termlink--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T10:47:34'
+    action: 'T-3302: canonical-identity decision brief for claude-termlink — measured: 126 sessions sign as the shared host key d1993, none as per-agent 6738; 11 dm topics on d1993; systemd agents already use per-agent keys (attribution forgeable under the shared key). Recommendation: B (per-agent canonical, dual mailbox during transition)'
+  - time: '2026-10-01T15:04:28'
+    action: 'T-3302: brief scored against the joint value drivers (A -33, B +38, C -12) with steelman/strawman per option; B''s honest case is reliability/attribution, not security (any root agent can read every key)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 279 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 279
+  commits: 3
+  files_changed: 325
+  lines_added: 29263
+  lines_removed: 7716
+  footprint_refreshed_at: '2026-10-27T20:59:04Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3302-canonical-identity-for-claude-termlink--.md
+generated_by: context-agent-hybrid

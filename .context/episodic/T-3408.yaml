@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3408: arc-011 PH-1 B7: receive path (C-6) - subscribe, verify, policy hook, store, RECEIVED/STORED stage records signed back to sender
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T21:37:17Z
+# ============================================================================
+
+task_id: T-3408
+task_name: "arc-011 PH-1 B7: receive path (C-6) - subscribe, verify, policy hook, store, RECEIVED/STORED stage records signed back to sender"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-11T21:23:53Z
+completed: 2026-10-11T21:36:13Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-11T23:32:47+02:00
+last_commit: 2026-10-11T23:36:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  B7 receive path (verify, policy hook, RECEIVED/STORED, signed stage records back to the sender). run the receive_hub tests one hub at a time (a loaded host missed the 5 s hub.version bound with 8 hubs starting together)
+
+# Key outcomes
+outcomes:
+  - 'pull.rs (C-6): a receiver reads its own inbox topic from a durable cursor, re-verifies every `sidecar.msg.v1` envelope with `wire::verify` (roster + own instance id), calls a policy hook point before storing, then appends RECEIVED and stores (Store::put); STORED is reported only after put returns Stored or Duplicate (FC-2)'
+  - 'The transport signature reaches the receiver without a hub change: the sender puts signer key and signature in the post metadata and the receiver checks them against the payload; a missing, wrong-key (host key, sibling key) or altered signature is REFUSED with its reason on the chain plus a needs-attention entry, never stored (FC-1 receiver half)'
+  - 'Stage records (5.3): the receiver signs `{kind:"stage", from, conv, msg_id, stage, ts_ms, chain_head}` and posts it to the sender''s inbox through the outbox; the sender''s receiver verifies it against the roster, accepts it only for a message it SENT, keeps it forward-only, and records RECEIVED and STORED with the receiver''s times; an unsigned or wrongly signed stage is ignored and shown (attention)'
+  - 'Failure and restart: a store failure at any step leaves no STORED report and the message is retried on the next pass; a restart re-reads from the cursor without a second RECEIVED or STORED (FC-2, FC-3 receive half)'
+  - 'Same (sender, conv, msg_id) with another body: first record kept, CONFLICT recorded, no STORED stage for the second (FC-10); a second sidecar on the same store is refused (FC-9)'
+  - 'hub_id pin on receive (FX-2): a hub whose id differs from the declared one is not read and a needs-attention entry is written (FC-14 receive half)'
+  - 'Concurrent writers (send pump, receiver) cannot fork a conversation chain: Store serialises appends in-process'
+  - '`cargo test -p termlink-sidecar --test receive_hub` passes and the full `cargo test -p termlink-sidecar` stays green; no production path is touched'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-11 — How the receiver gets the transport signature'
+    chose: 'the sender repeats signer key and signature in the post metadata (`sidecar_pk`, `sidecar_sig`); the receiver verifies them against the payload it read.'
+    rationale: '`channel.subscribe` does not return the post''s key or signature (the bus envelope does not keep them), and PH-1 leaves the hub untouched (note 2.1). Metadata is outside the signed bytes, so altering it can only make verification fail.'
+    alternatives_rejected: ['a hub change to keep and return signatures (outside PH-1); trusting the hub''s check alone (5.2 requires the receiver to re-verify).']
+  - decision: '2026-10-11 — Not-rostered senders in B7'
+    chose: 'REFUSED on the chain plus a needs-attention entry, not stored.'
+    rationale: 'the store-and-show-but-withhold rule for senders outside the roster (note 7.2) is B8''s receiver check; B7 provides the policy hook point (`pull::Policy`) B8 fills.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/pull.rs'
+  - 'crates/termlink-sidecar/src/send.rs'
+  - 'crates/termlink-sidecar/src/store.rs'
+  - 'crates/termlink-sidecar/src/wire.rs'
+  - 'crates/termlink-sidecar/tests/receive_hub.rs'
+  - 'docs/design/arc-011-ph1-architecture.md'
+  - '.tasks/active/T-3408-arc-011-ph-1-b7-receive-path-c-6---subsc.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T23:32:47'
+    action: 'T-3408: B7 receive path (verify, policy hook, RECEIVED/STORED, signed stage records back to the sender)'
+  - time: '2026-10-11T23:36:12'
+    action: 'T-3408: run the receive_hub tests one hub at a time (a loaded host missed the 5 s hub.version bound with 8 hubs starting together)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 12
+  commits: 4
+  files_changed: 333
+  lines_added: 30642
+  lines_removed: 7739
+  footprint_refreshed_at: '2026-10-27T20:59:09Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3408-arc-011-ph-1-b7-receive-path-c-6---subsc.md
+generated_by: context-agent-hybrid

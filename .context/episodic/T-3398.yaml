@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3398: arc-011 PH-0: SI-25 secret scan of every test run's artifacts
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T17:22:41Z
+# ============================================================================
+
+task_id: T-3398
+task_name: "arc-011 PH-0: SI-25 secret scan of every test run's artifacts"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T17:18:51Z
+completed: 2026-10-11T17:22:26Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-11T19:22:12+02:00
+last_commit: 2026-10-11T19:22:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  SI-25 test-artifact secret scan, fixtures, doc
+
+# Key outcomes
+outcomes:
+  - 'scripts/check-test-artifact-secrets.sh DIR scans every file under DIR with the vendored secret-scan pattern catalogue plus FC-17 canary literals and hub-secret values; exit 0 clean / 1 found / 2 tooling (fail-closed: missing dir, empty dir, missing catalogue)'
+  - 'Findings never print the secret value (file:line:pattern only)'
+  - 'tests/test-artifact-secrets-fixtures.sh: planted canary found, clean case passes, planted key and hub secret found, fail-closed cases, mutant (canary matching disabled) turns the canary case red'
+  - 'docs/operations/test-artifact-secret-scan.md documents how test runs feed it (PH-0 6.2.1.a (6), SI-25, FC-17)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'SI-25 test-artifact secret scan, fixtures, doc'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/test-artifact-secret-scan.md'
+  - 'scripts/check-test-artifact-secrets.sh'
+  - '.tasks/active/T-3398-arc-011-ph-0-si-25-secret-scan-of-every-.md'
+  - 'tests/test-artifact-secrets-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T19:22:12'
+    action: 'T-3398: SI-25 test-artifact secret scan, fixtures, doc'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 3
+  files_changed: 328
+  lines_added: 29628
+  lines_removed: 7724
+  footprint_refreshed_at: '2026-10-27T20:59:07Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3398-arc-011-ph-0-si-25-secret-scan-of-every-.md
+generated_by: context-agent-hybrid

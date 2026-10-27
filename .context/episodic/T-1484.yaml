@@ -88,12 +88,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 9
-  commits: 4
-  files_changed: 27
-  lines_added: 1406
-  lines_removed: 53
-  footprint_refreshed_at: '2026-10-26T23:52:23Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 12
+  lines_added: 317
+  lines_removed: 39
+  footprint_refreshed_at: '2026-10-26T23:52:27Z'
+  footprint_refreshed_by_commit: 0dd87fa4f
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-1484-agent-presence---filter-project-name--pr.md

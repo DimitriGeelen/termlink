@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3523: wc/0.3 hub: backend-initiated stop op and T7d resolve gates (CC-15, CC-22, CC-25)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T23:52:33Z
+# ============================================================================
+
+task_id: T-3523
+task_name: "wc/0.3 hub: backend-initiated stop op and T7d resolve gates (CC-15, CC-22, CC-25)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T14:43:57Z
+completed: 2026-10-21T23:52:01Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-22T01:45:52+02:00
+last_commit: 2026-10-22T01:51:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  ACs for CC-25 backend-initiated stop. backend-initiated stop (CC-25) — dispatch.stop records stop_cause (no state, no row); T3 and the sweep's T4 carry it on the confirmed end; adapter op stop + history_causes; vectors 18/0/6/1
+
+# Key outcomes
+outcomes:
+  - 'The store records a backend-initiated stop (`Bus::wc_stop`): fenced by the supervisor token, cause ∈ {deadline_stop, revoked, operator_stop} (anything else is `invalid`), only on a `dispatched` or `running` attempt (a terminal or unknown attempt is `cas_mismatch`). A repeat with the same cause is a no-op; a different cause after the first is refused. Per spec §3.3 the stop is an action, not a state: it writes no history row and changes no state, and the attempt record shows `stop_cause`'
+  - 'The confirmed end that follows carries the cause on its history entry: T3 (`done`, including `handback-malformed`) uses the request''s cause or else the recorded stop cause, and the sweep''s T4 (`lost`) uses the recorded stop cause instead of its own. No new attempt is allocated by a stop'
+  - '`dispatch.stop` JSON-RPC (Execute, like `dispatch.transition`) with the method constant in control.rs and the router entry; the error-code emission and MCP parity checks stay clean (both rc 0; error-code docs lint clean; protocol tests 109/0; RPC test `dispatch_stop_records_the_cause_for_the_confirmed_end`)'
+  - 'Bus unit tests (worker_contract/sweep_tests.rs, `stop_*`) cover three CC-25 variants (exit confirmed with a valid hand-back, no exit evidence then the sweep''s T4, revoked); the fourth (exit confirmed, hand-back absent → `done{handback-malformed}`) is the existing T3 outcome rule and is exercised through the vector rather than a new unit test. Plus the refusals (bad token, bad cause, terminal attempt, conflicting second cause). The conformance adapter maps `op: stop` and reports `history_causes` (the cause on each attempt''s last lifecycle row); `scripts/run-wc-vectors.sh` at 25f56ed68 reports CC-25 pass with fail=0'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/worker_contract.rs'
+  - 'crates/termlink-bus/src/worker_contract/sweep.rs'
+  - 'crates/termlink-bus/src/worker_contract/sweep_tests.rs'
+  - 'crates/termlink-hub/src/dispatch_contract.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-hub/tests/wc_conformance/hub.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - 'docs/reports/T-3484-conformance-map.md'
+  - '.tasks/active/T-3523-wc03-hub-backend-initiated-stop-op-and-t.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-22T01:45:52'
+    action: 'T-3523: ACs for CC-25 backend-initiated stop'
+  - time: '2026-10-22T01:51:59'
+    action: 'T-3523: backend-initiated stop (CC-25) — dispatch.stop records stop_cause (no state, no row); T3 and the sweep''s T4 carry it on the confirmed end; adapter op stop + history_causes; vectors 18/0/6/1'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 548 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 548
+  commits: 4
+  files_changed: 334
+  lines_added: 29349
+  lines_removed: 7747
+  footprint_refreshed_at: '2026-10-27T20:59:24Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3523-wc03-hub-backend-initiated-stop-op-and-t.md
+generated_by: context-agent-hybrid

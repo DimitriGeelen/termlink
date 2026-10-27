@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3470: T-2026 build: agent.checkout and agent.commit RPCs (scope = claim_id, optional release on commit, per-agent audit event)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-22T08:20:34Z
+# ============================================================================
+
+task_id: T-3470
+task_name: "T-2026 build: agent.checkout and agent.commit RPCs (scope = claim_id, optional release on commit, per-agent audit event)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-18T20:42:05Z
+completed: 2026-10-22T08:19:00Z
+duration_days: 4
+updates_count: 4
+first_commit: 2026-10-21T12:41:46+02:00
+last_commit: 2026-10-22T09:57:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent checkout / agent commit (CLI + MCP, parity) — worker clone per claim under the work root (reflink/snapshot/clone strategies), ownership via channel.renew, commit keeps the claim on failure, release-on-commit only after the commit exists; audit event AC still open. record 0909's btrfs input — work root and template as subvolumes (not pinned by Timeshift), snapshot likely cheaper than reflink, re-measure before switching default. last AC ticked against design §2.5 (events to agent-work:<claim topic>, retention 1000, pinned by tests); verification names the right package
+
+# Key outcomes
+outcomes:
+  - 'agent.checkout and agent.commit implemented with the shape locked in T-3469 (docs/reports/T-3469-agent-launch-surface-design.md §2; IW-3 = B, ruled 2026-10-21): a CLI verb + MCP tool (parity test), NOT a hub RPC; ownership checked with the shipped `channel.renew`'
+  - 'checkout creates the worker clone under `/var/lib/termlink/work/<hub8>/<claim_id>`: on btrfs a reflink copy (default) or snapshot of a per-repo template kept current by fetch, selectable by `TERMLINK_WORKTREE_STRATEGY`, elsewhere `git clone --dissociate` (each strategy tested in a temp dir; btrfs-only cases skip with a visible reason off btrfs); never under the operator''s checkout and never a `git worktree`; the guard bootstrap installs and verifies hooks and refuses fail-closed, tested with a missing hook'
+  - 'The commit-fails case keeps the claim (tested)'
+  - 'agent.commit refuses a scope that is not a live claim held by the caller (CLAIM_NOT_OWNED / CLAIM_NOT_FOUND), tested'
+  - 'Optional release-on-commit releases the named claim only after the commit exists, tested including the commit-fails case (claim kept)'
+  - 'Each call posts a structured event to the per-agent audit topic, with bounded retention. As locked in design §2.5, the topic is `agent-work:<claim topic>`, created with retention `messages:1000`, and the body carries `{verb, agent_id, hub8, claim_id}` plus the return shape (agent_work.rs `post_event` / `event_body`). Refusals are events too, and a failed post never fails the verb. Pinned by `checkout_clones_branches_and_posts_one_event`, the refusal-event test and the commit-event test (agent_work 17/0, 2026-10-22). The optional `binding` field is not filled: no worker-binding source reaches the CLI yet (no env or arg carries it), so it waits for one rather than being guessed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/drain-sink-allowlist'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent_work.rs'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/commands/mod.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'crates/termlink-mcp/tests/parity.rs'
+  - '.tasks/active/T-3470-t-2026-build-agentcheckout-and-agentcomm.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T12:41:46'
+    action: 'T-3470: agent checkout / agent commit (CLI + MCP, parity) — worker clone per claim under the work root (reflink/snapshot/clone strategies), ownership via channel.renew, commit keeps the claim on failure, release-on-commit only after the commit exists; audit event AC still open'
+  - time: '2026-10-21T12:42:12'
+    action: 'T-3470: record 0909''s btrfs input — work root and template as subvolumes (not pinned by Timeshift), snapshot likely cheaper than reflink, re-measure before switching default'
+  - time: '2026-10-22T09:57:54'
+    action: 'T-3470: last AC ticked against design §2.5 (events to agent-work:<claim topic>, retention 1000, pinned by tests); verification names the right package'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 5016 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5016
+  commits: 5
+  files_changed: 333
+  lines_added: 30666
+  lines_removed: 7748
+  footprint_refreshed_at: '2026-10-27T20:59:21Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3470-t-2026-build-agentcheckout-and-agentcomm.md
+generated_by: context-agent-hybrid

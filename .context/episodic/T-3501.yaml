@@ -76,10 +76,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 939
-  commits: 1
-  files_changed: 9
-  lines_added: 1409
-  lines_removed: 8
+  commits: 2
+  files_changed: 11
+  lines_added: 1520
+  lines_removed: 16
+  footprint_refreshed_at: '2026-10-21T11:58:32Z'
+  footprint_refreshed_by_commit: 536f9578d
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3501-worker-contract-hub-backend-s1-dispatch-.md

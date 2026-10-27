@@ -1,0 +1,187 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3434: Upgrade vendored framework to AEF v1.8.11 (G-114 decision-revert fix)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T13:10:13Z
+# ============================================================================
+
+task_id: T-3434
+task_name: "Upgrade vendored framework to AEF v1.8.11 (G-114 decision-revert fix)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-13T16:48:12Z
+completed: 2026-10-17T13:09:40Z
+duration_days: 4
+updates_count: 2
+first_commit: 2026-10-13T18:49:11+02:00
+last_commit: 2026-10-17T15:09:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file framework upgrade to AEF v1.8.11 (G-114 decision-revert fix); pre-upgrade revert check 0. re-vendor AEF ed683536a -> bleeding-edge 5c886336b (1.8.10+516; operator ruling A, 2026-10-17). register the re-vendor - last_vendor_event 570c2e262, merge-of-upstream for the five merged preserved files; criteria corrected to the ruling (bleeding-edge 5c886336b, not v1.8.10) and verification added. RCA (G-114 upstream; the version-string fallback that would have downgraded 227 commits); checklist step 0: choose the re-vendor target by ancestry
+
+# Key outcomes
+outcomes:
+  - 'Target per the 2026-10-17 operator ruling (A): AEF bleeding-edge `5c886336b` (v1.8.11 not tagged; v1.8.10 is a 5-commit hotfix on 1.8.9 lacking 227 commits we already run, so the old fallback would be a downgrade)'
+  - 'Pre-re-vendor checklist from `.vendor-divergence.yaml` run first: `CLAUDE.md` backed up to `CLAUDE.md.prevendor`, `bash scripts/check-vendor-divergence.sh` exit 0 (every local divergence registered)'
+  - 'Rehearsed on a throwaway copy first, then run in place from a full upstream clone at the target, as T-3420 did (an agent operation, not an operator command); `fw doctor` reports no new failure afterwards'
+  - 'After the upgrade: `.agentic-framework/VERSION` is newer than `1.8.9+227.ged683536a`, `diff CLAUDE.md.prevendor CLAUDE.md` reviewed and project text above `## Core Principle` intact, `last_vendor_event` updated in `.vendor-divergence.yaml`, Watchtower restarted'
+  - 'Decision-revert check rerun after the upgrade: `python3 .agentic-framework/lib/watchtower_decision_revert.py` reports 0 reverted (baseline before upgrade, 2026-10-13: 0 reverted, index had nothing staged under .tasks/.context/episodic)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'file framework upgrade to AEF v1.8.11 (G-114 decision-revert fix); pre-upgrade revert check 0'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-17 — Upgrade target: bleeding-edge 5c886336b, not v1.8.10 (operator ruling)'
+    chose: 'A — re-vendor to AEF `origin/bleeding-edge` at `5c886336b` (2026-10-17), continuing the T-3420 field-test line. Operator: "proceed as you see fit", read as the recommended A.'
+    rationale: 'measured 2026-10-17 on a metadata-only upstream clone: v1.8.11 is not tagged; `v1.8.10` (704c9988f) is 1.8.9 plus 5 hotfix commits and lacks 227 commits of our vendored `ed683536a`, so the task''s fallback was a downgrade. Bleeding-edge contains all of ours plus 294 commits, including c1bc3f015 (T-4205 test leak, T-4207 no-inject mail surfaces, T-4208 one receiver per agent), which reach our own sidecar receiver only through the vendored copy. Scored A +21, B −7, C −28.'
+    alternatives_rejected: ['B wait for the v1.8.11 tag (keeps known receiver bugs meanwhile for roughly the same code later); C v1.8.10 (drops 227 commits we run). - **Left open:** moving to the v1.8.11 tag once AEF cuts it.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/context/budget-gate.sh'
+  - '.agentic-framework/agents/context/check-active-task.sh'
+  - '.agentic-framework/agents/context/checkpoint.sh'
+  - '.agentic-framework/agents/context/check-project-boundary.sh'
+  - '.agentic-framework/agents/context/check-visual-verification.sh'
+  - '.agentic-framework/agents/context/lib/memory-recall.py'
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.agentic-framework/agents/context/visual_checklist.py'
+  - '.agentic-framework/agents/fabric/fabric.sh'
+  - '.agentic-framework/agents/fabric/lib/cardlint.py'
+  - '.agentic-framework/agents/git/git.sh'
+  - '.agentic-framework/agents/git/lib/hooks.sh'
+  - '.agentic-framework/agents/git/lib/secret-scan.sh'
+  - '.agentic-framework/agents/git/lib/stale-index-guard.py'
+  - '.agentic-framework/agents/handover/handover.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/agents/ux-review/ux_shots.py'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/bin/watchtower.sh'
+  - '.agentic-framework/docs/context-compaction.md'
+  - '.agentic-framework/docs/releases/v1.8.11-upgrade-notes.md'
+  - '.agentic-framework/docs/reports/field-test-ed683536a-results.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.11-results.md'
+  - '.agentic-framework/docs/reports/T-4035-emergency-fix-lane.md'
+  - '.agentic-framework/docs/reports/T-4091-estate-push-pipe.md'
+  - '.agentic-framework/docs/reports/T-4091-inputs-ring20-collections-live.txt'
+  - '.agentic-framework/docs/reports/T-4091-inputs-ring20-spike.txt'
+  - '.agentic-framework/docs/reports/T-4092-codex-review-round2.md'
+  - '.agentic-framework/docs/reports/T-4092-codex-review-round3.md'
+  - '.agentic-framework/docs/reports/T-4092-codex-review-round4.md'
+  - '.agentic-framework/docs/reports/T-4092-hotfix-v1810.md'
+  - '.agentic-framework/docs/reports/T-4123-estate-knowledge-requirements.md'
+  - '.agentic-framework/docs/reports/T-4123-inputs/00b-followup-error-resolution.txt'
+  - '.agentic-framework/docs/reports/T-4123-inputs/00-brief-as-sent.txt'
+  - '.agentic-framework/docs/reports/T-4123-inputs/01b-dimitri-mint-dev-G.txt'
+  - '.agentic-framework/docs/reports/T-4123-inputs/01-dimitri-mint-dev.txt'
+  - '.agentic-framework/docs/reports/T-4123-inputs/02b-ring20-manager-role-cards.txt'
+  - '.agentic-framework/docs/reports/T-4123-inputs/02-ring20-manager.txt'
+  - '.agentic-framework/docs/reports/T-4123-inputs/03-832-workflow-designer.txt'
+  - '.agentic-framework/docs/reports/T-4123-inputs/03b-832-correction.txt'
+  - '.agentic-framework/docs/reports/T-4123-inputs/external/google__gemini-2.5-pro.json'
+  - '.agentic-framework/docs/reports/T-4123-inputs/external/google__gemini-2.5-pro.md'
+  - '.agentic-framework/docs/reports/T-4123-inputs/external/openai__gpt-5.json'
+  - '.agentic-framework/docs/reports/T-4123-inputs/external/openai__gpt-5.md'
+  - '.agentic-framework/docs/reports/T-4123-inputs/external/x-ai__grok-4.7.json'
+  - '.agentic-framework/docs/reports/T-4123-inputs/external/x-ai__grok-4.7.md'
+  - '.agentic-framework/docs/reports/T-4129-review-1409-T-1959.md'
+  - '.agentic-framework/docs/reports/T-4176-triage-832-T-1150.md'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/lib/bvp.sh'
+  - '.agentic-framework/lib/cmd_classify.py'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/context_tokens.py'
+  - '.agentic-framework/lib/delegation_cli.py'
+  - '.agentic-framework/lib/estate_ingest.py'
+  - '.agentic-framework/lib/estate_push.py'
+  - '.agentic-framework/lib/hook_parity.py'
+  - '.agentic-framework/lib/inception.sh'
+  - '.agentic-framework/lib/index_reconcile.py'
+  - '.agentic-framework/lib/issues.py'
+  - '.agentic-framework/lib/operator_pending.py'
+  - '.agentic-framework/lib/push-resolve.sh'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/reviewer/static_scan.py'
+  - '.agentic-framework/lib/review.sh'
+  - '.agentic-framework/lib/shell_write_scan.py'
+  - '.agentic-framework/lib/sidecar-audit.sh'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/sidecar/hooks.py'
+  - '.agentic-framework/lib/sidecar/http_server.py'
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - '.agentic-framework/lib/sidecar/lifecycle.py'
+  - '.agentic-framework/lib/sidecar/watcher.py'
+  - '.agentic-framework/lib/silent-skip-lint.sh'
+  - '.agentic-framework/lib/templates/claude-project.md'
+  - '.agentic-framework/lib/unclosable_misfiled.py'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/upgrade_template_shipped.py'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/lib/watchtower_decision_revert.py'
+  - '.agentic-framework/lib/watchtower-staleness.sh'
+  - '.agentic-framework/.tasks/templates/default.md'
+  - '.agentic-framework/tools/bats-silent-skip-lint.py'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/web/blueprints/approvals.py'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.agentic-framework/web/blueprints/inception.py'
+  - '.agentic-framework/web/shared.py'
+  - 'CLAUDE.md'
+  - '.context/audits/upgrades.yaml'
+  - '.context/upgrade-template-stamp.json'
+  - '.framework.yaml'
+  - '.tasks/active/T-3434-upgrade-vendored-framework-to-aef-v1811-.md'
+  - '.tasks/templates/default.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-13T18:49:11'
+    action: 'T-3434: file framework upgrade to AEF v1.8.11 (G-114 decision-revert fix); pre-upgrade revert check 0'
+  - time: '2026-10-17T15:07:24'
+    action: 'T-3434: re-vendor AEF ed683536a -> bleeding-edge 5c886336b (1.8.10+516; operator ruling A, 2026-10-17)'
+  - time: '2026-10-17T15:08:32'
+    action: 'T-3434: register the re-vendor - last_vendor_event 570c2e262, merge-of-upstream for the five merged preserved files; criteria corrected to the ruling (bleeding-edge 5c886336b, not v1.8.10) and verification added'
+  - time: '2026-10-17T15:09:39'
+    action: 'T-3434: RCA (G-114 upstream; the version-string fallback that would have downgraded 227 commits); checklist step 0: choose the re-vendor target by ancestry'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 5541 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework, vendor]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5541
+  commits: 6
+  files_changed: 422
+  lines_added: 37189
+  lines_removed: 8248
+  footprint_refreshed_at: '2026-10-27T20:59:13Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3434-upgrade-vendored-framework-to-aef-v1811-.md
+generated_by: context-agent-hybrid

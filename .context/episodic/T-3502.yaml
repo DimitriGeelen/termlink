@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3502: Worker contract hub backend S2: state sweep_dispatches (T4/T6/T6b/T7a/T7c) with registry_epoch over the T-3490 worker binding; CC-01/02/03/08/09/17/20/21 (T-3484)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-22T07:45:56Z
+# ============================================================================
+
+task_id: T-3502
+task_name: "Worker contract hub backend S2: state sweep_dispatches (T4/T6/T6b/T7a/T7c) with registry_epoch over the T-3490 worker binding; CC-01/02/03/08/09/17/20/21 (T-3484)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-20T20:19:18Z
+completed: 2026-10-22T07:43:06Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-10-21T13:06:08+02:00
+last_commit: 2026-10-21T13:33:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  dispatch state sweep (T4/T6/T7a/T7c) with registry epoch, hub-written history rows, supervisor step; sweep tests. map S1/S2 tests to contract v0.3.3 §9 cases — 15 covered, 4 partial, CC-10/11/12/15 wait for S3, CC-22/25 need the vector text. coverage map count corrected (14 covered, not 15)
+
+# Key outcomes
+outcomes:
+  - '`sweep_dispatches` runs as a step of the hub''s existing sweep and drives T4, T6 (both rows), T7a and T7c from STATE (registration files + records), never from events, each write going through S1''s fenced transition path with writer `hub` and a history row'
+  - 'Registry epoch per §4: bumped at hub start and on any sweep whose listing was incomplete; absence counts toward T4 only on two consecutive sweeps at the attempt''s `seen_epoch`; an epoch change can lead only to `unknown` via deadlines, never `lost` (tested: hub restart between sweeps, and an unreadable sessions dir)'
+  - 'T4 `lost` only after end observed twice plus grace G (≥ 4 × sweep interval) with no fenced `done` evidence; `lost` stays upgradable by T5 and `lost → running` is never written (a re-appearing binding gives a log line + operator notice instead), tested'
+  - 'T6: `dispatched` past `deadline_dispatched` → `unknown`; `running` with a live registration past `deadline_running` → `unknown`; T7a: `unknown` with a live binding → `running`; tested'
+  - 'Conformance CC-01, CC-02, CC-03, CC-08 and CC-09 pass as Rust tests with injected time and fake liveness, temp dirs only (T-3293 rule: never the real supervisor loop, never the real runtime dir)'
+  - 'Only `crates/termlink-bus/src/worker_contract*` and `crates/termlink-hub/src/{dispatch_contract,supervisor}.rs` (plus a new test file) are changed; `cargo test -p termlink-bus -p termlink-hub` passes and `bash scripts/check-error-code-emission.sh` stays clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/worker_contract.rs'
+  - 'crates/termlink-bus/src/worker_contract/sweep.rs'
+  - 'crates/termlink-bus/src/worker_contract/sweep_tests.rs'
+  - 'crates/termlink-hub/src/dispatch_contract.rs'
+  - 'crates/termlink-hub/src/supervisor.rs'
+  - 'docs/reports/T-3484-conformance-map.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T13:06:08'
+    action: 'T-3502: dispatch state sweep (T4/T6/T7a/T7c) with registry epoch, hub-written history rows, supervisor step; sweep tests'
+  - time: '2026-10-21T13:32:37'
+    action: 'T-3502: map S1/S2 tests to contract v0.3.3 §9 cases — 15 covered, 4 partial, CC-10/11/12/15 wait for S3, CC-22/25 need the vector text'
+  - time: '2026-10-21T13:33:23'
+    action: 'T-3502: coverage map count corrected (14 covered, not 15)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 2123 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2123
+  commits: 4
+  files_changed: 329
+  lines_added: 29811
+  lines_removed: 7721
+  footprint_refreshed_at: '2026-10-27T20:59:22Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3502-worker-contract-hub-backend-s2-state-swe.md
+generated_by: context-agent-hybrid

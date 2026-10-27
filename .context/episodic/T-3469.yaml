@@ -89,10 +89,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 3052
-  commits: 5
-  files_changed: 11
-  lines_added: 844
-  lines_removed: 40
+  commits: 6
+  files_changed: 13
+  lines_added: 964
+  lines_removed: 44
+  footprint_refreshed_at: '2026-10-20T23:34:56Z'
+  footprint_refreshed_by_commit: a28a92df9
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3469-t-2026-design-lock-the-agentcheckoutcomm.md

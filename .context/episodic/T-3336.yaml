@@ -82,10 +82,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 109
-  commits: 3
-  files_changed: 11
-  lines_added: 589
-  lines_removed: 9
+  commits: 4
+  files_changed: 13
+  lines_added: 699
+  lines_removed: 14
+  footprint_refreshed_at: '2026-10-06T11:26:10Z'
+  footprint_refreshed_by_commit: ceeb661e0
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3336-vector-database-dead-fw-ask-crashes-modu.md

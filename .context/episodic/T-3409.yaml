@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3409: arc-011 PH-1 B8: receiver checks (C-7) - SI-18 priority/trust, built-in allow-list, SI-23 switch logging, DOWNGRADED and not-allowed chain lines
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T22:28:12Z
+# ============================================================================
+
+task_id: T-3409
+task_name: "arc-011 PH-1 B8: receiver checks (C-7) - SI-18 priority/trust, built-in allow-list, SI-23 switch logging, DOWNGRADED and not-allowed chain lines"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-11T22:16:11Z
+completed: 2026-10-11T22:27:29Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T00:27:28+02:00
+last_commit: 2026-10-12T00:27:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  B8 receiver checks (SI-18 priority/trust, built-in allow-list, not-allowed and DOWNGRADED lines, SI-23 switch log)
+
+# Key outcomes
+outcomes:
+  - 'policy.rs (C-7): priority is the signed field clamped to [-9, 9]; trust class is computed from the verified sender key and the built-in allow-list (the estate roster), `own-project` or `untrusted`; urgent means priority >= 5 AND allow-listed, otherwise a would-be-urgent message is downgraded with a DOWNGRADED chain line, never dropped (SI-18)'
+  - 'A correctly self-signed message from a sender outside the roster is stored, recorded REFUSED with reason `not-allowed`, given a needs-attention entry and shown by `status`; no stage record goes back to it (note 7.2, OQ-2 recommended default)'
+  - 'Forgeries stay refused and unstored (sibling key claiming another identity, altered payload, wrong instance); every REFUSED chain line carries a reason code'
+  - 'SI-23: the `delivery off|on` admin op logs who, when and why on the chain; `policy::delivery_enabled` reads the flag on every call (no cached copy) and `status` uses it; the agent''s send socket cannot call it'
+  - 'SI-8 static test: policy.rs reads no message field other than the verified sender and the signed priority (no body, no grant from a body)'
+  - '`cargo test -p termlink-sidecar policy_` passes and the full `cargo test -p termlink-sidecar` stays green; no production path is touched'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-12 — OQ-2: sender outside the allow-list (built on the recommendation, pending operator ruling)'
+    chose: 'withhold: verify under the sender''s own key, store, REFUSED `not-allowed`, needs-attention, shown by `status`; never delivered and never answered.'
+    rationale: 'the note''s recommendation (smallest effect on a working agent). The operator said "proceed as you see fit"; that delegates initiative, not the ruling, so OQ-2 stays open for the operator. Switching to "deliver framed as untrusted" is a policy change confined to `policy.rs` and B9''s frame.'
+    alternatives_rejected: ['deliver framed as untrusted (left to the operator''s ruling).']
+  - decision: '2026-10-12 — No stage records to an untrusted sender'
+    chose: 'send none.'
+    rationale: 'its `from_agent` is a name it chose, not bound to a known key; answering would let any key push stage traffic into another agent''s inbox.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/policy.rs'
+  - 'crates/termlink-sidecar/src/pull.rs'
+  - 'crates/termlink-sidecar/src/send.rs'
+  - 'crates/termlink-sidecar/src/store.rs'
+  - 'crates/termlink-sidecar/src/testkit.rs'
+  - 'crates/termlink-sidecar/src/wire.rs'
+  - 'crates/termlink-sidecar/tests/policy_tests.rs'
+  - 'crates/termlink-sidecar/tests/receive_hub.rs'
+  - 'docs/design/arc-011-ph1-architecture.md'
+  - '.tasks/active/T-3409-arc-011-ph-1-b8-receiver-checks-c-7---si.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T00:27:28'
+    action: 'T-3409: B8 receiver checks (SI-18 priority/trust, built-in allow-list, not-allowed and DOWNGRADED lines, SI-23 switch log)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 11
+  commits: 3
+  files_changed: 336
+  lines_added: 30082
+  lines_removed: 7799
+  footprint_refreshed_at: '2026-10-27T20:59:09Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3409-arc-011-ph-1-b8-receiver-checks-c-7---si.md
+generated_by: context-agent-hybrid

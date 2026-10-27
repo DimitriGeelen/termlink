@@ -1,0 +1,111 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3550: SEV-1 fix 1: build every TermLink child environment by construction (env_clear + allow-list) on all spawn paths, incl. hub and tl-claude.sh
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-22T19:43:49Z
+# ============================================================================
+
+task_id: T-3550
+task_name: "SEV-1 fix 1: build every TermLink child environment by construction (env_clear + allow-list) on all spawn paths, incl. hub and tl-claude.sh"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-22T14:04:28Z
+completed: 2026-10-22T19:40:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-22T21:40:13+02:00
+last_commit: 2026-10-22T21:40:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  build every TermLink child environment by construction (env_clear + host allow-list + fixed PATH) on all spawn paths
+
+# Key outcomes
+outcomes:
+  - 'One shared allow-list (`termlink_session::child_env`): `env_clear()` plus host settings only (HOME, USER, LOGNAME, SHELL, TERM, LANG/LC_*, TZ, TMPDIR, XDG_RUNTIME_DIR, TERMLINK_RUNTIME_DIR) and a fixed PATH that never inherits the caller''s'
+  - 'The tmux client in `tmux_new_session` (CLI spawn and dispatch) runs with that environment; caller project variables are no longer forwarded to the session (project values only via the launch spec: `--env`, `--workdir`)'
+  - 'The CLI background backend (`detached_command`) and the MCP dispatch background spawn use it'
+  - '`scripts/tl-claude.sh` starts the agent under `env -i` plus the same allow-list instead of `env -u PROJECT_ROOT` (it goes through `termlink spawn`, which now does this; `oneshot` passes its values with `--env`)'
+  - 'The hub''s own environment: a hub started from a project shell no longer seeds spawns (the hub starts none itself; verified by grep and recorded), and the systemd unit / `hub start` path is covered'
+  - 'Tests use canary variables of unknown names, including a live private-socket tmux server pre-polluted by a leaking caller; a mutant restoring the deny-list (dropping `env_clear`) fails them'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'build every TermLink child environment by construction (env_clear + host allow-list + fixed PATH) on all spawn paths'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-22 — two layers on the tmux path, not one'
+    chose: 'clear the tmux client''s environment AND wrap the session command in `/usr/bin/env -i <allowed> /bin/sh -c`.'
+    rationale: 'clearing the client only protects a server our spawn starts. A server someone else already polluted still hands its global environment to every new session; only the wrapper covers that, and the live test shows it.'
+    alternatives_rejected: ['`new-session -e` per variable (cannot unset a polluted global); clearing the client alone.']
+  - decision: '2026-10-22 — the caller''s project variables are no longer forwarded'
+    chose: 'forward nothing project-scoped; project values come only from the launch spec (`--env`, `--workdir`, the cwd). `tl-claude.sh oneshot` now passes `TERMLINK_AGENT_ID`, `TERMLINK_SIDECAR_SOCKET` and `IS_SANDBOX` with `--env`.'
+    rationale: 'operator ruling A: "from the target''s validated launch spec, not from the spawning agent". T-3445 forwarded the caller''s `PROJECT_ROOT` even to `dispatch --workdir /opt/other` (antigravity review).'
+    alternatives_rejected: ['forwarding when the target is "the same project" (needs a project resolver here; that is T-3551''s job).']
+  - decision: '2026-10-22 — fixed PATH, not the caller''s'
+    chose: 'the binary''s own dir, `$HOME/.local/bin`, `$HOME/.cargo/bin`, then system dirs.'
+    rationale: 'a project can put its own `.agentic-framework/bin` first on PATH, and a child would run that project''s `fw`.'
+    alternatives_rejected: ['passing PATH through (a leak vector); a pure system PATH (loses `claude` and `termlink`). A session that needs more passes `--env PATH=...`.']
+  - decision: '2026-10-22 — the hub'
+    chose: '`hub restart` (CLI and MCP) starts the hub with the allow-list plus the caller''s `TERMLINK_*` settings.'
+    rationale: 'the hub starts no child processes (grep over `crates/termlink-hub` finds no `Command`), so its environment cannot reach a session; hub tuning variables (`TERMLINK_MAX_CONNECTIONS`, ...) are too many to list. The systemd unit already gives the hub a clean environment (`Environment=` lines only).'
+  - decision: '2026-10-22 — what is not changed'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/drain-sink-allowlist'
+  - 'crates/termlink-cli/src/commands/dispatch.rs'
+  - 'crates/termlink-cli/src/commands/execution.rs'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/commands/tmux_spawn.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'crates/termlink-session/src/child_env.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - '.fabric/components/crates-termlink-session-src-child_env.yaml'
+  - 'scripts/tl-claude.sh'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-3020-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3021-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3550-sev-1-fix-1-build-every-termlink-child-e.md'
+  - 'tests/tl-claude-identity-binding.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-22T21:40:13'
+    action: 'T-3550: build every TermLink child environment by construction (env_clear + host allow-list + fixed PATH) on all spawn paths'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 335 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [incident, sev1]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 335
+  commits: 2
+  files_changed: 335
+  lines_added: 29700
+  lines_removed: 7884
+  footprint_refreshed_at: '2026-10-27T20:59:31Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3550-sev-1-fix-1-build-every-termlink-child-e.md
+generated_by: context-agent-hybrid

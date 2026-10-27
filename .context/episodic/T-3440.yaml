@@ -912,10 +912,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 8856
-  commits: 26
-  files_changed: 782
-  lines_added: 10174
-  lines_removed: 5680
+  commits: 27
+  files_changed: 785
+  lines_added: 11605
+  lines_removed: 5686
+  footprint_refreshed_at: '2026-10-20T09:19:23Z'
+  footprint_refreshed_by_commit: fd9e7a23f
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3440-warn-escalation-check-audit-warning-ackn.md

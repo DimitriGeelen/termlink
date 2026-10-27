@@ -79,10 +79,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 57
-  commits: 3
-  files_changed: 5
-  lines_added: 651
-  lines_removed: 24
+  commits: 4
+  files_changed: 12
+  lines_added: 1622
+  lines_removed: 31
+  footprint_refreshed_at: '2026-10-06T11:49:16Z'
+  footprint_refreshed_by_commit: 74de0b244
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-2882-handover-generator-fabricates-narrative-.md

@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3291: Session lifecycle leak - zombie register processes and stale registration files accumulate
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T21:51:07Z
+# ============================================================================
+
+task_id: T-3291
+task_name: "Session lifecycle leak - zombie register processes and stale registration files accumulate"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T21:17:16Z
+completed: 2026-09-30T21:50:53Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-30T23:37:22+02:00
+last_commit: 2026-09-30T23:45:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  session-lifecycle-leak RCA — two leaks: 10,144 orphan .sock.data (sweep deletes .json+.sock only) and ~483 idle zombie register sessions (nothing ends a spawned shell; register exits only on SIGINT); recommendation GO in four slices. operator GO on all four slices — recorded via runme action 3 on next run; constraints + scope fence filled for the decide gate
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3291-iw1-processes.md'
+  - 'docs/reports/T-3291-iw2-files.md'
+  - 'docs/reports/T-3291-session-lifecycle-leak-rca.md'
+  - 'runme.sh'
+  - '.tasks/active/T-3291-session-lifecycle-leak---zombie-register.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-30T23:37:22'
+    action: 'T-3291: session-lifecycle-leak RCA — two leaks: 10,144 orphan .sock.data (sweep deletes .json+.sock only) and ~483 idle zombie register sessions (nothing ends a spawned shell; register exits only on SIGINT); recommendation GO in four slices'
+  - time: '2026-09-30T23:45:07'
+    action: 'T-3291: operator GO on all four slices — recorded via runme action 3 on next run; constraints + scope fence filled for the decide gate'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 33 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 33
+  commits: 3
+  files_changed: 328
+  lines_added: 29649
+  lines_removed: 7717
+  footprint_refreshed_at: '2026-10-27T20:59:00Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3291-session-lifecycle-leak---zombie-register.md
+generated_by: context-agent-hybrid

@@ -84,12 +84,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 76
-  commits: 4
-  files_changed: 22
-  lines_added: 1126
-  lines_removed: 22
-  footprint_refreshed_at: '2026-10-27T16:33:28Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 8
+  lines_added: 389
+  lines_removed: 4
+  footprint_refreshed_at: '2026-10-27T16:33:34Z'
+  footprint_refreshed_by_commit: 3fcd46a3d
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-1500-agent-timeline--fleet-wide-chronological.md

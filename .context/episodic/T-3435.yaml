@@ -89,12 +89,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 92
-  commits: 2
-  files_changed: 21
-  lines_added: 1602
-  lines_removed: 16
-  footprint_refreshed_at: '2026-10-13T18:27:52Z'
-  footprint_refreshed_by_commit: 4aaecb401
+  commits: 3
+  files_changed: 23
+  lines_added: 1726
+  lines_removed: 22
+  footprint_refreshed_at: '2026-10-13T18:31:21Z'
+  footprint_refreshed_by_commit: d8862d7a0
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3435-arc-011-ph-2-p3-sidecar-supervisor-unit-.md

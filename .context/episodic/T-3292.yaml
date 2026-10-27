@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3292: Speed up runme.sh - builds dominate (fat LTO, rebuild every commit, unconditional musl)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T22:53:15Z
+# ============================================================================
+
+task_id: T-3292
+task_name: "Speed up runme.sh - builds dominate (fat LTO, rebuild every commit, unconditional musl)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-30T22:23:57Z
+completed: 2026-09-30T22:52:41Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-01T00:31:17+02:00
+last_commit: 2026-10-01T00:31:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme builds only when code changed (per-build commit record; docs-only commits no longer rebuild), local-fast profile (thin LTO, 16 units, incremental) for host installs, musl built only when a fleet hub is behind
+
+# Key outcomes
+outcomes:
+  - 'Measured: a version-only rebuild with the current release profile vs a thin-LTO / multi-codegen-unit profile on this host, recorded in the task'
+  - 'runme skips `cargo build` (host and musl) when no code changed since the last build it recorded (crates/, Cargo.toml, Cargo.lock), and says so'
+  - 'Action 6 builds musl only when at least one fleet hub needs an upgrade'
+  - 'The GitHub release build keeps its profile (release.yml unchanged); tests/runme-fixtures.sh passes with cases for the skip paths'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-01 — measured build times (this host, load 25-30 on 24 cores)'
+    chose: 'local-fast (thin LTO, 16 units, incremental) for host installs + skip-when-no-code-change + musl only when a hub is behind. **Rejected:** GPU (rustc/LLVM have no GPU path); changing the `release` profile (published binaries keep fat LTO).'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'Cargo.toml'
+  - 'runme.sh'
+  - '.tasks/active/T-3292-speed-up-runmesh---builds-dominate-fat-l.md'
+  - '.tasks/completed/T-3291-session-lifecycle-leak---zombie-register.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T00:31:17'
+    action: 'T-3292: runme builds only when code changed (per-build commit record; docs-only commits no longer rebuild), local-fast profile (thin LTO, 16 units, incremental) for host installs, musl built only when a fleet hub is behind'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 28 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 28
+  commits: 2
+  files_changed: 328
+  lines_added: 29506
+  lines_removed: 7780
+  footprint_refreshed_at: '2026-10-27T20:59:00Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3292-speed-up-runmesh---builds-dominate-fat-l.md
+generated_by: context-agent-hybrid

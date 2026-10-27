@@ -2132,10 +2132,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 22013
-  commits: 26
-  files_changed: 1972
-  lines_added: 136775
-  lines_removed: 6950
+  commits: 27
+  files_changed: 1974
+  lines_added: 138934
+  lines_removed: 6955
+  footprint_refreshed_at: '2026-10-21T17:57:30Z'
+  footprint_refreshed_by_commit: c7baedd24
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3370-upgrade-vendored-aef-v1629-to-v183-opera.md

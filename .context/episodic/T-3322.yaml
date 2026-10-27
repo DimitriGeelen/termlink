@@ -75,10 +75,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 27153
-  commits: 2
-  files_changed: 6
-  lines_added: 944
-  lines_removed: 56
+  commits: 3
+  files_changed: 8
+  lines_added: 1046
+  lines_removed: 61
+  footprint_refreshed_at: '2026-10-21T11:54:08Z'
+  footprint_refreshed_by_commit: f7ee39e62
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3322-reclaim-dead-space-in-topic-logs-rewrite.md

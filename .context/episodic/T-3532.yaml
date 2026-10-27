@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3532: runme action 22: import ring20's deep-inception pack into a gitignored folder and delete the /var/tmp drop
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T20:57:12Z
+# ============================================================================
+
+task_id: T-3532
+task_name: "runme action 22: import ring20's deep-inception pack into a gitignored folder and delete the /var/tmp drop"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T16:34:53Z
+completed: 2026-10-21T20:57:04Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-21T18:35:44+02:00
+last_commit: 2026-10-21T22:54:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 22 imports ring20's deep-inception pack (sha256 + SHA256SUMS verified, gitignored mode-700 folder, /var/tmp drop deleted only after verification); 6 hermetic fixtures, suite 155/0. action 22 skips SHA256SUMS's own entry (ring20's pack lists itself, hashed while empty); fixture pack now has the same shape; suite 155/0. action 22 makes the pack owner-only and checks it on disk (tar reset the dir to 755 while the log said 700); readable existing import is tightened; fixtures 157/0
+
+# Key outcomes
+outcomes:
+  - 'runme.sh action 22 verifies the tarball''s sha256 against ring20''s, refuses unless the destination is gitignored, unpacks into `.context/working/ring20-deep-inception/` (mode 700), verifies every file against the SHA256SUMS inside, and only then deletes the `/var/tmp` drop; it never executes anything from the pack and is idempotent'
+  - 'Hermetic fixtures in tests/runme-fixtures.sh cover skip, dry-run, apply, wrong sha256, tampered contents and a non-ignored destination; the full suite passes (155/0)'
+  - 'The operator''s run shows action 22 OK in the runme log, the drop gone and the files verified (run 20261021T203302Z: OK unpacked, verified, drop deleted; the folder was left 755 by tar, fixed in the follow-up commit; run 20261021T205619Z: OK now owner-only, verified on disk, 0 group/other-accessible entries)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'action 22 makes the pack owner-only and checks it on disk (tar reset the dir to 755 while the log said 700); readable existing import is tightened; fixtures 157/0'
+    source: git-mined
+  - description: 'action 22 skips SHA256SUMS''s own entry (ring20''s pack lists itself, hashed while empty); fixture pack now has the same shape; suite 155/0'
+    source: git-mined
+  - description: 'runme action 22 imports ring20''s deep-inception pack (sha256 + SHA256SUMS verified, gitignored mode-700 folder, /var/tmp drop deleted only after verification); 6 hermetic fixtures, suite 155/0'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'runme.sh'
+  - '.tasks/active/T-3532-runme-action-22-import-ring20s-deep-ince.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T18:35:44'
+    action: 'T-3532: runme action 22 imports ring20''s deep-inception pack (sha256 + SHA256SUMS verified, gitignored mode-700 folder, /var/tmp drop deleted only after verification); 6 hermetic fixtures, suite 155/0'
+  - time: '2026-10-21T20:22:29'
+    action: 'T-3532: action 22 skips SHA256SUMS''s own entry (ring20''s pack lists itself, hashed while empty); fixture pack now has the same shape; suite 155/0'
+  - time: '2026-10-21T22:54:51'
+    action: 'T-3532: action 22 makes the pack owner-only and checks it on disk (tar reset the dir to 755 while the log said 700); readable existing import is tightened; fixtures 157/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 262 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 262
+  commits: 5
+  files_changed: 327
+  lines_added: 29597
+  lines_removed: 7729
+  footprint_refreshed_at: '2026-10-27T20:59:27Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3532-runme-action-22-import-ring20s-deep-ince.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3460: runme: record operator ticks for T-3291 and T-3302 GO reviews (uncommitted decide output committed under agent name; push blocked)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-18T08:44:09Z
+# ============================================================================
+
+task_id: T-3460
+task_name: "runme: record operator ticks for T-3291 and T-3302 GO reviews (uncommitted decide output committed under agent name; push blocked)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-17T23:39:08Z
+completed: 2026-10-18T08:43:58Z
+duration_days: 1
+updates_count: 1
+first_commit: 2026-10-18T01:52:30+02:00
+last_commit: 2026-10-18T10:42:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 14 records the operator's own GO-review ticks for T-3291 and T-3302 (decide output sat uncommitted, then committed under the agent's name; pre-push audit FAIL); fixtures 140/140. operator-ack rows for T-3291 and T-3302 GO-review ticks (runme action 14, rc=0)
+
+# Key outcomes
+outcomes:
+  - 'runme action 14 (`OPERATOR_TICKS`) includes the two review criteria by their Human-AC number, with a comment citing the rulings'
+  - '`tests/runme-fixtures.sh` passes with the extended list (140/140)'
+  - 'After the operator''s run, `human-ac-ticks.jsonl` has operator-ack rows for T-3291 and T-3302 and `git push origin main` passes its audit (runme 2026-10-18T08:42Z rc=0; pushed 56f80eae5..0aff0208c)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 14 records the operator''s own GO-review ticks for T-3291 and T-3302 (decide output sat uncommitted, then committed under the agent''s name; pre-push audit FAIL); fixtures 140/140'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/human-ac-ticks.jsonl'
+  - 'runme.sh'
+  - '.tasks/active/T-3460-runme-record-operator-ticks-for-t-3291-a.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-18T01:52:30'
+    action: 'T-3460: runme action 14 records the operator''s own GO-review ticks for T-3291 and T-3302 (decide output sat uncommitted, then committed under the agent''s name; pre-push audit FAIL); fixtures 140/140'
+  - time: '2026-10-18T10:42:34'
+    action: 'T-3460: operator-ack rows for T-3291 and T-3302 GO-review ticks (runme action 14, rc=0)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 544 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 544
+  commits: 4
+  files_changed: 328
+  lines_added: 29414
+  lines_removed: 7722
+  footprint_refreshed_at: '2026-10-27T20:59:20Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3460-runme-record-operator-ticks-for-t-3291-a.md
+generated_by: context-agent-hybrid

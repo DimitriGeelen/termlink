@@ -76,10 +76,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 3868
-  commits: 2
-  files_changed: 8
-  lines_added: 788
-  lines_removed: 32
+  commits: 3
+  files_changed: 10
+  lines_added: 978
+  lines_removed: 41
+  footprint_refreshed_at: '2026-10-17T23:30:35Z'
+  footprint_refreshed_by_commit: 01e51bb88
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3075-sidecar-api---separate-respawning-proces.md

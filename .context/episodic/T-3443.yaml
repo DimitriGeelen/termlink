@@ -1,0 +1,125 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3443: Triage five firing canaries (canary-aliveness, dead-letter, framework-pickup P-003, release-publication, waker-liveness)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T12:44:59Z
+# ============================================================================
+
+task_id: T-3443
+task_name: "Triage five firing canaries (canary-aliveness, dead-letter, framework-pickup P-003, release-publication, waker-liveness)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-14T21:39:09Z
+completed: 2026-10-17T12:44:38Z
+duration_days: 3
+updates_count: 2
+first_commit: 2026-10-14T23:56:48+02:00
+last_commit: 2026-10-17T14:44:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  canary triage fixes - aliveness sweep writes its own completion heartbeat; CI non-root: hub-runtime-dir fixture without chown, runme fixture mode may run non-root (76 cases were failing on the root refusal in CI); P8 fixture redirects the woken-silent log. canary triage report; T-3444 filed for the remaining guard-layer reds. report - forever-archival (project inbox retention) noted for the operator. decision 5 B - waker canary allowlist (agents not expected armed, reasoned, revisit W2), --expect-armed dropped on this host, crontab installed by runme action 1; fixtures 7. decision 6 B - project inbox retention: runme action 18 caps leftover forever inboxes at newest 1000 only when every reader is past the cut (refuses otherwise or when none is known); ours listed, others on owner confirmation (asked AEF, 832, 055, 1409); fixtures 133/133 (8 new). 055 confirmed - its inbox joins runme action 18 (policy only, deletes nothing today); AEF, 832, 1409 asking their operators. AEF's operator approved - its inbox joins runme action 18, reader position as stated by AEF (1461) kept git-tracked. 1409-sprind's operator approved - its inbox joins runme action 18 (policy only today). 832's operator approved - its inbox joins runme action 18; small inboxes report 'nothing deleted'; fixtures 134/134. close notes - what stays open (release-publication via T-3444, undetermined 'corrupt' dead-letter row, waker allowlist at W2, small test inboxes); verification added
+
+# Key outcomes
+outcomes:
+  - 'Each of the five canaries has a written finding (cause, evidence) in `docs/reports/T-3443-canary-triage.md`'
+  - 'Each cause is fixed here, or filed as its own task, or put to the operator where it is theirs to decide; no canary is silenced by clearing its log or acking without processing'
+  - 'Inbound framework-pickup filings are triaged (task filed or reply to the filer) before the pickup marker is acked'
+  - 'Any unattended filings waiting in `.context/working/pending-commit.list` are committed by name (`scripts/commit-pending.sh commit`)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: '832''s operator approved - its inbox joins runme action 18; small inboxes report ''nothing deleted''; fixtures 134/134'
+    source: git-mined
+  - description: 'decision 6 B - project inbox retention: runme action 18 caps leftover forever inboxes at newest 1000 only when every reader is past the cut (refuses otherwise or when none is known); ours listed, others on owner confirmation (asked AEF, 832, 055, 1409); fixtures 133/133 (8 new)'
+    source: git-mined
+  - description: 'decision 5 B - waker canary allowlist (agents not expected armed, reasoned, revisit W2), --expect-armed dropped on this host, crontab installed by runme action 1; fixtures 7'
+    source: git-mined
+  - description: 'canary triage fixes - aliveness sweep writes its own completion heartbeat; CI non-root: hub-runtime-dir fixture without chown, runme fixture mode may run non-root (76 cases were failing on the root refusal in CI); P8 fixture redirects the woken-silent log'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-15 — Decision 5: the dark push-wake rail (waker-liveness) (operator ruling)'
+    chose: 'B — stop expecting the legacy push-wake rail on this host until arc-011''s doorbell (W2): `--expect-armed` dropped from the waker crontab (installed by runme action 1), and agents not expected armed are named with a reason in the git-tracked `.context/checks/waker-not-expected-allowlist` (`penelope`, `aef-greenfield-test`), counted and reported but not firing; a dead waker on an armed agent and any new unarmed agent still fire. Revisit at W2; the rail-dark expectation retires at W4.'
+    rationale: 'a canary red for weeks on an accepted state teaches everyone to ignore it; the decision belongs where the canary reads it. Mail reaches agents here via AEF''s sidecar hook and arc-011 W1; arming would mean relaunching other projects'' agents for a rail W4 retires. Scored B +27, A +8, D −8, C −26.'
+    alternatives_rejected: ['A arm the agents; C leave red; D retire the canary now (loses the only dead-waker alarm before the replacement exists). - **Left open:** A for any single agent the operator wants armed; retiring the canary at W4.']
+  - decision: '2026-10-15 — Decision 6: project inbox retention (forever-archival) (operator ruling)'
+    chose: 'B — apply the T-3310 inbox default (newest 1000) to the leftover forever project inboxes, ours now, each other project''s only after its owner confirms. runme action 18 caps and sweeps a topic only when every known reader (every hub read-receipt, plus our own alert marker) is past the cut point, and refuses (FAILED, reader named, nothing changed) otherwise or when no reader position is known. AEF, 832, 055 and 1409-sprind are asked to confirm; their inboxes join action 18''s list only with that confirmation recorded here.'
+    rationale: 'these inboxes are forever by the pre-T-3310 omission bug, not by choice; measured 2026-10-15 ours is 1042 records, newest offset 1041, lowest reader at 969, our marker at 1040, so the cap deletes only offsets 0–41, all read. AEF''s 1462-record inbox carries no hub read positions, so only AEF can say what is unread. Scored B +37, C +2, A −3, D −3.'
+    alternatives_rejected: ['A cap all now (cannot prove AEF''s oldest 462 are read); C keep forever with an owner (charter non-goal #2; decisions live in tasks, not mail); D wait for arc-011 W4 (no date; an acknowledged canary goes unread). - **Left open:** the small leftover forever test inboxes (tiny; later); the forever-archival canary keeps firing on AEF''s inbox until AEF confirms. - **Owner answers (2026-10-16, conversation inbox-retention-t3443):** 055 yes (msg 8873e607: reader at 182, everything read, own delivery ledger) — added to action 18; 182 records, newest offset 181, so the cap sets the policy and deletes nothing today. AEF (msg 8c52f34a: cursor at head 1462, 0 unread, receiver keeps its own copy), 832 (msg 6a74ebb8: 0 unread, 746 records) and 1409-sprind (msg 2299cffc) are asking their operators; not added. - **AEF''s operator approved (2026-10-16, msgs d3ed390d + 2443f180):** cap to newest 1000 and sweep. Added to action 18. AEF''s inbox has no hub read-receipts, so its reader position is AEF''s stated one (read through 1461, the newest offset at the time), kept git-tracked in `.context/checks/inbox-reader-attested/999-Agentic-Engineering-Framework`; the cut (newest − 1000, ≈ 461) is far below it. This is the first inbox where a reader position rests on the owner''s word rather than the hub''s record; that is noted, not hidden. - **1409-sprind''s operator approved (2026-10-16, msg 2faa422d):** added to action 18; 150 records, so the cap sets the policy and deletes nothing today. Only 832 still to answer.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/inbox-reader-attested/999-Agentic-Engineering-Framework'
+  - '.context/checks/waker-not-expected-allowlist'
+  - '.context/cron/waker-liveness-canary.crontab'
+  - 'docs/reports/T-3443-canary-triage.md'
+  - '.fabric/components/tests-waker-liveness-fixtures.yaml'
+  - 'runme.sh'
+  - 'scripts/check-canary-aliveness.sh'
+  - 'scripts/check-waker-liveness-freshness.sh'
+  - '.tasks/active/T-3443-triage-five-firing-canaries-canary-alive.md'
+  - '.tasks/active/T-3444-guard-layer-red-on-main-since-2026-09-30.md'
+  - 'tests/canary-aliveness-sweep-fixtures.sh'
+  - 'tests/count-hub-plaintext-fields-fixtures.sh'
+  - 'tests/hub-runtime-dir-fixtures.sh'
+  - 'tests/runme-fixtures.sh'
+  - 'tests/waker-liveness-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-14T23:56:48'
+    action: 'T-3443: canary triage fixes - aliveness sweep writes its own completion heartbeat; CI non-root: hub-runtime-dir fixture without chown, runme fixture mode may run non-root (76 cases were failing on the root refusal in CI); P8 fixture redirects the woken-silent log'
+  - time: '2026-10-14T23:57:36'
+    action: 'T-3443: canary triage report; T-3444 filed for the remaining guard-layer reds'
+  - time: '2026-10-14T23:58:55'
+    action: 'T-3443: report - forever-archival (project inbox retention) noted for the operator'
+  - time: '2026-10-15T00:35:33'
+    action: 'T-3443: decision 5 B - waker canary allowlist (agents not expected armed, reasoned, revisit W2), --expect-armed dropped on this host, crontab installed by runme action 1; fixtures 7'
+  - time: '2026-10-15T19:24:04'
+    action: 'T-3443: decision 6 B - project inbox retention: runme action 18 caps leftover forever inboxes at newest 1000 only when every reader is past the cut (refuses otherwise or when none is known); ours listed, others on owner confirmation (asked AEF, 832, 055, 1409); fixtures 133/133 (8 new)'
+  - time: '2026-10-16T01:22:55'
+    action: 'T-3443: 055 confirmed - its inbox joins runme action 18 (policy only, deletes nothing today); AEF, 832, 1409 asking their operators'
+  - time: '2026-10-16T01:24:44'
+    action: 'T-3443: AEF''s operator approved - its inbox joins runme action 18, reader position as stated by AEF (1461) kept git-tracked'
+  - time: '2026-10-16T01:26:12'
+    action: 'T-3443: 1409-sprind''s operator approved - its inbox joins runme action 18 (policy only today)'
+  - time: '2026-10-16T01:34:00'
+    action: 'T-3443: 832''s operator approved - its inbox joins runme action 18; small inboxes report ''nothing deleted''; fixtures 134/134'
+  - time: '2026-10-17T14:44:37'
+    action: 'T-3443: close notes - what stays open (release-publication via T-3444, undetermined ''corrupt'' dead-letter row, waker allowlist at W2, small test inboxes); verification added'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 10 commit(s), 3785 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3785
+  commits: 12
+  files_changed: 339
+  lines_added: 30243
+  lines_removed: 7750
+  footprint_refreshed_at: '2026-10-27T20:59:14Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3443-triage-five-firing-canaries-canary-alive.md
+generated_by: context-agent-hybrid

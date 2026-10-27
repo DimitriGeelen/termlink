@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3531: Bus post can fail 'database is locked' (SQLITE_BUSY after 5 s) under concurrent reclaim / second writer connection
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T23:28:57Z
+# ============================================================================
+
+task_id: T-3531
+task_name: "Bus post can fail 'database is locked' (SQLITE_BUSY after 5 s) under concurrent reclaim / second writer connection"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T15:28:51Z
+completed: 2026-10-21T23:25:49Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-21T17:29:32+02:00
+last_commit: 2026-10-22T01:24:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  filed with ACs — bus post refused 'database is locked' under concurrent reclaim / second writer connection. bus post waits out a write lock held by another connection. reader test 20/20 under parallel cargo build (AC 4 evidence)
+
+# Key outcomes
+outcomes:
+  - 'Root cause named in the RCA with file:line: which connection held the write lock past the post''s 5 s busy wait (bus writer, bus reader, worker_contract writer, reclaim), and since which commit the second writer connection exists'
+  - 'A deterministic failing-first test holds the write lock from the other connection (or simulates a slow commit) for longer than the post''s wait and shows the post refused today; after the fix the post waits and succeeds within a bounded time, and past that bound fails with a named, loud error (not a raw SQLITE_BUSY)'
+  - 'The fix keeps the T-3488 budget: a post is still two durable steps (`a_post_is_two_durable_steps_and_a_create_is_one` unchanged) and the slow-lock log still names the waiting and holding call sites'
+  - '`readers_never_see_a_broken_log_during_posts_trims_and_rewrites` passes 20 consecutive runs, including alongside a parallel `cargo build` (2026-10-22: 20/20 while the T-3533 close ran cargo build/test alongside; host load 44–93 during the loop, 22 at its end); `cargo test -p termlink-bus -p termlink-hub` passes; RCA and Evolution filled'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/error.rs'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-bus/src/worker_contract.rs'
+  - '.tasks/active/T-3531-bus-post-can-fail-database-is-locked-sql.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T17:29:32'
+    action: 'T-3531: filed with ACs — bus post refused ''database is locked'' under concurrent reclaim / second writer connection'
+  - time: '2026-10-21T17:45:00'
+    action: 'T-3531: bus post waits out a write lock held by another connection'
+  - time: '2026-10-22T01:24:12'
+    action: 'T-3531: reader test 20/20 under parallel cargo build (AC 4 evidence)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 476 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 476
+  commits: 4
+  files_changed: 328
+  lines_added: 29599
+  lines_removed: 7740
+  footprint_refreshed_at: '2026-10-27T20:59:26Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3531-bus-post-can-fail-database-is-locked-sql.md
+generated_by: context-agent-hybrid

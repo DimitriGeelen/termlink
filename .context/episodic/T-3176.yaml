@@ -82,10 +82,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 108
-  commits: 4
-  files_changed: 6
-  lines_added: 931
-  lines_removed: 28
+  commits: 5
+  files_changed: 14
+  lines_added: 1338
+  lines_removed: 71
+  footprint_refreshed_at: '2026-10-06T11:46:54Z'
+  footprint_refreshed_by_commit: 4685184d2
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3176-local-implementation-bvp-auto-confirm-sw.md

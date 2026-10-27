@@ -7,10 +7,10 @@ description: >
   red 2026-10-03T05:41:01Z). Operator binding condition (T-3258 rulings): a stale
   WARN becomes an action.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [warn-escalation, guard-layer]
 components: []
 related_tasks: []
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-17T21:09:12Z
-last_update: 2026-10-17T23:19:36Z
-date_finished:
+last_update: 2026-10-17T23:22:06Z
+date_finished: 2026-10-17T23:22:06Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -335,6 +335,11 @@ bash scripts/voi-prompt.sh --check --quiet
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** `voi-prompt.sh` (WARN) red since 2026-10-03, escalated after 14 days.
+**Root cause:** not a code defect: 10 inceptions carried the template placeholder voi_score 0.5 and nobody had been asked; the check reports exactly that, as designed (T-3175).
+**Why structurally allowed:** new inceptions are created with the placeholder and nothing prompts the operator at creation time; the question surfaces only through this check, and its earlier output was read truncated (only the last 3 of 10 rows shown), so the backlog looked smaller than it was.
+**Prevention:** the 14-day escalation that filed this task is the prevention and worked; all 10 answered 2026-10-18 (2 by operator ruling, 8 under his delegation) with reasons in frontmatter. When triaging this check, read its full list.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -418,3 +423,20 @@ bash scripts/voi-prompt.sh --check --quiet
 
 ### 2026-10-17T23:19:03Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-410f3607
+- **Timestamp:** 2026-10-17T23:22:11Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-17T23:22:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -73,10 +73,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 48
-  commits: 1
-  files_changed: 4
-  lines_added: 125
-  lines_removed: 9
+  commits: 2
+  files_changed: 6
+  lines_added: 229
+  lines_removed: 13
+  footprint_refreshed_at: '2026-10-21T15:20:46Z'
+  footprint_refreshed_by_commit: 5dd7b7d9b
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3520-wc03-cc-12-answer-naming-an-unasked-ques.md

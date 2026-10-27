@@ -97,10 +97,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 1758
-  commits: 6
-  files_changed: 14
-  lines_added: 1072
-  lines_removed: 93
+  commits: 7
+  files_changed: 16
+  lines_added: 1201
+  lines_removed: 98
+  footprint_refreshed_at: '2026-10-23T14:22:47Z'
+  footprint_refreshed_by_commit: 71ed17ce2
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3543-scoped-hub-token-for-remote-nodes-hub-to.md

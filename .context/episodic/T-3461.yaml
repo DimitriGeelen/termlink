@@ -87,10 +87,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 1078
-  commits: 4
-  files_changed: 6
-  lines_added: 1403
-  lines_removed: 752
+  commits: 5
+  files_changed: 8
+  lines_added: 1533
+  lines_removed: 758
+  footprint_refreshed_at: '2026-10-18T18:36:50Z'
+  footprint_refreshed_by_commit: 1a78b25da
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3461-hub-bus-meta-sqlite-commits-fsync-on-tok.md

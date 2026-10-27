@@ -1,0 +1,105 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3411: arc-011 PH-1 B10: Claude adapter and hooks (C-11) - sidecar daemon, hook post-tool-use/stop/session-start, finalizer, fail-open turn, ready flag, WAITING FOR RECIPIENT/STUCK labels, scripted demo
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T23:02:56Z
+# ============================================================================
+
+task_id: T-3411
+task_name: "arc-011 PH-1 B10: Claude adapter and hooks (C-11) - sidecar daemon, hook post-tool-use/stop/session-start, finalizer, fail-open turn, ready flag, WAITING FOR RECIPIENT/STUCK labels, scripted demo"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-11T22:50:59Z
+completed: 2026-10-11T23:02:07Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T01:00:26+02:00
+last_commit: 2026-10-12T01:00:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  B10 Claude adapter and hooks (sidecar process, post-tool-use/session-start/stop hooks, finalizer, fail-open turn, ready flag, WAITING FOR RECIPIENT/STUCK)
+
+# Key outcomes
+outcomes:
+  - '`termlink-sidecar start --config <file>` runs inside the estate guard: opens the store (lock), the send pump, the receive loop, the deliverer and the three API sockets; stops cleanly on SIGTERM/SIGINT'
+  - '`termlink-sidecar hook post-tool-use` reads the hook input from stdin, calls `pull` with the session and tool_use_id, prints `{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":<frame>}}` only when a frame came back, and spawns a detached finalizer (`termlink-sidecar finalize`) that polls `handed-over` and ends with a final check'
+  - '`hook session-start` and `hook stop` record the session as ready (the flag the PH-2 doorbell will read); Stop does not pull (it cannot hand text to the agent without blocking the turn); the transcript is resolved by the sidecar under its own HOME, never from a path sent over the socket'
+  - 'The turn fails open: sidecar down, socket error or timeout makes the hook print nothing, exit 0 and append a line to `hook-errors.log`; the message stays STORED (6.3)'
+  - 'FC-5: a missing, empty, unreadable or stale ready flag reads not ready'
+  - 'FC-6/FC-7: on the sender, a message at STORED with no HANDED_OVER shows WAITING FOR RECIPIENT, and STUCK after the deadline (simulated clock)'
+  - '`scripts/arc011-ph1-demo.sh --scripted` exits 0: two real sidecar processes in a throwaway estate, a message sent, the hook command run with a scripted hook input, a scripted transcript record, and the sender''s status reaching HANDED_OVER'
+  - 'Live check run once: a real `claude -p` with the hook surfaces the pending frame in its transcript as `hook_additional_context` and the sidecar records HANDED_OVER; result written to `docs/reports/arc011-ph1-b10-live-hook.md`'
+  - '`cargo test -p termlink-sidecar --test hooks_tests` passes and the full suite stays green; no production path is touched'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-12 — The Stop hook does not pull'
+    chose: 'Stop (and SessionStart) only record the session as ready.'
+    rationale: 'without `decision: block` (excluded in PH-1) a Stop hook cannot hand text to the agent, so a claim taken there could never be evidenced and would sit UNCERTAIN; under OP-21 B mail waits for the next tool call.'
+    alternatives_rejected: ['pull on Stop (claims that can never reach the agent).']
+  - decision: '2026-10-12 — Hooks live in the `termlink-sidecar` binary'
+    chose: '`termlink-sidecar start|hook|finalize` instead of a `termlink sidecar` subcommand.'
+    rationale: 'PH-1 is estate-only; adding a subcommand to the production `termlink` CLI is not needed to prove the design and would put PH-1 code in the shipped binary.'
+    alternatives_rejected: ['`termlink-cli/commands/sidecar.rs` now (revisit when PH-1 is accepted).']
+  - decision: '2026-10-12 — Live check registers the transcript'
+    chose: 'the live test fixes `--session-id` and tells the sidecar the transcript location, because Claude runs with the operator''s HOME (no credential in the estate HOME, OQ-3).'
+    rationale: 'the alternative (copying the operator''s credential into the estate) is exactly what E-7 forbids.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/deliver.rs'
+  - 'crates/termlink-sidecar/src/hook.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/main.rs'
+  - 'crates/termlink-sidecar/tests/hooks_live.rs'
+  - 'crates/termlink-sidecar/tests/hooks_tests.rs'
+  - 'docs/design/arc-011-ph1-architecture.md'
+  - 'docs/reports/arc011-ph1-b10-live-hook.md'
+  - 'scripts/arc011-ph1-demo.sh'
+  - '.tasks/active/T-3411-arc-011-ph-1-b10-claude-adapter-and-hook.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T01:00:26'
+    action: 'T-3411: B10 Claude adapter and hooks (sidecar process, post-tool-use/session-start/stop hooks, finalizer, fail-open turn, ready flag, WAITING FOR RECIPIENT/STUCK)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 11
+  commits: 3
+  files_changed: 336
+  lines_added: 30495
+  lines_removed: 7741
+  footprint_refreshed_at: '2026-10-27T20:59:10Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3411-arc-011-ph-1-b10-claude-adapter-and-hook.md
+generated_by: context-agent-hybrid

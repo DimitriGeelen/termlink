@@ -79,10 +79,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 17
-  commits: 2
-  files_changed: 10
-  lines_added: 900
-  lines_removed: 32
+  commits: 3
+  files_changed: 12
+  lines_added: 1011
+  lines_removed: 37
+  footprint_refreshed_at: '2026-10-20T14:35:01Z'
+  footprint_refreshed_by_commit: c11b3cad0
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3490-worker-binding---worker-binding-dispatch.md

@@ -79,10 +79,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 249
-  commits: 2
-  files_changed: 5
-  lines_added: 839
-  lines_removed: 16
+  commits: 4
+  files_changed: 11
+  lines_added: 959
+  lines_removed: 28
+  footprint_refreshed_at: '2026-10-21T09:00:44Z'
+  footprint_refreshed_by_commit: 74a600d27
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3495-hub-notices-its-own-socket-replaced-and-.md

@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3464: W1 regression: T-3463 stopped termlink spawn forwarding the sidecar socket, and claude-fw (fleet launcher) relied on that forwarding - main agent restarted without TERMLINK_SIDECAR_SOCKET
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-18T13:52:59Z
+# ============================================================================
+
+task_id: T-3464
+task_name: "W1 regression: T-3463 stopped termlink spawn forwarding the sidecar socket, and claude-fw (fleet launcher) relied on that forwarding - main agent restarted without TERMLINK_SIDECAR_SOCKET"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-18T13:43:15Z
+completed: 2026-10-18T13:52:44Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-18T15:45:01+02:00
+last_commit: 2026-10-18T15:52:42+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  claude-fw passes the arc-011 sidecar sockets explicitly on the injected claude command (T-3463 stopped spawn forwarding them; fleet agent restarted without its sidecar); vendored patch registered. live-verified after Stop/Start (socket present), RCA
+
+# Key outcomes
+outcomes:
+  - 'claude-fw''s injected command carries TERMLINK_SIDECAR_SOCKET (and the status socket when set) as a per-command prefix when claude-fw itself has them, and nothing when it does not'
+  - 'The divergence is registered in .vendor-divergence.yaml'
+  - 'After the operator''s Stop/Start, this session has TERMLINK_SIDECAR_SOCKET and a hook pull works (2026-10-18 13:52Z: socket set in the session; sidecar delivery on, heartbeat fresh; no hook error from this session)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/bin/claude-fw'
+  - '.tasks/active/T-3464-w1-regression-t-3463-stopped-termlink-sp.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-18T15:45:01'
+    action: 'T-3464: claude-fw passes the arc-011 sidecar sockets explicitly on the injected claude command (T-3463 stopped spawn forwarding them; fleet agent restarted without its sidecar); vendored patch registered'
+  - time: '2026-10-18T15:52:42'
+    action: 'T-3464: live-verified after Stop/Start (socket present), RCA'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 4
+  files_changed: 327
+  lines_added: 29431
+  lines_removed: 7719
+  footprint_refreshed_at: '2026-10-27T20:59:21Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3464-w1-regression-t-3463-stopped-termlink-sp.md
+generated_by: context-agent-hybrid

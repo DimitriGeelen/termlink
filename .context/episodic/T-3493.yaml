@@ -87,10 +87,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 1625
-  commits: 5
-  files_changed: 10
-  lines_added: 379
+  commits: 6
+  files_changed: 11
+  lines_added: 476
   lines_removed: 30
+  footprint_refreshed_at: '2026-10-21T17:43:49Z'
+  footprint_refreshed_by_commit: cb1cc618f
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3493-inject-acl-for-registered-sessions-signe.md

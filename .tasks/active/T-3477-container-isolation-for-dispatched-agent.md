@@ -6,18 +6,18 @@ description: >
   Inception: Container isolation for dispatched agent workers: per-claim container
   instead of bare clone or worktree
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
 created: 2026-10-19T13:37:19Z
-last_update: 2026-10-21T16:04:05Z
+last_update: 2026-10-21T16:15:34Z
 date_finished:
-# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
-# revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
+revisit_at: 2026-11-04           # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
+revisit_evidence_needed: "ring20's deep-inception workflow (role panel + external consult rounds) obtained and scheduled for this task; status of a scoped per-worker hub token and of T-3493 C (signed requests)"
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
@@ -172,9 +172,14 @@ Research: docs/reports/T-3477-container-isolation-workers.md.
 
 ## Recommendation
 
-**Recommendation:** GO (draft, for the operator's decision) on a phased, human-initiated two-host pilot only; DEFER push-style remote spawn.
+**Recommendation:** DEFER — parked as a high-value inception (operator, 2026-10-21), to be run later as a deep inception
+(ring20-manager's workflow: separate roles plus external consult rounds). Revisit 2026-11-04.
 
-**Rationale:**
+**Rationale (operator's ruling):** the question is deep and strategic (capacity across the fleet, credentials, which hub owns
+the record, who may start work on a host) and deserves the full deep-inception treatment rather than a fast GO on a pilot.
+The material below is the starting point for that run, not a decision. Draft analysis kept for reference:
+
+**Earlier draft (superseded by the operator's DEFER), rationale:**
 
 The operator's goal is capacity: .107 is oversubscribed (load 45/27/30 on 24 cores, 2026-10-21) and root is 87% full. Containers help here mainly as a distribution unit, not just isolation. The smallest design that works across hosts without new security primitives is a pull-based standing worker (run model c+b): the host pulls a digest-pinned image, the worker self-selects via the shipped claim primitive, clones from OneDev per claim, returns a branch, and is verified before landing. It needs no inbound remote-start path (IW-10) and no full hub secret in a container (IW-1). Push-style per-task spawn on a chosen host (model a) is the end state but waits on a signed spawn envelope (T-3493 C / O-7) and a scoped per-worker hub token, neither of which exists. Phase 1 uses the worker host's own hub (IW-8 option R2) to avoid a cross-host credential. Other hosts' capacity and runtime are unknown (asked ring20 on 2026-10-21, answer pending), so GO is conditional on that answer and on the operator deciding IW-8.
 
@@ -200,6 +205,17 @@ The operator's goal is capacity: .107 is oversubscribed (load 45/27/30 on 24 cor
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-10-21 — park as a high-value inception for a deep run later (operator ruling)
+- **Chose:** DEFER. Operator: "Let's park this now as a high value inception that we want to do later ... We need to use
+  our whole workflow to run through inception, deep inception we got from Ring20 Manager with different roles and
+  external consults. I think this is a really deep one." VOI stays 0.8; horizon later; revisit 2026-11-04 (agent's
+  assumption for the date; the operator gave none).
+- **Why:** a capacity-across-the-fleet design touches credentials, record ownership, host authorisation and ring20's
+  infrastructure; it warrants the full role-panel and external-consult process, not a pilot GO from one brief.
+- **Rejected for now:** A (two-host pilot GO, the agent's recommendation in the brief), B (push spawn now), D (no-go).
+- **Left open:** obtain ring20's deep-inception workflow (asked 2026-10-21); the research in
+  docs/reports/T-3477-container-isolation-workers.md §6 (with ring20's measured capacity answer) is its starting material.
+
 ## Decision
 
 <!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
@@ -224,3 +240,7 @@ The operator's goal is capacity: .107 is oversubscribed (load 45/27/30 on 24 cor
 - Hard constraint carried from the operator's standing rules: the operator's own credentials (e.g. ~/.claude/.credentials.json)
   are never copied into a container or onto another host (IW-1 must find another route).
 - VOI raised to 0.8 by the operator (decision 4, 2026-10-21).
+
+### 2026-10-21T16:15:34Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)

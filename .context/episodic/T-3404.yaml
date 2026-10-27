@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3404: arc-011 PH-1 B4: durable store — write sequence, lock, hash chain, claim files, recovery
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T18:21:28Z
+# ============================================================================
+
+task_id: T-3404
+task_name: "arc-011 PH-1 B4: durable store — write sequence, lock, hash chain, claim files, recovery"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T18:16:40Z
+completed: 2026-10-11T18:21:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-11T20:21:03+02:00
+last_commit: 2026-10-11T20:21:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  durable store (C-2): write sequence with failpoints, flock, hash chain, claims, recovery
+
+# Key outcomes
+outcomes:
+  - 'store.rs (C-2) lays out lock, log/, msgs/, claims/, tmp/ (dirs 0700, files 0600) under <store>/sidecar/<agent>/ and refuses to open outside a marked estate'
+  - 'Write sequence of 4.3 (tmp write, file fsync, rename, dir fsync, chain append, log fsync, report) with a failpoint at every step (feature `failpoints`); a kill at each step leaves the message absent or present and never reported-and-missing; recovery at start clears tmp/, verifies checksums, appends or quarantines record-without-chain-line, reports chain-line-without-record loudly'
+  - 'Second open on the same store is refused (flock); record checksum recomputed on read, failing record quarantined (.bad) with a needs-attention entry'
+  - 'Hash chain verified by walk: edit/insert/delete in the middle names the first break; tail truncation stated as not yet detectable'
+  - 'Same (sender, conv, msg_id) with same digest is idempotent, with different digest records CONFLICT and leaves the first record untouched'
+  - 'Delivery claim files claims/<msg_id>.<n> created O_EXCL, exactly one winner, survive restart'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/store.rs'
+  - 'crates/termlink-sidecar/tests/store_tests.rs'
+  - '.tasks/active/T-3404-arc-011-ph-1-b4-durable-store--write-seq.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T20:21:03'
+    action: 'T-3404: durable store (C-2): write sequence with failpoints, flock, hash chain, claims, recovery'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 326
+  lines_added: 30342
+  lines_removed: 7716
+  footprint_refreshed_at: '2026-10-27T20:59:08Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3404-arc-011-ph-1-b4-durable-store--write-seq.md
+generated_by: context-agent-hybrid

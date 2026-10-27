@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3396: arc-011 PH-0: six standing-control fixtures that must fail on today's system (R-69, GP-12)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T17:22:44Z
+# ============================================================================
+
+task_id: T-3396
+task_name: "arc-011 PH-0: six standing-control fixtures that must fail on today's system (R-69, GP-12)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T17:18:26Z
+completed: 2026-10-11T17:22:32Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-11T19:22:11+02:00
+last_commit: 2026-10-11T19:22:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  PH-0 six standing controls (tests/standing-controls.sh), red on today's status surface, WARN-tier known-red
+
+# Key outcomes
+outcomes:
+  - 'tests/standing-controls.sh (named without "fixtures": fixture suites cannot be demoted to WARN) exists with six controls (SC-1..SC-6): unsurfaced mail (INC-a), misfiled key (INC-d), two receivers on one inbox (INC-c), agent outside the waker, one cooperating process dead, stray second hub (INC-b)'
+  - 'Each control runs only against a disposable simulated estate (temp dirs, canned data), never the live hub or real inboxes'
+  - 'Each control is RED on today''s behaviour for its named reason; the suite prints the reason per control and exits 1 while any is red (2 on tooling error)'
+  - 'The suite is registered as known-red in the guard layer via a WARN marker with a reason (not FAIL tier), and the doc names the phase in which each control turns green'
+  - 'A --self-check mode proves each control can also go green (injected fixed-behaviour seam), so red is not vacuous'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'tests/standing-controls.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T19:22:11'
+    action: 'T-3396: PH-0 six standing controls (tests/standing-controls.sh), red on today''s status surface, WARN-tier known-red'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 3
+  files_changed: 325
+  lines_added: 29559
+  lines_removed: 7716
+  footprint_refreshed_at: '2026-10-27T20:59:07Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3396-arc-011-ph-0-six-standing-control-fixtur.md
+generated_by: context-agent-hybrid

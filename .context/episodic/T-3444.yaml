@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3444: Guard layer red on main since 2026-09-30: remaining FAIL-tier members after T-3443
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T14:43:02Z
+# ============================================================================
+
+task_id: T-3444
+task_name: "Guard layer red on main since 2026-09-30: remaining FAIL-tier members after T-3443"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-14T21:56:49Z
+completed: 2026-10-17T14:42:44Z
+duration_days: 3
+updates_count: 2
+first_commit: 2026-10-17T16:31:20+02:00
+last_commit: 2026-10-17T16:42:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CI installs the full import set for the vector-index fixture (sqlite-vec, ollama, Flask, PyYAML; found in a clean venv, where the fixture passes 4/4, pinned to the .107 versions); verification and RCA recorded. guard layer green on main (doc-lint run 39041249161 on 767643c1c, first since 2026-09-30)
+
+# Key outcomes
+outcomes:
+  - '(1) T-3300''s two commands are under its `## Verification` and re-run; `check-verification-misfile.sh` exits 0'
+  - '(2) `human-ac-escalation-fixtures` no longer asserts the live tree (it uses a fixture tree), and passes whatever the real task corpus holds'
+  - '(3) `pin-events-fixtures` cause of the CI-only failure found and fixed; passes as root and as a non-root user with a private /tmp'
+  - '(4) `vector-index-reader-no-rebuild-fixtures` does not ERROR where `ollama` is not installed (skips that case, saying so, or stubs the import)'
+  - '(5, found 2026-10-17 in CI run 39035578477) `budget-ladder-drift-fixtures` reads the expected window from the vendored gate, not the literal 300000 the T-3434 re-vendor broke'
+  - 'One guard-layer run on main is green after the push (`doc-lint.yml`, read via `gh api`), or the remaining red is named with its own task'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'CI installs the full import set for the vector-index fixture (sqlite-vec, ollama, Flask, PyYAML; found in a clean venv, where the fixture passes 4/4, pinned to the .107 versions); verification and RCA recorded'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.github/workflows/doc-lint.yml'
+  - '.github/workflows/release.yml'
+  - '.tasks/active/T-3444-guard-layer-red-on-main-since-2026-09-30.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-17T16:31:20'
+    action: 'T-3444: CI installs the full import set for the vector-index fixture (sqlite-vec, ollama, Flask, PyYAML; found in a clean venv, where the fixture passes 4/4, pinned to the .107 versions); verification and RCA recorded'
+  - time: '2026-10-17T16:42:43'
+    action: 'T-3444: guard layer green on main (doc-lint run 39041249161 on 767643c1c, first since 2026-09-30)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3885 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [ci, guard-layer]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3885
+  commits: 4
+  files_changed: 327
+  lines_added: 29072
+  lines_removed: 7727
+  footprint_refreshed_at: '2026-10-27T20:59:15Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3444-guard-layer-red-on-main-since-2026-09-30.md
+generated_by: context-agent-hybrid

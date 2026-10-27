@@ -70,10 +70,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 9
-  commits: 2
-  files_changed: 3
-  lines_added: 425
-  lines_removed: 12
+  commits: 3
+  files_changed: 5
+  lines_added: 529
+  lines_removed: 17
+  footprint_refreshed_at: '2026-10-21T13:57:03Z'
+  footprint_refreshed_by_commit: ac33de451
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3516-bus-test-subscribeblockingwakesonconcurr.md

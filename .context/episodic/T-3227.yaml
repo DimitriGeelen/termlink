@@ -70,10 +70,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 30796
-  commits: 1
-  files_changed: 5
-  lines_added: 389
-  lines_removed: 184
+  commits: 2
+  files_changed: 7
+  lines_added: 486
+  lines_removed: 189
+  footprint_refreshed_at: '2026-10-20T20:41:40Z'
+  footprint_refreshed_by_commit: e5365744c
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3227-mcp-agentcontact-has-no-recipient-reacha.md

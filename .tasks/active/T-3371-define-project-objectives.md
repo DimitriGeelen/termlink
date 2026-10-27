@@ -13,7 +13,7 @@ tags: [objectives-authoring]
 components: []
 related_tasks: []
 created: 2026-10-06T11:19:34Z
-last_update: 2026-10-20T23:41:14Z
+last_update: 2026-10-20T23:47:14Z
 date_finished: 2026-10-20T21:41:31Z
 bvp_scores_proposed:
   - ts: '2026-10-20T19:51:39Z'

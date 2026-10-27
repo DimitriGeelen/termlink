@@ -78,10 +78,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 1
-  commits: 3
-  files_changed: 8
-  lines_added: 480
-  lines_removed: 17
+  commits: 4
+  files_changed: 10
+  lines_added: 591
+  lines_removed: 21
+  footprint_refreshed_at: '2026-10-20T17:18:10Z'
+  footprint_refreshed_by_commit: ebb4ed981
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3496-re-vendor-aef-v1813---v1814-security-hot.md

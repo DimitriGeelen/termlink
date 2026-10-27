@@ -106,12 +106,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 254873
-  commits: 6
-  files_changed: 56
-  lines_added: 1697
-  lines_removed: 283
-  footprint_refreshed_at: '2026-10-26T23:28:37Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 5
+  files_changed: 27
+  lines_added: 554
+  lines_removed: 189
+  footprint_refreshed_at: '2026-10-26T23:28:40Z'
+  footprint_refreshed_by_commit: 0b150f49d
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-1453-fw-task-revisit-due-cli-verb-t-1449-phas.md

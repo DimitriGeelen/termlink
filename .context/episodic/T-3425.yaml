@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3425: RCA: agent tmux -S /proc/PID/cwd stripped x bits from / (host boot failure 2026-10-12)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-12T19:25:33Z
+# ============================================================================
+
+task_id: T-3425
+task_name: "RCA: agent tmux -S /proc/PID/cwd stripped x bits from / (host boot failure 2026-10-12)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-12T18:10:35Z
+completed: 2026-10-12T19:25:20Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T20:12:42+02:00
+last_commit: 2026-10-12T20:32:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  RCA - agent's tmux -S /proc/2908/cwd stripped x bits from / (boot failure 2026-10-12). operator ruling A - tmux socket-path guard hook + root-mode boot/hourly canary
+
+# Key outcomes
+outcomes:
+  - 'Root cause written up with the reproduction and the timing evidence in `docs/reports/T-3425-root-chmod-incident.md`'
+  - 'Learning recorded so agents never pass an unchecked path (esp. `/proc/<pid>/cwd`) to `tmux -S`'
+  - 'Prevention guard proposed to the operator (hook refusing `tmux -S`/`-L` on a non-socket path; boot check that `/` is 0755)'
+  - '(ruling A) PreToolUse(Bash) hook `scripts/hooks/check-tmux-socket-path.sh` wired in `.claude/settings.local.json` (survives re-vendor); live-proven blocking `echo tmux -S /proc/1/cwd`'
+  - '(ruling A) root-mode canary `scripts/check-root-mode-freshness.sh` + `.context/cron/root-mode-canary.crontab` (@reboot + hourly, alert only) + runme action 1 install with fixture'
+  - 'Fixtures `tests/root-mode-guard-fixtures.sh` 24/24; mutant removing the /proc rule turns G1 red'
+  - 'Crontab installed on the host (operator runs `/opt/termlink/runme.sh`; `check-cron-install-drift.sh` no longer lists root-mode-canary as MISSING)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-12 — prevention after the `/` chmod incident'
+    chose: 'A (operator ruling): a project PreToolUse hook refusing `tmux -S`/`-L` on /proc or non-socket paths, plus a boot+hourly canary alerting when `/` is not 755 root.'
+    rationale: 'the hook stops the exact command class; the canary turns a silent pre-reboot state (~10 min here) into a visible alert. Alert only, no self-heal: who changed `/` matters.'
+    alternatives_rejected: ['B (hook only: no detection if another route changes `/`), C (learning only: discipline, not structure).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/settings.local.json'
+  - '.context/cron/root-mode-canary.crontab'
+  - '.context/project/learnings.yaml'
+  - 'docs/reports/T-3425-root-chmod-incident.md'
+  - '.fabric/components/scripts-check-root-mode-freshness.yaml'
+  - '.fabric/components/scripts-hooks-check-tmux-socket-path.yaml'
+  - '.fabric/components/tests-root-mode-guard-fixtures.yaml'
+  - 'runme.sh'
+  - 'scripts/check-root-mode-freshness.sh'
+  - 'scripts/hooks/check-tmux-socket-path.sh'
+  - '.tasks/active/T-3425-rca-agent-tmux--s-procpidcwd-stripped-x-.md'
+  - 'tests/root-mode-guard-fixtures.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T20:12:42'
+    action: 'T-3425: RCA - agent''s tmux -S /proc/2908/cwd stripped x bits from / (boot failure 2026-10-12)'
+  - time: '2026-10-12T20:32:58'
+    action: 'T-3425: operator ruling A - tmux socket-path guard hook + root-mode boot/hourly canary'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 74 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 74
+  commits: 4
+  files_changed: 336
+  lines_added: 29757
+  lines_removed: 7721
+  footprint_refreshed_at: '2026-10-27T20:59:12Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3425-rca-agent-tmux--s-procpidcwd-stripped-x-.md
+generated_by: context-agent-hybrid

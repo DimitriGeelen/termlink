@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3293: Session cleanup never deletes <id>.sock.data - 10k orphan files (T-3291 S1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T23:28:15Z
+# ============================================================================
+
+task_id: T-3293
+task_name: "Session cleanup never deletes <id>.sock.data - 10k orphan files (T-3291 S1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-30T22:41:33Z
+completed: 2026-09-30T23:26:44Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-01T00:53:30+02:00
+last_commit: 2026-10-01T01:25:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  prep — record T-3292 done (measured: version-only rebuild release 782s vs local-fast 175s, 4.5x; docs-only commits now skip cargo; musl only when a hub is behind). repair decisions.yaml — T-3292's auto-captured decision was emitted indented as PD-001 and truncated (the deterministic T-3150 defect); rewritten as PD-175 with the full measured rationale. prep — record T-3290 done: local hub + .122 on 0.12.30 (runme rc=0, log runme-20260930T225727Z); .122 upgraded through its systemd unit, secret + cert unchanged; fleet floor for .122 raised 0.11.1411 -> 0.12.30, stale watchdog note superseded. session cleanup removes all three files — cleanup_stale deletes <sock>.data (derived + recorded); hub sweep reaps orphan .sock.data (no .json, older than 10 min) every cycle, before the no-deaths early return; register cleans up on SIGTERM/SIGHUP as well as SIGINT
+
+# Key outcomes
+outcomes:
+  - '`cleanup_stale` removes `<sock>.data` (derived via `data_socket_path`, plus `metadata.data_socket` if it differs) along with `.sock` + `.json`; unit test asserts all three are gone'
+  - 'The hub sweep reaps an orphan `*.sock.data` whose `<id>.json` is absent and whose mtime is older than a grace period; never one with a `.json` present, never one younger than the grace; unit tests pin all three cases'
+  - '`termlink register` removes its files on SIGTERM and SIGHUP as well as SIGINT'
+  - '`cargo test -p termlink-session -p termlink-hub` passes; `cargo build` clean; guard-layer static checks still pass (alloc/drain/silent-exit/busy-spin/platform-lock)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-01 — a unit test deleted ~10,000 real files (incident, fixed)'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/fleet-version-floors.conf'
+  - '.context/project/decisions.yaml'
+  - 'crates/termlink-cli/src/commands/session.rs'
+  - 'crates/termlink-cli/tests/cli_integration.rs'
+  - 'crates/termlink-hub/src/supervisor.rs'
+  - 'crates/termlink-session/src/liveness.rs'
+  - '.tasks/active/T-3293-session-cleanup-never-deletes-idsockdata.md'
+  - '.tasks/completed/T-3290-restart-local-hub-onto-current-binary-vi.md'
+  - '.tasks/completed/T-3292-speed-up-runmesh---builds-dominate-fat-l.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T00:53:30'
+    action: 'T-3293: prep — record T-3292 done (measured: version-only rebuild release 782s vs local-fast 175s, 4.5x; docs-only commits now skip cargo; musl only when a hub is behind)'
+  - time: '2026-10-01T00:54:28'
+    action: 'T-3293: repair decisions.yaml — T-3292''s auto-captured decision was emitted indented as PD-001 and truncated (the deterministic T-3150 defect); rewritten as PD-175 with the full measured rationale'
+  - time: '2026-10-01T01:09:45'
+    action: 'T-3293: prep — record T-3290 done: local hub + .122 on 0.12.30 (runme rc=0, log runme-20260930T225727Z); .122 upgraded through its systemd unit, secret + cert unchanged; fleet floor for .122 raised 0.11.1411 -> 0.12.30, stale watchdog note superseded'
+  - time: '2026-10-01T01:25:59'
+    action: 'T-3293: session cleanup removes all three files — cleanup_stale deletes <sock>.data (derived + recorded); hub sweep reaps orphan .sock.data (no .json, older than 10 min) every cycle, before the no-deaths early return; register cleans up on SIGTERM/SIGHUP as well as SIGINT'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 45 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 45
+  commits: 5
+  files_changed: 331
+  lines_added: 29597
+  lines_removed: 7758
+  footprint_refreshed_at: '2026-10-27T20:59:00Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3293-session-cleanup-never-deletes-idsockdata.md
+generated_by: context-agent-hybrid

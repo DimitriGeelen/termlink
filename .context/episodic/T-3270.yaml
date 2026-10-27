@@ -73,10 +73,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 3
-  commits: 2
-  files_changed: 4
-  lines_added: 400
-  lines_removed: 8
+  commits: 3
+  files_changed: 6
+  lines_added: 500
+  lines_removed: 12
+  footprint_refreshed_at: '2026-10-06T11:26:10Z'
+  footprint_refreshed_by_commit: ceeb661e0
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3270-focus-drift-gate-names-the-pending-commi.md

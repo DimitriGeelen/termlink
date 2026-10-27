@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3539: wc/0.3 hub: T7d material binding and attested-done consumer refusal (CC-22)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-22T07:39:43Z
+# ============================================================================
+
+task_id: T-3539
+task_name: "wc/0.3 hub: T7d material binding and attested-done consumer refusal (CC-22)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T23:31:07Z
+completed: 2026-10-22T07:36:18Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-10-22T09:36:12+02:00
+last_commit: 2026-10-22T09:36:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T7d material binding — attested done records the operator outcome with no evidence digest; bound evidence (attempt nonce) derives the outcome, attested false; CLI --outcome/--evidence; CC-22 now blocked only on consume (T-3540); vectors 18/0
+
+# Key outcomes
+outcomes:
+  - '`resolve --as done` without bound evidence needs an operator outcome (`succeeded` or `failed`; missing or other is `invalid`) and writes `state done, outcome <it>, attested true, attested_by operator, result_kind none, evidence_digest NULL`. Unbound material (a kind other than evidence) is still an attestation, and its kind is noted in the history cause'
+  - '`resolve --as done` with bound evidence (the attempt''s nonce plus evidence digest, exit code, hand-back, persisted_at) is checked against the attempt''s nonce in the same transaction. A wrong nonce is refused (`bad_nonce`) and changes no state. (Amended: like every refused write it leaves one refusal row outside the lifecycle, the existing `refuse` convention.) A bound one writes `attested false`, the evidence digest, and the outcome derived by the T3 rule (`derive_outcome`); an operator `outcome` given alongside is ignored for the derivation and noted in the cause'
+  - 'CLI: `termlink hub dispatch-resolve` gains `--outcome succeeded|failed` and `--evidence <file.json>` (fields: nonce, evidence_digest, exit_code, handback, persisted_at), and the help text says an attestation is not finished work'
+  - 'Tests (`cc15_unknown_resolution_by_operator` updated to the outcome rule, `cc22_resolve_material_bound_evidence_and_unbound`, hub `resolve_on_host` test; bus worker_contract 57/0, hub dispatch_contract 10/0): the attested done (fields as above, digest null), unbound material, bound evidence (outcome derived, attested false), wrong nonce refused, and a done with no outcome or evidence refused. The conformance adapter maps `outcome` and `material` (kind evidence → the vector''s bound evidence; any other kind → unbound); vectors at 25f56ed68 keep fail=0, and CC-22''s only remaining gap is `op:consume` (T-3540)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/worker_contract/answer.rs'
+  - 'crates/termlink-bus/src/worker_contract/answer_tests.rs'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-hub/src/dispatch_contract.rs'
+  - 'crates/termlink-hub/tests/wc_conformance/hub.rs'
+  - 'docs/reports/T-3484-conformance-map.md'
+  - '.tasks/active/T-3539-wc03-hub-t7d-material-binding-and-attest.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-22T09:36:12'
+    action: 'T-3539: T7d material binding — attested done records the operator outcome with no evidence digest; bound evidence (attempt nonce) derives the outcome, attested false; CLI --outcome/--evidence; CC-22 now blocked only on consume (T-3540); vectors 18/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 485 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 485
+  commits: 4
+  files_changed: 335
+  lines_added: 29699
+  lines_removed: 7761
+  footprint_refreshed_at: '2026-10-27T20:59:29Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3539-wc03-hub-t7d-material-binding-and-attest.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3340: Second hub on .107 at /tmp/termlink-0 (pid 2919639) splits sessions from inboxes, silently (AEF T-3779)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-04T13:47:27Z
+# ============================================================================
+
+task_id: T-3340
+task_name: "Second hub on .107 at /tmp/termlink-0 (pid 2919639) splits sessions from inboxes, silently (AEF T-3779)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-04T10:50:14Z
+completed: 2026-10-04T13:46:08Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-04T12:50:43+02:00
+last_commit: 2026-10-04T15:46:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file second-hub-on-.107 defect (AEF T-3779 measured here). second hub on .107 — investigation findings recorded (fleet cockpit OpenCode agent hub restart; resolve_hub_paths latches onto default dir; 32 live sessions stranded; preflight blind). one hub per user — hub start refuses a second hub (unless --allow-second-hub), stale default pidfile no longer beats live /var/lib hub, pidfile liveness requires a termlink process, preflight Check 7 warns on >1 live hub
+
+# Key outcomes
+outcomes:
+  - 'Pidfile liveness is "a termlink process", not "a process": a pidfile whose PID is alive but not termlink (reused PID) reads Stale, so `hub restart`/`stop` never signal an unrelated process (unit test)'
+  - '`resolve_hub_paths`: a Stale default-dir pidfile no longer wins over a live `/var/lib/termlink` hub (unit test with injectable dirs)'
+  - '`termlink hub start` refuses, naming the other hub''s pid and runtime dir, when another live termlink hub for this uid exists in any other candidate dir (`/var/lib/termlink`, `$XDG_RUNTIME_DIR/termlink`, `$TMPDIR/termlink-$UID`, `/tmp/termlink-$UID`); `--allow-second-hub` overrides (unit test)'
+  - 'Detection: `scripts/substrate-preflight.sh` gains a check that WARNs when more than one live termlink hub runs for this uid, naming each runtime dir and its session count; hermetic fixture via a seam'
+  - '`cargo test -p termlink-hub -p termlink-cli` passes for the touched modules; `cargo build --release` succeeds'
+  - '055 asked to set `TERMLINK_RUNTIME_DIR=/var/lib/termlink` for `agentic-fleet-cockpit.service` and its OpenCode config (their project)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-04 — scope of the guard'
+    chose: '`hub start` refuses a second hub only when TERMLINK_RUNTIME_DIR is unset; `--allow-second-hub` overrides.'
+    rationale: 'an explicit runtime dir is a deliberate choice (the systemd unit and the test suites set it); the stray hub had none. Refusing on an explicit dir would let a stray hub block the canonical systemd hub.'
+    alternatives_rejected: ['changing `discovery::runtime_dir()` to prefer /var/lib/termlink for every client (moves all sessions at once, including the 32 live ones; an operator action, not a code side effect).']
+  - decision: '2026-10-04 — test result note'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/checks/platform-lock-allowlist'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-hub/src/pidfile.rs'
+  - 'scripts/substrate-preflight.sh'
+  - '.tasks/active/T-3340-second-hub-on-107-at-tmptermlink-0-pid-2.md'
+  - 'tests/substrate-preflight-single-hub-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-04T12:50:43'
+    action: 'T-3340: file second-hub-on-.107 defect (AEF T-3779 measured here)'
+  - time: '2026-10-04T13:10:58'
+    action: 'T-3340: second hub on .107 — investigation findings recorded (fleet cockpit OpenCode agent hub restart; resolve_hub_paths latches onto default dir; 32 live sessions stranded; preflight blind)'
+  - time: '2026-10-04T15:46:02'
+    action: 'T-3340: one hub per user — hub start refuses a second hub (unless --allow-second-hub), stale default pidfile no longer beats live /var/lib hub, pidfile liveness requires a termlink process, preflight Check 7 warns on >1 live hub'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 175 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 175
+  commits: 5
+  files_changed: 333
+  lines_added: 29747
+  lines_removed: 7753
+  footprint_refreshed_at: '2026-10-27T20:59:05Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3340-second-hub-on-107-at-tmptermlink-0-pid-2.md
+generated_by: context-agent-hybrid

@@ -523,3 +523,17 @@ None. AC#2 (T-2690/91/92 renumbering) and AC#3 (P-043 disposal) are unaffected b
 ## Verification
 
 .agentic-framework/bin/fw reviewer T-2837 > /tmp/.fw-reviewer-T-2837.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-2837.out
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b35af571
+- **Timestamp:** 2026-10-26T15:37:00Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Human)** — [REVIEW] P-043 is disposed of deliberately — acted on or dropped, not left stranded
+  - **human-ac-mechanical-signal** (partial, heuristic) — `matched='exits 0' in Expected: `bash scripts/check-pickup-deferred-freshness.sh` exits 0, and the guard layer drops from 3 firing to 2.`

@@ -73,10 +73,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 79
-  commits: 3
-  files_changed: 7
-  lines_added: 614
-  lines_removed: 39
+  commits: 4
+  files_changed: 9
+  lines_added: 732
+  lines_removed: 44
+  footprint_refreshed_at: '2026-10-21T13:55:52Z'
+  footprint_refreshed_by_commit: 3414388db
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3515-hub-post-dedupe-does-not-survive-a-hub-r.md

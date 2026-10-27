@@ -10,12 +10,12 @@ description: >
   a test that the printed value is not a prefix of the secret. Write real ACs before
   editing source (G-020).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [security, bug]
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -44,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-11T09:53:10Z
-last_update: 2026-10-11T11:13:44Z
-date_finished:
+last_update: 2026-10-11T11:17:15Z
+date_finished: 2026-10-11T11:17:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -293,6 +293,18 @@ test -z "$(grep -n 'first 12 of 64 hex chars' crates/termlink-cli/src/commands/r
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** `termlink fleet reauth <p> --bootstrap-from …` printed "new secret: <12 hex>… (first 12 of 64 hex
+chars)" and returned the same value in `--json` `fingerprint_preview`, putting 48 of the secret's 256 bits into
+terminal history, logs, agent transcripts and MCP results. Reported from the field by dimitri-mint-dev (F2).
+**Root cause:** T-1055 chose a raw prefix as an operator "fingerprint preview" and named it a fingerprint; the
+comment ("keeps full secret out of terminal history") argued about the FULL secret only, so a partial leak read as
+safe. T-2617 later hardened where the preview came from (persisted bytes) without questioning what it was.
+**Why structurally allowed:** no test or check asserted that operator-visible output contains no secret material;
+the tests pinned the preview's correctness (equals what is on disk), which actively locked the leak in.
+**Prevention:** two tests now pin the opposite property (the printed value is not a substring of the secret and is
+the sha256 prefix); the helper `secret_fingerprint` is the one place to derive operator-visible secret ids. Learning:
+"a preview of a secret is a partial secret; derive operator-visible ids by hashing, and test 'not a substring'".
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -376,3 +388,15 @@ test -z "$(grep -n 'first 12 of 64 hex chars' crates/termlink-cli/src/commands/r
 
 ### 2026-10-11T11:13:44Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-95f28653
+- **Timestamp:** 2026-10-11T11:17:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-11T11:17:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

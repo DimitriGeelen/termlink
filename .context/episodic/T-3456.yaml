@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3456: notify-sidecar auto-confirm receipt post reads the topic-loop heredoc as its body: junk receipts, later topics skipped per cycle
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T22:11:29Z
+# ============================================================================
+
+task_id: T-3456
+task_name: "notify-sidecar auto-confirm receipt post reads the topic-loop heredoc as its body: junk receipts, later topics skipped per cycle"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-17T22:04:59Z
+completed: 2026-10-17T22:11:01Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-18T00:10:53+02:00
+last_commit: 2026-10-18T00:10:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  notify-sidecar auto-confirm receipt no longer reads the topic-loop heredoc (junk bodies in shared DM rails, later topics skipped per cycle); T6 two-topic case + mutant; test self-fp from identity show; agent-respond receipt same fix
+
+# Key outcomes
+outcomes:
+  - 'The receipt post (and the auto-confirm call) cannot read the loop''s stdin: receipts are posted with an empty body'
+  - 'New live case T6 in `scripts/test-sidecar-auto-confirm.sh`: two topics with unread in ONE `--once` cycle each get exactly one stage=delivered receipt, and every receipt payload is empty; fails on the pre-fix script (mutant checked)'
+  - 'The existing cases T1–T5 still pass (they had been failing T2–T4 because the test took another agent''s fingerprint as "self"; fixed to `termlink identity show`)'
+  - 'Same-class sweep: the only other body-less `channel post` in scripts/ (agent-respond.sh receipt) also gets `</dev/null`; `test-agent-respond.sh` ALL PASS'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'notify-sidecar auto-confirm receipt no longer reads the topic-loop heredoc (junk bodies in shared DM rails, later topics skipped per cycle); T6 two-topic case + mutant; test self-fp from identity show; agent-respond receipt same fix'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/agent-respond.sh'
+  - 'scripts/notify-sidecar.sh'
+  - 'scripts/test-sidecar-auto-confirm.sh'
+  - '.tasks/active/T-3456-notify-sidecar-auto-confirm-receipt-post.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-18T00:10:53'
+    action: 'T-3456: notify-sidecar auto-confirm receipt no longer reads the topic-loop heredoc (junk bodies in shared DM rails, later topics skipped per cycle); T6 two-topic case + mutant; test self-fp from identity show; agent-respond receipt same fix'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6
+  commits: 3
+  files_changed: 328
+  lines_added: 29435
+  lines_removed: 7719
+  footprint_refreshed_at: '2026-10-27T20:59:19Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3456-notify-sidecar-auto-confirm-receipt-post.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3397: arc-011 PH-0: state/marker inventory file with a counting check in the guard layer (R-70)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T17:22:47Z
+# ============================================================================
+
+task_id: T-3397
+task_name: "arc-011 PH-0: state/marker inventory file with a counting check in the guard layer (R-70)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T17:18:39Z
+completed: 2026-10-11T17:22:32Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Step 3 v0.2.1 PH-0 6.2.1.a (5) and exit (5): one version-controlled inventory file carrying the numbers of section 7 (message states and markers; OP-7 ruled cap 14 states / 8 markers), with a check that counts them in the code and runs in the guard layer. Write real ACs before work (G-020).
+
+# Key outcomes
+outcomes:
+  - 'docs/design/arc-011-inventory.yaml lists the 13 state values, 7 markers, cap 14/8 and the GP-12 numbers of step-3 section 7'
+  - 'scripts/check-arc011-inventory.sh counts them in the doc anchors (and annotated code via --code-root) and exits 1 on disagreement or cap excess, 2 on tooling'
+  - 'Carries the guard-layer source --no-heartbeat marker and passes on the real tree'
+  - 'tests/arc011-inventory-check-fixtures.sh passes, including cap-exceeded, count-mismatch and a mutant that disables the cap test'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 2
+  files_changed: 327
+  lines_added: 29684
+  lines_removed: 7716
+  footprint_refreshed_at: '2026-10-27T20:59:07Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3397-arc-011-ph-0-statemarker-inventory-file-.md
+generated_by: context-agent-hybrid

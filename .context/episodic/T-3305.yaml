@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3305: decision-brief command: one-decision review with -2..+2 value-driver scoring, steelman/strawman, recommendation; file upstream
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T18:50:43Z
+# ============================================================================
+
+task_id: T-3305
+task_name: "decision-brief command: one-decision review with -2..+2 value-driver scoring, steelman/strawman, recommendation; file upstream"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-01T18:48:26Z
+completed: 2026-10-01T18:50:34Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-01T20:50:32+02:00
+last_commit: 2026-10-01T20:50:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /decision-brief command — one decision per message, verified facts, options A-D, -2..+2 weighted scoring over project + framework value drivers, steelman/strawman per option, recommendation, bias check, ruling recorded; filed upstream at framework:pickup offset 294 (read back byte-identical, sha 778147fd2a922c2a)
+
+# Key outcomes
+outcomes:
+  - '`.claude/commands/decision-brief.md` exists and encodes the format: plain-language background, the problem, verified facts with file:line, 2-4 lettered options, a weighted -2..+2 scoring table over the drivers read from BOTH `policy/value-drivers.yaml` and `.agentic-framework/policy/value-drivers.yaml` (each labelled with its source), steelman + strawman per option, a recommendation, what a ruling authorises and leaves open'
+  - 'The command encodes the operator''s standing rules: ONE decision per message, stop and wait for an explicit "next", answer Q&A in place; restate the operator''s words before acting on a ruling; a bias check (evidence vs conversation momentum; quote outside opinions from disk, not memory); record the ruling (Decisions entry Chose/Why/Rejected + dialogue log)'
+  - 'Filed upstream at `framework:pickup` (msg_type note, kind=feature-proposal, task=T-3305, from_project=010-termlink) with the command text; read back by offset and compared by sha256; offset recorded here — **offset 294**, 9,187 bytes, byte-identical to `docs/reports/T-3305-upstream-decision-brief.md` (sha256 prefix 778147fd2a922c2a)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/decision-brief.md'
+  - 'docs/reports/T-3304-hub-storage-model.md'
+  - 'docs/reports/T-3305-upstream-decision-brief.md'
+  - '.tasks/active/T-3304-hub-storage-model-should-the-hub-be-a-qu.md'
+  - '.tasks/active/T-3305-decision-brief-command-one-decision-revi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T20:50:32'
+    action: 'T-3305: /decision-brief command — one decision per message, verified facts, options A-D, -2..+2 weighted scoring over project + framework value drivers, steelman/strawman per option, recommendation, bias check, ruling recorded; filed upstream at framework:pickup offset 294 (read back byte-identical, sha 778147fd2a922c2a)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 2
+  files_changed: 328
+  lines_added: 29712
+  lines_removed: 7732
+  footprint_refreshed_at: '2026-10-27T20:59:04Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3305-decision-brief-command-one-decision-revi.md
+generated_by: context-agent-hybrid

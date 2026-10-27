@@ -181,10 +181,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 184
-  commits: 8
-  files_changed: 92
-  lines_added: 9720
-  lines_removed: 1063
+  commits: 9
+  files_changed: 94
+  lines_added: 9933
+  lines_removed: 1068
+  footprint_refreshed_at: '2026-10-20T14:41:28Z'
+  footprint_refreshed_by_commit: 0217d7a02
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3489-aef-v1813-upgrade-vendor-divergence-chec.md

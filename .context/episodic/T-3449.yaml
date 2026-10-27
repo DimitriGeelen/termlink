@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3449: Fleet deploy runner: '(deleted)' suffix taken as the binary path, and hubs found by a cmdline phrase that misses them (.121, 2026-10-17)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T18:03:46Z
+# ============================================================================
+
+task_id: T-3449
+task_name: "Fleet deploy runner: '(deleted)' suffix taken as the binary path, and hubs found by a cmdline phrase that misses them (.121, 2026-10-17)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-17T17:49:14Z
+completed: 2026-10-17T18:03:16Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-17T19:51:29+02:00
+last_commit: 2026-10-17T20:03:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  deploy runner strips ' (deleted)' from the exe path before using it, finds hubs by a 'hub start' process whose binary is termlink (not the 'termlink hub start' phrase, which missed a hub run from '/usr/local/bin/termlink (deleted)' on .121), and removes the stray '<path> (deleted)' file once unused; fleet-deploy-binary's sha pre-check uses the same lookup. Fixtures 26/26 incl. the helpers run against pgrep/readlink stand-ins. .121 serves 0.12.615 (runme 2026-10-17T18:01Z rc=0), stray '(deleted)' file gone; RCA and verification recorded
+
+# Key outcomes
+outcomes:
+  - 'The runner strips " (deleted)" (repeatedly) from the exe path before using it as TARGET'
+  - 'Hubs are found by a "hub start" process whose binary basename is termlink (with or without the suffix), never by the phrase "termlink hub start"; every pgrep/pkill on that phrase is gone from the runner'
+  - 'After a good swap, a stray "<TARGET> (deleted)" file nothing runs from is removed'
+  - '`tests/hub-runtime-dir-fixtures.sh` pins all three on the generated runner, plus a behavioural test of the path/pid helpers on a fake /proc-like input; passes'
+  - '.121 serves the runme-built version after the next runme run (or the remaining cause is named)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'deploy runner strips '' (deleted)'' from the exe path before using it, finds hubs by a ''hub start'' process whose binary is termlink (not the ''termlink hub start'' phrase, which missed a hub run from ''/usr/local/bin/termlink (deleted)'' on .121), and removes the stray ''<path> (deleted)'' file once unused; fleet-deploy-binary''s sha pre-check uses the same lookup. Fixtures 26/26 incl. the helpers run against pgrep/readlink stand-ins'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/fleet-deploy-binary.sh'
+  - 'scripts/lib/fleet-deploy-runner.sh'
+  - '.tasks/active/T-3449-fleet-deploy-runner-deleted-suffix-taken.md'
+  - 'tests/hub-runtime-dir-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-17T19:51:29'
+    action: 'T-3449: deploy runner strips '' (deleted)'' from the exe path before using it, finds hubs by a ''hub start'' process whose binary is termlink (not the ''termlink hub start'' phrase, which missed a hub run from ''/usr/local/bin/termlink (deleted)'' on .121), and removes the stray ''<path> (deleted)'' file once unused; fleet-deploy-binary''s sha pre-check uses the same lookup. Fixtures 26/26 incl. the helpers run against pgrep/readlink stand-ins'
+  - time: '2026-10-17T20:03:14'
+    action: 'T-3449: .121 serves 0.12.615 (runme 2026-10-17T18:01Z rc=0), stray ''(deleted)'' file gone; RCA and verification recorded'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 14 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 14
+  commits: 4
+  files_changed: 328
+  lines_added: 29499
+  lines_removed: 7731
+  footprint_refreshed_at: '2026-10-27T20:59:17Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3449-fleet-deploy-runner-deleted-suffix-taken.md
+generated_by: context-agent-hybrid

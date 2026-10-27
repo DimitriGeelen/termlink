@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3445: termlink spawn/dispatch seed the default tmux server's global env with the caller's project vars (055 T-536)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T08:20:15Z
+# ============================================================================
+
+task_id: T-3445
+task_name: "termlink spawn/dispatch seed the default tmux server's global env with the caller's project vars (055 T-536)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-16T21:02:24Z
+completed: 2026-10-17T08:19:31Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-10-17T10:19:30+02:00
+last_commit: 2026-10-17T10:19:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  spawn/dispatch start tmux without the caller's project vars; each is passed to the new session with -e, so a server the call starts never carries a project in its global env (055 T-536). Tests: builder 3 + live on a private -L socket with a leaking control (mutant without the scrub fails 3); cargo test -p termlink all green; clippy clean on changed files
+
+# Key outcomes
+outcomes:
+  - 'One shared builder used by both `spawn` and `dispatch`: the tmux process runs without the project-scoped vars'
+  - 'Unit tests on the builder: removed from the client env, present as `-e` args, absent ones not invented'
+  - 'Live test on a private tmux socket (`-L`, never the default server, killed only by that socket): a server the'
+  - '`cargo test -p termlink` passes and clippy reports no new warnings in the changed files'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/dispatch.rs'
+  - 'crates/termlink-cli/src/commands/execution.rs'
+  - 'crates/termlink-cli/src/commands/mod.rs'
+  - 'crates/termlink-cli/src/commands/tmux_spawn.rs'
+  - '.tasks/active/T-3445-termlink-spawndispatch-seed-the-default-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-17T10:19:30'
+    action: 'T-3445: spawn/dispatch start tmux without the caller''s project vars; each is passed to the new session with -e, so a server the call starts never carries a project in its global env (055 T-536). Tests: builder 3 + live on a private -L socket with a leaking control (mutant without the scrub fails 3); cargo test -p termlink all green; clippy clean on changed files'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 677 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 677
+  commits: 3
+  files_changed: 329
+  lines_added: 29244
+  lines_removed: 7730
+  footprint_refreshed_at: '2026-10-27T20:59:15Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3445-termlink-spawndispatch-seed-the-default-.md
+generated_by: context-agent-hybrid

@@ -399,10 +399,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 83
-  commits: 2
-  files_changed: 325
-  lines_added: 32879
-  lines_removed: 1997
+  commits: 3
+  files_changed: 329
+  lines_added: 33687
+  lines_removed: 2003
+  footprint_refreshed_at: '2026-10-22T21:12:16Z'
+  footprint_refreshed_by_commit: 00af1073f
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3554-re-vendor-aef-v1815-be3-sev-1-t-4647-dis.md

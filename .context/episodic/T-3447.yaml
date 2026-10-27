@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3447: Fleet deploy runner: an external restarter can relaunch the OLD binary in the stop-to-swap window (.121, 2026-10-17)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T09:14:30Z
+# ============================================================================
+
+task_id: T-3447
+task_name: "Fleet deploy runner: an external restarter can relaunch the OLD binary in the stop-to-swap window (.121, 2026-10-17)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-17T09:12:05Z
+completed: 2026-10-17T09:14:19Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-17T11:14:18+02:00
+last_commit: 2026-10-17T11:14:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet deploy runner swaps the binary before stopping the hub (a host watchdog relaunched the old file in the stop-wait-swap window on .121), falls back to stop-wait-swap with backup restore when the running file cannot be replaced, replaces once and then fails STALE on any hub still running another or deleted exe, and the final version line runs the binary; fixtures 21/21 (5 new, which fail on the old runner)
+
+# Key outcomes
+outcomes:
+  - 'The runner swaps the file BEFORE stopping the hub, so any restarter starts the new binary; if replacing the running file fails (the NTFS case) it restores the backup and falls back to the old stop-wait-swap order, logged'
+  - 'After the relaunch the runner checks that every running `termlink hub start` process runs the new file; a stale one (old or deleted exe) is stopped once and the hub relaunched; still stale exits 1 with `STALE`, named'
+  - 'The final version line runs the binary (no literal quotes around the path)'
+  - '`tests/hub-runtime-dir-fixtures.sh` pins all three statically on the generated runner (it is never run against a process) and passes; the runner is valid bash'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fleet deploy runner swaps the binary before stopping the hub (a host watchdog relaunched the old file in the stop-wait-swap window on .121), falls back to stop-wait-swap with backup restore when the running file cannot be replaced, replaces once and then fails STALE on any hub still running another or deleted exe, and the final version line runs the binary; fixtures 21/21 (5 new, which fail on the old runner)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/lib/fleet-deploy-runner.sh'
+  - '.tasks/active/T-3447-fleet-deploy-runner-an-external-restarte.md'
+  - 'tests/hub-runtime-dir-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-17T11:14:18'
+    action: 'T-3447: fleet deploy runner swaps the binary before stopping the hub (a host watchdog relaunched the old file in the stop-wait-swap window on .121), falls back to stop-wait-swap with backup restore when the running file cannot be replaced, replaces once and then fails STALE on any hub still running another or deleted exe, and the final version line runs the binary; fixtures 21/21 (5 new, which fail on the old runner)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 3
+  files_changed: 327
+  lines_added: 29475
+  lines_removed: 7726
+  footprint_refreshed_at: '2026-10-27T20:59:16Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3447-fleet-deploy-runner-an-external-restarte.md
+generated_by: context-agent-hybrid

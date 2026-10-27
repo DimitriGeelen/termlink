@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3533: Inject B′: token from a protected file/fd on the inject path, narrow notify scope for the doorbell, visible failure (T-3493 GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-21T23:08:55Z
+# ============================================================================
+
+task_id: T-3533
+task_name: "Inject B′: token from a protected file/fd on the inject path, narrow notify scope for the doorbell, visible failure (T-3493 GO)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-21T18:35:58Z
+completed: 2026-10-21T22:08:08Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-21T21:15:37+02:00
+last_commit: 2026-10-21T21:15:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  notify scope + command.notify doorbell; token from --token-file/--token-fd (no CLI value, no env); sidecar rings via termlink pty notify; refused rings in fw sidecar status
+
+# Key outcomes
+outcomes:
+  - '`termlink inject` (and the MCP inject tool, parity-tested) can present a session token read from a protected file (`--token-file <path>`, refused if the file is group/world-readable) or an inherited file descriptor (`--token-fd <n>`); there is no `--token <value>` argument and no token environment variable; the token is never logged or echoed'
+  - 'A narrow notify permission for the doorbell: either a new scope below Control that allows only a fixed notify action, or a dedicated notify RPC the session handles without keystroke injection; the sidecar''s doorbell uses it, so the sidecar never holds Control (keyboard) rights on a `--token-secret` session; Control-scope inject still requires a Control token'
+  - 'Tests, failing first where they describe a change: a `--token-secret` session refuses an unauthenticated inject and an unauthenticated notify; accepts its own sidecar''s notify; accepts a Control-token inject; a missing or wrong token makes the doorbell report a visible failure (sidecar attention / health line), never a silent drop'
+  - 'Authentication stays in the handshake (`auth.token`); `command.inject`''s parameters gain no credential field (so the later signed-envelope design, T-3493 C, can replace the token without changing the call)'
+  - 'Docs (the inject/doorbell operations doc and CHANGELOG or release notes) say plainly: this is bearer authorisation without attribution, an interim measure, not O-7, and not an inject access list'
+  - '`cargo test -p termlink-session -p termlink-hub -p termlink-sidecar -p termlink-mcp` passes (sidecar with TERMLINK_BIN set); guard checks touched by new MCP tools or subprocesses stay clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-21 — notify design (AC 2)'
+    chose: 'a new `notify` permission scope ranking below `interact` (Observe < Notify < Interact < Control < Execute), plus a dedicated `command.notify` RPC whose only input is message ids. The session composes the doorbell line itself (`doorbell_line`, byte-identical to the sidecar''s `injection_line`). Authentication stays in the `auth.token` handshake.'
+    rationale: 'a notify holder can ring the doorbell and nothing else. It cannot type free text, emit events or change state. The sidecar never holds Control.'
+    alternatives_rejected: ['(a) a Control-scope inject with a text filter, because the filter would be the whole security boundary; (b) reusing `interact`, which would let a doorbell holder emit events and mutate state; (c) a token value on the CLI or in an env var, which the ruling forbids. - **Token source:** `--token-file` (refused unless owner-only, checked on the open handle) or `--token-fd` (an inherited descriptor). 4 KiB cap. Errors never include the token.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - 'CHANGELOG.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/pty.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'crates/termlink-mcp/tests/mcp_integration.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - 'crates/termlink-session/src/auth.rs'
+  - 'crates/termlink-session/src/client.rs'
+  - 'crates/termlink-session/src/handler.rs'
+  - 'crates/termlink-session/src/server.rs'
+  - 'docs/operations/doorbell-mail-operator-runbook.md'
+  - 'docs/operations/session-token-doorbell.md'
+  - '.fwvendor-preserve.yaml'
+  - '.tasks/active/T-3533-inject-b-token-from-a-protected-filefd-o.md'
+  - 'tests/sidecar_doorbell_test.py'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-21T21:15:37'
+    action: 'T-3533: notify scope + command.notify doorbell; token from --token-file/--token-fd (no CLI value, no env); sidecar rings via termlink pty notify; refused rings in fw sidecar status'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 212 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011, security]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 212
+  commits: 3
+  files_changed: 343
+  lines_added: 30140
+  lines_removed: 7744
+  footprint_refreshed_at: '2026-10-27T20:59:27Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3533-inject-b-token-from-a-protected-filefd-o.md
+generated_by: context-agent-hybrid

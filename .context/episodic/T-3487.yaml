@@ -66,10 +66,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 1
-  commits: 1
-  files_changed: 2
-  lines_added: 440
-  lines_removed: 0
+  commits: 2
+  files_changed: 4
+  lines_added: 543
+  lines_removed: 6
+  footprint_refreshed_at: '2026-10-20T09:25:16Z'
+  footprint_refreshed_by_commit: fcfda9327
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3487-document-signing-and-verifying-authorshi.md

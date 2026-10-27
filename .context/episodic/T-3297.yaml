@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3297: One-time reap of idle zombie register sessions via runme (T-3291 S3b)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T07:31:40Z
+# ============================================================================
+
+task_id: T-3297
+task_name: "One-time reap of idle zombie register sessions via runme (T-3291 S3b)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T23:42:27Z
+completed: 2026-10-01T07:30:52Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-10-01T01:45:59+02:00
+last_commit: 2026-10-01T01:47:40+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 7 — one-time reap of idle zombie register sessions (T-3291 S3b, operator GO recorded): same detector as the session-leak canary; every target listed before any is touched; /proc cmdline re-verified per pid right before the signal (pid-reuse guard); SIGTERM only, never SIGKILL; stuck => FAILED; idempotent. prep — record T-3296 (session-leak canary) done; reviewer CONCERN is the advisory AC-verify-mismatch heuristic (script exercised via its fixtures, not by path)
+
+# Key outcomes
+outcomes:
+  - 'runme action lists every zombie (pid, name, age, tmux session) from `scripts/lib/session-zombies.py` before acting; `--dry-run` lists and changes nothing'
+  - 'Per target, right before acting: re-verify `/proc/<pid>/cmdline` is still `termlink register` with that `--name` (pid-reuse guard); a mismatch is skipped and reported, never signalled'
+  - 'SIGTERM only (never SIGKILL); each target verified gone within a bound; one that does not exit is FAILED (named), not escalated'
+  - 'Idempotent: no zombies => skip; fixtures (fake detector/proc/kill) pin list-before-act, dry-run, pid-reuse skip, stuck-process FAILED, idempotence; runme fixtures pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'prep — record T-3296 (session-leak canary) done; reviewer CONCERN is the advisory AC-verify-mismatch heuristic (script exercised via its fixtures, not by path)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'runme.sh'
+  - '.tasks/active/T-3297-one-time-reap-of-idle-zombie-register-se.md'
+  - '.tasks/completed/T-3296-session-leak-canary---zombie-register-se.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T01:45:59'
+    action: 'T-3297: runme action 7 — one-time reap of idle zombie register sessions (T-3291 S3b, operator GO recorded): same detector as the session-leak canary; every target listed before any is touched; /proc cmdline re-verified per pid right before the signal (pid-reuse guard); SIGTERM only, never SIGKILL; stuck => FAILED; idempotent'
+  - time: '2026-10-01T01:47:40'
+    action: 'T-3297: prep — record T-3296 (session-leak canary) done; reviewer CONCERN is the advisory AC-verify-mismatch heuristic (script exercised via its fixtures, not by path)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 468 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 468
+  commits: 3
+  files_changed: 327
+  lines_added: 29441
+  lines_removed: 7717
+  footprint_refreshed_at: '2026-10-27T20:59:02Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3297-one-time-reap-of-idle-zombie-register-se.md
+generated_by: context-agent-hybrid

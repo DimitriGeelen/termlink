@@ -4,12 +4,12 @@ name: "RCA: agent tmux -S /proc/PID/cwd stripped x bits from / (host boot failur
 description: >
   RCA: agent tmux -S /proc/PID/cwd stripped x bits from / (host boot failure 2026-10-12)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, scripts/check-root-mode-freshness.sh, scripts/hooks/check-tmux-socket-path.sh, tests/root-mode-guard-fixtures.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T18:10:35Z
-last_update: 2026-10-12T18:32:58Z
-date_finished: null
+last_update: 2026-10-12T19:25:20Z
+date_finished: 2026-10-12T19:25:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -68,7 +68,7 @@ date_finished: null
 - [x] (ruling A) PreToolUse(Bash) hook `scripts/hooks/check-tmux-socket-path.sh` wired in `.claude/settings.local.json` (survives re-vendor); live-proven blocking `echo tmux -S /proc/1/cwd`
 - [x] (ruling A) root-mode canary `scripts/check-root-mode-freshness.sh` + `.context/cron/root-mode-canary.crontab` (@reboot + hourly, alert only) + runme action 1 install with fixture
 - [x] Fixtures `tests/root-mode-guard-fixtures.sh` 24/24; mutant removing the /proc rule turns G1 red
-- [ ] Crontab installed on the host (operator runs `/opt/termlink/runme.sh`; `check-cron-install-drift.sh` no longer lists root-mode-canary as MISSING)
+- [x] Crontab installed on the host (operator runs `/opt/termlink/runme.sh`; `check-cron-install-drift.sh` no longer lists root-mode-canary as MISSING)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -277,6 +277,14 @@ test -f /etc/cron.d/termlink-root-mode-canary
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** host .107 would not boot (D-Bus and every non-root service failed); `/` was mode 0644.
+
+**Root cause:** at 15:09:51Z this project's agent ran `tmux -S /proc/2908/cwd` to inspect a tmux server's environment. `-S` names a socket path; the link resolved to `/`, tmux failed to create its socket there and still applied its socket chmod, clearing all execute bits. First journal permission error 15:09:53Z. Reproduced on a scratch directory (755 -> 644). Full write-up: `docs/reports/T-3425-root-chmod-incident.md`.
+
+**Why structurally allowed:** the Tier-0 hook matches destructive command shapes (rm -rf, force push), not an innocuous-looking read whose tool option creates/chmods its argument; nothing watched the mode of `/`, so the change sat silent until the next boot.
+
+**Prevention:** PreToolUse hook `scripts/hooks/check-tmux-socket-path.sh` refuses `tmux -S` on /proc or non-socket paths (live-proven); boot + hourly root-mode canary alerts when `/` is not 755 root (installed, runme rc=0); learning recorded; fixtures 24/24 with a mutant on the /proc rule caught.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -362,3 +370,22 @@ test -f /etc/cron.d/termlink-root-mode-canary
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3425-rca-agent-tmux--s-procpidcwd-stripped-x-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-eea5e3d6
+- **Timestamp:** 2026-10-12T19:25:25Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — (ruling A) PreToolUse(Bash) hook `scripts/hooks/check-tmux-socket-path.sh` wired in `.claude/settings.local.json` (survives re-vendor); live-proven blocking `echo tmux -S /proc/1/cwd`
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/hooks/check-tmux-socket-path.sh in: (ruling A) PreToolUse(Bash) hook `scripts/hooks/check-tmux-socket-path.sh` wired in `.claude/settings.local.json` (survives re-vendor); live-proven bl`
+- **AC#7 (Agent)** — Crontab installed on the host (operator runs `/opt/termlink/runme.sh`; `check-cron-install-drift.sh` no longer lists root-mode-canary as MISSING)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=opt/termlink/runme.sh in: Crontab installed on the host (operator runs `/opt/termlink/runme.sh`; `check-cron-install-drift.sh` no longer lists root-mode-canary as MISSING)`
+
+### 2026-10-12T19:25:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

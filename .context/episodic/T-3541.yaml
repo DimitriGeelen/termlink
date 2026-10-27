@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3541: Hub meta write lock held up to 87 s by note_fetch: suspected WAL auto-checkpoint inside the commit
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-22T08:47:28Z
+# ============================================================================
+
+task_id: T-3541
+task_name: "Hub meta write lock held up to 87 s by note_fetch: suspected WAL auto-checkpoint inside the commit"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-22T08:41:44Z
+completed: 2026-10-22T08:47:07Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-3488 re-measure (2026-10-22, hub up since 2026-10-21 22:38 CEST, ~12.5 h): 1597 slow-lock lines; note_fetch (meta.rs:1254, subscribe telemetry, synchronous=NORMAL) held the meta write lock in 1183 of them, up to 87 s; posts (meta.rs:272) waited up to 78 s and creates (148) up to 82 s, while nvme0n1 10-min %util stayed below 90 (peak 89.5). meta.db-wal is 4.16 MB, i.e. at SQLite's default wal_autocheckpoint (1000 pages), which is never set: so the commit that crosses it runs the checkpoint, with an fsync of meta.db, while holding the write mutex. Hypothesis to test first: time checkpoints (sqlite3_wal_hook or a timed wrapper) and correlate with held>5s lines. If confirmed: wal_autocheckpoint=0 on the writer and a PASSIVE checkpoint from a separate connection on a timer, outside the write mutex.
+
+# Key outcomes
+outcomes:
+  - 'Hypothesis tested before any hub change: an A/B on a scratch copy of meta.db on the same filesystem, timing each note_fetch-shaped commit at `synchronous=NORMAL` with the default auto-checkpoint vs `wal_autocheckpoint=0`, with the result (counts, p99, max, >1 s) recorded here. A result that does not separate the modes is recorded as disproving the hypothesis, and the task changes course. **Result (2026-10-22, load 75, 5000 commits each, script kept at the scratchpad path in Updates):** A default p50 0.1 ms, p99 15.5 ms, max 441 ms, 7 over 100 ms, 0 over 1 s; B `wal_autocheckpoint=0` p50 0.1 ms, p99 10.8 ms, max 142 ms, 3 over 100 ms, 0 over 1 s. The checkpoint costs at most a few hundred ms; it **does not explain** holds of tens of seconds. The hypothesis is disproved as the main cause'
+  - 'Course change (replaces "if supported, move checkpoints off the mutex"; that would save at most about 0.3 s per occurrence). The long holds were correlated with filesystem fsync stalls: in the same window the topic-log `sync_data` (a plain fsync, no SQLite) took over 5 s **109 times**, up to 83 s, and 13 of the 22 `note_fetch` holds over 5 s overlap one. The store is on the root btrfs (`stat -f` → btrfs), 89% full. The second NVMe (`nvme1n1`) is a Windows/NTFS disk reporting 0 B, so it is not an option. Root cause class: fsync latency of the host filesystem under load, which every durable post pays (the T-3461 durability ruling)'
+  - 'The remaining levers are operator decisions, and they are recorded on T-3488 rather than built here: (a) group commit / fewer fsyncs per post, which revisits T-3461''s durability ruling; (b) the bus store on a filesystem with lower fsync latency, which is host configuration. Nothing in the hub was changed by this task'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 3
+  files_changed: 326
+  lines_added: 29436
+  lines_removed: 7721
+  footprint_refreshed_at: '2026-10-27T20:59:30Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3541-hub-meta-write-lock-held-up-to-87-s-by-n.md
+generated_by: context-agent-hybrid

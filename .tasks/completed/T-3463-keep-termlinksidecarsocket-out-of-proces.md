@@ -13,12 +13,12 @@ description: >
   mechanism first); background spawn strips PROJECT_SCOPED_ENV like tmux does. Until
   done: no workers started from the main agent's shell.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-cli/src/commands/execution.rs, crates/termlink-cli/src/commands/tmux_spawn.rs, crates/termlink-sidecar/src/hook.rs, crates/termlink-sidecar/tests/hooks_tests.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -47,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T09:43:20Z
-last_update: 2026-10-18T12:46:06Z
-date_finished:
+last_update: 2026-10-18T12:46:31Z
+date_finished: 2026-10-18T12:46:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -346,6 +346,11 @@ termlink --version > /tmp/.t3463 2>&1 && grep -q "0.12.665\|0.12.6[7-9][0-9]\|0.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-18 — the leak was wider than filed
+- **What changed:** filed as "Bash-tool children and background spawn"; reading tmux_spawn.rs showed tmux spawns forwarded the socket too (T-3445 had it in PROJECT_SCOPED_ENV, forwarded with `-e`), so dispatched workers were exposed as well.
+- **Plan impact:** the fix moved from a hook-only guard to two layers: the sockets are launch-scoped in spawn (LAUNCH_SCOPED_ENV, never forwarded) and the hook ignores nested Claude sessions. arc-011 W1 now enforces P7-1 A in code, not only in the launcher.
+- **Triggered:** correction sent to 055 (conv agent-relaunch-in-fleet-window); no new task.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -405,3 +410,20 @@ termlink --version > /tmp/.t3463 2>&1 && grep -q "0.12.665\|0.12.6[7-9][0-9]\|0.
 
 ### 2026-10-18T12:08:12Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e0b96fe0
+- **Timestamp:** 2026-10-18T12:46:35Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-18T12:46:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

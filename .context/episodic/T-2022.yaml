@@ -78,10 +78,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 192043
-  commits: 4
-  files_changed: 3
-  lines_added: 309
-  lines_removed: 67
+  commits: 5
+  files_changed: 5
+  lines_added: 398
+  lines_removed: 68
+  footprint_refreshed_at: '2026-10-18T20:19:56Z'
+  footprint_refreshed_by_commit: bd07abe19
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-2022-substrate-filesystem-write-observation-c.md

@@ -92,10 +92,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 383
-  commits: 10
-  files_changed: 7
-  lines_added: 870
+  commits: 11
+  files_changed: 8
+  lines_added: 972
   lines_removed: 23
+  footprint_refreshed_at: '2026-10-19T22:03:06Z'
+  footprint_refreshed_by_commit: 7cbc5804c
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3483-dispatch-emits-a-first-class-worker-fini.md

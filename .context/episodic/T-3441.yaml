@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3441: WARN escalation: check-receiver-ack-lag.sh red 14d (since 2026-09-29T22:04:59Z) — fix or reclassify
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T22:26:57Z
+# ============================================================================
+
+task_id: T-3441
+task_name: "WARN escalation: check-receiver-ack-lag.sh red 14d (since 2026-09-29T22:04:59Z) — fix or reclassify"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-14T05:42:21Z
+completed: 2026-10-17T22:26:37Z
+duration_days: 3
+updates_count: 2
+first_commit: 2026-10-14T23:40:34+02:00
+last_commit: 2026-10-18T00:26:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  commit unattended write — WARN escalation filed (stale: check-receiver-ack-lag.sh) by warn-escalation-file.sh. operator ruled C - check-receiver-ack-lag WARN -> INFO (other projects' DM rails on shared host identities, unactionable here); voi-prompt and go-propagation stay WARN
+
+# Key outcomes
+outcomes:
+  - '`check-receiver-ack-lag.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-18 — Backlog-reporting WARN members past 14 days (operator ruling)'
+    chose: 'C — `check-receiver-ack-lag` WARN → INFO; `voi-prompt` and `check-go-propagation` stay WARN and their items go to the operator one at a time.'
+    rationale: 'ack-lag''s firing rows are DM rails between other projects'' agents on shared host identities (d1993…, 9219…, 90d4…), so its escalation tasks could never be closed here, and a release canary red every day stops being read. Scored A −16, B 0, C +20.'
+    alternatives_rejected: ['A (keep all WARN), B (all three INFO: the operator''s own backlog goes silent). - **Left open:** each voi score and GO-linkage call; return ack-lag to WARN once DM identities are per project. Recorded in docs/reports/T-3258-guard-classification-draft.md § Operator rulings and the CLAUDE.md tier list.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'docs/reports/T-3258-guard-classification-draft.md'
+  - 'scripts/check-receiver-ack-lag.sh'
+  - '.tasks/active/T-3441-warn-escalation-check-receiver-ack-lagsh.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-14T23:40:34'
+    action: 'T-3441: commit unattended write — WARN escalation filed (stale: check-receiver-ack-lag.sh) by warn-escalation-file.sh'
+  - time: '2026-10-18T00:26:35'
+    action: 'T-3441: operator ruled C - check-receiver-ack-lag WARN -> INFO (other projects'' DM rails on shared host identities, unactionable here); voi-prompt and go-propagation stay WARN'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5324 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [warn-escalation, guard-layer]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5324
+  commits: 4
+  files_changed: 328
+  lines_added: 29482
+  lines_removed: 7725
+  footprint_refreshed_at: '2026-10-27T20:59:14Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3441-warn-escalation-check-receiver-ack-lagsh.md
+generated_by: context-agent-hybrid

@@ -76,9 +76,11 @@ metrics:
   git_mining: ok
   wall_clock_minutes: 5
   commits: 1
-  files_changed: 7
+  files_changed: 9
   lines_added: 370
   lines_removed: 28
+  footprint_refreshed_at: '2026-10-06T23:08:24Z'
+  footprint_refreshed_by_commit: 92aa1e2fc
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3380-check-canary-aliveness-prints-heartbeat-.md

@@ -91,12 +91,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 16
-  commits: 2
-  files_changed: 18
-  lines_added: 2852
-  lines_removed: 28
-  footprint_refreshed_at: '2026-10-12T10:42:21Z'
-  footprint_refreshed_by_commit: 6a99c291e
+  commits: 4
+  files_changed: 20
+  lines_added: 2972
+  lines_removed: 33
+  footprint_refreshed_at: '2026-10-12T12:28:43Z'
+  footprint_refreshed_by_commit: 347fcc8b9
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3417-arc-011-ph-1-b14-two-agent-acceptance---.md

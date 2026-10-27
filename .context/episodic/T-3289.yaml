@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3289: runme installs termlink to every host path - 32 of 33 crons run stale 0.12.13
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T20:46:36Z
+# ============================================================================
+
+task_id: T-3289
+task_name: "runme installs termlink to every host path - 32 of 33 crons run stale 0.12.13"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T20:22:43Z
+completed: 2026-09-30T20:46:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-30T22:25:28+02:00
+last_commit: 2026-09-30T22:25:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 4 installs termlink to every copy on the host — cargo always, /usr/local/bin + ~/.local/bin refresh-if-present; each verified on disk
+
+# Key outcomes
+outcomes:
+  - 'runme action 4 installs the build to /root/.cargo/bin, /usr/local/bin and /root/.local/bin (list via a `RUNME_TERMLINK_DESTS` seam), each idempotent and verified on disk (version = build, `--no-create` probe)'
+  - 'A destination that fails verification makes the action FAILED (rc 1), and the log names the path'
+  - 'tests/runme-fixtures.sh covers multi-destination install, the skip path and a stale-destination case; the suite passes'
+  - 'After the operator''s run: check-installed-binary-drift.sh reports one version across all probed paths'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'runme.sh'
+  - '.tasks/active/T-3289-runme-installs-termlink-to-every-host-pa.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-30T22:25:28'
+    action: 'T-3289: runme action 4 installs termlink to every copy on the host — cargo always, /usr/local/bin + ~/.local/bin refresh-if-present; each verified on disk'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 23 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 23
+  commits: 3
+  files_changed: 327
+  lines_added: 29387
+  lines_removed: 7747
+  footprint_refreshed_at: '2026-10-27T20:58:59Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3289-runme-installs-termlink-to-every-host-pa.md
+generated_by: context-agent-hybrid

@@ -9,12 +9,12 @@ description: >
   and fix: skip builds when no code changed, a faster local profile, build musl only
   when a hub needs it.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-30T22:23:57Z
-last_update: 2026-09-30T22:24:28Z
-date_finished:
+last_update: 2026-09-30T22:52:41Z
+date_finished: 2026-09-30T22:52:41Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -65,10 +65,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Measured: a version-only rebuild with the current release profile vs a thin-LTO / multi-codegen-unit profile on this host, recorded in the task
-- [ ] runme skips `cargo build` (host and musl) when no code changed since the last build it recorded (crates/, Cargo.toml, Cargo.lock), and says so
-- [ ] Action 6 builds musl only when at least one fleet hub needs an upgrade
-- [ ] The GitHub release build keeps its profile (release.yml unchanged); tests/runme-fixtures.sh passes with cases for the skip paths
+- [x] Measured: a version-only rebuild with the current release profile vs a thin-LTO / multi-codegen-unit profile on this host, recorded in the task
+- [x] runme skips `cargo build` (host and musl) when no code changed since the last build it recorded (crates/, Cargo.toml, Cargo.lock), and says so
+- [x] Action 6 builds musl only when at least one fleet hub needs an upgrade
+- [x] The GitHub release build keeps its profile (release.yml unchanged); tests/runme-fixtures.sh passes with cases for the skip paths
 
 
 ## Verification
@@ -160,6 +160,11 @@ bvp_scores_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash -n runme.sh
+bash tests/runme-fixtures.sh
+grep -q '^\[profile.local-fast\]' Cargo.toml
+! grep -q -- '--profile' .github/workflows/release.yml
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -231,6 +236,13 @@ bvp_scores_proposed:
 
 ## Decisions
 
+### 2026-10-01 — measured build times (this host, load 25-30 on 24 cores)
+- Version-only rebuild after a commit (what every runme run paid): **release 782 s** vs **local-fast 175 s** (4.5x).
+- Cold full build, local-fast: 366 s (one-time). Binary 38.6 MB vs 33.7 MB (release).
+- With the build cache, a run after a docs/scripts-only commit does **no** cargo build at all (was 782 s). runme runs measured before: 11-12 min each; the 2026-09-30 run with the musl build: 32 min.
+- **Chose:** local-fast (thin LTO, 16 units, incremental) for host installs + skip-when-no-code-change + musl only when a hub is behind. **Rejected:** GPU (rustc/LLVM have no GPU path); changing the `release` profile (published binaries keep fat LTO).
+
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -259,3 +271,16 @@ bvp_scores_proposed:
 
 ### 2026-09-30T22:24:28Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a5fa1232
+- **Timestamp:** 2026-09-30T22:53:07Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-30T22:52:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

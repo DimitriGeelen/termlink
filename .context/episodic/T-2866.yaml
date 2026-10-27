@@ -68,10 +68,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 12
-  commits: 0
-  files_changed: 0
-  lines_added: 0
-  lines_removed: 0
+  commits: 1
+  files_changed: 40
+  lines_added: 4676
+  lines_removed: 347
+  footprint_refreshed_at: '2026-10-06T11:49:15Z'
+  footprint_refreshed_by_commit: 74de0b244
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-2866-fix-fw-doctor-claude-fw-drift-check-to-u.md

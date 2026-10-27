@@ -72,10 +72,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 12
-  commits: 2
-  files_changed: 4
-  lines_added: 595
-  lines_removed: 4
+  commits: 3
+  files_changed: 6
+  lines_added: 701
+  lines_removed: 8
+  footprint_refreshed_at: '2026-10-12T22:29:24Z'
+  footprint_refreshed_by_commit: 0fb1e0a45
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3427-arc-011-ph-2-row-p8-fx-5-baseline---coun.md

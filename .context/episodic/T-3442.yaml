@@ -92,12 +92,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 22
-  commits: 3
+  commits: 4
   files_changed: 24
-  lines_added: 1329
-  lines_removed: 17
-  footprint_refreshed_at: '2026-10-14T20:18:52Z'
-  footprint_refreshed_by_commit: 4dd998c73
+  lines_added: 1335
+  lines_removed: 21
+  footprint_refreshed_at: '2026-10-14T20:19:52Z'
+  footprint_refreshed_by_commit: 3e15b1878
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3442-arc-011-ph-2-p9-packaging---sidecar-tool.md

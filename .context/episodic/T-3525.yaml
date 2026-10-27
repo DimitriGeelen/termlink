@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3525: wc/0.3 hub: confirm_end does not read signed evidence before confirming an end (CC-01, CC-03 evidence-present)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-22T07:53:55Z
+# ============================================================================
+
+task_id: T-3525
+task_name: "wc/0.3 hub: confirm_end does not read signed evidence before confirming an end (CC-01, CC-03 evidence-present)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-21T14:52:47Z
+completed: 2026-10-22T07:53:14Z
+duration_days: 1
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Found by T-3522 (conformance adapter, AEF vectors wc/0.3 afe974124). CC-01 and CC-03 variant evidence-present step confirm_end (writer hub, attempt 1, clock 20, signed E1 persisted_at 10, handback complete for n1) expects accepted T4 or T3. The store answers no_transition: the sweep counts absence only for attempts seen alive at the current epoch, and the store has no hub-side read of signed worker evidence, so the hub cannot act on it. Vector text: confirm_end = the sweep writer confirms the attempt end by the backend's own evidence (hub two sweeps at last-seen epoch then G; hubless independent probe, evidence read first). Fix belongs in the backend (worker_contract sweep), with a failing-first unit test. Not patched in T-3522, which only maps the op.
+
+# Key outcomes
+outcomes:
+  - 'Resolved by AEF''s ruling (msg d0f2e96a, 2026-10-21) and vector fix T-4556 (25f56ed68), not by a hub change: confirm_end is the whole macro (two absent sweeps at the last-seen epoch, then G) and presumes a last-seen epoch; the vectors lacked `seen_alive_epoch` in `given`. The hub store''s no_transition for a never-seen attempt was correct, and no hub-side signed-evidence read is required for the hub form (evidence-first is the hubless form)'
+  - 'The adapter at 25f56ed68 reports CC-01 and CC-03 (both variants) pass with no backend change'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1020 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011, wc-conformance]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1020
+  commits: 2
+  files_changed: 325
+  lines_added: 29084
+  lines_removed: 7724
+  footprint_refreshed_at: '2026-10-27T20:59:24Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3525-wc03-hub-confirmend-does-not-read-signed.md
+generated_by: context-agent-hybrid

@@ -7,10 +7,10 @@ description: >
   PROJECT_SCOPED_ENV list lacks it. Add it so a server started by spawn/dispatch never
   carries it, and pass it to the session with -e like the others.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-17T08:41:49Z
-last_update: 2026-10-17T08:44:22Z
-date_finished:
+last_update: 2026-10-17T08:44:23Z
+date_finished: 2026-10-17T08:44:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -372,3 +372,15 @@ cargo test -p termlink --bin termlink tmux_spawn > /tmp/.t3446 2>&1 && grep -q "
 
 ### 2026-10-17T08:42:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9a5a823b
+- **Timestamp:** 2026-10-17T08:45:00Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-17T08:44:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

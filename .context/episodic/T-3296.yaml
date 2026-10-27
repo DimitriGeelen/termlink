@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3296: Session-leak canary - zombie register sessions + orphan data sockets (T-3291 S4)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T23:47:22Z
+# ============================================================================
+
+task_id: T-3296
+task_name: "Session-leak canary - zombie register sessions + orphan data sockets (T-3291 S4)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T23:37:17Z
+completed: 2026-09-30T23:46:39Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-01T01:41:27+02:00
+last_commit: 2026-10-01T01:41:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  session-leak canary — daily FIRE on >25 idle-detached zombie register sessions or any orphan .sock.data >1h; shared detector scripts/lib/session-zombies.py (reused by the S3b reap). Also records T-3295 done.
+
+# Key outcomes
+outcomes:
+  - '`scripts/lib/session-zombies.py` classifies live `termlink register` processes (zombie / busy / young / attached) from a ps table + tmux pane table, and counts orphan `*.sock.data` (no `.json`, older than 1h) per sessions dir; both inputs have file seams'
+  - '`scripts/check-session-leak-freshness.sh`: exit 0 healthy / 1 firing (zombies > threshold OR orphans > 0) / 2 tooling (fail-closed); `--json`, `--quiet`, `--no-heartbeat`, `--threshold N`; heartbeat written on EXIT'
+  - '`tests/session-leak-canary-fixtures.sh` pins every class incl. a busy agent (shell with a child) and an attached session never counted as zombies; mutant-checked'
+  - 'Crontab with the T-2685 split-stream redirect, installed by runme action 1; log-hygiene check clean; CLAUDE.md section above `## Core Principle`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/session-leak-canary.crontab'
+  - 'runme.sh'
+  - 'scripts/check-session-leak-freshness.sh'
+  - 'scripts/lib/session-zombies.py'
+  - '.tasks/active/T-3296-session-leak-canary---zombie-register-se.md'
+  - '.tasks/completed/T-3295-hub-never-sweeps-the-legacy-tmptermlink-.md'
+  - 'tests/session-leak-canary-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T01:41:27'
+    action: 'T-3296: session-leak canary — daily FIRE on >25 idle-detached zombie register sessions or any orphan .sock.data >1h; shared detector scripts/lib/session-zombies.py (reused by the S3b reap). Also records T-3295 done.'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 2
+  files_changed: 331
+  lines_added: 29751
+  lines_removed: 7717
+  footprint_refreshed_at: '2026-10-27T20:59:01Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3296-session-leak-canary---zombie-register-se.md
+generated_by: context-agent-hybrid

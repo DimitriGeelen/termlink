@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3451: WARN escalation: check-go-propagation.sh red 14d (since 2026-10-03T05:41:01Z) — fix or reclassify
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-17T23:35:20Z
+# ============================================================================
+
+task_id: T-3451
+task_name: "WARN escalation: check-go-propagation.sh red 14d (since 2026-10-03T05:41:01Z) — fix or reclassify"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-17T21:08:57Z
+completed: 2026-10-17T23:35:07Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-17T23:09:32+02:00
+last_commit: 2026-10-18T01:35:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  commit unattended write — WARN escalation filed (stale: check-go-propagation.sh) by warn-escalation-file.sh. link 6 GO inceptions to their build tasks both ways (T-3075<->T-3135, T-3076<->T-3134, T-3166<->T-3167, T-3284<->T-3286/T-3287, T-3291<->T-3293..T-3297, T-3302<->T-3303); each build task names the inception's GO explicitly. go-propagation green (6 linked, 2 false fires fixed in T-3459); audit-ledger GO entry re-justified (exit condition met, audit predicate is looser)
+
+# Key outcomes
+outcomes:
+  - '`check-go-propagation.sh` is green (2026-10-18: 6 inceptions linked both ways to the build tasks that name their GO — T-3075, T-3076, T-3166, T-3284, T-3291, T-3302; T-3372 and T-3385 were false fires, never decided, fixed in T-3459), or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'go-propagation green (6 linked, 2 false fires fixed in T-3459); audit-ledger GO entry re-justified (exit condition met, audit predicate is looser)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3303-make-claude-termlink-sign-with-its-per-a.md'
+  - '.tasks/active/T-3451-warn-escalation-check-go-propagationsh-r.md'
+  - '.tasks/completed/T-3075-sidecar-api---separate-respawning-proces.md'
+  - '.tasks/completed/T-3076-binary-blob-on-the-notify-rail-via-artif.md'
+  - '.tasks/completed/T-3134-artifact-cli-verbs-termlink-artifact-put.md'
+  - '.tasks/completed/T-3135-sidecar-api-local-control-surface--porta.md'
+  - '.tasks/completed/T-3166-examine-the-arc-008-open-backlog-against.md'
+  - '.tasks/completed/T-3167-audit-warning-acknowledgement-ledger---t.md'
+  - '.tasks/completed/T-3284-e4-host-scope-should-arc-003s-e4-identit.md'
+  - '.tasks/completed/T-3286-termlink-agent-identity---resolve---no-c.md'
+  - '.tasks/completed/T-3287-notify-rail-e2e-e4-uses-identity---resol.md'
+  - '.tasks/completed/T-3291-session-lifecycle-leak---zombie-register.md'
+  - '.tasks/completed/T-3293-session-cleanup-never-deletes-idsockdata.md'
+  - '.tasks/completed/T-3294-register---shell-outlives-its-shell---se.md'
+  - '.tasks/completed/T-3295-hub-never-sweeps-the-legacy-tmptermlink-.md'
+  - '.tasks/completed/T-3296-session-leak-canary---zombie-register-se.md'
+  - '.tasks/completed/T-3297-one-time-reap-of-idle-zombie-register-se.md'
+  - '.tasks/completed/T-3302-canonical-identity-for-claude-termlink--.md'
+  - '.tasks/completed/T-3459-check-go-propagation-counts-an-open-ince.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-17T23:09:32'
+    action: 'T-3451: commit unattended write — WARN escalation filed (stale: check-go-propagation.sh) by warn-escalation-file.sh'
+  - time: '2026-10-18T01:30:32'
+    action: 'T-3451: link 6 GO inceptions to their build tasks both ways (T-3075<->T-3135, T-3076<->T-3134, T-3166<->T-3167, T-3284<->T-3286/T-3287, T-3291<->T-3293..T-3297, T-3302<->T-3303); each build task names the inception''s GO explicitly'
+  - time: '2026-10-18T01:35:05'
+    action: 'T-3451: go-propagation green (6 linked, 2 false fires fixed in T-3459); audit-ledger GO entry re-justified (exit condition met, audit predicate is looser)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 146 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [warn-escalation, guard-layer]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 146
+  commits: 5
+  files_changed: 343
+  lines_added: 29659
+  lines_removed: 7785
+  footprint_refreshed_at: '2026-10-27T20:59:17Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3451-warn-escalation-check-go-propagationsh-r.md
+generated_by: context-agent-hybrid

@@ -70,10 +70,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 15
-  commits: 0
-  files_changed: 0
-  lines_added: 0
-  lines_removed: 0
+  commits: 14
+  files_changed: 28
+  lines_added: 979
+  lines_removed: 206
+  footprint_refreshed_at: '2026-10-27T11:11:50Z'
+  footprint_refreshed_by_commit: a5197b34e
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3260-guard-layer-three-tier-severity-failwarn.md

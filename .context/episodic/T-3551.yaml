@@ -1,0 +1,100 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3551: SEV-1 fix 2: env-leak detector — refuse at spawn on project mismatch; canary scanning live registered sessions and the tmux server global env
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-22T19:46:05Z
+# ============================================================================
+
+task_id: T-3551
+task_name: "SEV-1 fix 2: env-leak detector — refuse at spawn on project mismatch; canary scanning live registered sessions and the tmux server global env"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-22T14:04:45Z
+completed: 2026-10-22T19:45:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-22T21:44:57+02:00
+last_commit: 2026-10-22T21:44:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  env-leak detector — register refuses another project's variables; hourly canary over live sessions and the tmux server global env
+
+# Key outcomes
+outcomes:
+  - '`termlink_session::child_env::foreign_project_vars(vars, cwd)` judges `PROJECT_ROOT`, `TASKS_DIR`, `CONTEXT_DIR`, `CLAUDE_PROJECT_DIR`, `_FW_PATHS_DERIVED_BY` by the rule above, with unit tests (foreign, same project, subdir, temp dir, no project, worktree)'
+  - '`termlink register` and `register --self` refuse to start (non-zero exit, message naming each variable and both projects) when the process carries a foreign variable'
+  - 'Canary `scripts/check-env-leak-freshness.sh` joins `termlink list --json` (pid, cwd) with `/proc/<pid>/environ` of each session''s root process (descendants dropped after the live run, see Decisions), plus the default tmux server''s global environment, and fires on any foreign variable or any project variable in the server''s global env; exit 0/1/2, `--json`, `--quiet`, heartbeat on EXIT'
+  - 'Hermetic fixtures through test seams (fake proc dir, canned list JSON, canned tmux env) with a mutant that disables the comparison'
+  - 'Crontab `.context/cron/env-leak-canary.crontab` with the split-stream redirect idiom; installing it is an operator `runme.sh` action'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-22 — the canary judges each session''s ROOT process against the session''s registered cwd'
+    chose: 'root process only, judged against `metadata.cwd`.'
+    rationale: 'the first live run (descendants, each by its own cwd) fired on 5 sessions and every finding was legitimate: pyright running from its install dir under `/root` (itself a git repo with `.framework.yaml`) with the session''s `PROJECT_ROOT`, a 055 worktree pointing at its main checkout, and AEF''s fresh-machine test pointing its children at a `/tmp` fixture project on purpose. A leak arrives through the root process (the register a polluted server or shell started), and every dispatched worker registers as a session of its own, so the root is where it shows.'
+    alternatives_rejected: ['descendants by their own cwd (5/5 false positives); descendants by the session cwd (still fires on test harnesses that set a fixture project deliberately).']
+  - decision: '2026-10-22 — refuse in `register`, with no override flag'
+    chose: '`register` and `register --self` fail with a message naming each variable and both projects.'
+    rationale: 'ruling A ("refuse, not warn"). `register` is the one choke point every spawned session and worker passes; after T-3550 a spawned session cannot inherit a foreign value, so a refusal means a polluted shell. An inherited override would itself be ambient authority (AEF''s point on `FW_TASKS_DIR_OVERRIDE`); the fix is to unset the variable.'
+    alternatives_rejected: ['a warning (2026-10-16 shows a recurrence needs a stop); a `--allow-foreign-project` flag (no case found).']
+  - decision: '2026-10-22 — unknown is never a finding; FRAMEWORK_ROOT is not judged in sessions'
+    rationale: 'a value outside every project (test temp dirs) or a session outside every project cannot be judged without guessing. `FRAMEWORK_ROOT` legitimately points outside the project in shared-tooling mode. The tmux server''s GLOBAL env is stricter: any project variable there, `FRAMEWORK_ROOT` included, fires, because every new session inherits it.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/env-leak-canary.crontab'
+  - 'crates/termlink-cli/src/commands/session.rs'
+  - '.fabric/components/context-cron-env-leak-canary.yaml'
+  - '.fabric/components/scripts-check-env-leak-freshness.yaml'
+  - '.fabric/components/scripts-lib-env-leak-scan.yaml'
+  - '.fabric/components/tests-env-leak-canary-fixtures.yaml'
+  - 'runme.sh'
+  - 'scripts/check-env-leak-freshness.sh'
+  - 'scripts/lib/env-leak-scan.py'
+  - '.tasks/active/T-3551-sev-1-fix-2-env-leak-detector--refuse-at.md'
+  - '.tasks/completed/T-3550-sev-1-fix-1-build-every-termlink-child-e.md'
+  - 'tests/env-leak-canary-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-22T21:44:57'
+    action: 'T-3551: env-leak detector — register refuses another project''s variables; hourly canary over live sessions and the tmux server global env'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 340 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [incident, sev1]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 340
+  commits: 3
+  files_changed: 337
+  lines_added: 29629
+  lines_removed: 7735
+  footprint_refreshed_at: '2026-10-27T20:58:56Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3551-sev-1-fix-2-env-leak-detector--refuse-at.md
+generated_by: context-agent-hybrid

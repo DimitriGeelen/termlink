@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3294: register --shell outlives its shell - session must end when its shell exits (T-3291 S2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T23:34:54Z
+# ============================================================================
+
+task_id: T-3294
+task_name: "register --shell outlives its shell - session must end when its shell exits (T-3291 S2)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T23:28:26Z
+completed: 2026-09-30T23:33:48Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-01T01:33:03+02:00
+last_commit: 2026-10-01T01:33:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  register --shell ends when its shell ends — the PTY read task is now a select! arm; shell exit runs the same cleanup as a signal (JSON, control + data socket). Also records T-3293 done.
+
+# Key outcomes
+outcomes:
+  - 'When the PTY shell of `register --shell` exits, `register` exits too and removes its JSON, control socket and data socket (same cleanup as a signal)'
+  - 'Non-shell `register` is unaffected (no PTY task, keeps running)'
+  - 'Integration test: register --shell, make the shell exit (inject `exit`), assert the process ends and the sessions dir is empty; a mutant without the new select arm leaves the process running'
+  - '`cargo test -p termlink` passes; static checks (silent-exit, busy-spin, platform-lock) clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/session.rs'
+  - 'crates/termlink-cli/tests/cli_integration.rs'
+  - '.tasks/active/T-3294-register---shell-outlives-its-shell---se.md'
+  - '.tasks/completed/T-3293-session-cleanup-never-deletes-idsockdata.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T01:33:03'
+    action: 'T-3294: register --shell ends when its shell ends — the PTY read task is now a select! arm; shell exit runs the same cleanup as a signal (JSON, control + data socket). Also records T-3293 done.'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 2
+  files_changed: 327
+  lines_added: 29345
+  lines_removed: 7716
+  footprint_refreshed_at: '2026-10-27T20:59:01Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3294-register---shell-outlives-its-shell---se.md
+generated_by: context-agent-hybrid

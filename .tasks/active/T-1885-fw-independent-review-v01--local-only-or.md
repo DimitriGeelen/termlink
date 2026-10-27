@@ -227,12 +227,12 @@ assumed. Worth a `revisit_at` if the corpus doubles.
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-6eb82921
-- **Timestamp:** 2026-08-23T20:44:23Z
+- **Scan ID:** R-95dccfcb
+- **Timestamp:** 2026-10-26T15:36:57Z
 - **Catalogue:** v1.3-seed
 - **Overall:** CONCERN
 - **Needs Human:** no
-- **Findings:** 4
+- **Findings:** 2
 
 **Per-AC findings:**
 
@@ -240,13 +240,5 @@ assumed. Worth a `revisit_at` if the corpus doubles.
   - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/lib/review_classifier.py in: [REVIEWER] Classifier from `scripts/T-1884-S1-classify.py` extracted into a reusable module (or inlined cleanly); same 87.5%+ confidence on the curren`
 - **AC#3 (Agent)** — [REVIEWER] CLI-WATCH validator from `scripts/T-1884-S3-cli-watch.py` integrated; produces PASS-ROBUST/PASS-LOOSE/FAIL/INCONCLUSIVE verdict per AC
   - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/T-1884-S3-cli-watch.py in: [REVIEWER] CLI-WATCH validator from `scripts/T-1884-S3-cli-watch.py` integrated; produces PASS-ROBUST/PASS-LOOSE/FAIL/INCONCLUSIVE verdict per AC`
-
-**Verification-level findings:**
-
-  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 5
-     - evidence: `python3 scripts/independent-review.py --dry-run 2>&1 | grep -qE 'PASS|FAIL|INCONCLUSIVE'`
-  2. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 7
-     - evidence: `python3 scripts/T-1884-S1-classify.py 2>&1 | grep -qE 'PASS$|Overall confidence: (8[0-9]|9[0-9]|100)'`
-
 ### 2026-08-23T20:42:23Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

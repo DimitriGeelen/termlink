@@ -86,12 +86,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 97536
-  commits: 1
-  files_changed: 17
-  lines_added: 958
-  lines_removed: 12
-  footprint_refreshed_at: '2026-10-26T15:59:10Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+  footprint_refreshed_at: '2026-10-26T15:59:11Z'
+  footprint_refreshed_by_commit: 255877049
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-2822-blanket-contextworking-gitignore-makes-s.md

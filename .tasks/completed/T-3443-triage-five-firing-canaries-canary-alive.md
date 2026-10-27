@@ -7,12 +7,12 @@ description: >
   the log, find the cause, fix or file, and leave the canary quiet only when the cause
   is dealt with (never by clearing a log to silence it).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, scripts/check-canary-aliveness.sh, scripts/check-waker-liveness-freshness.sh, tests/canary-aliveness-sweep-fixtures.sh, tests/hub-runtime-dir-fixtures.sh, tests/runme-fixtures.sh, tests/waker-liveness-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T21:39:09Z
-last_update: 2026-10-17T12:44:37Z
-date_finished:
+last_update: 2026-10-17T12:44:38Z
+date_finished: 2026-10-17T12:44:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -393,3 +393,20 @@ test -s .context/working/dead-letters-backup-20261014.jsonl
 
 ### 2026-10-14T21:39:37Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-fb2d896f
+- **Timestamp:** 2026-10-17T12:44:47Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — Any unattended filings waiting in `.context/working/pending-commit.list` are committed by name (`scripts/commit-pending.sh commit`)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/working/pending-commit.list in: Any unattended filings waiting in `.context/working/pending-commit.list` are committed by name (`scripts/commit-pending.sh commit`)`
+
+### 2026-10-17T12:44:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
