@@ -68,12 +68,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 5
-  commits: 3
-  files_changed: 327
-  lines_added: 29462
-  lines_removed: 7721
-  footprint_refreshed_at: '2026-10-27T20:59:17Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 2
+  files_changed: 4
+  lines_added: 429
+  lines_removed: 5
+  footprint_refreshed_at: '2026-10-27T21:00:26Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3450-runme-hub-restart-the-hub-status-check-i.md

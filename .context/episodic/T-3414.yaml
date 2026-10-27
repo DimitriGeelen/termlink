@@ -82,12 +82,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 24
-  commits: 3
-  files_changed: 332
-  lines_added: 30059
-  lines_removed: 7722
-  footprint_refreshed_at: '2026-10-27T20:59:11Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 2
+  files_changed: 9
+  lines_added: 1026
+  lines_removed: 6
+  footprint_refreshed_at: '2026-10-27T21:00:21Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3414-arc-011-ph-1-b13-soak-h-16h-17-x5---rand.md

@@ -71,12 +71,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 3
-  commits: 3
-  files_changed: 328
-  lines_added: 29628
-  lines_removed: 7724
-  footprint_refreshed_at: '2026-10-27T20:59:07Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 2
+  files_changed: 5
+  lines_added: 595
+  lines_removed: 8
+  footprint_refreshed_at: '2026-10-27T21:00:17Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3398-arc-011-ph-0-si-25-secret-scan-of-every-.md

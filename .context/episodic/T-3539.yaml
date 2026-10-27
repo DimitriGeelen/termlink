@@ -75,12 +75,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 485
-  commits: 4
-  files_changed: 335
-  lines_added: 29699
-  lines_removed: 7761
-  footprint_refreshed_at: '2026-10-27T20:59:29Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 12
+  lines_added: 666
+  lines_removed: 45
+  footprint_refreshed_at: '2026-10-27T21:00:39Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3539-wc03-hub-t7d-material-binding-and-attest.md

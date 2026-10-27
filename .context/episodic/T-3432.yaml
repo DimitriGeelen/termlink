@@ -73,12 +73,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 5789
-  commits: 4
-  files_changed: 325
-  lines_added: 29049
-  lines_removed: 7722
-  footprint_refreshed_at: '2026-10-27T20:59:13Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 2
+  lines_added: 16
+  lines_removed: 6
+  footprint_refreshed_at: '2026-10-27T21:00:22Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3432-arc-011-fx-5-baseline-9-artifact-store-n.md

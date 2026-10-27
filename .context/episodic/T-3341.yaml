@@ -73,12 +73,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 42
-  commits: 3
-  files_changed: 326
-  lines_added: 29517
-  lines_removed: 7720
-  footprint_refreshed_at: '2026-10-27T20:59:06Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 2
+  files_changed: 3
+  lines_added: 484
+  lines_removed: 4
+  footprint_refreshed_at: '2026-10-27T21:00:15Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3341-rehearse-re-vendor-to-aef-bleeding-edge-.md

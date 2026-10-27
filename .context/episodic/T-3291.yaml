@@ -73,12 +73,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 33
-  commits: 3
-  files_changed: 328
-  lines_added: 29649
-  lines_removed: 7717
-  footprint_refreshed_at: '2026-10-27T20:59:00Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 2
+  files_changed: 5
+  lines_added: 616
+  lines_removed: 1
+  footprint_refreshed_at: '2026-10-27T21:00:09Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3291-session-lifecycle-leak---zombie-register.md

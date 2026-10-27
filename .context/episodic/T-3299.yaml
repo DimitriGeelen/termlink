@@ -74,12 +74,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 26
-  commits: 2
-  files_changed: 330
-  lines_added: 29525
-  lines_removed: 7752
-  footprint_refreshed_at: '2026-10-27T20:59:02Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 1
+  files_changed: 7
+  lines_added: 492
+  lines_removed: 36
+  footprint_refreshed_at: '2026-10-27T21:00:12Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3299-hub-sweep-silently-cannot-delete-in-tmpt.md

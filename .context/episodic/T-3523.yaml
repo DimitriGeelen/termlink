@@ -78,12 +78,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 548
-  commits: 4
-  files_changed: 334
-  lines_added: 29349
-  lines_removed: 7747
-  footprint_refreshed_at: '2026-10-27T20:59:24Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 11
+  lines_added: 316
+  lines_removed: 31
+  footprint_refreshed_at: '2026-10-27T21:00:33Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3523-wc03-hub-backend-initiated-stop-op-and-t.md

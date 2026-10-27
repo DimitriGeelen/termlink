@@ -74,12 +74,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 19
-  commits: 4
-  files_changed: 330
-  lines_added: 29394
-  lines_removed: 7718
-  footprint_refreshed_at: '2026-10-27T20:58:59Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 7
+  lines_added: 361
+  lines_removed: 2
+  footprint_refreshed_at: '2026-10-27T21:00:08Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3288-arc-claim-drift-never-runs-where-its-pro.md

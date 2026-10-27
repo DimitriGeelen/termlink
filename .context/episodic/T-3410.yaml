@@ -90,12 +90,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 16
-  commits: 3
-  files_changed: 335
-  lines_added: 30766
-  lines_removed: 7734
-  footprint_refreshed_at: '2026-10-27T20:59:10Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 2
+  files_changed: 12
+  lines_added: 1733
+  lines_removed: 18
+  footprint_refreshed_at: '2026-10-27T21:00:19Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3410-arc-011-ph-1-b9-frame-claim-deliver-c-8-.md

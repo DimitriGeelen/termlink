@@ -74,12 +74,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 3885
-  commits: 4
-  files_changed: 327
-  lines_added: 29072
-  lines_removed: 7727
-  footprint_refreshed_at: '2026-10-27T20:59:15Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 4
+  lines_added: 39
+  lines_removed: 11
+  footprint_refreshed_at: '2026-10-27T21:00:23Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3444-guard-layer-red-on-main-since-2026-09-30.md

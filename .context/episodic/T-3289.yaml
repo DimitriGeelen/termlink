@@ -69,12 +69,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 23
-  commits: 3
-  files_changed: 327
-  lines_added: 29387
-  lines_removed: 7747
-  footprint_refreshed_at: '2026-10-27T20:58:59Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 2
+  files_changed: 4
+  lines_added: 354
+  lines_removed: 31
+  footprint_refreshed_at: '2026-10-27T21:00:09Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3289-runme-installs-termlink-to-every-host-pa.md

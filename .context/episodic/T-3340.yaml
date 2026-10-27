@@ -85,12 +85,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 175
-  commits: 5
-  files_changed: 333
-  lines_added: 29747
-  lines_removed: 7753
-  footprint_refreshed_at: '2026-10-27T20:59:05Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 4
+  files_changed: 10
+  lines_added: 714
+  lines_removed: 37
+  footprint_refreshed_at: '2026-10-27T21:00:15Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3340-second-hub-on-107-at-tmptermlink-0-pid-2.md

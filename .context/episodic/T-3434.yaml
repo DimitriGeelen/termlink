@@ -175,12 +175,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 5541
-  commits: 6
-  files_changed: 422
-  lines_added: 37189
-  lines_removed: 8248
-  footprint_refreshed_at: '2026-10-27T20:59:13Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 5
+  files_changed: 99
+  lines_added: 8156
+  lines_removed: 532
+  footprint_refreshed_at: '2026-10-27T21:00:22Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3434-upgrade-vendored-framework-to-aef-v1811-.md

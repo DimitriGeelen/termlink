@@ -72,12 +72,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 544
-  commits: 4
-  files_changed: 328
-  lines_added: 29414
-  lines_removed: 7722
-  footprint_refreshed_at: '2026-10-27T20:59:20Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 5
+  lines_added: 381
+  lines_removed: 6
+  footprint_refreshed_at: '2026-10-27T21:00:30Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3460-runme-record-operator-ticks-for-t-3291-a.md

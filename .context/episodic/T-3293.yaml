@@ -81,12 +81,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 45
-  commits: 5
-  files_changed: 331
-  lines_added: 29597
-  lines_removed: 7758
-  footprint_refreshed_at: '2026-10-27T20:59:00Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 4
+  files_changed: 9
+  lines_added: 564
+  lines_removed: 42
+  footprint_refreshed_at: '2026-10-27T21:00:10Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3293-session-cleanup-never-deletes-idsockdata.md

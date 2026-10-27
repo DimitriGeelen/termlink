@@ -87,12 +87,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 74
-  commits: 4
-  files_changed: 336
-  lines_added: 29757
-  lines_removed: 7721
-  footprint_refreshed_at: '2026-10-27T20:59:12Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 3
+  files_changed: 14
+  lines_added: 724
+  lines_removed: 5
+  footprint_refreshed_at: '2026-10-27T21:00:21Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3425-rca-agent-tmux--s-procpidcwd-stripped-x-.md

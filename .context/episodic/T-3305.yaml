@@ -70,12 +70,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 2
-  commits: 2
-  files_changed: 328
-  lines_added: 29712
-  lines_removed: 7732
-  footprint_refreshed_at: '2026-10-27T20:59:04Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 1
+  files_changed: 5
+  lines_added: 679
+  lines_removed: 16
+  footprint_refreshed_at: '2026-10-27T21:00:14Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3305-decision-brief-command-one-decision-revi.md

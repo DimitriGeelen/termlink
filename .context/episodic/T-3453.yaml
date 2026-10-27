@@ -67,12 +67,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 3
-  commits: 3
-  files_changed: 327
-  lines_added: 29429
-  lines_removed: 7717
-  footprint_refreshed_at: '2026-10-27T20:59:18Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 2
+  files_changed: 4
+  lines_added: 396
+  lines_removed: 1
+  footprint_refreshed_at: '2026-10-27T21:00:27Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3453-sidecar-restart-scan-flags-peer-stage-re.md

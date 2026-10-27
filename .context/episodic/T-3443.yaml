@@ -113,12 +113,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 3785
-  commits: 12
-  files_changed: 339
-  lines_added: 30243
-  lines_removed: 7750
-  footprint_refreshed_at: '2026-10-27T20:59:14Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 11
+  files_changed: 16
+  lines_added: 1210
+  lines_removed: 34
+  footprint_refreshed_at: '2026-10-27T21:00:23Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3443-triage-five-firing-canaries-canary-alive.md

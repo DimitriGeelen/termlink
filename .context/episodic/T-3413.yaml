@@ -100,12 +100,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 13
-  commits: 3
-  files_changed: 351
-  lines_added: 30268
-  lines_removed: 7739
-  footprint_refreshed_at: '2026-10-27T20:59:11Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 2
+  files_changed: 28
+  lines_added: 1235
+  lines_removed: 23
+  footprint_refreshed_at: '2026-10-27T21:00:20Z'
+  footprint_refreshed_by_commit: 3d75dccb5
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3413-arc-011-ph-1-b12-fail-closed-matrix-and-.md
