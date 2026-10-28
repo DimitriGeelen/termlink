@@ -316,6 +316,20 @@ cp "$TMP/tl-old" "$TMP/bin/termlink"
 # T-3299: fixture mode — runme ABORTS (exit 2) if any action reaches a REAL
 # host default because its seam is missing, instead of touching the host.
 export RUNME_FIXTURE=1
+# T-3618 action 25: a fake `crontab` over a scratch file (no ntfy lines by default,
+# so ordinary runs skip; the action-25 cases at the end seed them).
+CT="$TMP/crontab-root"
+cat > "$TMP/crontab" <<EOS
+#!/usr/bin/env bash
+case "\$1" in
+    -l) [ -e "$CT" ] || exit 1; [ -n "\${FAKE_CT_DRIFT:-}" ] && { cat "$CT"; echo "* * * * * injected"; exit 0; }; cat "$CT" ;;
+    -)  [ -n "\${FAKE_CT_REFUSE:-}" ] && exit 1; cat > "$CT" ;;
+    *)  cp "\$1" "$CT" ;;
+esac
+EOS
+chmod +x "$TMP/crontab"
+printf '0 6 * * * /opt/x/update.sh\n# other job\n' > "$CT"
+export RUNME_CRONTAB="$TMP/crontab" RUNME_CRONTAB_BACKUP="$TMP/crontab.bak.T-476"
 # T-3443: let the real-run cases run as a non-root CI user too (fixture mode only;
 # case 11 unsets this to test the real non-root refusal).
 export RUNME_FIXTURE_ALLOW_NONROOT=1
@@ -663,7 +677,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 39 ))   # +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 40 ))   # +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1910,6 +1924,41 @@ else bad "24 inline" "rc=$rc: $x"; fi
 unset RUNME_SECRET_REMOVAL_DECISION_fake_hub
 tok_reset; out=$(run); rc=$?
 if [ "$rc" = "0" ]; then ok "24: restored for later cases"; else bad "24 restore" "rc=$rc"; fi
+
+# ---------------------------------------------------------------------------
+# T-3618 action 25 — remove 150's retired ntfy cron lines, nothing else.
+# ---------------------------------------------------------------------------
+s25() { echo "$1" | sed -n '/^.*25\. Remove 150-skills-manager/,/^.*Verification/p'; }
+seed_ct() { cat > "$CT" <<'EOC'
+0 3 * * * /opt/150-skills-manager/deploy/ntfy/backup.sh >> /opt/150-skills-manager/.context/working/ntfy-backup.log 2>&1
+0 6 * * * /opt/x/update.sh
+*/5 * * * * /opt/150-skills-manager/deploy/ntfy/health-check.sh 2>&1
+# ntfy backup (T-111)
+# ntfy health check (T-111)
+# other job
+EOC
+rm -f "$TMP"/crontab.bak.T-476*; }
+want_ct=$'0 6 * * * /opt/x/update.sh\n# other job'
+seed_ct; out=$(run --dry-run); x=$(s25 "$out")
+if echo "$x" | grep -q '\[DRY\]   would remove 4 ntfy line(s)' && grep -q ntfy "$CT"; then
+    ok "25: --dry-run names the 4 lines and changes nothing"
+else bad "25 dry-run" "$x"; fi
+out=$(run); rc=$?; x=$(s25 "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep -q 'OK      removed 4 ntfy line(s) from root.s crontab; every other line verified unchanged' \
+   && [ "$(cat "$CT")" = "$want_ct" ] && [ "$(stat -c %a "$TMP/crontab.bak.T-476")" = 600 ] && grep -q 'health-check.sh' "$TMP/crontab.bak.T-476"; then
+    ok "25: removes exactly the 2 ntfy jobs + 2 comments, keeps every other line in order, 0600 backup holds the original"
+else bad "25 remove" "rc=$rc: $x / $(cat "$CT")"; fi
+out=$(run); x=$(s25 "$out")
+if echo "$x" | grep -q 'skip    no ntfy line from 150-skills-manager'; then ok "25: second run skips (idempotent)"; else bad "25 idempotent" "$x"; fi
+seed_ct; out=$(FAKE_CT_REFUSE=1 run); rc=$?; x=$(s25 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep -q 'FAILED  crontab refused the edited table; restored' && [ "$(grep -c ntfy "$CT")" = 4 ]; then
+    ok "25: crontab refuses the edit => FAILED, the original is restored"
+else bad "25 refuse" "rc=$rc: $x"; fi
+seed_ct; out=$(FAKE_CT_DRIFT=1 run); rc=$?; x=$(s25 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep -q 'FAILED  the installed crontab is not the old one minus the 4 ntfy line(s); restored' && [ "$(grep -c ntfy "$CT")" = 4 ]; then
+    ok "25: installed table differs from old-minus-ntfy => FAILED, the original is restored"
+else bad "25 drift" "rc=$rc: $x"; fi
+printf '0 6 * * * /opt/x/update.sh\n# other job\n' > "$CT"; rm -f "$TMP"/crontab.bak.T-476*
 
 echo ""
 echo "----------------------------------------"

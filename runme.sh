@@ -2320,6 +2320,59 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# ACTION 25 — drop 150-skills-manager's two retired ntfy cron lines from root's
+# crontab on .107 (T-3618; 150's T-476 request of 2026-10-17, found unanswered by the
+# loss sweep; operator ruling A, 2026-10-28)
+#
+# ntfy on .107 was retired 2026-10-13 (live one: ring20 CT 301). The */5 health check
+# still starts the dead `ntfy` container, which exits at once (missing config):
+# measured 12 starts in an hour on 2026-10-28. 150 asked: remove ONLY these lines
+# (and their two comment lines), never pipe one line into `crontab -`, and do not
+# touch the container, /opt/ntfy-data or snapshots. So: back the crontab up (0600),
+# remove exactly the matching lines, then verify the installed crontab equals the
+# old one minus those lines; any other difference restores the backup and is FAILED.
+# Idempotent: no matching line -> skip. The container is left as it is.
+# Seams (fixtures only): RUNME_CRONTAB (the crontab command), RUNME_CRONTAB_BACKUP.
+# ---------------------------------------------------------------------------
+seam CRONTAB_CMD RUNME_CRONTAB "crontab"
+seam CRONTAB_BACKUP RUNME_CRONTAB_BACKUP "/root/crontab.bak.T-476"
+NTFY_CRON_RE='^[^#]*/opt/150-skills-manager/deploy/ntfy/(backup|health-check)\.sh|^# ntfy (backup|health check) \(T-111\)$'
+
+drop_ntfy_cron() {
+    local cur new after n bk
+    if ! cur="$($CRONTAB_CMD -l 2>/dev/null)"; then
+        say "  skip    root has no crontab; nothing to remove"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    n="$(printf '%s\n' "$cur" | grep -cE "$NTFY_CRON_RE")"
+    if [ "$n" = 0 ]; then
+        say "  skip    no ntfy line from 150-skills-manager in root's crontab (already removed)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would remove $n ntfy line(s) from root's crontab (backup to $CRONTAB_BACKUP), nothing else"; DONE=$((DONE+1)); return
+    fi
+    bk="$CRONTAB_BACKUP"; [ -e "$bk" ] && bk="$CRONTAB_BACKUP.$(date -u +%Y%m%dT%H%M%SZ)"
+    if ! ( umask 077; printf '%s\n' "$cur" > "$bk" ) || ! cmp -s <(printf '%s\n' "$cur") "$bk"; then
+        say "  FAILED  could not write the crontab backup $bk; nothing changed"; FAILED=$((FAILED+1)); return
+    fi
+    new="$(printf '%s\n' "$cur" | grep -vE "$NTFY_CRON_RE")"
+    if ! printf '%s\n' "$new" | $CRONTAB_CMD - 2>/dev/null; then
+        $CRONTAB_CMD "$bk" 2>/dev/null
+        say "  FAILED  crontab refused the edited table; restored from $bk"; FAILED=$((FAILED+1)); return
+    fi
+    after="$($CRONTAB_CMD -l 2>/dev/null)"
+    if [ "$after" != "$new" ] || printf '%s\n' "$after" | grep -qE "$NTFY_CRON_RE" \
+       || [ "$(printf '%s\n' "$after" | wc -l)" != "$(( $(printf '%s\n' "$cur" | wc -l) - n ))" ]; then
+        $CRONTAB_CMD "$bk" 2>/dev/null
+        say "  FAILED  the installed crontab is not the old one minus the $n ntfy line(s); restored from $bk"; FAILED=$((FAILED+1)); return
+    fi
+    say "  OK      removed $n ntfy line(s) from root's crontab; every other line verified unchanged; backup $bk (0600); the ntfy container is untouched"
+    DONE=$((DONE+1))
+}
+
+head2 "25. Remove 150-skills-manager's retired ntfy cron lines from root's crontab (T-3618; 150 T-476; ruling A)"
+drop_ntfy_cron
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
