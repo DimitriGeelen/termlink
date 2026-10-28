@@ -72,7 +72,9 @@ jobs:
   guard-layer:
     name: source-level guard layer (static checks + fixture suites)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # T-3622: was 10. Green runs took 8m43s (2026-10-18) and 9m06s (2026-10-20); the suite then grew and
+    # every run from 2026-10-20 was cancelled at ~10m20s, so the layer never reported. 20 leaves headroom.
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
