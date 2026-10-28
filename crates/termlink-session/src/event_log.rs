@@ -160,8 +160,12 @@ mod tests {
         let bak = crate::audit_append::rotated_path(&p);
         assert!(bak.exists(), "rotation should have produced a backup");
         assert!(std::fs::metadata(&bak).unwrap().len() <= 1000 + 101);
-        // never more than 2 files
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
+        // never more than 2 data files (plus the T-3615 rotation lock, which holds no data)
+        let data = std::fs::read_dir(dir.path())
+            .unwrap()
+            .filter(|e| e.as_ref().unwrap().path() != crate::audit_append::lock_path(&p))
+            .count();
+        assert_eq!(data, 2);
     }
 
     #[test]

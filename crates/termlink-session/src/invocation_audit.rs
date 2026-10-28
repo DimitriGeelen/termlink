@@ -44,9 +44,11 @@
 //!
 //! This module follows the first. Note carefully that the process-local `Mutex`
 //! below does NOT serialise across processes — MCP and CLI are separate
-//! processes from the hub. It guards only the rotation rename. Cross-process
-//! safety comes from `O_APPEND` line atomicity, which is why the record shape is
-//! an append and never a read-modify-write.
+//! processes from the hub. Cross-process safety comes from the shared writer
+//! (`audit_append`, T-3615): each line is ONE `O_APPEND` write, and rotation
+//! holds a `flock` on `<sink>.lock` and re-checks the size, so two processes can
+//! no longer both rotate and clobber the `.1` backup. The record shape stays an
+//! append and never a read-modify-write.
 //!
 //! # Scope
 //!
@@ -86,19 +88,21 @@
 //!   4. `CLAUDE_CODE_ENTRYPOINT`: `cli` (the interactive TUI) -> `interactive`;
 //!      `sdk-*` (headless `claude -p` fired by an orchestrator outside
 //!      `fw termlink dispatch`) -> `dispatched`.
-//!   5. No agent marker at all (neither `AI_AGENT` nor `CLAUDE_CODE_ENTRYPOINT`)
-//!      AND either `INVOCATION_ID` set (a systemd service with no agent in it) or
-//!      stdin not a terminal (cron, a `nohup`/`setsid` loop, a daemon: their stdin
-//!      is `/dev/null` or a file) -> `background`. This is the heuristic for the
-//!      callers we do not own (the vendored sidecar `watcher.py`, other projects'
-//!      loops); the ones we own declare `TERMLINK_WORKER_CLASS=background` via
-//!      rule 1 (every `.context/cron/*.crontab`, the notify/waker loops).
-//!      Measured before this rule (2026-10-28, .107): 88% of attributed rows were
-//!      `unknown`, nearly all `channel unread` / `pty output` / `ping` polling
-//!      from such loops. An agent's Bash tool also has a non-tty stdin, but it
-//!      carries `AI_AGENT`, so it never lands here.
-//!   6. otherwise `unknown` (a human typing `termlink` at a terminal, or a
-//!      harness that marks itself only partly).
+//!   5. otherwise `unknown`. `background` is ONLY ever declared (rule 1): the
+//!      loops we own carry `TERMLINK_WORKER_CLASS=background` (every
+//!      `.context/cron/*.crontab`, the notify/waker loops, slice 3). Slice 3 also
+//!      guessed `background` for any caller with no agent marker and either
+//!      `INVOCATION_ID` or a non-tty stdin; the external review (T-3615 A2) showed
+//!      that guess also catches a non-Claude harness's shell tool, an MCP server
+//!      such a harness starts, and a human piping into termlink, i.e. it discounts
+//!      real use as observer effect, the undercount this module exists to avoid.
+//!      Such callers are now `unknown`, and the rule that matched is recorded.
+//!
+//!   `class_rule` (T-3615) names the rule that fired: `explicit`, `fw-dispatch`,
+//!   `sidecar-unit`, `systemd-agent`, `entrypoint-cli`, `entrypoint-sdk`, and for
+//!   `unknown`: `unmarked-service` (systemd, no agent marker), `unmarked-no-tty`
+//!   (no agent marker, stdin not a terminal: cron, daemons, other harnesses' tools,
+//!   pipes), or `no-rule` (a terminal, or a partly-marked harness).
 //!
 //!   `TERMLINK_AGENT_ID` is deliberately NOT a class signal: this project sets
 //!   `TERMLINK_AGENT_ID=claude-termlink` in its Claude settings env (runme action
@@ -126,7 +130,10 @@
 //! `/var/lib/termlink`) that holds a `hub.sock`. The hub's runtime dir is the one
 //! directory every caller on the host agrees on whatever its env, and it is the
 //! persistent one where the hub runs under systemd. If no candidate holds a hub,
-//! the behaviour is today's (the primary runtime dir). This applies to the audit
+//! the behaviour is today's (the primary runtime dir). A caller that cannot use
+//! that dir (a non-root caller and a `drwx------ root` hub dir, as on .107; or any
+//! dir it cannot write) writes a per-user sink, `$HOME/.termlink/`, which the
+//! rollup also reads (review item 31; see [`resolve_sink_dir_for`]). This applies to the audit
 //! sink only; session and hub discovery are unchanged. Cost: at most one `stat`
 //! per candidate, once per process.
 
@@ -212,36 +219,118 @@ fn current_path() -> Option<PathBuf> {
         return p.clone();
     }
     let explicit = std::env::var_os("TERMLINK_RUNTIME_DIR").map(PathBuf::from);
-    let dir = resolve_sink_dir(
+    let dir = resolve_sink_dir_for(
         explicit,
         &crate::discovery::all_runtime_dirs(),
-        |d| d.join("hub.sock").exists(),
+        probe_hub,
+        sink_writable,
+        user_sink_dir(std::env::var_os("HOME").map(PathBuf::from)),
     );
     let p = dir.join(FILE_NAME);
     let _ = PATH.set(Some(p.clone()));
     Some(p)
 }
 
-/// T-3615: pure core of the one-sink-per-host rule (see the module doc).
-/// `candidates` is primary-first (as [`crate::discovery::all_runtime_dirs`]
-/// returns it); `has_hub` says whether a dir holds this host's hub socket.
-/// Explicit override wins; else the first candidate with a hub; else the
-/// primary candidate (today's behaviour).
+/// T-3615: pure core of the one-sink-per-host rule for a caller that can write
+/// wherever it is pointed (see [`resolve_sink_dir_for`] for the full rule).
 pub fn resolve_sink_dir(
     explicit: Option<PathBuf>,
     candidates: &[PathBuf],
     has_hub: impl Fn(&Path) -> bool,
 ) -> PathBuf {
-    if let Some(dir) = explicit {
-        return dir;
+    resolve_sink_dir_for(
+        explicit,
+        candidates,
+        |d| if has_hub(d) { HubProbe::Present } else { HubProbe::Absent },
+        |_| true,
+        None,
+    )
+}
+
+/// What a candidate runtime dir says about this host's hub socket.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HubProbe {
+    /// `hub.sock` is there.
+    Present,
+    /// The dir cannot be searched by this caller (`stat` says permission denied):
+    /// the host's hub may well live there, but it is not ours to write.
+    Hidden,
+    /// No hub socket.
+    Absent,
+}
+
+/// T-3615 (review item 31): the one-sink-per-host rule plus the non-root path.
+/// Order: an explicit override; else the first candidate with a hub; else, if a
+/// candidate is [`HubProbe::Hidden`], the per-user sink; else the primary
+/// candidate. Whatever is chosen, a dir this caller cannot write falls back to
+/// the per-user sink (`user_dir`, i.e. `$HOME/.termlink`) when there is one.
+///
+/// Why per-user and not a group-writable shared sink: on .107 the hub dir is
+/// `drwx------ root`, so every non-root caller's rows were dropped (the write
+/// error is swallowed by contract). A shared group-writable file does not stay
+/// shared: rotation recreates it with the ROTATING process's umask (022 for
+/// most callers, so 0644), after which every other user's appends fail again,
+/// silently, until someone fixes the mode. It would also need a group created
+/// and every agent user added to it on every host. A per-user file needs no
+/// admin step, cannot be broken by another user's umask, and never widens the
+/// hub dir. The cost moves to the reader: the rollup (root, via cron) also reads
+/// `<home>/.termlink/invocation-audit.jsonl` for every account on the host.
+pub fn resolve_sink_dir_for(
+    explicit: Option<PathBuf>,
+    candidates: &[PathBuf],
+    probe: impl Fn(&Path) -> HubProbe,
+    writable: impl Fn(&Path) -> bool,
+    user_dir: Option<PathBuf>,
+) -> PathBuf {
+    let primary = || {
+        candidates
+            .first()
+            .cloned()
+            .unwrap_or_else(crate::discovery::runtime_dir)
+    };
+    let chosen = if let Some(dir) = explicit {
+        dir
+    } else {
+        let probes: Vec<HubProbe> = candidates.iter().map(|d| probe(d)).collect();
+        if let Some(i) = probes.iter().position(|p| *p == HubProbe::Present) {
+            candidates[i].clone()
+        } else if probes.contains(&HubProbe::Hidden)
+            && let Some(u) = &user_dir
+        {
+            return u.clone();
+        } else {
+            primary()
+        }
+    };
+    match user_dir {
+        Some(u) if !writable(&chosen) => u,
+        _ => chosen,
     }
-    if let Some(dir) = candidates.iter().find(|d| has_hub(d)) {
-        return dir.clone();
+}
+
+/// `$HOME/.termlink`, the per-user sink dir (beside `queue.log`, `hubs.toml`).
+pub fn user_sink_dir(home: Option<PathBuf>) -> Option<PathBuf> {
+    home.filter(|h| !h.as_os_str().is_empty()).map(|h| h.join(".termlink"))
+}
+
+fn probe_hub(dir: &Path) -> HubProbe {
+    match std::fs::metadata(dir.join("hub.sock")) {
+        Ok(_) => HubProbe::Present,
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => HubProbe::Hidden,
+        Err(_) => HubProbe::Absent,
     }
-    candidates
-        .first()
-        .cloned()
-        .unwrap_or_else(crate::discovery::runtime_dir)
+}
+
+/// Can this process append to the sink in `dir`? Tried for real (create the
+/// dir, open the file for append), once per process, because `access(2)`-style
+/// checks answer for the real uid and miss ACLs and read-only mounts.
+fn sink_writable(dir: &Path) -> bool {
+    let _ = std::fs::create_dir_all(dir);
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join(FILE_NAME))
+        .is_ok()
 }
 
 /// Worker classes a record can carry (T-3615). See the module doc for the rules.
@@ -252,6 +341,10 @@ pub const CLASSES: [&str; 6] =
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribution {
     pub class: &'static str,
+    /// Which rule decided `class` (T-3615, review A2/A8/A20): `explicit`,
+    /// `fw-dispatch`, `sidecar-unit`, `systemd-agent`, `entrypoint-cli`,
+    /// `entrypoint-sdk`, `unmarked-service`, `unmarked-no-tty`, `no-rule`.
+    pub class_rule: &'static str,
     pub harness: Option<String>,
     pub model: Option<String>,
     pub worker_kind: Option<String>,
@@ -277,26 +370,32 @@ pub fn attribution_with(get: impl Fn(&str) -> Option<String>, stdin_tty: bool) -
     let is1 = |k: &str| get(k).as_deref() == Some("1");
     let agent_marked = get("AI_AGENT").is_some() || get("CLAUDE_CODE_ENTRYPOINT").is_some();
     let systemd_service = get("INVOCATION_ID").is_some();
-    let class = if let Some(c) = get("TERMLINK_WORKER_CLASS")
+    let (class, class_rule) = if let Some(c) = get("TERMLINK_WORKER_CLASS")
         .and_then(|v| CLASSES.iter().copied().find(|c| *c == v.to_ascii_lowercase()))
     {
-        c
+        (c, "explicit")
     } else if is1("FW_DISPATCHED_WORKER") {
         if is1("FW_REVIEW_WORKER") || is1("FW_REVIEWER_IN_DISPATCH") {
-            "reviewer"
+            ("reviewer", "fw-dispatch")
         } else {
-            "dispatched"
+            ("dispatched", "fw-dispatch")
         }
-    } else if get("TERMLINK_SIDECAR_SUPERVISOR").is_some()
-        || (systemd_service && agent_marked && get("FW_CLAUDE_FW_SUPERVISED").is_none())
-    {
-        "standing"
+    } else if get("TERMLINK_SIDECAR_SUPERVISOR").is_some() {
+        ("standing", "sidecar-unit")
+    } else if systemd_service && agent_marked && get("FW_CLAUDE_FW_SUPERVISED").is_none() {
+        ("standing", "systemd-agent")
     } else {
         match get("CLAUDE_CODE_ENTRYPOINT").as_deref() {
-            Some("cli") => "interactive",
-            Some(e) if e.starts_with("sdk") => "dispatched",
-            _ if !agent_marked && (systemd_service || !stdin_tty) => "background",
-            _ => "unknown",
+            Some("cli") => ("interactive", "entrypoint-cli"),
+            Some(e) if e.starts_with("sdk") => ("dispatched", "entrypoint-sdk"),
+            // Unmarked callers stay `unknown` (T-3615 review A2): a non-tty stdin
+            // is also what a non-Claude harness's shell tool, an MCP server it
+            // starts, or a human piping into termlink look like, so guessing
+            // `background` would discount real use as observer effect. The rule
+            // that would have fired is kept, so the rollup can still split them.
+            _ if !agent_marked && systemd_service => ("unknown", "unmarked-service"),
+            _ if !agent_marked && !stdin_tty => ("unknown", "unmarked-no-tty"),
+            _ => ("unknown", "no-rule"),
         }
     };
     let project = get("TERMLINK_PROJECT")
@@ -313,6 +412,7 @@ pub fn attribution_with(get: impl Fn(&str) -> Option<String>, stdin_tty: bool) -
         .filter(|s| !s.is_empty());
     Attribution {
         class,
+        class_rule,
         harness: get("AI_AGENT"),
         model: get("TERMLINK_MODEL").or_else(|| get("ANTHROPIC_MODEL")),
         worker_kind: get("TERMLINK_WORKER_KIND"),
@@ -326,7 +426,11 @@ impl Attribution {
     /// The JSON fields this attribution adds, each prefixed with `,` so the
     /// fragment appends after `"name":...` inside the record object.
     pub fn json_fragment(&self) -> String {
-        let mut out = format!(r#","class":{}"#, json_escape(self.class));
+        let mut out = format!(
+            r#","class":{},"class_rule":{}"#,
+            json_escape(self.class),
+            json_escape(self.class_rule)
+        );
         for (k, v) in [
             ("harness", &self.harness),
             ("model", &self.model),
@@ -601,25 +705,63 @@ mod tests {
     }
 
     #[test]
-    fn class_background_systemd_service_without_agent() {
-        // memwatch.sh / `termlink register --self` units: systemd, no agent marker.
-        assert_eq!(attr(&[("INVOCATION_ID", "abc")]).class, "background");
-        assert_eq!(attr(&[("INVOCATION_ID", "abc"), ("FW_CLAUDE_FW_SUPERVISED", "1")]).class,
-                   "background", "a non-agent child of a claude-fw scope is still background");
+    fn unmarked_service_is_unknown_with_its_rule() {
+        // T-3615 review A2: memwatch.sh-style units with no marker are no longer
+        // guessed `background`; the rule that matched is recorded instead.
+        let a = attr(&[("INVOCATION_ID", "abc")]);
+        assert_eq!((a.class, a.class_rule), ("unknown", "unmarked-service"));
+        let b = attr(&[("INVOCATION_ID", "abc"), ("FW_CLAUDE_FW_SUPERVISED", "1")]);
+        assert_eq!((b.class, b.class_rule), ("unknown", "unmarked-service"));
     }
 
     #[test]
-    fn class_background_no_tty_without_agent() {
-        // cron, nohup/setsid loops, the vendored sidecar watcher.py (TERM set, stdin /dev/null).
-        assert_eq!(attr_notty(&[]).class, "background");
-        assert_eq!(attr_notty(&[("TERM", "xterm-256color"), ("PROJECT_ROOT", "/opt/x")]).class,
-                   "background");
-        assert_eq!(attr_notty(&[("TERMLINK_AGENT_ID", "claude-termlink")]).class, "background");
+    fn unmarked_no_tty_is_unknown_with_its_rule() {
+        // cron without the marker, the vendored watcher.py, another harness's shell
+        // tool, a human piping into termlink: all look like this, so not `background`.
+        for env in [
+            vec![],
+            vec![("TERM", "xterm-256color"), ("PROJECT_ROOT", "/opt/x")],
+            vec![("TERMLINK_AGENT_ID", "claude-termlink")],
+        ] {
+            let a = attr_notty(&env);
+            assert_eq!((a.class, a.class_rule), ("unknown", "unmarked-no-tty"), "{env:?}");
+        }
+        // Our own loops still declare it and stay background.
+        let c = attr_notty(&[("TERMLINK_WORKER_CLASS", "background")]);
+        assert_eq!((c.class, c.class_rule), ("background", "explicit"));
+    }
+
+    #[test]
+    fn class_rule_names_every_path() {
+        type Case<'a> = (&'a [(&'a str, &'a str)], bool, &'a str, &'a str);
+        let cases: &[Case] = &[
+            (&[("TERMLINK_WORKER_CLASS", "reviewer")], true, "reviewer", "explicit"),
+            (&[("FW_DISPATCHED_WORKER", "1")], true, "dispatched", "fw-dispatch"),
+            (&[("FW_DISPATCHED_WORKER", "1"), ("FW_REVIEW_WORKER", "1")], true, "reviewer", "fw-dispatch"),
+            (&[("TERMLINK_SIDECAR_SUPERVISOR", "systemd")], true, "standing", "sidecar-unit"),
+            (&[("INVOCATION_ID", "x"), ("AI_AGENT", "a")], true, "standing", "systemd-agent"),
+            (&[("CLAUDE_CODE_ENTRYPOINT", "cli")], false, "interactive", "entrypoint-cli"),
+            (&[("CLAUDE_CODE_ENTRYPOINT", "sdk-ts")], true, "dispatched", "entrypoint-sdk"),
+            (&[("AI_AGENT", "a")], false, "unknown", "no-rule"),
+            (&[], true, "unknown", "no-rule"),
+        ];
+        for (env, tty, class, rule) in cases {
+            let m: std::collections::HashMap<String, String> =
+                env.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+            let a = attribution_with(|k| m.get(k).cloned(), *tty);
+            assert_eq!((a.class, a.class_rule), (*class, *rule), "{env:?} tty={tty}");
+        }
+    }
+
+    #[test]
+    fn record_carries_the_class_rule() {
+        let frag = attr_notty(&[]).json_fragment();
+        assert!(frag.starts_with(r#","class":"unknown","class_rule":"unmarked-no-tty""#), "{frag}");
     }
 
     #[test]
     fn class_background_never_swallows_an_agent() {
-        // An agent's Bash tool has a non-tty stdin but carries AI_AGENT: not background.
+        // An agent's Bash tool has a non-tty stdin but carries AI_AGENT: never background.
         assert_eq!(attr_notty(&[("AI_AGENT", "claude-code_2-1-311_agent")]).class, "unknown");
         assert_eq!(attr_notty(&[("CLAUDE_CODE_ENTRYPOINT", "cli")]).class, "interactive");
         assert_eq!(attr_notty(&[("FW_DISPATCHED_WORKER", "1")]).class, "dispatched");
@@ -741,5 +883,121 @@ mod tests {
         std::fs::write(hub.join("hub.sock"), b"").unwrap();
         let d = resolve_sink_dir(None, &[stray, hub.clone()], |p| p.join("hub.sock").exists());
         assert_eq!(d, hub);
+    }
+
+    // ── T-3615 review item 31: the non-root path ────────────────────────────
+
+    fn user() -> Option<PathBuf> {
+        Some(PathBuf::from("/home/u/.termlink"))
+    }
+
+    #[test]
+    fn sink_hidden_hub_dir_sends_a_non_root_caller_to_its_user_sink() {
+        // .107: /var/lib/termlink is drwx------ root, so a non-root stat of
+        // hub.sock is EACCES. Before: the stray /tmp/termlink-<uid>, read by nobody.
+        let c = vec![PathBuf::from("/tmp/termlink-1000"), PathBuf::from("/var/lib/termlink")];
+        let probe = |p: &Path| {
+            if p == Path::new("/var/lib/termlink") { HubProbe::Hidden } else { HubProbe::Absent }
+        };
+        assert_eq!(resolve_sink_dir_for(None, &c, probe, |_| true, user()), user().unwrap());
+        // No HOME: nothing better than today's primary.
+        assert_eq!(resolve_sink_dir_for(None, &c, probe, |_| true, None), c[0]);
+    }
+
+    #[test]
+    fn sink_unwritable_choice_falls_back_to_the_user_sink() {
+        let c = vec![PathBuf::from("/var/lib/termlink")];
+        let present = |_: &Path| HubProbe::Present;
+        assert_eq!(resolve_sink_dir_for(None, &c, present, |_| false, user()), user().unwrap());
+        assert_eq!(
+            resolve_sink_dir_for(Some(PathBuf::from("/ro/tl")), &c, present, |_| false, user()),
+            user().unwrap(),
+            "an explicit dir this caller cannot write would drop every row"
+        );
+        // Writable: the hub dir wins as before (root, or a hub run by this user).
+        assert_eq!(resolve_sink_dir_for(None, &c, present, |_| true, user()), c[0]);
+    }
+
+    #[test]
+    fn user_sink_dir_is_home_dot_termlink() {
+        assert_eq!(user_sink_dir(Some(PathBuf::from("/home/u"))), user());
+        assert_eq!(user_sink_dir(Some(PathBuf::new())), None);
+        assert_eq!(user_sink_dir(None), None);
+    }
+
+    const NONROOT_CHILD_ENV: &str = "TERMLINK_INVOCATION_AUDIT_NONROOT_CHILD";
+
+    /// Child half of the real non-root test (a no-op otherwise): resolve the sink
+    /// with the REAL probes against `<root>/hub` (root-owned, 0700, holds hub.sock)
+    /// and record one row, then print where it went.
+    #[test]
+    fn nonroot_child() {
+        let Ok(root) = std::env::var(NONROOT_CHILD_ENV) else { return };
+        let root = PathBuf::from(root);
+        let c = vec![root.join("primary"), root.join("hub")];
+        let dir = resolve_sink_dir_for(
+            None,
+            &c,
+            probe_hub,
+            sink_writable,
+            user_sink_dir(std::env::var_os("HOME").map(PathBuf::from)),
+        );
+        let path = dir.join(FILE_NAME);
+        record_to_with(&path, SURFACE_CLI, "version", r#","class":"unknown""#);
+        println!("SINK={}", path.display());
+    }
+
+    /// T-3615 item 31, for real: a non-root process (uid 65534 via setpriv) and a
+    /// root-only hub dir. Its row must land in its own `$HOME/.termlink` sink, not
+    /// be dropped and not go to a stray tmp dir. Runs only as root with setpriv.
+    #[test]
+    fn nonroot_caller_writes_its_user_sink_for_real() {
+        let is_root = unsafe { libc::geteuid() } == 0;
+        let setpriv = Path::new("/usr/bin/setpriv");
+        if !is_root || !setpriv.exists() {
+            eprintln!("skipped: needs root and /usr/bin/setpriv");
+            return;
+        }
+        use std::os::unix::fs::PermissionsExt;
+        let td = TempDir::new().unwrap();
+        std::fs::set_permissions(td.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+        let hub = td.path().join("hub");
+        std::fs::create_dir_all(&hub).unwrap();
+        std::fs::write(hub.join("hub.sock"), b"").unwrap();
+        std::fs::set_permissions(&hub, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let home = td.path().join("home");
+        std::fs::create_dir_all(&home).unwrap();
+        let cs = std::ffi::CString::new(home.as_os_str().as_encoded_bytes()).unwrap();
+        assert_eq!(unsafe { libc::chown(cs.as_ptr(), 65534, 65534) }, 0);
+        let exe = std::env::current_exe().unwrap();
+        // The child must be able to exec the test binary; skip if a parent dir
+        // of it is closed to other users (some build hosts).
+        let probe = std::process::Command::new(setpriv)
+            .args(["--reuid=65534", "--regid=65534", "--clear-groups", "--"])
+            .arg(&exe)
+            .arg("--list")
+            .output()
+            .unwrap();
+        if !probe.status.success() {
+            eprintln!("skipped: uid 65534 cannot exec {}", exe.display());
+            return;
+        }
+        let out = std::process::Command::new(setpriv)
+            .args(["--reuid=65534", "--regid=65534", "--clear-groups", "--"])
+            .arg(&exe)
+            .args(["--exact", "invocation_audit::tests::nonroot_child", "--nocapture", "--test-threads=1"])
+            .env(NONROOT_CHILD_ENV, td.path())
+            .env("HOME", &home)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let want = home.join(".termlink").join(FILE_NAME);
+        assert!(stdout.contains(&format!("SINK={}", want.display())), "{stdout}");
+        let lines = read_lines(&want);
+        assert_eq!(lines.len(), 1, "the non-root row is kept");
+        assert!(!hub.join(FILE_NAME).exists(), "the root-only hub dir is never written or widened");
+        let mode = std::fs::metadata(&hub).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o700);
     }
 }
