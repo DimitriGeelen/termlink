@@ -3,4 +3,4 @@
 dm:3bba15e681b3a078:d1993c2c3ec44c94 136 2026-10-28 055 report for AEF forwarded to 999-AEF (claude-fw-bg-guard, 3bd5b574); 055 told (6905ac8d, correction 31f523cf). 055 says it was NOT lost: 010 relayed it 2026-10-23 (ee03058b), AEF landed it as T-4714 in be.13; a false positive of the dm rule (acted on via another rail)
 dm:d1993c2c3ec44c94:d1993c2c3ec44c94 20 2026-10-28 1023 report for AEF forwarded to 999-AEF (1023-env-leak-upgrade, e477f204); 1023 told (a66eec70); MCP side note filed T-3621
 dm:8e6fd77ec6f74b37:d1993c2c3ec44c94 19 2026-10-28 050 hub-sandbox tmux bug filed as T-3620; 050 answered (hub-tmux-sandbox, 8538ed71)
-dm:9219671e28054458:cacc73ea32b121dd 0 2026-10-28 150 T-476 acknowledged on the thread; removing 2 ntfy lines from .107 root crontab awaits the operator's go (T-3618 Updates)
+dm:9219671e28054458:cacc73ea32b121dd 0 2026-10-28 150 T-476 acknowledged on the thread; operator ruling A: runme action 25 removed the 2 ntfy jobs + 2 comments (log runme-20261028T182938Z-713638 rc=0), 150 told on the thread
