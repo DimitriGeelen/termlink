@@ -1,6 +1,6 @@
 # T-3612 round 4 — draft purpose, objectives and value drivers (for the operator first)
 
-**Status:** DRAFT v0.1, 2026-10-28. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
+**Status:** DRAFT v0.2, 2026-10-28. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
 corrects this first; only then does it go to outside review (claude, codex, antigravity, opencode; at most 2 rounds).
 Adoption is the operator's (the charter sentence is human-blessed, `docs/CHARTER.md:17-19`).
 
@@ -110,10 +110,24 @@ silent failures"), so they raise D2's weight instead of becoming new drivers.
 | D4 Portability | 3 | 3 | Linux and macOS, standards (MCP); unchanged. |
 | F-TRUST Attributable trust (new) | — | 7 | Not what D1–D4 mean: who may do what, provably (P-5, Q5). Retire when T-3423 and T-2422 are live. |
 | F-SURFACE Proportionate surface (new) | — | 5 | Not what D1–D4 mean: fewer, used verbs (P-7). Retire when Q6 is decided and the cut is done. |
-| F-RECALL Recall leverage | 6 | drop | Describes AEF's memory layer, not this product (all four seats). |
+| F-RECALL Recall leverage | 6 | **5, redefined for the product** (operator, 2026-10-28: B) | See below. |
 | F-ORCH Orchestration leverage | 5 | drop | Q2: TermLink does not orchestrate. Hand-off mechanics are inside P-3 and D2. |
 
-That leaves two free drivers, under the cap of five. Totals stay indicative, as in every brief.
+**F-RECALL in the product** (operator ruling B, 2026-10-28; the four seats had said drop it, because as written it
+scores AEF's memory layer).
+- Redefined: an agent can find back what was said and decided in its conversations, by thread, peer and time range
+  within the retention window, and the record hands what must be kept to a long-term store.
+- Rubric anchors:
+  - 0: nothing found back after the session ends.
+  - 3: a thread's decisions can be found by peer and time range.
+  - 5: work improves finding back for every conversation, not just one.
+- Guardrail: inside the Q3 ruling (T-3304 IW-1 B, IW-3 B): a bounded record, time-range reads, never a query language
+  or joins. Wider recall (searching all history, forever) would reopen that ruling.
+- Not D1–D4: none of them means "can be found again".
+- Retire when: open.
+
+That leaves three free drivers (F-TRUST, F-SURFACE, F-RECALL), under the cap of five. Totals stay indicative, as in
+every brief.
 
 ## 4. Product non-goals (charter non-goals, reworded where a ruling requires)
 
@@ -144,8 +158,13 @@ These describe how we build and run TermLink, not what it is. They would live in
    protects; a new one retires an old one once the cap is reached. **Open: the cap's number.**
 4. **DP-4 The framework stays current and our fixes go upstream.** Re-vendor routine, divergence baseline, and local
    framework fixes filed with AEF rather than kept (G-062).
-5. **Drivers:** the development project scores its own work with D1–D4 at today's weights (9/7/5/3). That is where
-   D1's emphasis on hardening the process belongs.
+5. **DP-5 We read back before we propose** (operator ruling B, 2026-10-28). Before a decision is put to the operator,
+   earlier rulings, tasks, research and the vector store are searched, and what was found is cited. Rulings stay
+   findable. (This session the agent had to be told several times; Q3–Q5 and the credential question turned out to be
+   ruled already.)
+6. **Drivers:** the development project scores its own work with D1–D4 at today's weights (9/7/5/3) plus F-RECALL at
+   6 in its current meaning (`fw recall`, learnings synced into instruction files). That is where D1's emphasis on
+   hardening the process belongs.
 
 ## 6. What adoption would change (nothing is changed by this draft)
 
@@ -165,3 +184,11 @@ These describe how we build and run TermLink, not what it is. They would live in
 2. P-3: does the per-worker workspace stay in TermLink, or move to AEF?
 3. D1's new weight (5 proposed), and the DP-3 canary cap's number.
 4. The per-layer driver tooling (6.3): a second file now, or ask AEF first.
+5. Product F-RECALL: is the bounded meaning above what you meant, and what is its retire condition?
+
+## Version history
+
+| Version | Date | Change |
+|---|---|---|
+| 0.1 | 2026-10-28 | First draft, operator ruling C (operator reads first). |
+| 0.2 | 2026-10-28 | Operator: "why is recall dropped?". It was dropped from the product set on the four seats' advice, and wrongly left out of the development project's set. Ruling B: recall in both sets (product F-RECALL 5, redefined and bounded by Q3; development project F-RECALL 6 and DP-5). |

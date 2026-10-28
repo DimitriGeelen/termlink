@@ -127,3 +127,11 @@ The 2026-10-27 value-review run (T-3609) could not confirm its yardstick because
    ruled "ok C". Draft v0.1 written: `docs/reports/T-3612-round4-draft.md` (purpose, P-1..P-7, product drivers,
    non-goals, development-project set DP-1..DP-4, what adoption would change, four open points). Next: the operator
    reads it; outside review only after their corrections.
+14. 2026-10-28, operator on draft v0.1: "why is recall dropped???". Agent: dropped from the product set because
+   all four seats said F-RECALL as written scores AEF's memory layer (Claude: "belongs to the framework, not the
+   substrate"; Codex; Antigravity "scored 0–2 on nearly every TermLink task"); but wrongly also left out of the
+   development project's set, where reading back is exactly the discipline the operator has had to enforce. Options:
+   A dev project only / B both sets / C drop. Operator: "b". Draft v0.2: product F-RECALL 5, redefined as finding
+   back what was said and decided, bounded by Q3 (retention window, time-range reads, no query language); dev
+   project F-RECALL 6 in its current meaning plus DP-5 "we read back before we propose". Open: whether the bounded
+   product meaning is what the operator meant, and its retire condition.
