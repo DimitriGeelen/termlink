@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:53Z
-last_update: '2026-10-18T22:32:52Z'
+last_update: 2026-10-28T17:21:03Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -171,6 +171,20 @@ bash tests/main-role-lease-fixtures.sh
 -->
 
 ## Decisions
+
+### 2026-10-28 — build "main" now? C: visibility now, the lease stays in PH-4 (operator ruling)
+- **Chose:** C. Keep the ruled phasing (step 3 OP-10 A: PH-2 pinned main, built in crates/termlink-sidecar/src/book.rs
+  and live for the W1 pair; PH-4 lease). Pull the visible half into PH-2 as a separate small build task: who the
+  pinned main is and whether it is alive (status + MCP), a needs-attention alarm when it is unreachable or not
+  draining, an audited re-pin through runme. Takeover stays manual (the operator) until PH-4. This task is unchanged.
+- **Why:** the losses on record (T-3608 classes 1-2, a 055 report receipted "delivered" on dm:3bba…:d1993c… 2026-10-20
+  and never acted on, INC-a) happened on AEF's sidecar inboxes and the DM topics, not on the new rail where "main"
+  lives; a lease would not have saved them. The operator's real pain is message loss; that goes to a loss sweep
+  across every rail (filed separately). Building the lease now would override OP-4 A (signed eligibility) and the
+  "no knob before its lock" floor rule, with durations, readiness signal and hub generation not yet designed.
+- **Rejected:** A full lease now (overrides, undesigned parts, no effect on the rails that lose mail); B nothing extra
+  (a dead main stays invisible); D reopen the phasing; E lease scoped to the book (sound, but after C, if wanted).
+- **Left open:** E stays available after C if the operator wants the lease before PH-4.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
