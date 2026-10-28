@@ -419,6 +419,9 @@ bvp_scores_proposed:
   minute: remote ping, remote list, remote send-file) and scripts/check-upstream-consumption.sh (daily, remote exec;
   they retire it). Scope check (ours): ping = Observe (auth.rs:180), list = session.discover Observe
   (server.rs:755), send-file = event.emit_to Interact: all work under an Interact token; exec does not.
+- .121 update (msg 07403a17, 11:22Z): reflection-cron.sh now uses profile names (framework-agent, ring20-manager), no
+  --secret-file, live round OK; check-upstream-consumption.sh retired. Only hubs.toml's framework-agent profile still
+  names the secret file: the token_file swap of that profile is all that remains on .121.
 
 ### 2026-10-28T00:10:39Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
