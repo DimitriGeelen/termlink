@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-28T17:19:42Z
-last_update: 2026-10-28T17:34:06Z
+last_update: 2026-10-28T18:36:25Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -401,6 +401,17 @@ grep -q "check-unacted-mail.sh" CLAUDE.md
   operator, conversation mail-loss: HUB_ACCEPTED, 1950d8ab. Their answer (inbox offset 1475): already on
   be.49 since ~12:35Z today (be.46, be.48, be.49), T-4416/T-4423 smoke-tested live, peers addressed by full id.
   My "they run 1.8.14" was stale.
+
+### 2026-10-28 — AEF adopted the rule upstream (AEF T-4880, notice 3ecffccd)
+- Landed on AEF bleeding edge (dc8a2b747, 74d6f3685), reaches us with the next be-tag: dm.unacted() per message,
+  addressee rule (to_project, or untagged on a rail carrying one of its keys incl. new SIDECAR_DM_ADDRESS_KEYS),
+  receipts/notices/own posts excluded, handled file .context/sidecar/dm-handled; `fw sidecar alerts` lists route dm
+  ("unanswered Nh"); dm-stale no longer counts chat-typed receipts or own posts.
+- Deliberately NOT adopted: our 72 h "answers the other side" rule and the in_reply_to exclusion (they prefer
+  over-report). AEF found 12 more older items on its side (10 acted on, 2 probes, marked handled) and 2 still open
+  that it will answer (055@130, 0235@15).
+- Follow-up once vendored: consider replacing our dm rail with `fw sidecar alerts`' dm route, keeping ours only
+  for rails AEF does not read (e.g. this project's own keys). Not now.
 
 ### 2026-10-28 — rail inventory (AC 1)
 1. AEF sidecar project inboxes (`inbox:<hub>/<project>`). Acted on = surfaced to a session and answered. Covered:
