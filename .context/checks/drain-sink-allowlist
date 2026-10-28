@@ -57,3 +57,8 @@ crates/termlink-mcp/src/tools.rs::run_agent_work_cli::output
 # T-3550: #[cfg(test)] only. Runs a fixed `sh -c env` under the allow-listed environment; the
 # output is a few hundred bytes of env lines, never peer data.
 crates/termlink-session/src/child_env.rs::a_real_child_sees_none_of_the_callers_project::output
+# T-3615: #[cfg(test)] only (module from invocation_audit.rs:509). Runs setpriv on the SELF test binary
+# (current_exe) with fixed args (--list, then one named test) as uid 65534 to prove the per-user sink;
+# output is the test harness's own lines, never peer data, and it is not in the long-lived daemon.
+# INTERNAL by the T-2529 threat model.
+crates/termlink-session/src/invocation_audit.rs::nonroot_caller_writes_its_user_sink_for_real::output
