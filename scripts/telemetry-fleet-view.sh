@@ -4,6 +4,10 @@
 # reconnects, breaker trips, dead letters and the worst hub outage seen — plus which hosts did
 # NOT report on which day. A missing host is the signal, not a gap: a host that stops
 # reporting is exactly the one whose view we have lost.
+# T-3615: a second table per host/day shows usage (calls and polling per worker class) and
+# worker outcomes (dispatch runs, non-zero exits, timeouts, empty results, verdicts recorded /
+# applied / withdrawn, standing-worker restarts or "n/m" = not measured). --json carries the
+# full `usage` and `worker_outcomes` blocks of each report.
 #
 # Usage: telemetry-fleet-view.sh [--days N] [--expect h1,h2,...] [--hub ADDR] [--topic T] [--json]
 #   --days    window of UTC days ending yesterday (default 7, clamped 1..90)
@@ -96,7 +100,36 @@ def summary(b):
         "worst_hub_outage": None if worst is None else f"{worst[0]} {worst[1].get('max_downtime_s', 0)}s",
     }
 
-rows = [{"host": h, "day": d, **summary(reports[(h, d)])} for h in hosts for d in window if (h, d) in reports]
+def usage_row(b):
+    """T-3615: compact usage + worker-outcome cells; None where the report predates them."""
+    s = b.get("signals", {})
+    u, w = s.get("usage"), s.get("worker_outcomes")
+    out = {"usage": u, "worker_outcomes": w}
+    if u is not None:
+        t = u.get("totals") or {}
+        out["usage_cell"] = " ".join(f"{c}={v.get('calls', 0)}+{v.get('polling', 0)}p" for c, v in sorted(t.items())) or "0"
+    else:
+        out["usage_cell"] = None
+    if w is not None:
+        disp = w.get("dispatch") or []
+        runs = sum(o.get("runs", 0) for o in disp)
+        nonzero = sum(n for o in disp for ec, n in (o.get("exit_codes") or {}).items() if ec != "0")
+        vd = w.get("verdicts")
+        st = w.get("standing") or {}
+        out["workers_cell"] = (
+            f"runs={runs} exit!=0={nonzero} timeouts={sum(o.get('timeouts', 0) for o in disp)} "
+            f"empty={sum(o.get('empty_results', 0) for o in disp)} "
+            + ("verdicts=-" if vd is None else
+               f"verdicts={sum(v.get('recorded', 0) for v in vd)}/a{sum(v.get('applied', 0) for v in vd)}"
+               f"/w{sum(v.get('withdrawn', 0) for v in vd)}")
+            + " restarts=" + (str(sum(x.get("nrestarts") or 0 for x in st.get("units") or []))
+                              if st.get("measured") else "n/m"))
+    else:
+        out["workers_cell"] = None
+    return out
+
+rows = [{"host": h, "day": d, **summary(reports[(h, d)]), **usage_row(reports[(h, d)])}
+        for h in hosts for d in window if (h, d) in reports]
 result = {"ok": not missing and not (expect and not reports), "window": window, "hosts": hosts,
           "rows": rows, "missing": [{"host": h, "day": d} for h, d in missing],
           "unreadable_envelopes": unreadable}
@@ -114,6 +147,12 @@ else:
             print(f"{r['host']:<22} {r['day']:<10} {cell(r['queue_flaps']):>5} {cell(r['max_backlog_s']):>9} "
                   f"{cell(r['reconnects']):>6} {cell(r['breaker_trips']):>5} {cell(r['dead_letters']):>4}  {cell(r['worst_hub_outage'])}")
         print("('-' = that source does not exist on the host, not zero)")
+        if any(r["usage_cell"] is not None or r["workers_cell"] is not None for r in rows):
+            print()
+            print(f"{'host':<22} {'day':<10}  usage (class=calls+polling)  |  workers")
+            for r in rows:
+                print(f"{r['host']:<22} {r['day']:<10}  {cell(r['usage_cell'])}  |  {cell(r['workers_cell'])}")
+            print("('-' = the report predates T-3615 usage/outcome aggregates; n/m = not measured)")
     for h, d in missing:
         print(f"MISSING  {h} did not report for {d}")
     if unreadable:
