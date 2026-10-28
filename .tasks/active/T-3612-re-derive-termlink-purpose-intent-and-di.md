@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-10-27T21:26:18Z
-last_update: 2026-10-28T18:49:17Z
+last_update: 2026-10-28T19:33:28Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -201,6 +201,18 @@ Shaping in progress: the operator asked (2026-10-27) for five independent extern
 - **Why:** the operator's answers are the draft's substance; review then tests a draft the operator stands behind.
 - **Rejected:** A (review before the operator reads: may spend a round on wording the operator rejects); B (wait for
   telemetry: weeks on a known-wrong yardstick); D (stop: leaves the mixed-layer yardstick, against Q7).
+
+### 2026-10-28 — the purpose sentence: E (operator ruling)
+- **Chose:** E. "TermLink makes sure every message reaches the recipient it is meant for: it finds that recipient,
+  wakes it in its terminal when it must, hands the message over, and shows where it is until an agent that can act
+  has it, or it is loudly stuck." Scope sentence after it: "It is the base layer: it records work handed off between
+  agents, and leaves what work to do, and who should do it, to the framework above."
+- **Why:** operator: the essence is reaching the recipient, and more than brokerage: the recipient is found,
+  addressed and activated. Handed-off work is message content, so naming it in the sentence reads as orchestration.
+  "Meant for" means the addressed recipient or role holder, never the best one for the job. "Or loudly stuck" answers
+  the reviewers: TermLink cannot force an agent to act, but makes every stop visible.
+- **Rejected:** A, A-short, B, C, D (dialogue log item 15; review synthesis C.14).
+- **Left open:** adoption of the whole draft (charter, its guard and copies change only then).
 
 ## Decision
 

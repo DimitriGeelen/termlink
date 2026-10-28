@@ -1,6 +1,6 @@
 # T-3612 round 4 — draft purpose, objectives and value drivers (for the operator first)
 
-**Status:** DRAFT v0.3, 2026-10-28. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
+**Status:** DRAFT v0.4, 2026-10-28. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
 corrects this first; only then does it go to outside review (claude, codex, antigravity, opencode; at most 2 rounds).
 Adoption is the operator's (the charter sentence is human-blessed, `docs/CHARTER.md:17-19`).
 
@@ -17,30 +17,38 @@ and the operation of our own fleet.
 
 ## 1. Purpose
 
-**Proposed (one sentence, plus a scope sentence):**
+**RULED (operator, 2026-10-28: "E"). The canonical sentence (one sentence, for the charter guard):**
 
-> **TermLink gets every message, and every piece of handed-off work, to an agent that can act on it, in a real
-> terminal, on one machine or many, and shows where it is until it gets there.**
-> It is the base layer: it finds the recipient and the way to reach it, and leaves what work to do, and who should
-> do it, to the framework above.
+> **TermLink makes sure every message reaches the recipient it is meant for: it finds that recipient, wakes it in its
+> terminal when it must, hands the message over, and shows where it is until an agent that can act has it, or it is
+> loudly stuck.**
+
+**Scope sentence (the paragraph after it in the charter):** It is the base layer: it records work handed off between
+agents, and leaves what work to do, and who should do it, to the framework above.
 
 Where each part comes from:
 
-1. "to an agent that can act on it": Q1, "if I have trusted delivery, but [the] agent is not responding to it, then
-   it's still quite useless". Delivered means a live agent that can act has it, not that a hub stored it.
-2. "every piece of handed-off work": Q2. The dispatch record and hand-off mechanics are TermLink's. What runs where
-   and when is not.
-3. "in a real terminal": the founding verb (control terminal sessions) and the part generic queues cannot replace
-   (synthesis §3.3).
-4. "shows where it is until it gets there": OD-4/OD-5 (received, stored, handed over, answered, on the hub record),
-   and today's lesson (T-3618): "delivered" without a reader is how mail was lost.
-5. "finds the recipient and the way to reach it": Q2 correction. Five-level addressing (hub, host, project, agent,
-   session) with the ladder back, the role "main", and hub-brokered circuits (Q4). This is routing for
-   deliverability, never routing for policy.
+1. "reaches the recipient it is meant for": the operator, 2026-10-28: the essence is that the message reaches its
+   recipient, and TermLink does more than broker: it makes sure the recipient is found, addressed and activated.
+   "Meant for" means the addressed recipient or that role's current holder ("main"), never "the best one for the
+   job", which would be orchestration.
+2. "finds that recipient": presence and five-level addressing (hub, host, project, agent, session) with the ladder
+   back, the role "main", and hub-brokered circuits (Q2, Q4, OD-10, OD-18). Routing for deliverability, never for
+   policy.
+3. "wakes it in its terminal when it must": the founding verb, and the part generic queues cannot replace
+   (synthesis §3.3). Under OD-15 activation may also start a role that is not running, or resume a conversation that
+   died mid-way, under a grant (not yet built).
+4. "until an agent that can act has it": Q1, "if I have trusted delivery, but [the] agent is not responding to it,
+   then it's still quite useless".
+5. "or it is loudly stuck": the reviewers' point (claude, codex) that TermLink cannot force an agent to act; it can
+   make every stop visible. Also T-3618: "delivered" without a reader is how mail was lost.
+6. Handed-off work is not named in the sentence (operator, 2026-10-28). A work request is a message, and TermLink is
+   indifferent to what a message carries; naming work there reads as orchestration. TermLink's extra role for work, a
+   claim, lease and completion record, is in the scope sentence and in P-3.
 
-**Alternative if the operator wants terminals first (Q1 option B):** "TermLink gives a fleet of AI agents and their
-operator live terminals they can reach, wake and hand messages and work to, on one machine or many, and shows where
-every message is until an agent acts on it."
+**Considered and not chosen:** A (the v0.3 sentence with "or is loudly stuck"), A-short (A without handed-off work),
+B (antigravity: adds waking and attribution), C (codex: a feature list that promises less), D (terminals first).
+The review synthesis, section C.14, has them in full.
 
 **Replaces:** `docs/CHARTER.md:12-15` ("hub-mediated, durable append-log message bus with terminal endpoints …")
 and the `objectives.yaml` headline. Those two disagree today (synthesis §4.5). "Strict star" goes (Q4), and so does
@@ -215,8 +223,7 @@ These describe how we build and run TermLink, not what it is. They would live in
 
 ## 7. Open points for the operator (one at a time, after you have read the draft)
 
-1. Purpose: the main sentence, the terminals-first alternative, or the reviewers' versions (see the review
-   synthesis, section C.14).
+1. ~~Purpose~~: ruled E (2026-10-28), section 1.
 2. ~~P-3 workspace~~: settled in v0.3. It stays in TermLink, by the earlier ruling T-3469 (two reviewers, none
    against).
 3. D1's new weight (5 proposed), and the DP-3 canary cap's number.
@@ -228,5 +235,6 @@ These describe how we build and run TermLink, not what it is. They would live in
 | Version | Date | Change |
 |---|---|---|
 | 0.1 | 2026-10-28 | First draft, operator ruling C (operator reads first). |
+| 0.4 | 2026-10-28 | Purpose ruled E: "makes sure every message reaches the recipient it is meant for: finds, wakes, hands over, shows where it is until an agent that can act has it, or it is loudly stuck". Handed-off work moved out of the sentence into the scope sentence and P-3. |
 | 0.3 | 2026-10-28 | Outside review round 1 (claude, codex, antigravity; opencode failed). Folded in what all three or two uncontested agreed on (`T-3612-round4-review-synthesis.md` A and B): D2 9, not 10; product recall gets a new id F-CONV-RECALL with no cross-topic queries and long-term keeping left to consumers; scoring blocks needed; P-1 restores the gap notice and load clause; P-5 isolation moved to "not yet"; P-7 no pre-decided schedule; DP-3 covers development guards; non-goal 1 names OD-11; code contradictions listed; adoption checklist covers the charter guard, aliases, tripwires and score ids; workspace settled. Purpose, D1/cap, driver file and recall retirement stay open for the operator. |
 | 0.2 | 2026-10-28 | Operator: "why is recall dropped?". It was dropped from the product set on the four seats' advice, and wrongly left out of the development project's set. Ruling B: recall in both sets (product F-RECALL 5, redefined and bounded by Q3; development project F-RECALL 6 and DP-5). |

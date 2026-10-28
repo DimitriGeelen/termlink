@@ -135,3 +135,18 @@ The 2026-10-27 value-review run (T-3609) could not confirm its yardstick because
    back what was said and decided, bounded by Q3 (retention window, time-range reads, no query language); dev
    project F-RECALL 6 in its current meaning plus DP-5 "we read back before we propose". Open: whether the bounded
    product meaning is what the operator meant, and its retire condition.
+15. 2026-10-28, outside review round 1 of the draft (claude, codex, antigravity; opencode failed). Synthesis:
+   `docs/reports/T-3612-round4-review-synthesis.md`. Agreed points folded into v0.3. Purpose put to the operator:
+   A (draft + "or is loudly stuck"), B (antigravity: + waking, attribution), C (codex: promises less), D (terminals
+   first); recommended A. Operator: "why also every unit of handed-off work?". Agent: from Q2 ("where a message or job
+   can be delivered") and the worker-contract record, but a work request is just a message; offered A-short.
+   Operator: "the hand-off work would be part of a message then … it could sound like it's also work orchestration,
+   which it is not, I think. But correct me". Agent: right; nuance: for work TermLink also keeps a claim/lease and
+   completion record, which is still not orchestration (a delivery receipt for work). Operator: "the essence is that
+   it ensures that a message reaches the appropriate recipient … not only brokers … instruments that recipients are
+   there … found, addressed or activated". Agent: agreed; correction: "appropriate" must mean the addressed
+   recipient or role holder, never "the best one for the job" (orchestration); proposed E. Operator: "E".
+   Ruled sentence: "TermLink makes sure every message reaches the recipient it is meant for: it finds that
+   recipient, wakes it in its terminal when it must, hands the message over, and shows where it is until an agent
+   that can act has it, or it is loudly stuck." Scope sentence: "It is the base layer: it records work handed off
+   between agents, and leaves what work to do, and who should do it, to the framework above."
