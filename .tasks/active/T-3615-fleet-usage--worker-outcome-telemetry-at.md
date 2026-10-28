@@ -370,6 +370,23 @@ bvp_scores_proposed:
 
 ## Decisions
 
+### 2026-10-28 — Review Q3: which credential fleet hosts use to post to .107 (operator ruling)
+- **Chose:** A — interim scoped tokens (T-3542 "Option 1-lite", built by T-3543): an operator-minted Interact
+  token per host (.122, .121, .132) for both sidecar mail and telemetry, re-minted weekly from .107; the full .107 hub
+  secret is removed from those hosts only after each host's token path is proven; the fleet view trusts the verified
+  sender (hub-bound signing key), not the self-declared host.
+- **Why:** measured 2026-10-28: .122 (`/root/.termlink/secrets/107-hub.hex`) and .121 (`192.168.10.107.hex`) hold
+  .107's full hub secret (sha256 equal to /var/lib/termlink/hub.secret), against the standing rule that the full
+  secret never sits on a remote node; .132's file differs (unconfirmed). The interim was already designed for exactly
+  this (docs/reports/T-3542-remote-node-recipe.md, Option 1-lite) and built (T-3543). The long-term design is already
+  ruled: T-3422 / operator 2026-10-12 option A, per-peer key allow-list with no secret crossing (T-3423, revisit
+  2026-11-12); arc-011 PH-2 OQ-h (2026-10-13) revocation list.
+- **Rejected:** B keep the full secret until T-3423 (exposure for weeks); C bring T-3423 forward now (its inception
+  is scheduled; A ends the exposure within days); per-host signing keys alone (do not replace the transport credential).
+- **Left open / residuals:** Interact reads every topic (no per-topic ACL), replay within the TTL, revocation only by
+  expiry or secret rotation; all closed by T-3423. ring20-management and ring20-dashboard to be told before their
+  credential changes. Runme action 23 stays HELD until the token path is in place.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
