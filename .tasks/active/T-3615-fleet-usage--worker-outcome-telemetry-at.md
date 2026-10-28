@@ -408,6 +408,18 @@ bvp_scores_proposed:
 
 ## Updates
 
+### 2026-10-28 — peer facts for the token rollout (slice 5), from conversation fleet-credentials
+- .122 ring20-management (msg 5d79df2e): nothing reads the secret file directly; only ~/.termlink/hubs.toml, with
+  TWO profiles pointing at .107: [hubs.workstation-107] -> secrets/107-hub.hex and [hubs.framework-agent] ->
+  secrets/192.168.10.107.hex; both must move to token_file. Two backups also hold the full secret:
+  107-hub.hex.bak and 192.168.10.107.hex.bak (2026-09-01): include them in the removal. Send the exact change first;
+  their operator approves credential changes on that host. Side note: secrets/192.168.10.109.hex is mode 0644 (dir 0700).
+- .121 ring20-dashboard (msg a308ba40): besides hubs.toml (secret_file for 192.168.10.107:9100) and the sidecar, two
+  crons pass --secret-file /root/.termlink/secrets/192.168.10.107.hex directly: scripts/reflection-cron.sh (every
+  minute: remote ping, remote list, remote send-file) and scripts/check-upstream-consumption.sh (daily, remote exec;
+  they retire it). Scope check (ours): ping = Observe (auth.rs:180), list = session.discover Observe
+  (server.rs:755), send-file = event.emit_to Interact: all work under an Interact token; exec does not.
+
 ### 2026-10-28T00:10:39Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3615-fleet-usage--worker-outcome-telemetry-at.md
