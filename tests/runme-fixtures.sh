@@ -447,6 +447,14 @@ cat > "$F/remote" <<'EOS'
 # T-3615 action 23: the rollup's probe/install run LOCALLY against scratch paths (the
 # RUNME_REMOTE_ROLLUP_* seams), with every rollup input seamed, so nothing real is read
 # or written. Logged apart so action 6's "dry run sent no remote command" check holds.
+# T-3615 actions 22b/24: token and secret commands run as the fleet host's root, whose HOME is
+# scratch ($F/tok-remote/root); logged apart (they carry a fake token, never a real one).
+case "$2" in *RUNME-TOKEN-*|*RUNME-SECRET-*)
+    echo "$2" >> "$FAKE_FLEET_DIR/tok-cmds"
+    [ "${FAKE_TOK_DOWN:-0}" = "1" ] && exit 3
+    HOME="$FAKE_FLEET_DIR/tok-remote/root" bash -c "$2"
+    exit $? ;;
+esac
 case "$2" in *RUNME-ROLLUP*)
     echo "$2" >> "$FAKE_FLEET_DIR/rollup-cmds"
     [ "${FAKE_RR_DOWN:-0}" = "1" ] && exit 3
@@ -480,17 +488,73 @@ fleet_state() { echo "$1" > "$F/ver"; echo ok > "$F/status"; rm -f "$F/deploys" 
 export FAKE_FLEET_DIR="$F" RUNME_FLEET_HUBS=fake-hub RUNME_MUSL_SRC="$F/musl" \
        RUNME_FLEET_DEPLOY="$F/deploy" RUNME_FLEET_DOCTOR="$F/doctor" RUNME_TOFU="$F/tofu" RUNME_FLEET_WAIT_SECS=2 \
        RUNME_FLEET_REMOTE="$F/remote"
-# T-3615 action 23: the remote rollup install, all into scratch. FAKE_RR_AUTH_RC is the
-# exit code of `termlink channel list --hub <.107>` on the "remote" (0 = credential present).
+# T-3615 action 23 + 22b/24: the "remote" termlink. channel list/post authenticate the way the
+# real CLI does: the profile at --hub in $HOME/.termlink/hubs.toml; a secret_file wins (a missing
+# file is an error), else token_file, else nothing. Each call logs which credential it used, so a
+# case can assert the TOKEN was what authenticated. FAKE_RR_AUTH_RC overrides `channel list`;
+# FAKE_TOK_POST_FAIL=1 makes a post come back queued, not accepted.
 echo none > "$F/rr-units"; echo '{}' > "$F/rr-qs"; mkdir -p "$F/rr-cron"
 cat > "$F/rr-tl" <<'EOS'
 #!/usr/bin/env bash
-case "$1 $2" in "channel list") exit "${FAKE_RR_AUTH_RC:-0}" ;; "channel queue-status") echo '{}' ;; esac
+hub=""; a=("$@"); for ((i = 0; i < ${#a[@]}; i++)); do [ "${a[$i]}" = --hub ] && hub="${a[$((i + 1))]}"; done
+cred() { python3 - "$HOME/.termlink/hubs.toml" "$hub" <<'P'
+import os, re, sys
+try:
+    t = open(sys.argv[1]).read()
+except OSError:
+    print("none"); sys.exit()
+for sec in re.split(r'(?m)^\[', t)[1:]:
+    kv = dict(re.findall(r'(?m)^(\w+)\s*=\s*"([^"]*)"', sec))
+    if kv.get("address") != sys.argv[2]:
+        continue
+    if "secret_file" in kv:
+        print("secret" if os.path.exists(os.path.expanduser(kv["secret_file"])) else "none"); break
+    print("token" if kv.get("token_file") and os.path.exists(kv["token_file"]) else "none"); break
+else:
+    print("none")
+P
+}
+case "$1 $2" in
+  "channel list")
+    [ -n "${FAKE_RR_AUTH_RC:-}" ] && exit "$FAKE_RR_AUTH_RC"
+    c="$(cred)"; echo "list $c $HOME" >> "$FAKE_FLEET_DIR/tok-auth"; [ "$c" != none ]; exit $? ;;
+  "channel post")
+    c="$(cred)"; echo "post $c $HOME" >> "$FAKE_FLEET_DIR/tok-auth"
+    [ "$c" = none ] && { echo "auth failed" >&2; exit 1; }
+    [ "${FAKE_TOK_POST_FAIL:-0}" = 1 ] && { echo "Queued to $3 (offline)"; exit 0; }
+    echo "Posted to $3 — offset=7"; exit 0 ;;
+  "channel queue-status") echo '{}' ;;
+  "identity show") echo '{"action":"loaded","fingerprint":"0123456789abcdef","ok":true}' ;;
+esac
 exit 0
 EOS
-chmod +x "$F/rr-tl"
-# The install cases run as if the credential decision (T-3615 Q3) were recorded; the held
-# default has its own case (RUNME_ROLLUP_CREDENTIAL_DECISION set but empty).
+# The .107 side: a fake mint (a fresh fake token per call, logged) and a fake local termlink.
+cat > "$F/tok-mint" <<'EOS'
+#!/usr/bin/env bash
+[ "${FAKE_MINT_FAIL:-0}" = 1 ] && { echo "cannot read hub.secret" >&2; exit 1; }
+out=""; while [ $# -gt 0 ]; do [ "$1" = --out ] && out="$2"; shift; done
+echo "fake-token-$(date +%s%N)-$RANDOM" > "$out"; chmod 600 "$out"
+echo mint >> "$FAKE_FLEET_DIR/tok-mints"
+echo "{\"ok\":true,\"out\":\"$out\",\"scope\":\"${FAKE_MINT_SCOPE:-interact}\",\"expires_at\":$(( $(date +%s) + ${FAKE_MINT_TTL:-604800} )),\"ttl_secs\":604800,\"clamped\":true}"
+EOS
+printf '#!/usr/bin/env bash\necho "$*" >> "$FAKE_FLEET_DIR/tok-local"\nexit 0\n' > "$F/tok-ltl"
+chmod +x "$F/rr-tl" "$F/tok-mint" "$F/tok-ltl"
+TR="$F/tok-remote/root"   # the fleet host's root HOME, in scratch
+tok_reset() {  # a host holding .107's secret in its profile, no token yet; .107 has no record
+    rm -rf "$F/tok-remote" "$F/tok-state" "$F/tok-auth" "$F/tok-mints" "$F/tok-cmds"
+    mkdir -p "$TR/.termlink/secrets" "$F/tok-refs"
+    echo "fixture-not-a-secret" > "$TR/.termlink/secrets/107-hub.hex"; chmod 600 "$TR/.termlink/secrets/107-hub.hex"
+    printf '# fleet host hubs.toml (fixture)\n[hubs.local]\naddress = "127.0.0.1:9100"\nsecret_file = "/nonexistent/local.hex"\n\n[hubs.home-107]\naddress = "192.168.10.107:9100"\nsecret_file = "%s"\nscope = "interact"\n' \
+        "$TR/.termlink/secrets/107-hub.hex" > "$TR/.termlink/hubs.toml"
+}
+tok_reset
+export RUNME_TOKEN_REMINT="bash $REPO_ROOT/scripts/fleet-token-remint.sh" RUNME_TOKEN_STATE_DIR="$F/tok-state" \
+       RUNME_TOKEN_MINT="$F/tok-mint" RUNME_TOKEN_LOCAL_TL="$F/tok-ltl" RUNME_HUB_RUNTIME_DIR="${RUNME_HUB_RUNTIME_DIR:-$F/tok-rt}" \
+       RUNME_TOKEN_REMOTE_TOKEN="$TR/.termlink/secrets/107-hub.token" RUNME_TOKEN_REMOTE_HOME="$TR/.termlink/token-only-home" \
+       RUNME_TOKEN_REMOTE_HUBS="$TR/.termlink/hubs.toml" RUNME_TOKEN_REMOTE_ID="$TR/.termlink" \
+       RUNME_TOKEN_REMOTE_OWNER="$(id -un)" RUNME_SECRET_REMOVAL_HUBS="" RUNME_SECRET_REF_DIRS="$F/tok-refs"
+# The install cases run with the recorded ruling (Q3 = A); the held default has its own case
+# (RUNME_ROLLUP_CREDENTIAL_DECISION set but empty).
 export RUNME_ROLLUP_CREDENTIAL_DECISION="fixture: decided"
 export RUNME_ROLLUP_SRC="$REPO_ROOT/scripts/telemetry-rollup.sh" RUNME_REMOTE_ROLLUP_ROOT="$F/rr-root" \
        RUNME_REMOTE_ROLLUP_CRON="$F/rr-cron/termlink-telemetry-rollup" RUNME_REMOTE_TL="$F/rr-tl"
@@ -599,7 +663,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 38 ))   # +2 T-3615 (action 1b background-class resync, action 23 fleet rollup); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 39 ))   # +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1601,13 +1665,123 @@ else bad "1b idempotent" "$x"; fi
 rm -f "$TMP/cron/termlink-heartbeat"
 
 # ---------------------------------------------------------------------------
+# T-3615 action 22b — scoped .107 tokens on the fleet hubs, through fakes.
+# ---------------------------------------------------------------------------
+s22b() { echo "$1" | sed -n '/^.*22b\. Scoped .107 tokens/,/^.*23\. Daily telemetry rollup/p'; }
+TOKF="$TR/.termlink/secrets/107-hub.token"; TOKSTATE="$F/tok-state/fake-hub.state"
+mints() { [ -f "$F/tok-mints" ] && wc -l < "$F/tok-mints" || echo 0; }
+tok_reset; rm -f "$TMP/cron/termlink-fleet-token-remint"; cp "$TR/.termlink/hubs.toml" "$TMP/hubs.before"
+out=$(run --dry-run); x=$(s22b "$out")
+if echo "$x" | grep -q "\[DRY\]   fake-hub: would mint an Interact token on .107 (no verified token on record)" && [ ! -e "$TOKF" ] \
+   && [ "$(mints)" = 0 ] && cmp -s "$TMP/hubs.before" "$TR/.termlink/hubs.toml" && [ ! -e "$TOKSTATE" ]; then
+    ok "22b: --dry-run probes, names the mint, mints and writes nothing"
+else bad "22b dry-run" "$x"; fi
+out=$(run); rc=$?; x=$(s22b "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: Interact token installed and proven" \
+   && [ "$(stat -c %a "$TOKF")" = 600 ] && [ "$(sha256sum < "$TOKF" | cut -d' ' -f1)" = "$(sed -n 's/^token_sha256=//p' "$TOKSTATE")" ] \
+   && grep -q "^token_file = \"$TOKF\"$" "$TR/.termlink/hubs.toml" && grep -q '^secret_file = ".*/107-hub.hex"$' "$TR/.termlink/hubs.toml" \
+   && grep -q '^secret_file = "/nonexistent/local.hex"$' "$TR/.termlink/hubs.toml" \
+   && ! grep -qE "^(secret_file|secret) *=" "$TR/.termlink/token-only-home/.termlink/hubs.toml" && grep -q "^token_file = " "$TR/.termlink/token-only-home/.termlink/hubs.toml"; then
+    ok "22b: mints, installs (0600, sha on record), adds token_file and KEEPS the secret_file line; the token-only home holds no secret"
+else bad "22b install" "rc=$rc: $x"; fi
+if grep -qx "list token $TR/.termlink/token-only-home" "$F/tok-auth" && grep -qx "post token $TR/.termlink/token-only-home" "$F/tok-auth" \
+   && ! grep -q "secret" "$F/tok-auth"; then
+    ok "22b: the proof authenticated with the TOKEN (list + accepted post), never the secret"
+else bad "22b token proof" "$(cat "$F/tok-auth" 2>/dev/null)"; fi
+if ! echo "$out" | grep -qF "$(cat "$TOKF")" && ! echo "$out" | grep -qF "fixture-not-a-secret"; then
+    ok "22b: neither the token nor the secret appears in runme's output"
+else bad "22b leak" "token or secret printed"; fi
+if echo "$x" | grep -q "note    fake-hub signs its posts as 0123456789abcdef" && cmp -s "$REPO_ROOT/.context/cron/fleet-token-remint.crontab" "$TMP/cron/termlink-fleet-token-remint" \
+   && grep -q "fleet-token-probe" "$F/tok-local"; then
+    ok "22b: names the host's signing fingerprint, installs the re-mint cron, creates the scratch topic on .107"
+else bad "22b note/cron" "$x"; fi
+n=$(mints); out=$(run); rc=$?; x=$(s22b "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "skip    fake-hub: verified token on record, installed unchanged" && [ "$(mints)" = "$n" ]; then
+    ok "22b: second run skips (idempotent), mints nothing"
+else bad "22b idempotent" "rc=$rc: $x"; fi
+old_sha=$(sha256sum < "$TOKF"); sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 3600 ))/" "$TOKSTATE"
+out=$(run); rc=$?; x=$(s22b "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: Interact token installed" && [ "$(mints)" = $((n + 1)) ] && [ "$(sha256sum < "$TOKF")" != "$old_sha" ]; then
+    ok "22b: a token with under 3 days left is re-minted and replaced"
+else bad "22b renew" "rc=$rc: $x"; fi
+echo "tampered" > "$TOKF"; chmod 600 "$TOKF"; out=$(run); rc=$?; x=$(s22b "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: Interact token installed" && [ "$(sha256sum < "$TOKF" | cut -d' ' -f1)" = "$(sed -n 's/^token_sha256=//p' "$TOKSTATE")" ]; then
+    ok "22b: an installed token that differs from the record is replaced"
+else bad "22b tamper" "rc=$rc: $x"; fi
+cp "$TOKSTATE" "$TMP/state.before"; rm -f "$TOKSTATE"
+out=$(FAKE_TOK_POST_FAIL=1 run); rc=$?; x=$(s22b "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: token authenticated but a post to fleet-token-probe on .107 was not accepted" && [ ! -e "$TOKSTATE" ]; then
+    ok "22b: a post that is not accepted => FAILED, nothing recorded"
+else bad "22b post fail" "rc=$rc: $x"; fi
+out=$(FAKE_RR_AUTH_RC=1 run); rc=$?; x=$(s22b "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: channel list --hub 192.168.10.107:9100 with the token-only config did not authenticate" && [ ! -e "$TOKSTATE" ]; then
+    ok "22b: token-only config does not authenticate => FAILED, nothing recorded"
+else bad "22b auth fail" "rc=$rc: $x"; fi
+n=$(mints); out=$(FAKE_TOK_DOWN=1 run); rc=$?; x=$(s22b "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: no answer over remote exec" && [ "$(mints)" = "$n" ]; then
+    ok "22b: unreachable host => FAILED, nothing minted"
+else bad "22b down" "rc=$rc: $x"; fi
+out=$(FAKE_MINT_FAIL=1 run); rc=$?; x=$(s22b "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: minting on .107 failed" && [ ! -e "$TOKSTATE" ]; then
+    ok "22b: the mint fails => FAILED, nothing written"
+else bad "22b mint fail" "rc=$rc: $x"; fi
+out=$(FAKE_MINT_SCOPE=execute run); rc=$?; x=$(s22b "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: the mint did not produce an Interact token" && [ ! -e "$TOKSTATE" ]; then
+    ok "22b: a mint that is not Interact is refused, nothing written"
+else bad "22b scope" "rc=$rc: $x"; fi
+printf '\n[hubs.other-107]\naddress = "192.168.10.107:9100"\nsecret_file = "/x"\n' >> "$TR/.termlink/hubs.toml"
+out=$(run); rc=$?; x=$(s22b "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub has 2 profiles at 192.168.10.107:9100" && [ ! -e "$TOKSTATE" ]; then
+    ok "22b: two profiles at .107 (which one the CLI uses is undefined) => FAILED, nothing written"
+else bad "22b ambiguous" "rc=$rc: $x"; fi
+tok_reset; out=$(run); rc=$?
+if [ "$rc" = "0" ] && [ -e "$TOKSTATE" ]; then ok "22b: restored to the installed state for later cases"; else bad "22b restore" "rc=$rc: $(s22b "$out")"; fi
+
+# The same script as the .107 cron runs it: quiet when healthy, loud when not.
+cronrun() {
+    FLEET_TOKEN_HUBS=fake-hub FLEET_TOKEN_REMOTE="$F/remote" FLEET_TOKEN_MINT="$F/tok-mint" FLEET_TOKEN_LOCAL_TL="$F/tok-ltl" \
+    FLEET_TOKEN_RUNTIME_DIR="$F/tok-rt" FLEET_TOKEN_STATE_DIR="$F/tok-state" FLEET_TOKEN_REMOTE_TOKEN="$TOKF" \
+    FLEET_TOKEN_REMOTE_HOME="$TR/.termlink/token-only-home" FLEET_TOKEN_REMOTE_HUBS="$TR/.termlink/hubs.toml" \
+    FLEET_TOKEN_REMOTE_ID="$TR/.termlink" FLEET_TOKEN_REMOTE_TL="$F/rr-tl" FLEET_TOKEN_REMOTE_OWNER="$(id -un)" \
+    FLEET_TOKEN_HEARTBEAT="$F/tok-hb" FLEET_TOKEN_NOTE="$F/tok-note" bash "$REPO_ROOT/scripts/fleet-token-remint.sh" --cron "$@" 2>&1
+}
+printf '#!/usr/bin/env bash\necho "$1|$2" >> "$FAKE_FLEET_DIR/tok-notes"\n' > "$F/tok-note"; chmod +x "$F/tok-note"
+rm -f "$F/tok-hb" "$F/tok-notes"; n=$(mints); o=$(cronrun); rc=$?
+if [ "$rc" = 0 ] && [ -z "$o" ] && [ -e "$F/tok-hb" ] && [ "$(mints)" = "$n" ] && [ ! -e "$F/tok-notes" ]; then
+    ok "remint cron: healthy and not due => no output (empty findings log), heartbeat touched, nothing minted"
+else bad "remint cron healthy" "rc=$rc: $o"; fi
+sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 7200 ))/" "$TOKSTATE"
+o=$(FAKE_TOK_POST_FAIL=1 cronrun); rc=$?
+if [ "$rc" = 1 ] && echo "$o" | grep -qE '^[0-9T:-]+Z FAILED  fake-hub: token authenticated but a post' && grep -q '^urgent-token-expiring|T-3615: 1 fleet token re-mint' "$F/tok-notes"; then
+    ok "remint cron: a failed re-mint is one timestamped FAILED line + an urgent needs-attention note (token expires within a day)"
+else bad "remint cron fail" "rc=$rc: $o / $(cat "$F/tok-notes" 2>/dev/null)"; fi
+sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 200000 ))/" "$TOKSTATE"; rm -f "$F/tok-notes"
+o=$(FAKE_TOK_DOWN=1 cronrun --force); rc=$?
+if [ "$rc" = 1 ] && grep -q '^token-remint|' "$F/tok-notes"; then
+    ok "remint cron: a failure with days left is noted as token-remint (not urgent)"
+else bad "remint cron kind" "rc=$rc: $o"; fi
+o=$(cronrun); rc=$?
+if [ "$rc" = 0 ] && [ -z "$o" ] && [ "$(sha256sum < "$TOKF" | cut -d' ' -f1)" = "$(sed -n 's/^token_sha256=//p' "$TOKSTATE")" ]; then
+    ok "remint cron: renews a due token silently (under 3 days left) and records it"
+else bad "remint cron renew" "rc=$rc: $o"; fi
+mv "$TOKSTATE" "$TMP/state.keep"; n=$(mints); o=$(cronrun); rc=$?
+if [ "$rc" = 0 ] && [ -z "$o" ] && [ "$(mints)" = "$n" ]; then
+    ok "remint cron: a host with no token on record is left to runme (the cron never does a first install)"
+else bad "remint cron first install" "rc=$rc: $o"; fi
+mv "$TMP/state.keep" "$TOKSTATE"
+if grep -q '2>> .context/working/.fleet-token-remint-canary.log.stderr$' "$REPO_ROOT/.context/cron/fleet-token-remint.crontab" \
+   && grep -q -- '--cron >> .context/working/.fleet-token-remint-canary.log ' "$REPO_ROOT/.context/cron/fleet-token-remint.crontab"; then
+    ok "remint cron: findings and stderr go to separate sinks (T-2685), named for /canaries discovery"
+else bad "remint crontab sinks"; fi
+
+# ---------------------------------------------------------------------------
 # T-3615 action 23 — the daily telemetry rollup on the fleet hubs, through fakes.
 # ---------------------------------------------------------------------------
 s23() { echo "$1" | sed -n '/^.*23\. Daily telemetry rollup/,/^.*Verification/p'; }
 rr_reset() { rm -rf "$F/rr-root" "$F/rollup-cmds"; rm -f "$RUNME_REMOTE_ROLLUP_CRON"; }
 rr_reset
 out=$(RUNME_ROLLUP_CREDENTIAL_DECISION="" run); rc=$?; x=$(s23 "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "HELD    waiting for the operator's credential decision (T-3615 Q3)" \
+if [ "$rc" = "0" ] && echo "$x" | grep -q "HELD    no credential decision recorded (T-3615 Q3" \
    && [ ! -e "$F/rr-root" ] && [ ! -e "$RUNME_REMOTE_ROLLUP_CRON" ] && [ ! -s "$F/rollup-cmds" ] \
    && echo "$out" | grep -qE " 1 held, 0 failed"; then
     ok "rollup: default (no credential decision recorded) is HELD, rc 0, nothing probed or written (T-3615 Q3)"
@@ -1624,6 +1798,12 @@ if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: rollup installed an
    && grep -q "^30 2 \* \* \* root cd $F/rr-root && bash scripts/telemetry-rollup.sh --catch-up 7 " "$RUNME_REMOTE_ROLLUP_CRON"; then
     ok "rollup: installs script + cron file (posts to .107, host label, background class, --catch-up 7) and verifies both plus a remote dry run"
 else bad "rollup install" "rc=$rc: $x"; fi
+: > "$F/tok-auth"
+if grep -q "^TELEMETRY_TERMLINK=$F/rr-root/bin/termlink-107-token$" "$RUNME_REMOTE_ROLLUP_CRON" && [ -x "$F/rr-root/bin/termlink-107-token" ] \
+   && HOME="$TR" "$F/rr-root/bin/termlink-107-token" channel post telemetry:daily --payload '{}' --hub 192.168.10.107:9100 >/dev/null \
+   && grep -qx "post token $TR/.termlink/token-only-home" "$F/tok-auth" && ! grep -q "post secret" "$F/tok-auth"; then
+    ok "rollup: the cron's termlink is the token wrapper: a --hub post uses the token-only config even though the host's profile still has the secret (Q3=A)"
+else bad "rollup token wrapper" "$(cat "$F/tok-auth" 2>/dev/null)"; fi
 : > "$F/rollup-cmds"
 out=$(run); rc=$?; x=$(s23 "$out")
 if [ "$rc" = "0" ] && echo "$x" | grep -q "skip    fake-hub already runs the current rollup daily" && ! grep -q RUNME-ROLLUP-INSTALL "$F/rollup-cmds" 2>/dev/null; then
@@ -1636,9 +1816,9 @@ if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: rollup installed" &
 else bad "rollup drift" "rc=$rc: $x"; fi
 rr_reset
 out=$(FAKE_RR_AUTH_RC=1 run); rc=$?; x=$(s23 "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub cannot authenticate to .107" && echo "$x" | grep -q "Operator question" \
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub cannot authenticate to .107 (192.168.10.107:9100) with the token-only config" && echo "$x" | grep -q "action 22b installs it" \
    && [ ! -e "$F/rr-root" ] && [ ! -e "$RUNME_REMOTE_ROLLUP_CRON" ]; then
-    ok "rollup: no credential for .107 => FAILED naming the operator question, nothing written"
+    ok "rollup: no verified token for .107 => FAILED naming action 22b, nothing written"
 else bad "rollup no auth" "rc=$rc: $x"; fi
 out=$(FAKE_RR_DOWN=1 run); rc=$?; x=$(s23 "$out")
 if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: no answer over remote exec" && [ ! -e "$F/rr-root" ]; then
@@ -1656,6 +1836,64 @@ else bad "rollup verify dry run" "rc=$rc: $x"; fi
 rr_reset
 mkdir -p "$F/rr-root/scripts"; out=$(run); rc=$?
 if [ "$rc" = "0" ]; then ok "rollup: restored to installed state for later cases"; else bad "rollup restore" "rc=$rc: $(s23 "$out")"; fi
+
+# ---------------------------------------------------------------------------
+# T-3615 action 24 — remove .107's full secret from a host whose token path is proven.
+# ---------------------------------------------------------------------------
+s24() { echo "$1" | sed -n '/^.*24\. Remove .107.s full secret/,/^.*Verification/p'; }
+SECF="$TR/.termlink/secrets/107-hub.hex"
+earlier() { sed -i "s/^verified_at=.*/verified_at=$(( $(date +%s) - 100 ))/" "$TOKSTATE"; }
+r24() { RUNME_SECRET_REMOVAL_HUBS=fake-hub run "$@"; }
+tok_reset; run >/dev/null; earlier; cp "$TR/.termlink/hubs.toml" "$TMP/hubs.before"
+out=$(r24); rc=$?; x=$(s24 "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "HELD    fake-hub: no removal decision recorded" && [ -e "$SECF" ] && cmp -s "$TMP/hubs.before" "$TR/.termlink/hubs.toml"; then
+    ok "24: default (no per-host decision) is HELD, rc 0, the secret stays"
+else bad "24 held default" "rc=$rc: $x"; fi
+export RUNME_SECRET_REMOVAL_DECISION_fake_hub="fixture: host confirmed"
+rm -f "$TOKSTATE"; out=$(r24); rc=$?; x=$(s24 "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "HELD    fake-hub: decided (fixture: host confirmed), but its token path was not verified on an earlier run" && [ -e "$SECF" ]; then
+    ok "24: decided, but the token was proven only in THIS run => HELD, the secret stays"
+else bad "24 same run" "rc=$rc: $x"; fi
+earlier; out=$(r24 --dry-run); x=$(s24 "$out")
+if echo "$x" | grep -q "\[DRY\]   would remove secret_file from fake-hub's .107 profile and move $SECF" && [ -e "$SECF" ] && grep -q '^secret_file = ".*/107-hub.hex"' "$TR/.termlink/hubs.toml"; then
+    ok "24: --dry-run names the removal and changes nothing"
+else bad "24 dry-run" "$x"; fi
+echo "secret_file = \"$SECF\"" > "$F/tok-refs/sidecar.env"
+out=$(r24); rc=$?; x=$(s24 "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: the secret file .* is still named elsewhere (profiles: none; files: $F/tok-refs/sidecar.env)" && [ -e "$SECF" ]; then
+    ok "24: another file on the host still names the secret file => FAILED, nothing changed"
+else bad "24 refs" "rc=$rc: $x"; fi
+rm -f "$F/tok-refs/sidecar.env"
+cp "$TR/.termlink/hubs.toml" "$TMP/hubs.pre"; : > "$F/tok-auth"
+out=$(FAKE_TOK_POST_FAIL=1 r24); rc=$?; x=$(s24 "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: authenticated, but a post to fleet-token-probe was not accepted; put hubs.toml and .* back" \
+   && [ -e "$SECF" ] && [ ! -e "$SECF.t3615-retired" ] && cmp -s "$TMP/hubs.pre" "$TR/.termlink/hubs.toml"; then
+    ok "24: verification fails after the removal => FAILED and hubs.toml + the secret file are put back"
+else bad "24 rollback" "rc=$rc: $x"; fi
+: > "$F/tok-auth"; out=$(r24); rc=$?; x=$(s24 "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: .107's full secret removed from its profile" \
+   && [ ! -e "$SECF" ] && [ "$(stat -c %a "$SECF.t3615-retired")" = 600 ] && [ -e "$TR/.termlink/hubs.toml.t3615-pre-removal" ] \
+   && ! grep -q '107-hub.hex' "$TR/.termlink/hubs.toml" && grep -q '^secret_file = "/nonexistent/local.hex"$' "$TR/.termlink/hubs.toml" \
+   && grep -q "^token_file = \"$TOKF\"$" "$TR/.termlink/hubs.toml" && grep -qx "post token $TR" "$F/tok-auth"; then
+    ok "24: removes only the .107 secret_file line, moves the file to a 0600 .t3615-retired copy, and mail authenticates with the token through the REAL config"
+else bad "24 remove" "rc=$rc: $x / $(cat "$F/tok-auth")"; fi
+out=$(r24); rc=$?; x=$(s24 "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "skip    fake-hub: .107's secret already removed from its profile; mail still authenticates"; then
+    ok "24: second run re-verifies and skips (idempotent)"
+else bad "24 idempotent" "rc=$rc: $x"; fi
+out=$(r24); x=$(s22b "$out")
+if echo "$x" | grep -q "skip    fake-hub: verified token on record"; then
+    ok "24: action 22b still recognises the host after the removal (token_file line intact)"
+else bad "24 then 22b" "$x"; fi
+tok_reset; run >/dev/null; earlier
+sed -i 's|^secret_file = ".*/107-hub.hex"$|secret = "00"|' "$TR/.termlink/hubs.toml"
+out=$(r24); rc=$?; x=$(s24 "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q 'FAILED  fake-hub: the .107 profile holds an inline secret' && grep -q '^secret = "00"$' "$TR/.termlink/hubs.toml"; then
+    ok "24: an inline secret is refused (left for a hand edit), nothing changed"
+else bad "24 inline" "rc=$rc: $x"; fi
+unset RUNME_SECRET_REMOVAL_DECISION_fake_hub
+tok_reset; out=$(run); rc=$?
+if [ "$rc" = "0" ]; then ok "24: restored for later cases"; else bad "24 restore" "rc=$rc"; fi
 
 echo ""
 echo "----------------------------------------"

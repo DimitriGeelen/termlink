@@ -66,6 +66,23 @@ before expiry and copy the file again. Nothing on the hub needs restarting.
 4. **Expiry is checked on the node and on the hub.** The node's pre-check is a
    convenience. The hub's validation is what refuses an expired or forged token.
 
+## The fleet hubs (T-3615, operator ruling Q3 = A)
+
+.122, .121 and .132 reach .107 this way. `runme.sh` does all of it, verified on each host:
+
+1. Action 22b mints each host's token on .107 (`scripts/fleet-token-remint.sh`) and installs it at
+   `/root/.termlink/secrets/107-hub.token`. It also writes a token-only config home
+   (`/root/.termlink/token-only-home`) and adds `token_file` to the host's .107 profile. The proof
+   runs with the token-only home, so no secret can be what authenticates: `channel list` succeeds
+   and a post to `fleet-token-probe` is accepted.
+2. A daily .107 cron (`fleet-token-remint.crontab`) re-mints any token with less than 3 days left.
+   It never does a first install. If it fails, the failure goes to
+   `.context/working/.fleet-token-remint-canary.log` and onto the needs-attention list.
+3. Action 23's telemetry rollup posts through a wrapper that uses the token-only home.
+4. Action 24 removes the `secret_file` line and moves the secret to `<file>.t3615-retired`. It runs
+   one host at a time, only after that host's decision is recorded in `runme.sh` and its token was
+   proven on an earlier run.
+
 ## Proof
 
 `TERMLINK_BIN=target/debug/termlink bash tests/hub-token-e2e.sh` starts a throwaway hub

@@ -244,6 +244,29 @@ TELEMETRY_INVOCATION_SINKS="$TMP/old.jsonl" bash "$R" --day 2026-10-19 --dry-run
 chk "W10 a pre-attribution row is 'unattributed' (and 'list' is polling)" '[ "$(jq_ "$TMP/o.json" "d[\"signals\"][\"usage\"][\"totals\"]")" = "{'"'"'unattributed'"'"': {'"'"'calls'"'"': 0, '"'"'polling'"'"': 1}}" ]'
 
 echo "fleet view"
+# T-3615: the view counts a report only for the host its hub-verified sender maps to, so every
+# canned envelope is "signed" (sender_id from the payload's host) against a fixture inventory.
+printf '# fixture inventory\n00000000000000a1 h1\n00000000000000a2 h2  # comment\n' > "$TMP/senders.txt"
+for i in 0 1 2 3 4; do echo "00000000000000b$i p$i"; done >> "$TMP/senders.txt"
+export TELEMETRY_SENDERS="$TMP/senders.txt"
+sign() {  # sign <ndjson>: add the inventory's sender_id for each envelope's declared host, in place
+    python3 - "$1" "$TMP/senders.txt" <<'PYS'
+import base64, json, sys
+inv = {}
+for l in open(sys.argv[2]):
+    f = l.split("#")[0].split()
+    if len(f) >= 2: inv[f[1]] = f[0]
+out = []
+for l in open(sys.argv[1]):
+    try:
+        e = json.loads(l); b = json.loads(base64.b64decode(e["payload_b64"]))
+        e.setdefault("sender_id", inv.get(b.get("host"))); l = json.dumps(e) + "\n"
+    except Exception:
+        pass
+    out.append(l)
+open(sys.argv[1], "w").writelines(out)
+PYS
+}
 mk() { python3 -c "
 import json,base64,sys
 b=json.dumps({'schema':'r5-rollup/1','host':sys.argv[1],'day':sys.argv[2],'generated_at':sys.argv[3],
@@ -251,7 +274,7 @@ b=json.dumps({'schema':'r5-rollup/1','host':sys.argv[1],'day':sys.argv[2],'gener
 print(json.dumps({'offset':0,'payload_b64':base64.b64encode(b.encode()).decode()}))" "$@"; }
 { mk h1 2026-10-18 2026-10-19T00:10:00Z 1; mk h1 2026-10-19 2026-10-20T00:10:00Z 2
   mk h1 2026-10-19 2026-10-20T09:00:00Z 4; mk h2 2026-10-18 2026-10-19T00:10:00Z 0
-  echo '{"offset":9,"payload_b64":"!!!"}'; } > "$TMP/view.ndjson"
+  echo '{"offset":9,"payload_b64":"!!!"}'; } > "$TMP/view.ndjson"; sign "$TMP/view.ndjson"
 export TELEMETRY_VIEW_NDJSON="$TMP/view.ndjson" TELEMETRY_NOW="$(date -u -d 2026-10-20T12:00:00Z +%s)"
 # The view's default --expect is the fleet inventory (slice 3b); these cases test the reported-only
 # mode, the inventory has its own cases below (V14-V15). Both seams keep the real hubs.toml unread.
@@ -279,6 +302,7 @@ print(json.dumps({"offset": 0, "payload_b64": base64.b64encode(json.dumps(b).enc
 old = {"schema": "r5-rollup/1", "host": "h2", "day": "2026-10-18", "generated_at": "x", "signals": {}, "sources": {}}
 print(json.dumps({"offset": 1, "payload_b64": base64.b64encode(json.dumps(old).encode()).decode()}))
 PY2
+sign "$TMP/view2.ndjson"
 TELEMETRY_VIEW_NDJSON="$TMP/view2.ndjson" bash "$V" --days 2 > "$TMP/v2.txt"; rc=$?
 chk "V9 usage table row for the attributed report (background listed like any class, T-3615 slice 3)" 'grep -q "h1 .*2026-10-19  background=1+1p dispatched=2+2p .*interactive=1+1p" "$TMP/v2.txt"'
 chk "V10 worker cell: runs, non-zero exits, timeouts, empty, verdicts, restarts" 'grep -q "runs=4 unfinished=0 exit!=0=2 timeouts=1 empty=1 verdicts=3/a1/w1 restarts=n/m" "$TMP/v2.txt"'
@@ -290,6 +314,7 @@ import json, base64, sys
 b = json.load(open(sys.argv[1])); b["generated_at"] = "2026-10-20T00:10:00Z"; b["catch_up"] = True
 print(json.dumps({"offset": 0, "payload_b64": base64.b64encode(json.dumps(b).encode()).decode()}))
 PY3
+sign "$TMP/view3.ndjson"
 TELEMETRY_VIEW_NDJSON="$TMP/view3.ndjson" bash "$V" --days 1 > "$TMP/v3.txt"
 chk "V13 a catch-up report is listed and flagged LATE, not hidden and not MISSING" 'grep -q "LATE     h1 2026-10-19 was rolled up late" "$TMP/v3.txt" && ! grep -q MISSING "$TMP/v3.txt"'
 
@@ -384,6 +409,7 @@ for i in range(5):
     b = {"schema": "r5-rollup/1", "host": f"p{i}", "day": "2026-10-19", "generated_at": "2026-10-20T00:10:00Z", "signals": {}, "sources": {}}
     print(json.dumps({"offset": i, "payload_b64": base64.b64encode(json.dumps(b).encode()).decode()}))
 PYP
+sign "$TMP/pages.ndjson"
 cat > "$TMP/fake-sub" <<'F'
 #!/usr/bin/env bash
 cur=0 lim=5000
@@ -419,9 +445,35 @@ gone = {"schema": "r5-rollup/1", "host": "h2", "day": "2026-10-19", "generated_a
         "signals": {"usage": None}, "sources": {"invocation_audit": "rotated: gone"}}
 print(env(0, full)); print(env(1, late)); print(env(2, gone))
 PYQ
+sign "$TMP/v17.ndjson"
 TELEMETRY_VIEW_NDJSON="$TMP/v17.ndjson" bash "$V" --days 1 > "$TMP/v17.txt"
 chk "V17 a later report whose rows had rotated does not replace the complete one" 'grep -q "h1 .*2026-10-19  interactive=9+0p" "$TMP/v17.txt"'
 chk "V18 rotated usage reads 'rotated', never zero" 'grep -q "h2 .*2026-10-19  rotated" "$TMP/v17.txt"'
+
+# V19-V23 (T-3615 Q3=A): the hub-verified sender decides the host, not the payload.
+python3 - > "$TMP/v19.ndjson" <<'PYR'
+import json, base64
+def env(o, b, sender):
+    e = {"offset": o, "payload_b64": base64.b64encode(json.dumps(b).encode()).decode()}
+    if sender is not None: e["sender_id"] = sender
+    return json.dumps(e)
+def rep(host, q):
+    return {"schema": "r5-rollup/1", "host": host, "day": "2026-10-19", "generated_at": "2026-10-20T00:10:00Z",
+            "signals": {"queue": {"pending_events": q, "max_backlog_s": 0}}, "sources": {}}
+print(env(0, rep("h1", 1), "00000000000000a1"))   # genuine
+print(env(1, rep("h2", 99), "ffffffffffffffff"))  # unknown key claims h2
+print(env(2, rep("h2", 98), None))                # unsigned claims h2
+print(env(3, rep("p9", 5), "00000000000000b0"))   # p0's key, declares p9
+PYR
+TELEMETRY_VIEW_NDJSON="$TMP/v19.ndjson" bash "$V" --days 1 --expect h1,h2 > "$TMP/v19.txt"; rc=$?
+TELEMETRY_VIEW_NDJSON="$TMP/v19.ndjson" bash "$V" --days 1 --expect h1,h2 --json > "$TMP/v19.json"
+chk "V19 a report from a key not in the inventory counts for no host: h2 stays MISSING" 'grep -q "MISSING  h2 did not report for 2026-10-19" "$TMP/v19.txt" && [ "$(jq_ "$TMP/v19.json" "[r[\"host\"] for r in d[\"rows\"]]")" = "['"'"'h1'"'"', '"'"'p0'"'"']" ]'
+chk "V20 unknown and unsigned senders are flagged UNVERIFIED" 'grep -q "UNVERIFIED  a report for h2 2026-10-19 was signed by ffffffffffffffff" "$TMP/v19.txt" && grep -q "UNVERIFIED  a report for h2 2026-10-19 was signed by (no sender_id)" "$TMP/v19.txt"'
+chk "V21 a listed key declaring another host is a MISMATCH, counted as the listed host" 'grep -q "MISMATCH  00000000000000b0 is p0 in the sender inventory, but its report for 2026-10-19 says host=p9: counted as p0" "$TMP/v19.txt" && [ "$(jq_ "$TMP/v19.json" "[(r[\"sender\"], r[\"declared_host\"]) for r in d[\"rows\"] if r[\"host\"]==\"p0\"]")" = "[('"'"'00000000000000b0'"'"', '"'"'p9'"'"')]" ]'
+chk "V22 any sender flag makes the view not ok (rc 1), and --json lists the flags" '[ $rc -eq 1 ] && [ "$(jq_ "$TMP/v19.json" "sorted(f[\"kind\"] for f in d[\"sender_flags\"])")" = "['"'"'mismatch'"'"', '"'"'unverified'"'"', '"'"'unverified'"'"']" ]'
+TELEMETRY_SENDERS="$TMP/no-such-inventory" TELEMETRY_VIEW_NDJSON="$TMP/v19.ndjson" bash "$V" --days 1 > /dev/null 2> "$TMP/v23.err"; rc=$?
+chk "V23 an unreadable sender inventory is tooling (rc 2), never an unverified ok" '[ $rc -eq 2 ] && grep -q "sender inventory" "$TMP/v23.err"'
+chk "V24 the committed inventory parses and names .107's rollup key" 'grep -q "^d1993c2c3ec44c94 dimitrimintdev$" "$ROOT/scripts/telemetry-senders.txt"'
 
 echo
 echo "PASS: $PASS  FAIL: $FAIL"

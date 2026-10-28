@@ -1,0 +1,16 @@
+# T-3615 — re-mint the fleet hubs' scoped .107 tokens (operator ruling Q3 = A, 2026-10-28)
+# Source of truth: /opt/termlink/.context/cron/fleet-token-remint.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-fleet-token-remint (USER field syntax — do NOT load into a user crontab)
+#
+# .122 / .121 / .132 reach .107 with an Interact token minted here (7-day ceiling) instead of
+# .107's full hub secret. Daily, each host whose token on record expires within 3 days gets a
+# new one (so a token is replaced every ~4 days and a failure has 3 more daily tries), installed
+# atomically and proven with a token-only config before the record moves. Renews only: the first
+# install is runme.sh action 22b. Empty log = healthy; a FAILED line also goes on the operator's
+# needs-attention list (urgent-token-expiring inside the last day); /canaries auto-discovers it;
+# tooling errors go to the .stderr sink (T-2685, T-2842); the heartbeat is touched on completion.
+SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
+PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+TERMLINK_RUNTIME_DIR=/var/lib/termlink
+40 3 * * * root cd /opt/termlink && bash scripts/fleet-token-remint.sh --cron >> .context/working/.fleet-token-remint-canary.log 2>> .context/working/.fleet-token-remint-canary.log.stderr

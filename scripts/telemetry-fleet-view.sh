@@ -14,6 +14,13 @@
 # the most complete report wins (usage covering the whole day over a partial or rotated one),
 # then the latest; usage that rotated away shows "rotated", never zero.
 #
+# T-3615 (operator ruling Q3 = A): reports are keyed by the HUB-VERIFIED sender, not by the
+# payload's self-declared "host". Each post's sender_id is checked by the hub against the key
+# that signed it (T-1427); scripts/telemetry-senders.txt maps those fingerprints to hosts. A
+# report from an unlisted sender is UNVERIFIED and counted for no host (an Interact token can post
+# anything, so a claimed host proves nothing); a listed sender whose report names another host is
+# a MISMATCH, counted for the listed host. Either one makes the view not ok (rc 1).
+#
 # Usage: telemetry-fleet-view.sh [--days N] [--expect h1,h2,...|reported] [--hub ADDR] [--topic T] [--json]
 #   --days    window of UTC days ending yesterday (default 7, clamped 1..90)
 #   --expect  hosts that must report. Default: the fleet inventory, i.e. this host plus every
@@ -26,7 +33,8 @@
 #
 # Test seams (PL-213): TELEMETRY_VIEW_NDJSON (canned `channel subscribe --json` output; skips
 # paging), TELEMETRY_NOW (epoch seconds), TELEMETRY_TERMLINK (binary), TELEMETRY_VIEW_PAGE
-# (page size, default 5000), TELEMETRY_HUBS_TOML, TELEMETRY_SELF_HOST (default `hostname`).
+# (page size, default 5000), TELEMETRY_HUBS_TOML, TELEMETRY_SELF_HOST (default `hostname`),
+# TELEMETRY_SENDERS (the sender inventory, default scripts/telemetry-senders.txt; unreadable = rc 2).
 set -euo pipefail
 
 DAYS=7 EXPECT="${TELEMETRY_EXPECT:-}" HUB="${TELEMETRY_HUB:-}" TOPIC="telemetry:daily" JSON=0
@@ -43,6 +51,8 @@ while [ $# -gt 0 ]; do
 done
 command -v python3 >/dev/null || { echo "telemetry-fleet-view: python3 not found" >&2; exit 2; }
 TL="${TELEMETRY_TERMLINK:-termlink}"
+SENDERS="${TELEMETRY_SENDERS:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/telemetry-senders.txt}"
+[ -r "$SENDERS" ] || { echo "telemetry-fleet-view: sender inventory $SENDERS unreadable: cannot verify who reported" >&2; exit 2; }
 
 # The fleet inventory (review item 28): who SHOULD report, not only who did.
 if [ -z "$EXPECT" ]; then
@@ -99,8 +109,8 @@ print("" if nxt is None else nxt)' "$PAGE_LIMIT")"
     done
 fi
 
-RAW="$RAW" python3 - "$DAYS" "$EXPECT" "$JSON" <<'PY'
-import base64, json, os, sys, datetime as dt
+RAW="$RAW" python3 - "$DAYS" "$EXPECT" "$JSON" "$SENDERS" <<'PY'
+import base64, json, os, re, sys, datetime as dt
 
 days = max(1, min(90, int(sys.argv[1])))
 expect = [h for h in sys.argv[2].split(",") if h]
@@ -108,6 +118,12 @@ as_json = sys.argv[3] == "1"
 now = float(os.environ.get("TELEMETRY_NOW") or dt.datetime.now(dt.timezone.utc).timestamp())
 last = dt.datetime.fromtimestamp(now, dt.timezone.utc).date() - dt.timedelta(days=1)
 window = [(last - dt.timedelta(days=i)).isoformat() for i in range(days - 1, -1, -1)]
+
+senders = {}
+for ln in open(sys.argv[4]):
+    ln = ln.split("#", 1)[0].split()
+    if len(ln) >= 2 and re.fullmatch(r"[0-9a-f]{16}", ln[0]):
+        senders[ln[0]] = ln[1]
 
 def completeness(b):
     u = (b.get("signals") or {}).get("usage")
@@ -118,7 +134,7 @@ def completeness(b):
 def rank(b):
     return (completeness(b), b.get("generated_at", ""))
 
-reports, unreadable = {}, 0
+reports, unreadable, flags = {}, 0, []
 for line in os.environ.get("RAW", "").splitlines():
     line = line.strip()
     if not line.startswith("{"):
@@ -135,7 +151,15 @@ for line in os.environ.get("RAW", "").splitlines():
     except (ValueError, TypeError):
         unreadable += 1
         continue
-    key = (body.get("host"), body.get("day"))
+    sender, declared, day = env.get("sender_id"), body.get("host"), body.get("day")
+    host = senders.get(sender) if isinstance(sender, str) else None
+    if host is None:
+        flags.append({"kind": "unverified", "sender": sender, "declared_host": declared, "day": day})
+        continue
+    if declared != host:
+        flags.append({"kind": "mismatch", "sender": sender, "declared_host": declared, "host": host, "day": day})
+    body = dict(body, host=host, _sender=sender, _declared=declared)
+    key = (host, day)
     # A re-run for the same host and day: the most complete report wins, then the latest
     # (review item 37: a later catch-up whose rows had rotated must not replace a whole day).
     if key not in reports or rank(body) >= rank(reports[key]):
@@ -201,11 +225,13 @@ def usage_row(b):
         out["workers_cell"] = None
     return out
 
-rows = [{"host": h, "day": d, "catch_up": bool(reports[(h, d)].get("catch_up")),
+flags = [f for f in flags if f["day"] in window]
+rows = [{"host": h, "day": d, "sender": reports[(h, d)]["_sender"], "declared_host": reports[(h, d)]["_declared"],
+         "catch_up": bool(reports[(h, d)].get("catch_up")),
          **summary(reports[(h, d)]), **usage_row(reports[(h, d)])}
         for h in hosts for d in window if (h, d) in reports]
-result = {"ok": bool(rows) and not missing, "window": window, "hosts": hosts,
-          "rows": rows, "missing": [{"host": h, "day": d} for h, d in missing],
+result = {"ok": bool(rows) and not missing and not flags, "window": window, "hosts": hosts,
+          "rows": rows, "missing": [{"host": h, "day": d} for h, d in missing], "sender_flags": flags,
           "unreadable_envelopes": unreadable}
 
 if as_json:
@@ -233,6 +259,13 @@ else:
             print(f"LATE     {r['host']} {r['day']} was rolled up late (--catch-up); rotated sources may be partial")
     for h, d in missing:
         print(f"MISSING  {h} did not report for {d}")
+    for f in flags:
+        if f["kind"] == "unverified":
+            print(f"UNVERIFIED  a report for {f['declared_host']} {f['day']} was signed by {f['sender'] or '(no sender_id)'}, "
+                  f"which is not in the sender inventory: counted for no host")
+        else:
+            print(f"MISMATCH  {f['sender']} is {f['host']} in the sender inventory, but its report for {f['day']} "
+                  f"says host={f['declared_host']}: counted as {f['host']}")
     if unreadable:
         print(f"note: {unreadable} envelope(s) could not be decoded")
 sys.exit(0 if result["ok"] else 1)

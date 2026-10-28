@@ -1,0 +1,21 @@
+id: scripts/fleet-token-remint.sh
+name: fleet-token-remint
+type: script
+subsystem: operations
+location: scripts/fleet-token-remint.sh
+tags: []
+
+purpose: "fleet-token-remint.sh — T-3615 (operator ruling Q3 = A, 2026-10-28): the fleet hubs reach .107 with an operator-minted Interact token instead of .107's full hub secret (T-3542 \"Option 1-lite\", built by T-3543)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-28
+created_by: unknown

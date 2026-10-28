@@ -1,0 +1,20 @@
+# T-3615 — who may report for which host on telemetry:daily (read by scripts/telemetry-fleet-view.sh).
+#
+# One line per signing identity: <fingerprint> <host label>. The fingerprint is the post's
+# sender_id, which the hub verifies (it must equal the fingerprint of the key that signed the
+# post, T-1427), so it cannot be claimed the way the payload's "host" field can. A report from a
+# fingerprint not listed here is flagged UNVERIFIED and counted for no host; a listed one whose
+# payload names another host is flagged MISMATCH and counted for the host listed here.
+#
+# Add a host after runme.sh action 22b prints "note    <host> signs its posts as <fp>" for it
+# (that is the root identity its rollup cron signs with): append "<fp> <host>" below.
+
+# .107 (dimitrimintdev): root's default identity, which its rollup cron signs with
+d1993c2c3ec44c94 dimitrimintdev
+# .107: the claude-termlink agent key (one hand-run rollup from a session, 2026-10)
+6738c073bbcc587a dimitrimintdev
+
+# Fleet hubs (runme action 23 installs the rollup there): fingerprints from action 22b's note lines.
+# <fp> ring20-management
+# <fp> ring20-dashboard
+# <fp> greenfield

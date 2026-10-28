@@ -1980,6 +1980,70 @@ head2 "22. ring20's deep-inception pack into a gitignored folder; delete the /va
 import_ring20_pack
 
 # ---------------------------------------------------------------------------
+# ACTION 22b — scoped .107 tokens on the fleet hubs, and their re-mint cron
+# (T-3615, operator ruling Q3 = A on 2026-10-28; T-3542 "Option 1-lite", T-3543)
+#
+# .122 and .121 hold .107's FULL hub secret (measured 2026-10-28), against the rule
+# that it never sits on a remote node. For each host in $FLEET_HUBS this mints an
+# Interact token on .107 (largest TTL the ceiling allows, 7 days by default),
+# installs it on the host at $TOKEN_REMOTE_TOKEN (0600 root, temp name + rename)
+# through the remote-exec path action 6 uses, writes a TOKEN-ONLY config home there
+# ($TOKEN_REMOTE_HOME, one .107 profile with token_file and no secret) and adds
+# token_file to the host's own .107 profile (its secret_file line stays until
+# action 24; a secret still wins while both are present). Verified on the host:
+# sha256 equal to the minted token, mode 600 root, the token_file line, and with
+# the token-only config (no secret reachable) `channel list --hub .107` plus a post
+# to the scratch topic fleet-token-probe accepted by the hub. Any mismatch FAILED;
+# the token and the secret are never printed. The logic is
+# scripts/fleet-token-remint.sh, the same code the daily .107 cron
+# (fleet-token-remint.crontab, installed here) runs to renew a token with < 3 days
+# left; the cron only renews, it never does a first install. Each host's signing
+# fingerprint is printed as a `note` line for the fleet view's sender inventory.
+# Idempotent: a verified, unchanged, not-yet-due token is skipped.
+# Seams (fixtures only): RUNME_TOKEN_REMINT, RUNME_TOKEN_STATE_DIR, RUNME_TOKEN_MINT,
+# RUNME_TOKEN_LOCAL_TL, RUNME_TOKEN_REMOTE_{TOKEN,HOME,HUBS,ID,OWNER}, plus
+# RUNME_FLEET_HUBS / RUNME_FLEET_REMOTE (action 6) and RUNME_REMOTE_TL (action 23).
+# ---------------------------------------------------------------------------
+seam TOKEN_REMINT RUNME_TOKEN_REMINT "bash $PROJECT_ROOT/scripts/fleet-token-remint.sh"
+seam TOKEN_STATE_DIR RUNME_TOKEN_STATE_DIR "/var/lib/termlink/fleet-tokens"
+seam TOKEN_MINT RUNME_TOKEN_MINT "termlink hub token"
+seam TOKEN_LOCAL_TL RUNME_TOKEN_LOCAL_TL "termlink"
+seam TOKEN_REMOTE_TOKEN RUNME_TOKEN_REMOTE_TOKEN "/root/.termlink/secrets/107-hub.token"
+seam TOKEN_REMOTE_HOME RUNME_TOKEN_REMOTE_HOME "/root/.termlink/token-only-home"
+seam TOKEN_REMOTE_HUBS RUNME_TOKEN_REMOTE_HUBS "/root/.termlink/hubs.toml"
+seam TOKEN_REMOTE_ID RUNME_TOKEN_REMOTE_ID "/root/.termlink"
+seam TOKEN_REMOTE_OWNER RUNME_TOKEN_REMOTE_OWNER "root"
+seam TOKEN_REMOTE_TL RUNME_REMOTE_TL "termlink"
+
+token_remint() {  # [script args...] -> the script's lines; FLEET_TOKEN_* from the seams above
+    FLEET_TOKEN_HUBS="$FLEET_HUBS" FLEET_TOKEN_REMOTE="$FLEET_REMOTE" FLEET_TOKEN_MINT="$TOKEN_MINT" \
+    FLEET_TOKEN_LOCAL_TL="$TOKEN_LOCAL_TL" FLEET_TOKEN_RUNTIME_DIR="$HUB_RT" FLEET_TOKEN_STATE_DIR="$TOKEN_STATE_DIR" \
+    FLEET_TOKEN_REMOTE_TOKEN="$TOKEN_REMOTE_TOKEN" FLEET_TOKEN_REMOTE_HOME="$TOKEN_REMOTE_HOME" \
+    FLEET_TOKEN_REMOTE_HUBS="$TOKEN_REMOTE_HUBS" FLEET_TOKEN_REMOTE_ID="$TOKEN_REMOTE_ID" \
+    FLEET_TOKEN_REMOTE_TL="$TOKEN_REMOTE_TL" FLEET_TOKEN_REMOTE_OWNER="$TOKEN_REMOTE_OWNER" \
+        $TOKEN_REMINT "$@" 2>&1
+}
+
+install_fleet_tokens() {
+    local out rc args=()
+    [ "$DRY_RUN" = "1" ] && args=(--dry-run)
+    out="$(token_remint "${args[@]}")"; rc=$?
+    printf '%s\n' "$out" | grep -v '^  total ' | grep -v '^$'
+    DONE=$((DONE + $(printf '%s\n' "$out" | grep -cE '^  (OK|\[DRY\]) ')))
+    SKIPPED=$((SKIPPED + $(printf '%s\n' "$out" | grep -c '^  skip ')))
+    FAILED=$((FAILED + $(printf '%s\n' "$out" | grep -c '^  FAILED ')))
+    if [ "$rc" = 2 ]; then
+        say "  FAILED  scripts/fleet-token-remint.sh could not run (rc 2, tooling)"; FAILED=$((FAILED+1))
+    fi
+    return 0
+}
+
+head2 "22b. Scoped .107 tokens on the fleet hubs ($FLEET_HUBS) + the daily re-mint cron (T-3615 Q3=A)"
+RUNME_START_EPOCH="${RUNME_START_EPOCH:-$(date +%s)}"   # action 24 trusts only tokens verified BEFORE this run
+install_fleet_tokens
+install_crontab fleet-token-remint.crontab "$CRON_DIR/termlink-fleet-token-remint"
+
+# ---------------------------------------------------------------------------
 # ACTION 23 — the daily telemetry rollup on the fleet hubs (T-3615)
 #
 # Only .107 reported to telemetry:daily, so the fleet view saw one host. This
@@ -2001,23 +2065,25 @@ import_ring20_pack
 # install: both sha256 sums match AND a --dry-run of the installed rollup exits 0
 # on the remote. Writes go to a temp name and are renamed (cron ignores dotted names).
 #
-# HELD until the operator decides the credential (T-3615 review Q3, slice 3b). Posting
-# to .107 from .122 / .121 / .132 uses whatever secret their hubs.toml holds for .107,
-# which may be .107's FULL hub secret (design §2.9, review A16): installing a daily
-# unattended job that relies on it widens that exposure. So by default this action
-# installs nothing and reports HELD (not a failure: nothing in the script is wrong).
-# The install code below stays as it is; it runs once the decision is recorded by
-# setting ROLLUP_CREDENTIAL_DECISION below to the ruling (e.g. "Q3=A, 2026-11-02").
+# The credential (T-3615 review Q3) was ruled on 2026-10-28: A, the scoped Interact
+# token of action 22b, never .107's full secret. So the rollup's termlink is a small
+# wrapper ($REMOTE_ROLLUP_ROOT/bin/termlink-107-token, installed and sha-checked with
+# the script and cron file) that runs every --hub call with the TOKEN-ONLY config
+# home of action 22b (HOME=$TOKEN_REMOTE_HOME, real identity dir): a secret still
+# sitting in the host's own hubs.toml is never what the rollup posts with. The
+# precondition probes that same path; no verified token there = FAILED naming
+# action 22b. Setting ROLLUP_CREDENTIAL_DECISION to "" puts the action back on HELD.
 # Seams (fixtures only): RUNME_FLEET_HUBS, RUNME_FLEET_REMOTE (shared with action 6),
 # RUNME_ROLLUP_SRC, RUNME_REMOTE_ROLLUP_ROOT, RUNME_REMOTE_ROLLUP_CRON, RUNME_REMOTE_TL,
-# RUNME_ROLLUP_CREDENTIAL_DECISION (set but empty = the undecided default).
+# RUNME_ROLLUP_CREDENTIAL_DECISION (set but empty = HELD), RUNME_TOKEN_REMOTE_* (22b).
 # ---------------------------------------------------------------------------
-seam ROLLUP_CREDENTIAL_DECISION RUNME_ROLLUP_CREDENTIAL_DECISION ""
+seam ROLLUP_CREDENTIAL_DECISION RUNME_ROLLUP_CREDENTIAL_DECISION "Q3=A, 2026-10-28 (T-3615 Decisions): scoped Interact token, action 22b"
 seam ROLLUP_SRC RUNME_ROLLUP_SRC "$PROJECT_ROOT/scripts/telemetry-rollup.sh"
 seam REMOTE_ROLLUP_ROOT RUNME_REMOTE_ROLLUP_ROOT "/var/lib/termlink-telemetry"
 seam REMOTE_ROLLUP_CRON RUNME_REMOTE_ROLLUP_CRON "/etc/cron.d/termlink-telemetry-rollup"
 seam REMOTE_TL RUNME_REMOTE_TL "termlink"
 TELEMETRY_COLLECTOR="192.168.10.107:9100"
+REMOTE_ROLLUP_WRAPPER="$REMOTE_ROLLUP_ROOT/bin/termlink-107-token"
 REMOTE_PATH="/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin"
 
 fleet_rollup_cron() {  # <hub> -> the cron file for that hub
@@ -2029,59 +2095,83 @@ TERMLINK_WORKER_CLASS=background
 PATH=$REMOTE_PATH
 TELEMETRY_HUB=$TELEMETRY_COLLECTOR
 TELEMETRY_HOST=$1
+TELEMETRY_TERMLINK=$REMOTE_ROLLUP_WRAPPER
 30 2 * * * root cd $REMOTE_ROLLUP_ROOT && bash scripts/telemetry-rollup.sh --catch-up 7 >> .context/working/.telemetry-rollup.log 2>> .context/working/.telemetry-rollup.log.stderr
 EOF
 }
 
+fleet_rollup_wrapper() {  # the rollup's termlink on the host: --hub calls use the token-only config
+    cat <<EOF
+#!/bin/sh
+# T-3615 — the telemetry rollup's termlink, installed by /opt/termlink/runme.sh action 23 (from .107).
+# A call to a remote hub (--hub) runs with the token-only config home of action 22b, so the rollup
+# posts to .107 with the scoped Interact token, never with a hub secret. Other calls are unchanged.
+case " \$* " in *" --hub "*)
+    exec env -u TERMLINK_AGENT_ID -u TERMLINK_IDENTITY_FILE HOME=$TOKEN_REMOTE_HOME TERMLINK_IDENTITY_DIR=$TOKEN_REMOTE_ID $REMOTE_TL "\$@" ;;
+esac
+exec $REMOTE_TL "\$@"
+EOF
+}
+
 install_fleet_rollup() {
-    local hub want_s want_c probe got_s got_c b64s b64c out
+    local hub want_s want_c want_w probe got_s got_c got_w b64s b64c b64w out
     if [ -z "$ROLLUP_CREDENTIAL_DECISION" ]; then
-        say "  HELD    waiting for the operator's credential decision (T-3615 Q3): nothing installed on $FLEET_HUBS, nothing probed"
+        say "  HELD    no credential decision recorded (T-3615 Q3; ROLLUP_CREDENTIAL_DECISION is empty): nothing installed on $FLEET_HUBS, nothing probed"
         HELD=$((HELD+1)); return
     fi
     if [ ! -r "$ROLLUP_SRC" ]; then
         say "  FAILED  source missing: $ROLLUP_SRC"; FAILED=$((FAILED+1)); return
     fi
     want_s="$(sha256sum < "$ROLLUP_SRC" | cut -d' ' -f1)"
+    want_w="$(fleet_rollup_wrapper | sha256sum | cut -d' ' -f1)"
     for hub in $FLEET_HUBS; do
         want_c="$(fleet_rollup_cron "$hub" | sha256sum | cut -d' ' -f1)"
         # Read-only probe; every answer is one tagged line (RUNME-ROLLUP marks our commands).
         probe="$(fleet_remote "$hub" "echo RUNME-ROLLUP-PROBE; export PATH=$REMOTE_PATH; \
 s=\$(sha256sum < $REMOTE_ROLLUP_ROOT/scripts/telemetry-rollup.sh 2>/dev/null | cut -d' ' -f1); echo \"SCRIPT=\$s\"; \
 c=\$(sha256sum < $REMOTE_ROLLUP_CRON 2>/dev/null | cut -d' ' -f1); echo \"CRON=\$c\"; \
+w=\$(sha256sum < $REMOTE_ROLLUP_WRAPPER 2>/dev/null | cut -d' ' -f1); echo \"WRAP=\$w\"; \
 command -v python3 >/dev/null && echo HAVE-PY; command -v $REMOTE_TL >/dev/null && echo HAVE-TL; \
-timeout 30 $REMOTE_TL channel list --hub $TELEMETRY_COLLECTOR >/dev/null 2>&1 && echo HAVE-AUTH" 2>/dev/null | tr -d '\r')"
+env -u TERMLINK_AGENT_ID -u TERMLINK_IDENTITY_FILE HOME=$TOKEN_REMOTE_HOME TERMLINK_IDENTITY_DIR=$TOKEN_REMOTE_ID \
+timeout 30 $REMOTE_TL channel list --hub $TELEMETRY_COLLECTOR </dev/null >/dev/null 2>&1 && echo HAVE-AUTH" 2>/dev/null | tr -d '\r')"
         case "$probe" in *RUNME-ROLLUP-PROBE*) : ;; *)
             say "  FAILED  $hub: no answer over remote exec (no session, or the hub is down) — nothing written"; FAILED=$((FAILED+1)); continue ;; esac
         got_s="$(printf '%s\n' "$probe" | sed -n 's/^SCRIPT=//p' | tail -1)"
         got_c="$(printf '%s\n' "$probe" | sed -n 's/^CRON=//p' | tail -1)"
-        if [ "$got_s" = "$want_s" ] && [ "$got_c" = "$want_c" ]; then
-            say "  skip    $hub already runs the current rollup daily (script and cron file identical)"; SKIPPED=$((SKIPPED+1)); continue
+        got_w="$(printf '%s\n' "$probe" | sed -n 's/^WRAP=//p' | tail -1)"
+        if [ "$got_s" = "$want_s" ] && [ "$got_c" = "$want_c" ] && [ "$got_w" = "$want_w" ]; then
+            say "  skip    $hub already runs the current rollup daily (script, cron file and token wrapper identical)"; SKIPPED=$((SKIPPED+1)); continue
         fi
         if ! printf '%s\n' "$probe" | grep -qx HAVE-PY || ! printf '%s\n' "$probe" | grep -qx HAVE-TL; then
             say "  FAILED  $hub lacks python3 or termlink on $REMOTE_PATH — the rollup needs both; nothing written"; FAILED=$((FAILED+1)); continue
         fi
+        if ! printf '%s\n' "$probe" | grep -qx HAVE-AUTH && [ "$DRY_RUN" = "1" ]; then
+            # A dry run installs no token (22b only says it would), so its absence here is expected.
+            say "  [DRY]   would install the rollup on $hub once action 22b's token is in place there (none verified yet)"; DONE=$((DONE+1)); continue
+        fi
         if ! printf '%s\n' "$probe" | grep -qx HAVE-AUTH; then
-            say "  FAILED  $hub cannot authenticate to .107 ($TELEMETRY_COLLECTOR): no hubs.toml profile with a credential there."
-            say "          Operator question (T-3615 handback-3): which credential should $hub use to post to .107? Nothing written."
+            say "  FAILED  $hub cannot authenticate to .107 ($TELEMETRY_COLLECTOR) with the token-only config ($TOKEN_REMOTE_HOME):"
+            say "          no verified scoped token there yet; action 22b installs it (see its line above). Nothing written."
             FAILED=$((FAILED+1)); continue
         fi
         if [ "$DRY_RUN" = "1" ]; then
             say "  [DRY]   would install the rollup on $hub ($REMOTE_ROLLUP_ROOT + $REMOTE_ROLLUP_CRON, daily 02:30, posts to $TELEMETRY_COLLECTOR)"; DONE=$((DONE+1)); continue
         fi
-        b64s="$(base64 -w0 < "$ROLLUP_SRC")"; b64c="$(fleet_rollup_cron "$hub" | base64 -w0)"
-        out="$(fleet_remote "$hub" "echo RUNME-ROLLUP-INSTALL; set -e; mkdir -p $REMOTE_ROLLUP_ROOT/scripts $REMOTE_ROLLUP_ROOT/.context/working; \
+        b64s="$(base64 -w0 < "$ROLLUP_SRC")"; b64c="$(fleet_rollup_cron "$hub" | base64 -w0)"; b64w="$(fleet_rollup_wrapper | base64 -w0)"
+        out="$(fleet_remote "$hub" "echo RUNME-ROLLUP-INSTALL; set -e; mkdir -p $REMOTE_ROLLUP_ROOT/scripts $REMOTE_ROLLUP_ROOT/bin $REMOTE_ROLLUP_ROOT/.context/working; \
+echo $b64w | base64 -d > $REMOTE_ROLLUP_WRAPPER.new; chmod 755 $REMOTE_ROLLUP_WRAPPER.new; mv $REMOTE_ROLLUP_WRAPPER.new $REMOTE_ROLLUP_WRAPPER; \
 echo $b64s | base64 -d > $REMOTE_ROLLUP_ROOT/scripts/.telemetry-rollup.sh.new; mv $REMOTE_ROLLUP_ROOT/scripts/.telemetry-rollup.sh.new $REMOTE_ROLLUP_ROOT/scripts/telemetry-rollup.sh; \
 echo $b64c | base64 -d > $REMOTE_ROLLUP_CRON.new; chmod 644 $REMOTE_ROLLUP_CRON.new; mv $REMOTE_ROLLUP_CRON.new $REMOTE_ROLLUP_CRON; \
-s=\$(sha256sum < $REMOTE_ROLLUP_ROOT/scripts/telemetry-rollup.sh | cut -d' ' -f1); c=\$(sha256sum < $REMOTE_ROLLUP_CRON | cut -d' ' -f1); \
+s=\$(sha256sum < $REMOTE_ROLLUP_ROOT/scripts/telemetry-rollup.sh | cut -d' ' -f1); c=\$(sha256sum < $REMOTE_ROLLUP_CRON | cut -d' ' -f1); w=\$(sha256sum < $REMOTE_ROLLUP_WRAPPER | cut -d' ' -f1); \
 export PATH=$REMOTE_PATH; cd $REMOTE_ROLLUP_ROOT && TELEMETRY_TERMLINK=$REMOTE_TL TELEMETRY_HOST=$hub bash scripts/telemetry-rollup.sh --dry-run --json >/dev/null 2>&1 && echo DRYRUN-OK; \
-echo \"SCRIPT=\$s\"; echo \"CRON=\$c\"" 2>&1 | tr -d '\r')"
+echo \"SCRIPT=\$s\"; echo \"CRON=\$c\"; echo \"WRAP=\$w\"" 2>&1 | tr -d '\r')"
         got_s="$(printf '%s\n' "$out" | sed -n 's/^SCRIPT=//p' | tail -1)"
         got_c="$(printf '%s\n' "$out" | sed -n 's/^CRON=//p' | tail -1)"
-        if [ "$got_s" = "$want_s" ] && [ "$got_c" = "$want_c" ] && printf '%s\n' "$out" | grep -qx DRYRUN-OK; then
-            say "  OK      $hub: rollup installed and verified (sha256 of script and cron file match; a dry run of it exits 0 there)"; DONE=$((DONE+1))
+        got_w="$(printf '%s\n' "$out" | sed -n 's/^WRAP=//p' | tail -1)"
+        if [ "$got_s" = "$want_s" ] && [ "$got_c" = "$want_c" ] && [ "$got_w" = "$want_w" ] && printf '%s\n' "$out" | grep -qx DRYRUN-OK; then
+            say "  OK      $hub: rollup installed and verified (sha256 of script, cron file and token wrapper match; a dry run of it exits 0 there)"; DONE=$((DONE+1))
         else
-            say "  FAILED  $hub after install: script ${got_s:-missing}, cron ${got_c:-missing}, dry run $(printf '%s\n' "$out" | grep -qx DRYRUN-OK && echo ok || echo failed) (want $want_s / $want_c / ok)"
+            say "  FAILED  $hub after install: script ${got_s:-missing}, cron ${got_c:-missing}, wrapper ${got_w:-missing}, dry run $(printf '%s\n' "$out" | grep -qx DRYRUN-OK && echo ok || echo failed) (want $want_s / $want_c / $want_w / ok)"
             FAILED=$((FAILED+1))
         fi
     done
@@ -2089,6 +2179,138 @@ echo \"SCRIPT=\$s\"; echo \"CRON=\$c\"" 2>&1 | tr -d '\r')"
 
 head2 "23. Daily telemetry rollup on the fleet hubs ($FLEET_HUBS), posting to .107 (T-3615)"
 install_fleet_rollup
+
+# ---------------------------------------------------------------------------
+# ACTION 24 — remove .107's FULL secret from a fleet host, one host at a time
+# (T-3615, operator ruling Q3 = A: "removed from those hosts only after each
+# host's token path is proven")
+#
+# Per host, and only when ALL of these hold:
+#   (a) the host's decision below is recorded (empty = HELD). ring20-management and
+#       ring20-dashboard were told the change comes after THEY confirm; greenfield's
+#       .107 secret file differs from .107's (unconfirmed), it too waits for a ruling;
+#   (b) action 22b's state on record shows the token path verified on an EARLIER run
+#       (verified_at before this run started) and the token not expired;
+#   (c) the host's .107 profile carries token_file = the installed token, there is
+#       exactly one profile at .107, its secret is a secret_file (an inline `secret`
+#       is refused: remove it by hand), and no other profile, cron.d file, systemd
+#       unit or sidecar settings file on the host names that secret file.
+# It then backs up hubs.toml, removes the profile's secret_file line, and MOVES the
+# secret file to <file>.t3615-retired (0600, not deleted). Verified on the host with
+# the host's REAL config: no secret left in the profile, the backup in place and the
+# original gone, `channel list --hub .107` authenticates and a post to
+# fleet-token-probe is accepted (mail and telemetry use the same CLI path). If that
+# verification fails, hubs.toml and the secret file are put back and it is FAILED.
+# Idempotent: no secret line and the retired file present -> re-verified, skip.
+# Rollback by hand (on the host): mv <file>.t3615-retired <file>; cp hubs.toml.t3615-pre-removal hubs.toml.
+# Seams (fixtures only): RUNME_SECRET_REMOVAL_DECISION_<hub with - as _> (overrides the
+# recorded value), RUNME_SECRET_REMOVAL_HUBS (default $FLEET_HUBS), RUNME_SECRET_REF_DIRS (dirs
+# searched ON THE HOST for other users of the secret file), plus the 22b seams.
+# ---------------------------------------------------------------------------
+SECRET_REMOVAL_HUBS="${RUNME_SECRET_REMOVAL_HUBS-$FLEET_HUBS}"
+seam SECRET_REF_DIRS RUNME_SECRET_REF_DIRS "/etc/cron.d /etc/systemd/system /etc/termlink-sidecar"
+secret_removal_decision() {  # <hub> -> the recorded decision; empty = HELD
+    local v="RUNME_SECRET_REMOVAL_DECISION_${1//-/_}"
+    if [ -n "${!v+x}" ]; then printf '%s' "${!v}"; return; fi
+    case "$1" in
+        ring20-management) printf '%s' "" ;;   # waits for ring20-management's confirmation
+        ring20-dashboard)  printf '%s' "" ;;   # waits for ring20-dashboard's confirmation
+        greenfield)        printf '%s' "" ;;   # waits for the operator (its .107 file is not .107's secret)
+    esac
+}
+
+remove_fleet_secret() {
+    local hub dec st_ver st_exp now probe out sf shared refs edit
+    now="$(date +%s)"
+    [ -n "$SECRET_REMOVAL_HUBS" ] || say "  note    no fleet host in scope for this action"
+    for hub in $SECRET_REMOVAL_HUBS; do
+        dec="$(secret_removal_decision "$hub")"
+        if [ -z "$dec" ]; then
+            say "  HELD    $hub: no removal decision recorded (waits for the host's confirmation); its secret stays"; HELD=$((HELD+1)); continue
+        fi
+        st_ver="$(sed -n 's/^verified_at=//p' "$TOKEN_STATE_DIR/$hub.state" 2>/dev/null | tail -1)"
+        st_exp="$(sed -n 's/^expires_at=//p' "$TOKEN_STATE_DIR/$hub.state" 2>/dev/null | tail -1)"
+        if [ -z "$st_ver" ] || [ "$st_ver" -ge "$RUNME_START_EPOCH" ] || [ "${st_exp:-0}" -le "$now" ]; then
+            say "  HELD    $hub: decided ($dec), but its token path was not verified on an earlier run (action 22b); re-run after it has"; HELD=$((HELD+1)); continue
+        fi
+        probe="$(fleet_remote "$hub" "echo RUNME-SECRET-PROBE; export PATH=$REMOTE_PATH; \
+p=\$(python3 -c \"\$(echo $(printf '%s' "$SECRET_EDITOR_PY" | base64 -w0) | base64 -d)\" probe $TOKEN_REMOTE_HUBS $TELEMETRY_COLLECTOR </dev/null); \
+echo \"\$p\"; f=\$(echo \"\$p\" | sed -n 's/^SECRET_FILE=//p'); \
+[ -n \"\$f\" ] && [ -e \"\$f\" ] && echo SECRET-PRESENT; [ -n \"\$f\" ] && [ -e \"\$f.t3615-retired\" ] && echo RETIRED-PRESENT; \
+[ -n \"\$f\" ] && echo \"REFS=\$(grep -rlF -- \"\$f\" $SECRET_REF_DIRS 2>/dev/null | tr '\n' ' ')\"" 2>/dev/null | tr -d '\r')"
+        case "$probe" in *RUNME-SECRET-PROBE*) : ;; *)
+            say "  FAILED  $hub: no answer over remote exec; nothing changed"; FAILED=$((FAILED+1)); continue ;; esac
+        sf="$(printf '%s\n' "$probe" | sed -n 's/^SECRET_FILE=//p' | tail -1)"
+        shared="$(printf '%s\n' "$probe" | sed -n 's/^SECRET_SHARED=//p' | tail -1)"
+        refs="$(printf '%s\n' "$probe" | sed -n 's/^REFS=//p' | tail -1 | sed 's/ *$//')"
+        if [ "$(printf '%s\n' "$probe" | sed -n 's/^PROFILES=//p' | tail -1)" != 1 ]; then
+            say "  FAILED  $hub: not exactly one profile at $TELEMETRY_COLLECTOR in $TOKEN_REMOTE_HUBS; nothing changed"; FAILED=$((FAILED+1)); continue
+        fi
+        if [ "$(printf '%s\n' "$probe" | sed -n 's/^TOKEN_FILE=//p' | tail -1)" != "$TOKEN_REMOTE_TOKEN" ]; then
+            say "  FAILED  $hub: its .107 profile has no token_file = $TOKEN_REMOTE_TOKEN (action 22b first); nothing changed"; FAILED=$((FAILED+1)); continue
+        fi
+        if [ "$(printf '%s\n' "$probe" | sed -n 's/^INLINE_SECRET=//p' | tail -1)" = 1 ]; then
+            say "  FAILED  $hub: the .107 profile holds an inline secret = \"...\"; remove that line by hand (this action only moves secret files); nothing changed"; FAILED=$((FAILED+1)); continue
+        fi
+        if [ -n "$shared" ] || [ -n "$refs" ]; then
+            say "  FAILED  $hub: the secret file $sf is still named elsewhere (profiles: ${shared:-none}; files: ${refs:-none}); nothing changed"; FAILED=$((FAILED+1)); continue
+        fi
+        if [ -z "$sf" ]; then
+            # Already removed on an earlier run: re-verify with the real config, change nothing.
+            out="$(fleet_remote "$hub" "echo RUNME-SECRET-VERIFY; export PATH=$REMOTE_PATH; $(secret_verify_cmd "$hub")" 2>/dev/null | tr -d '\r')"
+            if printf '%s\n' "$out" | grep -qx AUTH-OK && printf '%s\n' "$out" | grep -qx POST-OK; then
+                say "  skip    $hub: .107's secret already removed from its profile; mail still authenticates with the token (re-verified)"; SKIPPED=$((SKIPPED+1))
+            else
+                say "  FAILED  $hub: no secret in its .107 profile, and the real config does NOT authenticate to .107 now (token expired or not re-minted? see action 22b)"; FAILED=$((FAILED+1))
+            fi
+            continue
+        fi
+        if ! printf '%s\n' "$probe" | grep -qx SECRET-PRESENT; then
+            say "  FAILED  $hub: its .107 profile names $sf, which does not exist there; fix the profile by hand; nothing changed"; FAILED=$((FAILED+1)); continue
+        fi
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would remove secret_file from $hub's .107 profile and move $sf to $sf.t3615-retired (decision: $dec), then verify mail with the real config"; DONE=$((DONE+1)); continue
+        fi
+        out="$(fleet_remote "$hub" "echo RUNME-SECRET-REMOVE; export PATH=$REMOTE_PATH; umask 077; \
+cp -p $TOKEN_REMOTE_HUBS $TOKEN_REMOTE_HUBS.t3615-pre-removal && chmod 600 $TOKEN_REMOTE_HUBS.t3615-pre-removal || { echo ERR=backup; exit 0; }; \
+python3 -c \"\$(echo $(printf '%s' "$SECRET_EDITOR_PY" | base64 -w0) | base64 -d)\" drop-secret $TOKEN_REMOTE_HUBS $TELEMETRY_COLLECTOR </dev/null; \
+mv -f '$sf' '$sf.t3615-retired' && chmod 600 '$sf.t3615-retired' || echo ERR=move; \
+$(secret_verify_cmd "$hub"); \
+python3 -c \"\$(echo $(printf '%s' "$SECRET_EDITOR_PY" | base64 -w0) | base64 -d)\" probe $TOKEN_REMOTE_HUBS $TELEMETRY_COLLECTOR </dev/null | sed 's/^/AFTER_/'; \
+[ -e '$sf' ] && echo ORIG-STILL-THERE; echo \"RETIRED_MODE=\$(stat -c '%a' '$sf.t3615-retired' 2>/dev/null)\"" 2>/dev/null | tr -d '\r')"
+        edit="$(printf '%s\n' "$out" | sed -n 's/^EDIT=//p' | tail -1)"
+        local bad=""
+        printf '%s\n' "$out" | grep -q '^ERR=' && bad="step '$(printf '%s\n' "$out" | sed -n 's/^ERR=//p' | head -1)' failed"
+        [ -z "$bad" ] && [ "$edit" != dropped ] && bad="the profile edit answered '${edit:-nothing}'"
+        [ -z "$bad" ] && [ -n "$(printf '%s\n' "$out" | sed -n 's/^AFTER_SECRET_FILE=//p' | tail -1)" ] && bad="a secret_file line is still in the profile"
+        [ -z "$bad" ] && printf '%s\n' "$out" | grep -qx ORIG-STILL-THERE && bad="$sf is still in place"
+        [ -z "$bad" ] && [ "$(printf '%s\n' "$out" | sed -n 's/^RETIRED_MODE=//p' | tail -1)" != 600 ] && bad="the retired copy is not mode 600"
+        [ -z "$bad" ] && ! printf '%s\n' "$out" | grep -qx AUTH-OK && bad="the real config no longer authenticates to .107"
+        [ -z "$bad" ] && ! printf '%s\n' "$out" | grep -qx POST-OK && bad="authenticated, but a post to fleet-token-probe was not accepted"
+        if [ -z "$bad" ]; then
+            say "  OK      $hub: .107's full secret removed from its profile, file moved to $sf.t3615-retired (600); mail authenticates with the token alone (list + post verified)"; DONE=$((DONE+1))
+        else
+            fleet_remote "$hub" "echo RUNME-SECRET-ROLLBACK; [ -e '$sf.t3615-retired' ] && [ ! -e '$sf' ] && mv '$sf.t3615-retired' '$sf'; [ -e $TOKEN_REMOTE_HUBS.t3615-pre-removal ] && cp -p $TOKEN_REMOTE_HUBS.t3615-pre-removal $TOKEN_REMOTE_HUBS" >/dev/null 2>&1
+            say "  FAILED  $hub: $bad; put hubs.toml and $sf back as they were"; FAILED=$((FAILED+1))
+        fi
+    done
+}
+
+secret_verify_cmd() {  # <hub> -> remote shell: authenticate + post with the host's REAL config
+    printf '%s' "env -u TERMLINK_AGENT_ID -u TERMLINK_IDENTITY_FILE timeout 30 $TOKEN_REMOTE_TL channel list --hub $TELEMETRY_COLLECTOR </dev/null >/dev/null 2>&1 && echo AUTH-OK; \
+o=\$(env -u TERMLINK_AGENT_ID -u TERMLINK_IDENTITY_FILE timeout 30 $TOKEN_REMOTE_TL channel post fleet-token-probe --msg-type secret-removal-probe --payload '{\"t3615\":\"secret-removed\",\"host\":\"$1\"}' --hub $TELEMETRY_COLLECTOR </dev/null 2>&1); \
+case \"\$o\" in *'Posted to '*'offset='*) echo POST-OK ;; esac"
+}
+
+# The same hubs.toml editor fleet-token-remint.sh runs on the host (one copy: read from it).
+SECRET_EDITOR_PY="$(sed -n "/^read -r -d '' EDITOR_PY <<'PY'\$/,/^PY\$/p" "$PROJECT_ROOT/scripts/fleet-token-remint.sh" | sed '1d;$d')"
+
+head2 "24. Remove .107's full secret from a fleet host whose token path is proven (T-3615 Q3=A; per-host decision)"
+if [ -z "$SECRET_EDITOR_PY" ]; then
+    say "  FAILED  could not read the hubs.toml editor from scripts/fleet-token-remint.sh"; FAILED=$((FAILED+1))
+else
+    remove_fleet_secret
+fi
 
 # ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
