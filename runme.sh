@@ -2189,7 +2189,9 @@ install_fleet_rollup
 #   (a) the host's decision below is recorded (empty = HELD). ring20-management and
 #       ring20-dashboard were told the change comes after THEY confirm; greenfield's
 #       designer-107.hex IS .107's secret (2026-10-28 re-check: the earlier "differs" was
-#       a trailing newline only), it waits for the operator's ruling;
+#       a trailing newline only); operator ruling B (2026-10-28): remove it after the first
+#       automatic re-mint. A decision starting "after-remint" also needs mints >= 2 in the
+#       22b state (fleet-token-remint.sh counts verified installs; 1 = the first install);
 #   (b) action 22b's state on record shows the token path verified on an EARLIER run
 #       (verified_at before this run started) and the token not expired;
 #   (c) the host's .107 profile carries token_file = the installed token, there is
@@ -2216,7 +2218,7 @@ secret_removal_decision() {  # <hub> -> the recorded decision; empty = HELD
     case "$1" in
         ring20-management) printf '%s' "" ;;   # waits for ring20-management's confirmation
         ring20-dashboard)  printf '%s' "" ;;   # waits for ring20-dashboard's confirmation
-        greenfield)        printf '%s' "" ;;   # waits for the operator's ruling
+        greenfield)        printf '%s' "after-remint: operator ruling B, 2026-10-28" ;;
     esac
 }
 
@@ -2233,6 +2235,10 @@ remove_fleet_secret() {
         st_exp="$(sed -n 's/^expires_at=//p' "$TOKEN_STATE_DIR/$hub.state" 2>/dev/null | tail -1)"
         if [ -z "$st_ver" ] || [ "$st_ver" -ge "$RUNME_START_EPOCH" ] || [ "${st_exp:-0}" -le "$now" ]; then
             say "  HELD    $hub: decided ($dec), but its token path was not verified on an earlier run (action 22b); re-run after it has"; HELD=$((HELD+1)); continue
+        fi
+        local st_mints; st_mints="$(sed -n 's/^mints=//p' "$TOKEN_STATE_DIR/$hub.state" 2>/dev/null | tail -1)"
+        if [ "${dec#after-remint}" != "$dec" ] && [ "${st_mints:-1}" -lt 2 ]; then
+            say "  HELD    $hub: decided ($dec), waits for the first automatic re-mint to verify (verified mints on record: ${st_mints:-1}); its secret stays"; HELD=$((HELD+1)); continue
         fi
         probe="$(fleet_remote "$hub" "echo RUNME-SECRET-PROBE; export PATH=$REMOTE_PATH; \
 p=\$(python3 -c \"\$(echo $(printf '%s' "$SECRET_EDITOR_PY" | base64 -w0) | base64 -d)\" probe $TOKEN_REMOTE_HUBS $TELEMETRY_COLLECTOR </dev/null); \

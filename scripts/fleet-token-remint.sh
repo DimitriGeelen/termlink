@@ -231,8 +231,16 @@ state_get() {  # <hub> <key>
 }
 state_put() {  # <hub> <expires_at> <sha> <profile>
     mkdir -p "$STATE_DIR" && chmod 700 "$STATE_DIR" || return 1
-    local f="$STATE_DIR/$1.state"
-    printf 'expires_at=%s\ntoken_sha256=%s\nverified_at=%s\nscope=interact\nprofile=%s\n' "$2" "$3" "$NOW" "$4" > "$f.new" \
+    local f="$STATE_DIR/$1.state" mints first
+    # mints counts verified installs (1 = the first, 2+ = re-mints); runme action 24 can wait
+    # for a re-mint before it removes a host's secret (T-3615, greenfield ruling B). A state
+    # written before this field existed counts as one verified mint.
+    mints="$(state_get "$1" mints)"; first="$(state_get "$1" first_verified_at)"
+    [ -z "$mints" ] && [ -n "$(state_get "$1" verified_at)" ] && mints=1
+    mints=$(( ${mints:-0} + 1 ))
+    [ -n "$first" ] || first="$(state_get "$1" verified_at)"
+    printf 'expires_at=%s\ntoken_sha256=%s\nverified_at=%s\nscope=interact\nprofile=%s\nmints=%s\nfirst_verified_at=%s\n' \
+        "$2" "$3" "$NOW" "$4" "$mints" "${first:-$NOW}" > "$f.new" \
         && chmod 600 "$f.new" && mv -f "$f.new" "$f"
 }
 

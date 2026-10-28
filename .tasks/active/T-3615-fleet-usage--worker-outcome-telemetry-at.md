@@ -51,7 +51,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-28T00:10:39Z
-last_update: 2026-10-28T15:12:46Z
+last_update: 2026-10-28T15:55:27Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -386,6 +386,19 @@ bvp_scores_proposed:
 - **Left open / residuals:** Interact reads every topic (no per-topic ACL), replay within the TTL, revocation only by
   expiry or secret rotation; all closed by T-3423. ring20-management and ring20-dashboard to be told before their
   credential changes. Runme action 23 stays HELD until the token path is in place.
+
+### 2026-10-28 — when .107's full secret comes off greenfield (.132): B, after the first re-mint (operator ruling)
+- **Chose:** B. Remove designer-107.hex from greenfield's designer107 profile once the first automatic re-mint
+  (cron, about 2026-11-01, when under 3 days of the 2026-11-04 expiry remain) has verified the token path, on the
+  next runme run after that. Built: fleet-token-remint.sh records `mints` (verified installs) and
+  `first_verified_at`; runme action 24's greenfield decision is "after-remint: …", which also needs mints >= 2.
+- **Why:** the re-mint is the only link not yet proven in operation; a few more days of exposure buys that proof,
+  and it is the bar ring20-dashboard's operator set for .121. The earlier "differs, probably stale" was wrong
+  (trailing newline), so this is a live exposure like .122/.121.
+- **Rejected:** A remove now (re-mint never run for real); C wait for greenfield's agent (host is the operator's,
+  other users of the file already checked: none); D wait for T-3423 (weeks of exposure, against Q3 = A).
+- **Left open:** .122 and .121 keep waiting on their own confirmation; greenfield's agent is told before its config
+  changes.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

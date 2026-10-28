@@ -1854,6 +1854,22 @@ rm -f "$TOKSTATE"; out=$(r24); rc=$?; x=$(s24 "$out")
 if [ "$rc" = "0" ] && echo "$x" | grep -q "HELD    fake-hub: decided (fixture: host confirmed), but its token path was not verified on an earlier run" && [ -e "$SECF" ]; then
     ok "24: decided, but the token was proven only in THIS run => HELD, the secret stays"
 else bad "24 same run" "rc=$rc: $x"; fi
+# greenfield ruling B: an "after-remint" decision also waits for the first automatic re-mint.
+export RUNME_SECRET_REMOVAL_DECISION_fake_hub="after-remint: fixture"
+earlier; first0="$(sed -n 's/^first_verified_at=//p' "$TOKSTATE")"
+out=$(r24); rc=$?; x=$(s24 "$out")
+if [ "$rc" = "0" ] && grep -qx 'mints=1' "$TOKSTATE" && echo "$x" | grep -q "HELD    fake-hub: decided (after-remint: fixture), waits for the first automatic re-mint to verify (verified mints on record: 1)" && [ -e "$SECF" ]; then
+    ok "24: after-remint decision with only the first install on record (mints=1) => HELD, the secret stays"
+else bad "24 after-remint held" "rc=$rc: $(grep mints "$TOKSTATE") $x"; fi
+sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 60 ))/" "$TOKSTATE"; out=$(r24); x=$(s24 "$out")
+if grep -qx 'mints=2' "$TOKSTATE" && grep -qx "first_verified_at=$first0" "$TOKSTATE" && echo "$x" | grep -q "HELD    fake-hub: decided (after-remint: fixture), but its token path was not verified on an earlier run"; then
+    ok "24: a re-mint counts (mints=2, first_verified_at kept); proven in THIS run => still HELD until the next run"
+else bad "24 remint counted" "$(cat "$TOKSTATE") / $x"; fi
+earlier; out=$(r24 --dry-run); x=$(s24 "$out")
+if echo "$x" | grep -q "\[DRY\]   would remove secret_file from fake-hub's .107 profile .*(decision: after-remint: fixture)" && [ -e "$SECF" ]; then
+    ok "24: after the re-mint verified on an earlier run, the after-remint decision proceeds (dry-run names it)"
+else bad "24 after-remint proceeds" "$x"; fi
+export RUNME_SECRET_REMOVAL_DECISION_fake_hub="fixture: host confirmed"
 earlier; out=$(r24 --dry-run); x=$(s24 "$out")
 if echo "$x" | grep -q "\[DRY\]   would remove secret_file from fake-hub's .107 profile and move $SECF" && [ -e "$SECF" ] && grep -q '^secret_file = ".*/107-hub.hex"' "$TR/.termlink/hubs.toml"; then
     ok "24: --dry-run names the removal and changes nothing"
