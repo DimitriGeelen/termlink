@@ -14,17 +14,30 @@
 #   <runtime_dir>/circuit-breaker.jsonl        breaker trips {signal: breaker_trip, state, open_ms}
 #   .context/working/.hub-outage-samples.ndjson  T-3383 probes (only on hosts that run it)
 #   `termlink channel queue-status --json`     dead_letters  (operator ruling B, 2026-10-20)
-# T-3615 adds two aggregates (counts only; no raw row, argument or content leaves the host):
-#   usage           <runtime_dir>/invocation-audit.jsonl (+ .1), plus any stray sink at the old
-#                   fallback paths (/tmp, $TMPDIR, /var/tmp, $XDG_RUNTIME_DIR termlink dirs; each
-#                   file read once, deduplicated by real path): counts per class x surface x name,
-#                   the polling verbs in a separate `polling` block; rows written before
-#                   attribution shipped count under class "unattributed".
-#   worker_outcomes .context/dispatch/*/ and /tmp/tl-dispatch/*/ (meta.json, exit_code, timed_out,
-#                   result.md, finished_at, worker_kind.txt) per class/kind/model;
+# T-3615 adds two aggregates (counts only; no raw row, argument, path or content leaves the host):
+#   usage           <runtime_dir>/invocation-audit.jsonl (+ .1), any stray sink at the old fallback
+#                   paths (/tmp, $TMPDIR, /var/tmp, $XDG_RUNTIME_DIR termlink dirs), and every
+#                   account's per-user sink <home>/.termlink/invocation-audit.jsonl (non-root callers
+#                   write there when the hub dir is root-only, slice 3b); each file read once,
+#                   deduplicated by real path. Counts per class x surface x name, polling verbs in a
+#                   separate `polling` block, per caller bucket (class|harness|kind|model, unknown
+#                   values beyond an allowlist as "other") and per class_rule. Rows written before
+#                   attribution shipped count under class "unattributed". Each sink is reported by
+#                   LABEL (host, stray-*, user-<uid>), never by path, with its coverage of the day:
+#                   complete, partial (rotation cut the start of the day) or none (rotated away).
+#                   If any sink's rows for the day have rotated away, usage is null with a reason
+#                   in sources.invocation_audit, never near-zero counts.
+#   worker_outcomes <project>/.context/dispatch/*/ and /tmp/tl-dispatch/*/ (meta.json, exit_code,
+#                   timed_out, result.md, finished_at, worker_kind.txt) per
+#                   class/kind/model/job_type, kind "unknown" when no worker_kind is recorded, runs
+#                   started that day and not finished counted as unfinished;
 #                   <runtime_dir>/dispatch-close-states.jsonl per model/task_type;
-#                   .context/reviews/verdicts.jsonl + applied.jsonl (recorded, applied, withdrawn);
-#                   standing workers: systemd NRestarts of termlink-sidecar@*, else "not measured".
+#                   <project>/.context/reviews/verdicts.jsonl + applied.jsonl;
+#                   standing workers: termlink-sidecar@* units counted, restarts as a DAILY delta of
+#                   systemd's lifetime NRestarts (state kept on the host), else "not measured".
+#                   <project> is this checkout when it is a framework project, else the TermLink
+#                   checkout found under /opt; with none, those sources say "not collected on this
+#                   host" (slice 4 widens this to every project).
 # A source that does not exist is reported as "absent", never as zero.
 #
 # Usage: telemetry-rollup.sh [--day YYYY-MM-DD] [--hub ADDR] [--topic T] [--host NAME]
@@ -54,6 +67,12 @@
 # T-3615 slice 3 seams: TELEMETRY_POSTED_STATE (posted-days file), TELEMETRY_POSTED_LOG
 # (the legacy success log read for posted days), TELEMETRY_CATCH_UP=1 (internal: marks a
 # catch-up report).
+# T-3615 slice 3b seams: TELEMETRY_INVOCATION_SINKS entries may be "label=path";
+# TELEMETRY_USER_HOMES (colon list of "uid=home"; empty = no per-user sinks; unset = every
+# account in the passwd database); TELEMETRY_RUNTIME_CANDIDATES (colon list, primary first,
+# replaces the binary's candidate list); TELEMETRY_PROJECT_ROOT (the project whose dispatch and
+# review ledgers are read; "none" = not collected); TELEMETRY_STANDING_STATE (the NRestarts
+# baseline file).
 set -euo pipefail
 
 DAY="" HUB="${TELEMETRY_HUB:-}" TOPIC="telemetry:daily" HOST="${TELEMETRY_HOST:-}" DRY=0 JSON=0 CATCH_UP=""
@@ -66,7 +85,7 @@ while [ $# -gt 0 ]; do
         --catch-up) CATCH_UP="${2:?--catch-up needs a day count}"; shift 2 ;;
         --dry-run) DRY=1; shift ;;
         --json) JSON=1; shift ;;
-        -h|--help) sed -n '2,41p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,58p' "$0"; exit 0 ;;
         *) echo "telemetry-rollup: unknown argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -117,31 +136,72 @@ PY
     done
     exit "$rc"
 fi
-RUNTIME_DIR="${TERMLINK_RUNTIME_DIR:-}"
-if [ -z "$RUNTIME_DIR" ]; then
-    if [ -d /var/lib/termlink ]; then RUNTIME_DIR=/var/lib/termlink; else RUNTIME_DIR="/tmp/termlink-$(id -u)"; fi
+# The runtime dir, resolved the way the binary resolves its sink (T-3615 slice 3b, review item 3):
+# an explicit TERMLINK_RUNTIME_DIR; else the first of the binary's candidates (primary, then
+# /var/lib/termlink, $XDG_RUNTIME_DIR/termlink, /tmp/termlink-<uid>) that holds a hub.sock;
+# else the primary. The primary is discovery::runtime_dir: $XDG_RUNTIME_DIR/termlink, else
+# $TMPDIR/termlink-<uid>, else /tmp/termlink-<uid>.
+UID_="$(id -u)"
+resolve_runtime_dir() {
+    [ -n "${TERMLINK_RUNTIME_DIR:-}" ] && { echo "$TERMLINK_RUNTIME_DIR"; return; }
+    local primary cands d
+    if [ -n "${XDG_RUNTIME_DIR:-}" ]; then primary="$XDG_RUNTIME_DIR/termlink"
+    elif [ -n "${TMPDIR:-}" ]; then primary="$TMPDIR/termlink-$UID_"
+    else primary="/tmp/termlink-$UID_"; fi
+    cands="${TELEMETRY_RUNTIME_CANDIDATES-$primary:/var/lib/termlink:${XDG_RUNTIME_DIR:+$XDG_RUNTIME_DIR/termlink}:/tmp/termlink-$UID_}"
+    IFS=: read -ra _c <<< "$cands"
+    for d in "${_c[@]}"; do
+        [ -n "$d" ] && [ -e "$d/hub.sock" ] && { echo "$d"; return; }
+    done
+    for d in "${_c[@]}"; do [ -n "$d" ] && { echo "$d"; return; }; done
+    echo "$primary"
+}
+RUNTIME_DIR="$(resolve_runtime_dir)"
+
+# The project whose dispatch and review ledgers are read (review item 33). On the fleet hubs the
+# rollup runs from /var/lib/termlink-telemetry, which is not a project, so it used to read empty
+# paths there and report them "absent" as if the host had no workers.
+if [ -n "${TELEMETRY_PROJECT_ROOT:-}" ]; then
+    LEDGER_ROOT="$TELEMETRY_PROJECT_ROOT"
+elif [ -f "$PROJECT_ROOT/.framework.yaml" ]; then
+    LEDGER_ROOT="$PROJECT_ROOT"
+else
+    LEDGER_ROOT=none
+    for d in /opt/*/; do
+        d="${d%/}"
+        if [ -f "$d/.framework.yaml" ] && [ -f "$d/scripts/telemetry-rollup.sh" ]; then LEDGER_ROOT="$d"; break; fi
+    done
 fi
+[ "$LEDGER_ROOT" = none ] || [ -d "$LEDGER_ROOT" ] || LEDGER_ROOT=none
 QUEUE_LOG="${TELEMETRY_QUEUE_LOG:-$HOME/.termlink/queue.log}"
 RECONNECT_LOG="${TELEMETRY_RECONNECT_LOG:-$HOME/.termlink/reconnect.log}"
 BREAKER_LOG="${TELEMETRY_BREAKER_LOG:-$RUNTIME_DIR/circuit-breaker.jsonl}"
 OUTAGE_SAMPLES="${TELEMETRY_OUTAGE_SAMPLES:-$PROJECT_ROOT/.context/working/.hub-outage-samples.ndjson}"
 
-# T-3615: usage sinks — the host sink first, then the stray fallback sinks callers without
-# TERMLINK_RUNTIME_DIR wrote to before the one-sink rule shipped.
-UID_="$(id -u)"
+# T-3615: usage sinks as label=path — the host sink first, then the stray fallback sinks callers
+# without TERMLINK_RUNTIME_DIR wrote to before the one-sink rule shipped. Per-user sinks are
+# added by the aggregator (TELEMETRY_USER_HOMES).
 if [ -n "${TELEMETRY_INVOCATION_SINKS+x}" ]; then
     INV_SINKS="$TELEMETRY_INVOCATION_SINKS"
 else
-    INV_SINKS="$RUNTIME_DIR/invocation-audit.jsonl"
-    for d in "/tmp/termlink-$UID_" "${TMPDIR:+$TMPDIR/termlink-$UID_}" "/var/tmp/termlink-$UID_" \
-             "${XDG_RUNTIME_DIR:+$XDG_RUNTIME_DIR/termlink}"; do
-        [ -n "$d" ] && INV_SINKS="$INV_SINKS:$d/invocation-audit.jsonl"
-    done
+    INV_SINKS="host=$RUNTIME_DIR/invocation-audit.jsonl:stray-tmp=/tmp/termlink-$UID_/invocation-audit.jsonl"
+    [ -n "${TMPDIR:-}" ] && INV_SINKS="$INV_SINKS:stray-tmpdir=$TMPDIR/termlink-$UID_/invocation-audit.jsonl"
+    INV_SINKS="$INV_SINKS:stray-vartmp=/var/tmp/termlink-$UID_/invocation-audit.jsonl"
+    [ -n "${XDG_RUNTIME_DIR:-}" ] && INV_SINKS="$INV_SINKS:stray-xdg=$XDG_RUNTIME_DIR/termlink/invocation-audit.jsonl"
 fi
-DISPATCH_DIRS="${TELEMETRY_DISPATCH_DIRS-$PROJECT_ROOT/.context/dispatch:/tmp/tl-dispatch}"
+if [ "$LEDGER_ROOT" = none ]; then
+    DISPATCH_DIRS="${TELEMETRY_DISPATCH_DIRS-/tmp/tl-dispatch}"
+    VERDICTS="${TELEMETRY_VERDICTS:-none}"
+    APPLIED="${TELEMETRY_APPLIED:-none}"
+else
+    DISPATCH_DIRS="${TELEMETRY_DISPATCH_DIRS-$LEDGER_ROOT/.context/dispatch:/tmp/tl-dispatch}"
+    VERDICTS="${TELEMETRY_VERDICTS:-$LEDGER_ROOT/.context/reviews/verdicts.jsonl}"
+    APPLIED="${TELEMETRY_APPLIED:-$LEDGER_ROOT/.context/reviews/applied.jsonl}"
+fi
 CLOSE_STATES="${TELEMETRY_CLOSE_STATES:-$RUNTIME_DIR/dispatch-close-states.jsonl}"
-VERDICTS="${TELEMETRY_VERDICTS:-$PROJECT_ROOT/.context/reviews/verdicts.jsonl}"
-APPLIED="${TELEMETRY_APPLIED:-$PROJECT_ROOT/.context/reviews/applied.jsonl}"
+STANDING_STATE="${TELEMETRY_STANDING_STATE:-$PROJECT_ROOT/.context/working/.telemetry-rollup.nrestarts}"
+[ "$LEDGER_ROOT" = none ] || STANDING_STATE="${TELEMETRY_STANDING_STATE:-$LEDGER_ROOT/.context/working/.telemetry-rollup.nrestarts}"
+[ -n "${TELEMETRY_STANDING_STATE:-}" ] || [ -d "$(dirname "$STANDING_STATE")" ] || STANDING_STATE="$PROJECT_ROOT/.context/working/.telemetry-rollup.nrestarts"
 if [ -n "${TELEMETRY_STANDING_UNITS_JSON:-}" ]; then
     STANDING="$(cat "$TELEMETRY_STANDING_UNITS_JSON" 2>/dev/null || echo none)"
 elif command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
@@ -155,7 +215,9 @@ elif command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
 else
     STANDING="none"
 fi
-export INV_SINKS DISPATCH_DIRS CLOSE_STATES VERDICTS APPLIED STANDING
+LEDGER_ROOT_SET=1; [ "$LEDGER_ROOT" = none ] && LEDGER_ROOT_SET=0
+STANDING_WRITE=0; [ "$DRY" = 0 ] && [ "${TELEMETRY_CATCH_UP:-0}" != 1 ] && STANDING_WRITE=1
+export INV_SINKS DISPATCH_DIRS CLOSE_STATES VERDICTS APPLIED STANDING LEDGER_ROOT_SET STANDING_STATE STANDING_WRITE
 
 if [ -n "${TELEMETRY_QUEUE_STATUS_JSON:-}" ]; then
     QSTATUS="$(cat "$TELEMETRY_QUEUE_STATUS_JSON")"
@@ -163,6 +225,9 @@ else
     QSTATUS="$(timeout 15 "$TL" channel queue-status --json 2>/dev/null || true)"
 fi
 
+STANDING_NEXT="$(mktemp "${TMPDIR:-/tmp}/.telemetry-nrestarts.XXXXXX")"
+trap 'rm -f "$STANDING_NEXT"' EXIT
+export STANDING_NEXT
 AGG="$(QSTATUS="$QSTATUS" python3 - "$DAY" "$HOST" "$QUEUE_LOG" "$RECONNECT_LOG" "$BREAKER_LOG" "$OUTAGE_SAMPLES" <<'PY'
 import json, os, sys, datetime as dt
 
@@ -238,7 +303,8 @@ if rows is not None:
     signals["reconnect"] = {
         "count": len(rc),
         "max_downtime_s": round(max([int(d.get("downtime_ms") or 0) for d in rc], default=0) / 1000),
-        "peers": sorted({str(d.get("peer")) for d in rc}),
+        # Peer addresses stay on the host (review item 34); only how many distinct peers.
+        "distinct_peers": len({str(d.get("peer")) for d in rc}),
         "malformed_lines": bad,
     }
 
@@ -297,50 +363,157 @@ except ValueError:
 # ── T-3615: usage aggregate ─────────────────────────────────────────────────
 # Polling verbs: read loops whose volume says how often something WAITS, not what it uses.
 POLLING = {
-    "cli": {"channel unread", "channel subscribe", "channel state", "pty output", "ping", "list",
-            "event wait", "hub status"},
+    "cli": {"channel unread", "channel subscribe", "channel state", "pty output", "ping",
+            "event wait"},
     "mcp": {"termlink_channel_unread", "termlink_channel_subscribe", "termlink_channel_state",
-            "termlink_output", "termlink_ping", "termlink_list_sessions", "termlink_wait",
-            "termlink_hub_status"},
+            "termlink_output", "termlink_ping", "termlink_wait"},
 }
-seen_real, sinks_read = set(), []
-usage, polling, totals, bad_usage = {}, {}, {}, 0
-for base in [x for x in os.environ.get("INV_SINKS", "").split(":") if x]:
+# `list` and `hub status` are deliberate looks when a person or an agent asks (review A20); they
+# count as polling only from loops: background, standing and pre-attribution rows.
+POLLING_FROM_LOOPS = {
+    "cli": {"list", "hub status"},
+    "mcp": {"termlink_list_sessions", "termlink_hub_status"},
+}
+LOOP_CLASSES = {"background", "standing", "unattributed"}
+
+def is_polling(cls, surf, name):
+    return name in POLLING.get(surf, ()) or (cls in LOOP_CLASSES and name in POLLING_FROM_LOOPS.get(surf, ()))
+
+# Caller buckets (review A3/item 35): a value outside the allowlist is "other", an absent one
+# "none", so a free-text env value can never leave the host.
+HARNESSES = {"claude-code", "codex", "opencode", "antigravity", "gemini-cli", "aider", "goose",
+             "cursor", "cline"}
+KINDS = {"claude", "codex", "opencode", "antigravity", "gemini", "local", "ollama", "ollama-loop"}
+MODEL_FAMILIES = ["opus", "sonnet", "haiku", "fable", "gpt", "o3", "o4", "glm", "gemini", "qwen",
+                  "llama", "deepseek", "mistral", "gemma", "phi"]
+JOB_TYPES = {"build", "review", "refactor", "test", "specification", "design", "inception",
+             "decommission"}
+CLASS_RULES = {"explicit", "fw-dispatch", "sidecar-unit", "systemd-agent", "entrypoint-cli",
+               "entrypoint-sdk", "unmarked-service", "unmarked-no-tty", "no-rule"}
+
+def harness_bucket(v):
+    if not v:
+        return "none"
+    h = str(v).split("_", 1)[0].lower()
+    return h if h in HARNESSES else "other"
+
+def kind_bucket(v):
+    if not v:
+        return "none"
+    k = str(v).strip().lower()
+    return k if k in KINDS else "other"
+
+def model_bucket(v):
+    """Model family (normalises `opus` and `claude-opus-5-5` alike, review item 5)."""
+    if not v:
+        return "none"
+    m = str(v).lower()
+    return next((f for f in MODEL_FAMILIES if f in m), "other")
+
+def job_bucket(v):
+    if not v:
+        return "unknown"
+    j = str(v).strip().lower()
+    return j if j in JOB_TYPES else "other"
+
+def sink_specs():
+    out = []
+    for i, x in enumerate([x for x in os.environ.get("INV_SINKS", "").split(":") if x]):
+        label, _, path = x.rpartition("=")
+        out.append((label or f"sink{i}", path))
+    homes = os.environ.get("TELEMETRY_USER_HOMES")
+    if homes is None:
+        try:
+            import pwd
+            entries = [(str(e.pw_uid), e.pw_dir) for e in pwd.getpwall() if e.pw_dir]
+        except Exception:
+            entries = []
+    else:
+        entries = [tuple(h.split("=", 1)) for h in homes.split(":") if "=" in h]
+    for uid, home in entries:
+        out.append((f"user-{uid}", os.path.join(home, ".termlink", "invocation-audit.jsonl")))
+    return out
+
+seen_real, sinks_read, unreadable_sinks = set(), [], 0
+usage, polling, totals, by_caller, by_rule, bad_usage = {}, {}, {}, {}, {}, 0
+for label, base in sink_specs():
+    files = []
     for p in (base + ".1", base):
-        if not os.path.exists(p):
+        try:
+            if not os.path.exists(p):
+                continue
+            real = os.path.realpath(p)
+        except OSError:
             continue
-        real = os.path.realpath(p)
         if real in seen_real:
             continue
         seen_real.add(real)
-        n = 0
-        with open(p, errors="replace") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    d = json.loads(line)
-                except ValueError:
-                    bad_usage += 1; continue
-                t = parse_ts(d.get("ts"))
-                if t is None or not (start <= t < end):
-                    continue
-                n += 1
-                cls = str(d.get("class") or "unattributed")
-                surf, name = str(d.get("surface")), str(d.get("name"))
-                block = polling if name in POLLING.get(surf, ()) else usage
-                key = f"{surf}:{name}"
-                block.setdefault(cls, {})[key] = block.setdefault(cls, {}).get(key, 0) + 1
-                tc = totals.setdefault(cls, {"calls": 0, "polling": 0})
-                tc["polling" if block is polling else "calls"] += 1
-        sinks_read.append({"path": p, "rows_in_day": n})
-if sinks_read:
-    sources["invocation_audit"] = "present"
-    signals["usage"] = {"by_class": usage, "polling": polling, "totals": totals,
-                        "sinks": sinks_read, "malformed_lines": bad_usage}
+        files.append(p)
+    if not files:
+        continue
+    rotated = os.path.exists(base + ".1")
+    n, oldest = 0, None
+    try:
+        for p in files:
+            with open(p, errors="replace") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        d = json.loads(line)
+                    except ValueError:
+                        bad_usage += 1; continue
+                    t = parse_ts(d.get("ts"))
+                    if t is None:
+                        continue
+                    oldest = t if oldest is None else min(oldest, t)
+                    if not (start <= t < end):
+                        continue
+                    n += 1
+                    cls = str(d.get("class") or "unattributed")
+                    surf, name = str(d.get("surface")), str(d.get("name"))
+                    poll = is_polling(cls, surf, name)
+                    block = polling if poll else usage
+                    key = f"{surf}:{name}"
+                    block.setdefault(cls, {})[key] = block.setdefault(cls, {}).get(key, 0) + 1
+                    which = "polling" if poll else "calls"
+                    totals.setdefault(cls, {"calls": 0, "polling": 0})[which] += 1
+                    ck = "|".join((cls, harness_bucket(d.get("harness")), kind_bucket(d.get("worker_kind")),
+                                   model_bucket(d.get("model"))))
+                    by_caller.setdefault(ck, {"calls": 0, "polling": 0})[which] += 1
+                    rule = d.get("class_rule")
+                    rk = "none" if not rule else (rule if rule in CLASS_RULES else "other")
+                    by_rule.setdefault(f"{cls}|{rk}", {"calls": 0, "polling": 0})[which] += 1
+    except OSError:
+        unreadable_sinks += 1
+        continue
+    # Coverage (review A5/item 32): rows can only be missing if the sink has rotated (a .1
+    # exists); then the oldest kept row says how much of the day is left.
+    if oldest is None:
+        cov = "empty"
+    elif rotated and oldest >= end:
+        cov = "none"
+    elif rotated and oldest > start:
+        cov = "partial"
+    else:
+        cov = "complete"
+    sinks_read.append({"label": label, "rows_in_day": n, "coverage": cov,
+                       "status": "present" if n else "no-rows"})
+if not sinks_read:
+    sources["invocation_audit"] = "absent" if not unreadable_sinks else "unreadable"
+elif any(x["coverage"] == "none" for x in sinks_read):
+    gone = ",".join(x["label"] for x in sinks_read if x["coverage"] == "none")
+    sources["invocation_audit"] = f"rotated: this day's rows are no longer on the host (sink {gone})"
+    signals["usage"] = None
 else:
-    sources["invocation_audit"] = "absent"
+    sources["invocation_audit"] = "present" if any(x["rows_in_day"] for x in sinks_read) else "no-rows"
+    partial = [x["label"] for x in sinks_read if x["coverage"] == "partial"]
+    signals["usage"] = {"by_class": usage, "polling": polling, "totals": totals,
+                        "by_caller": by_caller, "by_rule": by_rule,
+                        "coverage": "partial" if partial else "complete",
+                        "sinks": sinks_read, "malformed_lines": bad_usage,
+                        "unreadable_sinks": unreadable_sinks}
 
 # ── T-3615: worker-outcome aggregate ────────────────────────────────────────
 def read_text(p):
@@ -350,6 +523,8 @@ def read_text(p):
     except OSError:
         return None
 
+NOT_COLLECTED = "not collected on this host (the rollup runs outside a project checkout; slice 4)"
+ledger = os.environ.get("LEDGER_ROOT_SET") == "1"
 outcomes, dmeta, dirs_seen = {}, {}, False
 for root in [x for x in os.environ.get("DISPATCH_DIRS", "").split(":") if x]:
     if not os.path.isdir(root):
@@ -364,19 +539,32 @@ for root in [x for x in os.environ.get("DISPATCH_DIRS", "").split(":") if x]:
             meta = json.loads(read_text(mp) or "")
         except ValueError:
             continue
-        kind = read_text(os.path.join(w, "worker_kind.txt")) or "claude"
-        model = str(meta.get("model_used") or meta.get("model") or "unknown")
+        # No recorded kind is "unknown", never assumed claude (review A9).
+        raw_kind = read_text(os.path.join(w, "worker_kind.txt")) or meta.get("worker_kind")
+        kind = kind_bucket(raw_kind) if raw_kind else "unknown"
+        model = model_bucket(meta.get("model_used") or meta.get("model"))
+        job = job_bucket(meta.get("task_type"))
         cls = "reviewer" if meta.get("task_type") == "review" else "dispatched"
-        dmeta[name] = (cls, kind, model)
+        # First root wins for a name (the project's own dispatch dir comes first).
+        dmeta.setdefault(name, (cls, kind, model, job))
         fin = parse_ts(read_text(os.path.join(w, "finished_at")) or meta.get("ended"))
-        if fin is None or not (start <= fin < end):
+        started = parse_ts(meta.get("started"))
+        if fin is None:
+            # Started that day and never finished: a crash, a hang, or still running (item 7).
+            if started is None or not (start <= started < end):
+                continue
+        elif not (start <= fin < end):
             continue
-        o = outcomes.setdefault(f"{cls}|{kind}|{model}", {
-            "class": cls, "kind": kind, "model": model, "runs": 0, "exit_codes": {},
-            "timeouts": 0, "empty_results": 0, "close_states": {}})
+        o = outcomes.setdefault(f"{cls}|{kind}|{model}|{job}", {
+            "class": cls, "kind": kind, "model": model, "job_type": job, "runs": 0,
+            "unfinished": 0, "exit_codes": {}, "timeouts": 0, "empty_results": 0, "close_states": {}})
+        if fin is None:
+            o["unfinished"] += 1
+            continue
         o["runs"] += 1
         ec = read_text(os.path.join(w, "exit_code"))
         ec = ec if ec not in (None, "") else str(meta.get("exit_code", "none"))
+        ec = ec if ec.lstrip("-").isdigit() or ec == "none" else "other"
         o["exit_codes"][ec] = o["exit_codes"].get(ec, 0) + 1
         if os.path.exists(os.path.join(w, "timed_out")):
             o["timeouts"] += 1
@@ -386,6 +574,8 @@ for root in [x for x in os.environ.get("DISPATCH_DIRS", "").split(":") if x]:
         cs = str(meta.get("close_state") or read_text(os.path.join(w, "close_state")) or "none")
         o["close_states"][cs] = o["close_states"].get(cs, 0) + 1
 sources["dispatch_dirs"] = "present" if dirs_seen else "absent"
+if not ledger:
+    sources["project_ledgers"] = NOT_COLLECTED
 
 close_ledger = None
 cpath = os.environ.get("CLOSE_STATES", "")
@@ -394,8 +584,9 @@ if cpath and os.path.exists(cpath):
     close_ledger = {}
     rows, _ = day_lines(cpath)
     for _, d in rows or []:
-        k = f"{d.get('model')}|{d.get('task_type')}"
-        c = close_ledger.setdefault(k, {"model": d.get("model"), "task_type": d.get("task_type"),
+        m, j = model_bucket(d.get("model")), job_bucket(d.get("task_type"))
+        k = f"{m}|{j}"
+        c = close_ledger.setdefault(k, {"model": m, "task_type": j,
                                         "runs": 0, "exit_codes": {}, "outcomes": {}})
         c["runs"] += 1
         ec, oc = str(d.get("exit_code")), str(d.get("outcome"))
@@ -406,7 +597,9 @@ else:
 
 verdicts = None
 vpath, apath = os.environ.get("VERDICTS", ""), os.environ.get("APPLIED", "")
-if vpath and os.path.exists(vpath):
+if not ledger and vpath == "none":
+    sources["verdicts"] = NOT_COLLECTED
+elif vpath and os.path.exists(vpath):
     sources["verdicts"] = "present"
     applied_ids, withdrawn_ids = set(), set()
     def vid(x):
@@ -426,11 +619,12 @@ if vpath and os.path.exists(vpath):
     verdicts = {}
     rows, _ = day_lines(vpath)
     for _, d in rows or []:
-        cls, kind, model = dmeta.get(str(d.get("dispatch_id") or d.get("worker")),
-                                     ("reviewer", "unknown", "unknown"))
-        k = f"{cls}|{kind}|{model}"
-        v = verdicts.setdefault(k, {"class": cls, "kind": kind, "model": model, "recorded": 0,
-                                    "by_verdict": {}, "applied": 0, "withdrawn": 0, "pending": 0})
+        cls, kind, model, job = dmeta.get(str(d.get("dispatch_id") or d.get("worker")),
+                                          ("reviewer", "unknown", "none", "review"))
+        k = f"{cls}|{kind}|{model}|{job}"
+        v = verdicts.setdefault(k, {"class": cls, "kind": kind, "model": model, "job_type": job,
+                                    "recorded": 0, "by_verdict": {}, "applied": 0, "withdrawn": 0,
+                                    "pending": 0})
         v["recorded"] += 1
         vv = str(d.get("verdict") or d.get("outcome"))
         v["by_verdict"][vv] = v["by_verdict"].get(vv, 0) + 1
@@ -444,23 +638,47 @@ if vpath and os.path.exists(vpath):
 else:
     sources["verdicts"] = "absent"
 
+# Standing workers (review A17/item 36): systemd's NRestarts is a LIFETIME counter, so the report
+# carries the delta since the previous on-time rollup (baseline kept on the host, never posted).
+# A catch-up or a first observation cannot know the day's restarts: null with a reason.
 standing_raw = os.environ.get("STANDING", "none")
 try:
     units = json.loads(standing_raw) if standing_raw != "none" else None
 except ValueError:
     units = None
 if units:
-    standing = {"measured": True, "units": [
-        {"unit": u.get("unit"), "active": u.get("active"),
-         "nrestarts": int(u["nrestarts"]) if str(u.get("nrestarts", "")).isdigit() else None}
-        for u in units]}
+    cur = {str(u.get("unit")): int(u["nrestarts"]) for u in units
+           if str(u.get("nrestarts", "")).isdigit()}
+    state_path = os.environ.get("STANDING_STATE", "")
+    try:
+        prev = json.load(open(state_path)).get("nrestarts", {}) if state_path else {}
+    except (OSError, ValueError):
+        prev = {}
+    standing = {"measured": True, "units": len(units),
+                "active": sum(1 for u in units if u.get("active") == "active")}
+    if os.environ.get("TELEMETRY_CATCH_UP") == "1":
+        standing["restarts"] = None
+        standing["restarts_reason"] = "late report: restarts are only measured on the on-time day"
+    elif not prev:
+        standing["restarts"] = None
+        standing["restarts_reason"] = "first observation: no baseline yet"
+    else:
+        # A counter below its baseline means the unit was re-created, and a unit with no
+        # baseline is new: either way all of its count is since the last rollup.
+        standing["restarts"] = sum(n - prev[u] if u in prev and n >= prev[u] else n
+                                   for u, n in cur.items())
+        standing["units_new"] = sum(1 for u in cur if u not in prev)
+    nxt = os.environ.get("STANDING_NEXT", "")
+    if nxt and os.environ.get("STANDING_WRITE") == "1":
+        with open(nxt, "w") as f:
+            json.dump({"day": day.isoformat(), "nrestarts": cur}, f)
 else:
     standing = {"measured": False, "reason": "not measured (no systemd, or no standing-worker unit on this host)"}
 
 signals["worker_outcomes"] = {
-    "dispatch": sorted(outcomes.values(), key=lambda o: (o["class"], o["kind"], o["model"])),
+    "dispatch": sorted(outcomes.values(), key=lambda o: (o["class"], o["kind"], o["model"], o["job_type"])),
     "close_ledger": None if close_ledger is None else sorted(close_ledger.values(), key=lambda c: (str(c["model"]), str(c["task_type"]))),
-    "verdicts": None if verdicts is None else sorted(verdicts.values(), key=lambda v: (v["class"], v["kind"], v["model"])),
+    "verdicts": None if verdicts is None else sorted(verdicts.values(), key=lambda v: (v["class"], v["kind"], v["model"], v["job_type"])),
     "standing": standing,
 }
 
@@ -490,10 +708,19 @@ timeout 20 "$TL" channel create "$TOPIC" --retention days:400 \
 DAY_OUT="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["day"])' "$AGG")"
 if OUT="$(timeout 30 "$TL" channel post "$TOPIC" --msg-type telemetry-rollup --payload "$AGG" \
         --metadata "host=$HOST" --metadata "day=$DAY_OUT" "${HUB_ARGS[@]}" 2>&1)"; then
-    echo "telemetry-rollup: $HOST $DAY_OUT -> $TOPIC: ${OUT:-posted}"
-    # Recorded for --catch-up; a failed write only means a later run may post this day again
-    # (the fleet view keeps the latest report per host and day).
-    echo "$HOST $DAY_OUT" >> "$POSTED_STATE" 2>/dev/null || true
+    # Only a post the hub accepted ("Posted to <topic> — offset=N") marks the day posted
+    # (review item 11/39). A "Queued to" post sits in the offline queue and may yet be
+    # dead-lettered, so the day stays a gap and the next --catch-up posts it again; the
+    # fleet view keeps one report per host and day, so a late duplicate does no harm.
+    if printf '%s\n' "$OUT" | grep -q "^Posted to .*offset="; then
+        echo "telemetry-rollup: $HOST $DAY_OUT -> $TOPIC: $OUT"
+        echo "$HOST $DAY_OUT" >> "$POSTED_STATE" 2>/dev/null || true
+        # The standing-restart baseline moves only with a delivered report, so a lost report
+        # does not swallow its restarts.
+        if [ -s "$STANDING_NEXT" ]; then cp "$STANDING_NEXT" "$STANDING_STATE" 2>/dev/null || true; fi
+    else
+        echo "telemetry-rollup: $HOST $DAY_OUT -> $TOPIC: not confirmed, left for catch-up: ${OUT:-no output}"
+    fi
     exit 0
 fi
 echo "telemetry-rollup: post failed for $HOST $DAY_OUT -> $TOPIC: $OUT" >&2

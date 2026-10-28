@@ -454,6 +454,7 @@ case "$2" in *RUNME-ROLLUP*)
     TELEMETRY_OUTAGE_SAMPLES=/nonexistent TELEMETRY_INVOCATION_SINKS=/nonexistent TELEMETRY_DISPATCH_DIRS=/nonexistent \
     TELEMETRY_CLOSE_STATES=/nonexistent TELEMETRY_VERDICTS=/nonexistent TELEMETRY_APPLIED=/nonexistent \
     TELEMETRY_STANDING_UNITS_JSON="$FAKE_FLEET_DIR/rr-units" TELEMETRY_QUEUE_STATUS_JSON="$FAKE_FLEET_DIR/rr-qs" \
+    TELEMETRY_USER_HOMES="" TELEMETRY_PROJECT_ROOT=none TELEMETRY_STANDING_STATE="$FAKE_FLEET_DIR/rr-nrestarts" \
     TERMLINK_RUNTIME_DIR="$FAKE_FLEET_DIR/rr-runtime" bash -c "$2"
     exit $? ;;
 esac
@@ -488,6 +489,9 @@ case "$1 $2" in "channel list") exit "${FAKE_RR_AUTH_RC:-0}" ;; "channel queue-s
 exit 0
 EOS
 chmod +x "$F/rr-tl"
+# The install cases run as if the credential decision (T-3615 Q3) were recorded; the held
+# default has its own case (RUNME_ROLLUP_CREDENTIAL_DECISION set but empty).
+export RUNME_ROLLUP_CREDENTIAL_DECISION="fixture: decided"
 export RUNME_ROLLUP_SRC="$REPO_ROOT/scripts/telemetry-rollup.sh" RUNME_REMOTE_ROLLUP_ROOT="$F/rr-root" \
        RUNME_REMOTE_ROLLUP_CRON="$F/rr-cron/termlink-telemetry-rollup" RUNME_REMOTE_TL="$F/rr-tl"
 fleet_state 9.9.9
@@ -1602,6 +1606,12 @@ rm -f "$TMP/cron/termlink-heartbeat"
 s23() { echo "$1" | sed -n '/^.*23\. Daily telemetry rollup/,/^.*Verification/p'; }
 rr_reset() { rm -rf "$F/rr-root" "$F/rollup-cmds"; rm -f "$RUNME_REMOTE_ROLLUP_CRON"; }
 rr_reset
+out=$(RUNME_ROLLUP_CREDENTIAL_DECISION="" run); rc=$?; x=$(s23 "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "HELD    waiting for the operator's credential decision (T-3615 Q3)" \
+   && [ ! -e "$F/rr-root" ] && [ ! -e "$RUNME_REMOTE_ROLLUP_CRON" ] && [ ! -s "$F/rollup-cmds" ] \
+   && echo "$out" | grep -qE " 1 held, 0 failed"; then
+    ok "rollup: default (no credential decision recorded) is HELD, rc 0, nothing probed or written (T-3615 Q3)"
+else bad "rollup held default" "rc=$rc: $x"; fi
 out=$(run --dry-run); x=$(s23 "$out")
 if echo "$x" | grep -q "would install the rollup on fake-hub" && [ ! -e "$F/rr-root" ] && [ ! -e "$RUNME_REMOTE_ROLLUP_CRON" ]; then
     ok "rollup: --dry-run probes, reports the install, writes nothing"

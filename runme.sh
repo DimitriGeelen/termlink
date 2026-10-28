@@ -2000,9 +2000,19 @@ import_ring20_pack
 # Idempotent: script and cron file both identical (sha256) -> skip. Verified after
 # install: both sha256 sums match AND a --dry-run of the installed rollup exits 0
 # on the remote. Writes go to a temp name and are renamed (cron ignores dotted names).
+#
+# HELD until the operator decides the credential (T-3615 review Q3, slice 3b). Posting
+# to .107 from .122 / .121 / .132 uses whatever secret their hubs.toml holds for .107,
+# which may be .107's FULL hub secret (design §2.9, review A16): installing a daily
+# unattended job that relies on it widens that exposure. So by default this action
+# installs nothing and reports HELD (not a failure: nothing in the script is wrong).
+# The install code below stays as it is; it runs once the decision is recorded by
+# setting ROLLUP_CREDENTIAL_DECISION below to the ruling (e.g. "Q3=A, 2026-11-02").
 # Seams (fixtures only): RUNME_FLEET_HUBS, RUNME_FLEET_REMOTE (shared with action 6),
-# RUNME_ROLLUP_SRC, RUNME_REMOTE_ROLLUP_ROOT, RUNME_REMOTE_ROLLUP_CRON, RUNME_REMOTE_TL.
+# RUNME_ROLLUP_SRC, RUNME_REMOTE_ROLLUP_ROOT, RUNME_REMOTE_ROLLUP_CRON, RUNME_REMOTE_TL,
+# RUNME_ROLLUP_CREDENTIAL_DECISION (set but empty = the undecided default).
 # ---------------------------------------------------------------------------
+seam ROLLUP_CREDENTIAL_DECISION RUNME_ROLLUP_CREDENTIAL_DECISION ""
 seam ROLLUP_SRC RUNME_ROLLUP_SRC "$PROJECT_ROOT/scripts/telemetry-rollup.sh"
 seam REMOTE_ROLLUP_ROOT RUNME_REMOTE_ROLLUP_ROOT "/var/lib/termlink-telemetry"
 seam REMOTE_ROLLUP_CRON RUNME_REMOTE_ROLLUP_CRON "/etc/cron.d/termlink-telemetry-rollup"
@@ -2025,6 +2035,10 @@ EOF
 
 install_fleet_rollup() {
     local hub want_s want_c probe got_s got_c b64s b64c out
+    if [ -z "$ROLLUP_CREDENTIAL_DECISION" ]; then
+        say "  HELD    waiting for the operator's credential decision (T-3615 Q3): nothing installed on $FLEET_HUBS, nothing probed"
+        HELD=$((HELD+1)); return
+    fi
     if [ ! -r "$ROLLUP_SRC" ]; then
         say "  FAILED  source missing: $ROLLUP_SRC"; FAILED=$((FAILED+1)); return
     fi
@@ -2184,7 +2198,7 @@ fi
 
 head2 "Summary"
 say "  $DONE done, $SKIPPED already-done, $HELD held, $FAILED failed"
-[ "$HELD" -gt 0 ] && say "  HELD lines are safety refusals that clear on their own; nothing to fix."
+[ "$HELD" -gt 0 ] && say "  HELD lines are refusals that wait on a safety condition or a pending operator decision; nothing to fix in the script."
 if [ "$FAILED" -gt 0 ]; then
     say ""
     say "  Something did not verify. Nothing here is destructive and it is safe to"
