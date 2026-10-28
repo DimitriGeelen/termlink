@@ -15,6 +15,7 @@ d1993c2c3ec44c94 dimitrimintdev
 6738c073bbcc587a dimitrimintdev
 
 # Fleet hubs (runme action 23 installs the rollup there): fingerprints from action 22b's note lines.
-# <fp> ring20-management
-# <fp> ring20-dashboard
-# <fp> greenfield
+# Recorded from runme log runme-20261028T120819Z-809316 (action 22b note lines), 2026-10-28.
+9219671e28054458 ring20-management
+33df8954b2a9b70d ring20-dashboard
+90d4553895d5a9a6 greenfield
