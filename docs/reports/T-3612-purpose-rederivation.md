@@ -110,3 +110,14 @@ The 2026-10-27 value-review run (T-3609) could not confirm its yardstick because
    session workers, orchestration workers and non-Anthropic seats ("all workers!"), with worker quality visible.
    Outcome: Q6 DEFERRED until T-3615 (attributed fleet usage + per-worker-kind outcome telemetry, all hosts) has
    gathered data; then analysis and decisions.
+12. 2026-10-28, Q7 (is governance and operations machinery part of TermLink). Searched first: no earlier ruling on
+   where ops machinery lives or on a canary cap. Agent correction: an earlier one-liner had narrowed Q7 to "7 chores
+   out of runme"; the synthesis question covers runme, the review queue and the canary registry. Briefed A (move all
+   out) / B (cap) / C (lower D1) / D (split by owner + cap), recommending D. Operator question: "do we also need to
+   differentiate between the TermLink development project, which is this session right now, and the TermLink
+   application … just as AEF does it … it has a vendored instance of itself, so it does both". Agent: yes; a release
+   ships only `-p termlink`; objectives.yaml and the value drivers mix both layers; the reviewers counted dev-project
+   guards as product surface. Revised to D′ (AEF and ring20 chores leave runme; governance guards stay as dev-project
+   tooling; cap on dev-project canaries; objectives and drivers split into product and project sets). Operator: "yes".
+   Outcome: D′ RULED (T-3612 Decisions). Round 4 writes purpose, objectives and drivers for the product, plus a short
+   separate set for the development project; cap number and D1 weight fold into round 4.

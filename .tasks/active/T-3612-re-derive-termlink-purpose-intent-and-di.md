@@ -172,6 +172,28 @@ Shaping in progress: the operator asked (2026-10-27) for five independent extern
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-10-28 — Q7: is governance and operations machinery part of TermLink? D′ two layers (operator ruling)
+- **Chose:** D′. The repo holds two layers, as AEF holds the framework plus a vendored instance of itself:
+  (1a) TermLink the product, which is what a release ships (`cargo build -p termlink`, release.yml:169; plus install
+  script and Homebrew formula); (1b) the TermLink development project, run as an AEF consumer (tasks, runme.sh, the
+  98 check-*.sh guards, 46 cron files, review ledgers, and the operation of our own fleet). Governance machinery is
+  part of 1b, not of the product, and rightly lives in this repo. Concretely:
+  6a AEF's chores leave runme.sh for AEF's `fw runme` (actions 11, 11b, 11c, 13, 16) and ring20's for ring20
+  (action 22); 6b governance guards stay as dev-project tooling, generic ones offered upstream only where AEF lacks
+  them; 6c a cap on dev-project canaries (one in, one out); 6d label the layers: objectives and value drivers split
+  into product and project sets, README/charter say which layer they describe, external briefs say "the product is
+  crates/ and the release; the rest is how we build it".
+- **Why:** operator, 2026-10-28: "differentiate between the TermLink development project … and the TermLink
+  application … just as AEF does it, we also eat our own dog food". The round-1 reviewers read the repo as one thing
+  and counted dev-project guards as product surface; objectives.yaml and policy/value-drivers.yaml mix both layers,
+  so D1 scores a new dev-project canary as product progress.
+- **Rejected:** A move everything out (takes product-proving canaries away from their code, cross-repo cron
+  migration risk); B cap only (leaves AEF chores going stale here); C lower D1 only (moves nothing); D as first
+  briefed (treated governance guards as misplaced, which the two-layer view dissolves).
+- **Left open:** the cap's number (6c) and D1's weight (option C) fold into round 4's driver work; running our own
+  fleet is counted as 1b, and the ring20-side part moves to ring20 if they come to own their hosts. Round 4 writes the
+  single purpose, objectives and drivers for 1a, plus a short separate 1b set.
+
 ## Decision
 
 <!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
