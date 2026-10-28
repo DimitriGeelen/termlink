@@ -33,6 +33,8 @@ Store (runtime data plane; NOT the vendored build, which stays read-only):
 gracefully when it is absent, so saved maps work without it.
 """
 
+import hashlib
+import importlib.util
 import json
 import re
 import shutil
@@ -42,6 +44,9 @@ import uuid as _uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from urllib.parse import urlsplit
+
+import yaml
 from flask import Blueprint, Response, jsonify, request
 
 from web.designer_registry import (
@@ -155,6 +160,263 @@ def lens_definition():
     if err:
         return _err(err, 500)
     return _ok(definition=d)
+
+
+# T-4832: the project's field catalog, read by designer 0.30.0's ref picker. Contract:
+# 832 docs/reports/T-1312-field-catalog-contract.md; design: docs/reports/
+# T-4832-field-catalog-design.md. PROJECT_ROOT, not FRAMEWORK_ROOT: the catalog is
+# project data, named by the project's own config. Unlike /api/lens-definition (500
+# for any failure) this route splits absent (404) from malformed (422), as the
+# contract asks: the designer hides the picker on 404 and must not on a broken file.
+_FIELD_CATALOG_MAX_DEFAULT = 10 * 1024 * 1024
+
+
+def _project_config(key, default=""):
+    """FW_<KEY> env > PROJECT_ROOT/.framework.yaml > default (lib/config.sh order)."""
+    import os
+    import yaml
+
+    env = os.environ.get(f"FW_{key}")
+    if env is not None and env.strip() != "":
+        return env.strip()
+    try:
+        data = yaml.safe_load((PROJECT_ROOT / ".framework.yaml").read_text()) or {}
+    except (OSError, yaml.YAMLError):
+        data = {}
+    v = data.get(key) if isinstance(data, dict) else None
+    return default if v is None else str(v).strip()
+
+
+def load_field_catalog(rel=None, root=None, max_bytes=None):
+    """Return (status, payload). 200 -> the catalog dict unchanged; 404/422 -> an
+    error string that names the rule broken and never a filesystem path."""
+    root = Path(root or PROJECT_ROOT).resolve()
+    rel = _project_config("DESIGNER_FIELD_CATALOG") if rel is None else rel
+    if not rel:
+        return 404, "no field catalog"
+    if max_bytes is None:
+        try:
+            max_bytes = int(_project_config("DESIGNER_FIELD_CATALOG_MAX_BYTES",
+                                            str(_FIELD_CATALOG_MAX_DEFAULT)))
+        except ValueError:
+            max_bytes = _FIELD_CATALOG_MAX_DEFAULT
+        if max_bytes < 1:
+            max_bytes = _FIELD_CATALOG_MAX_DEFAULT
+    p = (root / rel).resolve()  # follows symlinks, so a link out of the root is caught
+    if p != root and root not in p.parents:
+        return 422, "field catalog path is outside the project root"
+    if not p.is_file():
+        return 404, "no field catalog"
+    try:
+        with p.open("rb") as f:
+            raw = f.read(max_bytes + 1)
+    except OSError:
+        return 422, "field catalog unreadable"
+    if len(raw) > max_bytes:
+        return 422, f"field catalog larger than DESIGNER_FIELD_CATALOG_MAX_BYTES ({max_bytes} bytes)"
+    try:
+        cat = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return 422, "field catalog is not valid UTF-8 JSON"
+    if not isinstance(cat, dict) or type(cat.get("version")) is not int or cat["version"] != 1:
+        return 422, "field catalog version must be 1"
+    attrs = cat.get("attributes")
+    if not isinstance(attrs, list):
+        return 422, "field catalog attributes must be an array"
+    seen = set()
+    for n, row in enumerate(attrs):
+        if not isinstance(row, dict):
+            return 422, f"field catalog attribute {n} is not an object"
+        ref = row.get("ref")
+        if not isinstance(ref, str) or not ref.strip():
+            return 422, f"field catalog attribute {n} has no ref (non-blank string required)"
+        if ref in seen:
+            return 422, f"field catalog ref {ref!r} is duplicated (refs must be unique)"
+        seen.add(ref)
+    return 200, cat
+
+
+@bp.route("/api/field-catalog")
+def field_catalog():
+    """GET -> {"ok": true, "catalog": {version:1, attributes:[...]}} (designer 0.30.0).
+    404 {ok:false, error:"no field catalog"}; 422 malformed, refused whole. Gzipped
+    when the client accepts it (1,300 rows: 309 KB raw, 20 KB gz)."""
+    import gzip
+
+    status, payload = load_field_catalog()
+    if status != 200:
+        return _err(payload, status)
+    body = json.dumps({"ok": True, "catalog": payload}, ensure_ascii=False).encode("utf-8")
+    resp = Response(body, mimetype="application/json")
+    resp.headers["Vary"] = "Accept-Encoding"
+    if request.accept_encodings.quality("gzip") > 0:  # "gzip;q=0" means no
+        resp.set_data(gzip.compress(body, compresslevel=6))
+        resp.headers["Content-Encoding"] = "gzip"
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+# T-4831 (T-4737 GO, slice 2): GET /api/instances — live tasks on the map.
+# 832's contract (T-1300): only a map with state-carrier nodes has instances; AEF
+# has exactly one, aef-task-lifecycle (nodes per CLAUDE.md §Task Lifecycle). The
+# one status+horizon -> node table below is the single place the mapping lives;
+# tools/corpus_overlay.py (T-2629) projects the same states onto badges.
+_LIFECYCLE_MAP = "aef-task-lifecycle"
+_LIFECYCLE_NODES = {
+    ("captured", "now"): "tl_create",
+    ("captured", "next"): "tl_create",
+    ("captured", "later"): "tl_parked",
+    ("started-work", None): "tl_work",
+    ("issues", None): "tl_heal",
+    ("work-completed", None): "tl_human_review",  # still in active/ = partial-complete
+}
+_INSTANCE_FM = re.compile(r"^(id|status|horizon|owner):[ \t]*(.*?)[ \t]*$", re.M)
+
+
+def _lifecycle_node(status, horizon):
+    return _LIFECYCLE_NODES.get((status, horizon)) or _LIFECYCLE_NODES.get((status, None))
+
+
+def _lifecycle_instances():
+    """(instances, examined, refusals) for the active tasks under PROJECT_ROOT."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "corpus_overlay", FRAMEWORK_ROOT / "tools" / "corpus_overlay.py")
+    overlay = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(overlay)
+    present = overlay.carriers(PROJECT_ROOT, _LIFECYCLE_MAP)
+    instances, refusals, examined = [], [], 0
+    for p in sorted((PROJECT_ROOT / ".tasks" / "active").glob("T-*.md")):
+        examined += 1
+        try:
+            head = re.match(r"^---\n(.*?)\n---", p.read_text(errors="replace"), re.S)
+        except OSError as e:
+            refusals.append({"task": p.name, "reason": f"unreadable: {e}"})
+            continue
+        if not head:
+            refusals.append({"task": p.name, "reason": "no frontmatter"})
+            continue
+        fm = {k: v.strip("\"'") for k, v in _INSTANCE_FM.findall(head.group(1))}
+        task = fm.get("id") or "-".join(p.name.split("-")[:2])
+        status = fm.get("status", "")
+        node = _lifecycle_node(status, fm.get("horizon") or "now")
+        if node is None:
+            state = "NO-POSITION"
+        else:
+            state = "NODE" if node in present else "STALE"
+        instances.append({
+            "task": task, "state": state, "node": node,
+            "status": status, "owner": fm.get("owner", ""),
+        })
+    return instances, examined, refusals
+
+
+@bp.route("/api/instances")
+def instances():
+    template = request.args.get("template", "")
+    if not _valid_id(template):
+        return _err("bad template id", 400)
+    if _read_meta(template) is None:
+        return _err("unknown template", 404)
+    insts, examined, refusals = [], 0, []
+    if template == _LIFECYCLE_MAP:
+        insts, examined, refusals = _lifecycle_instances()
+    return jsonify({
+        "template": template,
+        "generated": int(time.time()),
+        "state": "INSTANCES" if insts else "NO-INSTANCES",
+        "examined": examined,
+        "instances": insts,
+        "refusals": refusals,
+    })
+
+
+# T-4830 (T-4737 GO): POST /api/validate, a thin wrapper over 832's validate-workflow.py
+# run_xml(), pinned beside the designer build (policy/designer-pin.yaml validator_*, installed
+# and sha256-checked by `fw designer sync --from-tag`, shipped by `fw vendor`, installed into a
+# consumer by `fw designer install`). AEF adds no rules: every finding is
+# 832's. Unavailable (absent, unpinned, sha mismatch, import failure) is 503, never an empty
+# findings list, so Check cannot read "could not run" as "clean".
+_PIN_FILE = FRAMEWORK_ROOT / "policy" / "designer-pin.yaml"
+_VALIDATOR_CACHE = {}
+
+
+def _load_validator():
+    """Return (module, None) or (None, reason). Verified against the pin on each file change."""
+    try:
+        pin = yaml.safe_load(_PIN_FILE.read_text()) or {}
+    except (OSError, yaml.YAMLError) as e:
+        return None, f"designer pin unreadable: {e}"
+    rel, want = pin.get("validator_path"), pin.get("validator_sha256")
+    if not rel or not want:
+        return None, "validator not pinned (policy/designer-pin.yaml has no validator_*)"
+    # T-4836: the installed copy (PROJECT_ROOT, written by `fw designer install`) first, then the
+    # vendored one (FRAMEWORK_ROOT, shipped by `fw vendor`). In this repo the two are the same file.
+    # The first copy present is the one checked: a mismatched copy is refused, never skipped.
+    path = next((p for p in (PROJECT_ROOT / str(rel), FRAMEWORK_ROOT / str(rel)) if p.is_file()), None)
+    if path is None:
+        return None, f"pinned validator not installed: {rel} (run: fw designer install)"
+    try:
+        data = path.read_bytes()
+    except OSError as e:
+        return None, f"pinned validator unreadable: {e}"
+    got = hashlib.sha256(data).hexdigest()
+    if got != str(want):
+        return None, "pinned validator sha256 mismatch (run: fw designer sync --from-tag)"
+    cached = _VALIDATOR_CACHE.get(got)
+    if cached:
+        return cached, None
+    try:
+        spec = importlib.util.spec_from_file_location("aef_pinned_validate_workflow", path)
+        mod = importlib.util.module_from_spec(spec)
+        # T-4836: no __pycache__ beside the read-only pinned file (vendor/ is a delivered tree).
+        saved, sys.dont_write_bytecode = sys.dont_write_bytecode, True
+        try:
+            spec.loader.exec_module(mod)
+        finally:
+            sys.dont_write_bytecode = saved
+        if not callable(getattr(mod, "run_xml", None)):
+            return None, "pinned validator has no run_xml()"
+    except Exception as e:  # a foreign module: any import failure is 'unavailable'
+        return None, f"pinned validator failed to import: {e}"
+    _VALIDATOR_CACHE.clear()
+    _VALIDATOR_CACHE[got] = mod
+    return mod, None
+
+
+@bp.route("/api/validate", methods=["POST"])
+def validate():
+    # web/app.py exempts designer_api.* from the token CSRF (the vendored client sends none), so
+    # this route holds the same-origin JSON line itself: a form post or a foreign Origin is refused.
+    origin = request.headers.get("Origin")
+    if origin and urlsplit(origin).netloc != request.host:
+        return _err("cross-origin request refused", 403)
+    if not request.is_json:
+        return _err("Content-Type must be application/json", 415)
+    data = request.get_json(silent=True)
+    bpmn = data.get("bpmn") if isinstance(data, dict) else None
+    if not isinstance(bpmn, str) or not bpmn.strip():
+        return _err("missing bpmn")
+    mod, why = _load_validator()
+    if mod is None:
+        return _err(f"validator unavailable: {why}", 503)
+    try:
+        found = mod.run_xml(bpmn)
+        findings = [
+            {"severity": str(f.severity), "rule": str(f.rule),
+             "location": str(f.location), "message": str(f.message)}
+            for f in found
+        ]
+    except Exception as e:
+        print(f"designer-api: validate failed: {e}", file=sys.stderr)
+        return _err(f"validation failed: {e}", 500)
+    errors = sum(1 for f in findings if f["severity"] == "ERROR")
+    warnings = sum(1 for f in findings if f["severity"] == "WARN")
+    # T-4845: "ok" means the check ran (832 T-1300 §1); the designer treats anything else as
+    # "could not check". Whether the map is clean is "errors", never "ok".
+    return jsonify({"ok": True, "findings": findings,
+                    "errors": errors, "warnings": warnings})
 
 
 @bp.route("/api/save", methods=["POST"])

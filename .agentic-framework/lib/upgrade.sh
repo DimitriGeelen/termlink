@@ -858,14 +858,28 @@ _self_vendor_version() {
 # Output:  the relative artifact path, or nothing when the key is absent
 # Return:  0 always (absence is a valid answer, not an error)
 _designer_pin_vendored_path() {
-    local _dpv_pin="$1" _dpv_line
-    _dpv_line="$(grep -E '^vendored_path:' "$_dpv_pin" 2>/dev/null | head -1 || true)"
+    _designer_pin_path "$1" vendored_path
+}
+
+# T-4836: the same read for any *_path key of the pin. validator_path (T-4830)
+# names 832's validator, delivered beside the build by every path below.
+#
+# Inputs:  $1 — path to a designer-pin.yaml; $2 — key (vendored_path | validator_path)
+# Output:  the relative path, or nothing when the key is absent
+# Return:  0 always
+_designer_pin_path() {
+    local _dpv_pin="$1" _dpv_key="$2" _dpv_line
+    _dpv_line="$(grep -E "^${_dpv_key}:" "$_dpv_pin" 2>/dev/null | head -1 || true)"
     [ -n "$_dpv_line" ] || return 0
-    _dpv_line="${_dpv_line#vendored_path:}"
+    _dpv_line="${_dpv_line#"${_dpv_key}":}"
     _dpv_line="${_dpv_line%%#*}"
     printf '%s' "$_dpv_line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//'
     return 0
 }
+
+# T-4836: the pin keys whose files are delivered (vendored, self-vendored,
+# installed). One list, so a new pinned file is one word here.
+_DESIGNER_PIN_PATH_KEYS="vendored_path validator_path"
 
 # T-3064 (A2/A5): self-vendor the SINGLE PINNED Workflow Designer build from
 # FRAMEWORK_ROOT/vendor/designer/<pinned> into .agentic-framework/vendor/designer/.
@@ -901,59 +915,69 @@ _self_vendor_designer() {
     # nested .agentic-framework/, so this is the early exit there.
     [ -d "$_self_vendor" ] || return 0
     [ -f "$_svd_pin" ] || return 0
-    local _svd_rel
-    _svd_rel="$(_designer_pin_vendored_path "$_svd_pin")"
-    [ -n "$_svd_rel" ] || return 0
-    local _svd_src="$FRAMEWORK_ROOT/$_svd_rel"
-    local _svd_dst="$_self_vendor/$_svd_rel"
-    # No source artifact: nothing to sync, and NOT this helper's job to report it.
-    # `fw doctor` already WARNs on pinned-but-absent (T-3064 A1) at the surface an
-    # operator reads; a second voice here would fire on every vendor run.
-    [ -f "$_svd_src" ] || return 0
-    _sv_scope_skip "$_svd_src" "$_svd_dst" && return 0   # T-4419
-
-    local _svd_updated=0 _svd_pruned=0 _svd_dir _svd_old
-    _svd_dir="$(dirname "$_svd_dst")"
-
-    if [ ! -f "$_svd_dst" ] || ! cmp -s "$_svd_src" "$_svd_dst"; then
-        if [ "$dry_run" != true ]; then
-            [ -d "$_svd_dir" ] || mkdir -p "$_svd_dir"
-            # rm first: the vendored copy is installed 0444 (never edited in
-            # place, same contract as `fw designer sync`), so cp over it fails.
-            rm -f "$_svd_dst"
-            cp "$_svd_src" "$_svd_dst"
-            chmod 0444 "$_svd_dst"
+    # T-4836: one pass per pinned file (build, then validator).
+    local _svd_key _svd_rel _svd_src _svd_dst _svd_updated _svd_pruned _svd_dir _svd_old _svd_base _svd_what
+    for _svd_key in $_DESIGNER_PIN_PATH_KEYS; do
+        _svd_rel="$(_designer_pin_path "$_svd_pin" "$_svd_key")"
+        [ -n "$_svd_rel" ] || continue
+        _svd_src="$FRAMEWORK_ROOT/$_svd_rel"
+        _svd_dst="$_self_vendor/$_svd_rel"
+        # No source file: nothing to sync, and NOT this helper's job to report it.
+        # `fw doctor` already WARNs on pinned-but-absent (T-3064 A1) at the surface an
+        # operator reads; a second voice here would fire on every vendor run.
+        [ -f "$_svd_src" ] || continue
+        if _sv_scope_skip "$_svd_src" "$_svd_dst"; then   # T-4419
+            continue
         fi
-        _svd_updated=1
-    fi
 
-    # Prune superseded builds so a pin bump does not leave the old artifact
-    # behind — a vendored tree that accumulates one ~900 KB build per release is
-    # the directory-vendoring outcome arriving slowly.
-    if [ -d "$_svd_dir" ]; then
-        for _svd_old in "$_svd_dir"/aef-workflow-designer-*.html; do
-            [ -f "$_svd_old" ] || continue
-            # `[ a = b ] && continue` would be an AND-list evaluating to 1 on the
-            # common (non-matching) branch, and this file is sourced into bin/fw's
-            # `set -e` — which would abort the whole vendor run on the first
-            # superseded build it found. Explicit if, deliberately.
-            if [ "$_svd_old" = "$_svd_dst" ]; then
-                continue
+        _svd_updated=0
+        _svd_pruned=0
+        _svd_dir="$(dirname "$_svd_dst")"
+
+        if [ ! -f "$_svd_dst" ] || ! cmp -s "$_svd_src" "$_svd_dst"; then
+            if [ "$dry_run" != true ]; then
+                [ -d "$_svd_dir" ] || mkdir -p "$_svd_dir"
+                # rm first: the vendored copy is installed 0444 (never edited in
+                # place, same contract as `fw designer sync`), so cp over it fails.
+                rm -f "$_svd_dst"
+                cp "$_svd_src" "$_svd_dst"
+                chmod 0444 "$_svd_dst"
             fi
-            [ "$dry_run" = true ] || rm -f "$_svd_old"
-            _svd_pruned=$((_svd_pruned + 1))
-        done
-    fi
-
-    if [ "$_svd_updated" -gt 0 ] || [ "$_svd_pruned" -gt 0 ]; then
-        local _svd_what="$_svd_updated file(s)"
-        [ "$_svd_pruned" -gt 0 ] && _svd_what="$_svd_what + $_svd_pruned superseded"
-        if [ "$dry_run" = true ]; then
-            echo -e "  ${GREEN}Self-vendor:${NC} would sync $_svd_what to .agentic-framework/$(dirname "$_svd_rel")/"
-        else
-            echo -e "  ${GREEN}Self-vendor:${NC} synced $_svd_what to .agentic-framework/$(dirname "$_svd_rel")/"
+            _svd_updated=1
         fi
-    fi
+
+        # Prune superseded versions so a pin bump does not leave the old file
+        # behind — a vendored tree that accumulates one ~900 KB build per release is
+        # the directory-vendoring outcome arriving slowly. Siblings share the pinned
+        # name up to its version: <stem>-<version>.<ext>.
+        _svd_base="$(basename "$_svd_rel")"
+        if [ -d "$_svd_dir" ]; then
+            for _svd_old in "$_svd_dir/${_svd_base%%-[0-9]*}"-*."${_svd_base##*.}"; do
+                [ -f "$_svd_old" ] || continue
+                # `[ a = b ] && continue` would be an AND-list evaluating to 1 on the
+                # common (non-matching) branch, and this file is sourced into bin/fw's
+                # `set -e` — which would abort the whole vendor run on the first
+                # superseded build it found. Explicit if, deliberately.
+                if [ "$_svd_old" = "$_svd_dst" ]; then
+                    continue
+                fi
+                [ "$dry_run" = true ] || rm -f "$_svd_old"
+                _svd_pruned=$((_svd_pruned + 1))
+            done
+        fi
+
+        if [ "$_svd_updated" -gt 0 ] || [ "$_svd_pruned" -gt 0 ]; then
+            _svd_what="$_svd_updated file(s)"
+            if [ "$_svd_pruned" -gt 0 ]; then
+                _svd_what="$_svd_what + $_svd_pruned superseded"
+            fi
+            if [ "$dry_run" = true ]; then
+                echo -e "  ${GREEN}Self-vendor:${NC} would sync $_svd_what to .agentic-framework/$(dirname "$_svd_rel")/"
+            else
+                echo -e "  ${GREEN}Self-vendor:${NC} synced $_svd_what to .agentic-framework/$(dirname "$_svd_rel")/"
+            fi
+        fi
+    done
     return 0
 }
 
@@ -988,7 +1012,17 @@ _t4672_sync_designer() {
         if [ -f "$_f" ]; then _installed=1; break; fi
     done
     [ "$_installed" -eq 1 ] || return 0
+    # T-4836: current only when the validator (if pinned) is installed too — every
+    # consumer upgraded before T-4836 has the build and no validator.
+    local vrel _current=0
+    vrel="$(_designer_pin_path "$src_root/policy/designer-pin.yaml" validator_path)"
     if [ -f "$target_dir/$rel" ] && [ -f "$src_root/$rel" ] && cmp -s "$target_dir/$rel" "$src_root/$rel"; then
+        _current=1
+        if [ -n "$vrel" ] && [ -f "$src_root/$vrel" ] && ! cmp -s "$target_dir/$vrel" "$src_root/$vrel" 2>/dev/null; then
+            _current=0
+        fi
+    fi
+    if [ "$_current" -eq 1 ]; then
         _t4736_prune_root_designer "$target_dir" "$rel" "$src_root" "$dry_run"
         return 0
     fi
@@ -1018,6 +1052,11 @@ _t4672_sync_designer() {
 #     (FRAMEWORK_ROOT/vendor/designer/ keeps every released build), so a file
 #     the user wrote or edited under a designer-like name is never touched.
 # Everything else is listed with the command that removes it, and kept.
+# T-4823: except a TRACKED build that is byte-identical to the published one
+# and unchanged against HEAD: it is removed and journalled (_t4697_wrote), so
+# the T-4692 commit list's git add line stages its removal together with the
+# new build. Kept, it sat outside that line and got committed next to the new
+# one (055 be.37). A tracked build with local changes is still kept.
 #
 # Inputs: $1 target dir, $2 pinned rel path, $3 pin source root, $4 dry_run
 # Return: 0 always (advisory).
@@ -1041,8 +1080,16 @@ _t4736_prune_root_designer() {
         if git -C "$target_dir" ls-files --error-unmatch -- "$_rel_f" >/dev/null 2>&1; then
             _tracked=1
         fi
-        if [ "$_tracked" -eq 1 ]; then
+        if [ "$_tracked" -eq 1 ] && { [ "$_known" -eq 0 ] || ! git -C "$target_dir" diff --quiet HEAD -- "$_rel_f" 2>/dev/null; }; then
             echo -e "  ${YELLOW}KEPT${NC}  superseded designer build $_rel_f is tracked in git — remove it with: ${BOLD}cd $target_dir && git rm $_rel_f${NC}"
+        elif [ "$_tracked" -eq 1 ] && [ "$dry_run" = true ]; then
+            echo -e "  ${CYAN}WOULD REMOVE${NC}  superseded designer build $_rel_f (tracked, identical to the published AEF build; the commit list stages the removal)"
+        elif [ "$_tracked" -eq 1 ]; then
+            # T-4823: journalled, so the commit list's one git add line stages
+            # the removal next to the new build (055 be.37).
+            rm -f "$_f"
+            _t4697_wrote "$_rel_f"
+            echo -e "  ${GREEN}REMOVED${NC}  superseded designer build $_rel_f (tracked, identical to the published AEF build; stage it with the git add line below)"
         elif [ "$_known" -eq 0 ]; then
             echo -e "  ${YELLOW}KEPT${NC}  $_rel_f does not match any published AEF build — remove it by hand if it is not yours: ${BOLD}rm $target_dir/$_rel_f${NC}"
         elif [ "$dry_run" = true ]; then
@@ -1549,10 +1596,9 @@ do_upgrade() {
         local _upstream_source=""
         [ -n "$_upstream_url" ] && _upstream_source="--from-upstream flag"
         if [ -z "$_upstream_url" ] && [ -f "$target_dir/.framework.yaml" ]; then
-            _upstream_url=$(grep "^upstream_repo:" "$target_dir/.framework.yaml" 2>/dev/null \
-                | head -1 \
-                | sed -E 's/^upstream_repo:[[:space:]]*//' \
-                | sed -E 's/[[:space:]]+$//')
+            # T-4849: folded/quoted-aware read (lib/yaml.sh), not grep+sed.
+            source "$(dirname "${BASH_SOURCE[0]}")/yaml.sh"
+            _upstream_url=$(get_yaml_field "$target_dir/.framework.yaml" upstream_repo)
             [ -n "$_upstream_url" ] && _upstream_source=".framework.yaml upstream_repo:"
         fi
         # T-2232 leg 3: vendored .upstream sentinel (written by do_vendor in
@@ -1826,6 +1872,7 @@ do_upgrade() {
     # never "$FRAMEWORK_ROOT/lib/…", and a failure is kept as a reason for the
     # summary instead of being dropped by 2>/dev/null.
     local _t4692_before="" _t4692_would=() _t4697_log="" _t4717_why=""
+    local _t4814_upstream=()   # T-4814: files KEPT/PRESERVED with a <file>.upstream beside them
     if [ "$dry_run" != true ]; then
         _t4717_commit_list_snapshot "$target_dir"   # sets _t4692_before / _t4717_why
         _t4697_log=$(mktemp "${TMPDIR:-/tmp}/fw-upgrade-wrote.XXXXXX") || _t4697_log=""
@@ -2074,6 +2121,12 @@ $project_owned"
 
         if [ "$current_governance" = "$governance_tail" ]; then
             echo -e "  ${GREEN}OK${NC}  Already up to date"
+            # T-4821: a backup identical to CLAUDE.md holds nothing to recover.
+            if [ "$dry_run" != true ] && [ -f "${project_claude}.bak" ] \
+                && cmp -s "$project_claude" "${project_claude}.bak"; then
+                rm -f "${project_claude}.bak"
+                echo -e "  ${GREEN}REMOVED${NC}  CLAUDE.md.bak (identical to CLAUDE.md)"
+            fi
         else
             changes=$((changes + 1))
             if [ "$dry_run" = true ]; then
@@ -2087,8 +2140,15 @@ $project_owned"
                 # Write combined file, fix any leftover placeholders
                 project_header="${project_header//__PROJECT_NAME__/$project_name}"
                 printf '%s\n%s\n' "$project_header" "$governance_tail" > "$project_claude"
-                _t4697_wrote "$project_claude" "${project_claude}.bak"
-                echo -e "  ${GREEN}UPDATED${NC}  Governance sections refreshed from framework template. Backup: CLAUDE.md.bak"
+                if cmp -s "$project_claude" "${project_claude}.bak"; then
+                    # T-4821: the rewrite produced the same bytes; keep no backup of them.
+                    rm -f "${project_claude}.bak"
+                    _t4697_wrote "$project_claude"
+                    echo -e "  ${GREEN}OK${NC}  Already up to date (rewrite changed no byte)"
+                else
+                    _t4697_wrote "$project_claude" "${project_claude}.bak"
+                    echo -e "  ${GREEN}UPDATED${NC}  Governance sections refreshed from framework template. Backup: CLAUDE.md.bak"
+                fi
                 if [ -n "$project_owned" ]; then
                     local _po_kept
                     _po_kept=$(printf '%s\n' "$project_owned" \
@@ -2180,6 +2240,8 @@ $project_owned"
             ERROR|WOULD-*) ;;
             *) _rel="${line#* }"; _rel="${_rel%% *}"; _t4697_wrote "$_rel" "$_rel.upstream" .context/upgrade-template-stamp.json ;;
         esac
+        # T-4814: name every .upstream this run wrote again in the summary
+        case "$st" in KEPT|PRESERVED) [ -f "$target_dir/$_rel.upstream" ] && _t4814_upstream+=("$_rel") ;; esac
         case "$st" in
             KEPT|WOULD-KEPT|PRESERVED|WOULD-PRESERVED) echo -e "  ${YELLOW}${st}${NC}  ${line#* }" ;;
             ERROR) echo -e "  ${YELLOW}WARN${NC}  template sync skipped — ${line#* } (file left untouched)"; return 0 ;;
@@ -2368,9 +2430,12 @@ CRONREGEOF
             # T-3835: $FRAMEWORK_ROOT may be the temp upstream clone; generate
             # resolves the consumer's durable fw itself and refuses a temp one.
             # Its refusal is shown, not swallowed.
+            # T-4822: FW_REEXEC_DEPTH=1 — this fw IS the release being installed.
+            # With target_dir a linked worktree, the T-3111 redirect would hand
+            # generate to the main checkout's older fw and its older renderer.
             local _cg_out
             _t4697_wrote "$_cg_src"
-            if _cg_out=$(cd "$target_dir" && PROJECT_ROOT="$target_dir" "$FRAMEWORK_ROOT/bin/fw" cron generate 2>&1); then
+            if _cg_out=$(cd "$target_dir" && PROJECT_ROOT="$target_dir" FW_REEXEC_DEPTH=1 "$FRAMEWORK_ROOT/bin/fw" cron generate 2>&1); then
                 if [ "$_cs_added" -gt 0 ]; then
                     echo -e "  ${GREEN}OK${NC}  Cron source regenerated — run 'fw cron install' to deploy"
                 elif [ "$(cat "$_cg_src" 2>/dev/null)" != "$_cg_before" ]; then
@@ -3563,6 +3628,7 @@ EOF
         # T-4724: the file list (or why it is missing) belongs with the counters
         # above, not after the doctor advisory where the be.15 field run found it.
         _t4692_emit_commit_list "$target_dir" "$_t4692_before" "$_t4697_log" "$_t4717_why"
+        _t4814_emit_upstream_list "$target_dir" ${_t4814_upstream[@]+"${_t4814_upstream[@]}"}
 
         if [ "$changes" -gt 0 ]; then
             echo ""
@@ -3637,6 +3703,27 @@ _t4692_emit_commit_list() {
         echo "  Upgrade file list unavailable — $why. Check by hand: cd $root && git status"
     fi
     rm -f "$before" "$wrote"
+    return 0
+}
+
+# T-4814: the files a live run KEPT or PRESERVED with the new template written
+# beside them as <file>.upstream (ring20 be.37: left untracked, no guidance).
+# $1 = target_dir, $@ = root-relative kept files (duplicates collapse). One
+# line per file: the diff to read, then the three ways to resolve it. The
+# .upstream is a comparison copy, never committed (the git add line omits it).
+# Silent when none. Advisory only: always returns 0.
+_t4814_emit_upstream_list() {
+    local root="${1:-}" f q; shift || true
+    [ "$#" -gt 0 ] || return 0
+    echo ""
+    echo "  Template updates written beside your edited files (.upstream, not committed):"
+    echo "    cd $(printf '%q' "$root"), read the diff, then: keep yours (rm the .upstream),"
+    echo "    take upstream (mv the .upstream over the file), or merge by hand and rm the .upstream."
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        q=$(printf '%q' "$f")
+        echo "    diff -u $q $q.upstream"
+    done < <(printf '%s\n' "$@" | awk '!seen[$0]++')
     return 0
 }
 

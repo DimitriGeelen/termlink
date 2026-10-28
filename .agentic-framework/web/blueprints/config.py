@@ -15,6 +15,7 @@ SETTINGS = [
     ("CONTEXT_WINDOW", "800000", "Context window size for budget enforcement (tokens)"),
     ("PORT", "3000", "Watchtower web UI listen port"),
     ("WATCHTOWER_ENSURE", "1", "1 = keep this project's Watchtower alive: session start and the cron keep-alive (bin/watchtower.sh ensure) start it when it is down and record the outage. 0 disables the keep-alive for this project. A Watchtower managed by a systemd .service unit is always left to systemd (T-4706, T-4711)"),
+    ("WATCHTOWER_WARM_BEFORE_SERVE", "0", "1 = Watchtower finishes its startup cache warm-up (T-4363) before it serves, so the first request is warm; for a watchdog that can only probe a page. 0 (default) serves at once and warms in the background; probe /health instead, which never waits for the corpus and reports the warm-up state. The cold build can take tens of seconds, so raise WATCHTOWER_START_TIMEOUT with it (T-4854)"),
     ("WATCHTOWER_START_TIMEOUT", "60", "Seconds watchtower start waits for the launched server to answer /api/_identity as this project's Watchtower. On expiry the start stops that server, clears the pid/port/url triple and exits 1, so no server runs without a url file (T-4460)"),
     ("UX_SHOT_WIDTHS", "1024,1440,1920", "Comma-separated viewport widths for fw ux shots (agents/ux-review/ux_shots.py). At least 3 entries, each 320-7680, no duplicates. T-4212"),
     ("HOST", "0.0.0.0", "Watchtower bind address (env FW_HOST, read by web/config.py). A specific address makes the shell side probe and advertise that address instead of localhost; 0.0.0.0 or :: means all interfaces (T-4041, GitHub #88)"),
@@ -56,6 +57,7 @@ SETTINGS = [
     # T-2842: honoured by shipped code and documented in CLAUDE.md, but absent
     # from the registry — so they were env-var-only and never rendered here.
     ("SCRATCH_WARN_GB", "10", "Size of .context/scratch in GB above which fw doctor WARNs and names the largest subdirs; release lanes are pruned after each release (T-4703)"),
+    ("TMP_USE_WARN_PCT", "85", "Use percent of the filesystem holding $TMPDIR above which fw doctor and the structure audit WARN and name its largest top-level entries; WARN only (T-4846)"),
     ("BRANCH_BEHIND_WARN", "50", "Commits-behind-origin/master threshold for the branch-hygiene WARN and handover merge-back nudge; T-100143/T-100144"),
     ("STALE_ARC_DAYS", "30", "Days without a constituent-task commit before fw audit WARNs an in-progress arc as stale; T-1855"),
     ("ARC_FOCUS_STALE_DAYS", "14", "Days after which handover and fw doctor WARN the arc focus is stale: focused_at older (AGE) or under 10% of recent tasks in the focused arc (DRIFT); advisory; T-4774"),
@@ -90,6 +92,8 @@ SETTINGS = [
     ("PROVISION_LOAD_MAX", "0.8", "Per-core normalized 1-minute loadavg threshold for the environmental governor's provisioning admission (lib/aef_governor.py). Under = allow, at/over = defer, at/over 2x = deny; bad values fall back to 0.8, logged. T-3311."),
     ("REVIEWER_JUDGE_WEEKLY_SPEND_CEILING", "10000", "Weekly USD spend ceiling for independent reviewer judgments via fw reviewer judge (T-3580, IW-7 rung selection). When reached, rung degrades one step and the verdict records the degradation. Per-unit cost depends on rung (same-vendor independent = lower cost, 3-vendor panel = higher cost). T-3580."),
     ("BOUNDARY_EXTRA_READ_PATHS", "", "Colon-separated absolute paths the project-boundary gate lets Bash commands read, on top of its built-in allowlist ($HOME/.local and $HOME/.claude of the running account are already allowed). Writes are not widened; relative entries and / are ignored. T-4361, GitHub #104."),
+    ("DESIGNER_FIELD_CATALOG", "", "Path, relative to the project root, of the field catalog JSON the designer ref picker reads through GET /api/field-catalog. Empty = no catalog (404, no picker). A path outside the project root, symlinks included, is refused. T-4832."),
+    ("DESIGNER_FIELD_CATALOG_MAX_BYTES", "10485760", "Largest field catalog file GET /api/field-catalog reads (bytes, default 10 MiB). A larger file is refused whole with 422, never truncated. T-4832."),
     ("REVIEW_GREEN_DEGRADED", "1", "1 (default): a rung-5 review panel whose only missing seats were provably unavailable closes a criterion as GREEN-DEGRADED when two or more seats of different vendors judged green and none dissented; never for tier-0, act-in-the-world or sovereignty criteria. Every such close is written on the criterion and WARNed by fw audit with a weekly count. Set 0 to opt out. T-4490."),
 ]
 

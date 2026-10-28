@@ -335,8 +335,7 @@ _main_wt="$(git -C "$(dirname "$TASKS_DIR")" worktree list --porcelain 2>/dev/nu
 if [ -n "$_main_wt" ] && [ -d "$_main_wt/.context/locks" ]; then
     KEYLOCK_DIR="$_main_wt/.context/locks"
 fi
-keylock_acquire "task-id-allocation"
-trap 'keylock_release "task-id-allocation" 2>/dev/null' EXIT
+# T-4841: the lock itself is taken further down, just before generate_id.
 
 # T-2207 (T-2204 Slice B'): filing-time recommendation gate — CLI mirror of
 # T-1716. Fires before ID allocation so a blocked filing leaves no orphan
@@ -423,8 +422,18 @@ if [ "$WORKFLOW_TYPE" = "inception" ] && [ "$I_AM_HUMAN" = "true" ]; then
 fi
 
 # Generate ID and filename
-TASK_ID=$(generate_id)
+#
+# T-4841: hold task-id-allocation only around id allocation plus the task-file
+# write, and never let a child inherit the lock fd. flock locks belong to the
+# open file description, so a child holding an inherited copy (git, python3, a
+# hook) keeps the lock after this script is killed (1409: a create killed by
+# timeout left children blocking every later create). Children run in
+# subshells that close the fd first (keylock_subshell_close_cmd, T-1493); the
+# EXIT trap covers an early exit, the explicit release below the normal path.
 SLUG=$(generate_slug "$NAME")
+keylock_acquire "task-id-allocation"
+trap 'keylock_release "task-id-allocation" 2>/dev/null' EXIT
+TASK_ID=$(eval "$(keylock_subshell_close_cmd)"; generate_id)
 FILENAME="$TASK_ID-$SLUG.md"
 FILEPATH="$TASKS_DIR/active/$FILENAME"
 
@@ -488,13 +497,16 @@ DEFAULT_TEMPLATE=$(_template_path default.md)
 
 # Select template content based on workflow type
 # All vars passed via env to avoid shell interpolation into Python source (T-595)
+# T-4841: subshell with the lock fd closed, so the writers never inherit it.
+(
+eval "$(keylock_subshell_close_cmd)"
 if [ "$WORKFLOW_TYPE" = "inception" ] && [ -n "$INCEPTION_TEMPLATE" ]; then
     TC_TEMPLATE="$INCEPTION_TEMPLATE" \
     TC_TASK_ID="$TASK_ID" TC_STATUS="$STATUS" TC_HORIZON="$HORIZON" \
     TC_OWNER="$OWNER" TC_TAGS_YAML="$TAGS_YAML" TC_RELATED_YAML="$RELATED_YAML" \
     TC_TIMESTAMP="$TIMESTAMP" TC_FILEPATH="$FILEPATH" \
     python3 -c "
-import sys, os
+import sys, os, re, json  # T-4787: json.dumps is a valid YAML double-quoted scalar (escapes \ as well as \")
 e = os.environ
 with open(e['TC_TEMPLATE']) as f:
     t = f.read()
@@ -510,18 +522,27 @@ def indent_block(s):
     # Blank lines are emitted bare: whitespace-only lines inside a block scalar are
     # separators, and padding them to the indent width leaves trailing spaces.
     return '\n'.join(('  ' + ln) if ln.strip() else '' for ln in s.split('\n'))
-t = t.replace('id: T-XXX', 'id: ' + e['TC_TASK_ID'])
-t = t.replace('name:', 'name: \"' + name.replace('\"', '\\\\\"') + '\"', 1)
-t = t.replace('description: >', 'description: >\n' + indent_block(desc), 1)
-t = t.replace('status: captured', 'status: ' + e['TC_STATUS'])
-t = t.replace('horizon: now', 'horizon: ' + e['TC_HORIZON'])
-t = t.replace('owner:', 'owner: ' + e['TC_OWNER'], 1)
-t = t.replace('tags: []', 'tags: ' + e['TC_TAGS_YAML'])
-t = t.replace('related_tasks: []', 'related_tasks: ' + e['TC_RELATED_YAML'])
-t = t.replace('created:', 'created: ' + e['TC_TIMESTAMP'], 1)
-t = t.replace('last_update:', 'last_update: ' + e['TC_TIMESTAMP'], 1)
-t = t.replace('# T-XXX: [Inception Name]', '# ' + e['TC_TASK_ID'] + ': ' + name)
-t = t.replace('[Chronological log', '### ' + e['TC_TIMESTAMP'] + ' — task-created [task-create-agent]\n- **Action:** Created inception task\n- **Output:** ' + e['TC_FILEPATH'] + '\n- **Context:** Initial task creation\n\n[Chronological log')
+def set_key(fm, key, value):
+    # T-4863: replace the key's own line, anchored at line start, once. A plain
+    # str.replace hit 'owner:' inside the name, and with no count rewrote every
+    # 'status: captured' / 'horizon: now' in the description. A key the template
+    # lacks is left alone, as the old replace did.
+    return re.sub('^' + re.escape(key) + ':.*\$', lambda m: key + ': ' + value, fm, count=1, flags=re.M)
+m = re.match(r'(---\n)(.*?\n)(---\n.*)', t, re.S)
+pre, fm, body = m.groups() if m else ('', '', t)
+fm = set_key(fm, 'id', e['TC_TASK_ID'])
+fm = set_key(fm, 'status', e['TC_STATUS'])
+fm = set_key(fm, 'horizon', e['TC_HORIZON'])
+fm = set_key(fm, 'owner', e['TC_OWNER'])
+fm = set_key(fm, 'tags', e['TC_TAGS_YAML'])
+fm = set_key(fm, 'related_tasks', e['TC_RELATED_YAML'])
+fm = set_key(fm, 'created', e['TC_TIMESTAMP'])
+fm = set_key(fm, 'last_update', e['TC_TIMESTAMP'])
+fm = set_key(fm, 'name', json.dumps(name, ensure_ascii=False))
+fm = set_key(fm, 'description', '>\n' + indent_block(desc))
+body = body.replace('# T-XXX: [Inception Name]', '# ' + e['TC_TASK_ID'] + ': ' + name)
+body = body.replace('[Chronological log', '### ' + e['TC_TIMESTAMP'] + ' — task-created [task-create-agent]\n- **Action:** Created inception task\n- **Output:** ' + e['TC_FILEPATH'] + '\n- **Context:** Initial task creation\n\n[Chronological log')
+t = pre + fm + body
 with open(e['TC_FILEPATH'], 'w') as f:
     f.write(t)
 " "$NAME" "$DESCRIPTION"
@@ -531,7 +552,7 @@ elif [ -n "$DEFAULT_TEMPLATE" ]; then
     TC_HORIZON="$HORIZON" TC_OWNER="$OWNER" TC_TAGS_YAML="$TAGS_YAML" \
     TC_RELATED_YAML="$RELATED_YAML" TC_TIMESTAMP="$TIMESTAMP" TC_FILEPATH="$FILEPATH" \
     python3 -c "
-import sys, os
+import sys, os, re, json  # T-4787: json.dumps is a valid YAML double-quoted scalar (escapes \ as well as \")
 e = os.environ
 with open(e['TC_TEMPLATE']) as f:
     t = f.read()
@@ -547,19 +568,28 @@ def indent_block(s):
     # Blank lines are emitted bare: whitespace-only lines inside a block scalar are
     # separators, and padding them to the indent width leaves trailing spaces.
     return '\n'.join(('  ' + ln) if ln.strip() else '' for ln in s.split('\n'))
-t = t.replace('id: T-XXX', 'id: ' + e['TC_TASK_ID'])
-t = t.replace('name:', 'name: \"' + name.replace('\"', '\\\\\"') + '\"', 1)
-t = t.replace('description: >', 'description: >\n' + indent_block(desc), 1)
-t = t.replace('status: captured', 'status: ' + e['TC_STATUS'])
-t = t.replace('workflow_type:', 'workflow_type: ' + e['TC_WORKFLOW_TYPE'], 1)
-t = t.replace('owner:', 'owner: ' + e['TC_OWNER'], 1)
-t = t.replace('horizon: now', 'horizon: ' + e['TC_HORIZON'])
-t = t.replace('tags: []', 'tags: ' + e['TC_TAGS_YAML'])
-t = t.replace('related_tasks: []', 'related_tasks: ' + e['TC_RELATED_YAML'])
-t = t.replace('created:', 'created: ' + e['TC_TIMESTAMP'], 1)
-t = t.replace('last_update:', 'last_update: ' + e['TC_TIMESTAMP'], 1)
-t = t.replace('# T-XXX: [Task Name]', '# ' + e['TC_TASK_ID'] + ': ' + name)
-t = t.replace('<!-- Auto-populated by git mining at task completion.\\n     Manual entries optional during execution. -->', '### ' + e['TC_TIMESTAMP'] + ' — task-created [task-create-agent]\n- **Action:** Created task via task-create agent\n- **Output:** ' + e['TC_FILEPATH'] + '\n- **Context:** Initial task creation')
+def set_key(fm, key, value):
+    # T-4863: replace the key's own line, anchored at line start, once. A plain
+    # str.replace hit 'owner:' inside the name, and with no count rewrote every
+    # 'status: captured' / 'horizon: now' in the description. A key the template
+    # lacks is left alone, as the old replace did.
+    return re.sub('^' + re.escape(key) + ':.*\$', lambda m: key + ': ' + value, fm, count=1, flags=re.M)
+m = re.match(r'(---\n)(.*?\n)(---\n.*)', t, re.S)
+pre, fm, body = m.groups() if m else ('', '', t)
+fm = set_key(fm, 'id', e['TC_TASK_ID'])
+fm = set_key(fm, 'status', e['TC_STATUS'])
+fm = set_key(fm, 'workflow_type', e['TC_WORKFLOW_TYPE'])
+fm = set_key(fm, 'owner', e['TC_OWNER'])
+fm = set_key(fm, 'horizon', e['TC_HORIZON'])
+fm = set_key(fm, 'tags', e['TC_TAGS_YAML'])
+fm = set_key(fm, 'related_tasks', e['TC_RELATED_YAML'])
+fm = set_key(fm, 'created', e['TC_TIMESTAMP'])
+fm = set_key(fm, 'last_update', e['TC_TIMESTAMP'])
+fm = set_key(fm, 'name', json.dumps(name, ensure_ascii=False))
+fm = set_key(fm, 'description', '>\n' + indent_block(desc))
+body = body.replace('# T-XXX: [Task Name]', '# ' + e['TC_TASK_ID'] + ': ' + name)
+body = body.replace('<!-- Auto-populated by git mining at task completion.\\n     Manual entries optional during execution. -->', '### ' + e['TC_TIMESTAMP'] + ' — task-created [task-create-agent]\n- **Action:** Created task via task-create agent\n- **Output:** ' + e['TC_FILEPATH'] + '\n- **Context:** Initial task creation')
+t = pre + fm + body
 with open(e['TC_FILEPATH'], 'w') as f:
     f.write(t)
 " "$NAME" "$DESCRIPTION"
@@ -568,10 +598,12 @@ else
     # T-2778: indent every line of the description, not just the first — see indent_block()
     # above for why the single-indent form corrupts multi-paragraph descriptions.
     DESCRIPTION_INDENTED=$(printf '%s\n' "$DESCRIPTION" | awk '{ if (length($0)) print "  " $0; else print "" }')
+    # T-4787: quote the name as JSON (a valid YAML double-quoted scalar), not raw.
+    NAME_YAML=$(python3 -c 'import json, sys; print(json.dumps(sys.argv[1], ensure_ascii=False))' "$NAME")
     cat > "$FILEPATH" << EOF
 ---
 id: $TASK_ID
-name: "$NAME"
+name: $NAME_YAML
 description: >
 $DESCRIPTION_INDENTED
 status: $STATUS
@@ -603,6 +635,10 @@ date_finished: null
 - **Context:** Initial task creation
 EOF
 fi
+)
+# T-4841: id persisted (.id-highwater) and the file written — release now, so
+# nothing after this point (origin, recommendation, --start focus) holds it.
+keylock_release "task-id-allocation"
 
 # Validate the created file
 if ! grep -q "^id: $TASK_ID" "$FILEPATH"; then

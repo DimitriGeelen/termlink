@@ -466,11 +466,12 @@ _fw_reexec_authority() {
     # beside the clone). Redirecting moved FRAMEWORK_ROOT to the main clone, so
     # upgrade synced the clone's code and pinned the clone's HEAD instead of the
     # tag's. The binary that was invoked is the version to install; leave it be.
-    if [ "${1:-}" = "upgrade" ] && [ -f "$FW_BIN_DIR/../lib/worktree-identity.sh" ]; then
-        # shellcheck source=/dev/null
-        source "$FW_BIN_DIR/../lib/worktree-identity.sh" 2>/dev/null \
-            && fw_is_linked_worktree "$FW_BIN_DIR" && return 0
-    fi
+    # T-4822: and not only from a worktree's binary. Upgrade picks its source by
+    # the binary invoked (a tag clone, or the auto-clone's temp copy handed
+    # PROJECT_ROOT=<worktree> by lib/upgrade.sh), so redirecting it to the
+    # authority always installs the main checkout's OLD code into the worktree.
+    # 055 needed FW_REEXEC_DEPTH=1 for every worktree upgrade (be.21 item 1).
+    [ "${1:-}" = "upgrade" ] && return 0
 
     # Both libs are sourceable-and-side-effect-free by contract; lib/paths.sh is
     # not (it resolves and exports paths on source), which is why the predicate
@@ -956,15 +957,22 @@ do_vendor() {
         # T-3064: also not in includes[] — one file out of vendor/designer/,
         # named by the pin. Listed for the same reason FRAMEWORK.md is: a dry run
         # that omits a real run's writes is a dry run nobody can plan from.
+        # T-4836: and the pinned validator beside it (validator_path), same rule.
         if [ -f "$vendor_source/policy/designer-pin.yaml" ]; then
-            local _vdd_line _vdd_rel
-            _vdd_line="$(grep -E '^vendored_path:' "$vendor_source/policy/designer-pin.yaml" 2>/dev/null | head -1 || true)"
-            _vdd_rel="${_vdd_line#vendored_path:}"
-            _vdd_rel="${_vdd_rel%%#*}"
-            _vdd_rel="$(printf '%s' "$_vdd_rel" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')"
-            if [ -n "$_vdd_rel" ] && [ -f "$vendor_source/$_vdd_rel" ]; then
-                echo -e "  ${GREEN}+${NC} $_vdd_rel (pinned designer build)"
-            fi
+            local _vdd_key _vdd_line _vdd_rel
+            for _vdd_key in vendored_path validator_path; do
+                _vdd_line="$(grep -E "^${_vdd_key}:" "$vendor_source/policy/designer-pin.yaml" 2>/dev/null | head -1 || true)"
+                _vdd_rel="${_vdd_line#"${_vdd_key}":}"
+                _vdd_rel="${_vdd_rel%%#*}"
+                _vdd_rel="$(printf '%s' "$_vdd_rel" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')"
+                if [ -n "$_vdd_rel" ] && [ -f "$vendor_source/$_vdd_rel" ]; then
+                    if [ "$_vdd_key" = vendored_path ]; then
+                        echo -e "  ${GREEN}+${NC} $_vdd_rel (pinned designer build)"
+                    else
+                        echo -e "  ${GREEN}+${NC} $_vdd_rel (pinned designer validator)"
+                    fi
+                fi
+            done
         fi
         echo ""
         echo "Would exclude: .git, .context, .tasks/{active,completed}, .fabric, install.sh"
@@ -1067,42 +1075,56 @@ do_vendor() {
     # true` here would fail SILENTLY on a fresh machine and take the designer
     # with it — reintroducing, in the fix, the exact class this task exists to
     # close. Reading one YAML scalar two ways is the cheaper risk.
+    #
+    # T-4836: the same carve-out for every pinned file, read key by key from the
+    # pin: vendored_path (the build) and validator_path (832's validator, T-4830,
+    # which POST /api/validate runs). Shipping the build alone left every consumer
+    # answering 503 on Check. A pin without validator_path skips that key.
     local _vd_pin="$vendor_source/policy/designer-pin.yaml"
+    local -a _vd_rels=()   # every pinned file copied — the visibility manifest below lists them
     if [ -f "$_vd_pin" ]; then
-        local _vd_line _vd_rel
-        _vd_line="$(grep -E '^vendored_path:' "$_vd_pin" 2>/dev/null | head -1 || true)"
-        _vd_rel="${_vd_line#vendored_path:}"
-        _vd_rel="${_vd_rel%%#*}"
-        _vd_rel="$(printf '%s' "$_vd_rel" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')"
-        if [ -n "$_vd_rel" ] && [ -f "$vendor_source/$_vd_rel" ]; then
-            mkdir -p "$(dirname "$dest/$_vd_rel")"
-            # T-4740: copy only when missing or different, so a no-op re-vendor
-            # leaves the build's mtime alone.
-            if [ ! -f "$dest/$_vd_rel" ] || ! cmp -s "$vendor_source/$_vd_rel" "$dest/$_vd_rel"; then
-                # rm first: the vendored copy is 0444 (never edited in place — same
-                # contract `fw designer sync` installs under), so cp over it fails.
-                rm -f "$dest/$_vd_rel"
-                cp "$vendor_source/$_vd_rel" "$dest/$_vd_rel"
+        local _vd_key _vd_line _vd_rel _vd_what _vd_base _vd_old
+        for _vd_key in vendored_path validator_path; do
+            _vd_rel=""
+            _vd_line="$(grep -E "^${_vd_key}:" "$_vd_pin" 2>/dev/null | head -1 || true)"
+            _vd_rel="${_vd_line#"${_vd_key}":}"
+            _vd_rel="${_vd_rel%%#*}"
+            _vd_rel="$(printf '%s' "$_vd_rel" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')"
+            _vd_what="pinned designer validator"
+            if [ "$_vd_key" = vendored_path ]; then
+                _vd_what="pinned designer build"
             fi
-            chmod 0444 "$dest/$_vd_rel"
-            echo -e "  ${GREEN}✓${NC} $_vd_rel (pinned designer build)"
-            # Drop superseded builds. The copy above adds the pinned build;
-            # nothing removes the one it replaced, so a consumer re-vendored
-            # across a pin bump would carry both (~900 KB each) with only one of
-            # them named by the pin. Mirrors the prune in
-            # lib/upgrade.sh:_self_vendor_designer, for the same reason.
-            local _vd_old
-            for _vd_old in "$(dirname "$dest/$_vd_rel")"/aef-workflow-designer-*.html; do
-                [ -f "$_vd_old" ] || continue
-                if [ "$_vd_old" = "$dest/$_vd_rel" ]; then
-                    continue
+            if [ -n "$_vd_rel" ] && [ -f "$vendor_source/$_vd_rel" ]; then
+                mkdir -p "$(dirname "$dest/$_vd_rel")"
+                # T-4740: copy only when missing or different, so a no-op re-vendor
+                # leaves the file's mtime alone.
+                if [ ! -f "$dest/$_vd_rel" ] || ! cmp -s "$vendor_source/$_vd_rel" "$dest/$_vd_rel"; then
+                    # rm first: the vendored copy is 0444 (never edited in place — same
+                    # contract `fw designer sync` installs under), so cp over it fails.
+                    rm -f "$dest/$_vd_rel"
+                    cp "$vendor_source/$_vd_rel" "$dest/$_vd_rel"
                 fi
-                rm -f "$_vd_old"
-                echo -e "  ${GREEN}✓${NC} pruned superseded designer build $(basename "$_vd_old")"
-            done
-        elif [ -n "$_vd_rel" ]; then
-            echo -e "  ${YELLOW}⊘${NC} $_vd_rel (pinned designer build absent at source — run: fw designer sync --from-tag)"
-        fi
+                chmod 0444 "$dest/$_vd_rel"
+                _vd_rels+=("$_vd_rel")
+                echo -e "  ${GREEN}✓${NC} $_vd_rel ($_vd_what)"
+                # Drop superseded versions. The copy above adds the pinned file;
+                # nothing removes the one it replaced, so a consumer re-vendored
+                # across a pin bump would carry both with only one of them named by
+                # the pin. Mirrors the prune in lib/upgrade.sh:_self_vendor_designer.
+                # Siblings share the pinned name up to its version: <stem>-<ver>.<ext>.
+                _vd_base="$(basename "$_vd_rel")"
+                for _vd_old in "$(dirname "$dest/$_vd_rel")/${_vd_base%%-[0-9]*}"-*."${_vd_base##*.}"; do
+                    [ -f "$_vd_old" ] || continue
+                    if [ "$_vd_old" = "$dest/$_vd_rel" ]; then
+                        continue
+                    fi
+                    rm -f "$_vd_old"
+                    echo -e "  ${GREEN}✓${NC} pruned superseded designer file $(basename "$_vd_old")"
+                done
+            elif [ -n "$_vd_rel" ]; then
+                echo -e "  ${YELLOW}⊘${NC} $_vd_rel ($_vd_what absent at source — run: fw designer sync --from-tag)"
+            fi
+        done
     fi
 
     # Create VERSION file (T-4740: only when it differs)
@@ -1265,7 +1287,9 @@ UPSTREAM
                     printf '%s\n' "$_vis_item"
                 fi
             done
-            if [ -n "${_vd_rel:-}" ] && [ -f "$dest/$_vd_rel" ]; then printf '%s\n' "$_vd_rel"; fi
+            for _vis_item in ${_vd_rels[@]+"${_vd_rels[@]}"}; do
+                if [ -f "$dest/$_vis_item" ]; then printf '%s\n' "$_vis_item"; fi
+            done
             printf '%s\n' VERSION .fw-not-a-project .gitignore FRAMEWORK.md
             if [ -n "${_vendor_origin:-}" ] && [ -f "$dest/.upstream" ]; then printf '%s\n' .upstream; fi
             if [ -f "$dest/.fw-vendor-stamp.json" ]; then printf '%s\n' .fw-vendor-stamp.json; fi
@@ -2112,7 +2136,9 @@ do_doctor() {
             fi
             # T-1097/G-028: Reconcile upstream_repo vs running FRAMEWORK_ROOT
             local upstream_repo
-            upstream_repo=$(grep "^upstream_repo:" "$PROJECT_ROOT/.framework.yaml" 2>/dev/null | sed 's/^upstream_repo:[[:space:]]*//' || true)
+            # T-4849: folded/quoted-aware read (lib/yaml.sh), not grep+sed.
+            source "$FRAMEWORK_ROOT/lib/yaml.sh"
+            upstream_repo=$(get_yaml_field "$PROJECT_ROOT/.framework.yaml" upstream_repo)
             # T-2843: the predicate moved to lib/doctor-upstream.sh. It is NOT a
             # plain inequality — in vendored mode (the D-377 default) the running
             # fw is this project's own .agentic-framework by design, so it can
@@ -2365,12 +2391,16 @@ do_doctor() {
     if [ -f "$settings_file" ]; then
         local hook_validation
         hook_validation=$(python3 -c "
-import json, os, shutil
+import json, os, shlex, shutil
 with open('$settings_file') as f:
     data = json.load(f)
 total = 0
 broken = 0
 stale_paths = 0
+# T-4813: each broken hook is reported as kind and path, so the advice can say
+# what fixes it. kind fw = a framework hook (fw upgrade regenerates it);
+# kind file = a project script upgrade never generated (only the operator can fix).
+broken_list = []
 for event, entries in data.get('hooks', {}).items():
     for entry in entries:
         for hook in entry.get('hooks', []):
@@ -2384,13 +2414,20 @@ for event, entries in data.get('hooks', {}).items():
             # the next says make them absolute). L-399 producer/consumer parity --
             # the generator learned the placeholder, this validator had not.
             cmd = cmd.replace('\${CLAUDE_PROJECT_DIR}', '$PROJECT_ROOT').replace('\$CLAUDE_PROJECT_DIR', '$PROJECT_ROOT')
-            parts = cmd.split()
+            # T-4813: tokenise the way the shell does. A plain split left a quote
+            # inside a mid-word quoted path (quoted placeholder followed by
+            # /scripts/x.sh), which strip() cannot remove, so the stat missed.
+            try:
+                parts = shlex.split(cmd)
+            except ValueError:
+                parts = cmd.split()
             # Check for portable 'fw hook' format (bare fw in PATH)
             if len(parts) >= 2 and parts[0] == 'fw':
                 if shutil.which('fw'):
                     continue  # fw hook — portable, OK
                 else:
                     broken += 1
+                    broken_list.append(('fw', 'fw (not on PATH)'))
                     continue
             # T-1222: vendored hook format (.agentic-framework/bin/fw hook or bin/fw hook)
             if len(parts) >= 2 and parts[0].endswith('/bin/fw'):
@@ -2399,6 +2436,7 @@ for event, entries in data.get('hooks', {}).items():
                     continue  # vendored fw hook — OK
                 else:
                     broken += 1
+                    broken_list.append(('fw', fw_path))
                     continue
             # Old-style: absolute path — check if executable exists
             # T-4056: an interpreter-prefixed hook (python3 with a script path, env ...,
@@ -2406,29 +2444,51 @@ for event, entries in data.get('hooks', {}).items():
             # file to check; the script only has to exist, not be executable.
             # Quotes are stripped with \x27 and \x22 (this block sits in a double-quoted string,
             # so no literal quote characters or dollar signs may appear in these comments).
-            words = [w.strip('\x27\x22') for w in parts if '=' not in w]
+            # T-4813: shlex has already removed the quotes. Only LEADING assignments
+            # (NAME=value, as after env) are skipped; an inline-code flag (bash or sh
+            # with -c, python with -c or -m, node with -e or -p) means the next
+            # argument is code, not a file, so there is nothing on disk to check.
+            words = list(parts)
             interp = False
+            inline = False
+            while words and '=' in words[0] and not words[0].startswith('-'):
+                words = words[1:]
             while words and os.path.basename(words[0]) in ('env', 'python3', 'python', 'bash', 'sh', 'node'):
+                base = os.path.basename(words[0])
                 interp = True
                 words = words[1:]
-                while words and words[0].startswith('-'):
+                while words and (words[0].startswith('-') or (base == 'env' and '=' in words[0])):
+                    flag = words[0]
                     words = words[1:]
-            exe = words[0] if words else None
+                    if base in ('bash', 'sh') and not flag.startswith('--') and 'c' in flag[1:]:
+                        inline = True
+                    elif base.startswith('python') and flag in ('-c', '-m'):
+                        inline = True
+                    elif base == 'node' and flag in ('-e', '-p', '--eval', '--print'):
+                        inline = True
+                if inline:
+                    break
+            exe = words[0] if words and not inline else None
             if exe and interp:
                 if not os.path.isfile(exe):
                     broken += 1
+                    broken_list.append(('file', exe))
             elif exe and not (os.path.isfile(exe) and os.access(exe, os.X_OK)):
                 if not shutil.which(exe):
                     broken += 1
+                    broken_list.append(('file', exe))
             # Check for hardcoded absolute paths (path isolation violation)
             if '/agents/context/' in cmd or 'PROJECT_ROOT=' in cmd:
                 stale_paths += 1
 print(f'{total},{broken},{stale_paths}')
+for kind, path in broken_list:
+    print(f'{kind} {path}')
 " 2>/dev/null || echo "0,0,0")
-        local hook_total hook_broken hook_stale
-        hook_total=$(echo "$hook_validation" | cut -d, -f1)
-        hook_broken=$(echo "$hook_validation" | cut -d, -f2)
-        hook_stale=$(echo "$hook_validation" | cut -d, -f3)
+        local hook_total hook_broken hook_stale hook_broken_lines
+        hook_total=$(echo "$hook_validation" | head -1 | cut -d, -f1)
+        hook_broken=$(echo "$hook_validation" | head -1 | cut -d, -f2)
+        hook_stale=$(echo "$hook_validation" | head -1 | cut -d, -f3)
+        hook_broken_lines=$(echo "$hook_validation" | tail -n +2)
 
         # T-2709 (T-2704 RCA): host-portability is a SEPARATE question from the two
         # above. `broken` asks "does this file exist?" — on the generating host it
@@ -2441,7 +2501,18 @@ print(f'{total},{broken},{stale_paths}')
         hook_nonportable=$(echo "$hook_portability" | cut -d'|' -f2)
         if [ "${hook_broken:-0}" -gt 0 ]; then
             echo -e "  ${RED}FAIL${NC}  Hook path validation: $hook_broken/$hook_total hooks have broken paths"
-            echo -e "        Run: fw upgrade (regenerates hooks with portable paths)"
+            # T-4813: name each broken path, and advise fw upgrade only when a
+            # framework hook is broken; upgrade never generated a project script.
+            local hb_kind hb_path
+            while read -r hb_kind hb_path; do
+                [ -n "$hb_kind" ] && echo -e "        missing: $hb_path"
+            done <<< "$hook_broken_lines"
+            if echo "$hook_broken_lines" | grep -q '^fw '; then
+                echo -e "        Run: fw upgrade (regenerates hooks with portable paths)"
+            fi
+            if echo "$hook_broken_lines" | grep -q '^file '; then
+                echo -e "        Fix: create the missing script, or correct or remove that hook in .claude/settings.json (fw upgrade does not manage project hooks)"
+            fi
             issues=$((issues + 1))
         elif [ "${hook_stale:-0}" -gt 0 ]; then
             echo -e "  ${YELLOW}WARN${NC}  Hook path isolation: $hook_stale/$hook_total hooks use hardcoded paths (works here, breaks on clone)"
@@ -3881,6 +3952,27 @@ else:
         fi
     fi
 
+    # T-4846: /tmp here is a RAM tmpfs shared by every project on the host; it
+    # filled to 0 MB and writes failed quietly. One df; du only when over.
+    if [ -f "$FRAMEWORK_ROOT/lib/tmp-hygiene.sh" ]; then
+        source "$FRAMEWORK_ROOT/lib/tmp-hygiene.sh"
+        _tu_pct="$(fw_config TMP_USE_WARN_PCT)"
+        case "${_tu_pct:-}" in ''|*[!0-9]*) _tu_pct=85 ;; esac
+        _tu_out=$(fw_tmp_usage_verdict "${TMPDIR:-/tmp}" "$_tu_pct") && _tu_rc=0 || _tu_rc=$?
+        IFS=$'\t' read -r _tu_v _tu_use _tu_mnt _tu_top <<< "$_tu_out"
+        if [ "$_tu_rc" -eq 1 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  [host] temp filesystem $_tu_mnt is ${_tu_use}% full (over TMP_USE_WARN_PCT=$_tu_pct) — largest: $_tu_top"
+            echo "         A full tmpfs fails writes quietly; remove finished scratch (AEF orphans: fw test sweeps aef-bats-*/aef-verify-*; other projects' entries are theirs)"
+            warnings=$((warnings + 1))
+            host_warnings=$((host_warnings + 1))
+        elif [ "$_tu_rc" -eq 2 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  temp filesystem check could not run (${_tu_use})"
+            warnings=$((warnings + 1))
+        else
+            echo -e "  ${GREEN}OK${NC}  temp filesystem $_tu_mnt is ${_tu_use}% full (under TMP_USE_WARN_PCT=$_tu_pct)"
+        fi
+    fi
+
     _doctor_phase "Watchtower smoke test"  # T-3452
     # Check: Watchtower smoke test (T-486) — run if server is reachable
     # Use _watchtower_url for port detection (T-1154: no hardcoded 3000)
@@ -4785,7 +4877,7 @@ print(sum(1 for e in entries if (e.get('status') or 'pending') == 'pending'))
         if [ -f "$cron_source" ]; then
             local _cron_dry_run
             # T-4259: render with the fw path generate writes (cron_fw_path).
-            _cron_dry_run=$(python3 "$FRAMEWORK_ROOT/lib/cron_dry_run.py" "$PROJECT_ROOT" "$cron_registry" "$(cron_fw_path "$FRAMEWORK_ROOT" "$PROJECT_ROOT")" 2>/dev/null || echo "__SKIP__")
+            _cron_dry_run=$(python3 "$FRAMEWORK_ROOT/lib/cron_dry_run.py" "$(cron_project_root "$PROJECT_ROOT" 2>/dev/null || echo "$PROJECT_ROOT")" "$cron_registry" "$(cron_fw_path "$FRAMEWORK_ROOT" "$PROJECT_ROOT")" 2>/dev/null || echo "__SKIP__")
             if [ "$_cron_dry_run" != "__SKIP__" ] && [ -n "$_cron_dry_run" ]; then
                 local _cron_on_disk
                 _cron_on_disk=$(cat "$cron_source" 2>/dev/null)
@@ -4876,7 +4968,25 @@ print(sum(1 for e in entries if (e.get('status') or 'pending') == 'pending'))
         _resolver_units=$(systemctl list-unit-files --no-legend resolver-loop.timer 2>/dev/null || true)
     fi
     if [[ "$_resolver_units" == resolver-loop.timer* ]]; then
+        # T-4819: the unit is host-wide; the project it dispatches for is the
+        # service's WorkingDirectory (deploy/resolver-loop.service). Claim it as
+        # this project's loop only when that is PROJECT_ROOT (realpath-compared).
+        local _resolver_wd="" _resolver_state="inactive" _resolver_self=""
+        _resolver_wd=$(systemctl show -p WorkingDirectory resolver-loop.service 2>/dev/null || true)
+        _resolver_wd="${_resolver_wd#WorkingDirectory=}"
+        _resolver_wd="${_resolver_wd%%$'\n'*}"
         if systemctl is-active --quiet resolver-loop.timer 2>/dev/null; then
+            _resolver_state="active"
+        fi
+        if [ -n "$_resolver_wd" ] && [ -n "${PROJECT_ROOT:-}" ] \
+            && [ "$(realpath -m -- "$_resolver_wd" 2>/dev/null)" = "$(realpath -m -- "$PROJECT_ROOT" 2>/dev/null)" ]; then
+            _resolver_self=1
+        fi
+        if [ -z "$_resolver_wd" ]; then
+            echo -e "  ${CYAN}INFO${NC}  systemd resolver-loop.timer is $_resolver_state, but resolver-loop.service has no WorkingDirectory — cannot attribute it to this project"
+        elif [ -z "$_resolver_self" ]; then
+            echo -e "  ${CYAN}INFO${NC}  another project's resolver loop ($_resolver_wd): resolver-loop.timer is $_resolver_state — not this project's"
+        elif [ "$_resolver_state" = "active" ]; then
             echo -e "  ${GREEN}LIVE${NC}  systemd resolver-loop.timer is active — dispatching unattended every 30m"
         else
             echo -e "  ${CYAN}INFO${NC}  systemd resolver-loop.timer is installed but inactive"
@@ -7178,10 +7288,14 @@ EOF
                 # with the same path.
                 source "$FRAMEWORK_ROOT/lib/cron-registry.sh"
                 _cron_fw=$(cron_fw_path "$FRAMEWORK_ROOT" "$PROJECT_ROOT")
-                FW_CRON_FW_PATH="$_cron_fw" FW_CRON_LIB_DIR="$FRAMEWORK_ROOT/lib" python3 -c "
+                # T-4822: lines name the main checkout even when generated in a
+                # linked worktree; the file is still written to THIS checkout.
+                _cron_proj=$(cron_project_root "$PROJECT_ROOT" 2>/dev/null) || _cron_proj="$PROJECT_ROOT"
+                FW_CRON_FW_PATH="$_cron_fw" FW_CRON_LIB_DIR="$FRAMEWORK_ROOT/lib" \
+                    FW_CRON_WRITE_ROOT="$PROJECT_ROOT" python3 -c "
 import yaml, os, re, sys, tempfile
 
-project_root = '$PROJECT_ROOT'
+project_root = '$_cron_proj'
 fw_path = os.environ['FW_CRON_FW_PATH']
 # T-4351: per-project schedule (staggered reindex minute, interval knob)
 sys.path.insert(0, os.environ['FW_CRON_LIB_DIR'])
@@ -7249,7 +7363,8 @@ cron_source = os.path.join(project_root, '.context', 'cron', 'agentic-audit.cron
 cron_install = f'/etc/cron.d/agentic-audit-{slug}'
 # T-3160: 'fw cron install --dry-run' renders into a scratch file so the
 # git-tracked source is never written; the header still names the real source.
-cron_out = os.environ.get('FW_CRON_GENERATE_OUT') or cron_source
+cron_out = os.environ.get('FW_CRON_GENERATE_OUT') or os.path.join(
+    os.environ['FW_CRON_WRITE_ROOT'], '.context', 'cron', 'agentic-audit.crontab')
 
 lines = [
     f'# Agentic Engineering Framework — Scheduled Jobs (managed by cron-registry.yaml)',
@@ -11447,6 +11562,22 @@ PYPREDICT
         ;;
     test)
         _test_exit=0
+
+        # T-4846: every leg below runs bats/pytest under a TMPDIR this process
+        # owns and removes on exit. A bats run killed mid-file never removes its
+        # bats-run-* dir; under the caller's TMPDIR that was the shared /tmp tmpfs
+        # (2.6 GB left on 2026-10-27). Orphans of earlier killed runs are swept first.
+        if [ -f "$FRAMEWORK_ROOT/lib/tmp-hygiene.sh" ]; then
+            # shellcheck source=/dev/null
+            source "$FRAMEWORK_ROOT/lib/tmp-hygiene.sh"
+            fw_tmp_sweep >/dev/null 2>&1 || true
+            if _fw_test_tmp=$(fw_tmp_own_dir bats 2>/dev/null); then
+                trap 'rm -rf -- "$_fw_test_tmp"' EXIT
+                trap 'rm -rf -- "$_fw_test_tmp"; trap - TERM; kill -TERM $$' TERM
+                trap 'rm -rf -- "$_fw_test_tmp"; trap - INT; kill -INT $$' INT
+                export TMPDIR="$_fw_test_tmp" BATS_TMPDIR="$_fw_test_tmp"
+            fi
+        fi
 
         case "${1:-all}" in
             --lint|lint)

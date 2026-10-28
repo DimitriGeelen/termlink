@@ -212,7 +212,8 @@ close_state = sys.argv[5] if len(sys.argv) > 5 else ""
 task = sys.argv[6] if len(sys.argv) > 6 else ""
 key = f"{model}:{task_type}"
 incomplete = (close_state == "incomplete")
-ok = (exit_code == "0") and not incomplete
+# T-4844: a review seat that exited 0 with no verdict did not succeed either.
+ok = (exit_code == "0") and not incomplete and close_state != "no-verdict"
 
 # T-3440 sidecar: the outcome VALUE, uncollapsed, in a file only we read.
 if close_state:
@@ -1402,6 +1403,13 @@ $prompt"
         printf 'export FW_REVIEW_REVISION=%q\n' "$review_revision" >> "$wdir/env.sh"
         # Round 8 (N1): marks a review worker, so the sidecar-inbox prompt hook stays silent in it.
         printf 'export FW_REVIEW_WORKER=%q\n' "1" >> "$wdir/env.sh"
+        # T-4844: opencode's plan agent refuses every path outside the export (headless `ask` =
+        # reject), SEAT_TMP ($wdir/tmp, its TMPDIR) included. One allowance, that path only; the
+        # ledger refuses any other value of this key.
+        if [ "$worker_kind" = "opencode" ]; then
+            printf 'export OPENCODE_CONFIG_CONTENT=%q\n' \
+                "$(python3 "$FRAMEWORK_ROOT/lib/verdict_ledger.py" opencode-seat-config --seat-tmp "$wdir/tmp")" >> "$wdir/env.sh"
+        fi
     fi
 
     # T-3038 (OBS-291): give every dispatched worker its own focus file.
@@ -1453,14 +1461,15 @@ $prompt"
     # T-3580 round 8 (codex 1): a REVIEW worker's environment is data, not shell. The env.sh
     # built above (our own %q output) is turned into env.json — later assignments win, as they
     # did when sourced — and removed. The ledger signs env.json's hash at registration, refuses
-    # a review wdir holding an env.sh, and run.sh loads the pairs through `verdict_ledger.py
+    # a review wdir holding an env.sh (T-4835: PYTHONDONTWRITEBYTECODE=1 is added for every seat so
+    # Python it runs does not write .pyc into the export and trip the T-3986 fingerprint), and run.sh loads the pairs through `verdict_ledger.py
     # review-env` and exports each one literally: no value is ever evaluated by a shell.
     if [ "$task_type" = "review" ]; then
         local -a _env_keys=()
         mapfile -t _env_keys < <(sed -n 's/^export \([A-Z_][A-Z0-9_]*\)=.*/\1/p' "$wdir/env.sh" | awk '!seen[$0]++')
         env -i PATH="$PATH" bash -c 'set -e; . "$1"; shift; for k in "$@"; do printf "%s=%s\0" "$k" "${!k}"; done' \
             _ "$wdir/env.sh" "${_env_keys[@]}" \
-            | python3 -c 'import json,sys; d=dict(r.split("=",1) for r in sys.stdin.read().split("\0") if r); json.dump(d, open(sys.argv[1],"w"), sort_keys=True)' "$wdir/env.json" \
+            | python3 -c 'import json,sys; d=dict(r.split("=",1) for r in sys.stdin.read().split("\0") if r); d["PYTHONDONTWRITEBYTECODE"]="1"; json.dump(d, open(sys.argv[1],"w"), sort_keys=True)' "$wdir/env.json" \
             || die "review dispatch: cannot write the worker environment as data"
         rm -f "$wdir/env.sh"
     fi
@@ -1633,6 +1642,37 @@ _fw_watchdog() {
     return 0
 }
 # --- T-4776 watchdog (end)
+
+# --- T-4843 worker binary record (start)
+# Name the binary that actually runs and its version, for EVERY worker kind: one stderr.log line
+# and the meta.json keys worker_bin / worker_version (T-4775 did claude only; a stale codex was
+# invisible after the fact). $2 overrides the version (a script run by an interpreter). --version
+# goes to a file, not a pipe, so a child it leaves holding stdout cannot outlast the 20 s bound;
+# a failure or timeout is recorded, and this never fails the launch.
+_fw_record_worker_bin() {
+    local bin ver="${2:-}" out="$WDIR/worker_version.txt" rc=0
+    bin=$(command -v "$1" 2>/dev/null || echo "$1")
+    if [ -z "$ver" ]; then
+        timeout -k 2 20 "$bin" --version > "$out" 2>&1 < /dev/null || rc=$?
+        ver=$(head -1 "$out" 2>/dev/null)
+        if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+            ver="version unknown: --version timed out after 20s"
+        elif [ "$rc" -ne 0 ]; then
+            ver="version unknown: --version exited $rc${ver:+: $ver}"
+        elif [ -z "$ver" ]; then
+            ver="version unknown: --version printed nothing"
+        fi
+    fi
+    echo "worker binary: $bin ($ver)" >> "$WDIR/stderr.log"
+    if command -v jq >/dev/null 2>&1 && [ -f "$WDIR/meta.json" ]; then
+        jq --arg b "$bin" --arg v "$ver" '.worker_bin = $b | .worker_version = $v' \
+           "$WDIR/meta.json" > "$WDIR/meta.json.tmp" 2>/dev/null \
+            && mv "$WDIR/meta.json.tmp" "$WDIR/meta.json" \
+            || rm -f "$WDIR/meta.json.tmp"
+    fi
+    return 0
+}
+# --- T-4843 worker binary record (end)
 
 # T-3580 round 6: the completion secret is ISSUED to this runtime by its authenticated start
 # (below), never written to disk by registration. Deliberately NOT exported; it reaches
@@ -1808,6 +1848,8 @@ if [ "$WORKER_KIND" = "ollama-loop" ]; then
     else
         # Pass model alias as OLLAMA_LOOP_MODEL when --model was supplied.
         [ -n "$MODEL" ] && export OLLAMA_LOOP_MODEL="$MODEL"
+        # T-4843: the loop is a script run by python3 (no --version): record both.
+        _fw_record_worker_bin "$LOOP_BIN" "$(python3 --version 2>&1 | head -1); sha256 $(sha256sum "$LOOP_BIN" 2>/dev/null | cut -c1-12)"
         ( python3 "$LOOP_BIN" --wdir "$WDIR" >"$WDIR/stdout.log" 2>>"$WDIR/stderr.log" ) &
         LOOP_PID=$!
         ( _fw_watchdog "$LOOP_PID" ) &
@@ -1842,6 +1884,7 @@ elif [ -n "$HARNESS" ]; then
         _tree_fp() { ( cd "$TREE" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1 ); }
         TREE_FP_BEFORE="$(_tree_fp)"
         PROMPT_TEXT="$(cat "$WDIR/prompt.md")"
+        _fw_record_worker_bin "$WORKER_BIN"
         case "$WORKER_KIND" in
             codex)
                 # -s workspace-write (T-3986, was read-only): writes reach only the workspace (the
@@ -1913,8 +1956,7 @@ else
     else
         # T-4775: name the binary that actually runs, and its version — a stale claude on the
         # constructed PATH was invisible after the fact.
-        _WB=$(command -v "$WORKER_BIN" 2>/dev/null || echo "$WORKER_BIN")
-        echo "worker binary: $_WB ($(timeout 20 "$_WB" --version 2>&1 < /dev/null | head -1))" >> "$WDIR/stderr.log"
+        _fw_record_worker_bin "$WORKER_BIN"
         "$WORKER_BIN" -p "$(cat "$WDIR/prompt.md")" $MODEL_FLAG $SETTING_SOURCES_FLAG $TOOLS_FLAG $PERMISSION_MODE_FLAG $MCP_CONFIG_FLAG $STRICT_MCP_FLAG $ALLOWED_TOOLS_FLAG --output-format stream-json --verbose > "$WDIR/result.jsonl" 2>>"$WDIR/stderr.log" &
         CLAUDE_PID=$!
     fi
@@ -2033,8 +2075,18 @@ if [ -n "$CLOSE_TASK" ] && [ "${EXIT_CODE:-1}" = "0" ]; then
         done
     fi
 fi
+# T-4844: a review seat that exited 0 and left no verdict (the runtime's signed completion says
+# seat_state no-verdict) is `no-verdict`, not `incomplete`: a reviewer never closes the task.
+if [ "$TASK_TYPE" = "review" ] && [ "${EXIT_CODE:-1}" = "0" ] && \
+    [ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("seat_state",""))' "$WDIR/completion.json" 2>/dev/null)" = "no-verdict" ]; then
+    CLOSE_STATE="no-verdict"
+    echo "NO-VERDICT: the ${WORKER_KIND:-claude} review seat exited 0 and left no verdict — nothing it judged counts" >> "$WDIR/stderr.log"
+fi
 [ -f "$WDIR/timed_out" ] && CLOSE_STATE="timeout"
 echo "$CLOSE_STATE" > "$WDIR/close_state"
+if [ "$CLOSE_STATE" = "no-verdict" ]; then
+    echo "WARNING: review seat exited 0 with no verdict (no-verdict)"
+fi
 if [ "$CLOSE_STATE" = "incomplete" ]; then
     echo "WARNING: worker exited 0 but $CLOSE_TASK is still started-work — close not run"
 fi
@@ -2189,6 +2241,8 @@ cmd_result() {
         [ -f "$wdir/task" ] && ct=$(cat "$wdir/task" 2>/dev/null)
         if [ "$cs" = "incomplete" ]; then
             echo -e "${YELLOW}WARN${NC}  close_state: incomplete — ${ct:-the dispatched task} is still started-work (worker exited 0, close not run)"
+        elif [ "$cs" = "no-verdict" ]; then
+            echo -e "${YELLOW}WARN${NC}  close_state: no-verdict — the review seat exited 0 and left no verdict (T-4844)"
         elif [ "$cs" != "n/a" ]; then
             echo "close_state: $cs${ct:+ ($ct)}"
         fi

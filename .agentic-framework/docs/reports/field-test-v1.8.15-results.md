@@ -451,6 +451,44 @@ ring20 went from be.25 straight to be.31 (0cd951409) and the upgrade was clean: 
 - **dimitri-mint-dev:** T-4781 (separate servers after a relaunch).
 - **The contract:** wc v0.3.4 waits for adoption by the AEF operator and TermLink's operator (their T-3484).
 
+### be.37 – be.41 — ring20, TermLink, 832, 055, dimitri-mint-dev (recorded 2026-10-27, T-4837)
+
+One row per project and build. A blank Msg means the id was not kept in the session notes; the verdict is from the project's own report.
+
+| Project | Tip | Verdict | Msg |
+|---|---|---|---|
+| ring20 | be.37 | Full pass: 15 **WORKS**, 2 **FAILS**. Both FAILS were fixed in T-4813, T-4814, T-4816 and T-4817 and re-tested at be.40 (next row) | |
+| ring20 | be.40 | **WORKS**: T-4813, T-4814, T-4816, T-4817. Worker-contract conformance: 20 pass, 4 n/a, 0 fail (be.33: 19 pass, 2 fail) | |
+| TermLink | be.39 | Full report, no regressions; worker-contract vectors 17 pass | |
+| 832 | be.37 | Part 1 of their pass, no FAILS | |
+| 832 | be.38 | **WORKS** E (dispatch spawn, wait, collect) and F (verdict ledger and apply). V-20261027-cb560298 closed GREEN-DEGRADED and ticked exactly one AC. Two findings, filed separately: (a) T-4775 is partial: the worker binary and version line exists only for claude workers; (b) an opencode review seat whose temp dir is outside its export exits 0 with no verdict, recorded only as "incomplete" | 36c65b40 |
+| 055 | be.37 | Two reports. Their T-4820 premise was later corrected by 055: the trigger was their own breach of their rule PL-045, not an AEF defect | |
+| dimitri-mint-dev | be.41 | Partial, all **WORKS**: A, B, C, D, H; T-4797 (0.25 s); T-4819. Their operator approved the upgrade in that session. Still to report: G, T-4781 and the T-4812 re-check, after a relaunch | |
+
+**Later the same evening (recorded by T-4848):**
+
+| Project | Tip | Verdict | Msg |
+|---|---|---|---|
+| 832 | be.43 | **WORKS**: GET /api/field-catalog (T-4832): 200 with the file byte-for-byte, gzip when accepted, 422 on a duplicated ref, 404 on a missing file or unset key | ac944d99 |
+| 832 | be.43 | **WORKS**: GET /api/instances (T-4831): 404 unknown template, 200 NO-INSTANCES on a map in their store | c3ec2249 |
+| 832 | be.43 | **FAILS**: POST /api/validate (T-4830): answered ok:false on a successful check of a map with errors, so the designer showed "could not check". Fixed in T-4845 (ok:true on every 200) | c3ec2249 |
+| 832 | be.43 | **WORKS**: T-4836 (the validator reaches a consumer project) and T-4838 (validator 0.31.0, E-XML-IO-MATCH-MISSING reported) | c3ec2249 |
+| dimitri-mint-dev | be.41 | **WORKS**: D, task close in 4.0 s with 0 files staged outside .tasks/.context (T-4777); T-4812 re-check, the status entry lands inside ## Updates and the append Edit is accepted first time | d812cf90 |
+
+**2026-10-28 (recorded by T-4860):**
+
+| Project | Tip | Verdict | Msg |
+|---|---|---|---|
+| 832 | be.45 | **WORKS**: POST /api/validate end to end in headless Chromium (Check "checked", ERROR E-XML-IO-MATCH-MISSING under the output row); be.45 summary 1/2/3 all WORKS | 04eda0fc |
+| 832 | be.45 | **WORKS**: T-4779, their release commit landed 2 h after a verdict and the ledger still counts it. T-4768 not exercised (no inception decided since be.31) | cea873e2 |
+| ring20-dashboard | be.46 | **WORKS**: upgrade v1.8.14 to be.46 (1644 commits) from a full clone of the tag, 12 min, doctor 0 FAIL before and after, fast lane 0 failures (17031 passed, 23 skipped for their replaced termlink cleanup), no rollback; 37 local patches down to 32. Four findings filed as T-4851..T-4856, three security-review findings as T-4857..T-4859 | 2c503ddf, 72cf84a0 |
+
+**Still unexercised, and who reports:**
+- **1409:** upgrade to be.44 or later after their workers rest, then the create-time re-measure at about 20 worktrees (T-4797, T-4841); T-4806 needs their Dauerlauf armed.
+- **dimitri-mint-dev:** G, T-4781, T-4812 re-check (after relaunch).
+- **055:** E, F, G.
+- **832 and greenfield:** the designer data APIs (T-4830, T-4831, T-4832, T-4836) at the be-tag cut by T-4837.
+
 ## Full-suite comparison (HEAD eee888e61 vs v1.8.14)
 
 **Method, and what it does not cover.** T-4345 ran the whole unit corpus on two scratch trees side by side (jobs=6

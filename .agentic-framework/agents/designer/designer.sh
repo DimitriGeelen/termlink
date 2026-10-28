@@ -200,7 +200,8 @@ do_install() {
 
     if [ -f "$vpath" ] && [ "$(_sha256 "$vpath")" = "$expected" ]; then
         echo "${_c_grn}✓ designer already installed${_c_off} $(_pin_get version) → ${rel} (sha256 matches pin)"
-        return 0
+        _install_validator
+        return $?
     fi
 
     src="${FRAMEWORK_ROOT:-$PROJECT_ROOT}/$rel"
@@ -216,7 +217,79 @@ do_install() {
     fi
 
     # Same verification path as the delivered-artifact flow (A3).
-    do_sync --from "$src"
+    do_sync --from "$src" || return $?
+    _install_validator
+}
+
+# T-4836: install the pinned validator (validator_path, T-4830) beside the build, from
+# the vendored copy, with the build's rules: sha256 against the pin (validator_sha256),
+# refuse on mismatch, read-only, loud and non-zero when the vendored file is absent.
+# Without it POST /api/validate answers 503 in every consumer. A pin that declares no
+# validator skips this. Exit codes as do_install: 0 · 1 mismatch · 3 pin incomplete · 5 absent.
+_install_validator() {
+    local rel expected dest src actual
+    rel="$(_pin_get validator_path || true)"
+    [ -n "$rel" ] || return 0
+    expected="$(_pin_get validator_sha256 || true)"
+    [ -n "$expected" ] || { echo "${_c_red}pin has validator_path but no validator_sha256 — refusing to install an unverifiable validator${_c_off}" >&2; return 3; }
+    dest="$PROJECT_ROOT/$rel"
+    if [ -f "$dest" ] && [ "$(_sha256 "$dest")" = "$expected" ]; then
+        echo "${_c_grn}✓ validator already installed${_c_off} → ${rel} (sha256 matches pin)"
+        return 0
+    fi
+    src="${FRAMEWORK_ROOT:-$PROJECT_ROOT}/$rel"
+    if [ ! -f "$src" ]; then
+        echo "${_c_yel}validator NOT installed${_c_off} — the pin names ${rel}, but no vendored validator is present at:" >&2
+        echo "  ${src}" >&2
+        echo "  → this framework copy was vendored before the validator shipped with it." >&2
+        echo "  → refresh it (fw upgrade), or in the framework repo: fw designer sync --from-tag" >&2
+        return 5
+    fi
+    actual="$(_sha256 "$src")"
+    if [ "$actual" != "$expected" ]; then
+        echo "${_c_red}validator sha256 MISMATCH — refusing to install an unpinned validator${_c_off}" >&2
+        echo "  expected (pin): $expected" >&2
+        echo "  actual  (file): $actual" >&2
+        return 1
+    fi
+    mkdir -p "$(dirname "$dest")"
+    rm -f "$dest" 2>/dev/null || true
+    install -m 0444 "$src" "$dest" 2>/dev/null || { cp -f "$src" "$dest" && chmod 0444 "$dest"; }
+    echo "${_c_grn}✓ installed${_c_off} validator → ${rel} (sha256 verified, read-only)"
+}
+
+# T-4830: pull 832's validator at the same tag and verify it three ways: kit SHA256SUMS
+# at the tag vs MANIFEST kit_sha256, the validator's line in that SHA256SUMS, and the pin.
+# Skips quietly when the pin declares no validator. Exit 1 on any mismatch, 4 on fetch failure.
+_sync_validator_at_tag() {
+    local tmp="$1" tag="$2" dry_run="$3"
+    local v_src v_sums v_kit v_sha v_path
+    v_src="$(_pin_get validator_source || true)"
+    [ -n "$v_src" ] || return 0
+    v_sums="$(_pin_get validator_sums || true)"
+    v_kit="$(_pin_get validator_kit_sha256 || true)"
+    v_sha="$(_pin_get validator_sha256 || true)"
+    v_path="$(_pin_get validator_path || true)"
+    [ -n "$v_sums" ] && [ -n "$v_kit" ] && [ -n "$v_sha" ] && [ -n "$v_path" ] || { echo "${_c_red}pin validator_* keys incomplete${_c_off}" >&2; return 3; }
+    git -C "$tmp" show "${tag}:${v_sums}" > "$tmp/SHA256SUMS" 2>/dev/null || { echo "${_c_red}no ${v_sums} at tag ${tag}${_c_off}" >&2; return 4; }
+    git -C "$tmp" show "${tag}:${v_src}" > "$tmp/validator.py" 2>/dev/null || { echo "${_c_red}no ${v_src} at tag ${tag}${_c_off}" >&2; return 4; }
+    local sums_actual line_sha actual
+    sums_actual="$(_sha256 "$tmp/SHA256SUMS")"
+    line_sha="$(grep -E "[[:space:]]\*?$(basename "$v_src")\$" "$tmp/SHA256SUMS" | head -1 | cut -d' ' -f1)"
+    actual="$(_sha256 "$tmp/validator.py")"
+    if [ "$sums_actual" != "$v_kit" ] || [ "$line_sha" != "$actual" ] || [ "$actual" != "$v_sha" ]; then
+        echo "${_c_red}validator sha256 MISMATCH — refusing to vendor it${_c_off}" >&2
+        echo "  kit SHA256SUMS: computed=${sums_actual} pin=${v_kit}" >&2
+        echo "  validator:      computed=${actual} kit-line=${line_sha:-?} pin=${v_sha}" >&2
+        return 1
+    fi
+    echo "  ${_c_grn}✓${_c_off} validator anchors: kit SHA256SUMS, kit line and pin agree (${v_src})"
+    [ "$dry_run" -eq 1 ] && return 0
+    local dest="$PROJECT_ROOT/$v_path"
+    mkdir -p "$(dirname "$dest")"
+    rm -f "$dest" 2>/dev/null || true
+    install -m 0444 "$tmp/validator.py" "$dest" 2>/dev/null || { cp -f "$tmp/validator.py" "$dest" && chmod 0444 "$dest"; }
+    echo "${_c_grn}✓ vendored${_c_off} validator → ${v_path} (sha256 verified, read-only)"
 }
 
 # Pull-at-tag intake (T-247/D-335, T-2616). Fetch artifact + MANIFEST at the
@@ -290,6 +363,7 @@ do_sync_from_tag() {
             echo "    pin:      $expected"
             echo "    computed: $actual"
         fi
+        _sync_validator_at_tag "$tmp" "$tag" 1 || return $?
         echo "${_c_grn}dry-run OK${_c_off} — nothing installed"
         return 0
     fi
@@ -303,6 +377,7 @@ do_sync_from_tag() {
         return 1
     fi
     echo "  ${_c_grn}✓${_c_off} pin anchor: sha matches pin ($(_pin_get version))"
+    _sync_validator_at_tag "$tmp" "$tag" 0 || return $?
     _install_readonly "$tmp/artifact.html"
 }
 
