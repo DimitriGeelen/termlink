@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-10-27T21:26:18Z
-last_update: '2026-10-27T21:27:37Z'
+last_update: 2026-10-28T18:49:17Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -193,6 +193,14 @@ Shaping in progress: the operator asked (2026-10-27) for five independent extern
 - **Left open:** the cap's number (6c) and D1's weight (option C) fold into round 4's driver work; running our own
   fleet is counted as 1b, and the ring20-side part moves to ring20 if they come to own their hosts. Round 4 writes the
   single purpose, objectives and drivers for 1a, plus a short separate 1b set.
+
+### 2026-10-28 — round 4: draft now, operator reads first, then outside review (operator ruling C)
+- **Chose:** C. Draft from Q1–Q7, operator reads and corrects it, then at most 2 rounds of outside review by the
+  subscription seats (claude, codex, antigravity, opencode). Q6 stays marked open (pending T-3615 data).
+  Draft v0.1: docs/reports/T-3612-round4-draft.md.
+- **Why:** the operator's answers are the draft's substance; review then tests a draft the operator stands behind.
+- **Rejected:** A (review before the operator reads: may spend a round on wording the operator rejects); B (wait for
+  telemetry: weeks on a known-wrong yardstick); D (stop: leaves the mixed-layer yardstick, against Q7).
 
 ## Decision
 
