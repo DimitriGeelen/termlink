@@ -18,6 +18,7 @@
 # strictly newer than the heartbeat, so /canaries keeps FIRING on it (never masked).
 # /canaries auto-discovers the log.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 06:53 UTC — minute :53 dodges :03 fleet-binary, :07 fleet-capability,

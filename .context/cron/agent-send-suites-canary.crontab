@@ -7,5 +7,6 @@
 # Exit 0 healthy · 1 FIRING (a suite failed; the log line names suite and FAIL cases)
 # · 2 tooling (hub down / suite missing), stderr only. Empty log = healthy.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
 47 6 * * * root cd /opt/termlink && bash scripts/check-agent-send-suites-freshness.sh --quiet >> .context/working/.agent-send-suites-canary.log 2>> .context/working/.agent-send-suites-canary.log.stderr

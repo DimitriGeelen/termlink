@@ -24,6 +24,7 @@
 # duplicate keys — a duplicate is a stale snapshot of a MONOTONIC counter, so
 # summing would double-count real fires. Ad-hoc: bash scripts/check-hook-counter-integrity.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:49 UTC — offset from the :39 dead-letter, :27 stuck-claims,

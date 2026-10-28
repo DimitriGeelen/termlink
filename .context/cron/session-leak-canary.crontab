@@ -15,6 +15,7 @@
 #   /opt/termlink/runme.sh --dry-run
 # then run /opt/termlink/runme.sh. Detail: bash scripts/check-session-leak-freshness.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:57 UTC — offset from the :53 arc-claim-drift and :41 release-publication canaries.

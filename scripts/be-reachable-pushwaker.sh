@@ -48,6 +48,9 @@
 # Sourcing with BE_REACHABLE_PUSHWAKER_LIB=1 exposes the pure helpers without
 # running main (used by scripts/test-pushwaker-filter.sh).
 set -u
+# T-3615: this loop is a background caller, not an agent; every termlink call it
+# makes is attributed `background` in the invocation audit (a launcher may override).
+export TERMLINK_WORKER_CLASS="${TERMLINK_WORKER_CLASS:-background}"
 
 TERMLINK="${TERMLINK_BIN:-termlink}"
 

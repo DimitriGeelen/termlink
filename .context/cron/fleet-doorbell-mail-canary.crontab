@@ -15,6 +15,7 @@
 # Operator action on drift: per-hub investigation (selftest runs
 # agent-conversation-selftest.sh under the hood — re-run with --verbose).
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 09:23 UTC — non-colliding with :13 mirror canary, :33 meta-canary,

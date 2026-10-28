@@ -19,6 +19,7 @@
 #
 # See docs/operations/agent-presence-retention-reset.md §4 for the full model.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 04:17 UTC — deliberately BEFORE the 05:11 topic-growth canary check

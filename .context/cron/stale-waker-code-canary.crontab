@@ -22,6 +22,7 @@
 # a zero-outage waker-only respawn (heartbeat/presence never drops, T-2404).
 # Ad-hoc check: `bash scripts/check-stale-waker-code-freshness.sh`.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 08:13 UTC — offset from the :13/:17/:23/:43 canaries and the

@@ -65,8 +65,8 @@
 //! `class`) is distinguishable from an attributed one.
 //!
 //! - `class` — one of `interactive`, `dispatched`, `standing`, `reviewer`,
-//!   `unknown`, decided by the FIRST rule that matches:
-//!   1. `TERMLINK_WORKER_CLASS` set to one of those five values: an explicit
+//!   `background`, `unknown`, decided by the FIRST rule that matches:
+//!   1. `TERMLINK_WORKER_CLASS` set to one of those six values: an explicit
 //!      declaration. This is how a launcher the rules below cannot see declares
 //!      itself (a standing `claude -n` session under a unit, a non-Anthropic seat).
 //!   2. `FW_DISPATCHED_WORKER=1` — written into every `fw termlink dispatch`
@@ -78,15 +78,27 @@
 //!   3. `TERMLINK_SIDECAR_SUPERVISOR` set (the arc-011 sidecar unit
 //!      `termlink-sidecar@<project>--<agent>` sets it to `systemd`; this is how the
 //!      W1 pair claude-termlink / claude-termlink-alt run), or `INVOCATION_ID` set
-//!      WITHOUT `FW_CLAUDE_FW_SUPERVISED` (a process systemd started as a service,
-//!      e.g. the persistent `termlink-*-agent.service` sessions) -> `standing`.
+//!      WITHOUT `FW_CLAUDE_FW_SUPERVISED` AND with an agent marker (`AI_AGENT` or
+//!      `CLAUDE_CODE_ENTRYPOINT`: an agent systemd started as a service) -> `standing`.
 //!      `claude-fw` also runs under systemd (a `run-*.scope`, so `INVOCATION_ID` is
 //!      set) but marks itself `FW_CLAUDE_FW_SUPERVISED=1`: that is an operator's
 //!      session, not a standing worker.
 //!   4. `CLAUDE_CODE_ENTRYPOINT`: `cli` (the interactive TUI) -> `interactive`;
 //!      `sdk-*` (headless `claude -p` fired by an orchestrator outside
 //!      `fw termlink dispatch`) -> `dispatched`.
-//!   5. otherwise `unknown` (a bare shell, cron, or a harness that marks nothing).
+//!   5. No agent marker at all (neither `AI_AGENT` nor `CLAUDE_CODE_ENTRYPOINT`)
+//!      AND either `INVOCATION_ID` set (a systemd service with no agent in it) or
+//!      stdin not a terminal (cron, a `nohup`/`setsid` loop, a daemon: their stdin
+//!      is `/dev/null` or a file) -> `background`. This is the heuristic for the
+//!      callers we do not own (the vendored sidecar `watcher.py`, other projects'
+//!      loops); the ones we own declare `TERMLINK_WORKER_CLASS=background` via
+//!      rule 1 (every `.context/cron/*.crontab`, the notify/waker loops).
+//!      Measured before this rule (2026-10-28, .107): 88% of attributed rows were
+//!      `unknown`, nearly all `channel unread` / `pty output` / `ping` polling
+//!      from such loops. An agent's Bash tool also has a non-tty stdin, but it
+//!      carries `AI_AGENT`, so it never lands here.
+//!   6. otherwise `unknown` (a human typing `termlink` at a terminal, or a
+//!      harness that marks itself only partly).
 //!
 //!   `TERMLINK_AGENT_ID` is deliberately NOT a class signal: this project sets
 //!   `TERMLINK_AGENT_ID=claude-termlink` in its Claude settings env (runme action
@@ -233,7 +245,8 @@ pub fn resolve_sink_dir(
 }
 
 /// Worker classes a record can carry (T-3615). See the module doc for the rules.
-pub const CLASSES: [&str; 5] = ["interactive", "dispatched", "standing", "reviewer", "unknown"];
+pub const CLASSES: [&str; 6] =
+    ["interactive", "dispatched", "standing", "reviewer", "background", "unknown"];
 
 /// Caller attribution for one process (T-3615). Built once from the env.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -251,11 +264,19 @@ fn nonempty(v: Option<String>) -> Option<String> {
     v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
 }
 
-/// Pure classifier behind the cached attribution: `get` looks one env var up.
-/// Split out so every class can be tested without mutating process env (L-006).
+/// Pure classifier for a caller whose stdin is a terminal (so only env decides).
 pub fn attribution_from(get: impl Fn(&str) -> Option<String>) -> Attribution {
+    attribution_with(get, true)
+}
+
+/// Pure classifier behind the cached attribution: `get` looks one env var up,
+/// `stdin_tty` says whether stdin is a terminal (rule 5, `background`).
+/// Split out so every class can be tested without mutating process env (L-006).
+pub fn attribution_with(get: impl Fn(&str) -> Option<String>, stdin_tty: bool) -> Attribution {
     let get = |k: &str| nonempty(get(k));
     let is1 = |k: &str| get(k).as_deref() == Some("1");
+    let agent_marked = get("AI_AGENT").is_some() || get("CLAUDE_CODE_ENTRYPOINT").is_some();
+    let systemd_service = get("INVOCATION_ID").is_some();
     let class = if let Some(c) = get("TERMLINK_WORKER_CLASS")
         .and_then(|v| CLASSES.iter().copied().find(|c| *c == v.to_ascii_lowercase()))
     {
@@ -267,13 +288,14 @@ pub fn attribution_from(get: impl Fn(&str) -> Option<String>) -> Attribution {
             "dispatched"
         }
     } else if get("TERMLINK_SIDECAR_SUPERVISOR").is_some()
-        || (get("INVOCATION_ID").is_some() && get("FW_CLAUDE_FW_SUPERVISED").is_none())
+        || (systemd_service && agent_marked && get("FW_CLAUDE_FW_SUPERVISED").is_none())
     {
         "standing"
     } else {
         match get("CLAUDE_CODE_ENTRYPOINT").as_deref() {
             Some("cli") => "interactive",
             Some(e) if e.starts_with("sdk") => "dispatched",
+            _ if !agent_marked && (systemd_service || !stdin_tty) => "background",
             _ => "unknown",
         }
     };
@@ -325,7 +347,10 @@ static ATTRIBUTION: OnceLock<String> = OnceLock::new();
 
 /// This process's attribution fragment, computed from the env on first use.
 fn attribution_fragment() -> &'static str {
-    ATTRIBUTION.get_or_init(|| attribution_from(|k| std::env::var(k).ok()).json_fragment())
+    ATTRIBUTION.get_or_init(|| {
+        use std::io::IsTerminal;
+        attribution_with(|k| std::env::var(k).ok(), std::io::stdin().is_terminal()).json_fragment()
+    })
 }
 
 fn json_escape(s: &str) -> String {
@@ -565,8 +590,49 @@ mod tests {
     fn class_standing_sidecar_and_systemd_service() {
         let a = attr(&[("TERMLINK_SIDECAR_SUPERVISOR", "systemd"), ("INVOCATION_ID", "x")]);
         assert_eq!(a.class, "standing");
-        let b = attr(&[("INVOCATION_ID", "abc")]);
-        assert_eq!(b.class, "standing", "a systemd service with no claude-fw marker");
+        let b = attr(&[("INVOCATION_ID", "abc"), ("AI_AGENT", "claude-code_2-1-311_agent")]);
+        assert_eq!(b.class, "standing", "an agent in a systemd service with no claude-fw marker");
+    }
+
+    fn attr_notty(pairs: &[(&str, &str)]) -> Attribution {
+        let m: std::collections::HashMap<String, String> =
+            pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        attribution_with(|k| m.get(k).cloned(), false)
+    }
+
+    #[test]
+    fn class_background_systemd_service_without_agent() {
+        // memwatch.sh / `termlink register --self` units: systemd, no agent marker.
+        assert_eq!(attr(&[("INVOCATION_ID", "abc")]).class, "background");
+        assert_eq!(attr(&[("INVOCATION_ID", "abc"), ("FW_CLAUDE_FW_SUPERVISED", "1")]).class,
+                   "background", "a non-agent child of a claude-fw scope is still background");
+    }
+
+    #[test]
+    fn class_background_no_tty_without_agent() {
+        // cron, nohup/setsid loops, the vendored sidecar watcher.py (TERM set, stdin /dev/null).
+        assert_eq!(attr_notty(&[]).class, "background");
+        assert_eq!(attr_notty(&[("TERM", "xterm-256color"), ("PROJECT_ROOT", "/opt/x")]).class,
+                   "background");
+        assert_eq!(attr_notty(&[("TERMLINK_AGENT_ID", "claude-termlink")]).class, "background");
+    }
+
+    #[test]
+    fn class_background_never_swallows_an_agent() {
+        // An agent's Bash tool has a non-tty stdin but carries AI_AGENT: not background.
+        assert_eq!(attr_notty(&[("AI_AGENT", "claude-code_2-1-311_agent")]).class, "unknown");
+        assert_eq!(attr_notty(&[("CLAUDE_CODE_ENTRYPOINT", "cli")]).class, "interactive");
+        assert_eq!(attr_notty(&[("FW_DISPATCHED_WORKER", "1")]).class, "dispatched");
+        assert_eq!(attr_notty(&[("TERMLINK_SIDECAR_SUPERVISOR", "systemd")]).class, "standing");
+        // A human at a terminal with no markers stays unknown.
+        assert_eq!(attr(&[("TERM", "xterm-256color")]).class, "unknown");
+    }
+
+    #[test]
+    fn class_background_explicit_declaration() {
+        let a = attr(&[("TERMLINK_WORKER_CLASS", "background"), ("CLAUDE_CODE_ENTRYPOINT", "cli")]);
+        assert_eq!(a.class, "background");
+        assert!(CLASSES.contains(&"background"));
     }
 
     #[test]

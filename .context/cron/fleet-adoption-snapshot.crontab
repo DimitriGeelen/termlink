@@ -14,6 +14,7 @@
 # Operator action on COLD: investigate listener health (agent-listeners-fleet),
 # investigate whether agents are actually using doorbell+mail vs. legacy primitives.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 09:47 UTC — non-colliding with :13 mirror-canary, :17 heartbeat,

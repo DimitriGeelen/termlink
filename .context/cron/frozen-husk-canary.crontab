@@ -19,6 +19,7 @@
 # heartbeat froze anyway — file a bug task. (To audit the pre-fix upgrade-backlog
 # ad-hoc, run without --regressions-only: `bash scripts/check-frozen-husk-freshness.sh`.)
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 06:43 UTC — offset from the :13 mirror, :37 framework-pickup canaries

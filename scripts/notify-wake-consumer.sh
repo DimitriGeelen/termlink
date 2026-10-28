@@ -58,6 +58,9 @@
 # Exit: 0 fired (or --follow ended cleanly) · 2 usage/tooling · 3 producer DEAF
 #       · 4 timed out with no wake
 set -u
+# T-3615: this loop is a background caller, not an agent; every termlink call it
+# makes is attributed `background` in the invocation audit (a launcher may override).
+export TERMLINK_WORKER_CLASS="${TERMLINK_WORKER_CLASS:-background}"
 
 AGENT_ID=""
 NOTIFY_DIR="${NOTIFY_DIR:-$HOME/.termlink/notify}"

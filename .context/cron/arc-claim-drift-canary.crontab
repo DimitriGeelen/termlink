@@ -25,6 +25,7 @@
 # A failing prover means the arc's shipped claim is no longer true: file a task
 # against the arc. Do not allowlist it to silence it.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:53 UTC — offset from the :41 release-publication and :39 dead-letter canaries.

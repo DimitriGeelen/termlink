@@ -33,6 +33,9 @@
 #   2  — usage error (missing required flag, unknown arg)
 #   3  — runtime error (cannot resolve self identity in real-probe mode)
 set -u
+# T-3615: this loop is a background caller, not an agent; every termlink call it
+# makes is attributed `background` in the invocation audit (a launcher may override).
+export TERMLINK_WORKER_CLASS="${TERMLINK_WORKER_CLASS:-background}"
 
 TERMLINK="${TERMLINK_BIN:-termlink}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

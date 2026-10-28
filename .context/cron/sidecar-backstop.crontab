@@ -19,6 +19,7 @@
 # status <project>` and `journalctl -u termlink-sidecar@<project>` say why the
 # unit gave up. Repeated acting every cycle means the sidecar dies on start.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 */10 * * * * root cd /opt/termlink && bash scripts/sidecar-supervise.sh check --quiet >> .context/working/.sidecar-backstop-canary.log 2>> .context/working/.sidecar-backstop-canary.log.stderr

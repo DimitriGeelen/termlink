@@ -444,6 +444,19 @@ exit 0
 EOS
 cat > "$F/remote" <<'EOS'
 #!/usr/bin/env bash
+# T-3615 action 23: the rollup's probe/install run LOCALLY against scratch paths (the
+# RUNME_REMOTE_ROLLUP_* seams), with every rollup input seamed, so nothing real is read
+# or written. Logged apart so action 6's "dry run sent no remote command" check holds.
+case "$2" in *RUNME-ROLLUP*)
+    echo "$2" >> "$FAKE_FLEET_DIR/rollup-cmds"
+    [ "${FAKE_RR_DOWN:-0}" = "1" ] && exit 3
+    TELEMETRY_QUEUE_LOG=/nonexistent TELEMETRY_RECONNECT_LOG=/nonexistent TELEMETRY_BREAKER_LOG=/nonexistent \
+    TELEMETRY_OUTAGE_SAMPLES=/nonexistent TELEMETRY_INVOCATION_SINKS=/nonexistent TELEMETRY_DISPATCH_DIRS=/nonexistent \
+    TELEMETRY_CLOSE_STATES=/nonexistent TELEMETRY_VERDICTS=/nonexistent TELEMETRY_APPLIED=/nonexistent \
+    TELEMETRY_STANDING_UNITS_JSON="$FAKE_FLEET_DIR/rr-units" TELEMETRY_QUEUE_STATUS_JSON="$FAKE_FLEET_DIR/rr-qs" \
+    TERMLINK_RUNTIME_DIR="$FAKE_FLEET_DIR/rr-runtime" bash -c "$2"
+    exit $? ;;
+esac
 echo "$2" >> "$FAKE_FLEET_DIR/remote-cmds"
 case "$2" in
   *"t3311-sweep.conf"*)   # T-3311 action 21: drop-in + restart; must match BEFORE the plain unit probe
@@ -466,6 +479,17 @@ fleet_state() { echo "$1" > "$F/ver"; echo ok > "$F/status"; rm -f "$F/deploys" 
 export FAKE_FLEET_DIR="$F" RUNME_FLEET_HUBS=fake-hub RUNME_MUSL_SRC="$F/musl" \
        RUNME_FLEET_DEPLOY="$F/deploy" RUNME_FLEET_DOCTOR="$F/doctor" RUNME_TOFU="$F/tofu" RUNME_FLEET_WAIT_SECS=2 \
        RUNME_FLEET_REMOTE="$F/remote"
+# T-3615 action 23: the remote rollup install, all into scratch. FAKE_RR_AUTH_RC is the
+# exit code of `termlink channel list --hub <.107>` on the "remote" (0 = credential present).
+echo none > "$F/rr-units"; echo '{}' > "$F/rr-qs"; mkdir -p "$F/rr-cron"
+cat > "$F/rr-tl" <<'EOS'
+#!/usr/bin/env bash
+case "$1 $2" in "channel list") exit "${FAKE_RR_AUTH_RC:-0}" ;; "channel queue-status") echo '{}' ;; esac
+exit 0
+EOS
+chmod +x "$F/rr-tl"
+export RUNME_ROLLUP_SRC="$REPO_ROOT/scripts/telemetry-rollup.sh" RUNME_REMOTE_ROLLUP_ROOT="$F/rr-root" \
+       RUNME_REMOTE_ROLLUP_CRON="$F/rr-cron/termlink-telemetry-rollup" RUNME_REMOTE_TL="$F/rr-tl"
 fleet_state 9.9.9
 # T-3297 action 7: the zombie reap must NEVER see or signal a real process. A
 # fake detector prints canned JSON (FAKE_ZOMBIES: "pid:name ..."), a fake /proc
@@ -571,7 +595,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 36 ))   # +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 38 ))   # +2 T-3615 (action 1b background-class resync, action 23 fleet rollup); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1547,6 +1571,81 @@ if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  .* is not gitignored" && [ ! 
 else bad "pack not ignored" "rc=$rc: $x"; fi
 pack_reset; mkdir -p "$RUNME_PACK_DEST" && tar -xzf "$TMP/pack-good.tgz" -C "$RUNME_PACK_DEST" && chmod -R go-rwx "$RUNME_PACK_DEST"
 
+# ---------------------------------------------------------------------------
+# T-3615 action 1b — the background-class line on installed crontabs it does not manage.
+# ---------------------------------------------------------------------------
+s1b() { echo "$1" | sed -n '/^.*1b\. Background-class line/,/^.*2\. /p'; }
+grep -vx 'TERMLINK_WORKER_CLASS=background' "$REPO_ROOT/.context/cron/heartbeat.crontab" > "$TMP/cron/termlink-heartbeat"
+{ grep -vx 'TERMLINK_WORKER_CLASS=background' "$REPO_ROOT/.context/cron/presence-sweep.crontab"; echo '# hand edit'; } > "$TMP/cron/termlink-presence-sweep"
+cp "$TMP/cron/termlink-presence-sweep" "$TMP/presence.before"
+out=$(run --dry-run); x=$(s1b "$out")
+if echo "$x" | grep -q "would add the background-class line: .*heartbeat.crontab" && ! grep -q TERMLINK_WORKER_CLASS "$TMP/cron/termlink-heartbeat"; then
+    ok "1b: --dry-run names the env-only drift and writes nothing"
+else bad "1b dry-run" "$x"; fi
+out=$(run); rc=$?; x=$(s1b "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      1 installed crontab(s) now carry TERMLINK_WORKER_CLASS=background" \
+   && cmp -s "$REPO_ROOT/.context/cron/heartbeat.crontab" "$TMP/cron/termlink-heartbeat"; then
+    ok "1b: an installed copy differing ONLY by the class line is reinstalled and verified identical"
+else bad "1b resync" "rc=$rc: $x"; fi
+if echo "$x" | grep -q "left alone .*termlink-presence-sweep" && cmp -s "$TMP/presence.before" "$TMP/cron/termlink-presence-sweep"; then
+    ok "1b: an installed copy with any other drift is named and left untouched"
+else bad "1b other drift" "$x"; fi
+rm -f "$TMP/cron/termlink-presence-sweep"
+out=$(run); x=$(s1b "$out")
+if echo "$x" | grep -q "skip    every installed crontab already carries"; then ok "1b: second run skips (idempotent)"
+else bad "1b idempotent" "$x"; fi
+rm -f "$TMP/cron/termlink-heartbeat"
+
+# ---------------------------------------------------------------------------
+# T-3615 action 23 — the daily telemetry rollup on the fleet hubs, through fakes.
+# ---------------------------------------------------------------------------
+s23() { echo "$1" | sed -n '/^.*23\. Daily telemetry rollup/,/^.*Verification/p'; }
+rr_reset() { rm -rf "$F/rr-root" "$F/rollup-cmds"; rm -f "$RUNME_REMOTE_ROLLUP_CRON"; }
+rr_reset
+out=$(run --dry-run); x=$(s23 "$out")
+if echo "$x" | grep -q "would install the rollup on fake-hub" && [ ! -e "$F/rr-root" ] && [ ! -e "$RUNME_REMOTE_ROLLUP_CRON" ]; then
+    ok "rollup: --dry-run probes, reports the install, writes nothing"
+else bad "rollup dry-run" "$x"; fi
+out=$(run); rc=$?; x=$(s23 "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: rollup installed and verified" \
+   && cmp -s "$REPO_ROOT/scripts/telemetry-rollup.sh" "$F/rr-root/scripts/telemetry-rollup.sh" \
+   && grep -q '^TELEMETRY_HUB=192.168.10.107:9100$' "$RUNME_REMOTE_ROLLUP_CRON" && grep -q '^TELEMETRY_HOST=fake-hub$' "$RUNME_REMOTE_ROLLUP_CRON" \
+   && grep -q '^TERMLINK_WORKER_CLASS=background$' "$RUNME_REMOTE_ROLLUP_CRON" \
+   && grep -q "^30 2 \* \* \* root cd $F/rr-root && bash scripts/telemetry-rollup.sh --catch-up 7 " "$RUNME_REMOTE_ROLLUP_CRON"; then
+    ok "rollup: installs script + cron file (posts to .107, host label, background class, --catch-up 7) and verifies both plus a remote dry run"
+else bad "rollup install" "rc=$rc: $x"; fi
+: > "$F/rollup-cmds"
+out=$(run); rc=$?; x=$(s23 "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "skip    fake-hub already runs the current rollup daily" && ! grep -q RUNME-ROLLUP-INSTALL "$F/rollup-cmds" 2>/dev/null; then
+    ok "rollup: second run skips (sha256 identical), no install command sent"
+else bad "rollup idempotent" "rc=$rc: $x"; fi
+echo "# stale" >> "$F/rr-root/scripts/telemetry-rollup.sh"; : > "$F/rollup-cmds"
+out=$(run); rc=$?; x=$(s23 "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: rollup installed" && cmp -s "$REPO_ROOT/scripts/telemetry-rollup.sh" "$F/rr-root/scripts/telemetry-rollup.sh"; then
+    ok "rollup: a drifted remote script is reinstalled"
+else bad "rollup drift" "rc=$rc: $x"; fi
+rr_reset
+out=$(FAKE_RR_AUTH_RC=1 run); rc=$?; x=$(s23 "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub cannot authenticate to .107" && echo "$x" | grep -q "Operator question" \
+   && [ ! -e "$F/rr-root" ] && [ ! -e "$RUNME_REMOTE_ROLLUP_CRON" ]; then
+    ok "rollup: no credential for .107 => FAILED naming the operator question, nothing written"
+else bad "rollup no auth" "rc=$rc: $x"; fi
+out=$(FAKE_RR_DOWN=1 run); rc=$?; x=$(s23 "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: no answer over remote exec" && [ ! -e "$F/rr-root" ]; then
+    ok "rollup: unreachable hub => FAILED, nothing written"
+else bad "rollup down" "rc=$rc: $x"; fi
+out=$(RUNME_REMOTE_TL="$F/no-such-termlink" run); rc=$?; x=$(s23 "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub lacks python3 or termlink" && [ ! -e "$F/rr-root" ]; then
+    ok "rollup: termlink missing on the remote => FAILED, nothing written"
+else bad "rollup no termlink" "rc=$rc: $x"; fi
+printf '#!/bin/sh\nexit 1\n' > "$F/bad-src.sh"; rr_reset
+out=$(RUNME_ROLLUP_SRC="$F/bad-src.sh" run); rc=$?; x=$(s23 "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub after install: .*dry run failed"; then
+    ok "rollup: files in place but the installed rollup's dry run fails => FAILED (verified, not assumed)"
+else bad "rollup verify dry run" "rc=$rc: $x"; fi
+rr_reset
+mkdir -p "$F/rr-root/scripts"; out=$(run); rc=$?
+if [ "$rc" = "0" ]; then ok "rollup: restored to installed state for later cases"; else bad "rollup restore" "rc=$rc: $(s23 "$out")"; fi
 
 echo ""
 echo "----------------------------------------"

@@ -14,6 +14,7 @@
 # Operator action on firing: upgrade the named senders' termlink binaries, or
 # record a decision to keep the opt-out. Detail: bash scripts/check-forever-owner-freshness.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 # /root/.cargo/bin first: the cron must read the current binary (T-3288 lesson).
 PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
 

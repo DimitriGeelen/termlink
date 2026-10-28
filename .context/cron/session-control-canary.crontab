@@ -17,6 +17,7 @@
 # (names the broken stage), then inspect `termlink spawn` / `termlink exec <s>
 # 'echo hi' --json`. Ad-hoc check: bash scripts/check-session-control-freshness.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:33 UTC — offset from the :27 stuck-claims, :17 unconfirmed-delivery,

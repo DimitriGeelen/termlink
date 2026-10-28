@@ -20,6 +20,7 @@
 # hub legitimately is not a doorbell participant, set FLEET_CAP_EXEMPT=<hub-name>
 # (distinct from the version-floor exemption).
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 06:07 UTC — minute :07 dodges :03 fleet-binary, :13 mirror, :17

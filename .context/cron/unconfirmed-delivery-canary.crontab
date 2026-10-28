@@ -16,6 +16,7 @@
 # (/peers --all), re-send via /agent-handoff, or drop the stale obligation if the
 # thread is dead. Ad-hoc check: bash scripts/check-unconfirmed-delivery-freshness.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:17 UTC — offset from the :13 mirror, :37 framework-pickup,

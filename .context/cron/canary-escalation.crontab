@@ -12,6 +12,7 @@
 # its name deliberately does not end in -canary.log so /canaries does not read it as one.
 # Tooling errors go to the .stderr sink (T-2685).
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 09:15 UTC — after the 07:xx–08:xx canary runs, so it sees today's verdicts.

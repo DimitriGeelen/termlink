@@ -19,6 +19,7 @@
 # genuinely traces to a charter verb — rename it / adjust the pattern. See docs/CHARTER.md.
 # Ad-hoc check: `bash scripts/check-charter-drift-freshness.sh`. /canaries auto-discovers this log.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # T-2829: pin the binary this canary probes. Without this, `termlink` resolves via

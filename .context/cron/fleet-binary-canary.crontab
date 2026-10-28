@@ -19,6 +19,7 @@
 # start; see G-070), or adjust the floor/exemption in fleet-version-floors.conf
 # if the expectation changed. Bump floors when hub-side rails ship.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 06:03 UTC — minute :03 chosen to dodge :13 mirror canary, :17

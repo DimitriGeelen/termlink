@@ -128,7 +128,8 @@ def usage_row(b):
         out["workers_cell"] = None
     return out
 
-rows = [{"host": h, "day": d, **summary(reports[(h, d)]), **usage_row(reports[(h, d)])}
+rows = [{"host": h, "day": d, "catch_up": bool(reports[(h, d)].get("catch_up")),
+         **summary(reports[(h, d)]), **usage_row(reports[(h, d)])}
         for h in hosts for d in window if (h, d) in reports]
 result = {"ok": not missing and not (expect and not reports), "window": window, "hosts": hosts,
           "rows": rows, "missing": [{"host": h, "day": d} for h, d in missing],
@@ -153,6 +154,9 @@ else:
             for r in rows:
                 print(f"{r['host']:<22} {r['day']:<10}  {cell(r['usage_cell'])}  |  {cell(r['workers_cell'])}")
             print("('-' = the report predates T-3615 usage/outcome aggregates; n/m = not measured)")
+    for r in rows:
+        if r["catch_up"]:
+            print(f"LATE     {r['host']} {r['day']} was rolled up late (--catch-up); rotated sources may be partial")
     for h, d in missing:
         print(f"MISSING  {h} did not report for {d}")
     if unreadable:

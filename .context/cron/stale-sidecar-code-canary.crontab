@@ -30,6 +30,7 @@
 # Ad-hoc: bash scripts/check-stale-sidecar-code.sh
 # Exit:   0 all current (or none found) · 1 stale · 2 tooling (fail-closed)
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily. The stderr split is load-bearing (T-2685): a tooling error must never dirty the

@@ -17,6 +17,7 @@
 # operator-durable — add it to TERMLINK_FOREVER_EXCLUDE_TOPICS. Ad-hoc check:
 # bash scripts/check-forever-archival-freshness.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:51 UTC — offset from the :13 mirror, :17 unconfirmed-delivery,

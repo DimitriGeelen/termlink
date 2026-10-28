@@ -337,6 +337,56 @@ install_crontab waker-liveness-canary.crontab     "$CRON_DIR/termlink-waker-live
 # T-2985 (value review C-19): a FIRING/ERRORING/STALE canary files a de-duplicated task daily.
 install_crontab canary-escalation.crontab         "$CRON_DIR/termlink-canary-escalation"
 
+# ---------------------------------------------------------------------------
+# ACTION 1b — the background-class env line on every other installed crontab (T-3615)
+#
+# Every .context/cron/*.crontab now sets TERMLINK_WORKER_CLASS=background, so the
+# termlink calls a cron job makes are attributed `background` in the invocation
+# audit instead of `unknown` (measured 2026-10-28: 88% of .107's attributed rows
+# were `unknown`, nearly all such loops). Action 1 reinstalls the crontabs it
+# manages; this one covers the rest (heartbeat, presence-sweep, the canaries
+# installed by hand). It only touches an installed copy that differs from its
+# source by EXACTLY that one line; any other difference is left alone and named,
+# because that drift is not this action's to settle. A crontab that is not
+# installed at all stays that way (check-cron-install-drift reports it).
+# Idempotent: identical -> skip. Verified byte-for-byte after each copy.
+# Seam: RUNME_CRON_DIR (shared with action 1).
+# ---------------------------------------------------------------------------
+resync_background_class_crontabs() {
+    local f dest n=0 left=""
+    for f in .context/cron/*.crontab; do
+        grep -qx 'TERMLINK_WORKER_CLASS=background' "$f" || continue
+        dest="$(sed -n 's/^# Installed to: *\([^ ]*\).*/\1/p' "$f" | head -1)"
+        [ -n "$dest" ] || continue
+        dest="$CRON_DIR/$(basename "$dest")"
+        [ -f "$dest" ] || continue
+        cmp -s "$f" "$dest" && continue
+        if ! grep -vx 'TERMLINK_WORKER_CLASS=background' "$f" | cmp -s - "$dest"; then
+            left="$left $(basename "$dest")"; continue
+        fi
+        INSTALLED_NAMES+=("$(basename "$dest")")
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would add the background-class line: $f -> $dest"; n=$((n+1)); continue
+        fi
+        cp "$f" "$dest" 2>/dev/null; chmod 644 "$dest" 2>/dev/null || true
+        if cmp -s "$f" "$dest"; then
+            n=$((n+1))
+        else
+            say "  FAILED  copied but destination does not match source: $dest"; FAILED=$((FAILED+1))
+        fi
+    done
+    [ -n "$left" ] && say "  note    left alone (differ from source by more than the class line):$left"
+    if [ "$n" -gt 0 ]; then
+        if [ "$DRY_RUN" = "1" ]; then DONE=$((DONE+1))
+        else say "  OK      $n installed crontab(s) now carry TERMLINK_WORKER_CLASS=background, each verified identical to source"; DONE=$((DONE+1)); fi
+    else
+        say "  skip    every installed crontab already carries the background-class line"; SKIPPED=$((SKIPPED+1))
+    fi
+}
+
+head2 "1b. Background-class line on the other installed crontabs (T-3615)"
+resync_background_class_crontabs
+
 # close_task <T-ID> <reason>
 # Closes a task the operator has ALREADY approved closing, then VERIFIES it
 # landed in completed/ with status work-completed.
@@ -1928,6 +1978,103 @@ import_ring20_pack() {
 
 head2 "22. ring20's deep-inception pack into a gitignored folder; delete the /var/tmp drop (T-3477)"
 import_ring20_pack
+
+# ---------------------------------------------------------------------------
+# ACTION 23 — the daily telemetry rollup on the fleet hubs (T-3615)
+#
+# Only .107 reported to telemetry:daily, so the fleet view saw one host. This
+# installs scripts/telemetry-rollup.sh on the hubs action 6 manages ($FLEET_HUBS,
+# through the same remote-exec path) under /var/lib/termlink-telemetry, plus
+# /etc/cron.d/termlink-telemetry-rollup running it daily with --catch-up 7. It
+# posts to telemetry:daily on THIS hub (TELEMETRY_HUB=192.168.10.107:9100), where
+# scripts/telemetry-fleet-view.sh reads, labelled with the hub's profile name.
+# node1 is out of scope (ring20 installs it there).
+#
+# Preconditions, checked on the remote before anything is written (each one a
+# FAILED line naming it, never a silent skip): python3 and termlink on the cron
+# PATH, and a credential for .107: `termlink channel list --hub <.107>` must
+# authenticate, i.e. the host's ~/.termlink/hubs.toml needs a profile at that
+# address with a secret_file/secret/token_file. If that is missing it is an
+# operator question (which credential .107 hands that host), not something this
+# script invents.
+# Idempotent: script and cron file both identical (sha256) -> skip. Verified after
+# install: both sha256 sums match AND a --dry-run of the installed rollup exits 0
+# on the remote. Writes go to a temp name and are renamed (cron ignores dotted names).
+# Seams (fixtures only): RUNME_FLEET_HUBS, RUNME_FLEET_REMOTE (shared with action 6),
+# RUNME_ROLLUP_SRC, RUNME_REMOTE_ROLLUP_ROOT, RUNME_REMOTE_ROLLUP_CRON, RUNME_REMOTE_TL.
+# ---------------------------------------------------------------------------
+seam ROLLUP_SRC RUNME_ROLLUP_SRC "$PROJECT_ROOT/scripts/telemetry-rollup.sh"
+seam REMOTE_ROLLUP_ROOT RUNME_REMOTE_ROLLUP_ROOT "/var/lib/termlink-telemetry"
+seam REMOTE_ROLLUP_CRON RUNME_REMOTE_ROLLUP_CRON "/etc/cron.d/termlink-telemetry-rollup"
+seam REMOTE_TL RUNME_REMOTE_TL "termlink"
+TELEMETRY_COLLECTOR="192.168.10.107:9100"
+REMOTE_PATH="/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin"
+
+fleet_rollup_cron() {  # <hub> -> the cron file for that hub
+    cat <<EOF
+# T-3615 — daily telemetry rollup for $1, installed by /opt/termlink/runme.sh action 23 (from .107).
+# Rolls up yesterday's local telemetry (counts only) and posts it to telemetry:daily on .107.
+SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
+PATH=$REMOTE_PATH
+TELEMETRY_HUB=$TELEMETRY_COLLECTOR
+TELEMETRY_HOST=$1
+30 2 * * * root cd $REMOTE_ROLLUP_ROOT && bash scripts/telemetry-rollup.sh --catch-up 7 >> .context/working/.telemetry-rollup.log 2>> .context/working/.telemetry-rollup.log.stderr
+EOF
+}
+
+install_fleet_rollup() {
+    local hub want_s want_c probe got_s got_c b64s b64c out
+    if [ ! -r "$ROLLUP_SRC" ]; then
+        say "  FAILED  source missing: $ROLLUP_SRC"; FAILED=$((FAILED+1)); return
+    fi
+    want_s="$(sha256sum < "$ROLLUP_SRC" | cut -d' ' -f1)"
+    for hub in $FLEET_HUBS; do
+        want_c="$(fleet_rollup_cron "$hub" | sha256sum | cut -d' ' -f1)"
+        # Read-only probe; every answer is one tagged line (RUNME-ROLLUP marks our commands).
+        probe="$(fleet_remote "$hub" "echo RUNME-ROLLUP-PROBE; export PATH=$REMOTE_PATH; \
+s=\$(sha256sum < $REMOTE_ROLLUP_ROOT/scripts/telemetry-rollup.sh 2>/dev/null | cut -d' ' -f1); echo \"SCRIPT=\$s\"; \
+c=\$(sha256sum < $REMOTE_ROLLUP_CRON 2>/dev/null | cut -d' ' -f1); echo \"CRON=\$c\"; \
+command -v python3 >/dev/null && echo HAVE-PY; command -v $REMOTE_TL >/dev/null && echo HAVE-TL; \
+timeout 30 $REMOTE_TL channel list --hub $TELEMETRY_COLLECTOR >/dev/null 2>&1 && echo HAVE-AUTH" 2>/dev/null | tr -d '\r')"
+        case "$probe" in *RUNME-ROLLUP-PROBE*) : ;; *)
+            say "  FAILED  $hub: no answer over remote exec (no session, or the hub is down) — nothing written"; FAILED=$((FAILED+1)); continue ;; esac
+        got_s="$(printf '%s\n' "$probe" | sed -n 's/^SCRIPT=//p' | tail -1)"
+        got_c="$(printf '%s\n' "$probe" | sed -n 's/^CRON=//p' | tail -1)"
+        if [ "$got_s" = "$want_s" ] && [ "$got_c" = "$want_c" ]; then
+            say "  skip    $hub already runs the current rollup daily (script and cron file identical)"; SKIPPED=$((SKIPPED+1)); continue
+        fi
+        if ! printf '%s\n' "$probe" | grep -qx HAVE-PY || ! printf '%s\n' "$probe" | grep -qx HAVE-TL; then
+            say "  FAILED  $hub lacks python3 or termlink on $REMOTE_PATH — the rollup needs both; nothing written"; FAILED=$((FAILED+1)); continue
+        fi
+        if ! printf '%s\n' "$probe" | grep -qx HAVE-AUTH; then
+            say "  FAILED  $hub cannot authenticate to .107 ($TELEMETRY_COLLECTOR): no hubs.toml profile with a credential there."
+            say "          Operator question (T-3615 handback-3): which credential should $hub use to post to .107? Nothing written."
+            FAILED=$((FAILED+1)); continue
+        fi
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would install the rollup on $hub ($REMOTE_ROLLUP_ROOT + $REMOTE_ROLLUP_CRON, daily 02:30, posts to $TELEMETRY_COLLECTOR)"; DONE=$((DONE+1)); continue
+        fi
+        b64s="$(base64 -w0 < "$ROLLUP_SRC")"; b64c="$(fleet_rollup_cron "$hub" | base64 -w0)"
+        out="$(fleet_remote "$hub" "echo RUNME-ROLLUP-INSTALL; set -e; mkdir -p $REMOTE_ROLLUP_ROOT/scripts $REMOTE_ROLLUP_ROOT/.context/working; \
+echo $b64s | base64 -d > $REMOTE_ROLLUP_ROOT/scripts/.telemetry-rollup.sh.new; mv $REMOTE_ROLLUP_ROOT/scripts/.telemetry-rollup.sh.new $REMOTE_ROLLUP_ROOT/scripts/telemetry-rollup.sh; \
+echo $b64c | base64 -d > $REMOTE_ROLLUP_CRON.new; chmod 644 $REMOTE_ROLLUP_CRON.new; mv $REMOTE_ROLLUP_CRON.new $REMOTE_ROLLUP_CRON; \
+s=\$(sha256sum < $REMOTE_ROLLUP_ROOT/scripts/telemetry-rollup.sh | cut -d' ' -f1); c=\$(sha256sum < $REMOTE_ROLLUP_CRON | cut -d' ' -f1); \
+export PATH=$REMOTE_PATH; cd $REMOTE_ROLLUP_ROOT && TELEMETRY_TERMLINK=$REMOTE_TL TELEMETRY_HOST=$hub bash scripts/telemetry-rollup.sh --dry-run --json >/dev/null 2>&1 && echo DRYRUN-OK; \
+echo \"SCRIPT=\$s\"; echo \"CRON=\$c\"" 2>&1 | tr -d '\r')"
+        got_s="$(printf '%s\n' "$out" | sed -n 's/^SCRIPT=//p' | tail -1)"
+        got_c="$(printf '%s\n' "$out" | sed -n 's/^CRON=//p' | tail -1)"
+        if [ "$got_s" = "$want_s" ] && [ "$got_c" = "$want_c" ] && printf '%s\n' "$out" | grep -qx DRYRUN-OK; then
+            say "  OK      $hub: rollup installed and verified (sha256 of script and cron file match; a dry run of it exits 0 there)"; DONE=$((DONE+1))
+        else
+            say "  FAILED  $hub after install: script ${got_s:-missing}, cron ${got_c:-missing}, dry run $(printf '%s\n' "$out" | grep -qx DRYRUN-OK && echo ok || echo failed) (want $want_s / $want_c / ok)"
+            FAILED=$((FAILED+1))
+        fi
+    done
+}
+
+head2 "23. Daily telemetry rollup on the fleet hubs ($FLEET_HUBS), posting to .107 (T-3615)"
+install_fleet_rollup
 
 # ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.

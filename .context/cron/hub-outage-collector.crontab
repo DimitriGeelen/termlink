@@ -7,6 +7,7 @@
 # findings go to stdout->.log (empty), diagnostics to .stderr (T-2685).
 # Every 15 min: the liveness canary — fires if the collector heartbeat/samples go stale.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
 * * * * * root cd /opt/termlink && bash scripts/collect-hub-outages.sh >> .context/working/.hub-outage-collector.log 2>> .context/working/.hub-outage-collector.log.stderr
 */15 * * * * root cd /opt/termlink && bash scripts/check-hub-outage-collector-freshness.sh --quiet >> .context/working/.hub-outage-collector-canary.log 2>> .context/working/.hub-outage-collector-canary.log.stderr

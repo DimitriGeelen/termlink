@@ -13,6 +13,7 @@
 # then run `bash scripts/check-framework-pickup-freshness.sh --ack` to mark them
 # surfaced. /canaries auto-discovers this log.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 06:37 UTC — offset to avoid the :13 mirror canary and :23/:53 heartbeats.

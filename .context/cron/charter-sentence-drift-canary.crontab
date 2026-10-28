@@ -18,6 +18,7 @@
 # README.md + docs/ARCHITECTURE.md back into agreement with it. Ad-hoc check:
 # `bash scripts/check-charter-sentence-drift.sh`. /canaries auto-discovers this log.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 09:07 UTC — offset from the 08:17/08:47 charter-drift (P8) neighbours.

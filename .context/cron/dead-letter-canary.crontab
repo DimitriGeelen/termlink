@@ -17,6 +17,7 @@
 # create it; bad signature → `fleet reauth`), re-send via `/agent-handoff`, or drop
 # the row from ~/.termlink/outbound.sqlite if dead. Ad-hoc: bash scripts/check-dead-letter-freshness.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:39 UTC — offset from the :27 stuck-claims, :33 session-control,

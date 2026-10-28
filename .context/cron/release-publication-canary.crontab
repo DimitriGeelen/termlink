@@ -16,6 +16,7 @@
 # or cut the next tag once CI is green); for a stale workflow, open its latest run
 # on main and fix it. Ad-hoc: bash scripts/check-release-publication-freshness.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:41 UTC — offset from the :39 dead-letter and :13 mirror canaries.

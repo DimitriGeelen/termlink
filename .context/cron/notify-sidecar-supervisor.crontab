@@ -28,6 +28,7 @@
 # `bash scripts/notify-sidecar-supervisor.sh --dry-run` to see what it intends.
 # Ad-hoc: bash scripts/notify-sidecar-supervisor.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Every 5 minutes. Cheap: one pgrep per declared agent when all are healthy.

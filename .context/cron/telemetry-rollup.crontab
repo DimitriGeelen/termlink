@@ -7,6 +7,13 @@
 # letters) into one aggregate and post it to telemetry:daily (retention days:400) through the
 # durable offline queue. Raw data stays on the host. Not a canary: the .log holds one success line
 # per day; diagnostics go to .stderr (T-2685).
+#
+# --catch-up 7 (T-3615): a host down at 02:30 used to lose that day for good (.107 missed
+# 2026-10-24: it was off from 10-25 01:10 to 11:40). Now each run also rolls up any day of the
+# last week this host never posted, after its first posted day, flagged "catch_up": true.
+# Reading the topic before the run lands (00:30Z in summer, 01:30Z in winter) shows yesterday as
+# MISSING; that is not a miss (the 10-27 "miss" was read at 00:10Z on 10-28).
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
-30 2 * * * root cd /opt/termlink && bash scripts/telemetry-rollup.sh >> .context/working/.telemetry-rollup.log 2>> .context/working/.telemetry-rollup.log.stderr
+30 2 * * * root cd /opt/termlink && bash scripts/telemetry-rollup.sh --catch-up 7 >> .context/working/.telemetry-rollup.log 2>> .context/working/.telemetry-rollup.log.stderr

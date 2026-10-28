@@ -54,6 +54,8 @@ cat > "$TMP/inv.jsonl" <<'L'
 {"ts":1792400003000,"surface":"mcp","name":"termlink_agent_post","class":"interactive"}
 {"ts":1792400004000,"surface":"mcp","name":"termlink_ping","class":"interactive"}
 {"ts":1792400005000,"surface":"cli","name":"remote exec","class":"reviewer"}
+{"ts":1792400005100,"surface":"cli","name":"pty output","class":"background","project":"0506-Voxtype-extention"}
+{"ts":1792400005200,"surface":"cli","name":"channel post","class":"background"}
 garbage
 {"ts":1792454400000,"surface":"cli","name":"channel post","class":"dispatched"}
 L
@@ -94,7 +96,8 @@ export TELEMETRY_INVOCATION_SINKS="$TMP/inv.jsonl:$TMP/stray/invocation-audit.js
 export TELEMETRY_QUEUE_LOG="$TMP/queue.log" TELEMETRY_RECONNECT_LOG="$TMP/reconnect.log" \
        TELEMETRY_BREAKER_LOG="$TMP/absent.jsonl" TELEMETRY_OUTAGE_SAMPLES="$TMP/samples.ndjson" \
        TELEMETRY_QUEUE_STATUS_JSON="$TMP/qs.json" TELEMETRY_TERMLINK="$TMP/fake-termlink" \
-       FAKE_TL_ARGS="$TMP/args" TELEMETRY_HOST=h1
+       FAKE_TL_ARGS="$TMP/args" TELEMETRY_HOST=h1 \
+       TELEMETRY_POSTED_STATE="$TMP/posted" TELEMETRY_POSTED_LOG="$TMP/rollup.log"
 
 echo "rollup"
 bash "$R" --day 2026-10-19 --dry-run --json > "$TMP/a.json"; rc=$?
@@ -121,11 +124,31 @@ chk "R16 no cv_key (it would collapse the series)" '! grep -q cv_key "$TMP/args"
 FAKE_TL_POST_RC=1 bash "$R" --day 2026-10-19 > /dev/null 2>&1; rc=$?
 chk "R17 a failed post is loud (rc 1)" '[ $rc -eq 1 ]'
 
+echo "catch-up (T-3615 slice 3: .107 missed 2026-10-24, host down at the cron minute)"
+chk "C0 a successful post records the host and day; a failed one does not" '[ "$(cat "$TMP/posted")" = "h1 2026-10-19" ]'
+printf 'h1 2026-10-14\nh1 2026-10-16\n' > "$TMP/posted"
+printf 'telemetry-rollup: h1 2026-10-17 -> telemetry:daily: Posted\ntelemetry-rollup: h9 2026-10-15 -> telemetry:daily: Posted\n' > "$TMP/rollup.log"
+: > "$TMP/args"
+TELEMETRY_NOW="$(date -u -d 2026-10-20T12:00:00Z +%s)" bash "$R" --catch-up 7 > "$TMP/cu.out" 2>&1; rc=$?
+chk "C1 yesterday plus only the gap days after the first posted day (10-15, 10-18; not 10-13, 10-16, 10-17)" '[ $rc -eq 0 ] && [ "$(grep -o "metadata day=[0-9-]*" "$TMP/args" | sort | tr "\n" " ")" = "metadata day=2026-10-15 metadata day=2026-10-18 metadata day=2026-10-19 " ]'
+chk "C2 catch-up reports carry catch_up:true, the on-time one does not" 'grep "day=2026-10-15" "$TMP/args" | grep -q "\"catch_up\": true" && grep "day=2026-10-18" "$TMP/args" | grep -q "\"catch_up\": true" && ! grep "day=2026-10-19" "$TMP/args" | grep -q catch_up'
+chk "C3 posted days recorded, so a second run posts only yesterday again" ': > "$TMP/args"; TELEMETRY_NOW="$(date -u -d 2026-10-20T12:00:00Z +%s)" bash "$R" --catch-up 7 >/dev/null 2>&1 && [ "$(grep -c "channel post" "$TMP/args")" = 1 ]'
+rm -f "$TMP/posted"; : > "$TMP/rollup.log"; : > "$TMP/args"
+TELEMETRY_NOW="$(date -u -d 2026-10-20T12:00:00Z +%s)" bash "$R" --catch-up 7 >/dev/null 2>&1; rc=$?
+chk "C4 a host with no posting history never back-fills (fresh install)" '[ $rc -eq 0 ] && [ "$(grep -c "channel post" "$TMP/args")" = 1 ]'
+printf 'h1 2026-10-14\n' > "$TMP/posted"
+FAKE_TL_POST_RC=1 TELEMETRY_NOW="$(date -u -d 2026-10-20T12:00:00Z +%s)" bash "$R" --catch-up 7 >/dev/null 2>&1; rc=$?
+chk "C5 a failed post during catch-up is loud (rc 1)" '[ $rc -eq 1 ]'
+bash "$R" --catch-up 3 --day 2026-10-19 >/dev/null 2>&1; r1=$?; bash "$R" --catch-up 0 >/dev/null 2>&1; r2=$?
+bash "$R" --catch-up 99 >/dev/null 2>&1; r3=$?; bash "$R" --catch-up 3 --dry-run >/dev/null 2>&1; r4=$?
+chk "C6 bad --catch-up use is tooling rc 2 (with --day, 0, 99, --dry-run)" '[ "$r1$r2$r3$r4" = 2222 ]'
+
 echo "usage + worker outcomes (T-3615)"
 U='d["signals"]["usage"]'
 chk "U1 attributed classes counted per surface:name (dispatched channel post: main + .1)" '[ "$(jq_ "$TMP/a.json" "$U[\"by_class\"][\"dispatched\"][\"cli:channel post\"]")" = 2 ]'
 chk "U2 polling verbs counted apart, not in by_class" '[ "$(jq_ "$TMP/a.json" "($U[\"polling\"][\"dispatched\"][\"cli:channel unread\"], \"cli:channel unread\" in $U[\"by_class\"].get(\"dispatched\", {}))")" = "(2, False)" ]'
 chk "U3 MCP polling (termlink_ping) separated too; interactive real call kept" '[ "$(jq_ "$TMP/a.json" "($U[\"polling\"][\"interactive\"][\"mcp:termlink_ping\"], $U[\"by_class\"][\"interactive\"][\"mcp:termlink_agent_post\"])")" = "(1, 1)" ]'
+chk "U9 background class (T-3615 slice 3): its polling (pty output) and real calls are split like any class" '[ "$(jq_ "$TMP/a.json" "($U[\"polling\"][\"background\"][\"cli:pty output\"], $U[\"by_class\"][\"background\"][\"cli:channel post\"], $U[\"totals\"][\"background\"][\"calls\"], $U[\"totals\"][\"background\"][\"polling\"])")" = "(1, 1, 1, 1)" ]'
 chk "U4 a pre-attribution row from another day is excluded (no unattributed bucket)" '[ "$(jq_ "$TMP/a.json" "\"unattributed\" in $U[\"totals\"]")" = False ]'
 chk "U5 stray sink rolled up (standing kv.get)" '[ "$(jq_ "$TMP/a.json" "$U[\"by_class\"][\"standing\"][\"session-rpc:kv.get\"]")" = 1 ]'
 chk "U6 a symlinked duplicate sink is read once" '[ "$(jq_ "$TMP/a.json" "len([s for s in $U[\"sinks\"] if s[\"path\"].endswith(\"inv-link.jsonl\")])")" = 0 ]'
@@ -183,11 +206,18 @@ old = {"schema": "r5-rollup/1", "host": "h2", "day": "2026-10-18", "generated_at
 print(json.dumps({"offset": 1, "payload_b64": base64.b64encode(json.dumps(old).encode()).decode()}))
 PY2
 TELEMETRY_VIEW_NDJSON="$TMP/view2.ndjson" bash "$V" --days 2 > "$TMP/v2.txt"; rc=$?
-chk "V9 usage table row for the attributed report" 'grep -q "h1 .*2026-10-19  dispatched=2+2p .*interactive=1+1p" "$TMP/v2.txt"'
+chk "V9 usage table row for the attributed report (background listed like any class, T-3615 slice 3)" 'grep -q "h1 .*2026-10-19  background=1+1p dispatched=2+2p .*interactive=1+1p" "$TMP/v2.txt"'
 chk "V10 worker cell: runs, non-zero exits, timeouts, empty, verdicts, restarts" 'grep -q "runs=4 exit!=0=2 timeouts=1 empty=1 verdicts=3/a1/w1 restarts=2" "$TMP/v2.txt"'
 chk "V11 a pre-T-3615 report shows '-' not zero, and missing days stay MISSING (rc 1)" 'grep -q "h2 .*2026-10-18  -  |  -" "$TMP/v2.txt" && grep -q "MISSING  h2 did not report for 2026-10-19" "$TMP/v2.txt" && grep -q "MISSING  h1 did not report for 2026-10-18" "$TMP/v2.txt" && [ $rc -eq 1 ]'
 TELEMETRY_VIEW_NDJSON="$TMP/view2.ndjson" bash "$V" --days 2 --json > "$TMP/v2.json"
 chk "V12 --json carries the full usage and worker_outcomes blocks" '[ "$(jq_ "$TMP/v2.json" "[(r[\"usage\"] is not None, r[\"worker_outcomes\"] is not None) for r in d[\"rows\"] if r[\"host\"]==\"h1\"]")" = "[(True, True)]" ]'
+python3 - "$TMP/a.json" > "$TMP/view3.ndjson" <<'PY3'
+import json, base64, sys
+b = json.load(open(sys.argv[1])); b["generated_at"] = "2026-10-20T00:10:00Z"; b["catch_up"] = True
+print(json.dumps({"offset": 0, "payload_b64": base64.b64encode(json.dumps(b).encode()).decode()}))
+PY3
+TELEMETRY_VIEW_NDJSON="$TMP/view3.ndjson" bash "$V" --days 1 > "$TMP/v3.txt"
+chk "V13 a catch-up report is listed and flagged LATE, not hidden and not MISSING" 'grep -q "LATE     h1 2026-10-19 was rolled up late" "$TMP/v3.txt" && ! grep -q MISSING "$TMP/v3.txt"'
 
 echo
 echo "PASS: $PASS  FAIL: $FAIL"

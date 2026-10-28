@@ -55,6 +55,7 @@
 # Ad-hoc: bash scripts/check-canary-aliveness.sh --all
 # Fixtures: bash tests/canary-aliveness-sweep-fixtures.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 09:53 UTC — after the last canary of the morning has run and written its

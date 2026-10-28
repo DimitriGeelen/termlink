@@ -19,6 +19,7 @@
 # via `/claim-transfer`, or Tier-0 `termlink channel claim-force-release`. Ad-hoc
 # check: bash scripts/check-stuck-claims-freshness.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:27 UTC — offset from the :13 mirror, :17 unconfirmed-delivery,

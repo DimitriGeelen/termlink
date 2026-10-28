@@ -22,6 +22,7 @@
 # `docs/operations/substrate-orchestrator-recipe.md` § "Deployment &
 # identity troubleshooting" for the broader failure-mode catalog.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 05:23 UTC — offset chosen to avoid colliding with :13 mirror

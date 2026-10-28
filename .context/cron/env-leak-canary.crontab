@@ -17,6 +17,7 @@
 # project's agents are that project's or the operator's call); for a server global,
 # `tmux set-environment -gu <VAR>`. Detail: bash scripts/check-env-leak-freshness.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
 
 # Hourly at :17 — termlink from /root/.cargo/bin first (the current build; see arc-claim-drift note).

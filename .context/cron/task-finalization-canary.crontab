@@ -16,6 +16,7 @@
 # (fw task update <id> --status work-completed), then root-cause the move path
 # that skipped finalize. Ad-hoc check: bash scripts/check-task-finalization-freshness.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 06:47 UTC — offset from the :13 mirror, :37 framework-pickup,

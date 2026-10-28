@@ -28,6 +28,7 @@
 # surfaces into agreement, then verify with
 # `bash scripts/check-preflight-doc-set-drift.sh` (verbose).
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 05:53 UTC — minute offset chosen to dodge all known canaries:

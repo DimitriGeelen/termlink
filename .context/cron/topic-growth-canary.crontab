@@ -20,6 +20,7 @@
 # + sweep); for a bounded-but-large topic, the periodic sweep cron stopped — check
 # the presence-sweep cron is installed and firing.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 05:11 UTC — offset from the :13 mirror, :37 framework-pickup, 06:43

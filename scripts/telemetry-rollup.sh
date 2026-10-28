@@ -28,8 +28,16 @@
 # A source that does not exist is reported as "absent", never as zero.
 #
 # Usage: telemetry-rollup.sh [--day YYYY-MM-DD] [--hub ADDR] [--topic T] [--host NAME]
-#                            [--dry-run] [--json]
+#                            [--catch-up N] [--dry-run] [--json]
 #   --day      UTC day to roll up (default: yesterday)
+#   --catch-up after yesterday, also roll up any day of the last N (1..14) that this host
+#              never posted, i.e. a GAP: only days after the first day it ever posted, so a
+#              fresh install never back-fills. Each such report carries "catch_up": true
+#              (its size-rotated sources may no longer hold the whole day). Why: the rollup
+#              ran for yesterday only, so a host down at the cron minute lost that day for
+#              good (.107 missed 2026-10-24: down 10-25 01:10..11:40 local, T-3615).
+#              Posted days are recorded in .context/working/.telemetry-rollup.posted
+#              (the success lines of .telemetry-rollup.log also count, for the days before).
 #   --hub      collector hub (default: $TELEMETRY_HUB, else the local hub)
 #   --topic    collection topic (default telemetry:daily, retention days:400)
 #   --host     host label (default: $TELEMETRY_HOST, else `hostname`)
@@ -43,18 +51,22 @@
 # TELEMETRY_DISPATCH_DIRS (colon list of dispatch roots), TELEMETRY_CLOSE_STATES,
 # TELEMETRY_VERDICTS, TELEMETRY_APPLIED, TELEMETRY_STANDING_UNITS_JSON (canned
 # [{"unit","nrestarts","active"}] list; "none" = no systemd, i.e. not measured).
+# T-3615 slice 3 seams: TELEMETRY_POSTED_STATE (posted-days file), TELEMETRY_POSTED_LOG
+# (the legacy success log read for posted days), TELEMETRY_CATCH_UP=1 (internal: marks a
+# catch-up report).
 set -euo pipefail
 
-DAY="" HUB="${TELEMETRY_HUB:-}" TOPIC="telemetry:daily" HOST="${TELEMETRY_HOST:-}" DRY=0 JSON=0
+DAY="" HUB="${TELEMETRY_HUB:-}" TOPIC="telemetry:daily" HOST="${TELEMETRY_HOST:-}" DRY=0 JSON=0 CATCH_UP=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --day) DAY="${2:?--day needs YYYY-MM-DD}"; shift 2 ;;
         --hub) HUB="${2:?--hub needs an address}"; shift 2 ;;
         --topic) TOPIC="${2:?--topic needs a name}"; shift 2 ;;
         --host) HOST="${2:?--host needs a name}"; shift 2 ;;
+        --catch-up) CATCH_UP="${2:?--catch-up needs a day count}"; shift 2 ;;
         --dry-run) DRY=1; shift ;;
         --json) JSON=1; shift ;;
-        -h|--help) sed -n '2,32p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,41p' "$0"; exit 0 ;;
         *) echo "telemetry-rollup: unknown argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -64,6 +76,47 @@ TL="${TELEMETRY_TERMLINK:-termlink}"
 [ -n "$HOST" ] || HOST="$(hostname)"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+POSTED_STATE="${TELEMETRY_POSTED_STATE:-$PROJECT_ROOT/.context/working/.telemetry-rollup.posted}"
+POSTED_LOG="${TELEMETRY_POSTED_LOG:-$PROJECT_ROOT/.context/working/.telemetry-rollup.log}"
+
+# --catch-up N: roll up yesterday as usual, then every gap day of the last N. Each day is a
+# separate run of this script, so a catch-up report is built exactly like an on-time one.
+if [ -n "$CATCH_UP" ]; then
+    case "$CATCH_UP" in ''|*[!0-9]*) echo "telemetry-rollup: --catch-up needs 1..14" >&2; exit 2 ;; esac
+    [ "$CATCH_UP" -ge 1 ] && [ "$CATCH_UP" -le 14 ] || { echo "telemetry-rollup: --catch-up needs 1..14" >&2; exit 2; }
+    [ -z "$DAY" ] || { echo "telemetry-rollup: --catch-up and --day are exclusive" >&2; exit 2; }
+    [ "$DRY" = 0 ] || { echo "telemetry-rollup: --catch-up does not combine with --dry-run" >&2; exit 2; }
+    PASS=(--host "$HOST" --topic "$TOPIC")
+    [ -n "$HUB" ] && PASS+=(--hub "$HUB")
+    rc=0
+    bash "${BASH_SOURCE[0]}" "${PASS[@]}" || rc=1
+    GAPS="$(python3 - "$CATCH_UP" "$HOST" "$POSTED_STATE" "$POSTED_LOG" <<'PY'
+import os, re, sys, datetime as dt
+n, host, state, log = int(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
+now = float(os.environ.get("TELEMETRY_NOW") or dt.datetime.now(dt.timezone.utc).timestamp())
+yesterday = dt.datetime.fromtimestamp(now, dt.timezone.utc).date() - dt.timedelta(days=1)
+posted = set()
+for path, rx in ((state, re.compile(r"^(\S+) (\d{4}-\d\d-\d\d)$")),
+                 (log, re.compile(r"^telemetry-rollup: (\S+) (\d{4}-\d\d-\d\d) -> "))):
+    try:
+        for line in open(path, errors="replace"):
+            m = rx.match(line.strip())
+            if m and m.group(1) == host:
+                posted.add(m.group(2))
+    except OSError:
+        pass
+first = min(posted, default=None)
+for i in range(n, 1, -1):
+    d = (yesterday - dt.timedelta(days=i - 1)).isoformat()
+    if first is not None and d > first and d not in posted:
+        print(d)
+PY
+)" || { echo "telemetry-rollup: could not work out the catch-up days" >&2; exit 2; }
+    for d in $GAPS; do
+        TELEMETRY_CATCH_UP=1 bash "${BASH_SOURCE[0]}" "${PASS[@]}" --day "$d" || rc=1
+    done
+    exit "$rc"
+fi
 RUNTIME_DIR="${TERMLINK_RUNTIME_DIR:-}"
 if [ -z "$RUNTIME_DIR" ]; then
     if [ -d /var/lib/termlink ]; then RUNTIME_DIR=/var/lib/termlink; else RUNTIME_DIR="/tmp/termlink-$(id -u)"; fi
@@ -411,11 +464,14 @@ signals["worker_outcomes"] = {
     "standing": standing,
 }
 
-print(json.dumps({
+report = {
     "schema": "r5-rollup/1", "host": host, "day": day.isoformat(),
     "generated_at": dt.datetime.fromtimestamp(now, dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "signals": signals, "sources": sources,
-}, sort_keys=True))
+}
+if os.environ.get("TELEMETRY_CATCH_UP") == "1":
+    report["catch_up"] = True
+print(json.dumps(report, sort_keys=True))
 PY
 )" || exit $?
 
@@ -435,6 +491,9 @@ DAY_OUT="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["day"])' "
 if OUT="$(timeout 30 "$TL" channel post "$TOPIC" --msg-type telemetry-rollup --payload "$AGG" \
         --metadata "host=$HOST" --metadata "day=$DAY_OUT" "${HUB_ARGS[@]}" 2>&1)"; then
     echo "telemetry-rollup: $HOST $DAY_OUT -> $TOPIC: ${OUT:-posted}"
+    # Recorded for --catch-up; a failed write only means a later run may post this day again
+    # (the fleet view keeps the latest report per host and day).
+    echo "$HOST $DAY_OUT" >> "$POSTED_STATE" 2>/dev/null || true
     exit 0
 fi
 echo "telemetry-rollup: post failed for $HOST $DAY_OUT -> $TOPIC: $OUT" >&2

@@ -7,6 +7,7 @@
 # never repairs. Runs at boot and hourly. Empty log = healthy; /canaries
 # auto-discovers it; tooling errors go to the .stderr sink (T-2842).
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 @reboot root cd /opt/termlink && bash scripts/check-root-mode-freshness.sh --quiet >> .context/working/.root-mode-canary.log 2>> .context/working/.root-mode-canary.log.stderr
 17 * * * * root cd /opt/termlink && bash scripts/check-root-mode-freshness.sh --quiet >> .context/working/.root-mode-canary.log 2>> .context/working/.root-mode-canary.log.stderr

@@ -17,6 +17,7 @@
 # operator can see. `2>/dev/null` is equally wrong: it trades a false positive for
 # a silent failure, which is Directive #2 violated inside the monitoring layer.
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin:/root/.cargo/bin
 
 */5 * * * * root cd /opt/termlink && bash scripts/notify-wake-supervisor.sh --quiet >> .context/working/.notify-wake-supervisor.log 2>> .context/working/.notify-wake-supervisor.log.stderr

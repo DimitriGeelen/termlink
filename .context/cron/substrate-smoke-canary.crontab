@@ -19,6 +19,7 @@
 # /claims --all and `termlink channel claims-summary --all --only-stuck`.
 # Ad-hoc check: bash scripts/check-substrate-smoke-freshness.sh
 SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:37 UTC — offset from the :13 mirror, :17 unconfirmed-delivery,
