@@ -53,6 +53,70 @@
 //! Recording is best-effort: any failure here is swallowed, because losing a
 //! telemetry line must never fail a user's tool call. Set
 //! `TERMLINK_INVOCATION_AUDIT=0` to disable recording entirely.
+//!
+//! # Caller attribution (T-3615)
+//!
+//! Every record also says WHO called, so the fleet's usage can be split by caller
+//! (the T-3612 Q6 question: what do interactive sessions, dispatched workers,
+//! reviewers and standing workers each actually use?). Attribution comes from the
+//! process environment ONLY, read once per process and cached; it never reads
+//! message content, arguments or files. Fields are only ADDED after `name`, so a
+//! reader of the old `{ts,surface,name}` shape keeps working, and an old row (no
+//! `class`) is distinguishable from an attributed one.
+//!
+//! - `class` — one of `interactive`, `dispatched`, `standing`, `reviewer`,
+//!   `unknown`, decided by the FIRST rule that matches:
+//!   1. `TERMLINK_WORKER_CLASS` set to one of those five values: an explicit
+//!      declaration. This is how a launcher the rules below cannot see declares
+//!      itself (a standing `claude -n` session under a unit, a non-Anthropic seat).
+//!   2. `FW_DISPATCHED_WORKER=1` — written into every `fw termlink dispatch`
+//!      worker's env.sh (termlink.sh, T-3959): `reviewer` when the dispatch is a
+//!      review (`FW_REVIEW_WORKER=1`, written for task_type review, or
+//!      `FW_REVIEWER_IN_DISPATCH=1`, the reviewer's own dispatch sentinel), else
+//!      `dispatched`. Checked before rule 3 because a worker inherits its
+//!      parent's other markers.
+//!   3. `TERMLINK_SIDECAR_SUPERVISOR` set (the arc-011 sidecar unit
+//!      `termlink-sidecar@<project>--<agent>` sets it to `systemd`; this is how the
+//!      W1 pair claude-termlink / claude-termlink-alt run), or `INVOCATION_ID` set
+//!      WITHOUT `FW_CLAUDE_FW_SUPERVISED` (a process systemd started as a service,
+//!      e.g. the persistent `termlink-*-agent.service` sessions) -> `standing`.
+//!      `claude-fw` also runs under systemd (a `run-*.scope`, so `INVOCATION_ID` is
+//!      set) but marks itself `FW_CLAUDE_FW_SUPERVISED=1`: that is an operator's
+//!      session, not a standing worker.
+//!   4. `CLAUDE_CODE_ENTRYPOINT`: `cli` (the interactive TUI) -> `interactive`;
+//!      `sdk-*` (headless `claude -p` fired by an orchestrator outside
+//!      `fw termlink dispatch`) -> `dispatched`.
+//!   5. otherwise `unknown` (a bare shell, cron, or a harness that marks nothing).
+//!
+//!   `TERMLINK_AGENT_ID` is deliberately NOT a class signal: this project sets
+//!   `TERMLINK_AGENT_ID=claude-termlink` in its Claude settings env (runme action
+//!   8, T-3303), so every session and every worker it spawns carries it.
+//! - `harness` — `AI_AGENT` verbatim (e.g. `claude-code_2-1-311_agent` from an
+//!   agent's Bash tool, `..._harness` from the MCP server/hooks the harness spawns).
+//! - `model` — `TERMLINK_MODEL`, else `ANTHROPIC_MODEL`; omitted when neither is set.
+//! - `worker_kind` — `TERMLINK_WORKER_KIND`; omitted when unset.
+//! - `worker` — `FW_SIDECAR_AGENT_ID` (a dispatched worker's dispatch name, which
+//!   is also its `.context/dispatch/<name>/` dir), so the rollup can join usage to
+//!   the dispatch's meta.json for task, model and kind.
+//! - `task` — `TERMLINK_TASK`, else `FW_TASK_ID`; omitted when unset.
+//! - `project` — basename of `TERMLINK_PROJECT`, else `PROJECT_ROOT`, else
+//!   `CLAUDE_PROJECT_DIR`, else `PWD`.
+//!
+//! # One sink per host (T-3615)
+//!
+//! Dispatched workers and other callers often run without `TERMLINK_RUNTIME_DIR`,
+//! so the four-step [`crate::discovery::runtime_dir`] sent their records to
+//! `$TMPDIR/termlink-<uid>` or `/tmp/termlink-<uid>`: a stray, volatile sink nobody
+//! read (26k rows found on .107). The rule now: an explicit `TERMLINK_RUNTIME_DIR`
+//! (or [`init`]) still wins; otherwise the sink is the runtime dir of the hub this
+//! host runs, i.e. the first of [`crate::discovery::all_runtime_dirs`] (the same
+//! candidate list hub discovery and the supervisor scan, primary first, then
+//! `/var/lib/termlink`) that holds a `hub.sock`. The hub's runtime dir is the one
+//! directory every caller on the host agrees on whatever its env, and it is the
+//! persistent one where the hub runs under systemd. If no candidate holds a hub,
+//! the behaviour is today's (the primary runtime dir). This applies to the audit
+//! sink only; session and hub discovery are unchanged. Cost: at most one `stat`
+//! per candidate, once per process.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -135,9 +199,133 @@ fn current_path() -> Option<PathBuf> {
     if let Some(p) = PATH.get() {
         return p.clone();
     }
-    let p = crate::discovery::runtime_dir().join(FILE_NAME);
+    let explicit = std::env::var_os("TERMLINK_RUNTIME_DIR").map(PathBuf::from);
+    let dir = resolve_sink_dir(
+        explicit,
+        &crate::discovery::all_runtime_dirs(),
+        |d| d.join("hub.sock").exists(),
+    );
+    let p = dir.join(FILE_NAME);
     let _ = PATH.set(Some(p.clone()));
     Some(p)
+}
+
+/// T-3615: pure core of the one-sink-per-host rule (see the module doc).
+/// `candidates` is primary-first (as [`crate::discovery::all_runtime_dirs`]
+/// returns it); `has_hub` says whether a dir holds this host's hub socket.
+/// Explicit override wins; else the first candidate with a hub; else the
+/// primary candidate (today's behaviour).
+pub fn resolve_sink_dir(
+    explicit: Option<PathBuf>,
+    candidates: &[PathBuf],
+    has_hub: impl Fn(&Path) -> bool,
+) -> PathBuf {
+    if let Some(dir) = explicit {
+        return dir;
+    }
+    if let Some(dir) = candidates.iter().find(|d| has_hub(d)) {
+        return dir.clone();
+    }
+    candidates
+        .first()
+        .cloned()
+        .unwrap_or_else(crate::discovery::runtime_dir)
+}
+
+/// Worker classes a record can carry (T-3615). See the module doc for the rules.
+pub const CLASSES: [&str; 5] = ["interactive", "dispatched", "standing", "reviewer", "unknown"];
+
+/// Caller attribution for one process (T-3615). Built once from the env.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Attribution {
+    pub class: &'static str,
+    pub harness: Option<String>,
+    pub model: Option<String>,
+    pub worker_kind: Option<String>,
+    pub worker: Option<String>,
+    pub task: Option<String>,
+    pub project: Option<String>,
+}
+
+fn nonempty(v: Option<String>) -> Option<String> {
+    v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+}
+
+/// Pure classifier behind the cached attribution: `get` looks one env var up.
+/// Split out so every class can be tested without mutating process env (L-006).
+pub fn attribution_from(get: impl Fn(&str) -> Option<String>) -> Attribution {
+    let get = |k: &str| nonempty(get(k));
+    let is1 = |k: &str| get(k).as_deref() == Some("1");
+    let class = if let Some(c) = get("TERMLINK_WORKER_CLASS")
+        .and_then(|v| CLASSES.iter().copied().find(|c| *c == v.to_ascii_lowercase()))
+    {
+        c
+    } else if is1("FW_DISPATCHED_WORKER") {
+        if is1("FW_REVIEW_WORKER") || is1("FW_REVIEWER_IN_DISPATCH") {
+            "reviewer"
+        } else {
+            "dispatched"
+        }
+    } else if get("TERMLINK_SIDECAR_SUPERVISOR").is_some()
+        || (get("INVOCATION_ID").is_some() && get("FW_CLAUDE_FW_SUPERVISED").is_none())
+    {
+        "standing"
+    } else {
+        match get("CLAUDE_CODE_ENTRYPOINT").as_deref() {
+            Some("cli") => "interactive",
+            Some(e) if e.starts_with("sdk") => "dispatched",
+            _ => "unknown",
+        }
+    };
+    let project = get("TERMLINK_PROJECT")
+        .or_else(|| get("PROJECT_ROOT"))
+        .or_else(|| get("CLAUDE_PROJECT_DIR"))
+        .or_else(|| get("PWD"))
+        .map(|p| {
+            let t = p.trim_end_matches('/');
+            Path::new(t)
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| t.to_string())
+        })
+        .filter(|s| !s.is_empty());
+    Attribution {
+        class,
+        harness: get("AI_AGENT"),
+        model: get("TERMLINK_MODEL").or_else(|| get("ANTHROPIC_MODEL")),
+        worker_kind: get("TERMLINK_WORKER_KIND"),
+        worker: get("FW_SIDECAR_AGENT_ID"),
+        task: get("TERMLINK_TASK").or_else(|| get("FW_TASK_ID")),
+        project,
+    }
+}
+
+impl Attribution {
+    /// The JSON fields this attribution adds, each prefixed with `,` so the
+    /// fragment appends after `"name":...` inside the record object.
+    pub fn json_fragment(&self) -> String {
+        let mut out = format!(r#","class":{}"#, json_escape(self.class));
+        for (k, v) in [
+            ("harness", &self.harness),
+            ("model", &self.model),
+            ("worker_kind", &self.worker_kind),
+            ("worker", &self.worker),
+            ("task", &self.task),
+            ("project", &self.project),
+        ] {
+            if let Some(v) = v {
+                out.push_str(&format!(r#","{k}":{}"#, json_escape(v)));
+            }
+        }
+        out
+    }
+}
+
+static ATTRIBUTION: OnceLock<String> = OnceLock::new();
+
+/// This process's attribution fragment, computed from the env on first use.
+fn attribution_fragment() -> &'static str {
+    ATTRIBUTION.get_or_init(|| attribution_from(|k| std::env::var(k).ok()).json_fragment())
 }
 
 fn json_escape(s: &str) -> String {
@@ -163,13 +351,21 @@ pub fn record(surface: &str, name: &str) {
     record_to(&path, surface, name);
 }
 
-/// Testable core of [`record`] with an explicit destination.
+/// Testable core of [`record`] with an explicit destination. Carries this
+/// process's attribution (T-3615).
 pub fn record_to(path: &Path, surface: &str, name: &str) {
+    record_to_with(path, surface, name, attribution_fragment());
+}
+
+/// [`record_to`] with an explicit attribution fragment (from
+/// [`Attribution::json_fragment`]), so tests need not touch process env.
+pub fn record_to_with(path: &Path, surface: &str, name: &str, attribution: &str) {
     let line = format!(
-        r#"{{"ts":{},"surface":{},"name":{}}}"#,
+        r#"{{"ts":{},"surface":{},"name":{}{}}}"#,
         now_ms(),
         json_escape(surface),
-        json_escape(name)
+        json_escape(name),
+        attribution
     );
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -333,5 +529,151 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&lines[0]).unwrap();
         assert_eq!(v["surface"], "session-rpc");
         assert_eq!(v["name"], "kv.get");
+    }
+
+    // ── T-3615: attribution and the one-sink rule ─────────────────────────────
+
+    fn attr(pairs: &[(&str, &str)]) -> Attribution {
+        let m: std::collections::HashMap<String, String> =
+            pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        attribution_from(|k| m.get(k).cloned())
+    }
+
+    #[test]
+    fn class_dispatched_worker() {
+        let a = attr(&[
+            ("FW_DISPATCHED_WORKER", "1"),
+            ("CLAUDE_CODE_ENTRYPOINT", "sdk-cli"),
+            ("TERMLINK_AGENT_ID", "claude-termlink"),
+            ("AI_AGENT", "claude-code_2-1-312_agent"),
+            ("FW_SIDECAR_AGENT_ID", "t3615-build-1"),
+        ]);
+        assert_eq!(a.class, "dispatched");
+        assert_eq!(a.harness.as_deref(), Some("claude-code_2-1-312_agent"));
+        assert_eq!(a.worker.as_deref(), Some("t3615-build-1"));
+    }
+
+    #[test]
+    fn class_reviewer_from_either_review_marker() {
+        let a = attr(&[("FW_DISPATCHED_WORKER", "1"), ("FW_REVIEW_WORKER", "1")]);
+        assert_eq!(a.class, "reviewer");
+        let b = attr(&[("FW_DISPATCHED_WORKER", "1"), ("FW_REVIEWER_IN_DISPATCH", "1")]);
+        assert_eq!(b.class, "reviewer");
+    }
+
+    #[test]
+    fn class_standing_sidecar_and_systemd_service() {
+        let a = attr(&[("TERMLINK_SIDECAR_SUPERVISOR", "systemd"), ("INVOCATION_ID", "x")]);
+        assert_eq!(a.class, "standing");
+        let b = attr(&[("INVOCATION_ID", "abc")]);
+        assert_eq!(b.class, "standing", "a systemd service with no claude-fw marker");
+    }
+
+    #[test]
+    fn class_interactive_including_claude_fw_scope() {
+        let a = attr(&[("CLAUDE_CODE_ENTRYPOINT", "cli"), ("AI_AGENT", "claude-code_2-1-311_agent")]);
+        assert_eq!(a.class, "interactive");
+        // claude-fw runs in a systemd scope (INVOCATION_ID) but is an operator's session.
+        let b = attr(&[
+            ("CLAUDE_CODE_ENTRYPOINT", "cli"),
+            ("INVOCATION_ID", "b713"),
+            ("FW_CLAUDE_FW_SUPERVISED", "1"),
+            ("TERMLINK_AGENT_ID", "claude-termlink"),
+        ]);
+        assert_eq!(b.class, "interactive");
+    }
+
+    #[test]
+    fn class_headless_sdk_without_fw_dispatch_is_dispatched() {
+        assert_eq!(attr(&[("CLAUDE_CODE_ENTRYPOINT", "sdk-cli")]).class, "dispatched");
+    }
+
+    #[test]
+    fn class_unknown_and_agent_id_is_not_a_signal() {
+        assert_eq!(attr(&[]).class, "unknown");
+        assert_eq!(attr(&[("TERMLINK_AGENT_ID", "claude-termlink")]).class, "unknown");
+    }
+
+    #[test]
+    fn class_explicit_override_wins_and_bad_values_fall_through() {
+        let a = attr(&[("TERMLINK_WORKER_CLASS", "Standing"), ("CLAUDE_CODE_ENTRYPOINT", "cli")]);
+        assert_eq!(a.class, "standing");
+        let b = attr(&[("TERMLINK_WORKER_CLASS", "boss"), ("CLAUDE_CODE_ENTRYPOINT", "cli")]);
+        assert_eq!(b.class, "interactive", "an unknown declared class is ignored");
+        let c = attr(&[("TERMLINK_WORKER_CLASS", "dispatched"), ("TERMLINK_WORKER_KIND", "codex"),
+                       ("TERMLINK_MODEL", "gpt-5")]);
+        assert_eq!((c.class, c.worker_kind.as_deref(), c.model.as_deref()),
+                   ("dispatched", Some("codex"), Some("gpt-5")));
+    }
+
+    #[test]
+    fn optional_fields_and_project_basename() {
+        let a = attr(&[("ANTHROPIC_MODEL", "claude-opus-5-5"), ("FW_TASK_ID", "T-3615"),
+                       ("PWD", "/opt/termlink/"), ("AI_AGENT", "  ")]);
+        assert_eq!(a.model.as_deref(), Some("claude-opus-5-5"));
+        assert_eq!(a.task.as_deref(), Some("T-3615"));
+        assert_eq!(a.project.as_deref(), Some("termlink"));
+        assert_eq!(a.harness, None, "blank is absent");
+        let b = attr(&[("TERMLINK_PROJECT", "/x/010-termlink"), ("PWD", "/tmp")]);
+        assert_eq!(b.project.as_deref(), Some("010-termlink"));
+    }
+
+    #[test]
+    fn attributed_record_keeps_surface_and_name_and_adds_fields() {
+        let td = TempDir::new().unwrap();
+        let p = td.path().join(FILE_NAME);
+        let a = attr(&[("FW_DISPATCHED_WORKER", "1"), ("AI_AGENT", r#"we"ird"#), ("FW_TASK_ID", "T-1")]);
+        record_to_with(&p, SURFACE_CLI, "channel subscribe", &a.json_fragment());
+        let lines = read_lines(&p);
+        let v: serde_json::Value = serde_json::from_str(&lines[0]).unwrap();
+        assert_eq!(v["surface"], "cli");
+        assert_eq!(v["name"], "channel subscribe");
+        assert_eq!(v["class"], "dispatched");
+        assert_eq!(v["harness"], r#"we"ird"#);
+        assert_eq!(v["task"], "T-1");
+        assert!(v.get("model").is_none(), "absent model is omitted, not null");
+        assert!(v["ts"].as_u64().is_some());
+    }
+
+    #[test]
+    fn plain_record_to_carries_a_class() {
+        let td = TempDir::new().unwrap();
+        let p = td.path().join(FILE_NAME);
+        record_to(&p, SURFACE_MCP, "termlink_ping");
+        let v: serde_json::Value = serde_json::from_str(&read_lines(&p)[0]).unwrap();
+        assert!(CLASSES.contains(&v["class"].as_str().unwrap()));
+    }
+
+    #[test]
+    fn sink_explicit_runtime_dir_wins() {
+        let c = vec![PathBuf::from("/tmp/termlink-0"), PathBuf::from("/var/lib/termlink")];
+        let d = resolve_sink_dir(Some(PathBuf::from("/srv/tl")), &c, |_| true);
+        assert_eq!(d, PathBuf::from("/srv/tl"));
+    }
+
+    #[test]
+    fn sink_without_override_prefers_the_hub_dir_over_tmp() {
+        let c = vec![PathBuf::from("/var/tmp/termlink-0"), PathBuf::from("/var/lib/termlink"),
+                     PathBuf::from("/tmp/termlink-0")];
+        let d = resolve_sink_dir(None, &c, |p| p == Path::new("/var/lib/termlink"));
+        assert_eq!(d, PathBuf::from("/var/lib/termlink"));
+    }
+
+    #[test]
+    fn sink_primary_with_hub_is_unchanged_and_no_hub_keeps_today() {
+        let c = vec![PathBuf::from("/run/user/0/termlink"), PathBuf::from("/var/lib/termlink")];
+        assert_eq!(resolve_sink_dir(None, &c, |_| true), c[0]);
+        assert_eq!(resolve_sink_dir(None, &c, |_| false), c[0], "no hub anywhere: today's primary");
+    }
+
+    #[test]
+    fn sink_uses_a_real_hub_socket_on_disk() {
+        let td = TempDir::new().unwrap();
+        let stray = td.path().join("stray");
+        let hub = td.path().join("hub");
+        std::fs::create_dir_all(&hub).unwrap();
+        std::fs::write(hub.join("hub.sock"), b"").unwrap();
+        let d = resolve_sink_dir(None, &[stray, hub.clone()], |p| p.join("hub.sock").exists());
+        assert_eq!(d, hub);
     }
 }
