@@ -76,3 +76,37 @@ The 2026-10-27 value-review run (T-3609) could not confirm its yardstick because
    covers it; otherwise dead letter, sender sees DEAD, re-addressing to the role is the sender's choice; a fresh copy
    never answers conversation mail; "may start what is not running, may not start an exact instance that is gone,
    except resuming a conversation that died mid-way". The open question is answered by these rulings; no change.
+8. 2026-10-28, Q3 (how wide is the record). Searched first: ruled 2026-10-01 in T-3304 (IW-1 B: authoritative for
+   coordination within a declared retention window, long-term records in purpose-built stores, forever only as an
+   owned exception; IW-2 C 14-day default + ceiling on post + sweeper everywhere; IW-3 B gap signal, page end
+   reasons, time-range reads, never a query language or joins; IW-4 C-prime topic records, owner, idle/unread
+   flags, never auto-delete). Worker-contract dispatch records fall inside "coordination". Unfinished: T-3315
+   (charter non-goal 2 rewording, operator wording, captured/later) and T-3314 (review of the 75 forever topics,
+   captured). Operator: "yes", recorded as CONFIRMED by the 2026-10-01 ruling; T-3315's rewording folds into
+   round 4.
+9. 2026-10-28, Q4 (strict star or hub-brokered). Searched first: ruled 2026-10-05, OD-1 C (rulings summary §3.1):
+   hubs set up a circuit, established conversations run sidecar-to-sidecar, the hub path is the fallback; build
+   order identity + directory, then bound conversations on the hub path, then direct circuits with hub-minted
+   short-lived credentials. OD-11: hubs exchange cards, never messages (federation still out). The charter's
+   "strict star" sentence is stale. Built: hub path and binding; direct circuit not yet. Operator: "yes", recorded
+   as CONFIRMED by OD-1; charter rewording ("hubs never relay each other's messages; a hub may broker a direct
+   circuit and remains the fallback") folds into round 4.
+10. 2026-10-28, Q5 (how far identity and security go). Searched first: objectives O-7 (2026-10-21: every act
+   attributable and authorised); T-3351 OQ-2 (2026-10-07: shared root accepted for now, committed target one OS
+   account per agent via a narrow Tier-0 helper; "we accept it for now, but we definitely want to move to a more
+   isolated per-agent account … always via Tier 0"); arc-011 PH-2 OQ-b (2026-10-12: root-only accepted for PH-2,
+   real separation Track A in PH-3); charter non-goal 5 (no hostile-tenant promise). Built: signed posts, T-3493
+   signed inject. Open: T-2422 per-agent authorisation, Track A. Operator: "yes", recorded as CONFIRMED by O-7 and
+   OQ-2; round-4 clause "trusted within a cooperating fleet: every act attributable and authorised, agents isolated
+   from each other; not a boundary between hostile tenants".
+11. 2026-10-28, Q6 (how hard to cut the surface). Searched first: T-2548 GO (subtract the analytics MCP family,
+   2026-08-20) gated on an external-consumer check never discharged (value review C-01); 40-46 deprecated tools still
+   compiled after their soak (C-02); arc-005 MCP slimming stale. Operator: no decision without data, and the data must
+   be fleet-wide and cover all agents, not this host. Measured: usage is recorded per host for CLI and MCP (MCP
+   logging proven live: one call appeared at once), but zero MCP tool calls over ~1 day here while sessions start
+   364 MCP servers (agents may not find deferred MCP tools); ~1 day kept (size rotation, polling noise); usage rows
+   carry no caller; dispatched workers write to a stray /tmp sink; the daily fleet rollup (T-3466) carries no usage and
+   only .107 reports, missing 2 of 7 days. Operator then widened it: include claude -p workers, standing long-lived
+   session workers, orchestration workers and non-Anthropic seats ("all workers!"), with worker quality visible.
+   Outcome: Q6 DEFERRED until T-3615 (attributed fleet usage + per-worker-kind outcome telemetry, all hosts) has
+   gathered data; then analysis and decisions.
