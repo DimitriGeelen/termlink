@@ -4,6 +4,10 @@
 # fake `fw task create` (CANARY_ESC_CREATE_CMD) and a fixed clock (CANARY_ESC_NOW). Never
 # touches .tasks/, the pending-commit manifest or any real canary.
 set -u
+# T-3622: the filer refuses under $CI (filing belongs to the host cron). On a CI runner $CI is set,
+# so every case read "SKIP ci" and failed. The cases test the filing path; the CI refusal has its
+# own case, which sets CI=true explicitly.
+unset CI
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FILER="$ROOT/scripts/canary-escalation-file.sh"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT

@@ -65,10 +65,12 @@ guard layer takes about 14 minutes. The checks are not failing; they never finis
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The guard-layer job's timeout is raised with headroom (20 minutes), with a comment citing this task and the
+- [x] The guard-layer job's timeout is raised with headroom (20 minutes), with a comment citing this task and the
   measured durations
-- [ ] The first Doc Lint run on main after the push completes (not `cancelled`); its guard-layer job's outcome and
+- [x] The first Doc Lint run on main after the push completes (not `cancelled`); its guard-layer job's outcome and
   duration are recorded in Updates (a red outcome is then a real finding, reported, not hidden)
+- [ ] The two FAIL-tier members that the cancelled runs had hidden pass on CI. They failed only there, because the
+  fixtures inherited the caller's environment.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,6 +366,19 @@ guard layer takes about 14 minutes. The checks are not failing; they never finis
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-29 — first completed run after the timeout fix (run 40785897755, commit c56853e89)
+- The guard-layer job completed in 9m59s (23:14:14 → 23:24:13Z), conclusion **failure**: "2 FAIL-tier guard(s)
+  found something (227 passed, 0 errored, 4 WARN red, 581 s wall)". The cancellations had hidden both.
+- 1. `tests/canary-escalation-file-fixtures.sh`: the filer refuses under `$CI`, and the runner sets CI, so every
+  case read "SKIP ci". The fixture now unsets CI; its own CI-refusal case still sets CI=true.
+- 2. `tests/safe-commands-checkpoint-fixtures.sh`: "checkpoint.sh status && git status" was classified unsafe on CI
+  only. The classifier trusts git only in PROJECT_ROOT's repo (AEF T-4343); sessions set PROJECT_ROOT, CI does not.
+  Reproduced locally with `env -u PROJECT_ROOT`. The fixture now exports PROJECT_ROOT itself.
+- Both pass locally with and without the CI variables. The 4 WARN reds (audit-warning-acknowledgement,
+  go-propagation, standing-controls, voi-prompt) are operator-state items, not code defects; standing-controls'
+  escalation is raised with the operator.
+- 9m59s is close to the old 10-minute limit, which confirms it was too tight.
 
 ### 2026-10-28T23:12:26Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent

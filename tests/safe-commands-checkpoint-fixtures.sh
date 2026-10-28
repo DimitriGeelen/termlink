@@ -23,6 +23,10 @@ set -u
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB="$REPO_ROOT/.agentic-framework/agents/context/lib/safe-commands.sh"
+# T-3622: the classifier trusts a git clause only in PROJECT_ROOT's repository (AEF T-4343). A
+# session sets PROJECT_ROOT, a CI runner does not, so "checkpoint.sh status && git status" read
+# unsafe there only. State the root here instead of inheriting it.
+export PROJECT_ROOT="$REPO_ROOT"
 PRE_FIX_REF="${T2961_PRE_FIX_REF:-dc65976e2}"   # last commit before the T-2961 arm
 
 pass=0
