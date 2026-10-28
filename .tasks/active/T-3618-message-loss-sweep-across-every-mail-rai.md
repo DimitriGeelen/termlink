@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-28T17:19:42Z
-last_update: '2026-10-28T17:20:21Z'
+last_update: 2026-10-28T17:34:06Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -84,12 +84,12 @@ unconfirmed-delivery canary, scripts/session-start-alerts.sh. Ruling context: T-
 ## Acceptance Criteria
 
 ### Agent
-- [ ] An inventory (in this task's Updates) of every rail mail travels on at .107 (AEF sidecar project inboxes incl. nickname inboxes, dm:* topics, the termlink sidecar store, framework:pickup), what "acted on" means on each, and which existing detector covers it; uncovered rails named
-- [ ] scripts/check-unacted-mail.sh reports, per rail, each message delivered but not acted on past a threshold (default 24 h), by topic, offset, sender, age; exit 0 none / 1 found / 2 could not look (fail-closed, never "clean" on a read error); receipts and probe posts are not counted as mail
-- [ ] It finds the real 2026-10-20 055 report on the dm rail when run live (or reports it handled, once item 8 is done)
-- [ ] scripts/session-start-alerts.sh lists every finding by name in needs-attention (not only as an audit WARN)
-- [ ] Hermetic fixtures (tests/unacted-mail-fixtures.sh) cover each rail, the threshold, receipt-only topics, a read error (exit 2), and a mutant that drops one rail
-- [ ] Registered in the guard layer and docs/operations/guard-layer-and-canaries.md per CLAUDE.md (exit codes 0/1/2, stderr to its own log)
+- [x] An inventory (in this task's Updates) of every rail mail travels on at .107 (AEF sidecar project inboxes incl. nickname inboxes, dm:* topics, the termlink sidecar store, framework:pickup), what "acted on" means on each, and which existing detector covers it; uncovered rails named
+- [x] scripts/check-unacted-mail.sh reports, per rail, each message delivered but not acted on past a threshold (default 24 h), by topic, offset, sender, age; exit 0 none / 1 found / 2 could not look (fail-closed, never "clean" on a read error); receipts and probe posts are not counted as mail
+- [x] It finds the real 2026-10-20 055 report on the dm rail when run live (or reports it handled, once item 8 is done)
+- [x] scripts/session-start-alerts.sh lists every finding by name in needs-attention (not only as an audit WARN)
+- [x] Hermetic fixtures (tests/unacted-mail-fixtures.sh) cover each rail, the threshold, receipt-only topics, a read error (exit 2), and a mutant that drops one rail
+- [x] Documented in docs/operations/guard-layer-and-canaries.md and indexed in CLAUDE.md (exit codes 0/1/2). Revised from "registered in the guard layer": the check reads the live hub, so by the layer's own rule it is not a `source` member; its fixtures are (naming convention). No cron canary added (the D′ dev-project canary cap is not yet numbered); it runs at every session start instead
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -294,6 +294,13 @@ unconfirmed-delivery canary, scripts/session-start-alerts.sh. Ruling context: T-
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash -n scripts/check-unacted-mail.sh
+bash -n scripts/session-start-alerts.sh
+TMPDIR=/var/tmp bash tests/unacted-mail-fixtures.sh > .context/working/.t3618-fx 2>&1 && grep -q "failed: 0" .context/working/.t3618-fx
+TMPDIR=/var/tmp bash tests/session-start-alerts-fixtures.sh > .context/working/.t3618-ss 2>&1 && grep -q "failed: 0" .context/working/.t3618-ss
+grep -q "Unanswered-mail sweep (T-3618" docs/operations/guard-layer-and-canaries.md
+grep -q "check-unacted-mail.sh" CLAUDE.md
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -385,6 +392,42 @@ unconfirmed-delivery canary, scripts/session-start-alerts.sh. Ruling context: T-
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-28 — the found case handled, ring20 reminded (operator go "proceed as suggested")
+- 055's 2026-10-20 report (claude-fw duplicate-conversation guard holds bg sessions live via the claude daemon pid;
+  AEF T-3890 code) forwarded verbatim to 999-Agentic-Engineering-Framework, conversation claude-fw-bg-guard: RECEIVED,
+  client_msg_id 3bd5b574. 055 told where it went and to address project inboxes, as a notice: RECEIVED, 6905ac8d.
+- ring20-dashboard asked to put the AEF upgrade (v1.8.14 -> >= be.3, which refuses loss classes 1-2) to their
+  operator, conversation mail-loss: HUB_ACCEPTED, 1950d8ab. Their answer (inbox offset 1475): already on
+  be.49 since ~12:35Z today (be.46, be.48, be.49), T-4416/T-4423 smoke-tested live, peers addressed by full id.
+  My "they run 1.8.14" was stale.
+
+### 2026-10-28 — rail inventory (AC 1)
+1. AEF sidecar project inboxes (`inbox:<hub>/<project>`). Acted on = surfaced to a session and answered. Covered:
+   session-start-alerts section 2 (our own project only), AEF `inbox-stale` / `held-unsurfaced`. Now composed.
+2. Nickname / unread project inboxes nothing reads. AEF `orphan-inboxes` (hub-side). Now composed.
+3. `dm:*` topics (agent contact, channel dm, and .107's root key DMing itself as a shared mailbox with
+   `to_project` tags). UNCOVERED in practice: AEF `dm-stale` judges "unread by this identity" from its own cursor,
+   so it counts our own and receipt posts and counts a peer's root-key-signed report as ours. Receipts are posted by
+   auto-confirming notify-sidecars on the recipient's behalf (.context/cron/notify-sidecar-agents.conf: claude-
+   termlink, framework-agent-systemd, claude-termlink-alt, all --auto-confirm), so "delivered" says nothing about a
+   reader. New per-message rule in scripts/check-unacted-mail.sh.
+4. The termlink sidecar store (PH-2 W1 pair): the sidecar raises unsurfaced mail into its own needs-attention list
+   (R-37, R-70), already shown by session-start-alerts section 1d. Not duplicated.
+5. framework:pickup: AEF's rail; stranded deferred envelopes covered by check-pickup-deferred-freshness. Out of scope.
+
+### 2026-10-28 — first live sweep: 4 unanswered messages, oldest 13 days
+1. dm:3bba…:d1993c… @136, 055 -> AEF (framework-agent-systemd), claude-fw bg-session guard bug. Forwarded to AEF.
+2. dm:8e6f…:d1993c… @19, 050-email-archive (Pen) -> TermLink, hub sandbox breaks tmux spawn after boot (Pen down
+   4 days). Filed T-3620; 050 answered.
+3. dm:d1993c…:d1993c… @20, 1023-portable-encrypted-chromium-vault -> AEF (to_project), PROJECT_ROOT leak bug +
+   upgrade questions. Forwarded to AEF; 1023 told; its TermLink side note filed T-3621.
+4. dm:9219…:cacc… @0, 150-skills-manager -> .107 host owner (T-476): remove 2 retired ntfy lines from root's
+   crontab. Acknowledged on the thread; both lines still present (crontab lines 1, 3 + comments 4, 5). OPEN: needs
+   the operator's go (host change).
+Also found: dm-stale's 2 false positives (deadbeef test rails, now in scripts/unacted-mail-ignore.txt); the
+shared-mailbox topic holds older to_project mail outside the 14-day window (0235-voice-features 10-11, 050 10-13)
+that was probably never read either.
 
 ### 2026-10-28T17:19:42Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent

@@ -1976,6 +1976,47 @@ including the six nobody had looked for.
 `framework:pickup` offset 74 with the three-line symmetric fix. This check is the local
 detection that survives a re-vendor.
 
+### Unanswered-mail sweep (T-3618, "delivered" is not "acted on")
+
+Operator, 2026-10-28: "messages get lost". Every loss on record had one shape: the message
+arrived, something recorded it as delivered, and no agent ever acted on it. Examples: a
+ring20 sidecar ringing a dead session (T-3608), 14 consults to a nickname inbox, and four DMs
+on .107 found on the first run, the oldest unanswered for 13 days. AEF's facts for this
+(`fw sidecar dm-stale`, `inbox-stale`, `held-unsurfaced`, `orphan-inboxes`) reached only
+`fw doctor` and one audit WARN among many, which nobody acted on either.
+
+`scripts/check-unacted-mail.sh` lists every such message by name. `scripts/session-start-alerts.sh`
+section 3 shows them at every `/resume` ("Mail delivered but never acted on"). Rails:
+
+1. **dm:** every `dm:*` topic on the local hub, judged per message. A message is OPEN when
+   nobody it was meant for posted after it: its `to_project` addressee, or without one
+   anyone else on the topic. A message posted within 72 h of the other side's message is
+   its answer.
+2. **inbox, held, orphan:** AEF's `inbox-stale`, `held-unsurfaced` and `orphan-inboxes`, as is.
+
+It does NOT use AEF's `dm-stale`. That verb measures "unread by this identity" from its own
+cursor. On a host where every project may sign with the root key, and auto-confirming
+sidecars post receipts for the recipient, that counts our own test posts as unread and
+counts a peer's report as ours.
+
+**Window:** older than `--threshold-hours` (24), younger than 14 days (the default retention).
+
+**Known blind spot (fixture-pinned):** a follow-up within 72 h of an answer reads as part of
+the exchange, so it is not listed.
+
+Exit codes are 0 / 1 / 2. A rail it could not read prints `NOT CHECKED <rail>` and is never
+reported as clean.
+
+**Clearing a finding.** Deal with the message (answer it, forward it to its owner, or file a
+task). Then record it in `.context/project/unacted-mail-handled.txt` as `<topic> <offset>
+<date> <what was done>`. Only that offset is skipped, so a later message re-flags the topic.
+
+**Test rails** go in `scripts/unacted-mail-ignore.txt`, with a reason. Never list a real topic
+there to silence it.
+
+**Guard-layer status.** The check reads the live hub, so it is not a `source` member. Its
+fixtures, `tests/unacted-mail-fixtures.sh`, are.
+
 ### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
 
 **One command runs every source-level guard.** Before T-2684 there was none, and

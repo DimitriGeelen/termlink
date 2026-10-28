@@ -45,7 +45,11 @@ esac
 exit 0
 STUB
 chmod +x "$TMP/termlink"
+# T-3618: the unanswered-mail sweep is stubbed (it has its own fixtures); default: nothing found.
+printf '#!/usr/bin/env bash\n[ -n "${FAKE_UNACTED:-}" ] && printf "%%s\\n" "$FAKE_UNACTED"\nexit "${FAKE_UNACTED_RC:-0}"\n' > "$TMP/unacted"
+chmod +x "$TMP/unacted"
 run() { SESSION_ALERTS_TL="$TMP/termlink" SESSION_ALERTS_CANARY_JSON="${CJ:-$TMP/canaries.json}" \
+        SESSION_ALERTS_UNACTED="$TMP/unacted" \
         SESSION_ALERTS_STATE_DIR="$TMP/state" FW_SIDECAR_SELF_PROJECT=010-termlink bash "$SCRIPT" "$@"; }
 
 j="$(run --json)"; rc=$?
@@ -130,6 +134,22 @@ hrun --mark-seen >/dev/null
 t="$(hrun)"
 printf '%s' "$t" | grep -q 'Sidecar needs-attention (new): 0 (0 urgent)' \
     && ok "attention: --mark-seen hides what was shown" || bad "attention after mark-seen: $t"
+
+# ---- T-3618: mail delivered but never acted on --------------------------------
+t="$(run)"
+printf '%s' "$t" | grep -q 'Mail delivered but never acted on (any rail, any project on this hub): 0' \
+    && ok "unacted: none found is said, not hidden" || bad "unacted none: $t"
+t="$(FAKE_UNACTED='UNACTED  dm  dm:aa:bb  offset 7  from=050-x  age=30h  please fix' FAKE_UNACTED_RC=1 run)"
+printf '%s' "$t" | grep -q 'never acted on (any rail, any project on this hub): 1' \
+    && printf '%s' "$t" | grep -q '^  dm  dm:aa:bb  offset 7  from=050-x  age=30h  please fix' \
+    && printf '%s' "$t" | grep -q 'unacted-mail-handled.txt' \
+    && ok "unacted: each finding listed by name with the way to clear it" || bad "unacted listed: $t"
+j="$(FAKE_UNACTED='NOT CHECKED dm: termlink channel list --prefix dm: failed' FAKE_UNACTED_RC=2 run --json)"
+[ "$(printf '%s' "$j" | jq -r '.errors | join("|")')" = "dm: termlink channel list --prefix dm: failed" ] \
+    && ok "unacted: a rail that could not be read is an error, never a clean 0" || bad "unacted blind: $j"
+j="$(FAKE_UNACTED_RC=7 run --json)"
+printf '%s' "$j" | jq -e '.errors | any(test("exited 7"))' >/dev/null \
+    && ok "unacted: an unexpected exit code is reported" || bad "unacted rc7: $j"
 
 echo; echo "  passed: $PASS   failed: $FAIL"
 [ "$FAIL" -eq 0 ]

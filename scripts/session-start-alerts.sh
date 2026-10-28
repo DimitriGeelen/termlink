@@ -159,6 +159,18 @@ for t in $topics; do
     [ -n "$last" ] && mark_lines="$mark_lines$key $last"$'\n'
 done
 
+# ---- 3. mail delivered but never acted on, every rail (T-3618) --------------------
+# Not "since last shown": a message stays listed until it is answered or recorded as
+# handled in .context/project/unacted-mail-handled.txt. Exit 2 = a rail could not be read.
+UNACTED_CMD="${SESSION_ALERTS_UNACTED:-bash $HERE/check-unacted-mail.sh}"
+unacted_out="$($UNACTED_CMD 2>/dev/null)"; unacted_rc=$?
+unacted="$(printf '%s\n' "$unacted_out" | grep '^UNACTED' | jq -Rsc 'split("\n") | map(select(length > 0))')"
+unacted_err="$(printf '%s\n' "$unacted_out" | sed -n 's/^NOT CHECKED //p' | paste -sd';' -)"
+case "$unacted_rc" in
+    0|1|2) : ;;
+    *) unacted_err="${unacted_err:+$unacted_err; }check-unacted-mail.sh exited $unacted_rc" ;;
+esac
+
 if [ "$mark" -eq 1 ]; then
     printf '%s%s' "$mark_lines" "$att_marks" | while read -r k off; do
         [ -n "$k" ] && printf '%s\n' "$off" > "$STATE_DIR/$k.seen"
@@ -169,7 +181,8 @@ fi
 if [ "$json" -eq 1 ]; then
     jq -cn --argjson c "$canaries" --argjson m "$mail" --argjson p "$pins" --argjson h "$held" --arg hn "$held_note" \
         --argjson at "$att" --arg ce "$canary_err" --arg me "$mail_err" --arg pe "$pin_err" --arg he "$held_err" --arg ae "$att_err" \
-        '{canaries:$c, mail:$m, pin_events:$p, held:$h, held_note:$hn, attention:$at, errors:([$ce,$me,$pe,$he,$ae] | map(select(. != "")))}'
+        --argjson un "$unacted" --arg ue "$unacted_err" \
+        '{canaries:$c, mail:$m, pin_events:$p, held:$h, held_note:$hn, attention:$at, unacted:$un, errors:([$ce,$me,$pe,$he,$ae,$ue] | map(select(. != "")))}'
     exit 0
 fi
 nc="$(printf '%s' "$canaries" | jq 'length')"; nm="$(printf '%s' "$mail" | jq 'length')"
@@ -202,4 +215,9 @@ echo "Peer mail not yet shown to this agent: $nm"
 printf '%s' "$mail" | jq -r --argjson l "$limit" '.[:$l][] | "  @\(.offset) \(.topic | split("/") | last)  from \(.from)  \(.age_min) min ago  cid=\(.conversation_id)\n      \(.preview)"'
 [ "$nm" -gt "$limit" ] && echo "  … and $((nm - limit)) more"
 [ -n "$mail_err" ] && echo "  CHECK FAILED: $mail_err"
+nun="$(printf '%s' "$unacted" | jq 'length')"
+echo "Mail delivered but never acted on (any rail, any project on this hub): $nun"
+printf '%s' "$unacted" | jq -r '.[] | "  " + (sub("^UNACTED +"; "") | .[0:200])'
+[ "$nun" -gt 0 ] && echo "      deal with each, then record it in .context/project/unacted-mail-handled.txt (T-3618)"
+[ -n "$unacted_err" ] && echo "  CHECK FAILED: $unacted_err"
 exit 0

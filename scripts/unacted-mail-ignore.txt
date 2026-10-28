@@ -1,0 +1,4 @@
+# T-3618 — dm topics scripts/check-unacted-mail.sh skips: <topic> <reason>. Test rails only;
+# never list a topic here to silence real unanswered mail.
+dm:d1993c2c3ec44c94:deadbeefdeadbeef  smoke posts to the fake peer deadbeefdeadbeef (agent-contact tests)
+dm:6738c073bbcc587a:deadbeefdeadbeef  smoke posts to the fake peer deadbeefdeadbeef (agent-contact tests)
