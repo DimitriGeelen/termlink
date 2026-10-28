@@ -104,6 +104,10 @@ command -v jq >/dev/null 2>&1 || die "jq not in PATH"
 current_name=""
 declare -a profile_names=()
 declare -a profile_addrs=()
+# T-3622: a profile that authenticates only with a token_file (no secret / secret_file)
+# connects at the token's scope. Fleet tokens are Interact, and the selftest's first step,
+# `channel create`, needs Control: such a profile cannot run this check at all.
+declare -A HAS_TOKEN=() HAS_SECRET=() SEEN_ADDR=()
 
 while IFS= read -r raw_line || [ -n "$raw_line" ]; do
     # Strip CR + leading/trailing whitespace + comments.
@@ -116,10 +120,15 @@ while IFS= read -r raw_line || [ -n "$raw_line" ]; do
     if [[ "$line" =~ ^\[hubs\.([A-Za-z0-9_.-]+)\][[:space:]]*$ ]]; then
         current_name="${BASH_REMATCH[1]}"
     elif [ -n "$current_name" ] && [[ "$line" =~ ^address[[:space:]]*=[[:space:]]*\"([^\"]+)\"[[:space:]]*$ ]]; then
+        [ -n "${SEEN_ADDR[$current_name]:-}" ] && continue  # only one address per section
         addr="${BASH_REMATCH[1]}"
         profile_names+=("$current_name")
         profile_addrs+=("$addr")
-        current_name=""  # consume — only one address per section
+        SEEN_ADDR["$current_name"]=1
+    elif [ -n "$current_name" ] && [[ "$line" =~ ^token_file[[:space:]]*= ]]; then
+        HAS_TOKEN["$current_name"]=1
+    elif [ -n "$current_name" ] && [[ "$line" =~ ^secret(_file)?[[:space:]]*= ]]; then
+        HAS_SECRET["$current_name"]=1
     fi
 done < "$HUBS_FILE"
 
@@ -190,6 +199,7 @@ pass_count=0
 fail_count=0
 unreachable_count=0
 transient_skipped_count=0
+scope_skipped_count=0
 
 # Use a temp file to collect jq-shaped objects line-by-line.
 tmp_results="$(mktemp -t fleet-dm-canary.XXXXXX)"
@@ -202,6 +212,15 @@ for i in "${!profile_names[@]}"; do
     is_transient=0
     [ -n "${TRANSIENT_SET[$name]:-}" ] && is_transient=1
     if [ "$is_transient" = 1 ]; then transient_json=true; else transient_json=false; fi
+
+    # T-3622: token-only profile — this credential cannot run the check. Listed, never counted as pass.
+    if [ -n "${HAS_TOKEN[$name]:-}" ] && [ -z "${HAS_SECRET[$name]:-}" ]; then
+        scope_skipped_count=$((scope_skipped_count + 1))
+        jq -n -c --arg name "$name" --arg addr "$addr" --argjson transient "$transient_json" \
+            '{name:$name,address:$addr,verdict:"not-checked",elapsed_ms:null,transient:$transient,error:"token-only profile: its scope cannot create topics (channel.create needs control)"}' \
+            >> "$tmp_results"
+        continue
+    fi
 
     out="$($TIMEOUT_CMD bash "$SELFTEST" --hub "$addr" --json 2>/dev/null || true)"
     if [ -z "$out" ] || ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
@@ -256,19 +275,24 @@ if [ "$FORMAT" = json ]; then
         --argjson fail "$fail_count" \
         --argjson unreachable "$unreachable_count" \
         --argjson transient_skipped "$transient_skipped_count" \
+        --argjson not_checked "$scope_skipped_count" \
         --argjson ok "$overall_ok" \
-        '{ok:$ok, summary:{total:$total, pass:$pass, fail:$fail, unreachable:$unreachable, transient_skipped:$transient_skipped}, profiles:$profiles}'
+        '{ok:$ok, summary:{total:$total, pass:$pass, fail:$fail, unreachable:$unreachable, transient_skipped:$transient_skipped, not_checked:$not_checked}, profiles:$profiles}'
 elif [ "$QUIET" = 1 ] && [ "$overall_ok" = true ]; then
     :
 else
     # T-3002 (C-39): date each firing cron entry — same frame as substrate-preflight.sh.
     [ "$QUIET" = 1 ] && printf '=== %s ===\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "Fleet doorbell+mail health: $([ "$overall_ok" = true ] && echo pass || echo DRIFT)"
-    echo "  total=$total  pass=$pass_count  fail=$fail_count  unreachable=$unreachable_count  transient_skipped=$transient_skipped_count"
+    echo "  total=$total  pass=$pass_count  fail=$fail_count  unreachable=$unreachable_count  transient_skipped=$transient_skipped_count  not_checked=$scope_skipped_count"
     printf '%s\n' "$profiles_arr" | jq -r '.[] | "  - \(.name)@\(.address): verdict=\(.verdict)\(if .elapsed_ms then " elapsed=\(.elapsed_ms)ms" else "" end)\(if .transient == true then " (transient — skipped)" else "" end)\(if .error then " error=\(.error)" else "" end)"'
 fi
 
-if [ "$overall_ok" = true ]; then
+if [ "$overall_ok" = true ] && [ $((pass_count + transient_skipped_count)) -eq 0 ] && [ "$scope_skipped_count" -gt 0 ]; then
+    # T-3622: every profile was token-only, so nothing was checked: a tooling result, never "healthy".
+    echo "check-fleet-doorbell-mail-health: NOT CHECKED — every profile is token-only ($scope_skipped_count); no credential here can run the selftest" >&2
+    exit 2
+elif [ "$overall_ok" = true ]; then
     exit 0
 else
     exit 1

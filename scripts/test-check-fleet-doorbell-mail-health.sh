@@ -124,6 +124,40 @@ else
     fail "T7: rc=$rc ok=$ok_field transient_skipped=$tskip out=$out"
 fi
 
+# -------- T8 (T-3622): token-only profile is listed not-checked; a secret profile beside it still DRIFTs --------
+echo "T8: token-only profile → not-checked (listed, not counted); secret profile beside it still checked"
+cat > "$work/hubs-token.toml" <<EOF
+[hubs.t3622-token-only]
+address = "127.0.0.1:7"
+token_file = "/tmp/nonexistent.token"
+
+[hubs.t3622-with-secret]
+address = "127.0.0.1:6"
+token_file = "/tmp/nonexistent.token"
+secret_file = "/tmp/nonexistent.hex"
+EOF
+out="$(bash "$SCRIPT" --hubs-file "$work/hubs-token.toml" --json --no-heartbeat 2>/dev/null)"
+rc=$?
+nc="$(printf '%s' "$out" | jq -r '.summary.not_checked // 0' 2>/dev/null || echo 0)"
+v1="$(printf '%s' "$out" | jq -r '.profiles[] | select(.name=="t3622-token-only") | .verdict' 2>/dev/null)"
+unreach="$(printf '%s' "$out" | jq -r '.summary.unreachable // 0' 2>/dev/null || echo 0)"
+if [ "$rc" -eq 1 ] && [ "$nc" = 1 ] && [ "$v1" = "not-checked" ] && [ "$unreach" -ge 1 ]; then
+    pass "T8: rc=1 not_checked=1 verdict=not-checked; the profile with a secret is still checked (unreachable=$unreach)"
+else
+    fail "T8: rc=$rc not_checked=$nc verdict=$v1 unreachable=$unreach out=$out"
+fi
+
+# -------- T9 (T-3622): every profile token-only → nothing checked → exit 2, never healthy --------
+echo "T9: only token-only profiles → exit 2 (not checked), never a clean 0"
+cat > "$work/hubs-token-all.toml" <<EOF
+[hubs.t3622-token-only]
+address = "127.0.0.1:7"
+token_file = "/tmp/nonexistent.token"
+EOF
+bash "$SCRIPT" --hubs-file "$work/hubs-token-all.toml" --json --no-heartbeat >/dev/null 2>&1
+rc=$?
+if [ "$rc" -eq 2 ]; then pass "T9: rc=2"; else fail "T9: rc=$rc (want 2)"; fi
+
 echo ""
 echo "Results: $PASS pass / $FAIL fail / $SKIP skip"
 [ "$FAIL" -eq 0 ]
