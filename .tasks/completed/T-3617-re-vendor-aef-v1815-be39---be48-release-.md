@@ -7,10 +7,10 @@ description: >
   anything broken) plus WORKS/FAILS on T-4827 (refusal names the right segment) and
   T-4828 (arc-focus AGE quiet on a committing arc). Same routine as T-3603.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-28T14:23:45Z
-last_update: 2026-10-28T14:58:07Z
-date_finished:
+last_update: 2026-10-28T14:58:58Z
+date_finished: 2026-10-28T14:58:58Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -78,9 +78,9 @@ Took v1.8.15-be.49 (4877afc73), the newest tag at or after be.48 on 2026-10-28; 
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] be.39 (567523f69) is an ancestor of be.48; preserved-file diff done (changed files 3-way merged); rehearsal on a fresh clone and real run from a second clone, rc 0 both
-- [ ] CLAUDE.md project part byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0 (WARN/FAIL set before vs after recorded); guard layer before and after; .upstream copies parked; .vendor-divergence.yaml baseline updated
-- [ ] T-4827 and T-4828 probed (WORKS/FAILS with evidence) and the upgrade report sent to AEF on aef-v1815-be3
+- [x] be.39 (567523f69) is an ancestor of be.48; preserved-file diff done (changed files 3-way merged); rehearsal on a fresh clone and real run from a second clone, rc 0 both. Took be.49 (4877afc73), 306 commits; check-active-task.sh 3-way merged, 0 conflicts; rc 0 both (25 / 22 changes)
+- [x] CLAUDE.md project part byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0 (WARN/FAIL set before vs after recorded); guard layer before and after; .upstream copies parked; .vendor-divergence.yaml baseline updated. Doctor: arc-011 AGE, Watchtower identity and smoke WARNs gone, "Watchtower predates its source" new (restart pending); guard identical before/after (2 project-side FAILs, known WARN reds); 18 parked in vendor-upstream-be49/; baseline 817161124 (commit 9526dee42)
+- [x] T-4827 and T-4828 probed (WORKS/FAILS with evidence) and the upgrade report sent to AEF on aef-v1815-be3. Both WORKS (.context/working/t3617/probe4827.out; doctor OK line "arc-011 active ... 36 days ago"); sent client_msg_id 87569601-745c-4529-aa64-2fb24d9e46f7
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -285,6 +285,12 @@ Took v1.8.15-be.49 (4877afc73), the newest tag at or after be.48 on 2026-10-28; 
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+grep -q "^1.8.14+1789" .agentic-framework/VERSION
+grep -q "be.39 -> be.49 (4877afc73" .vendor-divergence.yaml
+bash scripts/check-vendor-divergence.sh > .context/working/.t3617.out 2>&1 && grep -q "since 817161124" .context/working/.t3617.out
+grep -q "T-4827" .agentic-framework/agents/context/check-active-task.sh && grep -q "T-3270" .agentic-framework/agents/context/check-active-task.sh
+bash -n .agentic-framework/agents/context/check-active-task.sh
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -384,3 +390,20 @@ Took v1.8.15-be.49 (4877afc73), the newest tag at or after be.48 on 2026-10-28; 
 
 ### 2026-10-28T14:23:49Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-28T14:58:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-fed7bfae
+- **Timestamp:** 2026-10-28T14:59:00Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — T-4827 and T-4828 probed (WORKS/FAILS with evidence) and the upgrade report sent to AEF on aef-v1815-be3. Both WORKS (.context/working/t3617/probe4827.out; doctor OK line "arc-011 active ... 36 days a
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/working/t3617/probe4827.out in: T-4827 and T-4828 probed (WORKS/FAILS with evidence) and the upgrade report sent to AEF on aef-v1815-be3. Both WORKS (.context/working/t3617/probe4827`

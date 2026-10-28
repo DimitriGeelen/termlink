@@ -1,0 +1,138 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3617: Re-vendor AEF v1.8.15 be.39 -> be.48 (release freeze upgrade report for AEF)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-28T14:59:07Z
+# ============================================================================
+
+task_id: T-3617
+task_name: "Re-vendor AEF v1.8.15 be.39 -> be.48 (release freeze upgrade report for AEF)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-28T14:23:45Z
+completed: 2026-10-28T14:58:58Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-28T15:44:19+01:00
+last_commit: 2026-10-28T15:58:07+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.15-be.39 -> be.49 (4877afc73, 306 commits; release-freeze upgrade report, operator go 2026-10-28). .vendor-divergence.yaml baseline -> 817161124 (be.39 -> be.49), previous 4f9cb225c prepended
+
+# Key outcomes
+outcomes:
+  - 'be.39 (567523f69) is an ancestor of be.48; preserved-file diff done (changed files 3-way merged); rehearsal on a fresh clone and real run from a second clone, rc 0 both. Took be.49 (4877afc73), 306 commits; check-active-task.sh 3-way merged, 0 conflicts; rc 0 both (25 / 22 changes)'
+  - 'CLAUDE.md project part byte-identical; BOUNDARY_EXTRA_READ_PATHS kept; fw doctor rc 0 (WARN/FAIL set before vs after recorded); guard layer before and after; .upstream copies parked; .vendor-divergence.yaml baseline updated. Doctor: arc-011 AGE, Watchtower identity and smoke WARNs gone, "Watchtower predates its source" new (restart pending); guard identical before/after (2 project-side FAILs, known WARN reds); 18 parked in vendor-upstream-be49/; baseline 817161124 (commit 9526dee42)'
+  - 'T-4827 and T-4828 probed (WORKS/FAILS with evidence) and the upgrade report sent to AEF on aef-v1815-be3. Both WORKS (.context/working/t3617/probe4827.out; doctor OK line "arc-011 active ... 36 days ago"); sent client_msg_id 87569601-745c-4529-aa64-2fb24d9e46f7'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/context/check-active-task.sh'
+  - '.agentic-framework/agents/context/check-agent-dispatch.sh'
+  - '.agentic-framework/agents/context/check-worktree-governance-write.sh'
+  - '.agentic-framework/agents/context/lib/init.sh'
+  - '.agentic-framework/agents/designer/designer.sh'
+  - '.agentic-framework/agents/git/lib/framework-hook-lines.txt'
+  - '.agentic-framework/agents/git/lib/hooks.sh'
+  - '.agentic-framework/agents/observe/observe.sh'
+  - '.agentic-framework/agents/task-create/create-task.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/examples/designer-field-catalog-sample.json'
+  - '.agentic-framework/docs/generated/components/lib-dispatch_records.md'
+  - '.agentic-framework/docs/generated/components/lib-task_updates.md'
+  - '.agentic-framework/docs/generated/components/lib-tmp-hygiene.md'
+  - '.agentic-framework/docs/generated/components/tests-conformance-worker-contract-vectors.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4736_upgrade_prunes_root_designer.md'
+  - '.agentic-framework/docs/reports/T-1549-escalation-scan-v0.md'
+  - '.agentic-framework/docs/reports/T-4824/received-055-t483.md'
+  - '.agentic-framework/docs/reports/T-4832-field-catalog-design.md'
+  - '.agentic-framework/docs/reports/T-4834/received-055-worktree-gate.md'
+  - '.agentic-framework/docs/reports/T-4867-release-cut-point.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.15-results.md'
+  - '.agentic-framework/lib/arc_focus_health.py'
+  - '.agentic-framework/lib/config-file.sh'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/cron-registry.sh'
+  - '.agentic-framework/lib/hook-degraded.sh'
+  - '.agentic-framework/lib/human_ac_ticks.py'
+  - '.agentic-framework/lib/paths.sh'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/reviewer/static_scan.py'
+  - '.agentic-framework/lib/shell_write_scan.py'
+  - '.agentic-framework/lib/templates/claude-project.md'
+  - '.agentic-framework/lib/tmp-hygiene.sh'
+  - '.agentic-framework/lib/update.sh'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/upgrade_commit_list.py'
+  - '.agentic-framework/lib/upstream.sh'
+  - '.agentic-framework/lib/vendor-visibility.sh'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.31.0.html'
+  - '.agentic-framework/vendor/designer/validate-workflow-0.31.0.py'
+  - '.agentic-framework/web/app.py'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.agentic-framework/web/blueprints/designer_api.py'
+  - '.agentic-framework/web/smoke_test.py'
+  - '.agentic-framework/web/warmup.py'
+  - '.agentic-framework/web/wsgi.py'
+  - '.context/audits/upgrades.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-3617-re-vendor-aef-v1815-be39---be48-release-.md'
+  - '.vendor-divergence.yaml'
+  - 'CLAUDE.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-28T15:44:19'
+    action: 'T-3617: re-vendor AEF v1.8.15-be.39 -> be.49 (4877afc73, 306 commits; release-freeze upgrade report, operator go 2026-10-28)'
+  - time: '2026-10-28T15:58:07'
+    action: 'T-3617: .vendor-divergence.yaml baseline -> 817161124 (be.39 -> be.49), previous 4f9cb225c prepended'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 35 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 35
+  commits: 3
+  files_changed: 62
+  lines_added: 23657
+  lines_removed: 402
+  footprint_refreshed_at: '2026-10-28T14:59:13Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3617-re-vendor-aef-v1815-be39---be48-release-.md
+generated_by: context-agent-hybrid

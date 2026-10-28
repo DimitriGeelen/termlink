@@ -21229,3 +21229,21 @@ scan_id: R-9ff75973
 task_id: T-3611
 payload:
   task_file: .tasks/active/T-3611-commit-52-task-file-changes-left-uncommi.md
+---
+kind: scan_emitted
+timestamp: '2026-10-28T14:59:00Z'
+scan_id: R-fed7bfae
+task_id: T-3617
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-28T14:59:00Z'
+scan_id: R-fed7bfae
+task_id: T-3617
+payload:
+  task_file: .tasks/active/T-3617-re-vendor-aef-v1815-be39---be48-release-.md
