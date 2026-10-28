@@ -422,6 +422,11 @@ bvp_scores_proposed:
 - .121 update (msg 07403a17, 11:22Z): reflection-cron.sh now uses profile names (framework-agent, ring20-manager), no
   --secret-file, live round OK; check-upstream-consumption.sh retired. Only hubs.toml's framework-agent profile still
   names the secret file: the token_file swap of that profile is all that remains on .121.
+- .121 HOLD (msg 62fed5e7, after runme 120819Z): their operator ruled 2026-10-28 that nothing is removed until the token
+  has proven itself in daily operation (re-mints included) without failure. Keep the secret_file line and both secret
+  files (incl. 192.168.10.107.hex.bak). Action 24 for .121 is NOT scheduled from our side; we act only on their
+  explicit later request. Token-only checks passed there (remote ping, list 19 sessions, send-file rc 0). Token and
+  telemetry job stay. Acknowledged (client_msg_id 63dd022b).
 
 ### 2026-10-28T00:10:39Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
