@@ -56,7 +56,12 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+050 update 2026-10-28 (conversation hub-tmux-sandbox, msg 7794efe5): since 050 T-2481 Pen uses the per-project tmux
+server (TERMLINK_TMUX_PER_PROJECT=1, socket tl-050-email-archive-949efa96); workaround now
+`systemd-run --unit=pen-tmux-server tmux -L <socket> -f /dev/null -D`. They found spawn runs tmux in the CALLER
+process, so a server started by spawn from a systemd oneshot dies with that oneshot's cgroup. The fix must cover the
+-L per-project path: whatever starts the server after a boot must run outside both the hub sandbox and the caller's
+cgroup. 050 keeps the workaround until we say T-3620 is released.
 
 ## Acceptance Criteria
 
