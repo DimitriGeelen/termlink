@@ -121,3 +121,9 @@ The 2026-10-27 value-review run (T-3609) could not confirm its yardstick because
    tooling; cap on dev-project canaries; objectives and drivers split into product and project sets). Operator: "yes".
    Outcome: D′ RULED (T-3612 Decisions). Round 4 writes purpose, objectives and drivers for the product, plus a short
    separate set for the development project; cap number and D1 weight fold into round 4.
+13. 2026-10-28, round 4 go. Agent asked "may I write the draft now?" with options A (draft, then straight to outside
+   review) / B (wait for T-3615 telemetry) / C (draft, operator reads first, then outside review) / D (stop);
+   recommended C. Operator first asked for help ("do we need to decide something?"), got a plain restatement, then
+   ruled "ok C". Draft v0.1 written: `docs/reports/T-3612-round4-draft.md` (purpose, P-1..P-7, product drivers,
+   non-goals, development-project set DP-1..DP-4, what adoption would change, four open points). Next: the operator
+   reads it; outside review only after their corrections.
