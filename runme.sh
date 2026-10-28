@@ -2188,7 +2188,8 @@ install_fleet_rollup
 # Per host, and only when ALL of these hold:
 #   (a) the host's decision below is recorded (empty = HELD). ring20-management and
 #       ring20-dashboard were told the change comes after THEY confirm; greenfield's
-#       .107 secret file differs from .107's (unconfirmed), it too waits for a ruling;
+#       designer-107.hex IS .107's secret (2026-10-28 re-check: the earlier "differs" was
+#       a trailing newline only), it waits for the operator's ruling;
 #   (b) action 22b's state on record shows the token path verified on an EARLIER run
 #       (verified_at before this run started) and the token not expired;
 #   (c) the host's .107 profile carries token_file = the installed token, there is
@@ -2215,7 +2216,7 @@ secret_removal_decision() {  # <hub> -> the recorded decision; empty = HELD
     case "$1" in
         ring20-management) printf '%s' "" ;;   # waits for ring20-management's confirmation
         ring20-dashboard)  printf '%s' "" ;;   # waits for ring20-dashboard's confirmation
-        greenfield)        printf '%s' "" ;;   # waits for the operator (its .107 file is not .107's secret)
+        greenfield)        printf '%s' "" ;;   # waits for the operator's ruling
     esac
 }
 

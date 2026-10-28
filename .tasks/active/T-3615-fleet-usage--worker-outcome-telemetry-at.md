@@ -51,7 +51,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-28T00:10:39Z
-last_update: 2026-10-28T11:45:51Z
+last_update: 2026-10-28T15:12:46Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -427,6 +427,11 @@ bvp_scores_proposed:
   files (incl. 192.168.10.107.hex.bak). Action 24 for .121 is NOT scheduled from our side; we act only on their
   explicit later request. Token-only checks passed there (remote ping, list 19 sessions, send-file rc 0). Token and
   telemetry job stay. Acknowledged (client_msg_id 63dd022b).
+- CORRECTION, .132 greenfield (2026-10-28, .context/working/t3615/greenfield-secret-probe{,2}.sh, hashes only): the
+  Q3 record's ".132's file differs (unconfirmed)" was WRONG. /root/.termlink/secrets/designer-107.hex (65 bytes, 0600,
+  2026-10-01) equals .107's hub.secret (64 bytes) once the trailing newline is stripped (sha256 prefix 640cb5deeabc
+  both). So .132 holds .107's full secret, like .122 and .121. Its one .107 profile, designer107, carries both
+  token_file and secret_file; its rollup cron uses the token; no cron/systemd/sidecar file names the .hex.
 
 ### 2026-10-28T00:10:39Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
