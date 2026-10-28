@@ -21247,3 +21247,39 @@ scan_id: R-fed7bfae
 task_id: T-3617
 payload:
   task_file: .tasks/active/T-3617-re-vendor-aef-v1815-be39---be48-release-.md
+---
+kind: scan_emitted
+timestamp: '2026-10-28T23:16:54Z'
+scan_id: R-611b3f57
+task_id: T-3623
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-28T23:16:54Z'
+scan_id: R-611b3f57
+task_id: T-3623
+payload:
+  task_file: .tasks/active/T-3623-doorbell-canary-fires-on-a-token-only-pr.md
+---
+kind: scan_emitted
+timestamp: '2026-10-28T23:40:09Z'
+scan_id: R-924dd100
+task_id: T-3622
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-28T23:40:09Z'
+scan_id: R-924dd100
+task_id: T-3622
+payload:
+  task_file: .tasks/active/T-3622-ci-doc-lint-guard-layer-job-cancelled-at.md

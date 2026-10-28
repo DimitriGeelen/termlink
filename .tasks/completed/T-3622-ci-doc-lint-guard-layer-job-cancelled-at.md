@@ -4,12 +4,12 @@ name: "CI doc-lint guard-layer job cancelled at its 10-min timeout since 2026-10
 description: >
   CI doc-lint guard-layer job cancelled at its 10-min timeout since 2026-10-20 (suite outgrew it)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [tests/canary-escalation-file-fixtures.sh, tests/safe-commands-checkpoint-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-28T23:12:26Z
-last_update: 2026-10-28T23:13:44Z
-date_finished: null
+last_update: 2026-10-28T23:40:06Z
+date_finished: 2026-10-28T23:40:06Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -69,8 +69,9 @@ guard layer takes about 14 minutes. The checks are not failing; they never finis
   measured durations
 - [x] The first Doc Lint run on main after the push completes (not `cancelled`); its guard-layer job's outcome and
   duration are recorded in Updates (a red outcome is then a real finding, reported, not hidden)
-- [ ] The two FAIL-tier members that the cancelled runs had hidden pass on CI. They failed only there, because the
-  fixtures inherited the caller's environment.
+- [x] The two FAIL-tier members that the cancelled runs had hidden pass on CI. They failed only there, because the
+  fixtures inherited the caller's environment. (Run on 0fc3d202b: success, guard layer 23:26:37 → 23:39:24Z,
+  12m47s; first green since 2026-10-20.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -275,6 +276,10 @@ guard layer takes about 14 minutes. The checks are not failing; they never finis
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+grep -q "timeout-minutes: 20" .github/workflows/doc-lint.yml
+env -u PROJECT_ROOT -u FRAMEWORK_ROOT TMPDIR=/var/tmp bash tests/safe-commands-checkpoint-fixtures.sh > .context/working/.t3622-a 2>&1
+CI=true TMPDIR=/var/tmp bash tests/canary-escalation-file-fixtures.sh > .context/working/.t3622-b 2>&1 && grep -q "11 passed, 0 failed" .context/working/.t3622-b
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -384,3 +389,15 @@ guard layer takes about 14 minutes. The checks are not failing; they never finis
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3622-ci-doc-lint-guard-layer-job-cancelled-at.md
 - **Context:** Initial task creation
+
+### 2026-10-28T23:40:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-924dd100
+- **Timestamp:** 2026-10-28T23:40:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
