@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3623: Doorbell canary fires on a token-only profile (node1-pool): Interact token cannot create the selftest topic
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-28T23:17:01Z
+# ============================================================================
+
+task_id: T-3623
+task_name: "Doorbell canary fires on a token-only profile (node1-pool): Interact token cannot create the selftest topic"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-28T23:15:52Z
+completed: 2026-10-28T23:16:52Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-29T00:16:48+01:00
+last_commit: 2026-10-29T00:16:48+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  doorbell canary lists token-only profiles as not-checked (Interact scope cannot create the selftest topic) instead of firing; all-token-only exits 2; tests T8/T9
+
+# Key outcomes
+outcomes:
+  - 'A profile with `token_file` and no `secret`/`secret_file` is listed as `verdict=not-checked`, with the reason,'
+  - 'A profile that has a secret is still checked as before (test T8). If every profile is token-only, the run'
+  - 'scripts/test-check-fleet-doorbell-mail-health.sh passes 9/9. The live run passes, with node1-pool listed as'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/.id-highwater'
+  - '.tasks/active/T-3623-doorbell-canary-fires-on-a-token-only-pr.md'
+  - 'scripts/check-fleet-doorbell-mail-health.sh'
+  - 'scripts/test-check-fleet-doorbell-mail-health.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-29T00:16:48'
+    action: 'T-3623: doorbell canary lists token-only profiles as not-checked (Interact scope cannot create the selftest topic) instead of firing; all-token-only exits 2; tests T8/T9'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 4
+  lines_added: 433
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3623-doorbell-canary-fires-on-a-token-only-pr.md
+generated_by: context-agent-hybrid
