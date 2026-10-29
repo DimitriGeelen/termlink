@@ -1,6 +1,6 @@
 # T-3612 round 4 — draft purpose, objectives and value drivers (for the operator first)
 
-**Status:** DRAFT v0.4, 2026-10-28. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
+**Status:** DRAFT v0.5, 2026-10-29. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
 corrects this first; only then does it go to outside review (claude, codex, antigravity, opencode; at most 2 rounds).
 Adoption is the operator's (the charter sentence is human-blessed, `docs/CHARTER.md:17-19`).
 
@@ -192,7 +192,10 @@ These describe how we build and run TermLink, not what it is. They would live in
    (T-3615).
 3. **DP-3 Every guard names what it protects, under a cap** (Q7). A canary or check names the P- or DP-objective it
    protects, its owner, its cost and its retirement condition; a new one retires an old one once the cap is reached.
-   (v0.3: "product claim" excluded the development guards Q7 kept; claude, codex.) **Open: the cap's number.**
+   (v0.3: "product claim" excluded the development guards Q7 kept; claude, codex.) **Cap (operator, 2026-10-29:
+   A):** frozen at today's counts, **34 canary cron jobs** and **99 `scripts/check-*.sh`**. One in, one out from
+   now, and a quarterly review retires guards whose objective is met and which have not fired. Not counted: the 12
+   operational cron jobs (supervisors, rollup, re-mint, heartbeat) and the fixture suites, which test code.
 4. **DP-4 The framework stays current and our fixes go upstream.** Re-vendor routine, divergence baseline, and local
    framework fixes filed with AEF rather than kept (G-062).
 5. **DP-5 We read back before we propose** (operator ruling B, 2026-10-28). Before a decision is put to the operator,
@@ -226,7 +229,8 @@ These describe how we build and run TermLink, not what it is. They would live in
 1. ~~Purpose~~: ruled E (2026-10-28), section 1.
 2. ~~P-3 workspace~~: settled in v0.3. It stays in TermLink, by the earlier ruling T-3469 (two reviewers, none
    against).
-3. D1's new weight (5 proposed), and the DP-3 canary cap's number.
+3. D1's product weight: OPEN (put 2026-10-29; recommendation B, 6; the operator moved on without a ruling).
+   ~~The DP-3 canary cap~~: ruled A (2026-10-29), section 5.
 4. The per-layer driver tooling (6.3): which set the live driver file holds.
 5. Product F-CONV-RECALL: its retire condition.
 
@@ -235,6 +239,7 @@ These describe how we build and run TermLink, not what it is. They would live in
 | Version | Date | Change |
 |---|---|---|
 | 0.1 | 2026-10-28 | First draft, operator ruling C (operator reads first). |
+| 0.5 | 2026-10-29 | DP-3 cap ruled A: freeze at 34 canaries / 99 check scripts, one in one out, quarterly retirement review. D1 product weight put to the operator (A 5 / B 6 / C 7 / D 9; recommended B); no ruling yet. |
 | 0.4 | 2026-10-28 | Purpose ruled E: "makes sure every message reaches the recipient it is meant for: finds, wakes, hands over, shows where it is until an agent that can act has it, or it is loudly stuck". Handed-off work moved out of the sentence into the scope sentence and P-3. |
 | 0.3 | 2026-10-28 | Outside review round 1 (claude, codex, antigravity; opencode failed). Folded in what all three or two uncontested agreed on (`T-3612-round4-review-synthesis.md` A and B): D2 9, not 10; product recall gets a new id F-CONV-RECALL with no cross-topic queries and long-term keeping left to consumers; scoring blocks needed; P-1 restores the gap notice and load clause; P-5 isolation moved to "not yet"; P-7 no pre-decided schedule; DP-3 covers development guards; non-goal 1 names OD-11; code contradictions listed; adoption checklist covers the charter guard, aliases, tripwires and score ids; workspace settled. Purpose, D1/cap, driver file and recall retirement stay open for the operator. |
 | 0.2 | 2026-10-28 | Operator: "why is recall dropped?". It was dropped from the product set on the four seats' advice, and wrongly left out of the development project's set. Ruling B: recall in both sets (product F-RECALL 5, redefined and bounded by Q3; development project F-RECALL 6 and DP-5). |

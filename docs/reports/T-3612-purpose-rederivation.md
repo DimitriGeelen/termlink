@@ -150,3 +150,10 @@ The 2026-10-27 value-review run (T-3609) could not confirm its yardstick because
    recipient, wakes it in its terminal when it must, hands the message over, and shows where it is until an agent
    that can act has it, or it is loudly stuck." Scope sentence: "It is the base layer: it records work handed off
    between agents, and leaves what work to do, and who should do it, to the framework above."
+16. 2026-10-29, after the host restart (recorded under T-3624, because T-3612 is at its exploration-commit limit).
+   D1's product weight put: A 5 (draft, codex), B 6 (antigravity), C 7, D keep 9; recommended B (canary accretion is now
+   scored in the development set, so product D1 need not fall to 5 and should still value recovery work such as the
+   takeover tests). Operator: "next" with no ruling; recorded as OPEN.
+   Canary cap put: counted 34 canary cron jobs, 99 check scripts (62 guard-layer static members); 12 operational crons
+   and 157 fixture suites not counted. Options: A freeze at today's counts, one in one out, quarterly retirement review
+   (codex); B antigravity's 35 / 75; C a reduction target by Q1 2027; D no number. Recommended A. Operator: "A".
