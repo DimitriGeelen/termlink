@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-29T11:41:08Z
-last_update: 2026-10-29T11:41:08Z
+last_update: 2026-10-29T12:06:28Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,7 +65,7 @@ and WORKS/FAILS. Same routine as T-3617; the worker brief is `.context/working/t
 ## Acceptance Criteria
 
 ### Agent
-- [ ] be.49 (4877afc73) is an ancestor of v1.8.15. Preserved-file diff done (changed files 3-way merged).
+- [x] be.49 (4877afc73) is an ancestor of v1.8.15. Preserved-file diff done (changed files 3-way merged).
   Rehearsal on a fresh clone and the real run from a second clone both exit rc 0.
 - [ ] The CLAUDE.md project part is byte-identical. BOUNDARY_EXTRA_READ_PATHS is kept. Every preserved file still
   carries our local change (T-4870 check). fw doctor before vs after recorded; guard layer before and after.
@@ -122,6 +122,12 @@ and WORKS/FAILS. Same routine as T-3617; the worker brief is `.context/working/t
 -->
 
 ## Verification
+
+grep -q "^1.8.15$" .agentic-framework/VERSION
+grep -q "be.49 -> v1.8.15 (0230eeb9e" .vendor-divergence.yaml
+grep -q "T-4880" .agentic-framework/lib/sidecar_cli.py && grep -q "T-3533" .agentic-framework/lib/sidecar_cli.py
+python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" .agentic-framework/lib/sidecar_cli.py
+grep -q "T-3270" .agentic-framework/agents/context/check-active-task.sh && bash -n .agentic-framework/agents/context/check-active-task.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -346,6 +352,12 @@ and WORKS/FAILS. Same routine as T-3617; the worker brief is `.context/working/t
 -->
 
 ## Decisions
+
+### 2026-10-29 — preserved lib/sidecar_cli.py changed upstream (T-4880)
+- **Chose:** 3-way merge (base be.49 4877afc73, theirs v1.8.15), 0 conflicts. The merged copy carries T-4880 and
+  our T-3533 doorbell warning; it was installed after the upgrade, which keeps a preserved file whole.
+- **Why:** keeping our copy whole would drop upstream's T-4880 (`fw sidecar alerts` judges dm mail per addressee).
+- **Rejected:** upstream whole (loses T-3533); ours whole (loses T-4880).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

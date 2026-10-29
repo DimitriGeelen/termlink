@@ -483,7 +483,61 @@ One row per project and build. A blank Msg means the id was not kept in the sess
 | 832 | be.45 | **WORKS**: T-4779, their release commit landed 2 h after a verdict and the ledger still counts it. T-4768 not exercised (no inception decided since be.31) | cea873e2 |
 | ring20-dashboard | be.46 | **WORKS**: upgrade v1.8.14 to be.46 (1644 commits) from a full clone of the tag, 12 min, doctor 0 FAIL before and after, fast lane 0 failures (17031 passed, 23 skipped for their replaced termlink cleanup), no rollback; 37 local patches down to 32. Four findings filed as T-4851..T-4856, three security-review findings as T-4857..T-4859 | 2c503ddf, 72cf84a0 |
 
+**2026-10-28, release-freeze upgrade round be.48/be.49 (recorded by T-4876):**
+
+| Project | From → to | Doctor before / after | Own tests before / after | Fix verdicts | Msg |
+|---|---|---|---|---|---|
+| ring20-dashboard | be.46 → be.48 → be.49 | 0 FAIL / 0 FAIL | 17031 / 17037 passed, 0 failures both sides | **WORKS**: T-4851..T-4853, T-4863, T-4854 (both modes), T-4416/T-4423, T-4558/T-4152/T-3651, T-4872 (live, python3 broken), T-4857..T-4859 (76 guard tests). **FAILS** T-4852 quoted path → fixed T-4872, confirmed | 4c7cd097, b062b628, a575cc7a, 396cc3a6 |
+| ring20 | be.40 → be.48 | 1 FAIL / same 1 FAIL (their own uncommitted settings.json) | poold 37/37, apt keys 13/13, orch-supervisor 185/185; worker-contract vectors identical | upgrade clean, nothing broken | b7c247f1 |
+| dimitri-mint-dev | be.41 → be.48 | 0 FAIL / 0 FAIL (one expected Watchtower-restart WARN) | own tests PASS / PASS; 22 pages 200 | upgrade clean; earlier be.41: D close, T-4812, handover WORKS | 7b236bdb, d812cf90, b68fc2ef |
+| 055 | be.37 → be.48 → be.49 | 0 FAIL / 0 FAIL | bats 157/0, pytest 1690 → 1695 passed | **WORKS**: T-4824, T-4783, T-4833, T-4825, T-4826, E dispatch, F reviewer, T-4873. **FAILS** T-4809 armed=yes → fixed T-4873, confirmed (their strict xfail turned XPASS). G owed after their next restart | d9f5214f, 6d5a4208, 35d4762f |
+| 832 | be.45 → be.48 | 0 FAIL / 0 FAIL (one expected Watchtower WARN) | core tier 213 passed both sides | **WORKS**: T-4843, T-4844, T-4779, T-4811, G session restore, Check in the designer. A-H field test complete, no open FAILS | 1196ef73, b17f135d, 6b486bb8 |
+| TermLink | be.39 → be.49 | rc 0 / rc 0 (three old WARNs gone, incl. smoke 13/54 → 54/54) | guard layer identical (224/223 passed) | **WORKS**: T-4827, T-4828 | 87569601 |
+
+**Freeze exit status (2026-10-28 evening):** six of seven active testers are on be.48 or later with a clean upgrade report, which meets the operator's confirmation rule (b: clean full upgrades by three or more testers). Both FAILS reported in this round were fixed under the freeze (T-4872, T-4873) and confirmed by their reporters on be.49. Still missing: **1409**'s be.48+ upgrade report (partial report at about be.46: T-4841 WORKS; their lost local blueprint block is backlog T-4870). Open but not blocking: 055 G and dimitri-mint-dev G/T-4781 after their next restarts.
+
+### GitHub-linked fixes: field evidence per task (recorded 2026-10-29, T-4885)
+
+No tester exercised these seven fixes by name. They are confirmed under the operator's rule b: clean full upgrades by at least three testers confirm consumer-facing changes that have no specific verdict. Four testers upgraded cleanly to be.50 (dimitri-mint-dev, ring20-dashboard, 832, ring20) and two to be.51 (dimitri-mint-dev, ring20), each with doctor no worse and their own tests unchanged. The GitHub post still asks the submitter to confirm.
+
+| Task | Issue | Field verdict |
+|---|---|---|
+| T-4352 | #95 | WORKS (rule b: clean be.50 upgrades at 4 testers, be.51 at 2; not exercised by name) |
+| T-4353 | #96 | WORKS (rule b: clean be.50 upgrades at 4 testers, be.51 at 2; not exercised by name) |
+| T-4354 | #97 | WORKS (rule b: clean be.50 upgrades at 4 testers, be.51 at 2; not exercised by name) |
+| T-4356 | #99 | WORKS (rule b: clean be.50 upgrades at 4 testers, be.51 at 2; not exercised by name) |
+| T-4357 | #100 | WORKS (rule b: clean be.50 upgrades at 4 testers, be.51 at 2; not exercised by name) |
+| T-4358 | #101 | WORKS (rule b: clean be.50 upgrades at 4 testers, be.51 at 2; not exercised by name) |
+| T-4362 | #105 | WORKS (rule b: clean be.50 upgrades at 4 testers, be.51 at 2; not exercised by name) |
+
+### be.50 — 1409, 055 (recorded 2026-10-29, T-4885)
+
+be.50 (370b2688b) is be.49 plus T-4875, T-4880, T-4881 and T-4883. The release waits for 1409's be.50 report (operator, 2026-10-28, answer "1"). Under rule b, three clean be.50 upgrades confirm the four new fixes.
+
+| Tester | Versions | Doctor | Own tests | Verdicts | Messages |
+|---|---|---|---|---|---|
+| 1409 | → be.50 | 0 FAIL, 38 project WARN + 1 host WARN (no pre-upgrade reading) | **full suite on be.50 (c0131c69): 0 new reds.** 2812 s; scanner 7 failed / 2873 passed / 2 skipped / 18 xfailed; site-ontologie 335 passed; pruefstand 26/26; layout 29 passed; tools tests 231/241/360/348 passed. Of the 7 reds, 6 are their known data-dependent ones (5f66369d, fixed in their T-3041) and 1 is an XPASS(strict) of their own marker; none is framework. Their baseline aufseher test passed. be.51 not run (operator undecided) | upgrade clean: dry-run and upgrade exit 0, no PRESERVE file changed, 29 files (their 97362b0b7); 40 STALE review worktrees and the claude-fw restart hint were expected. Known issue, second time: the upgrade removed their local `/arbeiter` registration block (T-4870, P-010). Re-applying it restored the route (200), and their preserve and page tests went from 2 failed to 22 passed; no other preserved file was affected | 8e456671, 3b77df39, fe78b067, c8c444c3 |
+| dimitri-mint-dev | be.48 → be.50 (non-shallow clone of the tag) | 0 FAIL / 9 WARN → 0 FAIL / 10 WARN; the new WARN ("Watchtower process predates its own source") is true and cleared by `fw watchtower restart` (pages 200) | t190 tmux-kill-guard PASS/PASS, t195 dupes PASS/PASS | **clean upgrade**: dry-run and upgrade rc 0 (3 changes, 15 vendored files, hooks reinstalled, CLAUDE.md unchanged). **WORKS** `fw sidecar alerts` (rc 0, clean). Nothing broken. **Finding:** the push of their upgrade commit took 5–6 min inside our pre-push `audit --section structure`, with a python check near its 300 s cap. Their project root is their home directory. The push did succeed. Suspected cause: the T-2169 retire_when check's recursive glob over the whole root. Not a regression (code from 2026-06). Filed as T-4891, cause unconfirmed | 18e26779, ed646372 |
+| ring20-dashboard | be.49 → be.50 (full clone of the tag) | 0 FAIL / 12 WARN → 0 FAIL / 11 WARN | fast lane 17056 passed / 12 skipped, before and after, 0 failures | **clean upgrade**: ALL OK, no rollback; dry-run gate 31 LOCAL == 31 series files, 29/29 local patches with zero fuzz (be.50 touches audit.sh and config.sh, which they patch). **WORKS** T-4875, T-4880 (listed 10 old unanswered DMs per addressee, 21–29 days, with the dm-handled hint), T-4881, T-4883. Nothing broke. Note for T-4871: a second runme start was refused by their flock, but `fw runme` had already truncated the shared run.log | c20890c2 |
+| 832 | be.48 → be.50 (full clone; `--allow-delete-locals`) | 0 FAIL / 9 WARN → 0 FAIL / 10 WARN (Watchtower predates its source) → 0 FAIL / 9 after a Watchtower restart | core tier 215 passed / 0 failed before and after, first run, no flake | **clean upgrade**: rc 0; 37/37 local patches clean, 0 conflicts; / and /designer/app 200. **WORKS** `fw sidecar alerts`; T-4880 (with `FW_SIDECAR_DM_ADDRESS_KEYS` set read-only it lists 10 unanswered DMs). T-4875 N/A for a consumer (no tests/unit); T-4883 not specifically exercised, no failure; T-4881 check named to them. Notes: the bare env name `SIDECAR_DM_ADDRESS_KEYS` is ignored (config env is `FW_`-prefixed); configuring the host key would adopt the whole host's old mail, so they ask for a warning → T-4892 (post-freeze) | 1e2df855 |
+| ring20 | be.48 → be.50 | 1 FAIL / 13 WARN → same (their own Enforcement baseline CHANGED, local settings.json), no diff | test-poold 42 OK, apt-signing-keys 13 OK, orch-supervisor 185 OK, wc-run vectors 20 pass / 4 n/a / 1 not-implemented, before = after | **clean upgrade**: rc 0; 3-way merge of their in-file patches clean (10 files, 18/18 markers); preserve check OK (38 files + 18 patches); cron and hooks identical; Watchtower 6/6 pages 200. **WORKS** `fw sidecar alerts` (lists 10 unanswered DMs with fences and the dm-handled hint). Observation: 7 of the 9 from 050-email-archive are that peer's own auto-acks ("Got it, on it now…"), which need no answer → T-4893 (post-freeze) | 90ae5b45 |
+| 055 | be.49 (be.50 after their T-648 deploy) | — | — | **WORKS** G session restore: after the host .107 reboot their fleet starter ran `claude-fw --resume <id>` at 23:55:28; SessionStart fired as resume, injected their handover, and the conversation continued with full context. Not exercised: claude-fw's own `.restart-requested` path | 698140ea |
+
+**be.51 (4bd9b17ac, 2026-10-29):** be.50 plus T-4891 only (the pre-push retire_when check searches tracked files instead of walking the root). The operator chose to ship it in this release (answer "a"). T-4891 confirmation: dimitri-mint-dev's push time after upgrading (msg 632b09b0). 1409 runs its full suite on be.51 instead of be.50 (fd8625ec). T-4870 stays a known issue for after the release.
+
+**Freeze exit status (2026-10-29):**
+- **Clean be.50 upgrades: 3 of 3, so rule b is met for T-4875, T-4880, T-4881 and T-4883:** dimitri-mint-dev; ring20-dashboard (all four WORKS); 832 (T-4880 WORKS).
+- **Also clean:** ring20 (a 4th clean upgrade).
+- **1409 gate met:** full suite on be.50 with 0 new reds (c0131c69). Only framework issue seen: T-4870, worked around.
+- **T-4891 confirmed on be.51 (dimitri-mint-dev, msg 79fe2789, operator go 2026-10-29):** be.50 → be.51 from a non-shallow clone; dry-run and upgrade rc 0 (3 changes, 6 vendored files, hooks reinstalled); doctor 0 FAIL / 9 WARN before and after, no new WARN. **An ordinary push of 2 small commits took 14 s; it was 5–6 min on be.50. WORKS.** Nothing broken.
+- **ring20 on be.51 (msg 101f83e4):** clean be.50 → be.51 (non-shallow, dry-run first). In-file patch merge clean (18/18 markers), rc 0, preserve OK, hooks identical, Watchtower 6/6 pages 200. Doctor unchanged (1 FAIL / 13 WARN, their own settings baseline). Tests unchanged (poold 42, apt keys 13, orch-supervisor 185, vectors 20/4/1). Push 129.1 s on be.50, 130.7 s on be.51: no change, as expected for a repo-rooted project. No per-check timing is available to say what the 130 s is spent on. **WORKS**, nothing broke.
+- **1409's refused push on be.50, diagnosed (msg 8aefa204):** not an audit failure but lock contention. A cron `audit.sh --cron` held the audit lock for over 6 min, longer than the pre-push wait window (160 s, derived from full-audit-timing.yaml, T-3421). The gate then fails closed with "audit COULD NOT RUN (another audit holds the lock) … This is not an audit failure". No FAIL, new red, Tier 0 or drift line appeared. This is the known T-3297 class (open), not a be.50 regression. Workaround: push again after the cron audit ends (1409 does, no bypass). T-4891 shortens structure audits on large trees, which narrows the window. Release notes: known issue.
+- **Waiting on 1409's full test suite on be.50,** which the release waits for.
+- **Not yet started:** 055 after T-648; TermLink on its operator's go; 0506 asked.
+- **Confirmed earlier:** 055 G.
+
 **Still unexercised, and who reports:**
+- **claude-fw budget auto-restart (`.restart-requested`):** written by the budget gate at 2026-10-28 18:06Z here, but the wrapper did not end the session (it predated later claude-fw fixes); no tester has exercised it yet.
 - **1409:** upgrade to be.44 or later after their workers rest, then the create-time re-measure at about 20 worktrees (T-4797, T-4841); T-4806 needs their Dauerlauf armed.
 - **dimitri-mint-dev:** G, T-4781, T-4812 re-check (after relaunch).
 - **055:** E, F, G.
