@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3621: MCP termlink_agent_listeners_fleet fails: agent-listeners verb not executable (scripts/agent-listeners.sh), reported by 1023
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-29T08:38:30Z
+# ============================================================================
+
+task_id: T-3621
+task_name: "MCP termlink_agent_listeners_fleet fails: agent-listeners verb not executable (scripts/agent-listeners.sh), reported by 1023"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-28T17:26:57Z
+completed: 2026-10-29T08:37:37Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-10-29T09:37:36+01:00
+last_commit: 2026-10-29T09:37:36+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP fleet tools work from other projects — sibling scripts resolve from their own dir, not the caller's cwd (agent-listeners-fleet, agent-send x2, doorbell health, adoption snapshot, conversation selftest)
+
+# Key outcomes
+outcomes:
+  - 'The six defaults resolve from the script''s own directory (`dirname ${BASH_SOURCE[0]}`), not the cwd. An env'
+  - 'Run from a directory that is not this repo, agent-listeners-fleet.sh finds its sibling (no "not executable"'
+  - 'The existing tests for the touched scripts still pass: listeners-fleet 6/6, agent-send (4 suites), adoption'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3621-mcp-termlinkagentlistenersfleet-fails-ag.md'
+  - 'scripts/agent-conversation-selftest.sh'
+  - 'scripts/agent-listeners-fleet.sh'
+  - 'scripts/agent-send.sh'
+  - 'scripts/check-fleet-doorbell-mail-health.sh'
+  - 'scripts/fleet-adoption-snapshot.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-29T09:37:36'
+    action: 'T-3621: MCP fleet tools work from other projects — sibling scripts resolve from their own dir, not the caller''s cwd (agent-listeners-fleet, agent-send x2, doorbell health, adoption snapshot, conversation selftest)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 910 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, mcp]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 910
+  commits: 2
+  files_changed: 9
+  lines_added: 185
+  lines_removed: 34
+  footprint_refreshed_at: '2026-10-29T08:38:51Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3621-mcp-termlinkagentlistenersfleet-fails-ag.md
+generated_by: context-agent-hybrid

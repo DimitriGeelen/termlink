@@ -9,12 +9,12 @@ description: >
   (likely the MCP server resolves the script relative to the caller's project, not
   TermLink's).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, mcp]
-components: []
+components: [scripts/agent-conversation-selftest.sh, scripts/agent-listeners-fleet.sh, scripts/agent-send.sh, scripts/check-fleet-doorbell-mail-health.sh, scripts/fleet-adoption-snapshot.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -43,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-28T17:26:57Z
-last_update: '2026-10-29T08:30:04Z'
-date_finished:
+last_update: 2026-10-29T08:37:37Z
+date_finished: 2026-10-29T08:37:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -397,3 +397,15 @@ still carry the cwd-relative pattern but are not reached by the MCP server; they
 ### 2026-10-29T08:30:01Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-29T08:37:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-fd7993b7
+- **Timestamp:** 2026-10-29T08:38:21Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
