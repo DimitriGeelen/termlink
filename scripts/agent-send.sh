@@ -209,8 +209,10 @@ if [ -n "$to_agent_id" ]; then
     # post, doorbell ring, and receipt/reply polling below. LISTENERS_VERB overrides
     # the fleet (cross-hub) verb; LISTENERS_LOCAL_VERB the local one — both honored
     # so tests/fixtures can feed canned presence JSON.
-    FLEET_VERB="${LISTENERS_VERB:-scripts/agent-listeners-fleet.sh}"
-    LOCAL_VERB="${LISTENERS_LOCAL_VERB:-scripts/agent-listeners.sh}"
+    # T-3621: siblings resolve from this script's own dir, not the caller's cwd (the MCP server runs us
+    # from the calling project's directory, where scripts/ is not TermLink's).
+    FLEET_VERB="${LISTENERS_VERB:-$SELF_DIR/agent-listeners-fleet.sh}"
+    LOCAL_VERB="${LISTENERS_LOCAL_VERB:-$SELF_DIR/agent-listeners.sh}"
 
     # Resolve listener[0] for the agent via $1=verb; echoes the row JSON or nothing.
     _resolve_listener() {

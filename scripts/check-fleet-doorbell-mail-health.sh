@@ -28,7 +28,7 @@ FORMAT=human
 QUIET=0
 HEARTBEAT=1
 HUBS_FILE="${HOME}/.termlink/hubs.toml"
-SELFTEST="${SELFTEST:-scripts/agent-conversation-selftest.sh}"
+SELFTEST="${SELFTEST:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/agent-conversation-selftest.sh}"  # T-3621: own dir, not cwd
 # T-2225 — operator-declared "expected-transient" hosts. A profile NAME listed
 # here that is unreachable/setup-fail is classified transient_skipped and does
 # NOT flip overall_ok (a sleeping laptop must not DRIFT the whole-fleet canary —

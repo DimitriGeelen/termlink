@@ -51,7 +51,10 @@
 #   }
 set -u
 
-AGENT_LISTENERS_BIN="${AGENT_LISTENERS_BIN:-scripts/agent-listeners.sh}"
+# T-3621: resolve the sibling from this script's own dir, not the caller's cwd. The MCP server runs this
+# script by absolute path from the CALLING project's directory, where "scripts/" is that project's
+# (1023 reported "agent-listeners verb not executable: scripts/agent-listeners.sh").
+AGENT_LISTENERS_BIN="${AGENT_LISTENERS_BIN:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/agent-listeners.sh}"
 HUBS_FILE="${HOME}/.termlink/hubs.toml"
 FORMAT=human
 

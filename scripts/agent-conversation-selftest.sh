@@ -26,7 +26,7 @@
 set -euo pipefail
 
 TERMLINK="${TERMLINK_BIN:-termlink}"
-STATUS_VERB="${STATUS_VERB:-scripts/agent-conversation-status.sh}"
+STATUS_VERB="${STATUS_VERB:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/agent-conversation-status.sh}"  # T-3621: own dir, not cwd
 
 # T-2754 — reap the ephemeral topic. This script runs on a DAILY cron
 # (fleet-doorbell-mail-canary → check-fleet-doorbell-mail-health.sh → here), and

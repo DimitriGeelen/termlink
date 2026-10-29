@@ -29,7 +29,7 @@
 set -u
 
 TERMLINK="${TERMLINK_BIN:-termlink}"
-LISTENERS_VERB="${LISTENERS_VERB:-scripts/agent-listeners.sh}"
+LISTENERS_VERB="${LISTENERS_VERB:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/agent-listeners.sh}"  # T-3621: own dir, not cwd
 HUBS_FILE="${HUBS_FILE_OVERRIDE:-$HOME/.termlink/hubs.toml}"
 
 FORMAT=human
