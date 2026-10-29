@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-29T11:41:08Z
-last_update: 2026-10-29T12:06:28Z
+last_update: 2026-10-29T12:06:45Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -125,6 +125,7 @@ and WORKS/FAILS. Same routine as T-3617; the worker brief is `.context/working/t
 
 grep -q "^1.8.15$" .agentic-framework/VERSION
 grep -q "be.49 -> v1.8.15 (0230eeb9e" .vendor-divergence.yaml
+bash scripts/check-vendor-divergence.sh > .context/working/.t3626.out 2>&1 && grep -q "since a0e086caf" .context/working/.t3626.out
 grep -q "T-4880" .agentic-framework/lib/sidecar_cli.py && grep -q "T-3533" .agentic-framework/lib/sidecar_cli.py
 python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" .agentic-framework/lib/sidecar_cli.py
 grep -q "T-3270" .agentic-framework/agents/context/check-active-task.sh && bash -n .agentic-framework/agents/context/check-active-task.sh
