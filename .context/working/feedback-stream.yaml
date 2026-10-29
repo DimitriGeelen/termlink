@@ -21355,3 +21355,21 @@ scan_id: R-5122f5c7
 task_id: T-3629
 payload:
   task_file: .tasks/active/T-3629-tofu-tls-verifier-skips-handshake-signat.md
+---
+kind: scan_emitted
+timestamp: '2026-10-29T22:54:30Z'
+scan_id: R-bf6e22ea
+task_id: T-3628
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-29T22:54:30Z'
+scan_id: R-bf6e22ea
+task_id: T-3628
+payload:
+  task_file: .tasks/active/T-3628-tofu-store-loses-pins-under-concurrent-t.md

@@ -1,0 +1,101 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3628: TOFU store loses pins under concurrent termlink processes (shared known_hubs.tmp + no lock/merge) -> silent re-TOFU windows
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-29T22:54:39Z
+# ============================================================================
+
+task_id: T-3628
+task_name: "TOFU store loses pins under concurrent termlink processes (shared known_hubs.tmp + no lock/merge) -> silent re-TOFU windows"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-29T20:31:43Z
+completed: 2026-10-29T22:54:20Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-29T21:34:04+01:00
+last_commit: 2026-10-29T23:54:15+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  TOFU store loses pins under concurrent processes (shared known_hubs.tmp, no lock/merge); external consultation dispatched (codex, antigravity, claude). external consultation (codex, antigravity, claude) saved and compared; T-3629 filed: TLS verifier skips handshake signature checks (verified). operator ruling B — 21 pin events acknowledged (offsets 13-33) after out-of-band .107 cert check, pre-incident fingerprint records and store match; ack marker 34, check green. TOFU store changes run under an inter-process lock (re-read, decide, apply own change, unique temp file); no rewrite per matching connection; fail closed on an unreadable store; deploy-remote.sh clears via tofu clear; 8-process regression test
+
+# Key outcomes
+outcomes:
+  - 'External consultation done (3 seats), answers saved and compared, and the result put to the operator: whether'
+  - 'The store survives N concurrent termlink processes pinning different hubs: afterwards it holds every pin, and'
+  - 'Concurrent saves never rename another process''s partial temp file into place (lock + temp name'
+  - 'Every change (pin, clear, clear-all) runs under an exclusive advisory lock on `<store>.lock`: re-read the store,'
+  - 'A matching connection no longer rewrites the whole file each time: `last_seen` is refreshed at most once an hour'
+  - 'Fail closed: if the store exists but cannot be read, `accept` refuses the connection instead of treating the'
+  - '`scripts/deploy-remote.sh` clears a pin through `termlink tofu clear` (locked, logged as `tofu-clear`), not by'
+  - 'The new concurrency test fails on the old code (shown by reverting locally) and passes on the new; full'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-29 — acknowledge the 21 pin events? B: acknowledge exactly offsets 13–33 after checks (operator ruling)'
+    chose: 'B (operator: "As suggested", after the external consultation, docs/reports/T-3628-consult/). Checks done, then `check-pin-events.sh --ack` with the trail still at 34 lines; ack marker 34, 0 new, check rc 0. - B1 out of band, .107: its own `/var/lib/termlink/hub.cert.pem` hashes to `cacc73ea32b1` (`termlink hub fingerprint` and `openssl x509 | sha256sum` agree), matching every event. - B2 pre-incident records: in repo history, .121 `1389a831016c` since 2026-05-02, .122 `22c19fedafd7` since 2026-05-17, .132 `aef925c6d2f4` since 2026-10-04, .107 `cacc73ea32b1` since 2026-09-28; learnings.yaml agrees for .122 and .132. The node1-pool hub (.122:19100, `925d947ce6e9`) has no earlier record. It is genuinely new (first contact 2026-10-28), not a lost pin, and has the same fingerprint in every event. - B3: one fingerprint per address across offsets 13–33, equal to the store''s entry for every address.'
+    rationale: 'claude and antigravity said acknowledge after out-of-band and store checks; codex said not on live-wire evidence alone. B uses the local certificate file and pre-incident records, not the wire, and acknowledges only what was reviewed (codex''s warning that `--ack` takes the count at invocation, so the count was checked first).'
+    alternatives_rejected: ['A, acknowledge on the live-wire match (weak, given T-3629); C, wait for the fixes (the only pin alarm stays blind); D, peer verification for now (it travels the same channel T-3629 weakens; possible after T-3629 lands). - **Left open:** more first-pin events will appear until this task''s fix lands; each will be reviewed the same way.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/.id-highwater'
+  - '.tasks/active/T-3624-t-3612-round-4-record-operator-rulings-o.md'
+  - '.tasks/active/T-3628-tofu-store-loses-pins-under-concurrent-t.md'
+  - '.tasks/active/T-3629-tofu-tls-verifier-skips-handshake-signat.md'
+  - 'crates/termlink-session/src/tofu.rs'
+  - 'docs/reports/T-3628-consult/antigravity.md'
+  - 'docs/reports/T-3628-consult/claude.md'
+  - 'docs/reports/T-3628-consult/codex.md'
+  - 'docs/reports/T-3628-consult/comparison.md'
+  - 'scripts/deploy-remote.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-29T21:34:04'
+    action: 'T-3628: TOFU store loses pins under concurrent processes (shared known_hubs.tmp, no lock/merge); external consultation dispatched (codex, antigravity, claude)'
+  - time: '2026-10-29T21:41:25'
+    action: 'T-3628: external consultation (codex, antigravity, claude) saved and compared; T-3629 filed: TLS verifier skips handshake signature checks (verified)'
+  - time: '2026-10-29T21:52:19'
+    action: 'T-3628: operator ruling B — 21 pin events acknowledged (offsets 13-33) after out-of-band .107 cert check, pre-incident fingerprint records and store match; ack marker 34, check green'
+  - time: '2026-10-29T23:54:15'
+    action: 'T-3628: TOFU store changes run under an inter-process lock (re-read, decide, apply own change, unique temp file); no rewrite per matching connection; fail closed on an unreadable store; deploy-remote.sh clears via tofu clear; 8-process regression test'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 142 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, security, tofu]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 142
+  commits: 5
+  files_changed: 13
+  lines_added: 1541
+  lines_removed: 147
+  footprint_refreshed_at: '2026-10-29T22:54:44Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3628-tofu-store-loses-pins-under-concurrent-t.md
+generated_by: context-agent-hybrid
