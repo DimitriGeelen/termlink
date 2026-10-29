@@ -4,10 +4,10 @@ name: "Re-vendor AEF v1.8.15-be.49 -> v1.8.15 (release; operator go 2026-10-29)"
 description: >
   Re-vendor AEF v1.8.15-be.49 -> v1.8.15 (release; operator go 2026-10-29)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-29T11:41:08Z
-last_update: 2026-10-29T12:06:45Z
-date_finished: null
+last_update: 2026-10-29T12:58:37Z
+date_finished: 2026-10-29T12:58:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -67,10 +67,10 @@ and WORKS/FAILS. Same routine as T-3617; the worker brief is `.context/working/t
 ### Agent
 - [x] be.49 (4877afc73) is an ancestor of v1.8.15. Preserved-file diff done (changed files 3-way merged).
   Rehearsal on a fresh clone and the real run from a second clone both exit rc 0.
-- [ ] The CLAUDE.md project part is byte-identical. BOUNDARY_EXTRA_READ_PATHS is kept. Every preserved file still
+- [x] The CLAUDE.md project part is byte-identical. BOUNDARY_EXTRA_READ_PATHS is kept. Every preserved file still
   carries our local change (T-4870 check). fw doctor before vs after recorded; guard layer before and after.
   .upstream copies parked; .vendor-divergence.yaml baseline updated.
-- [ ] One ordinary `git push origin` timed, against T-4891 (AEF measured 14 s, was 5–6 min). The upgrade report is
+- [x] One ordinary `git push origin` timed, against T-4891 (AEF measured 14 s, was 5–6 min). The upgrade report is
   sent to AEF on conversation aef-v1815-be50.
 
 ### Human
@@ -360,6 +360,13 @@ grep -q "T-3270" .agentic-framework/agents/context/check-active-task.sh && bash 
 - **Why:** keeping our copy whole would drop upstream's T-4880 (`fw sidecar alerts` judges dm mail per addressee).
 - **Rejected:** upstream whole (loses T-3533); ours whole (loses T-4880).
 
+### 2026-10-29 — AFTER guard layer: runme-fixtures.sh red (1/233), classified not-vendor
+- **Chose:** record it as an intermittent project-side fixture, not an upgrade regression.
+- **Why:** the "dirty crates must rebuild" case failed in two runs in /opt/termlink (action 22b's fake-hub probe:
+  "lacks python3 or rr-tl"). A fresh clone at the post-upgrade commit e568fe8db passed 233/233, and so did a third
+  in-place run. Evidence: `.context/working/t3626/runme-fx{,-1,-pre,-post}.log`.
+- **Rejected:** reverting the vendor change (the code at e568fe8db passes).
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -385,3 +392,15 @@ grep -q "T-3270" .agentic-framework/agents/context/check-active-task.sh && bash 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3626-re-vendor-aef-v1815-be49---v1815-release.md
 - **Context:** Initial task creation
+
+### 2026-10-29T12:58:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-07de3596
+- **Timestamp:** 2026-10-29T12:58:41Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
