@@ -139,6 +139,112 @@ pub struct KnownHubStore {
     path: PathBuf,
 }
 
+/// T-3628: exclusive advisory lock (`flock`) on `<store>.lock`, held across
+/// read-store / decide / write so concurrent termlink processes cannot lose each
+/// other's pins. A separate file, because the store itself is replaced by rename.
+/// Released when dropped (closing the fd releases the lock).
+struct StoreLock {
+    _file: std::fs::File,
+}
+
+impl StoreLock {
+    fn acquire(store_path: &std::path::Path) -> std::io::Result<Self> {
+        use std::os::unix::io::AsRawFd;
+        if let Some(parent) = store_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(sibling_path(store_path, "lock"))?;
+        // Blocking: a holder keeps it only for one read and at most one small write.
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(Self { _file: file })
+    }
+}
+
+/// `<dir>/<store file name>.<suffix>`, e.g. `known_hubs.lock`.
+fn sibling_path(store_path: &std::path::Path, suffix: &str) -> PathBuf {
+    let name = store_path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "known_hubs".to_string());
+    store_path.with_file_name(format!("{name}.{suffix}"))
+}
+
+/// Parse the store's text form. Comment, blank and short lines are skipped.
+fn parse_store(content: &str) -> HashMap<String, KnownHub> {
+    let mut entries = HashMap::new();
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 4 {
+            entries.insert(
+                parts[0].to_string(),
+                KnownHub {
+                    host_port: parts[0].to_string(),
+                    fingerprint: parts[1].to_string(),
+                    first_seen: parts[2].to_string(),
+                    last_seen: parts[3].to_string(),
+                },
+            );
+        }
+    }
+    entries
+}
+
+/// T-3628: the first-pin / match / violation decision, applied to whichever map is
+/// authoritative (the store as re-read under the lock, or the in-memory copy when the
+/// store cannot be locked). Returns the result and whether the map changed.
+fn decide_accept(
+    entries: &mut HashMap<String, KnownHub>,
+    host_port: &str,
+    fingerprint: &str,
+    now: &str,
+) -> (Result<bool, String>, bool) {
+    if let Some(existing) = entries.get_mut(host_port) {
+        if existing.fingerprint == fingerprint {
+            // Known and matching. Refresh last_seen at most once an hour (same
+            // YYYY-MM-DDTHH prefix = no write): a rewrite per connection made parallel
+            // health checks the worst case for the store (T-3628).
+            let stale = existing.last_seen.get(..13) != now.get(..13);
+            if stale {
+                existing.last_seen = now.to_string();
+            }
+            return (Ok(false), stale);
+        }
+        // FINGERPRINT CHANGED — potential MITM
+        return (
+            Err(format!(
+                "TOFU VIOLATION: Hub {} fingerprint changed!\n  Expected: {}\n  Got:      {}\n  \
+                 This could indicate a man-in-the-middle attack or hub cert regeneration.\n  \
+                 To accept the new cert: termlink tofu clear {}",
+                host_port, existing.fingerprint, fingerprint, host_port,
+            )),
+            false,
+        );
+    }
+
+    // New hub — trust on first use (after a `tofu clear` this IS the re-pin)
+    record_pin_event("tofu-pin", host_port, None, Some(fingerprint));
+    entries.insert(
+        host_port.to_string(),
+        KnownHub {
+            host_port: host_port.to_string(),
+            fingerprint: fingerprint.to_string(),
+            first_seen: now.to_string(),
+            last_seen: now.to_string(),
+        },
+    );
+    (Ok(true), true)
+}
+
 impl KnownHubStore {
     /// Create a store backed by the given file path.
     pub fn new(path: PathBuf) -> Self {
@@ -155,83 +261,114 @@ impl KnownHubStore {
         Self::new(known_hubs_path())
     }
 
-    /// Load entries from disk. Silently ignores missing or malformed files.
+    /// Load entries from disk for read-only use (`get`, `list_all`). Missing or
+    /// unreadable files load as empty here; every change re-reads the store under
+    /// the lock and refuses to proceed on a read error (T-3628).
     fn load(&mut self) {
-        let content = match std::fs::read_to_string(&self.path) {
-            Ok(c) => c,
-            Err(_) => return,
-        };
-
-        let mut entries = self.entries.lock().expect("TOFU store lock poisoned");
-        for line in content.lines() {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 4 {
-                entries.insert(
-                    parts[0].to_string(),
-                    KnownHub {
-                        host_port: parts[0].to_string(),
-                        fingerprint: parts[1].to_string(),
-                        first_seen: parts[2].to_string(),
-                        last_seen: parts[3].to_string(),
-                    },
-                );
-            }
+        if let Ok(content) = std::fs::read_to_string(&self.path) {
+            *self.entries.lock().expect("TOFU store lock poisoned") = parse_store(&content);
         }
     }
 
-    /// Write all entries to disk.
-    /// Persist the store, warning LOUDLY on failure (T-2438). A lost
-    /// pin write is security-relevant: the in-memory pin protects only
-    /// this process — the next invocation would silently re-TOFU the
-    /// hub (trust-downgrade window), so the operator must hear about
-    /// it. Mutating callers' signatures stay infallible; the warning
-    /// is the contract.
-    fn save(&self) {
-        if let Err(e) = self.save_result() {
-            eprintln!(
-                "warning: failed to persist TOFU pin store to {} ({e}); \
-                 fingerprint pins from this session will NOT survive process exit — \
-                 the next connection will re-trust-on-first-use (fix the path/permissions)",
-                self.path.display()
-            );
+    /// Read the store as it is on disk now. A missing file is an empty store; any
+    /// other read error is returned, never treated as empty (T-3628: an empty store
+    /// means every hub is trusted afresh).
+    fn read_disk(&self) -> std::io::Result<HashMap<String, KnownHub>> {
+        match std::fs::read_to_string(&self.path) {
+            Ok(c) => Ok(parse_store(&c)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(HashMap::new()),
+            Err(e) => Err(e),
         }
     }
 
-    /// Fallible core of [`Self::save`], split out so tests can assert
-    /// the failure surfaces (T-2438) without capturing stderr.
-    fn save_result(&self) -> std::io::Result<()> {
-        let entries = self.entries.lock().expect("TOFU store lock poisoned");
-        let mut lines = Vec::new();
+    /// Write `entries` atomically: a uniquely named temp file, then rename (T-2501).
+    /// The temp name carries pid + a counter (T-3628): a fixed `known_hubs.tmp` let
+    /// two writers rename each other's partial file into place.
+    fn write_disk(&self, entries: &HashMap<String, KnownHub>) -> std::io::Result<()> {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+
+        let mut hubs: Vec<&KnownHub> = entries.values().collect();
+        hubs.sort_by(|a, b| a.host_port.cmp(&b.host_port));
+        let mut lines = Vec::with_capacity(hubs.len() + 2);
         lines.push("# TermLink known hubs (TOFU)".to_string());
         lines.push("# host:port fingerprint first_seen last_seen".to_string());
-        for entry in entries.values() {
-            lines.push(format!(
-                "{} {} {} {}",
-                entry.host_port, entry.fingerprint, entry.first_seen, entry.last_seen
-            ));
+        for e in hubs {
+            lines.push(format!("{} {} {} {}", e.host_port, e.fingerprint, e.first_seen, e.last_seen));
         }
 
-        // Ensure parent dir exists
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        // T-2501: write atomically (temp file + rename) instead of
-        // truncate-in-place. `std::fs::write` truncates the live file BEFORE
-        // writing, so a crash / OOM-kill / power-loss / ENOSPC mid-write leaves
-        // `known_hubs` truncated on disk → pins vanish → the next connection
-        // silently re-TOFUs (trust-downgrade / MITM window). POSIX rename(2) is
-        // atomic within one filesystem, so a reader always sees the complete old
-        // or complete new file — never a partial one. Mirrors the crate's
-        // established idiom (registration.rs::write_atomic, known_peers.rs).
-        // T-2438's Err-path warning still applies: any failure here propagates
-        // to save()'s loud eprintln.
-        let tmp_path = self.path.with_extension("tmp");
-        std::fs::write(&tmp_path, lines.join("\n") + "\n")?;
-        std::fs::rename(&tmp_path, &self.path)
+        let tmp_path = sibling_path(
+            &self.path,
+            &format!("tmp.{}.{}", std::process::id(), SEQ.fetch_add(1, Ordering::Relaxed)),
+        );
+        let result = std::fs::write(&tmp_path, lines.join("\n") + "\n")
+            .and_then(|()| std::fs::rename(&tmp_path, &self.path));
+        if result.is_err() {
+            let _ = std::fs::remove_file(&tmp_path);
+        }
+        result
+    }
+
+    /// T-3628: apply one change to the store under the inter-process lock: re-read
+    /// the file, let `f` decide and change only its own entry, write if it changed,
+    /// then refresh the in-memory copy from the result.
+    ///
+    /// - The store exists but cannot be read: `Err` (fail closed).
+    /// - The lock cannot be taken (e.g. unwritable directory): `f` runs on the
+    ///   in-memory copy and a loud warning says nothing will persist (T-2438).
+    /// - The write fails: same warning; the in-memory copy keeps the change.
+    fn mutate<R>(
+        &self,
+        f: impl FnOnce(&mut HashMap<String, KnownHub>) -> (R, bool),
+    ) -> Result<R, String> {
+        let lock = match StoreLock::acquire(&self.path) {
+            Ok(l) => l,
+            Err(e) => {
+                self.warn_not_persisted(&e);
+                let mut mem = self.entries.lock().expect("TOFU store lock poisoned");
+                return Ok(f(&mut mem).0);
+            }
+        };
+        let mut disk = self.read_disk().map_err(|e| {
+            format!(
+                "TOFU store {} exists but could not be read ({e}); refusing to trust-on-first-use. \
+                 Fix the file's permissions or contents",
+                self.path.display()
+            )
+        })?;
+        let (result, changed) = f(&mut disk);
+        if changed && let Err(e) = self.write_disk(&disk) {
+            self.warn_not_persisted(&e);
+        }
+        *self.entries.lock().expect("TOFU store lock poisoned") = disk;
+        drop(lock);
+        Ok(result)
+    }
+
+    /// A lost pin write is security-relevant (T-2438): the in-memory pin protects
+    /// only this process, and the next invocation would re-trust-on-first-use.
+    fn warn_not_persisted(&self, e: &std::io::Error) {
+        eprintln!(
+            "warning: failed to persist TOFU pin store to {} ({e}); \
+             fingerprint pins from this session will NOT survive process exit — \
+             the next connection will re-trust-on-first-use (fix the path/permissions)",
+            self.path.display()
+        );
+    }
+
+    /// Persist the in-memory entries, merged over the store on disk, under the lock.
+    /// Test helper: production changes go through [`Self::mutate`].
+    #[cfg(test)]
+    fn save_result(&self) -> std::io::Result<()> {
+        let _lock = StoreLock::acquire(&self.path)?;
+        let mut disk = self.read_disk()?;
+        for (k, v) in self.entries.lock().expect("TOFU store lock poisoned").iter() {
+            disk.insert(k.clone(), v.clone());
+        }
+        self.write_disk(&disk)
     }
 
     /// Look up a stored fingerprint for a host:port.
@@ -253,71 +390,42 @@ impl KnownHubStore {
 
     /// Remove a specific host:port entry. Returns true if it existed.
     pub fn remove(&self, host_port: &str) -> bool {
-        let mut entries = self.entries.lock().expect("TOFU store lock poisoned");
-        let removed = entries.remove(host_port);
-        let existed = removed.is_some();
-        if let Some(old) = removed {
-            record_pin_event("tofu-clear", host_port, Some(&old.fingerprint), None);
-            drop(entries);
-            self.save();
-        }
-        existed
+        let result = self.mutate(|entries| match entries.remove(host_port) {
+            Some(old) => {
+                record_pin_event("tofu-clear", host_port, Some(&old.fingerprint), None);
+                (true, true)
+            }
+            None => (false, false),
+        });
+        result.unwrap_or_else(|msg| {
+            eprintln!("error: {msg}; nothing was removed");
+            false
+        })
     }
 
     /// Remove all entries. Returns the count removed.
     pub fn clear_all(&self) -> usize {
-        let mut entries = self.entries.lock().expect("TOFU store lock poisoned");
-        let count = entries.len();
-        for (hp, old) in entries.iter() {
-            record_pin_event("tofu-clear-all", hp, Some(&old.fingerprint), None);
-        }
-        entries.clear();
-        drop(entries);
-        self.save();
-        count
+        let result = self.mutate(|entries| {
+            let count = entries.len();
+            for (hp, old) in entries.iter() {
+                record_pin_event("tofu-clear-all", hp, Some(&old.fingerprint), None);
+            }
+            entries.clear();
+            (count, count > 0)
+        });
+        result.unwrap_or_else(|msg| {
+            eprintln!("error: {msg}; nothing was removed");
+            0
+        })
     }
 
-    /// Store or update a fingerprint. Returns `Ok(true)` if new, `Ok(false)` if updated,
-    /// `Err` if fingerprint changed (MITM).
+    /// Store or update a fingerprint. Returns `Ok(true)` if new, `Ok(false)` if known,
+    /// `Err` if the fingerprint changed (MITM) or the store cannot be read (T-3628).
+    /// The first-pin decision is made on the store as re-read under the lock, so a pin
+    /// another process wrote since this store was loaded is honoured, never re-created.
     pub fn accept(&self, host_port: &str, fingerprint: &str) -> Result<bool, String> {
-        let mut entries = self.entries.lock().expect("TOFU store lock poisoned");
         let now = now_utc();
-
-        if let Some(existing) = entries.get_mut(host_port) {
-            if existing.fingerprint == fingerprint {
-                // Known and matching — update last_seen
-                existing.last_seen = now;
-                drop(entries);
-                self.save();
-                return Ok(false);
-            } else {
-                // FINGERPRINT CHANGED — potential MITM
-                return Err(format!(
-                    "TOFU VIOLATION: Hub {} fingerprint changed!\n  Expected: {}\n  Got:      {}\n  \
-                     This could indicate a man-in-the-middle attack or hub cert regeneration.\n  \
-                     To accept the new cert: termlink tofu clear {}",
-                    host_port,
-                    existing.fingerprint,
-                    fingerprint,
-                    host_port,
-                ));
-            }
-        }
-
-        // New hub — trust on first use (after a `tofu clear` this IS the re-pin)
-        record_pin_event("tofu-pin", host_port, None, Some(fingerprint));
-        entries.insert(
-            host_port.to_string(),
-            KnownHub {
-                host_port: host_port.to_string(),
-                fingerprint: fingerprint.to_string(),
-                first_seen: now.clone(),
-                last_seen: now,
-            },
-        );
-        drop(entries);
-        self.save();
-        Ok(true)
+        self.mutate(|entries| decide_accept(entries, host_port, fingerprint, &now))?
     }
 }
 
@@ -653,12 +761,14 @@ mod tests {
         store.accept("9.9.9.9:9100", "sha256:atomic").unwrap();
         store.save_result().expect("writable store must save");
 
-        let tmp_path = path.with_extension("tmp");
-        assert!(
-            !tmp_path.exists(),
-            "atomic write must leave no leftover temp file at {}",
-            tmp_path.display()
-        );
+        // T-3628: temp names are unique per write, so look for any of them.
+        let leftovers: Vec<String> = std::fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.starts_with("known_hubs.tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "atomic write must leave no temp file: {leftovers:?}");
         assert!(path.exists(), "the live pin file must exist after save");
 
         let reloaded = KnownHubStore::new(path);
@@ -667,6 +777,119 @@ mod tests {
             Some("sha256:atomic"),
             "pin must survive the atomic write + reload"
         );
+    }
+
+    /// T-3628: one child process of the concurrency test. Does nothing unless the
+    /// parent test set `T3628_CHILD_STORE`.
+    #[test]
+    fn t3628_child_worker() {
+        let Some(store_path) = std::env::var_os("T3628_CHILD_STORE") else { return };
+        let child: usize = std::env::var("T3628_CHILD_ID").unwrap().parse().unwrap();
+        let n: usize = std::env::var("T3628_PINS").unwrap().parse().unwrap();
+        for i in 0..n {
+            // A fresh store per operation, like a separate termlink invocation.
+            let store = KnownHubStore::new(PathBuf::from(&store_path));
+            assert_eq!(store.accept(&format!("c{child}-{i}:9100"), "sha256:new"), Ok(true));
+            let store = KnownHubStore::new(PathBuf::from(&store_path));
+            assert_eq!(store.accept("shared:9100", "sha256:shared"), Ok(false));
+        }
+    }
+
+    /// T-3628 regression: N concurrent processes pinning different hubs, each also
+    /// re-checking one hub that was already pinned. Afterwards every pin is in the
+    /// store, each new hub produced exactly one first-pin event, and the pre-pinned
+    /// hub produced none. On the old code (fixed temp name, whole-file rewrite from a
+    /// stale snapshot, no lock) pins are lost and re-created as first uses.
+    #[test]
+    fn t3628_concurrent_processes_keep_every_pin() {
+        const CHILDREN: usize = 8;
+        const PINS: usize = 15;
+        let (_store, path) = test_store();
+        let events = path.with_file_name("pin-events.jsonl");
+        // Pre-pin by writing the file, so no first-pin event lands in the trail.
+        std::fs::write(&path, "shared:9100 sha256:shared t0 t0\n").unwrap();
+
+        let exe = std::env::current_exe().unwrap();
+        let children: Vec<_> = (0..CHILDREN)
+            .map(|c| {
+                std::process::Command::new(&exe)
+                    .args(["--exact", "tofu::tests::t3628_child_worker", "--test-threads=1", "-q"])
+                    .env("T3628_CHILD_STORE", &path)
+                    .env("T3628_CHILD_ID", c.to_string())
+                    .env("T3628_PINS", PINS.to_string())
+                    .env("TERMLINK_PIN_EVENTS_FILE", &events)
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::piped())
+                    .spawn()
+                    .unwrap()
+            })
+            .collect();
+        for child in children {
+            let out = child.wait_with_output().unwrap();
+            assert!(
+                out.status.success(),
+                "child failed: {}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+        }
+
+        let reloaded = KnownHubStore::new(path.clone());
+        let hubs = reloaded.list_all();
+        assert_eq!(hubs.len(), CHILDREN * PINS + 1, "every pin must survive");
+        assert_eq!(reloaded.get("shared:9100").as_deref(), Some("sha256:shared"));
+
+        let trail = std::fs::read_to_string(&events).unwrap();
+        let pins: Vec<&str> = trail.lines().filter(|l| l.contains("\"tofu-pin\"")).collect();
+        assert_eq!(pins.len(), CHILDREN * PINS, "one first-pin event per new hub");
+        assert!(
+            !pins.iter().any(|l| l.contains("shared:9100")),
+            "the pre-pinned hub must never be re-pinned as a first use"
+        );
+    }
+
+    #[test]
+    fn t3628_unreadable_store_fails_closed() {
+        // A directory where the store file should be: read_to_string fails with
+        // something other than NotFound. accept must refuse, not re-TOFU.
+        let (_store, path) = test_store();
+        std::fs::create_dir_all(&path).unwrap();
+        let store = KnownHubStore::new(path);
+        let err = store.accept("7.7.7.7:9100", "sha256:x").unwrap_err();
+        assert!(err.contains("refusing to trust-on-first-use"), "{err}");
+        assert_eq!(store.get("7.7.7.7:9100"), None);
+    }
+
+    #[test]
+    fn t3628_matching_connection_does_not_rewrite_store() {
+        let (store, path) = test_store();
+        store.accept("8.8.8.8:9100", "sha256:m").unwrap();
+        let before = std::fs::metadata(&path).unwrap().modified().unwrap();
+        let ino = {
+            use std::os::unix::fs::MetadataExt;
+            std::fs::metadata(&path).unwrap().ino()
+        };
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        for _ in 0..5 {
+            assert_eq!(store.accept("8.8.8.8:9100", "sha256:m"), Ok(false));
+        }
+        use std::os::unix::fs::MetadataExt;
+        let meta = std::fs::metadata(&path).unwrap();
+        // Same hour (the test does not straddle one in practice): no rename, no write.
+        if now_utc().get(..13) == store.list_all()[0].last_seen.get(..13) {
+            assert_eq!(meta.ino(), ino, "a matching connection must not replace the file");
+            assert_eq!(meta.modified().unwrap(), before);
+        }
+    }
+
+    #[test]
+    fn t3628_accept_sees_pin_written_after_load() {
+        // Store A is loaded before store B pins the hub: A must honour B's pin
+        // (and refuse a different fingerprint), not decide from its stale snapshot.
+        let (a, path) = test_store();
+        let b = KnownHubStore::new(path.clone());
+        b.accept("6.6.6.6:9100", "sha256:b").unwrap();
+        assert!(a.accept("6.6.6.6:9100", "sha256:other").unwrap_err().contains("TOFU VIOLATION"));
+        assert_eq!(a.accept("6.6.6.6:9100", "sha256:b"), Ok(false));
     }
 
     #[test]

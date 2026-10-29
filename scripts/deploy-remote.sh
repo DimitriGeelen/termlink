@@ -122,11 +122,10 @@ if ! "${LOCAL_BIN}" remote profile list 2>/dev/null | grep -q "${PROFILE}"; then
 fi
 
 # --- 7. Clear stale TOFU fingerprint ---
-KNOWN_HUBS="$HOME/.termlink/known_hubs"
-if [ -f "${KNOWN_HUBS}" ]; then
-    grep -v "${HOST}:${PORT}" "${KNOWN_HUBS}" > "${KNOWN_HUBS}.tmp" 2>/dev/null || true
-    mv "${KNOWN_HUBS}.tmp" "${KNOWN_HUBS}"
-fi
+# T-3628: through the store's own API (locked, exact address, logged as tofu-clear),
+# never a grep -v rewrite: that matched other hubs by substring and raced live writers.
+# Exit 1 just means no pin existed for this address.
+"${LOCAL_BIN}" tofu clear "${HOST}:${PORT}" >/dev/null 2>&1 || true
 
 # --- 8. Verify connectivity ---
 info "Verifying hub connectivity..."

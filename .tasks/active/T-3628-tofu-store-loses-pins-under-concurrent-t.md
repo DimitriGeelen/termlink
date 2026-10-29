@@ -49,7 +49,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-29T20:31:43Z
-last_update: 2026-10-29T20:52:20Z
+last_update: 2026-10-29T22:54:15Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -88,11 +88,25 @@ external consultation; brief at `.context/working/t3628/consult-brief.md`, answe
 ## Acceptance Criteria
 
 ### Agent
-- [ ] External consultation done (3 seats), answers saved and compared, and the result put to the operator: whether
-  to acknowledge the events, and the fix design
-- [ ] The store survives N concurrent termlink processes pinning different hubs: afterwards it holds every pin, and
-  no pin is re-created as a first use (regression test)
-- [ ] Concurrent saves never rename another process's partial temp file into place (unique temp name, or a lock)
+- [x] External consultation done (3 seats), answers saved and compared, and the result put to the operator: whether
+  to acknowledge the events, and the fix design (docs/reports/T-3628-consult/; operator ruled B on acknowledging)
+- [x] The store survives N concurrent termlink processes pinning different hubs: afterwards it holds every pin, and
+  no pin is re-created as a first use (regression test `t3628_concurrent_processes_keep_every_pin`: 8 processes x 15
+  new pins + a pre-pinned hub; 121 pins kept, 120 first-pin events, none for the pre-pinned hub)
+- [x] Concurrent saves never rename another process's partial temp file into place (lock + temp name
+  `known_hubs.tmp.<pid>.<seq>`, removed on failure)
+- [x] Every change (pin, clear, clear-all) runs under an exclusive advisory lock on `<store>.lock`: re-read the store,
+  decide (first-pin decision included) and apply only this change, then write via a uniquely named temp file
+  (`KnownHubStore::mutate`; `t3628_accept_sees_pin_written_after_load`)
+- [x] A matching connection no longer rewrites the whole file each time: `last_seen` is refreshed at most once an hour
+  (`t3628_matching_connection_does_not_rewrite_store`: same inode and mtime after 5 matches)
+- [x] Fail closed: if the store exists but cannot be read, `accept` refuses the connection instead of treating the
+  store as empty (re-TOFU) (`t3628_unreadable_store_fails_closed`)
+- [x] `scripts/deploy-remote.sh` clears a pin through `termlink tofu clear` (locked, logged as `tofu-clear`), not by
+  rewriting the file with `grep -v` through `known_hubs.tmp`
+- [x] The new concurrency test fails on the old code (shown by reverting locally) and passes on the new; full
+  termlink-session suite green (old code: all 4 new tests FAILED in 3 of 3 runs, one run kept 33 of 121 pins; new
+  code: 5/5 in 3 of 3 runs, termlink-session 589 passed, `termlink --bin termlink` 1259 passed, clippy clean)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -297,6 +311,10 @@ external consultation; brief at `.context/working/t3628/consult-brief.md`, answe
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-session --lib t3628 > .context/working/.t3628-ver.out 2>&1 && grep -q "5 passed; 0 failed" .context/working/.t3628-ver.out
+grep -q "StoreLock::acquire" crates/termlink-session/src/tofu.rs && ! grep -q 'with_extension("tmp")' crates/termlink-session/src/tofu.rs
+grep -q 'tofu clear "${HOST}:${PORT}"' scripts/deploy-remote.sh && ! grep -q 'KNOWN_HUBS}.tmp' scripts/deploy-remote.sh
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -308,6 +326,27 @@ external consultation; brief at `.context/working/t3628/consult-brief.md`, answe
        **Root cause:** the specific structural/logical gap — not "the code was wrong".
        **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
        **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+-->
+
+**Symptom:** 21 `tofu-pin` events (no old fingerprint, each hub's unchanged fingerprint) into root's own store, in
+bursts during guard-layer runs: pins that existed were lost and re-created as first uses. Each loss opened a window
+in which a swapped hub would have been pinned silently.
+
+**Root cause:** `KnownHubStore` decided and saved from a snapshot loaded when the process started, wrote the WHOLE map
+back through a fixed `known_hubs.tmp`, and took no inter-process lock. Concurrent termlink processes lost each other's
+pins (last writer wins) and could rename each other's half-written temp file into place. Every matching connection
+rewrote the file to bump `last_seen`, so parallel health checks were the worst case. A store that could not be read
+loaded as empty, which also means re-TOFU. `scripts/deploy-remote.sh` was a second, unlocked writer through the same
+temp name, with a substring `grep -v` and no `tofu-clear` event.
+
+**Why structurally allowed:** the store's tests were single-process; T-2501 (atomic rename) fixed crash safety and was
+read as concurrency safety. Only the pin-event trail (T-3384) made the loss visible.
+
+**Prevention:** `t3628_concurrent_processes_keep_every_pin` runs 8 real processes against one store (fails on the old
+code: 33 of 121 pins kept) and stays in the suite, with fail-closed, no-rewrite-on-match and stale-snapshot tests.
+The pin-event check keeps alarming on any first pin of an address.
+
+<!-- (template note above kept for reference)
 
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
