@@ -160,3 +160,5 @@ The 2026-10-27 value-review run (T-3609) could not confirm its yardstick because
 17. 2026-10-29, the operator asked for more context on each open item, then "take me through one by one, don't go to
    the next until I say next". Live driver file put: A development set live + product set via arcs' scoped_drivers +
    AEF ask / B product set live / C no change / D merged; recommended A. Operator: "A".
+18. 2026-10-29, D1's product weight put again (A 5 / B 6 / C 7 / D 9; recommended B). Operator: "Okay, as suggested."
+   Recorded as B: 6.

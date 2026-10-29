@@ -1,6 +1,6 @@
 # T-3612 round 4 — draft purpose, objectives and value drivers (for the operator first)
 
-**Status:** DRAFT v0.6, 2026-10-29. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
+**Status:** DRAFT v0.7, 2026-10-29. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
 corrects this first; only then does it go to outside review (claude, codex, antigravity, opencode; at most 2 rounds).
 Adoption is the operator's (the charter sentence is human-blessed, `docs/CHARTER.md:17-19`).
 
@@ -123,7 +123,7 @@ silent failures"), so they raise D2's weight instead of becoming new drivers.
 
 | Driver | Today | Proposed | Why |
 |---|---|---|---|
-| D1 Antifragility | 9 | 5 | Three of four seats: it rewards adding canaries as product progress. Q7 left the number to round 4. |
+| D1 Antifragility | 9 | 6 (operator, 2026-10-29: B) | Three of four seats: at 9 it rewards adding canaries as product progress; that work is now scored in the development set (D1 9 there). 6 keeps product recovery (P-3 worker recovery, main takeover, conversation resume) valued below delivery, usability and trust. |
 | D2 Reliability | 7 | 9 | Delivery to an agent that can act, and no silent loss, is the purpose (Q1). (v0.3: 10 cannot be set, since `fw bvp weight` accepts 0–9.) |
 | D3 Usability | 5 | 7 | The operator interrupted only for decisions, and errors that say what to do (all four seats). |
 | D4 Portability | 3 | 3 | Linux and macOS, standards (MCP); unchanged. |
@@ -230,7 +230,7 @@ These describe how we build and run TermLink, not what it is. They would live in
 1. ~~Purpose~~: ruled E (2026-10-28), section 1.
 2. ~~P-3 workspace~~: settled in v0.3. It stays in TermLink, by the earlier ruling T-3469 (two reviewers, none
    against).
-3. D1's product weight: OPEN (put 2026-10-29; recommendation B, 6; the operator moved on without a ruling).
+3. ~~D1's product weight~~: ruled B, 6 (2026-10-29), section 3.
    ~~The DP-3 canary cap~~: ruled A (2026-10-29), section 5.
 4. ~~The live driver file~~: ruled A (2026-10-29), section 6.3.
 5. Product F-CONV-RECALL: its retire condition.
@@ -240,6 +240,7 @@ These describe how we build and run TermLink, not what it is. They would live in
 | Version | Date | Change |
 |---|---|---|
 | 0.1 | 2026-10-28 | First draft, operator ruling C (operator reads first). |
+| 0.7 | 2026-10-29 | D1 product weight ruled B: 6. |
 | 0.6 | 2026-10-29 | Live driver file ruled A: the development set in policy/value-drivers.yaml; the product set in its own file, applied through product arcs' scoped_drivers; AEF asked for per-layer support. |
 | 0.5 | 2026-10-29 | DP-3 cap ruled A: freeze at 34 canaries / 99 check scripts, one in one out, quarterly retirement review. D1 product weight put to the operator (A 5 / B 6 / C 7 / D 9; recommended B); no ruling yet. |
 | 0.4 | 2026-10-28 | Purpose ruled E: "makes sure every message reaches the recipient it is meant for: finds, wakes, hands over, shows where it is until an agent that can act has it, or it is loudly stuck". Handed-off work moved out of the sentence into the scope sentence and P-3. |
