@@ -391,6 +391,8 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
             // Added here, on the live socket path, not in the pure view.
             if v.get("ok") == Some(&serde_json::Value::Bool(true)) {
                 v["binary"] = crate::tools::binary_check();
+                // T-3619 (OD-18 ruling C): who holds main, from the operator-written address book.
+                v["main"] = crate::book::main_view(book, agent);
             }
             v
         }

@@ -1,13 +1,15 @@
 ---
 id: T-3619
-name: "Pinned main visible: who holds main and is it alive (status+MCP), needs-attention alarm, audited re-pin via runme (OD-18 C)"
+name: "Pinned main visible: who holds main and is it alive (status+MCP), needs-attention
+  alarm, audited re-pin via runme (OD-18 C)"
 description: >
-  Operator ruling 2026-10-28 (T-3359 Decisions, option C): PH-2 visibility for the pinned main; takeover stays manual until PH-4 lease (T-3359).
+  Operator ruling 2026-10-28 (T-3359 Decisions, option C): PH-2 visibility for the
+  pinned main; takeover stays manual until PH-4 lease (T-3359).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc-011, main, OD-18]
 components: []
 related_tasks: []
@@ -38,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-28T17:19:43Z
-last_update: 2026-10-28T17:19:43Z
-date_finished: null
+last_update: '2026-10-29T09:29:58Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +52,46 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-29T09:29:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3619: Pinned main visible: who holds main and is it alive (status+MCP), needs-attention alarm, audited re-pin via runme (OD-18 C)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Operator ruling C (2026-10-28, T-3359 Decisions): make the PH-2 pinned main visible now; the lease stays in PH-4.
+The pin lives in the sidecar's operator-written address book (`crates/termlink-sidecar/src/book.rs`, `Book.main`).
+Today nothing reports it: the `status` call (`api.rs` `status_at`) shows message stages only.
+
+Slices, in order (this task delivers slice 1; 2 and 3 are filed as their own tasks when started):
+1. `status` names the pinned main: who it is, its provisioned instance, and whether this agent is main.
+2. Liveness and alarm: whether the pinned main's sidecar is alive and draining. This needs a design choice (which
+   signal: the main's sidecar heartbeat on the hub, or its presence record), so it is put to the operator.
+3. MCP twin and an audited re-pin through runme.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `status` returns a `main` object: `{pinned: <agent> | null, instance: <id> | null, is_self: bool}` from the
+  address book. No book (the PH-1 estate) gives `{pinned: null, …, "book": false}`, never an error.
+  (`book::main_view`, called from the `status` branch in `api.rs`.)
+- [x] Unit tests: a pinned peer main, main = this agent, no pin, no book.
+  (`main_view_names_the_pin_its_instance_and_whether_it_is_this_agent`)
+- [x] The sidecar crate's tests pass (174 passed, 0 failed). It goes live on the W1 pair with the next install
+  (runme action 4).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -268,6 +296,9 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+grep -q "pub fn main_view" crates/termlink-sidecar/src/book.rs
+grep -q "book::main_view(book, agent)" crates/termlink-sidecar/src/api.rs
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -364,3 +395,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3619-pinned-main-visible-who-holds-main-and-i.md
 - **Context:** Initial task creation
+
+### 2026-10-29T09:29:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

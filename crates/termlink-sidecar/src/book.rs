@@ -96,9 +96,45 @@ impl Book {
     }
 }
 
+/// T-3619 (OD-18 ruling C): who holds main, for the `status` call. `instance` is the book's provisioned id
+/// for a peer main; for main = this agent the book has no entry for itself, so it is null. No book (the
+/// PH-1 estate) is reported, never an error.
+pub fn main_view(book: Option<&Book>, me: &str) -> serde_json::Value {
+    match book {
+        None => serde_json::json!({"book": false, "pinned": null, "instance": null, "is_self": false}),
+        Some(b) => {
+            let pinned = b.main.as_deref();
+            let is_self = pinned == Some(me);
+            let instance = pinned.filter(|_| !is_self).and_then(|m| b.peers.get(m)).cloned();
+            serde_json::json!({"book": true, "pinned": pinned, "instance": instance, "is_self": is_self})
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn main_view_names_the_pin_its_instance_and_whether_it_is_this_agent() {
+        let b = book();
+        let v = main_view(Some(&b), "claude-termlink-alt");
+        assert_eq!(v["pinned"], "claude-termlink");
+        assert_eq!(v["is_self"], false);
+        assert!(v["instance"].is_null(), "claude-termlink is not a peer in this book, so no instance");
+        let peer_main = Book { main: Some("claude-termlink-alt".into()), ..book() };
+        let v = main_view(Some(&peer_main), "claude-termlink");
+        assert_eq!(v["instance"], "claude-termlink-alt.w1-20261013");
+        assert_eq!(v["is_self"], false);
+        let v = main_view(Some(&b), "claude-termlink");
+        assert_eq!(v["is_self"], true);
+        assert!(v["instance"].is_null());
+        let none = Book { main: None, ..book() };
+        assert!(main_view(Some(&none), "claude-termlink")["pinned"].is_null());
+        let v = main_view(None, "x");
+        assert_eq!(v["book"], false);
+        assert!(v["pinned"].is_null());
+    }
 
     fn book() -> Book {
         Book {
