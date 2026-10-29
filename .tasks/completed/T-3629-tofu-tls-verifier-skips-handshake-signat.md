@@ -1,13 +1,23 @@
 ---
 id: T-3629
-name: "TOFU TLS verifier skips handshake signature verification (tofu.rs verify_tls12/13_signature return valid unconditionally) -> pinned public cert alone passes"
+name: "TOFU TLS verifier skips handshake signature verification (tofu.rs verify_tls12/13_signature
+  return valid unconditionally) -> pinned public cert alone passes"
 description: >
-  Reported by the codex seat in the T-3628 consultation (docs/reports/T-3628-consult/codex.md item 4), confirmed 2026-10-29 by reading crates/termlink-session/src/tofu.rs:371-388: TofuVerifier::verify_tls12_signature and verify_tls13_signature return HandshakeSignatureValid::assertion() without verifying. The pin compares only the public leaf certificate (sent in every handshake), so a party that replays a hub's real certificate can complete TLS without the private key and pass the pin. Fix: verify with rustls' provider (rustls::crypto::verify_tls12_signature / verify_tls13_signature with the provider's signature_verification_algorithms), restrict supported_verify_schemes to the provider's; regression test: a handshake presenting a pinned cert with a different key must fail. Then assess exposure of hub auth (HMAC/token) to an impersonating endpoint.
+  Reported by the codex seat in the T-3628 consultation (docs/reports/T-3628-consult/codex.md
+  item 4), confirmed 2026-10-29 by reading crates/termlink-session/src/tofu.rs:371-388:
+  TofuVerifier::verify_tls12_signature and verify_tls13_signature return HandshakeSignatureValid::assertion()
+  without verifying. The pin compares only the public leaf certificate (sent in every
+  handshake), so a party that replays a hub's real certificate can complete TLS without
+  the private key and pass the pin. Fix: verify with rustls' provider (rustls::crypto::verify_tls12_signature
+  / verify_tls13_signature with the provider's signature_verification_algorithms),
+  restrict supported_verify_schemes to the provider's; regression test: a handshake
+  presenting a pinned cert with a different key must fail. Then assess exposure of
+  hub auth (HMAC/token) to an impersonating endpoint.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, security, tofu, tls]
 components: []
 related_tasks: []
@@ -38,8 +48,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-29T20:41:06Z
-last_update: 2026-10-29T20:41:06Z
-date_finished: null
+last_update: 2026-10-29T21:02:29Z
+date_finished: 2026-10-29T21:02:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +60,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-29T20:54:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=3 (body:test-or-audit-check); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3629: TOFU TLS verifier skips handshake signature verification (tofu.rs verify_tls12/13_signature return valid unconditionally) -> pinned public cert alone passes
@@ -62,8 +86,12 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Every `ServerCertVerifier`/`ClientCertVerifier` in `crates/` verifies TLS 1.2 and 1.3 handshake signatures through the rustls crypto provider (`rustls::crypto::verify_tls12_signature` / `verify_tls13_signature` with the provider's `signature_verification_algorithms`); no `HandshakeSignatureValid::assertion()` remains in `crates/` — evidence: two verifiers exist (`TofuVerifier`, `ProbeVerifier`, both in tofu.rs), no `ClientCertVerifier`; 4 verify calls, 0 `assertion()` left
+- [x] `supported_verify_schemes` returns the provider's supported schemes, not a hand-written list — `t3629_verify_schemes_come_from_provider`
+- [x] Regression test: a normal TOFU handshake against a loopback test server still succeeds — `t3629_tofu_handshake_with_matching_key_succeeds` (TLS 1.2 + 1.3), `t3629_probe_with_matching_key_returns_fingerprint`
+- [x] Regression test: a server presenting a PINNED certificate but signing with a different private key fails the handshake; shown failing (i.e. handshake accepted) on the old code — `t3629_pinned_cert_signed_with_other_key_is_rejected` + `t3629_probe_rejects_cert_signed_with_other_key`: with the old `assertion()` bodies restored both FAILED (rc 101, 3 passed / 2 failed); with the fix all 5 pass
+- [x] `cargo test -p termlink-session`, `cargo test -p termlink --bin termlink` and the hub crate's tests pass — session 584 passed, hub 560 passed, CLI 1259 passed, 0 failed
+- [x] A debug build still connects to a live hub (`remote ping` + `hub status`) — PONG from local-hub (127.0.0.1:9100), ring20-management (.122), ring20-dashboard (.121); `hub status` running
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -268,6 +296,10 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+test "$(grep -c 'rustls::crypto::verify_tls1[23]_signature(message, cert, dss, &self.algs)' crates/termlink-session/src/tofu.rs)" -eq 4
+test -d crates/termlink-session/src && ! grep -rq "HandshakeSignatureValid::assertion" crates/
+cargo test -p termlink-session --lib t3629 > .context/working/t3629/verify.out 2>&1 && grep -q "test result: ok. 5 passed" .context/working/t3629/verify.out
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -283,6 +315,14 @@ date_finished: null
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** No field incident. Found by code reading (codex seat, T-3628 consultation, item 4): a TLS endpoint that replays a hub's real (public) leaf certificate but does not hold its private key completes the handshake and passes the TOFU pin. Reproduced by `t3629_pinned_cert_signed_with_other_key_is_rejected` and `t3629_probe_rejects_cert_signed_with_other_key`, both of which FAIL (handshake accepted) with the old `assertion()` bodies restored.
+
+**Root cause:** `TofuVerifier` and `ProbeVerifier` (`crates/termlink-session/src/tofu.rs`) implemented `verify_tls12_signature` / `verify_tls13_signature` as `Ok(HandshakeSignatureValid::assertion())`. In rustls the cert check and the signature check are separate hooks: replacing CA validation with a pin is correct, but stubbing the signature hook as well removes the only proof that the peer owns the certificate. The pin compares a value every handshake transmits in clear, so it authenticates nothing on its own.
+
+**Why structurally allowed:** The `.dangerous()` custom-verifier API makes both hooks mandatory, and the stub was written alongside the cert pin (comment: "TOFU trusts the cert — accept any valid TLS signature") on the reading that trusting the cert covers the signature. No test ever handshook against a server whose key did not match its cert; every TOFU test exercised `KnownHubStore::accept` directly, never a real TLS handshake, so the stub was indistinguishable from a real check. `ProbeVerifier` copied the same stub.
+
+**Prevention:** (1) Regression tests above perform real loopback handshakes with a mismatched key for both TLS 1.2 and 1.3 and for the probe path; they fail on any reintroduced stub. (2) The Verification block asserts no `HandshakeSignatureValid::assertion` remains in `crates/` (a one-time check at close, not a standing guard; a static check in the guard layer would be the durable form and is not built here). (3) `supported_verify_schemes` now comes from the provider, so the offered schemes cannot drift from what can actually be verified.
 
 ## Evolution
 
@@ -364,3 +404,18 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3629-tofu-tls-verifier-skips-handshake-signat.md
 - **Context:** Initial task creation
+
+### 2026-10-29T20:54:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-10-29T21:02:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5122f5c7
+- **Timestamp:** 2026-10-29T21:02:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none

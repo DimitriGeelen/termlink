@@ -30,3 +30,4 @@ rusqlite = { version = "0.33", features = ["bundled"] }
 [dev-dependencies]
 termlink-test-utils = { workspace = true }
 tempfile = "3"
+rcgen = { workspace = true }

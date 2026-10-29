@@ -2046,6 +2046,7 @@ dependencies = [
  "libc",
  "rand",
  "rand_core",
+ "rcgen",
  "regex",
  "rusqlite",
  "rustls",

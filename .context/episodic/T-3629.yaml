@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3629: TOFU TLS verifier skips handshake signature verification (tofu.rs verify_tls12/13_signature return valid unconditionally) -> pinned public cert alone passes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-29T21:02:51Z
+# ============================================================================
+
+task_id: T-3629
+task_name: "TOFU TLS verifier skips handshake signature verification (tofu.rs verify_tls12/13_signature return valid unconditionally) -> pinned public cert alone passes"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-29T20:41:06Z
+completed: 2026-10-29T21:02:29Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Reported by the codex seat in the T-3628 consultation (docs/reports/T-3628-consult/codex.md item 4), confirmed 2026-10-29 by reading crates/termlink-session/src/tofu.rs:371-388: TofuVerifier::verify_tls12_signature and verify_tls13_signature return HandshakeSignatureValid::assertion() without verifying. The pin compares only the public leaf certificate (sent in every handshake), so a party that replays a hub's real certificate can complete TLS without the private key and pass the pin. Fix: verify with rustls' provider (rustls::crypto::verify_tls12_signature / verify_tls13_signature with the provider's signature_verification_algorithms), restrict supported_verify_schemes to the provider's; regression test: a handshake presenting a pinned cert with a different key must fail. Then assess exposure of hub auth (HMAC/token) to an impersonating endpoint.
+
+# Key outcomes
+outcomes:
+  - 'Every `ServerCertVerifier`/`ClientCertVerifier` in `crates/` verifies TLS 1.2 and 1.3 handshake signatures through the rustls crypto provider (`rustls::crypto::verify_tls12_signature` / `verify_tls13_signature` with the provider''s `signature_verification_algorithms`); no `HandshakeSignatureValid::assertion()` remains in `crates/` — evidence: two verifiers exist (`TofuVerifier`, `ProbeVerifier`, both in tofu.rs), no `ClientCertVerifier`; 4 verify calls, 0 `assertion()` left'
+  - '`supported_verify_schemes` returns the provider''s supported schemes, not a hand-written list — `t3629_verify_schemes_come_from_provider`'
+  - 'Regression test: a normal TOFU handshake against a loopback test server still succeeds — `t3629_tofu_handshake_with_matching_key_succeeds` (TLS 1.2 + 1.3), `t3629_probe_with_matching_key_returns_fingerprint`'
+  - 'Regression test: a server presenting a PINNED certificate but signing with a different private key fails the handshake; shown failing (i.e. handshake accepted) on the old code — `t3629_pinned_cert_signed_with_other_key_is_rejected` + `t3629_probe_rejects_cert_signed_with_other_key`: with the old `assertion()` bodies restored both FAILED (rc 101, 3 passed / 2 failed); with the fix all 5 pass'
+  - '`cargo test -p termlink-session`, `cargo test -p termlink --bin termlink` and the hub crate''s tests pass — session 584 passed, hub 560 passed, CLI 1259 passed, 0 failed'
+  - 'A debug build still connects to a live hub (`remote ping` + `hub status`) — PONG from local-hub (127.0.0.1:9100), ring20-management (.122), ring20-dashboard (.121); `hub status` running'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 21 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, security, tofu, tls]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 21
+  commits: 1
+  files_changed: 6
+  lines_added: 337
+  lines_removed: 54
+  footprint_refreshed_at: '2026-10-29T21:03:07Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3629-tofu-tls-verifier-skips-handshake-signat.md
+generated_by: context-agent-hybrid

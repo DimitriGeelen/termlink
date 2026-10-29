@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
+use rustls::crypto::{CryptoProvider, WebPkiSupportedAlgorithms};
 use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 use rustls::{DigitallySignedStruct, Error, SignatureScheme};
 use sha2::{Digest, Sha256};
@@ -320,17 +321,30 @@ impl KnownHubStore {
     }
 }
 
+/// T-3629: signature algorithms used to check the server's handshake signature.
+///
+/// Taken from the process-default crypto provider (the one `ClientConfig::builder()`
+/// uses), falling back to aws-lc-rs, the workspace's only provider (T-2333).
+fn signature_algorithms() -> WebPkiSupportedAlgorithms {
+    match CryptoProvider::get_default() {
+        Some(p) => p.signature_verification_algorithms,
+        None => rustls::crypto::aws_lc_rs::default_provider().signature_verification_algorithms,
+    }
+}
+
 /// A rustls ServerCertVerifier that implements TOFU.
 #[derive(Debug)]
 pub struct TofuVerifier {
     store: KnownHubStore,
     /// The host:port being connected to (set before each connection).
     host_port: String,
+    /// T-3629: verifies the handshake signature against the pinned cert's key.
+    algs: WebPkiSupportedAlgorithms,
 }
 
 impl TofuVerifier {
     pub fn new(store: KnownHubStore, host_port: String) -> Self {
-        Self { store, host_port }
+        Self { store, host_port, algs: signature_algorithms() }
     }
 }
 
@@ -370,37 +384,25 @@ impl ServerCertVerifier for TofuVerifier {
 
     fn verify_tls12_signature(
         &self,
-        _message: &[u8],
-        _cert: &CertificateDer<'_>,
-        _dss: &DigitallySignedStruct,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, Error> {
-        // TOFU trusts the cert — accept any valid TLS signature
-        Ok(HandshakeSignatureValid::assertion())
+        // T-3629: the pin only covers the public cert; this proves the peer holds its key.
+        rustls::crypto::verify_tls12_signature(message, cert, dss, &self.algs)
     }
 
     fn verify_tls13_signature(
         &self,
-        _message: &[u8],
-        _cert: &CertificateDer<'_>,
-        _dss: &DigitallySignedStruct,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, Error> {
-        Ok(HandshakeSignatureValid::assertion())
+        rustls::crypto::verify_tls13_signature(message, cert, dss, &self.algs)
     }
 
     fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-        vec![
-            SignatureScheme::RSA_PKCS1_SHA256,
-            SignatureScheme::RSA_PKCS1_SHA384,
-            SignatureScheme::RSA_PKCS1_SHA512,
-            SignatureScheme::ECDSA_NISTP256_SHA256,
-            SignatureScheme::ECDSA_NISTP384_SHA384,
-            SignatureScheme::ECDSA_NISTP521_SHA512,
-            SignatureScheme::RSA_PSS_SHA256,
-            SignatureScheme::RSA_PSS_SHA384,
-            SignatureScheme::RSA_PSS_SHA512,
-            SignatureScheme::ED25519,
-            SignatureScheme::ED448,
-        ]
+        self.algs.supported_schemes()
     }
 
     fn root_hint_subjects(&self) -> Option<&[rustls::DistinguishedName]> {
@@ -430,6 +432,9 @@ pub fn build_tofu_connector(host_port: &str) -> tokio_rustls::TlsConnector {
 #[derive(Debug)]
 struct ProbeVerifier {
     captured: Arc<Mutex<Option<Vec<u8>>>>,
+    /// T-3629: the probe still checks the handshake signature, so a reported
+    /// fingerprint belongs to an endpoint that holds the cert's private key.
+    algs: WebPkiSupportedAlgorithms,
 }
 
 impl ServerCertVerifier for ProbeVerifier {
@@ -450,36 +455,25 @@ impl ServerCertVerifier for ProbeVerifier {
 
     fn verify_tls12_signature(
         &self,
-        _message: &[u8],
-        _cert: &CertificateDer<'_>,
-        _dss: &DigitallySignedStruct,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, Error> {
-        Ok(HandshakeSignatureValid::assertion())
+        // T-3629: the pin only covers the public cert; this proves the peer holds its key.
+        rustls::crypto::verify_tls12_signature(message, cert, dss, &self.algs)
     }
 
     fn verify_tls13_signature(
         &self,
-        _message: &[u8],
-        _cert: &CertificateDer<'_>,
-        _dss: &DigitallySignedStruct,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, Error> {
-        Ok(HandshakeSignatureValid::assertion())
+        rustls::crypto::verify_tls13_signature(message, cert, dss, &self.algs)
     }
 
     fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-        vec![
-            SignatureScheme::RSA_PKCS1_SHA256,
-            SignatureScheme::RSA_PKCS1_SHA384,
-            SignatureScheme::RSA_PKCS1_SHA512,
-            SignatureScheme::ECDSA_NISTP256_SHA256,
-            SignatureScheme::ECDSA_NISTP384_SHA384,
-            SignatureScheme::ECDSA_NISTP521_SHA512,
-            SignatureScheme::RSA_PSS_SHA256,
-            SignatureScheme::RSA_PSS_SHA384,
-            SignatureScheme::RSA_PSS_SHA512,
-            SignatureScheme::ED25519,
-            SignatureScheme::ED448,
-        ]
+        self.algs.supported_schemes()
     }
 
     fn root_hint_subjects(&self) -> Option<&[rustls::DistinguishedName]> {
@@ -514,7 +508,7 @@ pub async fn probe_cert(addr: &str) -> Result<(Vec<u8>, String), String> {
 
     // Build a one-shot capturing connector
     let captured: Arc<Mutex<Option<Vec<u8>>>> = Arc::new(Mutex::new(None));
-    let verifier = ProbeVerifier { captured: Arc::clone(&captured) };
+    let verifier = ProbeVerifier { captured: Arc::clone(&captured), algs: signature_algorithms() };
     let config = rustls::ClientConfig::builder()
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(verifier))
@@ -869,5 +863,141 @@ mod tests {
         // record_pin_event returns () by signature: a failure can only warn, never block.
         let _: () = record_pin_event("tofu-pin", "h:1", None, Some("sha256:cc"));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── T-3629: handshake signatures are verified, not assumed ──────────────
+
+    /// Loopback TLS server that presents `cert_der` but signs the handshake
+    /// with `key_der`. `CertifiedKey::new` does not check that they match, so a
+    /// mismatched pair models an endpoint replaying a hub's public certificate
+    /// without holding its private key.
+    async fn spawn_tls_server(cert_der: Vec<u8>, key_der: Vec<u8>) -> std::net::SocketAddr {
+        use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
+        use rustls::server::{ClientHello, ResolvesServerCert};
+        use rustls::sign::CertifiedKey;
+
+        #[derive(Debug)]
+        struct Fixed(Arc<CertifiedKey>);
+        impl ResolvesServerCert for Fixed {
+            fn resolve(&self, _hello: ClientHello<'_>) -> Option<Arc<CertifiedKey>> {
+                Some(Arc::clone(&self.0))
+            }
+        }
+
+        let key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(key_der));
+        let signer = rustls::crypto::aws_lc_rs::sign::any_supported_type(&key).unwrap();
+        let ck = CertifiedKey::new(vec![CertificateDer::from(cert_der)], signer);
+        let config = rustls::ServerConfig::builder_with_provider(Arc::new(
+            rustls::crypto::aws_lc_rs::default_provider(),
+        ))
+        .with_safe_default_protocol_versions()
+        .unwrap()
+        .with_no_client_auth()
+        .with_cert_resolver(Arc::new(Fixed(Arc::new(ck))));
+        let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            while let Ok((tcp, _)) = listener.accept().await {
+                let acceptor = acceptor.clone();
+                tokio::spawn(async move {
+                    if let Ok(mut tls) = acceptor.accept(tcp).await {
+                        use tokio::io::AsyncWriteExt;
+                        let _ = tls.write_all(b"ok").await;
+                        let _ = tls.shutdown().await;
+                    }
+                });
+            }
+        });
+        addr
+    }
+
+    /// TOFU handshake to `addr` with the server cert already pinned in a temp
+    /// store, restricted to one TLS version.
+    async fn tofu_handshake(
+        addr: std::net::SocketAddr,
+        pinned_fp: &str,
+        version: &'static rustls::SupportedProtocolVersion,
+    ) -> std::io::Result<()> {
+        let (store, _path) = test_store();
+        let host_port = addr.to_string();
+        store.accept(&host_port, pinned_fp).unwrap();
+        let verifier = TofuVerifier::new(store, host_port);
+        let config = rustls::ClientConfig::builder_with_provider(Arc::new(
+            rustls::crypto::aws_lc_rs::default_provider(),
+        ))
+        .with_protocol_versions(&[version])
+        .unwrap()
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(verifier))
+        .with_no_client_auth();
+        let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
+        let tcp = tokio::net::TcpStream::connect(addr).await?;
+        let name = ServerName::try_from("localhost".to_string()).unwrap();
+        let mut tls = connector.connect(name, tcp).await?;
+        // Reading to EOF makes sure every handshake message has been processed.
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::new();
+        tls.read_to_end(&mut buf).await?;
+        Ok(())
+    }
+
+    fn self_signed() -> (Vec<u8>, Vec<u8>) {
+        let ck = rcgen::generate_simple_self_signed(vec!["localhost".to_string()]).unwrap();
+        (ck.cert.der().to_vec(), ck.key_pair.serialize_der())
+    }
+
+    #[tokio::test]
+    async fn t3629_tofu_handshake_with_matching_key_succeeds() {
+        let (cert, key) = self_signed();
+        let fp = cert_fingerprint(&cert);
+        let addr = spawn_tls_server(cert, key).await;
+        for v in [&rustls::version::TLS13, &rustls::version::TLS12] {
+            tofu_handshake(addr, &fp, v)
+                .await
+                .unwrap_or_else(|e| panic!("genuine hub must pass ({v:?}): {e}"));
+        }
+    }
+
+    #[tokio::test]
+    async fn t3629_pinned_cert_signed_with_other_key_is_rejected() {
+        let (cert, _real_key) = self_signed();
+        let (_other_cert, other_key) = self_signed();
+        let fp = cert_fingerprint(&cert);
+        let addr = spawn_tls_server(cert, other_key).await;
+        for v in [&rustls::version::TLS13, &rustls::version::TLS12] {
+            let res = tofu_handshake(addr, &fp, v).await;
+            assert!(
+                res.is_err(),
+                "replayed pinned cert without its private key must fail the handshake ({v:?})"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn t3629_probe_rejects_cert_signed_with_other_key() {
+        let (cert, _real_key) = self_signed();
+        let (_other_cert, other_key) = self_signed();
+        let addr = spawn_tls_server(cert, other_key).await;
+        let res = super::probe_cert(&addr.to_string()).await;
+        assert!(res.is_err(), "probe must not report a fingerprint the endpoint cannot sign for");
+    }
+
+    #[tokio::test]
+    async fn t3629_probe_with_matching_key_returns_fingerprint() {
+        let (cert, key) = self_signed();
+        let fp = cert_fingerprint(&cert);
+        let addr = spawn_tls_server(cert, key).await;
+        let (_, got) = super::probe_cert(&addr.to_string()).await.unwrap();
+        assert_eq!(got, fp);
+    }
+
+    #[test]
+    fn t3629_verify_schemes_come_from_provider() {
+        let (store, _path) = test_store();
+        let v = TofuVerifier::new(store, "h:1".into());
+        assert_eq!(v.supported_verify_schemes(), signature_algorithms().supported_schemes());
+        assert!(!v.supported_verify_schemes().is_empty());
     }
 }
