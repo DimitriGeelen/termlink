@@ -157,3 +157,6 @@ The 2026-10-27 value-review run (T-3609) could not confirm its yardstick because
    Canary cap put: counted 34 canary cron jobs, 99 check scripts (62 guard-layer static members); 12 operational crons
    and 157 fixture suites not counted. Options: A freeze at today's counts, one in one out, quarterly retirement review
    (codex); B antigravity's 35 / 75; C a reduction target by Q1 2027; D no number. Recommended A. Operator: "A".
+17. 2026-10-29, the operator asked for more context on each open item, then "take me through one by one, don't go to
+   the next until I say next". Live driver file put: A development set live + product set via arcs' scoped_drivers +
+   AEF ask / B product set live / C no change / D merged; recommended A. Operator: "A".

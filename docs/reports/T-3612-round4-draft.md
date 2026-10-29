@@ -1,6 +1,6 @@
 # T-3612 round 4 — draft purpose, objectives and value drivers (for the operator first)
 
-**Status:** DRAFT v0.5, 2026-10-29. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
+**Status:** DRAFT v0.6, 2026-10-29. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
 corrects this first; only then does it go to outside review (claude, codex, antigravity, opencode; at most 2 rounds).
 Adoption is the operator's (the charter sentence is human-blessed, `docs/CHARTER.md:17-19`).
 
@@ -217,9 +217,10 @@ These describe how we build and run TermLink, not what it is. They would live in
    `project_objectives:` list for DP-1..DP-5. Aliases: O-1, O-2 → P-1; O-3 → P-3; O-4 → P-4; O-5 → P-6 and DP-2;
    O-6 → DP-1; O-7 → P-5. Cost is small: no arc carries a `supports:` field today, and only T-3371 and T-3477 cite
    O-n ids (claude). T-3371's verification lines check the file's shape and must still pass.
-3. **`policy/value-drivers.yaml`:** product weights and drivers as in section 3. **Open, tooling (open point 4):**
-   `lib/bvp.sh` reads one driver set, and about 92% of commits are development-project work (claude). The reviewers
-   differ on which set the live file should hold (review synthesis C.16).
+3. **`policy/value-drivers.yaml` (operator, 2026-10-29: A):** the live file holds the DEVELOPMENT set (section 5.6).
+   `lib/bvp.sh` reads one driver set, and most scored work is development work. The product set (section 3) goes in
+   `policy/value-drivers-product.yaml` and reaches product work through each product arc's `scoped_drivers:`
+   (`bvp.sh:1503`). AEF is asked for real per-layer support.
 4. **Not touched:** the framework's own `.agentic-framework/policy/value-drivers.yaml` (vendored, AEF's).
 5. **Tripwires:** reword the strict-star tripwires to guard "no message relay" before OD-1 circuits land.
 6. **Scoring history:** product drivers get new ids (F-CONV-RECALL), so old F-RECALL scores keep their meaning.
@@ -231,7 +232,7 @@ These describe how we build and run TermLink, not what it is. They would live in
    against).
 3. D1's product weight: OPEN (put 2026-10-29; recommendation B, 6; the operator moved on without a ruling).
    ~~The DP-3 canary cap~~: ruled A (2026-10-29), section 5.
-4. The per-layer driver tooling (6.3): which set the live driver file holds.
+4. ~~The live driver file~~: ruled A (2026-10-29), section 6.3.
 5. Product F-CONV-RECALL: its retire condition.
 
 ## Version history
@@ -239,6 +240,7 @@ These describe how we build and run TermLink, not what it is. They would live in
 | Version | Date | Change |
 |---|---|---|
 | 0.1 | 2026-10-28 | First draft, operator ruling C (operator reads first). |
+| 0.6 | 2026-10-29 | Live driver file ruled A: the development set in policy/value-drivers.yaml; the product set in its own file, applied through product arcs' scoped_drivers; AEF asked for per-layer support. |
 | 0.5 | 2026-10-29 | DP-3 cap ruled A: freeze at 34 canaries / 99 check scripts, one in one out, quarterly retirement review. D1 product weight put to the operator (A 5 / B 6 / C 7 / D 9; recommended B); no ruling yet. |
 | 0.4 | 2026-10-28 | Purpose ruled E: "makes sure every message reaches the recipient it is meant for: finds, wakes, hands over, shows where it is until an agent that can act has it, or it is loudly stuck". Handed-off work moved out of the sentence into the scope sentence and P-3. |
 | 0.3 | 2026-10-28 | Outside review round 1 (claude, codex, antigravity; opencode failed). Folded in what all three or two uncontested agreed on (`T-3612-round4-review-synthesis.md` A and B): D2 9, not 10; product recall gets a new id F-CONV-RECALL with no cross-topic queries and long-term keeping left to consumers; scoring blocks needed; P-1 restores the gap notice and load clause; P-5 isolation moved to "not yet"; P-7 no pre-decided schedule; DP-3 covers development guards; non-goal 1 names OD-11; code contradictions listed; adoption checklist covers the charter guard, aliases, tripwires and score ids; workspace settled. Purpose, D1/cap, driver file and recall retirement stay open for the operator. |
