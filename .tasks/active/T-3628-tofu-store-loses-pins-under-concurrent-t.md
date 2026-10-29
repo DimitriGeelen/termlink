@@ -49,7 +49,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-29T20:31:43Z
-last_update: 2026-10-29T20:34:05Z
+last_update: 2026-10-29T20:41:27Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -367,6 +367,24 @@ external consultation; brief at `.context/working/t3628/consult-brief.md`, answe
 -->
 
 ## Decisions
+
+### 2026-10-29 — acknowledge the 21 pin events? B: acknowledge exactly offsets 13–33 after checks (operator ruling)
+- **Chose:** B (operator: "As suggested", after the external consultation, docs/reports/T-3628-consult/).
+  Checks done, then `check-pin-events.sh --ack` with the trail still at 34 lines; ack marker 34, 0 new, check rc 0.
+  - B1 out of band, .107: its own `/var/lib/termlink/hub.cert.pem` hashes to `cacc73ea32b1` (`termlink hub
+    fingerprint` and `openssl x509 | sha256sum` agree), matching every event.
+  - B2 pre-incident records: in repo history, .121 `1389a831016c` since 2026-05-02, .122 `22c19fedafd7` since
+    2026-05-17, .132 `aef925c6d2f4` since 2026-10-04, .107 `cacc73ea32b1` since 2026-09-28; learnings.yaml agrees
+    for .122 and .132. The node1-pool hub (.122:19100, `925d947ce6e9`) has no earlier record. It is genuinely new
+    (first contact 2026-10-28), not a lost pin, and has the same fingerprint in every event.
+  - B3: one fingerprint per address across offsets 13–33, equal to the store's entry for every address.
+- **Why:** claude and antigravity said acknowledge after out-of-band and store checks; codex said not on live-wire
+  evidence alone. B uses the local certificate file and pre-incident records, not the wire, and acknowledges only
+  what was reviewed (codex's warning that `--ack` takes the count at invocation, so the count was checked first).
+- **Rejected:** A, acknowledge on the live-wire match (weak, given T-3629); C, wait for the fixes (the only pin
+  alarm stays blind); D, peer verification for now (it travels the same channel T-3629 weakens; possible after
+  T-3629 lands).
+- **Left open:** more first-pin events will appear until this task's fix lands; each will be reviewed the same way.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
