@@ -700,7 +700,9 @@ fn spawn_via_tmux(session_name: &str, shell_cmd: &str) -> Result<()> {
     // T-3552: on the server of the project this spawn runs in (tmux starts the session in this directory).
     let dir = std::env::current_dir().context("Cannot read the current directory")?;
     let per_project = termlink_session::tmux_server::per_project_enabled();
-    let (mut cmd, _server) = super::tmux_spawn::tmux_new_session(&tmux_session, shell_cmd, &dir, per_project)?;
+    let (mut cmd, server) = super::tmux_spawn::tmux_new_session(&tmux_session, shell_cmd, &dir, per_project)?;
+    // T-3620: a missing server starts as its own unit, not inside this (possibly sandboxed or short-lived) caller.
+    super::tmux_spawn::start_server_outside_caller(server.as_deref());
     let status = cmd.status().context("Failed to run tmux — is tmux installed?")?;
 
     if !status.success() {

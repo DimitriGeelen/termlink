@@ -99,6 +99,85 @@ pub(crate) fn tmux_new_session(
     Ok((cmd, Some(server)))
 }
 
+/// The transient systemd unit a server is started in: `termlink-tmux-<server>`, or `termlink-tmux-default`
+/// for the default server. `None` for a name that is not a valid tmux server name (never passed on).
+pub(crate) fn server_unit_name(server: Option<&str>) -> Option<String> {
+    match server {
+        None => Some("termlink-tmux-default".to_string()),
+        Some(s) if termlink_session::tmux_server::is_valid_server_name(s) => Some(format!("termlink-tmux-{s}")),
+        Some(_) => None,
+    }
+}
+
+/// `systemd-run --unit=<unit> --collect --quiet [--setenv=K=V ...] tmux [-L s -f /dev/null] -D`: the server
+/// as its own transient unit. systemd starts the unit with PID 1's environment, not ours, so `env` is set
+/// explicitly (the T-3550 allowed environment); `-D` keeps tmux in the foreground so the unit tracks it, and
+/// the unit ends (and is collected) when the server exits.
+pub(crate) fn server_unit_command(unit: &str, server: Option<&str>, env: &[(String, String)]) -> Command {
+    let mut c = Command::new("systemd-run");
+    c.args([&format!("--unit={unit}"), "--collect", "--quiet"]);
+    for (k, v) in env {
+        c.arg(format!("--setenv={k}={v}"));
+    }
+    c.arg("tmux");
+    if let Some(s) = server {
+        c.args(["-L", s, "-f", "/dev/null"]);
+    }
+    c.arg("-D");
+    c
+}
+
+/// Whether a tmux server answers on `server` (the default one for `None`).
+fn server_running(server: Option<&str>) -> bool {
+    let mut c = Command::new("tmux");
+    if let Some(s) = server {
+        c.args(["-L", s]);
+    }
+    c.args(["list-sessions"]).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::piped());
+    match c.output() {
+        Ok(o) if o.status.success() => true,
+        // A running server with no sessions answers "no sessions"; only a missing server is "not running".
+        Ok(o) => {
+            let e = String::from_utf8_lossy(&o.stderr);
+            !(e.contains("no server running") || e.contains("error connecting"))
+        }
+        Err(_) => false,
+    }
+}
+
+/// T-3620: start the session's tmux server outside the CALLER when it is not running yet.
+///
+/// `tmux new-session` starts a missing server inside the calling process, so the server inherits the
+/// caller's sandbox and cgroup: a caller in a hardened unit (ProtectHome/ProtectSystem) gets a server whose
+/// panes cannot write home or /tmp, and a caller in a short-lived unit takes the server down with it when the
+/// unit ends (050 Pen, 2026-10-12..16; reproduced 2026-10-29 with `systemd-run --wait`). Started as its own
+/// transient unit, the server lives outside both. Without systemd (macOS, containers) this does nothing and
+/// `new-session` starts the server as before. Best effort: any failure here falls back to that path.
+pub(crate) fn start_server_outside_caller(server: Option<&str>) {
+    let systemd = std::path::Path::new("/run/systemd/system").is_dir();
+    if !systemd || server_running(server) {
+        return;
+    }
+    let Some(unit) = server_unit_name(server) else { return };
+    let env = termlink_session::child_env::child_env();
+    let started = server_unit_command(&unit, server, &env)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !started {
+        return;
+    }
+    // The client must not race the server's socket: wait up to ~2 s for it to answer.
+    for _ in 0..20 {
+        if server_running(server) {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,6 +212,28 @@ mod tests {
             last,
             r#"exec /usr/bin/env -i ${TMUX:+"TMUX=$TMUX"} ${TMUX_PANE:+"TMUX_PANE=$TMUX_PANE"} 'HOME=/root' /bin/sh -c 'echo '\''hi'\'''"#
         );
+    }
+
+    // T-3620: the server's own unit.
+    #[test]
+    fn the_server_unit_is_named_from_a_valid_server_name_only() {
+        assert_eq!(server_unit_name(None).as_deref(), Some("termlink-tmux-default"));
+        assert_eq!(server_unit_name(Some("tl-050-email-archive-949efa96")).as_deref(), Some("termlink-tmux-tl-050-email-archive-949efa96"));
+        assert_eq!(server_unit_name(Some("bad name; rm -rf /")), None, "an invalid name never reaches systemd-run");
+    }
+
+    #[test]
+    fn the_server_unit_runs_tmux_in_the_foreground_with_only_the_given_env() {
+        let env = env_of(&[("HOME", "/root"), ("PATH", "/usr/bin")]);
+        let c = server_unit_command("termlink-tmux-tl-x", Some("tl-x"), &env);
+        assert_eq!(c.get_program(), "systemd-run");
+        assert_eq!(
+            args(&c),
+            ["--unit=termlink-tmux-tl-x", "--collect", "--quiet", "--setenv=HOME=/root", "--setenv=PATH=/usr/bin",
+             "tmux", "-L", "tl-x", "-f", "/dev/null", "-D"]
+        );
+        let d = server_unit_command("termlink-tmux-default", None, &[]);
+        assert_eq!(args(&d), ["--unit=termlink-tmux-default", "--collect", "--quiet", "tmux", "-D"], "default server: no -L, no -f");
     }
 
     #[test]

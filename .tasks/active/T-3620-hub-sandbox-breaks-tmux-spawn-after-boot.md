@@ -1,10 +1,18 @@
 ---
 id: T-3620
-name: "Hub sandbox breaks tmux spawn after boot: first tmux server inherits ProtectSystem/ProtectHome (050 report)"
+name: "Hub sandbox breaks tmux spawn after boot: first tmux server inherits ProtectSystem/ProtectHome
+  (050 report)"
 description: >
-  050-email-archive (Pen) reported 2026-10-17 on dm:8e6fd77ec6f74b37:d1993c2c3ec44c94 offset 19 (found by T-3618, unanswered 11 days): termlink-hub.service has ProtectSystem=strict, ProtectHome=read-only, ReadWritePaths=/var/lib/termlink -/tmp/termlink-0. After a boot no tmux server exists, so 'termlink spawn --backend tmux' via the hub either cannot create /tmp/tmux-0 or starts a server inside the sandbox whose panes cannot write ~/.claude; claude exits at once. Pen down 2026-10-12..16. Their workaround: systemd-run --unit=pen-tmux-server tmux -D. Suggested fixes: create the tmux session client-side, have the hub ensure a host-namespace tmux server, or document.
+  050-email-archive (Pen) reported 2026-10-17 on dm:8e6fd77ec6f74b37:d1993c2c3ec44c94
+  offset 19 (found by T-3618, unanswered 11 days): termlink-hub.service has ProtectSystem=strict,
+  ProtectHome=read-only, ReadWritePaths=/var/lib/termlink -/tmp/termlink-0. After
+  a boot no tmux server exists, so 'termlink spawn --backend tmux' via the hub either
+  cannot create /tmp/tmux-0 or starts a server inside the sandbox whose panes cannot
+  write ~/.claude; claude exits at once. Pen down 2026-10-12..16. Their workaround:
+  systemd-run --unit=pen-tmux-server tmux -D. Suggested fixes: create the tmux session
+  client-side, have the hub ensure a host-namespace tmux server, or document.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-28T17:26:46Z
-last_update: 2026-10-28T17:26:46Z
-date_finished: null
+last_update: '2026-10-29T09:07:20Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +58,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-29T09:07:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3620: Hub sandbox breaks tmux spawn after boot: first tmux server inherits ProtectSystem/ProtectHome (050 report)
@@ -63,12 +85,27 @@ process, so a server started by spawn from a systemd oneshot dies with that ones
 -L per-project path: whatever starts the server after a boot must run outside both the hub sandbox and the caller's
 cgroup. 050 keeps the workaround until we say T-3620 is released.
 
+**Premise corrected (2026-10-29, code read).** The hub never starts tmux: no crate under `crates/termlink-hub` runs a
+process. tmux is started only by the CLI (`crates/termlink-cli/src/commands/tmux_spawn.rs`). When no server is
+running yet, `tmux new-session` starts one inside the CALLING process's sandbox and cgroup. A caller in a sandboxed
+or short-lived systemd unit therefore gets a server that cannot write home or /tmp, or that dies with the unit,
+which is 050's finding. The title's "hub sandbox" is the case where the caller ran under such a unit.
+
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] When the target tmux server (per-project `-L` or the default) is not running and systemd is available,
+  `termlink spawn --backend tmux` starts it as its own transient systemd unit, outside the caller's sandbox and
+  cgroup, with the cleared child environment (T-3550 kept). Then it creates the session on it. (Both spawn paths:
+  `execution.rs` spawn and `dispatch.rs` worker.)
+- [x] Without systemd (macOS, containers), or when the server is already running, behaviour is unchanged. (Guard:
+  `/run/systemd/system` and a live-server probe; any failure falls back to `new-session` starting it.)
+- [x] Unit tests cover the command construction: the unit name is derived from the server name and validated, the
+  env is set explicitly with `--setenv`, and the default server gets no `-L`/`-f`. (tmux_spawn 9/9; the whole CLI
+  1259/1259.)
+- [x] A live check: a server started from a short-lived `systemd-run --wait` caller survives that caller's exit.
+  (`.context/working/t3620-live.sh`. New build: PASS, server in `termlink-tmux-tl-t3620-proj-….service`. Installed
+  old binary as control: FAIL, the server died with the caller's unit.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -273,21 +310,23 @@ cgroup. 050 keeps the workaround until we say T-3620 is released.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+grep -q "fn start_server_outside_caller" crates/termlink-cli/src/commands/tmux_spawn.rs
+grep -q "start_server_outside_caller" crates/termlink-cli/src/commands/execution.rs
+grep -q "start_server_outside_caller" crates/termlink-cli/src/commands/dispatch.rs
+
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
-
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
-
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Symptom:** after a reboot, `termlink spawn --backend tmux` from Pen's recovery path started a tmux server whose
+panes could not write `~/.claude`, or a server that died at once. Pen (050) was down 2026-10-12..16, with about 70
+failed repairs a day, until something else happened to start a host tmux server.
+**Root cause:** `tmux new-session` starts a missing server inside the calling process. The server inherits the
+caller's systemd sandbox (ProtectHome/ProtectSystem) and cgroup, so it is crippled by the first and killed with the
+second.
+**Why structurally allowed:** spawn was only ever exercised from interactive shells or long-lived sessions, where a
+server is either already running or the caller outlives it. No test started a server from a sandboxed or short-lived
+caller, and the boot path is the only one where no server exists yet.
+**Prevention:** `.context/working/t3620-live.sh` reproduces the boot case, a server started from a
+`systemd-run --wait` caller, with the old binary as a failing control. The unit tests pin the server-unit command.
 
 ## Evolution
 
@@ -369,3 +408,6 @@ cgroup. 050 keeps the workaround until we say T-3620 is released.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3620-hub-sandbox-breaks-tmux-spawn-after-boot.md
 - **Context:** Initial task creation
+
+### 2026-10-29T09:07:19Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
