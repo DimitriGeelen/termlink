@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3580: WARN escalation: standing-controls.sh red 14d (since 2026-10-12T05:41:01Z) — fix or reclassify
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-31T15:31:51Z
+# ============================================================================
+
+task_id: T-3580
+task_name: "WARN escalation: standing-controls.sh red 14d (since 2026-10-12T05:41:01Z) — fix or reclassify"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-26T06:41:39Z
+completed: 2026-10-31T15:31:38Z
+duration_days: 5
+updates_count: 3
+first_commit: 2026-10-26T10:30:20+01:00
+last_commit: 2026-10-31T16:31:37+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  commit unattended write — WARN escalation filed (stale: standing-controls.sh) by warn-escalation-file.sh. operator ruling C — dated expected-red WARN (until 2027-01-31, 90-day cap, fail-safe) instead of INFO / re-close / nothing. ruling C recorded in the T-3258 classification doc (expected red until 2027-01-29 via T-3632)
+
+# Key outcomes
+outcomes:
+  - '`standing-controls.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md) — operator ruling C (2026-10-31): stays WARN, expected red until 2027-01-29 via T-3632; recorded in the T-3258 doc; live canary rc 0, not escalated'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-31 — standing-controls red by design: how to stop the daily escalation? C (operator ruling)'
+    chose: 'C (operator: "C, as suggested"). Build a dated "expected red" WARN: a guard header may declare `expected-red until <YYYY-MM-DD>` with a reason; the member stays WARN (warning section, CI annotation) but does not escalate before the date, and escalates again after it. Date capped at 90 days ahead; a missing/invalid date or reason is treated as plain WARN (fail-safe). `standing-controls.sh` gets `until 2027-01-31` (agent default, the operator may change it). T-3580 closes once that is live and the release canary no longer fires on it.'
+    rationale: 'stops a daily alarm about a known, by-design red (six arc-011 PH-0 controls that turn green as PH-2 ships) without hiding the guard: it stays visible, a crash still shows red, and the expiry brings the alarm back by itself. Scored +36 vs A +12, B −9, D −37 (D1–D4 + F-AUTONOMY).'
+    alternatives_rejected: ['A, reclassify to INFO (hides the guard, including a crash; no reminder to switch back); B, keep WARN and re-close every 14 days (a recurring chore with nothing new to review); D, do nothing (daily alarm fatigue masks real release/CI failures). - **Left open:** if PH-2 has not turned the six controls green by 2027-01-31, the escalation returns and comes back to the operator as a new decision.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3580-warn-escalation-standing-controlssh-red-.md'
+  - 'docs/reports/T-3258-guard-classification-draft.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-26T10:30:20'
+    action: 'T-3580: commit unattended write — WARN escalation filed (stale: standing-controls.sh) by warn-escalation-file.sh'
+  - time: '2026-10-31T16:24:40'
+    action: 'T-3580: operator ruling C — dated expected-red WARN (until 2027-01-31, 90-day cap, fail-safe) instead of INFO / re-close / nothing'
+  - time: '2026-10-31T16:31:37'
+    action: 'T-3580: ruling C recorded in the T-3258 classification doc (expected red until 2027-01-29 via T-3632)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 7729 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [warn-escalation, guard-layer]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7729
+  commits: 4
+  files_changed: 5
+  lines_added: 563
+  lines_removed: 11
+  footprint_refreshed_at: '2026-10-31T15:31:57Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3580-warn-escalation-standing-controlssh-red-.md
+generated_by: context-agent-hybrid
