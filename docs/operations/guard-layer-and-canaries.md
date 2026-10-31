@@ -2136,6 +2136,20 @@ already red before T-3260 (check-receiver-ack-lag, seeded 2026-09-29) started at
 only the committed dates; (3) escalation needs the release canary's cron installed (SQ-9).
 Do not hand-edit a date to silence escalation — fix the member or reclassify it.
 
+**Red by design until a date (T-3632, operator ruling C on T-3580, 2026-10-31).** A WARN member
+that is red on purpose (e.g. `tests/standing-controls.sh`, whose six controls turn green only as
+arc-011 PH-2 ships) may carry a second header line:
+`# guard-layer-expected-red: <YYYY-MM-DD>  # <reason — required>`. The member stays WARN (still
+in the warning section and the CI annotation, still on the ledger); only escalation is held: the
+release canary prints "expected red until <date>, not escalated" and the filer prints
+`SKIP expected-red`, up to and including that day. One helper decides it,
+`scripts/guard-expected-red.sh <member>` → `active` / `expired` / `invalid <why>` / `none`.
+**Fail-safe:** an expired date, a missing reason, a date that does not exist, a date more than 90
+days ahead (`GUARD_EXPECTED_RED_CAP_DAYS`), or the line on a non-WARN member all escalate exactly
+as before, and `check-guard-severity-markers.sh` names the line (`EXPIRED` / `BAD-EXPECTED-RED`).
+Held members still count toward the >5 accumulation limit. Setting or moving the date is the
+operator's call, recorded in the task that ruled it. Fixtures: `tests/guard-expected-red-fixtures.sh`.
+
 **Escalation is an ACTION, not a line (T-3267 — the operator's binding condition).** On the
 host path the release canary also runs `scripts/warn-escalation-file.sh`, which **files a
 task**: one per WARN member red > 14 days (owner agent, horizon now; the member's current
