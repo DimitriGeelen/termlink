@@ -21391,3 +21391,21 @@ scan_id: R-e5882790
 task_id: T-3625
 payload:
   task_file: .tasks/active/T-3625-canary-fleet-doorbell-mail-canary-is-fir.md
+---
+kind: scan_emitted
+timestamp: '2026-10-31T13:52:52Z'
+scan_id: R-8007f048
+task_id: T-3627
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-31T13:52:52Z'
+scan_id: R-8007f048
+task_id: T-3627
+payload:
+  task_file: .tasks/active/T-3627-runme-fixturessh-is-intermittently-flaky.md

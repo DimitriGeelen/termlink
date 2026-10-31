@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3627: runme-fixtures.sh is intermittently flaky (different cases fail across runs; seen in T-3626 guard runs)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-31T13:53:13Z
+# ============================================================================
+
+task_id: T-3627
+task_name: "runme-fixtures.sh is intermittently flaky (different cases fail across runs; seen in T-3626 guard runs)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-29T13:01:38Z
+completed: 2026-10-31T13:52:50Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-10-29T14:01:38+01:00
+last_commit: 2026-10-31T14:52:35+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file runme-fixtures flakiness found during the v1.8.15 re-vendor. add the flaky-fixtures task file. runme fixture flakes were producer | grep -q under pipefail (SIGPIPE 141 read as no-match); grep_all helper in runme.sh, fleet-token-remint.sh and the fixtures; 7/7 runs green; T-3631 filed for the repo-wide check
+
+# Key outcomes
+outcomes:
+  - 'The cause of each observed intermittent failure is identified with evidence (log line + code path), not guessed'
+  - 'Each cause is fixed in the fixtures (or runme seams) so the case no longer depends on shared host state or timing'
+  - '`tests/runme-fixtures.sh` passes in repeated runs (at least 5 consecutive, including one under parallel load)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme fixture flakes were producer | grep -q under pipefail (SIGPIPE 141 read as no-match); grep_all helper in runme.sh, fleet-token-remint.sh and the fixtures; 7/7 runs green; T-3631 filed for the repo-wide check'
+    source: git-mined
+  - description: 'add the flaky-fixtures task file'
+    source: git-mined
+  - description: 'file runme-fixtures flakiness found during the v1.8.15 re-vendor'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/.id-highwater'
+  - '.tasks/active/T-3619-pinned-main-visible-who-holds-main-and-i.md'
+  - '.tasks/active/T-3624-t-3612-round-4-record-operator-rulings-o.md'
+  - '.tasks/active/T-3627-runme-fixturessh-is-intermittently-flaky.md'
+  - '.tasks/active/T-3631-static-check-producer--grep--q-under-pip.md'
+  - 'runme.sh'
+  - 'scripts/fleet-token-remint.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-29T14:01:38'
+    action: 'T-3627: file runme-fixtures flakiness found during the v1.8.15 re-vendor'
+  - time: '2026-10-29T14:02:52'
+    action: 'T-3627: add the flaky-fixtures task file'
+  - time: '2026-10-31T14:52:35'
+    action: 'T-3627: runme fixture flakes were producer | grep -q under pipefail (SIGPIPE 141 read as no-match); grep_all helper in runme.sh, fleet-token-remint.sh and the fixtures; 7/7 runs green; T-3631 filed for the repo-wide check'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 2931 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, tests, flaky]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2931
+  commits: 4
+  files_changed: 11
+  lines_added: 1170
+  lines_removed: 251
+  footprint_refreshed_at: '2026-10-31T13:53:21Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3627-runme-fixturessh-is-intermittently-flaky.md
+generated_by: context-agent-hybrid
