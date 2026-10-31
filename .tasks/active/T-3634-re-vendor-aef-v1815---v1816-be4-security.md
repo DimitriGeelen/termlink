@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-31T22:28:45Z
-last_update: 2026-10-31T23:57:42Z
+last_update: 2026-10-31T23:58:43Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -94,15 +94,17 @@ divergence register records the new baseline; AEF gets a WORKS/FAILS report.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] v1.8.15 (0230eeb9e) is an ancestor of v1.8.16-be.4 (10c32eca3); preserved-file diff done, any preserved file
+- [x] v1.8.15 (0230eeb9e) is an ancestor of v1.8.16-be.4 (10c32eca3); preserved-file diff done, any preserved file
   changed upstream 3-way merged (base v1.8.15)
-- [ ] Dry run then rehearsal on a fresh clone of /opt/termlink pass; real run from a second fresh AEF clone, rc 0
-- [ ] Every preserved file in `.vendor-divergence.yaml` still carries its local change after the real run (T-4870
+- [x] Dry run then rehearsal on a fresh clone of /opt/termlink pass; real run from a second fresh AEF clone, rc 0
+- [x] Every preserved file in `.vendor-divergence.yaml` still carries its local change after the real run (T-4870
   check); CLAUDE.md project part byte-identical; BOUNDARY_EXTRA_READ_PATHS kept
 - [ ] `fw doctor` and the guard layer before vs after recorded; no new FAIL
-- [ ] Security fix proven live: the vendored Tier 0 hook blocks a force-push command padded past 130 KB, and the
+  <!-- 2026-11-01: recorded (doc-*.txt, guard-*.out). doctor FAIL 0->0. Guard FAIL 1->3: focus-drift fixture fixed
+       (38ccd15af, T-4907 Context); reviewer-verdict-ledger R13 still red, caused by upstream T-4916, operator decision T-3636. -->
+- [x] Security fix proven live: the vendored Tier 0 hook blocks a force-push command padded past 130 KB, and the
   boundary hook refuses an out-of-project write in a >128 KB command (both fail open on v1.8.15 — shown before)
-- [ ] Vendor change committed; `.vendor-divergence.yaml` last_vendor_event updated in a second commit; upgrade report
+- [x] Vendor change committed; `.vendor-divergence.yaml` last_vendor_event updated in a second commit; upgrade report
   (WORKS/FAILS) sent to AEF
 
 ### Human
