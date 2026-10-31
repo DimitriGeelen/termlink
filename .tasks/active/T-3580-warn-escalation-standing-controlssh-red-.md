@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-26T06:41:39Z
-last_update: 2026-10-26T06:41:39Z
+last_update: 2026-10-31T15:24:40Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -375,6 +375,21 @@ while the member is still red restarts a 14-day window from the close date, then
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-31 — standing-controls red by design: how to stop the daily escalation? C (operator ruling)
+- **Chose:** C (operator: "C, as suggested"). Build a dated "expected red" WARN: a guard header may declare
+  `expected-red until <YYYY-MM-DD>` with a reason; the member stays WARN (warning section, CI annotation) but does
+  not escalate before the date, and escalates again after it. Date capped at 90 days ahead; a missing/invalid date or
+  reason is treated as plain WARN (fail-safe). `standing-controls.sh` gets `until 2027-01-31` (agent default, the
+  operator may change it). T-3580 closes once that is live and the release canary no longer fires on it.
+- **Why:** stops a daily alarm about a known, by-design red (six arc-011 PH-0 controls that turn green as PH-2
+  ships) without hiding the guard: it stays visible, a crash still shows red, and the expiry brings the alarm back
+  by itself. Scored +36 vs A +12, B −9, D −37 (D1–D4 + F-AUTONOMY).
+- **Rejected:** A, reclassify to INFO (hides the guard, including a crash; no reminder to switch back); B, keep
+  WARN and re-close every 14 days (a recurring chore with nothing new to review); D, do nothing (daily alarm fatigue
+  masks real release/CI failures).
+- **Left open:** if PH-2 has not turned the six controls green by 2027-01-31, the escalation returns and comes back
+  to the operator as a new decision.
 
 ## Decision
 
