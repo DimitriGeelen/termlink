@@ -1,10 +1,13 @@
 ---
 id: T-3580
-name: "WARN escalation: standing-controls.sh red 14d (since 2026-10-12T05:41:01Z) — fix or reclassify"
+name: "WARN escalation: standing-controls.sh red 14d (since 2026-10-12T05:41:01Z)
+  — fix or reclassify"
 description: >
-  WARN-tier guard member standing-controls.sh has been red for more than 14 days (first seen red 2026-10-12T05:41:01Z). Operator binding condition (T-3258 rulings): a stale WARN becomes an action.
+  WARN-tier guard member standing-controls.sh has been red for more than 14 days (first
+  seen red 2026-10-12T05:41:01Z). Operator binding condition (T-3258 rulings): a stale
+  WARN becomes an action.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-26T06:41:39Z
-last_update: 2026-10-31T15:24:40Z
-date_finished: null
+last_update: 2026-10-31T15:31:37Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +53,19 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-31T15:31:03Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3580: WARN escalation: standing-controls.sh red 14d (since 2026-10-12T05:41:01Z) — fix or reclassify
@@ -91,7 +107,7 @@ while the member is still red restarts a 14-day window from the close date, then
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `standing-controls.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
+- [x] `standing-controls.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md) — operator ruling C (2026-10-31): stays WARN, expected red until 2027-01-29 via T-3632; recorded in the T-3258 doc; live canary rc 0, not escalated
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -296,6 +312,9 @@ while the member is still red restarts a 14-day window from the close date, then
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash scripts/guard-expected-red.sh standing-controls.sh > .context/working/.t3580-v.out 2>&1 && grep -q "^active" .context/working/.t3580-v.out
+grep -q "Ruling 2026-10-31 (T-3580, option C)" docs/reports/T-3258-guard-classification-draft.md
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -407,3 +426,6 @@ while the member is still red restarts a 14-day window from the close date, then
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3580-warn-escalation-standing-controlssh-red-.md
 - **Context:** Initial task creation
+
+### 2026-10-31T15:31:02Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

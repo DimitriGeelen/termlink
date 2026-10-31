@@ -145,3 +145,10 @@ Approve or amend per row. A follow-up build task then edits each approved member
   reset the host's) and a re-clone of the host loses uncommitted filings — both surfaced, neither silent. Alternative
   if you prefer it: a cron commit restricted by pathspec to exactly those files (`git commit -- <paths>`), accepting the
   index race above. Operator to decide.
+- **Ruling 2026-10-31 (T-3580, option C): `standing-controls` stays WARN, expected red until 2027-01-29.** Its six
+  arc-011 PH-0 controls are red by design until PH-2 ships the status surface. New mechanism (T-3632): a WARN member
+  may declare `# guard-layer-expected-red: <date>  # <reason>`; escalation (canary + filer) is held until that day,
+  the member stays visible as WARN, and an expired/malformed/over-90-day line escalates as before. Rejected: A (INFO:
+  hides the member, including a crash, with no reminder to restore it), B (re-close every 14 days), D (daily alarm).
+  Open: if PH-2 has not turned the controls green by 2027-01-29, the escalation returns as a new operator decision.
+  (The brief said 2027-01-31 = 90 days; it is 92, so the date was set to 2027-01-29 to stay within the approved cap.)
