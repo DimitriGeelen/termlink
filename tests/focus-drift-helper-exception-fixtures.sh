@@ -30,6 +30,13 @@ status: started-work
 workflow_type: refactor
 owner: agent
 ---
+## Context
+<!-- T-3634: AEF T-4907 refuses source edits under a task without these four parts -->
+**Background / trigger:** fixture task for the focus-drift gate
+**Problem / hypothesis:** none, it only has to be a valid focus target
+**Goal:** let the hook reach the focus-drift gate
+**Expected outcome:** the legs below test the T-3270 exception, not T-4907
+
 ## Acceptance Criteria
 
 ### Agent

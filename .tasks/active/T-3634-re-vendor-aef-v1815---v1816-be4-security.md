@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-31T22:28:45Z
-last_update: 2026-10-31T23:41:33Z
+last_update: 2026-10-31T23:57:42Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -307,6 +307,15 @@ divergence register records the new baseline; AEF gets a WORKS/FAILS report.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+grep -q "^1.8.15+181.g10c32eca3$" .agentic-framework/VERSION
+grep -q "v1.8.15 -> v1.8.16-be.4 (10c32eca3" .vendor-divergence.yaml
+bash scripts/check-vendor-divergence.sh > .context/working/.t3634.out 2>&1 && grep -q "since ccd17d25c" .context/working/.t3634.out
+grep -q "T-4921" .agentic-framework/agents/context/check-active-task.sh && grep -q "T-3270" .agentic-framework/agents/context/check-active-task.sh && bash -n .agentic-framework/agents/context/check-active-task.sh
+grep -q "T-4792" .agentic-framework/agents/context/lib/safe-commands.sh && grep -q "T-3178" .agentic-framework/agents/context/lib/safe-commands.sh && bash -n .agentic-framework/agents/context/lib/safe-commands.sh
+grep -q "T-4890" .agentic-framework/lib/sidecar/inject.py && grep -q "T-3533" .agentic-framework/lib/sidecar/inject.py && python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" .agentic-framework/lib/sidecar/inject.py
+grep -q "T-4892" .agentic-framework/lib/sidecar_cli.py && grep -q "T-3533" .agentic-framework/lib/sidecar_cli.py && python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" .agentic-framework/lib/sidecar_cli.py
+bash .context/working/t3634/probe.sh verify > .context/working/.t3634p.out 2>&1 && grep -q "tier0    small rc=2  big rc=2" .context/working/.t3634p.out && grep -q "boundary small rc=2  big rc=2" .context/working/.t3634p.out
 
 ## RCA
 
