@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T14:16:26Z
-last_update: 2026-09-25T21:41:52Z
+last_update: 2026-10-31T23:36:42Z
 date_finished: 2026-07-11T21:32:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -226,6 +226,18 @@ weigh, only the sovereignty formality that arc closure belongs to the human.
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-01 — close arc mcp-slimming (arc-005)? A: close via runme.sh (operator ruling)
+- **Chose:** A (operator: "A, as suggested"). A runme.sh action runs `fw arc close mcp-slimming --demo <today's guard
+  output> --decision "shipped: 156525→108051 bytes, ~12k tokens/agent reclaimed, guard-locked, 273 tools intact"`,
+  skips when already closed, and verifies the arc reads `closed`. Then T-2408 closes and the audit acknowledgement
+  for the stale-arc warning is removed.
+- **Why:** the headline mechanic is shipped, re-verified by T-3151 and again on 2026-10-31
+  (`scripts/test-mcp-desc-budget.sh`: 107,139 / 107,500 bytes, max single 843 / 860); closing records it with its
+  evidence and ends a false "stale" warning. Scored A +26, C +21, B +1, D −14.
+- **Rejected:** B (a fourth slice: further trimming would be a new arc with its own target), C (Watchtower close:
+  same result, skips runme's on-disk verification), D (leave open: a finished arc reads as in progress).
+- **Left open:** a further trimming push, as a new arc, if ever wanted.
 
 ## Decision
 
