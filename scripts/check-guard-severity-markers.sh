@@ -47,6 +47,16 @@ for d in $DIRS; do
     for f in "$d"/*.sh; do
         [ -e "$f" ] || continue
         marker="$(grep -m1 -E '^#[[:space:]]*guard-layer:[[:space:]]*source' "$f" 2>/dev/null || true)"
+        # T-3632: a dated expected-red line must be valid and current; a bad one escalates anyway
+        # (fail-safe), but it is named here so nobody believes it holds anything.
+        if grep -qE '^#[[:space:]]*guard-layer-expected-red:' "$f" 2>/dev/null; then
+            xr="$(GUARD_SEVERITY_DIRS="$DIRS" bash "$(dirname "${BASH_SOURCE[0]}")/guard-expected-red.sh" "$f" 2>/dev/null)"
+            case "$xr" in
+                active*) : ;;
+                expired*) firing+=("EXPIRED    $f — guard-layer-expected-red date $(printf '%s' "$xr" | cut -f2) has passed: the member escalates again; remove the line or ask the operator") ;;
+                *) firing+=("BAD-EXPECTED-RED $f — $(printf '%s' "$xr" | cut -f2-) (ignored: the member escalates as plain WARN)") ;;
+            esac
+        fi
         [ -n "$marker" ] || continue
         scanned=$((scanned+1))
         rest="$(printf '%s' "$marker" | sed -E 's/^#[[:space:]]*guard-layer:[[:space:]]*source[[:space:]]*//')"

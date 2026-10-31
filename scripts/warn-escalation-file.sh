@@ -38,7 +38,7 @@
 #   WOULD  <stale|umbrella> <member|umbrella> -          (--dry-run)
 #   OPEN   <stale|umbrella> <member|umbrella> <T-ID>     (already filed, still open)
 #   WAIT   <stale|umbrella> <member|umbrella> <days-left> (closed; new window running)
-#   SKIP   ci|not-warn      <member|->         -
+#   SKIP   ci|not-warn|expected-red <member|-> -   (expected-red: T-3632, scripts/guard-expected-red.sh)
 # Exit 0 = decisions made (filed or not) · 2 = tooling (fail-closed: a ledger that
 # cannot be parsed, a create that fails, a body that cannot be written).
 #
@@ -89,10 +89,21 @@ META="$(bash "$RUNNER" --list --json 2>/dev/null)" \
     || { echo "warn-escalation-file: cannot read the guard-layer member list ($RUNNER --list --json) — no verdict" >&2; exit 2; }
 
 # ---- decide (pure: ledger + task corpus + meta → plan lines) -----------------
-PLAN="$(python3 - "$LEDGER" "$TASKS_DIR" "$NOW" "$DAYS" "$MAX_RED" "$META" <<'PYEOF'
+# T-3632 (T-3580 ruling C): members declared red BY DESIGN until a date are not filed before it.
+# Asked of the one helper the release canary also uses; anything but `active` files as before.
+EXPECTED=""
+while read -r m _; do
+    [ -n "$m" ] || continue
+    case "$(GUARD_EXPECTED_RED_NOW="$NOW" bash scripts/guard-expected-red.sh "$m" 2>/dev/null)" in
+        active*) EXPECTED="$EXPECTED $m" ;;
+    esac
+done < <(awk '!/^[[:space:]]*#/ && NF >= 2 {print $1}' "$LEDGER")
+
+PLAN="$(python3 - "$LEDGER" "$TASKS_DIR" "$NOW" "$DAYS" "$MAX_RED" "$META" "$EXPECTED" <<'PYEOF'
 import sys, os, re, glob, json
 from datetime import datetime, timezone
 ledger, tdir, now, days, max_red, meta = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]), sys.argv[6]
+expected = set(sys.argv[7].split())
 win = days * 86400
 def ep(s):
     s = (s or "").strip().strip("'\"")
@@ -136,6 +147,7 @@ for m in sorted(red):
         print("SKIP\tnot-warn\t%s\t-" % m); continue
     start = max(red[m], closed.get(m, 0))
     if m in open_: print("OPEN\tstale\t%s\t%s" % (m, open_[m])); continue
+    if m in expected and now - start > win: print("SKIP\texpected-red\t%s\t-" % m); continue
     if now - start > win: print("FILE\tstale\t%s\t%d" % (m, (now - red[m]) // 86400))
     elif m in closed and now - red[m] > win: print("WAIT\tstale\t%s\t%d" % (m, -(-(start + win - now) // 86400)))
 if len(red) > max_red:

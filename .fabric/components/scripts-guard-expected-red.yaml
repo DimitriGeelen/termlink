@@ -1,0 +1,21 @@
+id: scripts/guard-expected-red.sh
+name: guard-expected-red
+type: script
+subsystem: operations
+location: scripts/guard-expected-red.sh
+tags: []
+
+purpose: "guard-expected-red.sh — T-3632 (operator ruling C on T-3580, 2026-10-31): is a WARN guard member red BY DESIGN until a stated date?"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-31
+created_by: unknown

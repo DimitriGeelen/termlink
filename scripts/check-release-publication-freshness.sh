@@ -173,9 +173,23 @@ if [ -f "$WARN_LEDGER" ]; then
         [ -n "$st" ] || continue
         case "$st" in
             BAD) tooling "unparseable first-red time '$ts' for $m in $WARN_LEDGER" ;;
-            ESC) n_red=$((n_red+1)); n_esc=$((n_esc+1))
-                 FIRING+=("warn-guard	WARN guard $m has been red since $ts (${age}d > ${WARN_ESC_DAYS}d) — escalated")
-                 CHECKS+=("warn-guard:$m	firing	red since $ts (${age}d)") ;;
+            ESC) n_red=$((n_red+1))
+                 # T-3632 (T-3580 ruling C): a member declared red BY DESIGN until a date is held
+                 # until then; expired / malformed / absent escalates exactly as before (fail-safe).
+                 IFS=$'\t' read -r xst xa xb <<< "$(GUARD_EXPECTED_RED_NOW="$NOW" bash scripts/guard-expected-red.sh "$m" 2>/dev/null || echo none)"
+                 case "$xst" in
+                     active)
+                         CHECKS+=("warn-guard:$m	ok	red since $ts (${age}d) — expected red until $xa, not escalated: $xb") ;;
+                     *)
+                         n_esc=$((n_esc+1))
+                         note=""
+                         case "$xst" in
+                             expired) note=" (its expected-red date $xa has passed)" ;;
+                             invalid) note=" (its expected-red line is invalid: $xa)" ;;
+                         esac
+                         FIRING+=("warn-guard	WARN guard $m has been red since $ts (${age}d > ${WARN_ESC_DAYS}d) — escalated$note")
+                         CHECKS+=("warn-guard:$m	firing	red since $ts (${age}d)$note") ;;
+                 esac ;;
             OK)  n_red=$((n_red+1))
                  CHECKS+=("warn-guard:$m	ok	red since $ts (${age}d, escalates after ${WARN_ESC_DAYS}d)") ;;
         esac

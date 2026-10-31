@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # guard-layer: source warn  # arc-011 PH-0 standing controls are EXPECTED red on today's system until PH-1/PH-2 land the status surface (T-3396); a red here is the exit criterion 6.2.1.c(2), not a regression
+# guard-layer-expected-red: 2027-01-29  # operator ruling C on T-3580 (2026-10-31): red by design until arc-011 PH-2 ships the status surface; escalates again after this date
 #
 # T-3396 — the six standing controls of arc-011 PH-0 (step 3 §6.2.1.a (4), exit 6.2.1.c (2); R-69, GP-12).
 # Each control reproduces ONE real incident class in a disposable, simulated estate (temp dirs, canned
