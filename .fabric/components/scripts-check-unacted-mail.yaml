@@ -1,0 +1,21 @@
+id: scripts/check-unacted-mail.sh
+name: check-unacted-mail
+type: script
+subsystem: guard-layer
+location: scripts/check-unacted-mail.sh
+tags: []
+
+purpose: "Not a guard-layer source member: it reads the live hub. Its fixtures (tests/unacted-mail-fixtures.sh) are, by naming convention. T-3618 — mail delivered but never acted on, on every rail, by name."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-31
+created_by: unknown

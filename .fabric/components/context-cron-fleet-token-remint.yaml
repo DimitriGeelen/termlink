@@ -1,0 +1,21 @@
+id: .context/cron/fleet-token-remint.crontab
+name: fleet-token-remint
+type: script
+subsystem: guard-layer-cron
+location: .context/cron/fleet-token-remint.crontab
+tags: []
+
+purpose: "T-3615 — re-mint the fleet hubs' scoped .107 tokens (operator ruling Q3 = A, 2026-10-28) Source of truth: /opt/termlink/.context/cron/fleet-token-remint.crontab (git-tracked) Installed to: /etc/cron.d/termlink-fleet-token-remint (USER…"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-31
+created_by: unknown

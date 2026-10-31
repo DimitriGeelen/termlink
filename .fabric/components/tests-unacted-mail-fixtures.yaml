@@ -1,0 +1,21 @@
+id: tests/unacted-mail-fixtures.sh
+name: unacted-mail-fixtures
+type: script
+subsystem: guard-layer
+location: tests/unacted-mail-fixtures.sh
+tags: []
+
+purpose: "guard-layer: source"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-31
+created_by: unknown
