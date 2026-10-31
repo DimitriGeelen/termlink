@@ -21445,3 +21445,21 @@ scan_id: R-12c8e8a0
 task_id: T-3580
 payload:
   task_file: .tasks/active/T-3580-warn-escalation-standing-controlssh-red-.md
+---
+kind: scan_emitted
+timestamp: '2026-10-31T15:39:01Z'
+scan_id: R-bbeb1024
+task_id: T-3633
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-31T15:39:01Z'
+scan_id: R-bbeb1024
+task_id: T-3633
+payload:
+  task_file: .tasks/active/T-3633-acknowledge-or-fix-the-3-unexamined-audi.md

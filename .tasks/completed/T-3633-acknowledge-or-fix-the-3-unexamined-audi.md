@@ -4,10 +4,10 @@ name: "Acknowledge or fix the 3 unexamined audit warnings (arc mcp-slimming stal
 description: >
   Acknowledge or fix the 3 unexamined audit warnings (arc mcp-slimming stale, fabric drift 4 files, silent-zero greps)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-31T15:34:34Z
-last_update: 2026-10-31T15:38:28Z
-date_finished: null
+last_update: 2026-10-31T15:38:57Z
+date_finished: 2026-10-31T15:38:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -281,6 +281,17 @@ grep -q "^Arc 'mcp-slimming' has no task commits" .context/checks/audit-warning-
 
 ## RCA
 
+**Symptom:** the WARN guard `check-audit-warning-acknowledgement.sh` was red 10 days (3 unexamined audit warnings),
+4 days from escalating through the release canary.
+**Root cause:** three new warnings arrived without anyone examining them: 4 files added this month (T-3618, T-3615)
+never got fabric cards; the mcp-slimming arc finished its work but its close waits on a human step, so the "no
+commits in 30 days" heuristic fired; the vendored framework added a silent-zero scan whose 16 hits are all in
+vendored code.
+**Why structurally allowed:** the guard only reports; registering a fabric card is not part of the commit path for
+new scripts, and the arc-staleness heuristic cannot tell "done, waiting for a human close" from "stalled".
+**Prevention:** the guard itself (it escalated as designed, and was caught before the 14-day line); each ledger entry
+carries a DELETE-WHEN condition and the guard reports stale entries.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -375,3 +386,25 @@ grep -q "^Arc 'mcp-slimming' has no task commits" .context/checks/audit-warning-
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3633-acknowledge-or-fix-the-3-unexamined-audi.md
 - **Context:** Initial task creation
+
+### 2026-10-31T15:38:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-bbeb1024
+- **Timestamp:** 2026-10-31T15:39:01Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — `scripts/check-audit-warning-acknowledgement.sh` reports 0 unexamined warnings on a fresh structure audit
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/check-audit-warning-acknowledgement.sh in: `scripts/check-audit-warning-acknowledgement.sh` reports 0 unexamined warnings on a fresh structure audit`
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 154
+     - evidence: `test -f .fabric/components/scripts-rail-post.yaml || ls .fabric/components/ | grep -q rail-post`
