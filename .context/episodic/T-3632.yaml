@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3632: Guard layer: dated expected-red WARN marker (no escalation before the date, 90-day cap, fail-safe) — T-3580 ruling C
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-31T15:30:36Z
+# ============================================================================
+
+task_id: T-3632
+task_name: "Guard layer: dated expected-red WARN marker (no escalation before the date, 90-day cap, fail-safe) — T-3580 ruling C"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-31T15:24:41Z
+completed: 2026-10-31T15:29:58Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-31T16:29:42+01:00
+last_commit: 2026-10-31T16:29:57+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  dated expected-red WARN line (T-3580 ruling C): helper + canary/filer/marker-check honour it, fail-safe, 90-day cap; standing-controls expected red until 2027-01-29; 30 fixtures + mutant. document the expected-red line in the guard-layer doc
+
+# Key outcomes
+outcomes:
+  - 'One helper (`scripts/guard-expected-red.sh <member>`) decides `active` / `expired` / `invalid:<why>` / `none`;'
+  - 'The release canary does not escalate an `active` member (says "expected red until <date>"), and does escalate an'
+  - 'The escalation filer does not file a task for an `active` member (SKIP expected-red), and files as before otherwise'
+  - '`check-guard-severity-markers.sh` fires on a malformed expected-red line (K1–K5; live run clean)'
+  - '`tests/standing-controls.sh` carries the line with a date within the cap; the live canary no longer fires on it'
+  - 'Fixtures cover active / expired / invalid (no reason, over cap, not warn) in canary, filer and marker check,'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'dated expected-red WARN line (T-3580 ruling C): helper + canary/filer/marker-check honour it, fail-safe, 90-day cap; standing-controls expected red until 2027-01-29; 30 fixtures + mutant'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.fabric/components/crates-termlink-cli-src-commands-tmux.yaml'
+  - '.fabric/components/scripts-guard-expected-red.yaml'
+  - '.fabric/components/tests-guard-expected-red-fixtures.yaml'
+  - '.tasks/active/T-3632-guard-layer-dated-expected-red-warn-mark.md'
+  - 'docs/operations/guard-layer-and-canaries.md'
+  - 'scripts/check-guard-severity-markers.sh'
+  - 'scripts/check-release-publication-freshness.sh'
+  - 'scripts/guard-expected-red.sh'
+  - 'scripts/warn-escalation-file.sh'
+  - 'tests/guard-expected-red-fixtures.sh'
+  - 'tests/standing-controls.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-31T16:29:42'
+    action: 'T-3632: dated expected-red WARN line (T-3580 ruling C): helper + canary/filer/marker-check honour it, fail-safe, 90-day cap; standing-controls expected red until 2027-01-29; 30 fixtures + mutant'
+  - time: '2026-10-31T16:29:57'
+    action: 'T-3632: document the expected-red line in the guard-layer doc'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 3
+  files_changed: 14
+  lines_added: 828
+  lines_removed: 11
+  footprint_refreshed_at: '2026-10-31T15:30:40Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3632-guard-layer-dated-expected-red-warn-mark.md
+generated_by: context-agent-hybrid

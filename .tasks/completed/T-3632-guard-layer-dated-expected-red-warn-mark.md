@@ -4,12 +4,12 @@ name: "Guard layer: dated expected-red WARN marker (no escalation before the dat
 description: >
   Guard layer: dated expected-red WARN marker (no escalation before the date, 90-day cap, fail-safe) — T-3580 ruling C
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-guard-severity-markers.sh, scripts/check-release-publication-freshness.sh, scripts/guard-expected-red.sh, scripts/warn-escalation-file.sh, tests/guard-expected-red-fixtures.sh, tests/standing-controls.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-31T15:24:41Z
-last_update: 2026-10-31T15:29:57Z
-date_finished: null
+last_update: 2026-10-31T15:29:58Z
+date_finished: 2026-10-31T15:29:58Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -382,3 +382,20 @@ bash scripts/guard-expected-red.sh standing-controls.sh > .context/working/.t363
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3632-guard-layer-dated-expected-red-warn-mark.md
 - **Context:** Initial task creation
+
+### 2026-10-31T15:29:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6fdd8167
+- **Timestamp:** 2026-10-31T15:30:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#5 (Agent)** — `tests/standing-controls.sh` carries the line with a date within the cap; the live canary no longer fires on it
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/standing-controls.sh in: `tests/standing-controls.sh` carries the line with a date within the cap; the live canary no longer fires on it`

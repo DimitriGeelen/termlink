@@ -21409,3 +21409,21 @@ scan_id: R-8007f048
 task_id: T-3627
 payload:
   task_file: .tasks/active/T-3627-runme-fixturessh-is-intermittently-flaky.md
+---
+kind: scan_emitted
+timestamp: '2026-10-31T15:30:29Z'
+scan_id: R-6fdd8167
+task_id: T-3632
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-31T15:30:29Z'
+scan_id: R-6fdd8167
+task_id: T-3632
+payload:
+  task_file: .tasks/active/T-3632-guard-layer-dated-expected-red-warn-mark.md
