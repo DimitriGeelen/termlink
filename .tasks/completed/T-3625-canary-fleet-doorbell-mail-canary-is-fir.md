@@ -2,12 +2,14 @@
 id: T-3625
 name: "Canary fleet-doorbell-mail-canary is FIRING — investigate and fix"
 description: >
-  The fleet-doorbell-mail-canary canary reports FIRING on /canaries. Filed automatically by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary always has a task naming it.
+  The fleet-doorbell-mail-canary canary reports FIRING on /canaries. Filed automatically
+  by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary
+  always has a task naming it.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [canary-escalation]
 components: []
 related_tasks: []
@@ -38,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-29T08:15:03Z
-last_update: 2026-10-29T08:15:03Z
-date_finished: null
+last_update: 2026-10-31T13:10:25Z
+date_finished: 2026-10-31T13:10:25Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +52,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-31T13:10:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3625: Canary fleet-doorbell-mail-canary is FIRING — investigate and fix
@@ -75,7 +91,7 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `fleet-doorbell-mail-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
+- [x] `fleet-doorbell-mail-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false) — canary corrected by T-3623 (token-only profiles are `not-checked`, not failing); HEALTHY on 2026-10-31 (hb 09:23)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -280,7 +296,17 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash scripts/test-check-fleet-doorbell-mail-health.sh > .context/working/.t3625-ver.out 2>&1 && grep -q "9 pass / 0 fail" .context/working/.t3625-ver.out
+grep -q "not-checked" scripts/check-fleet-doorbell-mail-health.sh
+
 ## RCA
+
+**Symptom:** the doorbell-mail canary fired on 2026-10-28 for fleet profiles it could not actually check.
+**Root cause:** profiles that authenticate with a token only (no hub secret) were scored as failures instead of "not
+checked"; the finding was false. Fixed by T-3623 (`verdict:"not-checked"`, counted in `summary.not_checked`; exit 2
+when every profile is token-only, so a blind run never reads as clean).
+**Why structurally allowed:** the fixtures had no token-only profile.
+**Prevention:** T8/T9 in `scripts/test-check-fleet-doorbell-mail-health.sh` cover token-only and all-token-only.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -376,3 +402,23 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3625-canary-fleet-doorbell-mail-canary-is-fir.md
 - **Context:** Initial task creation
+
+### 2026-10-31T13:10:06Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-10-31T13:10:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e5882790
+- **Timestamp:** 2026-10-31T13:10:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `fleet-doorbell-mail-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false) — canary corrected by T-3623 (token-only profiles are `n
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/canary-status.sh in: `fleet-doorbell-mail-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false) — cana`

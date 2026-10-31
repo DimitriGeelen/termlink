@@ -21373,3 +21373,21 @@ scan_id: R-bf6e22ea
 task_id: T-3628
 payload:
   task_file: .tasks/active/T-3628-tofu-store-loses-pins-under-concurrent-t.md
+---
+kind: scan_emitted
+timestamp: '2026-10-31T13:10:27Z'
+scan_id: R-e5882790
+task_id: T-3625
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-10-31T13:10:27Z'
+scan_id: R-e5882790
+task_id: T-3625
+payload:
+  task_file: .tasks/active/T-3625-canary-fleet-doorbell-mail-canary-is-fir.md
