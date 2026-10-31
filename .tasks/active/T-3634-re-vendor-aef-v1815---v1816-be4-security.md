@@ -1,10 +1,14 @@
 ---
 id: T-3634
-name: "Re-vendor AEF v1.8.15 -> v1.8.16-be.4 (security fixes T-4920/T-4921 fail-open Tier 0 + boundary hooks; T-4892, T-4890)"
+name: "Re-vendor AEF v1.8.15 -> v1.8.16-be.4 (security fixes T-4920/T-4921 fail-open
+  Tier 0 + boundary hooks; T-4892, T-4890)"
 description: >
-  Operator ruling A 2026-10-31: upgrade the vendored framework to v1.8.16-be.4 (10c32eca3, 181 commits) with the T-3626 routine. Driver: our vendored check-tier0.sh:141 pipes into grep -q under pipefail and fails open (T-4920); the boundary hook fails open on large commands (T-4921).
+  Operator ruling A 2026-10-31: upgrade the vendored framework to v1.8.16-be.4 (10c32eca3,
+  181 commits) with the T-3626 routine. Driver: our vendored check-tier0.sh:141 pipes
+  into grep -q under pipefail and fails open (T-4920); the boundary hook fails open
+  on large commands (T-4921).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-31T22:28:45Z
-last_update: 2026-10-31T22:29:18Z
-date_finished: null
+last_update: 2026-10-31T23:41:17Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +54,19 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-31T22:30:19Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3634: Re-vendor AEF v1.8.15 -> v1.8.16-be.4 (security fixes T-4920/T-4921 fail-open Tier 0 + boundary hooks; T-4892, T-4890)
@@ -60,6 +77,18 @@ Operator ruling A (2026-10-31, brief in session): upgrade the vendored AEF v1.8.
 (10c32eca3, 181 commits) with the T-3626 routine. Driver: T-4920 (our `check-tier0.sh:141` pipes into `grep -q`
 under pipefail and fails open) and T-4921 (boundary matcher fails open on large commands). Also T-4892, T-4890.
 Worker brief: `.context/working/t3634/brief.md`.
+
+**Background / trigger:** AEF reported T-4920/T-4921: the vendored Tier 0 and project-boundary PreToolUse hooks
+fail open on large commands (pipe into `grep -q` under pipefail; >128 KB env var). Reproduced here on v1.8.15
+(`.context/working/t3634/probe-before3.out`: both hooks rc=0 on a ~136 KB padded command). Operator ruling A 2026-10-31.
+
+**Problem / hypothesis:** Our v1.8.15 copy lets a destructive or out-of-project command through if it is padded;
+v1.8.16-be.4 carries the upstream fix, and our 8 preserved local changes can be carried across by 3-way merge.
+
+**Goal:** Re-vendor to v1.8.16-be.4 without losing any preserved local change, CLAUDE.md project part or config.
+
+**Expected outcome:** Both hooks block the padded probes (rc=2); doctor and guard layer show no new FAIL; the
+divergence register records the new baseline; AEF gets a WORKS/FAILS report.
 
 ## Acceptance Criteria
 
@@ -375,3 +404,6 @@ Worker brief: `.context/working/t3634/brief.md`.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3634-re-vendor-aef-v1815---v1816-be4-security.md
 - **Context:** Initial task creation
+
+### 2026-10-31T22:30:18Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

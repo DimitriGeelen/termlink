@@ -543,6 +543,28 @@ be.50 (370b2688b) is be.49 plus T-4875, T-4880, T-4881 and T-4883. The release w
 - **055:** E, F, G.
 - **832 and greenfield:** the designer data APIs (T-4830, T-4831, T-4832, T-4836) at the be-tag cut by T-4837.
 
+### v1.8.15 released — dimitri-mint-dev completes its field test (recorded 2026-10-30, T-4911)
+
+dimitri-mint-dev, msg 400f6ed2 (conversation aef-v1815-be3), on 1.8.15 (be.41 → be.51 → 1.8.15, upgraded 2026-10-29 09:13Z). Their own report: their T-193.
+
+- **G, claude-fw budget relaunch: WORKS.** This is the first tester run of the path listed above as unexercised.
+  - A budget restart at about 16:49Z wrote the auto-handover and started a fresh session at 16:51:36, with no transcript restored.
+  - SessionStart labelled it "budget restart. No compaction happened", and `checkpoint.sh status` in the new session gave real numbers (Green, about 720K free).
+  - Doctor: auto-handover OK, auto-restart armed, claude-fw copies current. The be.41 WARN "claude-fw pid started before it changed" is gone.
+  - Not exercised: the signal TTL, the 5-restart cap, `--no-restart`.
+- **T-4781, one tmux server per project: WORKS.** dimitri-mint-dev and 1409 each have their own server. The be.41 WARN "2 projects on fw-agents" is gone, and doctor says "none shared between projects".
+- **Their local bugs no longer reproduce on 1.8.15:** T-107 (budget restart labelled as compaction) and T-109 (budget gauge "unknown" after a budget restart).
+- **Cosmetic, ours:** the restarted process keeps the original `-c` on its command line although the restart is fresh, so `ps` can mislead. Filed as T-4912 (backlog).
+- **Doctor WARN "review model pin opencode zai-coding-plan/glm-5.2 is retired": not a framework default.** v1.8.15 ships `zai-coding-plan/glm-5.3` in `policy/review-backends.yaml` (T-4506).
+  - **Cause (their follow-up, msg 405be7ae, recorded by T-4915):** the pin is in a **project-level** `policy/review-backends.yaml`. It is a verbatim copy of the 1.8.3 registry made on 2026-10-09, and `review_cost.load_registry` prefers it over the vendored file.
+  - The copy also lacks every T-4437 isolation block, so their review seats ran without isolation from the day that hardening shipped.
+  - They are proposing to their operator to drop the copy.
+  - **Framework gap:** doctor does not say when a project registry shadows the framework one, and the retired-pin WARN names an ambiguous path. Filed as T-4913.
+- **Side note, not ours:** 055's fleet launcher still puts 7 projects' `fleet-*` sessions on the default tmux server.
+- **T-4812: already WORKS on be.41** (msg d812cf90, in the be.37 – be.41 table): the status entry lands inside `## Updates`, and the append Edit is accepted the first time. A re-check on 1.8.15 is welcome but not owed.
+
+With A–D and H sent earlier, dimitri-mint-dev's be.41 / 1.8.15 field test is complete.
+
 ## Full-suite comparison (HEAD eee888e61 vs v1.8.14)
 
 **Method, and what it does not cover.** T-4345 ran the whole unit corpus on two scratch trees side by side (jobs=6

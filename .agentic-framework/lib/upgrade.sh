@@ -1426,6 +1426,7 @@ do_upgrade() {
     local strict=false
     local failed_steps=0
     local _strict_abort_step=""
+    local _t4870_patches_lost=0
     # T-2095: --no-self-vendor once skipped the inline self-vendor call. T-4688
     # removed that call (it wrote into the upgrade SOURCE); the flag stays
     # accepted so forwarded/scripted invocations keep parsing.
@@ -2104,12 +2105,32 @@ $project_owned"
                 fi
                 [ "$current_governance" = "$_gv_base_tail" ] && _gv_stock=true
             fi
+            # T-4894: a line some older framework template carried is framework text, not a
+            # local edit (0506: governance older than even the vendored template). Set those
+            # aside; with no git history to read, the helper sets nothing aside.
+            local _gv_known=0 _gv_kerr
+            if [ "$_gv_stock" != true ] && [ -f "$FRAMEWORK_ROOT/lib/governance_known.py" ]; then
+                _gv_kerr=$(mktemp)
+                _gv_at_risk=$(printf '%s\n' "$_gv_at_risk" \
+                    | python3 "$FRAMEWORK_ROOT/lib/governance_known.py" filter "$FRAMEWORK_ROOT" 2>"$_gv_kerr") \
+                    || _gv_at_risk=$(_fw_governance_at_risk "$project_claude" "$governance_tail")
+                _gv_known=$(sed -n 's/^known=\([0-9]*\)$/\1/p' "$_gv_kerr" | tail -1)
+                rm -f "$_gv_kerr"
+                _gv_known=${_gv_known:-0}
+                if [ -z "$_gv_at_risk" ]; then
+                    _gv_stock=true
+                    echo -e "  ${CYAN}NOTE${NC}  $_gv_known governance line(s) are text from an older framework template; the rebuild replaces them (T-4894)"
+                fi
+            fi
             if [ "$_gv_stock" != true ]; then
                 local _gv_n
                 _gv_n=$(printf '%s\n' "$_gv_at_risk" | wc -l | tr -d ' ')
                 echo -e "  ${RED}REFUSED${NC}  $_gv_n line(s) in the CLAUDE.md governance section would be deleted" >&2
                 printf '%s\n' "$_gv_at_risk" | head -8 | sed 's/^/        /' >&2
                 [ "$_gv_n" -gt 8 ] && echo "        ... ($((_gv_n - 8)) more)" >&2
+                if [ "$_gv_known" -gt 0 ]; then
+                    echo -e "        ($_gv_known more line(s) are text from an older framework template; those are not at risk — T-4894)" >&2
+                fi
                 echo -e "        These are not in the framework template and not inside a project-owned region." >&2
                 echo -e "        Move them into a region below the governance section, between" >&2
                 echo -e "        \`<!-- project-owned: begin -->\` and \`<!-- project-owned: end -->\`, then re-run \`fw upgrade\`." >&2
@@ -2548,7 +2569,17 @@ CRONREGEOF
             do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" ${_vendor_extra[@]+"${_vendor_extra[@]}"} 2>&1 | sed 's/^/  /'
             _vendor_rc=${PIPESTATUS[0]}
         fi
-        if [ "$_vendor_rc" -ne 0 ]; then
+        if [ "$_vendor_rc" -eq 4 ] && [ "$dry_run" != true ]; then
+            # T-4870: the vendor completed, but in-file patches the project declared
+            # are gone and it set `on_missing: fail`. Not a partial sync.
+            echo -e "  ${RED}FAIL${NC}  in-file patches lost (on_missing: fail) — see ACTION REQUIRED above"
+            failed_steps=$((failed_steps + 1))
+            _t4870_patches_lost=1
+            if [ "$strict" = true ]; then
+                _strict_abort_step="4b (vendor: in-file patches lost)"
+                return 1
+            fi
+        elif [ "$_vendor_rc" -ne 0 ]; then
             echo -e "  ${YELLOW}WARN${NC}  do_vendor exited $_vendor_rc — vendor sync may be partial (F5)"
             failed_steps=$((failed_steps + 1))
             if [ "$strict" = true ]; then
@@ -3629,6 +3660,11 @@ EOF
         # above, not after the doctor advisory where the be.15 field run found it.
         _t4692_emit_commit_list "$target_dir" "$_t4692_before" "$_t4697_log" "$_t4717_why"
         _t4814_emit_upstream_list "$target_dir" ${_t4814_upstream[@]+"${_t4814_upstream[@]}"}
+        # T-4870: lost in-file patches are repeated here, after the counters, so
+        # they are not one WARN line in the middle of the log (1409, twice).
+        if [ -f "$FRAMEWORK_ROOT/lib/vendor_preserve.py" ]; then
+            python3 "$FRAMEWORK_ROOT/lib/vendor_preserve.py" report --target "$target_dir" || true
+        fi
 
         if [ "$changes" -gt 0 ]; then
             echo ""
@@ -3648,6 +3684,10 @@ EOF
         fi
         _t3862_recall_prereqs "$target_dir"
         _t4069_stale_wrapper_notice "$target_dir"
+        # T-4870: on_missing: fail — the upgrade finished every step, then says no.
+        if [ "$_t4870_patches_lost" = 1 ]; then
+            return 4
+        fi
     fi
 }
 

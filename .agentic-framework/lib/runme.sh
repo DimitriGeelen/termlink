@@ -58,6 +58,26 @@ runme_new() {
         [ -n "$desc" ] && echo "# $desc"
         echo "LOG='$log'"
         echo "EVENTS='$events'"
+        # T-4871: one run at a time. A second start used to empty the running run's log
+        # and append to it in parallel (ring20-dashboard, twice). The lock is taken before
+        # the log is touched; mkdir + pid file, not flock, so macOS needs nothing extra.
+        echo "LOCKD='$dir/.running'"
+        echo 'if ! mkdir "$LOCKD" 2>/dev/null; then'
+        echo '    _lpid=$(cat "$LOCKD/pid" 2>/dev/null || true)'
+        echo '    if [ -n "$_lpid" ] && kill -0 "$_lpid" 2>/dev/null; then'
+        echo '        echo "runme '"$name"': already running (pid $_lpid) — not started again; see $LOG" >&2; exit 75'
+        echo '    fi'
+        echo '    echo "runme '"$name"': taking over a stale lock (pid ${_lpid:-unknown} is gone)" >&2'
+        echo '    rm -rf "$LOCKD"; mkdir "$LOCKD" 2>/dev/null || { echo "runme '"$name"': lost the race for $LOCKD; see $LOG" >&2; exit 75; }'
+        echo 'fi'
+        echo 'echo $$ > "$LOCKD/pid"'
+        # T-4914: a re-run after a finished run used to empty the log of the run that did
+        # the work (ring20-dashboard T-2585). Keep the last three runs; run.log stays one
+        # run, so watch and pending read it as before.
+        echo 'if [ -s "$LOG" ]; then'
+        echo '    for _g in 2 1; do [ -f "$LOG.$_g" ] && mv -f "$LOG.$_g" "$LOG.$((_g + 1))"; done'
+        echo '    mv -f "$LOG" "$LOG.1"'
+        echo 'fi'
         echo ': > "$LOG"'
         # T-3741: the script announces itself — every event goes to run.log AND, as one JSON
         # line, to the project's events.jsonl, so a watcher wakes on the event, not on a guess.
@@ -66,7 +86,7 @@ runme_new() {
         echo 'exec > >(while IFS= read -r l; do printf "%s %s\n" "$(date +%T)" "$l"; done | tee -a "$LOG") 2>&1'
         echo 'echo "RUNME START '"$name"' $(date -u +%FT%TZ) user=$(id -un) host=$(hostname)"; _ev start'
         echo '_stopped=""'
-        echo 'trap '"'"'rc=$?; [ -n "$_stopped" ] || { echo "RUNME EXIT $rc"; _ev exit "" "$rc"; }; sleep 0.3'"'"' EXIT'
+        echo 'trap '"'"'rc=$?; [ -n "$_stopped" ] || { echo "RUNME EXIT $rc"; _ev exit "" "$rc"; }; rm -rf "$LOCKD"; sleep 0.3'"'"' EXIT'
         # T-3741: a Ctrl-C, kill or closed terminal is STOPPED, not "ended without record".
         # The signal reaches the whole foreground group, so the tee that writes run.log is
         # already dead: echoing into it raises SIGPIPE and the script would die unrecorded.
@@ -76,6 +96,13 @@ runme_new() {
             code="${sig#*:}"; sig="${sig%%:*}"
             echo "trap '_stopped=1; trap \"\" PIPE; _ev stopped \"\" $code $sig; printf \"%s RUNME STOPPED $sig\\n%s RUNME EXIT $code\\n\" \"\$(date +%T)\" \"\$(date +%T)\" >> \"\$LOG\" 2>/dev/null; exit $code' $sig"
         done
+        # T-4905: all steps run in ONE subshell. A step that sets its own EXIT trap (the
+        # mount/umount cleanup idiom) used to replace the EXIT trap above, so the run
+        # ended with no RUNME EXIT, no exit event and no tee flush (dimitri-mint-dev
+        # P-025). Inside the subshell the step's traps stay local and still fire when the
+        # steps end; cd/export still carry from step to step; the subshell's status is
+        # the script's status, which the EXIT trap above records.
+        echo '('
         echo 'set -euo pipefail'
         local c i=0
         for c in "${cmds[@]}"; do
@@ -84,6 +111,7 @@ runme_new() {
             printf 'echo "+ %s"\n' "$(printf '%s' "$c" | sed 's/[\\"$`]/\\&/g')"
             printf '%s\n' "$c"
         done
+        echo ')'
     } > "$script"
     chmod 755 "$script"
     echo "Run this (one line, copy-paste):"
