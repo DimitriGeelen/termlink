@@ -41,6 +41,9 @@
 # FLEET_TOKEN_REMOTE_TL, FLEET_TOKEN_REMOTE_OWNER, FLEET_TOKEN_NOW, FLEET_TOKEN_RENEW_BEFORE,
 # FLEET_TOKEN_NOTE (command: <kind> <why>), FLEET_TOKEN_SOCKETS_LIST, FLEET_TOKEN_HEARTBEAT.
 set -uo pipefail
+# T-3627: grep that reads ALL its input. Under pipefail, `producer | grep -q` returns 141 when grep
+# matches and exits while the producer is still writing (L-387), which read as "no match" at random.
+grep_all() { grep "$@" >/dev/null; }
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DRY=0 FORCE=0 CRON=0 ONLY=""
@@ -224,7 +227,7 @@ run_remote() {  # <hub> <tag> <body> -> tagged output, CR stripped
     remote "$1" "echo RUNME-TOKEN-$2; bash -c \"\$(echo $script | base64 -d)\"" 2>/dev/null | tr -d '\r'
 }
 field() { printf '%s\n' "$1" | sed -n "s/^$2=//p" | tail -1; }
-has() { printf '%s\n' "$1" | grep -qx "$2"; }
+has() { printf '%s\n' "$1" | grep_all -x "$2"; }
 
 state_get() {  # <hub> <key>
     sed -n "s/^$2=//p" "$STATE_DIR/$1.state" 2>/dev/null | tail -1

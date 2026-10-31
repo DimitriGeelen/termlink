@@ -1,13 +1,18 @@
 ---
 id: T-3627
-name: "runme-fixtures.sh is intermittently flaky (different cases fail across runs; seen in T-3626 guard runs)"
+name: "runme-fixtures.sh is intermittently flaky (different cases fail across runs;
+  seen in T-3626 guard runs)"
 description: >
-  T-3626 handback items 12b/12b1/12b2: one in-place run failed 'dirty crates must rebuild' (runme action 22b fake-hub probe: 'lacks python3 or .../rr-tl'); a fresh clone and a re-run passed 233/233; a pre-upgrade clone failed three other cases (sweep idempotent, stray stop, cfw dry-run). Logs: .context/working/t3626/runme-fx{,-1,-pre,-post}.log. Find the shared-state or timing cause.
+  T-3626 handback items 12b/12b1/12b2: one in-place run failed 'dirty crates must
+  rebuild' (runme action 22b fake-hub probe: 'lacks python3 or .../rr-tl'); a fresh
+  clone and a re-run passed 233/233; a pre-upgrade clone failed three other cases
+  (sweep idempotent, stray stop, cfw dry-run). Logs: .context/working/t3626/runme-fx{,-1,-pre,-post}.log.
+  Find the shared-state or timing cause.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [bug, tests, flaky]
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-29T13:01:38Z
-last_update: 2026-10-29T13:01:40Z
-date_finished: null
+last_update: 2026-10-31T13:52:35Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +55,39 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-31T13:10:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3627: runme-fixtures.sh is intermittently flaky (different cases fail across runs; seen in T-3626 guard runs)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Seen in the T-3626 guard runs (logs `.context/working/t3626/runme-fx{,-1,-pre,-post}.log`). Cause and fix in ## RCA;
+repeat-run evidence in `.context/working/t3627/`.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The cause of each observed intermittent failure is identified with evidence (log line + code path), not guessed
+  (all four: `producer | grep -q` under pipefail; reproduced 200/200 with a large input, 0/200 small; see ## RCA)
+- [x] Each cause is fixed in the fixtures (or runme seams) so the case no longer depends on shared host state or timing
+  (`grep_all` in runme.sh, scripts/fleet-token-remint.sh and the fixtures; 0/200 false negatives, 0/50 false positives)
+- [x] `tests/runme-fixtures.sh` passes in repeated runs (at least 5 consecutive, including one under parallel load)
+  (5 sequential + 2 concurrent runs, all 233 passed / 0 failed, rc 0; logs in `.context/working/t3627/`)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -268,7 +292,33 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash -n runme.sh && bash -n tests/runme-fixtures.sh && bash -n scripts/fleet-token-remint.sh
+grep -q "^grep_all()" runme.sh && ! grep -qE '\|[[:space:]]*grep -q' runme.sh
+grep -q "^grep_all()" tests/runme-fixtures.sh && ! grep -qE '\|[[:space:]]*grep -q' tests/runme-fixtures.sh
+grep -q "^grep_all()" scripts/fleet-token-remint.sh && ! grep -qE '\|[[:space:]]*grep -q' scripts/fleet-token-remint.sh
+
 ## RCA
+
+**Symptom:** `tests/runme-fixtures.sh` failed different cases on different runs: "dirty crates must rebuild",
+"sweep idempotent" and "stray stop" (each with `FAILED fake-hub lacks python3 or .../rr-tl`, while both were
+present), and "cfw dry-run" (the expected text was in the output).
+
+**Root cause:** `producer | grep -q PAT` under `set -o pipefail` (L-387). `grep -q` exits on the first match; if the
+producer is still writing, it takes SIGPIPE and the pipeline returns 141, which reads as "no match". It happens
+only when the input exceeds what one write delivers, so it depends on output size and scheduling. Measured: with a
+200 KB input whose match is on line 1, `has()` returned false 200/200; with a 3-line input, 0/200. Three places:
+`scripts/fleet-token-remint.sh` `has()` (the remote probe check, so a host was declared to lack python3);
+`runme.sh` (incl. `hub start --help | grep -q` in the stray-hub stop); and 221 assertions in the fixtures
+(`echo "$out" | grep -q` over a whole runme transcript).
+
+**Why structurally allowed:** the guard for L-387 (`check-verification-pipefail.sh`) only scans task Verification
+blocks; scripts and fixtures under `pipefail` were never checked. 41 more scripts carry the shape (T-3631).
+
+**Fix:** a `grep_all` helper (grep without `-q`, output discarded: it reads all input, so the producer is never cut
+off; same exit status) replaces every `| grep -q` in the three files.
+
+**Prevention:** the Verification lines above fail if `| grep -q` comes back in these files; T-3631 builds the
+repo-wide static check.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -364,3 +414,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3627-runme-fixturessh-is-intermittently-flaky.md
 - **Context:** Initial task creation
+
+### 2026-10-31T13:10:48Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

@@ -25,6 +25,9 @@
 #
 # Exit: 0 all actions done+verified · 1 an action failed verification · 2 refused
 set -uo pipefail
+# T-3627: grep that reads ALL its input. Under pipefail, `producer | grep -q` returns 141 when grep
+# matches and exits while the producer is still writing (L-387), which read as "no match" at random.
+grep_all() { grep "$@" >/dev/null; }
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_ROOT" || { echo "runme: cannot cd to $PROJECT_ROOT" >&2; exit 2; }
@@ -108,7 +111,7 @@ RUNME_LOCK="$LOG_DIR/.runme.lock"
 RUNME_LOCK_HELD=0
 release_lock() { [ "$RUNME_LOCK_HELD" = "1" ] && rm -rf "$RUNME_LOCK" 2>/dev/null; RUNME_LOCK_HELD=0; }
 lock_holder_alive() {  # lock_holder_alive <pid>: true when <pid> runs and is a runme.sh
-    [ -n "$1" ] && kill -0 "$1" 2>/dev/null && ps -p "$1" -o args= 2>/dev/null | grep -q 'runme'
+    [ -n "$1" ] && kill -0 "$1" 2>/dev/null && ps -p "$1" -o args= 2>/dev/null | grep_all 'runme'
 }
 if ! mkdir "$RUNME_LOCK" 2>/dev/null; then
     holder="$(cat "$RUNME_LOCK/pid" 2>/dev/null)"
@@ -1362,12 +1365,12 @@ stop_stray_hub() {
     if [ -z "$pid" ] || ! $STRAY_ALIVE "$pid" 2>/dev/null; then
         say "  skip    no live hub recorded in $STRAY_DIR (already stopped)"; SKIPPED=$((SKIPPED+1)); return
     fi
-    if ! tr '\0' ' ' < "$STRAY_PROC/$pid/cmdline" 2>/dev/null | grep -q 'termlink.*hub'; then
+    if ! tr '\0' ' ' < "$STRAY_PROC/$pid/cmdline" 2>/dev/null | grep_all 'termlink.*hub'; then
         say "  FAILED  pid $pid in $STRAY_DIR/hub.pid is not a termlink hub process; refusing to stop it"; FAILED=$((FAILED+1)); return
     fi
     for b in $STRAY_GUARD_BINS; do
         [ -x "$b" ] || continue
-        "$b" hub start --help 2>/dev/null | grep -q -- '--allow-second-hub' || missing="$missing $b"
+        "$b" hub start --help 2>/dev/null | grep_all -- '--allow-second-hub' || missing="$missing $b"
     done
     if [ -n "$missing" ]; then
         say "  FAILED  installed termlink lacks the T-3340 guard:$missing — run action 4 first (re-run this script)"; FAILED=$((FAILED+1)); return
@@ -1449,7 +1452,7 @@ HUMAN_TICKS_PY="${RUNME_HUMAN_TICKS_PY:-$PROJECT_ROOT/.agentic-framework/lib/hum
 # T-3611 found it on 2026-10-27, the same class as T-3460.
 OPERATOR_TICKS="T-3349:1 T-3351:1 T-3388:1 T-3291:1 T-3302:1 T-3006:1 T-3200:1"   # task:Human-AC-number, space-separated; each one the operator ticked themself
 
-has_operator_ack() { grep -F "\"task\": \"$1\"" "$HUMAN_TICKS_LEDGER" 2>/dev/null | grep -qF '"via": "operator-ack"'; }
+has_operator_ack() { grep -F "\"task\": \"$1\"" "$HUMAN_TICKS_LEDGER" 2>/dev/null | grep_all -F '"via": "operator-ack"'; }
 
 ack_operator_ticks() {
     local spec task ac
@@ -2142,14 +2145,14 @@ timeout 30 $REMOTE_TL channel list --hub $TELEMETRY_COLLECTOR </dev/null >/dev/n
         if [ "$got_s" = "$want_s" ] && [ "$got_c" = "$want_c" ] && [ "$got_w" = "$want_w" ]; then
             say "  skip    $hub already runs the current rollup daily (script, cron file and token wrapper identical)"; SKIPPED=$((SKIPPED+1)); continue
         fi
-        if ! printf '%s\n' "$probe" | grep -qx HAVE-PY || ! printf '%s\n' "$probe" | grep -qx HAVE-TL; then
+        if ! printf '%s\n' "$probe" | grep_all -x HAVE-PY || ! printf '%s\n' "$probe" | grep_all -x HAVE-TL; then
             say "  FAILED  $hub lacks python3 or termlink on $REMOTE_PATH — the rollup needs both; nothing written"; FAILED=$((FAILED+1)); continue
         fi
-        if ! printf '%s\n' "$probe" | grep -qx HAVE-AUTH && [ "$DRY_RUN" = "1" ]; then
+        if ! printf '%s\n' "$probe" | grep_all -x HAVE-AUTH && [ "$DRY_RUN" = "1" ]; then
             # A dry run installs no token (22b only says it would), so its absence here is expected.
             say "  [DRY]   would install the rollup on $hub once action 22b's token is in place there (none verified yet)"; DONE=$((DONE+1)); continue
         fi
-        if ! printf '%s\n' "$probe" | grep -qx HAVE-AUTH; then
+        if ! printf '%s\n' "$probe" | grep_all -x HAVE-AUTH; then
             say "  FAILED  $hub cannot authenticate to .107 ($TELEMETRY_COLLECTOR) with the token-only config ($TOKEN_REMOTE_HOME):"
             say "          no verified scoped token there yet; action 22b installs it (see its line above). Nothing written."
             FAILED=$((FAILED+1)); continue
@@ -2168,10 +2171,10 @@ echo \"SCRIPT=\$s\"; echo \"CRON=\$c\"; echo \"WRAP=\$w\"" 2>&1 | tr -d '\r')"
         got_s="$(printf '%s\n' "$out" | sed -n 's/^SCRIPT=//p' | tail -1)"
         got_c="$(printf '%s\n' "$out" | sed -n 's/^CRON=//p' | tail -1)"
         got_w="$(printf '%s\n' "$out" | sed -n 's/^WRAP=//p' | tail -1)"
-        if [ "$got_s" = "$want_s" ] && [ "$got_c" = "$want_c" ] && [ "$got_w" = "$want_w" ] && printf '%s\n' "$out" | grep -qx DRYRUN-OK; then
+        if [ "$got_s" = "$want_s" ] && [ "$got_c" = "$want_c" ] && [ "$got_w" = "$want_w" ] && printf '%s\n' "$out" | grep_all -x DRYRUN-OK; then
             say "  OK      $hub: rollup installed and verified (sha256 of script, cron file and token wrapper match; a dry run of it exits 0 there)"; DONE=$((DONE+1))
         else
-            say "  FAILED  $hub after install: script ${got_s:-missing}, cron ${got_c:-missing}, wrapper ${got_w:-missing}, dry run $(printf '%s\n' "$out" | grep -qx DRYRUN-OK && echo ok || echo failed) (want $want_s / $want_c / $want_w / ok)"
+            say "  FAILED  $hub after install: script ${got_s:-missing}, cron ${got_c:-missing}, wrapper ${got_w:-missing}, dry run $(printf '%s\n' "$out" | grep_all -x DRYRUN-OK && echo ok || echo failed) (want $want_s / $want_c / $want_w / ok)"
             FAILED=$((FAILED+1))
         fi
     done
@@ -2265,14 +2268,14 @@ echo \"\$p\"; f=\$(echo \"\$p\" | sed -n 's/^SECRET_FILE=//p'); \
         if [ -z "$sf" ]; then
             # Already removed on an earlier run: re-verify with the real config, change nothing.
             out="$(fleet_remote "$hub" "echo RUNME-SECRET-VERIFY; export PATH=$REMOTE_PATH; $(secret_verify_cmd "$hub")" 2>/dev/null | tr -d '\r')"
-            if printf '%s\n' "$out" | grep -qx AUTH-OK && printf '%s\n' "$out" | grep -qx POST-OK; then
+            if printf '%s\n' "$out" | grep_all -x AUTH-OK && printf '%s\n' "$out" | grep_all -x POST-OK; then
                 say "  skip    $hub: .107's secret already removed from its profile; mail still authenticates with the token (re-verified)"; SKIPPED=$((SKIPPED+1))
             else
                 say "  FAILED  $hub: no secret in its .107 profile, and the real config does NOT authenticate to .107 now (token expired or not re-minted? see action 22b)"; FAILED=$((FAILED+1))
             fi
             continue
         fi
-        if ! printf '%s\n' "$probe" | grep -qx SECRET-PRESENT; then
+        if ! printf '%s\n' "$probe" | grep_all -x SECRET-PRESENT; then
             say "  FAILED  $hub: its .107 profile names $sf, which does not exist there; fix the profile by hand; nothing changed"; FAILED=$((FAILED+1)); continue
         fi
         if [ "$DRY_RUN" = "1" ]; then
@@ -2287,13 +2290,13 @@ python3 -c \"\$(echo $(printf '%s' "$SECRET_EDITOR_PY" | base64 -w0) | base64 -d
 [ -e '$sf' ] && echo ORIG-STILL-THERE; echo \"RETIRED_MODE=\$(stat -c '%a' '$sf.t3615-retired' 2>/dev/null)\"" 2>/dev/null | tr -d '\r')"
         edit="$(printf '%s\n' "$out" | sed -n 's/^EDIT=//p' | tail -1)"
         local bad=""
-        printf '%s\n' "$out" | grep -q '^ERR=' && bad="step '$(printf '%s\n' "$out" | sed -n 's/^ERR=//p' | head -1)' failed"
+        printf '%s\n' "$out" | grep_all '^ERR=' && bad="step '$(printf '%s\n' "$out" | sed -n 's/^ERR=//p' | head -1)' failed"
         [ -z "$bad" ] && [ "$edit" != dropped ] && bad="the profile edit answered '${edit:-nothing}'"
         [ -z "$bad" ] && [ -n "$(printf '%s\n' "$out" | sed -n 's/^AFTER_SECRET_FILE=//p' | tail -1)" ] && bad="a secret_file line is still in the profile"
-        [ -z "$bad" ] && printf '%s\n' "$out" | grep -qx ORIG-STILL-THERE && bad="$sf is still in place"
+        [ -z "$bad" ] && printf '%s\n' "$out" | grep_all -x ORIG-STILL-THERE && bad="$sf is still in place"
         [ -z "$bad" ] && [ "$(printf '%s\n' "$out" | sed -n 's/^RETIRED_MODE=//p' | tail -1)" != 600 ] && bad="the retired copy is not mode 600"
-        [ -z "$bad" ] && ! printf '%s\n' "$out" | grep -qx AUTH-OK && bad="the real config no longer authenticates to .107"
-        [ -z "$bad" ] && ! printf '%s\n' "$out" | grep -qx POST-OK && bad="authenticated, but a post to fleet-token-probe was not accepted"
+        [ -z "$bad" ] && ! printf '%s\n' "$out" | grep_all -x AUTH-OK && bad="the real config no longer authenticates to .107"
+        [ -z "$bad" ] && ! printf '%s\n' "$out" | grep_all -x POST-OK && bad="authenticated, but a post to fleet-token-probe was not accepted"
         if [ -z "$bad" ]; then
             say "  OK      $hub: .107's full secret removed from its profile, file moved to $sf.t3615-retired (600); mail authenticates with the token alone (list + post verified)"; DONE=$((DONE+1))
         else
@@ -2360,7 +2363,7 @@ drop_ntfy_cron() {
         say "  FAILED  crontab refused the edited table; restored from $bk"; FAILED=$((FAILED+1)); return
     fi
     after="$($CRONTAB_CMD -l 2>/dev/null)"
-    if [ "$after" != "$new" ] || printf '%s\n' "$after" | grep -qE "$NTFY_CRON_RE" \
+    if [ "$after" != "$new" ] || printf '%s\n' "$after" | grep_all -E "$NTFY_CRON_RE" \
        || [ "$(printf '%s\n' "$after" | wc -l)" != "$(( $(printf '%s\n' "$cur" | wc -l) - n ))" ]; then
         $CRONTAB_CMD "$bk" 2>/dev/null
         say "  FAILED  the installed crontab is not the old one minus the $n ntfy line(s); restored from $bk"; FAILED=$((FAILED+1)); return
@@ -2408,7 +2411,7 @@ if [ -n "$DECIDE" ]; then
     if [ "$d_id" = "$DECIDE" ] || [ -z "$d_verdict" ]; then
         say "  FAILED  --decide needs <ID>=<verdict>, e.g. T-1234=go"; exit 2
     fi
-    if ! decision_ids | tr " " "\n" | grep -qx -- "$d_id"; then
+    if ! decision_ids | tr " " "\n" | grep_all -x -- "$d_id"; then
         say "  FAILED  unknown decision id '$d_id'. Pending: $(decision_ids)"; exit 2
     fi
     case "$d_verdict" in

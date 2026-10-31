@@ -11,6 +11,9 @@
 # so nothing here writes real host state.
 
 set -uo pipefail
+# T-3627: grep that reads ALL its input. Under pipefail, `producer | grep -q` returns 141 when grep
+# matches and exits while the producer is still writing (L-387), which read as "no match" at random.
+grep_all() { grep "$@" >/dev/null; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -614,18 +617,18 @@ echo ""
 #      reads before granting root, so it must never have a side effect.
 # ---------------------------------------------------------------------------
 out=$(run --dry-run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "would install"; then ok "--dry-run reports what it would install"
+if [ "$rc" = "0" ] && echo "$out" | grep_all "would install"; then ok "--dry-run reports what it would install"
 else bad "--dry-run reports intent" "rc=$rc: $out"; fi
 if [ -z "$(ls -A "$TMP/cron")" ]; then ok "--dry-run wrote nothing"
 else bad "--dry-run wrote nothing" "$(ls -A "$TMP/cron")"; fi
 # T-3272: dry-run names each approved close and performs none.
-if echo "$out" | grep -q "would close T-3132" && [ "$(ls "$TMP/tasks/active" | grep -cE '^T-31(32|28|30)-')" = "3" ] && [ -z "$(ls -A "$TMP/tasks/completed")" ]; then
+if echo "$out" | grep_all "would close T-3132" && [ "$(ls "$TMP/tasks/active" | grep -cE '^T-31(32|28|30)-')" = "3" ] && [ -z "$(ls -A "$TMP/tasks/completed")" ]; then
     ok "--dry-run reports the approved closes and closes nothing"
 else bad "--dry-run closes nothing" "$(ls "$TMP/tasks/active" "$TMP/tasks/completed"): $out"; fi
-if echo "$out" | grep -q "would record T-9284 = go" && ! grep -q '^\*\*Decision\*\*' "$TMP/tasks/active/T-9284-fixture.md"; then
+if echo "$out" | grep_all "would record T-9284 = go" && ! grep -q '^\*\*Decision\*\*' "$TMP/tasks/active/T-9284-fixture.md"; then
     ok "--dry-run reports the approved decision and records nothing"
 else bad "--dry-run decision" "$out"; fi
-if echo "$out" | grep -q "would install $TMP/tl-new" && cmp -s "$TMP/tl-old" "$TMP/bin/termlink"; then
+if echo "$out" | grep_all "would install $TMP/tl-new" && cmp -s "$TMP/tl-old" "$TMP/bin/termlink"; then
     ok "--dry-run reports the termlink install and replaces nothing"
 else bad "--dry-run termlink install" "$out"; fi
 # T-3273: the run left a readable log — full output, header, rc line — and
@@ -635,7 +638,7 @@ if [ -f "$LOGF" ] && grep -q '^=== runme.sh start .*args=\[--dry-run\]' "$LOGF" 
    && grep -q 'would close T-3132' "$LOGF" && grep -q '=== runme.sh finished rc=0' "$LOGF"; then
     ok "every run is logged: header + full output + rc line, via latest.log"
 else bad "run is logged" "$(ls -la "$TMP/logs"; cat "$LOGF" 2>/dev/null | head -5)"; fi
-if echo "$out" | grep -q "^log: $TMP/logs/runme-"; then ok "the log's full path is printed to the operator"
+if echo "$out" | grep_all "^log: $TMP/logs/runme-"; then ok "the log's full path is printed to the operator"
 else bad "log path printed" "$out"; fi
 
 # T-3574: one run at a time. The lock lives in the (scratch) log dir.
@@ -648,22 +651,22 @@ bash -c 'exec -a runme.sh sleep 60' & HOLDER=$!
 mkdir -p "$LOCK"; echo "$HOLDER" > "$LOCK/pid"; echo "$TMP/logs/the-running-one.log" > "$LOCK/log"
 before="$(readlink "$TMP/logs/latest.log")"
 out=$(run --dry-run); rc=$?
-if [ "$rc" = "2" ] && echo "$out" | grep -q "already in progress (pid $HOLDER, log $TMP/logs/the-running-one.log)" \
-   && ! echo "$out" | grep -q "would install" && [ "$(readlink "$TMP/logs/latest.log")" = "$before" ] \
+if [ "$rc" = "2" ] && echo "$out" | grep_all "already in progress (pid $HOLDER, log $TMP/logs/the-running-one.log)" \
+   && ! echo "$out" | grep_all "would install" && [ "$(readlink "$TMP/logs/latest.log")" = "$before" ] \
    && grep -q "already in progress (pid $HOLDER" "$TMP/logs/refused.log" && [ -d "$LOCK" ]; then
     ok "lock: a second start refuses (exit 2), names the holder, does nothing, keeps latest.log"
 else bad "lock: second start refused" "rc=$rc latest=$(readlink "$TMP/logs/latest.log") before=$before: $out"; fi
 kill "$HOLDER" 2>/dev/null; wait "$HOLDER" 2>/dev/null
 # The holder is gone: the lock is stale and is taken over, then released at exit.
 out=$(run --dry-run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "taking over a stale lock (pid $HOLDER is gone)" && [ ! -e "$LOCK" ]; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "taking over a stale lock (pid $HOLDER is gone)" && [ ! -e "$LOCK" ]; then
     ok "lock: a stale lock (holder gone) is taken over and released"
 else bad "lock: stale takeover" "rc=$rc: $out"; fi
 # Control for the name check: a live process that is NOT a runme.sh (pid reuse) is stale too.
 sleep 60 & OTHER=$!
 mkdir -p "$LOCK"; echo "$OTHER" > "$LOCK/pid"
 out=$(run --dry-run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "taking over a stale lock (pid $OTHER" && [ ! -e "$LOCK" ]; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "taking over a stale lock (pid $OTHER" && [ ! -e "$LOCK" ]; then
     ok "lock: a live pid that is not a runme.sh does not hold the lock (pid reuse)"
 else bad "lock: pid-reuse control" "rc=$rc: $out"; fi
 kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
@@ -701,10 +704,10 @@ done
 if [ "$n_closed" = "3" ] && [ "$(echo "$out" | grep -c 'closed and verified')" = "3" ]; then
     ok "default run closes the 3 approved tasks and verifies each in completed/"
 else bad "default run closes approved tasks" "closed=$n_closed: $out"; fi
-if echo "$out" | grep -q "recorded and verified: T-9284 = go" && grep -q '^\*\*Decision\*\*: GO$' "$TMP/tasks/active/T-9284-fixture.md"; then
+if echo "$out" | grep_all "recorded and verified: T-9284 = go" && grep -q '^\*\*Decision\*\*: GO$' "$TMP/tasks/active/T-9284-fixture.md"; then
     ok "default run records the approved decision and verifies it on disk"
 else bad "default run records decision" "$out"; fi
-if echo "$out" | grep -q "installed and verified: $TMP/bin/termlink (termlink 9.9.9" && cmp -s "$TMP/tl-new" "$TMP/bin/termlink"; then
+if echo "$out" | grep_all "installed and verified: $TMP/bin/termlink (termlink 9.9.9" && cmp -s "$TMP/tl-new" "$TMP/bin/termlink"; then
     ok "default run installs the new termlink and verifies version + --no-create on disk"
 else bad "termlink install" "$out"; fi
 
@@ -716,7 +719,7 @@ if cmp -s .context/cron/root-mode-canary.crontab "$TMP/cron/termlink-root-mode-c
 else bad "root-mode-canary crontab install" "$out"; fi
 if cmp -s systemd-templates/termlink-sidecar@.service "$SCU/units/termlink-sidecar@.service" \
    && grep -q '^daemon-reload' "$SCU/calls" && [ -d "$SCU/env" ] \
-   && echo "$out" | grep -q "installed, reloaded and verified: $SCU/units/termlink-sidecar@.service"; then
+   && echo "$out" | grep_all "installed, reloaded and verified: $SCU/units/termlink-sidecar@.service"; then
     ok "default run installs the sidecar unit template, reloads systemd, verifies systemd resolves it, creates the settings dir (T-3435)"
 else bad "sidecar unit template install" "$out"; fi
 if cmp -s .context/cron/sidecar-backstop.crontab "$TMP/cron/termlink-sidecar-backstop"; then
@@ -728,9 +731,9 @@ else bad "sidecar-backstop crontab install" "$out"; fi
 #      be able to re-run without wondering whether they already did.
 # ---------------------------------------------------------------------------
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "already installed and identical"; then ok "second run skips as already-done"
+if [ "$rc" = "0" ] && echo "$out" | grep_all "already installed and identical"; then ok "second run skips as already-done"
 else bad "idempotent second run" "rc=$rc: $out"; fi
-if echo "$out" | grep -qE "0 done, ${EXPECT_N} already-done"; then ok "summary counts the skips rather than re-claiming the work"
+if echo "$out" | grep_all -E "0 done, ${EXPECT_N} already-done"; then ok "summary counts the skips rather than re-claiming the work"
 else bad "summary counts skips" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -739,7 +742,7 @@ else bad "summary counts skips" "$out"; fi
 # ---------------------------------------------------------------------------
 echo "# tampered out of band" >> "$TMP/cron/termlink-notify-sidecar-canary"
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "installed and verified.*termlink-notify-sidecar-canary"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "installed and verified.*termlink-notify-sidecar-canary"; then
     ok "a drifted installed copy is re-installed, not trusted"
 else bad "drifted copy re-installed" "rc=$rc: $out"; fi
 
@@ -754,7 +757,7 @@ out=$(run); rc=$?
 mv "$STASH" "$REPO_ROOT/.context/cron/notify-sidecar-canary.crontab"
 if [ "$rc" = "1" ]; then ok "missing source => exit 1 (not a silent skip)"
 else bad "missing source => exit 1" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "FAILED  source missing"; then ok "missing source names the file"
+if echo "$out" | grep_all "FAILED  source missing"; then ok "missing source names the file"
 else bad "missing source named" "$out"; fi
 
 # T-3272: fw exiting 0 is NOT evidence. A fw that claims success but moves nothing
@@ -762,7 +765,7 @@ else bad "missing source named" "$out"; fi
 mv "$TMP/tasks/completed/T-3130-fixture.md" "$TMP/tasks/active/"
 sed -i 's/^status: .*/status: started-work/' "$TMP/tasks/active/T-3130-fixture.md"
 out=$(RUNME_FW="$TMP/noop-fw" run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  T-3130 did not land"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "FAILED  T-3130 did not land"; then
     ok "a close that fw reports but disk does not show => FAILED, exit 1"
 else bad "unverified close is a failure" "rc=$rc: $out"; fi
 # T-3273: a failed run's log says so — the agent reading it must see rc=1 and the FAILED line.
@@ -772,11 +775,11 @@ if grep -q 'FAILED  T-3130 did not land' "$TMP/logs/latest.log" && grep -q '=== 
 else bad "failed run logged" "$(tail -5 "$TMP/logs/latest.log" 2>/dev/null)"; fi
 printf -- '---\nid: T-9285\n---\n' > "$TMP/tasks/active/T-9285-fixture.md"
 out=$(RUNME_FW="$TMP/noop-fw" RUNME_TEST_APPROVED_DECISIONS="T-9285|no-go|fixture" run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  T-9285: decision not found"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "FAILED  T-9285: decision not found"; then
     ok "a decision fw reports but disk does not show => FAILED, exit 1"
 else bad "unverified decision is a failure" "rc=$rc: $out"; fi
 out=$(RUNME_TERMLINK_SRC="$TMP/tl-old" RUNME_TERMLINK_DEST="$TMP/bin/termlink-2" run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "rejects --no-create"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "rejects --no-create"; then
     ok "installing a binary that rejects --no-create => FAILED, exit 1"
 else bad "bad termlink install is a failure" "rc=$rc: $out"; fi
 
@@ -799,12 +802,12 @@ else bad "unknown arg => 2" "rc=$rc: $out"; fi
 # run it as ourselves; that is the real non-root refusal. runuser only works as root.
 if [ "$(id -u)" != "0" ]; then
     out=$(env -u RUNME_FIXTURE_ALLOW_NONROOT RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?
-    if [ "$rc" = "2" ] && echo "$out" | grep -q "needs root"; then ok "non-root run refuses with exit 2 and applies nothing"
+    if [ "$rc" = "2" ] && echo "$out" | grep_all "needs root"; then ok "non-root run refuses with exit 2 and applies nothing"
     else bad "non-root refusal" "rc=$rc: $out"; fi
 elif command -v runuser >/dev/null 2>&1 && id nobody >/dev/null 2>&1; then
     chmod -R a+rx "$TMP" 2>/dev/null || true
     out=$(runuser -u nobody -- env -u RUNME_FIXTURE_ALLOW_NONROOT RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?
-    if [ "$rc" = "2" ] && echo "$out" | grep -q "needs root"; then ok "non-root run refuses with exit 2 and applies nothing"
+    if [ "$rc" = "2" ] && echo "$out" | grep_all "needs root"; then ok "non-root run refuses with exit 2 and applies nothing"
     else bad "non-root refusal" "rc=$rc: $out"; fi
 else
     echo "  SKIP  non-root refusal (no runuser/nobody available) — NOT asserted"
@@ -817,12 +820,12 @@ fi
 #     laundering the gate prevents.
 # ---------------------------------------------------------------------------
 out=$(run --dry-run)
-if echo "$out" | grep -q "Pending decisions"; then ok "default run LISTS pending decisions"
+if echo "$out" | grep_all "Pending decisions"; then ok "default run LISTS pending decisions"
 else bad "lists pending decisions" "$out"; fi
-if echo "$out" | grep -q "nothing here runs by default"; then ok "the listing states that nothing runs by default"
+if echo "$out" | grep_all "nothing here runs by default"; then ok "the listing states that nothing runs by default"
 else bad "listing states non-execution" "$out"; fi
 # T-3285: APPROVED decisions (action 3) do run; a PENDING, undecided one (T-9055) never does.
-if echo "$out" | grep -q "would record T-9055"; then bad "default run must not record a pending decision" "$out"
+if echo "$out" | grep_all "would record T-9055"; then bad "default run must not record a pending decision" "$out"
 else ok "default run records NO pending (undecided) decision"; fi
 
 # ---------------------------------------------------------------------------
@@ -836,7 +839,7 @@ else bad "unknown id refused" "rc=$rc"; fi
 rc=0; vout=$(RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --decide T-9055=maybe 2>&1) || rc=$?
 # T-3276: must be refused FOR THE VERDICT — not because the id is unknown, which
 # would pass this case vacuously once the real pending list is empty.
-if [ "$rc" = "2" ] && echo "$vout" | grep -q "verdict must be go, no-go or defer"; then ok "verdict outside go/no-go/defer => exit 2 (refused for the verdict)"
+if [ "$rc" = "2" ] && echo "$vout" | grep_all "verdict must be go, no-go or defer"; then ok "verdict outside go/no-go/defer => exit 2 (refused for the verdict)"
 else bad "bad verdict refused" "rc=$rc: $vout"; fi
 rc=0; RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --decide T-9055 >/dev/null 2>&1 || rc=$?
 if [ "$rc" = "2" ]; then ok "malformed --decide (no '=') => exit 2"
@@ -846,7 +849,7 @@ else bad "malformed refused" "rc=$rc"; fi
 # 14. The plugin cleanup is OPT-IN: absent from a default run, since it is a
 #     recommendation the operator has not approved, not a repair.
 # ---------------------------------------------------------------------------
-if echo "$out" | grep -qi "disabling purpose-mismatch"; then bad "plugin disable must be opt-in" "$out"
+if echo "$out" | grep_all -i "disabling purpose-mismatch"; then bad "plugin disable must be opt-in" "$out"
 else ok "plugin cleanup absent from a default run"; fi
 
 # ---------------------------------------------------------------------------
@@ -854,7 +857,7 @@ else ok "plugin cleanup absent from a default run"; fi
 #     (seams unset), a run shows no closures section and says decisions are none.
 # ---------------------------------------------------------------------------
 eout=$(env -u RUNME_TEST_DECISIONS RUNME_TEST_CLOSES= RUNME_TEST_APPROVED_DECISIONS= RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --dry-run 2>&1); rc=$?
-if [ "$rc" = "0" ] && ! echo "$eout" | grep -q "Approved closures" && ! echo "$eout" | grep -q "Approved inception decisions" && echo "$eout" | grep -q "none pending"; then
+if [ "$rc" = "0" ] && ! echo "$eout" | grep_all "Approved closures" && ! echo "$eout" | grep_all "Approved inception decisions" && echo "$eout" | grep_all "none pending"; then
     ok "empty lists: no closures section, decisions read 'none pending'"
 else bad "empty lists render cleanly" "rc=$rc: $eout"; fi
 
@@ -868,10 +871,10 @@ cp "$TMP/tl-old" "$M/usrlocal/termlink"          # stale copy that must be refre
 DESTS="$M/cargo/termlink $M/usrlocal/termlink $M/dotlocal/termlink"
 out=$(RUNME_TERMLINK_DESTS="$DESTS" run); rc=$?
 if [ "$rc" = "0" ] && cmp -s "$TMP/tl-new" "$M/cargo/termlink" && cmp -s "$TMP/tl-new" "$M/usrlocal/termlink" \
-   && echo "$out" | grep -q "installed and verified: $M/usrlocal/termlink (termlink 9.9.9"; then
+   && echo "$out" | grep_all "installed and verified: $M/usrlocal/termlink (termlink 9.9.9"; then
     ok "multi-dest: always-install path + stale existing copy both installed and verified"
 else bad "multi-dest install" "rc=$rc: $out"; fi
-if [ ! -e "$M/dotlocal/termlink" ] && echo "$out" | grep -q "no termlink at $M/dotlocal/termlink — not creating one"; then
+if [ ! -e "$M/dotlocal/termlink" ] && echo "$out" | grep_all "no termlink at $M/dotlocal/termlink — not creating one"; then
     ok "multi-dest: absent optional path is NOT created, and the log says so"
 else bad "refresh-if-present must not create" "$(ls -la "$M/dotlocal"): $out"; fi
 out=$(RUNME_TERMLINK_DESTS="$DESTS" run); rc=$?
@@ -883,7 +886,7 @@ cp "$TMP/tl-old" "$M/usrlocal/termlink"
 out=$(RUNME_TERMLINK_DESTS="$M/cargo/termlink $M/usrlocal/termlink $M/blocker/sub/termlink" run); rc=$?
 # the blocker path does not exist, so refresh-if-present skips it; force it as the FIRST (always) dest:
 out2=$(RUNME_TERMLINK_DESTS="$M/blocker/sub/termlink $M/usrlocal/termlink" run 2>&1); rc2=$?
-if [ "$rc" = "0" ] && [ "$rc2" = "1" ] && echo "$out2" | grep -q "FAILED  could not install $TMP/tl-new -> $M/blocker/sub/termlink" \
+if [ "$rc" = "0" ] && [ "$rc2" = "1" ] && echo "$out2" | grep_all "FAILED  could not install $TMP/tl-new -> $M/blocker/sub/termlink" \
    && cmp -s "$TMP/tl-new" "$M/usrlocal/termlink"; then
     ok "multi-dest: one failing path => FAILED naming it, exit 1, the other path still installed"
 else bad "per-path failure" "rc=$rc rc2=$rc2: $out2"; fi
@@ -893,53 +896,53 @@ else bad "per-path failure" "rc=$rc rc2=$rc2: $out2"; fi
 # ---------------------------------------------------------------------------
 hub_state 200 "$H/hubbin"
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    hub (pid 200) already runs the installed binary" && [ ! -e "$H/restarts" ]; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    hub (pid 200) already runs the installed binary" && [ ! -e "$H/restarts" ]; then
     ok "hub: already on the installed binary => skip, no restart"
 else bad "hub idempotent skip" "rc=$rc: $out"; fi
 hub_state 300 "/old/termlink (deleted)"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would restart termlink-hub (pid 300 runs '/old/termlink (deleted)'" && [ ! -e "$H/restarts" ]; then
+if echo "$out" | grep_all "would restart termlink-hub (pid 300 runs '/old/termlink (deleted)'" && [ ! -e "$H/restarts" ]; then
     ok "hub: --dry-run reports the restart and does NOT perform it"
 else bad "hub dry-run" "rc=$rc: $out"; fi
 hub_state 400 "/old/termlink (deleted)"
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      restarted and verified: pid 400 -> 401" && [ "$(wc -l < "$H/restarts")" = "1" ]; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      restarted and verified: pid 400 -> 401" && [ "$(wc -l < "$H/restarts")" = "1" ]; then
     ok "hub: stale hub restarted once, new pid on the installed exe, secret+cert unchanged => OK"
 else bad "hub restart" "rc=$rc: $out"; fi
 hub_state 450 "/old/termlink (deleted)"
 out=$(FAKE_HUB_STATUS_LAG=1 run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      restarted and verified: pid 450 -> 451"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      restarted and verified: pid 450 -> 451"; then
     ok "hub (T-3450): hub status lagging one read behind the restart is re-read, not a false FAILED"
 else bad "hub status lag" "rc=$rc: $out"; fi
 hub_state 460 "/old/termlink (deleted)"
 out=$(FAKE_HUB_STATUS_LAG=999 run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "hub-status-not-running-as-461"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "hub-status-not-running-as-461"; then
     ok "hub (T-3450): hub status that never reads running still FAILS, named"
 else bad "hub status never running" "rc=$rc: $out"; fi
 # T-3587 action 5b: acknowledge flap residue with reset-failed (hub already current, so 5 skips).
 hub_state 100 "$H/hubbin"; rm -f "$H/resets"
 echo 3 > "$H/nrestarts"; out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    termlink-hub NRestarts=3 (max 5)" && [ ! -e "$H/resets" ]; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    termlink-hub NRestarts=3 (max 5)" && [ ! -e "$H/resets" ]; then
     ok "flap ack: NRestarts at or below the max is a skip, nothing reset"
 else bad "flap ack skip" "rc=$rc: $out"; fi
 echo 433 > "$H/nrestarts"; out=$(run --dry-run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "would run: systemctl reset-failed termlink-hub (NRestarts=433" && [ ! -e "$H/resets" ]; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "would run: systemctl reset-failed termlink-hub (NRestarts=433" && [ ! -e "$H/resets" ]; then
     ok "flap ack: --dry-run names the reset and performs none"
 else bad "flap ack dry-run" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      acknowledged: termlink-hub NRestarts 433 -> 0" && [ "$(wc -l < "$H/resets")" = "1" ]; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      acknowledged: termlink-hub NRestarts 433 -> 0" && [ "$(wc -l < "$H/resets")" = "1" ]; then
     ok "flap ack: active unit above the max is reset once and verified (433 -> 0)"
 else bad "flap ack reset" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    termlink-hub NRestarts=0" && [ "$(wc -l < "$H/resets")" = "1" ]; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    termlink-hub NRestarts=0" && [ "$(wc -l < "$H/resets")" = "1" ]; then
     ok "flap ack: second run skips (idempotent)"
 else bad "flap ack idempotent" "rc=$rc: $out"; fi
 echo 433 > "$H/nrestarts"; rm -f "$H/resets"; out=$(FAKE_HUB_ACTIVE=activating run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "live crash loop, not residue; not acknowledging" && [ ! -e "$H/resets" ]; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "live crash loop, not residue; not acknowledging" && [ ! -e "$H/resets" ]; then
     ok "flap ack: a unit that is not active is a live incident => FAILED, never reset"
 else bad "flap ack not active" "rc=$rc: $out"; fi
 out=$(FAKE_HUB_RESET_STICKY=1 run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "reset-failed did not clear the counter: NRestarts=433"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "reset-failed did not clear the counter: NRestarts=433"; then
     ok "flap ack: a reset that does not clear the counter is FAILED, not OK"
 else bad "flap ack sticky" "rc=$rc: $out"; fi
 echo 0 > "$H/nrestarts"; rm -f "$H/resets"
@@ -947,39 +950,39 @@ echo 0 > "$H/nrestarts"; rm -f "$H/resets"
 printf -- '---\nid: T-9592\nstatus: captured\nowner: human\n---\n' > "$TMP/tasks/active/T-9592-fixture.md"
 printf -- '---\nid: T-9593\nstatus: captured\nowner: agent\n---\n' > "$TMP/tasks/active/T-9593-fixture.md"
 out=$(RUNME_TEST_HANDBACKS="T-9592 T-9593 T-9594" run --dry-run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "would hand T-9592 back" && grep -q '^owner: human' "$TMP/tasks/active/T-9592-fixture.md"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "would hand T-9592 back" && grep -q '^owner: human' "$TMP/tasks/active/T-9592-fixture.md"; then
     ok "handback: --dry-run names the hand-back and changes nothing"
 else bad "handback dry-run" "rc=$rc: $out"; fi
 out=$(RUNME_TEST_HANDBACKS="T-9592 T-9593 T-9594" run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      handed back and verified: T-9592 owner: agent" \
-   && echo "$out" | grep -q "skip    T-9593 already owner: agent" && echo "$out" | grep -q "skip    T-9594 is no longer active" \
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      handed back and verified: T-9592 owner: agent" \
+   && echo "$out" | grep_all "skip    T-9593 already owner: agent" && echo "$out" | grep_all "skip    T-9594 is no longer active" \
    && grep -q '^owner: agent' "$TMP/tasks/active/T-9592-fixture.md"; then
     ok "handback: human-owned task handed back and verified; agent-owned and missing ones skip"
 else bad "handback run" "rc=$rc: $out"; fi
 sed -i 's/^owner: .*/owner: human/' "$TMP/tasks/active/T-9592-fixture.md"
 out=$(FAKE_HANDBACK_REFUSE=1 RUNME_TEST_HANDBACKS="T-9592" run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  T-9592 still not owner: agent"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "FAILED  T-9592 still not owner: agent"; then
     ok "handback: fw that claims success but changes nothing => FAILED, not OK"
 else bad "handback refuse" "rc=$rc: $out"; fi
 rm -f "$TMP/tasks/active/T-9592-fixture.md" "$TMP/tasks/active/T-9593-fixture.md"
 hub_state 500 "/old/termlink (deleted)"
 out=$(FAKE_HUB_RESTART_MODE=rotate run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "hub.secret-CHANGED"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "hub.secret-CHANGED"; then
     ok "hub: secret rotated by the restart => FAILED naming it (PL-021 class)"
 else bad "hub secret rotation must fail" "rc=$rc: $out"; fi
 hub_state 600 "/old/termlink (deleted)"
 out=$(FAKE_HUB_NEW_EXE="/old/termlink (deleted)" run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "exe='/old/termlink (deleted)'"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "exe='/old/termlink (deleted)'"; then
     ok "hub: restarted onto the wrong binary => FAILED"
 else bad "hub wrong exe must fail" "rc=$rc: $out"; fi
 hub_state 700 "/old/termlink (deleted)"
 out=$(FAKE_HUB_RESTART_MODE=fail run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  systemctl restart termlink-hub failed"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "FAILED  systemctl restart termlink-hub failed"; then
     ok "hub: systemctl restart failure => FAILED, exit 1"
 else bad "hub restart failure" "rc=$rc: $out"; fi
 hub_state 800 "/old/termlink (deleted)"
 out=$(FAKE_HUB_ACTIVE=failed run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "unit=failed"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "unit=failed"; then
     ok "hub: unit not active after restart => FAILED"
 else bad "hub inactive must fail" "rc=$rc: $out"; fi
 hub_state 100 "$H/hubbin"
@@ -989,52 +992,52 @@ hub_state 100 "$H/hubbin"
 # ---------------------------------------------------------------------------
 fleet_state 9.9.9
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    fake-hub already serves 9.9.9" && [ ! -e "$F/deploys" ]; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    fake-hub already serves 9.9.9" && [ ! -e "$F/deploys" ]; then
     ok "fleet: hub already at a current-code version => skip, no deploy"
 else bad "fleet idempotent skip" "rc=$rc: $out"; fi
 fleet_state 0.11.1
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would stage musl 9.9.9 on fake-hub (10.0.0.1:9100, now 0.11.1)" && [ ! -e "$F/deploys" ] && [ ! -e "$F/remote-cmds" ]; then
+if echo "$out" | grep_all "would stage musl 9.9.9 on fake-hub (10.0.0.1:9100, now 0.11.1)" && [ ! -e "$F/deploys" ] && [ ! -e "$F/remote-cmds" ]; then
     ok "fleet: --dry-run reports the upgrade and does NOT perform it"
 else bad "fleet dry-run" "rc=$rc: $out"; fi
 fleet_state 0.11.1
 out=$(FAKE_UNIT=1 run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      upgraded and verified: fake-hub serves 9.9.9" \
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      upgraded and verified: fake-hub serves 9.9.9" \
    && grep -q -- "--binary $F/musl --dst /tmp/termlink.new --probe" "$F/deploys" && ! grep -q -- "--swap-restart" "$F/deploys" \
    && grep -q "install -m 755 /tmp/termlink.new /usr/local/bin/termlink" "$F/remote-cmds" && grep -q "systemctl restart termlink-hub" "$F/remote-cmds"; then
     ok "fleet: systemd-supervised hub => stage+probe, install over the unit's binary, restart THROUGH systemd (G-070), no --swap-restart"
 else bad "fleet systemd path" "rc=$rc: $out $(cat "$F/deploys" "$F/remote-cmds" 2>/dev/null)"; fi
 fleet_state 0.11.1
 out=$(FAKE_UNIT=0 run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      upgraded and verified" && grep -q -- "--swap-restart" "$F/deploys" \
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      upgraded and verified" && grep -q -- "--swap-restart" "$F/deploys" \
    && ! grep -q "systemctl restart" "$F/remote-cmds"; then
     ok "fleet: hub with no unit (watchdog-launched) => --swap-restart, never systemctl"
 else bad "fleet watchdog path" "rc=$rc: $out $(cat "$F/deploys" 2>/dev/null)"; fi
 fleet_state 0.11.1
 out=$(FAKE_SWAP_CONFIRM=0 run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "install/restart on fake-hub did not confirm: install: cannot create"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "install/restart on fake-hub did not confirm: install: cannot create"; then
     ok "fleet: unconfirmed systemd install/restart => FAILED naming the remote error"
 else bad "fleet unconfirmed swap" "rc=$rc: $out"; fi
 fleet_state 0.11.1
 cp "$TMP/tl-old" "$F/musl"; printf '#!/usr/bin/env bash\nexit 1\n' > "$F/musl"
 out=$(run); rc=$?
 cp "$TMP/tl-new" "$F/musl"
-if [ "$rc" = "1" ] && echo "$out" | grep -q "musl binary $F/musl does not run — nothing shipped" && [ ! -e "$F/deploys" ]; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "musl binary $F/musl does not run — nothing shipped" && [ ! -e "$F/deploys" ]; then
     ok "fleet: musl binary that does not run => FAILED, nothing shipped"
 else bad "fleet broken musl" "rc=$rc: $out"; fi
 fleet_state 0.11.1
 out=$(FAKE_DEPLOY_MODE=fail run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  staging on fake-hub failed" && [ ! -e "$F/remote-cmds" ]; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "FAILED  staging on fake-hub failed" && [ ! -e "$F/remote-cmds" ]; then
     ok "fleet: staging/probe failure => FAILED, no swap attempted"
 else bad "fleet staging failure" "rc=$rc: $out"; fi
 fleet_state 0.11.1
 out=$(FAKE_DEPLOY_MODE=auth run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "status='auth-mismatch'"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "status='auth-mismatch'"; then
     ok "fleet: hub up but auth broken after the swap (secret rotated) => FAILED"
 else bad "fleet auth regression must fail" "rc=$rc: $out"; fi
 fleet_state 0.11.1
 out=$(FAKE_TOFU_RC=1 run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "tofu verify failed"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "tofu verify failed"; then
     ok "fleet: cert changed (tofu verify fails) => FAILED"
 else bad "fleet cert rotation must fail" "rc=$rc: $out"; fi
 fleet_state 9.9.9
@@ -1057,7 +1060,7 @@ if [ "$rc" = "0" ] && [ "$(calls)" = "1" ] && grep -q -- "--profile local-fast -
     ok "build cache: no record yet => cargo builds with the local-fast profile and records HEAD"
 else bad "first build" "rc=$rc calls=$(calls): $out"; fi
 out=$(brun); rc=$?
-if [ "$rc" = "0" ] && [ "$(calls)" = "1" ] && echo "$out" | grep -q "cached  host build is current"; then
+if [ "$rc" = "0" ] && [ "$(calls)" = "1" ] && echo "$out" | grep_all "cached  host build is current"; then
     ok "build cache: nothing changed => no cargo, says cached"
 else bad "cached rerun" "rc=$rc calls=$(calls): $out"; fi
 echo d2 > "$B/repo/README"; git -C "$B/repo" commit -qam docs
@@ -1081,8 +1084,8 @@ else bad "code commit must rebuild" "rc=$rc calls=$(calls): $out"; fi
 # ---------------------------------------------------------------------------
 zombie_reset; zombie_proc 501 z-one; zombie_proc 502 z-two
 out=$(FAKE_ZOMBIES="501:z-one 502:z-two" run --dry-run); rc=$?
-if echo "$out" | grep -q "targets 2 zombie session(s) — listed before any is touched" && echo "$out" | grep -q "pid 501  z-one" \
-   && echo "$out" | grep -q "would SIGTERM these 2" && [ ! -e "$Z/killed" ]; then
+if echo "$out" | grep_all "targets 2 zombie session(s) — listed before any is touched" && echo "$out" | grep_all "pid 501  z-one" \
+   && echo "$out" | grep_all "would SIGTERM these 2" && [ ! -e "$Z/killed" ]; then
     ok "zombie: --dry-run lists every target and signals nothing"
 else bad "zombie dry-run" "rc=$rc: $out"; fi
 out=$(FAKE_ZOMBIES="501:z-one 502:z-two" run); rc=$?
@@ -1090,29 +1093,29 @@ lst=$(echo "$out" | grep -n "pid 502  z-two" | cut -d: -f1); okl=$(echo "$out" |
 if [ "$rc" = "0" ] && [ -n "$lst" ] && [ -n "$okl" ] && [ "$lst" -lt "$okl" ] && [ "$(wc -l < "$Z/killed")" = "2" ]; then
     ok "zombie: targets listed before acting, both SIGTERMed and verified gone"
 else bad "zombie reap" "rc=$rc: $out"; fi
-if ! echo "$out" | grep -q "No such file or directory"; then
+if ! echo "$out" | grep_all "No such file or directory"; then
     ok "zombie: an exited session's re-check prints no shell error into the log (T-3301)"
 else bad "zombie re-check stderr noise" "$(echo "$out" | grep -m2 'No such file')"; fi
 zombie_reset; zombie_proc 601 z-real
 mkdir -p "$Z/proc/602"; printf 'vim\0notes.txt\0' > "$Z/proc/602/cmdline"   # pid 602 was reused
 out=$(FAKE_ZOMBIES="601:z-real 602:z-gone" run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "pid 602 is no longer register 'z-gone' — not signalled" \
+if [ "$rc" = "0" ] && echo "$out" | grep_all "pid 602 is no longer register 'z-gone' — not signalled" \
    && ! grep -qx 602 "$Z/killed" && grep -qx 601 "$Z/killed" && [ -d "$Z/proc/602" ]; then
     ok "zombie: a reused pid (cmdline no longer that session) is skipped, never signalled"
 else bad "zombie pid-reuse guard" "rc=$rc: $out $(cat "$Z/killed" 2>/dev/null)"; fi
 zombie_reset; zombie_proc 701 z-stuck
 out=$(FAKE_ZOMBIES="701:z-stuck" FAKE_STUCK=701 run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "still running after SIGTERM (not escalated to SIGKILL): 701(z-stuck)" \
+if [ "$rc" = "1" ] && echo "$out" | grep_all "still running after SIGTERM (not escalated to SIGKILL): 701(z-stuck)" \
    && [ "$(wc -l < "$Z/killed")" = "1" ]; then
     ok "zombie: a session that ignores SIGTERM => FAILED naming it, signalled once, no SIGKILL"
 else bad "zombie stuck" "rc=$rc: $out"; fi
 zombie_reset
 out=$(FAKE_ZOMBIES="" run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    no zombie sessions" && [ ! -e "$Z/killed" ]; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    no zombie sessions" && [ ! -e "$Z/killed" ]; then
     ok "zombie: no zombies => skip (idempotent)"
 else bad "zombie idempotent" "rc=$rc: $out"; fi
 out=$(RUNME_ZOMBIE_DETECT=false run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "zombie detector could not run — nothing reaped"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "zombie detector could not run — nothing reaped"; then
     ok "zombie: detector failure => FAILED, nothing reaped (fail-closed)"
 else bad "zombie detector failure" "rc=$rc: $out"; fi
 
@@ -1121,18 +1124,18 @@ else bad "zombie detector failure" "rc=$rc: $out"; fi
 # ---------------------------------------------------------------------------
 hub_state 900 "$H/hubbin"; printf 'unit-v2\n' > "$H/unit.src"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would install $H/unit.src -> $H/unit.dest, daemon-reload, restart termlink-hub" && grep -q unit-v1 "$H/unit.dest" && [ ! -e "$H/restarts" ]; then
+if echo "$out" | grep_all "would install $H/unit.src -> $H/unit.dest, daemon-reload, restart termlink-hub" && grep -q unit-v1 "$H/unit.dest" && [ ! -e "$H/restarts" ]; then
     ok "hub unit: --dry-run reports the install and changes nothing"
 else bad "hub unit dry-run" "rc=$rc: $out"; fi
 hub_state 910 "$H/hubbin"
 out=$(FAKE_HUB_MOUNTINFO="36 25 0:1 / $H/rwpool rw,relatime - btrfs /dev/x rw" run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      unit installed and verified: termlink-hub active (pid 911); $H/rwpool read-write" \
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      unit installed and verified: termlink-hub active (pid 911); $H/rwpool read-write" \
    && cmp -s "$H/unit.src" "$H/unit.dest"; then
     ok "hub unit: differing unit installed, hub restarted, pool verified read-write in the hub's namespace"
 else bad "hub unit install" "rc=$rc: $out"; fi
 hub_state 920 "$H/hubbin"; printf 'unit-v3\n' > "$H/unit.src"
 out=$(FAKE_HUB_MOUNTINFO="36 25 0:1 / $H/rwpool ro,relatime - btrfs /dev/x ro" run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "rwpool-not-writable-in-hub-namespace"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "rwpool-not-writable-in-hub-namespace"; then
     ok "hub unit: pool still read-only for the hub after install => FAILED (the T-3299 defect)"
 else bad "hub unit ro must fail" "rc=$rc: $out"; fi
 cp "$H/unit.src" "$H/unit.dest"; hub_state 100 "$H/hubbin"
@@ -1144,7 +1147,7 @@ cp "$H/unit.src" "$H/unit.dest"; hub_state 100 "$H/hubbin"
 before="$(sha256sum /etc/systemd/system/termlink-hub.service 2>/dev/null)"
 out=$(env -u RUNME_HUB_UNIT_DEST RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?
 after="$(sha256sum /etc/systemd/system/termlink-hub.service 2>/dev/null)"
-if [ "$rc" = "2" ] && echo "$out" | grep -q "FIXTURE run reached the REAL default for RUNME_HUB_UNIT_DEST" && [ "$before" = "$after" ]; then
+if [ "$rc" = "2" ] && echo "$out" | grep_all "FIXTURE run reached the REAL default for RUNME_HUB_UNIT_DEST" && [ "$before" = "$after" ]; then
     ok "fixture mode: a missing seam aborts the run (exit 2) and the real unit file is untouched"
 else bad "fixture guard" "rc=$rc: $(echo "$out" | tail -3)"; fi
 
@@ -1154,18 +1157,18 @@ else bad "fixture guard" "rc=$rc: $(echo "$out" | tail -3)"; fi
 CL="$TMP/claude-local.json"
 printf '{"permissions":{"allow":["Bash(ls:*)"]},"enableAllProjectMcpServers":true,"env":{"KEEP":"1"}}\n' > "$CL"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would add env.TERMLINK_AGENT_ID=claude-termlink" && ! grep -q TERMLINK_AGENT_ID "$CL"; then
+if echo "$out" | grep_all "would add env.TERMLINK_AGENT_ID=claude-termlink" && ! grep -q TERMLINK_AGENT_ID "$CL"; then
     ok "identity env: --dry-run reports and changes nothing"
 else bad "identity env dry-run" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      set and verified: $CL" && python3 -c "
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      set and verified: $CL" && python3 -c "
 import json,sys; d=json.load(open('$CL'))
 assert d['env']=={'KEEP':'1','TERMLINK_AGENT_ID':'claude-termlink'}, d
 assert d['permissions']=={'allow':['Bash(ls:*)']} and d['enableAllProjectMcpServers'] is True"; then
     ok "identity env: key added, existing env and all other keys preserved"
 else bad "identity env merge" "rc=$rc: $out $(cat "$CL")"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    $CL already sets TERMLINK_AGENT_ID=claude-termlink"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    $CL already sets TERMLINK_AGENT_ID=claude-termlink"; then
     ok "identity env: second run skips (idempotent)"
 else bad "identity env idempotent" "rc=$rc: $out"; fi
 
@@ -1175,24 +1178,24 @@ else bad "identity env idempotent" "rc=$rc: $out"; fi
 # State at the first run's end (messages:100, 104 records) -> latest-per-cv-key.
 echo "messages 100 104" > "$FAKE_FEDPROBE_STATE"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would set health:ring20-fedprobe retention messages -> latest-per-cv-key" && grep -q "^messages 100 104$" "$FAKE_FEDPROBE_STATE"; then
+if echo "$out" | grep_all "would set health:ring20-fedprobe retention messages -> latest-per-cv-key" && grep -q "^messages 100 104$" "$FAKE_FEDPROBE_STATE"; then
     ok "fedprobe: --dry-run reports and changes nothing"
 else bad "fedprobe dry-run" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      health:ring20-fedprobe now keeps the latest record per cv_key; swept to 1 records (verified)" && grep -q "^latest_per_cv_key 0 1$" "$FAKE_FEDPROBE_STATE"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      health:ring20-fedprobe now keeps the latest record per cv_key; swept to 1 records (verified)" && grep -q "^latest_per_cv_key 0 1$" "$FAKE_FEDPROBE_STATE"; then
     ok "fedprobe: latest-per-cv-key set, swept to one record, verified"
 else bad "fedprobe bound" "rc=$rc: $out $(cat "$FAKE_FEDPROBE_STATE")"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    health:ring20-fedprobe already keeps the latest record per cv_key"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    health:ring20-fedprobe already keeps the latest record per cv_key"; then
     ok "fedprobe: second run skips (idempotent)"
 else bad "fedprobe idempotent" "rc=$rc: $out"; fi
 echo "forever 0 2777" > "$FAKE_FEDPROBE_STATE"
 out=$(FAKE_FEDPROBE_NOSWEEP=1 run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  health:ring20-fedprobe: after set-retention + sweep it reads 'latest_per_cv_key 0 2777'"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  health:ring20-fedprobe: after set-retention + sweep it reads 'latest_per_cv_key 0 2777'"; then
     ok "fedprobe: a sweep that does not take effect is FAILED, not OK"
 else bad "fedprobe no-sweep" "rc=$rc: $out"; fi
 out=$(FAKE_FEDPROBE_MISSING=1 run); rc=$?
-if echo "$out" | grep -q "skip    health:ring20-fedprobe not found on the local hub"; then
+if echo "$out" | grep_all "skip    health:ring20-fedprobe not found on the local hub"; then
     ok "fedprobe: missing topic is a skip"
 else bad "fedprobe missing" "rc=$rc: $out"; fi
 echo "latest_per_cv_key 0 1" > "$FAKE_FEDPROBE_STATE"
@@ -1203,26 +1206,26 @@ echo "latest_per_cv_key 0 1" > "$FAKE_FEDPROBE_STATE"
 STALE2='{"stale_count":2,"current_count":0,"stale":[{"pid":111,"agent_id":"a1"},{"pid":222,"agent_id":"a2"}]}'
 echo "$STALE2" > "$FAKE_SIDECAR_STATE"; : > "$FAKE_SIDECAR_KILLED"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would restart 2 stale sidecar(s): a1 a2" && [ ! -s "$FAKE_SIDECAR_KILLED" ]; then
+if echo "$out" | grep_all "would restart 2 stale sidecar(s): a1 a2" && [ ! -s "$FAKE_SIDECAR_KILLED" ]; then
     ok "sidecars: --dry-run reports and signals nothing"
 else bad "sidecars dry-run" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      restarted 2 sidecar(s) onto current code: a1 a2 (verified: 0 stale, 2 current)" \
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      restarted 2 sidecar(s) onto current code: a1 a2 (verified: 0 stale, 2 current)" \
    && [ "$(tr '\n' ' ' < "$FAKE_SIDECAR_KILLED")" = "111 222 " ]; then
     ok "sidecars: stale pids signalled, supervisor restarts them, verified"
 else bad "sidecars restart" "rc=$rc: $out killed=$(cat "$FAKE_SIDECAR_KILLED")"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    all 2 notify-sidecar(s) already run the current code"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    all 2 notify-sidecar(s) already run the current code"; then
     ok "sidecars: second run skips (idempotent)"
 else bad "sidecars idempotent" "rc=$rc: $out"; fi
 echo "$STALE2" > "$FAKE_SIDECAR_STATE"
 out=$(FAKE_SIDECAR_NOFIX=1 run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  after restart: stale=2"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  after restart: stale=2"; then
     ok "sidecars: a restart that leaves them stale is FAILED, not OK"
 else bad "sidecars no-fix" "rc=$rc: $out"; fi
 echo "not json" > "$FAKE_SIDECAR_STATE"
 out=$(run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  check-stale-sidecar-code gave no readable result"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  check-stale-sidecar-code gave no readable result"; then
     ok "sidecars: unreadable detector output is FAILED (fail-closed), never a skip"
 else bad "sidecars unreadable" "rc=$rc: $out"; fi
 echo '{"stale_count":0,"current_count":3,"stale":[]}' > "$FAKE_SIDECAR_STATE"
@@ -1232,20 +1235,20 @@ echo '{"stale_count":0,"current_count":3,"stale":[]}' > "$FAKE_SIDECAR_STATE"
 # ---------------------------------------------------------------------------
 : > "$RUNME_AUDIT_CRON_FILE"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would run: fw cron install" && [ ! -s "$RUNME_AUDIT_CRON_FILE" ]; then
+if echo "$out" | grep_all "would run: fw cron install" && [ ! -s "$RUNME_AUDIT_CRON_FILE" ]; then
     ok "reindex: --dry-run reports and installs nothing"
 else bad "reindex dry-run" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      hourly vector reindex installed and verified" && grep -q 'index reindex' "$RUNME_AUDIT_CRON_FILE"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      hourly vector reindex installed and verified" && grep -q 'index reindex' "$RUNME_AUDIT_CRON_FILE"; then
     ok "reindex: installed and verified on disk"
 else bad "reindex install" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    .* already schedules the hourly vector reindex"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    .* already schedules the hourly vector reindex"; then
     ok "reindex: second run skips (idempotent)"
 else bad "reindex idempotent" "rc=$rc: $out"; fi
 : > "$RUNME_AUDIT_CRON_FILE"
 out=$(FAKE_CRON_NOINSTALL=1 run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  fw cron install ran but"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  fw cron install ran but"; then
     ok "reindex: an install that leaves no line is FAILED, not OK"
 else bad "reindex no-install" "rc=$rc: $out"; fi
 cron_both
@@ -1255,19 +1258,19 @@ SRC_SAVED="$RUNME_AUDIT_CRON_SRC"
 export RUNME_AUDIT_CRON_SRC="$TMP/agentic-audit-src.crontab"
 { cat "$RUNME_AUDIT_CRON_FILE"; echo '# regenerated by fw upgrade'; } > "$RUNME_AUDIT_CRON_SRC"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would run: fw cron install (deploy the regenerated registry crontab" && ! cmp -s "$RUNME_AUDIT_CRON_SRC" "$RUNME_AUDIT_CRON_FILE"; then
+if echo "$out" | grep_all "would run: fw cron install (deploy the regenerated registry crontab" && ! cmp -s "$RUNME_AUDIT_CRON_SRC" "$RUNME_AUDIT_CRON_FILE"; then
     ok "audit crontab: --dry-run reports and installs nothing"
 else bad "audit crontab dry-run" "rc=$rc: $out"; fi
 out=$(FAKE_CRON_NOINSTALL=1 run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  fw cron install ran but .* still differs"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  fw cron install ran but .* still differs"; then
     ok "audit crontab: an install that leaves it different is FAILED, not OK"
 else bad "audit crontab no-install" "rc=$rc: $out"; fi
 out=$(FAKE_CRON_COPY_SRC=1 run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      registry crontab deployed and verified identical" && cmp -s "$RUNME_AUDIT_CRON_SRC" "$RUNME_AUDIT_CRON_FILE"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      registry crontab deployed and verified identical" && cmp -s "$RUNME_AUDIT_CRON_SRC" "$RUNME_AUDIT_CRON_FILE"; then
     ok "audit crontab: deployed and verified identical on disk"
 else bad "audit crontab install" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    .* already equals the registry source"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    .* already equals the registry source"; then
     ok "audit crontab: second run skips (idempotent)"
 else bad "audit crontab idempotent" "rc=$rc: $out"; fi
 export RUNME_AUDIT_CRON_SRC="$SRC_SAVED"
@@ -1276,78 +1279,78 @@ cron_both
 # 25c. T-3568 — restart a stale Watchtower onto current web/ code; skip a current one.
 : > "$TMP_WT_STALE"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would run: fw watchtower restart" && [ -e "$TMP_WT_STALE" ]; then
+if echo "$out" | grep_all "would run: fw watchtower restart" && [ -e "$TMP_WT_STALE" ]; then
     ok "watchtower: --dry-run reports and restarts nothing"
 else bad "watchtower dry-run" "rc=$rc: $out"; fi
 out=$(FAKE_WT_RESTART_NOOP=1 run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  fw watchtower restart ran but Watchtower is still stale"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  fw watchtower restart ran but Watchtower is still stale"; then
     ok "watchtower: a restart that leaves it stale is FAILED, not OK"
 else bad "watchtower restart-noop" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      Watchtower restarted onto the current web/ code" && [ ! -e "$TMP_WT_STALE" ]; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      Watchtower restarted onto the current web/ code" && [ ! -e "$TMP_WT_STALE" ]; then
     ok "watchtower: stale -> restarted and verified current"
 else bad "watchtower restart" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    Watchtower already serves the current web/ code"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    Watchtower already serves the current web/ code"; then
     ok "watchtower: second run skips (idempotent)"
 else bad "watchtower idempotent" "rc=$rc: $out"; fi
 
 # 25. T-3370 — install the cron jobs AEF 1.8.3 added (sidecar sweep), temp file only.
 echo '20 * * * * root cd "/x" && "/x/fw" index reindex' > "$RUNME_AUDIT_CRON_FILE"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would run: fw cron install (adds the 5-minute 'fw sidecar sweep'" && ! grep -q 'sidecar sweep' "$RUNME_AUDIT_CRON_FILE"; then
+if echo "$out" | grep_all "would run: fw cron install (adds the 5-minute 'fw sidecar sweep'" && ! grep -q 'sidecar sweep' "$RUNME_AUDIT_CRON_FILE"; then
     ok "sidecar sweep: --dry-run reports and installs nothing"
 else bad "sweep dry-run" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      sidecar ack-ledger sweep installed and verified" && grep -q 'sidecar sweep' "$RUNME_AUDIT_CRON_FILE"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      sidecar ack-ledger sweep installed and verified" && grep -q 'sidecar sweep' "$RUNME_AUDIT_CRON_FILE"; then
     ok "sidecar sweep: installed and verified on disk"
 else bad "sweep install" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    .* already schedules the sidecar ack-ledger sweep"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    .* already schedules the sidecar ack-ledger sweep"; then
     ok "sidecar sweep: second run skips (idempotent)"
 else bad "sweep idempotent" "rc=$rc: $out"; fi
 echo '20 * * * * root cd "/x" && "/x/fw" index reindex' > "$RUNME_AUDIT_CRON_FILE"
 out=$(FAKE_CRON_NOINSTALL=1 run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  fw cron install ran but .* has no 'sidecar sweep' line"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  fw cron install ran but .* has no 'sidecar sweep' line"; then
     ok "sidecar sweep: an install that leaves no line is FAILED, not OK"
 else bad "sweep no-install" "rc=$rc: $out"; fi
 cron_both
 
 # 24. T-3343 — stop the stray hub (fake termlink, fake liveness, fake /proc only).
 out=$(run); rc=$?
-if echo "$out" | grep -q "skip    no live hub recorded in $TMP/stray"; then
+if echo "$out" | grep_all "skip    no live hub recorded in $TMP/stray"; then
     ok "stray hub: no pidfile in the stray dir -> skip"
 else bad "stray none" "rc=$rc: $out"; fi
 echo 4242 > "$TMP/stray/hub.pid"; echo alive > "$FAKE_STRAY_STATE"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would stop stray hub pid 4242" && grep -q alive "$FAKE_STRAY_STATE"; then
+if echo "$out" | grep_all "would stop stray hub pid 4242" && grep -q alive "$FAKE_STRAY_STATE"; then
     ok "stray hub: --dry-run reports and stops nothing"
 else bad "stray dry-run" "rc=$rc: $out"; fi
 out=$(FAKE_STRAY_NOGUARD=1 run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  installed termlink lacks the T-3340 guard" && grep -q alive "$FAKE_STRAY_STATE"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  installed termlink lacks the T-3340 guard" && grep -q alive "$FAKE_STRAY_STATE"; then
     ok "stray hub: refuses while an installed termlink lacks the guard"
 else bad "stray noguard" "rc=$rc: $out"; fi
 out=$(RUNME_STRAY_RESCUE_REPORT="$TMP/no-such-report.md" run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  rescue report" && grep -q alive "$FAKE_STRAY_STATE"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  rescue report" && grep -q alive "$FAKE_STRAY_STATE"; then
     ok "stray hub: refuses before the mail is rescued"
 else bad "stray noreport" "rc=$rc: $out"; fi
 printf 'bash\0sleep\0' > "$TMP/proc/4242/cmdline"
 out=$(run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "is not a termlink hub process" && grep -q alive "$FAKE_STRAY_STATE"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "is not a termlink hub process" && grep -q alive "$FAKE_STRAY_STATE"; then
     ok "stray hub: a reused pid that is not a termlink hub is never stopped"
 else bad "stray foreign pid" "rc=$rc: $out"; fi
 printf 'termlink\0hub\0start\0' > "$TMP/proc/4242/cmdline"
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      stray hub pid 4242 stopped; a client without TERMLINK_RUNTIME_DIR now resolves the canonical hub pid 906"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      stray hub pid 4242 stopped; a client without TERMLINK_RUNTIME_DIR now resolves the canonical hub pid 906"; then
     ok "stray hub: stopped and the canonical hub verified"
 else bad "stray stop" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    no live hub recorded"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    no live hub recorded"; then
     ok "stray hub: second run skips (idempotent)"
 else bad "stray idempotent" "rc=$rc: $out"; fi
 echo alive > "$FAKE_STRAY_STATE"
 out=$(FAKE_STRAY_NOSTOP=1 run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "still alive 15 s after 'hub stop'"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "still alive 15 s after 'hub stop'"; then
     ok "stray hub: a hub that will not stop is FAILED, never killed hard"
 else bad "stray nostop" "rc=$rc: $out"; fi
 rm -f "$TMP/stray/hub.pid"; echo alive > "$FAKE_STRAY_STATE"
@@ -1355,31 +1358,31 @@ rm -f "$TMP/stray/hub.pid"; echo alive > "$FAKE_STRAY_STATE"
 # 26. T-3351 — record the operator's own Human tick (T-3349), temp ledger only.
 : > "$RUNME_HUMAN_TICKS_LEDGER"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would record that you ticked T-3349 Human AC#1" && [ ! -s "$RUNME_HUMAN_TICKS_LEDGER" ]; then
+if echo "$out" | grep_all "would record that you ticked T-3349 Human AC#1" && [ ! -s "$RUNME_HUMAN_TICKS_LEDGER" ]; then
     ok "operator tick: --dry-run reports and records nothing"
 else bad "tick dry-run" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      recorded that you ticked T-3349 Human AC#1 (verified" \
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      recorded that you ticked T-3349 Human AC#1 (verified" \
    && grep -q '"via": "operator-ack"' "$RUNME_HUMAN_TICKS_LEDGER"; then
     ok "operator tick: recorded and verified in the ledger"
 else bad "tick record" "rc=$rc: $out"; fi
 # T-3393: every listed tick is recorded, one row per task, not just the first.
-if echo "$out" | grep -q "OK      recorded that you ticked T-3351 Human AC#1" \
-   && echo "$out" | grep -q "OK      recorded that you ticked T-3388 Human AC#1" \
-   && echo "$out" | grep -q "OK      recorded that you ticked T-3291 Human AC#1" \
-   && echo "$out" | grep -q "OK      recorded that you ticked T-3302 Human AC#1" \
-   && echo "$out" | grep -q "OK      recorded that you ticked T-3006 Human AC#1" \
-   && echo "$out" | grep -q "OK      recorded that you ticked T-3200 Human AC#1" \
+if echo "$out" | grep_all "OK      recorded that you ticked T-3351 Human AC#1" \
+   && echo "$out" | grep_all "OK      recorded that you ticked T-3388 Human AC#1" \
+   && echo "$out" | grep_all "OK      recorded that you ticked T-3291 Human AC#1" \
+   && echo "$out" | grep_all "OK      recorded that you ticked T-3302 Human AC#1" \
+   && echo "$out" | grep_all "OK      recorded that you ticked T-3006 Human AC#1" \
+   && echo "$out" | grep_all "OK      recorded that you ticked T-3200 Human AC#1" \
    && [ "$(grep -c '"via": "operator-ack"' "$RUNME_HUMAN_TICKS_LEDGER")" = "7" ]; then
     ok "operator tick: all seven listed ticks recorded, one ledger row each"
 else bad "tick record all" "rows=$(grep -c operator-ack "$RUNME_HUMAN_TICKS_LEDGER"): $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    T-3349 Human AC#1: your tick is already recorded"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    T-3349 Human AC#1: your tick is already recorded"; then
     ok "operator tick: second run skips (idempotent)"
 else bad "tick idempotent" "rc=$rc: $out"; fi
 : > "$RUNME_HUMAN_TICKS_LEDGER"
 out=$(FAKE_TICK_NOWRITE=1 run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  human_ac_ticks ack T-3349 --ac 1 ran but"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  human_ac_ticks ack T-3349 --ac 1 ran but"; then
     ok "operator tick: an ack that records nothing is FAILED, not OK"
 else bad "tick nowrite" "rc=$rc: $out"; fi
 ticks_recorded
@@ -1387,26 +1390,26 @@ ticks_recorded
 # 27. T-3416 — current Claude Code for testdev (fake binary and installer only).
 rm -f "$RUNME_TESTDEV_CLAUDE"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would install Claude Code for testdev" && [ ! -e "$RUNME_TESTDEV_CLAUDE" ]; then
+if echo "$out" | grep_all "would install Claude Code for testdev" && [ ! -e "$RUNME_TESTDEV_CLAUDE" ]; then
     ok "testdev claude: --dry-run reports and installs nothing"
 else bad "testdev dry-run" "rc=$rc: $out"; fi
 fake_claude 2.1.27
 out=$(FAKE_CLAUDE_NEW=2.1.300 run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      testdev now has Claude Code 2.1.300" && "$RUNME_TESTDEV_CLAUDE" --version | grep -q 2.1.300; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      testdev now has Claude Code 2.1.300" && "$RUNME_TESTDEV_CLAUDE" --version | grep_all 2.1.300; then
     ok "testdev claude: an old version is replaced and verified by running it"
 else bad "testdev install" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    testdev already has Claude Code 2.1.300"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    testdev already has Claude Code 2.1.300"; then
     ok "testdev claude: second run skips (idempotent)"
 else bad "testdev idempotent" "rc=$rc: $out"; fi
 fake_claude 2.1.27
 out=$(FAKE_CLAUDE_NEW= run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  the installer ran but .* reports '2.1.27', need >= 2.1.296"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  the installer ran but .* reports '2.1.27', need >= 2.1.296"; then
     ok "testdev claude: an installer that leaves the old version is FAILED, not OK"
 else bad "testdev old stays" "rc=$rc: $out"; fi
 rm -f "$RUNME_TESTDEV_CLAUDE"
 out=$(FAKE_CLAUDE_NEW= run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  the installer ran but .* reports 'nothing'"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  the installer ran but .* reports 'nothing'"; then
     ok "testdev claude: an installer that leaves no binary is FAILED, not OK"
 else bad "testdev none" "rc=$rc: $out"; fi
 fake_claude 2.1.296
@@ -1414,24 +1417,24 @@ fake_claude 2.1.296
 # 28. T-3421 — claude-fw on PATH becomes the router (fake files only).
 cfw_old "$TMP/cfw-a"; rm -f "$TMP/cfw-b"; rm -rf "$RUNME_CLAUDE_FW_BACKUP_DIR"
 out=$(RUNME_CLAUDE_FW_TARGETS="$TMP/cfw-a $TMP/cfw-b" run --dry-run); rc=$?
-if echo "$out" | grep -q "would replace $TMP/cfw-a" && grep -q "old fixed copy" "$TMP/cfw-a" && [ ! -e "$TMP/cfw-b" ]; then
+if echo "$out" | grep_all "would replace $TMP/cfw-a" && grep -q "old fixed copy" "$TMP/cfw-a" && [ ! -e "$TMP/cfw-b" ]; then
     ok "claude-fw router: --dry-run reports and changes nothing"
 else bad "cfw dry-run" "rc=$rc: $out"; fi
 out=$(RUNME_CLAUDE_FW_TARGETS="$TMP/cfw-a $TMP/cfw-b" run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      $TMP/cfw-a is now the claude-fw router" && cmp -s "$TMP/cfw-a" "$RUNME_CLAUDE_FW_ROUTER" \
-   && ls "$RUNME_CLAUDE_FW_BACKUP_DIR" | grep -q cfw-a && grep -q "old fixed copy" "$RUNME_CLAUDE_FW_BACKUP_DIR"/*cfw-a*; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      $TMP/cfw-a is now the claude-fw router" && cmp -s "$TMP/cfw-a" "$RUNME_CLAUDE_FW_ROUTER" \
+   && ls "$RUNME_CLAUDE_FW_BACKUP_DIR" | grep_all cfw-a && grep -q "old fixed copy" "$RUNME_CLAUDE_FW_BACKUP_DIR"/*cfw-a*; then
     ok "claude-fw router: a fixed copy is replaced, verified on disk, and backed up"
 else bad "cfw replace" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "skip    $TMP/cfw-b does not exist here" && [ ! -e "$TMP/cfw-b" ]; then
+if echo "$out" | grep_all "skip    $TMP/cfw-b does not exist here" && [ ! -e "$TMP/cfw-b" ]; then
     ok "claude-fw router: an absent path is left alone, never created"
 else bad "cfw absent" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    $TMP/cfw-a is already the claude-fw router"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    $TMP/cfw-a is already the claude-fw router"; then
     ok "claude-fw router: second run skips (idempotent)"
 else bad "cfw idempotent" "rc=$rc: $out"; fi
 cfw_old "$TMP/cfw-a"
 out=$(RUNME_CLAUDE_FW_ROUTER="$TMP/no-such-router" run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  the router .* is missing" && grep -q "old fixed copy" "$TMP/cfw-a"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  the router .* is missing" && grep -q "old fixed copy" "$TMP/cfw-a"; then
     ok "claude-fw router: a missing router is FAILED and nothing is touched"
 else bad "cfw no router" "rc=$rc: $out"; fi
 cfw_router "$TMP/cfw-a"
@@ -1440,18 +1443,18 @@ cfw_router "$TMP/cfw-a"
 # a host without systemd skips the unit and says cron supervises.
 rm -f "$SCU/units/termlink-sidecar@.service"; touch "$SCU/broken"
 out=$(run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  .*termlink-sidecar@.service installed but systemd does not resolve"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  .*termlink-sidecar@.service installed but systemd does not resolve"; then
     ok "sidecar unit: a template systemd does not resolve is FAILED, not OK"
 else bad "sidecar unit unresolved" "rc=$rc: $out"; fi
 rm -f "$SCU/broken" "$SCU/units/termlink-sidecar@.service"
 printf '#!/usr/bin/env bash\nexit 1\n' > "$SCU/systemctl-fail"; chmod +x "$SCU/systemctl-fail"
 out=$(RUNME_SIDECAR_SYSTEMCTL="$SCU/systemctl-fail" run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  installed .* but daemon-reload failed"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  installed .* but daemon-reload failed"; then
     ok "sidecar unit: a failed daemon-reload is FAILED"
 else bad "sidecar unit daemon-reload" "rc=$rc: $out"; fi
 rm -f "$SCU/units/termlink-sidecar@.service"
 out=$(RUNME_SIDECAR_SYSTEMD_RUN="$SCU/no-systemd" run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "no systemd on this host: the cron backstop is the sidecar supervisor" \
+if [ "$rc" = "0" ] && echo "$out" | grep_all "no systemd on this host: the cron backstop is the sidecar supervisor" \
    && [ ! -e "$SCU/units/termlink-sidecar@.service" ]; then
     ok "sidecar unit: a host without systemd skips the unit and names cron as the supervisor"
 else bad "sidecar no-systemd" "rc=$rc: $out"; fi
@@ -1459,33 +1462,33 @@ run >/dev/null 2>&1
 
 # T-3438 (P7): W1 — readiness every run, switch-on only on a recorded go.
 : > "$SCU/w1-calls"; out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "W1 is ready; waiting for the operator's go" && grep -qx -- "--check" "$SCU/w1-calls" && ! grep -q -- "--apply" "$SCU/w1-calls"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "W1 is ready; waiting for the operator's go" && grep -qx -- "--check" "$SCU/w1-calls" && ! grep -q -- "--apply" "$SCU/w1-calls"; then
     ok "W1: without a recorded go only the read-only check runs"
 else bad "W1 default" "rc=$rc: $out"; fi
 : > "$SCU/w1-calls"; out=$(RUNME_W1_GO="2026-10-13|fixture" run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      W1 pair provisioned and running" && grep -qx -- "--apply" "$SCU/w1-calls"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      W1 pair provisioned and running" && grep -qx -- "--apply" "$SCU/w1-calls"; then
     ok "W1: with a recorded go it provisions and reports OK"
 else bad "W1 go" "rc=$rc: $out"; fi
 out=$(RUNME_W1_GO="2026-10-13|fixture" FAKE_W1_APPLY_RC=1 run); rc=$?
-if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  W1 provisioning"; then
+if [ "$rc" != "0" ] && echo "$out" | grep_all "FAILED  W1 provisioning"; then
     ok "W1: a failed provisioning is FAILED, not OK"
 else bad "W1 apply fail" "rc=$rc: $out"; fi
 
 # T-3438: the kill switch runs alone, needs a reason, reads each flip back.
 : > "$SCU/w1-calls"; out=$(run --sidecar-delivery off --why "fixture drill"); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      delivery off on every listed sidecar" \
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      delivery off on every listed sidecar" \
    && grep -q "sidecar admin delivery off --why fixture drill --all --list $SCU/admin.list" "$SCU/w1-calls" \
-   && ! echo "$out" | grep -q "1. Cron installs"; then
+   && ! echo "$out" | grep_all "1. Cron installs"; then
     ok "kill switch: flips every listed sidecar and runs no other action"
 else bad "kill switch" "rc=$rc: $out"; fi
 out=$(run --sidecar-delivery off); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q -- "--why"; then ok "kill switch: refuses without a reason"
+if [ "$rc" = "1" ] && echo "$out" | grep_all -- "--why"; then ok "kill switch: refuses without a reason"
 else bad "kill switch no why" "rc=$rc: $out"; fi
 out=$(FAKE_KS_RC=1 run --sidecar-delivery off --why x); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  at least one sidecar did not confirm"; then ok "kill switch: an unconfirmed flip is FAILED"
+if [ "$rc" = "1" ] && echo "$out" | grep_all "FAILED  at least one sidecar did not confirm"; then ok "kill switch: an unconfirmed flip is FAILED"
 else bad "kill switch unconfirmed" "rc=$rc: $out"; fi
 out=$(RUNME_SIDECAR_ADMIN_LIST="$SCU/none.list" run --sidecar-delivery on --why x); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "no sidecars listed"; then ok "kill switch: an empty list switches nothing and says so"
+if [ "$rc" = "1" ] && echo "$out" | grep_all "no sidecars listed"; then ok "kill switch: an empty list switches nothing and says so"
 else bad "kill switch empty list" "rc=$rc: $out"; fi
 
 
@@ -1494,49 +1497,49 @@ else bad "kill switch empty list" "rc=$rc: $out"; fi
 # ---------------------------------------------------------------------------
 echo "forever 0 1042 1041 969" > "$FAKE_INBOX_STATE"; echo 1040 > "$TMP/inbox.marker"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would set inbox:t/010 retention forever -> messages 1000 and sweep offsets <= 41" && grep -q "^forever 0 1042 1041 969$" "$FAKE_INBOX_STATE"; then
+if echo "$out" | grep_all "would set inbox:t/010 retention forever -> messages 1000 and sweep offsets <= 41" && grep -q "^forever 0 1042 1041 969$" "$FAKE_INBOX_STATE"; then
     ok "inbox: --dry-run reports the cut and changes nothing"
 else bad "inbox dry-run" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      inbox:t/010 now keeps the newest 1000; swept to 1000 records, every reader was past offset 41 (verified)" && grep -q "^messages 1000 1000 " "$FAKE_INBOX_STATE"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      inbox:t/010 now keeps the newest 1000; swept to 1000 records, every reader was past offset 41 (verified)" && grep -q "^messages 1000 1000 " "$FAKE_INBOX_STATE"; then
     ok "inbox: readers past the cut -> capped, swept, verified"
 else bad "inbox cap" "rc=$rc: $out $(cat "$FAKE_INBOX_STATE")"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    inbox:t/010 already keeps the newest 1000"; then ok "inbox: second run skips (idempotent)"
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    inbox:t/010 already keeps the newest 1000"; then ok "inbox: second run skips (idempotent)"
 else bad "inbox idempotent" "rc=$rc: $out"; fi
 echo "forever 0 1500 1499 300" > "$FAKE_INBOX_STATE"
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "HELD    inbox:t/010: refused — a reader is behind the cut point 499 (hub receipt at 300)" && echo "$out" | grep -q " 1 held, 0 failed" && grep -q "^forever 0 1500 1499 300$" "$FAKE_INBOX_STATE"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "HELD    inbox:t/010: refused — a reader is behind the cut point 499 (hub receipt at 300)" && echo "$out" | grep_all " 1 held, 0 failed" && grep -q "^forever 0 1500 1499 300$" "$FAKE_INBOX_STATE"; then
     ok "inbox: a hub reader behind the cut is HELD (rc 0, T-3606), nothing changed"
 else bad "inbox receipt behind" "rc=$rc: $out"; fi
 echo "forever 0 1500 1499 1499" > "$FAKE_INBOX_STATE"; echo 200 > "$TMP/inbox.marker"
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "HELD .*alert marker at 200" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "HELD .*alert marker at 200" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
     ok "inbox: our own alert marker behind the cut is HELD"
 else bad "inbox marker behind" "rc=$rc: $out"; fi
 echo "forever 0 1500 1499 none" > "$FAKE_INBOX_STATE"
 out=$(RUNME_INBOX_TOPICS="inbox:t/aef|" run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "HELD    inbox:t/aef: refused — no reader position is known" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "HELD    inbox:t/aef: refused — no reader position is known" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
     ok "inbox: no known reader position is HELD, never assumed read"
 else bad "inbox no readers" "rc=$rc: $out"; fi
 echo "forever 0 1500 1499 1499" > "$FAKE_INBOX_STATE"; printf 'x' > "$TMP/inbox.marker"
 out=$(run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  inbox:t/010: alert marker unreadable" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "FAILED  inbox:t/010: alert marker unreadable" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
     ok "inbox: an unreadable alert marker is FAILED (could not look), not HELD"
 else bad "inbox marker unreadable" "rc=$rc: $out"; fi
 echo "forever 0 1500 1499 1499" > "$FAKE_INBOX_STATE"; echo 1499 > "$TMP/inbox.marker"
 out=$(FAKE_INBOX_NOSWEEP=1 run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  inbox:t/010: after set-retention + sweep it reads 'messages 1000 1500'"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "FAILED  inbox:t/010: after set-retention + sweep it reads 'messages 1000 1500'"; then
     ok "inbox: a sweep that does not take effect is FAILED, not OK"
 else bad "inbox no-sweep" "rc=$rc: $out"; fi
 echo "forever 0 182 181 none" > "$FAKE_INBOX_STATE"
 out=$(RUNME_INBOX_TOPICS="inbox:t/small|" run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      inbox:t/small now keeps the newest 1000; 182 records, nothing deleted (verified)"; then
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      inbox:t/small now keeps the newest 1000; 182 records, nothing deleted (verified)"; then
     ok "inbox: under the cap with no known reader -> policy set, nothing deleted, said so"
 else bad "inbox small" "rc=$rc: $out"; fi
 echo "messages 1000 1000 4999 4999" > "$FAKE_INBOX_STATE"
 out=$(FAKE_INBOX_MISSING=1 run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  inbox:t/010: cannot read it on the local hub"; then ok "inbox: an unreadable topic is FAILED, never a skip"
+if [ "$rc" = "1" ] && echo "$out" | grep_all "FAILED  inbox:t/010: cannot read it on the local hub"; then ok "inbox: an unreadable topic is FAILED, never a skip"
 else bad "inbox missing" "rc=$rc: $out"; fi
 echo "messages 1000 1000 4999 4999" > "$FAKE_INBOX_STATE"; echo 4999 > "$TMP/inbox.marker"
 
@@ -1546,16 +1549,16 @@ echo "messages 1000 1000 4999 4999" > "$FAKE_INBOX_STATE"; echo 4999 > "$TMP/inb
 # ---------------------------------------------------------------------------
 rm -f "$RUNME_W1_DRILL_DONE" "$FAKE_DRILL_RAN"
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would run the W1 kill-switch drill" && [ ! -f "$FAKE_DRILL_RAN" ]; then ok "drill: --dry-run runs nothing"
+if echo "$out" | grep_all "would run the W1 kill-switch drill" && [ ! -f "$FAKE_DRILL_RAN" ]; then ok "drill: --dry-run runs nothing"
 else bad "drill dry-run" "rc=$rc: $out"; fi
 out=$(FAKE_DRILL_RC=1 run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  W1 kill-switch drill rc=1" && [ ! -s "$RUNME_W1_DRILL_DONE" ]; then ok "drill: a failed drill is FAILED and records no pass"
+if [ "$rc" = "1" ] && echo "$out" | grep_all "FAILED  W1 kill-switch drill rc=1" && [ ! -s "$RUNME_W1_DRILL_DONE" ]; then ok "drill: a failed drill is FAILED and records no pass"
 else bad "drill fail" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      W1 kill-switch drill passed" && grep -q "8 passed, 0 failed" "$RUNME_W1_DRILL_DONE"; then ok "drill: a pass is recorded"
+if [ "$rc" = "0" ] && echo "$out" | grep_all "OK      W1 kill-switch drill passed" && grep -q "8 passed, 0 failed" "$RUNME_W1_DRILL_DONE"; then ok "drill: a pass is recorded"
 else bad "drill pass" "rc=$rc: $out"; fi
 : > "$FAKE_DRILL_RAN"; out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    the W1 kill-switch drill already passed" && [ ! -s "$FAKE_DRILL_RAN" ]; then ok "drill: once passed it never runs again (idempotent)"
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    the W1 kill-switch drill already passed" && [ ! -s "$FAKE_DRILL_RAN" ]; then ok "drill: once passed it never runs again (idempotent)"
 else bad "drill idempotent" "rc=$rc: $out"; fi
 
 # ---------------------------------------------------------------------------
@@ -1563,10 +1566,10 @@ else bad "drill idempotent" "rc=$rc: $out"; fi
 # ---------------------------------------------------------------------------
 arcs_specced 0
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would attach .*AS_FAILURE_OBSERVABILITY" && ! grep -q "scoring:" "$RUNME_ARCS_DIR/arc-substrate-fitness.yaml"; then ok "specs: --dry-run attaches nothing"
+if echo "$out" | grep_all "would attach .*AS_FAILURE_OBSERVABILITY" && ! grep -q "scoring:" "$RUNME_ARCS_DIR/arc-substrate-fitness.yaml"; then ok "specs: --dry-run attaches nothing"
 else bad "specs dry-run" "rc=$rc: $out"; fi
 out=$(FAKE_ATTACH_LIE=1 run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "attach reported success but no valid scoring block is stored"; then ok "specs: a claimed attach that stored nothing is FAILED"
+if [ "$rc" = "1" ] && echo "$out" | grep_all "attach reported success but no valid scoring block is stored"; then ok "specs: a claimed attach that stored nothing is FAILED"
 else bad "specs lie" "rc=$rc: $out"; fi
 out=$(run); rc=$?
 if [ "$rc" = "0" ] && [ "$(echo "$out" | grep -c "OK      attached and verified")" = "6" ] && grep -q "scoring:" "$RUNME_ARCS_DIR/arc-011.yaml"; then ok "specs: all six attached and verified on disk, both arcs"
@@ -1582,31 +1585,31 @@ sweep_case() { echo "$1" > "$FAKE_SWEEP_FILE"; rm -f "$F/remote-cmds"; }
 export RUNME_SWEEP_HUB=fake-hub
 sweep_case 3600
 out=$(run); s21=$(echo "$out" | sed -n '/^.*21\. Retention sweeper/,/^.*Verification/p')
-if echo "$s21" | grep -q "skip    fake-hub already sweeps every 3600s" && ! grep -q "t3311" "$F/remote-cmds" 2>/dev/null; then
+if echo "$s21" | grep_all "skip    fake-hub already sweeps every 3600s" && ! grep -q "t3311" "$F/remote-cmds" 2>/dev/null; then
     ok "sweeper: already on => skip, nothing sent to the hub"
 else bad "sweeper skip" "$s21"; fi
 sweep_case 0
 out=$(run --dry-run); s21=$(echo "$out" | sed -n '/^.*21\. Retention sweeper/,/^.*Verification/p')
-if echo "$out" | grep -q "21. Retention sweeper on for the .122 hub — THE .122 HUB RESTARTS" \
-   && echo "$s21" | grep -q "would add TERMLINK_SWEEP_INTERVAL_SECS=3600 .* and RESTART that hub" \
+if echo "$out" | grep_all "21. Retention sweeper on for the .122 hub — THE .122 HUB RESTARTS" \
+   && echo "$s21" | grep_all "would add TERMLINK_SWEEP_INTERVAL_SECS=3600 .* and RESTART that hub" \
    && ! grep -q "t3311" "$F/remote-cmds" 2>/dev/null; then
     ok "sweeper: heading says the hub restarts; --dry-run sends nothing"
 else bad "sweeper dry-run" "$s21"; fi
 sweep_case 0
 out=$(run); s21=$(echo "$out" | sed -n '/^.*21\. Retention sweeper/,/^.*Verification/p')
-if echo "$s21" | grep -q "OK      fake-hub restarted and sweeps every 3600s" \
+if echo "$s21" | grep_all "OK      fake-hub restarted and sweeps every 3600s" \
    && grep -q "termlink-hub.service.d/t3311-sweep.conf" "$F/remote-cmds" && grep -q "daemon-reload" "$F/remote-cmds" \
    && grep -q "systemctl restart termlink-hub" "$F/remote-cmds"; then
     ok "sweeper: drop-in written, daemon-reload, restart through the unit, verified 3600"
 else bad "sweeper apply" "$s21 // $(cat "$F/remote-cmds" 2>/dev/null)"; fi
 sweep_case 0
 out=$(FAKE_UNIT=0 run); rc=$?; s21=$(echo "$out" | sed -n '/^.*21\. Retention sweeper/,/^.*Verification/p')
-if [ "$rc" = "1" ] && echo "$s21" | grep -q "FAILED  fake-hub has no termlink-hub.service — nothing changed"; then
+if [ "$rc" = "1" ] && echo "$s21" | grep_all "FAILED  fake-hub has no termlink-hub.service — nothing changed"; then
     ok "sweeper: no unit => FAILED, nothing changed"
 else bad "sweeper no unit" "rc=$rc: $s21"; fi
 sweep_case 0
 out=$(FAKE_SWEEP_APPLIES=0 run); rc=$?; s21=$(echo "$out" | sed -n '/^.*21\. Retention sweeper/,/^.*Verification/p')
-if [ "$rc" = "1" ] && echo "$s21" | grep -q "FAILED  fake-hub after restart: interval='0' (want 3600)"; then
+if [ "$rc" = "1" ] && echo "$s21" | grep_all "FAILED  fake-hub after restart: interval='0' (want 3600)"; then
     ok "sweeper: restart that does not take effect => FAILED (verified, not trusted)"
 else bad "sweeper not applied" "rc=$rc: $s21"; fi
 sweep_case 3600; unset RUNME_SWEEP_HUB
@@ -1618,37 +1621,37 @@ sweep_case 3600; unset RUNME_SWEEP_HUB
 s22() { echo "$1" | sed -n '/^.*22\. ring20.s deep-inception pack/,/^.*Verification/p'; }
 pack_reset() { rm -rf "$RUNME_PACK_DEST"; rm -f "$RUNME_PACK_SRC"; }
 out=$(run); x=$(s22 "$out")
-if echo "$x" | grep -q "skip    pack already in .* verified; the /var/tmp drop is gone"; then ok "pack: already imported, drop gone => skip"
+if echo "$x" | grep_all "skip    pack already in .* verified; the /var/tmp drop is gone"; then ok "pack: already imported, drop gone => skip"
 else bad "pack skip" "$x"; fi
 pack_reset; cp "$TMP/pack-good.tgz" "$RUNME_PACK_SRC"
 out=$(run --dry-run); x=$(s22 "$out")
-if echo "$x" | grep -q "\[DRY\]   would unpack" && [ -e "$RUNME_PACK_SRC" ] && [ ! -d "$RUNME_PACK_DEST" ]; then ok "pack: --dry-run changes nothing"
+if echo "$x" | grep_all "\[DRY\]   would unpack" && [ -e "$RUNME_PACK_SRC" ] && [ ! -d "$RUNME_PACK_DEST" ]; then ok "pack: --dry-run changes nothing"
 else bad "pack dry-run" "$x"; fi
 out=$(run); x=$(s22 "$out")
-if echo "$x" | grep -q "OK      pack unpacked into" && [ ! -e "$RUNME_PACK_SRC" ] && [ -f "$RUNME_PACK_DEST/pack/plan.md" ]; then
+if echo "$x" | grep_all "OK      pack unpacked into" && [ ! -e "$RUNME_PACK_SRC" ] && [ -f "$RUNME_PACK_DEST/pack/plan.md" ]; then
     ok "pack: unpacked, verified, drop deleted"
 else bad "pack apply" "$x"; fi
 if [ -z "$(find "$RUNME_PACK_DEST" -perm /077 -print -quit)" ]; then ok "pack: unpacked tree is owner-only on disk (tar does not leave it 755)"
 else bad "pack mode" "$(find "$RUNME_PACK_DEST" -perm /077 | head -3)"; fi
 chmod -R go+rX "$RUNME_PACK_DEST"
 out=$(run); rc=$?; x=$(s22 "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      .* was group/other-readable; now owner-only" && [ -z "$(find "$RUNME_PACK_DEST" -perm /077 -print -quit)" ]; then
+if [ "$rc" = "0" ] && echo "$x" | grep_all "OK      .* was group/other-readable; now owner-only" && [ -z "$(find "$RUNME_PACK_DEST" -perm /077 -print -quit)" ]; then
     ok "pack: imported but readable => tightened to owner-only"
 else bad "pack tighten" "rc=$rc: $x"; fi
 pack_reset; printf 'not the pack' > "$RUNME_PACK_SRC"
 out=$(run); rc=$?; x=$(s22 "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  .* sha256 .* does not match" && [ -e "$RUNME_PACK_SRC" ] && [ ! -d "$RUNME_PACK_DEST" ]; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  .* sha256 .* does not match" && [ -e "$RUNME_PACK_SRC" ] && [ ! -d "$RUNME_PACK_DEST" ]; then
     ok "pack: wrong sha256 => FAILED, nothing copied, drop kept"
 else bad "pack wrong sha" "rc=$rc: $x"; fi
 pack_reset; mkdir -p "$TMP/packbad/pack"; cp "$TMP/packsrc/pack/"* "$TMP/packbad/pack/"; printf 'tampered\n' > "$TMP/packbad/pack/plan.md"
 tar -czf "$RUNME_PACK_SRC" -C "$TMP/packbad" pack
 out=$(RUNME_PACK_SHA="$(sha256sum "$RUNME_PACK_SRC" | cut -d' ' -f1)" run); rc=$?; x=$(s22 "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  unpacked files do not match the SHA256SUMS inside" && [ -e "$RUNME_PACK_SRC" ]; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  unpacked files do not match the SHA256SUMS inside" && [ -e "$RUNME_PACK_SRC" ]; then
     ok "pack: contents not matching SHA256SUMS => FAILED, drop kept"
 else bad "pack tampered" "rc=$rc: $x"; fi
 pack_reset; cp "$TMP/pack-good.tgz" "$RUNME_PACK_SRC"; mkdir -p "$TMP/plainrepo"; git -C "$TMP/plainrepo" init -q 2>/dev/null
 out=$(RUNME_PACK_GITROOT="$TMP/plainrepo" RUNME_PACK_DEST="$TMP/plainrepo/pack" run); rc=$?; x=$(s22 "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  .* is not gitignored" && [ ! -d "$TMP/plainrepo/pack" ] && [ -e "$RUNME_PACK_SRC" ]; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  .* is not gitignored" && [ ! -d "$TMP/plainrepo/pack" ] && [ -e "$RUNME_PACK_SRC" ]; then
     ok "pack: destination git would track => FAILED, nothing placed"
 else bad "pack not ignored" "rc=$rc: $x"; fi
 pack_reset; mkdir -p "$RUNME_PACK_DEST" && tar -xzf "$TMP/pack-good.tgz" -C "$RUNME_PACK_DEST" && chmod -R go-rwx "$RUNME_PACK_DEST"
@@ -1661,20 +1664,20 @@ grep -vx 'TERMLINK_WORKER_CLASS=background' "$REPO_ROOT/.context/cron/heartbeat.
 { grep -vx 'TERMLINK_WORKER_CLASS=background' "$REPO_ROOT/.context/cron/presence-sweep.crontab"; echo '# hand edit'; } > "$TMP/cron/termlink-presence-sweep"
 cp "$TMP/cron/termlink-presence-sweep" "$TMP/presence.before"
 out=$(run --dry-run); x=$(s1b "$out")
-if echo "$x" | grep -q "would add the background-class line: .*heartbeat.crontab" && ! grep -q TERMLINK_WORKER_CLASS "$TMP/cron/termlink-heartbeat"; then
+if echo "$x" | grep_all "would add the background-class line: .*heartbeat.crontab" && ! grep -q TERMLINK_WORKER_CLASS "$TMP/cron/termlink-heartbeat"; then
     ok "1b: --dry-run names the env-only drift and writes nothing"
 else bad "1b dry-run" "$x"; fi
 out=$(run); rc=$?; x=$(s1b "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      1 installed crontab(s) now carry TERMLINK_WORKER_CLASS=background" \
+if [ "$rc" = "0" ] && echo "$x" | grep_all "OK      1 installed crontab(s) now carry TERMLINK_WORKER_CLASS=background" \
    && cmp -s "$REPO_ROOT/.context/cron/heartbeat.crontab" "$TMP/cron/termlink-heartbeat"; then
     ok "1b: an installed copy differing ONLY by the class line is reinstalled and verified identical"
 else bad "1b resync" "rc=$rc: $x"; fi
-if echo "$x" | grep -q "left alone .*termlink-presence-sweep" && cmp -s "$TMP/presence.before" "$TMP/cron/termlink-presence-sweep"; then
+if echo "$x" | grep_all "left alone .*termlink-presence-sweep" && cmp -s "$TMP/presence.before" "$TMP/cron/termlink-presence-sweep"; then
     ok "1b: an installed copy with any other drift is named and left untouched"
 else bad "1b other drift" "$x"; fi
 rm -f "$TMP/cron/termlink-presence-sweep"
 out=$(run); x=$(s1b "$out")
-if echo "$x" | grep -q "skip    every installed crontab already carries"; then ok "1b: second run skips (idempotent)"
+if echo "$x" | grep_all "skip    every installed crontab already carries"; then ok "1b: second run skips (idempotent)"
 else bad "1b idempotent" "$x"; fi
 rm -f "$TMP/cron/termlink-heartbeat"
 
@@ -1686,12 +1689,12 @@ TOKF="$TR/.termlink/secrets/107-hub.token"; TOKSTATE="$F/tok-state/fake-hub.stat
 mints() { [ -f "$F/tok-mints" ] && wc -l < "$F/tok-mints" || echo 0; }
 tok_reset; rm -f "$TMP/cron/termlink-fleet-token-remint"; cp "$TR/.termlink/hubs.toml" "$TMP/hubs.before"
 out=$(run --dry-run); x=$(s22b "$out")
-if echo "$x" | grep -q "\[DRY\]   fake-hub: would mint an Interact token on .107 (no verified token on record)" && [ ! -e "$TOKF" ] \
+if echo "$x" | grep_all "\[DRY\]   fake-hub: would mint an Interact token on .107 (no verified token on record)" && [ ! -e "$TOKF" ] \
    && [ "$(mints)" = 0 ] && cmp -s "$TMP/hubs.before" "$TR/.termlink/hubs.toml" && [ ! -e "$TOKSTATE" ]; then
     ok "22b: --dry-run probes, names the mint, mints and writes nothing"
 else bad "22b dry-run" "$x"; fi
 out=$(run); rc=$?; x=$(s22b "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: Interact token installed and proven" \
+if [ "$rc" = "0" ] && echo "$x" | grep_all "OK      fake-hub: Interact token installed and proven" \
    && [ "$(stat -c %a "$TOKF")" = 600 ] && [ "$(sha256sum < "$TOKF" | cut -d' ' -f1)" = "$(sed -n 's/^token_sha256=//p' "$TOKSTATE")" ] \
    && grep -q "^token_file = \"$TOKF\"$" "$TR/.termlink/hubs.toml" && grep -q '^secret_file = ".*/107-hub.hex"$' "$TR/.termlink/hubs.toml" \
    && grep -q '^secret_file = "/nonexistent/local.hex"$' "$TR/.termlink/hubs.toml" \
@@ -1702,50 +1705,50 @@ if grep -qx "list token $TR/.termlink/token-only-home" "$F/tok-auth" && grep -qx
    && ! grep -q "secret" "$F/tok-auth"; then
     ok "22b: the proof authenticated with the TOKEN (list + accepted post), never the secret"
 else bad "22b token proof" "$(cat "$F/tok-auth" 2>/dev/null)"; fi
-if ! echo "$out" | grep -qF "$(cat "$TOKF")" && ! echo "$out" | grep -qF "fixture-not-a-secret"; then
+if ! echo "$out" | grep_all -F "$(cat "$TOKF")" && ! echo "$out" | grep_all -F "fixture-not-a-secret"; then
     ok "22b: neither the token nor the secret appears in runme's output"
 else bad "22b leak" "token or secret printed"; fi
-if echo "$x" | grep -q "note    fake-hub signs its posts as 0123456789abcdef" && cmp -s "$REPO_ROOT/.context/cron/fleet-token-remint.crontab" "$TMP/cron/termlink-fleet-token-remint" \
+if echo "$x" | grep_all "note    fake-hub signs its posts as 0123456789abcdef" && cmp -s "$REPO_ROOT/.context/cron/fleet-token-remint.crontab" "$TMP/cron/termlink-fleet-token-remint" \
    && grep -q "fleet-token-probe" "$F/tok-local"; then
     ok "22b: names the host's signing fingerprint, installs the re-mint cron, creates the scratch topic on .107"
 else bad "22b note/cron" "$x"; fi
 n=$(mints); out=$(run); rc=$?; x=$(s22b "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "skip    fake-hub: verified token on record, installed unchanged" && [ "$(mints)" = "$n" ]; then
+if [ "$rc" = "0" ] && echo "$x" | grep_all "skip    fake-hub: verified token on record, installed unchanged" && [ "$(mints)" = "$n" ]; then
     ok "22b: second run skips (idempotent), mints nothing"
 else bad "22b idempotent" "rc=$rc: $x"; fi
 old_sha=$(sha256sum < "$TOKF"); sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 3600 ))/" "$TOKSTATE"
 out=$(run); rc=$?; x=$(s22b "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: Interact token installed" && [ "$(mints)" = $((n + 1)) ] && [ "$(sha256sum < "$TOKF")" != "$old_sha" ]; then
+if [ "$rc" = "0" ] && echo "$x" | grep_all "OK      fake-hub: Interact token installed" && [ "$(mints)" = $((n + 1)) ] && [ "$(sha256sum < "$TOKF")" != "$old_sha" ]; then
     ok "22b: a token with under 3 days left is re-minted and replaced"
 else bad "22b renew" "rc=$rc: $x"; fi
 echo "tampered" > "$TOKF"; chmod 600 "$TOKF"; out=$(run); rc=$?; x=$(s22b "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: Interact token installed" && [ "$(sha256sum < "$TOKF" | cut -d' ' -f1)" = "$(sed -n 's/^token_sha256=//p' "$TOKSTATE")" ]; then
+if [ "$rc" = "0" ] && echo "$x" | grep_all "OK      fake-hub: Interact token installed" && [ "$(sha256sum < "$TOKF" | cut -d' ' -f1)" = "$(sed -n 's/^token_sha256=//p' "$TOKSTATE")" ]; then
     ok "22b: an installed token that differs from the record is replaced"
 else bad "22b tamper" "rc=$rc: $x"; fi
 cp "$TOKSTATE" "$TMP/state.before"; rm -f "$TOKSTATE"
 out=$(FAKE_TOK_POST_FAIL=1 run); rc=$?; x=$(s22b "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: token authenticated but a post to fleet-token-probe on .107 was not accepted" && [ ! -e "$TOKSTATE" ]; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub: token authenticated but a post to fleet-token-probe on .107 was not accepted" && [ ! -e "$TOKSTATE" ]; then
     ok "22b: a post that is not accepted => FAILED, nothing recorded"
 else bad "22b post fail" "rc=$rc: $x"; fi
 out=$(FAKE_RR_AUTH_RC=1 run); rc=$?; x=$(s22b "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: channel list --hub 192.168.10.107:9100 with the token-only config did not authenticate" && [ ! -e "$TOKSTATE" ]; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub: channel list --hub 192.168.10.107:9100 with the token-only config did not authenticate" && [ ! -e "$TOKSTATE" ]; then
     ok "22b: token-only config does not authenticate => FAILED, nothing recorded"
 else bad "22b auth fail" "rc=$rc: $x"; fi
 n=$(mints); out=$(FAKE_TOK_DOWN=1 run); rc=$?; x=$(s22b "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: no answer over remote exec" && [ "$(mints)" = "$n" ]; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub: no answer over remote exec" && [ "$(mints)" = "$n" ]; then
     ok "22b: unreachable host => FAILED, nothing minted"
 else bad "22b down" "rc=$rc: $x"; fi
 out=$(FAKE_MINT_FAIL=1 run); rc=$?; x=$(s22b "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: minting on .107 failed" && [ ! -e "$TOKSTATE" ]; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub: minting on .107 failed" && [ ! -e "$TOKSTATE" ]; then
     ok "22b: the mint fails => FAILED, nothing written"
 else bad "22b mint fail" "rc=$rc: $x"; fi
 out=$(FAKE_MINT_SCOPE=execute run); rc=$?; x=$(s22b "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: the mint did not produce an Interact token" && [ ! -e "$TOKSTATE" ]; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub: the mint did not produce an Interact token" && [ ! -e "$TOKSTATE" ]; then
     ok "22b: a mint that is not Interact is refused, nothing written"
 else bad "22b scope" "rc=$rc: $x"; fi
 printf '\n[hubs.other-107]\naddress = "192.168.10.107:9100"\nsecret_file = "/x"\n' >> "$TR/.termlink/hubs.toml"
 out=$(run); rc=$?; x=$(s22b "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub has 2 profiles at 192.168.10.107:9100" && [ ! -e "$TOKSTATE" ]; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub has 2 profiles at 192.168.10.107:9100" && [ ! -e "$TOKSTATE" ]; then
     ok "22b: two profiles at .107 (which one the CLI uses is undefined) => FAILED, nothing written"
 else bad "22b ambiguous" "rc=$rc: $x"; fi
 tok_reset; out=$(run); rc=$?
@@ -1766,7 +1769,7 @@ if [ "$rc" = 0 ] && [ -z "$o" ] && [ -e "$F/tok-hb" ] && [ "$(mints)" = "$n" ] &
 else bad "remint cron healthy" "rc=$rc: $o"; fi
 sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 7200 ))/" "$TOKSTATE"
 o=$(FAKE_TOK_POST_FAIL=1 cronrun); rc=$?
-if [ "$rc" = 1 ] && echo "$o" | grep -qE '^[0-9T:-]+Z FAILED  fake-hub: token authenticated but a post' && grep -q '^urgent-token-expiring|T-3615: 1 fleet token re-mint' "$F/tok-notes"; then
+if [ "$rc" = 1 ] && echo "$o" | grep_all -E '^[0-9T:-]+Z FAILED  fake-hub: token authenticated but a post' && grep -q '^urgent-token-expiring|T-3615: 1 fleet token re-mint' "$F/tok-notes"; then
     ok "remint cron: a failed re-mint is one timestamped FAILED line + an urgent needs-attention note (token expires within a day)"
 else bad "remint cron fail" "rc=$rc: $o / $(cat "$F/tok-notes" 2>/dev/null)"; fi
 sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 200000 ))/" "$TOKSTATE"; rm -f "$F/tok-notes"
@@ -1795,17 +1798,17 @@ s23() { echo "$1" | sed -n '/^.*23\. Daily telemetry rollup/,/^.*Verification/p'
 rr_reset() { rm -rf "$F/rr-root" "$F/rollup-cmds"; rm -f "$RUNME_REMOTE_ROLLUP_CRON"; }
 rr_reset
 out=$(RUNME_ROLLUP_CREDENTIAL_DECISION="" run); rc=$?; x=$(s23 "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "HELD    no credential decision recorded (T-3615 Q3" \
+if [ "$rc" = "0" ] && echo "$x" | grep_all "HELD    no credential decision recorded (T-3615 Q3" \
    && [ ! -e "$F/rr-root" ] && [ ! -e "$RUNME_REMOTE_ROLLUP_CRON" ] && [ ! -s "$F/rollup-cmds" ] \
-   && echo "$out" | grep -qE " 1 held, 0 failed"; then
+   && echo "$out" | grep_all -E " 1 held, 0 failed"; then
     ok "rollup: default (no credential decision recorded) is HELD, rc 0, nothing probed or written (T-3615 Q3)"
 else bad "rollup held default" "rc=$rc: $x"; fi
 out=$(run --dry-run); x=$(s23 "$out")
-if echo "$x" | grep -q "would install the rollup on fake-hub" && [ ! -e "$F/rr-root" ] && [ ! -e "$RUNME_REMOTE_ROLLUP_CRON" ]; then
+if echo "$x" | grep_all "would install the rollup on fake-hub" && [ ! -e "$F/rr-root" ] && [ ! -e "$RUNME_REMOTE_ROLLUP_CRON" ]; then
     ok "rollup: --dry-run probes, reports the install, writes nothing"
 else bad "rollup dry-run" "$x"; fi
 out=$(run); rc=$?; x=$(s23 "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: rollup installed and verified" \
+if [ "$rc" = "0" ] && echo "$x" | grep_all "OK      fake-hub: rollup installed and verified" \
    && cmp -s "$REPO_ROOT/scripts/telemetry-rollup.sh" "$F/rr-root/scripts/telemetry-rollup.sh" \
    && grep -q '^TELEMETRY_HUB=192.168.10.107:9100$' "$RUNME_REMOTE_ROLLUP_CRON" && grep -q '^TELEMETRY_HOST=fake-hub$' "$RUNME_REMOTE_ROLLUP_CRON" \
    && grep -q '^TERMLINK_WORKER_CLASS=background$' "$RUNME_REMOTE_ROLLUP_CRON" \
@@ -1820,31 +1823,31 @@ if grep -q "^TELEMETRY_TERMLINK=$F/rr-root/bin/termlink-107-token$" "$RUNME_REMO
 else bad "rollup token wrapper" "$(cat "$F/tok-auth" 2>/dev/null)"; fi
 : > "$F/rollup-cmds"
 out=$(run); rc=$?; x=$(s23 "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "skip    fake-hub already runs the current rollup daily" && ! grep -q RUNME-ROLLUP-INSTALL "$F/rollup-cmds" 2>/dev/null; then
+if [ "$rc" = "0" ] && echo "$x" | grep_all "skip    fake-hub already runs the current rollup daily" && ! grep -q RUNME-ROLLUP-INSTALL "$F/rollup-cmds" 2>/dev/null; then
     ok "rollup: second run skips (sha256 identical), no install command sent"
 else bad "rollup idempotent" "rc=$rc: $x"; fi
 echo "# stale" >> "$F/rr-root/scripts/telemetry-rollup.sh"; : > "$F/rollup-cmds"
 out=$(run); rc=$?; x=$(s23 "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: rollup installed" && cmp -s "$REPO_ROOT/scripts/telemetry-rollup.sh" "$F/rr-root/scripts/telemetry-rollup.sh"; then
+if [ "$rc" = "0" ] && echo "$x" | grep_all "OK      fake-hub: rollup installed" && cmp -s "$REPO_ROOT/scripts/telemetry-rollup.sh" "$F/rr-root/scripts/telemetry-rollup.sh"; then
     ok "rollup: a drifted remote script is reinstalled"
 else bad "rollup drift" "rc=$rc: $x"; fi
 rr_reset
 out=$(FAKE_RR_AUTH_RC=1 run); rc=$?; x=$(s23 "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub cannot authenticate to .107 (192.168.10.107:9100) with the token-only config" && echo "$x" | grep -q "action 22b installs it" \
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub cannot authenticate to .107 (192.168.10.107:9100) with the token-only config" && echo "$x" | grep_all "action 22b installs it" \
    && [ ! -e "$F/rr-root" ] && [ ! -e "$RUNME_REMOTE_ROLLUP_CRON" ]; then
     ok "rollup: no verified token for .107 => FAILED naming action 22b, nothing written"
 else bad "rollup no auth" "rc=$rc: $x"; fi
 out=$(FAKE_RR_DOWN=1 run); rc=$?; x=$(s23 "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: no answer over remote exec" && [ ! -e "$F/rr-root" ]; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub: no answer over remote exec" && [ ! -e "$F/rr-root" ]; then
     ok "rollup: unreachable hub => FAILED, nothing written"
 else bad "rollup down" "rc=$rc: $x"; fi
 out=$(RUNME_REMOTE_TL="$F/no-such-termlink" run); rc=$?; x=$(s23 "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub lacks python3 or termlink" && [ ! -e "$F/rr-root" ]; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub lacks python3 or termlink" && [ ! -e "$F/rr-root" ]; then
     ok "rollup: termlink missing on the remote => FAILED, nothing written"
 else bad "rollup no termlink" "rc=$rc: $x"; fi
 printf '#!/bin/sh\nexit 1\n' > "$F/bad-src.sh"; rr_reset
 out=$(RUNME_ROLLUP_SRC="$F/bad-src.sh" run); rc=$?; x=$(s23 "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub after install: .*dry run failed"; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub after install: .*dry run failed"; then
     ok "rollup: files in place but the installed rollup's dry run fails => FAILED (verified, not assumed)"
 else bad "rollup verify dry run" "rc=$rc: $x"; fi
 rr_reset
@@ -1860,65 +1863,65 @@ earlier() { sed -i "s/^verified_at=.*/verified_at=$(( $(date +%s) - 100 ))/" "$T
 r24() { RUNME_SECRET_REMOVAL_HUBS=fake-hub run "$@"; }
 tok_reset; run >/dev/null; earlier; cp "$TR/.termlink/hubs.toml" "$TMP/hubs.before"
 out=$(r24); rc=$?; x=$(s24 "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "HELD    fake-hub: no removal decision recorded" && [ -e "$SECF" ] && cmp -s "$TMP/hubs.before" "$TR/.termlink/hubs.toml"; then
+if [ "$rc" = "0" ] && echo "$x" | grep_all "HELD    fake-hub: no removal decision recorded" && [ -e "$SECF" ] && cmp -s "$TMP/hubs.before" "$TR/.termlink/hubs.toml"; then
     ok "24: default (no per-host decision) is HELD, rc 0, the secret stays"
 else bad "24 held default" "rc=$rc: $x"; fi
 export RUNME_SECRET_REMOVAL_DECISION_fake_hub="fixture: host confirmed"
 rm -f "$TOKSTATE"; out=$(r24); rc=$?; x=$(s24 "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "HELD    fake-hub: decided (fixture: host confirmed), but its token path was not verified on an earlier run" && [ -e "$SECF" ]; then
+if [ "$rc" = "0" ] && echo "$x" | grep_all "HELD    fake-hub: decided (fixture: host confirmed), but its token path was not verified on an earlier run" && [ -e "$SECF" ]; then
     ok "24: decided, but the token was proven only in THIS run => HELD, the secret stays"
 else bad "24 same run" "rc=$rc: $x"; fi
 # greenfield ruling B: an "after-remint" decision also waits for the first automatic re-mint.
 export RUNME_SECRET_REMOVAL_DECISION_fake_hub="after-remint: fixture"
 earlier; first0="$(sed -n 's/^first_verified_at=//p' "$TOKSTATE")"
 out=$(r24); rc=$?; x=$(s24 "$out")
-if [ "$rc" = "0" ] && grep -qx 'mints=1' "$TOKSTATE" && echo "$x" | grep -q "HELD    fake-hub: decided (after-remint: fixture), waits for the first automatic re-mint to verify (verified mints on record: 1)" && [ -e "$SECF" ]; then
+if [ "$rc" = "0" ] && grep -qx 'mints=1' "$TOKSTATE" && echo "$x" | grep_all "HELD    fake-hub: decided (after-remint: fixture), waits for the first automatic re-mint to verify (verified mints on record: 1)" && [ -e "$SECF" ]; then
     ok "24: after-remint decision with only the first install on record (mints=1) => HELD, the secret stays"
 else bad "24 after-remint held" "rc=$rc: $(grep mints "$TOKSTATE") $x"; fi
 sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 60 ))/" "$TOKSTATE"; out=$(r24); x=$(s24 "$out")
-if grep -qx 'mints=2' "$TOKSTATE" && grep -qx "first_verified_at=$first0" "$TOKSTATE" && echo "$x" | grep -q "HELD    fake-hub: decided (after-remint: fixture), but its token path was not verified on an earlier run"; then
+if grep -qx 'mints=2' "$TOKSTATE" && grep -qx "first_verified_at=$first0" "$TOKSTATE" && echo "$x" | grep_all "HELD    fake-hub: decided (after-remint: fixture), but its token path was not verified on an earlier run"; then
     ok "24: a re-mint counts (mints=2, first_verified_at kept); proven in THIS run => still HELD until the next run"
 else bad "24 remint counted" "$(cat "$TOKSTATE") / $x"; fi
 earlier; out=$(r24 --dry-run); x=$(s24 "$out")
-if echo "$x" | grep -q "\[DRY\]   would remove secret_file from fake-hub's .107 profile .*(decision: after-remint: fixture)" && [ -e "$SECF" ]; then
+if echo "$x" | grep_all "\[DRY\]   would remove secret_file from fake-hub's .107 profile .*(decision: after-remint: fixture)" && [ -e "$SECF" ]; then
     ok "24: after the re-mint verified on an earlier run, the after-remint decision proceeds (dry-run names it)"
 else bad "24 after-remint proceeds" "$x"; fi
 export RUNME_SECRET_REMOVAL_DECISION_fake_hub="fixture: host confirmed"
 earlier; out=$(r24 --dry-run); x=$(s24 "$out")
-if echo "$x" | grep -q "\[DRY\]   would remove secret_file from fake-hub's .107 profile and move $SECF" && [ -e "$SECF" ] && grep -q '^secret_file = ".*/107-hub.hex"' "$TR/.termlink/hubs.toml"; then
+if echo "$x" | grep_all "\[DRY\]   would remove secret_file from fake-hub's .107 profile and move $SECF" && [ -e "$SECF" ] && grep -q '^secret_file = ".*/107-hub.hex"' "$TR/.termlink/hubs.toml"; then
     ok "24: --dry-run names the removal and changes nothing"
 else bad "24 dry-run" "$x"; fi
 echo "secret_file = \"$SECF\"" > "$F/tok-refs/sidecar.env"
 out=$(r24); rc=$?; x=$(s24 "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: the secret file .* is still named elsewhere (profiles: none; files: $F/tok-refs/sidecar.env)" && [ -e "$SECF" ]; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub: the secret file .* is still named elsewhere (profiles: none; files: $F/tok-refs/sidecar.env)" && [ -e "$SECF" ]; then
     ok "24: another file on the host still names the secret file => FAILED, nothing changed"
 else bad "24 refs" "rc=$rc: $x"; fi
 rm -f "$F/tok-refs/sidecar.env"
 cp "$TR/.termlink/hubs.toml" "$TMP/hubs.pre"; : > "$F/tok-auth"
 out=$(FAKE_TOK_POST_FAIL=1 r24); rc=$?; x=$(s24 "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q "FAILED  fake-hub: authenticated, but a post to fleet-token-probe was not accepted; put hubs.toml and .* back" \
+if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub: authenticated, but a post to fleet-token-probe was not accepted; put hubs.toml and .* back" \
    && [ -e "$SECF" ] && [ ! -e "$SECF.t3615-retired" ] && cmp -s "$TMP/hubs.pre" "$TR/.termlink/hubs.toml"; then
     ok "24: verification fails after the removal => FAILED and hubs.toml + the secret file are put back"
 else bad "24 rollback" "rc=$rc: $x"; fi
 : > "$F/tok-auth"; out=$(r24); rc=$?; x=$(s24 "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "OK      fake-hub: .107's full secret removed from its profile" \
+if [ "$rc" = "0" ] && echo "$x" | grep_all "OK      fake-hub: .107's full secret removed from its profile" \
    && [ ! -e "$SECF" ] && [ "$(stat -c %a "$SECF.t3615-retired")" = 600 ] && [ -e "$TR/.termlink/hubs.toml.t3615-pre-removal" ] \
    && ! grep -q '107-hub.hex' "$TR/.termlink/hubs.toml" && grep -q '^secret_file = "/nonexistent/local.hex"$' "$TR/.termlink/hubs.toml" \
    && grep -q "^token_file = \"$TOKF\"$" "$TR/.termlink/hubs.toml" && grep -qx "post token $TR" "$F/tok-auth"; then
     ok "24: removes only the .107 secret_file line, moves the file to a 0600 .t3615-retired copy, and mail authenticates with the token through the REAL config"
 else bad "24 remove" "rc=$rc: $x / $(cat "$F/tok-auth")"; fi
 out=$(r24); rc=$?; x=$(s24 "$out")
-if [ "$rc" = "0" ] && echo "$x" | grep -q "skip    fake-hub: .107's secret already removed from its profile; mail still authenticates"; then
+if [ "$rc" = "0" ] && echo "$x" | grep_all "skip    fake-hub: .107's secret already removed from its profile; mail still authenticates"; then
     ok "24: second run re-verifies and skips (idempotent)"
 else bad "24 idempotent" "rc=$rc: $x"; fi
 out=$(r24); x=$(s22b "$out")
-if echo "$x" | grep -q "skip    fake-hub: verified token on record"; then
+if echo "$x" | grep_all "skip    fake-hub: verified token on record"; then
     ok "24: action 22b still recognises the host after the removal (token_file line intact)"
 else bad "24 then 22b" "$x"; fi
 tok_reset; run >/dev/null; earlier
 sed -i 's|^secret_file = ".*/107-hub.hex"$|secret = "00"|' "$TR/.termlink/hubs.toml"
 out=$(r24); rc=$?; x=$(s24 "$out")
-if [ "$rc" = "1" ] && echo "$x" | grep -q 'FAILED  fake-hub: the .107 profile holds an inline secret' && grep -q '^secret = "00"$' "$TR/.termlink/hubs.toml"; then
+if [ "$rc" = "1" ] && echo "$x" | grep_all 'FAILED  fake-hub: the .107 profile holds an inline secret' && grep -q '^secret = "00"$' "$TR/.termlink/hubs.toml"; then
     ok "24: an inline secret is refused (left for a hand edit), nothing changed"
 else bad "24 inline" "rc=$rc: $x"; fi
 unset RUNME_SECRET_REMOVAL_DECISION_fake_hub
@@ -1940,22 +1943,22 @@ EOC
 rm -f "$TMP"/crontab.bak.T-476*; }
 want_ct=$'0 6 * * * /opt/x/update.sh\n# other job'
 seed_ct; out=$(run --dry-run); x=$(s25 "$out")
-if echo "$x" | grep -q '\[DRY\]   would remove 4 ntfy line(s)' && grep -q ntfy "$CT"; then
+if echo "$x" | grep_all '\[DRY\]   would remove 4 ntfy line(s)' && grep -q ntfy "$CT"; then
     ok "25: --dry-run names the 4 lines and changes nothing"
 else bad "25 dry-run" "$x"; fi
 out=$(run); rc=$?; x=$(s25 "$out")
-if [ "$rc" = 0 ] && echo "$x" | grep -q 'OK      removed 4 ntfy line(s) from root.s crontab; every other line verified unchanged' \
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'OK      removed 4 ntfy line(s) from root.s crontab; every other line verified unchanged' \
    && [ "$(cat "$CT")" = "$want_ct" ] && [ "$(stat -c %a "$TMP/crontab.bak.T-476")" = 600 ] && grep -q 'health-check.sh' "$TMP/crontab.bak.T-476"; then
     ok "25: removes exactly the 2 ntfy jobs + 2 comments, keeps every other line in order, 0600 backup holds the original"
 else bad "25 remove" "rc=$rc: $x / $(cat "$CT")"; fi
 out=$(run); x=$(s25 "$out")
-if echo "$x" | grep -q 'skip    no ntfy line from 150-skills-manager'; then ok "25: second run skips (idempotent)"; else bad "25 idempotent" "$x"; fi
+if echo "$x" | grep_all 'skip    no ntfy line from 150-skills-manager'; then ok "25: second run skips (idempotent)"; else bad "25 idempotent" "$x"; fi
 seed_ct; out=$(FAKE_CT_REFUSE=1 run); rc=$?; x=$(s25 "$out")
-if [ "$rc" = 1 ] && echo "$x" | grep -q 'FAILED  crontab refused the edited table; restored' && [ "$(grep -c ntfy "$CT")" = 4 ]; then
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  crontab refused the edited table; restored' && [ "$(grep -c ntfy "$CT")" = 4 ]; then
     ok "25: crontab refuses the edit => FAILED, the original is restored"
 else bad "25 refuse" "rc=$rc: $x"; fi
 seed_ct; out=$(FAKE_CT_DRIFT=1 run); rc=$?; x=$(s25 "$out")
-if [ "$rc" = 1 ] && echo "$x" | grep -q 'FAILED  the installed crontab is not the old one minus the 4 ntfy line(s); restored' && [ "$(grep -c ntfy "$CT")" = 4 ]; then
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  the installed crontab is not the old one minus the 4 ntfy line(s); restored' && [ "$(grep -c ntfy "$CT")" = 4 ]; then
     ok "25: installed table differs from old-minus-ntfy => FAILED, the original is restored"
 else bad "25 drift" "rc=$rc: $x"; fi
 printf '0 6 * * * /opt/x/update.sh\n# other job\n' > "$CT"; rm -f "$TMP"/crontab.bak.T-476*
