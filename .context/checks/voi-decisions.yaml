@@ -1,7 +1,8 @@
 # voi_score decision store (T-3175). Managed by scripts/voi-prompt.sh.
-# `runs` counts --check invocations; a snooze recorded at run R is
-# askable again at R + snooze_runs. `history` is append-only.
-runs: 49
+# `runs` is the --check count as of the last --record (a floor; the live
+# count is untracked, T-3508). A snooze recorded at run R is askable
+# again at R + snooze_runs. `history` is append-only.
+runs: 84
 decisions:
   task:T-3200:
     choice: waive
@@ -80,6 +81,31 @@ decisions:
     recorded_at: '2026-10-21T16:02:58+00:00'
     recorded_at_run: 49
     value: '0.6'
+  task:T-3612:
+    choice: set
+    recorded_at: '2026-10-27T22:01:40+00:00'
+    recorded_at_run: 74
+    value: '0.9'
+  task:T-3534:
+    choice: set
+    recorded_at: '2026-10-31T19:46:45+00:00'
+    recorded_at_run: 84
+    value: '0.7'
+  task:T-3553:
+    choice: set
+    recorded_at: '2026-10-31T19:46:45+00:00'
+    recorded_at_run: 84
+    value: '0.6'
+  task:T-3596:
+    choice: set
+    recorded_at: '2026-10-31T19:46:45+00:00'
+    recorded_at_run: 84
+    value: '0.5'
+  task:T-3548:
+    choice: set
+    recorded_at: '2026-10-31T19:46:45+00:00'
+    recorded_at_run: 84
+    value: '0.4'
 history:
 - key: task:T-3200
   choice: waive
@@ -158,3 +184,28 @@ history:
   recorded_at: '2026-10-21T16:02:58+00:00'
   recorded_at_run: 49
   value: '0.6'
+- key: task:T-3612
+  choice: set
+  recorded_at: '2026-10-27T22:01:40+00:00'
+  recorded_at_run: 74
+  value: '0.9'
+- key: task:T-3534
+  choice: set
+  recorded_at: '2026-10-31T19:46:45+00:00'
+  recorded_at_run: 84
+  value: '0.7'
+- key: task:T-3553
+  choice: set
+  recorded_at: '2026-10-31T19:46:45+00:00'
+  recorded_at_run: 84
+  value: '0.6'
+- key: task:T-3596
+  choice: set
+  recorded_at: '2026-10-31T19:46:45+00:00'
+  recorded_at_run: 84
+  value: '0.5'
+- key: task:T-3548
+  choice: set
+  recorded_at: '2026-10-31T19:46:45+00:00'
+  recorded_at_run: 84
+  value: '0.4'

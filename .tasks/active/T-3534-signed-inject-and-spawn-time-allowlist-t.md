@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-10-21T18:36:49Z
-last_update: 2026-10-21T18:36:49Z
+last_update: 2026-10-31T19:46:51Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -20,7 +20,7 @@ date_finished: null
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
-voi_score:                        # float 0..1. Value of Information — expected value of resolving this question,
+voi_score: 0.7                    # agent-set under the operator's standing delegation (2026-10-31, ruling A): decides who may type into whose terminal — the security core of the "control sessions" verb. — float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
                                   # T-3172: deliberately EMPTY — set a considered value. 0.5 (and 0.3/0.4) score 2, the same as "not assessed".
 ---

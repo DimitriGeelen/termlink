@@ -2086,3 +2086,38 @@ decisions:
     date: 2026-10-27
     task: T-3598
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-292
+    decision: "3-way merge (base be.49 4877afc73, theirs v1.8.15), 0 conflicts. The merged copy carries T-4880 and"
+    scope: project
+    date: 2026-10-29
+    task: T-3626
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-293
+    decision: "record it as an intermittent project-side fixture, not an upgrade regression."
+    scope: project
+    date: 2026-10-29
+    task: T-3626
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-294
+    decision: "B (operator: \"As suggested\", after the external consultation, docs/reports/T-3628-consult/)."
+    scope: project
+    date: 2026-10-29
+    task: T-3628
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-295
+    decision: "C (operator: \"C, as suggested\"). Build a dated \"expected red\" WARN: a guard header may declare"
+    scope: project
+    date: 2026-10-31
+    task: T-3580
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-296
+    decision: "Standing delegation: the agent sets voi_score on every new inception (marked agent-set, one-line reason, listed in the handover); the operator may override any value at any time"
+    scope: project
+    date: 2026-10-31
+    task: T-3200
+    rationale: "Operator ruling A, 2026-10-31 (after delegating per batch on 2026-09-29 and 2026-10-18). Ends the voi-prompt WARN guard's recurring escalation while keeping every value labelled and overridable."
