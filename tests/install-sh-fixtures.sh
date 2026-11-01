@@ -15,7 +15,9 @@ check() { if eval "$2"; then ok "$1"; else bad "$1"; fi; }
 command -v curl >/dev/null || { echo "TOOLING: curl needed"; exit 2; }
 
 # The artifact name install.sh picks on this host.
-if [ -r /etc/alpine-release ] || ! (ldd --version 2>&1 | grep -qi 'glibc\|gnu libc'); then ART=termlink-linux-x86_64-static; else ART=termlink-linux-x86_64; fi
+# T-3631: grep WITHOUT -q reads all of ldd's output; `| grep -q` under pipefail returned 141 at random (L-387,
+# 2 in 300), which picked the static artifact while install.sh (no pipefail) picked the glibc one.
+if [ -r /etc/alpine-release ] || ! (ldd --version 2>&1 | grep -i 'glibc\|gnu libc' >/dev/null); then ART=termlink-linux-x86_64-static; else ART=termlink-linux-x86_64; fi
 [ "$(uname -m)" = x86_64 ] || { echo "TOOLING: fixture assumes x86_64"; exit 2; }
 
 mkrel() {  # mkrel <dir> <version-label>

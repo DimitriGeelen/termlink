@@ -1,13 +1,19 @@
 ---
 id: T-3631
-name: "Static check: producer | grep -q under pipefail in scripts/ (L-387 class; 41 scripts, found by T-3627)"
+name: "Static check: producer | grep -q under pipefail in scripts/ (L-387 class; 41
+  scripts, found by T-3627)"
 description: >
-  T-3627 traced the runme fixture flakes to 'printf/echo/cmd | grep -q' under set -o pipefail: grep exits on the first match, the producer takes SIGPIPE, the pipeline returns 141 and reads as no-match, at random once the input is over a few KB. check-verification-pipefail.sh guards only task Verification blocks. 41 scripts under scripts/ still carry the shape. Build a guard-layer static check (WARN tier) and convert the sites (grep_all helper or here-string).
+  T-3627 traced the runme fixture flakes to 'printf/echo/cmd | grep -q' under set
+  -o pipefail: grep exits on the first match, the producer takes SIGPIPE, the pipeline
+  returns 141 and reads as no-match, at random once the input is over a few KB. check-verification-pipefail.sh
+  guards only task Verification blocks. 41 scripts under scripts/ still carry the
+  shape. Build a guard-layer static check (WARN tier) and convert the sites (grep_all
+  helper or here-string).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [bug, guard-layer, tests]
 components: []
 related_tasks: []
@@ -38,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-31T13:13:38Z
-last_update: 2026-10-31T13:13:38Z
-date_finished: null
+last_update: 2026-11-01T09:41:15Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +56,48 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-01T09:40:34Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3631: Static check: producer | grep -q under pipefail in scripts/ (L-387 class; 41 scripts, found by T-3627)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-3627 traced the runme fixture flakes to `producer | grep -q` under `set -o pipefail` (L-387):
+grep exits on the first match, the producer takes SIGPIPE, the pipeline returns 141 and reads as "no match". AEF fixed
+the same class in its hooks (T-4920/T-4921, fail-open Tier 0 and boundary). On 2026-11-01 the guard layer failed
+`tests/install-sh-fixtures.sh` the same way (`ldd --version | grep -qi glibc`: 2 misses in 300 under pipefail).
+
+**Problem / hypothesis:** 41+ scripts under `scripts/` and `tests/` still carry the shape under pipefail; each is a
+random false "no match", and nothing checks for it outside task Verification blocks.
+
+**Goal:** convert the sites and add a guard-layer static check so the shape cannot come back.
+
+**Expected outcome:** no `| grep -q` under pipefail in scripts/ or tests/ (outside comments), a static check that
+fires on a new one, and no more random fixture flakes of this class.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `tests/install-sh-fixtures.sh` glibc detection no longer pipes into `grep -q` (first site, 2026-11-01; 0/300
+  misses with the fixed form vs 2/300 before; suite 13/13 x3)
+- [ ] Every remaining `producer | grep -q` under pipefail in scripts/ and tests/ converted (grep_all helper,
+  here-string, or grep without -q), each file still passing its own tests
+- [ ] A guard-layer static check (`scripts/check-pipefail-grep-q.sh`) fires on a new site, with fixtures and a mutant
+- [ ] Guard layer: no new FAIL
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +398,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3631-static-check-producer--grep--q-under-pip.md
 - **Context:** Initial task creation
+
+### 2026-11-01T09:40:34Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
