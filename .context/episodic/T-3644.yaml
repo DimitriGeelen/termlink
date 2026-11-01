@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3644: DP-3 guard cap enforcement: baseline the 99 check scripts and 34 canary crons, fail when either rises (T-3612 draft v0.9 section 6.7)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T21:36:56Z
+# ============================================================================
+
+task_id: T-3644
+task_name: "DP-3 guard cap enforcement: baseline the 99 check scripts and 34 canary crons, fail when either rises (T-3612 draft v0.9 section 6.7)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-01T16:09:09Z
+completed: 2026-11-01T21:36:41Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-01T22:36:07+01:00
+last_commit: 2026-11-01T22:36:07+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  DP-3 guard cap enforced — baseline of 99 checks / 34 canary crons / 12 operational crons; check-guard-severity-markers fails naming a NEWCOMER or OVER-CAP, exit 2 when it cannot count; 11 fixture cases; doc says how to add a guard
+
+# Key outcomes
+outcomes:
+  - 'Baseline file committed listing every counted `scripts/check-*.sh` and every counted canary cron job (the 12'
+  - 'The enforcement is added WITHOUT a new `scripts/check-*.sh` (that would itself break the cap): extend an existing'
+  - 'Fixtures: a new check file -> FAIL naming it; a retired one -> PASS (count went down); today''s repo -> PASS'
+  - '`docs/operations/guard-layer-and-canaries.md` says how to add a guard (retire one, update the baseline in the same'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'DP-3 guard cap enforced — baseline of 99 checks / 34 canary crons / 12 operational crons; check-guard-severity-markers fails naming a NEWCOMER or OVER-CAP, exit 2 when it cannot count; 11 fixture cases; doc says how to add a guard'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-01 — where the cap lives and what a canary is'
+    chose: 'enforcement inside `scripts/check-guard-severity-markers.sh` against the tracked baseline `.context/checks/guard-cap-baseline`. A counted canary is a `.context/cron/*.crontab` whose name contains `canary`. The 12 others are listed as `operational`, so any NEW crontab must be classified and a canary cannot escape the count by its name.'
+    rationale: 'counted today, 99 `scripts/check-*.sh`, 34 `*canary*.crontab`, 12 other crontabs; these equal the draft''s 99/34/12. The baseline also carries `cap` lines, and listing past them fires OVER-CAP, so the cap cannot be met by only appending to the baseline.'
+    alternatives_rejected: ['a new check script (breaks the cap), and counting cron lines rather than crontab files (agentic-audit.crontab alone holds 16 lines, so that count would not match the ruling''s 34).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/guard-cap-baseline'
+  - '.tasks/active/T-3644-dp-3-guard-cap-enforcement-baseline-the-.md'
+  - 'CLAUDE.md'
+  - 'docs/operations/guard-layer-and-canaries.md'
+  - 'scripts/check-guard-severity-markers.sh'
+  - 'tests/guard-layer-severity-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-01T22:36:07'
+    action: 'T-3644: DP-3 guard cap enforced — baseline of 99 checks / 34 canary crons / 12 operational crons; check-guard-severity-markers fails naming a NEWCOMER or OVER-CAP, exit 2 when it cannot count; 11 fixture cases; doc says how to add a guard'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 327 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [dp-3, guards, cap]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 327
+  commits: 3
+  files_changed: 10
+  lines_added: 547
+  lines_removed: 32
+  footprint_refreshed_at: '2026-11-01T21:37:06Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3644-dp-3-guard-cap-enforcement-baseline-the-.md
+generated_by: context-agent-hybrid
