@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-29T08:13:38Z
-last_update: 2026-11-01T11:05:06Z
+last_update: 2026-11-01T12:24:45Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -357,6 +357,19 @@ adoption.
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-01 — final-review blocking finding 1: how the product drivers reach scoring — A (operator ruling)
+- **Chose:** A (operator: "Proceed as suggested"). The product set is declarative until AEF supports per-layer driver
+  sets: recorded in `policy/value-drivers-product.yaml`; ordinary BVP rankings stay development rankings; product
+  decisions carry an explicitly labelled "product set" score. The per-layer ask is sent to AEF and tracked by a task.
+  The 2026-10-29 ruling A (development set live) stands.
+- **Why:** the 10-29 recommendation's mechanism was false — the agent cited `bvp.sh:1503` (an explain command) as the
+  delivery path; all four final-round reviewers showed the live file wins collisions (`estimator.py:2727-2736`),
+  D1–D4 cannot be scoped, scoped weight ≤6 and ≤3 per arc (`arc.sh:1567,1624`), and rankings read only the live
+  file. The draft's "AEF is asked" was also untrue (no ask had been sent). Scored A +20, D +11, B −7, C −11.
+- **Rejected:** B (swap files: development work, the majority, would rank by the product set), C (merged set: blurs
+  both, passed over on 10-29), D (local patch of bvp.sh/estimator.py: forks the framework scorer).
+- **Left open:** if AEF declines, B vs D returns to the operator.
 
 ### 2026-11-01 — open point 5: F-CONV-RECALL retire condition — A (operator ruling)
 - **Chose:** A (operator: "A, as suggested"). Retire when arc-012 closes with a bound prover covering gap notices,

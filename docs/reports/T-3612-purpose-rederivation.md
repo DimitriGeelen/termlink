@@ -166,3 +166,10 @@ The 2026-10-27 value-review run (T-3609) could not confirm its yardstick because
    written now / C new objective P-8 / D no retire condition; recommended A, combining antigravity's trigger with
    codex's tests through the arc-claim-drift prover rule). Operator: "A, as suggested." Recorded as A; draft v0.8, all
    open points ruled.
+20. 2026-11-01, final outside review (round 2 of 2, four seats, all "adopt with the listed changes";
+   `T-3612-round5-review-synthesis.md`). Agent's corrections first: the 10-29 live-driver-file recommendation cited
+   `bvp.sh:1503` as how the product set reaches product work, which is false (the live file wins, D1–D4 cannot be
+   scoped, scoped weight ≤6, ≤3 per arc, rankings read only the live file); "AEF is asked" was also untrue; and the
+   agent's T-3631 ratchet took `check-*.sh` to 100 against the DP-3 freeze at 99. Then put: how the product set
+   reaches scoring (A declarative + labelled product scores + AEF per-layer ask, tracked as T-3638 / B swap files /
+   C merged set / D local framework patch; recommended A). Operator: "Proceed as suggested." Recorded as A.
