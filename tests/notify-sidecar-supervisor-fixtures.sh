@@ -78,7 +78,7 @@ else bad "missing sidecar script => exit 2" "rc=$rc: $out"; fi
 # ---------------------------------------------------------------------------
 conf "# a comment" "" "fxa deadbeefdeadbeef"
 out=$(sup --dry-run); rc=$?
-if echo "$out" | grep -q "DRY-RUN.*would start fxa"; then ok "--dry-run names the agent it would start"
+if grep -q "DRY-RUN.*would start fxa" <<< "$out"; then ok "--dry-run names the agent it would start"
 else bad "--dry-run names agent" "$out"; fi
 if [ -z "$(pidof_fx fxa)" ]; then ok "--dry-run started nothing"
 else bad "--dry-run started nothing" "pid=$(pidof_fx fxa)"; fi
@@ -90,7 +90,7 @@ out=$(sup); rc=$?
 pid1="$(pidof_fx fxa)"
 if [ -n "$pid1" ] && [ "$rc" = "0" ]; then ok "starts a sidecar for a declared agent that has none"
 else bad "starts a declared agent" "rc=$rc pid='$pid1': $out"; fi
-if echo "$out" | grep -q "STARTED fxa"; then ok "reports the start (a non-empty log here is the evidence, not an alarm)"
+if grep -q "STARTED fxa" <<< "$out"; then ok "reports the start (a non-empty log here is the evidence, not an alarm)"
 else bad "reports the start" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -101,7 +101,7 @@ out=$(sup); rc=$?
 pid2="$(pidof_fx fxa)"
 if [ "$pid1" = "$pid2" ] && [ "$rc" = "0" ]; then ok "idempotent — same pid, nothing restarted"
 else bad "idempotent" "pid1=$pid1 pid2=$pid2 rc=$rc: $out"; fi
-if echo "$out" | grep -q "0 started"; then ok "second run reports 0 started"
+if grep -q "0 started" <<< "$out"; then ok "second run reports 0 started"
 else bad "second run reports 0 started" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ out=$(sup --stale-after 5); rc=$?
 pid4="$(pidof_fx fxa)"
 if [ "$rc" = "1" ]; then ok "stale heartbeat on a live process => exit 1 (attention needed)"
 else bad "husk => exit 1" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "HUSK fxa"; then ok "husk is named in the output"
+if grep -q "HUSK fxa" <<< "$out"; then ok "husk is named in the output"
 else bad "husk named" "$out"; fi
 if [ "$pid4" = "$pid3" ]; then ok "husk is NOT killed by default"
 else bad "husk not killed by default" "pid3=$pid3 pid4='$pid4'"; fi
@@ -134,7 +134,7 @@ else bad "husk not killed by default" "pid3=$pid3 pid4='$pid4'"; fi
 # ---------------------------------------------------------------------------
 conf "fxb"
 out=$(sup); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "no self-fp"; then ok "conf line with no self-fp is reported, not silently skipped"
+if [ "$rc" = "1" ] && grep -q "no self-fp" <<< "$out"; then ok "conf line with no self-fp is reported, not silently skipped"
 else bad "missing self-fp reported" "rc=$rc: $out"; fi
 
 # ---------------------------------------------------------------------------
@@ -142,7 +142,7 @@ else bad "missing self-fp reported" "rc=$rc: $out"; fi
 # ---------------------------------------------------------------------------
 conf "# only a comment" ""
 out=$(sup); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "0 ok, 0 started"; then ok "comments and blanks are not agents"
+if [ "$rc" = "0" ] && grep -q "0 ok, 0 started" <<< "$out"; then ok "comments and blanks are not agents"
 else bad "comments skipped" "rc=$rc: $out"; fi
 
 # ---------------------------------------------------------------------------
@@ -153,7 +153,7 @@ else bad "comments skipped" "rc=$rc: $out"; fi
 conf "fxb - --auto-confirm"
 out=$(sup); rc=$?
 pidb="$(pidof_fx fxb)"
-if [ -n "$pidb" ] && tr '\0' ' ' < "/proc/$pidb/cmdline" 2>/dev/null | grep -q -- "--auto-confirm"; then
+if [ -n "$pidb" ] && tr '\0' ' ' < "/proc/$pidb/cmdline" 2>/dev/null | grep -- "--auto-confirm" >/dev/null; then
     ok "per-agent flags from the conf reach the sidecar command line"
 else bad "flags passed through" "pid='$pidb' cmdline='$(tr '\0' ' ' < "/proc/$pidb/cmdline" 2>/dev/null)'"; fi
 
@@ -166,7 +166,7 @@ else bad "flags passed through" "pid='$pidb' cmdline='$(tr '\0' ' ' < "/proc/$pi
 conf "fxb - --auto-confirm --include-broadcast"
 out=$(sup); rc=$?
 pidc="$(pidof_fx fxb)"
-if [ "$rc" = "1" ] && echo "$out" | grep -q "FLAG-DRIFT fxb"; then ok "a flag added to the conf after start is reported as FLAG-DRIFT"
+if [ "$rc" = "1" ] && grep -q "FLAG-DRIFT fxb" <<< "$out"; then ok "a flag added to the conf after start is reported as FLAG-DRIFT"
 else bad "flag drift detected" "rc=$rc: $out"; fi
 if [ "$pidc" = "$pidb" ]; then ok "flag drift does NOT kill the running sidecar"
 else bad "drift must not kill" "pidb=$pidb pidc='$pidc'"; fi

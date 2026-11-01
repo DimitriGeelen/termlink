@@ -123,7 +123,7 @@ fi
 
 if out=$(pickup_dedup_hash "$EMPTY" 2>&1); then
     bad "dedup_hash refuses all-empty extraction" "returned 0 with output: $out"
-elif printf '%s' "$out" | grep -q "$POISON_DIGEST"; then
+elif grep -q "$POISON_DIGEST" <<< "$out"; then
     bad "dedup_hash refuses all-empty extraction" "emitted the poison digest"
 else
     ok "dedup_hash refuses all-empty extraction (the constant-digest bug)"
@@ -206,7 +206,7 @@ fi
 
 # the refusal names the offending field so the operator can act
 err=$(pickup_create_inception "$NOSUM" 2>&1 >/dev/null)
-if printf '%s' "$err" | grep -q "payload.summary"; then
+if grep -q "payload.summary" <<< "$err"; then
     ok "create_inception refusal names the missing field"
 else
     bad "create_inception refusal names the missing field" "stderr was: $err"

@@ -35,9 +35,9 @@ out_default="$(TERMLINK=/bin/true bash scripts/agent-send.sh \
     --to-session sess-b --topic "dm:aaa:bbb" --conversation-id "cid-test" \
     --message "hello" --dry-run 2>&1 | grep RESOLVED)"
 
-echo "$out_default" | grep -q -- "--rail dm:aaa:bbb" \
+grep -q -- "--rail dm:aaa:bbb" <<< "$out_default" \
     || fail "default doorbell missing '--rail dm:aaa:bbb' (got: $out_default)"
-echo "$out_default" | grep -q -- "--cid cid-test" \
+grep -q -- "--cid cid-test" <<< "$out_default" \
     || fail "default doorbell missing '--cid cid-test' (got: $out_default)"
 
 # --- Case 2: explicit --doorbell-text is preserved verbatim -------------------
@@ -45,9 +45,9 @@ out_custom="$(TERMLINK=/bin/true bash scripts/agent-send.sh \
     --to-session sess-b --topic "dm:aaa:bbb" --conversation-id "cid-test" \
     --message "hello" --doorbell-text "custom text" --dry-run 2>&1 | grep RESOLVED)"
 
-echo "$out_custom" | grep -q "doorbell_text=\[custom text\]" \
+grep -q "doorbell_text=\[custom text\]" <<< "$out_custom" \
     || fail "custom doorbell-text not preserved (got: $out_custom)"
-echo "$out_custom" | grep -q -- "--rail" \
+grep -q -- "--rail" <<< "$out_custom" \
     && fail "custom doorbell-text was wrongly rail-augmented (got: $out_custom)"
 
 echo "PASS: relay-b1 doorbell-rail — default stamps --rail/--cid; custom preserved"

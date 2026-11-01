@@ -31,7 +31,7 @@ cat > "$f" <<'EOF'
 EOF
 run "$f" 21
 [ "$RC" -eq 0 ] || fail "receipt-acks-offset should be CONSUMED exit 0 (got $RC: $OUT)"
-echo "$OUT" | grep -q '"consumed":true' || fail "expected consumed:true (got: $OUT)"
+grep -q '"consumed":true' <<< "$OUT" || fail "expected consumed:true (got: $OUT)"
 
 # --- Case 2: no receipt at all → NOT CONSUMED (exit 3) -----------------------
 f="$tmp/none.json"
@@ -40,8 +40,8 @@ cat > "$f" <<'EOF'
 EOF
 run "$f" 21
 [ "$RC" -eq 3 ] || fail "no-receipt should be NOT-CONSUMED exit 3 (got $RC: $OUT)"
-echo "$OUT" | grep -q '"consumed":false'          || fail "expected consumed:false (got: $OUT)"
-echo "$OUT" | grep -q 'rung-but-not-consumed'     || fail "expected reason rung-but-not-consumed (got: $OUT)"
+grep -q '"consumed":false' <<< "$OUT"          || fail "expected consumed:false (got: $OUT)"
+grep -q 'rung-but-not-consumed' <<< "$OUT"     || fail "expected reason rung-but-not-consumed (got: $OUT)"
 
 # --- Case 3: only a STALE receipt (up_to < since_offset) → NOT CONSUMED ------
 # The recipient acked an EARLIER turn, not this one (T-1808 guard).

@@ -101,7 +101,7 @@ fi
 
 # --- 2. inbound fires, counting only the inbound one ------------------------
 out=$(run "$INBOUND"); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "1 unprocessed filing"; then
+if [ "$rc" -eq 1 ] && grep -q "1 unprocessed filing" <<< "$out"; then
     ok "inbound filing fires, own filing not counted"
 else
     bad "inbound filing fires, own filing not counted" "exit $rc; out: $out"
@@ -117,14 +117,14 @@ fi
 
 # --- 4. mixed: firing count excludes own ------------------------------------
 out=$(run "$MIXED"); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "2 unprocessed filing"; then
+if [ "$rc" -eq 1 ] && grep -q "2 unprocessed filing" <<< "$out"; then
     ok "mixed topic fires on 2 (1 peer + 1 unattributed), excludes 3 own"
 else
     bad "mixed topic firing count excludes own" "exit $rc; out: $out"
 fi
 
 # --- 5. suppression is LOUD (shell-string truncation guard) -----------------
-if printf '%s' "$out" | grep -q "3 own filing(s) from 010-termlink not counted"; then
+if grep -q "3 own filing(s) from 010-termlink not counted" <<< "$out"; then
     ok "suppression count is reported (double-quote truncation guard)"
 else
     bad "suppression count is reported" "the own-count line is missing; out: $out"
@@ -132,8 +132,8 @@ fi
 
 # --- 6. JSON envelope carries own_count -------------------------------------
 jout=$(run "$MIXED" --json)
-if printf '%s' "$jout" | grep -q '"own_count": 3' \
-   && printf '%s' "$jout" | grep -q '"self_project": "010-termlink"'; then
+if grep -q '"own_count": 3' <<< "$jout" \
+   && grep -q '"self_project": "010-termlink"' <<< "$jout"; then
     ok "--json carries own_count and self_project"
 else
     bad "--json carries own_count and self_project" "got: $jout"
@@ -152,7 +152,7 @@ fi
 rm -f "$MARKER"
 out=$(FW_PICKUP_TEST_NDJSON="$MIXED" FW_PICKUP_CANARY_MARKER="$MARKER" \
       HEARTBEAT_FILE="$HB" FW_PICKUP_SELF_PROJECT=nonesuch bash "$SCRIPT" 2>&1); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "5 unprocessed filing"; then
+if [ "$rc" -eq 1 ] && grep -q "5 unprocessed filing" <<< "$out"; then
     ok "filter is load-bearing (no self match -> all 5 fire)"
 else
     bad "filter is load-bearing" "exit $rc; out: $out"
@@ -172,7 +172,7 @@ fi
 # string delimiters themselves) and the last (the closing `" 2>/dev/null )"`). What
 # remains is the python program body, which must be double-quote-free.
 blk=$(sed -n '/^PARSED=/,/^" 2>\/dev\/null )"/p' "$SCRIPT" | sed '1d;$d')
-if printf '%s' "$blk" | grep -q '"'; then
+if grep -q '"' <<< "$blk"; then
     bad "embedded python block contains no double quote" \
         "a double quote closes the shell string and silently truncates the program"
 else
@@ -194,7 +194,7 @@ fi
 drain=$(sed -n '/^else$/,/^fi$/p' "$SCRIPT" | grep -n 'termlink channel subscribe' || true)
 if [ -z "$drain" ]; then
     bad "live drain is paginated and explicitly bounded" "no subscribe call found in the drain block"
-elif printf '%s' "$drain" | grep -q -- '--limit' && printf '%s' "$drain" | grep -q -- '--cursor'; then
+elif grep -q -- '--limit' <<< "$drain" && grep -q -- '--cursor' <<< "$drain"; then
     ok "live drain is paginated and explicitly bounded"
 else
     bad "live drain is paginated and explicitly bounded" \

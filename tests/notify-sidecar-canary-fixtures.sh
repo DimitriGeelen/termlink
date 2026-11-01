@@ -52,7 +52,7 @@ beat a1 900
 out=$(run --threshold-secs 300); rc=$?
 if [ "$rc" = "1" ]; then ok "stale heartbeat => fires (exit 1)"
 else bad "stale => exit 1" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "DEAD: a1"; then ok "DEAD names the agent and its age"
+if grep -q "DEAD: a1" <<< "$out"; then ok "DEAD names the agent and its age"
 else bad "DEAD names agent" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -64,7 +64,7 @@ conf "a2 -"
 out=$(run --threshold-secs 300); rc=$?
 if [ "$rc" = "1" ]; then ok "no heartbeat file => fires (exit 1)"
 else bad "missing => exit 1" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "MISSING: a2"; then ok "MISSING is reported as its own class, not as DEAD"
+if grep -q "MISSING: a2" <<< "$out"; then ok "MISSING is reported as its own class, not as DEAD"
 else bad "MISSING class" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -80,7 +80,7 @@ beat s3smoke 7000000
 out=$(run --threshold-secs 300); rc=$?
 if [ "$rc" = "0" ]; then ok "ancient UNDECLARED heartbeats do not fire"
 else bad "undeclared residue silent" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "s3probe"; then bad "undeclared agent not even named" "$out"
+if grep -q "s3probe" <<< "$out"; then bad "undeclared agent not even named" "$out"
 else ok "undeclared agent is not named in output"; fi
 
 # ---------------------------------------------------------------------------
@@ -111,7 +111,7 @@ else bad "bad threshold => 2" "rc=$rc: $out"; fi
 conf "a3 -"
 echo "not-a-number" > "$NDIR/a3.heartbeat"
 out=$(run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "MISSING: a3"; then ok "unparseable heartbeat counts as MISSING, never healthy"
+if [ "$rc" = "1" ] && grep -q "MISSING: a3" <<< "$out"; then ok "unparseable heartbeat counts as MISSING, never healthy"
 else bad "corrupt heartbeat" "rc=$rc: $out"; fi
 
 # ---------------------------------------------------------------------------
@@ -131,7 +131,7 @@ else bad "--quiet silent when healthy" "$out"; fi
 
 beat a1 900
 out=$(run --quiet --threshold-secs 300)
-if echo "$out" | grep -q "DEAD: a1"; then ok "--quiet still reports a firing agent"
+if grep -q "DEAD: a1" <<< "$out"; then ok "--quiet still reports a firing agent"
 else bad "--quiet loud when firing" "$out"; fi
 
 # T-3381: heartbeat proves the run finished, on firing runs too.

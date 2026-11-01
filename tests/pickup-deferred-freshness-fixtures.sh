@@ -115,14 +115,14 @@ D="$TMP/stranded"; envelope "$D" "P-001" "$(iso_days_ago 73)" "Two framework bug
 out=$(run "$D"); rc=$?
 if [ "$rc" = "1" ]; then ok "envelope with no breadcrumb fires (exit 1)"
 else bad "no breadcrumb fires" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "STRANDED: P-001.yaml"; then ok "names the stranded envelope"
+if grep -q "STRANDED: P-001.yaml" <<< "$out"; then ok "names the stranded envelope"
 else bad "names the stranded envelope" "$out"; fi
 
 # ---------------------------------------------------------------------------
 # 3. The summary is printed — the whole failure mode is nobody knowing what is
 #    in the file, so naming the file alone would repeat the original mistake.
 # ---------------------------------------------------------------------------
-if echo "$out" | grep -q "Two framework bugs block inception decide"; then
+if grep -q "Two framework bugs block inception decide" <<< "$out"; then
     ok "prints the envelope summary, not just the filename"
 else bad "prints the envelope summary" "$out"; fi
 
@@ -142,9 +142,9 @@ else bad "fresh breadcrumbed envelope is healthy" "rc=$rc: $out"; fi
 D="$TMP/stale"; envelope "$D" "P-003" "$(iso_days_ago 90)" "Old but breadcrumbed"
 crumb "$D" "P-003" "$(iso_days_ago 90)" "T-9999"
 out=$(run "$D"); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "STALE: P-003.yaml"; then ok "old breadcrumbed envelope is STALE and fires"
+if [ "$rc" = "1" ] && grep -q "STALE: P-003.yaml" <<< "$out"; then ok "old breadcrumbed envelope is STALE and fires"
 else bad "old breadcrumbed envelope is STALE" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "blocked-by=T-9999"; then ok "STALE names the blocking task"
+if grep -q "blocked-by=T-9999" <<< "$out"; then ok "STALE names the blocking task"
 else bad "STALE names the blocking task" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -163,10 +163,10 @@ else bad "--threshold-days widens the window" "rc=$rc: $out"; fi
 D="$TMP/mtime"; envelope "$D" "P-004" "$(iso_days_ago 200)" "Written now, dated long ago"
 crumb "$D" "P-004" "$(iso_days_ago 200)" "T-1111"
 out=$(run "$D"); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "STALE"; then
+if [ "$rc" = "1" ] && grep -q "STALE" <<< "$out"; then
     ok "age is read from the recorded timestamp, not file mtime"
 else bad "age from recorded timestamp not mtime" "rc=$rc (files are seconds old on disk): $out"; fi
-if echo "$out" | grep -qE "deferred (19[0-9]|20[0-9]) days ago"; then
+if grep -qE "deferred (19[0-9]|20[0-9]) days ago" <<< "$out"; then
     ok "reports the true recorded age"
 else bad "reports the true recorded age" "$out"; fi
 
@@ -177,7 +177,7 @@ else bad "reports the true recorded age" "$out"; fi
 D="$TMP/nots"; mkdir -p "$D"
 printf 'pickup_id: P-005\npayload:\n  summary: "No timestamp anywhere"\n' > "$D/P-005.yaml"
 out=$(run "$D")
-if echo "$out" | grep -q "age from mtime"; then ok "mtime fallback is labelled as unreliable"
+if grep -q "age from mtime" <<< "$out"; then ok "mtime fallback is labelled as unreliable"
 else bad "mtime fallback is labelled" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -186,16 +186,16 @@ else bad "mtime fallback is labelled" "$out"; fi
 D="$TMP/nodouble"; envelope "$D" "P-006" "$(iso_days_ago 2)" "Fine"
 crumb "$D" "P-006" "$(iso_days_ago 2)" "T-2222"
 js=$(run "$D" --json)
-if echo "$js" | grep -q '"total": *1'; then ok "breadcrumb sibling is not counted as an envelope"
+if grep -q '"total": *1' <<< "$js"; then ok "breadcrumb sibling is not counted as an envelope"
 else bad "breadcrumb not counted as envelope" "$js"; fi
 
 # ---------------------------------------------------------------------------
 # 10. JSON carries the classes and counts.
 # ---------------------------------------------------------------------------
 js=$(run "$TMP/stranded" --json)
-if echo "$js" | grep -q '"stranded_count": *1'; then ok "--json carries stranded_count"
+if grep -q '"stranded_count": *1' <<< "$js"; then ok "--json carries stranded_count"
 else bad "--json carries stranded_count" "$js"; fi
-if echo "$js" | grep -q '"class": *"STRANDED"'; then ok "--json carries the per-envelope class"
+if grep -q '"class": *"STRANDED"' <<< "$js"; then ok "--json carries the per-envelope class"
 else bad "--json carries per-envelope class" "$js"; fi
 
 # ---------------------------------------------------------------------------
@@ -217,7 +217,7 @@ out=$(run "$TMP/fresh" --quiet)
 if [ -z "$out" ]; then ok "--quiet is silent when healthy"
 else bad "--quiet is silent when healthy" "$out"; fi
 out=$(run "$TMP/stranded" --quiet)
-if echo "$out" | grep -q "STRANDED"; then ok "--quiet still reports a firing envelope"
+if grep -q "STRANDED" <<< "$out"; then ok "--quiet still reports a firing envelope"
 else bad "--quiet still reports firing" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -257,10 +257,10 @@ d="$TMP/q-stale"
 envelope_q "$d" "P-901" "$old_iso" "single-quoted and long overdue" "'"
 crumb_q    "$d" "P-901" "$old_iso" "T-1" "'"
 out=$(run "$d"); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "STALE: P-901.yaml"; then
+if [ "$rc" = "1" ] && grep -q "STALE: P-901.yaml" <<< "$out"; then
     ok "single-quoted envelope 45 days old fires STALE"
 else bad "single-quoted envelope 45 days old fires STALE" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "45 days ago"; then ok "STALE age is the recorded 45 days, not a checkout-fresh 0"
+if grep -q "45 days ago" <<< "$out"; then ok "STALE age is the recorded 45 days, not a checkout-fresh 0"
 else bad "STALE age is the recorded 45 days" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -316,10 +316,10 @@ else bad "pre-fix mutant silently stops firing STALE" "rc=$rc: $out"; fi
 d="$TMP/ml"
 envelope_ml "$d" "P-904" "$old_iso" "first half of the finding:" "second half with the verdict"
 out=$(run "$d")
-if echo "$out" | grep -q "first half of the finding: second half with the verdict"; then
+if grep -q "first half of the finding: second half with the verdict" <<< "$out"; then
     ok "wrapped single-quoted summary is joined across the line break"
 else bad "wrapped summary is joined" "$out"; fi
-if echo "$out" | grep -q "      '"; then
+if grep -q "      '" <<< "$out"; then
     bad "joined summary carries no stray leading quote" "$out"
 else ok "joined summary carries no stray leading quote"; fi
 
@@ -350,7 +350,7 @@ summary: 'recovered by the fallback scan'
 broken: [unclosed
 EOF
 out=$(run "$d")
-if echo "$out" | grep -q "recovered by the fallback scan"; then
+if grep -q "recovered by the fallback scan" <<< "$out"; then
     ok "unparseable envelope still yields its summary via the scan fallback"
 else bad "scan fallback recovers summary" "$out"; fi
 

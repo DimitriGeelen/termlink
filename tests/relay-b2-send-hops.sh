@@ -30,17 +30,17 @@ send() { # args... → RESOLVED line
 
 # --- Case 1: bare relay initiation (rail-augmented doorbell) → relay_hops=1 ----
 out="$(send)"
-echo "$out" | grep -q "relay_hops=1" \
+grep -q "relay_hops=1" <<< "$out" \
     || fail "bare relay initiation should default relay_hops=1 (got: $out)"
 
 # --- Case 2: explicit --relay-hops 2 → relay_hops=2 --------------------------
 out="$(send --relay-hops 2)"
-echo "$out" | grep -q "relay_hops=2" \
+grep -q "relay_hops=2" <<< "$out" \
     || fail "explicit --relay-hops 2 should surface relay_hops=2 (got: $out)"
 
 # --- Case 3: custom --doorbell-text (NOT a relay turn) → relay_hops=<none> ----
 out="$(send --doorbell-text 'custom text')"
-echo "$out" | grep -q "relay_hops=<none>" \
+grep -q "relay_hops=<none>" <<< "$out" \
     || fail "non-relay send should stamp no relay_hops (got: $out)"
 
 # --- Case 4: invalid --relay-hops → hard error (exit 2) ----------------------

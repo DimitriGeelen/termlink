@@ -45,25 +45,25 @@ run() { # $1=fixture ; sets global OUT + RC
 # --- Case 1: below cap → continue, next_hops = hops+1 ------------------------
 MAXHOPS=4 run "$(mk_turns 2)"
 [ "$RC" -eq 0 ] || fail "below-cap should exit 0 (got $RC: $OUT)"
-echo "$OUT" | grep -q "verdict=continue" || fail "below-cap should be continue (got: $OUT)"
-echo "$OUT" | grep -q "hops=2"           || fail "below-cap should report hops=2 (got: $OUT)"
-echo "$OUT" | grep -q "next_hops=3"      || fail "below-cap should report next_hops=3 (got: $OUT)"
+grep -q "verdict=continue" <<< "$OUT" || fail "below-cap should be continue (got: $OUT)"
+grep -q "hops=2" <<< "$OUT"           || fail "below-cap should report hops=2 (got: $OUT)"
+grep -q "next_hops=3" <<< "$OUT"      || fail "below-cap should report next_hops=3 (got: $OUT)"
 
 # --- Case 2: at cap → stop, hop-budget-exhausted, exit 10 --------------------
 MAXHOPS=4 run "$(mk_turns 4)"
 [ "$RC" -eq 10 ] || fail "at-cap should exit 10 (got $RC: $OUT)"
-echo "$OUT" | grep -q "verdict=stop"              || fail "at-cap should be stop (got: $OUT)"
-echo "$OUT" | grep -q "reason=hop-budget-exhausted" || fail "at-cap should name reason (got: $OUT)"
+grep -q "verdict=stop" <<< "$OUT"              || fail "at-cap should be stop (got: $OUT)"
+grep -q "reason=hop-budget-exhausted" <<< "$OUT" || fail "at-cap should name reason (got: $OUT)"
 
 # --- Case 3: over cap → stop --------------------------------------------------
 MAXHOPS=4 run "$(mk_turns 7)"
 [ "$RC" -eq 10 ] || fail "over-cap should exit 10 (got $RC: $OUT)"
-echo "$OUT" | grep -q "verdict=stop" || fail "over-cap should be stop (got: $OUT)"
+grep -q "verdict=stop" <<< "$OUT" || fail "over-cap should be stop (got: $OUT)"
 
 # --- Case 4: absent relay_hops → treated as 0 → continue ---------------------
 MAXHOPS=4 run "$(mk_turns "")"
 [ "$RC" -eq 0 ] || fail "absent-hops should exit 0 (got $RC: $OUT)"
-echo "$OUT" | grep -q "hops=0"      || fail "absent-hops should be hops=0 (got: $OUT)"
-echo "$OUT" | grep -q "next_hops=1" || fail "absent-hops should be next_hops=1 (got: $OUT)"
+grep -q "hops=0" <<< "$OUT"      || fail "absent-hops should be hops=0 (got: $OUT)"
+grep -q "next_hops=1" <<< "$OUT" || fail "absent-hops should be next_hops=1 (got: $OUT)"
 
 echo "PASS: relay-b3 hop-budget — continue below cap, stop at/over cap, absent=0"
