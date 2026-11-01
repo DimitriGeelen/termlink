@@ -378,6 +378,10 @@ export RUNME_CLAUDE_LOCAL_SETTINGS="$TMP/claude-local.json"
 # every host default to be explicit. `false` as cargo can never build anything.
 export RUNME_BUILD_STAMP_DIR="$TMP/build-stamps" RUNME_BUILD_REPO="$REPO_ROOT" RUNME_CARGO=false
 export RUNME_SKIP_BUILD=1 RUNME_TERMLINK_SRC="$TMP/tl-new" RUNME_TERMLINK_DEST="$TMP/bin/termlink"
+# T-3647 (action 4b): never the real systemctl or /proc. No units by default, so other
+# cases see nothing from 4b; its own cases below set RUNME_W1_UNITS.
+W1R="$TMP/w1r"; mkdir -p "$W1R/proc"
+export RUNME_W1_UNITS="" RUNME_W1_SYSTEMCTL="$W1R/systemctl" RUNME_W1_PROC="$W1R/proc" RUNME_W1_BIN="$W1R/termlink-new"
 # T-3290: the hub-restart action must NEVER reach the real systemctl, /proc or
 # /var/lib/termlink. A fake systemctl keeps MainPID in a state file; `restart`
 # bumps the pid and points its fake /proc exe at the installed binary (or, with
@@ -1962,6 +1966,44 @@ if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  the installed crontab is not t
     ok "25: installed table differs from old-minus-ntfy => FAILED, the original is restored"
 else bad "25 drift" "rc=$rc: $x"; fi
 printf '0 6 * * * /opt/x/update.sh\n# other job\n' > "$CT"; rm -f "$TMP"/crontab.bak.T-476*
+
+# ---- T-3647: action 4b restarts W1 sidecars running older code -------------------
+echo "T-3647: 4b W1 sidecars onto the installed binary"
+s4b() { echo "$1" | sed -n '/^.*4b\. W1 sidecars onto the installed binary/,/^.*17\. arc-011 W1/p'; }
+: > "$W1R/termlink-new"; : > "$W1R/termlink-old"
+cat > "$W1R/systemctl" <<'EOS'
+#!/usr/bin/env bash
+D="${FAKE_W1_DIR:?}"; u="${@: -1}"; f="$D/pid.$u"
+case "$1" in
+  show) cat "$f" 2>/dev/null || echo 0 ;;
+  is-active) echo active ;;
+  restart) echo "$u" >> "$D/restarts"; n=$(( $(cat "$f") + 100 )); echo "$n" > "$f"
+           mkdir -p "$D/proc/$n"
+           if [ "${FAKE_W1_STALE_AFTER:-0}" = 1 ]; then ln -sf "$D/termlink-old" "$D/proc/$n/exe"; else ln -sf "$D/termlink-new" "$D/proc/$n/exe"; fi ;;
+esac
+EOS
+chmod +x "$W1R/systemctl"
+w1_unit() { echo "$2" > "$W1R/pid.$1"; mkdir -p "$W1R/proc/$2"; ln -sf "$W1R/$3" "$W1R/proc/$2/exe"; }
+export FAKE_W1_DIR="$W1R"
+rm -f "$W1R/restarts"; w1_unit u-main 11 termlink-old; w1_unit u-alt 12 termlink-new
+out=$(RUNME_W1_UNITS="u-main u-alt" run); x=$(s4b "$out")
+if echo "$x" | grep_all 'OK      u-main restarted and verified: active, pid 111 runs the installed binary' \
+   && echo "$x" | grep_all 'skip    u-alt already runs the installed binary' && [ "$(cat "$W1R/restarts")" = u-main ]; then
+    ok "T-3647: stale unit restarted and verified, current unit skipped (only one restart)"
+else bad "T-3647 restart" "$x"; fi
+out=$(RUNME_W1_UNITS="u-main u-alt" run); x=$(s4b "$out")
+if echo "$x" | grep_all 'skip    u-main already runs' && [ "$(wc -l < "$W1R/restarts")" = 1 ]; then
+    ok "T-3647: second run skips both (idempotent)"
+else bad "T-3647 idempotent" "$x"; fi
+rm -f "$W1R/restarts"; w1_unit u-main 21 termlink-old
+out=$(FAKE_W1_STALE_AFTER=1 RUNME_W1_UNITS="u-main" run); rc=$?; x=$(s4b "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  u-main after restart: not active or not on the installed binary'; then
+    ok "T-3647: restart that leaves old code => FAILED, rc 1"
+else bad "T-3647 still-stale" "rc=$rc: $x"; fi
+rm -f "$W1R/pid.u-none"; out=$(RUNME_W1_UNITS="u-none" run); x=$(s4b "$out")
+if echo "$x" | grep_all 'skip    u-none not running'; then ok "T-3647: unit not running => skip, nothing restarted"
+else bad "T-3647 absent" "$x"; fi
+rm -f "$W1R"/pid.* "$W1R/restarts"
 
 echo ""
 echo "----------------------------------------"

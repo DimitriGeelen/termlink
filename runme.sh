@@ -695,6 +695,50 @@ head2 "4. termlink binary — every copy on this host (T-3287, T-3289)"
 install_termlink
 
 # ---------------------------------------------------------------------------
+# ACTION 4b — restart the W1 pair's sidecars onto the installed binary (T-3647)
+#
+# Installing a binary does not change a process already running it (action 4 says so).
+# The W1 sidecars (systemd units) keep the old code until restarted, so a sidecar
+# feature (T-3646: the pinned main's liveness note + alarm) stays dark after install.
+# Idempotent: a unit whose running executable IS the installed binary (same inode,
+# `-ef`) is skipped. Verified after restart: unit active and the new main process
+# runs the installed binary. A unit that is not running is skipped (W1 not provisioned).
+# Seams (fixtures only): RUNME_W1_UNITS, RUNME_W1_SYSTEMCTL, RUNME_W1_PROC, RUNME_W1_BIN.
+# ---------------------------------------------------------------------------
+seam W1_UNITS RUNME_W1_UNITS "termlink-sidecar@010-termlink--claude-termlink.service termlink-sidecar@010-termlink--claude-termlink-alt.service"
+seam W1_SYSTEMCTL RUNME_W1_SYSTEMCTL "systemctl"
+seam W1_PROC RUNME_W1_PROC "/proc"
+seam W1_BIN RUNME_W1_BIN "${HOME:-/root}/.cargo/bin/termlink"
+w1_restart_onto_binary() {
+    local unit pid i
+    for unit in $W1_UNITS; do
+        pid="$($W1_SYSTEMCTL show -p MainPID --value "$unit" 2>/dev/null)"
+        if [ -z "$pid" ] || [ "$pid" = "0" ]; then
+            say "  skip    $unit not running (W1 not provisioned here, or stopped on purpose)"; SKIPPED=$((SKIPPED+1)); continue
+        fi
+        if [ "$W1_PROC/$pid/exe" -ef "$W1_BIN" ]; then
+            say "  skip    $unit already runs the installed binary (pid $pid)"; SKIPPED=$((SKIPPED+1)); continue
+        fi
+        if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would restart $unit (pid $pid runs older code)"; DONE=$((DONE+1)); continue; fi
+        if ! $W1_SYSTEMCTL restart "$unit"; then
+            say "  FAILED  systemctl restart $unit"; FAILED=$((FAILED+1)); continue
+        fi
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+            pid="$($W1_SYSTEMCTL show -p MainPID --value "$unit" 2>/dev/null)"
+            [ -n "$pid" ] && [ "$pid" != "0" ] && [ "$W1_PROC/$pid/exe" -ef "$W1_BIN" ] && break
+            [ "${RUNME_FIXTURE:-0}" = "1" ] || sleep 1
+        done
+        if [ "$($W1_SYSTEMCTL is-active "$unit" 2>/dev/null)" = "active" ] && [ "$W1_PROC/$pid/exe" -ef "$W1_BIN" ]; then
+            say "  OK      $unit restarted and verified: active, pid $pid runs the installed binary"; DONE=$((DONE+1))
+        else
+            say "  FAILED  $unit after restart: not active or not on the installed binary (pid ${pid:-none})"; FAILED=$((FAILED+1))
+        fi
+    done
+}
+head2 "4b. W1 sidecars onto the installed binary (T-3647, makes T-3646 live)"
+w1_restart_onto_binary
+
+# ---------------------------------------------------------------------------
 # ACTION 5 — restart the local hub onto the installed binary (T-3290)
 #
 # Installing a binary does not change a running process. The hub kept serving
