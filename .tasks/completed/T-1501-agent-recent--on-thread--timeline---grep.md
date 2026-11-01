@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T21:46:00Z
-last_update: 2026-10-26T15:36:32Z
+last_update: 2026-11-01T23:43:23Z
 date_finished: 2026-05-04T22:08:00Z
 ---
 
@@ -40,7 +40,7 @@ The arc reading verbs (T-1492 recent, T-1493 on-thread, T-1500 timeline) all wal
 - [x] All existing extract_recent_posts unit tests pass (signature change additive — None preserves prior behavior)
 - [x] `cargo build --release -p termlink` clean
 - [x] Live smoke: `agent timeline --window-secs 86400 --grep T-1438` returns only posts containing T-1438 in content (or "no posts found" if none in window)
-- [ ] [REVIEWER] Verify --grep filtering output is operator-readable
+- [x] [REVIEWER] Verify --grep filtering output is operator-readable (evidence: re-run 2026-11-02 T-3648 — `agent timeline --grep agent` header shows `grep=agent`, only matching posts; `--json` carries `"filter_grep": "T-1438"`; commit 4856644d2. Verification regex widened for the CLI's now pretty-printed JSON)
   **Steps:**
   1. `target/release/termlink agent timeline --window-secs 86400 --grep T-1438` (run from /opt/termlink)
   2. `target/release/termlink agent timeline --window-secs 86400 --grep agent --n 10`
@@ -57,7 +57,7 @@ The arc reading verbs (T-1492 recent, T-1493 on-thread, T-1500 timeline) all wal
 ( target/release/termlink agent recent --help 2>&1 ) > /tmp/.v-t-1501-3.out && grep -q -- "--grep" /tmp/.v-t-1501-3.out
 ( target/release/termlink agent on-thread --help 2>&1 ) > /tmp/.v-t-1501-4.out && grep -q -- "--grep" /tmp/.v-t-1501-4.out
 ( target/release/termlink agent timeline --help 2>&1 ) > /tmp/.v-t-1501-5.out && grep -q -- "--grep" /tmp/.v-t-1501-5.out
-target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T-1438 --json > /tmp/.t1501.out 2>&1 && grep -qE '"filter_grep":"T-1438"' /tmp/.t1501.out
+target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T-1438 --json > /tmp/.t1501.out 2>&1 && grep -qE '"filter_grep": ?"T-1438"' /tmp/.t1501.out
 .agentic-framework/bin/fw reviewer T-1501 > /tmp/.fw-reviewer-T-1501.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-1501.out
 
 ## RCA
@@ -163,12 +163,10 @@ target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T-1438 
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-41b9ebe8
-- **Timestamp:** 2026-10-26T15:36:56Z
+- **Scan ID:** R-80729444
+- **Timestamp:** 2026-11-01T23:56:35Z
 - **Catalogue:** v1.3-seed
 - **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
 - **Needs Human:** no
 - **Findings:** none
-
-- **Auto-ticked:** 1 AC(s)
-  - AC #16: c7bab003b736 [[REVIEWER] Verify --grep filtering output is operator-readable]

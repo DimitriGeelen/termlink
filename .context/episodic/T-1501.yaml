@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1501: agent recent / on-thread / timeline --grep — content substring filter
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:56:36Z
+# ============================================================================
+
+task_id: T-1501
+task_name: "agent recent / on-thread / timeline --grep — content substring filter"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-05-04T21:46:00Z
+completed: 2026-10-26T15:36:32Z
+duration_days: 175
+updates_count: 4
+first_commit: 2026-05-05T00:01:55+02:00
+last_commit: 2026-05-05T00:01:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent recent / on-thread / timeline --grep — content substring filter (work-completed, G-054 workaround)
+
+# Key outcomes
+outcomes:
+  - '`extract_recent_posts` gains `filter_grep: Option<&str>` (9th param) — when Some, posts whose content does not match (case-insensitive substring) are skipped'
+  - 'AND-composes with the 4 existing filters (peer / thread / project / msg-type)'
+  - 'Match against the (possibly truncated) content field — same field rendered to operator'
+  - 'Empty pattern treated same as None (no filter applied — defensive)'
+  - '`--grep <pattern>` flag added to Recent variant'
+  - '`--grep <pattern>` flag added to OnThread variant'
+  - '`--grep <pattern>` flag added to Timeline variant'
+  - 'main.rs propagates new value through all 3 dispatches'
+  - 'cmd_agent_recent / cmd_agent_on_thread / cmd_agent_timeline pass filter to all callsites (one-shot json + one-shot text + watch loop)'
+  - 'Text-mode header includes `grep=<pattern>` suffix when set (for all 3 verbs, both one-shot and watch)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-1501-agent-recent--on-thread--timeline---grep.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-05T00:01:55'
+    action: 'T-1501: agent recent / on-thread / timeline --grep — content substring filter (work-completed, G-054 workaround)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 251630 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 251630
+  commits: 2
+  files_changed: 8
+  lines_added: 421
+  lines_removed: 15
+  footprint_refreshed_at: '2026-11-01T23:56:44Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1501-agent-recent--on-thread--timeline---grep.md
+generated_by: context-agent-hybrid
