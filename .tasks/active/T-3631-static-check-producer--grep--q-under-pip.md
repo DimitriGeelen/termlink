@@ -94,8 +94,11 @@ fires on a new one, and no more random fixture flakes of this class.
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] `tests/install-sh-fixtures.sh` glibc detection no longer pipes into `grep -q` (first site, 2026-11-01; 0/300
   misses with the fixed form vs 2/300 before; suite 13/13 x3)
-- [ ] Every remaining `producer | grep -q` under pipefail in scripts/ and tests/ converted (grep_all helper,
-  here-string, or grep without -q), each file still passing its own tests
+- [x] Every remaining `producer | grep -q` under pipefail in scripts/ and tests/ converted (grep_all helper,
+  here-string, or grep without -q), each file still passing its own tests (rescoped, see Decisions 2026-11-01:
+  every EXECUTED site converted, 380 sites in 98 files; the 13 counted lines left are strings or fixture data, never
+  run as pipelines, plus the deliberate L-387 demo; 90/91 affected suites green, standing-controls.sh red 6/6 before
+  and after by design; baseline 393 -> 13)
 - [x] A guard-layer static check (`scripts/check-pipefail-grep-q.sh`) fires on a new site, with fixtures and a mutant
   (a ratchet over `.context/checks/pipefail-grep-q-baseline`: 393 sites / 101 files on 2026-11-01; new or grown
   site FIRES, lower counts lower the baseline; `tests/pipefail-grep-q-fixtures.sh` 10/10 incl. mutant M1)
@@ -383,6 +386,19 @@ fires on a new one, and no more random fixture flakes of this class.
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-01 — which sites to convert, and how
+- **Chose:** Convert every site that actually runs as a pipeline, RISKY or SAFE: 380 sites across 98 files (here-string
+  `grep -q PAT <<< "$var"` where the producer was `echo`/`printf '%s'` of one variable; otherwise `producer | grep PAT
+  >/dev/null`, the same flags minus -q). The 13 counted lines left (6 files) are not pipelines that run: doc strings
+  echoed to the user (check-unpaired-capture:166, check-verification-pipefail:181, check-task-template-idioms:150), task
+  fixture DATA the detectors must see (verification-pipefail-check-fixtures x5, task-template-idioms-fixtures x2), and
+  the deliberate L-387 reproducer (l387-boundary-fixtures x3). They stay under the ratchet.
+- **Why:** The here-string and `>/dev/null` forms are both immune to SIGPIPE at any size and keep the line's meaning,
+  so classifying a site SAFE saved no work and added a judgement that could be wrong. Converting the data lines would
+  break the fixtures that test the detectors.
+- **Rejected:** A shared grep_all helper: several fixtures eval strings or write scripts run by another shell, so the
+  helper would not be in scope there.
 
 ## Decision
 
