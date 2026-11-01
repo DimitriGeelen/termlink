@@ -1,13 +1,20 @@
 ---
 id: T-3638
-name: "AEF ask: per-layer value-driver sets (product vs development) in bvp.sh ranking and the estimator"
+name: "AEF ask: per-layer value-driver sets (product vs development) in bvp.sh ranking
+  and the estimator"
 description: >
-  T-3612 final-review finding 1, operator ruling A 2026-11-01: TermLink keeps the development set live and the product set declarative in policy/value-drivers-product.yaml until AEF lets bvp.sh rank and the estimator score against a named driver set per arc or task. Today the live file wins collisions (estimator.py:2727-2736), D1-D4 are not scopable, scoped weight is capped at 6 and 3 per arc (arc.sh:1567,1624), and rankings read only the live file (bvp.sh:285-364). Tracks the ask and its answer; if AEF declines, swap-files (B) vs local patch (D) returns to the operator.
+  T-3612 final-review finding 1, operator ruling A 2026-11-01: TermLink keeps the
+  development set live and the product set declarative in policy/value-drivers-product.yaml
+  until AEF lets bvp.sh rank and the estimator score against a named driver set per
+  arc or task. Today the live file wins collisions (estimator.py:2727-2736), D1-D4
+  are not scopable, scoped weight is capped at 6 and 3 per arc (arc.sh:1567,1624),
+  and rankings read only the live file (bvp.sh:285-364). Tracks the ask and its answer;
+  if AEF declines, swap-files (B) vs local patch (D) returns to the operator.
 
 status: captured
 workflow_type: build
 owner: agent
-horizon: next
+horizon: later
 tags: [framework, bvp, upstream]
 components: []
 related_tasks: []
@@ -38,8 +45,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T12:24:22Z
-last_update: 2026-11-01T12:24:22Z
-date_finished: null
+last_update: 2026-11-01T12:42:26Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +57,49 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-01T12:41:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3638: AEF ask: per-layer value-driver sets (product vs development) in bvp.sh ranking and the estimator
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-3612 final outside review (round 2), blocking finding 1: the product value-driver set
+cannot reach scoring through arcs' scoped_drivers (live file wins; D1–D4 not scopable; scoped weight ≤6, ≤3 per arc;
+rankings read only the live file). Operator ruling A 2026-11-01 (T-3624 Decisions).
+
+**Problem / hypothesis:** only AEF can make bvp.sh and the estimator use a named driver set per arc or task.
+
+**Goal:** get that support from AEF, or an answer that sends the B (swap files) vs D (local patch) choice back to the
+operator.
+
+**Expected outcome:** product work ranked by the product set automatically; until then product decisions are scored
+by hand, labelled "product set".
+
+**Status 2026-11-01:** asked (sidecar msg c39df4cd); AEF filed it as inception **T-4961** (per-arc driver sets,
+`driver_set: <set>` -> `policy/value-drivers-<set>.yaml`), go/no-go is AEF's operator's; AEF advises not to wait.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The ask is sent to AEF with the four blocking points cited (sidecar msg c39df4cd, 2026-11-01; filed upstream as
+  AEF inception T-4961)
+- [ ] AEF's go/no-go on T-4961 is recorded here
+- [ ] On GO: the product set is wired through the shipped mechanism after the next re-vendor, and a product arc's
+  ranking is shown to use it. On NO-GO: the B (swap files) vs D (local patch) choice is put to the operator
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +400,11 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3638-aef-ask-per-layer-value-driver-sets-prod.md
 - **Context:** Initial task creation
+
+### 2026-11-01T12:41:52Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-01T12:42:25Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)
