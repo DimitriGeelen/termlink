@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3182: Review queue is 81 percent genuine judgement, but 25 tasks carry mechanically-convertible ACs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:51:16Z
+# ============================================================================
+
+task_id: T-3182
+task_name: "Review queue is 81 percent genuine judgement, but 25 tasks carry mechanically-convertible ACs"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-27T08:13:28Z
+completed: 2026-11-01T23:51:09Z
+duration_days: 35
+updates_count: 4
+first_commit: 2026-09-27T10:18:22+02:00
+last_commit: 2026-09-27T10:18:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the review queue is 81 percent genuine judgement, and my own candidate list was 3x too high. routed to operator review; review marker recorded
+
+# Key outcomes
+outcomes:
+  - 'The open Human-AC population is measured, not estimated: every `- [ ]` line in a'
+  - 'T-2940''s If-not premise is settled against that measurement rather than assumed.'
+  - 'The candidate list is reconciled against the existing decision record (PD-173)'
+  - 'Cross-checked against an independent consumer: 832-Workflow-designer measured'
+  - '[REVIEWER] The residual candidate set is stated with per-task evidence a reader'
+  - 'Sovereign question recorded and NOT acted on: whether PD-173''s SQ-1 GO extends'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.hook-crashes.log'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-3182-review-queue-is-81-percent-genuine-judge.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-27T10:18:22'
+    action: 'T-3182: the review queue is 81 percent genuine judgement, and my own candidate list was 3x too high'
+  - time: '2026-09-27T10:18:39'
+    action: 'T-3182: routed to operator review; review marker recorded'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 51337 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 51337
+  commits: 3
+  files_changed: 14
+  lines_added: 689
+  lines_removed: 36
+  footprint_refreshed_at: '2026-11-01T23:51:21Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3182-review-queue-is-81-percent-genuine-judge.md
+generated_by: context-agent-hybrid

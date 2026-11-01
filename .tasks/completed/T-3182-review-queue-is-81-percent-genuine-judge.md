@@ -29,10 +29,10 @@ description: >
   GO recommendation and wait only on a stamp - a distinct lever from the AC-conversion
   one, and probably the larger of the two.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -47,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-27T08:13:28Z
-last_update: 2026-10-26T15:21:43Z
-date_finished:
+last_update: 2026-11-01T23:51:09Z
+date_finished: 2026-11-01T23:51:09Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -88,6 +88,11 @@ cost_estimate_proposed:
 # T-3182: Review queue is 81 percent genuine judgement, but 25 tasks carry mechanically-convertible ACs
 
 ## Context
+
+**Background / trigger:** T-2940's If-not branch assumed the large human review queue was mostly mis-owned criteria.
+**Problem / hypothesis:** If many Human ACs are mechanically checkable, converting them would shrink the queue. That needed measuring, not assuming.
+**Goal:** Measure the open Human-AC population, reconcile it against PD-173, and state the real conversion opportunity.
+**Expected outcome:** A measured breakdown (below). It shows 81% genuine judgement and about 3 convertible ACs, not 25.
 
 ### What was measured
 
@@ -298,6 +303,9 @@ on a number that differs from it.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# The measurement is a point-in-time record (git d7767876d); the queue has changed since, so re-counting would not check this task.
+git cat-file -e d7767876d^{commit}
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -401,3 +409,16 @@ on a number that differs from it.
 ### 2026-10-26T15:21:43Z — status-update [task-update-agent]
 - **Change:** owner: human → agent
 - **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion
+
+### 2026-11-01T23:51:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-376f357c
+- **Timestamp:** 2026-11-01T23:51:10Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
