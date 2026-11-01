@@ -171,12 +171,12 @@ while IFS= read -r file; do
         body="$(sed -n "${startln},${endln}p" "$file" | sed -E 's://.*$::')"
 
         # candidate iff the body calls an UNBOUNDED client entry point
-        printf '%s' "$body" | grep -qE "$UNBOUNDED_RE" || continue
+        grep -qE "$UNBOUNDED_RE" <<< "$body" || continue
 
         checked=$((checked + 1))
 
         # clear if the body carries an explicit timeout wrap anywhere
-        printf '%s' "$body" | grep -q "$TIMEOUT_RE" && continue
+        grep -q "$TIMEOUT_RE" <<< "$body" && continue
 
         sig="${file}::${fname}::unbounded-rpc-call"
         if [ -n "${ALLOW[$sig]:-}" ]; then

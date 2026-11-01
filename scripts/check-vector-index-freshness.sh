@@ -72,7 +72,7 @@ print(json.dumps({"index_max": max(idx) if idx else 0, "disk_max": max(disk) if 
                   "newer_corpus": newest_files > os.path.getmtime(db)}))
 PY
 )"
-if printf '%s' "$res" | grep -q '"error"'; then
+if grep -q '"error"' <<< "$res"; then
     echo "check-vector-index-freshness: cannot read index: $res" >&2; exit 2
 fi
 imax=$(printf '%s' "$res" | python3 -c 'import json,sys;print(json.load(sys.stdin)["index_max"])')

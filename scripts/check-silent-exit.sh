@@ -180,7 +180,7 @@ while IFS= read -r file; do
         code="${hit#*:}"
         # strip line comments, then confirm the exit survives (was not inside a comment)
         codestripped="$(printf '%s' "$code" | sed -E 's://.*$::')"
-        printf '%s' "$codestripped" | grep -qE "$EXIT_RE" || continue
+        grep -qE "$EXIT_RE" <<< "$codestripped" || continue
 
         checked=$((checked + 1))
 
@@ -217,14 +217,14 @@ while IFS= read -r file; do
         # *mentioning* json_error_exit is not a call to it and must not satisfy the gate.
         winstart=$((lineno - 6)); [ "$winstart" -lt 1 ] && winstart=1
         win="$(sed -n "${winstart},$((lineno - 1))p" "$file" | grep -vE '^[[:space:]]*//' || true)"
-        printf '%s' "$win" | grep -q "$GATED_RE" || continue
+        grep -q "$GATED_RE" <<< "$win" || continue
 
         # and NO output macro may sit between the closing brace and the exit (normally
         # empty, or comments only after T-2688). Comment-only lines are stripped for the
         # same reason: a comment quoting `eprintln!` is not an eprintln!, and letting it
         # clear the site would reintroduce the false negative from the other side.
         between="$(sed -n "$((prevno + 1)),$((lineno - 1))p" "$file" | grep -vE '^[[:space:]]*//' || true)"
-        printf '%s' "$between" | grep -qE "$OUT_RE" && continue
+        grep -qE "$OUT_RE" <<< "$between" && continue
 
         # enclosing fn = the fn-decl line with the largest lineno <= this exit's lineno
         encfn="-"

@@ -162,7 +162,7 @@ for root in "${ROOTS[@]}"; do
             why="reads the version but has no build.rs — reports its Cargo.toml constant"
         else
             bs_body="$(grep -vE '^[[:space:]]*//' "$bs" 2>/dev/null || true)"
-            if ! printf '%s' "$bs_body" | grep -q "$EMIT_RE"; then
+            if ! grep -q "$EMIT_RE" <<< "$bs_body"; then
                 why="has a build.rs but it never emits $EMIT_RE"
             fi
         fi

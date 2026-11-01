@@ -248,7 +248,7 @@ for topic in $TOPICS; do
       pa="${topic#dm:}"; pb="${pa#*:}"; pa="${pa%%:*}"
       for party in "$pa" "$pb"; do
         other="$pb"; [ "$party" = "$pb" ] && other="$pa"
-        if ! printf '%s' "$party" | grep -qE '^[0-9a-f]{8,64}$'; then
+        if ! grep -qE '^[0-9a-f]{8,64}$' <<< "$party"; then
           printf '    unresolved   %s (named party — cannot match to a fingerprint; not evaluated)\n' "$party"
           continue
         fi

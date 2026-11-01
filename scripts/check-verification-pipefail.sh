@@ -155,7 +155,7 @@ fi
 
 if [ "$JSON" = "1" ]; then
     printf '%s\n' "$OUT"
-    printf '%s' "$OUT" | grep -q '"ok": true' && exit 0
+    grep -q '"ok": true' <<< "$OUT" && exit 0
     exit 1
 fi
 

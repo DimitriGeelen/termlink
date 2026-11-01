@@ -240,7 +240,7 @@ fi
 
 api_get release "repos/$REPO/releases/tags/$TAG"
 if [ "$API_RC" != "0" ]; then
-    if printf '%s' "$API_ERR" | grep -q 'HTTP 404'; then
+    if grep -q 'HTTP 404' <<< "$API_ERR"; then
         FIRING+=("release	newest tag $TAG has NO GitHub Release (HTTP 404) — tagged but never published")
         CHECKS+=("release	firing	$TAG: no release")
     else

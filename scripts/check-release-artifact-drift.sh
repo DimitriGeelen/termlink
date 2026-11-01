@@ -172,7 +172,7 @@ fi
 firing_lines=""
 fire() { firing_lines+="$1|$2"$'\n'; }
 
-in_set() { printf '%s\n' "$2" | grep -qxF "$1"; }
+in_set() { grep -qxF "$1" <<< "$2"; }
 
 offered_count=0
 while IFS= read -r a; do

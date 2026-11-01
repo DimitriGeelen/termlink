@@ -101,7 +101,7 @@ if [ "${1:-}" = "--self-test" ]; then
   _hits=$(scan "$_t")
   rm -rf "$_t"
   _n=$(printf '%s' "$_hits" | grep -c . || true)
-  if [ "$_n" = "1" ] && printf '%s' "$_hits" | grep -q poisoned; then
+  if [ "$_n" = "1" ] && grep -q poisoned <<< "$_hits"; then
     echo "self-test: PASS — scanner detected the poisoned leg and not the clean one"
     exit 0
   fi

@@ -121,7 +121,7 @@ if [ "${1:-}" = "--self-test" ]; then
   hits=$(legs "$t" | unpaired)
   rm -rf "$t"
   n=$(printf '%s' "$hits" | grep -c . || true)
-  if [ "$n" = "1" ] && printf '%s' "$hits" | grep -q unpaired; then
+  if [ "$n" = "1" ] && grep -q unpaired <<< "$hits"; then
     echo "self-test: PASS — flagged the unpaired capture; spared the paired form, the plain pipe and the &&-chain"
     exit 0
   fi
