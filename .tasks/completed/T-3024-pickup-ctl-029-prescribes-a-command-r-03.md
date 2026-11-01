@@ -5,10 +5,10 @@ name: "Pickup: CTL-029 prescribes a command R-033 refuses: 28 of 28 of its warni
 description: >
   Auto-created from pickup envelope. Source: 010-termlink, task T-3016. Type: bug-report.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -23,8 +23,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T13:31:02Z
-last_update: '2026-09-22T14:57:41Z'
-date_finished:
+last_update: 2026-11-01T23:36:33Z
+date_finished: 2026-11-01T23:36:33Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +51,17 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:36:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-22T14:57:41Z'
     estimator: bvp-estimator-v1-heuristic
@@ -67,14 +78,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** `fw pickup process` created three identical tasks (T-3022, T-3023, T-3024) from one envelope, P-080 (see DISPOSITION below).
+**Problem / hypothesis:** This file is a duplicate from that race. Its substance, CTL-029 prescribing a command R-033 refuses, was filed upstream under T-3016.
+**Goal:** Take the duplicate off the open backlog (T-3648 triage, operator ruling 2026-11-02).
+**Expected outcome:** The task is closed as a duplicate with evidence that T-3016 is closed. No code changes.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Duplicate (pickup race of envelope P-080, canonical T-3022, now closed); the substance was filed upstream and closed under T-3016. No work of its own. (evidence: .tasks/completed/T-3016-ctl-029-advises-closing-human-owned-task.md status work-completed)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -169,6 +182,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q '^status: work-completed' .tasks/completed/T-3016-ctl-029-advises-closing-human-owned-task.md
 
 ## RCA
 
@@ -185,6 +199,12 @@ cost_estimate_proposed:
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+This RCA covers why this file exists, not the reported bug. The reported bug's substance was handled under T-3016.
+**Symptom:** One pickup envelope, P-080, produced three identical tasks (T-3022, T-3023, T-3024).
+**Root cause:** `fw pickup process` had no mutual exclusion, and it wrote its dedup row about 60s after creating the task. Concurrent cron runs each created a task (diagnosed in T-3025).
+**Why structurally allowed:** No lock or dedup-before-create check existed in the pickup path.
+**Prevention:** Tracked and closed in T-3025 (.tasks/completed/T-3025-fw-pickup-process-creates-three-identica.md).
 
 ## Evolution
 
@@ -267,6 +287,13 @@ cost_estimate_proposed:
 - **Output:** /opt/termlink/.tasks/active/T-3024-pickup-ctl-029-prescribes-a-command-r-03.md
 - **Context:** Initial task creation
 
+### 2026-11-01T23:36:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-01T23:36:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
 ## DISPOSITION (arc-008, recorded under the pickup-race task)
 
 **Race artifact. No work to do here; do not start this task.**
@@ -286,3 +313,13 @@ removes it from the suggestion set without making a false claim.
 
 ### 2026-09-20T14:01:28Z — status-update [task-update-agent]
 - **Change:** horizon: next → later
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d18a0382
+- **Timestamp:** 2026-11-01T23:36:35Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
