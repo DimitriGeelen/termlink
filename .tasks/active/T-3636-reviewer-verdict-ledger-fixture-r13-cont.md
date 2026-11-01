@@ -395,6 +395,10 @@ grep -q "ac-deterministic high-risk forge-row" tests/reviewer-verdict-ledger-fix
   and stay red: a red guard layer hides the next real failure), D (delete R13: loses the only pin on this boundary).
 - **Left open:** if the operator later wants the stricter rule, B or C remain available.
 
+### 2026-11-01 — close T-3636 (operator ruling)
+- **Chose:** close (operator: "1 yes"). Work done (fixtures 21/21); no Human AC; owner:human only, so the close is the
+  operator's word.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:

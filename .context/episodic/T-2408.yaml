@@ -1,0 +1,112 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2408: arc mcp-slimming S3 — long-tail trim + relocate archaeology to docs + tighten guard to final ceiling
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T16:52:10Z
+# ============================================================================
+
+task_id: T-2408
+task_name: "arc mcp-slimming S3 — long-tail trim + relocate archaeology to docs + tighten guard to final ceiling"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-11T14:16:26Z
+completed: 2026-10-31T23:36:42Z
+duration_days: 112
+updates_count: 2
+first_commit: 2026-07-11T23:32:31+02:00
+last_commit: 2026-11-01T00:36:43+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  add Recommendation block (GO — close arc) for partial-complete human review. finalize S3 to partial-complete (agent ACs done, arc-close human-gated); working-memory churn. operator ruling A — close arc mcp-slimming via runme.sh with the guard output as demo
+
+# Key outcomes
+outcomes:
+  - '**Sub-600 archaeology swept.** APPLIED 2026-07-11 (fresh session, budget ok). Ran the'
+  - '**Guard tightened to final ceiling.** `scripts/test-mcp-desc-budget.sh` auto-patched by'
+  - '**Arc-close demo prepared + surfaced for human decision.** `fw arc close mcp-slimming`'
+  - '**Arc mcp-slimming is closed** (converted from a [RUBBER-STAMP] Human AC by operator ruling 2026-11-01,'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-01 — close arc mcp-slimming (arc-005)? A: close via runme.sh (operator ruling)'
+    chose: 'A (operator: "A, as suggested"). A runme.sh action runs `fw arc close mcp-slimming --demo <today''s guard output> --decision "shipped: 156525→108051 bytes, ~12k tokens/agent reclaimed, guard-locked, 273 tools intact"`, skips when already closed, and verifies the arc reads `closed`. Then T-2408 closes and the audit acknowledgement for the stale-arc warning is removed.'
+    rationale: 'the headline mechanic is shipped, re-verified by T-3151 and again on 2026-10-31 (`scripts/test-mcp-desc-budget.sh`: 107,139 / 107,500 bytes, max single 843 / 860); closing records it with its evidence and ends a false "stale" warning. Scored A +26, C +21, B +1, D −14.'
+    alternatives_rejected: ['B (a fourth slice: further trimming would be a new arc with its own target), C (Watchtower close: same result, skips runme''s on-disk verification), D (leave open: a finished arc reads as in progress). - **Left open:** a further trimming push, as a new arc, if ever wanted.']
+  - decision: '2026-11-01 — the remaining "close the arc" Human AC: convert to an automatic check (operator ruling)'
+    chose: 'convert (operator: "1 yes convert"). The box only restated a fact already true (arc closed); ticking it would be a stamp. It is now an Agent AC checked by Verification, and the task closes.'
+    alternatives_rejected: ['operator ticks the box (stamping, no judgement involved).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/settings.local.json'
+  - '.context/audits/2026-07-11.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2406.yaml'
+  - '.context/episodic/T-2407.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/.tool-counter'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2408-arc-mcp-slimming-s3--long-tail-trim--rel.md'
+  - '.tasks/completed/T-2404-promote-rearm-waker-to-scripts--roll-new.md'
+  - '.tasks/completed/T-2406-arc-mcp-slimming-s1--trimming-policy--an.md'
+  - '.tasks/completed/T-2407-arc-mcp-slimming-s2--trim-the-600-1000-c.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-07-11T23:32:31'
+    action: 'T-2408: add Recommendation block (GO — close arc) for partial-complete human review'
+  - time: '2026-07-11T23:33:01'
+    action: 'T-2408: finalize S3 to partial-complete (agent ACs done, arc-close human-gated); working-memory churn'
+  - time: '2026-11-01T00:36:43'
+    action: 'T-2408: operator ruling A — close arc mcp-slimming via runme.sh with the guard output as demo'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 161840 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:mcp-slimming]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 161840
+  commits: 4
+  files_changed: 27
+  lines_added: 831
+  lines_removed: 397
+  footprint_refreshed_at: '2026-11-01T16:52:26Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2408-arc-mcp-slimming-s3--long-tail-trim--rel.md
+generated_by: context-agent-hybrid

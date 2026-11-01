@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [arc:mcp-slimming]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T14:16:26Z
-last_update: 2026-10-31T23:36:42Z
+last_update: 2026-11-01T16:52:08Z
 date_finished: 2026-07-11T21:32:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,17 +65,11 @@ and close the arc.
   **Arc total: 156,525 → 108,051 bytes = 48,474 reclaimed (~12,100 tokens/agent/session,
   ~31% of the original tool-catalog tax).** Tool count unchanged (273) across all three slices.
   Memory + arc yaml updated.
+- [x] **Arc mcp-slimming is closed** (converted from a [RUBBER-STAMP] Human AC by operator ruling 2026-11-01,
+  "convert"; the close itself ran under the earlier operator ruling A). Checked by `## Verification`: the arc yaml
+  reads `status: closed` and the size guard still passes.
 
 ### Human
-- [ ] [RUBBER-STAMP] Close arc mcp-slimming with the demo evidence.
-  **Steps:**
-  1. `cd /opt/termlink && .agentic-framework/bin/fw task review T-2406`
-  2. Review the before/after: arc total **156,525 → 108,051 bytes** (~48KB / ~12k tokens
-     per agent per session reclaimed, ~31% of the original tool-catalog tax); tool count
-     unchanged (273); full test suite green; anti-regrowth guard locks it at 109,000 bytes.
-  3. `cd /opt/termlink && .agentic-framework/bin/fw arc close mcp-slimming --decision "shipped: 156525→108051 bytes, ~12k tokens/agent reclaimed, guard-locked, 273 tools intact"`
-  **Expected:** arc yaml status → closed; `fw arc list` no longer shows mcp-slimming in-progress.
-  **If not:** re-run with `--i-am-human` if the CLADUECODE guard blocks a genuine human session.
 
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
@@ -109,6 +103,9 @@ and close the arc.
 
 ## Verification
 
+grep -qE '^status:[[:space:]]*closed' .context/arcs/mcp-slimming.yaml
+bash scripts/test-mcp-desc-budget.sh > .context/working/.t2408 2>&1
+
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -141,7 +138,9 @@ and close the arc.
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 bash scripts/test-mcp-desc-budget.sh
-test $(python3 -c "import re;print(len(re.findall(r'description\s*=\s*\"', open('crates/termlink-mcp/src/tools.rs').read())))") -eq 273
+# 2026-11-01: counts #[tool( attributes; the old `description = "` regex read 264 once T-2990/T-3577 changed some
+# descriptions' string form, while the tool count stayed 273.
+test "$(grep -c '#\[tool(' crates/termlink-mcp/src/tools.rs)" -eq 273
 
 ## RCA
 
@@ -238,6 +237,11 @@ weigh, only the sovereignty formality that arc closure belongs to the human.
 - **Rejected:** B (a fourth slice: further trimming would be a new arc with its own target), C (Watchtower close:
   same result, skips runme's on-disk verification), D (leave open: a finished arc reads as in progress).
 - **Left open:** a further trimming push, as a new arc, if ever wanted.
+
+### 2026-11-01 — the remaining "close the arc" Human AC: convert to an automatic check (operator ruling)
+- **Chose:** convert (operator: "1 yes convert"). The box only restated a fact already true (arc closed); ticking it
+  would be a stamp. It is now an Agent AC checked by Verification, and the task closes.
+- **Rejected:** operator ticks the box (stamping, no judgement involved).
 
 ## Decision
 
