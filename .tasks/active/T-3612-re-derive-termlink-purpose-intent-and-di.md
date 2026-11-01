@@ -77,17 +77,17 @@ with the operator; and a sharpening round into one purpose with objectives and v
 -->
 
 - **IW-1: What is TermLink for, and what is it becoming, as the bleeding-edge repo and the last two months of arcs, tasks and design documents show it (not as the charter says)?**
-  confidence: 0
-  disposition: open
-  rationale: round 1, five independent external seats (claude-code, codex, opencode, antigravity, local-gpu) read the repo at the pushed HEAD
+  confidence: 0.8
+  disposition: answered
+  rationale: round 1, five independent external seats read the repo (docs/reports/T-3612-seats/round1-*.md); answered by the operator's Q1-Q7 (docs/reports/T-3612-purpose-rederivation.md Dialogue Log 5-12): a delivery substrate that makes sure a message reaches an agent that can act, not an orchestrator or a bus
 - **IW-2: Where do the five reads agree and diverge, and which divergences are real choices for the operator?**
-  confidence: 0
-  disposition: open
-  rationale: round 2 synthesis, then operator dialogue
+  confidence: 0.8
+  disposition: answered
+  rationale: docs/reports/T-3612-synthesis-round2.md (agreement and divergence); each real choice put to the operator one at a time and ruled (Dialogue Log 5-20; T-3624 Decisions)
 - **IW-3: What single purpose, objectives and value drivers follow, and do they survive a second external review?**
-  confidence: 0
-  disposition: open
-  rationale: round 4 sharpening plus review; adoption is the operator's (sovereign)
+  confidence: 0.8
+  disposition: answered
+  rationale: draft v0.9 (docs/reports/T-3612-round4-draft.md): purpose ruling E, P-1..P-7, non-goals, two driver sets; survived two outside review rounds (T-3612-round4-review-synthesis.md, T-3612-round5-review-synthesis.md: four seats, all "adopt with the listed changes", every finding dispositioned in v0.9); adoption is the operator's (sovereign)
 
 ## Exploration Plan
 
@@ -149,13 +149,25 @@ with the operator; and a sharpening round into one purpose with objectives and v
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO
 
 **Rationale:**
 
-Shaping in progress: the operator asked (2026-10-27) for five independent external reads of the bleeding-edge repo, a synthesis of commonality and divergence, a dialogue round, then a sharpened single purpose with objectives and value drivers. No evidence yet; the charter (purpose sentence never blessed, T-2470), objectives.yaml (operator-revised 2026-10-21) and the AEF-generic value drivers currently disagree.
+Adopt draft v0.9 (`docs/reports/T-3612-round4-draft.md`). Shaping is complete: five independent reads, a synthesis,
+seven operator questions (Q1-Q7) and eight further rulings on the draft's open points, and two outside review rounds
+(the cap) whose every finding is accepted, rejected or deferred in v0.9. GO means: the operator blesses the charter
+sentence (`docs/CHARTER.md:17-19`), and a build task applies draft section 6 in one commit (charter, README,
+architecture doc, charter-sentence check and its tests, objectives.yaml, driver files, tripwires) with the release
+gate green. The product driver set stays declarative until AEF T-4961 (operator ruling A, 2026-11-01).
 
 **Evidence:**
+
+- Round 1 reads: `docs/reports/T-3612-seats/round1-*.md`; synthesis `docs/reports/T-3612-synthesis-round2.md`.
+- Operator rulings: `docs/reports/T-3612-purpose-rederivation.md` Dialogue Log items 5-20; T-3624 Decisions.
+- Outside review round 1 (v0.3): `docs/reports/T-3612-round4-review-synthesis.md`.
+- Outside review round 2 (v0.8, final): `docs/reports/T-3612-round5-review-synthesis.md` — four seats, all "adopt
+  with the listed changes"; three blocking findings fixed in v0.9 (one by operator ruling A on the product drivers).
+- Deferred with stated risk: F-SURFACE's overlap with D3/D2, to the first quarterly driver review.
 
 <!-- Add evidence bullets as exploration progresses (file paths,
      commit hashes, test results). The filing-time recommendation
