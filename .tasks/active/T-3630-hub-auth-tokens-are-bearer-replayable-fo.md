@@ -56,7 +56,15 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** review finding (T-3629 item 7): hub tokens are HMAC bearer passes (`auth.rs` create_token),
+not bound to the TLS channel, no used-nonce cache; usable by whoever holds them until expiry. Fleet tokens are minted
+for up to 7 days (`DEFAULT_MAX_TOKEN_TTL_SECS`, auth.rs:386) by the nightly re-mint (03:40) and stored on each node.
+
+**Problem / hypothesis:** a stolen fleet token is replayable for up to a week.
+
+**Goal:** decide whether to harden (channel binding, shorter TTL, per-node keys) or accept.
+
+**Expected outcome:** a recorded operator decision with its reasoning.
 
 ## Acceptance Criteria
 
@@ -338,6 +346,17 @@ date_finished: null
 -->
 
 ## Decisions
+
+### 2026-11-01 — harden replayable fleet tokens? D: accept and document (operator ruling, risk acceptance)
+- **Chose:** D (operator: "proceed to suggestion", after Q&A). No code change.
+- **Why:** impact is moderate: fleet tokens are `interact` scope (post events/messages, KV, session updates); they
+  cannot inject into or run commands in terminals (Control/Execute, auth.rs:203-208). Likelihood is low: theft needs
+  a break-in to a fleet machine, which already gives more than the token. Shortening to 1 day (B) would remove the
+  6-night margin of the nightly re-mint: one missed run or one node down at 03:40 cuts that node's mail — a breakdown
+  risk against the adopted purpose, for a small gain.
+- **Rejected:** A (TLS channel binding: protocol change), B (1-day TTL: breakdown risk above), C (per-node keys proving
+  possession each connection: the proper fix, largest build).
+- **Revisit if:** fleet tokens gain Control/Execute scope, a token leaks, or nodes leave the trusted LAN.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
