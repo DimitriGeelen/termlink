@@ -1,13 +1,17 @@
 ---
 id: T-3604
-name: "T-3564 handover-maintenance task file is untracked in .tasks/active (fw doctor: untracked task files)"
+name: "T-3564 handover-maintenance task file is untracked in .tasks/active (fw doctor:
+  untracked task files)"
 description: >
-  fw doctor on 2026-10-27 reports untracked task files; git shows .tasks/active/T-3564-session-handover-maintenance.md and .tasks/completed/T-3406-arc-011-ph-1-b5-local-api-on-an-owner-on.md untracked although handover commits cite T-3564. Find why they were never committed and either commit or remove them.
+  fw doctor on 2026-10-27 reports untracked task files; git shows .tasks/active/T-3564-session-handover-maintenance.md
+  and .tasks/completed/T-3406-arc-011-ph-1-b5-local-api-on-an-owner-on.md untracked
+  although handover commits cite T-3564. Find why they were never committed and either
+  commit or remove them.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-27T13:35:35Z
-last_update: 2026-10-27T13:35:35Z
-date_finished: null
+last_update: 2026-11-01T23:59:16Z
+date_finished: 2026-11-01T23:59:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,11 +54,28 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-01T23:58:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=1 (body:episodic-only)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3604: T-3564 handover-maintenance task file is untracked in .tasks/active (fw doctor: untracked task files)
 
 ## Context
+
+**Background / trigger:** On 2026-10-27, fw doctor reported untracked task files: T-3564 (active) and T-3406 (completed), although handover commits cite T-3564.
+**Problem / hypothesis:** Task files that git does not track are missing from the ledger and the mirror. Something let them sit uncommitted.
+**Goal:** Commit or remove them, and find why they were never committed.
+**Expected outcome:** Both files are tracked, and the cause is recorded. Superseded by T-3611, which did both across 52 files.
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
@@ -62,8 +83,7 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Superseded by T-3611: both files are now tracked (first added in git 3d75dccb5, T-3611's ledger commit of 52 task-file changes). T-3611 also recorded why they sat uncommitted (its RCA) with prevention filed as T-3613. (evidence: `git ls-files` lists .tasks/active/T-3564-session-handover-maintenance.md and .tasks/completed/T-3406-arc-011-ph-1-b5-local-api-on-an-owner-on.md; .tasks/completed/T-3611-commit-52-task-file-changes-left-uncommi.md, both Agent ACs ticked)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -268,6 +288,8 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+git ls-files --error-unmatch .tasks/active/T-3564-session-handover-maintenance.md .tasks/completed/T-3406-arc-011-ph-1-b5-local-api-on-an-owner-on.md > .context/working/.t3604.out 2>&1
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -364,3 +386,20 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3604-t-3564-handover-maintenance-task-file-is.md
 - **Context:** Initial task creation
+
+### 2026-11-01T23:58:32Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-01T23:59:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b606522e
+- **Timestamp:** 2026-11-01T23:59:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

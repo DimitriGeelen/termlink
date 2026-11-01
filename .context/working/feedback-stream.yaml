@@ -22299,3 +22299,21 @@ scan_id: R-159ed5c8
 task_id: T-2586
 payload:
   task_file: .tasks/active/T-2586-design-find-idle-fixed-60s-live-window-v.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:59:17Z'
+scan_id: R-b606522e
+task_id: T-3604
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:59:17Z'
+scan_id: R-b606522e
+task_id: T-3604
+payload:
+  task_file: .tasks/active/T-3604-t-3564-handover-maintenance-task-file-is.md
