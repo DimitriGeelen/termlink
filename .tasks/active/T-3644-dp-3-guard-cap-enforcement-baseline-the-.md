@@ -57,14 +57,28 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** adopted purpose DP-3 (operator 2026-10-29 A; draft v0.9 §6.7,
+`docs/reports/T-3612-round4-draft.md:206-211,262-265`): guards are capped at 34 canary cron jobs and 99
+`scripts/check-*.sh`, one in one out.
+
+**Problem / hypothesis:** the cap is kept by hand; on 2026-11-01 the T-3631 ratchet took checks to 100 unnoticed until
+a manual count (fixed by retiring one, T-3639).
+
+**Goal:** a committed baseline of both lists and an automatic failure when either count rises.
+
+**Expected outcome:** adding a check or canary without retiring one turns the guard layer red, naming the newcomer.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Baseline file committed listing every counted `scripts/check-*.sh` and every counted canary cron job (the 12
+      operational crons and fixture suites excluded, as §DP-3 says), with today's counts
+- [ ] The enforcement is added WITHOUT a new `scripts/check-*.sh` (that would itself break the cap): extend an existing
+      guard (e.g. `scripts/check-guard-severity-markers.sh`) or the guard-layer runner; it fails (exit 1) naming any
+      entry not in the baseline, passes on today's repo, exits 2 if it cannot count
+- [ ] Fixtures: a new check file -> FAIL naming it; a retired one -> PASS (count went down); today's repo -> PASS
+- [ ] `docs/operations/guard-layer-and-canaries.md` says how to add a guard (retire one, update the baseline in the same
+      commit)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

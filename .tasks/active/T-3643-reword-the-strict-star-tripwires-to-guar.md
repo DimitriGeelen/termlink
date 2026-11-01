@@ -57,14 +57,28 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** adopted purpose (T-3612 GO, draft v0.9 §6.5, `docs/reports/T-3612-round4-draft.md:254-258`):
+the charter now forbids message relay between hubs, not hub-to-hub contact as such, and allows direct circuits opened
+with a hub-minted credential.
+
+**Problem / hypothesis:** three tripwires still encode the old strict star: `crates/termlink-hub/tests/no_federation_tripwire.rs`,
+`crates/termlink-session/tests/no_spoke_mesh_tripwire.rs`, `scripts/check-strict-star.sh`. They would block the
+adopted design (signed directory cards; credentialed circuits) while guarding the wrong thing.
+
+**Goal:** each tripwire forbids exactly what the charter forbids: topic-message relay between hubs; unauthenticated
+spoke-to-spoke connections.
+
+**Expected outcome:** assertions and allow-lists changed (not only comments); each still fails on its forbidden case.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] no_federation tripwire: allows signed directory-card exchange between hubs, still fails on hub-to-hub topic-message
+      relay (a negative case proves it)
+- [ ] no_spoke_mesh tripwire and check-strict-star.sh: allow circuits opened with a hub-minted credential, still fail on
+      an unauthenticated spoke-to-spoke connection (a negative case each)
+- [ ] `cargo test -p termlink-hub --test no_federation_tripwire` and `-p termlink-session --test no_spoke_mesh_tripwire`
+      pass; `bash scripts/check-strict-star.sh` exits 0 on the repo
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
