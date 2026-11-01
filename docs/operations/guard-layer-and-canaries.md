@@ -1054,7 +1054,15 @@ commands (AEF T-4920/T-4921, fixed by the v1.8.16-be.4 re-vendor, T-3634).
 2026-11-01). A new file with a site, or a higher count, FIRES; a lower count is reported and the
 baseline is lowered with `--update-baseline`, which refuses to raise any count. Fix a site with
 `grep_all` (grep without `-q`, output discarded — see `runme.sh`), a here-string, or
-`grep PAT >/dev/null`. Fixtures: `bash tests/pipefail-grep-q-fixtures.sh` (10 cases incl. a mutant).
+`grep PAT >/dev/null`. Fixtures: `bash tests/pipefail-grep-q-fixtures.sh` (11 cases incl. a mutant).
+After the T-3631 sweep (380 sites converted) the baseline is 13 sites in 6 files, all non-executed: doc strings,
+fixture data the detectors must see, and the deliberate L-387 reproducer.
+
+**One in, one out (DP-3, operator ruling A 2026-10-29).** This ratchet took `scripts/check-*.sh` to 100 against the
+freeze at 99. Operator ruling A (2026-11-01, T-3639) retired `scripts/check-approval-surfaces.sh` and its helper
+`scripts/lib/approval_surfaces.py` (T-2839): it listed pending operator actions on both Watchtower surfaces
+(`/review`, `/inception`) and was meant to run from cron, but no cron line or runner ever ran it. Restore from git
+(`git show 785dc0529:scripts/check-approval-surfaces.sh`) if the question returns.
 
 Safe rewrites, and the ones to use in every new `## Verification` block:
 

@@ -13,8 +13,6 @@ workflow: aef-audit-cron
 aef_uid: ac_triage
 bpmn_node_id: hum_1_operator
 depends_on:
-- target: scripts/check-approval-surfaces.sh
-  type: tested_by
 created_by: T-2839
 last_verified: '2026-08-27'
 pseudocode: 'This step assumes the operator can SEE the findings. /approvals currently

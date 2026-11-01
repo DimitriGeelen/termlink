@@ -13,10 +13,6 @@ workflow: aef-session-lifecycle
 aef_uid: sl_review
 bpmn_node_id: hum_2_operator
 depends_on:
-- target: scripts/check-approval-surfaces.sh
-  type: tested_by
-- target: scripts/lib/approval_surfaces.py
-  type: tested_by
 created_by: T-2839
 last_verified: '2026-08-27'
 pseudocode: 'The queue predicate is count_unchecked_human_acs (web/shared.py) — canonical for

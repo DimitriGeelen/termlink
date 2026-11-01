@@ -13,8 +13,6 @@ workflow: aef-inception-flow
 aef_uid: if_archive
 bpmn_node_id: agt_5_archive
 depends_on:
-- target: scripts/lib/approval_surfaces.py
-  type: tested_by
 created_by: T-2839
 last_verified: '2026-08-27'
 pseudocode: 'G-053/T-1451: revisit_at makes a DEFER a PAUSE rather than a silent drop.
