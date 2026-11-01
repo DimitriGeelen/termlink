@@ -120,7 +120,16 @@ while [ "$waited" -lt 25 ]; do
 done
 kill -9 "$victim" 2>/dev/null
 wait "$victim" 2>/dev/null
+# T-3640: SIGKILL does not reach the $(...) subshell blocked in cat on the FIFO; open the write end so that reader
+# gets EOF and exits instead of lingering as an orphan (the canary's bounded read is the second line of defence).
+timeout 2 bash -c ': > "$1"' _ "$FIFO" 2>/dev/null || true
 check "SIGKILLed run leaves the heartbeat STALE" "no" "$before"
+sleep 0.5
+if pgrep -f -- "cat -- $FIFO" >/dev/null 2>&1; then
+    echo "  FAIL  a reader of $FIFO outlived the killed canary (orphan)"; FAIL=$((FAIL + 1))
+else
+    echo "  PASS  no orphaned FIFO reader left behind"; PASS=$((PASS + 1))
+fi
 
 # --- Case 4: a tooling-error run still completed, so it writes --------------
 # exit 2 is a completed run that FAILED, not an absent run. /canaries surfaces it

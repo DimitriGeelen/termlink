@@ -103,7 +103,10 @@ trap _canary_hb EXIT
 
 # Acquire the channel-list JSON: canned (test hook) or live hub.
 if [ -n "${TERMLINK_FOREVER_TEST_JSON:-}" ]; then
-    LIST_JSON="$(cat -- "$TERMLINK_FOREVER_TEST_JSON" 2>/dev/null)" || {
+    # T-3640: bounded read. tests/canary-heartbeat-fixtures.sh case 3 points this at a FIFO no one writes and
+    # SIGKILLs the canary; the $(...) subshell and its cat survived as orphans blocked forever (six found on .107,
+    # the oldest 3 days). A time limit means a reader with no writer gives up and exits 2 (tooling).
+    LIST_JSON="$(timeout "${TERMLINK_FOREVER_TEST_READ_SECS:-30}" cat -- "$TERMLINK_FOREVER_TEST_JSON" 2>/dev/null)" || {
         echo "forever-archival canary: cannot read test JSON $TERMLINK_FOREVER_TEST_JSON" >&2; exit 2; }
 else
     if [ -n "$HUB" ]; then
