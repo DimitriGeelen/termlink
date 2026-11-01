@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3630: Hub auth tokens are bearer, replayable for their TTL and not bound to the TLS channel (finding from T-3629)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T20:00:32Z
+# ============================================================================
+
+task_id: T-3630
+task_name: "Hub auth tokens are bearer, replayable for their TTL and not bound to the TLS channel (finding from T-3629)"
+workflow_type: specification
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-29T21:08:00Z
+completed: 2026-11-01T20:00:24Z
+duration_days: 3
+updates_count: 3
+first_commit: 2026-10-29T22:06:59+01:00
+last_commit: 2026-11-01T20:43:38+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file token replay / channel-binding finding from T-3629 (inception, operator decision). file token replay / channel-binding finding from T-3629 (operator design decision). operator ruling D — accept replayable interact-scope fleet tokens (moderate impact, theft needs a break-in; 1-day TTL would add a mail-stop risk); risk acceptance recorded with revisit conditions. real ACs (ruling recorded) + verification line; only the operator's own close remains
+
+# Key outcomes
+outcomes:
+  - 'Options A–D briefed to the operator with facts checked in code (token scope `interact`, auth.rs:193-208; 7-day'
+  - 'Operator ruling D (accept and document) recorded under ## Decisions with reasons and revisit conditions'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-01 — harden replayable fleet tokens? D: accept and document (operator ruling, risk acceptance)'
+    chose: 'D (operator: "proceed to suggestion", after Q&A). No code change.'
+    rationale: 'impact is moderate: fleet tokens are `interact` scope (post events/messages, KV, session updates); they cannot inject into or run commands in terminals (Control/Execute, auth.rs:203-208). Likelihood is low: theft needs a break-in to a fleet machine, which already gives more than the token. Shortening to 1 day (B) would remove the 6-night margin of the nightly re-mint: one missed run or one node down at 03:40 cuts that node''s mail — a breakdown risk against the adopted purpose, for a small gain.'
+    alternatives_rejected: ['A (TLS channel binding: protocol change), B (1-day TTL: breakdown risk above), C (per-node keys proving possession each connection: the proper fix, largest build). - **Revisit if:** fleet tokens gain Control/Execute scope, a token leaks, or nodes leave the trusted LAN.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3625-canary-fleet-doorbell-mail-canary-is-fir.md'
+  - '.tasks/active/T-3628-tofu-store-loses-pins-under-concurrent-t.md'
+  - '.tasks/active/T-3630-hub-auth-tokens-are-bearer-replayable-fo.md'
+  - '.tasks/.id-highwater'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-29T22:06:59'
+    action: 'T-3630: file token replay / channel-binding finding from T-3629 (inception, operator decision)'
+  - time: '2026-10-29T22:08:00'
+    action: 'T-3630: file token replay / channel-binding finding from T-3629 (operator design decision)'
+  - time: '2026-11-01T20:24:28'
+    action: 'T-3630: operator ruling D — accept replayable interact-scope fleet tokens (moderate impact, theft needs a break-in; 1-day TTL would add a mail-stop risk); risk acceptance recorded with revisit conditions'
+  - time: '2026-11-01T20:43:38'
+    action: 'T-3630: real ACs (ruling recorded) + verification line; only the operator''s own close remains'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 4252 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [security, auth, design]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4252
+  commits: 5
+  files_changed: 7
+  lines_added: 922
+  lines_removed: 16
+  footprint_refreshed_at: '2026-11-01T20:00:44Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3630-hub-auth-tokens-are-bearer-replayable-fo.md
+generated_by: context-agent-hybrid

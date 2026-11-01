@@ -8,10 +8,10 @@ description: >
   channel binding, single-use nonces, shorter TTLs, per-session session_id. Operator
   design decision.
 
-status: started-work
+status: work-completed
 workflow_type: specification
 owner: human
-horizon: now
+horizon: null
 tags: [security, auth, design]
 components: []
 related_tasks: []
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-29T21:08:00Z
-last_update: '2026-11-01T19:43:18Z'
-date_finished:
+last_update: 2026-11-01T20:00:24Z
+date_finished: 2026-11-01T20:00:24Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -405,3 +405,17 @@ grep -q 'D: accept and document (operator ruling' .tasks/active/T-3630-hub-auth-
 ### 2026-11-01T19:43:17Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-01T20:00:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5d108cf4
+- **Timestamp:** 2026-11-01T20:00:25Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
