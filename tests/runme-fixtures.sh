@@ -223,13 +223,6 @@ EOF
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/noop-fw"   # claims success, moves nothing
 chmod +x "$TMP/fake-fw" "$TMP/noop-fw"
 export RUNME_TASKS_DIR="$TMP/tasks" RUNME_FW="$TMP/fake-fw"
-# T-3637 action 26: a scratch arc dir (closed by default, so every other case skips 26), a fake budget guard and a
-# scratch demo path — no case ever reads or closes the real arc.
-mkdir -p "$TMP/arcs"; printf 'id: arc-005\nslug: mcp-slimming\nstatus: closed\n' > "$TMP/arcs/mcp-slimming.yaml"
-printf '#!/usr/bin/env bash\n[ "${FAKE_BUDGET_FAIL:-0}" = 1 ] && { echo "RESULT: FAIL (over budget)"; exit 1; }\necho "total bytes:  107139"; echo "RESULT: PASS (within budget)"\n' > "$TMP/fake-budget"
-printf '#!/usr/bin/env bash\n[ "$1 $2" = "arc close" ] || exec "%s/fake-fw" "$@"\necho "$*" >> "%s/arc-fw-calls"\n[ "${FAKE_ARC_NOCLOSE:-0}" != 1 ] && sed -i "s/^status:.*/status: closed/" "%s/arcs/$3.yaml"\nexit 0\n' "$TMP" "$TMP" "$TMP" > "$TMP/arc-fw"
-chmod +x "$TMP/fake-budget" "$TMP/arc-fw"
-export RUNME_ARC_DIR="$TMP/arcs" RUNME_MCP_BUDGET_CMD="$TMP/fake-budget" RUNME_ARC005_DEMO="$TMP/arc-005-demo.txt"
 export TMP_WT_STALE="$TMP/watchtower-stale"   # T-3568: absent = Watchtower current, so other cases skip 11c
 # T-3336 (action 11) + T-3370 (action 13): default = reindex AND sidecar sweep already
 # scheduled, so every other case skips both.
@@ -687,7 +680,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 41 ))   # +1 arc mcp-slimming close (T-3637 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 40 ))   # +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1971,32 +1964,6 @@ else bad "25 drift" "rc=$rc: $x"; fi
 printf '0 6 * * * /opt/x/update.sh\n# other job\n' > "$CT"; rm -f "$TMP"/crontab.bak.T-476*
 
 echo ""
-# 26. T-3637 — close arc mcp-slimming with fresh guard evidence (scratch arc, fake guard, fake fw).
-s26() { echo "$1" | sed -n '/^.*26\. Close arc mcp-slimming/,/^.*Verification/p'; }
-arc_open() { printf 'id: arc-005\nslug: mcp-slimming\nstatus: in-progress\n' > "$TMP/arcs/mcp-slimming.yaml"; rm -f "$TMP/arc-fw-calls" "$TMP/arc-005-demo.txt"; }
-arc_st() { sed -n 's/^status: //p' "$TMP/arcs/mcp-slimming.yaml"; }
-arc_open; out=$(RUNME_FW="$TMP/arc-fw" run --dry-run); x=$(s26 "$out")
-if echo "$x" | grep_all '\[DRY\]   would re-run the MCP description-budget guard' && [ "$(arc_st)" = in-progress ] && [ ! -e "$TMP/arc-fw-calls" ]; then
-    ok "26: --dry-run reports and closes nothing"
-else bad "26 dry-run" "$x"; fi
-arc_open; out=$(RUNME_FW="$TMP/arc-fw" run); x=$(s26 "$out")
-if echo "$x" | grep_all 'OK      arc mcp-slimming closed and verified' && [ "$(arc_st)" = closed ] \
-   && grep -q -- '--demo .*arc-005-demo.txt --decision shipped: 156525' "$TMP/arc-fw-calls" && grep -q -- '--i-am-human' "$TMP/arc-fw-calls" \
-   && grep -q 'RESULT: PASS' "$TMP/arc-005-demo.txt"; then
-    ok "26: guard PASS => demo written from this run's output, fw arc close with the ruled decision, verified closed"
-else bad "26 close" "$x / $(cat "$TMP/arc-fw-calls" 2>/dev/null)"; fi
-out=$(RUNME_FW="$TMP/arc-fw" run); x=$(s26 "$out")
-if echo "$x" | grep_all 'skip    arc mcp-slimming is already closed'; then ok "26: second run skips (idempotent)"; else bad "26 idempotent" "$x"; fi
-arc_open; out=$(RUNME_FW="$TMP/arc-fw" FAKE_BUDGET_FAIL=1 run); rc=$?; x=$(s26 "$out")
-if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  the MCP description-budget guard does not PASS now' && [ "$(arc_st)" = in-progress ] && [ ! -e "$TMP/arc-fw-calls" ]; then
-    ok "26: guard not PASS => FAILED, fw never called, arc stays open"
-else bad "26 guard fail" "rc=$rc: $x"; fi
-arc_open; out=$(RUNME_FW="$TMP/arc-fw" FAKE_ARC_NOCLOSE=1 run); rc=$?; x=$(s26 "$out")
-if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  fw arc close ran but the arc reads 'in-progress', not closed"; then
-    ok "26: fw claims success but the arc file is not closed => FAILED, not OK"
-else bad "26 noclose" "rc=$rc: $x"; fi
-printf 'id: arc-005\nslug: mcp-slimming\nstatus: closed\n' > "$TMP/arcs/mcp-slimming.yaml"
-
 echo "----------------------------------------"
 printf 'T-3052 fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" = "0" ] || exit 1

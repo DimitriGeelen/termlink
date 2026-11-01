@@ -1,0 +1,9 @@
+# arc-005 (mcp-slimming) close evidence — runme.sh action 26, 2026-11-01T08:35:13Z
+# T-2408 operator ruling A (2026-11-01); guard: scripts/test-mcp-desc-budget.sh
+
+MCP tool-description budget (tools.rs):
+  tools:        264
+  total bytes:  107139  (~26784 tokens, loaded per agent per session)
+  max single:   843   (ceiling 860)   longest~ Fleet-wide_claim-state_sweep_—_the_cold-
+  total ceiling: 107500
+RESULT: PASS (within budget)

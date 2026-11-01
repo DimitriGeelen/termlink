@@ -2376,58 +2376,6 @@ head2 "25. Remove 150-skills-manager's retired ntfy cron lines from root's cront
 drop_ntfy_cron
 
 # ---------------------------------------------------------------------------
-# ACTION 26 — close arc mcp-slimming (arc-005) with fresh evidence (T-3637; T-2408 operator ruling A, 2026-11-01)
-#
-# `fw arc close` is human-gated (lib/arc.sh), so it runs here, from the operator's run. Re-runs the MCP
-# description-budget guard first: the close happens only on a PASS measured in this run, and that output is the
-# demo file. Idempotent: an arc that already reads `closed` is skipped. Verified on disk: OK only when the arc
-# file reads `closed` afterwards (fw claiming success is not enough). Anything else is FAILED and nothing closes.
-# Seams (fixtures only): RUNME_ARC_DIR, RUNME_MCP_BUDGET_CMD, RUNME_ARC005_DEMO (+ RUNME_FW).
-# ---------------------------------------------------------------------------
-seam ARC_DIR RUNME_ARC_DIR "$PROJECT_ROOT/.context/arcs"
-seam MCP_BUDGET_CMD RUNME_MCP_BUDGET_CMD "bash $PROJECT_ROOT/scripts/test-mcp-desc-budget.sh"
-seam ARC005_DEMO RUNME_ARC005_DEMO "$PROJECT_ROOT/docs/reports/arc-005-close-demo.txt"
-ARC005_DECISION="shipped: 156525→108051 bytes, ~12k tokens/agent reclaimed, guard-locked, 273 tools intact (operator ruling A on T-2408, 2026-11-01)"
-
-arc_status() { sed -n 's/^status:[[:space:]]*//p' "$ARC_DIR/$1.yaml" 2>/dev/null | head -1 | tr -d "\"' "; }
-
-close_arc005() {
-    local st out rc
-    st="$(arc_status mcp-slimming)"
-    case "$st" in
-        closed) say "  skip    arc mcp-slimming is already closed"; SKIPPED=$((SKIPPED+1)); return ;;
-        in-progress) : ;;
-        *) say "  FAILED  arc mcp-slimming status unreadable or unexpected ('${st:-none}' in $ARC_DIR/mcp-slimming.yaml); nothing closed"
-           FAILED=$((FAILED+1)); return ;;
-    esac
-    if [ "$DRY_RUN" = "1" ]; then
-        say "  [DRY]   would re-run the MCP description-budget guard and, on PASS, close arc mcp-slimming with its output as the demo"
-        DONE=$((DONE+1)); return
-    fi
-    out="$($MCP_BUDGET_CMD 2>&1)"; rc=$?
-    if [ "$rc" != 0 ] || ! grep_all -F 'RESULT: PASS' <<< "$out"; then
-        say "  FAILED  the MCP description-budget guard does not PASS now (rc=$rc) — the arc stays open:"
-        printf '%s\n' "$out" | tail -4 | sed 's/^/          /'
-        FAILED=$((FAILED+1)); return
-    fi
-    mkdir -p "$(dirname "$ARC005_DEMO")" && {
-        printf '# arc-005 (mcp-slimming) close evidence — runme.sh action 26, %s\n' "$(date -u +%FT%TZ)"
-        printf '# T-2408 operator ruling A (2026-11-01); guard: scripts/test-mcp-desc-budget.sh\n\n'
-        printf '%s\n' "$out"
-    } > "$ARC005_DEMO" || { say "  FAILED  could not write the demo file $ARC005_DEMO; nothing closed"; FAILED=$((FAILED+1)); return; }
-    "$FW" arc close mcp-slimming --demo "$ARC005_DEMO" --decision "$ARC005_DECISION" --i-am-human 2>&1 | sed 's/^/          /'
-    st="$(arc_status mcp-slimming)"
-    if [ "$st" = closed ]; then
-        say "  OK      arc mcp-slimming closed and verified (status: closed); demo: $ARC005_DEMO"; DONE=$((DONE+1))
-    else
-        say "  FAILED  fw arc close ran but the arc reads '${st:-none}', not closed"; FAILED=$((FAILED+1))
-    fi
-}
-
-head2 "26. Close arc mcp-slimming with fresh guard evidence (T-3637; T-2408 ruling A)"
-close_arc005
-
-# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.

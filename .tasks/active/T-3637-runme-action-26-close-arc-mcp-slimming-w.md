@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T00:01:12Z
-last_update: 2026-11-01T00:15:59Z
+last_update: 2026-11-01T08:42:14Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -283,6 +283,10 @@ acknowledgement can be retired.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# Operator run 2026-11-01T08:35Z rc=0: "OK arc mcp-slimming closed and verified"; action 26 then removed (permanently done).
+grep -q "^status: closed" .context/arcs/mcp-slimming.yaml
+grep -q "RESULT: PASS" docs/reports/arc-005-close-demo.txt
 
 ## RCA
 
