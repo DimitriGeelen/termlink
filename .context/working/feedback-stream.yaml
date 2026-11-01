@@ -21795,3 +21795,21 @@ scan_id: R-9e12148f
 task_id: T-3022
 payload:
   task_file: .tasks/active/T-3022-pickup-ctl-029-prescribes-a-command-r-03.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:36:00Z'
+scan_id: R-10f49c56
+task_id: T-3023
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:36:00Z'
+scan_id: R-10f49c56
+task_id: T-3023
+payload:
+  task_file: .tasks/active/T-3023-pickup-ctl-029-prescribes-a-command-r-03.md
