@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3640: Load on .107 (dimitri-mint-dev T-082, operator-approved): idle notify-sidecar loop, hung forever-archival FIFO check, orphan project inbox
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T15:23:58Z
+# ============================================================================
+
+task_id: T-3640
+task_name: "Load on .107 (dimitri-mint-dev T-082, operator-approved): idle notify-sidecar loop, hung forever-archival FIFO check, orphan project inbox"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-01T15:17:53Z
+completed: 2026-11-01T15:23:44Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-01T16:20:54+01:00
+last_commit: 2026-11-01T16:23:43+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  retire idle claude-termlink-alt notify loop + wake consumer (mailbox idle since 10-13; W1 sidecars carry our mail); forever-archival canary bounded test read + fixture releases its FIFO (6 orphaned readers found, oldest 3 days, killed). session-start mail check also reads the 'termlink' alias inbox (35 unread posts from 832/055/dimitri-mint-dev read and answered); report sent to dimitri-mint-dev
+
+# Key outcomes
+outcomes:
+  - '`claude-termlink-alt` loop and its wake consumer stopped and removed from `notify-sidecar-agents.conf` (with'
+  - 'The hung forever-archival check and its `cat` killed; root cause found; the check can no longer block forever'
+  - 'The 34 posts on `inbox:cacc73ea32b121dd/termlink` read; each sender told the address that reaches us; a durable'
+  - 'Report sent to dimitri-mint-dev (sidecar, conversation dmd-107-load-2026-11-01, RECEIVED)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'retire idle claude-termlink-alt notify loop + wake consumer (mailbox idle since 10-13; W1 sidecars carry our mail); forever-archival canary bounded test read + fixture releases its FIFO (6 orphaned readers found, oldest 3 days, killed)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/notify-sidecar-agents.conf'
+  - '.context/cron/notify-wake-agents.conf'
+  - '.tasks/active/T-3640-load-on-107-dimitri-mint-dev-t-082-opera.md'
+  - 'scripts/check-forever-archival-freshness.sh'
+  - 'scripts/session-start-alerts.sh'
+  - 'tests/canary-heartbeat-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-01T16:20:54'
+    action: 'T-3640: retire idle claude-termlink-alt notify loop + wake consumer (mailbox idle since 10-13; W1 sidecars carry our mail); forever-archival canary bounded test read + fixture releases its FIFO (6 orphaned readers found, oldest 3 days, killed)'
+  - time: '2026-11-01T16:23:43'
+    action: 'T-3640: session-start mail check also reads the ''termlink'' alias inbox (35 unread posts from 832/055/dimitri-mint-dev read and answered); report sent to dimitri-mint-dev'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 3
+  files_changed: 9
+  lines_added: 554
+  lines_removed: 18
+  footprint_refreshed_at: '2026-11-01T15:24:04Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3640-load-on-107-dimitri-mint-dev-t-082-opera.md
+generated_by: context-agent-hybrid
