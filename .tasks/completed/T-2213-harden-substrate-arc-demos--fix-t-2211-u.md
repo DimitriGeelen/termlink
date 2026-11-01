@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T14:44:29Z
-last_update: 2026-10-26T15:36:34Z
+last_update: 2026-11-01T23:56:58Z
 date_finished: 2026-06-13T14:47:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -43,7 +43,7 @@ date_finished: 2026-06-13T14:47:26Z
 - [x] `scripts/substrate-smoke.sh` gains two new stages that run the two arc demos as regression gates: the N-way work-stealing race (T-2211) and the cooperative-handoff ownership-gate demo (T-2212) — coverage the existing happy-path smoke lacked.
 - [x] `scripts/substrate-smoke.sh` still exits 0 end-to-end with the new stages wired in (verified live on the local hub).
 - [x] `bash -n` clean on both edited scripts.
-- [ ] [REVIEWER] Confirm the smoke suite is the right home for the two arc-demo regression gates (vs a separate CI entry).
+- [x] [REVIEWER] Confirm the smoke suite is the right home for the two arc-demo regression gates (vs a separate CI entry). (evidence: re-run 2026-11-02 T-3648 — `bash scripts/substrate-smoke.sh` rc=0, 10 stages OK incl. drain-demo and handoff-demo gates; commit 66e4d8ff5)
   **Steps:**
   1. `bash scripts/substrate-smoke.sh`
   **Expected:** Exit 0; stages include the drain-demo (work-stealing) and cooperative-handoff (ownership-gate) gates.
@@ -148,12 +148,10 @@ against the actual installed binary.
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-a77e3c60
-- **Timestamp:** 2026-10-26T15:36:58Z
+- **Scan ID:** R-aaf3cc66
+- **Timestamp:** 2026-11-01T23:56:59Z
 - **Catalogue:** v1.3-seed
 - **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
 - **Needs Human:** no
 - **Findings:** none
-
-- **Auto-ticked:** 1 AC(s)
-  - AC #5: 95511b8446ce [[REVIEWER] Confirm the smoke suite is the right home for the two arc-demo regres]

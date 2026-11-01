@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2213: Harden substrate arc demos — fix T-2211 unbounded-topic fallback + regression-protect both demos via smoke suite
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:57:00Z
+# ============================================================================
+
+task_id: T-2213
+task_name: "Harden substrate arc demos — fix T-2211 unbounded-topic fallback + regression-protect both demos via smoke suite"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-06-13T14:44:29Z
+completed: 2026-10-26T15:36:34Z
+duration_days: 135
+updates_count: 2
+first_commit: 2026-06-13T16:47:41+02:00
+last_commit: 2026-06-13T16:47:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  harden arc demos — fix drain-demo unbounded-topic fallback + wire both demos into smoke suite as regression gates
+
+# Key outcomes
+outcomes:
+  - '`scripts/substrate-drain-demo.sh` creates its topic with the working `--retention "messages:N"` single-arg form (was silently falling back to retention=forever because `--retention messages --retention-value N` is rejected by the shipped CLI). Demo still PASSes after the fix.'
+  - '`scripts/substrate-smoke.sh` gains two new stages that run the two arc demos as regression gates: the N-way work-stealing race (T-2211) and the cooperative-handoff ownership-gate demo (T-2212) — coverage the existing happy-path smoke lacked.'
+  - '`scripts/substrate-smoke.sh` still exits 0 end-to-end with the new stages wired in (verified live on the local hub).'
+  - '`bash -n` clean on both edited scripts.'
+  - '[REVIEWER] Confirm the smoke suite is the right home for the two arc-demo regression gates (vs a separate CI entry). (evidence: re-run 2026-11-02 T-3648 — `bash scripts/substrate-smoke.sh` rc=0, 10 stages OK incl. drain-demo and handoff-demo gates; commit 66e4d8ff5)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'harden arc demos — fix drain-demo unbounded-topic fallback + wire both demos into smoke suite as regression gates'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/metrics-history.yaml'
+  - '.tasks/active/T-2213-harden-substrate-arc-demos--fix-t-2211-u.md'
+  - 'scripts/substrate-drain-demo.sh'
+  - 'scripts/substrate-smoke.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-06-13T16:47:41'
+    action: 'T-2213: harden arc demos — fix drain-demo unbounded-topic fallback + wire both demos into smoke suite as regression gates'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 194452 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 194452
+  commits: 2
+  files_changed: 7
+  lines_added: 303
+  lines_removed: 30
+  footprint_refreshed_at: '2026-11-01T23:57:06Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2213-harden-substrate-arc-demos--fix-t-2211-u.md
+generated_by: context-agent-hybrid

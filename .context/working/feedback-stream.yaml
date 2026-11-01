@@ -22209,3 +22209,21 @@ scan_id: R-f242fa28
 task_id: T-2212
 payload:
   task_file: .tasks/active/T-2212-substrate-cooperative-handoff-demo--clai.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:56:59Z'
+scan_id: R-aaf3cc66
+task_id: T-2213
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:56:59Z'
+scan_id: R-aaf3cc66
+task_id: T-2213
+payload:
+  task_file: .tasks/active/T-2213-harden-substrate-arc-demos--fix-t-2211-u.md
