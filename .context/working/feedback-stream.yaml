@@ -21759,3 +21759,21 @@ scan_id: R-90fc9179
 task_id: T-3020
 payload:
   task_file: .tasks/active/T-3020-pickup-handover-generator--precompact-au.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:33:55Z'
+scan_id: R-3d22ad92
+task_id: T-3021
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:33:55Z'
+scan_id: R-3d22ad92
+task_id: T-3021
+payload:
+  task_file: .tasks/active/T-3021-pickup-handover-generator--precompact-au.md

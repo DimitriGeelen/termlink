@@ -1,0 +1,185 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3021: Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b FAIL every (from 010-termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:34:05Z
+# ============================================================================
+
+task_id: T-3021
+task_name: "Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b FAIL every (from 010-termlink)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-20T13:20:03Z
+completed: 2026-11-01T23:33:53Z
+duration_days: 42
+updates_count: 3
+first_commit: 2026-09-20T19:56:40+02:00
+last_commit: 2026-10-21T22:21:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Session handover S-2026-0920-1956. Session handover S-2026-0920-2158. Session handover S-2026-0920-2343. Session handover S-2026-0921-0820. Session handover S-2026-0921-1411. Session handover S-2026-0921-1638. Session handover S-2026-0921-2218. Session handover S-2026-0922-1352. Session handover S-2026-0925-1335. Session handover S-2026-0927-2222. Session handover S-2026-0929-0024. Session handover S-2026-0930-1824. Session handover S-2026-1002-0032. Session handover S-2026-1002-2054. Session handover S-2026-1005-1144. Session handover S-2026-1008-1013. Session handover S-2026-1011-2043. enrich handover S-2026-1011-2239 (PH-1 B1-B6 done, B7 next; budget-cutoff RCA learning). Session handover S-2026-1011-2245 (enriched: PH-1 B1-B6 done, B7 next). Session handover S-2026-1012-1133 (PH-1 B7-B13 done, testdev ready, B14 next). Session handover S-2026-1012-1647 (arc-011 PH-1 complete, PH-2 next). Session handover S-2026-1012-1654 (enriched from S-2026-1012-1647). Session handover S-2026-1017-2107. Session handover S-2026-1018-1532. Session handover S-2026-1020-1232. Session handover S-2026-1021-2219
+
+# Key outcomes
+outcomes:
+  - 'Duplicate (pickup race of envelope P-079, canonical T-3019); the substance was filed upstream and closed under T-3015. No work of its own. (evidence: .tasks/completed/T-3015-handover-generator-emits-5-unfilled-todo.md status work-completed; T-3648 triage)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/handovers/LATEST.md'
+  - '.context/handovers/S-2026-0920-1956.md'
+  - '.context/handovers/S-2026-0920-2158.md'
+  - '.context/handovers/S-2026-0920-2343.md'
+  - '.context/handovers/S-2026-0921-0820.md'
+  - '.context/handovers/S-2026-0921-1411.md'
+  - '.context/handovers/S-2026-0921-1638.md'
+  - '.context/handovers/S-2026-0921-2218.md'
+  - '.context/handovers/S-2026-0922-1352.md'
+  - '.context/handovers/S-2026-0925-1335.md'
+  - '.context/handovers/S-2026-0927-2222.md'
+  - '.context/handovers/S-2026-0929-0024.md'
+  - '.context/handovers/S-2026-0929-0849.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0930-1125.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0930-1824.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0930-1824.md'
+  - '.context/handovers/S-2026-0930-2139.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1001-1007.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1001-1906.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1001-1907.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1001-1907.md'
+  - '.context/handovers/S-2026-1002-0032.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1002-0032.md'
+  - '.context/handovers/S-2026-1002-0117.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1002-1535.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1002-1957.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1002-2054.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1002-2054.md'
+  - '.context/handovers/S-2026-1003-1305.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1003-2337.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1004-0208.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1005-1144.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1005-1144.md'
+  - '.context/handovers/S-2026-1006-1222.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1006-1225.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1006-1225.md'
+  - '.context/handovers/S-2026-1006-1455.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1006-2232.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1006-2237.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1006-2237.md'
+  - '.context/handovers/S-2026-1008-1013.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1008-1013.md'
+  - '.context/handovers/S-2026-1008-1203.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1010-1452.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1011-1919.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1011-2043.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1011-2043.md'
+  - '.context/handovers/S-2026-1011-2239.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1011-2239.md'
+  - '.context/handovers/S-2026-1011-2245.discard-manifest.yaml'
+  - '.context/handovers/S-2026-1011-2245.md'
+  - '.context/handovers/S-2026-1012-1133.md'
+  - '.context/handovers/S-2026-1012-1647.md'
+  - '.context/handovers/S-2026-1012-1654.md'
+  - '.context/handovers/S-2026-1017-2107.md'
+  - '.context/handovers/S-2026-1018-1532.md'
+  - '.context/handovers/S-2026-1020-1232.md'
+  - '.context/handovers/S-2026-1021-2219.md'
+  - '.context/project/learnings.yaml'
+  - '.tasks/active/T-3021-pickup-handover-generator--precompact-au.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T19:56:40'
+    action: 'T-3021: Session handover S-2026-0920-1956'
+  - time: '2026-09-20T21:59:17'
+    action: 'T-3021: Session handover S-2026-0920-2158'
+  - time: '2026-09-20T23:44:12'
+    action: 'T-3021: Session handover S-2026-0920-2343'
+  - time: '2026-09-21T08:20:46'
+    action: 'T-3021: Session handover S-2026-0921-0820'
+  - time: '2026-09-21T14:11:39'
+    action: 'T-3021: Session handover S-2026-0921-1411'
+  - time: '2026-09-21T16:38:17'
+    action: 'T-3021: Session handover S-2026-0921-1638'
+  - time: '2026-09-21T22:18:26'
+    action: 'T-3021: Session handover S-2026-0921-2218'
+  - time: '2026-09-22T13:52:55'
+    action: 'T-3021: Session handover S-2026-0922-1352'
+  - time: '2026-09-25T13:35:52'
+    action: 'T-3021: Session handover S-2026-0925-1335'
+  - time: '2026-09-27T22:23:15'
+    action: 'T-3021: Session handover S-2026-0927-2222'
+  - time: '2026-09-29T00:24:57'
+    action: 'T-3021: Session handover S-2026-0929-0024'
+  - time: '2026-09-30T18:24:57'
+    action: 'T-3021: Session handover S-2026-0930-1824'
+  - time: '2026-10-02T00:33:04'
+    action: 'T-3021: Session handover S-2026-1002-0032'
+  - time: '2026-10-02T20:54:38'
+    action: 'T-3021: Session handover S-2026-1002-2054'
+  - time: '2026-10-05T11:45:41'
+    action: 'T-3021: Session handover S-2026-1005-1144'
+  - time: '2026-10-08T10:14:32'
+    action: 'T-3021: Session handover S-2026-1008-1013'
+  - time: '2026-10-11T20:44:12'
+    action: 'T-3021: Session handover S-2026-1011-2043'
+  - time: '2026-10-11T22:42:04'
+    action: 'T-3021: enrich handover S-2026-1011-2239 (PH-1 B1-B6 done, B7 next; budget-cutoff RCA learning)'
+  - time: '2026-10-11T23:13:24'
+    action: 'T-3021: Session handover S-2026-1011-2245 (enriched: PH-1 B1-B6 done, B7 next)'
+  - time: '2026-10-12T11:35:01'
+    action: 'T-3021: Session handover S-2026-1012-1133 (PH-1 B7-B13 done, testdev ready, B14 next)'
+  - time: '2026-10-12T16:50:53'
+    action: 'T-3021: Session handover S-2026-1012-1647 (arc-011 PH-1 complete, PH-2 next)'
+  - time: '2026-10-12T16:58:36'
+    action: 'T-3021: Session handover S-2026-1012-1654 (enriched from S-2026-1012-1647)'
+  - time: '2026-10-17T21:07:46'
+    action: 'T-3021: Session handover S-2026-1017-2107'
+  - time: '2026-10-18T15:33:19'
+    action: 'T-3021: Session handover S-2026-1018-1532'
+  - time: '2026-10-20T12:33:37'
+    action: 'T-3021: Session handover S-2026-1020-1232'
+  - time: '2026-10-21T22:21:53'
+    action: 'T-3021: Session handover S-2026-1021-2219'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 26 commit(s), 61093 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 61093
+  commits: 27
+  files_changed: 63
+  lines_added: 20014
+  lines_removed: 74
+  footprint_refreshed_at: '2026-11-01T23:34:14Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3021-pickup-handover-generator--precompact-au.md
+generated_by: context-agent-hybrid
