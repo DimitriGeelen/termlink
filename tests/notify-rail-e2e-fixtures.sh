@@ -223,6 +223,7 @@ e4conf="$WORK/e4.conf"; printf '# agent fp\nclaude-termlink aaaa1111aaaa1111\n' 
 mk_tl() { printf '#!/usr/bin/env bash\n%s\n' "$2" > "$1"; chmod +x "$1"; }
 e4() { # <fake-termlink> -> sets E4RC, E4OUT
     E4OUT="$(TERMLINK="$1" NOTIFY_E2E_CONF="$e4conf" NOTIFY_E2E_EXEC_TIMEOUT=1 \
+             NOTIFY_E2E_DM_ADDRESS_KEYS="${E4KEYS-}" \
              bash "${E2E_UNDER_TEST:-$E2E}" --stages '' --experiment e4 2>&1)"; E4RC=$?
 }
 mk_tl "$WORK/tl-timeout" 'sleep 5'
@@ -244,6 +245,13 @@ e4 "$WORK/tl-split";   { [ "$E4RC" = 1 ] && echo "$E4OUT" | grep -q "IDENTITY SP
     && pass "E4 unwatched identity -> FAIL rc 1 (the real split)" || fail "E4 split (rc=$E4RC): $E4OUT"
 e4 "$WORK/tl-pass";    { [ "$E4RC" = 0 ] && echo "$E4OUT" | grep -q "PASS"; } \
     && pass "E4 watched identity -> PASS rc 0" || fail "E4 pass (rc=$E4RC): $E4OUT"
+# T-3645: an undeclared key listed in SIDECAR_DM_ADDRESS_KEYS is covered by fw sidecar alerts.
+E4KEYS="1234123412341234, bbbb2222bbbb2222" e4 "$WORK/tl-split"
+{ [ "$E4RC" = 0 ] && echo "$E4OUT" | grep -q "SIDECAR_DM_ADDRESS_KEYS lists it"; } \
+    && pass "E4 split covered by SIDECAR_DM_ADDRESS_KEYS -> PASS rc 0" || fail "E4 address-key cover (rc=$E4RC): $E4OUT"
+E4KEYS="bbbb2222bbbb22229" e4 "$WORK/tl-split"
+{ [ "$E4RC" = 1 ] && echo "$E4OUT" | grep -q "IDENTITY SPLIT"; } \
+    && pass "E4 address key must match exactly (prefix-extended key still FAILs)" || fail "E4 address-key exact (rc=$E4RC): $E4OUT"
 
 # ---- T-3287 (T-3284 GO, option C): E4 is read-only ------------------------------
 # This fake behaves like the REAL binary: WITHOUT --no-create it mints a key file

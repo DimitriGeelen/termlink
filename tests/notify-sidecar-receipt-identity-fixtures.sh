@@ -212,9 +212,18 @@ run_sidecar_as wrong-owner keep
 grep -q 'REFUSING' "$TMP/err.txt" && ok "a changed fp logs the refusal again" \
                                   || bad "changed fp stayed silent"
 
-echo "case 11 (T-3346): the shipped conf maps claude-termlink-alt to the claude-termlink key"
-if grep -qE '^claude-termlink-alt[[:space:]].*--as-identity[[:space:]]+claude-termlink([[:space:]]|$)' \
-        "$PROJECT_ROOT/.context/cron/notify-sidecar-agents.conf"; then
+echo "case 11 (T-3346, T-3645): the shipped conf maps claude-termlink-alt to the claude-termlink key"
+# T-3645: the -alt loop was retired by T-3640 (line kept commented). While retired the
+# rule still holds for the line as written, so re-enabling it by uncommenting is safe.
+CONF="$PROJECT_ROOT/.context/cron/notify-sidecar-agents.conf"
+if grep -qE '^claude-termlink-alt[[:space:]]' "$CONF"; then
+    ALT_LINE="$(grep -E '^claude-termlink-alt[[:space:]]' "$CONF")"
+else
+    ALT_LINE="$(grep -E '^#[[:space:]]*claude-termlink-alt[[:space:]]+[0-9a-f]{16}' "$CONF" | sed -E 's/^#[[:space:]]*//')"
+fi
+if [ -z "$ALT_LINE" ]; then
+    bad "no claude-termlink-alt line (active or retired) in notify-sidecar-agents.conf"
+elif grep -qE -- '--as-identity[[:space:]]+claude-termlink([[:space:]]|$)' <<< "$ALT_LINE"; then
     ok "notify-sidecar-agents.conf carries --as-identity claude-termlink for -alt"
 else
     bad "conf line for claude-termlink-alt lacks --as-identity claude-termlink"

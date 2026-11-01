@@ -749,6 +749,21 @@ experiment_e4() {
         record E4 PASS "'$SELF_AGENT' resolves to $resolved and a declared sidecar watches it — no unwatched mailbox"
         return 0
     fi
+    # T-3645: a retired per-agent loop (T-3640) may leave its key read by the framework's
+    # mail check instead: SIDECAR_DM_ADDRESS_KEYS makes `fw sidecar alerts` (session start
+    # + audit) list unanswered mail on dm:<key>:* rails. That is coverage — surfaced, not
+    # silent — though nothing auto-receipts it. NOTIFY_E2E_DM_ADDRESS_KEYS (even empty)
+    # replaces the config lookup so fixtures stay hermetic.
+    local addr_keys
+    if [ -n "${NOTIFY_E2E_DM_ADDRESS_KEYS+set}" ]; then
+        addr_keys="$NOTIFY_E2E_DM_ADDRESS_KEYS"
+    else
+        addr_keys="$(cd "$HERE/.." && timeout "$EXEC_TIMEOUT" .agentic-framework/bin/fw config get SIDECAR_DM_ADDRESS_KEYS 2>/dev/null || true)"
+    fi
+    if printf '%s\n' "$addr_keys" | tr ', ' '\n\n' | grep -qx -- "$resolved"; then
+        record E4 PASS "'$SELF_AGENT' resolves to $resolved; no sidecar loop declares it, but SIDECAR_DM_ADDRESS_KEYS lists it, so fw sidecar alerts surfaces mail on its dm rails (no auto-receipt) — no unwatched mailbox"
+        return 0
+    fi
     record E4 FAIL "IDENTITY SPLIT: '$SELF_AGENT' resolves to $resolved but NO declared sidecar watches that fingerprint (conf declares: $(printf '%s' "$declared" | tr '\n' ' ')). Mail addressed to the resolved identity lands on dm:*:$resolved topics nothing polls — silent loss, no surface reports it."
     return 1
 }

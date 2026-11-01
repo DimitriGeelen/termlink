@@ -25,3 +25,4 @@ INCEPTION_COMMIT_LIMIT: 10
 # reboot cargo was not on PATH and the boundary gate refused its absolute path (and refused
 # `fw config set` for this same key, because the value names the path).
 BOUNDARY_EXTRA_READ_PATHS: /root/.cargo:/root/.rustup
+SIDECAR_DM_ADDRESS_KEYS: 6738c073bbcc587a
