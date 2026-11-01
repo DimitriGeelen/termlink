@@ -4,10 +4,10 @@ name: "Ack the framework-pickup canary after triaging offsets 171/172"
 description: >
   Ack the framework-pickup canary after triaging offsets 171/172
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T23:53:07Z
-last_update: '2026-09-27T21:34:09Z'
-date_finished:
+last_update: 2026-11-01T23:48:16Z
+date_finished: 2026-11-01T23:48:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -47,6 +47,17 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=4 (body:rubric-routable)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:46:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-27T21:34:09Z'
@@ -95,17 +106,22 @@ not because the work was hard.
 Unparks when the operator rules on 168 (surfaced as the top Sovereign question in this
 run's handback).
 
+**Background / trigger:** The framework-pickup canary was firing on inbound filings at offsets 168, 171 and 172.
+**Problem / hypothesis:** `--ack` bumps one watermark with no partial ack. Acking before every surfaced filing is processed silently drops the unprocessed one (G-063).
+**Goal:** Ack the canary only after every surfaced filing is triaged or ruled on, through the script's `--ack` path, then confirm it is quiet.
+**Expected outcome:** The seen-offset is past 172, offset 168 has an operator ruling, and the canary reports quiet.
+
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The canary's **firing state is observed before acking**, so the ack is a response to a measured condition rather than a reflex.
-- [ ] The ack is **earned**: both surfaced filings (offsets 171 and 172) were genuinely triaged, with replies posted and read back from the topic (T-3158 offset 176, T-3159 offset 177). Acking un-triaged filings would reintroduce the exact G-063 miss the canary exists to prevent.
-- [ ] The ack is performed **through the script's own `--ack` path**, not by hand-editing `.context/working/.framework-pickup-canary.seen-offset`.
-- [ ] The canary is **re-run after the ack and confirmed quiet (exit 0)** — an ack whose effect is assumed rather than observed is the same vacuous-pass class this session has been closing all day.
-- [ ] `## Decisions` left EMPTY (the auto-capture mitigation, now 4/4).
+- [x] The canary's **firing state is observed before acking**, so the ack is a response to a measured condition rather than a reflex. (evidence: the PARKED note above records the measured firing set 168/171/172 before any ack, git eb9be237e)
+- [x] The ack is **earned**: both surfaced filings (offsets 171 and 172) were genuinely triaged, with replies posted and read back from the topic (T-3158 offset 176, T-3159 offset 177). Acking un-triaged filings would reintroduce the exact G-063 miss the canary exists to prevent. (evidence: 171 → T-3158, 172 → T-3159; the blocking offset 168 was ruled by the operator 2026-09-27 under T-3184, now completed; the ack past 172 came only after that, in T-3324's backlog triage, git d47a8230d)
+- [x] The ack is performed **through the script's own `--ack` path**, not by hand-editing `.context/working/.framework-pickup-canary.seen-offset`. (evidence: T-3324 git d47a8230d "canary acked to 300 + consumer receipt 301"; T-3583's episodic records `--ack` to 358; the marker is now 359. Caveat: the script keeps no ack ledger, so the path rests on those commit records, not on a log.)
+- [x] The canary is **re-run after the ack and confirmed quiet (exit 0)** — an ack whose effect is assumed rather than observed is the same vacuous-pass class this session has been closing all day. (evidence: re-run 2026-11-02, rc=0, "healthy — all filings surfaced (acked up to offset 359)")
+- [x] `## Decisions` left EMPTY (the auto-capture mitigation, now 4/4). (evidence: the section holds only the template comment)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -229,6 +245,9 @@ run's handback).
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash scripts/check-framework-pickup-freshness.sh > .context/working/.t3160-canary.out 2>&1 && grep -q 'healthy' .context/working/.t3160-canary.out
+grep -q '^status: work-completed' .tasks/completed/T-3184-bvp-scoring-becomes-an-agent-decision-op.md
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -337,3 +356,20 @@ run's handback).
 ### 2026-09-25T23:55:11Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-11-01T23:46:56Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-01T23:48:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-78d5d2b5
+- **Timestamp:** 2026-11-01T23:48:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3160: Ack the framework-pickup canary after triaging offsets 171/172
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:48:23Z
+# ============================================================================
+
+task_id: T-3160
+task_name: "Ack the framework-pickup canary after triaging offsets 171/172"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T23:53:07Z
+completed: 2026-11-01T23:48:16Z
+duration_days: 37
+updates_count: 6
+first_commit: 2026-09-26T01:55:05+02:00
+last_commit: 2026-09-26T01:55:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  parked — the pickup ack is not earned, and acking anyway would cause G-063
+
+# Key outcomes
+outcomes:
+  - 'The canary''s **firing state is observed before acking**, so the ack is a response to a measured condition rather than a reflex. (evidence: the PARKED note above records the measured firing set 168/171/172 before any ack, git eb9be237e)'
+  - 'The ack is **earned**: both surfaced filings (offsets 171 and 172) were genuinely triaged, with replies posted and read back from the topic (T-3158 offset 176, T-3159 offset 177). Acking un-triaged filings would reintroduce the exact G-063 miss the canary exists to prevent. (evidence: 171 → T-3158, 172 → T-3159; the blocking offset 168 was ruled by the operator 2026-09-27 under T-3184, now completed; the ack past 172 came only after that, in T-3324''s backlog triage, git d47a8230d)'
+  - 'The ack is performed **through the script''s own `--ack` path**, not by hand-editing `.context/working/.framework-pickup-canary.seen-offset`. (evidence: T-3324 git d47a8230d "canary acked to 300 + consumer receipt 301"; T-3583''s episodic records `--ack` to 358; the marker is now 359. Caveat: the script keeps no ack ledger, so the path rests on those commit records, not on a log.)'
+  - 'The canary is **re-run after the ack and confirmed quiet (exit 0)** — an ack whose effect is assumed rather than observed is the same vacuous-pass class this session has been closing all day. (evidence: re-run 2026-11-02, rc=0, "healthy — all filings surfaced (acked up to offset 359)")'
+  - '`## Decisions` left EMPTY (the auto-capture mitigation, now 4/4). (evidence: the section holds only the template comment)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3160-ack-the-framework-pickup-canary-after-tr.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-26T01:55:05'
+    action: 'T-3160: parked — the pickup ack is not earned, and acking anyway would cause G-063'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 53275 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 53275
+  commits: 2
+  files_changed: 4
+  lines_added: 468
+  lines_removed: 9
+  footprint_refreshed_at: '2026-11-01T23:48:28Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3160-ack-the-framework-pickup-canary-after-tr.md
+generated_by: context-agent-hybrid

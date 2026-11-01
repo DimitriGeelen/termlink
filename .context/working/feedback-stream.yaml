@@ -21993,3 +21993,21 @@ scan_id: R-f7703ec0
 task_id: T-3126
 payload:
   task_file: .tasks/active/T-3126-bvp-free-driver-f-orch-retirewhen-condit.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:48:17Z'
+scan_id: R-78d5d2b5
+task_id: T-3160
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:48:17Z'
+scan_id: R-78d5d2b5
+task_id: T-3160
+payload:
+  task_file: .tasks/active/T-3160-ack-the-framework-pickup-canary-after-tr.md
