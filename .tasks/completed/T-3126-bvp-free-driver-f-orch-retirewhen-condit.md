@@ -9,10 +9,10 @@ description: >
   does not decide. Silence with FW_RETIRE_WHEN_ADVISORY=0 if the condition is judged
   not actually met.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T00:01:32Z
-last_update: 2026-10-26T15:21:41Z
-date_finished:
+last_update: 2026-11-01T23:46:42Z
+date_finished: 2026-11-01T23:46:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -52,6 +52,17 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:46:02Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-25T00:07:08Z'
@@ -80,11 +91,16 @@ cost_estimate_proposed:
 
 Sovereign: BVP driver weights and retirement are governed under policy/value-drivers.yaml (§ACD).
 
+**Background / trigger:** fw audit retire_when advisory: the condition for retiring free driver F-ORCH (T-1643 done / G-064 closed) appeared met.
+**Problem / hypothesis:** A driver past its retire_when keeps scoring tasks on a goal that no longer applies.
+**Goal:** Either retire F-ORCH or silence the advisory with a recorded reason.
+**Expected outcome:** F-ORCH is no longer a live driver in policy/value-drivers.yaml.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Human reviews whether T-1643 completed cleanly and/or G-064 closed, and either retires F-ORCH (comment out / move to candidates) or silences the advisory with FW_RETIRE_WHEN_ADVISORY=0 with a recorded reason
+- [x] Human reviews whether T-1643 completed cleanly and/or G-064 closed, and either retires F-ORCH (comment out / move to candidates) or silences the advisory with FW_RETIRE_WHEN_ADVISORY=0 with a recorded reason (evidence: F-ORCH retired by T-3642 under the adopted purpose, "Q2: TermLink does not orchestrate"; policy/value-drivers.yaml:93-97 says F-ORCH is REMOVED, and the live driver ids are D1-D4 and F-RECALL only; git caaee00ee)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -180,7 +196,8 @@ Sovereign: BVP driver weights and retirement are governed under policy/value-dri
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-true
+! grep -q -E '^\s*- id:\s*F-ORCH' policy/value-drivers.yaml
+grep -q 'F-ORCH is REMOVED' policy/value-drivers.yaml
 
 ## RCA
 
@@ -221,6 +238,11 @@ true
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-11-02 — retired by the purpose decision, not by retire_when
+- **What changed:** F-ORCH was removed outright when the operator adopted the new purpose (T-3612 GO, applied by T-3642): TermLink does not orchestrate. Its retire_when condition became moot.
+- **Plan impact:** No review of T-1643 or G-064 is needed. Old F-ORCH scores stay on tasks as history.
+- **Triggered:** Closed under the T-3648 backlog triage (operator ruling 2026-11-02).
 
 ## Recommendation
 
@@ -282,3 +304,19 @@ true
 ### 2026-10-26T15:21:41Z — status-update [task-update-agent]
 - **Change:** owner: human → agent
 - **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion
+
+### 2026-11-01T23:46:01Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-01T23:46:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f7703ec0
+- **Timestamp:** 2026-11-01T23:46:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
