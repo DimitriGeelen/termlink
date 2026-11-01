@@ -1,13 +1,17 @@
 ---
 id: T-3630
-name: "Hub auth tokens are bearer, replayable for their TTL and not bound to the TLS channel (finding from T-3629)"
+name: "Hub auth tokens are bearer, replayable for their TTL and not bound to the TLS
+  channel (finding from T-3629)"
 description: >
-  T-3629 handback item 7: HMAC-signed bearer token (auth.rs create_token), not channel-bound, no used-nonce cache; replayable until expiry (3600s remote). Options: TLS-exporter channel binding, single-use nonces, shorter TTLs, per-session session_id. Operator design decision.
+  T-3629 handback item 7: HMAC-signed bearer token (auth.rs create_token), not channel-bound,
+  no used-nonce cache; replayable until expiry (3600s remote). Options: TLS-exporter
+  channel binding, single-use nonces, shorter TTLs, per-session session_id. Operator
+  design decision.
 
-status: captured
+status: started-work
 workflow_type: specification
 owner: human
-horizon: next
+horizon: now
 tags: [security, auth, design]
 components: []
 related_tasks: []
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-29T21:08:00Z
-last_update: 2026-10-29T21:08:00Z
-date_finished: null
+last_update: '2026-11-01T19:43:18Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +54,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-01T19:43:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3630: Hub auth tokens are bearer, replayable for their TTL and not bound to the TLS channel (finding from T-3629)
@@ -69,9 +85,9 @@ for up to 7 days (`DEFAULT_MAX_TOKEN_TTL_SECS`, auth.rs:386) by the nightly re-m
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Options A–D briefed to the operator with facts checked in code (token scope `interact`, auth.rs:193-208; 7-day
+      ceiling, auth.rs:386; nightly re-mint 03:40, /etc/cron.d/termlink-fleet-token-remint)
+- [x] Operator ruling D (accept and document) recorded under ## Decisions with reasons and revisit conditions
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -122,6 +138,8 @@ for up to 7 days (`DEFAULT_MAX_TOKEN_TTL_SECS`, auth.rs:386) by the nightly re-m
 -->
 
 ## Verification
+
+grep -q 'D: accept and document (operator ruling' .tasks/active/T-3630-hub-auth-tokens-are-bearer-replayable-fo.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -383,3 +401,7 @@ for up to 7 days (`DEFAULT_MAX_TOKEN_TTL_SECS`, auth.rs:386) by the nightly re-m
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3630-hub-auth-tokens-are-bearer-replayable-fo.md
 - **Context:** Initial task creation
+
+### 2026-11-01T19:43:17Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
