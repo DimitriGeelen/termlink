@@ -13,6 +13,7 @@ headline_mechanic: "Every fleet agent receives slimmer MCP tool descriptions and
   \ with fewer malformed-argument retries \u2014 reclaiming a large share of the ~39k\
   \ tokens/agent tool-catalog context"
 demo_evidence: "/opt/termlink/docs/reports/arc-005-close-demo.txt"
+prover: "bash scripts/test-mcp-desc-budget.sh"   # re-checks the closed claim (T-3288 arc-claim-drift); added 2026-11-01
 created: 2026-07-11T14:16:01Z
 closed_at: 2026-11-01T08:35:14Z
 decision: "shipped: 156525→108051 bytes, ~12k tokens/agent reclaimed, guard-locked, 273 tools intact (operator ruling A on T-2408, 2026-11-01)"
