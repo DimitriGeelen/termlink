@@ -1,0 +1,147 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3634: Re-vendor AEF v1.8.15 -> v1.8.16-be.4 (security fixes T-4920/T-4921 fail-open Tier 0 + boundary hooks; T-4892, T-4890)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T10:04:40Z
+# ============================================================================
+
+task_id: T-3634
+task_name: "Re-vendor AEF v1.8.15 -> v1.8.16-be.4 (security fixes T-4920/T-4921 fail-open Tier 0 + boundary hooks; T-4892, T-4890)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-31T22:28:45Z
+completed: 2026-11-01T10:04:10Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-10-31T23:29:18+01:00
+last_commit: 2026-11-01T11:04:08+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  operator ruling A — re-vendor to AEF v1.8.16-be.4 (fail-open Tier 0/boundary hooks T-4920/T-4921); ACs + worker brief. re-vendor AEF v1.8.15 -> v1.8.16-be.4 (10c32eca3, 181 commits). .vendor-divergence.yaml baseline ccd17d25c (v1.8.16-be.4); previous a0e086caf prepended. focus-drift fixture task gets the four T-4907 Context parts (new AEF gate blocked it rc=2). Agent ACs 5/6 evidenced, Verification 8/8; guard AC open on R13 (upstream T-4916, filed T-3636). guard layer back to the pre-upgrade baseline (1 known FAIL, 229 pass, 3 WARN); last AC ticked
+
+# Key outcomes
+outcomes:
+  - 'v1.8.15 (0230eeb9e) is an ancestor of v1.8.16-be.4 (10c32eca3); preserved-file diff done, any preserved file'
+  - 'Dry run then rehearsal on a fresh clone of /opt/termlink pass; real run from a second fresh AEF clone, rc 0'
+  - 'Every preserved file in `.vendor-divergence.yaml` still carries its local change after the real run (T-4870'
+  - '`fw doctor` and the guard layer before vs after recorded; no new FAIL (doctor FAIL 0 -> 0. Guard before: 1 FAIL'
+  - 'Security fix proven live: the vendored Tier 0 hook blocks a force-push command padded past 130 KB, and the'
+  - 'Vendor change committed; `.vendor-divergence.yaml` last_vendor_event updated in a second commit; upgrade report'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'focus-drift fixture task gets the four T-4907 Context parts (new AEF gate blocked it rc=2)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/.tasks/templates/default.md'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/audit/unit-suite.sh'
+  - '.agentic-framework/agents/context/budget-gate.sh'
+  - '.agentic-framework/agents/context/check-active-task.sh'
+  - '.agentic-framework/agents/context/check-agent-dispatch.sh'
+  - '.agentic-framework/agents/context/check-project-boundary.sh'
+  - '.agentic-framework/agents/context/check-tier0.sh'
+  - '.agentic-framework/agents/context/check-visual-verification.sh'
+  - '.agentic-framework/agents/context/continuous-driver.sh'
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.agentic-framework/agents/git/lib/large-file-scan.sh'
+  - '.agentic-framework/agents/git/lib/secret-scan.sh'
+  - '.agentic-framework/agents/task-create/create-task.sh'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/generated/components/tests-unit-t3445_delegation_close_path.md'
+  - '.agentic-framework/docs/releases/v1.8.15-notes.md'
+  - '.agentic-framework/docs/reports/T-1549-escalation-scan-v0.md'
+  - '.agentic-framework/docs/reports/T-4635-session-kill-rca.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.15-results.md'
+  - '.agentic-framework/lib/config-file.sh'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/delegation.py'
+  - '.agentic-framework/lib/delegation_cli.py'
+  - '.agentic-framework/lib/gh_links.py'
+  - '.agentic-framework/lib/governance_known.py'
+  - '.agentic-framework/lib/hook-degraded.sh'
+  - '.agentic-framework/lib/hook-dispatch.sh'
+  - '.agentic-framework/lib/inception.sh'
+  - '.agentic-framework/lib/issues.py'
+  - '.agentic-framework/lib/release.sh'
+  - '.agentic-framework/lib/review_cost.py'
+  - '.agentic-framework/lib/review_model_preflight.py'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/reviewer/static_scan.py'
+  - '.agentic-framework/lib/runme.sh'
+  - '.agentic-framework/lib/sidecar/dm.py'
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/task_context.py'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/upgrade_template_shipped.py'
+  - '.agentic-framework/lib/vendor_preserve.py'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.32.0.html'
+  - '.agentic-framework/vendor/designer/validate-workflow-0.32.0.py'
+  - '.agentic-framework/web/blueprints/tasks.py'
+  - '.agentic-framework/web/templates/task_detail.html'
+  - '.context/audits/upgrades.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-3634-re-vendor-aef-v1815---v1816-be4-security.md'
+  - '.tasks/active/T-3636-reviewer-verdict-ledger-fixture-r13-cont.md'
+  - '.vendor-divergence.yaml'
+  - 'tests/focus-drift-helper-exception-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-31T23:29:18'
+    action: 'T-3634: operator ruling A — re-vendor to AEF v1.8.16-be.4 (fail-open Tier 0/boundary hooks T-4920/T-4921); ACs + worker brief'
+  - time: '2026-11-01T00:41:17'
+    action: 'T-3634: re-vendor AEF v1.8.15 -> v1.8.16-be.4 (10c32eca3, 181 commits)'
+  - time: '2026-11-01T00:41:33'
+    action: 'T-3634: .vendor-divergence.yaml baseline ccd17d25c (v1.8.16-be.4); previous a0e086caf prepended'
+  - time: '2026-11-01T00:57:43'
+    action: 'T-3634: focus-drift fixture task gets the four T-4907 Context parts (new AEF gate blocked it rc=2)'
+  - time: '2026-11-01T00:58:43'
+    action: 'T-3634: Agent ACs 5/6 evidenced, Verification 8/8; guard AC open on R13 (upstream T-4916, filed T-3636)'
+  - time: '2026-11-01T11:04:08'
+    action: 'T-3634: guard layer back to the pre-upgrade baseline (1 known FAIL, 229 pass, 3 WARN); last AC ticked'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 695 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework, re-vendor, security]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 695
+  commits: 7
+  files_changed: 59
+  lines_added: 3348
+  lines_removed: 255
+  footprint_refreshed_at: '2026-11-01T10:04:49Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3634-re-vendor-aef-v1815---v1816-be4-security.md
+generated_by: context-agent-hybrid
