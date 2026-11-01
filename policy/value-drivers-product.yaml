@@ -1,0 +1,130 @@
+# policy/value-drivers-product.yaml
+#
+# PRODUCT driver set for TermLink -- what a release ships (hub, CLI, MCP server,
+# sidecar; install script and Homebrew formula). Adopted 2026-11-01: operator GO
+# on inception T-3612, docs/reports/T-3612-round4-draft.md v0.9 section 3; applied
+# by T-3642 (section 6.3).
+#
+# ---------------------------------------------------------------------------
+# DECLARATIVE ONLY -- NOTHING READS THIS FILE YET.
+# ---------------------------------------------------------------------------
+# The live driver file is policy/value-drivers.yaml, which holds the DEVELOPMENT
+# project's set (D1-D4 at 9/7/5/3 + F-RECALL 6). Rankings read only that file
+# (lib/bvp.sh), the live file wins any id collision (estimator.py), D1-D4 cannot
+# be arc-scoped, and arc-scoped weights are capped. So this set is declarative
+# until AEF ships per-arc driver sets: AEF inception T-4961 (GO, narrow form: an
+# arc names `driver_set: <name>`), tracked here as T-3638.
+#
+# Until then, a product score in a brief or decision is computed by hand from the
+# weights below and LABELLED "product set" (with this file's git revision), so it
+# is never confused with a live `fw bvp` score. Old totals belong to the old set:
+# recompute any comparison against the current set (draft section 6.6).
+#
+# D1-D4 are protected: same meaning as the Constitutional Directives, weights
+# differ from the development set. A free driver is justified only for an axis
+# D1-D4 do not mean. Delivery and loud failure are what D2 already means, so they
+# raise D2's weight instead of becoming new drivers. Three free drivers, under the
+# cap of five. F-ORCH is dropped (Q2: TermLink does not orchestrate; hand-off
+# mechanics are inside P-3 and D2). Product recall uses a NEW id, F-CONV-RECALL,
+# not F-RECALL: reusing F-RECALL would run AEF's hard-coded memory scorer.
+#
+# Objectives (P-1..P-7, DP-1..DP-5): .context/project/objectives.yaml.
+
+version: 1
+driver_set: product
+status: declarative   # until AEF T-4961 / T-3638
+
+protected_drivers:
+  - id: D1
+    name: Antifragility
+    weight: 6                       # operator 2026-10-29: B (development set: 9)
+    note: >
+      Product recovery (P-3 worker recovery, main takeover, conversation resume),
+      valued below delivery, usability and trust. At 9 it rewarded adding canaries
+      as product progress; that work is scored in the development set.
+
+  - id: D2
+    name: Reliability
+    weight: 9                       # 10 cannot be set: fw bvp weight accepts 0-9
+    note: >
+      Delivery to an agent that can act, and no silent loss, is the purpose (Q1).
+      Predictable, observable, auditable; no silent failures.
+
+  - id: D3
+    name: Usability
+    weight: 7
+    note: >
+      Clear CLI and MCP surfaces, errors that say what failed and what to do next,
+      and no human relaying messages between agents.
+
+  - id: D4
+    name: Portability
+    weight: 3
+    note: Linux and macOS, standards (MCP); unchanged.
+
+free_drivers:
+
+  - id: F-TRUST
+    name: Attributable trust
+    weight: 7
+    rationale: >
+      Not what D1-D4 mean: who may do what, provably (P-5, Q5). Every message,
+      injection and lifecycle write traces to a verified identity and is accepted
+      only from one allowed to make it.
+    polarity: positive
+    retire_when: >
+      T-3423 (per-peer key allow-list replacing the shared hub secret) and T-2422
+      (per-agent authorisation) are live.
+    scoring:
+      kind: signals
+      levels:
+        1: {keywords: ["signature", "identity key"]}
+        3: {keywords: ["authorisation", "authorization", "allow-list", "allowlist", "fail closed"]}
+        5: {keywords: ["per-agent authorisation", "per-peer key"]}
+
+  - id: F-SURFACE
+    name: Proportionate surface
+    weight: 5
+    rationale: >
+      Not what D1-D4 mean: fewer, used verbs (P-7). Every CLI verb and MCP tool
+      earns its maintenance and context cost through a caller or a documented
+      coordination reason.
+    polarity: positive
+    retire_when: >
+      Q6 is decided (after T-3615's fleet telemetry) and the cut is done.
+    scoring:
+      kind: signals
+      levels:
+        1: {keywords: ["off-charter", "unused verb", "unused tool"]}
+        3: {keywords: ["remove verb", "remove tool", "retire verb", "retire tool"]}
+
+  - id: F-CONV-RECALL
+    name: Conversation recall
+    weight: 5                       # operator 2026-10-28: B
+    rationale: >
+      Not what D1-D4 mean: none of them means "can be found again". An agent can
+      find back what was said and decided in a conversation it picks, within the
+      retention window, through the cursor, gap notices, page-end reasons and
+      time-range reads, without silent skips. Never a cross-topic query. Keeping
+      long-term records is the consuming project's job, not the hub's.
+    polarity: positive
+    rubric:
+      0: Nothing found back after the session ends.
+      3: A chosen thread's decisions can be found by time range.
+      5: Work improves finding back for every conversation, not just one.
+    guardrails: >
+      Inside the Q3 ruling (T-3304 IW-1 B, IW-3 B): a bounded record, time-range
+      reads, never a query language, joins or cross-topic queries. Wider recall
+      (searching all history, forever) would reopen that ruling.
+    retire_when: >
+      The arc in .context/arcs/arc-012.yaml (slug arc-012, anchor task T-3304)
+      closes with a bound prover covering gap notices, page-end reasons and
+      time-range reads (operator ruling A, 2026-11-01). Retirement evidence names
+      the prover and one successful run covering all three behaviours; an
+      allowlisted, not-run or CI-skipped result is not that evidence. Named by
+      file and anchor task because that file's `id:` field reads arc-011.
+    scoring:
+      kind: signals
+      levels:
+        1: {keywords: ["cursor", "page-end"]}
+        3: {keywords: ["gap notice", "time-range", "time range"]}

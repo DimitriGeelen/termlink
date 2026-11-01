@@ -1,6 +1,8 @@
 # TermLink Architecture
 
-> TermLink is a hub-mediated, durable append-log message bus with terminal endpoints — the coordination substrate that lets a fleet of AI agents (and humans) discover each other, exchange durable messages, claim work, and control terminal sessions across one or many machines.
+> TermLink makes sure every message reaches the recipient it is meant for: it finds that recipient, wakes it in its terminal when it must, hands the message over, and shows where it is until an agent that can act has it, or it is loudly stuck.
+>
+> It is the base layer: it records work handed off between agents, and leaves what work to do, and who should do it, to the framework above. This states the product's intended contract; what is covered today and what is not yet built is listed with each objective (`.context/project/objectives.yaml`, P-1..P-7), so the sentence is not a claim that every gap is closed.
 >
 > — the canonical purpose (see [`docs/CHARTER.md`](CHARTER.md) for the charter + non-goals). This document describes *how* that substrate is built.
 
@@ -194,8 +196,7 @@ the hub is **NOT** a stateless service overall. It owns durable state:
 
 - **Session registry** is file-based (reads `sessions/*.json` on every discover
   call) — stateless, as above.
-- **Durable channel message bus** (the charter's "durable append-log message
-  bus") lives **on the hub**, not in sessions, under `<runtime_dir>/bus/`
+- **Durable channel message bus** (the charter's "durable topic records") lives **on the hub**, not in sessions, under `<runtime_dir>/bus/`
   (initialized at `server.rs` via `init_bus`, crate `termlink-bus`):
   - topic append logs — `<runtime_dir>/bus/topics/<sha256>.log`
     (`termlink-bus/src/log.rs`)
@@ -212,8 +213,11 @@ the hub is **NOT** a stateless service overall. It owns durable state:
   are rebuilt from scratch. `<runtime_dir>/bus/` is therefore backup-relevant
   state, not disposable.
 
-**Strict-star topology (charter load-bearing noun "spokes never talk
-peer-to-peer").** This is enforced by construction, not merely safe by absence:
+**Strict-star topology (today's implementation).** The charter's rule is that hubs
+own their topic records and never relay topic messages between hubs; signed
+directory cards and hub-brokered direct circuits with hub fallback are permitted
+(direct circuits not yet implemented). Until those land, spokes never talk
+peer-to-peer. This is enforced by construction, not merely safe by absence:
 every client connect targets a *hub* address — `remote.rs::connect_remote_hub`
 takes `conn.hub` (a `hubs.toml` profile, validated as a hub address), and
 cross-host peer contact routes to the peer's declared **home hub**, never its

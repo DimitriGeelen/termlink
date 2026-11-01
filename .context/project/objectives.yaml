@@ -1,109 +1,162 @@
 # Project objectives — termlink.
 #
 # Authored intent; progress is derived, never written here.
-# Arcs reference these ids via `supports: [O-n, ...]`.
+# Arcs reference these ids via `supports: [P-n, DP-n, ...]`.
 #
 # Sources (this project's own material only): docs/CHARTER.md (authoritative
-# purpose and non-goals), README.md (four core verbs, guarantees), the arcs in
-# .context/arcs/, and the operator's rulings. Drafted under T-3371; tightened and
-# widened 2026-10-21 by operator ruling after a reflection on the weeks' work
-# (trust, dispatched workers, "accepted means stored", the hub as the record,
-# the operator's role).
+# purpose and non-goals), README.md, the arcs in .context/arcs/, and the
+# operator's rulings. Drafted under T-3371; tightened and widened 2026-10-21 by
+# operator ruling. Rewritten 2026-11-01 under T-3642 from the purpose adopted on
+# T-3612 (docs/reports/T-3612-round4-draft.md v0.9, sections 1, 2, 4 and 5):
+# `objectives:` are the PRODUCT objectives (what a release ships); the
+# development project's own objectives are under `project_objectives:`.
+# The old ids O-1..O-7 are kept as history in `aliases:` rather than rewriting
+# old evidence that cites them.
 headline: >-
-  TermLink is the trusted coordination substrate for a fleet of AI agents and
-  their operator: through a hub they discover each other, exchange durable
-  messages, dispatch and hand back work, and control terminal sessions, on one
-  machine or many.
+  TermLink makes sure every message reaches the recipient it is meant for: it
+  finds that recipient, wakes it in its terminal when it must, hands the message
+  over, and shows where it is until an agent that can act has it, or it is
+  loudly stuck.
 objectives:
-  - id: O-1
+  - id: P-1
+    name: Delivered means an agent can act on it
     text: >-
-      An agent or operator who asks who is around sees only peers that are live
-      and can actually be reached, never stale ghosts or agents nothing can wake.
+      A message counts as accepted only once it is stored. It is done only when a
+      live agent that can act on it has it, or it is loudly stuck. The sender sees
+      each stage. Only reachable peers are listed. A reader whose position was
+      swept gets a gap notice instead of skipping. Posts stay responsive while the
+      hub's host is under load. Nothing is lost in silence.
     measure: >-
-      `scripts/comms-selftest.sh --peer <id> --discover-only` passes for a live
-      peer; the waker-liveness canary log is empty
-      (.context/working/.waker-liveness-canary.log); `termlink agent find-idle`
-      lists no agent whose heartbeat is outside the LIVE window (arc-002).
-  - id: O-2
+      Today: the comms self-test passes for live peers; the waker-liveness,
+      dead-letter and unconfirmed-delivery canaries are empty; retention-gap
+      signals fire on truncated reads (T-3304 IW-3). Not yet: the sender-visible
+      stage chain on every rail (arc-011 PH-2..PH-4); no channel.create or
+      channel.post over 5 s while the disk is under 90% busy (T-3488);
+      restart-safe post dedupe (G-088). Development-side evidence, not a product
+      measure: `scripts/check-unacted-mail.sh` (T-3618) calls the framework's
+      sidecar and reads this fleet's conventions, so it counts under DP-2.
+  - id: P-2
+    name: It finds the way to the recipient
     text: >-
-      A message counts as accepted only once it is stored, and it is never
-      silently lost: the sender sees exactly where it stopped (received, stored,
-      handed over, answered), a reader whose position was swept gets a gap notice
-      instead of skipping, and the hub stays responsive while its host is under
-      load.
+      An address resolves at hub, host, project, agent or session level. A
+      project's new mail reaches its one "main" agent. Conversation mail reaches
+      the bound instance, is resumed under a grant, or comes back as a visible
+      dead letter, and is never silently redirected. Hubs never relay each
+      other's messages; a hub may broker a direct circuit and remains the
+      fallback.
     measure: >-
-      Partly measured. Today: the arc-003 "no silent loss" prover
-      (`scripts/check-arc-claim-drift.sh`, daily) passes; the dead-letter and
-      unconfirmed-delivery canary logs are empty; the hub's slow-request lines in
-      rpc-audit.jsonl (T-3478) show no channel.create/channel.post over 5 s while
-      the disk is under 90% busy (T-3488 criterion). Not yet: the sender-visible
-      stage chain and the gap notice (arc-010, arc-011), measured by their
-      verified-behaviour acceptance once built.
-  - id: O-3
+      Today: the pinned main resolves (`crates/termlink-sidecar/src/book.rs`).
+      Next: "who holds main, is it alive" plus its alarm (T-3619). Not yet:
+      five-level directory resolution and signed hub directory cards (OD-10,
+      OD-11), the readiness-gated fenced main lease (T-3359), the R-68 standing
+      takeover tests (T-3360) and direct circuits (OD-1 step 3).
+  - id: P-3
+    name: Handed-off work is done once and recorded once
     text: >-
-      A dispatched unit of work is done once and recorded once, in one
-      authoritative record that TermLink, the Agentic Engineering Framework and
-      ring20 give the same meaning; it is handed off without races, recovered when
-      its worker dies, and every worker gets its own cheap, isolated workspace.
+      One authoritative record per unit of work, which TermLink, AEF and ring20
+      read the same way. Handed off without races, recovered when its worker
+      dies. Not exactly-once side effects. The per-claim isolated checkout
+      mechanism stays here (T-3469 ruled clone-per-claim and `dispatch --isolate`
+      ships); isolation policy stays with AEF.
     measure: >-
-      Today: the substrate-smoke and stuck-claims canary logs are empty (claim,
-      transfer, lease expiry, hub blip). As the worker contract lands (T-3484,
-      T-3501..T-3504): the shared conformance vector file passes against the hub
-      backend, and live runs show every unit counted exactly once. Workspaces per
-      the IW-3 ruling (T-3469: a clone per claim, copy-on-write on btrfs).
-  - id: O-4
+      Today: the substrate-smoke and stuck-claims canaries are empty. Next:
+      runtime rejection of stale attempt completions, wired through dispatch and
+      spawn callers (the worker contract validates attempt envelopes today,
+      `crates/termlink-bus/src/worker_contract.rs`). Not yet: the shared
+      conformance vectors pass against the hub backend (worker contract).
+  - id: P-4
+    name: Terminals can be reached, driven and cleaned up
     text: >-
-      An agent or operator can start a terminal session, run a command in it and
-      read its output from elsewhere, and sessions nobody uses do not pile up.
+      Start a session, inject or exec into it, read its output, and wake an idle
+      agent at it, from elsewhere. Sessions nobody uses do not pile up.
     measure: >-
-      The session-control canary log is empty (`scripts/session-selftest.sh`:
-      spawn, exec round-trip, cleanup, run daily); the session-leak canary log is
-      empty (zombie count at or below its threshold, no orphaned data sockets).
-  - id: O-5
+      Today: the session-control and session-leak canaries are empty.
+  - id: P-5
+    name: Every act is attributable and authorised
     text: >-
-      What is shipped is what the fleet runs: releases are published and
-      installable on Linux and macOS, every hub serves the binary and
-      capabilities it is expected to, and every host's health is collected, not
-      only one host's.
+      Every message, injection and lifecycle write traces to a verified identity
+      and is accepted only from one allowed to make it. The target is agents
+      isolated from each other within a cooperating fleet; it is not a boundary
+      between hostile tenants.
     measure: >-
-      The release-publication canary log is empty (newest tag has a published
-      GitHub release; watched workflows green within 7 days); the macOS test job
-      gates the release build; the fleet-binary and fleet-capability canary logs
-      are empty; `scripts/telemetry-fleet-view.sh` names no host missing a daily
-      report (T-3466).
-  - id: O-6
+      Today: signatures are verified on post and on read (T-3486); a missing key
+      fails closed (T-3467); inject is signed (T-3493). Not yet isolation:
+      co-resident agents on a host still share uid 0 and the host root key, and
+      fleet hosts still hold .107's full hub secret while scoped tokens replace
+      it (T-3615). Not yet: per-agent authorisation (T-2422), one OS account per
+      agent (OQ-2 target), and the per-peer key allow-list replacing the shared
+      hub secret (T-3423).
+  - id: P-6
+    name: What is released installs and runs
     text: >-
-      The operator is interrupted only for genuine decisions, never acts as a
-      courier between agents, gets every action to run as one command, and hears
-      about a failure at the moment it happens and in one place, with health
-      reports that are clean or carry a cited reason.
+      Tagged releases publish Linux and macOS binaries with checksums, install
+      from the release artifact on a clean host, upgrade and roll back.
     measure: >-
-      `/canaries` (scripts/canary-status.sh) reports every canary HEALTHY, none
-      FIRING, STALE or ERRORING; `fw audit` and `fw doctor` show zero failures
-      with every warning fixed or acknowledged (arc-008). Operator actions arrive
-      as `/opt/termlink/runme.sh` or a Watchtower link, never as copy-paste
-      blocks; decisions arrive one at a time with a recommendation. Not yet
-      measured: how often the operator relays something an agent could have
-      sent itself, and the in-band loudness of each comms failure mode (arc-007).
-  - id: O-7
+      Today: the release-publication canary is empty and the macOS job gates the
+      release build.
+  - id: P-7
+    name: The surface is proportionate
     text: >-
-      Every message, injection and lifecycle write can be traced to the identity
-      that made it, and is accepted only from an identity allowed to make it: no
-      peer can act as the operator, no worker can sign off its own work in the
-      supervisor's place, and holding the hub secret is not enough to type into
-      someone's session.
+      Every CLI verb and MCP tool earns its maintenance and context cost through a
+      caller or a documented coordination reason. Whether and how fast anything
+      is removed follows fleet evidence. (Open: pending fleet data.)
     measure: >-
-      Partly measured. Today: the hub verifies every post's signature and binds
-      sender_id to the key (T-1427); readers re-check stored signatures
-      (`channel subscribe --verify`, T-3486); every agent has its own identity
-      key (T-2292) and a missing key can fail closed (T-3467). Not yet: signed
-      inject with a per-session allowlist (T-3493), the supervisor token for
-      worker lifecycle writes (T-3501), operator identity for resolve (worker
-      contract), per-agent authorisation (T-2422); each becomes a check once
-      built.
+      Today: the off-charter tool count from
+      `scripts/check-charter-drift-freshness.sh`. Not yet: Q6 is deferred until
+      T-3615's attributed fleet telemetry has gathered data; the target, the
+      thresholds and any schedule are decided then.
+project_objectives:
+  - id: DP-1
+    name: The operator is interrupted only for decisions
+    text: >-
+      One decision at a time with a recommendation; every operator action is one
+      `/opt/termlink/runme.sh`; failures are heard when they happen, in one place.
+  - id: DP-2
+    name: Our fleet runs what we ship and reports from every host
+    text: >-
+      The fleet half of the old O-5: every hub serves the binary and capabilities
+      it is expected to, and every host's health is collected.
+    measure: >-
+      The fleet-binary and fleet-capability canaries are empty; the fleet
+      telemetry view names no host missing a day (T-3615).
+  - id: DP-3
+    name: Every guard names what it protects, under a cap
+    text: >-
+      A canary or check names the P- or DP-objective it protects, its owner, its
+      cost and its retirement condition; a new one retires an old one once the
+      cap is reached. Cap (operator, 2026-10-29: A): frozen at 34 canary cron
+      jobs and 99 `scripts/check-*.sh`; one in, one out from now, and a quarterly
+      review retires guards whose objective is met and which have not fired. Not
+      counted: the 12 operational cron jobs (supervisors, rollup, re-mint,
+      heartbeat) and the fixture suites, which test code.
+    measure: >-
+      Canary cron jobs at or below 34 and `scripts/check-*.sh` at or below 99
+      (kept by hand until the cap check is built, draft section 6.7).
+  - id: DP-4
+    name: The framework stays current and our fixes go upstream
+    text: >-
+      Re-vendor routine, divergence baseline, and local framework fixes filed with
+      AEF rather than kept (G-062).
+  - id: DP-5
+    name: We read back before we propose
+    text: >-
+      Before a decision is put to the operator, earlier rulings, tasks, research
+      and the vector store are searched, and what was found is cited. Rulings
+      stay findable.
+aliases:
+  # Old id -> new ids (T-3612 draft v0.9 section 6.2). History only: old evidence
+  # citing O-n keeps its meaning; nothing reads O-n mechanically.
+  O-1: [P-1]
+  O-2: [P-1]
+  O-3: [P-3]
+  O-4: [P-4]
+  O-5: [P-6, DP-2]
+  O-6: [DP-1]
+  O-7: [P-5]
 out_of_scope:
-  - "Inter-hub federation: each hub owns its own topics; cross-hub visibility is explicit, client-driven cross-posting, never automatic (charter non-goal 1, G-060)."
-  - "A durable database or system of record: topics are retention-bounded logs for coordination, not archival storage (charter non-goal 2)."
-  - "A social or engagement platform: reactions, pins, polls, leaderboards and other analytics that serve no coordination purpose are removal candidates, not features (charter non-goal 3)."
-  - "A workflow or orchestration engine: TermLink provides the mechanism (claim, lease, DM, doorbell, presence, the dispatch record); orchestration policy belongs to the Agentic Engineering Framework (charter non-goal 4)."
-  - "A security boundary between mutually distrusting tenants: the trust model is a cooperating fleet with TOFU-pinned hubs and a shared secret (charter non-goal 5); within the fleet, every action is still attributable and authorised (O-7)."
+  - "No federation of topics: hubs never relay each other's messages. Hubs may exchange signed project directory cards (OD-11), and may broker a direct circuit between two agents while remaining the fallback path (Q4, OD-1). Replaces \"strict star\"."
+  - "Not an archival database: the hub is the authoritative record of coordination within a declared retention window. Long-term records belong in purpose-built stores; \"forever\" topics are an owned exception (Q3, T-3304 IW-1 B)."
+  - "Not a social or engagement platform: reactions, pins, polls and leaderboards with no coordination purpose are removal candidates (acted on through P-7 once Q6 is decided)."
+  - "No planning or task policy: TermLink routes for deliverability; what work runs where and when, priorities and placement belong to AEF and the projects (Q2)."
+  - "Not a boundary between hostile tenants: trust is a cooperating fleet in which every act is still attributable and authorised (Q5)."
+  - "Not a governance or host-operations platform: the machinery that builds and runs TermLink belongs to the development project (project_objectives), not to the product (Q7)."

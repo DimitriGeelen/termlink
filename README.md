@@ -1,6 +1,8 @@
 ![TermLink](header.svg)
 
-TermLink is a hub-mediated, durable append-log message bus with terminal endpoints — the coordination substrate that lets a fleet of AI agents (and humans) discover each other, exchange durable messages, claim work, and control terminal sessions across one or many machines.
+TermLink makes sure every message reaches the recipient it is meant for: it finds that recipient, wakes it in its terminal when it must, hands the message over, and shows where it is until an agent that can act has it, or it is loudly stuck.
+
+It is the base layer: it records work handed off between agents, and leaves what work to do, and who should do it, to the framework above. This states the product's intended contract; what is covered today and what is not yet built is listed with each objective (`.context/project/objectives.yaml`, P-1..P-7), so the sentence is not a claim that every gap is closed.
 
 *(This is the canonical purpose — see [`docs/CHARTER.md`](docs/CHARTER.md) for the charter and explicit non-goals.)*
 
@@ -65,7 +67,10 @@ What the substrate promises (and, honestly, what it does not):
 - **Delivery confirmation is explicit, not implicit** — `post --await-ack` writes a
   durable obligation; `channel awaiting-ack` surfaces sends nobody confirmed.
   Nothing is silently assumed delivered.
-- **Topology** — strict star: spokes talk to a hub, never to each other. Channel
+- **Topology** — hubs own their topic records and never relay topic messages
+  between hubs; signed directory cards and hub-brokered direct circuits with hub
+  fallback are permitted (direct circuits not yet implemented). Today's
+  implementation is a strict star: spokes talk to a hub, never to each other. Channel
   topics are **per-hub state; there is no inter-hub federation primitive.**
   Cross-hub visibility is always explicit, client-driven cross-posting
   (`channel post --hub <addr>`). A shared topic name on two hubs is two topics.

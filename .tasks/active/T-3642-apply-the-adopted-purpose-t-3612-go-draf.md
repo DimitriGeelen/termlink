@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T16:04:17Z
-last_update: 2026-11-01T16:05:09Z
+last_update: 2026-11-01T16:25:35Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -91,14 +91,20 @@ the live driver file is the development set without F-ORCH; `policy/value-driver
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Draft §6.1: CHARTER.md, README.md, ARCHITECTURE.md carry the section-1 sentence + scope + coverage sentences;
+- [x] Draft §6.1: CHARTER.md, README.md, ARCHITECTURE.md carry the section-1 sentence + scope + coverage sentences;
   the contradicting strict-star / message-bus / system-of-record passages are rewritten as §6.1(b) says
-- [ ] `scripts/check-charter-sentence-drift.sh` (anchor + end word "stuck") and `scripts/test-charter-sentence-drift.sh`
+  (evidence: drift check in-sync across 3 surfaces; CHARTER has no "strict star"/"system of record"/"A message bus")
+- [x] `scripts/check-charter-sentence-drift.sh` (anchor + end word "stuck") and `scripts/test-charter-sentence-drift.sh`
   updated; both pass; `bash scripts/run-guard-layer.sh --gate release` has no new FAIL
-- [ ] Draft §6.2: objectives.yaml rewritten (headline, P-1..P-7 with measure, project_objectives DP-1..DP-5,
-  out_of_scope = section-4 non-goals, header kept); T-3371's verification lines still pass
-- [ ] Draft §6.3: F-ORCH removed from `policy/value-drivers.yaml`; `policy/value-drivers-product.yaml` created with the
+  (evidence: test 7/7 ok PASS; check rc 0; guard layer 229 passed, check-charter-sentence-drift PASS. 3 FAIL-tier:
+  check-drain-sink-caps.sh = known baseline; check-arc-claim-drift.sh (arc-003 E4 IDENTITY SPLIT) and
+  notify-sidecar-receipt-identity-fixtures.sh (case 11) both trace to T-3640 commit 9022b4c7f, which commented out the
+  claude-termlink-alt line in .context/cron/notify-sidecar-agents.conf; neither reads any file this task changed)
+- [x] Draft §6.2: objectives.yaml rewritten (headline, P-1..P-7 with measure, project_objectives DP-1..DP-5,
+  out_of_scope = section-4 non-goals, header kept); T-3371's verification lines still pass (both lines rc 0)
+- [x] Draft §6.3: F-ORCH removed from `policy/value-drivers.yaml`; `policy/value-drivers-product.yaml` created with the
   section-3 set and a header saying it is declarative until AEF T-4961 (T-3638); `fw bvp` still reads the live file
+  (evidence: `fw bvp T-3642` rc 0 lists D1-D4 9/7/5/3 + F-RECALL 6, no F-ORCH; 3 scoring specs validate_scoring_spec=[])
 - [ ] One commit for §6.1-§6.3; §6.5 (tripwires) and §6.7 (DP-3 enforcement) filed as their own tasks
 
 ### Human
@@ -303,6 +309,17 @@ the live driver file is the development set without F-ORCH; `policy/value-driver
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash scripts/test-charter-sentence-drift.sh > .context/working/t3642/v-test.out 2>&1 && grep -q "test-charter-sentence-drift: PASS" .context/working/t3642/v-test.out
+bash scripts/check-charter-sentence-drift.sh --no-heartbeat > .context/working/t3642/v-check.out 2>&1 && grep -q "in-sync" .context/working/t3642/v-check.out
+grep -q "TermLink makes sure every message reaches the recipient it is meant for" docs/CHARTER.md && grep -q "It is the base layer" docs/CHARTER.md && grep -q "intended contract" docs/CHARTER.md
+grep -q "Canonical purpose" docs/CHARTER.md && ! grep -qi "strict star\|system of record\|A message bus" docs/CHARTER.md
+python3 -c "import yaml; d=yaml.safe_load(open('.context/project/objectives.yaml')); o=d['objectives']; assert str(d['headline']).strip() and o and all(x.get('id') and x.get('text') and x.get('measure') for x in o) and isinstance(d['out_of_scope'], list)"
+python3 -c "import yaml; d=yaml.safe_load(open('.context/project/objectives.yaml')); assert [x['id'] for x in d['objectives']]==['P-1','P-2','P-3','P-4','P-5','P-6','P-7']; assert [x['id'] for x in d['project_objectives']]==['DP-1','DP-2','DP-3','DP-4','DP-5']; assert len(d['out_of_scope'])==6"
+grep -qi 'authored intent; progress is derived' .context/project/objectives.yaml
+python3 -c "import yaml; d=yaml.safe_load(open('policy/value-drivers.yaml')); w={x['id']:x['weight'] for x in d['protected_drivers']+d['free_drivers']}; assert w=={'D1':9,'D2':7,'D3':5,'D4':3,'F-RECALL':6}, w"
+python3 -c "import yaml; d=yaml.safe_load(open('policy/value-drivers-product.yaml')); w={x['id']:x['weight'] for x in d['protected_drivers']+d['free_drivers']}; assert w=={'D1':6,'D2':9,'D3':7,'D4':3,'F-TRUST':7,'F-SURFACE':5,'F-CONV-RECALL':5}, w; assert all(x.get('scoring') and x.get('retire_when') for x in d['free_drivers'])"
+.agentic-framework/bin/fw bvp T-3642 > .context/working/t3642/v-bvp.out 2>&1 && grep -q "F-RECALL" .context/working/t3642/v-bvp.out && ! grep -q "F-ORCH" .context/working/t3642/v-bvp.out
 
 ## RCA
 

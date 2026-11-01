@@ -26,9 +26,11 @@
 # EXTRACTION: the sentence is bounded by a unique anchor phrase and a terminal word.
 # We deliberately extract by anchor rather than hardcoding the full sentence — a
 # hardcoded copy would just be a 4th fork to drift. Truncating at the FIRST
-# "machines" after the anchor (pure bash param-expansion, no PCRE dependency) avoids
-# the greedy-match trap: README carries a SECOND sentence that also ends in
-# "…machines." so a greedy `.*machines\.` would over-capture.
+# "stuck" after the anchor (pure bash param-expansion, no PCRE dependency) avoids
+# the greedy-match trap: a later sentence that also contains "stuck" must not be
+# over-captured by a greedy `.*stuck\.`. (T-3642: anchor and end word changed from
+# "TermLink is a hub-mediated, durable append-log message bus" / "machines" to the
+# purpose adopted under T-3612, draft v0.9 section 6.1(c).)
 #
 # EXIT CODES:
 #   0  in-sync    -- all three files carry an identical (normalized) sentence.
@@ -56,7 +58,7 @@ for arg in "$@"; do
         --quiet) QUIET=1 ;;
         --no-heartbeat) HEARTBEAT=0 ;;
         -h|--help)
-            sed -n '2,46p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+            sed -n '2,48p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
             exit 0 ;;
         *) echo "check-charter-sentence-drift: unknown arg '$arg'" >&2; exit 2 ;;
     esac
@@ -75,7 +77,7 @@ _canary_hb() {
 if [ "$HEARTBEAT" = 1 ]; then trap _canary_hb EXIT; fi
 
 ROOT="${CHARTER_SENTENCE_REPO_ROOT:-.}"
-ANCHOR="TermLink is a hub-mediated, durable append-log message bus"
+ANCHOR="TermLink makes sure every message reaches the recipient it is meant for"
 
 # The three surfaces carrying the canonical sentence.
 SURFACES=(
@@ -98,13 +100,13 @@ extract_sentence() {
         *) printf '__NOMATCH__'; return ;;
     esac
     after="${flat#*"$ANCHOR"}"          # everything after the (unique) anchor
-    # Must contain a "machines" terminus after the anchor.
+    # Must contain a "stuck" terminus after the anchor.
     case "$after" in
-        *machines*) ;;
+        *stuck*) ;;
         *) printf '__NOMATCH__'; return ;;
     esac
-    before="${after%%machines*}"        # text up to the FIRST "machines"
-    printf '%s' "${ANCHOR}${before}machines."
+    before="${after%%stuck*}"           # text up to the FIRST "stuck"
+    printf '%s' "${ANCHOR}${before}stuck."
 }
 
 declare -a NAMES

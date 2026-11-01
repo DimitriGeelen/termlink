@@ -19,7 +19,7 @@ check() { # <label> <expected-exit> <actual-exit>
 
 # The canonical sentence (single source for the fixtures). The point of the canary
 # is that these three renderings must normalize to the SAME thing.
-SENT="TermLink is a hub-mediated, durable append-log message bus with terminal endpoints — the coordination substrate that lets a fleet of AI agents (and humans) discover each other, exchange durable messages, claim work, and control terminal sessions across one or many machines."
+SENT="TermLink makes sure every message reaches the recipient it is meant for: it finds that recipient, wakes it in its terminal when it must, hands the message over, and shows where it is until an agent that can act has it, or it is loudly stuck."
 
 # Build a fixture repo at $1 with a given README sentence ($2) and ARCHITECTURE
 # sentence ($3); CHARTER always uses the canonical $SENT (it is authoritative).
@@ -30,19 +30,20 @@ build_repo() { # <root> <readme-sentence> <arch-sentence>
     {
         echo "## Canonical purpose"
         echo
-        echo "**TermLink is a hub-mediated, durable append-log message bus with terminal"
-        echo "endpoints — the coordination substrate that lets a fleet of AI agents (and humans)"
-        echo "discover each other, exchange durable messages, claim work, and control terminal"
-        echo "sessions across one or many machines.**"
+        echo "**TermLink makes sure every message reaches the recipient it is meant for: it finds"
+        echo "that recipient, wakes it in its terminal when it must, hands the message over, and"
+        echo "shows where it is until an agent that can act has it, or it is loudly stuck.**"
+        echo
+        echo "It is the base layer: it records work handed off between agents."
     } > "$root/docs/CHARTER.md"
-    # README: plain single line + a SECOND sentence that also ends in "machines."
+    # README: plain single line + a SECOND sentence that also contains "stuck"
     # (the greedy-match trap the extractor must survive).
     {
         echo "![TermLink](header.svg)"
         echo
         echo "$readme_s"
         echo
-        echo "TermLink lets a fleet of agents discover each other and work across one or many machines."
+        echo "A message that cannot be handed over is reported as stuck, never dropped in silence."
     } > "$root/README.md"
     # ARCHITECTURE: blockquote-prefixed.
     {
@@ -61,11 +62,11 @@ R="$TMP/insync"; build_repo "$R" "$SENT" "$SENT"
 check "in-sync (three agree, greedy-trap present) -> 0" 0 "$(run "$R")"
 
 # 2. README drift — one word changed. Expect 1.
-R="$TMP/readme"; build_repo "$R" "${SENT/control terminal sessions/control terminal WINDOWS}" "$SENT"
+R="$TMP/readme"; build_repo "$R" "${SENT/wakes it in its terminal/wakes it in its WINDOW}" "$SENT"
 check "README sentence drifts -> 1" 1 "$(run "$R")"
 
 # 3. ARCHITECTURE drift — one word changed. Expect 1.
-R="$TMP/arch"; build_repo "$R" "$SENT" "${SENT/coordination substrate/coordination FABRIC}"
+R="$TMP/arch"; build_repo "$R" "$SENT" "${SENT/hands the message over/hands the message OFF}"
 check "ARCHITECTURE sentence drifts -> 1" 1 "$(run "$R")"
 
 # 4. missing file — README absent. Expect tooling(2), NOT a false in-sync.
@@ -77,7 +78,7 @@ R="$TMP/noanchor"; build_repo "$R" "Some unrelated intro text with no anchor phr
 check "README missing the anchor -> tooling(2)" 2 "$(run "$R")"
 
 # 6. drift diagnostic names the drifted surface (stderr table).
-R="$TMP/readme2"; build_repo "$R" "${SENT/control terminal sessions/control terminal WINDOWS}" "$SENT"
+R="$TMP/readme2"; build_repo "$R" "${SENT/wakes it in its terminal/wakes it in its WINDOW}" "$SENT"
 err="$(CHARTER_SENTENCE_REPO_ROOT="$R" bash "$SCRIPT" --no-heartbeat 2>&1 || true)"
 if grep -q "readme" <<< "$err"; then
     echo "  ok   drift table names the drifted surface"

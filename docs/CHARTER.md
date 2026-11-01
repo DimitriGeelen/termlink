@@ -9,10 +9,16 @@
 
 ## Canonical purpose
 
-**TermLink is a hub-mediated, durable append-log message bus with terminal
-endpoints — the coordination substrate that lets a fleet of AI agents (and humans)
-discover each other, exchange durable messages, claim work, and control terminal
-sessions across one or many machines.**
+**TermLink makes sure every message reaches the recipient it is meant for: it finds
+that recipient, wakes it in its terminal when it must, hands the message over, and
+shows where it is until an agent that can act has it, or it is loudly stuck.**
+
+It is the base layer: it records work handed off between agents, and leaves what
+work to do, and who should do it, to the framework above.
+
+This states the product's intended contract; what is covered today and what is not
+yet built is listed with each objective (`.context/project/objectives.yaml`, P-1..P-7),
+so the sentence is not a claim that every gap is closed.
 
 *(This sentence is human-blessed per the Authority Model — sovereignty over the
 project's stated purpose is the human's. Agents propose; the human owns the final
@@ -20,10 +26,14 @@ wording.)*
 
 ## What TermLink is (the load-bearing nouns)
 
-- **A message bus** — append-log channel topics with durable retention, offsets,
-  acks, and replay. Delivery is the product; everything else is built on it.
-- **Hub-mediated** — a strict star: spokes never talk peer-to-peer, the hub
-  mediates all coordination (see `docs/ARCHITECTURE.md`).
+- **Durable topic records** — append-log channel topics with retention, offsets,
+  acks, and replay. The hub is authoritative for coordination within its retention
+  window; it is not an archival database. Delivery to an agent that can act is the
+  product; everything else is built on it.
+- **Hub-mediated** — hubs own their topic records and never relay topic messages
+  between hubs; signed directory cards and hub-brokered direct circuits with hub
+  fallback are permitted (direct circuits not yet implemented). See
+  `docs/ARCHITECTURE.md`.
 - **With terminal endpoints** — sessions are real PTYs: peers can stream output,
   inject keystrokes, exec, and doorbell-wake them, not just exchange text.
 - **A coordination substrate** — presence, claim/lease work-stealing, DM threads,
@@ -37,9 +47,10 @@ wording.)*
    *Guarded by* `crates/termlink-hub/tests/no_federation_tripwire.rs` (T-2569): the
    hub crate may not read peer-hub config, may not build a hub-speaking client, and
    its set of outbound connections is enumerated. Adding an auto-relay fails the build.
-2. **Not a durable database or system of record.** Topics are retention-bounded
-   append logs sized for coordination, not archival. Durability means "survives a
-   hub blip and replays", not "stored forever".
+2. **Not an archival database.** The hub is authoritative for coordination within
+   its retention window; it is not an archival database. Topics are
+   retention-bounded append logs sized for coordination. Durability means "survives
+   a hub blip and replays", not "stored forever".
 3. **Not a social / engagement platform.** Presence, threads, reactions, and pins
    serve coordination. Social-analytics surfaces that trace to no coordination
    purpose are removal candidates, not features (T-2471 / P4).
