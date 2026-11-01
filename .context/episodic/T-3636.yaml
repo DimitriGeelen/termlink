@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3636: reviewer-verdict-ledger fixture R13 contradicts AEF T-4916 (deterministic [REVIEWER] ACs now ledger-tickable)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T16:58:41Z
+# ============================================================================
+
+task_id: T-3636
+task_name: "reviewer-verdict-ledger fixture R13 contradicts AEF T-4916 (deterministic [REVIEWER] ACs now ledger-tickable)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-31T23:57:43Z
+completed: 2026-11-01T16:58:19Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-01T10:12:29+01:00
+last_commit: 2026-11-01T10:12:29+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  operator ruling A — follow AEF T-4916: deterministic [REVIEWER] AC is ledger-tickable on a low-risk task (A4), refused on a high-risk task (R13 rewritten); suite 21/21
+
+# Key outcomes
+outcomes:
+  - 'Operator ruling recorded (## Decisions: A, follow T-4916)'
+  - 'New allow case A4: a deterministic `[REVIEWER]` AC on a low-risk task with a signed external PASS is ticked'
+  - 'R13 rewritten as a refusal for the same AC on a HIGH-RISK task, refused for the right reason (under-strength)'
+  - '`tests/reviewer-verdict-ledger-fixtures.sh` fully green; R1/R2/R6/R7 and the mutants unchanged and passing'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-01 — R13 vs AEF T-4916: A, follow T-4916 (operator ruling)'
+    chose: 'A (operator: "A, as suggested"). Rewrite R13 as an ALLOW case: a deterministic `[REVIEWER]` criterion on a low-risk task with a signed external PASS is ticked by the ledger. Add a REFUSE case for the same criterion on a high-risk task, so the boundary is pinned from both sides. R1/R2 (signatures), R6 (operator-only), R7 (risk) unchanged.'
+    rationale: 'T-4916 was a deliberate upstream ruling, and it stays within the operator''s 2026-09-28 rule (T-3373: an external reviewer''s PASS closes a low-risk task''s reviewer-judged Human AC). Every security refusal still holds. Scored A +25, C −12, B −16, D −20.'
+    alternatives_rejected: ['B (local preserve of lib/delegation.py: a ninth protected edit to merge on every upgrade), C (push back and stay red: a red guard layer hides the next real failure), D (delete R13: loses the only pin on this boundary). - **Left open:** if the operator later wants the stricter rule, B or C remain available.']
+  - decision: '2026-11-01 — close T-3636 (operator ruling)'
+    chose: 'close (operator: "1 yes"). Work done (fixtures 21/21); no Human AC; owner:human only, so the close is the operator''s word.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3636-reviewer-verdict-ledger-fixture-r13-cont.md'
+  - 'tests/reviewer-verdict-ledger-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-01T10:12:29'
+    action: 'T-3636: operator ruling A — follow AEF T-4916: deterministic [REVIEWER] AC is ledger-tickable on a low-risk task (A4), refused on a high-risk task (R13 rewritten); suite 21/21'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1020 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1020
+  commits: 3
+  files_changed: 7
+  lines_added: 311
+  lines_removed: 26
+  footprint_refreshed_at: '2026-11-01T19:26:46Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3636-reviewer-verdict-ledger-fixture-r13-cont.md
+generated_by: context-agent-hybrid
