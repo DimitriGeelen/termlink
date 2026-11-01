@@ -98,6 +98,8 @@ started=0; ok=0; failed=0; stale=0; declared=0
 
 while IFS= read -r line; do
     case "$line" in ''|\#*) continue ;; esac
+    # T-3641: `none  # <reason>` declares an intentionally empty conf; it is not an agent id.
+    case "$line" in none|none[[:space:]]*) continue ;; esac
     # Deliberate word-splitting: trailing fields are extra consumer flags.
     # shellcheck disable=SC2086
     set -- $line
@@ -157,6 +159,12 @@ done < "$CONF"
 # Zero declared agents is a tooling error, never "all healthy" — a conf that
 # silently stopped parsing would otherwise report success forever (T-2747).
 if [ "$declared" -eq 0 ]; then
+    # T-3641: a conf may declare deliberately that nothing is supervised, with a line `none  # <reason>` (reason
+    # required). Without it, empty stays a tooling error, so a conf that stopped parsing never reads as healthy.
+    if grep -qE '^[[:space:]]*none[[:space:]]+#[[:space:]]*[^[:space:]]' "$CONF" 2>/dev/null; then
+        loud "no agents supervised: $CONF declares 'none' ($(sed -nE 's/^[[:space:]]*none[[:space:]]+#[[:space:]]*//p' "$CONF" | head -1))"
+        exit 0
+    fi
     loud "no agents declared in $CONF — refusing to report healthy" >&2
     exit 2
 fi

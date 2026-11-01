@@ -85,6 +85,16 @@ suprun "$WORK/empty.conf" >/dev/null 2>&1; rc=$?
 [ "$rc" -eq 2 ] && pass "T4 rc=$rc (a conf that stopped parsing must not read green)" \
                || fail "T4 expected 2 got $rc"
 
+echo "T4b (T-3641): an explicit 'none  # <reason>' is a deliberately empty conf, not a failure"
+printf '# header\nnone  # agent retired, fixture\n' > "$WORK/none.conf"
+out="$(suprun "$WORK/none.conf" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] && grep -q "declares 'none' (agent retired, fixture)" <<< "$out" && ! grep -q "STARTED" <<< "$out" \
+    && pass "T4b rc=$rc, reason shown, nothing started" || fail "T4b expected 0 + reason, got rc=$rc: $out"
+echo "T4c (T-3641): 'none' without a reason stays a tooling error"
+printf 'none\n' > "$WORK/none-noreason.conf"
+suprun "$WORK/none-noreason.conf" >/dev/null 2>&1; rc=$?
+[ "$rc" -eq 2 ] && pass "T4c rc=$rc" || fail "T4c expected 2 got $rc"
+
 echo "T5: --dry-run starts nothing"
 printf 'fixture-agent -\n' > "$WORK/one.conf"
 OUT="$(suprun "$WORK/one.conf" --dry-run 2>&1)"; rc=$?
