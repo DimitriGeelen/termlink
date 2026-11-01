@@ -21831,3 +21831,21 @@ scan_id: R-d18a0382
 task_id: T-3024
 payload:
   task_file: .tasks/active/T-3024-pickup-ctl-029-prescribes-a-command-r-03.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:37:39Z'
+scan_id: R-becfcf6a
+task_id: T-3026
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:37:39Z'
+scan_id: R-becfcf6a
+task_id: T-3026
+payload:
+  task_file: .tasks/active/T-3026-pickup-fw-pickup-process-is-unserialised.md

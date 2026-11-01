@@ -5,10 +5,10 @@ name: "Pickup: fw pickup process is unserialised and records its dedup row ~60s 
 description: >
   Auto-created from pickup envelope. Source: 010-termlink, task T-3025. Type: bug-report.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -23,8 +23,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T14:02:02Z
-last_update: '2026-09-22T14:57:41Z'
-date_finished:
+last_update: 2026-11-01T23:37:37Z
+date_finished: 2026-11-01T23:37:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +51,17 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:36:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-22T14:57:41Z'
     estimator: bvp-estimator-v1-heuristic
@@ -67,14 +78,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Pickup envelope P-081 brought our own upstream bug report about the pickup race (framework:pickup offset 128, from T-3025) back into a local task (see DISPOSITION below).
+**Problem / hypothesis:** The reported bug is that `fw pickup process` is unserialised and records its dedup row late. It was already investigated and filed by T-3025, so this task is a round-trip with no new work.
+**Goal:** Take the round-trip off the open backlog (T-3648 triage, operator ruling 2026-11-02).
+**Expected outcome:** The task is closed with evidence that T-3025 is closed. No code changes.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Superseded: this is a round-trip of this project's own filing. The substance was investigated and filed upstream at framework:pickup@128 under T-3025, which is closed. No work of its own. (evidence: .tasks/completed/T-3025-fw-pickup-process-creates-three-identica.md status work-completed; git 2f240d412)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -169,6 +182,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q '^status: work-completed' .tasks/completed/T-3025-fw-pickup-process-creates-three-identica.md
 
 ## RCA
 
@@ -185,6 +199,12 @@ cost_estimate_proposed:
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+The reported bug's full RCA is in T-3025 (.tasks/completed/T-3025-fw-pickup-process-creates-three-identica.md). This file is its round-trip.
+**Symptom:** One pickup envelope produced several identical tasks.
+**Root cause:** `fw pickup process` had no mutual exclusion, and it wrote its dedup row about 60s after creating the task. Concurrent cron runs each created a task.
+**Why structurally allowed:** No lock or dedup-before-create check existed in the pickup path.
+**Prevention:** Filed upstream at framework:pickup@128 and closed in T-3025.
 
 ## Evolution
 
@@ -267,6 +287,13 @@ cost_estimate_proposed:
 - **Output:** /opt/termlink/.tasks/active/T-3026-pickup-fw-pickup-process-is-unserialised.md
 - **Context:** Initial task creation
 
+### 2026-11-01T23:36:50Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-01T23:37:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
 ## DISPOSITION (arc-008, recorded under the pickup-race task)
 
 **Round-trip of this project's own upstream filing. No work to do here.**
@@ -281,3 +308,13 @@ suggestion set without making a false claim. Substance is tracked at T-3025.
 
 ### 2026-09-20T14:05:06Z — status-update [task-update-agent]
 - **Change:** horizon: next → later
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-becfcf6a
+- **Timestamp:** 2026-11-01T23:37:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
