@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3643: Reword the strict-star tripwires to guard no-message-relay (T-3612 draft v0.9 section 6.5)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T21:32:25Z
+# ============================================================================
+
+task_id: T-3643
+task_name: "Reword the strict-star tripwires to guard no-message-relay (T-3612 draft v0.9 section 6.5)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-01T16:09:09Z
+completed: 2026-11-01T21:32:03Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-01T22:31:23+01:00
+last_commit: 2026-11-01T22:31:23+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  tripwires guard no-message-relay and unauthenticated spoke dials — directory_card*.rs may reach peer hubs but never names a topic RPC; circuit*.rs dials allowed only with HubMintedCredential in the fn; negative cases in all three guards
+
+# Key outcomes
+outcomes:
+  - 'no_federation tripwire: allows signed directory-card exchange between hubs, still fails on hub-to-hub topic-message'
+  - 'no_spoke_mesh tripwire and check-strict-star.sh: allow circuits opened with a hub-minted credential, still fail on'
+  - '`cargo test -p termlink-hub --test no_federation_tripwire` and `-p termlink-session --test no_spoke_mesh_tripwire`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-01 — keying the allowances to names, because the protocol notions do not exist yet'
+    chose: 'hub-to-hub contact is allowed only in a hub module named `directory_card*.rs`, and topic-message RPCs or the topic store are forbidden there too. A spoke dial is allowed only in a `circuit*.rs` module (Rust test) or file (check-strict-star.sh) whose enclosing fn names `HubMintedCredential` between its `fn` line and the connect.'
+    rationale: 'the code has no directory-card type and no circuit or credential type, so the brief said to allow-list each by the narrowest name the draft gives. A credential named in another fn, or outside a circuit module, does not count.'
+    alternatives_rejected: ['dropping legs (a) and (b) of the federation test outright, because that would have allowed relay from any module.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3643-reword-the-strict-star-tripwires-to-guar.md'
+  - 'crates/termlink-hub/tests/no_federation_tripwire.rs'
+  - 'crates/termlink-session/tests/no_spoke_mesh_tripwire.rs'
+  - 'scripts/check-strict-star.sh'
+  - 'tests/strict-star-check-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-01T22:31:23'
+    action: 'T-3643: tripwires guard no-message-relay and unauthenticated spoke dials — directory_card*.rs may reach peer hubs but never names a topic RPC; circuit*.rs dials allowed only with HubMintedCredential in the fn; negative cases in all three guards'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 322 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [charter, purpose, tripwire]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 322
+  commits: 2
+  files_changed: 8
+  lines_added: 571
+  lines_removed: 164
+  footprint_refreshed_at: '2026-11-01T21:32:37Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3643-reword-the-strict-star-tripwires-to-guar.md
+generated_by: context-agent-hybrid
