@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3646: Pinned main liveness note and alarm (T-3619 slice 2, ruling B)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T20:18:20Z
+# ============================================================================
+
+task_id: T-3646
+task_name: "Pinned main liveness note and alarm (T-3619 slice 2, ruling B)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-01T20:06:47Z
+completed: 2026-11-01T20:16:50Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-01T21:07:32+01:00
+last_commit: 2026-11-01T21:16:42+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  slice 2 task (T-3619 ruling B) with four-part context, ACs, verification; worker brief. pinned main liveness note and alarm (T-3619 slice 2, ruling B)
+
+# Key outcomes
+outcomes:
+  - 'The main''s sidecar posts a liveness note on the hub on a fixed interval: its agent id, instance, sample time and'
+  - '`status` (`api.rs`) adds `main.liveness`: `alive` | `stale` (no note within the threshold) | `stuck` (N unchanged'
+  - 'A needs-attention entry is written once when the main turns stale or stuck, and once more only when it recovers'
+  - 'Unit tests for every state, including fail-closed (hub unreadable -> unknown, never alive), and a mutant check'
+  - '`cargo test -p termlink-sidecar` passes; `cargo clippy -p termlink-sidecar -- -D warnings` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-01 — topic, note shape, constants'
+    chose: 'topic `liveness:<hub_id>/<agent>` (named like the inbox `inbox:<hub_id>/<agent>`, `send::inbox_topic`), created with retention `messages:100`; note `sidecar.liveness.v1` = `{agent, instance, sample_ms, drained_up_to, receiving}`, signed with the agent''s own key and posted directly (`Sender::post_note`), never through the durable outbox: a lost note is replaced by the next one. `drained_up_to` is the inbox cursor: every offset below it is handled. Constants in `liveness.rs`: `NOTE_EVERY_MS = 60_000`, `STALE_AFTER_MS = 300_000` (five missed notes). Test seams only, honoured in a test estate and never in production (same rule as `beat::test_overrides`): `TERMLINK_SIDECAR_TEST_LIVENESS_EVERY_MS`, `TERMLINK_SIDECAR_TEST_LIVENESS_STALE_MS`. No config knob.'
+    rationale: 'reuses the hub''s existing signed channel.post / channel.list (`latest_offset`) / channel.subscribe; the topic stays bounded; 60 s matches the brief''s example and 5 min tolerates hub blips without a false alarm.'
+    alternatives_rejected: ['the durable outbox (it would queue notes while the hub is down and post them late as if current); `LatestPerCvKey` retention (needs cv-key metadata for no gain over reading `latest_offset`).']
+  - decision: '2026-11-01 — what "stuck" means, and what is unknown'
+    chose: '`stuck` = the note is fresh, but at the note''s own sample time the main''s inbox held a message at or past `drained_up_to` that had already been on the hub longer than the threshold. A draining main would have passed it, so this is "N stopped advancing while mail waits" without the peer having to remember N. `unknown` covers no book, no pinned main, no note yet, hub unreadable (any failed call, including the inbox read), an unparseable note, a note from another agent or instance, a signer that is neither in the roster nor this agent, a note dated in the future, and this sidecar''s own check not having run within three intervals.'
+    rationale: 'fail-closed as the AC demands; comparing the waiting message with the note''s sample time avoids needing peer-side memory of N across restarts.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3646-pinned-main-liveness-note-and-alarm-t-36.md'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/liveness.rs'
+  - 'crates/termlink-sidecar/src/send.rs'
+  - 'crates/termlink-sidecar/tests/liveness_hub.rs'
+  - 'crates/termlink-sidecar/tests/mutants/fc-19-main-liveness-always-alive.patch'
+  - 'scripts/arc011-mutants.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-01T21:07:32'
+    action: 'T-3646: slice 2 task (T-3619 ruling B) with four-part context, ACs, verification; worker brief'
+  - time: '2026-11-01T21:16:42'
+    action: 'T-3646: pinned main liveness note and alarm (T-3619 slice 2, ruling B)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 10
+  commits: 3
+  files_changed: 12
+  lines_added: 1414
+  lines_removed: 19
+  footprint_refreshed_at: '2026-11-01T20:18:30Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3646-pinned-main-liveness-note-and-alarm-t-36.md
+generated_by: context-agent-hybrid

@@ -6,12 +6,12 @@ description: >
   hub note 'alive, drained up to offset N'; peers read it from any host; needs-attention
   alarm when the note goes stale or N stops advancing while mail waits.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-sidecar/src/api.rs, crates/termlink-sidecar/src/daemon.rs, crates/termlink-sidecar/src/lib.rs, crates/termlink-sidecar/src/send.rs, scripts/arc011-mutants.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -40,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T20:06:47Z
-last_update: 2026-11-01T20:16:42Z
-date_finished:
+last_update: 2026-11-01T20:16:50Z
+date_finished: 2026-11-01T20:16:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -439,3 +439,16 @@ cargo clippy -p termlink-sidecar -- -D warnings > .context/working/.t3646-clippy
 
 ### 2026-11-01T20:07:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-01T20:16:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f6ed5592
+- **Timestamp:** 2026-11-01T20:17:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
