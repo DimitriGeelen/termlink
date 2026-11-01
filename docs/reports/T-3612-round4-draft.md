@@ -1,6 +1,6 @@
 # T-3612 round 4 — draft purpose, objectives and value drivers (for the operator first)
 
-**Status:** DRAFT v0.8, 2026-11-01. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
+**Status:** DRAFT v0.9, 2026-11-01. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
 corrects this first; only then does it go to outside review (claude, codex, antigravity, opencode; at most 2 rounds).
 Adoption is the operator's (the charter sentence is human-blessed, `docs/CHARTER.md:17-19`).
 
@@ -25,6 +25,10 @@ and the operation of our own fleet.
 
 **Scope sentence (the paragraph after it in the charter):** It is the base layer: it records work handed off between
 agents, and leaves what work to do, and who should do it, to the framework above.
+
+**Coverage sentence (v0.9, final review: codex, claude; charter, after the scope sentence):** This states the
+product's intended contract; what is covered today and what is not yet built is listed with each objective (section
+2), so the sentence is not a claim that every gap is closed.
 
 Where each part comes from:
 
@@ -78,12 +82,16 @@ Each one has a measure. "Not yet" means the measure is named, but whatever would
    - Measures:
      - today: the pinned main resolves (`crates/termlink-sidecar/src/book.rs`).
      - next: "who holds main, is it alive" plus its alarm (T-3619).
-     - not yet: the R-68 standing takeover tests (T-3360) and direct circuits (OD-1 step 3).
+     - not yet: five-level directory resolution and signed hub directory cards (OD-10, OD-11), the readiness-gated
+       fenced main lease (T-3359), the R-68 standing takeover tests (T-3360) and direct circuits (OD-1 step 3).
+       (v0.9: the first two added, final review, antigravity.)
 3. **P-3 Handed-off work is done once and recorded once** (O-3, narrowed by Q2).
    - Statement: one authoritative record per unit of work, which TermLink, AEF and ring20 read the same way. Handed
      off without races, recovered when its worker dies. Not exactly-once side effects (synthesis D8).
    - Measures:
      - today: the substrate-smoke and stuck-claims canaries are empty.
+     - next: runtime rejection of stale attempt completions, wired through dispatch and spawn callers (the worker
+       contract validates attempt envelopes today, `crates/termlink-bus/src/worker_contract.rs`; v0.9, antigravity).
      - not yet: the shared conformance vectors pass against the hub backend (worker contract).
    - Workspaces (v0.3, codex and antigravity, not contested): the per-claim isolated checkout mechanism stays in
      P-3, because T-3469 ruled clone-per-claim and `dispatch --isolate` ships. Isolation policy stays with AEF.
@@ -115,7 +123,7 @@ Each one has a measure. "Not yet" means the measure is named, but whatever would
      - not yet: Q6 is deferred until T-3615's attributed fleet telemetry has gathered data; the target, the
        thresholds and any schedule are decided then.
 
-## 3. Product value drivers (`policy/value-drivers.yaml`)
+## 3. Product value drivers (`policy/value-drivers-product.yaml`, section 6.3)
 
 D1–D4 are protected: same meaning, weights may change. A free driver is justified only for an axis D1–D4 do not
 mean. Delivery and loud failure are what D2 Reliability already means ("predictable, observable, auditable; no
@@ -125,7 +133,7 @@ silent failures"), so they raise D2's weight instead of becoming new drivers.
 |---|---|---|---|
 | D1 Antifragility | 9 | 6 (operator, 2026-10-29: B) | Three of four seats: at 9 it rewards adding canaries as product progress; that work is now scored in the development set (D1 9 there). 6 keeps product recovery (P-3 worker recovery, main takeover, conversation resume) valued below delivery, usability and trust. |
 | D2 Reliability | 7 | 9 | Delivery to an agent that can act, and no silent loss, is the purpose (Q1). (v0.3: 10 cannot be set, since `fw bvp weight` accepts 0–9.) |
-| D3 Usability | 5 | 7 | The operator interrupted only for decisions, and errors that say what to do (all four seats). |
+| D3 Usability | 5 | 7 | Clear CLI and MCP surfaces, errors that say what failed and what to do next, and no human relaying messages between agents (all four seats; v0.9 wording, antigravity: "interrupted only for decisions" is DP-1's). |
 | D4 Portability | 3 | 3 | Linux and macOS, standards (MCP); unchanged. |
 | F-TRUST Attributable trust (new) | — | 7 | Not what D1–D4 mean: who may do what, provably (P-5, Q5). Retire when T-3423 and T-2422 are live. |
 | F-SURFACE Proportionate surface (new) | — | 5 | Not what D1–D4 mean: fewer, used verbs (P-7). Retire when Q6 is decided and the cut is done. |
@@ -144,9 +152,12 @@ F-RECALL scores AEF's memory layer).
 - Guardrail: inside the Q3 ruling (T-3304 IW-1 B, IW-3 B): a bounded record, time-range reads, never a query language,
   joins or cross-topic queries. Wider recall (searching all history, forever) would reopen that ruling.
 - Not D1–D4: none of them means "can be found again".
-- Retire when: arc-012 closes with a bound prover covering gap notices, page-end reasons and time-range reads
-  (operator ruling A, 2026-11-01). The arc-claim-drift guard (T-3288) fails a closed arc without a runnable prover,
-  so "closed" stays re-checkable.
+- Retire when: the arc in `.context/arcs/arc-012.yaml` (slug arc-012, anchor task T-3304) closes with a bound prover
+  covering gap notices, page-end reasons and time-range reads (operator ruling A, 2026-11-01). The arc-claim-drift
+  guard (T-3288) fails a closed arc without a runnable prover, so "closed" stays re-checkable. Retirement evidence
+  names the prover and one successful run covering all three behaviours; an allowlisted, not-run or CI-skipped
+  result is not that evidence (v0.9, final review: all four seats). Named by file and anchor task because that
+  file's `id:` field reads arc-011 (a separate fix).
 
 **Scoring tooling** (v0.3, all three reviewers): F-TRUST, F-SURFACE and F-CONV-RECALL each need a declarative
 `scoring:` block. Without one they score 0 and the audit WARNs.
@@ -206,26 +217,52 @@ These describe how we build and run TermLink, not what it is. They would live in
    ruled already.)
 6. **Drivers:** the development project scores its own work with D1–D4 at today's weights (9/7/5/3) plus F-RECALL at
    6 in its current meaning (`fw recall`, learnings synced into instruction files). That is where D1's emphasis on
-   hardening the process belongs.
+   hardening the process belongs. F-ORCH leaves the live file (Q2; v0.9, claude, opencode).
 
 ## 6. What adoption would change (nothing is changed by this draft)
 
-1. **`docs/CHARTER.md`:** canonical purpose (section 1), non-goals (section 4). The charter-sentence drift guard
-   extracts ONE sentence between a hard-coded anchor and the word "machines" (`scripts/check-charter-sentence-drift.sh`
-   and `scripts/test-charter-sentence-drift.sh`). Its anchor, its end word, and the copies in `README.md` and
-   `docs/ARCHITECTURE.md` change in the same commit, or the release gate fails closed. The scope sentence goes in the
-   paragraph after the canonical sentence.
-2. **`.context/project/objectives.yaml`:** headline = the purpose; objectives P-1..P-7 replace O-1..O-7; a
-   `project_objectives:` list for DP-1..DP-5. Aliases: O-1, O-2 → P-1; O-3 → P-3; O-4 → P-4; O-5 → P-6 and DP-2;
-   O-6 → DP-1; O-7 → P-5. Cost is small: no arc carries a `supports:` field today, and only T-3371 and T-3477 cite
-   O-n ids (claude). T-3371's verification lines check the file's shape and must still pass.
-3. **`policy/value-drivers.yaml` (operator, 2026-10-29: A):** the live file holds the DEVELOPMENT set (section 5.6).
-   `lib/bvp.sh` reads one driver set, and most scored work is development work. The product set (section 3) goes in
-   `policy/value-drivers-product.yaml` and reaches product work through each product arc's `scoped_drivers:`
-   (`bvp.sh:1503`). AEF is asked for real per-layer support.
+1. **`docs/CHARTER.md`, `README.md`, `docs/ARCHITECTURE.md` and the charter-sentence guard, in ONE commit**
+   (v0.9, final review: all four seats). (a) Replace the canonical sentence in all three documents with section 1's,
+   followed by the scope sentence and the coverage sentence. (b) Rewrite the passages that would otherwise contradict
+   it: `docs/CHARTER.md:21-30` ("a message bus", "a strict star: spokes never talk peer-to-peer") and `README.md:68`
+   ("strict star") become "hubs own their topic records and never relay topic messages between hubs; signed directory
+   cards and hub-brokered direct circuits with hub fallback are permitted (direct circuits not yet implemented)", and
+   any "system of record" wording becomes "the hub is authoritative for coordination within its retention window; it
+   is not an archival database" (codex's wording). The README's strict-star text is labelled as today's
+   implementation. (c) `scripts/check-charter-sentence-drift.sh`: set the anchor to "TermLink makes sure every message
+   reaches the recipient it is meant for" and the end word to "stuck" (today: the old anchor and "machines",
+   `:78,96-107`). (d) `scripts/test-charter-sentence-drift.sh`: rewrite its fixture sentence, its charter fixture,
+   the README decoy and the drift-case substitutions keyed to the old sentence (`:22,33-45,64-80`). Otherwise the
+   release gate fails closed (`.github/workflows/release.yml:85` runs the guard layer).
+2. **`.context/project/objectives.yaml`:** headline = the purpose; objectives P-1..P-7 replace O-1..O-7, each with a
+   `measure` string; a `project_objectives:` list for DP-1..DP-5; `out_of_scope:` rewritten to the section 4
+   non-goals (it still lists the five old ones, incl. "system of record"), keeping the "authored intent; progress is
+   derived" header and T-3371's schema keys. Aliases, kept as history rather than rewriting old evidence: O-1, O-2 →
+   P-1; O-3 → P-3; O-4 → P-4; O-5 → P-6 and DP-2; O-6 → DP-1; O-7 → P-5. Cost is small: no arc carries a `supports:`
+   field, and O-n ids appear only in prose (T-3371, T-3477, and completed T-3493, T-3515, T-3531, T-3533); none is read
+   mechanically (v0.9, opencode).
+3. **Driver files (operator 2026-10-29: A; mechanism corrected 2026-11-01: A).** `policy/value-drivers.yaml` holds the
+   DEVELOPMENT set (section 5.6); F-ORCH is removed from it (Q2; its old scores keep their meaning as history). The
+   product set (section 3) is recorded in `policy/value-drivers-product.yaml` and is **declarative until AEF ships
+   per-arc driver sets**: today the live file wins any collision (`estimator.py:2727-2736`), D1–D4 cannot be scoped,
+   scoped weights are capped at 6 and 3 per arc (`lib/arc.sh:1567,1624`), and rankings read only the live file
+   (`lib/bvp.sh:285-364`). (v0.8 claimed the product set reached product arcs through `scoped_drivers:` at
+   `bvp.sh:1503`; that line is in an explain command, and the claim was wrong.) Until then product decisions carry an
+   explicitly labelled "product set" score. AEF accepted the ask as inception T-4961 (GO, narrow form: an arc names
+   `driver_set: <name>`); tracked here as T-3638. The three new free drivers each need a `scoring:` block.
 4. **Not touched:** the framework's own `.agentic-framework/policy/value-drivers.yaml` (vendored, AEF's).
-5. **Tripwires:** reword the strict-star tripwires to guard "no message relay" before OD-1 circuits land.
-6. **Scoring history:** product drivers get new ids (F-CONV-RECALL), so old F-RECALL scores keep their meaning.
+5. **Tripwires** (v0.9, antigravity, codex): two different guards. Before OD-11 lands, narrow
+   `crates/termlink-hub/tests/no_federation_tripwire.rs` so hubs may exchange signed directory cards while topic-message
+   relay between hubs stays forbidden. Before OD-1 lands, change `crates/termlink-session/tests/no_spoke_mesh_tripwire.rs`
+   and `scripts/check-strict-star.sh` to forbid unauthenticated spoke-to-spoke connections while allowing circuits
+   opened with a hub-minted credential. Change the assertions and allow-lists, not only the comments.
+6. **Scoring history:** product drivers get new ids (F-CONV-RECALL), so old F-RECALL scores keep their meaning. Old
+   totals belong to the old set: label new calculations with the driver-set file and its revision, and recompute any
+   comparison against the current set (v0.9, codex; `lib/bvp.sh:345-363` recomputes with current weights).
+7. **DP-3 cap enforcement** (v0.9, claude, antigravity): commit the list of the 99 `scripts/check-*.sh` and 34 canary
+   cron jobs as a baseline, and add a check that fails when either count rises. Until then the cap is kept by hand:
+   on 2026-11-01 the T-3631 ratchet made it 100, and `check-approval-surfaces.sh` (never run) was retired the same day
+   (T-3639).
 
 ## 7. Open points for the operator (one at a time, after you have read the draft)
 
@@ -243,6 +280,7 @@ These describe how we build and run TermLink, not what it is. They would live in
 | Version | Date | Change |
 |---|---|---|
 | 0.1 | 2026-10-28 | First draft, operator ruling C (operator reads first). |
+| 0.9 | 2026-11-01 | Final outside review (round 2 of 2; `T-3612-round5-review-synthesis.md`) folded in: charter, README, guard and test changes in one commit with the contradicting strict-star/message-bus passages rewritten (6.1); objectives `out_of_scope` and prose aliases (6.2); driver files corrected — product set declarative until AEF T-4961, operator ruling A 2026-11-01 (6.3); tripwires split (6.5); scoring-history labels (6.6); DP-3 cap enforcement (6.7); coverage sentence (1); P-2/P-3 not-yet lists; D3 wording; recall retirement names the arc by file and anchor task and requires prover evidence; §3 heading names the product file; F-ORCH removal stated. Deferred: F-SURFACE vs D3/D2 overlap, to the first quarterly driver review. |
 | 0.8 | 2026-11-01 | F-CONV-RECALL retire condition ruled A: when arc-012 closes with a bound prover (gap notices, page-end reasons, time-range reads). All open points ruled. |
 | 0.7 | 2026-10-29 | D1 product weight ruled B: 6. |
 | 0.6 | 2026-10-29 | Live driver file ruled A: the development set in policy/value-drivers.yaml; the product set in its own file, applied through product arcs' scoped_drivers; AEF asked for per-layer support. |
