@@ -13,10 +13,10 @@ description: >
   result file, never by trusting the dispatch return code (T-2876: delivered means
   queued, not received).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -31,8 +31,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T20:11:30Z
-last_update: '2026-09-27T21:34:08Z'
-date_finished:
+last_update: 2026-11-01T23:41:59Z
+date_finished: 2026-11-01T23:41:59Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -82,17 +82,20 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** On 2026-09-24 the operator asked for the procAsFit prompt (docs/prompts/proc-as-fit.md) to be run over TermLink four times in sequence, each round fed the previous round's result.
+**Problem / hypothesis:** Running the rounds in the orchestrator's own context would exhaust it and blur what each round did. Each round needs its own worker and a durable handback.
+**Goal:** Four rounds, each on its own TermLink worker, recorded in a run record with feeds/fed_by ordering.
+**Expected outcome:** .context/runs/T-3089-procasfit-x4.yaml plus handbacks R1..R4, with each step's true state recorded.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A durable run record exists at `.context/runs/T-3089-procasfit-x4.yaml`, parses as YAML, and declares exactly 4 steps R1..R4 with `feeds`/`fed_by` ordering
-- [ ] All 4 rounds were dispatched to their OWN TermLink worker — no round executed in the orchestrator's context
-- [ ] Each round produced a handback file `.context/runs/T-3089-R<n>-handback.md`, verified to exist and be non-empty by reading it (never by the dispatch return code — T-2876)
-- [ ] Each round N>1 was given round N-1's handback as prior context, evidenced by the `fed_by` field and the prompt actually dispatched
-- [ ] The run record's per-step `state` reflects the true outcome of every round, including any that failed or were not run, with the reason recorded
+- [x] A durable run record exists at `.context/runs/T-3089-procasfit-x4.yaml`, parses as YAML, and declares exactly 4 steps R1..R4 with `feeds`/`fed_by` ordering (evidence: yaml.safe_load gives 4 steps; R1→R2→R3→R4 feeds, fed_by None/R1/R2/R3; checked 2026-11-02)
+- [x] All 4 rounds were dispatched to their OWN TermLink worker — no round executed in the orchestrator's context (evidence: run record workers procasfit-r1..r4, each with its own dispatched/completed times and head_start/head_end)
+- [x] Each round produced a handback file `.context/runs/T-3089-R<n>-handback.md`, verified to exist and be non-empty by reading it (never by the dispatch return code — T-2876) (evidence: R1..R4 handbacks are 12245/15736/15614/18000 bytes; R4 head read 2026-11-02)
+- [x] Each round N>1 was given round N-1's handback as prior context, evidenced by the `fed_by` field and the prompt actually dispatched (evidence: `fed_with` on R2/R3/R4 records the previous handback inlined in the prompt)
+- [x] The run record's per-step `state` reflects the true outcome of every round, including any that failed or were not run, with the reason recorded (evidence: R3 `complete-with-incident` with an `incident` block and incident_recorded_in T-3091; R4 handback records the failed first attempt; `run_record_incidents` section)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -187,6 +190,9 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+python3 -c "import yaml; d=yaml.safe_load(open('.context/runs/T-3089-procasfit-x4.yaml')); assert [s['id'] for s in d['steps']]==['R1','R2','R3','R4']"
+test -s .context/runs/T-3089-R1-handback.md && test -s .context/runs/T-3089-R2-handback.md && test -s .context/runs/T-3089-R3-handback.md && test -s .context/runs/T-3089-R4-handback.md
 
 ## RCA
 
@@ -287,3 +293,16 @@ cost_estimate_proposed:
 
 ### 2026-09-24T20:12:34Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-01T23:41:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5ef8c829
+- **Timestamp:** 2026-11-01T23:42:03Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

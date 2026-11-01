@@ -1,0 +1,117 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3089: Orchestrate procAsFit x4 over TermLink (each round fed the previous round's handback)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:42:13Z
+# ============================================================================
+
+task_id: T-3089
+task_name: "Orchestrate procAsFit x4 over TermLink (each round fed the previous round's handback)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T20:11:30Z
+completed: 2026-11-01T23:41:59Z
+duration_days: 38
+updates_count: 3
+first_commit: 2026-09-24T22:13:41+02:00
+last_commit: 2026-09-25T00:31:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  orchestrate procAsFit x4 over TermLink — scaffold + R1 dispatched. operator rules solid-over-quick on all three Sovereign questions. close-out artifacts for T-3090 (operator ruling A, recorded by the orchestrator)
+
+# Key outcomes
+outcomes:
+  - 'A durable run record exists at `.context/runs/T-3089-procasfit-x4.yaml`, parses as YAML, and declares exactly 4 steps R1..R4 with `feeds`/`fed_by` ordering (evidence: yaml.safe_load gives 4 steps; R1→R2→R3→R4 feeds, fed_by None/R1/R2/R3; checked 2026-11-02)'
+  - 'All 4 rounds were dispatched to their OWN TermLink worker — no round executed in the orchestrator''s context (evidence: run record workers procasfit-r1..r4, each with its own dispatched/completed times and head_start/head_end)'
+  - 'Each round produced a handback file `.context/runs/T-3089-R<n>-handback.md`, verified to exist and be non-empty by reading it (never by the dispatch return code — T-2876) (evidence: R1..R4 handbacks are 12245/15736/15614/18000 bytes; R4 head read 2026-11-02)'
+  - 'Each round N>1 was given round N-1''s handback as prior context, evidenced by the `fed_by` field and the prompt actually dispatched (evidence: `fed_with` on R2/R3/R4 records the previous handback inlined in the prompt)'
+  - 'The run record''s per-step `state` reflects the true outcome of every round, including any that failed or were not run, with the reason recorded (evidence: R3 `complete-with-incident` with an `incident` block and incident_recorded_in T-3091; R4 handback records the failed first attempt; `run_record_incidents` section)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/arc-011.yaml'
+  - '.context/audits/2026-09-22.yaml'
+  - '.context/audits/2026-09-23.yaml'
+  - '.context/audits/2026-09-24.yaml'
+  - '.context/audits/2026-09-25.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-3090.yaml'
+  - '.context/handovers/LATEST.md'
+  - '.context/handovers/S-2026-0923-1854.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0923-1904.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0923-1907.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0923-1907.md'
+  - '.context/project/metrics-history.yaml'
+  - '.context/runs/T-3089-procasfit-x4.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/.hook-counter'
+  - '.context/working/.hook-crashes.log'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-3019-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3020-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3075-sidecar-api---separate-respawning-proces.md'
+  - '.tasks/active/T-3076-binary-blob-on-the-notify-rail-via-artif.md'
+  - '.tasks/active/T-3089-orchestrate-procasfit-x4-over-termlink-e.md'
+  - '.tasks/active/T-3090-measure-the-guard-layer-properly-per-mem.md'
+  - '.tasks/active/T-3091-a-dispatched-round-cannot-tell-whether-a.md'
+  - '.tasks/completed/T-3068-give-the-wake-consumer-a-trigger-supervi.md'
+  - '.tasks/completed/T-3072-urgent-flag-bypass-the-prompt-free-wait-.md'
+  - '.tasks/completed/T-3090-measure-the-guard-layer-properly-per-mem.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-24T22:13:41'
+    action: 'T-3089: orchestrate procAsFit x4 over TermLink — scaffold + R1 dispatched'
+  - time: '2026-09-24T23:15:35'
+    action: 'T-3089: operator rules solid-over-quick on all three Sovereign questions'
+  - time: '2026-09-25T00:31:43'
+    action: 'T-3089: close-out artifacts for T-3090 (operator ruling A, recorded by the orchestrator)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 54930 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 54930
+  commits: 4
+  files_changed: 36
+  lines_added: 8171
+  lines_removed: 5334
+  footprint_refreshed_at: '2026-11-01T23:42:18Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3089-orchestrate-procasfit-x4-over-termlink-e.md
+generated_by: context-agent-hybrid
