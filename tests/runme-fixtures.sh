@@ -810,7 +810,10 @@ if [ "$(id -u)" != "0" ]; then
     else bad "non-root refusal" "rc=$rc: $out"; fi
 elif command -v runuser >/dev/null 2>&1 && id nobody >/dev/null 2>&1; then
     chmod -R a+rx "$TMP" 2>/dev/null || true
-    out=$(runuser -u nobody -- env -u RUNME_FIXTURE_ALLOW_NONROOT RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?
+    # TMPDIR=/tmp (T-3647): the close gate runs verification under a private root-only
+    # TMPDIR (AEF T-4846); `nobody` cannot create runme's fallback log dir there, and the
+    # failed lock mkdir then reads as "another run is already in progress".
+    out=$(runuser -u nobody -- env -u RUNME_FIXTURE_ALLOW_NONROOT TMPDIR=/tmp RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?
     if [ "$rc" = "2" ] && echo "$out" | grep_all "needs root"; then ok "non-root run refuses with exit 2 and applies nothing"
     else bad "non-root refusal" "rc=$rc: $out"; fi
 else
