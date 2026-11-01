@@ -2,9 +2,11 @@
 id: T-3646
 name: "Pinned main liveness note and alarm (T-3619 slice 2, ruling B)"
 description: >
-  Operator ruling B 2026-11-01 on T-3619: the pinned main's sidecar posts a periodic hub note 'alive, drained up to offset N'; peers read it from any host; needs-attention alarm when the note goes stale or N stops advancing while mail waits.
+  Operator ruling B 2026-11-01 on T-3619: the pinned main's sidecar posts a periodic
+  hub note 'alive, drained up to offset N'; peers read it from any host; needs-attention
+  alarm when the note goes stale or N stops advancing while mail waits.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T20:06:47Z
-last_update: 2026-11-01T20:06:47Z
-date_finished: null
+last_update: 2026-11-01T20:16:42Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +52,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-01T20:07:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3646: Pinned main liveness note and alarm (T-3619 slice 2, ruling B)
@@ -72,17 +86,25 @@ main raises one needs-attention entry, not a stream.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The main's sidecar posts a liveness note on the hub on a fixed interval: its agent id, instance, sample time and
+- [x] The main's sidecar posts a liveness note on the hub on a fixed interval: its agent id, instance, sample time and
       the highest offset it has drained. No new config knob: interval and staleness threshold are constants stated in
       the code and this task (Decisions), with a test seam only
-- [ ] `status` (`api.rs`) adds `main.liveness`: `alive` | `stale` (no note within the threshold) | `stuck` (N unchanged
+      — evidence: `liveness.rs` `Monitor::cycle` + `Sender::post_note`, spawned in `daemon::start` when the book pins a
+      main; proven against a throwaway hub in `tests/liveness_hub.rs`
+- [x] `status` (`api.rs`) adds `main.liveness`: `alive` | `stale` (no note within the threshold) | `stuck` (N unchanged
       past the threshold while unread mail for the main exists) | `unknown` (no book, no note yet, or hub unreadable —
       never reported as alive), plus `note_age_ms` and `drained_up_to`
-- [ ] A needs-attention entry is written once when the main turns stale or stuck, and once more only when it recovers
+      — evidence: `api.rs` status sets `main.liveness` via `liveness::status_view` (also `reason`, `checked_age_ms`)
+- [x] A needs-attention entry is written once when the main turns stale or stuck, and once more only when it recovers
       (no repeat per cycle)
-- [ ] Unit tests for every state, including fail-closed (hub unreadable -> unknown, never alive), and a mutant check
+      — evidence: `liveness::alarm` latch; `the_alarm_fires_once_on_entry_and_once_on_recovery` (incl. across a store
+      reopen) and the hub test's attention sequence `main-stuck, main-stale, main-recovered`
+- [x] Unit tests for every state, including fail-closed (hub unreadable -> unknown, never alive), and a mutant check
       that an always-alive verdict fails a test
-- [ ] `cargo test -p termlink-sidecar` passes; `cargo clippy -p termlink-sidecar -- -D warnings` clean
+      — evidence: 10 unit tests in `liveness::tests` + 1 hub test; mutant `tests/mutants/fc-19-main-liveness-always-alive.patch`
+      killed (`bash scripts/arc011-mutants.sh --only fc-19-main-liveness-always-alive` → PASS)
+- [x] `cargo test -p termlink-sidecar` passes; `cargo clippy -p termlink-sidecar -- -D warnings` clean
+      — evidence: full suite rc 0, 0 failed; clippy `--all-targets -D warnings` rc 0
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -361,6 +383,34 @@ cargo clippy -p termlink-sidecar -- -D warnings > .context/working/.t3646-clippy
 
 ## Decisions
 
+### 2026-11-01 — topic, note shape, constants
+- **Chose:** topic `liveness:<hub_id>/<agent>` (named like the inbox `inbox:<hub_id>/<agent>`, `send::inbox_topic`), created
+  with retention `messages:100`; note `sidecar.liveness.v1` = `{agent, instance, sample_ms, drained_up_to, receiving}`,
+  signed with the agent's own key and posted directly (`Sender::post_note`), never through the durable outbox: a lost
+  note is replaced by the next one. `drained_up_to` is the inbox cursor: every offset below it is handled.
+  Constants in `liveness.rs`: `NOTE_EVERY_MS = 60_000`, `STALE_AFTER_MS = 300_000` (five missed notes). Test seams
+  only, honoured in a test estate and never in production (same rule as `beat::test_overrides`):
+  `TERMLINK_SIDECAR_TEST_LIVENESS_EVERY_MS`, `TERMLINK_SIDECAR_TEST_LIVENESS_STALE_MS`. No config knob.
+- **Why:** reuses the hub's existing signed channel.post / channel.list (`latest_offset`) / channel.subscribe; the topic
+  stays bounded; 60 s matches the brief's example and 5 min tolerates hub blips without a false alarm.
+- **Rejected:** the durable outbox (it would queue notes while the hub is down and post them late as if current);
+  `LatestPerCvKey` retention (needs cv-key metadata for no gain over reading `latest_offset`).
+
+### 2026-11-01 — what "stuck" means, and what is unknown
+- **Chose:** `stuck` = the note is fresh, but at the note's own sample time the main's inbox held a message at or past
+  `drained_up_to` that had already been on the hub longer than the threshold. A draining main would have passed it,
+  so this is "N stopped advancing while mail waits" without the peer having to remember N. `unknown` covers no book,
+  no pinned main, no note yet, hub unreadable (any failed call, including the inbox read), an unparseable note, a note
+  from another agent or instance, a signer that is neither in the roster nor this agent, a note dated in the future,
+  and this sidecar's own check not having run within three intervals.
+- **Why:** fail-closed as the AC demands; comparing the waiting message with the note's sample time avoids needing
+  peer-side memory of N across restarts.
+- **Alarm:** a latch in the store (`state.main-liveness-alarm`: ok/stale/stuck). One entry on entering stale
+  (`main-stale`) or stuck (`main-stuck`), one on returning to alive (`main-recovered`). `unknown` neither raises nor
+  clears it: a main whose sidecar predates this note would otherwise alarm forever; it shows in `status` instead.
+- **Not a component beat:** the check runs on its own thread but is not in `heartbeat.json`: a hub outage slows a
+  cycle to its timeouts and must not restart the sidecar. A hung check shows as `unknown` in `status`.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -386,3 +436,6 @@ cargo clippy -p termlink-sidecar -- -D warnings > .context/working/.t3646-clippy
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3646-pinned-main-liveness-note-and-alarm-t-36.md
 - **Context:** Initial task creation
+
+### 2026-11-01T20:07:41Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

@@ -348,6 +348,19 @@ impl Sender {
     pub fn declared_hub_id(&self) -> &str {
         &self.inner.cfg.declared_hub_id
     }
+
+    /// This sidecar's agent name and instance id.
+    pub fn agent(&self) -> (&str, &str) {
+        (&self.inner.cfg.agent, &self.inner.cfg.instance)
+    }
+
+    /// Post one signed note straight to `topic`, creating it with `retention` if needed (T-3646).
+    /// Not mail: it never enters the durable outbox, writes no chain events, and a failure is
+    /// returned to the caller, who posts a fresh note next time. Refused on a hub that is not the
+    /// declared one, like every other post.
+    pub fn post_note(&self, topic: &str, msg_type: &str, payload: &[u8], retention: Value) -> Result<(), String> {
+        self.inner.post_note(topic, msg_type, payload, retention)
+    }
 }
 
 impl Drop for Sender {
@@ -458,6 +471,37 @@ impl Inner {
             let _ = self.mark_waiting(&conv, &msg.msg_id, &digest);
         }
         Ok(sent)
+    }
+
+    fn post_note(&self, topic: &str, msg_type: &str, payload: &[u8], retention: Value) -> Result<(), String> {
+        match self.check_pin() {
+            Ok(()) => {}
+            Err(PinError::Unreachable(e)) => return Err(format!("hub unreachable: {e}")),
+            Err(PinError::Mismatch { declared, found }) => {
+                return Err(format!("hub id mismatch: declared {declared}, hub says {}", found.as_deref().unwrap_or("nothing")));
+            }
+        }
+        let me = &self.cfg.identity;
+        let ts_ms = crate::store::now_ms() as i64;
+        let bytes = termlink_protocol::control::channel::canonical_sign_bytes(topic, msg_type, payload, None, ts_ms);
+        let post = PendingPost {
+            topic: topic.to_owned(),
+            msg_type: msg_type.to_owned(),
+            payload: payload.to_vec(),
+            artifact_ref: None,
+            ts_unix_ms: ts_ms,
+            sender_id: me.fingerprint().to_owned(),
+            sender_pubkey_hex: me.public_key_hex(),
+            signature_hex: me.sign(&bytes).to_bytes().iter().map(|b| format!("{b:02x}")).collect(),
+            metadata: BTreeMap::new(),
+            client_msg_id: None,
+        };
+        match self.rpc(method::CHANNEL_CREATE, json!({"name": topic, "retention": retention}))? {
+            RpcResponse::Success(_) => {}
+            RpcResponse::Error(e) if e.error.message.to_lowercase().contains("exist") => {}
+            RpcResponse::Error(e) => return Err(format!("channel.create: {}", e.error.message)),
+        }
+        unwrap_result(self.rpc(method::CHANNEL_POST, post_params(&post))?).map(|_| ())
     }
 
     fn post_stage(&self, to_agent: &str, st: &wire::Stage) -> Result<(), SendError> {

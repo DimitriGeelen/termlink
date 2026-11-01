@@ -72,6 +72,7 @@ pub struct Running {
     tick_beat: Arc<std::sync::atomic::AtomicU64>,
     sweep_stop: Arc<std::sync::atomic::AtomicBool>,
     sweeper: Option<std::thread::JoinHandle<()>>,
+    liveness: Option<std::thread::JoinHandle<()>>,
 }
 
 /// How often open attempts are swept, and how old one must be for the final check.
@@ -82,6 +83,9 @@ impl Drop for Running {
     fn drop(&mut self) {
         self.sweep_stop.store(true, std::sync::atomic::Ordering::SeqCst);
         if let Some(t) = self.sweeper.take() {
+            let _ = t.join();
+        }
+        if let Some(t) = self.liveness.take() {
             let _ = t.join();
         }
     }
@@ -139,6 +143,7 @@ fn load_identity(cfg: &Config, production: bool) -> Result<Identity, String> {
 /// Start every part. `store_root`, `runtime` and `home` come from the estate.
 pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Result<Running, String> {
     let roster = roster_of(&cfg.roster)?;
+    let roster_for_liveness = roster.clone();
     let store = Arc::new(Store::open(store_root, &cfg.agent).map_err(|e| e.to_string())?);
     let production = matches!(store.mode(), crate::estate::Mode::Production(_));
     // SI-27: hash the running binary in the background; status says "verifying" until it lands.
@@ -186,14 +191,38 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
         Deliverer::new(&cfg.agent, store.clone(), Box::new(BuiltIn::new(roster).with_operator_lists(store.clone())), Some(sender.clone()))
             .with_projects_root(cfg.claude_projects.clone().unwrap_or_else(|| home.join(".claude").join("projects"))),
     );
+    // T-3646: the pinned main's liveness note (posted when this agent is the main) and check.
+    let sweep_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let (every_ms, stale_after_ms) = crate::liveness::test_overrides(store.mode());
+    let liveness_shared = crate::liveness::Shared::new();
+    let liveness_monitor = cfg.book.main.is_some().then(|| crate::liveness::Monitor {
+        book: cfg.book.clone(),
+        agent: cfg.agent.clone(),
+        instance: cfg.instance.clone(),
+        hub_id: cfg.hub_id.clone(),
+        roster: roster_for_liveness.clone(),
+        own_fingerprint: sender.fingerprint().to_owned(),
+        store: store.clone(),
+        sender: sender.clone(),
+        shared: liveness_shared.clone(),
+        every_ms,
+        stale_after_ms,
+    });
     let mut api_cfg = ApiConfig::new(&cfg.agent, runtime);
+    api_cfg.liveness = liveness_monitor.is_some().then(|| (liveness_shared.clone(), every_ms));
     api_cfg.hub_id = Some(cfg.hub_id.clone());
     api_cfg.sender = Some(sender.clone());
     api_cfg.deliverer = Some(deliverer.clone());
     api_cfg.book = (!cfg.book.is_empty()).then(|| cfg.book.clone());
     let api = Api::start(api_cfg, store.clone()).map_err(|e| format!("api: {e}"))?;
+    let liveness = match liveness_monitor {
+        None => None,
+        Some(m) => {
+            let hub = crate::liveness::RpcHub::new(cfg.hub.clone(), timeout).map_err(|e| format!("liveness runtime: {e}"))?;
+            Some(m.spawn(hub, sweep_stop.clone()))
+        }
+    };
     // Decide attempts whose finalizer never ran or died (B13).
-    let sweep_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let tick_beat = Arc::new(std::sync::atomic::AtomicU64::new(crate::store::now_ms()));
     let sweeper = {
         let (d, stop, beat) = (deliverer.clone(), sweep_stop.clone(), tick_beat.clone());
@@ -224,7 +253,7 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
         let r = receiver.clone();
         Box::new(move || r.last_beat_ms())
     };
-    Ok(Running { store, sender, deliverer, _receiver: receiver, api, receiver_beat, tick_beat, sweep_stop, sweeper: Some(sweeper) })
+    Ok(Running { store, sender, deliverer, _receiver: receiver, api, receiver_beat, tick_beat, sweep_stop, sweeper: Some(sweeper), liveness })
 }
 
 impl Running {

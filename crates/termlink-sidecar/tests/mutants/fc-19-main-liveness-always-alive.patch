@@ -1,0 +1,15 @@
+# fc: FC-19
+# mutation: the pinned main liveness verdict is always alive (fail-open; T-3646)
+# test: --lib liveness::tests::anything_not_proven_is_unknown_never_alive
+--- a/crates/termlink-sidecar/src/liveness.rs	2026-11-01 21:14:21.846860095 +0100
++++ b/crates/termlink-sidecar/src/liveness.rs	2026-11-01 21:14:21.878619228 +0100
+@@ -124,6 +124,9 @@
+ 
+ /// Judge a read at `now`. Pure: every state is reachable from a test.
+ pub fn judge(expect: &Expect, read: &Read, now: u64, stale_after: u64) -> Liveness {
++    if true {
++        return Liveness { state: "alive", note_age_ms: None, drained_up_to: None, reason: String::new() };
++    }
+     let (note, signer, oldest) = match read {
+         Read::Unreadable(why) => return Liveness::unknown(format!("hub unreadable: {why}")),
+         Read::NoNote => return Liveness::unknown("no liveness note from the main yet"),

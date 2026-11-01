@@ -63,6 +63,10 @@ cp -a Cargo.toml Cargo.lock "$SCRATCH/" || exit 2
 [ -d .cargo ] && cp -a .cargo "$SCRATCH/"
 tar -C "$ROOT" --exclude='*/target' -cf - crates | tar -C "$SCRATCH" -xf - || exit 2
 cp -a tests/fixtures "$SCRATCH/tests/" || exit 2
+# tools.rs embeds these with include_str! (T-3646: without them the baseline cannot build).
+mkdir -p "$SCRATCH/scripts" "$SCRATCH/systemd-templates"
+cp -a scripts/sidecar-supervise.sh "$SCRATCH/scripts/" || exit 2
+cp -a systemd-templates/termlink-sidecar@.service "$SCRATCH/systemd-templates/" || exit 2
 
 echo "arc011-mutants: scratch copy $SCRATCH, target $CARGO_TARGET_DIR, hub $TERMLINK_BIN"
 echo "arc011-mutants: baseline (unpatched suite must be green)..."

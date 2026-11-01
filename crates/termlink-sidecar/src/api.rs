@@ -118,6 +118,8 @@ pub struct ApiConfig {
     /// The address book (P7): when set, `send` resolves `to` through it,
     /// fills `to_instance`, and refuses anyone outside it.
     pub book: Option<crate::book::Book>,
+    /// The pinned main's liveness check (T-3646) and its interval in ms; `status` reads its verdict.
+    pub liveness: Option<(Arc<crate::liveness::Shared>, u64)>,
 }
 
 impl ApiConfig {
@@ -131,6 +133,7 @@ impl ApiConfig {
             sender: None,
             deliverer: None,
             book: None,
+            liveness: None,
         }
     }
 }
@@ -307,7 +310,7 @@ fn serve(s: UnixStream, scope: Scope, sh: &Shared) -> io::Result<()> {
 fn handle(req: &Value, scope: Scope, sh: &Shared) -> Value {
     // The peer passed the owner check, so its uid is the owner's.
     let who = format!("admin-uid-{}", sh.cfg.owner_uid);
-    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref() };
+    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref(), liveness: sh.cfg.liveness.as_ref().map(|(l, e)| (&**l, *e)) };
     dispatch_inner(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref(), ctx)
 }
 
@@ -325,7 +328,7 @@ pub fn dispatch_with(
     hub_id: Option<&str>,
     sender: Option<&Sender>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None, liveness: None })
 }
 
 /// [`dispatch_with`] with the deliver path attached as well.
@@ -338,7 +341,7 @@ pub fn dispatch_full(
     sender: Option<&Sender>,
     deliverer: Option<&Deliverer>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None })
 }
 
 #[derive(Clone, Copy)]
@@ -347,6 +350,7 @@ struct Ctx<'a> {
     deliverer: Option<&'a Deliverer>,
     who: &'a str,
     book: Option<&'a crate::book::Book>,
+    liveness: Option<(&'a crate::liveness::Shared, u64)>,
 }
 
 fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id: Option<&str>, ctx: Ctx<'_>) -> Value {
@@ -393,6 +397,8 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 v["binary"] = crate::tools::binary_check();
                 // T-3619 (OD-18 ruling C): who holds main, from the operator-written address book.
                 v["main"] = crate::book::main_view(book, agent);
+                // T-3646 (ruling B): whether that main is alive and draining, from its hub note.
+                v["main"]["liveness"] = crate::liveness::status_view(book, ctx.liveness, crate::store::now_ms());
             }
             v
         }
