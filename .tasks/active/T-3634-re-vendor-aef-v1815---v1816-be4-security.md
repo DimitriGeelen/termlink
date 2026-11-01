@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-31T22:28:45Z
-last_update: 2026-10-31T23:58:43Z
+last_update: 2026-11-01T10:04:08Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -99,7 +99,11 @@ divergence register records the new baseline; AEF gets a WORKS/FAILS report.
 - [x] Dry run then rehearsal on a fresh clone of /opt/termlink pass; real run from a second fresh AEF clone, rc 0
 - [x] Every preserved file in `.vendor-divergence.yaml` still carries its local change after the real run (T-4870
   check); CLAUDE.md project part byte-identical; BOUNDARY_EXTRA_READ_PATHS kept
-- [ ] `fw doctor` and the guard layer before vs after recorded; no new FAIL
+- [x] `fw doctor` and the guard layer before vs after recorded; no new FAIL (doctor FAIL 0 -> 0. Guard before: 1 FAIL
+  check-drain-sink-caps, 229 pass, 3 WARN. After the upgrade 3 FAIL: focus-drift fixture fixed (38ccd15af), R13 per
+  T-3636 ruling A (1227aa195). A later run surfaced 2 more, neither from the upgrade: arc-claim-drift (arc-005 prover,
+  8aa87c188) and install-sh-fixtures (L-387 flake, T-3631 e1e30f46d). Final run 2026-11-01
+  `.context/working/t3634/guard-final2.out`: 1 FAIL check-drain-sink-caps, 229 pass, 3 WARN — identical to before)
   <!-- 2026-11-01: recorded (doc-*.txt, guard-*.out). doctor FAIL 0->0. Guard FAIL 1->3: focus-drift fixture fixed
        (38ccd15af, T-4907 Context); reviewer-verdict-ledger R13 still red, caused by upstream T-4916, operator decision T-3636. -->
 - [x] Security fix proven live: the vendored Tier 0 hook blocks a force-push command padded past 130 KB, and the
