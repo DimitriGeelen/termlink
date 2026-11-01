@@ -1,0 +1,21 @@
+id: scripts/triage-apply.sh
+name: triage-apply
+type: script
+subsystem: operations
+location: scripts/triage-apply.sh
+tags: []
+
+purpose: "T-3649 — apply the operator's Watchtower /triage answers to tasks."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-01
+created_by: unknown

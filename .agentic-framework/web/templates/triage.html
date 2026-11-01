@@ -1,0 +1,112 @@
+{# Six-button backlog triage (T-3649, 055 pattern), rendered by web/blueprints/triage.py from .context/triage/batch.json. #}
+<h1>Triage</h1>
+
+<p class="muted">
+    One card per task. The agent's proposal is highlighted, not selected. A click records
+    your answer in <code>.context/triage/answers.jsonl</code> (the last click per task wins);
+    this page never edits a task. The agent applies answers afterwards through the normal gates.
+</p>
+
+{% if error %}
+<article><strong>No batch to triage.</strong> {{ error }}</article>
+{% else %}
+<p>
+    Batch <code>{{ batch_id }}</code>:
+    <strong id="triage-answered">{{ answered_in_scope }}</strong> of <strong>{{ in_scope }}</strong> answered
+    {% if group %}in group <strong>{{ group }}</strong> ({{ answered_total }} of {{ total }} overall){% endif %}
+</p>
+
+<div class="triage-filters">
+    <span>Group:</span>
+    <a href="?show={{ show }}" {% if not group %}aria-current="page"{% endif %}>all ({{ total }})</a>
+    {% for g in groups %}
+    &middot; <a href="?group={{ g.name|urlencode }}&show={{ show }}" {% if group == g.name %}aria-current="page"{% endif %}>{{ g.name }} ({{ g.answered }}/{{ g.total }})</a>
+    {% endfor %}
+    <span style="margin-left:1.5rem">Show:</span>
+    <a href="?group={{ group|urlencode }}&show=open" {% if show == 'open' %}aria-current="page"{% endif %}>unanswered</a>
+    &middot; <a href="?group={{ group|urlencode }}&show=all" {% if show == 'all' %}aria-current="page"{% endif %}>all</a>
+</div>
+
+{% if not rows %}
+<p class="muted">Nothing left to answer here.</p>
+{% endif %}
+
+{% for r in rows %}
+<article class="triage-card{% if r.answer %} triage-answered{% endif %}" id="card-{{ r.task }}" data-task="{{ r.task }}">
+    <header>
+        <a href="/tasks/{{ r.task }}"><strong>{{ r.task }}</strong></a> {{ r.title }}
+        {% if r.group %}<small class="muted">&middot; group {{ r.group }}</small>{% endif %}
+    </header>
+    <p>{{ r.summary }}</p>
+    {% if r.evidence %}<p><small><strong>Evidence:</strong> {{ r.evidence }}</small></p>{% endif %}
+    {% if r.details %}<p><small class="muted">{{ r.details }}</small></p>{% endif %}
+    <p>
+        <small>Proposed: <mark>{{ choice_labels.get(r.proposed, r.proposed) or 'none' }}</mark></small>
+        <small class="triage-status">{% if r.answer %}Answered: <strong>{{ choice_labels[r.answer] }}</strong>{% endif %}</small>
+    </p>
+    <div class="triage-buttons">
+        {% for c in choices %}
+        <button type="button" data-choice="{{ c }}"
+                class="triage-btn{% if c == r.proposed %} triage-proposed{% endif %}{% if c == r.answer %} triage-chosen{% endif %}"
+                {% if c != r.answer %}aria-pressed="false"{% else %}aria-pressed="true"{% endif %}>{{ choice_labels[c] }}</button>
+        {% endfor %}
+    </div>
+</article>
+{% endfor %}
+{% endif %}
+
+<style>
+.triage-filters { margin-bottom: 1rem; }
+.triage-filters a[aria-current="page"] { font-weight: bold; text-decoration: underline; }
+.triage-card.triage-answered { opacity: 0.75; }
+.triage-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.triage-buttons button { width: auto; margin: 0; padding: 0.35rem 0.9rem; }
+.triage-btn { background: transparent; color: inherit; border: 1px solid var(--pico-muted-border-color, #888); }
+.triage-btn.triage-proposed { border: 2px dashed var(--pico-primary, #1095c1); }
+.triage-btn.triage-chosen { background: var(--pico-primary, #1095c1); color: #fff; border-style: solid; }
+</style>
+
+<script>
+document.querySelectorAll('.triage-card').forEach(function(card) {
+    var task = card.getAttribute('data-task');
+    card.querySelectorAll('.triage-btn').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+            var choice = btn.getAttribute('data-choice');
+            var buttons = card.querySelectorAll('.triage-btn');
+            buttons.forEach(function(b) { b.disabled = true; });
+            // csrf_protect (app.py) needs the X-CSRF-Token header for a JSON POST (T-3251).
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            var headers = {'Content-Type': 'application/json'};
+            if (meta) { headers['X-CSRF-Token'] = meta.content; }
+            try {
+                var resp = await fetch('/api/v1/triage/answer', {
+                    method: 'POST', headers: headers,
+                    body: JSON.stringify({task: task, choice: choice})
+                });
+                var data = await resp.json().catch(function() { return {}; });
+                if (!resp.ok) { alert('Not recorded: ' + (data.error || resp.status)); return; }
+                var wasAnswered = card.classList.contains('triage-answered');
+                buttons.forEach(function(b) {
+                    var on = b === btn;
+                    b.classList.toggle('triage-chosen', on);
+                    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+                });
+                card.classList.add('triage-answered');
+                var st = card.querySelector('.triage-status');
+                st.textContent = 'Answered: ';
+                var s = document.createElement('strong');
+                s.textContent = btn.textContent;
+                st.appendChild(s);
+                if (!wasAnswered) {
+                    var n = document.getElementById('triage-answered');
+                    if (n) { n.textContent = String(parseInt(n.textContent, 10) + 1); }
+                }
+            } catch (err) {
+                alert('Not recorded: ' + err.message);
+            } finally {
+                buttons.forEach(function(b) { b.disabled = false; });
+            }
+        });
+    });
+});
+</script>

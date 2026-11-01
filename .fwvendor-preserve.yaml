@@ -20,3 +20,12 @@ files:
     reason: T-3533 doorbell rings via termlink pty notify (token by path); doorbell.json refusal record
   - path: lib/sidecar_cli.py
     reason: T-3533 status prints the doorbell REFUSED warning
+  # T-3649 (operator ruling B, 2026-11-02): Watchtower /triage page, local-only, to be offered to AEF.
+  - path: web/blueprints/triage.py
+    reason: T-3649 /triage six-button backlog triage page (new file, local-only)
+  - path: web/templates/triage.html
+    reason: T-3649 /triage template (new file, local-only)
+  - path: web/test_triage.py
+    reason: T-3649 /triage blueprint tests (new file, local-only)
+  - path: web/blueprints/__init__.py
+    reason: T-3649 registers triage_bp (one import, one tuple entry)

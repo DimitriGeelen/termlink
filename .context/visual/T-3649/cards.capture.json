@@ -1,0 +1,29 @@
+{
+  "task": "T-3649",
+  "state": "cards",
+  "source": "url",
+  "url": "http://127.0.0.1:5099/triage?group=A2",
+  "widths": [
+    1024,
+    1440,
+    1920
+  ],
+  "shots": [
+    {
+      "width": 1024,
+      "path": ".context/visual/T-3649/cards@1024.png",
+      "sha256": "52f61e6768a874659b98b4c6efccbf58f88dfea73a03c2d9234ac17f50d5e357"
+    },
+    {
+      "width": 1440,
+      "path": ".context/visual/T-3649/cards@1440.png",
+      "sha256": "9875b6a0b641e029cbb7f470cbf950eecd8b104909bb5b928117d1e31f1c3c85"
+    },
+    {
+      "width": 1920,
+      "path": ".context/visual/T-3649/cards@1920.png",
+      "sha256": "1b1b85e56284b8e7f2765c53d213bd4c5ca5c66e15c4ca74cf1ad1a51e10f6b5"
+    }
+  ],
+  "ts": "2026-11-01T23:50:24Z"
+}

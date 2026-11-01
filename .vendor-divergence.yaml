@@ -1327,6 +1327,62 @@ divergences:
       Prints `doorbell_warning()` (T-3533) next to the T-3900 several-sessions line.
     evidence: Same fixture file as inject.py (the warning builder is tested there).
     upstream_note: Filed at framework:pickup offset 355 (2026-10-22) with the inject.py change.
+  - task: T-3649
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the change.
+    date: 2026-11-02
+    file: .agentic-framework/web/blueprints/triage.py
+    status: local-only
+    kind: feature
+    generality: GENERIC
+    symptom: >-
+      The operator had no surface to rule on many tasks quickly (287 triage rows from T-3648).
+    fix: >-
+      /triage page: reads .context/triage/batch.json, six buttons per card, appends {ts,batch,task,choice} to answers.jsonl; never writes a task file. Adds its own Govern nav leaf at import so shared.py stays untouched.
+    evidence: "python3 -m pytest web/test_triage.py (10 passed); tests/triage-apply-fixtures.sh (13 passed)."
+    upstream_note: "Operator ruling B (2026-11-02): to be offered to AEF (055's T-682 pattern). Also listed in .fwvendor-preserve.yaml."
+  - task: T-3649
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the change.
+    date: 2026-11-02
+    file: .agentic-framework/web/templates/triage.html
+    status: local-only
+    kind: feature
+    generality: GENERIC
+    symptom: >-
+      The operator had no surface to rule on many tasks quickly (287 triage rows from T-3648).
+    fix: >-
+      Template for /triage (proposal highlighted, not pre-selected; answered state; group and unanswered filters).
+    evidence: "python3 -m pytest web/test_triage.py (10 passed); tests/triage-apply-fixtures.sh (13 passed)."
+    upstream_note: "Operator ruling B (2026-11-02): to be offered to AEF (055's T-682 pattern). Also listed in .fwvendor-preserve.yaml."
+  - task: T-3649
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the change.
+    date: 2026-11-02
+    file: .agentic-framework/web/test_triage.py
+    status: local-only
+    kind: feature
+    generality: GENERIC
+    symptom: >-
+      The operator had no surface to rule on many tasks quickly (287 triage rows from T-3648).
+    fix: >-
+      Blueprint tests: render, escaping, POST appends + last wins, bad choice 400, CSRF 403, group filter, bad batch, no task-file write, nav leaf.
+    evidence: "python3 -m pytest web/test_triage.py (10 passed); tests/triage-apply-fixtures.sh (13 passed)."
+    upstream_note: "Operator ruling B (2026-11-02): to be offered to AEF (055's T-682 pattern). Also listed in .fwvendor-preserve.yaml."
+  - task: T-3649
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the change.
+    date: 2026-11-02
+    file: .agentic-framework/web/blueprints/__init__.py
+    status: local-only
+    kind: feature
+    generality: GENERIC
+    symptom: >-
+      The operator had no surface to rule on many tasks quickly (287 triage rows from T-3648).
+    fix: >-
+      Registers triage_bp (one import line, one tuple entry).
+    evidence: "python3 -m pytest web/test_triage.py (10 passed); tests/triage-apply-fixtures.sh (13 passed)."
+    upstream_note: "Operator ruling B (2026-11-02): to be offered to AEF (055's T-682 pattern). Also listed in .fwvendor-preserve.yaml."
 not_divergence:
   - kind: vendor-event
     tasks: [T-2705]

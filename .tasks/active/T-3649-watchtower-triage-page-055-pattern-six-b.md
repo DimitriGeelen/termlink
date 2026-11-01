@@ -40,7 +40,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T23:39:02Z
-last_update: '2026-11-01T23:39:54Z'
+last_update: 2026-11-01T23:53:26Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -86,17 +86,25 @@ task file. 055's lesson: their operator overrode 5 of 7 proposals, so nothing is
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New blueprint + template under `.agentic-framework/web/` (new files, plus the one registration line), registered
+- [x] New blueprint + template under `.agentic-framework/web/` (new files, plus the one registration line), registered
       in `.vendor-divergence.yaml` (local-only, filed-upstream once sent) and `.fwvendor-preserve.yaml` so a re-vendor keeps it
-- [ ] Page reads `.context/triage/batch.json` (055 format: batch, rows[task,title,summary,evidence,proposed,details]); shows
+      — triage.py, triage.html, test_triage.py + `__init__.py` (import + tuple entry); 4 divergence entries + 4 preserve
+      entries; nav leaf added from triage.py at import, so shared.py is untouched; check-vendor-divergence rc 0
+- [x] Page reads `.context/triage/batch.json` (055 format: batch, rows[task,title,summary,evidence,proposed,details]); shows
       per card the proposal highlighted but NOT pre-selected, six buttons; a click POSTs and appends
       `{ts, batch, task, choice}` to `.context/triage/answers.jsonl` (last line per task wins); shows answered state;
       never writes a task file; batch can be split by group (operator-decision rows in their own batch)
-- [ ] Apply step `scripts/triage-apply.sh` (dry-run default): maps prioritize->horizon now, keep->no change, park->horizon
+      — `?group=` (explicit `group` field, else `group X` parsed from details) and `?show=open|all`; live click on a
+      throwaway server (port 5099) appended the expected line and flipped the card (clicked-card.png; line removed after)
+- [x] Apply step `scripts/triage-apply.sh` (dry-run default): maps prioritize->horizon now, keep->no change, park->horizon
       later, drop->captures a drop note for operator-confirmed close, close->work-completed through gates (no --force),
       more->lists for the agent to explain; prints what it did; idempotent
-- [ ] Tests: blueprint tests (render, POST appends, bad choice 400, no task-file write) and apply fixtures; Watchtower
+      — drop -> drop-pending.jsonl, more -> more-pending.jsonl, ledger applied.jsonl; gate-refused close = SKIPPED (retried)
+- [x] Tests: blueprint tests (render, POST appends, bad choice 400, no task-file write) and apply fixtures; Watchtower
       smoke passes
+      — web/test_triage.py 10 passed; tests/triage-apply-fixtures.sh 13/13; smoke 53/55 with /triage passing, the 2 reds
+      (/fabric, /fabric/graph) also red at HEAD without this change (52/54); test_app.py 137 passed, 1 failed
+      (test_patterns_cards_link_to_tasks, also red at HEAD)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -275,6 +283,14 @@ task file. 055's lesson: their operator overrode 5 of 7 proposals, so nothing is
 # both. Re-derive rather than trust this table — it is pinned, not asserted:
 #     bats tests/unit/t3203_p011_gate_semantics.bats
 #
+cd .agentic-framework && TMPDIR=/var/tmp python3 -m pytest web/test_triage.py -q -p no:cacheprovider > ../.context/working/.t3649-pytest.out 2>&1 && grep -q "10 passed" ../.context/working/.t3649-pytest.out
+TMPDIR=/var/tmp bash tests/triage-apply-fixtures.sh > .context/working/.t3649-fx.out 2>&1 && grep -q "0 failed" .context/working/.t3649-fx.out
+bash scripts/check-vendor-divergence.sh > .context/working/.t3649-vd.out 2>&1 && grep -q "all registered" .context/working/.t3649-vd.out
+python3 -c "import yaml; [yaml.safe_load(open(f)) for f in ('.vendor-divergence.yaml', '.fwvendor-preserve.yaml')]"
+grep -q "web/blueprints/triage.py" .fwvendor-preserve.yaml && grep -q "triage_bp" .agentic-framework/web/blueprints/__init__.py
+# Smoke has 2 pre-existing reds (/fabric, /fabric/graph; red at HEAD before T-3649), so its rc is not the verdict: assert it ran and /triage is not among the failures.
+cd .agentic-framework && TMPDIR=/var/tmp timeout 600 python3 web/smoke_test.py --test-client > ../.context/working/.t3649-smoke.out 2>&1; grep -q "Smoke Test:" ../.context/working/.t3649-smoke.out && ! grep -q "/triage" ../.context/working/.t3649-smoke.out
+#
 # ── `cmd1; cmd2` IS JUDGED ONLY ON cmd2 (T-3203) ──────────────────────────────
 #
 # The gate runs each line as the CONDITION of an `if` (update-task.sh:1215), and
@@ -300,6 +316,16 @@ task file. 055's lesson: their operator overrode 5 of 7 proposals, so nothing is
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+## Visual Verification
+
+Shot on a throwaway server (`app.run` on 127.0.0.1:5099, stopped after); production Watchtower not restarted.
+
+| state | control | 1024 | 1440 | 1920 | note |
+|-------|---------|------|------|------|------|
+| cards (group A2) | six buttons, proposal outline | ok | ok | ok | .context/visual/T-3649/cards-top@1024.png, cards-top@1920.png (full-page shots not committed, ~1 MB each) |
+| cards | group / show filters | ok | ok | ok | Pico `<nav>` spread the links at 1920; changed to a div with margin after these shots |
+| answered card | Keep clicked | ok | ok | ok | .context/visual/T-3649/clicked-card.png: "Answered: Keep", Keep filled, Close still outlined |
 
 ## RCA
 
