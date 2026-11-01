@@ -21615,3 +21615,21 @@ scan_id: R-f27c8ee4
 task_id: T-3642
 payload:
   task_file: .tasks/active/T-3642-apply-the-adopted-purpose-t-3612-go-draf.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T16:31:37Z'
+scan_id: R-f1597c9e
+task_id: T-3645
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T16:31:37Z'
+scan_id: R-f1597c9e
+task_id: T-3645
+payload:
+  task_file: .tasks/active/T-3645-guards-still-expect-the-retired-claude-t.md

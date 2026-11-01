@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3645: Guards still expect the retired claude-termlink-alt sidecar (T-3640 fallout: arc-claim-drift e4 + receipt-identity fixture case 11)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T16:31:42Z
+# ============================================================================
+
+task_id: T-3645
+task_name: "Guards still expect the retired claude-termlink-alt sidecar (T-3640 fallout: arc-claim-drift e4 + receipt-identity fixture case 11)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-01T16:27:55Z
+completed: 2026-11-01T16:31:20Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-01T17:31:17+01:00
+last_commit: 2026-11-01T17:31:17+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  per-agent dm key 6738c073bbcc587a was unwatched after T-3640 retired its loop; covered via SIDECAR_DM_ADDRESS_KEYS (fw sidecar alerts), E4 counts that coverage (+2 fixtures), case 11 reads the retired line; T-3640 note corrected
+
+# Key outcomes
+outcomes:
+  - 'Measured whether any running sidecar (legacy loop or W1 systemd unit) polls dm topics for 6738c073bbcc587a; the'
+  - 'If unwatched: coverage restored (the alt line re-enabled or a W1 unit covers it) and T-3640''s retirement note'
+  - '`tests/notify-sidecar-receipt-identity-fixtures.sh` passes with case 11 matching the shipped conf'
+  - '`bash scripts/notify-rail-e2e.sh --experiment e4` exits 0 and `bash scripts/check-arc-claim-drift.sh` exits 0'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'per-agent dm key 6738c073bbcc587a was unwatched after T-3640 retired its loop; covered via SIDECAR_DM_ADDRESS_KEYS (fw sidecar alerts), E4 counts that coverage (+2 fixtures), case 11 reads the retired line; T-3640 note corrected'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/notify-sidecar-agents.conf'
+  - '.framework.yaml'
+  - '.tasks/active/T-3645-guards-still-expect-the-retired-claude-t.md'
+  - 'scripts/notify-rail-e2e.sh'
+  - 'tests/notify-rail-e2e-fixtures.sh'
+  - 'tests/notify-sidecar-receipt-identity-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-01T17:31:17'
+    action: 'T-3645: per-agent dm key 6738c073bbcc587a was unwatched after T-3640 retired its loop; covered via SIDECAR_DM_ADDRESS_KEYS (fw sidecar alerts), E4 counts that coverage (+2 fixtures), case 11 reads the retired line; T-3640 note corrected'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 2
+  files_changed: 9
+  lines_added: 563
+  lines_removed: 8
+  footprint_refreshed_at: '2026-11-01T16:32:07Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3645-guards-still-expect-the-retired-claude-t.md
+generated_by: context-agent-hybrid
