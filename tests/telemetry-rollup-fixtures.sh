@@ -137,7 +137,7 @@ printf 'telemetry-rollup: h1 2026-10-17 -> telemetry:daily: Posted\ntelemetry-ro
 : > "$TMP/args"
 TELEMETRY_NOW="$(date -u -d 2026-10-20T12:00:00Z +%s)" bash "$R" --catch-up 7 > "$TMP/cu.out" 2>&1; rc=$?
 chk "C1 yesterday plus only the gap days after the first posted day (10-15, 10-18; not 10-13, 10-16, 10-17)" '[ $rc -eq 0 ] && [ "$(grep -o "metadata day=[0-9-]*" "$TMP/args" | sort | tr "\n" " ")" = "metadata day=2026-10-15 metadata day=2026-10-18 metadata day=2026-10-19 " ]'
-chk "C2 catch-up reports carry catch_up:true, the on-time one does not" 'grep "day=2026-10-15" "$TMP/args" | grep -q "\"catch_up\": true" && grep "day=2026-10-18" "$TMP/args" | grep -q "\"catch_up\": true" && ! grep "day=2026-10-19" "$TMP/args" | grep -q catch_up'
+chk "C2 catch-up reports carry catch_up:true, the on-time one does not" 'grep "day=2026-10-15" "$TMP/args" | grep "\"catch_up\": true" >/dev/null && grep "day=2026-10-18" "$TMP/args" | grep "\"catch_up\": true" >/dev/null && ! grep "day=2026-10-19" "$TMP/args" | grep catch_up >/dev/null'
 chk "C3 posted days recorded, so a second run posts only yesterday again" ': > "$TMP/args"; TELEMETRY_NOW="$(date -u -d 2026-10-20T12:00:00Z +%s)" bash "$R" --catch-up 7 >/dev/null 2>&1 && [ "$(grep -c "channel post" "$TMP/args")" = 1 ]'
 rm -f "$TMP/posted"; : > "$TMP/rollup.log"; : > "$TMP/args"
 TELEMETRY_NOW="$(date -u -d 2026-10-20T12:00:00Z +%s)" bash "$R" --catch-up 7 >/dev/null 2>&1; rc=$?

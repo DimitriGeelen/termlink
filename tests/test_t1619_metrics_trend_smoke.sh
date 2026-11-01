@@ -53,19 +53,19 @@ fi
 OUT=$("$FW" metrics api-usage 2>&1)
 EC=$?
 
-if echo "$OUT" | grep -q "Traceback"; then
+if grep -q "Traceback" <<< "$OUT"; then
     fail "trend mode emitted a Python traceback (T-1619 regression?)"
     echo "$OUT" | head -10 | sed 's/^/    | /'
     exit 1
 fi
-if echo "$OUT" | grep -qE "ValueError|TypeError|AttributeError"; then
+if grep -qE "ValueError|TypeError|AttributeError" <<< "$OUT"; then
     fail "trend mode emitted a Python exception (T-1619 regression?)"
     echo "$OUT" | grep -E "Error" | head -3 | sed 's/^/    | /'
     exit 1
 fi
 ok "trend mode: no traceback / exception in output"
 
-if echo "$OUT" | grep -qE "Window.*Total.*Legacy"; then
+if grep -qE "Window.*Total.*Legacy" <<< "$OUT"; then
     ok "trend mode: 4-window table header rendered"
 else
     fail "trend mode: 4-window table header missing"
@@ -73,7 +73,7 @@ else
 fi
 
 # At least one window row should print (e.g., "60d" or "1d" with numbers).
-if echo "$OUT" | grep -qE "^[[:space:]]+[0-9]+d[[:space:]]"; then
+if grep -qE "^[[:space:]]+[0-9]+d[[:space:]]" <<< "$OUT"; then
     ok "trend mode: at least one window row rendered"
 else
     fail "trend mode: no window rows found in output"
@@ -88,7 +88,7 @@ fi
 CUT_OUT=$("$FW" metrics api-usage --cut-ready --last-Nd 1 2>&1)
 CUT_EC=$?
 
-if echo "$CUT_OUT" | grep -q "Traceback"; then
+if grep -q "Traceback" <<< "$CUT_OUT"; then
     fail "cut-ready mode emitted a Python traceback (regression on workaround path)"
     echo "$CUT_OUT" | head -10 | sed 's/^/    | /'
     exit 1

@@ -150,13 +150,13 @@ strip_ansi() { sed 's/\x1b\[[0-9;]*m//g'; }
 # Pin 1: --compact emits one-line format with [TYPE]
 # ---------------------------------------------------------------------------
 OUT=$(PROJECT_ROOT="$SANDBOX" "$FW" task verify --compact 2>&1 | strip_ansi)
-if echo "$OUT" | grep -qE 'T-90001 +[0-9]+d +1/1 +\[RUBBER-STAMP\]'; then
+if grep -qE 'T-90001 +[0-9]+d +1/1 +\[RUBBER-STAMP\]' <<< "$OUT"; then
     ok "--compact: T-90001 line format matches"
 else
     fail "--compact: T-90001 line format mismatch"
     echo "$OUT" | sed 's/^/    | /'
 fi
-if echo "$OUT" | grep -qE 'T-90003 +[0-9]+d +2/2 +\[MIXED\]'; then
+if grep -qE 'T-90003 +[0-9]+d +2/2 +\[MIXED\]' <<< "$OUT"; then
     ok "--compact: T-90003 [MIXED] label correct"
 else
     fail "--compact: T-90003 [MIXED] label wrong"
@@ -177,7 +177,7 @@ fi
 # Pin 3: --rubber-stamp-only includes T-90001 + T-90003, excludes T-90002
 # ---------------------------------------------------------------------------
 OUT=$(PROJECT_ROOT="$SANDBOX" "$FW" task verify --compact --rubber-stamp-only 2>&1)
-if echo "$OUT" | grep -q "T-90001" && echo "$OUT" | grep -q "T-90003" && ! echo "$OUT" | grep -q "T-90002"; then
+if grep -q "T-90001" <<< "$OUT" && grep -q "T-90003" <<< "$OUT" && ! grep -q "T-90002" <<< "$OUT"; then
     ok "--rubber-stamp-only: includes T-90001+T-90003, excludes T-90002"
 else
     fail "--rubber-stamp-only: filter incorrect"
@@ -188,7 +188,7 @@ fi
 # Pin 4: --review-only includes T-90002 + T-90003, excludes T-90001
 # ---------------------------------------------------------------------------
 OUT=$(PROJECT_ROOT="$SANDBOX" "$FW" task verify --compact --review-only 2>&1)
-if echo "$OUT" | grep -q "T-90002" && echo "$OUT" | grep -q "T-90003" && ! echo "$OUT" | grep -q "T-90001"; then
+if grep -q "T-90002" <<< "$OUT" && grep -q "T-90003" <<< "$OUT" && ! grep -q "T-90001" <<< "$OUT"; then
     ok "--review-only: includes T-90002+T-90003, excludes T-90001"
 else
     fail "--review-only: filter incorrect"
@@ -199,7 +199,7 @@ fi
 # Pin 5: Default (no args) is unchanged — verbose with `Finalize:`
 # ---------------------------------------------------------------------------
 OUT=$(PROJECT_ROOT="$SANDBOX" "$FW" task verify 2>&1)
-if echo "$OUT" | grep -q "Finalize: fw task update"; then
+if grep -q "Finalize: fw task update" <<< "$OUT"; then
     ok "default: still emits 'Finalize:' line (verbose, backward compatible)"
 else
     fail "default: 'Finalize:' line missing — verbose format broken"

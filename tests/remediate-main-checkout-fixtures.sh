@@ -45,16 +45,16 @@ D="$TMP/clean"; mk_repo "$D"
 out=$(run "$D"); rc=$?
 if [ "$rc" = "0" ]; then ok "clean tree: exits 0"
 else bad "clean tree exits 0" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "DONE.*framework-subset"; then ok "clean tree: framework subset committed"
+if grep -q "DONE.*framework-subset" <<< "$out"; then ok "clean tree: framework subset committed"
 else bad "framework subset committed" "$out"; fi
-if ( cd "$D" && git ls-files | grep -q 'lib/bvp.sh' ); then ok "bvp.sh is now tracked"
+if ( cd "$D" && git ls-files | grep 'lib/bvp.sh' >/dev/null ); then ok "bvp.sh is now tracked"
 else bad "bvp.sh is now tracked" "$( cd "$D" && git ls-files | tr '\n' ' ')"; fi
 
 # ---------------------------------------------------------------------------
 # 2. IDEMPOTENT. A second run finds nothing to do and says so.
 # ---------------------------------------------------------------------------
 out=$(run "$D"); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "already done"; then ok "re-run is a no-op and says so"
+if [ "$rc" = "0" ] && grep -q "already done" <<< "$out"; then ok "re-run is a no-op and says so"
 else bad "re-run is a no-op" "rc=$rc: $out"; fi
 
 # ---------------------------------------------------------------------------
@@ -74,9 +74,9 @@ printf -- '-----BEGIN RSA %s KEY-----\nMIIabc\n-----END RSA %s KEY-----\n' "$KW"
 out=$(run "$D"); rc=$?
 if [ "$rc" = "1" ]; then ok "PEM key: exits 1"
 else bad "PEM key exits 1" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "REFUSED"; then ok "PEM key: step is REFUSED"
+if grep -q "REFUSED" <<< "$out"; then ok "PEM key: step is REFUSED"
 else bad "PEM key step refused" "$out"; fi
-if ! ( cd "$D" && git log --oneline | grep -q 'T-2819' ); then ok "PEM key: nothing was committed"
+if ! ( cd "$D" && git log --oneline | grep 'T-2819' >/dev/null ); then ok "PEM key: nothing was committed"
 else bad "nothing committed on refusal" "a commit was made anyway"; fi
 if [ -z "$( cd "$D" && git diff --cached --name-only )" ]; then ok "PEM key: nothing left staged"
 else bad "nothing left staged" "$( cd "$D" && git diff --cached --name-only )"; fi
@@ -88,7 +88,7 @@ D="$TMP/hex"; mk_repo "$D"
 printf '%s\n' "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" \
     > "$D/.agentic-framework/lib/hub.secret"
 out=$(run "$D"); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "REFUSED"; then ok "bare 64-hex secret is refused"
+if [ "$rc" = "1" ] && grep -q "REFUSED" <<< "$out"; then ok "bare 64-hex secret is refused"
 else bad "bare 64-hex secret refused" "rc=$rc: $out"; fi
 
 # ---------------------------------------------------------------------------
@@ -128,7 +128,7 @@ out=$(run "$D" --dry-run); rc=$?
 after=$( cd "$D" && git rev-parse HEAD )
 if [ "$before" = "$after" ]; then ok "--dry-run creates no commit"
 else bad "--dry-run creates no commit" "HEAD moved"; fi
-if echo "$out" | grep -q "would track"; then ok "--dry-run reports what it would do"
+if grep -q "would track" <<< "$out"; then ok "--dry-run reports what it would do"
 else bad "--dry-run reports intent" "$out"; fi
 if [ -z "$( cd "$D" && git diff --cached --name-only )" ]; then ok "--dry-run stages nothing"
 else bad "--dry-run stages nothing" "staged files present"; fi
@@ -144,7 +144,7 @@ inv=$(grep -nE '"git"[[:space:]]*,[[:space:]]*"push"' "$SCRIPT"; grep -nE '^[^#]
 if [ -z "$inv" ]; then ok "script contains no push INVOCATION (prose may discuss it)"
 else bad "script contains no push invocation" "$inv"; fi
 out=$(run "$TMP/clean")
-if echo "$out" | grep -q "Tier 0"; then ok "reports the push as Tier 0 rather than doing it"
+if grep -q "Tier 0" <<< "$out"; then ok "reports the push as Tier 0 rather than doing it"
 else bad "reports push as Tier 0" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -160,7 +160,7 @@ echo '.agentic-framework' > "$D/.gitignore"
 out=$(run "$D"); rc=$?
 if [ "$rc" = "1" ]; then ok "still-ignored paths: exits 1, not 0"
 else bad "still-ignored exits 1" "rc=$rc — a false success: $out"; fi
-if echo "$out" | grep -q "BLOCKED"; then ok "still-ignored paths: reports BLOCKED"
+if grep -q "BLOCKED" <<< "$out"; then ok "still-ignored paths: reports BLOCKED"
 else bad "still-ignored reports BLOCKED" "$out"; fi
 # Scope this to the step itself: "already done" legitimately appears for the
 # unrelated stale-task-files step in the same run.
@@ -172,9 +172,9 @@ sys.exit(0 if s['result']=='BLOCKED' else 1)"; then
     ok "still-ignored step records BLOCKED, never 'already-done'"
 else bad "still-ignored step records BLOCKED" "$(python3 -c "
 import json;d=json.load(open('$D/report.json'));print([x for x in d['steps'] if x['step']=='framework-subset'])")"; fi
-if echo "$out" | grep -q "STILL IGNORED"; then ok "explains that the rule has not reached this checkout"
+if grep -q "STILL IGNORED" <<< "$out"; then ok "explains that the rule has not reached this checkout"
 else bad "explains the precondition" "$out"; fi
-if echo "$out" | grep -q 'git add -f'; then ok "warns against the -f shortcut that leaves the rule broken"
+if grep -q 'git add -f' <<< "$out"; then ok "warns against the -f shortcut that leaves the rule broken"
 else bad "warns against git add -f" "$out"; fi
 
 # ---------------------------------------------------------------------------

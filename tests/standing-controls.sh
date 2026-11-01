@@ -70,7 +70,7 @@ run_status() {   # scenario agent notify-dir -> today's status output (stdout+st
 RED=0; GREEN=0; N=0
 control() {   # id label required-regex reason-if-red output
     N=$((N+1))
-    if printf '%s' "$5" | grep -qiE "$3"; then GREEN=$((GREEN+1)); printf '  GREEN %s %s\n' "$1" "$2"
+    if grep -qiE "$3" <<< "$5"; then GREEN=$((GREEN+1)); printf '  GREEN %s %s\n' "$1" "$2"
     else RED=$((RED+1)); printf '  RED   %s %s\n        reason: %s\n' "$1" "$2" "$4"; fi
 }
 mkagent() {   # dir agent -> a healthy-looking sidecar: fresh heartbeat, live pid

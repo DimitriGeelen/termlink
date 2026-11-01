@@ -82,7 +82,7 @@ trap "kill $DECOY_A_PID $DECOY_B_PID 2>/dev/null" EXIT
 sleep 0.3
 
 # Old pattern must hit decoy A (reproduces the bug)
-if pgrep -f 'termlink hub start' 2>/dev/null | grep -q "^$DECOY_A_PID\$"; then
+if pgrep -f 'termlink hub start' 2>/dev/null | grep "^$DECOY_A_PID\$" >/dev/null; then
     repro_ok=1
 else
     repro_ok=0
@@ -90,7 +90,7 @@ fi
 
 # New pattern must NOT hit decoy B (the fix in action). It also must not hit
 # decoy A — neither, because no real hub is running in this test.
-if pgrep -f '[t]ermlink hub start' 2>/dev/null | grep -q "^$DECOY_B_PID\$"; then
+if pgrep -f '[t]ermlink hub start' 2>/dev/null | grep "^$DECOY_B_PID\$" >/dev/null; then
     fix_ok=0
 else
     fix_ok=1

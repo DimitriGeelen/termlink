@@ -66,9 +66,9 @@ branch_with "$D" beta;  add_task "$D" "T-0100" "beta-other"  "Beta does somethin
 out=$(run_check "$D"); rc=$?
 if [ "$rc" = "1" ]; then ok "same ID + different tasks => fires (exit 1)"
 else bad "same ID + different tasks => fires" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "COLLISION: T-0100"; then ok "names the colliding ID"
+if grep -q "COLLISION: T-0100" <<< "$out"; then ok "names the colliding ID"
 else bad "names the colliding ID" "$out"; fi
-if echo "$out" | grep -q "alpha-thing" && echo "$out" | grep -q "beta-other"; then
+if grep -q "alpha-thing" <<< "$out" && grep -q "beta-other" <<< "$out"; then
     ok "prints both differing filenames"
 else bad "prints both differing filenames" "$out"; fi
 
@@ -92,7 +92,7 @@ branch_with "$D" alpha; add_task "$D" "T-0100" "alpha-thing" "Alpha handles comp
 ( cd "$D" && git checkout -q main )
 branch_with "$D" beta;  add_task "$D" "T-0200" "beta-other"  "Beta rewrites the parser"; commit_all "$D" b
 out=$(run_check "$D"); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "clean"; then ok "disjoint ranges report clean, exit 0"
+if [ "$rc" = "0" ] && grep -q "clean" <<< "$out"; then ok "disjoint ranges report clean, exit 0"
 else bad "disjoint ranges report clean" "rc=$rc: $out"; fi
 
 # ---------------------------------------------------------------------------
@@ -108,11 +108,11 @@ branch_with "$D" beta
 add_task "$D" "T-0200" "beta-b" "Blanket ignore rule makes static-check allowlists unrecoverable"
 commit_all "$D" b
 out=$(run_check "$D"); rc=$?
-if echo "$out" | grep -q "near-duplicate"; then ok "axis B reports near-duplicate titles across branches"
+if grep -q "near-duplicate" <<< "$out"; then ok "axis B reports near-duplicate titles across branches"
 else bad "axis B reports near-duplicate titles" "$out"; fi
 if [ "$rc" = "0" ]; then ok "axis B WARNS without firing (exit 0)"
 else bad "axis B warns without firing" "rc=$rc"; fi
-if echo "$out" | grep -q "allowlists"; then ok "axis B names the shared rare term"
+if grep -q "allowlists" <<< "$out"; then ok "axis B names the shared rare term"
 else bad "axis B names the shared rare term" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -120,14 +120,14 @@ else bad "axis B names the shared rare term" "$out"; fi
 #    share nothing; only the frontmatter `name:` reveals the overlap. This is
 #    the exact case that made the first implementation silent.
 # ---------------------------------------------------------------------------
-if echo "$out" | grep -q "Blanket ignore rule"; then ok "axis B reads the frontmatter title, not the slug"
+if grep -q "Blanket ignore rule" <<< "$out"; then ok "axis B reads the frontmatter title, not the slug"
 else bad "axis B reads the frontmatter title" "$out"; fi
 
 # ---------------------------------------------------------------------------
 # 6. --no-titles suppresses axis B entirely.
 # ---------------------------------------------------------------------------
 out=$(run_check "$D" --no-titles)
-if echo "$out" | grep -q "axis B skipped"; then ok "--no-titles skips axis B"
+if grep -q "axis B skipped" <<< "$out"; then ok "--no-titles skips axis B"
 else bad "--no-titles skips axis B" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -139,7 +139,7 @@ add_task "$D" "T-0100" "a1" "Static-check allowlists are untracked in a gitignor
 add_task "$D" "T-0101" "a2" "Blanket ignore rule makes static-check allowlists unrecoverable"
 commit_all "$D" a
 out=$(run_check "$D"); rc=$?
-if ! echo "$out" | grep -q "near-duplicate task title"; then ok "same-branch related tasks are not flagged"
+if ! grep -q "near-duplicate task title" <<< "$out"; then ok "same-branch related tasks are not flagged"
 else bad "same-branch related tasks are not flagged" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -150,11 +150,11 @@ branch_with "$D" alpha; add_task "$D" "T-0100" "a" "Alpha thing"; commit_all "$D
 ( cd "$D" && git checkout -q main )
 branch_with "$D" beta;  add_task "$D" "T-0100" "b" "Beta thing"; commit_all "$D" b
 js=$(run_check "$D" --json)
-if echo "$js" | grep -q '"collision_count": *1'; then ok "--json carries collision_count"
+if grep -q '"collision_count": *1' <<< "$js"; then ok "--json carries collision_count"
 else bad "--json carries collision_count" "$js"; fi
-if echo "$js" | grep -q '"duplicate_title_count"'; then ok "--json carries duplicate_title_count"
+if grep -q '"duplicate_title_count"' <<< "$js"; then ok "--json carries duplicate_title_count"
 else bad "--json carries duplicate_title_count" "$js"; fi
-if echo "$js" | grep -q '"duplicate_file_count"'; then ok "--json carries duplicate_file_count"
+if grep -q '"duplicate_file_count"' <<< "$js"; then ok "--json carries duplicate_file_count"
 else bad "--json carries duplicate_file_count" "$js"; fi
 
 # ---------------------------------------------------------------------------
@@ -176,10 +176,10 @@ commit_all "$D" b
 out=$(run_check "$D"); rc=$?
 if [ "$rc" = "1" ]; then ok "axis C fires on the same new file from two branches"
 else bad "axis C fires on duplicate new file" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "DUPLICATE FILE: scripts/check-thing.sh"; then
+if grep -q "DUPLICATE FILE: scripts/check-thing.sh" <<< "$out"; then
     ok "axis C names the duplicated path"
 else bad "axis C names the duplicated path" "$out"; fi
-if echo "$out" | grep -q "near-duplicate task title"; then
+if grep -q "near-duplicate task title" <<< "$out"; then
     bad "axis C catches what axis B misses" "axis B also fired — pick titles that share no rare term"
 else ok "axis C catches a duplicate axis B cannot see (titles share no rare term)"; fi
 
@@ -240,10 +240,10 @@ commit_all "$D" b
 out=$(run_check "$D"); rc=$?
 if [ "$rc" = "0" ]; then ok "axis D WARNS without firing (exit 0)"
 else bad "axis D warns without firing" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "DUPLICATED FIX?: scripts/worker.sh"; then
+if grep -q "DUPLICATED FIX?: scripts/worker.sh" <<< "$out"; then
     ok "axis D names the co-fixed file"
 else bad "axis D names the co-fixed file" "$out"; fi
-if echo "$out" | grep -q "second_original_line_delta_epsilon"; then
+if grep -q "second_original_line_delta_epsilon" <<< "$out"; then
     ok "axis D prints the shared deleted line"
 else bad "axis D prints the shared deleted line" "$out"; fi
 
@@ -261,7 +261,7 @@ commit_all "$D" f
 sed -i 's/third_original_line_zeta_eta_theta/main_fix_of_the_same_defect/' "$D/scripts/worker.sh"
 commit_all "$D" m
 out=$(run_check "$D"); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "DUPLICATED FIX?: scripts/worker.sh"; then
+if [ "$rc" = "0" ] && grep -q "DUPLICATED FIX?: scripts/worker.sh" <<< "$out"; then
     ok "axis D sees a duplicated fix against MAIN (per-pair merge base)"
 else bad "axis D sees duplicated fix vs main" "rc=$rc: $out"; fi
 if echo "$out" | grep -Eq "feature <-> main|main <-> feature"; then
@@ -283,7 +283,7 @@ branch_with "$D" beta
 sed -i 's/fourth_original_line_iota_kappa/beta_touches_line_four/' "$D/scripts/worker.sh"
 commit_all "$D" b
 out=$(run_check "$D"); rc=$?
-if ! echo "$out" | grep -q "DUPLICATED FIX"; then
+if ! grep -q "DUPLICATED FIX" <<< "$out"; then
     ok "axis D silent on disjoint edits to the same file (the IW-1 noise case)"
 else bad "axis D silent on disjoint edits" "$out"; fi
 
@@ -297,7 +297,7 @@ branch_with "$D" beta
 sed -i 's/second_original_line_delta_epsilon/identical_carried_change/' "$D/scripts/worker.sh"
 commit_all "$D" b
 out=$(run_check "$D"); rc=$?
-if ! echo "$out" | grep -q "DUPLICATED FIX"; then
+if ! grep -q "DUPLICATED FIX" <<< "$out"; then
     ok "axis D silent when end blobs are identical (carried/cherry-picked work)"
 else bad "axis D silent on identical end blobs" "$out"; fi
 
@@ -305,12 +305,12 @@ else bad "axis D silent on identical end blobs" "$out"; fi
 # 8h. Axis D controls: --no-fixes skips it and says so; --json carries counts.
 # ---------------------------------------------------------------------------
 out=$(run_check "$TMP/fixdisjoint" --no-fixes)
-if echo "$out" | grep -q "axis D skipped"; then ok "--no-fixes skips axis D and says so"
+if grep -q "axis D skipped" <<< "$out"; then ok "--no-fixes skips axis D and says so"
 else bad "--no-fixes skips axis D" "$out"; fi
 js=$(run_check "$TMP/fixdup" --json)
-if echo "$js" | grep -q '"duplicate_fix_count": *1'; then ok "--json carries duplicate_fix_count"
+if grep -q '"duplicate_fix_count": *1' <<< "$js"; then ok "--json carries duplicate_fix_count"
 else bad "--json carries duplicate_fix_count" "$js"; fi
-if echo "$js" | grep -q '"duplicate_fixes"'; then ok "--json carries duplicate_fixes detail"
+if grep -q '"duplicate_fixes"' <<< "$js"; then ok "--json carries duplicate_fixes detail"
 else bad "--json carries duplicate_fixes detail" "$js"; fi
 
 # ---------------------------------------------------------------------------
@@ -335,7 +335,7 @@ git clone -q "$TMP/clean" "$TAGD" 2>/dev/null
 out=$(run_check "$TAGD"); rc=$?
 if [ "$rc" != "2" ]; then ok "tag checkout without local main does not error (rc=$rc)"
 else bad "tag checkout without local main does not error" "rc=$rc: $out"; fi
-if echo "$out" | grep -q "using origin/main as base"; then ok "fallback to origin/main is announced"
+if grep -q "using origin/main as base" <<< "$out"; then ok "fallback to origin/main is announced"
 else bad "fallback to origin/main is announced" "$out"; fi
 out=$(run_check "$TAGD" --base main); rc=$?
 if [ "$rc" = "2" ]; then ok "explicit --base main never silently falls back (exit 2)"
@@ -352,7 +352,7 @@ out=$(run_check "$TMP/clean" --quiet)
 if [ -z "$out" ]; then ok "--quiet is silent on a clean tree"
 else bad "--quiet is silent on a clean tree" "$out"; fi
 out=$(run_check "$TMP/collide" --quiet)
-if echo "$out" | grep -q "COLLISION"; then ok "--quiet still prints a firing collision"
+if grep -q "COLLISION" <<< "$out"; then ok "--quiet still prints a firing collision"
 else bad "--quiet still prints a firing collision" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -363,13 +363,13 @@ else bad "--quiet still prints a firing collision" "$out"; fi
 #     a guard reporting green is exactly why nobody looks (T-2680).
 # ---------------------------------------------------------------------------
 out=$(run_check "$TMP/clean")
-if printf '%s' "$out" | grep -q "scope:"; then ok "clean path declares its scope"
+if grep -q "scope:" <<< "$out"; then ok "clean path declares its scope"
 else bad "clean path declares its scope" "$out"; fi
-if printf '%s' "$out" | grep -q "SAME side"; then ok "clean path names the same-side blind spot"
+if grep -q "SAME side" <<< "$out"; then ok "clean path names the same-side blind spot"
 else bad "clean path names the same-side blind spot" "$out"; fi
 
 out=$(run_check "$TMP/clean" --json)
-if printf '%s' "$out" | grep -q '"scope"'; then ok "--json carries a scope field"
+if grep -q '"scope"' <<< "$out"; then ok "--json carries a scope field"
 else bad "--json carries a scope field" "$out"; fi
 if printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if "SAME side" in d.get("scope","") else 1)'; then
   ok "--json scope field names the same-side blind spot"
@@ -380,10 +380,10 @@ else bad "--json scope field names the same-side blind spot" "$out"; fi
 MUT="$TMP/mutant-scope-check.sh"
 sed '/print("  scope: %s" % SCOPE_NOTE)/d' "$CHECK" > "$MUT"
 mout=$( cd "$TMP/clean" && bash "$MUT" 2>&1 )
-if printf '%s' "$mout" | grep -q "scope:"; then
+if grep -q "scope:" <<< "$mout"; then
   bad "mutant: removing the scope print silences the declaration" "still printed: $mout"
 else ok "mutant: removing the scope print silences the declaration"; fi
-if printf '%s' "$mout" | grep -q "no colliding IDs\|clean ("; then
+if grep -q "no colliding IDs\|clean (" <<< "$mout"; then
   ok "mutant still reports clean — proving the scope line is the only thing lost"
 else bad "mutant still reports clean" "$mout"; fi
 

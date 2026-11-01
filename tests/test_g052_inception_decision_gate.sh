@@ -83,7 +83,7 @@ EOF
 
 OUT=$(PROJECT_ROOT="$SANDBOX" "$UPDATE_TASK" "$TID" --status work-completed 2>&1) && EC=0 || EC=$?
 
-if [ "$EC" -ne 0 ] && echo "$OUT" | grep -q "G-052"; then
+if [ "$EC" -ne 0 ] && grep -q "G-052" <<< "$OUT"; then
     ok "no-decision path blocks with G-052 message (exit $EC)"
 else
     fail "no-decision path did not block as expected (exit $EC)"
@@ -99,7 +99,7 @@ sed -i 's|^## Verification$|## Decision\n\n**Decision**: GO\n\n**Rationale**: Sm
 
 OUT=$(PROJECT_ROOT="$SANDBOX" "$UPDATE_TASK" "$TID" --status work-completed 2>&1) && EC=0 || EC=$?
 
-if echo "$OUT" | grep -q "Inception decision: recorded"; then
+if grep -q "Inception decision: recorded" <<< "$OUT"; then
     ok "with-decision path emits 'Inception decision: recorded ✓'"
 else
     fail "with-decision path did NOT emit recorded marker (exit $EC)"
@@ -117,7 +117,7 @@ sed -i '/^## Decision$/,/^## Verification$/{/^## Verification$/!d}' "$TF"
 
 OUT=$(PROJECT_ROOT="$SANDBOX" "$UPDATE_TASK" "$TID" --status work-completed --skip-inception-decision 2>&1) && EC=0 || EC=$?
 
-if echo "$OUT" | grep -qi "inception decision missing.*bypass"; then
+if grep -qi "inception decision missing.*bypass" <<< "$OUT"; then
     ok "--skip-inception-decision emits WARNING bypass (exit $EC)"
 else
     fail "--skip-inception-decision did NOT emit WARNING bypass (exit $EC)"

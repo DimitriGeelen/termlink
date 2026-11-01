@@ -40,7 +40,7 @@ run() { # run <world-dir> [args...] → OUT, RC
     OUT="$(RELEASE_PUB_TEST_DIR="$w" RELEASE_PUB_TEST_NOW="$NOW" bash "$CHK" --no-heartbeat "$@" 2>&1)"; RC=$?
 }
 expect() { # expect <label> <rc> [grep-pattern]
-    if [ "$RC" = "$2" ] && { [ -z "${3:-}" ] || grep -q -- "$3" <<< "$OUT"; }; then ok "$1 (rc=$RC)"
+    if [ "$RC" = "$2" ] && { [ -z "${3:-}" ] || grep -- "$3" <<< "$OUT" >/dev/null; }; then ok "$1 (rc=$RC)"
     else bad "$1" "want rc=$2${3:+ + /$3/}, got rc=$RC: $(head -3 <<< "$OUT")"; fi
 }
 
@@ -96,7 +96,7 @@ then ok "F1 --json healthy carries ok, scope and one entry per check"
 else bad "F1 json healthy" "rc=$RC: $OUT"; fi
 world f2; echo 1 > "$W/release.rc"; echo "gh: Not Found (HTTP 404)" > "$W/release.err"
 run "$W" --quiet
-if [ "$RC" = "1" ] && head -1 <<< "$OUT" | grep -qE '^=== [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z ===$'
+if [ "$RC" = "1" ] && head -1 <<< "$OUT" | grep -E '^=== [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z ===$' >/dev/null
 then ok "F2 a firing --quiet entry opens with a dated frame (T-3002)"
 else bad "F2 dated frame" "rc=$RC: $(head -2 <<< "$OUT")"; fi
 run "$W" --bogus;            expect "F3 unknown argument is rc=2" 2

@@ -62,8 +62,8 @@ j="$(run --json)"; rc=$?
     || bad "mail selection ($(printf '%s' "$j" | jq -c '[.mail[] | {offset,from}]'))"
 [ "$(printf '%s' "$j" | jq -r '.mail[0].from + "|" + .mail[0].conversation_id + "|" + .mail[0].preview')" = "055-cockpit|c2|please answer" ] \
     && ok "each mail row names sender, conversation and a preview" || bad "mail row fields"
-t="$(run)"; printf '%s' "$t" | grep -q 'Peer mail not yet shown to this agent: 2' \
-    && printf '%s' "$t" | grep -q 'FIRING  b-firing' && ok "text output names both sections" || bad "text output: $t"
+t="$(run)"; grep -q 'Peer mail not yet shown to this agent: 2' <<< "$t" \
+    && grep -q 'FIRING  b-firing' <<< "$t" && ok "text output names both sections" || bad "text output: $t"
 
 run --mark-seen >/dev/null
 [ "$(run --json | jq '.mail | length')" = "0" ] && ok "--mark-seen: nothing shown twice" || bad "--mark-seen"
@@ -111,7 +111,7 @@ j="$(hrun --json)"
 [ "$(printf '%s' "$j" | jq -r '.held[0] | .key + "|" + .claims_agent + "|" + .socket')" = "c0ffee00c0ffee00|agent-c|/x/b.admin.sock" ] \
     && [ "$(printf '%s' "$j" | jq '.held | length')" = 1 ] && ok "held: each held message named with key, claimed agent and sidecar" || bad "held rows ($j)"
 t="$(hrun)"
-printf '%s' "$t" | grep -q 'Messages held for your decision: 1' && printf '%s' "$t" | grep -q 'decide: termlink-sidecar admin allow|deny --key c0ffee00c0ffee00' \
+grep -q 'Messages held for your decision: 1' <<< "$t" && grep -q 'decide: termlink-sidecar admin allow|deny --key c0ffee00c0ffee00' <<< "$t" \
     && ok "held: text names the decision command" || bad "held text: $t"
 printf '/x/b.admin.sock\n/x/gone.admin.sock\n' > "$TMP/socks.list"
 j="$(hrun --json)"
@@ -126,23 +126,23 @@ j="$(hrun --json)"
 printf '%s' "$j" | jq -e '(.attention | length == 3) and ([.attention[] | select(.urgent)] | length == 1)' >/dev/null \
     && ok "attention: every new entry listed, the urgent one marked" || bad "attention json: $j"
 t="$(hrun)"
-printf '%s' "$t" | grep -q 'Sidecar needs-attention (new): 3 (1 urgent)' \
-    && printf '%s' "$t" | grep -q 'ALARM  urgent-overdue  c/m7 from agent-a' \
-    && printf '%s' "$t" | grep -q '2 x receive-stalled  latest: offset 5: store' \
+grep -q 'Sidecar needs-attention (new): 3 (1 urgent)' <<< "$t" \
+    && grep -q 'ALARM  urgent-overdue  c/m7 from agent-a' <<< "$t" \
+    && grep -q '2 x receive-stalled  latest: offset 5: store' <<< "$t" \
     && ok "attention: urgent as an alarm, routine as counts per kind" || bad "attention text: $t"
 hrun --mark-seen >/dev/null
 t="$(hrun)"
-printf '%s' "$t" | grep -q 'Sidecar needs-attention (new): 0 (0 urgent)' \
+grep -q 'Sidecar needs-attention (new): 0 (0 urgent)' <<< "$t" \
     && ok "attention: --mark-seen hides what was shown" || bad "attention after mark-seen: $t"
 
 # ---- T-3618: mail delivered but never acted on --------------------------------
 t="$(run)"
-printf '%s' "$t" | grep -q 'Mail delivered but never acted on (any rail, any project on this hub): 0' \
+grep -q 'Mail delivered but never acted on (any rail, any project on this hub): 0' <<< "$t" \
     && ok "unacted: none found is said, not hidden" || bad "unacted none: $t"
 t="$(FAKE_UNACTED='UNACTED  dm  dm:aa:bb  offset 7  from=050-x  age=30h  please fix' FAKE_UNACTED_RC=1 run)"
-printf '%s' "$t" | grep -q 'never acted on (any rail, any project on this hub): 1' \
-    && printf '%s' "$t" | grep -q '^  dm  dm:aa:bb  offset 7  from=050-x  age=30h  please fix' \
-    && printf '%s' "$t" | grep -q 'unacted-mail-handled.txt' \
+grep -q 'never acted on (any rail, any project on this hub): 1' <<< "$t" \
+    && grep -q '^  dm  dm:aa:bb  offset 7  from=050-x  age=30h  please fix' <<< "$t" \
+    && grep -q 'unacted-mail-handled.txt' <<< "$t" \
     && ok "unacted: each finding listed by name with the way to clear it" || bad "unacted listed: $t"
 j="$(FAKE_UNACTED='NOT CHECKED dm: termlink channel list --prefix dm: failed' FAKE_UNACTED_RC=2 run --json)"
 [ "$(printf '%s' "$j" | jq -r '.errors | join("|")')" = "dm: termlink channel list --prefix dm: failed" ] \
