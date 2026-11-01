@@ -1,6 +1,6 @@
 # T-3612 round 4 — draft purpose, objectives and value drivers (for the operator first)
 
-**Status:** DRAFT v0.7, 2026-10-29. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
+**Status:** DRAFT v0.8, 2026-11-01. Nothing here is adopted. Operator ruling C (2026-10-28): the operator reads and
 corrects this first; only then does it go to outside review (claude, codex, antigravity, opencode; at most 2 rounds).
 Adoption is the operator's (the charter sentence is human-blessed, `docs/CHARTER.md:17-19`).
 
@@ -144,7 +144,9 @@ F-RECALL scores AEF's memory layer).
 - Guardrail: inside the Q3 ruling (T-3304 IW-1 B, IW-3 B): a bounded record, time-range reads, never a query language,
   joins or cross-topic queries. Wider recall (searching all history, forever) would reopen that ruling.
 - Not D1–D4: none of them means "can be found again".
-- Retire when: open (open point 5).
+- Retire when: arc-012 closes with a bound prover covering gap notices, page-end reasons and time-range reads
+  (operator ruling A, 2026-11-01). The arc-claim-drift guard (T-3288) fails a closed arc without a runnable prover,
+  so "closed" stays re-checkable.
 
 **Scoring tooling** (v0.3, all three reviewers): F-TRUST, F-SURFACE and F-CONV-RECALL each need a declarative
 `scoring:` block. Without one they score 0 and the audit WARNs.
@@ -233,13 +235,15 @@ These describe how we build and run TermLink, not what it is. They would live in
 3. ~~D1's product weight~~: ruled B, 6 (2026-10-29), section 3.
    ~~The DP-3 canary cap~~: ruled A (2026-10-29), section 5.
 4. ~~The live driver file~~: ruled A (2026-10-29), section 6.3.
-5. Product F-CONV-RECALL: its retire condition.
+5. ~~Product F-CONV-RECALL: its retire condition~~: ruled A (2026-11-01), section 3. All open points are ruled; next
+   is adoption.
 
 ## Version history
 
 | Version | Date | Change |
 |---|---|---|
 | 0.1 | 2026-10-28 | First draft, operator ruling C (operator reads first). |
+| 0.8 | 2026-11-01 | F-CONV-RECALL retire condition ruled A: when arc-012 closes with a bound prover (gap notices, page-end reasons, time-range reads). All open points ruled. |
 | 0.7 | 2026-10-29 | D1 product weight ruled B: 6. |
 | 0.6 | 2026-10-29 | Live driver file ruled A: the development set in policy/value-drivers.yaml; the product set in its own file, applied through product arcs' scoped_drivers; AEF asked for per-layer support. |
 | 0.5 | 2026-10-29 | DP-3 cap ruled A: freeze at 34 canaries / 99 check scripts, one in one out, quarterly retirement review. D1 product weight put to the operator (A 5 / B 6 / C 7 / D 9; recommended B); no ruling yet. |

@@ -162,3 +162,7 @@ The 2026-10-27 value-review run (T-3609) could not confirm its yardstick because
    AEF ask / B product set live / C no change / D merged; recommended A. Operator: "A".
 18. 2026-10-29, D1's product weight put again (A 5 / B 6 / C 7 / D 9; recommended B). Operator: "Okay, as suggested."
    Recorded as B: 6.
+19. 2026-11-01, F-CONV-RECALL's retire condition put (A when arc-012 closes with a bound prover / B acceptance tests
+   written now / C new objective P-8 / D no retire condition; recommended A, combining antigravity's trigger with
+   codex's tests through the arc-claim-drift prover rule). Operator: "A, as suggested." Recorded as A; draft v0.8, all
+   open points ruled.

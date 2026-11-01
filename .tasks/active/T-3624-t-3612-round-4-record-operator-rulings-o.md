@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-29T08:13:38Z
-last_update: 2026-10-29T18:03:48Z
+last_update: 2026-11-01T10:23:01Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,10 +56,17 @@ date_finished: null
 
 ## Context
 
-T-3612 (inception) reached its exploration-commit limit, which holds until its inception decision. That decision
-comes at adoption of the round-4 draft. Until then, the operator's rulings on the draft's open points are recorded
-under this task: `docs/reports/T-3612-round4-draft.md` and the T-3612 dialogue log
-(`docs/reports/T-3612-purpose-rederivation.md`).
+**Background / trigger:** T-3612 (inception: TermLink's purpose and value drivers) reached its exploration-commit
+limit, which holds until its inception decision. That decision comes at adoption of the round-4 draft.
+
+**Problem / hypothesis:** the operator keeps ruling on the draft's open points, one at a time; without a task those
+rulings cannot be committed.
+
+**Goal:** record each ruling in `docs/reports/T-3612-round4-draft.md` and the T-3612 dialogue log
+(`docs/reports/T-3612-purpose-rederivation.md`) until the draft is adopted.
+
+**Expected outcome:** every open point closed with the operator's ruling on file, so the draft can be put up for
+adoption.
 
 ## Acceptance Criteria
 
@@ -350,6 +357,16 @@ under this task: `docs/reports/T-3612-round4-draft.md` and the T-3612 dialogue l
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-01 — open point 5: F-CONV-RECALL retire condition — A (operator ruling)
+- **Chose:** A (operator: "A, as suggested"). Retire when arc-012 closes with a bound prover covering gap notices,
+  page-end reasons and time-range reads. Written into the draft (v0.8) and as a close requirement in arc-012.yaml.
+- **Why:** ties retirement to work already planned and tracked; the arc-claim-drift guard (T-3288) fails a closed arc
+  without a runnable prover, so the close stays re-checkable (covers codex's tests). Scored A +32, B +29, C +14, D −16.
+- **Rejected:** B (acceptance tests written now: fixes test detail in a purpose document), C (new objective P-8: grows
+  the draft; the bounded record is already the Q3 ruling), D (no retire condition: breaks the every-driver-has-an-exit
+  rule).
+- **Left open:** adoption of the draft (all open points now ruled).
 
 ## Decision
 
