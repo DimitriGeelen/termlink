@@ -62,17 +62,17 @@ grep -vE '^[[:space:]]*#' "$R" > "$T/runner.code"
 check "10 no fallback to ~/.termlink/runtime in the runner's code (comments may name the old bug)" 'grep -q "^RUN_RT=" "$T/runner.code" && ! grep -q "\.termlink/runtime" "$T/runner.code"'
 check "11 the abort comes before the hub is stopped" '[ "$(grep -n "^RUN_RT=\$(hub_runtime_dir" "$R" | cut -d: -f1)" -lt "$(grep -n "^kill \"\$PID\"" "$R" | cut -d: -f1)" ]'
 check "12 the relaunch uses the confirmed dir only" 'grep -q "^RUNTIME=\"\$RUN_RT\"" "$R"'
-check "13 a changed cert file after relaunch fails, named" 'grep -q "CERT CHANGED" "$R" && grep -A1 "CERT CHANGED" "$R" | grep -q "exit 1"'
+check "13 a changed cert file after relaunch fails, named" 'grep -q "CERT CHANGED" "$R" && grep -A1 "CERT CHANGED" "$R" | grep "exit 1" >/dev/null'
 check "14 a port not presenting its dir's cert fails, named" 'grep -q "CERT MISMATCH" "$R"'
-check "15 a hub that does not come back exits non-zero" 'grep -A2 "hub did NOT come back" "$R" | grep -q "exit 1"'
+check "15 a hub that does not come back exits non-zero" 'grep -A2 "hub did NOT come back" "$R" | grep "exit 1" >/dev/null'
 swap_line=$(grep -n '^if rm -f "\$TARGET" 2>/dev/null && cp "\$NEW" "\$TARGET"' "$R" | cut -d: -f1)
 kill_line=$(grep -n '^kill "\$PID"' "$R" | cut -d: -f1)
 check "17 T-3447: the file is swapped BEFORE the hub is stopped" '[ -n "$swap_line" ] && [ -n "$kill_line" ] && [ "$swap_line" -lt "$kill_line" ]'
 check "18 T-3447: a failed early swap restores the backup and falls back to stop-wait-swap" 'grep -q "restored \$TARGET from \$BAK" "$R" && grep -q "^if \[ \"\$SWAPPED\" = 0 \]; then" "$R"'
-check "19 T-3447: a hub running another file (old or deleted exe) is replaced once, then STALE exits 1" 'grep -q "^stale_hubs() {" "$R" && grep -q "\[ \"\$e\" = \"\$TARGET\" \] || echo" "$R" && grep -A1 "STALE after one replacement" "$R" | grep -q "exit 1" || grep "STALE after one replacement" "$R" | grep -q "exit 1"'
+check "19 T-3447: a hub running another file (old or deleted exe) is replaced once, then STALE exits 1" 'grep -q "^stale_hubs() {" "$R" && grep -q "\[ \"\$e\" = \"\$TARGET\" \] || echo" "$R" && grep -A1 "STALE after one replacement" "$R" | grep "exit 1" >/dev/null || grep "STALE after one replacement" "$R" | grep "exit 1" >/dev/null'
 check "20 T-3447: the stale kill reads whole lines (an exe may contain \" (deleted)\")" 'grep -q "while IFS= read -r s; do kill \"\${s%%:\*}\"; done <<< \"\$STALE\"" "$R"'
 check "21 T-3447: the version line runs the binary, no literal quotes around the path" 'grep -q "hub UP version=\$(\"\$TARGET\" --version" "$R" && ! grep -q "\\\\\"\$TARGET\\\\\"" "$R"'
-check "22 T-3449: no phrase-based 'termlink hub start' lookup remains in the runner's code" '! grep -vE "^[[:space:]]*#" "$R" | grep -q "termlink hub start"'
+check "22 T-3449: no phrase-based 'termlink hub start' lookup remains in the runner's code" '! grep -vE "^[[:space:]]*#" "$R" | grep "termlink hub start" >/dev/null'
 check "23 T-3449: TARGET is the exe path with \" (deleted)\" stripped" 'grep -q "^TARGET=\$(real_path \"\$(readlink \"/proc/\$PID/exe\")\")" "$R"'
 check "24 T-3449: a stray \"<TARGET> (deleted)\" file is removed once nothing runs from it" 'grep -q "^STRAY=\"\$TARGET (deleted)\"" "$R" && grep -q "rm -f -- \"\$STRAY\"" "$R"'
 # Behaviour of the helpers, extracted from the generated runner and run against stand-ins for

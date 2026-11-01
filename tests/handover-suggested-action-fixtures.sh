@@ -171,7 +171,7 @@ fi
 # ── Case 8: the fabricated narrative literals are gone ──────────────────────────
 # The generator must not emit a bare "None" or the gaps-register deflection as if
 # they were findings. Checked as whole lines inside the emitted template.
-if grep -qx 'None' "$HANDOVER_SH" || grep -qx 'See gaps register above\.' "$HANDOVER_SH"; then
+if grep -qx 'None' "$HANDOVER_SH" || grep -x 'See gaps register above\.' "$HANDOVER_SH" >/dev/null; then
     bad "case 8: fabricated narrative literals removed" "no bare 'None' / 'See gaps register above.' lines" "still present"
 else
     ok "case 8: fabricated narrative literals are gone"

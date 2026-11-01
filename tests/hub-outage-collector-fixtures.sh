@@ -51,7 +51,7 @@ chk "S1 alpha has no outages" 'echo "$out" | python3 -c "import json,sys;d=json.
 chk "S2 beta closed outage = 180s (120->300)" 'echo "$out" | python3 -c "import json,sys;d=json.load(sys.stdin);i=d[\"hubs\"][\"10.0.0.2:9100\"][\"intervals\"];sys.exit(0 if i[0][\"start\"]==120 and i[0][\"end\"]==300 and i[0][\"duration_s\"]==180 and not i[0][\"open\"] else 1)"'
 chk "S3 trailing outage is OPEN 60s" 'echo "$out" | python3 -c "import json,sys;d=json.load(sys.stdin);i=d[\"hubs\"][\"10.0.0.2:9100\"][\"intervals\"];sys.exit(0 if i[1][\"open\"] and i[1][\"duration_s\"]==60 else 1)"'
 chk "S4 max=180 and p95=180" 'echo "$out" | python3 -c "import json,sys;d=json.load(sys.stdin);sys.exit(0 if d[\"all\"][\"max_s\"]==180 and d[\"all\"][\"p95_s\"]==180 else 1)"'
-chk "S5 H-1 covered at 3600 limit" 'echo "$out" | grep -q "\"h1_covered\": true"'
+chk "S5 H-1 covered at 3600 limit" 'echo "$out" | grep "\"h1_covered\": true" >/dev/null'
 out2="$(bash "$S" --json --limit 100)"
 chk "S6 H-1 NOT covered at limit 100" 'echo "$out2" | python3 -c "import json,sys;d=json.load(sys.stdin);sys.exit(0 if d[\"all\"][\"h1_covered\"] is False else 1)"'
 # collector gap: down@0, then silence 1000s, then up@1000 -> must not be one 1000s outage

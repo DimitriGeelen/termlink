@@ -13,8 +13,8 @@ PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); echo "  PASS  $1"; }
 bad()  { FAIL=$((FAIL+1)); echo "  FAIL  $1"; }
 assert_eq() { [ "$2" = "$3" ] && ok "$1 ($2)" || bad "$1 — expected '$3', got '$2'"; }
-assert_has(){ printf '%s' "$2" | grep -qF -- "$3" && ok "$1" || bad "$1 — missing '$3'"; }
-assert_not(){ printf '%s' "$2" | grep -qF -- "$3" && bad "$1 — unexpectedly found '$3'" || ok "$1"; }
+assert_has(){ grep -qF -- "$3" <<< "$2" && ok "$1" || bad "$1 — missing '$3'"; }
+assert_not(){ grep -qF -- "$3" <<< "$2" && bad "$1 — unexpectedly found '$3'" || ok "$1"; }
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 

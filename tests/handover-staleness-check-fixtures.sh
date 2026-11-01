@@ -199,7 +199,7 @@ qout="$(bash "$CHECK" --handovers-dir "$D4" --window 2 --allowlist "$EMPTY_ALLOW
 [ -z "$qout" ] && ok "case 14: --quiet is silent when clean" || bad "case 14: --quiet silent" "no output" "$qout"
 
 # ── Case 15: the guard-layer marker is present ──────────────────────────────
-if sed -n '2p' "$CHECK" | grep -q '^# guard-layer: source'; then
+if sed -n '2p' "$CHECK" | grep '^# guard-layer: source' >/dev/null; then
     ok "case 15: carries the '# guard-layer: source' marker so CI runs it"
 else
     bad "case 15: guard-layer marker" "'# guard-layer: source' on line 2" "$(sed -n '2p' "$CHECK")"

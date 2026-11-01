@@ -83,7 +83,7 @@ echo
 rm -f "$DIRS"/*
 printf 'Run `fw sidecar` to start the sidecar.\n' > "$DIRS/a.md"
 out=$(run --dirs "$DIRS"); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "sidecar"; then
+if [ "$rc" -eq 1 ] && grep -q "sidecar" <<< "$out"; then
     ok "backticked reference to an absent verb FIRES (the test the parked version failed)"
 else
     bad "absent verb must fire" "exit $rc; out: $out"
@@ -103,7 +103,7 @@ fi
 rm -f "$DIRS"/*
 printf 'bin/fw nosuchverb --flag\n' > "$DIRS/a.md"
 out=$(run --dirs "$DIRS"); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "nosuchverb"; then
+if [ "$rc" -eq 1 ] && grep -q "nosuchverb" <<< "$out"; then
     ok "the bin/fw form still fires (the backtick fix did not break its siblings)"
 else
     bad "bin/fw form must still fire" "exit $rc; out: $out"
@@ -127,7 +127,7 @@ fi
 rm -f "$DIRS"/*
 printf 'Run `fw doctor`.\n' > "$DIRS/a.md"
 out=$(run --dirs "$DIRS" --min-refs 5); rc=$?
-if [ "$rc" -eq 2 ] && printf '%s' "$out" | grep -q "floor is 5"; then
+if [ "$rc" -eq 2 ] && grep -q "floor is 5" <<< "$out"; then
     ok "below the reference floor exits 2 (tooling), never a clean bill"
 else
     bad "floor must exit 2" "exit $rc; out: $out"
@@ -203,7 +203,7 @@ printf 'Run `fw sidecar`.\n' > "$DIRS/a.md"
 fire=$(run --dirs "$DIRS")
 printf 'Run `fw doctor`.\n' > "$DIRS/a.md"
 clean=$(run --dirs "$DIRS")
-if printf '%s' "$fire" | grep -q "ROOT:" && printf '%s' "$clean" | grep -q "ROOT:"; then
+if grep -q "ROOT:" <<< "$fire" && grep -q "ROOT:" <<< "$clean"; then
     ok "both the firing and the clean path declare the fw binary and cwd (offset-160 rule)"
 else
     bad "every path must declare its root" "fire: $fire / clean: $clean"

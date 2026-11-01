@@ -77,10 +77,10 @@ rc_is "absent task file -> clear, not blocked" 0 "$(run "$D/does-not-exist.md")"
 
 echo "== Case 6: scan mode and reporting =="
 out="$(FW_VOI_GATE_TASKS_DIR="$D" bash "$GATE" --scan --json 2>&1)"
-printf '%s' "$out" | grep -q '"firing_count"' && ok "scan --json reports firing_count" || bad "json firing_count" "$out"
-printf '%s' "$out" | grep -q '"waived_count"' && ok "scan reports waived COUNT (never hidden)" || bad "json waived_count" "$out"
-printf '%s' "$out" | grep -q '"grandfathered_count"' && ok "scan reports grandfathered count" || bad "json grandfathered" "$out"
-printf '%s' "$out" | grep -q 'does NOT judge whether a set value' && ok "carries the scope disclaimer (T-2680)" || bad "scope" "$out"
+grep -q '"firing_count"' <<< "$out" && ok "scan --json reports firing_count" || bad "json firing_count" "$out"
+grep -q '"waived_count"' <<< "$out" && ok "scan reports waived COUNT (never hidden)" || bad "json waived_count" "$out"
+grep -q '"grandfathered_count"' <<< "$out" && ok "scan reports grandfathered count" || bad "json grandfathered" "$out"
+grep -q 'does NOT judge whether a set value' <<< "$out" && ok "carries the scope disclaimer (T-2680)" || bad "scope" "$out"
 FW_VOI_GATE_TASKS_DIR="$D" bash "$GATE" --scan >/dev/null 2>&1
 rc_is "scan exits 1 while anything is firing" 1 "$?"
 # T-3175 SUPERSEDED this script. The marker was removed on purpose so CI runs ONE

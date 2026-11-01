@@ -58,7 +58,7 @@ run_relaunch "$T/rb.sh" "$T/r1"; rc=$?
 check "4 the relaunch script runs clean on fakes" '[ "$rc" = 0 ] && [ -s "$T/r1.env" ]'
 check "5 TERMLINK_SWEEP_INTERVAL_SECS=3600 reaches the relaunched hub" 'has_env "$T/r1" TERMLINK_SWEEP_INTERVAL_SECS=3600'
 check "6 a value with spaces/quotes/newline arrives byte-for-byte" 'has_env "$T/r1" "TERMLINK_WEIRD=$WEIRD"'
-check "7 non-TERMLINK variables and the exec session TERMLINK_* do not leak" '! has_env "$T/r1" FOO=bar && ! tr "\0" "\n" < "$T/r1.env" | grep -q "^TERMLINK_CALLER_LEAK="'
+check "7 non-TERMLINK variables and the exec session TERMLINK_* do not leak" '! has_env "$T/r1" FOO=bar && ! tr "\0" "\n" < "$T/r1.env" | grep "^TERMLINK_CALLER_LEAK=" >/dev/null'
 check "8 an argument with a space arrives as ONE argv word" '[ "$(tr "\0" "|" < "$T/r1.argv")" = "nohup|$T/termlink|hub|start|--tcp|0.0.0.0:9100|--label|my hub|" ]'
 # fail-closed: a corrupt/empty env payload must not relaunch
 write_swap_relaunch "$T/rb2.sh" rollback "$T/staged" 201 "" "$ARGVB" "$T/termlink" "$T/hub.log"

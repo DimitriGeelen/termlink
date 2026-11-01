@@ -23,9 +23,9 @@ ALLOW="$SCRATCH/allowlist"; : > "$ALLOW"
 pass=0; fail=0
 assert_rc() { if [ "$2" -eq "$3" ]; then pass=$((pass+1)); echo "  ok: $1 (rc=$3)";
     else fail=$((fail+1)); echo "  FAIL: $1 — expected rc=$2 got rc=$3" >&2; fi }
-assert_contains() { if printf '%s' "$2" | grep -q -- "$3"; then pass=$((pass+1)); echo "  ok: $1";
+assert_contains() { if grep -q -- "$3" <<< "$2"; then pass=$((pass+1)); echo "  ok: $1";
     else fail=$((fail+1)); echo "  FAIL: $1 — output lacked '$3'" >&2; fi }
-assert_absent() { if printf '%s' "$2" | grep -q -- "$3"; then fail=$((fail+1)); echo "  FAIL: $1 — output unexpectedly had '$3'" >&2;
+assert_absent() { if grep -q -- "$3" <<< "$2"; then fail=$((fail+1)); echo "  FAIL: $1 — output unexpectedly had '$3'" >&2;
     else pass=$((pass+1)); echo "  ok: $1"; fi }
 run_rc() { bash "$CHECK" --no-heartbeat --tools-file "$TOOLS" --parity-file "$PARITY" --allowlist "$ALLOW" "$@" >/dev/null 2>&1; echo $?; }
 run_out() { bash "$CHECK" --no-heartbeat --tools-file "$TOOLS" --parity-file "$PARITY" --allowlist "$ALLOW" "$@" 2>&1; }
