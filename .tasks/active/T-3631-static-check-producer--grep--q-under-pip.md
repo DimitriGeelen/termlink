@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-31T13:13:38Z
-last_update: 2026-11-01T09:41:15Z
+last_update: 2026-11-01T10:57:38Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -96,7 +96,9 @@ fires on a new one, and no more random fixture flakes of this class.
   misses with the fixed form vs 2/300 before; suite 13/13 x3)
 - [ ] Every remaining `producer | grep -q` under pipefail in scripts/ and tests/ converted (grep_all helper,
   here-string, or grep without -q), each file still passing its own tests
-- [ ] A guard-layer static check (`scripts/check-pipefail-grep-q.sh`) fires on a new site, with fixtures and a mutant
+- [x] A guard-layer static check (`scripts/check-pipefail-grep-q.sh`) fires on a new site, with fixtures and a mutant
+  (a ratchet over `.context/checks/pipefail-grep-q-baseline`: 393 sites / 101 files on 2026-11-01; new or grown
+  site FIRES, lower counts lower the baseline; `tests/pipefail-grep-q-fixtures.sh` 10/10 incl. mutant M1)
 - [ ] Guard layer: no new FAIL
 
 ### Human

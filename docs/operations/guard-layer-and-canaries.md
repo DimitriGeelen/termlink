@@ -1041,6 +1041,21 @@ the shape is), `--tasks-dir` / `--framework-root` for fixtures (PL-213). Ad-hoc:
 `bash tests/verification-pipefail-check-fixtures.sh` (8 assertions; pins the wrapper's
 scoping, exit codes and fail-closed contract — not the heuristic, which belongs upstream).
 
+### Pipe-into-`grep -q` ratchet for scripts and tests (T-3631, L-387 at script scale)
+
+The auditor above covers task Verification blocks only. The same shape in a script that turns
+on pipefail — `producer | grep -q PAT` — returns 141 whenever grep matches and exits while the
+producer is still writing, which reads as "no match": at random for small outputs, every time for
+large ones. Measured here: the runme fixture flakes (T-3627), `install-sh-fixtures.sh` picking the
+wrong artifact 2 times in 300 (2026-11-01), and AEF's Tier 0 / boundary hooks failing OPEN on large
+commands (AEF T-4920/T-4921, fixed by the v1.8.16-be.4 re-vendor, T-3634).
+`scripts/check-pipefail-grep-q.sh` (guard layer, FAIL tier) is a **ratchet**: the git-tracked
+`.context/checks/pipefail-grep-q-baseline` holds today's count per file (393 sites in 101 files on
+2026-11-01). A new file with a site, or a higher count, FIRES; a lower count is reported and the
+baseline is lowered with `--update-baseline`, which refuses to raise any count. Fix a site with
+`grep_all` (grep without `-q`, output discarded — see `runme.sh`), a here-string, or
+`grep PAT >/dev/null`. Fixtures: `bash tests/pipefail-grep-q-fixtures.sh` (10 cases incl. a mutant).
+
 Safe rewrites, and the ones to use in every new `## Verification` block:
 
 ```

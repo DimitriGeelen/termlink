@@ -1,0 +1,21 @@
+id: scripts/check-pipefail-grep-q.sh
+name: check-pipefail-grep-q
+type: script
+subsystem: guard-layer
+location: scripts/check-pipefail-grep-q.sh
+tags: []
+
+purpose: "guard-layer: source check-pipefail-grep-q.sh (T-3631, L-387 at script scale)"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-01
+created_by: unknown

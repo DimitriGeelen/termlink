@@ -82,6 +82,7 @@ Index (one line per section in the doc; the script named is where to start):
 - Silent non-zero-exit static check (T-2666, G-019 prevention for the T-2663 class) — `scripts/check-silent-exit.sh`
 - Long-poll busy-spin static check (T-2672, G-019 prevention for the T-2670/T-2671 class) — `scripts/check-busy-spin.sh`
 - Verification-block pipefail auditor (T-2818, L-387 at repo scale) — `scripts/check-verification-pipefail.sh`
+- Pipe-into-`grep -q` ratchet for scripts and tests (T-3631, L-387 at script scale) — `scripts/check-pipefail-grep-q.sh`
 - Stranded auto-deferred pickup envelope check (T-2801, G-063 for the queue) — `scripts/check-pickup-deferred-freshness.sh`
 - Episodic-store readability check (T-2805, G-063 for the memory layer) — `scripts/check-episodic-parse.sh`
 - Local fixes to vendored code are deleted by the next re-vendor (T-2812, G-062) — `scripts/check-vendor-divergence.sh`

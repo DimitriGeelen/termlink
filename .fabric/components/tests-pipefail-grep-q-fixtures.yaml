@@ -1,0 +1,21 @@
+id: tests/pipefail-grep-q-fixtures.sh
+name: pipefail-grep-q-fixtures
+type: script
+subsystem: guard-layer
+location: tests/pipefail-grep-q-fixtures.sh
+tags: []
+
+purpose: "guard-layer: source pipefail-grep-q-fixtures.sh — T-3631: hermetic proof for scripts/check-pipefail-grep-q.sh (the L-387 ratchet). Scratch roots under mktemp -d; the real baseline is never read or written."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-01
+created_by: unknown
