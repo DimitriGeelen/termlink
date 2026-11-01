@@ -1,0 +1,9 @@
+# DM posts on our address keys that are not ours to answer: <topic> <offset>  # why
+# Read by fw sidecar alerts / dm-stale (AEF lib/sidecar/dm.py _handled, T-4252).
+# 2026-11-01: aef-greenfield-test -> 832-Workflow-designer, on the host-shared key rail; 832 reads and answers them.
+dm:90d4553895d5a9a6:d1993c2c3ec44c94 95  # to 832: designer 0.22.0 link-event bug report
+dm:90d4553895d5a9a6:d1993c2c3ec44c94 97  # to 832: aef:io traceable fields request
+dm:90d4553895d5a9a6:d1993c2c3ec44c94 99  # to 832: field-catalog news received
+dm:90d4553895d5a9a6:d1993c2c3ec44c94 101 # to 832: WORKS report (designer 0.31.0)
+dm:90d4553895d5a9a6:d1993c2c3ec44c94 103 # to 832: sendTask validator FYI
+dm:90d4553895d5a9a6:d1993c2c3ec44c94 93  # to 832: hub back on original runtime dir (T-219)
