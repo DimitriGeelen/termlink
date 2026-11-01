@@ -4,12 +4,12 @@ name: "Orchestrate procAsFit x9 over TermLink, each round fed the previous handb
 description: >
   Operator asked for 9 sequential procAsFit rounds dispatched over TermLink. T-3181 (peer-verified) reports termlink dispatch/spawn return ok:true while executing nothing. Verify the instrument independently before dispatching, since 9 fake successes is the worst possible outcome.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, scripts/check-canary-log-hygiene.sh, scripts/check-canary-log-isolation.sh, scripts/check-decisions-register.sh, scripts/check-fabric-card-parse.sh, scripts/check-release-publication-freshness.sh, scripts/check-run-record-parse.sh, scripts/check-task-frontmatter.sh, scripts/check-task-template-idioms.sh, scripts/check-verification-heading-shadow.sh, scripts/lib/verification-block-batch.py, scripts/notify-sidecar-api.sh, scripts/notify-sidecar-supervisor.sh, scripts/run-guard-layer.sh, scripts/run-procasfit-round.sh, scripts/warn-escalation-file.sh, tests/notify-sidecar-api-fixtures.sh, tests/verification-block-batch-proof.sh, tests/verification-heading-shadow-fixtures.sh, tests/warn-escalation-file-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-28T22:43:19Z
-last_update: 2026-10-04T10:58:38Z
-date_finished: null
+last_update: 2026-11-01T23:53:30Z
+date_finished: 2026-11-01T23:53:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -40,29 +40,32 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** The operator asked for 9 sequential procAsFit rounds over TermLink. T-3181 had reported dispatch returning ok:true while executing nothing.
+**Problem / hypothesis:** If the dispatch instrument fakes success, nine rounds would yield nine fabricated handbacks. The mandate's "~800k" stop condition also could not fire (T-3192).
+**Goal:** Verify the instrument by an observed side effect before dispatching, then run the rounds each fed the previous handback, with a durable run record.
+**Expected outcome:** .context/runs/T-3211-procasfit-x9.yaml plus one handback per executed round, and the instrument finding recorded against T-3181.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] AC1 — The dispatch instrument is verified by an INDEPENDENTLY OBSERVED SIDE EFFECT
+- [x] AC1 — The dispatch instrument is verified by an INDEPENDENTLY OBSERVED SIDE EFFECT
       before any round is dispatched, not by the dispatcher's own return value. T-3181
       (peer-verified, three probes, absolute paths) reports `ok:true, workers_spawned:1,
       workers_registered:0` while the command never runs. A caller checking `ok` is told
-      it worked. Nine rounds of that is nine fabricated handbacks.
-- [ ] AC2 — If the instrument does not execute, NO rounds are dispatched and the run is
+      it worked. Nine rounds of that is nine fabricated handbacks. (evidence: run record `instrument_findings` IF-1: a root `claude -p` refuses while still registering; fixed with IS_SANDBOX=1, probed by a written file (rc 0) before any round; git 5802c0ed9)
+- [x] AC2 — If the instrument does not execute, NO rounds are dispatched and the run is
       reported as blocked. Producing nine plausible summaries of work that never happened
-      is the worst available outcome and the exact failure class of this whole session.
-- [ ] AC3 — The mandate's stop condition is checked against reality before use. It says
+      is the worst available outcome and the exact failure class of this whole session. (evidence: the instrument was made to execute and proven by side effect before R1, so the blocked branch never applied. The run also stopped itself at R3 and R5 rather than produce "blocked on SQ" handbacks; see the run record's `stopped` and `sequence_ended`)
+- [x] AC3 — The mandate's stop condition is checked against reality before use. It says
       "context reaches ~800k"; `CONTEXT_WINDOW` here IS 800000, so that condition can
       never fire before the window is exhausted. T-3192 records this precise defect — a
       literal number in a mandate going stale — and prescribes naming the threshold
-      instead. Flag it; do not silently adopt a stop condition that cannot fire.
-- [ ] AC4 — Any round actually executed produces a handback traceable to recorded checks
-      and verb-gated state changes, per the mandate's own auditability clause.
-- [ ] AC5 — Whatever the outcome, the finding about the instrument is recorded against
-      T-3181 so the next orchestration attempt does not re-derive it.
+      instead. Flag it; do not silently adopt a stop condition that cannot fire. (evidence: flagged in the run record (lines 27-29) and commit 5802c0ed9; fixed by T-3192, now work-completed)
+- [x] AC4 — Any round actually executed produces a handback traceable to recorded checks
+      and verb-gated state changes, per the mandate's own auditability clause. (evidence: handbacks R1..R11 in .context/runs/; each continued round in the run record carries handback_bytes, `placeholders: 0` (9 entries) and `verified_by_orchestrator` checks, e.g. task files moved to completed/ and stranded-check clean)
+- [x] AC5 — Whatever the outcome, the finding about the instrument is recorded against
+      T-3181 so the next orchestration attempt does not re-derive it. (evidence: run record lines 21-24, "T-3181's reported shape ... did NOT reproduce ... recorded for its owner"; the finding and the still-present ok:true shape are now also noted in T-3181's own Updates, 2026-11-02)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -186,6 +189,10 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+python3 -c "import yaml; d=yaml.safe_load(open('.context/runs/T-3211-procasfit-x9.yaml')); assert d['instrument_findings'] and d['rounds_after_rulings']"
+test -s .context/runs/T-3211-R1-handback.md && test -s .context/runs/T-3211-R5-handback.md && test -s .context/runs/T-3211-R11-handback.md
+grep -q '^status: work-completed' .tasks/completed/T-3192-claudemd-documents-a-stale-context-budge.md
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -282,3 +289,16 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3211-orchestrate-procasfit-x9-over-termlink-e.md
 - **Context:** Initial task creation
+
+### 2026-11-01T23:53:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-23ed5219
+- **Timestamp:** 2026-11-01T23:53:32Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
