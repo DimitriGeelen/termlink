@@ -6,16 +6,16 @@ description: >
   Inception: Re-derive TermLink purpose, intent and direction from the bleeding edge
   (5 external seats, synthesis, operator dialogue, sharpened single purpose/objectives/drivers)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-10-27T21:26:18Z
-last_update: 2026-10-28T20:22:11Z
-date_finished:
+last_update: 2026-11-01T16:03:43Z
+date_finished: 2026-11-01T16:03:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -109,15 +109,15 @@ with the operator; and a sharpening round into one purpose with objectives and v
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -228,7 +228,16 @@ gate green. The product driver set stays declarative until AEF T-4961 (operator 
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Adopt draft v0.9 (`docs/reports/T-3612-round4-draft.md`). Shaping is complete: five independent reads, a synthesis,
+seven operator questions (Q1-Q7) and eight further rulings on the draft's open points, and two outside review rounds
+(the cap) whose every finding is accepted, rejected or deferred in v0.9. GO means: the operator blesses the charter
+sentence (`docs/CHARTER.md:17-19`), and a build task applies draft section 6 in one commit (charter, README,
+architecture doc, charter-sentence check and its tests, objectives.yaml, driver files, tripwires) with the release
+gate green. The product driver set stays declarative until AEF T-4961 (operator ruling A, 2026-11-01).
+
+**Date**: 2026-11-01T16:03:42Z
 
 ## Updates
 
@@ -237,3 +246,45 @@ gate green. The product driver set stays declarative until AEF T-4961 (operator 
 
 ### 2026-10-27T21:27:36Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-01T16:03:42Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Adopt draft v0.9 (`docs/reports/T-3612-round4-draft.md`). Shaping is complete: five independent reads, a synthesis,
+seven operator questions (Q1-Q7) and eight further rulings on the draft's open points, and two outside review rounds
+(the cap) whose every finding is accepted, rejected or deferred in v0.9. GO means: the operator blesses the charter
+sentence (`docs/CHARTER.md:17-19`), and a build task applies draft section 6 in one commit (charter, README,
+architecture doc, charter-sentence check and its tests, objectives.yaml, driver files, tripwires) with the release
+gate green. The product driver set stays declarative until AEF T-4961 (operator ruling A, 2026-11-01).
+
+### 2026-11-01T16:03:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1c011695
+- **Timestamp:** 2026-11-01T16:03:44Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-bfb4f8f3
+- **Timestamp:** 2026-11-01T16:03:44Z
+- **Overall:** CONTRADICTED
+- **Claims:** 8
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `docs/reports/T-3612-round4-draft.md` | file | ✓ pass |
+| `docs/CHARTER.md:17-19` | file | ✗ fail — file not found at PROJECT_ROOT |
+| `docs/reports/T-3612-synthesis-round2.md` | file | ✓ pass |
+| `docs/reports/T-3612-purpose-rederivation.md` | file | ✓ pass |
+| `docs/reports/T-3612-round4-review-synthesis.md` | file | ✓ pass |
+| `docs/reports/T-3612-round5-review-synthesis.md` | file | ✓ pass |
+| `T-4961` | task | ✗ fail — no task file in .tasks/{active,completed}/ |
+| `T-3624` | task | ✓ pass |
