@@ -2,12 +2,14 @@
 id: T-3584
 name: "Canary release-publication-canary is FIRING — investigate and fix"
 description: >
-  The release-publication-canary canary reports FIRING on /canaries. Filed automatically by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary always has a task naming it.
+  The release-publication-canary canary reports FIRING on /canaries. Filed automatically
+  by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary
+  always has a task naming it.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [canary-escalation]
 components: []
 related_tasks: []
@@ -38,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-26T08:15:32Z
-last_update: 2026-10-26T08:15:32Z
-date_finished: null
+last_update: 2026-11-01T23:57:29Z
+date_finished: 2026-11-01T23:57:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +52,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-01T23:56:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3584: Canary release-publication-canary is FIRING — investigate and fix
@@ -71,11 +85,16 @@ Filed automatically by scripts/canary-escalation-file.sh (T-2985) from the daily
 
 Closing this task while the canary is still bad files a new one 24h after the close.
 
+**Background / trigger:** The daily cron reported release-publication-canary FIRING on 2026-10-26 and auto-filed this task.
+**Problem / hypothesis:** The newest v* tag lacked a published GitHub Release or a green release workflow, or the canary misread it.
+**Goal:** The canary reports HEALTHY, either because the cause is fixed or because the canary is corrected.
+**Expected outcome:** `bash scripts/canary-status.sh` shows release-publication-canary HEALTHY.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `release-publication-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
+- [x] `release-publication-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false) (evidence: canary-status 2026-11-02 shows HEALTHY, hb=2026-11-01 07:41. The finding was "WARN guard standing-controls.sh red since 2026-10-12 (>14d)". Under operator ruling T-3580 C, T-3632 (git 701d2c433) made it a dated expected-red line until 2027-01-29, which the canary honours. The guard itself is still red by ruling, not fixed.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -280,6 +299,8 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash scripts/canary-status.sh > .context/working/.t3584.out 2>&1; grep -q 'HEALTHY.*release-publication-canary' .context/working/.t3584.out
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -295,6 +316,12 @@ Closing this task while the canary is still bad files a new one 24h after the cl
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+Reconstructed 2026-11-02 from .context/working/.release-publication-canary.log and git.
+**Symptom:** release-publication-canary FIRING daily from about 2026-10-26: "WARN guard standing-controls.sh has been red since 2026-10-12T05:41:01Z (17d > 14d) — escalated".
+**Root cause:** standing-controls.sh was known red, and the 14-day WARN clock had no way to record "red, and accepted until a date". A known, ruled-on state therefore escalated as if unattended.
+**Why structurally allowed:** The WARN clock treated every red guard the same, with no dated-acceptance marker.
+**Prevention:** T-3632 (git 701d2c433, operator ruling T-3580 C) added a dated expected-red line with a 90-day cap. The canary, filer and marker-check honour it fail-safe. standing-controls.sh is expected red until 2027-01-29, after which the canary fires again.
 
 ## Evolution
 
@@ -376,3 +403,19 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3584-canary-release-publication-canary-is-fir.md
 - **Context:** Initial task creation
+
+### 2026-11-01T23:56:32Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-01T23:57:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9b924348
+- **Timestamp:** 2026-11-01T23:57:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
