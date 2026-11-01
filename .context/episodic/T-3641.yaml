@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3641: Retire AEF's legacy wake loop (framework-agent-systemd) and let notify-wake-supervisor accept an explicit 'none' (T-3640 follow-up, AEF msg 7dd75dbe)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T15:31:22Z
+# ============================================================================
+
+task_id: T-3641
+task_name: "Retire AEF's legacy wake loop (framework-agent-systemd) and let notify-wake-supervisor accept an explicit 'none' (T-3640 follow-up, AEF msg 7dd75dbe)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-01T15:29:07Z
+completed: 2026-11-01T15:31:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-01T16:30:59+01:00
+last_commit: 2026-11-01T16:30:59+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  retire AEF's legacy framework-agent-systemd notify loop + wake consumer (AEF confirmed, msg 7dd75dbe); wake supervisor accepts an explicit 'none  # reason' (fixtures T4b/T4c, 16/16); one notify loop left on .107
+
+# Key outcomes
+outcomes:
+  - '`framework-agent-systemd` loop and wake consumer stopped; both conf lines retired with AEF''s reason (pids 177731,'
+  - '`notify-wake-supervisor.sh` exits 0 on an explicit `none  # <reason>` line, 2 on `none` without a reason or an'
+  - 'The live run exits 0 with the conf declaring `none`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'retire AEF''s legacy framework-agent-systemd notify loop + wake consumer (AEF confirmed, msg 7dd75dbe); wake supervisor accepts an explicit ''none  # reason'' (fixtures T4b/T4c, 16/16); one notify loop left on .107'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/notify-sidecar-agents.conf'
+  - '.context/cron/notify-wake-agents.conf'
+  - '.tasks/active/T-3641-retire-aefs-legacy-wake-loop-framework-a.md'
+  - 'scripts/notify-wake-supervisor.sh'
+  - 'tests/notify-wake-supervisor-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-01T16:30:59'
+    action: 'T-3641: retire AEF''s legacy framework-agent-systemd notify loop + wake consumer (AEF confirmed, msg 7dd75dbe); wake supervisor accepts an explicit ''none  # reason'' (fixtures T4b/T4c, 16/16); one notify loop left on .107'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 2
+  files_changed: 8
+  lines_added: 531
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-01T15:31:34Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3641-retire-aefs-legacy-wake-loop-framework-a.md
+generated_by: context-agent-hybrid

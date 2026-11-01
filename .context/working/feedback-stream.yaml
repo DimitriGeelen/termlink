@@ -21553,3 +21553,21 @@ scan_id: R-9bcac6ea
 task_id: T-3640
 payload:
   task_file: .tasks/active/T-3640-load-on-107-dimitri-mint-dev-t-082-opera.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T15:31:15Z'
+scan_id: R-e1a4f5a0
+task_id: T-3641
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T15:31:15Z'
+scan_id: R-e1a4f5a0
+task_id: T-3641
+payload:
+  task_file: .tasks/active/T-3641-retire-aefs-legacy-wake-loop-framework-a.md
