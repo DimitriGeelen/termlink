@@ -21597,3 +21597,21 @@ task_id: T-3612
 payload:
   overall: CONTRADICTED
   claim_count: 8
+---
+kind: scan_emitted
+timestamp: '2026-11-01T16:26:06Z'
+scan_id: R-f27c8ee4
+task_id: T-3642
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T16:26:06Z'
+scan_id: R-f27c8ee4
+task_id: T-3642
+payload:
+  task_file: .tasks/active/T-3642-apply-the-adopted-purpose-t-3612-go-draf.md

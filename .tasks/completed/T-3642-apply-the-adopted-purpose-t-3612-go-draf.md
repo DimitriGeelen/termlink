@@ -7,12 +7,12 @@ description: >
   v0.9. Apply section 6 items 1-3 in one commit with the release gate green; items
   5 (tripwires) and 7 (DP-3 enforcement) are later tasks.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [charter, purpose, adoption]
-components: []
+components: [scripts/check-charter-sentence-drift.sh, scripts/test-charter-sentence-drift.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T16:04:17Z
-last_update: 2026-11-01T16:25:35Z
-date_finished:
+last_update: 2026-11-01T16:26:04Z
+date_finished: 2026-11-01T16:26:04Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -105,7 +105,8 @@ the live driver file is the development set without F-ORCH; `policy/value-driver
 - [x] Draft §6.3: F-ORCH removed from `policy/value-drivers.yaml`; `policy/value-drivers-product.yaml` created with the
   section-3 set and a header saying it is declarative until AEF T-4961 (T-3638); `fw bvp` still reads the live file
   (evidence: `fw bvp T-3642` rc 0 lists D1-D4 9/7/5/3 + F-RECALL 6, no F-ORCH; 3 scoring specs validate_scoring_spec=[])
-- [ ] One commit for §6.1-§6.3; §6.5 (tripwires) and §6.7 (DP-3 enforcement) filed as their own tasks
+- [x] One commit for §6.1-§6.3; §6.5 (tripwires) and §6.7 (DP-3 enforcement) filed as their own tasks
+  (evidence: caaee00ee pushed to origin; T-3643 §6.5, T-3644 §6.7, both captured, horizon next)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -420,3 +421,16 @@ python3 -c "import yaml; d=yaml.safe_load(open('policy/value-drivers-product.yam
 
 ### 2026-11-01T16:04:52Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-01T16:26:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f27c8ee4
+- **Timestamp:** 2026-11-01T16:26:06Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
