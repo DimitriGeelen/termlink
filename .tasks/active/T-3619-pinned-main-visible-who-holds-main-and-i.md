@@ -370,6 +370,16 @@ grep -q "book::main_view(book, agent)" crates/termlink-sidecar/src/api.rs
 
 ## Decisions
 
+### 2026-11-01 — slice 2: which liveness signal for the pinned main? B (operator ruling)
+- **Chose:** B (operator: "b"). The main's sidecar posts a periodic hub note "alive, drained up to offset N"; peers
+  read it from any host. The needs-attention alarm fires when the note goes stale or N stops advancing while mail waits.
+- **Why:** answers both "alive?" and "draining?" from any machine with no test traffic. Scored B +31, C +21, A +9, D −16
+  (D1–D4 9/7/5/3; F-RECALL untouched).
+- **Rejected:** A (local heartbeat file: same-host only), C (active probe: proves most but adds constant traffic),
+  D (wait: a dead main stays invisible).
+- **Left open:** note interval and staleness threshold (set in the slice 2 build, stated in its task); slice 3 (MCP twin +
+  audited re-pin) unchanged.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
