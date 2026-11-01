@@ -20,8 +20,8 @@ PASS=0 FAIL=0
 ok()  { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 bad() { FAIL=$((FAIL+1)); printf '  FAIL %s\n' "$1"; }
 assert_rc() { if [ "$1" -eq "$2" ]; then ok "$3 (rc=$2)"; else bad "$3 (expected rc=$1, got $2)"; fi; }
-assert_contains()     { if printf '%s' "$1" | grep -qF "$2"; then ok "$3"; else bad "$3 — missing: $2"; fi; }
-assert_not_contains() { if printf '%s' "$1" | grep -qF "$2"; then bad "$3 — unexpectedly present: $2"; else ok "$3"; fi; }
+assert_contains()     { if grep -qF "$2" <<< "$1"; then ok "$3"; else bad "$3 — missing: $2"; fi; }
+assert_not_contains() { if grep -qF "$2" <<< "$1"; then bad "$3 — unexpectedly present: $2"; else ok "$3"; fi; }
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT

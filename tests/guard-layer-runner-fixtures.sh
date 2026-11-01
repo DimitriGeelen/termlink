@@ -67,7 +67,7 @@ elapsed_ok="$(run_json | jq -r '[.members[].elapsed_s] | all(. >= 0)')"
 assert_eq "every member reports a non-negative elapsed_s" "true" "$elapsed_ok"
 total_reported="$(run_json | jq -r '.summary.total_elapsed_s')"
 assert_eq "summary carries a numeric total_elapsed_s" "true" \
-    "$(printf '%s' "$total_reported" | grep -qE '^[0-9]+\.[0-9]+$' && echo true || echo false)"
+    "$(grep -qE '^[0-9]+\.[0-9]+$' <<< "$total_reported" && echo true || echo false)"
 
 # --- fixture 2: a firing member ------------------------------------------------
 reset
@@ -192,12 +192,12 @@ assert_eq "and is classified as a fixture suite" "fixture-suite" \
 reset
 printf '#!/usr/bin/env bash\n# guard-layer: source\nfor i in $(seq 1 40); do echo "finding $i"; done\nexit 1\n' > "$S/check-verbose.sh"
 out="$(GUARD_LAYER_SCRIPTS_DIR="$S" GUARD_LAYER_TESTS_DIR="$T" bash "$RUNNER" 2>&1)"
-if printf '%s' "$out" | grep -q "more line(s) suppressed"; then
+if grep -q "more line(s) suppressed" <<< "$out"; then
     ok "over-long member output reports what it suppressed"
 else
     bad "truncation was silent — no suppression notice in output"
 fi
-if printf '%s' "$out" | grep -q "run: bash .*check-verbose.sh"; then
+if grep -q "run: bash .*check-verbose.sh" <<< "$out"; then
     ok "suppression notice names the command that shows the rest"
 else
     bad "suppression notice does not name the member command"
@@ -205,7 +205,7 @@ fi
 # And the cap is tunable, so an operator can see everything inline if they want.
 out2="$(GUARD_LAYER_SCRIPTS_DIR="$S" GUARD_LAYER_TESTS_DIR="$T" GUARD_LAYER_OUTPUT_LINES=100 \
     bash "$RUNNER" 2>&1)"
-if printf '%s' "$out2" | grep -q "more line(s) suppressed"; then
+if grep -q "more line(s) suppressed" <<< "$out2"; then
     bad "raising GUARD_LAYER_OUTPUT_LINES should remove the suppression notice"
 else
     ok "raising GUARD_LAYER_OUTPUT_LINES shows the full output"

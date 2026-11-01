@@ -70,7 +70,7 @@ cat > "$FW/bin/fw" <<'EOS'
 EOS
 seed
 out=$(run); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "lib/missing.sh"; then
+if [ "$rc" -eq 1 ] && grep -q "lib/missing.sh" <<< "$out"; then
     ok "sourced target that is missing fires (exit 1)"
 else
     bad "sourced target that is missing fires" "exit $rc; out: $out"
@@ -97,9 +97,9 @@ EOS
 seed
 out=$(run); rc=$?
 if [ "$rc" -eq 1 ] \
-   && printf '%s' "$out" | grep -q "agents/gone-a.sh" \
-   && printf '%s' "$out" | grep -q "lib/gone-b.py" \
-   && printf '%s' "$out" | grep -q "lib/gone-c.sh"; then
+   && grep -q "agents/gone-a.sh" <<< "$out" \
+   && grep -q "lib/gone-b.py" <<< "$out" \
+   && grep -q "lib/gone-c.sh" <<< "$out"; then
     ok "bash / python3 / source invocation positions all count"
 else
     bad "invocation positions all count" "exit $rc; out: $out"
@@ -144,7 +144,7 @@ cat > "$FW/bin/fw" <<'EOS'
 EOS
 seed
 out=$(run); rc=$?
-if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q "1 dynamic reference(s) skipped"; then
+if [ "$rc" -eq 0 ] && grep -q "1 dynamic reference(s) skipped" <<< "$out"; then
     ok "dynamic path is skipped and the skip is reported, not guessed"
 else
     bad "dynamic path is skipped and reported" "exit $rc; out: $out"
@@ -165,7 +165,7 @@ python3 "$FRAMEWORK_ROOT/lib/<name>.py"
 EOS
 seed
 out=$(run); rc=$?
-if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q "dynamic reference(s) skipped"; then
+if [ "$rc" -eq 0 ] && grep -q "dynamic reference(s) skipped" <<< "$out"; then
     ok "angle-bracket placeholder is skipped, not reported as dangling"
 else
     bad "angle-bracket placeholder is skipped" "exit $rc; out: $out"
@@ -180,8 +180,8 @@ seed
 echo "untracked" > "$FW/lib/untracked-lib.sh"   # axis A: on disk, never added
 out=$(run); rc=$?
 if [ "$rc" -eq 1 ] \
-   && printf '%s' "$out" | grep -q "UNTRACKED" \
-   && printf '%s' "$out" | grep -q "DANGLING"; then
+   && grep -q "UNTRACKED" <<< "$out" \
+   && grep -q "DANGLING" <<< "$out"; then
     ok "both axes fire together and both sections render"
 else
     bad "both axes fire together" "exit $rc; out: $out"
@@ -189,10 +189,10 @@ fi
 
 # --- 8. --json separates the two axes ---------------------------------------
 jout=$(run --json)
-if printf '%s' "$jout" | grep -q '"ok":false' \
-   && printf '%s' "$jout" | grep -q '"firing_count":1' \
-   && printf '%s' "$jout" | grep -q '"dangling_count":1' \
-   && printf '%s' "$jout" | grep -q 'lib/vanished.sh'; then
+if grep -q '"ok":false' <<< "$jout" \
+   && grep -q '"firing_count":1' <<< "$jout" \
+   && grep -q '"dangling_count":1' <<< "$jout" \
+   && grep -q 'lib/vanished.sh' <<< "$jout"; then
     ok "--json carries dangling_count and dangling[] beside axis A"
 else
     bad "--json carries axis B fields" "got: $jout"
@@ -225,8 +225,8 @@ chmod 644 "$FW/lib/build.sh"
 seed
 out=$(run); rc=$?
 if [ "$rc" -eq 1 ] \
-   && printf '%s' "$out" | grep -q "NOT-EXEC" \
-   && printf '%s' "$out" | grep -q "lib/build.sh"; then
+   && grep -q "NOT-EXEC" <<< "$out" \
+   && grep -q "lib/build.sh" <<< "$out"; then
     ok "exec on a present non-executable target fires as NOT-EXEC"
 else
     bad "exec on non-executable fires" "exit $rc; out: $out"
@@ -243,7 +243,7 @@ echo "# also not executable" > "$FW/lib/helper.py"
 chmod 644 "$FW/lib/helper.py"
 seed
 out=$(run); rc=$?
-if [ "$rc" -eq 0 ] && ! printf '%s' "$out" | grep -q "NOT-EXEC"; then
+if [ "$rc" -eq 0 ] && ! grep -q "NOT-EXEC" <<< "$out"; then
     ok "bash / source / python3 on a mode-644 target does NOT fire (verb-keyed, not blanket -x)"
 else
     bad "non-exec verbs must not require +x" "exit $rc; out: $out"
@@ -257,7 +257,7 @@ EOS
 chmod 755 "$FW/lib/build.sh"
 seed
 out=$(run); rc=$?
-if [ "$rc" -eq 0 ] && ! printf '%s' "$out" | grep -q "NOT-EXEC"; then
+if [ "$rc" -eq 0 ] && ! grep -q "NOT-EXEC" <<< "$out"; then
     ok "chmod +x on the target clears the firing"
 else
     bad "chmod +x clears the firing" "exit $rc; out: $out"
@@ -273,9 +273,9 @@ EOS
 seed
 out=$(run); rc=$?
 if [ "$rc" -eq 1 ] \
-   && printf '%s' "$out" | grep -q "DANGLING" \
-   && printf '%s' "$out" | grep -q "never-existed.sh" \
-   && ! printf '%s' "$out" | grep -q "NOT-EXEC"; then
+   && grep -q "DANGLING" <<< "$out" \
+   && grep -q "never-existed.sh" <<< "$out" \
+   && ! grep -q "NOT-EXEC" <<< "$out"; then
     ok "exec on a MISSING target is DANGLING, never NOT-EXEC"
 else
     bad "missing exec target classifies as DANGLING" "exit $rc; out: $out"
@@ -289,10 +289,10 @@ EOS
 chmod 644 "$FW/lib/build.sh"
 seed
 jout=$(run --json)
-if printf '%s' "$jout" | grep -q '"ok":false' \
-   && printf '%s' "$jout" | grep -q '"not_executable_count":1' \
-   && printf '%s' "$jout" | grep -q '"dangling_count":0' \
-   && printf '%s' "$jout" | grep -q '"not_executable":\["lib/build.sh"\]'; then
+if grep -q '"ok":false' <<< "$jout" \
+   && grep -q '"not_executable_count":1' <<< "$jout" \
+   && grep -q '"dangling_count":0' <<< "$jout" \
+   && grep -q '"not_executable":\["lib/build.sh"\]' <<< "$jout"; then
     ok "--json carries not_executable_count and not_executable[] apart from dangling"
 else
     bad "--json carries the NOT-EXEC class" "got: $jout"
@@ -308,7 +308,7 @@ sed -e 's|^    \[ -x "\$FW_ROOT/\$rel" \] && continue|    true \&\& continue|' \
     "$SCRIPT" > "$MUT"
 if ! cmp -s "$SCRIPT" "$MUT"; then
     mout=$(bash "$MUT" --root fw 2>&1); mrc=$?
-    if [ "$mrc" -eq 0 ] && ! printf '%s' "$mout" | grep -q "NOT-EXEC"; then
+    if [ "$mrc" -eq 0 ] && ! grep -q "NOT-EXEC" <<< "$mout"; then
         ok "mutant (no -x test) reports the dead exec reference as CLEAN — the test is load-bearing"
     else
         bad "mutant should have gone green on a dead reference" "exit $mrc; out: $mout"
@@ -326,9 +326,9 @@ ACKFILE="$SCRATCH/ack"
 printf 'lib/build.sh  # acknowledged for the fixture\n' > "$ACKFILE"
 out=$(run --allowlist "$ACKFILE"); rc=$?
 if [ "$rc" -eq 0 ] \
-   && printf '%s' "$out" | grep -q "ACKNOWLEDGED" \
-   && printf '%s' "$out" | grep -q "lib/build.sh" \
-   && ! printf '%s' "$out" | grep -q "NOT-EXEC"; then
+   && grep -q "ACKNOWLEDGED" <<< "$out" \
+   && grep -q "lib/build.sh" <<< "$out" \
+   && ! grep -q "NOT-EXEC" <<< "$out"; then
     ok "acknowledged NOT-EXEC clears the exit code but is still named in the output"
 else
     bad "acknowledged entry is reported, not muted" "exit $rc; out: $out"
@@ -337,7 +337,7 @@ fi
 # --- 16. removing the entry re-fires (the ledger is not a one-way door) -----
 printf '# nothing acknowledged\n' > "$ACKFILE"
 out=$(run --allowlist "$ACKFILE"); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "NOT-EXEC"; then
+if [ "$rc" -eq 1 ] && grep -q "NOT-EXEC" <<< "$out"; then
     ok "removing the acknowledgement re-fires the finding"
 else
     bad "removing the acknowledgement re-fires" "exit $rc; out: $out"
@@ -347,7 +347,7 @@ fi
 # `# lib/build.sh` is a note about the path, not an acknowledgement of it.
 printf '# lib/build.sh was looked at once\n' > "$ACKFILE"
 out=$(run --allowlist "$ACKFILE"); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "NOT-EXEC"; then
+if [ "$rc" -eq 1 ] && grep -q "NOT-EXEC" <<< "$out"; then
     ok "a commented-out path does not acknowledge the finding"
 else
     bad "commented path must not acknowledge" "exit $rc; out: $out"
@@ -355,7 +355,7 @@ fi
 
 # --- 18. a MISSING ledger acknowledges nothing (never excuses everything) ---
 out=$(run --allowlist "$SCRATCH/no-such-ledger"); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "NOT-EXEC"; then
+if [ "$rc" -eq 1 ] && grep -q "NOT-EXEC" <<< "$out"; then
     ok "an absent ledger acknowledges nothing rather than excusing everything"
 else
     bad "absent ledger must not fail open" "exit $rc; out: $out"
@@ -364,10 +364,10 @@ fi
 # --- 19. --json separates acknowledged from firing --------------------------
 printf 'lib/build.sh  # acknowledged for the fixture\n' > "$ACKFILE"
 jout=$(run --json --allowlist "$ACKFILE")
-if printf '%s' "$jout" | grep -q '"ok":true' \
-   && printf '%s' "$jout" | grep -q '"not_executable_count":0' \
-   && printf '%s' "$jout" | grep -q '"not_executable_acknowledged_count":1' \
-   && printf '%s' "$jout" | grep -q '"not_executable_acknowledged":\["lib/build.sh"\]'; then
+if grep -q '"ok":true' <<< "$jout" \
+   && grep -q '"not_executable_count":0' <<< "$jout" \
+   && grep -q '"not_executable_acknowledged_count":1' <<< "$jout" \
+   && grep -q '"not_executable_acknowledged":\["lib/build.sh"\]' <<< "$jout"; then
     ok "--json reports acknowledged entries in their own field, not folded into firing"
 else
     bad "--json separates acknowledged from firing" "got: $jout"

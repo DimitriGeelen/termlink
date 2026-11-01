@@ -19,10 +19,10 @@ assert_rc() { # <expected-rc> <actual-rc> <label>
     if [ "$1" -eq "$2" ]; then ok "$3 (rc=$2)"; else bad "$3 (expected rc=$1, got $2)"; fi
 }
 assert_contains() { # <haystack> <needle> <label>
-    if printf '%s' "$1" | grep -qF "$2"; then ok "$3"; else bad "$3 — missing: $2"; fi
+    if grep -qF "$2" <<< "$1"; then ok "$3"; else bad "$3 — missing: $2"; fi
 }
 assert_not_contains() { # <haystack> <needle> <label>
-    if printf '%s' "$1" | grep -qF "$2"; then bad "$3 — unexpectedly present: $2"; else ok "$3"; fi
+    if grep -qF "$2" <<< "$1"; then bad "$3 — unexpectedly present: $2"; else ok "$3"; fi
 }
 
 TMP="$(mktemp -d)"

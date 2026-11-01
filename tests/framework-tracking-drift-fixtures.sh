@@ -66,7 +66,7 @@ if [ "$rc" -eq 0 ]; then
 else
     bad "clean tree exits 0" "exit $rc; out: $out"
 fi
-if printf '%s' "$out" | grep -q "bin/fw"; then
+if grep -q "bin/fw" <<< "$out"; then
     bad "tracked file is NOT reported (SIGPIPE-inversion guard)" "bin/fw was reported despite being tracked"
 else
     ok "tracked file is NOT reported (SIGPIPE-inversion guard)"
@@ -76,7 +76,7 @@ fi
 echo "cache" > "$FW/lib/__pycache__/mod.cpython-312.pyc"
 echo "cache" > "$FW/lib/stray.pyc"
 out=$(run); rc=$?
-if [ "$rc" -eq 0 ] && ! printf '%s' "$out" | grep -q "pyc"; then
+if [ "$rc" -eq 0 ] && ! grep -q "pyc" <<< "$out"; then
     ok "__pycache__ and *.pyc excluded (still exit 0)"
 else
     bad "__pycache__ and *.pyc excluded" "exit $rc; out: $out"
@@ -97,7 +97,7 @@ if [ "$rc" -eq 0 ]; then
 else
     bad "untracked docs/ + web/static/ do not fire" "exit $rc; out: $out"
 fi
-if printf '%s' "$out" | grep -q "3 untracked"; then
+if grep -q "3 untracked" <<< "$out"; then
     ok "informational count is reported"
 else
     bad "informational count is reported" "out: $out"
@@ -110,7 +110,7 @@ fi
 mkdir -p "$FW/web/blueprints"
 echo "bp = None" > "$FW/web/blueprints/bvp.py"
 out=$(run); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "web/blueprints/bvp.py"; then
+if [ "$rc" -eq 1 ] && grep -q "web/blueprints/bvp.py" <<< "$out"; then
     ok "untracked web/blueprints/*.py FIRES (startup crash, not a degraded page)"
 else
     bad "untracked web blueprint should fire" "exit $rc; out: $out"
@@ -123,7 +123,7 @@ rm -f "$FW/web/blueprints/bvp.py"
 mkdir -p "$FW/web/templates"
 echo "<div>" > "$FW/web/templates/_pins.html"
 out=$(run); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "web/templates/_pins.html"; then
+if [ "$rc" -eq 1 ] && grep -q "web/templates/_pins.html" <<< "$out"; then
     ok "untracked web/templates/* FIRES (500 on every page that includes it)"
 else
     bad "untracked web template should fire" "exit $rc; out: $out"
@@ -150,7 +150,7 @@ if [ "$rc" -eq 1 ]; then
 else
     bad "untracked load-bearing file fires" "exit $rc; out: $out"
 fi
-if printf '%s' "$out" | grep -q "lib/bvp.sh" && printf '%s' "$out" | grep -q "policy/value-drivers.yaml"; then
+if grep -q "lib/bvp.sh" <<< "$out" && grep -q "policy/value-drivers.yaml" <<< "$out"; then
     ok "firing output names each offending path"
 else
     bad "firing output names each offending path" "out: $out"
@@ -158,10 +158,10 @@ fi
 
 # --- --json shape -----------------------------------------------------------
 jout=$(run --json)
-if printf '%s' "$jout" | grep -q '"ok":false' \
-   && printf '%s' "$jout" | grep -q '"firing_count":2' \
-   && printf '%s' "$jout" | grep -q '"informational_count":3' \
-   && printf '%s' "$jout" | grep -q 'fw/lib/bvp.sh'; then
+if grep -q '"ok":false' <<< "$jout" \
+   && grep -q '"firing_count":2' <<< "$jout" \
+   && grep -q '"informational_count":3' <<< "$jout" \
+   && grep -q 'fw/lib/bvp.sh' <<< "$jout"; then
     ok "--json carries ok/firing_count/informational_count/firing[]"
 else
     bad "--json shape" "got: $jout"
@@ -169,7 +169,7 @@ fi
 
 # --- --quiet renders firing lines only --------------------------------------
 qout=$(run --quiet)
-if printf '%s' "$qout" | grep -q "lib/bvp.sh" && ! printf '%s' "$qout" | grep -q "Remediation:"; then
+if grep -q "lib/bvp.sh" <<< "$qout" && ! grep -q "Remediation:" <<< "$qout"; then
     ok "--quiet renders firing lines without the remediation block"
 else
     bad "--quiet renders firing lines only" "out: $qout"

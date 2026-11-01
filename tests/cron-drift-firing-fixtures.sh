@@ -79,7 +79,7 @@ if [ "$rc" = "1" ]; then
 else
     bad "drift fires by default" "got rc=$rc: $out"
 fi
-if ! echo "$out" | grep -q "healthy"; then
+if ! grep -q "healthy" <<< "$out"; then
     ok "drift output never claims 'healthy'"
 else
     bad "drift output never claims 'healthy'" "got: $out"
@@ -103,13 +103,13 @@ fi
 # 3. Acknowledged is REPORTED, not hidden. An allowlist nobody can see is how
 #    the next 21-file backlog accumulates.
 # ---------------------------------------------------------------------------
-if echo "$out" | grep -q "ACKNOWLEDGED"; then
+if grep -q "ACKNOWLEDGED" <<< "$out"; then
     ok "acknowledged drift stays visible in the output"
 else
     bad "acknowledged drift stays visible" "got: $out"
 fi
 js=$(run_check "$D" --json)
-if echo "$js" | grep -q '"acknowledged_count":1'; then
+if grep -q '"acknowledged_count":1' <<< "$js"; then
     ok "--json carries acknowledged_count"
 else
     bad "--json carries acknowledged_count" "got: $js"
@@ -126,7 +126,7 @@ else
     bad "--lenient does not fire on drift" "got rc=$rc: $out"
 fi
 # ...but it must still not call that state "healthy".
-if ! echo "$out" | grep -q "healthy"; then
+if ! grep -q "healthy" <<< "$out"; then
     ok "--lenient still refuses to call drift 'healthy'"
 else
     bad "--lenient still refuses to call drift 'healthy'" "got: $out"
@@ -167,7 +167,7 @@ fi
 # ---------------------------------------------------------------------------
 D="$TMP/t7"; make_case "$D" "gamma" "0 7 * * * root echo g" "0 7 * * * root echo g"
 out=$(run_check "$D"); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "healthy"; then
+if [ "$rc" = "0" ] && grep -q "healthy" <<< "$out"; then
     ok "matching tree reports healthy, exit 0"
 else
     bad "matching tree reports healthy, exit 0" "got rc=$rc: $out"

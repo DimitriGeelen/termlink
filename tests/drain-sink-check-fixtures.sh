@@ -35,7 +35,7 @@ async fn run_peer_cmd(peer_cmd: &str) -> Vec<u8> {
 }
 RS
 out="$(run)"
-if printf '%s' "$out" | grep -q '"ok":false' && printf '%s' "$out" | grep -q '"fn":"run_peer_cmd"' && printf '%s' "$out" | grep -q '"sink":"output"'; then
+if grep -q '"ok":false' <<< "$out" && grep -q '"fn":"run_peer_cmd"' <<< "$out" && grep -q '"sink":"output"' <<< "$out"; then
     ok "(a) unbounded cmd.output() fires with the enclosing fn name"
 else bad "(a) expected fire on cmd.output(); got: $out"; fi
 
@@ -48,7 +48,7 @@ async fn drain(mut sock: TcpStream) -> Vec<u8> {
 }
 RS
 out="$(run)"
-if printf '%s' "$out" | grep -q '"ok":false' && printf '%s' "$out" | grep -q '"sink":"read_to_end"'; then
+if grep -q '"ok":false' <<< "$out" && grep -q '"sink":"read_to_end"' <<< "$out"; then
     ok "(b) unbounded read_to_end fires"
 else bad "(b) expected fire on read_to_end; got: $out"; fi
 
@@ -61,7 +61,7 @@ async fn drain_bounded(mut sock: TcpStream) -> Vec<u8> {
 }
 RS
 out="$(run)"
-if printf '%s' "$out" | grep -q '"ok":true'; then
+if grep -q '"ok":true' <<< "$out"; then
     ok "(c) .take(N).read_to_end bounded read does not fire"
 else bad "(c) expected clean on .take()-bounded read; got: $out"; fi
 
@@ -73,7 +73,7 @@ async fn documented() -> Vec<u8> {
 }
 RS
 out="$(run)"
-if printf '%s' "$out" | grep -q '"ok":true'; then
+if grep -q '"ok":true' <<< "$out"; then
     ok "(d) a //-comment mention of cmd.output() is skipped"
 else bad "(d) expected clean on comment-only mention; got: $out"; fi
 
@@ -88,7 +88,7 @@ RS
 ALLOW="$TMP/allow"
 echo "$TMP/fixture.rs::trusted_probe::output" > "$ALLOW"
 out="$(run "$ALLOW")"
-if printf '%s' "$out" | grep -q '"ok":true'; then
+if grep -q '"ok":true' <<< "$out"; then
     ok "(e) allowlisted relpath::fn::sink signature suppresses the site"
 else bad "(e) expected clean on allowlisted site; got: $out"; fi
 
@@ -99,7 +99,7 @@ fn slurp(stream: impl Iterator<Item = u8>) -> Vec<u8> {
 }
 RS
 out="$(run)"
-if printf '%s' "$out" | grep -q '"ok":false' && printf '%s' "$out" | grep -q '"sink":"collect_vec_u8"'; then
+if grep -q '"ok":false' <<< "$out" && grep -q '"sink":"collect_vec_u8"' <<< "$out"; then
     ok "(f) unbounded collect::<Vec<u8>>() fires"
 else bad "(f) expected fire on collect::<Vec<u8>>(); got: $out"; fi
 

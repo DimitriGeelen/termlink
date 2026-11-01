@@ -72,7 +72,7 @@ assert_rc "uninstalled job line fires (was a warning pre-T-2682)" 1 "$(run)"
 assert_json "uninstalled_jobs_count is 1" '.uninstalled_jobs_count' "1"
 assert_json "drift_count stays 0 — reclassified, not double-counted" '.drift_count' "0"
 missing_line="$(run_json | jq -r '.uninstalled_jobs[0]' | cut -d'|' -f3-)"
-if printf '%s' "$missing_line" | grep -q "check-canary-aliveness.sh"; then
+if grep -q "check-canary-aliveness.sh" <<< "$missing_line"; then
     pass=$((pass+1)); echo "  ok: firing output quotes the exact missing job line"
 else
     fail=$((fail+1)); echo "  FAIL: missing line not reported: '$missing_line'" >&2

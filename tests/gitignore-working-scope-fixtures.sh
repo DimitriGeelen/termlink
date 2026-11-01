@@ -83,7 +83,7 @@ else
     bad "NEW rule leaves the allowlist trackable" "still ignored"
 fi
 ( cd "$D" && git add -A >/dev/null 2>&1 )
-if ( cd "$D" && git diff --cached --name-only | grep -qx '.context/working/.alloc-sink-allowlist' ); then
+if ( cd "$D" && git diff --cached --name-only | grep -x '.context/working/.alloc-sink-allowlist' >/dev/null ); then
     ok "plain 'git add -A' stages the allowlist"
 else
     bad "plain 'git add -A' stages the allowlist" "$( cd "$D" && git diff --cached --name-only | tr '\n' ' ')"
@@ -99,7 +99,7 @@ for f in session.yaml fw-vec-index.db; do
         bad "NEW rule still ignores $f" "it became trackable — scratch state would get committed"
     fi
 done
-if ( cd "$D" && git diff --cached --name-only | grep -q 'fw-vec-index.db' ); then
+if ( cd "$D" && git diff --cached --name-only | grep 'fw-vec-index.db' >/dev/null ); then
     bad "'git add -A' does not stage the vector index" "it staged it"
 else
     ok "'git add -A' does not stage the vector index"

@@ -60,7 +60,7 @@ if [ "$rc" -eq 1 ]; then
 else
     bad "dirty catalog must fire" "rc=$rc"
 fi
-if printf '%s' "$out" | grep -q 'probed:'; then
+if grep -q 'probed:' <<< "$out"; then
     ok "firing output carries a 'probed:' provenance line"
 else
     bad "firing output must name what it read" "$(printf '%s' "$out" | head -4)"
@@ -75,7 +75,7 @@ if [ "$rc" -eq 0 ]; then
 else
     bad "clean catalog must not fire" "rc=$rc"
 fi
-if printf '%s' "$out" | grep -q 'read from'; then
+if grep -q 'read from' <<< "$out"; then
     ok "healthy output also carries provenance"
 else
     bad "healthy output must name what it read" "$(printf '%s' "$out" | head -4)"
