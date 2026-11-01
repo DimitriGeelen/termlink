@@ -92,7 +92,7 @@ assert_json "healthy run names both detectors" '.detectors|join(",")' "name-patt
 # The whole point of T-2680: the canary may never again be read as "every tool traces
 # to the charter". It must state its own scope.
 scope="$(run_json | jq -r '.scope')"
-if printf '%s' "$scope" | grep -q "not a full charter-traceability audit"; then
+if grep -q "not a full charter-traceability audit" <<< "$scope"; then
     pass=$((pass+1)); echo "  ok: healthy envelope carries an honest scope disclaimer"
 else
     fail=$((fail+1)); echo "  FAIL: scope disclaimer missing or reworded: '$scope'" >&2

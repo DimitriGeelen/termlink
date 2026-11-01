@@ -22,7 +22,7 @@ SUITES="green.sh"; out="$(run --quiet)"; rc=$?
 [ -f "$TMP/hb" ] && ok "heartbeat written on exit" || bad "heartbeat"
 
 SUITES="green.sh red.sh"; out="$(run --quiet)"; rc=$?
-[ "$rc" = 1 ] && printf '%s' "$out" | grep -q 'FAILING red.sh rc=1: FAIL E: expected rc=4' \
+[ "$rc" = 1 ] && grep -q 'FAILING red.sh rc=1: FAIL E: expected rc=4' <<< "$out" \
     && ok "a red suite fires (exit 1) naming the suite and its FAIL line" || bad "red (rc=$rc out=$out)"
 j="$(run --json)"; [ "$(printf '%s' "$j" | jq -r '.firing')" = "true" ] && ok "--json reports firing" || bad "json: $j"
 

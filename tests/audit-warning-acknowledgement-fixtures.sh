@@ -55,8 +55,8 @@ echo "== Case 3: absent ledger acknowledges NOTHING (never excuses everything) =
 bash "$SCRIPT" --audit "$AUD_OK" --ledger "$TMP/does-not-exist" >/dev/null 2>&1
 check "absent ledger -> rc 1, not a free pass" 1 "$?"
 out="$(bash "$SCRIPT" --audit "$AUD_OK" --ledger "$TMP/does-not-exist" --json 2>&1)"
-if printf '%s' "$out" | grep -q '"acknowledged_count": 0'; then ok "absent ledger reports 0 acknowledged"; else bad "absent ledger acknowledged_count" "$out"; fi
-if printf '%s' "$out" | grep -q '"ledger_exists": false'; then ok "absent ledger is reported, not silent"; else bad "ledger_exists flag" "$out"; fi
+if grep -q '"acknowledged_count": 0' <<< "$out"; then ok "absent ledger reports 0 acknowledged"; else bad "absent ledger acknowledged_count" "$out"; fi
+if grep -q '"ledger_exists": false' <<< "$out"; then ok "absent ledger is reported, not silent"; else bad "ledger_exists flag" "$out"; fi
 
 echo "== Case 4: a FAIL can never be acknowledged =="
 AUD_FAIL="$TMP/afail.yaml"
@@ -72,7 +72,7 @@ printf '%s\n' \
 bash "$SCRIPT" --audit "$AUD_FAIL" --ledger "$LED_FAIL" >/dev/null 2>&1
 check "FAIL present + ledger entry for it -> still rc 1" 1 "$?"
 o="$(bash "$SCRIPT" --audit "$AUD_FAIL" --ledger "$LED_FAIL" --json 2>&1)"
-if printf '%s' "$o" | grep -q '"fail_count": 1'; then ok "FAIL is counted separately"; else bad "fail_count" "$o"; fi
+if grep -q '"fail_count": 1' <<< "$o"; then ok "FAIL is counted separately"; else bad "fail_count" "$o"; fi
 
 echo "== Case 5: fail-closed on malformed ledger =="
 L="$TMP/led-noreason"; printf '%s\n' 'Alpha rail reports' > "$L"
@@ -107,7 +107,7 @@ mk_audit "$D/upgrades.yaml" 'some_other_shape: true'
 bash "$SCRIPT" --dir "$D" --ledger "$LED_ONE" >/dev/null 2>&1
 check "picks the dated audit, not upgrades.yaml -> rc 0" 0 "$?"
 o="$(bash "$SCRIPT" --dir "$D" --ledger "$LED_ONE" --json 2>&1)"
-if printf '%s' "$o" | grep -q '2026-09-26.yaml'; then ok "selected the date-stamped file"; else bad "selector" "$o"; fi
+if grep -q '2026-09-26.yaml' <<< "$o"; then ok "selected the date-stamped file"; else bad "selector" "$o"; fi
 
 echo "== Case 8: stale ledger entries — rot is visible =="
 LED_STALE="$TMP/led-stale"
@@ -120,7 +120,7 @@ check "stale entry is non-firing by default -> rc 0" 0 "$?"
 bash "$SCRIPT" --audit "$AUD_OK" --ledger "$LED_STALE" --strict >/dev/null 2>&1
 check "stale entry FIRES under --strict -> rc 1" 1 "$?"
 o="$(bash "$SCRIPT" --audit "$AUD_OK" --ledger "$LED_STALE" --json 2>&1)"
-if printf '%s' "$o" | grep -q '"stale_entry_count": 1'; then ok "stale entry is counted"; else bad "stale_entry_count" "$o"; fi
+if grep -q '"stale_entry_count": 1' <<< "$o"; then ok "stale entry is counted"; else bad "stale_entry_count" "$o"; fi
 
 echo "== Case 9: the count-drift hazard the format warns about =="
 LED_DRIFT="$TMP/led-drift"
@@ -132,8 +132,8 @@ mk_audit "$AUD_MOVED" 'findings:
   - level: WARN
     check: "Beta thing is unexplained — 18 of 43 examined"'
 o="$(bash "$SCRIPT" --audit "$AUD_MOVED" --ledger "$LED_DRIFT" --json 2>&1)"
-if printf '%s' "$o" | grep -q '"acknowledged_count": 0'; then ok "count moved -> pattern stops matching (why the format says use the NAME)"; else bad "drift demo" "$o"; fi
-if printf '%s' "$o" | grep -q '"stale_entry_count": 1'; then ok "and the drifted entry surfaces as stale, not silent"; else bad "drift->stale" "$o"; fi
+if grep -q '"acknowledged_count": 0' <<< "$o"; then ok "count moved -> pattern stops matching (why the format says use the NAME)"; else bad "drift demo" "$o"; fi
+if grep -q '"stale_entry_count": 1' <<< "$o"; then ok "and the drifted entry surfaces as stale, not silent"; else bad "drift->stale" "$o"; fi
 
 echo "== Case 10: scope disclaimer on BOTH paths (T-2680) =="
 bash "$SCRIPT" --audit "$AUD_OK" --ledger "$LED_BOTH" > "$TMP/clean.out" 2>&1
@@ -159,7 +159,7 @@ sed 's|hit = next((e for e in entries if e\["pattern"\] in w\["check"\]), None)|
 bash "$M" --audit "$AUD_OK" --ledger "$LED_BOTH" >/dev/null 2>&1
 check "mutant disabling the ledger match -> rc 1 (acknowledged become unexamined)" 1 "$?"
 o="$(bash "$M" --audit "$AUD_OK" --ledger "$LED_BOTH" --json 2>&1)"
-if printf '%s' "$o" | grep -q '"unexamined_count": 2'; then ok "mutant reproduces the pre-ledger world (8-style flat count)"; else bad "mutant match" "$o"; fi
+if grep -q '"unexamined_count": 2' <<< "$o"; then ok "mutant reproduces the pre-ledger world (8-style flat count)"; else bad "mutant match" "$o"; fi
 M2="$TMP/mutant-fail.sh"
 sed 's|fires = bool(unexamined) or bool(fails) or (strict and bool(stale))|fires = bool(unexamined) or (strict and bool(stale))|' "$SCRIPT" > "$M2"
 bash "$M2" --audit "$AUD_FAIL" --ledger "$LED_FAIL" >/dev/null 2>&1
@@ -176,13 +176,13 @@ findings:
   - level: WARN
     check: "Alpha rail reports NOT EVALUATED"'
 o="$(bash "$SCRIPT" --audit "$AUD_PART" --ledger "$LED_ONE" 2>&1)"
-printf '%s' "$o" | grep -q 'PARTIAL RUN' && ok "partial audit is labelled PARTIAL RUN" || bad "partial label" "$o"
-printf '%s' "$o" | grep -q 'SCOPE CAVEAT' && ok "partial audit carries the scope caveat on the CLEAN path" || bad "clean-path caveat" "$o"
+grep -q 'PARTIAL RUN' <<< "$o" && ok "partial audit is labelled PARTIAL RUN" || bad "partial label" "$o"
+grep -q 'SCOPE CAVEAT' <<< "$o" && ok "partial audit carries the scope caveat on the CLEAN path" || bad "clean-path caveat" "$o"
 o="$(bash "$SCRIPT" --audit "$AUD_PART" --ledger "$TMP/none" 2>&1)"
-printf '%s' "$o" | grep -q 'SCOPE CAVEAT' && ok "and on the FIRING path" || bad "firing-path caveat" "$o"
+grep -q 'SCOPE CAVEAT' <<< "$o" && ok "and on the FIRING path" || bad "firing-path caveat" "$o"
 o="$(bash "$SCRIPT" --audit "$AUD_PART" --ledger "$LED_ONE" --json 2>&1)"
-printf '%s' "$o" | grep -q '"partial_scope": true' && ok "json carries partial_scope true" || bad "json partial_scope" "$o"
-printf '%s' "$o" | grep -q '"audit_sections": "structure"' && ok "json carries the sections value" || bad "json sections" "$o"
+grep -q '"partial_scope": true' <<< "$o" && ok "json carries partial_scope true" || bad "json partial_scope" "$o"
+grep -q '"audit_sections": "structure"' <<< "$o" && ok "json carries the sections value" || bad "json sections" "$o"
 
 AUD_FULL="$TMP/full.yaml"
 mk_audit "$AUD_FULL" 'sections: "all"
@@ -190,26 +190,26 @@ findings:
   - level: WARN
     check: "Alpha rail reports NOT EVALUATED"'
 o="$(bash "$SCRIPT" --audit "$AUD_FULL" --ledger "$LED_ONE" 2>&1)"
-printf '%s' "$o" | grep -q 'full run' && ok "full audit is labelled full run" || bad "full label" "$o"
-printf '%s' "$o" | grep -q 'SCOPE CAVEAT' && bad "full audit must NOT carry the partial caveat" "$o" || ok "full audit omits the partial caveat"
+grep -q 'full run' <<< "$o" && ok "full audit is labelled full run" || bad "full label" "$o"
+grep -q 'SCOPE CAVEAT' <<< "$o" && bad "full audit must NOT carry the partial caveat" "$o" || ok "full audit omits the partial caveat"
 o="$(bash "$SCRIPT" --audit "$AUD_FULL" --ledger "$LED_ONE" --json 2>&1)"
-printf '%s' "$o" | grep -q '"partial_scope": false' && ok "json partial_scope false on a full run" || bad "json full scope" "$o"
+grep -q '"partial_scope": false' <<< "$o" && ok "json partial_scope false on a full run" || bad "json full scope" "$o"
 
 AUD_NOSEC="$TMP/nosec.yaml"
 mk_audit "$AUD_NOSEC" 'findings:
   - level: WARN
     check: "Alpha rail reports NOT EVALUATED"'
 o="$(bash "$SCRIPT" --audit "$AUD_NOSEC" --ledger "$LED_ONE" 2>&1)"
-printf '%s' "$o" | grep -q 'SCOPE UNKNOWN' && ok "missing sections field -> SCOPE UNKNOWN, not assumed complete" || bad "unknown scope" "$o"
-printf '%s' "$o" | grep -q 'SCOPE CAVEAT' && ok "unknown scope is caveated (fail-closed on scope)" || bad "unknown caveat" "$o"
+grep -q 'SCOPE UNKNOWN' <<< "$o" && ok "missing sections field -> SCOPE UNKNOWN, not assumed complete" || bad "unknown scope" "$o"
+grep -q 'SCOPE CAVEAT' <<< "$o" && ok "unknown scope is caveated (fail-closed on scope)" || bad "unknown caveat" "$o"
 o="$(bash "$SCRIPT" --audit "$AUD_NOSEC" --ledger "$LED_ONE" --json 2>&1)"
-printf '%s' "$o" | grep -q '"scope_state": "unknown"' && ok "json reports scope_state unknown" || bad "json unknown" "$o"
+grep -q '"scope_state": "unknown"' <<< "$o" && ok "json reports scope_state unknown" || bad "json unknown" "$o"
 
 echo "== Case 14: MUTANT — drop the scope caveat =="
 M3="$TMP/mutant-scope.sh"
 sed 's|^partial_scope = scope_state != "full"|partial_scope = False|' "$SCRIPT" > "$M3"
 o="$(bash "$M3" --audit "$AUD_PART" --ledger "$LED_ONE" 2>&1)"
-if printf '%s' "$o" | grep -q 'SCOPE CAVEAT'; then bad "mutant should suppress the caveat" "$o"; else ok "mutant suppressing partial_scope reproduces the misreadable pre-fix output"; fi
+if grep -q 'SCOPE CAVEAT' <<< "$o"; then bad "mutant should suppress the caveat" "$o"; else ok "mutant suppressing partial_scope reproduces the misreadable pre-fix output"; fi
 
 printf '\n%s\n' "audit-warning-acknowledgement fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

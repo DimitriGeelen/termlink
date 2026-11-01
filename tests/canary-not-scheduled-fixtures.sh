@@ -45,7 +45,7 @@ touch -d "@$OLD" "$W/.solo-static-canary.heartbeat"
   || bad "stale heartbeat with no crontab in git is NOT_SCHEDULED" "got $(status_of solo-static-canary)"
 
 # (b) it must not be counted as a problem
-run --quiet | grep -q 'solo-static-canary' \
+run --quiet | grep 'solo-static-canary' >/dev/null \
   && bad "NOT_SCHEDULED is excluded from --quiet problem list" "it was listed" \
   || ok "NOT_SCHEDULED is excluded from --quiet problem list"
 

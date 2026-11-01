@@ -51,7 +51,7 @@ NOW=$(date +%s)
 rm -f "$W"/.*-canary.* 2>/dev/null
 mk samesec "check-x: FIRING — something is wrong" "$NOW" "$NOW"
 out=$(run); rc=$?
-if printf '%s' "$out" | grep -q 'FIRING'; then
+if grep -q 'FIRING' <<< "$out"; then
     ok "log mtime EQUAL to heartbeat is classified FIRING"
 else
     bad "same-second must be FIRING" "$(printf '%s' "$out" | head -6)"
@@ -61,7 +61,7 @@ if [ "$rc" -eq 1 ]; then
 else
     bad "firing canary should exit 1" "rc=$rc"
 fi
-if printf '%s' "$out" | grep -qE '1 firing|firing: *1'; then
+if grep -qE '1 firing|firing: *1' <<< "$out"; then
     ok "the summary counts it"
 else
     bad "summary should count 1 firing" "$(printf '%s' "$out" | head -3)"
@@ -71,7 +71,7 @@ fi
 rm -f "$W"/.*-canary.* 2>/dev/null
 mk newer "check-y: FIRING — problem" "$NOW" "$((NOW - 30))"
 out=$(run); rc=$?
-if printf '%s' "$out" | grep -q 'FIRING' && [ "$rc" -eq 1 ]; then
+if grep -q 'FIRING' <<< "$out" && [ "$rc" -eq 1 ]; then
     ok "log newer than heartbeat is still FIRING"
 else
     bad "log-newer must remain FIRING" "rc=$rc"
@@ -82,7 +82,7 @@ fi
 rm -f "$W"/.*-canary.* 2>/dev/null
 mk older "check-z: FIRING — this was last week" "$((NOW - 604800))" "$NOW"
 out=$(run); rc=$?
-if printf '%s' "$out" | grep -q 'HEALTHY' && [ "$rc" -eq 0 ]; then
+if grep -q 'HEALTHY' <<< "$out" && [ "$rc" -eq 0 ]; then
     ok "historical entries (log older than heartbeat) stay HEALTHY"
 else
     bad "log-older must stay HEALTHY — the fix must not make old firings permanent" \
@@ -95,7 +95,7 @@ rm -f "$W"/.*-canary.* 2>/dev/null
 : > "$W/.empty-canary.heartbeat"
 touch -d "@$NOW" "$W/.empty-canary.log" "$W/.empty-canary.heartbeat"
 out=$(run); rc=$?
-if [ "$rc" -eq 0 ] && ! printf '%s' "$out" | grep -q 'FIRING'; then
+if [ "$rc" -eq 0 ] && ! grep -q 'FIRING' <<< "$out"; then
     ok "empty log is HEALTHY even at the same second (empty-log = healthy convention)"
 else
     bad "empty log must stay HEALTHY" "rc=$rc; $(printf '%s' "$out" | head -4)"
@@ -113,14 +113,14 @@ rm -f "$W"/.*-canary.* 2>/dev/null
 mk scoped "check-x: FIRING — something is wrong" "$NOW" "$NOW"
 
 out=$(run)
-if printf '%s' "$out" | grep -q "scope:"; then
+if grep -q "scope:" <<< "$out"; then
     ok "full render declares its scope"
 else
     bad "full render declares its scope" "$(printf '%s' "$out" | head -4)"
 fi
 
 qout=$(run --quiet)
-if printf '%s' "$qout" | grep -q "scope:"; then
+if grep -q "scope:" <<< "$qout"; then
     ok "quiet-with-problems path declares its scope"
 else
     bad "quiet-with-problems path declares its scope" "$(printf '%s' "$qout" | head -4)"
@@ -161,7 +161,7 @@ fi
 MUT="$TMP/mutant-scope.sh"
 sed '/echo "  scope: \$SCOPE_NOTE"/d' "$SCRIPT" > "$MUT"
 mout=$( cd "$TMP" && bash "$MUT" 2>&1 )
-if printf '%s' "$mout" | grep -q "scope:"; then
+if grep -q "scope:" <<< "$mout"; then
     bad "mutant: removing the scope prints silences the declaration" "still printed"
 else
     ok "mutant: removing the scope prints silences the declaration"

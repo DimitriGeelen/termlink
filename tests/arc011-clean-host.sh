@@ -19,7 +19,7 @@ IMAGE="${CLEAN_HOST_IMAGE:-alpine:3}"
 command -v docker >/dev/null || { echo "TOOLING: docker not found"; exit 2; }
 command -v python3 >/dev/null || { echo "TOOLING: python3 not found"; exit 2; }
 [ -x "$BIN" ] || { echo "TOOLING: no musl binary at $BIN (cargo build --profile local-fast --target x86_64-unknown-linux-musl -p termlink)"; exit 2; }
-file "$BIN" 2>/dev/null | grep -q 'statically linked' || echo "note: $BIN may not be static"
+file "$BIN" 2>/dev/null | grep 'statically linked' >/dev/null || echo "note: $BIN may not be static"
 
 T=$(mktemp -d)
 SRV=""

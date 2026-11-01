@@ -47,7 +47,7 @@ assert_rc() { # <desc> <expected-rc> <actual-rc>
     else fail=$((fail+1)); echo "  FAIL: $1 — expected rc=$2 got rc=$3" >&2; fi
 }
 assert_contains() { # <desc> <haystack> <needle>
-    if printf '%s' "$2" | grep -q -- "$3"; then pass=$((pass+1)); echo "  ok: $1";
+    if grep -q -- "$3" <<< "$2"; then pass=$((pass+1)); echo "  ok: $1";
     else fail=$((fail+1)); echo "  FAIL: $1 — output did not contain '$3'" >&2; fi
 }
 

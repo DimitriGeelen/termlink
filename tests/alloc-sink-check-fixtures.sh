@@ -33,7 +33,7 @@ fn handler(p: Params) -> Vec<u8> {
 }
 RS
 out="$(run)"
-if printf '%s' "$out" | grep -q '"ok":false' && printf '%s' "$out" | grep -q 'with_capacity(count)'; then
+if grep -q '"ok":false' <<< "$out" && grep -q 'with_capacity(count)' <<< "$out"; then
     ok "(a) unclamped Vec::with_capacity(count) fires"
 else bad "(a) expected fire on unclamped count; got: $out"; fi
 
@@ -46,7 +46,7 @@ fn handler(p: Params) -> Vec<u8> {
 }
 RS
 out="$(run)"
-if printf '%s' "$out" | grep -q '"ok":true'; then
+if grep -q '"ok":true' <<< "$out"; then
     ok "(b) inline .clamp(1,256) does not fire"
 else bad "(b) expected clean on inline-clamped site; got: $out"; fi
 
@@ -59,7 +59,7 @@ fn handler(p: Params) -> Vec<u8> {
 }
 RS
 out="$(run)"
-if printf '%s' "$out" | grep -q '"ok":true'; then
+if grep -q '"ok":true' <<< "$out"; then
     ok "(c) binding-level let count = ....clamp(...) clears the site"
 else bad "(c) expected clean on binding-clamped site; got: $out"; fi
 
@@ -74,7 +74,7 @@ RS
 ALLOW="$TMP/allow"
 echo "$TMP/fixture.rs::with_capacity(count)" > "$ALLOW"
 out="$(run "$ALLOW")"
-if printf '%s' "$out" | grep -q '"ok":true'; then
+if grep -q '"ok":true' <<< "$out"; then
     ok "(d) allowlisted signature suppresses the site"
 else bad "(d) expected clean on allowlisted site; got: $out"; fi
 
@@ -90,7 +90,7 @@ fn handler(p: Params) -> Vec<u8> {
 }
 RS
 out="$(run)"
-if printf '%s' "$out" | grep -q '"ok":true'; then
+if grep -q '"ok":true' <<< "$out"; then
     ok "(e) comment mention + (m+1) compound + literal + .len() all skipped"
 else bad "(e) expected clean; got: $out"; fi
 
@@ -102,7 +102,7 @@ fn handler(p: Params) {
 }
 RS
 out="$(run)"
-if printf '%s' "$out" | grep -q '"ok":false' && printf '%s' "$out" | grep -q 'Semaphore::new(max_parallel)'; then
+if grep -q '"ok":false' <<< "$out" && grep -q 'Semaphore::new(max_parallel)' <<< "$out"; then
     ok "(f) unclamped Semaphore::new(max_parallel) fires (the T-2523 shape)"
 else bad "(f) expected fire on Semaphore::new(max_parallel); got: $out"; fi
 

@@ -126,14 +126,14 @@ echo "check-demo: could not read queue-status (exit=1)" > "$C1/working/.demo-can
 assert_status "$C1" "demo-canary" "ERRORING" "1" "non-empty stderr sink flips HEALTHY -> ERRORING"
 
 run_case "$C1" --quiet
-if printf '%s' "$OUT" | grep -q "could not read queue-status"; then
+if grep -q "could not read queue-status" <<< "$OUT"; then
     ok "--quiet surfaces the stderr diagnostic verbatim (not a blank line)"
 else
     bad "--quiet did not surface the stderr diagnostic" "output: $(printf '%s' "$OUT" | head -c 300)"
 fi
 
 run_case "$C1"
-if printf '%s' "$OUT" | grep -q "log.stderr"; then
+if grep -q "log.stderr" <<< "$OUT"; then
     ok "the Action-needed block names the stderr sink to read"
 else
     bad "Action-needed block does not name the sink" "output: $(printf '%s' "$OUT" | head -c 300)"
@@ -223,7 +223,7 @@ echo ""
 echo "Case 10 — the scope disclaimer is stated on clean AND firing paths (T-2975)"
 run_case "$C1"; clean_out="$OUT"
 run_case "$C4"; fire_out="$OUT"
-if printf '%s' "$clean_out" | grep -q "T-2975" && printf '%s' "$fire_out" | grep -q "T-2975"; then
+if grep -q "T-2975" <<< "$clean_out" && grep -q "T-2975" <<< "$fire_out"; then
     ok "a green never gets read as broader coverage than it has"
 else
     bad "SCOPE_NOTE missing from a render path" "clean: $(printf '%s' "$clean_out" | head -c 160)"

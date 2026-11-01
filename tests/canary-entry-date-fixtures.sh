@@ -24,7 +24,7 @@ bad() { FAIL=$((FAIL+1)); echo "  FAIL $1 — $2"; }
 DATE_RE='^=== [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z ===$'
 
 dated()  { local name="$1" out="$2"
-    if head -1 <<< "$out" | grep -qE "$DATE_RE"; then ok "$name: firing --quiet entry opens with a dated frame"
+    if head -1 <<< "$out" | grep -E "$DATE_RE" >/dev/null; then ok "$name: firing --quiet entry opens with a dated frame"
     else bad "$name: firing --quiet entry opens with a dated frame" "first line: $(head -1 <<< "$out")"; fi; }
 silent() { local name="$1" out="$2"
     if [ -z "$out" ]; then ok "$name: healthy --quiet prints nothing"
