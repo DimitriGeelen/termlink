@@ -11,10 +11,10 @@ description: >
   and rankings read only the live file (bvp.sh:285-364). Tracks the ask and its answer;
   if AEF declines, swap-files (B) vs local patch (D) returns to the operator.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [framework, bvp, upstream]
 components: []
 related_tasks: []
@@ -45,7 +45,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T12:24:22Z
-last_update: 2026-11-01T12:42:26Z
+last_update: 2026-11-01T14:39:02Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -97,7 +97,11 @@ by hand, labelled "product set".
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] The ask is sent to AEF with the four blocking points cited (sidecar msg c39df4cd, 2026-11-01; filed upstream as
   AEF inception T-4961)
-- [ ] AEF's go/no-go on T-4961 is recorded here
+- [x] AEF's go/no-go on T-4961 is recorded here — GO (narrow form), AEF msg 0bd72dc4, 2026-11-01: an arc names
+  `driver_set: <name>` -> `policy/value-drivers-<name>.yaml` (missing file = refusal, never a silent fall-back);
+  tasks inherit the arc's set (task-level naming still open); bvp ranking and the estimator both read it, weights and
+  caps per set; D1–D4 keep their meaning; no new gates. Order: design read of our four points, a short independent
+  review, then build slices; AEF sends the design first and names the be-tag. Keep hand-scoring "product set" meanwhile.
 - [ ] On GO: the product set is wired through the shipped mechanism after the next re-vendor, and a product arc's
   ranking is shown to use it. On NO-GO: the B (swap files) vs D (local patch) choice is put to the operator
 
@@ -408,3 +412,7 @@ by hand, labelled "product set".
 ### 2026-11-01T12:42:25Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-11-01T14:38:44Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
