@@ -1,0 +1,2301 @@
+{
+ "batch": "010-termlink-T-3648-2026-11-02",
+ "rows": [
+  {
+   "task": "T-1124",
+   "title": "Run T-1122 WSGI migration spikes (after GO decision)",
+   "summary": "Obviated: T-1122 WSGI inception decided DEFER; spikes not needed. Revive only if T-1122 reopens; could close as won't-do.",
+   "evidence": "6ef4b3e74 'Park to later \u2014 obviated by T-1122 DEFER'",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-04-26; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-1137",
+   "title": "Install logrotate on proxmox host .180 \u2014 prevent /var/log full cascade (G-009)",
+   "summary": "Operator checks on host .180 that /var/log is under 50% and that CT 200 has stopped rebooting, or closes the task as no longer relevant; idle since April",
+   "evidence": "last Updates entry 2026-04-28: 3 reboots after AC1; AC2/AC3 open",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-04-28; agent ACs 0 done/0 open, human 1/2"
+  },
+  {
+   "task": "T-1261",
+   "title": "T-1191 deferred follow-up: integration tests + bench scaffold for vte mirror grid",
+   "summary": "Golden-fixture tests + bench for vte mirror grid; renderer ships fine, no activity since 2026-04-25, no trigger.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-04-26; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-1415",
+   "title": "T-1166 post-cut cleanup: delete retired primitive handlers + fallback paths",
+   "summary": "reviewer: all Agent ACs ticked; the 2 Human [REVIEW] ACs (7-day bake, clean metric) have their evidence gathered in the file",
+   "evidence": "Updates: \"every Agent AC is ticked; the two Human [REVIEW] ACs are the only thing outstanding\"",
+   "proposed": "more",
+   "details": "group D1 reviewer; status started-work, owner human, horizon now; last commit naming it 2026-09-29; agent ACs 10 done/0 open, human 0/2"
+  },
+  {
+   "task": "T-1417",
+   "title": "Migrate event.broadcast --targets fanout to parallel event.emit_to (final pre-cut migration)",
+   "summary": "Fanout migrated to event.emit_to; 7d audit clean (cut already landed T-1415); only REVIEW tick left \u2014 reviewer-judgeable",
+   "evidence": "commit ee79532e4; Updates 2026-06-13 fw metrics api-usage --cut-ready: legacy_attributable=0",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-09-25; agent ACs 7 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1419",
+   "title": "api-usage --json: add last_seen_iso per legacy caller (post-deploy freshness)",
+   "summary": "last_seen_iso shipped; .143 deploy-bracket check moot after T-1166 cut (zero legacy callers); reviewer-judgeable",
+   "evidence": "commit 05826b17b; Updates 2026-06-13 api-usage arrays present, 0 rows",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-06-06; agent ACs 7 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1420",
+   "title": "agent chat arc: deploy 0.9.1591 to laptop-141 (.141, WSL) \u2014 close 29-cmd gap",
+   "summary": "The .141 deploy was smoked again and all 3 Human ACs PASS; only the tick is left",
+   "evidence": "commit b8d0db41a \"fresh re-smoke for 3 Human ACs \u2014 operator-actionable, all PASS\"",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner human, horizon now; last commit naming it 2026-06-12; agent ACs 8 done/1 open, human 0/2"
+  },
+  {
+   "task": "T-1426",
+   "title": "Deprecation print on legacy primitives (inbox.push, file.send, event.broadcast)",
+   "summary": "reviewer: deprecation warnings shipped and shown in the file; the only open item is the Human UX check \"informative, not noisy\"",
+   "evidence": "Agent 8/8; evidence block in Updates",
+   "proposed": "more",
+   "details": "group D1 reviewer; status started-work, owner human, horizon now; last commit naming it 2026-10-26; agent ACs 8 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1429",
+   "title": "termlink agent contact <name> \u2014 high-level cross-host contact verb (T-1425 pick #2)",
+   "summary": "reviewer: verb shipped; Human UX review open; the 3 deferred Phase-2 ACs (name@hub:port) should move to a someday task",
+   "evidence": "Agent 26/29 (3 Phase-2 deferred)",
+   "proposed": "more",
+   "details": "group D1 reviewer; status started-work, owner human, horizon now; last commit naming it 2026-06-13; agent ACs 26 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-1430",
+   "title": "channel describe \u2014 agent-chat-arc + dm:* topic self-documentation (T-1425 pick #3)",
+   "summary": "reviewer: topic self-doc is live (channel info shows the description); only the Human discoverability check is open",
+   "evidence": "Agent 6/6; channel info output in Updates",
+   "proposed": "more",
+   "details": "group D1 reviewer; status started-work, owner human, horizon now; last commit naming it 2026-05-04; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1432",
+   "title": "fw fleet doctor --legacy-usage \u2014 telemetry for T-1166 cut readiness (T-1425 pick #6)",
+   "summary": "reviewer: --legacy-usage shipped and says CUT-READY-DECAYING; only the Human \"actionable\" check is open",
+   "evidence": "Agent 11/11; output in Updates",
+   "proposed": "more",
+   "details": "group D1 reviewer; status started-work, owner human, horizon now; last commit naming it 2026-06-06; agent ACs 11 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1435",
+   "title": "Identify + migrate 4919 weekly inbox.status pollers on .107 (T-1166 last-mile)",
+   "summary": "AC itself says verification belongs to T-1418; fleet doctor CUT-READY with 0 legacy invocations",
+   "evidence": "commit 2655ee363; Updates 2026-06-13 fleet doctor --legacy-usage Verdict: CUT-READY",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status work-completed, owner human, horizon now; last commit naming it 2026-05-03; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1457",
+   "title": "Register identity on .141 agent-1 session (chat-arc peer-addressability gap)",
+   "summary": ".141 peer-addressability; .141 is down and the operator ruled it out of scope while it stays down",
+   "evidence": "commit cd18f1f14 (T-3592 A6: .141 out of scope while down)",
+   "proposed": "park",
+   "details": "group C; status started-work, owner agent, horizon now; last commit naming it 2026-10-26; agent ACs 2 done/2 open, human 0/1"
+  },
+  {
+   "task": "T-1486",
+   "title": "agent presence --watch \u2014 live operator dashboard mode",
+   "summary": "presence --watch shipped; fresh run 2026-06-13 shows clean redraw; only taste tick \u2014 reviewer-judgeable",
+   "evidence": "commit d7679ecd3; Updates 2026-06-13 timeout 6 agent presence --watch output",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-10-27; agent ACs 8 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1487",
+   "title": "agent ping <target> \u2014 operator-facing presence check verb",
+   "summary": "agent ping shipped; online/offline one-liners captured 2026-06-13; reviewer-judgeable",
+   "evidence": "commit d22569b7f; Updates 2026-06-13 agent ping exit 0/1 output",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-05-20; agent ACs 11 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1489",
+   "title": "agent presence --top N \u2014 limit to N busiest peers",
+   "summary": "presence --top shipped; footer '1 of 2 peer(s)' captured; reviewer-judgeable",
+   "evidence": "commit 7ffc763d8; Updates 2026-06-13 agent presence --top 1 output",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-10-26; agent ACs 9 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1498",
+   "title": "agent recent --watch \u2014 live single-peer streaming view",
+   "summary": "agent recent --watch shipped; live output captured; reviewer-judgeable",
+   "evidence": "commit 6e2d0f087; Updates 2026-06-13 agent recent --watch output",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-10-27; agent ACs 11 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1502",
+   "title": "extract_recent_posts content extraction returns empty for chat-arc envelopes",
+   "summary": "content-extraction fix shipped; timeline shows decoded text 2026-06-13; reviewer-judgeable",
+   "evidence": "commit 22f1e0d9f; Updates 2026-06-13 agent timeline output with real content",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-10-27; agent ACs 11 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1529",
+   "title": "agent forward offset --to topic \u2014 re-publish a chat-arc post",
+   "summary": "agent forward shipped (parse-confirmed only, mutating); reviewer-judgeable taste tick",
+   "evidence": "commit eb97034e0 (T-1529..T-1532); `termlink agent --help` lists forward",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-06-13; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1530",
+   "title": "agent edit offset text \u2014 edit a chat-arc post",
+   "summary": "agent edit shipped; reviewer-judgeable taste tick",
+   "evidence": "commit eb97034e0 (T-1529..T-1532); `termlink agent --help` lists edit",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it none; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1531",
+   "title": "agent redact offset \u2014 retract a chat-arc post",
+   "summary": "agent redact shipped; reviewer-judgeable taste tick",
+   "evidence": "commit eb97034e0 (T-1529..T-1532); `termlink agent --help` lists redact",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it none; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1532",
+   "title": "agent describe text \u2014 set chat-arc topic metadata",
+   "summary": "agent describe shipped; reviewer-judgeable taste tick",
+   "evidence": "commit eb97034e0; `termlink agent --help` lists describe",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-05-05; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1533",
+   "title": "agent threads \u2014 list all thread roots on chat-arc",
+   "summary": "agent threads shipped; reviewer-judgeable taste tick",
+   "evidence": "commit 5d0f3e8f4 (T-1533..T-1537); `termlink agent --help` lists threads",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-05-05; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1534",
+   "title": "agent redactions \u2014 list all retracted posts on chat-arc",
+   "summary": "agent redactions shipped; reviewer-judgeable taste tick",
+   "evidence": "commit 5d0f3e8f4 (T-1533..T-1537); `termlink agent --help` lists redactions",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it none; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1535",
+   "title": "agent pin-history \u2014 pin/unpin event log on chat-arc",
+   "summary": "agent pin-history shipped; reviewer-judgeable taste tick",
+   "evidence": "commit 5d0f3e8f4 (T-1533..T-1537); `termlink agent --help` lists pin-history",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it none; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1536",
+   "title": "agent edits-of offset \u2014 edit history of a chat-arc post",
+   "summary": "agent edits-of shipped; reviewer-judgeable taste tick",
+   "evidence": "commit 5d0f3e8f4 (T-1533..T-1537); `termlink agent --help` lists edits-of",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it none; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1537",
+   "title": "agent relations offset \u2014 all relations of a chat-arc post",
+   "summary": "agent relations shipped; reviewer-judgeable taste tick",
+   "evidence": "commit 5d0f3e8f4; `termlink agent --help` lists relations",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-05-05; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1557",
+   "title": "agent typers --watch \u2014 live typing-presence dashboard (T-1551 completion)",
+   "summary": "agent typers --watch shipped; clean re-render confirmed 2026-06-13; reviewer-judgeable",
+   "evidence": "commit 4d09bad4e; `termlink agent typers --help` mentions T-1557 --watch",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-05-05; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1558",
+   "title": "agent inbox --watch \u2014 live cross-topic unread monitor (T-1553 completion)",
+   "summary": "agent inbox --watch shipped; reviewer-judgeable taste tick",
+   "evidence": "commit 4a0fc4374; `termlink agent inbox --help` has --watch",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-06-10; agent ACs 7 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1559",
+   "title": "agent dms/unread --watch \u2014 complete the personal-identity --watch family (T-1559+)",
+   "summary": "dms/unread --watch shipped; reviewer-judgeable taste tick",
+   "evidence": "commit 90c16db92",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-06-10; agent ACs 7 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1570",
+   "title": "termlink_agent_poll family \u2014 MCP tools for chat-arc poll lifecycle (start/vote/end)",
+   "summary": "MCP poll tools present (start/vote/end); CLI equivalents parse-confirmed; reviewer-judgeable",
+   "evidence": "commit f4354a080; grep termlink_agent_poll_(start|vote|end) in crates/termlink-mcp/src/tools.rs = 6",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-06-13; agent ACs 7 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1632",
+   "title": "Bump default_protocol_version() to 3 (T-1166 AC #6 follow-up)",
+   "summary": "reviewer: control_plane_version code shipped; the Human AC is to check hub.capabilities on .122 after deploy, which an agent can run",
+   "evidence": "Agent 8/8",
+   "proposed": "more",
+   "details": "group D1 reviewer; status started-work, owner human, horizon now; last commit naming it 2026-09-26; agent ACs 8 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1633",
+   "title": "TERMLINK_RUNTIME_DIR default regression \u2014 root no longer selects /var/lib/termlink",
+   "summary": "reviewer: runtime_dir warning shipped (4/4 tests); the Human AC is to see the warning in the .122 hub journal after deploy",
+   "evidence": "Agent 7/7",
+   "proposed": "more",
+   "details": "group D1 reviewer; status started-work, owner human, horizon now; last commit naming it 2026-06-01; agent ACs 7 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1665",
+   "title": "T-1664 follow-up: propagate episodic-generator escape-order fix to upstream /opt/999-AEF",
+   "summary": "Upstream escape-order fix: the A/B/C direction was never chosen; no activity since 2026-05-26",
+   "evidence": "mention_last 2026-05-26",
+   "proposed": "park",
+   "details": "group C; status started-work, owner agent, horizon now; last commit naming it 2026-05-26; agent ACs 0 done/3 open, human 0/0"
+  },
+  {
+   "task": "T-1673",
+   "title": "Tag v0.10.0 release \u2014 land rotation-protocol stack T-1666..T-1672 on operator binaries",
+   "summary": "v0.10.0 tagged and GitHub release published (evidenced under T-1695); brew step is operator-host only",
+   "evidence": "commit f227685ce; T-1695 Updates 2026-10-26 gh release list shows v0.10.0 published 2026-05-18",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status work-completed, owner human, horizon now; last commit naming it 2026-06-06; agent ACs 4 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1695",
+   "title": "Restore OneDev \u2192 GitHub mirror \u2014 release pipeline silently broken since 2026-05-02 (G-058)",
+   "summary": "Operator must revoke the leaked diagnostic PAT (\u20267ehL) and decide whether to re-enable OneDev auto-mirror; releases criterion already met",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status work-completed, owner human, horizon now; last commit naming it 2026-10-26; agent ACs 2 done/0 open, human 0/3"
+  },
+  {
+   "task": "T-1726",
+   "title": "Triage 199 stale [enrich_or_prune] learnings \u2014 fw consolidate scan flagged",
+   "summary": "Learnings enrich/prune triage; no work since 2026-05-20; scan now flags 384 (was 199). Vague bulk chore, no trigger.",
+   "evidence": "fw consolidate scan | grep -c enrich_or_prune -> 384",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-05-20; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-1795",
+   "title": "Fix agent on-thread returns empty \u2014 fetch_topic_msgs reads oldest page when slice_size exceeds hub 1000 cap",
+   "summary": "on-thread empty fix shipped; live populated-hub check passed 2026-06-13; reviewer-judgeable",
+   "evidence": "commit 92b1356f4; Updates 2026-06-13 on-thread T-1438 non-empty, matches timeline",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-06-06; agent ACs 5 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1799",
+   "title": "Purge leaked GitHub PAT from local git object store (replace-refs + dangling blobs) + gitignore approvals",
+   "summary": "PAT purged from the object store and already rotated, per the task; only the Human tick remains",
+   "evidence": "task Updates: \"The rotation already happened; this just records the closure\"",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner human, horizon now; last commit naming it 2026-08-29; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-1810",
+   "title": "Live two-real-claude >=3-turn soak (T-1807 live portion)",
+   "summary": "Live 2-claude soak; T-1809 blocker now completed but empty task, no activity since 2026-05-30.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-05-30; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-1885",
+   "title": "fw independent-review v0.1 \u2014 local-only orchestrator (REVIEW-CLI + CLI-WATCH + RUBBER-STAMP-RELEASE validators",
+   "summary": "reviewer: scripts/independent-review.py shipped; open: REVIEWER auto-followup AC and Human dry-run readability review",
+   "evidence": "ls scripts/independent-review.py; Agent 13/14",
+   "proposed": "more",
+   "details": "group D1 reviewer; status started-work, owner human, horizon now; last commit naming it 2026-08-23; agent ACs 13 done/1 open, human 0/1"
+  },
+  {
+   "task": "T-1886",
+   "title": "fw independent-review v0.2 \u2014 remote-exec extension",
+   "summary": "fw independent-review v0.2 remote-exec extension; parked since 2026-05-31, superseded in practice by fw reviewer.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-09-03; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-1898",
+   "title": "Vendored Agent Runner \u2014 inception (autonomous claude-code-as-service for vendored hosts)",
+   "summary": "Operator must decide: fund the S1-S8 spikes (5h + 24h observe) for a vendored agent runner, or NO-GO given arc-011 wake work.",
+   "evidence": "T-3193 (2fc27f72a) classes it operator-gated by construction",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon later; last commit naming it 2026-09-28; agent ACs 2 done/4 open, human 1/0"
+  },
+  {
+   "task": "T-1899",
+   "title": "G-020 task-create-time gate failed \u2014 RCA + pickup to framework-agent",
+   "summary": "G-020 create-time placeholder-AC RCA, DEFER since 2026-06-06, voi 0.2; create-task.sh still has no AC check. Upstream concern.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner human, horizon later; last commit naming it 2026-09-28; agent ACs 2 done/4 open, human 1/0"
+  },
+  {
+   "task": "T-1907",
+   "title": "Auto-commit scope-related edits in do_inception_decide (T-1906 primary fix)",
+   "summary": "Framework fix (inception decide auto-commit), never started since 2026-06-01; nothing in the vendored lib/inception.sh",
+   "evidence": "mention_last 2026-06-01",
+   "proposed": "park",
+   "details": "group C; status started-work, owner agent, horizon now; last commit naming it 2026-06-01; agent ACs 0 done/6 open, human 0/0"
+  },
+  {
+   "task": "T-1908",
+   "title": "check-active-task Gate 2 grace-period: tolerate completed-task ref within 30min (T-1906 defence-in-depth)",
+   "summary": "Framework grace period for Gate 2, never started since 2026-06-01; companion to T-1907",
+   "evidence": "mention_last 2026-06-01",
+   "proposed": "park",
+   "details": "group C; status started-work, owner agent, horizon now; last commit naming it 2026-06-01; agent ACs 0 done/7 open, human 0/0"
+  },
+  {
+   "task": "T-2007",
+   "title": "TermLink-as-coordination-substrate \u2014 what exists today (research, not design)",
+   "summary": "Research deliverable shipped; DEFER was the terminal stance; operator ADR already written from it (T-2018).",
+   "evidence": "docs/reports/T-2007-termlink-as-coordination-substrate-findings.md; dc94a987e; ADR ade2be3d6",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status captured, owner human, horizon later; last commit naming it 2026-09-28; agent ACs 3 done/0 open, human 1/0"
+  },
+  {
+   "task": "T-2014",
+   "title": "fw upgrade auto-clone path is infinite recursion \u2014 propagate fix upstream",
+   "summary": "Upstream fix landed (T-2099), confirmed by repeat fw upgrade; prompt-readiness AC is moot",
+   "evidence": "docs/reports/T-2014-fw-upgrade-infinite-loop-framework-prompt.md exists; task Updates: T-2099 fix CONFIRMED LANDED",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status work-completed, owner human, horizon now; last commit naming it 2026-06-13; agent ACs 4 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2015",
+   "title": "fw upgrade CLAUDE.md clobber \u2014 propagate template-merge hardening upstream (PL-124 / G-055)",
+   "summary": "Upstream fix landed (AEF T-3150+T-4232); 3 re-vendors left CLAUDE.md unchanged; prompt AC moot",
+   "evidence": "AC#3 ticked 2026-10-24 citing commits 27d2a34b4 f440d0692 034701160",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status work-completed, owner human, horizon now; last commit naming it 2026-10-24; agent ACs 3 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2016",
+   "title": "fw upgrade bare-from-consumer replay drops flags \u2014 --force-downgrade silently lost during handoff",
+   "summary": "Upstream fix landed (AEF T-4424, flag grammar forwards --force-downgrade); prompt AC moot",
+   "evidence": "AC#3 ticked 2026-10-24; docs/reports/T-2016-fw-upgrade-replay-arg-drop-framework-prompt.md exists",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status work-completed, owner human, horizon now; last commit naming it 2026-10-24; agent ACs 3 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2017",
+   "title": "T-2013 follow-up: .141 channel.info wedges over network despite fix",
+   "summary": ".141 channel.info wedge over WSL; .141 is down and the operator ruled it out of scope; idle since 2026-09-07",
+   "evidence": "commit cd18f1f14 (.141 out of scope while down)",
+   "proposed": "park",
+   "details": "group C; status started-work, owner agent, horizon now; last commit naming it 2026-09-07; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-2026",
+   "title": "Substrate: typed agent-launch surface (checkout/commit/publish RPCs)",
+   "summary": "Inception decided GO on 2026-10-18 and split into T-3469 (done), T-3470 (done) and T-3471 (active); the inception is finished",
+   "evidence": "commits 2069a80c9, 6155f403a; .tasks/completed/T-3469*, T-3470*",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner human, horizon now; last commit naming it 2026-10-18; agent ACs 3 done/0 open, human 1/0"
+  },
+  {
+   "task": "T-2090",
+   "title": "Typed agent-launch surface \u2014 substrate primitive 8",
+   "summary": "Typed agent-launch verbs: DEFER until a consumer demands them; no such consumer filed. Consumer-triggered revive.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner human, horizon later; last commit naming it 2026-09-28; agent ACs 3 done/0 open, human 1/0"
+  },
+  {
+   "task": "T-212",
+   "title": "Create Homebrew tap for TermLink distribution",
+   "summary": "Homebrew tap: all ACs ticked but the tap repo is still 404; already parked at horizon later",
+   "evidence": "commits f1d86240e (park), 2ae1daa7a (repo 404)",
+   "proposed": "park",
+   "details": "group C; status started-work, owner agent, horizon later; last commit naming it 2026-09-29; agent ACs 5 done/0 open, human 3/0"
+  },
+  {
+   "task": "T-2197",
+   "title": "Audit D13 \u2014 4 inception limbo tasks awaiting go/no-go (T-1635, T-1898, T-2025, T-2028)",
+   "summary": "Operator decides go/no-go/defer on inception T-1898; the other 3 limbo inceptions (T-1635, T-2025, T-2250) are now closed",
+   "evidence": "ls .tasks/completed: T-1635, T-2025, T-2250; T-1898 still active",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-08-23; agent ACs 5 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2198",
+   "title": "Audit D14 \u2014 T-2144 has empty inception Recommendation (false-positive or finalize gap)",
+   "summary": "T-2144 has been finalized (now in completed/), so the D14 finding is resolved",
+   "evidence": "ls .tasks/completed/T-2144-substrate-primitive-review--identify-nex.md",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner human, horizon now; last commit naming it 2026-09-27; agent ACs 2 done/2 open, human 0/1"
+  },
+  {
+   "task": "T-2203",
+   "title": "CTL-028 bulk-flip \u2014 157 completed tasks with stale status:started-work frontmatter (T-1909 class at scale)",
+   "summary": "157-task bulk flip ran 2026-06-13; zero completed task files still say started-work",
+   "evidence": "commit 1a84665d4; grep -l 'status: started-work' .tasks/completed = 0",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner human, horizon next; last commit naming it 2026-08-27; agent ACs 7 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2209",
+   "title": "Daily-verb skill wrappers for the 5 substrate history/retrospective verbs",
+   "summary": "reviewer: five history skills exist; only check left is 'discoverable and reads naturally' \u2014 a reviewer can judge it",
+   "evidence": "commit 7b4d7acd6; .claude/commands/claims-history.md exists",
+   "proposed": "more",
+   "details": "group D1 reviewer; status work-completed, owner human, horizon now; last commit naming it 2026-09-24; agent ACs 7 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2210",
+   "title": "G-008 backlog: gather fresh evidence for partial-complete Human ACs",
+   "summary": "Evidence report delivered; its batch-confirm judgement is subsumed by T-3592 stage 4 and this T-3648 triage",
+   "evidence": "docs/reports/T-2210-human-review-evidence.md exists; commit 4481b78a7",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status work-completed, owner human, horizon now; last commit naming it 2026-06-13; agent ACs 4 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2211",
+   "title": "Substrate concurrent-drain demo \u2014 capture arc-001 demo_evidence",
+   "summary": "Drain demo script and report delivered; sibling demos reviewer-PASSed; reviewer-judgeable taste tick",
+   "evidence": "scripts/substrate-drain-demo.sh + docs/reports/T-2211-substrate-drain-demo.md exist; commit 3d0aeca01",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status work-completed, owner human, horizon now; last commit naming it 2026-06-13; agent ACs 4 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2256",
+   "title": "Upstream worktree-aware fw resolution - structural fix behind T-2255 worktree-bootstrap",
+   "summary": "Upstream worktree-aware fw resolution; empty body, no activity since 2026-06-23; operator rule now forbids worktrees here.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-06-23; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2258",
+   "title": "Fix hub read-path stall \u2014 channel.state/subscribe deadlock under concurrent write",
+   "summary": "Hub read-path stall fix is live on .107 and the Human Expected clause was evidenced there; only the Human tick remains",
+   "evidence": "task Updates: \"EVIDENCED live on .107 \u2026 ready for human finalize\"",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner human, horizon now; last commit naming it 2026-08-12; agent ACs 5 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2271",
+   "title": "Hub scope-token ceiling \u2014 bind max scope to secret/issuer (scope tiers currently self-asserted)",
+   "summary": "Operator must decide whether token scope gets a ceiling bound to the secret/issuer (security model); fold into T-2422.",
+   "evidence": "no max_scope/ceiling in crates (grep empty)",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner agent, horizon next; last commit naming it 2026-06-24; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2297",
+   "title": "V2b: hub-stamped observed source address",
+   "summary": "observed_addr live on .107 hub; cross-host TCP post stamped 192.168.10.122 (2026-07-06); only rubber-stamp left",
+   "evidence": "commit fcf18a44 ancestor of HEAD; Updates 2026-07-06 offset 30806 observed_addr evidence",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status work-completed, owner human, horizon now; last commit naming it 2026-08-29; agent ACs 4 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2371",
+   "title": "WS push drops lagged/pre-subscribe wakes with no client gap signal (arc-004 review)",
+   "summary": "WS push drops Lagged wakes with no client gap signal; still warn-only (server.rs:1666); poll floor makes it safe. Fold with T-2445 WS#2.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-07-06; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2383",
+   "title": "Diagnose workflow-designer OneDev to GitHub mirror failure \u2014 definitive root cause (operator support)",
+   "summary": "One-off diagnosis of another project's (832) OneDev\u2192GitHub mirror; no commits, idle since 2026-07-09",
+   "evidence": "git log --grep T-2383 = none",
+   "proposed": "park",
+   "details": "group C; status started-work, owner agent, horizon now; last commit naming it none; agent ACs 0 done/3 open, human 0/0"
+  },
+  {
+   "task": "T-2385",
+   "title": "agent contact reachability preflight + fail-fast + structured delivery result \u2014 verify LIVE + agent-backed + w",
+   "summary": "reviewer: preflight shipped; remaining check is whether WARNING wording is clear \u2014 reviewer flagged it as mechanical",
+   "evidence": "commit c96e0b7c4; reviewer R-17ccb9e0 human-ac-mechanical-signal",
+   "proposed": "more",
+   "details": "group D1 reviewer; status work-completed, owner human, horizon now; last commit naming it 2026-10-20; agent ACs 5 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2389",
+   "title": "Relaunch .107 agents via T-2388 tl-claude --reachable launcher (arc-004 fleet adoption)",
+   "summary": "Operator decides when to relaunch the .107 agents under the tl-claude launcher (a timing call that interrupts the agents); may be moot after the sidecar work",
+   "evidence": "Human [REVIEW] AC line 139",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-09-25; agent ACs 4 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2398",
+   "title": "Model-B live validation: two armed scratch agents, observe interruption-coherence (T-2397 GO)",
+   "summary": "Model-B two-agent live validation: runbook staged in July and never run; parent T-2397 closed",
+   "evidence": "commit 9415b7f59; T-2397 in completed",
+   "proposed": "park",
+   "details": "group C; status started-work, owner agent, horizon now; last commit naming it 2026-09-24; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-2402",
+   "title": "Woken-but-silent: make a rung-yet-unanswered agent loud + self-healing",
+   "summary": "Build task: stages 3/5/6 all ticked; open go/no-go AC is a leftover inception template line",
+   "evidence": "commit 704ad6499 + 16 more; Agent ACs 3/3 done; follow-ups T-3061/T-3067 (2026-09-22)",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status work-completed, owner human, horizon now; last commit naming it 2026-09-22; agent ACs 3 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2409",
+   "title": "Fleet doorbell completion \u2014 cross-hub reach to ring20 hubs (.122/.121)",
+   "summary": "Operator must decide who does the ring20 host-side work (.122/.121 upgrade + agent launch): this agent via foothold, or ring20",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status work-completed, owner human, horizon now; last commit naming it 2026-07-21; agent ACs 4 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2422",
+   "title": "Per-agent authorization model \u2014 beyond authenticated-equals-trusted (G-064, T-2419 GAP-4)",
+   "summary": "Operator must decide the threat model: single-operator trust forever, or per-topic read ACL / e2e DM encryption (832 input 10-18).",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon later; last commit naming it 2026-10-18; agent ACs 3 done/0 open, human 1/0"
+  },
+  {
+   "task": "T-2423",
+   "title": "Managed fleet deploy/upgrade story \u2014 kill the bespoke binary ritual (T-2419 GAP-5)",
+   "summary": "Operator must decide the blessed fleet deploy/upgrade shape (self-update verb vs hardened fleet-deploy-binary.sh) or confirm park.",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon later; last commit naming it 2026-09-28; agent ACs 3 done/0 open, human 1/0"
+  },
+  {
+   "task": "T-2445",
+   "title": "Round-8 review residuals \u2014 WS push-transport + client-delivery MED/LOW findings",
+   "summary": "Tracker of round-8 MED/LOW WS/client residuals; WS#4 done (T-2446), rest untouched since 2026-07-22.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-07-22; agent ACs 0 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-2455",
+   "title": "claim lease expiry uses wall-clock \u2014 NTP forward step can expire a live lease early (round-12 MED-2)",
+   "summary": "Claim lease uses wall clock (NTP step); MED, needs NTP step to trigger; batch with claim hardening T-2534.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-07-22; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2470",
+   "title": "Reconcile TermLink purpose into one canonical charter (T-2468 P1)",
+   "summary": "Operator blesses the canonical purpose sentence, or closes this as superseded by the T-3612/T-3624 purpose draft",
+   "evidence": "Human [REVIEW] \"Bless the canonical purpose sentence\"",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-10-04; agent ACs 3 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2481",
+   "title": "P3b \u2014 make-it-live fleet primitive (T-2477, G-069)",
+   "summary": "Fleet make-it-live primitive; empty, no activity since 2026-08-01; overlaps T-2423 deploy-story decision.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-08-01; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2486",
+   "title": "T-2468 firing #8 \u2014 empirical charter-core health review",
+   "summary": "Operator rules on charter-core review #8: agent recommends a residual DEFER (fsync half to T-2464); report exists",
+   "evidence": "commit c0fbea267; docs/reports/T-2486-empirical-charter-core-proof.md",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-09-26; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2493",
+   "title": "channel post path swallows hub.auth RpcResponse::Error (degrades post-rotation diagnosability)",
+   "summary": "channel post discards hub.auth RpcResponse::Error (still `let _ =`, channel.rs:500); diagnosability only, low priority.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-08-02; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2522",
+   "title": "Retention Days mode prunes on client-supplied timestamp (message loss + unbounded-growth vectors)",
+   "summary": "Operator must decide what Days(N) retention means: hub-receive-time (recommended), content-time-reject-future, or keep.",
+   "evidence": "lib.rs:564 still records env.ts_unix_ms",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon now; last commit naming it 2026-08-04; agent ACs 0 done/4 open, human 0/1"
+  },
+  {
+   "task": "T-2532",
+   "title": "per-host live-session cap \u2014 no MAX_SESSIONS bound on the spawn path (orchestrator fork-bomb safety)",
+   "summary": "Operator must choose posture for session cap: defer with a measure-first trigger (recommended), guessed cap, or accept.",
+   "evidence": "no MAX_SESSIONS in crates",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner agent, horizon later; last commit naming it 2026-08-04; agent ACs 0 done/4 open, human 0/1"
+  },
+  {
+   "task": "T-2534",
+   "title": "Bind claim verbs to verified identity (T-1427 pattern) \u2014 execute T-2454 GO",
+   "summary": "Claim verbs trust a spoofable claimer string; T-2454 GO; re-verified unfixed 2026-09-24 (T-3089 R3). Security gap, clear next step.",
+   "evidence": "782f5c815 R3 handback; no CLAIM_IDENTITY_MISMATCH in crates",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon now; last commit naming it 2026-08-08; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-2550",
+   "title": "spawn reports ok:true before confirming session registered (silent false-success on a core verb)",
+   "summary": "Operator chooses the fix direction for spawn's default ok:true before the session has registered",
+   "evidence": "Human [REVIEW] line 152",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-08-26; agent ACs 4 done/1 open, human 0/1"
+  },
+  {
+   "task": "T-2555",
+   "title": "CLI generic rpc_call error classification \u2014 actionable hints for list/sweep/delete paths",
+   "summary": "CLI generic 'Hub rpc_call failed' hints; usability nicety, no activity since 2026-08-09.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-08-09; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2560",
+   "title": "wire PL-021 flap detector (fleet history --analyze) to a cron feeder \u2014 recurrence blindness",
+   "summary": "Wire PL-021 flap detector to a cron feeder; needs design, no activity since 2026-08-09; PL-021 volatile /tmp closed fleet-wide.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-08-09; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2566",
+   "title": "DESIGN: ephemeral-presence queue-vs-drop plus heartbeat exit-after-N-queued policy",
+   "summary": "Operator must decide whether ephemeral presence keeps using the offline queue (rec: drop/coalesce) and on heartbeat exit-after-N.",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon later; last commit naming it 2026-08-09; agent ACs 0 done/1 open, human 0/2"
+  },
+  {
+   "task": "T-2567",
+   "title": "DESIGN: should exec truncated output force exit_code=-1 (wire-behavior) + consumer-contract audit",
+   "summary": "Operator decides whether execute_capped forces exit_code=-1 on truncated output",
+   "evidence": "Human [REVIEW] line 115",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-08-09; agent ACs 0 done/1 open, human 0/2"
+  },
+  {
+   "task": "T-2568",
+   "title": "TUNE: stuck-claims flat-60s gate causes alarm-fatigue on legit long-renewed claims",
+   "summary": "Stuck-claims flat 60s gate alarm-fatigue tuning; still age>60_000 (substrate.rs:417); no incident since T-2709 fix.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-08-09; agent ACs 0 done/3 open, human 0/0"
+  },
+  {
+   "task": "T-2570",
+   "title": "DEFER: orchestration-policy-creep guard for substrate crates (charter non-goal #4)",
+   "summary": "Operator must decide: close non-goal #4 as knowingly-accepted (rec), or adopt an ADR-gate checklist for new substrate APIs.",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon later; last commit naming it 2026-08-14; agent ACs 0 done/1 open, human 0/2"
+  },
+  {
+   "task": "T-2576",
+   "title": "DESIGN: signal LeasedClaim holder when ownership is in doubt (renew contract half)",
+   "summary": "Operator must decide on LeasedClaim at-risk signal: GO advisory accessor + fix example (rec); mandatory hard-stop is separate.",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon later; last commit naming it 2026-08-09; agent ACs 0 done/1 open, human 0/2"
+  },
+  {
+   "task": "T-2577",
+   "title": "DESIGN: retention sweep evicts unread records; subscribe surfaces no gap (auto-detect?)",
+   "summary": "Gap indicator now folded into channel.subscribe responses (option b) by T-3307; deployed and verified live.",
+   "evidence": "crates/termlink-hub/src/channel.rs:1348,1570,1683; 35b38e4fb",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status captured, owner human, horizon later; last commit naming it 2026-08-09; agent ACs 0 done/1 open, human 0/2"
+  },
+  {
+   "task": "T-2593",
+   "title": "termlink_interact/run silently truncates output on scrollback ring-slide",
+   "summary": "interact/run silently truncates output on ring-slide (ok:true wrong result) on the charter-preferred exec tool; still unfixed.",
+   "evidence": "tools.rs:13576 output_delta(&full_output, pre_len) with fixed 131072 window",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon now; last commit naming it 2026-08-10; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2595",
+   "title": "PtySession::spawn runs non-async-signal-safe code in forked child (deadlock risk)",
+   "summary": "Non-async-signal-safe CString alloc in forked child (pty.rs:221); rare deadlock, unobserved; small fix when PTY batch is picked up.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-08-10; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2596",
+   "title": "PtySession non-blocking PTY write busy-spins at 100% CPU on EAGAIN",
+   "summary": "PTY write busy-spins on EAGAIN (yield_now, pty.rs:355); CPU-only, not silent; batch with PTY fixes.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-08-10; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2597",
+   "title": "PtySession::signal may target a recycled pid after wait() reaps the child",
+   "summary": "signal() may hit a recycled pid after wait(); narrow window, PLAUSIBLE only; batch with PTY fixes.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-08-10; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2600",
+   "title": "find_idle 60s LIVE window vs agent-listeners 2*interval_secs \u2014 discovery surfaces disagree",
+   "summary": "find_idle 60s vs listeners 2x interval disagreement; design call, folds into shared predicate T-2601.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-08-10; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2601",
+   "title": "Extract a single shared agent-liveness predicate (dedupe 4 presence surfaces)",
+   "summary": "Shared agent-liveness predicate refactor; needs inception, no activity since 2026-08-10.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-08-10; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2606",
+   "title": "Exactly-once is in-memory-only (dedupe LRU) under a durable replay queue \u2014 double-apply across hub restart/cra",
+   "summary": "Exactly-once is in-memory only under a durable replay queue (silent double-apply); ranked top Q1 no-arc task 2026-09-29 (T-3211).",
+   "evidence": "9cfa49bc8 T-3211 ranks T-2606 in Q1",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-09-29; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-2608",
+   "title": "whoami PID-ancestor identity fallback is a dead branch on macOS (no /proc, no sysctl equivalent)",
+   "summary": "whoami PID-ancestor fallback dead on macOS; MEDIUM, last-resort branch, parked at later.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-08-11; agent ACs 0 done/4 open, human 0/0"
+  },
+  {
+   "task": "T-2613",
+   "title": "PTY spawn returns Ok even when child execvp fails",
+   "summary": "PTY spawn returns Ok when execvp fails \u2014 silent success on bad shell (Directive #2); still no exec-status pipe.",
+   "evidence": "pty.rs:221-223 execvp with no status channel",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-08-11; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-2614",
+   "title": "PTY new post-fork error paths orphan child and leak master fd",
+   "summary": "Post-fork error paths leak master_fd + orphan child; low trigger probability; batch with PTY fixes (absorbs T-2594).",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-08-11; agent ACs 0 done/4 open, human 0/0"
+  },
+  {
+   "task": "T-2615",
+   "title": "Atomic-write helpers in termlink-session rename without fsync (power-loss trust-downgrade)",
+   "summary": "Session-crate atomic writes rename without fsync (known_hubs pin loss \u2192 silent re-TOFU); same class operator ruled on for bus 10-18.",
+   "evidence": "grep sync_all crates/termlink-session/src -> 0 hits",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-08-11; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-2620",
+   "title": "Reliability defect hunt 2 report",
+   "summary": "Defect hunt 2: the commit says 4 defects were found, but the report went to a scratchpad and is not in the repo; idle since 2026-08-11",
+   "evidence": "commit 7bc5d1709 message only; ACs 0/2",
+   "proposed": "park",
+   "details": "group C; status started-work, owner agent, horizon now; last commit naming it 2026-08-11; agent ACs 0 done/2 open, human 0/0"
+  },
+  {
+   "task": "T-2644",
+   "title": "PTY interactive attach silently drops keystrokes when command.inject fails",
+   "summary": "reviewer: dropped-input hint shipped; remaining check is a live interactive attach (no spam, no garbling) \u2014 low risk",
+   "evidence": "commit f6c5f2250; reviewer PASS 2026-09-29",
+   "proposed": "more",
+   "details": "group D1 reviewer; status work-completed, owner human, horizon now; last commit naming it 2026-09-29; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2648",
+   "title": "cap Client::call response-line read against unbounded next_line OOM from compromised remote hub",
+   "summary": "Client::call response read uncapped (client.rs:195 next_line); needs response-cap decision; compromised-peer threat only.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it 2026-08-12; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-2650",
+   "title": "cmd_request reply correlation defaults to match-anything (unwrap_or(true) accepts uncorrelated replies)",
+   "summary": "termlink request accepts uncorrelated replies (unwrap_or(true)) \u2192 wrong payload with ok:true; needs migration-shape choice.",
+   "evidence": "execution.rs:280",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon now; last commit naming it 2026-08-12; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-2660",
+   "title": "agent ask/negotiate treat --timeout 0 as instant-fail while listen+wire treat 0 as forever",
+   "summary": "--timeout 0 semantics differ ask/negotiate vs listen; UX design call, default is 30, low impact.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-08-12; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-2661",
+   "title": "mirror-grid scrollback prefetch query.output RPC unbounded \u2014 half-open session hangs grid launch",
+   "summary": "mirror-grid prefetch query.output unbounded; already tracked as 'pending T-2669' in allowlist:118 \u2014 close into T-2669.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-08-12; agent ACs 0 done/4 open, human 0/0"
+  },
+  {
+   "task": "T-2664",
+   "title": "termlink request subscribe-loop swallows dead-session error into misleading timeout + busy-spins",
+   "summary": "Busy-spin half fixed by T-2673 (500ms backoff); remaining: disconnect cause swallowed into generic timeout. Low.",
+   "evidence": "execution.rs:306 backoff comment T-2673",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-08-12; agent ACs 0 done/3 open, human 0/0"
+  },
+  {
+   "task": "T-2665",
+   "title": "cmd_run reports session deregistered even when cleanup file removal fails",
+   "summary": "cmd_run prints 'deregistered' despite discarded remove_file errors (execution.rs:95-98); low severity.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-08-12; agent ACs 0 done/2 open, human 0/0"
+  },
+  {
+   "task": "T-2669",
+   "title": "Sweep raw rpc_call MCP/CLI handler sites onto bounded variant (T-2641 hang class)",
+   "summary": "Operator chooses the timeout policy for the ~140 CLASS 2 rpc_call sites so the sweep (12/145 done) can continue",
+   "evidence": "Human [REVIEW] line 138",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner agent, horizon now; last commit naming it 2026-08-31; agent ACs 4 done/1 open, human 0/1"
+  },
+  {
+   "task": "T-2700",
+   "title": "Wire protocol-version negotiation into the request path",
+   "summary": "check_protocol_version still has zero callers; wiring is a fleet-blast-radius product decision with no trigger.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-09-21; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2701",
+   "title": "No load, stress, or soak test exists \u2014 behaviour at scale is unmeasured",
+   "summary": "No load/soak test; needs a load-profile scoping decision; no incident driving it.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2704",
+   "title": "Producer-not-judge is declared an invariant but made unfalsifiable in the same section",
+   "summary": "Doc wording: producer\u2260judge called an invariant with no sign-off artifact; doc-only, no trigger.",
+   "evidence": "docs/architecture/parallel-execution-substrate.md:359",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2707",
+   "title": "MCP server runs 0.11.720 while project VERSION is 0.11.1231 (~500 commits stale)",
+   "summary": "The 0.11.720 instance is gone, but all 3 'termlink mcp serve' run a deleted binary (Oct 28) vs install Nov 1: MCP freshness gap live.",
+   "evidence": "ls -l /proc/<pid>/exe -> '(deleted)' for pids 7202 11611 12112",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon now; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2708",
+   "title": "Fleet hub laptop-141 unreachable",
+   "summary": "Operator must say whether laptop-141 is meant to be online (outage) or not (drop it from hubs.toml); still listed.",
+   "evidence": "~/.termlink/hubs.toml:13 [hubs.laptop-141]",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon next; last commit naming it none; agent ACs 0 done/5 open, human 0/1"
+  },
+  {
+   "task": "T-2709",
+   "title": "Stuck-claim heuristic is a monotonic latch that never clears",
+   "summary": "Operator must confirm the stuck-claim recency window is the semantic the operator wants (recent abandon flagged, ancient not)",
+   "evidence": "commit 752f1dfcc; reviewer PASS 2026-08-27",
+   "proposed": "more",
+   "details": "group D2 operator; status work-completed, owner human, horizon now; last commit naming it 2026-10-26; agent ACs 10 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2710",
+   "title": "Canary test seams ship unexercised \u2014 8 of 9 have no fixture suite",
+   "summary": "Operator must decide whether the remaining canary fixture suites are built now or filed as backlog (rec: close + backlog); 2 more exist now.",
+   "evidence": "tests/forever-archival-fixtures.sh, tests/waker-liveness-fixtures.sh",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner agent, horizon now; last commit naming it 2026-08-14; agent ACs 10 done/1 open, human 0/1"
+  },
+  {
+   "task": "T-2711",
+   "title": "revisit-due-scan.sh exits 0 when it cannot find the tasks dir",
+   "summary": "Fix shipped and the open decision is already acted on: U-001 filed to framework:pickup offset 24 (verified T-2840)",
+   "evidence": ".context/upstream/U-001-revisit-due-scan-silent-exit.yaml status: filed, filed_at offset 24",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status work-completed, owner human, horizon now; last commit naming it 2026-08-29; agent ACs 5 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2719",
+   "title": "agent inbox unread count mixes retention-relative index with absolute cursor",
+   "summary": "agent inbox unread-count divergence, idle since 2026-08-15; overlaps T-2872 (same verb pair) and should be revived with it",
+   "evidence": "mention_last 2026-08-15",
+   "proposed": "park",
+   "details": "group C; status started-work, owner agent, horizon now; last commit naming it 2026-08-15; agent ACs 5 done/3 open, human 0/0"
+  },
+  {
+   "task": "T-2723",
+   "title": "Handover commit under T-1452 collides with the focus gate, generating most safety bypasses",
+   "summary": "Operator must decide whether to file U-008 (handover commit vs focus gate) to the shared framework:pickup topic",
+   "evidence": ".context/upstream/U-008-*.yaml status: pending",
+   "proposed": "more",
+   "details": "group D2 operator; status work-completed, owner human, horizon now; last commit naming it 2026-10-22; agent ACs 5 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2725",
+   "title": "Herdr adoption research \u2014 what to adopt from the herdr codebase",
+   "summary": "Herdr adoption research inception never started; no trigger",
+   "evidence": "mention_last 2026-09-26, Agent 0/3",
+   "proposed": "park",
+   "details": "group C; status started-work, owner human, horizon now; last commit naming it 2026-09-26; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2748",
+   "title": "Expand MCP/CLI parity assertions beyond the 24-tool thin slice",
+   "summary": "Expand MCP/CLI parity assertions family by family; large, no activity since 2026-08-16.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-08-16; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2755",
+   "title": "topic-count growth is an unwatched axis",
+   "summary": "Topic-count growth canary; design question (remedy before detector) unresolved, no activity since 2026-08-16.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-08-16; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2815",
+   "title": "Audit cron-drift slug uses worktree basename \u2014 blocks push, mitigation installs stray cron",
+   "summary": "Operator decides whether to delete the stray /etc/cron.d/agentic-audit-agent-a1edeca4dc54e9ac7 (still present)",
+   "evidence": "ls -la /etc/cron.d shows the file (Aug 4)",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-09-28; agent ACs 5 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2819",
+   "title": "Narrow the stale .agentic-framework gitignore rule so the vendored subset is trackable",
+   "summary": "Vendored framework subset is now tracked and the drift check is clean",
+   "evidence": "git ls-files .agentic-framework/lib = 324; check-framework-tracking-drift.sh exit 0",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner human, horizon now; last commit naming it 2026-09-25; agent ACs 9 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2823",
+   "title": "update-task.sh sets date_finished by substitution, so an absent field finalizes silently without one",
+   "summary": "update-task.sh date_finished substitution misses absent field (still line 2942); vendored, upstream filing.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-08-20; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2825",
+   "title": "P-011 gate can examine less than a task declares \u2014 unanchored heading and last-section drop",
+   "summary": "P-011 verification extraction; sed '$d' drop gone upstream (awk now), unanchored-heading half unverified; upstream filing.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2836",
+   "title": "Repair 29 unreadable episodic files so the episodic store is readable by its consumer",
+   "summary": "reviewer: 29 episodics repaired, check-episodic-parse green; remaining check is Watchtower render \u2014 reviewer flagged it as mechanical",
+   "evidence": "commit 297c20cbd; reviewer R-74ccd9f7 human-ac-mechanical-signal",
+   "proposed": "more",
+   "details": "group D1 reviewer; status work-completed, owner human, horizon now; last commit naming it 2026-08-27; agent ACs 5 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2837",
+   "title": "Cross-checkout operator actions blocking the t2687 merge",
+   "summary": "The t2687 merge it was blocking has landed: integration/t2687-trial is an ancestor of main",
+   "evidence": "git merge-base --is-ancestor integration/t2687-trial main = true",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner human, horizon now; last commit naming it 2026-08-26; agent ACs 3 done/2 open, human 0/1"
+  },
+  {
+   "task": "T-2839",
+   "title": "fleet broadcast observability: dry-run previews, recipient agreement, label accuracy",
+   "summary": "Operator must confirm (1) 'every configured hub' read as meant and (2) restoring deleted vendored guard under G-062; (1) reviewer-judgeable",
+   "evidence": "27 commits, last 24c0c92c1 2026-11-01",
+   "proposed": "more",
+   "details": "group D1 reviewer; status work-completed, owner human, horizon now; last commit naming it 2026-11-01; agent ACs 9 done/0 open, human 0/2"
+  },
+  {
+   "task": "T-2841",
+   "title": "parity harness reads ambient TERMLINK_RUNTIME_DIR \u2014 suite is non-deterministic between a clean CI runner and a",
+   "summary": "Parity harness reads ambient TERMLINK_RUNTIME_DIR; test-hygiene, no activity since 2026-08-27.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-08-27; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2858",
+   "title": "Install-path drift: /root/.local/bin/termlink is stale behind the other two install paths",
+   "summary": "Install-path drift resolved: all three termlink installs are 0.12.1395",
+   "evidence": "--version on /root/.cargo/bin, /root/.local/bin, /usr/local/bin = 0.12.1395",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner human, horizon now; last commit naming it 2026-10-24; agent ACs 3 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2861",
+   "title": "Continuous loop disarmed: termlink sessions launch unsupervised, and fw doctor's claude-fw remediation would b",
+   "summary": "Termlink sessions now run under claude-fw, so the continuous loop can fire; the AC's condition holds",
+   "evidence": "`pgrep -f claude-fw` + /proc/<pid>/cwd -> 2 processes in /opt/termlink (2026-11-02)",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status work-completed, owner human, horizon now; last commit naming it 2026-08-30; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2862",
+   "title": "Pickup: T-023 voxtype-review: a completed fix that never reaches the installed (from termlink)",
+   "summary": "Not ours: 0506-Voxtype\u2192AEF envelope mis-attributed 'Source: termlink' (PL by T-2925). Close as not-ours.",
+   "evidence": "fd388a960 learning lists T-2862",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-09-27; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2864",
+   "title": "Pickup: T-023 voxtype-review: X core input focus diverges from WM active-window (from termlink)",
+   "summary": "Not ours: 0506-Voxtype\u2192AEF envelope mis-attributed (PL by T-2925). Close as not-ours.",
+   "evidence": "fd388a960 learning lists T-2864",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-09-27; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2865",
+   "title": "Pickup: Root-side fleet/context tooling writes root:600 files into user-owned project (from termlink)",
+   "summary": "Not ours: P-053 is from 0506-Voxtype opencode agent to aef/framework-agent. Close as not-ours.",
+   "evidence": ".context/pickup/processed/P-053-bug-report.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2867",
+   "title": "Pickup: Verification gates can schedule operator-facing harnesses: proposal for (from termlink)",
+   "summary": "Not ours: 0506-Voxtype\u2192AEF proposal (P-054), mis-attributed. Close as not-ours.",
+   "evidence": "fd388a960; processed/P-054-feature-proposal.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-09-27; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2869",
+   "title": "Static-check allowlists have no stale-entry detection \u2014 a fixed site stays acknowledged forever",
+   "summary": "Allowlist stale-entry detector: real ACs + Verification written, clear spec; prevents pre-acknowledged regressions in 9+ guards.",
+   "evidence": "scripts/check-allowlist-staleness.sh absent (not built)",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-08-31; agent ACs 0 done/9 open, human 0/0"
+  },
+  {
+   "task": "T-2870",
+   "title": "Two unlocked pickup crons race and create duplicate tasks; neither is in the registry the drift check reads",
+   "summary": "Operator retires or flock-wraps legacy /etc/cron.d/agentic-pickup-termlink, which still runs every minute without a lock; the audit crontab lines are already locked",
+   "evidence": "grep -c flock /etc/cron.d/agentic-pickup-termlink = 0",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-09-26; agent ACs 3 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2872",
+   "title": "channel ack cannot reach unread=0 on a topic the acking identity also posts to",
+   "summary": "Operator chooses how agent inbox stops counting its own receipts (where the off-by-one fix lives)",
+   "evidence": "Human [REVIEW] line 192",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner claude-code, horizon now; last commit naming it 2026-09-08; agent ACs 2 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2875",
+   "title": "Cross-session reach into a running Claude session: is ListAgents/SendMessage already the answer, and where doe",
+   "summary": "Inception on cross-session reach (ListAgents/SendMessage) never started; idle since September",
+   "evidence": "mention_last 2026-09-26, Agent 0/3",
+   "proposed": "park",
+   "details": "group C; status started-work, owner human, horizon now; last commit naming it 2026-09-26; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2886",
+   "title": "fw MCP server dies silently in worktrees: shipped fragment invokes it by a cwd-relative path",
+   "summary": "fw MCP fragment still cwd-relative; upstream filing (offset 85); only bites in old worktrees, which operator now forbids.",
+   "evidence": ".agentic-framework/agents/mcp/framework-mcp.mcp-fragment.json",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it 2026-09-03; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2895",
+   "title": "Pickup: Batch: 13 framework observations routed from voxtype project inbox (gates/tools/layout) (from termlink",
+   "summary": "Not ours: P-056 batch routed from voxtype project inbox to AEF. Close as not-ours.",
+   "evidence": "processed/P-056-bug-report.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2896",
+   "title": "Pickup: voxtype RIGHTCTRL dead: daemon down + hotkey blocked by stale input-group (from termlink)",
+   "summary": "Not ours: P-057 voxtype RIGHTCTRL daemon issue (0506-Voxtype). Close as not-ours.",
+   "evidence": "processed/P-057-bug-report.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2898",
+   "title": "Pickup: voxtype observability: persistent user journal + daemon health check (P-057 (from termlink)",
+   "summary": "Not ours: 0506-Voxtype observability proposal, mis-attributed (PL by T-2925). Close as not-ours.",
+   "evidence": "fd388a960 learning lists T-2898",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-09-27; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2903",
+   "title": "Pickup: P-057 execution misquoted - run staged launcher: bash /tmp/voxtype-relaunch.sh (from termlink)",
+   "summary": "Not ours: P-059 voxtype launcher, opencode\u2192aef. Close as not-ours.",
+   "evidence": "processed/P-059-bug-report.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2907",
+   "title": "Pickup: T-064 wave-155: T-373 (003-NTB consumer) independently confirms upgrade-defect (from termlink)",
+   "summary": "Not ours: P-060 from 005-deco/0501 opencode agent re upgrade defect, mis-attributed. Close as not-ours.",
+   "evidence": "fd388a960; processed/P-060-learning.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2908",
+   "title": "Pickup: install voxtype-hotkey.service: listener as system unit with SupplementaryGroups=input, (from termlink",
+   "summary": "Not ours: P-061 voxtype-hotkey.service proposal. Close as not-ours.",
+   "evidence": "fd388a960; processed/P-061-feature-proposal.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2909",
+   "title": "Pickup: Ring20 OneDev remote for 0506-Voxtype-extention: need manager/concierge (from termlink)",
+   "summary": "Not ours: P-062 OneDev remote for 0506-Voxtype. Close as not-ours.",
+   "evidence": "fd388a960; processed/P-062-feature-proposal.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-09-03; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2911",
+   "title": "Pickup: opencode runs ZERO of the 37 fw hooks \u2014 settings.json wiring is runtime-specific; (from termlink)",
+   "summary": "Not ours: P-063 opencode hooks wiring, voxtype\u2192aef. Close as not-ours.",
+   "evidence": "processed/P-063-bug-report.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2913",
+   "title": "channel state/info/topics output should name the hub it describes (hub-local scope annotation)",
+   "summary": "channel state/info/topics should name their hub; output still lacks it; RING20-FED-001 answered by T-2894 docs. Low.",
+   "evidence": "termlink channel info --json keys have no hub field",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it 2026-09-07; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2914",
+   "title": "Durable terminal state for background+command spawns (exit_code/finished_at survive deregistration)",
+   "summary": "Durable terminal state after background spawn exit; T-2871 shipped the disclosure; needs store design, no one waiting now.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner claude-code, horizon now; last commit naming it 2026-09-07; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2917",
+   "title": "Pickup: AEF promotion machinery gap \u2014 outcome-instrumented citation ledger proposal (offset 91)",
+   "summary": "Citation-ledger proposal for AEF promote.sh; AEF's call (vendored), termlink not the owner; no activity since 2026-09-07.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-09-07; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2918",
+   "title": "Pickup: two-way operator-channel capability proposal \u2014 desk architecture (offsets 90+92)",
+   "summary": "Operator must give go/no-go on the ring20 two-way operator-desk proposal (rec DEFER: mostly AEF scope, paper unread).",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon later; last commit naming it 2026-09-07; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2920",
+   "title": "Pickup: opencode ignores .mcp.json \u2014 fw MCP tools require opencode-native mcp config (from termlink)",
+   "summary": "Not ours: 0506-Voxtype\u2192AEF (opencode .mcp.json), mis-attributed (PL by T-2925). Close as not-ours.",
+   "evidence": "fd388a960 learning lists T-2920",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2921",
+   "title": "Pickup: aef-guards.ts block messages never show the why \u2014 split uses literal backslash-n (from termlink)",
+   "summary": "Not ours: P-065 aef-guards.ts from 0506-Voxtype opencode agent. Close as not-ours.",
+   "evidence": "processed/P-065-bug-report.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2923",
+   "title": "Pickup: Vendored-mode defects: ask.py PROJECT_ROOT breaks web import; shared /tmp (from termlink)",
+   "summary": "Not ours: P-066 vendored-mode defects from 0506-Voxtype to aef. Close as not-ours.",
+   "evidence": "processed/P-066-bug-report.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2925",
+   "title": "Pickup: Stale daemon lock (dead pid) blocks fixture daemon restarts; verify-log (from termlink)",
+   "summary": "Not ours: voxtype stale daemon lock, mis-attributed (its own PL says so). Close as not-ours.",
+   "evidence": "fd388a960",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-09-18; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2930",
+   "title": "Pickup: Keyword greps on logs can invert a diagnosis: live post_process hook was (from termlink)",
+   "summary": "Not ours: 0506-Voxtype\u2192AEF learning, mis-attributed (PL by T-2925). Close as not-ours.",
+   "evidence": "fd388a960 learning lists T-2930",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2931",
+   "title": "Pickup: Autonomous run record: arc-001, T-051 4/6 ACs proven, T-029+T-023 closed; (from termlink)",
+   "summary": "Not ours: P-069 voxtype run record (opencode on 0506-Voxtype). Close as not-ours.",
+   "evidence": "processed/P-069-learning.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2932",
+   "title": "Pickup: Autonomous run record: arc-001, T-051 4/6 ACs proven, T-029+T-023 closed; (from termlink)",
+   "summary": "Duplicate of T-2931: byte-identical apart from id/timestamps (unlocked double pickup cron).",
+   "evidence": "diff of T-2931 vs T-2932 minus id/created/last_update: empty",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2934",
+   "title": "Pickup: Structural learnings session 2026-09-08: per-uid framework tmp paths, (from termlink)",
+   "summary": "Not ours: P-070 voxtype structural-learnings proposal. Close as not-ours.",
+   "evidence": "processed/P-070-feature-proposal.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2936",
+   "title": "Pickup: Run record 2: T-052 closed (preflight+wiring), T-032/T-036/T-040 closed, (from termlink)",
+   "summary": "Not ours: P-071 voxtype run record 2. Close as not-ours.",
+   "evidence": "processed/P-071-learning.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2937",
+   "title": "Pickup: Run record 2: T-052 closed (preflight+wiring), T-032/T-036/T-040 closed, (from termlink)",
+   "summary": "Duplicate of T-2936: byte-identical apart from id/timestamps.",
+   "evidence": "diff of T-2936 vs T-2937 minus id/created/last_update: empty",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2938",
+   "title": "cron drift: agentic-audit.crontab differs from deployed /etc/cron.d copy",
+   "summary": "Cron drift resolved by T-2870: the repo crontab and the deployed /etc/cron.d copy are identical",
+   "evidence": "diff -q .context/cron/agentic-audit.crontab /etc/cron.d/agentic-audit-termlink = same",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner human, horizon now; last commit naming it 2026-09-27; agent ACs 2 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2939",
+   "title": "cron(substrate-smoke-canary) declared but never installed to /etc/cron.d",
+   "summary": "substrate-smoke canary cron is installed now",
+   "evidence": "ls /etc/cron.d/termlink-substrate-smoke-canary (2026-10-28)",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner human, horizon now; last commit naming it 2026-09-27; agent ACs 2 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2940",
+   "title": "D2: 57 tasks have waited over 30 days in the human review queue",
+   "summary": "The D2 review-queue triage it asks for is being done by T-3592 (staged reviewer sweep) and T-3648; close as duplicate",
+   "evidence": "T-3592 commits adf867698, 3fcd46a3d",
+   "proposed": "close",
+   "details": "group A2 reviewer can close; status started-work, owner human, horizon now; last commit naming it 2026-09-28; agent ACs 1 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2944",
+   "title": "Pickup: Guard-gap: verb-gated verification executes stored commands outside the (from termlink)",
+   "summary": "Not ours: P-072 voxtype guard-gap proposal. Close as not-ours.",
+   "evidence": "processed/P-072-feature-proposal.yaml",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2945",
+   "title": "Pickup: Guard-gap: verb-gated verification executes stored commands outside the (from termlink)",
+   "summary": "Duplicate of T-2944: byte-identical apart from id/timestamps.",
+   "evidence": "diff of T-2944 vs T-2945 minus id/created/last_update: empty",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2963",
+   "title": "Two unguarded pickup-process crons: installed copies drop the flock git declares",
+   "summary": "Half done: audit cron now flock-guarded, but /etc/cron.d/agentic-pickup-termlink still runs unguarded every minute (dup-mint cause).",
+   "evidence": "/etc/cron.d/agentic-pickup-termlink:5 has no flock",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon now; last commit naming it 2026-09-16; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2966",
+   "title": "Pickup pipeline has no verb to dispose a stranded envelope, so the only route is outside its accounting",
+   "summary": "No pickup dispose verb; vendored lib/pickup.sh, upstream filing; no activity since 2026-09-16.",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it 2026-09-16; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2972",
+   "title": "Answer the three 055-agentic-fleet-cockpit consults: topology, priority routing, orchestration model",
+   "summary": "Operator must decide to post the three drafted 055 replies or drop them (drafts from 2026-09; 055 consult has since moved on)",
+   "evidence": ".context/working/drafts/T-2972-reply-{A,B,C}.txt exist",
+   "proposed": "more",
+   "details": "group D2 operator; status work-completed, owner human, horizon now; last commit naming it none; agent ACs 6 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-2978",
+   "title": "Re-arm push-wake rail: relaunch unwakeable agents via tl-claude.sh",
+   "summary": "Operator must decide if/when penelope (/opt/050-email-archive prod agent) is relaunched for wakeability \u2014 another project's call.",
+   "evidence": "782f5c815 T-3089 R3 handback",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner agent, horizon now; last commit naming it 2026-09-24; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2984",
+   "title": "Inception: structural consumer for framework:pickup (G-063)",
+   "summary": "Operator goes/no-goes inception G-063: recommendation is NO-GO on the filed scope, GO on a smaller one",
+   "evidence": "## Recommendation in task file",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-09-21; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2987",
+   "title": "Sweep test/demo/probe residue topics + stale identity keys",
+   "summary": "Skeleton task (template ACs, empty Context) from the 09-19 value review; no work since 09-20; revive from VALUE-REVIEW C-03 if wanted",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2992",
+   "title": "Inception: coordinated tools.rs + channel.rs split design",
+   "summary": "Inception recommends DEFER (evidence gap: parity coverage 9.2%); revisit when the S-17 ratchet moves; no activity since 09-21",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner human, horizon next; last commit naming it 2026-09-21; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-2993",
+   "title": "Reconcile T-2548 record, discharge IW-1, then scoped removal of 28 analytics tools",
+   "summary": "Skeleton (template ACs); owner moved to agent 10-26 but no content or commits; arc-009 value-review item",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-2994",
+   "title": "Present deprecated-tool deletion go-ahead (soak evidence), then remove them",
+   "summary": "Skeleton (template ACs); needs soak evidence assembled before any operator deletion go-ahead; untouched since 09-20",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner human, horizon now; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3009",
+   "title": "Fabric edge enrichment (305/544 cards edgeless, standalone-excluded)",
+   "summary": "Skeleton; premise refreshed by T-3131 (305/544 edgeless) but no ACs and horizon later; no trigger",
+   "evidence": "git 5e168bd50 (T-3131 refreshed premise)",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-09-26; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3010",
+   "title": "Set 90-day revisit_at on artifact.* surface decision",
+   "summary": "Deliberate deferral reminder: revisit_at 2026-12-18 for the artifact.* surface; keep it parked until then",
+   "evidence": "revisit_at: 2026-12-18 in frontmatter",
+   "proposed": "park",
+   "details": "group C; status started-work, owner agent, horizon now; last commit naming it 2026-09-28; agent ACs 3 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3040",
+   "title": "Triage the 4 genuine GO orphans: T-954, T-955, T-958, T-1698",
+   "summary": "Triage of 4 GO orphans (T-954/955/958/1698), still flagged in go-scope audit; empty ACs, quiet 42 days, no trigger",
+   "evidence": ".context/audits/go-scope-unpropagated/LATEST.md:77-83",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it 2026-09-24; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3043",
+   "title": "Triage 32 auto-created pickup tasks \u2014 foreign filings materialised as termlink work",
+   "summary": "34 pickup-tagged tasks still sit in active/; some carry unread priority:high reports; fits the 11-02 backlog-shrink go",
+   "evidence": "grep -l 'tags: [pickup' .tasks/active = 34",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon now; last commit naming it 2026-09-21; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3063",
+   "title": "channel post --await-ack --retry: total retry window is not bounded by the hub dedupe TTL (silent duplicate pa",
+   "summary": "Measured silent-duplicate bug (AEF OBS-447): --await-ack --retry window still not bounded by the hub dedupe TTL; clear fix",
+   "evidence": "no TTL check in crates/termlink-cli retry path (grep dedupe only in infrastructure.rs display)",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-09-22; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3091",
+   "title": "A dispatched round cannot tell whether a sibling round is mid-flight \u2014 close the gap that made a hub restart a",
+   "summary": "Real incident (R3 restarted the hub 82 s after a ruling); no mid-action predicate built yet and dispatched rounds keep running",
+   "evidence": "no commit after 09-24; git 40132b4f8",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon now; last commit naming it 2026-09-24; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3100",
+   "title": "GO-scope-not-propagated backlog grew 86->88; T-3048's GO decision was never executed into a build task",
+   "summary": "Operator decides whether to file the sample-triage build task T-3048's GO called for (85 GO-scope findings) and its size",
+   "evidence": ".tasks/completed/T-3048-*; audit LATEST.md findings 85",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner agent, horizon now; last commit naming it 2026-09-29; agent ACs 0 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3107",
+   "title": "Gate-bypass log: 7 safety bypasses in last 7 days",
+   "summary": "Snapshot audit item (7 bypasses in 7 days, 09-24) with no follow-up; superseded by later bypass-log data",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it none; agent ACs 0 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3109",
+   "title": "Learnings ready for promotion: 398 learnings, graduation candidates available",
+   "summary": "Snapshot audit item (398 learnings ready to promote, 09-24); untouched since; promotion is a recurring process, not a task",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it none; agent ACs 0 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3110",
+   "title": "C-001 bundle: 12 inception tasks missing or undeclared research artifact",
+   "summary": "C-001 bundle of 12 inceptions missing research artifacts; snapshot from 09-24, no activity",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it 2026-08-29; agent ACs 0 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3111",
+   "title": "C-006 bundle: 17 inception tasks with template-only Recommendation block",
+   "summary": "C-006 bundle of 17 template-only recommendations; snapshot from 09-24, no activity",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it none; agent ACs 0 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3112",
+   "title": "D14 bundle: 17 inception tasks with empty Recommendation (likely same instances as C-006)",
+   "summary": "Mechanical diff of D14 against C-006 instance lists; snapshot from 09-24, low value, no activity",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it none; agent ACs 0 done/2 open, human 0/0"
+  },
+  {
+   "task": "T-3114",
+   "title": "CTL-012 bundle: 5 completed tasks have an unchecked AC",
+   "summary": "CTL-012 forensic on 5 closed tasks with an unticked AC; snapshot from 09-24, no activity",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it none; agent ACs 0 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3115",
+   "title": "D5: 34 task-lifecycle anomalies (unusual cycle times)",
+   "summary": "D5 review of 34 cycle-time anomalies; broad, no trigger, untouched since 09-24",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it none; agent ACs 0 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3118",
+   "title": "Arc arc-010 hit 89% closure threshold (17/19) without explicit fw arc close",
+   "summary": "Operator (arc owner) decides: close arc-010 (file arc-011.yaml, 20/21) with wire evidence, or keep it open",
+   "evidence": ".context/arcs/arc-011.yaml id arc-010 status in-progress; T-3166 report row",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner agent, horizon now; last commit naming it 2026-09-26; agent ACs 0 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3119",
+   "title": "Arc arc-001 hit 93% closure threshold (42/45) without explicit fw arc close",
+   "summary": "Operator decides: close arc-001 (arc-parallel-substrate, 42/45) with wire evidence, or keep it open",
+   "evidence": ".context/arcs/arc-parallel-substrate.yaml status in-progress",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner agent, horizon now; last commit naming it 2026-09-26; agent ACs 0 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3120",
+   "title": "Arc arc-002 hit 92% closure threshold (11/12) without explicit fw arc close",
+   "summary": "Operator decides: close arc-002 (arc-substrate-fitness, 11/12) with wire evidence, or keep it open",
+   "evidence": ".context/arcs/arc-substrate-fitness.yaml status in-progress",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner agent, horizon now; last commit naming it 2026-09-26; agent ACs 0 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3122",
+   "title": "fw doctor WARN: session not under claude-fw, budget auto-restart will not fire",
+   "summary": "Operator decides whether unsupervised claude -p dispatch workers are an accepted exception to claude-fw supervision",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner agent, horizon now; last commit naming it none; agent ACs 0 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3124",
+   "title": "fw doctor WARN: mirror divergence, 2 refs differ between origin and github",
+   "summary": "Mirror still diverges (old v0.11/v0.12 tags, stray branches); operator decides whether to push them to GitHub or accept the divergence",
+   "evidence": "ran diff of git ls-remote origin vs github on 11-02: tags v0.11.2.. missing on github",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner agent, horizon now; last commit naming it none; agent ACs 0 done/2 open, human 0/0"
+  },
+  {
+   "task": "T-3139",
+   "title": "Tier-0 block never registers a pending approval \u2014 the human is told to approve something that was never queued",
+   "summary": "reviewer: upstream filing done; operator asked only to confirm route \u2014 the 'report present and legible' check is reviewer-judgeable",
+   "evidence": "commit d42fa017a; reviewer PASS 2026-09-29",
+   "proposed": "more",
+   "details": "group D1 reviewer; status work-completed, owner human, horizon now; last commit naming it 2026-09-29; agent ACs 5 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-3169",
+   "title": "Triage the framework:pickup queue - offsets 168, 180, 181 with operator decisions",
+   "summary": "Operator rules on framework:pickup offset 168 (drop the --i-am-human gate from fw bvp confirm?) and triages 180/181; rec DEFER",
+   "evidence": "## Recommendation DEFER",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-09-27; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3171",
+   "title": "Per-arc exemption from the closure-pressure check - recurring intake arcs should not be pressured to close",
+   "summary": "Operator ruled under T-3117 to fix the mechanism: no per-arc recurring opt-out exists yet (vendored half goes upstream)",
+   "evidence": "git b6712538b; no 'recurring' arc flag in .agentic-framework/agents/audit/audit.sh",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon now; last commit naming it 2026-10-24; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3178",
+   "title": "Tier-1 write-gate bypass: 2> file and &> file classify as not-a-write",
+   "summary": "Tier-1 write-gate bypass closed and filed upstream; all Agent ACs ticked",
+   "evidence": "commits c87f15b60, 64c1ae95d",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner human, horizon now; last commit naming it 2026-10-22; agent ACs 7 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3179",
+   "title": "P-011 reports exit 127 as FAIL, hiding that the check does not exist",
+   "summary": "Vendored update-task.sh still reports exit 127 as FAIL; fix belongs upstream (832 fixed theirs); revive at a re-vendor",
+   "evidence": "grep 'NOT RUNNABLE' in .agentic-framework = none",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it 2026-09-27; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3180",
+   "title": "CLAUDE.md.bak is a durable acknowledgement token nothing reads",
+   "summary": "Vendored upgrade.sh concern (CLAUDE.md.bak read by nothing); upstream issue, quiet since 09-27",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it 2026-09-27; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3183",
+   "title": "A canary that fires correctly 42 times over six weeks escalates to nothing",
+   "summary": "Design concern (a canary firing 42 times escalates to nothing); no ACs; partly addressed by T-2985 canary-escalation filing",
+   "evidence": "scripts/canary-escalation-file.sh exists",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon now; last commit naming it 2026-09-29; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3189",
+   "title": "Estimator derives blast_radius from readable task evidence instead of leaving 85% uncosted",
+   "summary": "reviewer: estimator shipped (quadrant 6 to 111 tasks); Human check \"repopulated cost axis produces a sane ranking\" is open",
+   "evidence": "commit 294dd6eea; Agent 10/10",
+   "proposed": "more",
+   "details": "group D1 reviewer; status started-work, owner agent, horizon now; last commit naming it 2026-10-06; agent ACs 10 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-3212",
+   "title": "checkpoint.sh status reports the orchestrator's budget to a dispatched worker",
+   "summary": "checkpoint.sh still picks the globally newest transcript, so dispatched workers read the orchestrator's budget; hits every dispatch round",
+   "evidence": ".agentic-framework/agents/context/checkpoint.sh:95-102 ls -t head -1",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon now; last commit naming it 2026-09-29; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3250",
+   "title": "Design: who observes agent-side readiness (presence vs dispatchability)",
+   "summary": "T-3001 GO slice (design); no ACs or commits since filing 09-29",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-09-29; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3251",
+   "title": "Rename presence LIVE to BEATING at the producer/classifier boundary",
+   "summary": "T-3001 GO slice (rename LIVE to BEATING); no ACs, no work; horizon later",
+   "evidence": "grep BEATING scripts/ = none",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3252",
+   "title": "File the vendored be-reachable template half of presence-truthfulness upstream",
+   "summary": "T-3001 GO slice (file the vendored be-reachable half upstream); no ACs, no work",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3253",
+   "title": "find-idle: stop treating heartbeat-only presence as dispatchable",
+   "summary": "T-3001 GO slice (find-idle ignores heartbeat-only presence); no ACs, no work; horizon later",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-09-29; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3259",
+   "title": "Sovereign-question review session with the operator (T-3012 GO)",
+   "summary": "Operator holds the remaining sovereign-question review (SQ-1/2, 6, 7, 8, 10-13, R6 closures, T-3258 guard draft) or declares them stale",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon now; last commit naming it 2026-09-29; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3303",
+   "title": "Make claude-termlink sign with its per-agent key and migrate its mailbox (T-3302 GO, option B)",
+   "summary": "One step left: DM pen's owner that pen signs with the shared host key; AC1/AC2 done 2026-10",
+   "evidence": "commit cd28cf2cf (AC1/AC2 done)",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner agent, horizon now; last commit naming it 2026-10-18; agent ACs 2 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3312",
+   "title": "Hub-side topic record outside the log: owner from identity, purpose/description, backfill",
+   "summary": "arc-012 step 7 (hub topic record with owner/purpose); no ACs, no commits since 10-01",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3313",
+   "title": "Hub-side time-range reads on hub receive time",
+   "summary": "arc-012 step 8 (hub-side time-range reads); no ACs, no commits since 10-01",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3314",
+   "title": "Review the 75 forever-retention topics (proposal back to the operator)",
+   "summary": "arc-012 step 9 (forever-topic retention proposal); no ACs, no commits since 10-01",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3315",
+   "title": "Reword charter non-goal #2 to match the T-3304 rulings (wording to the operator)",
+   "summary": "Charter non-goal #2 now reads 'authoritative for coordination within its retention window; not an archival database'",
+   "evidence": "docs/CHARTER.md:50-53; git caaee00ee (T-3642)",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status captured, owner human, horizon later; last commit naming it 2026-10-02; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3320",
+   "title": "TermLink settings surface: own settings page, and a panel inside the AEF settings page when run under AEF",
+   "summary": "Inception recommends GO: operator decides go/no-go on a TermLink settings page and a panel inside the AEF settings page",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon next; last commit naming it 2026-10-18; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3321",
+   "title": "Message compaction: summarise repeated messages (e.g. sidecar wake notices) without losing fidelity",
+   "summary": "Inception recommends DEFER until the learn-from-traffic question is decided; T-3310 caps already bound floods",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner human, horizon later; last commit naming it 2026-10-18; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3330",
+   "title": "Receive side: received/injected/replied telemetry as API calls, and ship all sidecars inside the termlink bina",
+   "summary": "arc-011 receive-side telemetry inception: rec DEFER until evidence is gathered; active Oct",
+   "evidence": "mention_last 2026-10-18",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner human, horizon now; last commit naming it 2026-10-18; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3333",
+   "title": "Hub steward agent: an always-on AEF agent per hub that owns communication telemetry, surfaces urgent alarms, e",
+   "summary": "Inception DEFER: needs external consultation (models plus AEF) before any recommendation; no trigger set",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner human, horizon now; last commit naming it 2026-10-18; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3335",
+   "title": "External consultation: make two-way interactive agent-to-agent communication actually work for running agent s",
+   "summary": "Two-way agent communication consult: DEFER until the design was written; the design now exists (44c7eabfc), so it can be revisited",
+   "evidence": "commit 44c7eabfc",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner human, horizon now; last commit naming it 2026-10-26; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3337",
+   "title": "Vector index readers must never rebuild or delete the index (port AEF T-3786)",
+   "summary": "reviewer: index readers no longer rebuild; remaining check is that Watchtower Ask still answers \u2014 deterministic, reviewer can run it",
+   "evidence": "commit f1d5ec746; reviewer PASS 2026-10-04",
+   "proposed": "more",
+   "details": "group D1 reviewer; status work-completed, owner human, horizon now; last commit naming it 2026-10-06; agent ACs 4 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-3344",
+   "title": "arc-011 role chain step 1: requirements collector (re-cast confirmed requirements + review results; operator r",
+   "summary": "arc-011 step 1 signed off: requirements v0.4.1 APPROVED 2026-10-07; sign-off task T-3349 closed",
+   "evidence": "commit 0a0ff90ae; docs/design/interactive-agent-communication-01-requirements.md; .tasks/completed/T-3349*",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status started-work, owner agent, horizon now; last commit naming it 2026-10-07; agent ACs 0 done/4 open, human 0/2"
+  },
+  {
+   "task": "T-3347",
+   "title": "Cross-hub read of a message's stage and reply by message id (primitive for AEF send-and-wait, CAND-10)",
+   "summary": "Cross-hub stage/reply read primitive waits on role-chain step 4, which has not started",
+   "evidence": "docs/design/interactive-agent-communication-04-architecture.md absent",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-10-06; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3350",
+   "title": "arc-011 GP-11: complete the operator out-of-band channel inventory, file the AEF supplement, rule",
+   "summary": "GP-11: 050 inventory recorded, AEF and ring20-dashboard pending, then one operator ruling; blocks break-glass in T-3351",
+   "evidence": "commit 0a0b82238",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner agent, horizon now; last commit naming it 2026-10-15; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3353",
+   "title": "arc-011 role chain step 4: architect",
+   "summary": "Operator decides whether the arc-011 role chain continues (step 3 T-3352 is still unapproved) or phased PH building has replaced steps 4-8",
+   "evidence": "role-chain yaml; 04-architecture.md absent; T-3352 active",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner agent, horizon next; last commit naming it none; agent ACs 0 done/6 open, human 0/0"
+  },
+  {
+   "task": "T-3354",
+   "title": "arc-011 role chain step 5: evidence specialist",
+   "summary": "Role-chain step 5; blocked behind steps 3-4 (see T-3353); untouched since 10-06",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-3355",
+   "title": "arc-011 role chain step 6: pseudo-coder",
+   "summary": "Role-chain step 6; blocked behind steps 3-5; untouched since 10-06",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-3356",
+   "title": "arc-011 role chain step 7: review panel and disposition",
+   "summary": "Role-chain step 7; blocked behind steps 3-6; untouched since 10-06",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-3357",
+   "title": "arc-011 role chain step 8: planner",
+   "summary": "Role-chain step 8; blocked behind steps 3-7; untouched since 10-06",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-10-06; agent ACs 0 done/6 open, human 0/0"
+  },
+  {
+   "task": "T-3358",
+   "title": "Send tooling: --priority option for agent mail (CAND-4)",
+   "summary": "--priority send option; gated on the step-8 plan, which has not started; not built",
+   "evidence": "tests/send-priority-fixtures.sh absent",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/3 open, human 0/0"
+  },
+  {
+   "task": "T-3359",
+   "title": "Role 'main': readiness-gated fenced lease at the home hub (OD-18)",
+   "summary": "Fenced 'main' lease stays in PH-4 per the 10-28 operator ruling; only the visibility half moved to PH-2 (a separate task)",
+   "evidence": "Decisions 2026-10-28 in file",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-10-28; agent ACs 0 done/5 open, human 0/0"
+  },
+  {
+   "task": "T-3360",
+   "title": "Standing tests: OD-18 takeover tests and CAND-3 real-failure controls",
+   "summary": "Standing takeover tests; gated on the step-8 plan; not started",
+   "evidence": "tests/arc011-standing-controls-fixtures.sh absent",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/4 open, human 0/0"
+  },
+  {
+   "task": "T-3361",
+   "title": "Daily end-to-end two-agent message canary with needs-attention landing (OD-14)",
+   "summary": "Daily two-agent message canary; gated on the step-8 plan; not started",
+   "evidence": "tests/message-canary-fixtures.sh absent",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/3 open, human 0/0"
+  },
+  {
+   "task": "T-3362",
+   "title": "Sender-assigned per-conversation sequence numbers with cumulative up_to (CAND-18)",
+   "summary": "Per-conversation sequence numbers; gated on the step-8 plan; not started",
+   "evidence": "tests/conversation-seq-fixtures.sh absent",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/3 open, human 0/0"
+  },
+  {
+   "task": "T-3363",
+   "title": "Declared mail hub: projects declare canonical hub id, clients verify hub_id and refuse on mismatch (CAND-8)",
+   "summary": "Declared mail hub; gated on the step-8 plan; not started",
+   "evidence": "tests/mail-hub-declaration-fixtures.sh absent",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/3 open, human 0/0"
+  },
+  {
+   "task": "T-3364",
+   "title": "Preflight: NTP-synchronised clock check (CAND-13)",
+   "summary": "NTP preflight check; gated on the step-8 plan; small and could be pulled forward",
+   "evidence": "scripts/substrate-preflight.sh has no ntp check",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/2 open, human 0/0"
+  },
+  {
+   "task": "T-3366",
+   "title": "Hub canonical id minted once and persisted; fingerprint becomes instance id (OD-12)",
+   "summary": "Persisted hub canonical id; gated on the step-8 plan; not started",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-10-06; agent ACs 0 done/3 open, human 0/0"
+  },
+  {
+   "task": "T-3371",
+   "title": "Write down the objectives of termlink",
+   "summary": "Objectives were tightened by operator ruling 2026-10-21 and superseded by adopted purpose (T-3612 GO, applied T-3642)",
+   "evidence": "commits 6cc6d53ab (operator ruling) + caaee00ee 2026-11-01 T-3642 on .context/project/objectives.yaml",
+   "proposed": "close",
+   "details": "group A3 needs operator click/tick; status work-completed, owner human, horizon now; last commit naming it 2026-10-21; agent ACs 3 done/0 open, human 0/1"
+  },
+  {
+   "task": "T-3372",
+   "title": "TermLink functionality under OpenCode (operator direction 2026-10-03, 055 opencode-parity)",
+   "summary": "Inception recommends GO: operator decides go/no-go on TermLink parity under OpenCode (directed 10-03 via 055)",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon now; last commit naming it 2026-10-18; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3382",
+   "title": "Project inbox topics are Forever and grow ~60/day (forever-archival canary); bound per OD-16 retention by clas",
+   "summary": "Forever project inboxes grow; retention waits on arc-011 step 4 (stalled); canary fires daily; operator could rule retention directly",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-10-07; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3383",
+   "title": "Measure 30 days of hub outage durations to re-check the circuit credential lifetime (OQ-3 D, H-1)",
+   "summary": "Hub-outage collector running since 2026-10-11; the 30-day re-check of operator rulings OQ-3/OQ-4 is due about 2026-11-10",
+   "evidence": "commit ed7e86994",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner agent, horizon now; last commit naming it 2026-10-11; agent ACs 7 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3385",
+   "title": "Inception: OTP-style out-of-band approval confirmation (pluggable provider, ring20-manager facility)",
+   "summary": "Operator goes/no-goes the OTP-style out-of-band approval inception (rec GO, after the OQ-14 ruling)",
+   "evidence": "## Recommendation GO",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-10-18; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3423",
+   "title": "arc-011: per-peer least-privilege hub credentials across operators (832 request T-1107)",
+   "summary": "DEFER by operator ruling into arc-011's later grant phases; revisit_at 2026-11-12",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-10-28; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3426",
+   "title": "arc-011 PH-2 planning: architecture + build table (first operational release)",
+   "summary": "Operator rules on PH-2 open questions OQ-a, b, c, d, e, f, h, i (the only open AC); W1 joined, W2 7-day clock running",
+   "evidence": "commit 32c7ba22f",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner agent, horizon now; last commit naming it 2026-10-18; agent ACs 5 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3433",
+   "title": "arc-011 FX-5: disclosure inventory check (store x form x readers x retention)",
+   "summary": "FX-5 disclosure inventory check left open by the operator ruling (T-3426); horizon later, no work since 10-13",
+   "evidence": "git 34ffc54bc",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-10-13; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3439",
+   "title": "Inception: hub-routed PTY stream for remote sessions (055 cockpit request) - read-only mirror first, input beh",
+   "summary": "Inception DEFER: shaping not started; 055 uses SSH meanwhile; revisit after arc-011 W1",
+   "evidence": "",
+   "proposed": "park",
+   "details": "group C; status captured, owner human, horizon next; last commit naming it 2026-10-18; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3455",
+   "title": "arc-011 PH-3 input: cross-hub sidecar delivery gaps measured by dimitri-mint-dev",
+   "summary": "Parked by operator ruling (T-3454 B) until arc-011 PH-2 exit; shaping happens with the operator then",
+   "evidence": "git acd52a6ef",
+   "proposed": "park",
+   "details": "group C; status captured, owner human, horizon later; last commit naming it 2026-10-18; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3466",
+   "title": "R5b: daily telemetry rollup over TermLink to a bounded collection topic (T-2250 GO)",
+   "summary": "R5b telemetry rollup: needs to run on a second host (a ring20 host) besides .107",
+   "evidence": "Agent 4/5; mention 2026-10-20",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner agent, horizon now; last commit naming it 2026-10-20; agent ACs 4 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3471",
+   "title": "T-2026 build: agent.publish RPC (push a branch, structured result, audit event)",
+   "summary": "Unblocked: design T-3469 and slice T-3470 are both done; agent.publish is the next slice of the operator's T-2026 GO",
+   "evidence": ".tasks/completed/T-3469-*, .tasks/completed/T-3470-*; git eefda1e5b",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon later; last commit naming it 2026-10-21; agent ACs 0 done/3 open, human 0/0"
+  },
+  {
+   "task": "T-3476",
+   "title": "Deterministic task-assignment sidecar: one routine allocates task IDs and assigns work units by availability, ",
+   "summary": "Task-assignment sidecar inception still being shaped (rec DEFER); active since 2026-10-19",
+   "evidence": "mention_last 2026-10-21",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner human, horizon now; last commit naming it 2026-10-21; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3477",
+   "title": "Container isolation for dispatched agent workers: per-claim container instead of bare clone or worktree",
+   "summary": "Inception exploration in progress (report has uncommitted edits); revisit_at 2026-11-04; operator asked to explore",
+   "evidence": "docs/reports/T-3477-container-isolation-workers.md modified in working tree",
+   "proposed": "keep",
+   "details": "group B; status captured, owner human, horizon later; last commit naming it 2026-10-21; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3484",
+   "title": "Shared dispatched-worker contract: reach the three-way agreement (TermLink, AEF, ring20) and file the TermLink",
+   "summary": "Operator gets the ring20 and AEF operators' agree/decline on the shared worker contract; TermLink impact checked: none",
+   "evidence": "Updates 2026-10-26: \"Adoption = the operator's yes/no\"",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner agent, horizon now; last commit naming it 2026-10-27; agent ACs 0 done/3 open, human 0/0"
+  },
+  {
+   "task": "T-3488",
+   "title": "Hub write stalls: channel.create/channel.post take up to 69 s on .107 (T-3478 slow lines)",
+   "summary": "Hub write stalls are traced to btrfs fsync stalls; operator picks a disk lever before the 24 h re-measure",
+   "evidence": "commits 5d6f5cbb9 (\"levers recorded for the operator\"), 389589e19",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner agent, horizon now; last commit naming it 2026-10-22; agent ACs 3 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3494",
+   "title": "Track AEF T-4472 triage of our 10 vendored-fix proposals; flip register entries as they land",
+   "summary": "Standing tracker for AEF triage of our 10 vendored-fix proposals; stays open until each one lands upstream",
+   "evidence": "mention_last 2026-10-20",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner agent, horizon now; last commit naming it 2026-10-20; agent ACs 1 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3504",
+   "title": "Worker contract hub backend S4: CLI + MCP dispatch surfaces and the shared YAML conformance vector file for AE",
+   "summary": "S4 is gated on ring20 agreeing contract v0.2; no sign of agreement since 10-20 (S1-S3 done)",
+   "evidence": ".tasks/completed/T-3501..T-3503; git 9cf9acd00",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-10-20; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3524",
+   "title": "wc/0.3: which remaining vector capabilities are hub obligations",
+   "summary": "Operator stamps GO on wc/0.3 option A\u20321 (hub dispatch.wait) in Watchtower; already ruled 2026-10-22",
+   "evidence": "## Recommendation: \"stamp pending in Watchtower\"",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner human, horizon now; last commit naming it 2026-10-22; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3534",
+   "title": "Signed inject and spawn-time allowlist (T-3493 C): sender identity on inject RPCs, per-session allowlist, oper",
+   "summary": "SEV-1 lineage shaping (T-3493 C), voi 0.7 set 10-31; design to be reviewed with AEF and ring20 before a ruling",
+   "evidence": "git 231cf1a47",
+   "proposed": "keep",
+   "details": "group B; status captured, owner human, horizon now; last commit naming it 2026-10-31; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3540",
+   "title": "wc/0.3: consumers refuse an attested done as not finished work (CC-22 consume, CC-19)",
+   "summary": "Blocked on inception T-3524 (ruling A\u20321 recorded, Watchtower stamp pending) deciding whether this is a hub obligation",
+   "evidence": "git d69f4fdb4",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-10-22; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3546",
+   "title": "Remote profile at 127.0.0.1:<port> (an SSH-tunnelled remote hub) is treated as the local hub: BadSignature + '",
+   "summary": "Partner (ring20) bug: a tunnelled 127.0.0.1 profile is treated as the local hub; reported 10-22, not fixed",
+   "evidence": "",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-10-22; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3547",
+   "title": "pty stream --no-tty: forward stdin without a terminal (no tcgetattr/raw mode, no size push, detach on EOF)",
+   "summary": "Partner (055) feature: pty stream --no-tty; clear spec, filed 10-22, not built",
+   "evidence": "grep no-tty crates/termlink-cli = none",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-10-22; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3548",
+   "title": "tmux env leak: termlink spawn seeds the shared default tmux server from the first spawning project (AEF T-4635",
+   "summary": "SEV-1-adjacent shaping (tmux env leak, AEF T-4635); voi 0.4 set 10-31; options named, measurement next",
+   "evidence": "git 231cf1a47",
+   "proposed": "keep",
+   "details": "group B; status captured, owner human, horizon now; last commit naming it 2026-10-31; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3549",
+   "title": "SEV-1: cross-project environment leak via the shared tmux server recurred (TASKS_DIR/CONTEXT_DIR not in T-3445",
+   "summary": "SEV-1 env leak: brief, reviews, fixes T-3550/T-3551 done; damage assessment with AEF and T-3552 still open",
+   "evidence": "docs/reports/T-3549-incident/; .tasks/completed/T-3550*, T-3551*",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner agent, horizon now; last commit naming it 2026-10-22; agent ACs 0 done/4 open, human 0/0"
+  },
+  {
+   "task": "T-3552",
+   "title": "SEV-1 fix 3: one tmux server per project via a single controlled launcher; project-aware attach/list for cockp",
+   "summary": "SEV-1 fix 3, per-project tmux server: interface draft sent to 055; their answer is the last open AC",
+   "evidence": "docs/reports/T-3552-per-project-tmux-interface.md; commit 6a35df7b1",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner agent, horizon now; last commit naming it 2026-10-23; agent ACs 4 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3553",
+   "title": "SEV-1 fix 4: supervised lifetimes and real isolation \u2014 tmux servers and hub as supervised units; separate Unix",
+   "summary": "SEV-1 fix 4 (T-3549 ruling A part 4) shaping; voi 0.6 set 10-31",
+   "evidence": "git 231cf1a47",
+   "proposed": "keep",
+   "details": "group B; status captured, owner human, horizon now; last commit naming it 2026-10-31; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3555",
+   "title": "Reconcile 18 toolkit/template files where AEF be.3 ships a different version (.upstream copies from T-3554)",
+   "summary": "Partly done (.upstream templates gone) but vendor-upstream-be10 copies remain and scripts/rail-post.sh is still untracked; decide keep or take",
+   "evidence": "ls .tasks/templates/*.upstream = 0; git status ?? scripts/rail-post.sh",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-10-22; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3561",
+   "title": "Keep TermLink's temp files off the shared 8G /tmp tmpfs (CLAUDE_CODE_TMPDIR + test/guard TMPDIR on disk)",
+   "summary": "Premise weakened: /tmp is now a 32G tmpfs at 21% used; no TMPDIR setting made; revive if /tmp pressure returns",
+   "evidence": "df /tmp 11-02: 32G, 21%",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon next; last commit naming it 2026-10-23; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3564",
+   "title": "Session handover maintenance",
+   "summary": "Standing handover-commit task; used daily (last 11-01); never closes by design",
+   "evidence": "git 5f2eeebda",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon now; last commit naming it 2026-11-01; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3569",
+   "title": "Host DM-rail mail is never surfaced to the session, and fw sidecar inbox does not advance its cursor",
+   "summary": "Silent-loss bug: host DM-rail mail never surfaced and fw sidecar inbox does not advance its cursor; 055 finding sat unread 3 days",
+   "evidence": "",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon now; last commit naming it 2026-10-24; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3578",
+   "title": "Operator: re-decide T-2288, T-2879, T-3144 (NO-GO recommended, GO recorded) with fw inception correct",
+   "summary": "Operator rules one at a time on T-2288, T-2879, T-3144 (GO recorded, NO-GO recommended): run fw inception correct or confirm GO",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner human, horizon next; last commit naming it 2026-10-25; agent ACs 0 done/2 open, human 0/0"
+  },
+  {
+   "task": "T-3586",
+   "title": "Answer 055's two unanswered consults: opencode parity (80ffbfa3) and T-3335 F10 front-door second agent (00c9a",
+   "summary": "Operator rules on T-3335 F10 (may the front door offer a second agent, options A-D); the opencode-parity reply hangs on T-3372",
+   "evidence": "",
+   "proposed": "more",
+   "details": "group D2 operator; status captured, owner agent, horizon next; last commit naming it 2026-10-26; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3588",
+   "title": "runme-fixtures: 'zombie idempotent' case flaked once (killed marker present after zombie_reset)",
+   "summary": "One-off fixture flake (zombie idempotent) filed 10-26 with a clear next step; low cost",
+   "evidence": "",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-10-26; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3591",
+   "title": "Stale sidecar doorbell resubmitted from Claude Code's last-prompt restore (already-answered mail re-announced)",
+   "summary": "Stale sidecar doorbell re-announced from last-prompt restore; reported to AEF 10-26; track upstream",
+   "evidence": "git bb30a3937",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-10-26; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3592",
+   "title": "Staged reviewer sweep of the human-owned backlog (operator ruling A, 2026-10-26)",
+   "summary": "Staged reviewer sweep: stage 3 batches in progress, stage 4 operator evidence list next",
+   "evidence": "commit 3fcd46a3d (batch 2)",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner agent, horizon now; last commit naming it 2026-10-27; agent ACs 2 done/2 open, human 0/0"
+  },
+  {
+   "task": "T-3594",
+   "title": "Mail addressed to the nickname 'termlink' lands in an inbox no agent reads (inbox:<hub>/termlink)",
+   "summary": "Mail to 'termlink' lands in inbox:<hub>/termlink, which no receiver drains; no inbox alias registered yet",
+   "evidence": ".context/checks/addressed-aliases covers broadcast body only",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon now; last commit naming it 2026-10-27; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3596",
+   "title": "Inception: host-wide worker admission, deadline reaping and cheap heartbeat (055 T-588 proposal)",
+   "summary": "055 worker-lifecycle proposal inception; voi 0.5 set 10-31; shaping, not yet at go/no-go",
+   "evidence": "git 231cf1a47",
+   "proposed": "keep",
+   "details": "group B; status captured, owner human, horizon next; last commit naming it 2026-10-31; agent ACs 0 done/3 open, human 0/1"
+  },
+  {
+   "task": "T-3605",
+   "title": "Claim/lease contention test as a per-host politeness lock (ring20 kommunal-pool, before B3)",
+   "summary": "ring20 asked for a claim-contention test before relying on it beyond B3; filed 10-27",
+   "evidence": "",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon later; last commit naming it none; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3607",
+   "title": "When .141 (laptop-141) is back up: bring its hub to current code and re-check (parked from T-2013)",
+   "summary": "Event-triggered: waits for .141 to come back (operator ruling 10-27); nothing to do until then",
+   "evidence": "git cd18f1f14",
+   "proposed": "park",
+   "details": "group C; status captured, owner agent, horizon later; last commit naming it 2026-10-27; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3609",
+   "title": "Orchestrated run: [Review, Audit, procAsFit] x9 via TermLink workers, each round fed by the previous",
+   "summary": "Operator confirms the round-1 yardstick (Phase 1 ASK) or drops the x9 run; runner stopped while waiting",
+   "evidence": ".context/working/t3609/run.log \"STOP while waiting\" 2026-10-28",
+   "proposed": "more",
+   "details": "group D2 operator; status started-work, owner agent, horizon now; last commit naming it 2026-10-27; agent ACs 0 done/4 open, human 0/0"
+  },
+  {
+   "task": "T-3613",
+   "title": "Canary: tracked task/memory files left uncommitted longer than 24 h (G-019 for T-3611)",
+   "summary": "Prevention for T-3611 (52 task files uncommitted for up to 4 weeks); no uncommitted-tracked-file canary exists yet",
+   "evidence": "no such check in scripts/",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-10-27; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3614",
+   "title": "artifact put/get: add --hub so a remote hub's artifact store can be used (ring20 node1 pool B2)",
+   "summary": "ring20 pool B2 needs artifact put/get --hub to reach a remote hub; CLI still has only --to",
+   "evidence": "crates/termlink-cli/src/cli.rs:6786 (only --to)",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-10-29; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3615",
+   "title": "Fleet usage + worker-outcome telemetry: attributed CLI/MCP usage and per-worker-kind outcomes, rolled up daily",
+   "summary": "Fleet usage and worker-outcome telemetry for all workers (operator 2026-10-28); 0/6 ACs, active",
+   "evidence": "mention_last 2026-10-29",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner agent, horizon now; last commit naming it 2026-10-29; agent ACs 0 done/6 open, human 0/0"
+  },
+  {
+   "task": "T-3624",
+   "title": "T-3612 round 4: record operator rulings on the purpose draft (draft + dialogue log upkeep until adoption)",
+   "summary": "Recording operator rulings on the T-3612 purpose draft until it is adopted; rulings still coming in (2026-11-01)",
+   "evidence": "mention_last 2026-11-01",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner agent, horizon now; last commit naming it 2026-11-01; agent ACs 0 done/2 open, human 0/0"
+  },
+  {
+   "task": "T-3635",
+   "title": "TOFU pin history: a first pin for an address seen before without a tofu-clear is a distinct 'pin lost' event (",
+   "summary": "TOFU pin-history follow-up from the T-3628 consultation (all three reviewers agreed); filed 10-31",
+   "evidence": "git 2f41fd5b6",
+   "proposed": "keep",
+   "details": "group B; status captured, owner agent, horizon next; last commit naming it 2026-10-31; agent ACs 0 done/0 open, human 0/0"
+  },
+  {
+   "task": "T-3638",
+   "title": "AEF ask: per-layer value-driver sets (product vs development) in bvp.sh ranking and the estimator",
+   "summary": "AEF ask: per-layer value-driver sets in bvp.sh (operator ruling A 2026-11-01); waiting on AEF GO",
+   "evidence": "mention_last 2026-11-01",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner agent, horizon now; last commit naming it 2026-11-01; agent ACs 2 done/1 open, human 0/0"
+  },
+  {
+   "task": "T-3648",
+   "title": "Backlog triage: sort the open tasks into done-not-closed / live / parked (someday) / needs operator (read-only",
+   "summary": "This backlog triage itself, in progress",
+   "evidence": "\u2014",
+   "proposed": "keep",
+   "details": "group B; status started-work, owner agent, horizon now; last commit naming it none; agent ACs 0 done/3 open, human 0/0"
+  }
+ ]
+}
