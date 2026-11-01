@@ -5,10 +5,10 @@ description: >
   fw doctor WARN (task debt): 71 tasks have had no updates in 7+ days. Mitigation
   per doctor: fw task stale.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -23,8 +23,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T00:00:22Z
-last_update: 2026-10-26T15:21:41Z
-date_finished:
+last_update: 2026-11-01T23:43:56Z
+date_finished: 2026-11-01T23:43:56Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -49,6 +49,17 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:43:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 4
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=4 (body:fw-audit-or-doctor); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-25T00:07:08Z'
     estimator: bvp-estimator-v1-heuristic
@@ -67,11 +78,16 @@ cost_estimate_proposed:
 
 Broad review, not a mechanical fix -- deciding which of 71 stale tasks are abandoned vs. legitimately dormant is a judgement call.
 
+**Background / trigger:** `fw doctor` WARN: 71 tasks had no updates in 7+ days.
+**Problem / hypothesis:** A stale backlog hides live work among abandoned and dormant tasks, and sorting them is a judgement call.
+**Goal:** Triage the stale tasks: close, re-activate, or explicitly park each one.
+**Expected outcome:** Every stale task has a disposition. Superseded by T-3648, which triaged all 343 open tasks.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Human runs fw task stale and triages the 71 tasks (close, re-activate, or explicitly park)
+- [x] Human runs fw task stale and triages the 71 tasks (close, re-activate, or explicitly park). Superseded by the T-3648 backlog triage, which sorted every file in .tasks/active/ (343, a superset of the 71) into close / reviewer / operator / live / park groups. The operator ruled on it on 2026-11-02 ("about 1: yes"). (evidence: docs/reports/T-3648-backlog-triage.md, git 9f9e40b53)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -167,7 +183,7 @@ Broad review, not a mechanical fix -- deciding which of 71 stale tasks are aband
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-true
+grep -q 'Read-only sort of every file in `.tasks/active/` (343)' docs/reports/T-3648-backlog-triage.md
 
 ## RCA
 
@@ -208,6 +224,11 @@ true
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-11-02 — superseded by the full backlog triage
+- **What changed:** The stale-task question was answered at full scale. T-3648 triaged all 343 active tasks, judging activity by the last commit that names the task rather than by file date, since estimators rewrite task files.
+- **Plan impact:** Triaging just the 71 stale tasks is no longer a separate job.
+- **Triggered:** The T-3648 close / reviewer / operator / park lists. This task is closed under close-2.
 
 ## Recommendation
 
@@ -269,3 +290,19 @@ true
 ### 2026-10-26T15:21:41Z — status-update [task-update-agent]
 - **Change:** owner: human → agent
 - **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion
+
+### 2026-11-01T23:43:14Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-01T23:43:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-751f2648
+- **Timestamp:** 2026-11-01T23:43:57Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
