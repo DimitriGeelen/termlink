@@ -1,0 +1,128 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3612: Re-derive TermLink purpose, intent and direction from the bleeding edge (5 external seats, synthesis, operator dialogue, sharpened single purpose/objectives/drivers)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T16:03:50Z
+# ============================================================================
+
+task_id: T-3612
+task_name: "Re-derive TermLink purpose, intent and direction from the bleeding edge (5 external seats, synthesis, operator dialogue, sharpened single purpose/objectives/drivers)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-27T21:26:18Z
+completed: 2026-11-01T16:03:43Z
+duration_days: 5
+updates_count: 3
+first_commit: 2026-10-27T23:04:13+01:00
+last_commit: 2026-11-01T17:03:44+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  inception filed — re-derive TermLink purpose from the bleeding edge (operator voi 0.9); IW-1..3, research artifact, round 1 dispatched to five seats. round 1 — four independent vendor reads saved (claude, codex, antigravity, opencode via GitHub); local seat unavailable (no LiteLLM proxy). round 2 synthesis — common ground, 9 divergences (7 real choices Q1-Q7), document contradictions, composite draft for discussion. dialogue log — Q1 (delivery is end-to-end into a live agent), Q2 (TermLink routes for deliverability, not strategy), OD-10/OD-15 confirmed as the fall-back ladder. Q3-Q5 confirmed by earlier rulings (T-3304, OD-1, O-7/OQ-2); Q6 deferred to fleet data; T-3615 filed (all-worker usage + outcome telemetry). Q7 ruled D′ — product vs development-project layers; AEF/ring20 chores leave runme, dev-project canary cap, objectives/drivers split. round 4 draft v0.1 (operator ruling C: operator reads first) — purpose, P-1..P-7, product drivers, non-goals, DP-1..DP-4. record round-4 ruling C. round 4 draft v0.2 — recall in both sets (operator ruling B): product F-RECALL redefined and bounded by Q3, dev project F-RECALL + DP-5. outside review round 1 of draft (claude, codex, antigravity; opencode failed) + synthesis; draft v0.3 folds in what they agreed on. purpose sentence ruled E (finds, wakes, hands over, shows until an agent can act or it is loudly stuck); draft v0.4. inception decision GO (via Watchtower)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-28 — Q7: is governance and operations machinery part of TermLink? D′ two layers (operator ruling)'
+    chose: 'D′. The repo holds two layers, as AEF holds the framework plus a vendored instance of itself: (1a) TermLink the product, which is what a release ships (`cargo build -p termlink`, release.yml:169; plus install script and Homebrew formula); (1b) the TermLink development project, run as an AEF consumer (tasks, runme.sh, the 98 check-*.sh guards, 46 cron files, review ledgers, and the operation of our own fleet). Governance machinery is part of 1b, not of the product, and rightly lives in this repo. Concretely: 6a AEF''s chores leave runme.sh for AEF''s `fw runme` (actions 11, 11b, 11c, 13, 16) and ring20''s for ring20 (action 22); 6b governance guards stay as dev-project tooling, generic ones offered upstream only where AEF lacks them; 6c a cap on dev-project canaries (one in, one out); 6d label the layers: objectives and value drivers split into product and project sets, README/charter say which layer they describe, external briefs say "the product is crates/ and the release; the rest is how we build it".'
+    rationale: 'operator, 2026-10-28: "differentiate between the TermLink development project … and the TermLink application … just as AEF does it, we also eat our own dog food". The round-1 reviewers read the repo as one thing and counted dev-project guards as product surface; objectives.yaml and policy/value-drivers.yaml mix both layers, so D1 scores a new dev-project canary as product progress.'
+    alternatives_rejected: ['A move everything out (takes product-proving canaries away from their code, cross-repo cron migration risk); B cap only (leaves AEF chores going stale here); C lower D1 only (moves nothing); D as first briefed (treated governance guards as misplaced, which the two-layer view dissolves). - **Left open:** the cap''s number (6c) and D1''s weight (option C) fold into round 4''s driver work; running our own fleet is counted as 1b, and the ring20-side part moves to ring20 if they come to own their hosts. Round 4 writes the single purpose, objectives and drivers for 1a, plus a short separate 1b set.']
+  - decision: '2026-10-28 — round 4: draft now, operator reads first, then outside review (operator ruling C)'
+    chose: 'C. Draft from Q1–Q7, operator reads and corrects it, then at most 2 rounds of outside review by the subscription seats (claude, codex, antigravity, opencode). Q6 stays marked open (pending T-3615 data). Draft v0.1: docs/reports/T-3612-round4-draft.md.'
+    rationale: 'the operator''s answers are the draft''s substance; review then tests a draft the operator stands behind.'
+    alternatives_rejected: ['A (review before the operator reads: may spend a round on wording the operator rejects); B (wait for telemetry: weeks on a known-wrong yardstick); D (stop: leaves the mixed-layer yardstick, against Q7).']
+  - decision: '2026-10-28 — the purpose sentence: E (operator ruling)'
+    chose: 'E. "TermLink makes sure every message reaches the recipient it is meant for: it finds that recipient, wakes it in its terminal when it must, hands the message over, and shows where it is until an agent that can act has it, or it is loudly stuck." Scope sentence after it: "It is the base layer: it records work handed off between agents, and leaves what work to do, and who should do it, to the framework above."'
+    rationale: 'operator: the essence is reaching the recipient, and more than brokerage: the recipient is found, addressed and activated. Handed-off work is message content, so naming it in the sentence reads as orchestration. "Meant for" means the addressed recipient or role holder, never the best one for the job. "Or loudly stuck" answers the reviewers: TermLink cannot force an agent to act, but makes every stop visible.'
+    alternatives_rejected: ['A, A-short, B, C, D (dialogue log item 15; review synthesis C.14). - **Left open:** adoption of the whole draft (charter, its guard and copies change only then).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/human-ac-ticks.jsonl'
+  - 'docs/reports/T-3612-purpose-rederivation.md'
+  - 'docs/reports/T-3612-round4-draft.md'
+  - 'docs/reports/T-3612-round4-review-synthesis.md'
+  - 'docs/reports/T-3612-seats/round1-antigravity.md'
+  - 'docs/reports/T-3612-seats/round1-claude.md'
+  - 'docs/reports/T-3612-seats/round1-codex.md'
+  - 'docs/reports/T-3612-seats/round1-opencode.md'
+  - 'docs/reports/T-3612-seats/round4-antigravity.md'
+  - 'docs/reports/T-3612-seats/round4-claude.md'
+  - 'docs/reports/T-3612-seats/round4-codex.md'
+  - 'docs/reports/T-3612-seats/round4-opencode.md'
+  - 'docs/reports/T-3612-synthesis-round2.md'
+  - '.tasks/active/T-3612-re-derive-termlink-purpose-intent-and-di.md'
+  - '.tasks/active/T-3615-fleet-usage--worker-outcome-telemetry-at.md'
+  - '.tasks/completed/T-3612-re-derive-termlink-purpose-intent-and-di.md'
+  - '.tasks/.id-highwater'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-27T23:04:13'
+    action: 'T-3612: inception filed — re-derive TermLink purpose from the bleeding edge (operator voi 0.9); IW-1..3, research artifact, round 1 dispatched to five seats'
+  - time: '2026-10-27T23:17:24'
+    action: 'T-3612: round 1 — four independent vendor reads saved (claude, codex, antigravity, opencode via GitHub); local seat unavailable (no LiteLLM proxy)'
+  - time: '2026-10-27T23:19:42'
+    action: 'T-3612: round 2 synthesis — common ground, 9 divergences (7 real choices Q1-Q7), document contradictions, composite draft for discussion'
+  - time: '2026-10-27T23:38:53'
+    action: 'T-3612: dialogue log — Q1 (delivery is end-to-end into a live agent), Q2 (TermLink routes for deliverability, not strategy), OD-10/OD-15 confirmed as the fall-back ladder'
+  - time: '2026-10-28T01:11:47'
+    action: 'T-3612: Q3-Q5 confirmed by earlier rulings (T-3304, OD-1, O-7/OQ-2); Q6 deferred to fleet data; T-3615 filed (all-worker usage + outcome telemetry)'
+  - time: '2026-10-28T16:52:10'
+    action: 'T-3612: Q7 ruled D′ — product vs development-project layers; AEF/ring20 chores leave runme, dev-project canary cap, objectives/drivers split'
+  - time: '2026-10-28T19:49:16'
+    action: 'T-3612: round 4 draft v0.1 (operator ruling C: operator reads first) — purpose, P-1..P-7, product drivers, non-goals, DP-1..DP-4'
+  - time: '2026-10-28T19:49:26'
+    action: 'T-3612: record round-4 ruling C'
+  - time: '2026-10-28T20:18:48'
+    action: 'T-3612: round 4 draft v0.2 — recall in both sets (operator ruling B): product F-RECALL redefined and bounded by Q3, dev project F-RECALL + DP-5'
+  - time: '2026-10-28T20:33:26'
+    action: 'T-3612: outside review round 1 of draft (claude, codex, antigravity; opencode failed) + synthesis; draft v0.3 folds in what they agreed on'
+  - time: '2026-10-28T21:22:10'
+    action: 'T-3612: purpose sentence ruled E (finds, wakes, hands over, shows until an agent can act or it is loudly stuck); draft v0.4'
+  - time: '2026-11-01T17:03:44'
+    action: 'T-3612: inception decision GO (via Watchtower)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 12 commit(s), 6877 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6877
+  commits: 13
+  files_changed: 19
+  lines_added: 2161
+  lines_removed: 81
+  footprint_refreshed_at: '2026-11-01T16:03:53Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3612-re-derive-termlink-purpose-intent-and-di.md
+generated_by: context-agent-hybrid
