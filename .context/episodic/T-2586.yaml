@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2586: DESIGN: find-idle fixed 60s LIVE window vs listeners 2x-interval dispatch-window contract
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:58:56Z
+# ============================================================================
+
+task_id: T-2586
+task_name: "DESIGN: find-idle fixed 60s LIVE window vs listeners 2x-interval dispatch-window contract"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-09T22:00:16Z
+completed: 2026-11-01T23:58:48Z
+duration_days: 84
+updates_count: 4
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  DESIGN needs-human: two discovery surfaces use different LIVE-window definitions. find-idle uses fixed DEFAULT_LIVE_WINDOW_MS=60000 ignoring the agents advertised interval (channel.rs:2129); listeners uses the envelopes own interval LIVE age<=2x interval_secs default 30 (agent-listeners.sh line 90). An agent with interval 120 shows LIVE in peers to age 240s but drops from find-idle at age over 60s: between 60s and 240s peers says LIVE and find-idle says none, dispatch stalls. Needs human call: honor advertised interval_secs in find_idle or document find-idle uses a fixed dispatch window independent of cadence. From T-2468 verb-1 hunt.
+
+# Key outcomes
+outcomes:
+  - 'Duplicate of T-2600: the same find_idle fixed-60s vs listeners 2×interval divergence (channel.rs:2722, still `60_000` on 2026-11-02) is tracked there, with its open design call; closed here so it is not worked twice (evidence: T-2600 is in .tasks/active/; T-3648 triage)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 121078 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 121078
+  commits: 2
+  files_changed: 11
+  lines_added: 502
+  lines_removed: 19
+  footprint_refreshed_at: '2026-11-01T23:59:01Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2586-design-find-idle-fixed-60s-live-window-v.md
+generated_by: context-agent-hybrid

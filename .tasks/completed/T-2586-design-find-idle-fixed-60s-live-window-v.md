@@ -12,10 +12,10 @@ description: >
   call: honor advertised interval_secs in find_idle or document find-idle uses a fixed
   dispatch window independent of cadence. From T-2468 verb-1 hunt.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -24,8 +24,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T22:00:16Z
-last_update: 2026-10-26T15:21:34Z
-date_finished:
+last_update: 2026-11-01T23:58:48Z
+date_finished: 2026-11-01T23:58:48Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +50,17 @@ bvp_scores_proposed:
       (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
       (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:58:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-08T21:30:38Z'
     estimator: bvp-estimator-v1-heuristic
@@ -66,14 +77,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Found in the T-2468 verb-1 hunt. find-idle uses a fixed `DEFAULT_LIVE_WINDOW_MS = 60_000` (crates/termlink-hub/src/channel.rs:2722), while agent-listeners treats an agent as LIVE up to 2× its advertised interval. The same divergence was filed again as T-2600.
+**Problem / hypothesis:** An agent advertising a 120s interval shows LIVE in peers until age 240s, but drops out of find-idle after 60s, so dispatch stalls in between. Fixing it needs a design call: honour interval_secs, or document a fixed dispatch window.
+**Goal:** Keep this design question in one place.
+**Expected outcome:** This task closes as a duplicate. The design call and fix stay open under T-2600, which is still active (T-3648 triage, operator ruling 2026-11-02).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Duplicate of T-2600: the same find_idle fixed-60s vs listeners 2×interval divergence (channel.rs:2722, still `60_000` on 2026-11-02) is tracked there, with its open design call; closed here so it is not worked twice (evidence: T-2600 is in .tasks/active/; T-3648 triage)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -138,6 +151,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+ls .tasks/active/ .tasks/completed/ > .context/working/.v-t2586.out 2>&1 && grep -q '^T-2600-' .context/working/.v-t2586.out
 
 ## RCA
 
@@ -210,3 +224,20 @@ cost_estimate_proposed:
 ### 2026-10-26T15:21:34Z — status-update [task-update-agent]
 - **Change:** owner: human → agent
 - **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion
+
+### 2026-11-01T23:58:19Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-01T23:58:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-159ed5c8
+- **Timestamp:** 2026-11-01T23:58:49Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
