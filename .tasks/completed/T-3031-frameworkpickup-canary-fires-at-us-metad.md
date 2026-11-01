@@ -17,10 +17,10 @@ description: >
   code (G-062): file upstream, do not patch locally. Evidence: docs/reports/T-2984-pickup-consumer-design.md
   sections Measurements and F3.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -35,8 +35,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T20:48:00Z
-last_update: '2026-09-22T14:57:41Z'
-date_finished:
+last_update: 2026-11-01T23:39:08Z
+date_finished: 2026-11-01T23:39:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -61,6 +61,17 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:38:27Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-22T14:57:41Z'
     estimator: bvp-estimator-v1-heuristic
@@ -77,14 +88,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-2984 exploration measured that 5 of 6 framework:pickup filings past the ack point were our own echo (docs/reports/T-2984-pickup-consumer-design.md).
+**Problem / hypothesis:** `lib/pickup-channel-bridge.sh` posted without stamping `metadata.from_project`, so the T-2816 self-filter could not recognise our own filings and the canary fired at them. The code is vendored, so it was filed upstream (G-062).
+**Goal:** Our own pickup filings carry `from_project`, so the self-filter can exclude them.
+**Expected outcome:** The bridge posts through `rail_post_exec`, which stamps `from_project`. Upstream shipped this as T-2913 and it is in the vendored copy.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Fixed upstream (T-2913) and present in the vendored copy: the pickup bridge sources lib/rail-identity.sh and posts via `rail_post_exec`, which adds `--metadata from_project=$(rail_project_label)` unless the caller set one. (evidence: .agentic-framework/lib/pickup-channel-bridge.sh:81-99; .agentic-framework/lib/rail-identity.sh:243-253; framework-pickup-canary HEALTHY on 2026-11-02 per T-3648 triage)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -179,6 +192,8 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q 'rail_post_exec termlink' .agentic-framework/lib/pickup-channel-bridge.sh
+grep -q 'extra=(--metadata "from_project=$(rail_project_label)")' .agentic-framework/lib/rail-identity.sh
 
 ## RCA
 
@@ -195,6 +210,11 @@ cost_estimate_proposed:
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** The framework:pickup canary fired on filings past the ack point, and 5 of 6 at offsets 126-131 were our own (T-2984 measurements).
+**Root cause:** The pickup bridge posted with a plain `termlink channel post --payload-from-file` and never stamped `metadata.from_project`. The T-2816 self-filter had no attribution to exclude, and unknown attribution fires by design.
+**Why structurally allowed:** The self-filter was only exercised in the case where attribution is present. Nothing checked that the sender side actually set it.
+**Prevention:** Upstream T-2913 routes the bridge through `rail_post_exec`, which always stamps `from_project` (a floor the caller can override). The verification lines above pin both halves in the vendored copy.
 
 ## Evolution
 
@@ -276,3 +296,20 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3031-frameworkpickup-canary-fires-at-us-metad.md
 - **Context:** Initial task creation
+
+### 2026-11-01T23:38:26Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-01T23:39:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6ade6a75
+- **Timestamp:** 2026-11-01T23:39:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

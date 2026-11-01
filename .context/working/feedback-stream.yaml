@@ -21867,3 +21867,21 @@ scan_id: R-dac08472
 task_id: T-3027
 payload:
   task_file: .tasks/active/T-3027-pickup-fw-pickup-process-is-unserialised.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:39:09Z'
+scan_id: R-6ade6a75
+task_id: T-3031
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:39:09Z'
+scan_id: R-6ade6a75
+task_id: T-3031
+payload:
+  task_file: .tasks/active/T-3031-frameworkpickup-canary-fires-at-us-metad.md

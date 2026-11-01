@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3031: framework:pickup canary fires at us: metadata.from_project is not sender-settable, so most filings past the ack point are our own echo
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:39:19Z
+# ============================================================================
+
+task_id: T-3031
+task_name: "framework:pickup canary fires at us: metadata.from_project is not sender-settable, so most filings past the ack point are our own echo"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-20T20:48:00Z
+completed: 2026-11-01T23:39:08Z
+duration_days: 42
+updates_count: 3
+first_commit: 2026-09-20T22:49:04+02:00
+last_commit: 2026-09-20T22:49:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file the framework:pickup attribution leak as its own task
+
+# Key outcomes
+outcomes:
+  - 'Fixed upstream (T-2913) and present in the vendored copy: the pickup bridge sources lib/rail-identity.sh and posts via `rail_post_exec`, which adds `--metadata from_project=$(rail_project_label)` unless the caller set one. (evidence: .agentic-framework/lib/pickup-channel-bridge.sh:81-99; .agentic-framework/lib/rail-identity.sh:243-253; framework-pickup-canary HEALTHY on 2026-11-02 per T-3648 triage)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3031-frameworkpickup-canary-fires-at-us-metad.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T22:49:04'
+    action: 'T-3031: file the framework:pickup attribution leak as its own task'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 60651 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 60651
+  commits: 2
+  files_changed: 4
+  lines_added: 379
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-01T23:39:24Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3031-frameworkpickup-canary-fires-at-us-metad.md
+generated_by: context-agent-hybrid
