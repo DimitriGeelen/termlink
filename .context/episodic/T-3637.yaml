@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3637: runme action 26: close arc mcp-slimming with fresh guard evidence (T-2408 operator ruling A)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T08:42:23Z
+# ============================================================================
+
+task_id: T-3637
+task_name: "runme action 26: close arc mcp-slimming with fresh guard evidence (T-2408 operator ruling A)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-01T00:01:12Z
+completed: 2026-11-01T08:42:15Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-01T01:15:59+01:00
+last_commit: 2026-11-01T09:42:14+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 26 — close arc mcp-slimming with fresh guard evidence (T-2408 ruling A); 5 hermetic fixture cases, suite 238/238. arc mcp-slimming closed by the operator's runme run (2026-11-01, rc 0, verified); demo committed; action 26 removed as permanently done (fixtures 233/233); stale-arc audit acknowledgement removed
+
+# Key outcomes
+outcomes:
+  - 'Action 26 in runme.sh: skip when the arc already reads `closed`; FAILED (nothing closed) when the guard does not'
+  - 'Hermetic fixture cases in tests/runme-fixtures.sh (scratch arc dir, fake guard, fake fw) for: dry-run, close,'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'arc mcp-slimming closed by the operator''s runme run (2026-11-01, rc 0, verified); demo committed; action 26 removed as permanently done (fixtures 233/233); stale-arc audit acknowledgement removed'
+    source: git-mined
+  - description: 'runme action 26 — close arc mcp-slimming with fresh guard evidence (T-2408 ruling A); 5 hermetic fixture cases, suite 238/238'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/mcp-slimming.yaml'
+  - '.context/checks/audit-warning-allowlist'
+  - '.tasks/active/T-3637-runme-action-26-close-arc-mcp-slimming-w.md'
+  - 'docs/reports/arc-005-close-demo.txt'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-01T01:15:59'
+    action: 'T-3637: runme action 26 — close arc mcp-slimming with fresh guard evidence (T-2408 ruling A); 5 hermetic fixture cases, suite 238/238'
+  - time: '2026-11-01T09:42:14'
+    action: 'T-3637: arc mcp-slimming closed by the operator''s runme run (2026-11-01, rc 0, verified); demo committed; action 26 removed as permanently done (fixtures 233/233); stale-arc audit acknowledgement removed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 521 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 521
+  commits: 3
+  files_changed: 9
+  lines_added: 616
+  lines_removed: 98
+  footprint_refreshed_at: '2026-11-01T08:42:29Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3637-runme-action-26-close-arc-mcp-slimming-w.md
+generated_by: context-agent-hybrid

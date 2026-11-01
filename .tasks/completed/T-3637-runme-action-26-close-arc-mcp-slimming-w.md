@@ -4,12 +4,12 @@ name: "runme action 26: close arc mcp-slimming with fresh guard evidence (T-2408
 description: >
   runme action 26: close arc mcp-slimming with fresh guard evidence (T-2408 operator ruling A)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T00:01:12Z
-last_update: 2026-11-01T08:42:14Z
-date_finished: null
+last_update: 2026-11-01T08:42:15Z
+date_finished: 2026-11-01T08:42:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -384,3 +384,21 @@ grep -q "RESULT: PASS" docs/reports/arc-005-close-demo.txt
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3637-runme-action-26-close-arc-mcp-slimming-w.md
 - **Context:** Initial task creation
+
+### 2026-11-01T08:42:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e6966646
+- **Timestamp:** 2026-11-01T08:42:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Hermetic fixture cases in tests/runme-fixtures.sh (scratch arc dir, fake guard, fake fw) for: dry-run, close,
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/runme-fixtures.sh in: Hermetic fixture cases in tests/runme-fixtures.sh (scratch arc dir, fake guard, fake fw) for: dry-run, close,`
