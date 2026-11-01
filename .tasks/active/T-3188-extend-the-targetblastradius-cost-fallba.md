@@ -52,7 +52,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-27T19:56:46Z
-last_update: 2026-10-26T15:21:43Z
+last_update: 2026-11-01T23:51:23Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -93,6 +93,11 @@ cost_estimate_proposed:
 # T-3188: Extend the target_blast_radius cost fallback to all workflow types
 
 ## Context
+
+**Background / trigger:** The BVP cost estimator only used `target_blast_radius` as a fallback for inception tasks, so most tasks were uncosted (211 of 248).
+**Problem / hypothesis:** Extending the fallback to every workflow type should let more tasks get a cost without inventing numbers.
+**Goal:** Apply the fallback to all workflow types. `components:` still wins, and an absent field stays UNMEASURED. Register it as a vendor divergence and file it upstream.
+**Expected outcome:** The code path works for all types (pinned by fixtures). Measured: the costable count did not rise, because only the inception template carries the field. That goal was met later by T-3189's evidence-derived blast radius.
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
@@ -363,3 +368,8 @@ bash scripts/check-vendor-divergence.sh
 ### 2026-10-26T15:21:43Z — status-update [task-update-agent]
 - **Change:** owner: human → agent
 - **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion
+
+### 2026-11-02 — T-3648 close-2: NOT closed
+- Verification passes today (fixtures 19/0; vendor divergence all registered).
+- The one open criterion records a FAILURE (costable count unchanged, 211/248), and it was routed to operator review in 453e75e44. The triage says the goal was met by T-3189 (quadrant 6 → 111). But T-3189 is itself still `started-work`, and no operator ruling accepting the failed criterion is recorded here. Ticking it would assert the opposite of what it says.
+- Closes when T-3189 closes (cite its measurement) or the operator accepts the criterion as superseded.
