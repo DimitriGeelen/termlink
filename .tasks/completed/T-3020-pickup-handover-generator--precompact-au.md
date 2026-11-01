@@ -5,10 +5,10 @@ name: "Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b F
 description: >
   Auto-created from pickup envelope. Source: 010-termlink, task T-3015. Type: bug-report.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -23,8 +23,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T13:20:02Z
-last_update: 2026-10-22T09:32:27Z
-date_finished:
+last_update: 2026-11-01T23:32:17Z
+date_finished: 2026-11-01T23:32:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -67,14 +67,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** `fw pickup process` created three identical tasks (T-3019, T-3020, T-3021) from one envelope, P-079 (see DISPOSITION below).
+**Problem / hypothesis:** This file is a duplicate from that race. Its substance, the handover/PreCompact D8 FAIL, was filed upstream under T-3015.
+**Goal:** Take the duplicate off the open backlog (T-3648 triage, operator ruling 2026-11-02).
+**Expected outcome:** The task is closed as a duplicate with evidence that T-3015 is closed. No code changes.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Duplicate (pickup race of envelope P-079, canonical T-3019); the substance was filed upstream and closed under T-3015. No work of its own. (evidence: .tasks/completed/T-3015-handover-generator-emits-5-unfilled-todo.md status work-completed; T-3648 triage)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -169,6 +171,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q '^status: work-completed' .tasks/completed/T-3015-handover-generator-emits-5-unfilled-todo.md
 
 ## RCA
 
@@ -185,6 +188,12 @@ cost_estimate_proposed:
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+This RCA covers why this file exists, not the reported bug. The reported bug's substance was handled upstream under T-3015.
+**Symptom:** One pickup envelope, P-079, produced three identical tasks (T-3019, T-3020, T-3021).
+**Root cause:** `fw pickup process` had no mutual exclusion, and it wrote its dedup row about 60s after creating the task. Concurrent cron runs each created a task (diagnosed in T-3025).
+**Why structurally allowed:** No lock or dedup-before-create check existed in the pickup path.
+**Prevention:** Tracked and closed in T-3025 (.tasks/completed/T-3025-fw-pickup-process-creates-three-identica.md).
 
 ## Evolution
 
@@ -267,6 +276,9 @@ cost_estimate_proposed:
 - **Output:** /opt/termlink/.tasks/active/T-3020-pickup-handover-generator--precompact-au.md
 - **Context:** Initial task creation
 
+### 2026-11-01T23:32:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
 ## DISPOSITION (arc-008, recorded under the pickup-race task)
 
 **Race artifact. No work to do here; do not start this task.**
@@ -290,3 +302,13 @@ removes it from the suggestion set without making a false claim.
 ### 2026-09-28T22:26:08Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-90fc9179
+- **Timestamp:** 2026-11-01T23:32:18Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

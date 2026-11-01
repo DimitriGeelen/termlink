@@ -1,0 +1,146 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3020: Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b FAIL every (from 010-termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:32:24Z
+# ============================================================================
+
+task_id: T-3020
+task_name: "Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b FAIL every (from 010-termlink)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-20T13:20:02Z
+completed: 2026-11-01T23:32:17Z
+duration_days: 42
+updates_count: 2
+first_commit: 2026-09-20T19:09:54+02:00
+last_commit: 2026-10-22T11:32:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Session handover S-2026-0920-1909. Session handover S-2026-0920-2110. Session handover S-2026-0920-2311. Session handover S-2026-0921-0114. Session handover S-2026-0921-1242. Session handover S-2026-0921-1625. Session handover S-2026-0921-2130. Session handover S-2026-0922-1012. Session handover S-2026-0923-1904. Session handover S-2026-0926-0928. Session handover S-2026-0928-2023. Session handover S-2026-0930-2139. Session handover S-2026-1002-0117. Session handover S-2026-1003-1305. Session handover S-2026-1006-1222. Session handover S-2026-1008-1203. Session handover S-2026-1011-2239. Session handover S-2026-1012-1647. Session handover S-2026-1015-1823. Session handover S-2026-1017-2107 (filled). Session handover S-2026-1018-1554. Session handover S-2026-1021-0207. Session handover S-2026-1022-1127. handover S-2026-1022-1127 — decisions, failures, open questions and gotchas filled
+
+# Key outcomes
+outcomes:
+  - 'Duplicate (pickup race of envelope P-079, canonical T-3019); the substance was filed upstream and closed under T-3015. No work of its own. (evidence: .tasks/completed/T-3015-handover-generator-emits-5-unfilled-todo.md status work-completed; T-3648 triage)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/handovers/LATEST.md'
+  - '.context/handovers/S-2026-0920-1909.md'
+  - '.context/handovers/S-2026-0920-2110.md'
+  - '.context/handovers/S-2026-0920-2311.md'
+  - '.context/handovers/S-2026-0921-0114.md'
+  - '.context/handovers/S-2026-0921-1242.md'
+  - '.context/handovers/S-2026-0921-1625.md'
+  - '.context/handovers/S-2026-0921-2130.md'
+  - '.context/handovers/S-2026-0922-1012.md'
+  - '.context/handovers/S-2026-0923-1904.md'
+  - '.context/handovers/S-2026-0926-0928.md'
+  - '.context/handovers/S-2026-0928-2023.md'
+  - '.context/handovers/S-2026-0930-2139.md'
+  - '.context/handovers/S-2026-1002-0117.md'
+  - '.context/handovers/S-2026-1003-1305.md'
+  - '.context/handovers/S-2026-1006-1222.md'
+  - '.context/handovers/S-2026-1008-1203.md'
+  - '.context/handovers/S-2026-1011-2239.md'
+  - '.context/handovers/S-2026-1012-1647.md'
+  - '.context/handovers/S-2026-1015-1823.md'
+  - '.context/handovers/S-2026-1017-2107.md'
+  - '.context/handovers/S-2026-1018-1554.md'
+  - '.context/handovers/S-2026-1021-0207.md'
+  - '.context/handovers/S-2026-1022-1127.md'
+  - '.tasks/active/T-3020-pickup-handover-generator--precompact-au.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T19:09:54'
+    action: 'T-3020: Session handover S-2026-0920-1909'
+  - time: '2026-09-20T21:10:28'
+    action: 'T-3020: Session handover S-2026-0920-2110'
+  - time: '2026-09-20T23:11:30'
+    action: 'T-3020: Session handover S-2026-0920-2311'
+  - time: '2026-09-21T01:15:13'
+    action: 'T-3020: Session handover S-2026-0921-0114'
+  - time: '2026-09-21T12:42:45'
+    action: 'T-3020: Session handover S-2026-0921-1242'
+  - time: '2026-09-21T16:25:33'
+    action: 'T-3020: Session handover S-2026-0921-1625'
+  - time: '2026-09-21T21:30:40'
+    action: 'T-3020: Session handover S-2026-0921-2130'
+  - time: '2026-09-22T10:12:22'
+    action: 'T-3020: Session handover S-2026-0922-1012'
+  - time: '2026-09-23T19:04:22'
+    action: 'T-3020: Session handover S-2026-0923-1904'
+  - time: '2026-09-26T09:29:18'
+    action: 'T-3020: Session handover S-2026-0926-0928'
+  - time: '2026-09-28T20:23:54'
+    action: 'T-3020: Session handover S-2026-0928-2023'
+  - time: '2026-09-30T21:40:24'
+    action: 'T-3020: Session handover S-2026-0930-2139'
+  - time: '2026-10-02T01:17:34'
+    action: 'T-3020: Session handover S-2026-1002-0117'
+  - time: '2026-10-03T13:06:08'
+    action: 'T-3020: Session handover S-2026-1003-1305'
+  - time: '2026-10-06T12:22:53'
+    action: 'T-3020: Session handover S-2026-1006-1222'
+  - time: '2026-10-08T12:04:16'
+    action: 'T-3020: Session handover S-2026-1008-1203'
+  - time: '2026-10-11T22:39:48'
+    action: 'T-3020: Session handover S-2026-1011-2239'
+  - time: '2026-10-12T16:48:14'
+    action: 'T-3020: Session handover S-2026-1012-1647'
+  - time: '2026-10-15T18:24:16'
+    action: 'T-3020: Session handover S-2026-1015-1823'
+  - time: '2026-10-17T21:09:27'
+    action: 'T-3020: Session handover S-2026-1017-2107 (filled)'
+  - time: '2026-10-18T15:55:20'
+    action: 'T-3020: Session handover S-2026-1018-1554'
+  - time: '2026-10-21T02:09:38'
+    action: 'T-3020: Session handover S-2026-1021-0207'
+  - time: '2026-10-22T11:29:05'
+    action: 'T-3020: Session handover S-2026-1022-1127'
+  - time: '2026-10-22T11:32:26'
+    action: 'T-3020: handover S-2026-1022-1127 — decisions, failures, open questions and gotchas filled'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 24 commit(s), 61092 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 61092
+  commits: 25
+  files_changed: 28
+  lines_added: 7907
+  lines_removed: 39
+  footprint_refreshed_at: '2026-11-01T23:32:36Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3020-pickup-handover-generator--precompact-au.md
+generated_by: context-agent-hybrid
