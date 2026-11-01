@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2492: channel request reply-correlation accepts an unrelated no-request_id event as the reply
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:58:02Z
+# ============================================================================
+
+task_id: T-2492
+task_name: "channel request reply-correlation accepts an unrelated no-request_id event as the reply"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-02T09:11:32Z
+completed: 2026-11-01T23:57:54Z
+duration_days: 91
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cmd_request (crates/termlink-cli/src/commands/execution.rs:261-265) correlates a reply via .map(|r| r == request_id).unwrap_or(true) — a reply event carrying NO request_id matches ANY outstanding request (unwrap_or(true)). With two 'termlink request' calls in flight on the same reply_topic, a no-id reply arriving after both emits is grabbed by the first waiter as its reply => wrong payload returned. The since-cursor (:182-193) correctly excludes pre-request history, limiting this to concurrent/unlabeled-reply cases. Fix: treat missing request_id as non-match (unwrap_or(false)), or apply the lenient fallback only when exactly one request is outstanding; add a test with a no-id event on the topic. Directive-#2. Caveat: may be intended leniency for repliers that don't echo the id — confirm intent before changing. Found by firing-#13 adversarial audit (candidate #2).
+
+# Key outcomes
+outcomes:
+  - 'Duplicate of T-2650: the same `unwrap_or(true)` reply-correlation bug (crates/termlink-cli/src/commands/execution.rs:280, still present 2026-11-02) is tracked and will be fixed there; closed here so it is not worked twice (evidence: T-2650 is in .tasks/active/; T-3648 triage, operator ruling 2026-11-02)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 131926 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 131926
+  commits: 1
+  files_changed: 3
+  lines_added: 134
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-01T23:58:13Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2492-channel-request-reply-correlation-accept.md
+generated_by: context-agent-hybrid

@@ -15,10 +15,10 @@ description: >
   for repliers that don't echo the id — confirm intent before changing. Found by firing-#13
   adversarial audit (candidate #2).
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T09:11:32Z
-last_update: '2026-09-08T21:30:38Z'
-date_finished:
+last_update: 2026-11-01T23:57:54Z
+date_finished: 2026-11-01T23:57:54Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -53,6 +53,17 @@ bvp_scores_proposed:
       (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
       (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:57:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-08T21:30:38Z'
     estimator: bvp-estimator-v1-heuristic
@@ -69,14 +80,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Found by the firing-#13 adversarial audit (candidate #2): `cmd_request` correlates a reply with `.map(|r| r == request_id).unwrap_or(true)`. The same defect was later filed again as T-2650.
+**Problem / hypothesis:** A reply with no `request_id` matches any outstanding request, so with two concurrent requests on one reply topic the first waiter can take the wrong payload.
+**Goal:** Track and fix this bug once, not twice.
+**Expected outcome:** This task closes as a duplicate. The fix and its regression test land under T-2650, which is still active (T-3648 triage, operator ruling 2026-11-02).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Duplicate of T-2650: the same `unwrap_or(true)` reply-correlation bug (crates/termlink-cli/src/commands/execution.rs:280, still present 2026-11-02) is tracked and will be fixed there; closed here so it is not worked twice (evidence: T-2650 is in .tasks/active/; T-3648 triage, operator ruling 2026-11-02)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -141,6 +154,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+ls .tasks/active/ .tasks/completed/ > .context/working/.v-t2492.out 2>&1 && grep -q '^T-2650-' .context/working/.v-t2492.out
 
 ## RCA
 
@@ -209,3 +223,25 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2492-channel-request-reply-correlation-accept.md
 - **Context:** Initial task creation
+
+### 2026-11-01T23:57:15Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-01T23:57:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-82436d86
+- **Timestamp:** 2026-11-01T23:57:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Duplicate of T-2650: the same `unwrap_or(true)` reply-correlation bug (crates/termlink-cli/src/commands/execution.rs:280, still present 2026-11-02) is tracked and will be fixed there; closed here so i
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/commands/execution.rs in: Duplicate of T-2650: the same `unwrap_or(true)` reply-correlation bug (crates/termlink-cli/src/commands/execution.rs:280, still present 2026-11-02) is`

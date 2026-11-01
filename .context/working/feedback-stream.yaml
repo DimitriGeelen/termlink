@@ -22245,3 +22245,21 @@ scan_id: R-9b924348
 task_id: T-3584
 payload:
   task_file: .tasks/active/T-3584-canary-release-publication-canary-is-fir.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:57:55Z'
+scan_id: R-82436d86
+task_id: T-2492
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:57:55Z'
+scan_id: R-82436d86
+task_id: T-2492
+payload:
+  task_file: .tasks/active/T-2492-channel-request-reply-correlation-accept.md
