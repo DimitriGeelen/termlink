@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-31T13:13:38Z
-last_update: 2026-11-01T11:18:35Z
+last_update: 2026-11-01T11:31:42Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -102,7 +102,8 @@ fires on a new one, and no more random fixture flakes of this class.
 - [x] A guard-layer static check (`scripts/check-pipefail-grep-q.sh`) fires on a new site, with fixtures and a mutant
   (a ratchet over `.context/checks/pipefail-grep-q-baseline`: 393 sites / 101 files on 2026-11-01; new or grown
   site FIRES, lower counts lower the baseline; `tests/pipefail-grep-q-fixtures.sh` 10/10 incl. mutant M1)
-- [ ] Guard layer: no new FAIL
+- [x] Guard layer: no new FAIL (2026-11-01, `.context/working/t3631/guard-final.out`: 1 FAIL check-drain-sink-caps
+  (pre-existing), 231 passed (+2: the ratchet and its fixtures), 3 WARN red — same as the T-3634 baseline)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -307,7 +308,21 @@ fires on a new one, and no more random fixture flakes of this class.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash scripts/check-pipefail-grep-q.sh > .context/working/.t3631-v1.out 2>&1 && grep -q "13 remaining in 6 file" .context/working/.t3631-v1.out
+bash tests/pipefail-grep-q-fixtures.sh > .context/working/.t3631-v2.out 2>&1 && grep -q " 0 failed" .context/working/.t3631-v2.out
+bash tests/install-sh-fixtures.sh > .context/working/.t3631-v3.out 2>&1 && grep -q " 0 failed" .context/working/.t3631-v3.out
+
 ## RCA
+
+**Symptom:** fixture suites failed different cases on different runs (runme fixtures T-3627; install-sh-fixtures
+picking the wrong artifact, guard-layer FAIL 2026-11-01), and AEF's Tier 0 / boundary hooks failed open (T-4920/4921).
+**Root cause:** `producer | grep -q` under `set -o pipefail`: grep exits on the first match, the producer takes
+SIGPIPE, the pipeline returns 141 and the condition reads "no match". Size- and timing-dependent, so it looks random
+(measured 2/300 for `ldd --version | grep -qi glibc`).
+**Why structurally allowed:** the L-387 guard (`check-verification-pipefail.sh`) scanned task Verification blocks
+only; 393 sites in 101 scripts and tests were never checked.
+**Prevention:** `scripts/check-pipefail-grep-q.sh` (guard layer, FAIL tier) is a ratchet: a new or grown site fails;
+13 deliberate non-executed sites remain under it. 380 sites converted (here-strings or grep without -q).
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
