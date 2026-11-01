@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3121: Arc arc-005 hit 100% closure threshold (2/2) without explicit fw arc close
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:43:07Z
+# ============================================================================
+
+task_id: T-3121
+task_name: "Arc arc-005 hit 100% closure threshold (2/2) without explicit fw arc close"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T23:59:39Z
+completed: 2026-11-01T23:42:58Z
+duration_days: 38
+updates_count: 4
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fw audit WARN (arc-completion, G-062 signature): arc-005 'MCP tool-description slimming' is 2/2 (100%) complete but still in-progress — the clearest closure candidate of the five flagged arcs.
+
+# Key outcomes
+outcomes:
+  - 'Human (or arc-005''s owner) captures wire-evidence and runs fw arc close arc-005, or records why it should stay open (evidence: .context/arcs/mcp-slimming.yaml status closed, closed_at 2026-11-01T08:35:14Z, closed_via human, prover scripts/test-mcp-desc-budget.sh; closed by the operator''s runme run, git ae1016ae3 / T-3637)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 54703 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 54703
+  commits: 1
+  files_changed: 2
+  lines_added: 122
+  lines_removed: 6
+  footprint_refreshed_at: '2026-11-01T23:43:12Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3121-arc-arc-005-hit-100-closure-threshold-22.md
+generated_by: context-agent-hybrid

@@ -6,10 +6,10 @@ description: >
   is 2/2 (100%) complete but still in-progress — the clearest closure candidate of
   the five flagged arcs.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -24,8 +24,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:59:39Z
-last_update: 2026-10-26T15:21:40Z
-date_finished:
+last_update: 2026-11-01T23:42:58Z
+date_finished: 2026-11-01T23:42:58Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +50,17 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:42:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-25T00:07:08Z'
     estimator: bvp-estimator-v1-heuristic
@@ -68,11 +79,16 @@ cost_estimate_proposed:
 
 Sovereign question belonging to arc-005's own owner -- the clearest closure candidate (100% complete).
 
+**Background / trigger:** fw audit WARN (arc-completion): arc-005 (mcp-slimming) was 2/2 complete but still in-progress.
+**Problem / hypothesis:** A finished arc left open stays in the arc-completion WARN indefinitely. Closing it is the operator's call.
+**Goal:** Either the arc is closed by its owner, or the reason it stays open is recorded.
+**Expected outcome:** .context/arcs/mcp-slimming.yaml shows status closed, so the WARN clears.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Human (or arc-005's owner) captures wire-evidence and runs fw arc close arc-005, or records why it should stay open
+- [x] Human (or arc-005's owner) captures wire-evidence and runs fw arc close arc-005, or records why it should stay open (evidence: .context/arcs/mcp-slimming.yaml status closed, closed_at 2026-11-01T08:35:14Z, closed_via human, prover scripts/test-mcp-desc-budget.sh; closed by the operator's runme run, git ae1016ae3 / T-3637)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -168,7 +184,8 @@ Sovereign question belonging to arc-005's own owner -- the clearest closure cand
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-true
+grep -q '^status: closed' .context/arcs/mcp-slimming.yaml
+grep -q '^closed_via: human' .context/arcs/mcp-slimming.yaml
 
 ## RCA
 
@@ -209,6 +226,11 @@ true
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-11-02 — closed by the operator, not by this task
+- **What changed:** The operator closed arc-005 through runme on 2026-11-01 (T-3637, git ae1016ae3), with a prover (scripts/test-mcp-desc-budget.sh) attached for the T-3288 arc-claim-drift check.
+- **Plan impact:** None remains here. This task only had to surface the question, and it is answered.
+- **Triggered:** Closed under the T-3648 backlog triage (operator ruling 2026-11-02).
 
 ## Recommendation
 
@@ -270,3 +292,24 @@ true
 ### 2026-10-26T15:21:40Z — status-update [task-update-agent]
 - **Change:** owner: human → agent
 - **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion
+
+### 2026-11-01T23:42:20Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-01T23:42:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1c1218cb
+- **Timestamp:** 2026-11-01T23:43:00Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Human (or arc-005's owner) captures wire-evidence and runs fw arc close arc-005, or records why it should stay open (evidence: .context/arcs/mcp-slimming.yaml status closed, closed_at 2026-11-01T08:35
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/test-mcp-desc-budget.sh in: Human (or arc-005's owner) captures wire-evidence and runs fw arc close arc-005, or records why it should stay open (evidence: .context/arcs/mcp-slimm`
