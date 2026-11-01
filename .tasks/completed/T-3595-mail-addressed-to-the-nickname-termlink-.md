@@ -1,13 +1,18 @@
 ---
 id: T-3595
-name: "DUPLICATE of T-3594 (created twice by mistake on 2026-10-27; do not work this one)"
+name: "DUPLICATE of T-3594 (created twice by mistake on 2026-10-27; do not work this
+  one)"
 description: >
-  2026-10-27: inbox:cacc73ea32b121dd/termlink held 22 posts (832 consult T-1115 plus 6 nudges, 055 T-588 proposal plus 6 nudges, dimitri-mint-dev disk request) because senders used termlink instead of 010-termlink. Nothing reads it. Fix: register an alias so the sidecar receiver also drains it (see .context/checks/addressed-aliases) or have the sender resolve the nickname; drain the backlog once answered.
+  2026-10-27: inbox:cacc73ea32b121dd/termlink held 22 posts (832 consult T-1115 plus
+  6 nudges, 055 T-588 proposal plus 6 nudges, dimitri-mint-dev disk request) because
+  senders used termlink instead of 010-termlink. Nothing reads it. Fix: register an
+  alias so the sidecar receiver also drains it (see .context/checks/addressed-aliases)
+  or have the sender resolve the nickname; drain the backlog once answered.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-26T23:11:28Z
-last_update: 2026-10-26T23:12:50Z
-date_finished: null
+last_update: 2026-11-01T23:58:17Z
+date_finished: 2026-11-01T23:58:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,11 +55,28 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-01T23:57:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3595: Mail addressed to the nickname termlink lands in an inbox no agent reads
 
 ## Context
+
+**Background / trigger:** On 2026-10-27 the task about mail addressed to the nickname "termlink" was created twice by mistake.
+**Problem / hypothesis:** This file is the accidental second copy. The work is tracked in T-3594.
+**Goal:** Remove the duplicate from the backlog without touching T-3594.
+**Expected outcome:** This task is closed as a duplicate. T-3594 stays the live task.
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
@@ -62,8 +84,7 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Duplicate of T-3594, marked so on creation day; all work is tracked in T-3594, which stays open. No work of its own. (evidence: git 97e4b55c0 "T-3595 marked duplicate"; .tasks/active/T-3594-mail-addressed-to-the-nickname-termlink-.md exists)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -268,6 +289,8 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+test -f .tasks/active/T-3594-mail-addressed-to-the-nickname-termlink-.md || test -f .tasks/completed/T-3594-mail-addressed-to-the-nickname-termlink-.md
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -367,3 +390,20 @@ date_finished: null
 
 ### 2026-10-26T23:12:50Z — status-update [task-update-agent]
 - **Change:** horizon: now → later
+
+### 2026-11-01T23:57:46Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-01T23:58:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-250fcd40
+- **Timestamp:** 2026-11-01T23:58:19Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
