@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T15:17:53Z
-last_update: 2026-11-01T15:20:54Z
+last_update: 2026-11-01T15:23:43Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -75,14 +75,18 @@ address that reaches us, and a report sent to dimitri-mint-dev.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `claude-termlink-alt` loop and its wake consumer stopped and removed from `notify-sidecar-agents.conf` (with
+- [x] `claude-termlink-alt` loop and its wake consumer stopped and removed from `notify-sidecar-agents.conf` (with
   the evidence), so the supervisor does not restart them; `claude-termlink` kept (active today);
-  `framework-agent-systemd` kept pending AEF's answer
-- [ ] The hung forever-archival check and its `cat` killed; root cause found; the check can no longer block forever
-  (bounded read), with a fixture
-- [ ] The 34 posts on `inbox:cacc73ea32b121dd/termlink` read; each sender told the address that reaches us; a durable
-  fix so mail to that address is not lost
-- [ ] Report sent to dimitri-mint-dev
+  `framework-agent-systemd` kept pending AEF's answer (pids 181440, 870119 killed; also removed from
+  notify-wake-agents.conf; both supervisors re-run: 0 -alt processes; AEF asked about its loop)
+- [x] The hung forever-archival check and its `cat` killed; root cause found; the check can no longer block forever
+  (bounded read), with a fixture (12 orphan processes killed, oldest 3 days; cause: fixture case 3 SIGKILLs the canary
+  but the $(cat FIFO) subshell survives; canary read bounded to 30 s, fixture releases the FIFO, new no-orphan check;
+  canary-heartbeat 7/7 x2, forever-archival 13/13)
+- [x] The 34 posts on `inbox:cacc73ea32b121dd/termlink` read; each sender told the address that reaches us; a durable
+  fix so mail to that address is not lost (35 posts = 4 messages: 832 consult answered, 055 proposal = T-3596 told,
+  dimitri-mint-dev disk + load answered; session-start-alerts reads the alias `termlink` too, fixtures 21/21)
+- [x] Report sent to dimitri-mint-dev (sidecar, conversation dmd-107-load-2026-11-01, RECEIVED)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -286,6 +290,11 @@ address that reaches us, and a report sent to dimitri-mint-dev.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+grep -q "^# claude-termlink-alt 6738c073bbcc587a" .context/cron/notify-sidecar-agents.conf
+bash tests/canary-heartbeat-fixtures.sh > .context/working/.t3640-v1.out 2>&1 && grep -q " 0 failed" .context/working/.t3640-v1.out
+bash tests/session-start-alerts-fixtures.sh > .context/working/.t3640-v2.out 2>&1 && grep -q "failed: 0" .context/working/.t3640-v2.out
+grep -q 'SELF_ALIASES="${FW_SIDECAR_SELF_ALIASES-termlink}"' scripts/session-start-alerts.sh
 
 ## RCA
 

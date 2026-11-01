@@ -131,9 +131,14 @@ fi
 
 # ---- 2. peer mail since this script last showed it ------------------------------
 mail="[]" mail_err=""
+# T-3640: peers also address this project as "termlink" (our sessions carry project=termlink), and nothing read that
+# inbox: 35 posts from 832, 055 and dimitri-mint-dev sat unread for weeks. Read every alias as well as the real id.
+SELF_ALIASES="${FW_SIDECAR_SELF_ALIASES-termlink}"
 topics="$("$TL" channel list --prefix "inbox:" --json 2>/dev/null \
-    | jq -r --arg self "$SELF_PROJECT" '(.topics // .)[]?.name // empty
-        | select(endswith("/" + $self))' 2>/dev/null)" || topics=""
+    | jq -r --arg self "$SELF_PROJECT" --arg aliases "$SELF_ALIASES" '
+        ([$self] + ($aliases | split(" ") | map(select(length > 0)))) as $names
+        | (.topics // .)[]?.name // empty
+        | . as $n | select(any($names[]; . as $x | $n | endswith("/" + $x)))' 2>/dev/null)" || topics=""
 if [ -z "$topics" ]; then
     mail_err="no inbox topic for $SELF_PROJECT found (hub down, or no mail ever sent)"
 fi
