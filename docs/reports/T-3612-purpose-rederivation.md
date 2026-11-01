@@ -173,3 +173,8 @@ The 2026-10-27 value-review run (T-3609) could not confirm its yardstick because
    agent's T-3631 ratchet took `check-*.sh` to 100 against the DP-3 freeze at 99. Then put: how the product set
    reaches scoring (A declarative + labelled product scores + AEF per-layer ask, tracked as T-3638 / B swap files /
    C merged set / D local framework patch; recommended A). Operator: "Proceed as suggested." Recorded as A.
+21. 2026-11-01, adoption of draft v0.9 put (A adopt / B purpose only / C wait for AEF T-4961 / D keep today's charter;
+   recommended A). The agent first sent the operator to /inception/T-3612 while the page still said "not ready" (IW-1..3
+   undispositioned, Recommendation DEFER from filing time); operator: "can you not read?". Fixed (6e3b8ae1e). The
+   operator recorded **GO** on T-3612 via Watchtower (aeff3a0eb, 5ea76c82e) and said "go recorded". Draft v0.9 is
+   adopted; draft section 6 is applied by T-3642.
