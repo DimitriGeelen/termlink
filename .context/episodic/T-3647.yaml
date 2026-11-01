@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3647: runme action 4b: restart the W1 sidecars onto the installed binary (makes T-3646 live)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T21:17:30Z
+# ============================================================================
+
+task_id: T-3647
+task_name: "runme action 4b: restart the W1 sidecars onto the installed binary (makes T-3646 live)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-01T20:27:36Z
+completed: 2026-11-01T21:12:33Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-01T21:35:29+01:00
+last_commit: 2026-11-01T22:12:33+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 4b — restart W1 sidecars running older code onto the installed binary (skip when current, verify active + exe -ef binary); 4 hermetic fixtures (237/237). runme fixture case 11 runs as nobody with TMPDIR=/tmp — under the close gate's private TMPDIR the lock mkdir failed and read as 'another run in progress'
+
+# Key outcomes
+outcomes:
+  - 'runme.sh action 4b, after action 4: per W1 unit, skip when not running or when its process already runs the'
+  - 'Hermetic cases in tests/runme-fixtures.sh through RUNME_W1_* seams: stale -> restarted OK, current -> skip,'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme fixture case 11 runs as nobody with TMPDIR=/tmp — under the close gate''s private TMPDIR the lock mkdir failed and read as ''another run in progress'''
+    source: git-mined
+  - description: 'runme action 4b — restart W1 sidecars running older code onto the installed binary (skip when current, verify active + exe -ef binary); 4 hermetic fixtures (237/237)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3647-runme-action-4b-restart-the-w1-sidecars-.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-01T21:35:29'
+    action: 'T-3647: runme action 4b — restart W1 sidecars running older code onto the installed binary (skip when current, verify active + exe -ef binary); 4 hermetic fixtures (237/237)'
+  - time: '2026-11-01T22:12:33'
+    action: 'T-3647: runme fixture case 11 runs as nobody with TMPDIR=/tmp — under the close gate''s private TMPDIR the lock mkdir failed and read as ''another run in progress'''
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 44 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 44
+  commits: 3
+  files_changed: 6
+  lines_added: 591
+  lines_removed: 8
+  footprint_refreshed_at: '2026-11-01T21:17:31Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3647-runme-action-4b-restart-the-w1-sidecars-.md
+generated_by: context-agent-hybrid
