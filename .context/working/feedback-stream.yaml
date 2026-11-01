@@ -22065,3 +22065,39 @@ scan_id: R-23ed5219
 task_id: T-3211
 payload:
   task_file: .tasks/active/T-3211-orchestrate-procasfit-x9-over-termlink-e.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:54:59Z'
+scan_id: R-58a78dbf
+task_id: T-1442
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:54:59Z'
+scan_id: R-58a78dbf
+task_id: T-1442
+payload:
+  task_file: .tasks/active/T-1442-populate-modelused-and-fallbackused-in-d.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:55:19Z'
+scan_id: R-d2500e29
+task_id: T-3649
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:55:19Z'
+scan_id: R-d2500e29
+task_id: T-3649
+payload:
+  task_file: .tasks/active/T-3649-watchtower-triage-page-055-pattern-six-b.md

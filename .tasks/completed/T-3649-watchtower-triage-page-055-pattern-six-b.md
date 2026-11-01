@@ -6,12 +6,12 @@ description: >
   Operator 2026-11-02 ruling B: build 055's triage pattern into our vendored Watchtower
   as a registered local divergence, then hand it to AEF.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/triage-apply.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -40,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T23:39:02Z
-last_update: 2026-11-01T23:53:26Z
-date_finished:
+last_update: 2026-11-01T23:54:08Z
+date_finished: 2026-11-01T23:54:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -426,3 +426,23 @@ Shot on a throwaway server (`app.run` on 127.0.0.1:5099, stopped after); product
 
 ### 2026-11-01T23:39:54Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-01T23:54:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d2500e29
+- **Timestamp:** 2026-11-01T23:55:19Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Page reads `.context/triage/batch.json` (055 format: batch, rows[task,title,summary,evidence,proposed,details]); shows
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/triage/batch.json in: Page reads `.context/triage/batch.json` (055 format: batch, rows[task,title,summary,evidence,proposed,details]); shows`
+- **AC#3 (Agent)** — Apply step `scripts/triage-apply.sh` (dry-run default): maps prioritize->horizon now, keep->no change, park->horizon
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/triage-apply.sh in: Apply step `scripts/triage-apply.sh` (dry-run default): maps prioritize->horizon now, keep->no change, park->horizon`
