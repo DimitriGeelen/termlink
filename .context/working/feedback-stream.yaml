@@ -21499,3 +21499,21 @@ scan_id: R-4af5a033
 task_id: T-3634
 payload:
   task_file: .tasks/active/T-3634-re-vendor-aef-v1815---v1816-be4-security.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T11:31:46Z'
+scan_id: R-c4cfcbf7
+task_id: T-3631
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T11:31:46Z'
+scan_id: R-c4cfcbf7
+task_id: T-3631
+payload:
+  task_file: .tasks/active/T-3631-static-check-producer--grep--q-under-pip.md

@@ -10,12 +10,12 @@ description: >
   shape. Build a guard-layer static check (WARN tier) and convert the sites (grep_all
   helper or here-string).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, guard-layer, tests]
-components: []
+components: [scripts/agent-send.sh, scripts/check-alloc-sink-clamps.sh, scripts/check-busy-spin.sh, scripts/check-canary-log-isolation.sh, scripts/check-drain-sink-caps.sh, scripts/check-error-code-emission.sh, scripts/check-error-swallowing-predicate.sh, scripts/check-guard-runner-coverage.sh, scripts/check-guard-severity-markers.sh, scripts/check-mcp-parity-census.sh, scripts/check-pipefail-grep-q.sh, scripts/check-receiver-ack-lag.sh, scripts/check-release-artifact-drift.sh, scripts/check-release-publication-freshness.sh, scripts/check-silent-exit.sh, scripts/check-unbounded-rpc-call.sh, scripts/check-unpaired-capture.sh, scripts/check-vacuous-verification.sh, scripts/check-vector-index-freshness.sh, scripts/check-verification-pipefail.sh, scripts/check-version-derivation.sh, scripts/commit-t908-batch.sh, scripts/demo-webhook-fanout.sh, scripts/deploy-remote.sh, scripts/fleet-deploy-binary.sh, scripts/hub-binary-swap.sh, scripts/journal-mirror.sh, scripts/notify-sidecar-api.sh, scripts/notify-sidecar-supervisor.sh, scripts/orchestrator-backlog-drain.sh, scripts/sim-verify.sh, scripts/telemetry-rollup.sh, scripts/test-arc-live-probe.sh, scripts/test-charter-drift-freshness.sh, scripts/test-charter-sentence-drift.sh, scripts/test-comms-selftest.sh, scripts/test-diagnose-unconsumed.sh, scripts/test-session-selftest.sh, scripts/test-watchtower-guard.sh, tests/absence-assertion-fixtures.sh, tests/addressed-posts-check-fixtures.sh, tests/agent-send-suites-canary-fixtures.sh, tests/alloc-sink-check-fixtures.sh, tests/arc011-clean-host.sh, tests/artifact-cli-fixtures.sh, tests/audit-warning-acknowledgement-fixtures.sh, tests/canary-entry-date-fixtures.sh, tests/canary-not-scheduled-fixtures.sh, tests/canary-status-firing-fixtures.sh, tests/canary-status-fixtures.sh, tests/charter-drift-check-fixtures.sh, tests/charter-drift-provenance-fixtures.sh, tests/cron-drift-firing-fixtures.sh, tests/cron-install-drift-fixtures.sh, tests/dashboard-deleted-root-fixtures.sh, tests/drain-sink-check-fixtures.sh, tests/error-swallowing-check-fixtures.sh, tests/framework-dangling-ref-fixtures.sh, tests/framework-tracking-drift-fixtures.sh, tests/gitignore-working-scope-fixtures.sh, tests/guard-layer-runner-fixtures.sh, tests/guard-runner-coverage-fixtures.sh, tests/handover-staleness-check-fixtures.sh, tests/handover-suggested-action-fixtures.sh, tests/hub-binary-swap-fixtures.sh, tests/hub-outage-collector-fixtures.sh, tests/hub-runtime-dir-fixtures.sh, tests/hub-termlink-env-fixtures.sh, tests/inception-voi-gate-fixtures.sh, tests/install-sh-fixtures.sh, tests/instructed-verb-resolves-fixtures.sh, tests/mcp-parity-census-fixtures.sh, tests/notify-sidecar-canary-fixtures.sh, tests/notify-sidecar-supervisor-fixtures.sh, tests/pickup-canary-selffilter-fixtures.sh, tests/pickup-deferred-freshness-fixtures.sh, tests/pickup-failopen-fixtures.sh, tests/pipefail-grep-q-fixtures.sh, tests/relay-b1-doorbell-rail.sh, tests/relay-b2-send-hops.sh, tests/relay-b3-hop-budget.sh, tests/relay-wake-confirm.sh, tests/release-artifact-drift-fixtures.sh, tests/release-publication-canary-fixtures.sh, tests/remediate-main-checkout-fixtures.sh, tests/session-start-alerts-fixtures.sh, tests/standing-controls.sh, tests/task-id-collision-fixtures.sh, tests/telemetry-rollup-fixtures.sh, tests/test_g052_inception_decision_gate.sh, tests/test_t1619_metrics_trend_smoke.sh, tests/test_t1628_task_verify_flags.sh, tests/test_t1640_pgrep_self_match.sh, tests/unacted-mail-fixtures.sh, tests/unbounded-rpc-call-fixtures.sh, tests/vector-index-freshness-fixtures.sh, tests/vendor-divergence-fixtures.sh, tests/verification-heading-shadow-fixtures.sh, tests/verification-pipefail-check-fixtures.sh, tests/version-derivation-check-fixtures.sh, tests/voi-prompt-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -44,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-31T13:13:38Z
-last_update: 2026-11-01T11:31:42Z
-date_finished:
+last_update: 2026-11-01T11:31:43Z
+date_finished: 2026-11-01T11:31:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -435,3 +435,21 @@ only; 393 sites in 101 scripts and tests were never checked.
 ### 2026-11-01T09:40:34Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-01T11:31:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c4cfcbf7
+- **Timestamp:** 2026-11-01T11:31:46Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — Guard layer: no new FAIL (2026-11-01, `.context/working/t3631/guard-final.out`: 1 FAIL check-drain-sink-caps
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/working/t3631/guard-final.out in: Guard layer: no new FAIL (2026-11-01, `.context/working/t3631/guard-final.out`: 1 FAIL check-drain-sink-caps`

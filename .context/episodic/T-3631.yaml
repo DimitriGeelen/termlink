@@ -1,0 +1,223 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3631: Static check: producer | grep -q under pipefail in scripts/ (L-387 class; 41 scripts, found by T-3627)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T11:31:54Z
+# ============================================================================
+
+task_id: T-3631
+task_name: "Static check: producer | grep -q under pipefail in scripts/ (L-387 class; 41 scripts, found by T-3627)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-31T13:13:38Z
+completed: 2026-11-01T11:31:43Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-01T10:41:15+01:00
+last_commit: 2026-11-01T12:31:43+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  install-sh-fixtures glibc detection read all of ldd's output (was | grep -qi under pipefail: 2/300 false 'not glibc', guard-layer FAIL 2026-11-01); Context + ACs for the sweep. ratchet guard for producer | grep -q under pipefail in scripts/tests (393 sites / 101 files baselined; new or grown site FIRES); 10 fixtures incl. mutant; documented. convert risky | grep -q sites in scripts agent-send..check-mcp-parity-census (29 sites, tests green). convert risky | grep -q sites in scripts check-receiver-ack-lag..check-version-derivation (13 sites, tests green). convert risky | grep -q sites in scripts commit-t908..sim-verify (19 sites, tests green). convert risky | grep -q sites in scripts telemetry-rollup + script tests (17 sites, tests green). convert risky | grep -q sites in tests agent-send-suites..charter-drift-check (43 sites, tests green). convert risky | grep -q sites in tests charter-drift-provenance..guard-layer-runner (69 sites, tests green). convert risky | grep -q sites in tests guard-runner-coverage..mcp-parity-census (23 sites, tests green). convert risky | grep -q sites in tests notify-sidecar..release-artifact-drift (59 sites, tests green). convert risky | grep -q sites in tests release-publication..test_t1640 (69 sites, tests green). convert risky | grep -q sites in tests unacted-mail..voi-prompt + baseline (41 sites, tests green); baseline 393 -> 13 sites (6 files, all non-executed strings/fixture data/L-387 demo). AC 'every remaining site converted' ticked with rescope (executed sites all converted; 13 data/doc/demo lines stay under ratchet); Decisions entry. ratchet no longer counts the second | of || (worker finding); fixture C5; 11/11. last AC (guard layer no new FAIL), Verification, RCA
+
+# Key outcomes
+outcomes:
+  - '`tests/install-sh-fixtures.sh` glibc detection no longer pipes into `grep -q` (first site, 2026-11-01; 0/300'
+  - 'Every remaining `producer | grep -q` under pipefail in scripts/ and tests/ converted (grep_all helper,'
+  - 'A guard-layer static check (`scripts/check-pipefail-grep-q.sh`) fires on a new site, with fixtures and a mutant'
+  - 'Guard layer: no new FAIL (2026-11-01, `.context/working/t3631/guard-final.out`: 1 FAIL check-drain-sink-caps'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'ratchet no longer counts the second | of || (worker finding); fixture C5; 11/11'
+    source: git-mined
+  - description: 'convert risky | grep -q sites in tests unacted-mail..voi-prompt + baseline (41 sites, tests green); baseline 393 -> 13 sites (6 files, all non-executed strings/fixture data/L-387 demo)'
+    source: git-mined
+  - description: 'ratchet guard for producer | grep -q under pipefail in scripts/tests (393 sites / 101 files baselined; new or grown site FIRES); 10 fixtures incl. mutant; documented'
+    source: git-mined
+  - description: 'install-sh-fixtures glibc detection read all of ldd''s output (was | grep -qi under pipefail: 2/300 false ''not glibc'', guard-layer FAIL 2026-11-01); Context + ACs for the sweep'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-01 — which sites to convert, and how'
+    chose: 'Convert every site that actually runs as a pipeline, RISKY or SAFE: 380 sites across 98 files (here-string `grep -q PAT <<< "$var"` where the producer was `echo`/`printf ''%s''` of one variable; otherwise `producer | grep PAT >/dev/null`, the same flags minus -q). The 13 counted lines left (6 files) are not pipelines that run: doc strings echoed to the user (check-unpaired-capture:166, check-verification-pipefail:181, check-task-template-idioms:150), task fixture DATA the detectors must see (verification-pipefail-check-fixtures x5, task-template-idioms-fixtures x2), and the deliberate L-387 reproducer (l387-boundary-fixtures x3). They stay under the ratchet.'
+    rationale: 'The here-string and `>/dev/null` forms are both immune to SIGPIPE at any size and keep the line''s meaning, so classifying a site SAFE saved no work and added a judgement that could be wrong. Converting the data lines would break the fixtures that test the detectors.'
+    alternatives_rejected: ['A shared grep_all helper: several fixtures eval strings or write scripts run by another shell, so the helper would not be in scope there.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/pipefail-grep-q-baseline'
+  - '.fabric/components/scripts-check-pipefail-grep-q.yaml'
+  - '.fabric/components/tests-pipefail-grep-q-fixtures.yaml'
+  - '.tasks/active/T-3631-static-check-producer--grep--q-under-pip.md'
+  - 'CLAUDE.md'
+  - 'docs/operations/guard-layer-and-canaries.md'
+  - 'scripts/agent-send.sh'
+  - 'scripts/check-alloc-sink-clamps.sh'
+  - 'scripts/check-busy-spin.sh'
+  - 'scripts/check-canary-log-isolation.sh'
+  - 'scripts/check-drain-sink-caps.sh'
+  - 'scripts/check-error-code-emission.sh'
+  - 'scripts/check-error-swallowing-predicate.sh'
+  - 'scripts/check-guard-runner-coverage.sh'
+  - 'scripts/check-guard-severity-markers.sh'
+  - 'scripts/check-mcp-parity-census.sh'
+  - 'scripts/check-pipefail-grep-q.sh'
+  - 'scripts/check-receiver-ack-lag.sh'
+  - 'scripts/check-release-artifact-drift.sh'
+  - 'scripts/check-release-publication-freshness.sh'
+  - 'scripts/check-silent-exit.sh'
+  - 'scripts/check-unbounded-rpc-call.sh'
+  - 'scripts/check-unpaired-capture.sh'
+  - 'scripts/check-vacuous-verification.sh'
+  - 'scripts/check-vector-index-freshness.sh'
+  - 'scripts/check-verification-pipefail.sh'
+  - 'scripts/check-version-derivation.sh'
+  - 'scripts/commit-t908-batch.sh'
+  - 'scripts/demo-webhook-fanout.sh'
+  - 'scripts/deploy-remote.sh'
+  - 'scripts/fleet-deploy-binary.sh'
+  - 'scripts/hub-binary-swap.sh'
+  - 'scripts/journal-mirror.sh'
+  - 'scripts/notify-sidecar-api.sh'
+  - 'scripts/notify-sidecar-supervisor.sh'
+  - 'scripts/orchestrator-backlog-drain.sh'
+  - 'scripts/sim-verify.sh'
+  - 'scripts/telemetry-rollup.sh'
+  - 'scripts/test-arc-live-probe.sh'
+  - 'scripts/test-charter-drift-freshness.sh'
+  - 'scripts/test-charter-sentence-drift.sh'
+  - 'scripts/test-comms-selftest.sh'
+  - 'scripts/test-diagnose-unconsumed.sh'
+  - 'scripts/test-session-selftest.sh'
+  - 'scripts/test-watchtower-guard.sh'
+  - 'tests/absence-assertion-fixtures.sh'
+  - 'tests/addressed-posts-check-fixtures.sh'
+  - 'tests/agent-send-suites-canary-fixtures.sh'
+  - 'tests/alloc-sink-check-fixtures.sh'
+  - 'tests/arc011-clean-host.sh'
+  - 'tests/artifact-cli-fixtures.sh'
+  - 'tests/audit-warning-acknowledgement-fixtures.sh'
+  - 'tests/canary-entry-date-fixtures.sh'
+  - 'tests/canary-not-scheduled-fixtures.sh'
+  - 'tests/canary-status-firing-fixtures.sh'
+  - 'tests/canary-status-fixtures.sh'
+  - 'tests/charter-drift-check-fixtures.sh'
+  - 'tests/charter-drift-provenance-fixtures.sh'
+  - 'tests/cron-drift-firing-fixtures.sh'
+  - 'tests/cron-install-drift-fixtures.sh'
+  - 'tests/dashboard-deleted-root-fixtures.sh'
+  - 'tests/drain-sink-check-fixtures.sh'
+  - 'tests/error-swallowing-check-fixtures.sh'
+  - 'tests/framework-dangling-ref-fixtures.sh'
+  - 'tests/framework-tracking-drift-fixtures.sh'
+  - 'tests/gitignore-working-scope-fixtures.sh'
+  - 'tests/guard-layer-runner-fixtures.sh'
+  - 'tests/guard-runner-coverage-fixtures.sh'
+  - 'tests/handover-staleness-check-fixtures.sh'
+  - 'tests/handover-suggested-action-fixtures.sh'
+  - 'tests/hub-binary-swap-fixtures.sh'
+  - 'tests/hub-outage-collector-fixtures.sh'
+  - 'tests/hub-runtime-dir-fixtures.sh'
+  - 'tests/hub-termlink-env-fixtures.sh'
+  - 'tests/inception-voi-gate-fixtures.sh'
+  - 'tests/install-sh-fixtures.sh'
+  - 'tests/instructed-verb-resolves-fixtures.sh'
+  - 'tests/mcp-parity-census-fixtures.sh'
+  - 'tests/notify-sidecar-canary-fixtures.sh'
+  - 'tests/notify-sidecar-supervisor-fixtures.sh'
+  - 'tests/pickup-canary-selffilter-fixtures.sh'
+  - 'tests/pickup-deferred-freshness-fixtures.sh'
+  - 'tests/pickup-failopen-fixtures.sh'
+  - 'tests/pipefail-grep-q-fixtures.sh'
+  - 'tests/relay-b1-doorbell-rail.sh'
+  - 'tests/relay-b2-send-hops.sh'
+  - 'tests/relay-b3-hop-budget.sh'
+  - 'tests/relay-wake-confirm.sh'
+  - 'tests/release-artifact-drift-fixtures.sh'
+  - 'tests/release-publication-canary-fixtures.sh'
+  - 'tests/remediate-main-checkout-fixtures.sh'
+  - 'tests/session-start-alerts-fixtures.sh'
+  - 'tests/standing-controls.sh'
+  - 'tests/task-id-collision-fixtures.sh'
+  - 'tests/telemetry-rollup-fixtures.sh'
+  - 'tests/test_g052_inception_decision_gate.sh'
+  - 'tests/test_t1619_metrics_trend_smoke.sh'
+  - 'tests/test_t1628_task_verify_flags.sh'
+  - 'tests/test_t1640_pgrep_self_match.sh'
+  - 'tests/unacted-mail-fixtures.sh'
+  - 'tests/unbounded-rpc-call-fixtures.sh'
+  - 'tests/vector-index-freshness-fixtures.sh'
+  - 'tests/vendor-divergence-fixtures.sh'
+  - 'tests/verification-heading-shadow-fixtures.sh'
+  - 'tests/verification-pipefail-check-fixtures.sh'
+  - 'tests/version-derivation-check-fixtures.sh'
+  - 'tests/voi-prompt-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-01T10:41:15'
+    action: 'T-3631: install-sh-fixtures glibc detection read all of ldd''s output (was | grep -qi under pipefail: 2/300 false ''not glibc'', guard-layer FAIL 2026-11-01); Context + ACs for the sweep'
+  - time: '2026-11-01T11:57:38'
+    action: 'T-3631: ratchet guard for producer | grep -q under pipefail in scripts/tests (393 sites / 101 files baselined; new or grown site FIRES); 10 fixtures incl. mutant; documented'
+  - time: '2026-11-01T12:15:54'
+    action: 'T-3631: convert risky | grep -q sites in scripts agent-send..check-mcp-parity-census (29 sites, tests green)'
+  - time: '2026-11-01T12:15:55'
+    action: 'T-3631: convert risky | grep -q sites in scripts check-receiver-ack-lag..check-version-derivation (13 sites, tests green)'
+  - time: '2026-11-01T12:15:56'
+    action: 'T-3631: convert risky | grep -q sites in scripts commit-t908..sim-verify (19 sites, tests green)'
+  - time: '2026-11-01T12:15:56'
+    action: 'T-3631: convert risky | grep -q sites in scripts telemetry-rollup + script tests (17 sites, tests green)'
+  - time: '2026-11-01T12:15:57'
+    action: 'T-3631: convert risky | grep -q sites in tests agent-send-suites..charter-drift-check (43 sites, tests green)'
+  - time: '2026-11-01T12:15:57'
+    action: 'T-3631: convert risky | grep -q sites in tests charter-drift-provenance..guard-layer-runner (69 sites, tests green)'
+  - time: '2026-11-01T12:15:58'
+    action: 'T-3631: convert risky | grep -q sites in tests guard-runner-coverage..mcp-parity-census (23 sites, tests green)'
+  - time: '2026-11-01T12:15:58'
+    action: 'T-3631: convert risky | grep -q sites in tests notify-sidecar..release-artifact-drift (59 sites, tests green)'
+  - time: '2026-11-01T12:15:59'
+    action: 'T-3631: convert risky | grep -q sites in tests release-publication..test_t1640 (69 sites, tests green)'
+  - time: '2026-11-01T12:16:00'
+    action: 'T-3631: convert risky | grep -q sites in tests unacted-mail..voi-prompt + baseline (41 sites, tests green); baseline 393 -> 13 sites (6 files, all non-executed strings/fixture data/L-387 demo)'
+  - time: '2026-11-01T12:16:47'
+    action: 'T-3631: AC ''every remaining site converted'' ticked with rescope (executed sites all converted; 13 data/doc/demo lines stay under ratchet); Decisions entry'
+  - time: '2026-11-01T12:18:35'
+    action: 'T-3631: ratchet no longer counts the second | of || (worker finding); fixture C5; 11/11'
+  - time: '2026-11-01T12:31:43'
+    action: 'T-3631: last AC (guard layer no new FAIL), Verification, RCA'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 15 commit(s), 1338 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, guard-layer, tests]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1338
+  commits: 16
+  files_changed: 110
+  lines_added: 1045
+  lines_removed: 504
+  footprint_refreshed_at: '2026-11-01T11:32:01Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3631-static-check-producer--grep--q-under-pip.md
+generated_by: context-agent-hybrid
