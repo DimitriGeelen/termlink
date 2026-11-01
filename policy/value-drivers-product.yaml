@@ -38,7 +38,13 @@ protected_drivers:
   - id: D1
     name: Antifragility
     weight: 6                       # operator 2026-10-29: B (development set: 9)
+    # AEF T-4961 contract: id, name and note must equal the live file; only weight and
+    # rubric may differ, so the product meaning lives in rubric (T-3638, 2026-11-01).
     note: >
+      Gets stronger from stress/failure. The healing loop is its mechanical
+      expression. Failure-driven by nature -- it cannot reward positive
+      accumulation (that gap is what the Recall Leverage free driver covers).
+    rubric: >
       Product recovery (P-3 worker recovery, main takeover, conversation resume),
       valued below delivery, usability and trust. At 9 it rewarded adding canaries
       as product progress; that work is scored in the development set.
@@ -47,20 +53,27 @@ protected_drivers:
     name: Reliability
     weight: 9                       # 10 cannot be set: fw bvp weight accepts 0-9
     note: >
+      Fewer repeated mistakes, fewer relitigated decisions. Session continuity
+      and episodic memory are reliability-through-not-forgetting.
+    rubric: >
       Delivery to an agent that can act, and no silent loss, is the purpose (Q1).
       Predictable, observable, auditable; no silent failures.
 
   - id: D3
     name: Usability
     weight: 7
-    note: >
+    note: Human-in-the-loop ergonomics; not having to repeat yourself.
+    rubric: >
       Clear CLI and MCP surfaces, errors that say what failed and what to do next,
       and no human relaying messages between agents.
 
   - id: D4
     name: Portability
     weight: 3
-    note: Linux and macOS, standards (MCP); unchanged.
+    note: >
+      File-based, source-controlled memory & policy. Any free driver must
+      preserve this -- learning that lives somewhere non-committed violates D4.
+    rubric: Linux and macOS, standards (MCP); unchanged.
 
 free_drivers:
 
