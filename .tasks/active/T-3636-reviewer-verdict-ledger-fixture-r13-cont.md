@@ -1,10 +1,15 @@
 ---
 id: T-3636
-name: "reviewer-verdict-ledger fixture R13 contradicts AEF T-4916 (deterministic [REVIEWER] ACs now ledger-tickable)"
+name: "reviewer-verdict-ledger fixture R13 contradicts AEF T-4916 (deterministic [REVIEWER]
+  ACs now ledger-tickable)"
 description: >
-  After the T-3634 re-vendor to v1.8.16-be.4, tests/reviewer-verdict-ledger-fixtures.sh R13 FAILs: AEF T-4916 (44f80eca5, operator ruling b,i) made deterministic criteria reviewer-judged, so verdict_ledger apply ticks a [REVIEWER] AC that R13 expects refused. Operator decision: follow T-4916 (rewrite R13 as an allow case) or keep refusing (needs a local preserve or upstream pushback).
+  After the T-3634 re-vendor to v1.8.16-be.4, tests/reviewer-verdict-ledger-fixtures.sh
+  R13 FAILs: AEF T-4916 (44f80eca5, operator ruling b,i) made deterministic criteria
+  reviewer-judged, so verdict_ledger apply ticks a [REVIEWER] AC that R13 expects
+  refused. Operator decision: follow T-4916 (rewrite R13 as an allow case) or keep
+  refusing (needs a local preserve or upstream pushback).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-31T23:57:43Z
-last_update: 2026-10-31T23:57:43Z
-date_finished: null
+last_update: 2026-11-01T09:12:28Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +55,19 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-01T09:10:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3636: reviewer-verdict-ledger fixture R13 contradicts AEF T-4916 (deterministic [REVIEWER] ACs now ledger-tickable)
@@ -74,8 +92,11 @@ operator-only classes. Option B: keep refusing, which needs a local preserve of 
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Operator ruling recorded (## Decisions: A, follow T-4916)
+- [x] New allow case A4: a deterministic `[REVIEWER]` AC on a low-risk task with a signed external PASS is ticked
+- [x] R13 rewritten as a refusal for the same AC on a HIGH-RISK task, refused for the right reason (under-strength)
+- [x] `tests/reviewer-verdict-ledger-fixtures.sh` fully green; R1/R2/R6/R7 and the mutants unchanged and passing
+  (21 passed, 0 failed, 2026-11-01)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -280,6 +301,9 @@ operator-only classes. Option B: keep refusing, which needs a local preserve of 
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash tests/reviewer-verdict-ledger-fixtures.sh > .context/working/.t3636-v.out 2>&1 && grep -q " 0 failed" .context/working/.t3636-v.out
+grep -q "ac-deterministic high-risk forge-row" tests/reviewer-verdict-ledger-fixtures.sh
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -360,6 +384,17 @@ operator-only classes. Option B: keep refusing, which needs a local preserve of 
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-01 — R13 vs AEF T-4916: A, follow T-4916 (operator ruling)
+- **Chose:** A (operator: "A, as suggested"). Rewrite R13 as an ALLOW case: a deterministic `[REVIEWER]` criterion on a
+  low-risk task with a signed external PASS is ticked by the ledger. Add a REFUSE case for the same criterion on a
+  high-risk task, so the boundary is pinned from both sides. R1/R2 (signatures), R6 (operator-only), R7 (risk) unchanged.
+- **Why:** T-4916 was a deliberate upstream ruling, and it stays within the operator's 2026-09-28 rule (T-3373: an
+  external reviewer's PASS closes a low-risk task's reviewer-judged Human AC). Every security refusal still holds.
+  Scored A +25, C −12, B −16, D −20.
+- **Rejected:** B (local preserve of lib/delegation.py: a ninth protected edit to merge on every upgrade), C (push back
+  and stay red: a red guard layer hides the next real failure), D (delete R13: loses the only pin on this boundary).
+- **Left open:** if the operator later wants the stricter rule, B or C remain available.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -376,3 +411,6 @@ operator-only classes. Option B: keep refusing, which needs a local preserve of 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3636-reviewer-verdict-ledger-fixture-r13-cont.md
 - **Context:** Initial task creation
+
+### 2026-11-01T09:10:33Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

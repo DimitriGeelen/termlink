@@ -212,6 +212,14 @@ if ! ticked "$p" && [ "$(owner "$p")" = human ] && grep -q '"withdrawn": \[{' <<
   ok "A3 editing the criterion after the verdict WITHDRAWS the tick and returns ownership to human"
 else bad "A3 tick survived a criterion edit: $out3"; fi
 
+# A4 (T-3636, operator ruling A, following AEF T-4916): a deterministic [REVIEWER] criterion is reviewer-judged, so a
+# signed external PASS on a LOW-RISK task ticks it exactly like A1. Its high-risk twin is refused (R13).
+p="$(mk "$FW" ac-deterministic)" || { bad "A4: builder failed"; }
+out="$(apply "$FW" "$p")"
+if ticked "$p" && [ "$(owner "$p")" = agent ] && grep -q '"verdict_id"' <<< "$out"; then
+  ok "A4 signed external PASS ticks a deterministic [REVIEWER] AC of a low-risk task (T-4916: reviewer-judged)"
+else bad "A4 deterministic [REVIEWER] AC was not ticked: $out"; fi
+
 declare -A WHY=(
   [R1]='invalid latest|no-provenance|signature|not in the review-dispatch registry'
   [R2]='invalid signature'
@@ -225,7 +233,7 @@ declare -A WHY=(
   [R10]='introduced-by-other'
   [R11]='reviewer-is-producer'
   [R12]='stale-review'
-  [R13]='no verdict for the current criterion|not-reviewer-judged'
+  [R13]='under-strength'
 )
 echo "== REFUSE =="
 refuse "R1 unsigned dispatch row (no sig)"                         "$FW" unsigned forge-row
@@ -240,7 +248,9 @@ refuse "R9 verdict row never committed"                            "$FW" uncommi
 refuse "R10 row committed by someone other than its worker"        "$FW" committed-by-other
 refuse "R11 reviewer is also a producer of the task"               "$FW" reviewer-is-producer forge-row
 refuse "R12 task work landed after the reviewed revision"          "$FW" stale
-refuse "R13 deterministic [REVIEWER] AC is REVIEWER-CLOSEABLE, not ledger-tickable" "$FW" ac-deterministic forge-row
+# T-3636 (operator ruling A, 2026-11-01, following AEF T-4916): a deterministic [REVIEWER] AC is now reviewer-JUDGED.
+# It is ledger-tickable on a low-risk task (A4 above); on a high-risk task the same forged-green row is still refused.
+refuse "R13 deterministic [REVIEWER] AC on a HIGH-RISK task — forged green row" "$FW" ac-deterministic high-risk forge-row
 
 # record() itself must refuse an operator-only criterion before anything is written
 p="$(mk "$FW" ac-tier0)";
