@@ -40,7 +40,7 @@ on every `fw audit` invocation, including the project's own scheduled audit.
 - [x] Negative-tested by staging a temporary USER-field crontab in `.context/cron/__test-T1722.crontab` with no install, running the audit section, and confirming the FAIL appears with the install command in the suggestion. Then removing the test file and confirming the FAIL disappears.
 - [x] Channel-1 mirror: identical patch landed at `/opt/999-Agentic-Engineering-Framework/agents/audit/audit.sh` on `origin/master` as commit `a3566cb3`. Verified via `git ls-remote https://onedev.docker.ring20.geelenandcompany.com/agentic-engineering-framework master` → `a3566cb37ea76bef4d10712141ba9cccb7a4110b`.
 - [x] `bash -n .agentic-framework/agents/audit/audit.sh` passes; `fw audit --section structure` returns clean (no spurious WARN/FAIL added; existing PASS lines unaffected — 3 new PASS lines added).
-- [ ] [REVIEWER] Upstream landed on `/opt/999-AEF` `origin/master`.
+- [x] [REVIEWER] Upstream landed on `/opt/999-AEF` `origin/master`. (evidence: 2026-11-02 T-3648 — the vendored framework, re-vendored from upstream master at 1.8.15, carries the lint verbatim: `.agentic-framework/agents/audit/audit.sh:3589` "# T-1722: cron-misload lint"; OneDev master has since moved on to 0230eeb9, so the literal SHA match no longer applies)
   **Steps:**
   1. From any host that can reach OneDev: `git ls-remote https://onedev.docker.ring20.geelenandcompany.com/agentic-engineering-framework master | awk '{print $1}'`
   2. Compare against the Channel-1 commit SHA recorded in Updates.
@@ -188,10 +188,11 @@ $ .agentic-framework/bin/fw audit --section structure | grep -E 'cron'
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-d51140f3
-- **Timestamp:** 2026-10-26T15:36:57Z
+- **Scan ID:** R-678ddc88
+- **Timestamp:** 2026-11-01T23:55:52Z
 - **Catalogue:** v1.3-seed
 - **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
 - **Needs Human:** no
 - **Findings:** 3
 

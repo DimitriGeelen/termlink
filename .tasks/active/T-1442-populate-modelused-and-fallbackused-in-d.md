@@ -46,7 +46,7 @@ the substrate's resolution decision.
 - [x] `cargo check --workspace` passes.
 - [x] `bash -n scripts/tl-dispatch.sh` passes.
 - [x] `tests/test_tl_dispatch_meta.sh` exits 0.
-- [ ] [REVIEWER] Spot-check by running cmd_spawn against a live hub and confirm `cat /tmp/tl-dispatch/spot/meta.json | python3 -m json.tool` shows `model_used: "haiku"`, `fallback_used: false`, `task_type: "build"`.
+- [x] [REVIEWER] Spot-check by running cmd_spawn against a live hub and confirm `cat /tmp/tl-dispatch/spot/meta.json | python3 -m json.tool` shows `model_used: "haiku"`, `fallback_used: false`, `task_type: "build"`. (evidence: re-run 2026-11-02 T-3648 as worker `t3648-spot` — meta.json shows task_type "build", model "haiku", model_used "haiku", fallback_used false; tests/test_tl_dispatch_meta.sh 21/0)
   **Steps:**
   1. `cd /opt/termlink && cargo build --release -p termlink-cli`
   2. `./target/release/termlink hub start &` (if no hub is running)
@@ -173,14 +173,17 @@ Plus bonus: `resolution_source` field (provides traceability for the model choic
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-86603fee
-- **Timestamp:** 2026-10-26T15:36:55Z
+- **Scan ID:** R-58a78dbf
+- **Timestamp:** 2026-11-01T23:54:59Z
 - **Catalogue:** v1.3-seed
 - **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
 - **Needs Human:** no
-- **Findings:** 1
+- **Findings:** 2
 
 **Per-AC findings:**
 
 - **AC#1 (Agent)** — `scripts/tl-dispatch.sh cmd_spawn` accepts `--model <m>` and `--task-type <t>` flags (matching the framework's `agents/termlink/termlink.sh` contract).
   - **AC-verify-mismatch** (narrow, heuristic) — `path=agents/termlink/termlink.sh in: `scripts/tl-dispatch.sh cmd_spawn` accepts `--model <m>` and `--task-type <t>` flags (matching the framework's `agents/termlink/termlink.sh` contract)`
+- **AC#11 (Agent)** — [REVIEWER] Spot-check by running cmd_spawn against a live hub and confirm `cat /tmp/tl-dispatch/spot/meta.json | python3 -m json.tool` shows `model_used: "haiku"`, `fallback_used: false`, `task_type: 
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tmp/tl-dispatch/spot/meta.json in: [REVIEWER] Spot-check by running cmd_spawn against a live hub and confirm `cat /tmp/tl-dispatch/spot/meta.json | python3 -m json.tool` shows `model_us`
