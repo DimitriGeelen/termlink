@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2594: PtySession::spawn leaks master_fd and orphans child when dup() fails
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:59:50Z
+# ============================================================================
+
+task_id: T-2594
+task_name: "PtySession::spawn leaks master_fd and orphans child when dup() fails"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-10T20:11:50Z
+completed: 2026-11-01T23:59:42Z
+duration_days: 83
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2468 verb-4 re-hunt (2026-08-10, CONFIRMED + self-verified). crates/termlink-session/src/pty.rs ~162-165: after fork() (child already spawned at ~129), libc::dup(master_fd) failure returns Err(PtyError::Create(...)) WITHOUT (a) closing master_fd (leaked openpty master) and (b) killing/reaping the already-forked child. PtySession is not yet constructed, so Drop cannot clean up. Under fd exhaustion every failed spawn leaks the master fd AND leaves a live orphaned shell child — compounding the exhaustion. Fix: on the dup<0 branch, libc::close(master_fd) and kill(child_pid,SIGKILL)+waitpid before returning Err. Small, contained fix but on the delicate spawn/fork path — file-not-build per T-2468 boundary; add a test that injects dup failure (or at least an fd-count assertion around a forced-fail spawn).
+
+# Key outcomes
+outcomes:
+  - 'Duplicate of T-2614: the same post-fork `dup()` failure path that leaks master_fd and orphans the child (pty.rs:238-240, unchanged on 2026-11-02) is tracked there; closed here so it is not worked twice (evidence: T-2614 is in .tasks/active/; T-3648 triage)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 119747 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, verb4, resource-leak]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 119747
+  commits: 1
+  files_changed: 3
+  lines_added: 134
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-01T23:59:55Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2594-ptysessionspawn-leaks-masterfd-and-orpha.md
+generated_by: context-agent-hybrid

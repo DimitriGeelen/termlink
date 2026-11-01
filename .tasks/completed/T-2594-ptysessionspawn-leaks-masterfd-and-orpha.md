@@ -13,10 +13,10 @@ description: >
   file-not-build per T-2468 boundary; add a test that injects dup failure (or at least
   an fd-count assertion around a forced-fail spawn).
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [bug, verb4, resource-leak]
 components: []
 related_tasks: []
@@ -25,8 +25,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T20:11:50Z
-last_update: '2026-09-08T21:30:39Z'
-date_finished:
+last_update: 2026-11-01T23:59:42Z
+date_finished: 2026-11-01T23:59:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +51,17 @@ bvp_scores_proposed:
       (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
       (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:59:03Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-08T21:30:39Z'
     estimator: bvp-estimator-v1-heuristic
@@ -67,14 +78,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Found in the T-2468 verb-4 re-hunt (2026-08-10): in `PtySession::spawn`, a failed `libc::dup(master_fd)` after fork returns Err without cleanup (crates/termlink-session/src/pty.rs:238-240). T-2614 later filed the same post-fork error-path leak.
+**Problem / hypothesis:** On that error path the master fd leaks and the forked shell child is orphaned. Under fd exhaustion every failed spawn makes the exhaustion worse.
+**Goal:** Track and fix this leak once, not twice.
+**Expected outcome:** This task closes as a duplicate. The fix (close master_fd, then kill and reap the child) and its test land under T-2614, which is still active (T-3648 triage, operator ruling 2026-11-02).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Duplicate of T-2614: the same post-fork `dup()` failure path that leaks master_fd and orphans the child (pty.rs:238-240, unchanged on 2026-11-02) is tracked there; closed here so it is not worked twice (evidence: T-2614 is in .tasks/active/; T-3648 triage)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -139,6 +152,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+ls .tasks/active/ .tasks/completed/ > .context/working/.v-t2594.out 2>&1 && grep -q '^T-2614-' .context/working/.v-t2594.out
 
 ## RCA
 
@@ -155,6 +169,11 @@ cost_estimate_proposed:
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** If `dup(master_fd)` fails after fork, `PtySession::spawn` returns Err, leaking the openpty master fd and leaving an orphaned shell child (found by the T-2468 audit, not observed in the field).
+**Root cause:** The post-fork error branch at pty.rs:238-240 returns early. `PtySession` does not exist yet, so its Drop cleanup cannot run, and nothing closes the fd or kills and reaps the child.
+**Why structurally allowed:** No test injects failures on the fork/dup path, so these error branches are never exercised.
+**Prevention:** Not done here; this task closes as a duplicate. The fix and its failure-injection test are owned by T-2614, which covers every post-fork error path in `PtySession::new`.
 
 ## Evolution
 
@@ -207,3 +226,20 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2594-ptysessionspawn-leaks-masterfd-and-orpha.md
 - **Context:** Initial task creation
+
+### 2026-11-01T23:59:03Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-01T23:59:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-03b722f0
+- **Timestamp:** 2026-11-01T23:59:44Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
