@@ -21903,3 +21903,39 @@ scan_id: R-5ef8c829
 task_id: T-3089
 payload:
   task_file: .tasks/active/T-3089-orchestrate-procasfit-x4-over-termlink-e.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:42:18Z'
+scan_id: R-d61b41f0
+task_id: T-1483
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:42:18Z'
+scan_id: R-d61b41f0
+task_id: T-1483
+payload:
+  task_file: .tasks/active/T-1483-agent-who---target-name--local-resolved-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:43:00Z'
+scan_id: R-1c1218cb
+task_id: T-3121
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:43:00Z'
+scan_id: R-1c1218cb
+task_id: T-3121
+payload:
+  task_file: .tasks/active/T-3121-arc-arc-005-hit-100-closure-threshold-22.md

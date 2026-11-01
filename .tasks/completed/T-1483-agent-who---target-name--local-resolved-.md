@@ -7,12 +7,12 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T13:21:59Z
-last_update: 2026-10-26T15:36:32Z
+last_update: 2026-11-01T23:32:20Z
 date_finished: 2026-05-04T13:31:15Z
 ---
 
@@ -38,7 +38,7 @@ activity-summary code path. Mutually exclusive with `--target-fp`.
 - [x] cargo build --release -p termlink clean
 - [x] Live smoke against `--target ollama-smoke-1` (a registered local session, see `termlink list`): resolves and produces same output as `--target-fp <its-fp>` would
 - [x] Live smoke against `--target nonexistent-session-xyz`: exit 1, error names the missing session
-- [ ] [REVIEWER] Verify error messages name the failing input clearly
+- [x] [REVIEWER] Verify error messages name the failing input clearly (evidence: re-run 2026-11-02 T-3648 — missing session names 'nonexistent-session-xyz'; conflict says "specify either --target or --target-fp, not both"; no-arg says "must specify either --target <name> or --target-fp <hex>"; commit 66539f764)
   **Steps:**
   1. `target/release/termlink agent who --target nonexistent-session-xyz` (run from /opt/termlink)
   2. `target/release/termlink agent who --target some-name --target-fp deadbeefdead` 
@@ -147,12 +147,10 @@ out=$(target/release/termlink agent who 2>&1 || true); echo "$out" | grep -qE "m
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-dcb2a936
-- **Timestamp:** 2026-10-26T15:36:56Z
+- **Scan ID:** R-d61b41f0
+- **Timestamp:** 2026-11-01T23:42:18Z
 - **Catalogue:** v1.3-seed
 - **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
 - **Needs Human:** no
 - **Findings:** none
-
-- **Auto-ticked:** 1 AC(s)
-  - AC #9: 0b2db7b684e1 [[REVIEWER] Verify error messages name the failing input clearly]
