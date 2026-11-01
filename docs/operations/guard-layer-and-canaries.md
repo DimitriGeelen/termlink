@@ -2040,6 +2040,36 @@ there to silence it.
 **Guard-layer status.** The check reads the live hub, so it is not a `source` member. Its
 fixtures, `tests/unacted-mail-fixtures.sh`, are.
 
+### Guard cap — DP-3, one in, one out (T-3644)
+
+The adopted purpose (DP-3, operator 2026-10-29: A; `docs/reports/T-3612-round4-draft.md` section 5
+DP-3 and 6.7) caps guards at **99 `scripts/check-*.sh`** and **34 canary cron jobs**. Not counted:
+the 12 operational cron jobs (supervisors, rollup, re-mint, heartbeat, audit, sweeps) and the
+fixture suites (`tests/*fixtures*.sh`), which test code.
+
+The cap is enforced by `scripts/check-guard-severity-markers.sh` (a guard-layer FAIL member),
+not by a new check script, since a new check would itself break the cap. It reads the tracked
+baseline `.context/checks/guard-cap-baseline`, which lists every counted check (`check <path>`),
+every canary cron (`canary <path>`), every operational cron (`operational <path>`, listed so a
+new crontab must be classified, not counted) and the two `cap` lines.
+
+| Exit | Meaning |
+|---|---|
+| 0 | every `scripts/check-*.sh` and `.context/cron/*.crontab` is in the baseline, and the baseline is within both caps. A baseline entry whose file is gone is reported as `retired since baseline` and passes (the count went down). |
+| 1 | `NEWCOMER <path>`: a check or crontab the baseline does not list; or `OVER-CAP`: the baseline lists more than a cap allows. |
+| 2 | could not count: no baseline, no `cap` line, no `scripts/` or `.context/cron/`, or zero files found. Never reported as clean. |
+
+**To add a guard,** do all of this in ONE commit:
+
+1. Pick a guard to retire (one whose objective is met and which has not fired). Delete its script or crontab, its cron install entry if any, and its line in the baseline.
+2. Add the newcomer's file and its `check` or `canary` line to the baseline.
+3. Run `bash scripts/check-guard-severity-markers.sh`; it must print `within baseline`.
+
+Never raise a `cap` line to make room. The cap is an operator ruling; changing it is a new
+decision for the operator. A new **operational** cron (not a guard) needs only an `operational`
+line. Fixtures: `tests/guard-layer-severity-fixtures.sh` (section `guard cap`; seams
+`GUARD_CAP_ROOT`, `GUARD_CAP_BASELINE`).
+
 ### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
 
 **One command runs every source-level guard.** Before T-2684 there was none, and

@@ -1,13 +1,18 @@
 ---
 id: T-3644
-name: "DP-3 guard cap enforcement: baseline the 99 check scripts and 34 canary crons, fail when either rises (T-3612 draft v0.9 section 6.7)"
+name: "DP-3 guard cap enforcement: baseline the 99 check scripts and 34 canary crons,
+  fail when either rises (T-3612 draft v0.9 section 6.7)"
 description: >
-  Commit the list of the 99 scripts/check-*.sh and 34 canary cron jobs as a baseline, and add a check that fails when either count rises (DP-3, operator ruling A 2026-10-29: one in, one out). Until built the cap is kept by hand (2026-11-01: T-3631 ratchet made it 100, check-approval-surfaces.sh retired, T-3639). Source: docs/reports/T-3612-round4-draft.md section 6.7; follows T-3642.
+  Commit the list of the 99 scripts/check-*.sh and 34 canary cron jobs as a baseline,
+  and add a check that fails when either count rises (DP-3, operator ruling A 2026-10-29:
+  one in, one out). Until built the cap is kept by hand (2026-11-01: T-3631 ratchet
+  made it 100, check-approval-surfaces.sh retired, T-3639). Source: docs/reports/T-3612-round4-draft.md
+  section 6.7; follows T-3642.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [dp-3, guards, cap]
 components: []
 related_tasks: [T-3612, T-3642]
@@ -39,8 +44,8 @@ origin: {kind: "agent", source: "T-3642"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T16:09:09Z
-last_update: 2026-11-01T16:09:09Z
-date_finished: null
+last_update: 2026-11-01T21:36:07Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +56,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-01T21:33:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3644: DP-3 guard cap enforcement: baseline the 99 check scripts and 34 canary crons, fail when either rises (T-3612 draft v0.9 section 6.7)
@@ -71,13 +88,13 @@ a manual count (fixed by retiring one, T-3639).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Baseline file committed listing every counted `scripts/check-*.sh` and every counted canary cron job (the 12
+- [x] Baseline file committed listing every counted `scripts/check-*.sh` and every counted canary cron job (the 12
       operational crons and fixture suites excluded, as §DP-3 says), with today's counts
-- [ ] The enforcement is added WITHOUT a new `scripts/check-*.sh` (that would itself break the cap): extend an existing
+- [x] The enforcement is added WITHOUT a new `scripts/check-*.sh` (that would itself break the cap): extend an existing
       guard (e.g. `scripts/check-guard-severity-markers.sh`) or the guard-layer runner; it fails (exit 1) naming any
       entry not in the baseline, passes on today's repo, exits 2 if it cannot count
-- [ ] Fixtures: a new check file -> FAIL naming it; a retired one -> PASS (count went down); today's repo -> PASS
-- [ ] `docs/operations/guard-layer-and-canaries.md` says how to add a guard (retire one, update the baseline in the same
+- [x] Fixtures: a new check file -> FAIL naming it; a retired one -> PASS (count went down); today's repo -> PASS
+- [x] `docs/operations/guard-layer-and-canaries.md` says how to add a guard (retire one, update the baseline in the same
       commit)
 
 ### Human
@@ -283,6 +300,11 @@ a manual count (fixed by retiring one, T-3639).
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+test "$(ls scripts/check-*.sh | wc -l)" -eq "$(grep -c '^check ' .context/checks/guard-cap-baseline)"
+bash scripts/check-guard-severity-markers.sh > .context/working/.t3644-v1.out 2>&1 && grep -q "guard cap (DP-3): within baseline — 99/99 check scripts, 34/34 canary cron jobs" .context/working/.t3644-v1.out
+bash tests/guard-layer-severity-fixtures.sh > .context/working/.t3644-v2.out 2>&1 && grep -q "ok: cap: a new check script fires, named" .context/working/.t3644-v2.out && grep -q " 0 failed" .context/working/.t3644-v2.out
+grep -q "^### Guard cap — DP-3, one in, one out (T-3644)" docs/operations/guard-layer-and-canaries.md
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -363,6 +385,11 @@ a manual count (fixed by retiring one, T-3639).
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-01 — where the cap lives and what a canary is
+- **Chose:** enforcement inside `scripts/check-guard-severity-markers.sh` against the tracked baseline `.context/checks/guard-cap-baseline`. A counted canary is a `.context/cron/*.crontab` whose name contains `canary`. The 12 others are listed as `operational`, so any NEW crontab must be classified and a canary cannot escape the count by its name.
+- **Why:** counted today, 99 `scripts/check-*.sh`, 34 `*canary*.crontab`, 12 other crontabs; these equal the draft's 99/34/12. The baseline also carries `cap` lines, and listing past them fires OVER-CAP, so the cap cannot be met by only appending to the baseline.
+- **Rejected:** a new check script (breaks the cap), and counting cron lines rather than crontab files (agentic-audit.crontab alone holds 16 lines, so that count would not match the ruling's 34).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -379,3 +406,7 @@ a manual count (fixed by retiring one, T-3639).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3644-dp-3-guard-cap-enforcement-baseline-the-.md
 - **Context:** Initial task creation
+
+### 2026-11-01T21:33:13Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

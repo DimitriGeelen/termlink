@@ -26,17 +26,35 @@
 # SHOULD be warn/info — that classification is the operator's
 # (docs/reports/T-3258-guard-classification-draft.md § Operator rulings).
 #
-# Exit: 0 clean · 1 a malformed demotion marker · 2 tooling (fail-closed).
-# Seam: GUARD_SEVERITY_DIRS="dirA dirB" (default "scripts tests").
+# GUARD CAP (T-3644, adopted purpose DP-3, T-3612 draft v0.9 section 6.7). The same run
+# also enforces the cap: 99 scripts/check-*.sh and 34 canary cron jobs, one in, one out.
+# It lives here, not in a new check script, because a new check would itself break the
+# cap. Against the tracked baseline .context/checks/guard-cap-baseline it fires:
+#
+#   NEWCOMER    a scripts/check-*.sh or .context/cron/*.crontab that the baseline does
+#               not list (named). Retire a guard and update the baseline in one commit.
+#   OVER-CAP    the baseline itself lists more checks or canaries than its cap line.
+#
+# A baseline entry whose file is gone is a retirement: reported, never a failure (the
+# count went down). Cannot count (no baseline, no cap line, no scripts/ or cron dir,
+# zero files found) is exit 2.
+#
+# Exit: 0 clean · 1 a malformed demotion marker, a NEWCOMER or OVER-CAP · 2 tooling
+# (fail-closed).
+# Seams: GUARD_SEVERITY_DIRS="dirA dirB" (default "scripts tests");
+#        GUARD_CAP_ROOT (default: the repo this script sits in) holds scripts/ and
+#        .context/cron/; GUARD_CAP_BASELINE (default $GUARD_CAP_ROOT/.context/checks/guard-cap-baseline).
 set -uo pipefail
 
 DIRS="${GUARD_SEVERITY_DIRS:-scripts tests}"
+CAP_ROOT="${GUARD_CAP_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+CAP_BASELINE="${GUARD_CAP_BASELINE:-$CAP_ROOT/.context/checks/guard-cap-baseline}"
 QUIET=0
 for a in "$@"; do
     case "$a" in
         --quiet) QUIET=1 ;;
         --no-heartbeat) : ;;   # accepted for guard-layer symmetry; nothing heartbeats
-        -h|--help) sed -n '3,30p' "$0"; exit 0 ;;
+        -h|--help) sed -n '3,46p' "$0"; exit 0 ;;
         *) echo "check-guard-severity-markers: unknown argument: $a" >&2; exit 2 ;;
     esac
 done
@@ -88,14 +106,92 @@ if [ "$scanned" -eq 0 ]; then
     exit 2
 fi
 
+# --- guard cap (T-3644) ------------------------------------------------------
+cap_tooling=""
+cap_firing=()
+cap_retired=()
+n_check=0; n_canary=0
+cap_check=""; cap_canary=""
+declare -A listed=()
+listed_check=0; listed_canary=0
+if [ ! -r "$CAP_BASELINE" ]; then
+    cap_tooling="baseline not readable: $CAP_BASELINE"
+elif [ ! -d "$CAP_ROOT/scripts" ] || [ ! -d "$CAP_ROOT/.context/cron" ]; then
+    cap_tooling="cannot count: $CAP_ROOT/scripts or $CAP_ROOT/.context/cron is missing"
+else
+    while read -r kind val extra; do
+        case "$kind" in
+            ''|\#*) continue ;;
+            cap)
+                case "$val:$extra" in
+                    check:[0-9]*) cap_check="$extra" ;;
+                    canary:[0-9]*) cap_canary="$extra" ;;
+                    *) cap_tooling="bad cap line in $CAP_BASELINE: cap $val $extra" ;;
+                esac ;;
+            check)       listed["$val"]=check;       listed_check=$((listed_check+1)) ;;
+            canary)      listed["$val"]=canary;      listed_canary=$((listed_canary+1)) ;;
+            operational) listed["$val"]=operational ;;
+            *) cap_tooling="unknown line kind '$kind' in $CAP_BASELINE" ;;
+        esac
+    done < "$CAP_BASELINE"
+    [ -n "$cap_check" ] && [ -n "$cap_canary" ] || cap_tooling="${cap_tooling:-$CAP_BASELINE has no 'cap check N' or 'cap canary N' line}"
+fi
+if [ -z "$cap_tooling" ]; then
+    declare -A present=()
+    for f in "$CAP_ROOT"/scripts/check-*.sh; do
+        [ -e "$f" ] || continue
+        rel="scripts/${f##*/}"; present["$rel"]=1
+        case "${listed[$rel]:-}" in
+            check) n_check=$((n_check+1)) ;;
+            *) n_check=$((n_check+1)); cap_firing+=("NEWCOMER   $rel — not in the guard-cap baseline (cap $cap_check checks): retire a check and list this one in the same commit") ;;
+        esac
+    done
+    for f in "$CAP_ROOT"/.context/cron/*.crontab; do
+        [ -e "$f" ] || continue
+        rel=".context/cron/${f##*/}"; present["$rel"]=1
+        case "${listed[$rel]:-}" in
+            canary) n_canary=$((n_canary+1)) ;;
+            operational) : ;;
+            *) cap_firing+=("NEWCOMER   $rel — cron job not in the guard-cap baseline: a canary must retire one (cap $cap_canary); an operational job is listed as 'operational'") ;;
+        esac
+    done
+    if [ "$n_check" -eq 0 ] || [ "${#present[@]}" -eq "$n_check" ]; then
+        cap_tooling="counted $n_check check script(s) and $(( ${#present[@]} - n_check )) cron job(s) under $CAP_ROOT — refusing to report a cap over nothing"
+    fi
+    for rel in "${!listed[@]}"; do
+        [ -n "${present[$rel]:-}" ] || cap_retired+=("$rel")
+    done
+    [ "$listed_check" -le "$cap_check" ] || cap_firing+=("OVER-CAP   the baseline lists $listed_check check scripts; the cap is $cap_check")
+    [ "$listed_canary" -le "$cap_canary" ] || cap_firing+=("OVER-CAP   the baseline lists $listed_canary canary cron jobs; the cap is $cap_canary")
+fi
+
+rc=0
 if [ "${#firing[@]}" -gt 0 ]; then
     echo "guard severity markers: ${#firing[@]} malformed demotion marker(s) ($scanned marked member(s), $n_warn warn, $n_info info)"
     for x in "${firing[@]}"; do echo "  $x"; done
     echo "Scope: checks marker FORM only; whether a member should be warn/info is the operator's call."
-    exit 1
+    rc=1
+else
+    [ "$QUIET" -eq 1 ] || {
+        echo "guard severity markers: clean — $scanned marked member(s), $n_warn warn, $n_info info (rest FAIL)"
+        echo "Scope: checks marker FORM only; whether a member should be warn/info is the operator's call."
+    }
 fi
-[ "$QUIET" -eq 1 ] || {
-    echo "guard severity markers: clean — $scanned marked member(s), $n_warn warn, $n_info info (rest FAIL)"
-    echo "Scope: checks marker FORM only; whether a member should be warn/info is the operator's call."
-}
-exit 0
+
+if [ -n "$cap_tooling" ]; then
+    echo "check-guard-severity-markers: guard cap: $cap_tooling (fail-closed)" >&2
+    exit 2
+fi
+if [ "${#cap_firing[@]}" -gt 0 ]; then
+    echo "guard cap (DP-3): ${#cap_firing[@]} finding(s) — $n_check/$cap_check check scripts, $n_canary/$cap_canary canary cron jobs"
+    for x in "${cap_firing[@]}"; do echo "  $x"; done
+    echo "  baseline: ${CAP_BASELINE#$CAP_ROOT/}"
+    rc=1
+else
+    [ "$QUIET" -eq 1 ] || echo "guard cap (DP-3): within baseline — $n_check/$cap_check check scripts, $n_canary/$cap_canary canary cron jobs"
+fi
+for r in "${cap_retired[@]:-}"; do
+    [ -n "$r" ] || continue
+    [ "$QUIET" -eq 1 ] || echo "  retired since baseline: $r (count went down; drop its line from the baseline)"
+done
+exit "$rc"

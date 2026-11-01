@@ -99,6 +99,7 @@ Index (one line per section in the doc; the script named is where to start):
 - Stranded-finalized task check (T-2833, the finalize latch the T-2290 canary cannot see) — `scripts/check-stranded-finalized-tasks.sh`
 - Human-AC Steps heading check (T-2859, the approval page dropping the operator's command) — `scripts/check-human-ac-steps-heading.sh`
 - Unanswered-mail sweep (T-3618, "delivered" is not "acted on") — `scripts/check-unacted-mail.sh`
+- Guard cap — DP-3, one in, one out (T-3644): 99 checks / 34 canary crons; add a guard only by retiring one, same commit — `.context/checks/guard-cap-baseline`
 - Running the guard layer — `scripts/run-guard-layer.sh` (T-2684): severity tiers, the 14-day WARN clock, the pending-commit manifest
 - Canary log hygiene — split the streams (T-2685) — `scripts/check-canary-log-hygiene.sh`
 - The stderr sink had no reader — ERRORING (T-2842) + completion heartbeats (T-2843) — `scripts/canary-status.sh`

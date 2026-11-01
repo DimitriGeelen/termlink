@@ -1,0 +1,166 @@
+# guard-cap-baseline (T-3644) — the DP-3 guard cap, frozen 2026-11-01
+#
+# Adopted purpose DP-3 (operator 2026-10-29: A; T-3612 draft v0.9 section 5 DP-3 and 6.7):
+# guards are capped at 34 canary cron jobs and 99 scripts/check-*.sh. One in, one out.
+# Enforced by scripts/check-guard-severity-markers.sh (no new check script: that would
+# itself break the cap). It fails naming any scripts/check-*.sh or .context/cron/*.crontab
+# that is not listed here, and fails if this file lists more than a cap allows.
+#
+# To add a guard: retire one in the SAME commit — delete its file and its line here, then
+# add the newcomer's line. See docs/operations/guard-layer-and-canaries.md "Guard cap".
+#
+# Line kinds:
+#   cap <kind> <N>         the cap for that kind
+#   check <path>           a counted scripts/check-*.sh
+#   canary <path>          a counted canary cron job (.context/cron/*.crontab)
+#   operational <path>     an operational cron job (supervisor, rollup, re-mint, heartbeat,
+#                          audit, sweep): listed so a new crontab must be classified, NOT
+#                          counted (DP-3 excludes the 12 operational crons). Fixture suites
+#                          (tests/*fixtures*.sh) are not guards and are not listed.
+cap check 99
+cap canary 34
+check scripts/check-absence-assertion.sh
+check scripts/check-addressed-posts.sh
+check scripts/check-agent-send-suites-freshness.sh
+check scripts/check-alloc-sink-clamps.sh
+check scripts/check-arc-claim-drift.sh
+check scripts/check-arc-driver-scoring-persisted.sh
+check scripts/check-arc-slice-drift.sh
+check scripts/check-arc011-inventory.sh
+check scripts/check-artifact-writers.sh
+check scripts/check-audit-warning-acknowledgement.sh
+check scripts/check-budget-ladder-drift.sh
+check scripts/check-busy-spin.sh
+check scripts/check-canary-aliveness.sh
+check scripts/check-canary-log-hygiene.sh
+check scripts/check-canary-log-isolation.sh
+check scripts/check-charter-drift-freshness.sh
+check scripts/check-charter-sentence-drift.sh
+check scripts/check-command-cards.sh
+check scripts/check-cron-install-drift.sh
+check scripts/check-dashboard-deleted-root.sh
+check scripts/check-dead-letter-freshness.sh
+check scripts/check-decisions-register.sh
+check scripts/check-decisions-yaml-format.sh
+check scripts/check-drain-sink-caps.sh
+check scripts/check-env-leak-freshness.sh
+check scripts/check-env-var-docs.sh
+check scripts/check-episodic-parse.sh
+check scripts/check-error-code-docs.sh
+check scripts/check-error-code-emission.sh
+check scripts/check-error-swallowing-predicate.sh
+check scripts/check-fabric-card-parse.sh
+check scripts/check-file-shaped-posts.sh
+check scripts/check-fleet-binary-freshness.sh
+check scripts/check-fleet-capability-freshness.sh
+check scripts/check-fleet-doorbell-mail-health.sh
+check scripts/check-fleet-recipient-agreement.sh
+check scripts/check-forever-archival-freshness.sh
+check scripts/check-forever-owner-freshness.sh
+check scripts/check-framework-pickup-freshness.sh
+check scripts/check-framework-tracking-drift.sh
+check scripts/check-frozen-husk-freshness.sh
+check scripts/check-go-propagation.sh
+check scripts/check-guard-runner-coverage.sh
+check scripts/check-guard-severity-markers.sh
+check scripts/check-handover-staleness.sh
+check scripts/check-hook-counter-integrity.sh
+check scripts/check-hub-outage-collector-freshness.sh
+check scripts/check-hubs-parse-agreement.sh
+check scripts/check-human-ac-escalation.sh
+check scripts/check-human-ac-steps-heading.sh
+check scripts/check-installed-binary-drift.sh
+check scripts/check-instructed-verb-resolves.sh
+check scripts/check-mcp-cli-twin-drift.sh
+check scripts/check-mcp-parity-census.sh
+check scripts/check-mirror-freshness.sh
+check scripts/check-notify-sidecar-freshness.sh
+check scripts/check-outbox.sh
+check scripts/check-pickup-cron-lock.sh
+check scripts/check-pickup-deferred-freshness.sh
+check scripts/check-pin-events.sh
+check scripts/check-pipefail-grep-q.sh
+check scripts/check-planted-default-gate.sh
+check scripts/check-platform-lock.sh
+check scripts/check-preflight-doc-set-drift.sh
+check scripts/check-receiver-ack-lag.sh
+check scripts/check-release-artifact-drift.sh
+check scripts/check-release-publication-freshness.sh
+check scripts/check-root-mode-freshness.sh
+check scripts/check-run-record-parse.sh
+check scripts/check-session-control-freshness.sh
+check scripts/check-session-leak-freshness.sh
+check scripts/check-silent-exit.sh
+check scripts/check-stale-sidecar-code.sh
+check scripts/check-stale-waker-code-freshness.sh
+check scripts/check-stranded-finalized-tasks.sh
+check scripts/check-strict-star.sh
+check scripts/check-stuck-claims-freshness.sh
+check scripts/check-substrate-smoke-freshness.sh
+check scripts/check-task-finalization-freshness.sh
+check scripts/check-task-frontmatter.sh
+check scripts/check-task-id-collisions.sh
+check scripts/check-task-template-idioms.sh
+check scripts/check-test-artifact-secrets.sh
+check scripts/check-tier0-approval-latch.sh
+check scripts/check-topic-growth-freshness.sh
+check scripts/check-unacted-mail.sh
+check scripts/check-unbounded-rpc-call.sh
+check scripts/check-unconfirmed-delivery-freshness.sh
+check scripts/check-unpaired-capture.sh
+check scripts/check-vacuous-verification.sh
+check scripts/check-vector-index-freshness.sh
+check scripts/check-vendor-divergence.sh
+check scripts/check-vendored-arc-rollout.sh
+check scripts/check-verification-heading-shadow.sh
+check scripts/check-verification-misfile.sh
+check scripts/check-verification-pipefail.sh
+check scripts/check-version-derivation.sh
+check scripts/check-waker-liveness-freshness.sh
+check scripts/check-workflow-adoption.sh
+canary .context/cron/agent-send-suites-canary.crontab
+canary .context/cron/arc-claim-drift-canary.crontab
+canary .context/cron/canary-aliveness-sweep.crontab
+canary .context/cron/canary-escalation.crontab
+canary .context/cron/charter-drift-canary.crontab
+canary .context/cron/charter-sentence-drift-canary.crontab
+canary .context/cron/dead-letter-canary.crontab
+canary .context/cron/env-leak-canary.crontab
+canary .context/cron/file-shaped-posts-canary.crontab
+canary .context/cron/fleet-binary-canary.crontab
+canary .context/cron/fleet-capability-canary.crontab
+canary .context/cron/fleet-doorbell-mail-canary.crontab
+canary .context/cron/forever-archival-canary.crontab
+canary .context/cron/forever-owner-canary.crontab
+canary .context/cron/framework-pickup-canary.crontab
+canary .context/cron/frozen-husk-canary.crontab
+canary .context/cron/hook-counter-integrity-canary.crontab
+canary .context/cron/notify-sidecar-canary.crontab
+canary .context/cron/preflight-doc-set-drift-canary.crontab
+canary .context/cron/release-mirror-canary.crontab
+canary .context/cron/release-publication-canary.crontab
+canary .context/cron/root-mode-canary.crontab
+canary .context/cron/session-control-canary.crontab
+canary .context/cron/session-leak-canary.crontab
+canary .context/cron/stale-sidecar-code-canary.crontab
+canary .context/cron/stale-waker-code-canary.crontab
+canary .context/cron/stuck-claims-canary.crontab
+canary .context/cron/substrate-preflight-canary.crontab
+canary .context/cron/substrate-smoke-canary.crontab
+canary .context/cron/task-finalization-canary.crontab
+canary .context/cron/topic-growth-canary.crontab
+canary .context/cron/unconfirmed-delivery-canary.crontab
+canary .context/cron/vector-index-canary.crontab
+canary .context/cron/waker-liveness-canary.crontab
+operational .context/cron/agentic-audit.crontab
+operational .context/cron/fleet-adoption-snapshot.crontab
+operational .context/cron/fleet-token-remint.crontab
+operational .context/cron/heartbeat.crontab
+operational .context/cron/hub-outage-collector.crontab
+operational .context/cron/notify-sidecar-supervisor.crontab
+operational .context/cron/notify-wake-supervisor.crontab
+operational .context/cron/presence-sweep.crontab
+operational .context/cron/sidecar-backstop.crontab
+operational .context/cron/telemetry-rollup.crontab
+operational .context/cron/woken-silent-triage.crontab
+operational .context/cron/zombie-reap.crontab

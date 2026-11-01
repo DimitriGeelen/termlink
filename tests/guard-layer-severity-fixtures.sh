@@ -40,6 +40,22 @@ mkdir -p "$S" "$T"
 # annotate and write the step summary. Cases that test annotation set it explicitly.
 unset GITHUB_ACTIONS GITHUB_STEP_SUMMARY GUARD_LAYER_TEST_NOW
 
+# T-3644: the marker checker also enforces the DP-3 guard cap. Point it at a scratch
+# cap root so the marker cases below never depend on the real repo's counts.
+CAPROOT="$SCRATCH/caproot"
+cap_reset() {
+    rm -rf "$CAPROOT"; mkdir -p "$CAPROOT/scripts" "$CAPROOT/.context/cron" "$CAPROOT/.context/checks"
+    : > "$CAPROOT/scripts/check-a.sh"; : > "$CAPROOT/scripts/check-b.sh"
+    : > "$CAPROOT/.context/cron/x-canary.crontab"; : > "$CAPROOT/.context/cron/ops.crontab"
+    printf '%s\n' '# scratch baseline' 'cap check 2' 'cap canary 1' \
+        'check scripts/check-a.sh' 'check scripts/check-b.sh' \
+        'canary .context/cron/x-canary.crontab' 'operational .context/cron/ops.crontab' \
+        > "$CAPROOT/.context/checks/guard-cap-baseline"
+}
+cap_reset
+export GUARD_CAP_ROOT="$CAPROOT"
+unset GUARD_CAP_BASELINE
+
 pass=0; fail=0
 ok()  { pass=$((pass+1)); echo "  ok: $1"; }
 bad() { fail=$((fail+1)); echo "  FAIL: $1" >&2; }
@@ -169,6 +185,34 @@ GUARD_SEVERITY_DIRS="$T" bash "$REAL_CHECK" >"$OUT" 2>&1; rc=$?
 rm -f "$T/y-fixtures.sh"
 GUARD_SEVERITY_DIRS="$SCRATCH/nope" bash "$REAL_CHECK" >/dev/null 2>&1; rc=$?
 [ "$rc" -eq 2 ] && ok "checker: missing dir is tooling (rc=2, fail-closed)" || bad "checker fail-closed (rc=$rc)"
+
+echo "== guard cap (T-3644, DP-3)"
+# cc <label-for-errors> — run the checker against the scratch cap root, rc in $rc
+cc() { reset; mk a 0 ""; GUARD_SEVERITY_DIRS="$S" bash "$REAL_CHECK" >"$OUT" 2>&1; rc=$?; }
+cap_reset; cc
+[ "$rc" -eq 0 ] && grep -q '2/2 check scripts, 1/1 canary' "$OUT" && ok "cap: at the baseline is clean" || bad "cap clean (rc=$rc)"
+cap_reset; : > "$CAPROOT/scripts/check-new.sh"; cc
+[ "$rc" -eq 1 ] && grep -q 'NEWCOMER   scripts/check-new.sh' "$OUT" && ok "cap: a new check script fires, named" || bad "cap newcomer check (rc=$rc)"
+cap_reset; : > "$CAPROOT/.context/cron/y-canary.crontab"; cc
+[ "$rc" -eq 1 ] && grep -q 'NEWCOMER   .context/cron/y-canary.crontab' "$OUT" && ok "cap: a new canary cron fires, named" || bad "cap newcomer canary (rc=$rc)"
+cap_reset; : > "$CAPROOT/.context/cron/sneaky.crontab"; cc
+[ "$rc" -eq 1 ] && grep -q 'NEWCOMER   .context/cron/sneaky.crontab' "$OUT" && ok "cap: an unclassified cron (no 'canary' in its name) fires" || bad "cap unclassified cron (rc=$rc)"
+cap_reset; rm -f "$CAPROOT/scripts/check-b.sh"; cc
+[ "$rc" -eq 0 ] && grep -q 'retired since baseline: scripts/check-b.sh' "$OUT" && ok "cap: a retired check passes (count went down)" || bad "cap retired (rc=$rc)"
+cap_reset; echo 'check scripts/check-c.sh' >> "$CAPROOT/.context/checks/guard-cap-baseline"; : > "$CAPROOT/scripts/check-c.sh"; cc
+[ "$rc" -eq 1 ] && grep -q 'OVER-CAP   the baseline lists 3 check scripts; the cap is 2' "$OUT" && ok "cap: listing past the cap fires OVER-CAP" || bad "cap over-cap (rc=$rc)"
+cap_reset; rm -f "$CAPROOT/.context/checks/guard-cap-baseline"; cc
+[ "$rc" -eq 2 ] && ok "cap: no baseline is tooling (rc=2)" || bad "cap no baseline (rc=$rc)"
+cap_reset; sed -i '/^cap canary/d' "$CAPROOT/.context/checks/guard-cap-baseline"; cc
+[ "$rc" -eq 2 ] && ok "cap: a missing cap line is tooling (rc=2)" || bad "cap no cap line (rc=$rc)"
+cap_reset; rm -rf "$CAPROOT/.context/cron"; cc
+[ "$rc" -eq 2 ] && ok "cap: no cron dir is tooling (rc=2)" || bad "cap no cron dir (rc=$rc)"
+cap_reset; rm -f "$CAPROOT"/.context/cron/*.crontab; cc
+[ "$rc" -eq 2 ] && ok "cap: zero cron jobs counted is tooling (rc=2), never clean" || bad "cap zero crons (rc=$rc)"
+cap_reset
+# Real-tree control (PL-219): today's repo is within its baseline.
+GUARD_CAP_ROOT="$REPO_ROOT" bash "$REAL_CHECK" >"$OUT" 2>&1; rc=$?
+[ "$rc" -eq 0 ] && grep -q 'guard cap (DP-3): within baseline' "$OUT" && ok "cap: today's repo is within its baseline" || bad "cap real tree (rc=$rc): $(tail -3 "$OUT")"
 
 echo "== mutants (each must turn its property case red)"
 mutant() { # mutant <label> <sed-expr> <case-fn>
