@@ -22,10 +22,10 @@ description: >
   this compounds with T-3170: there is no point auto-confirming scores produced by
   a model that measures 56% of itself.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -40,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-26T18:16:09Z
-last_update: '2026-09-27T21:34:09Z'
-date_finished:
+last_update: 2026-11-01T23:49:09Z
+date_finished: 2026-11-01T23:49:09Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -61,6 +61,18 @@ cost_estimate_proposed:
       effort: 8
     rationale: blast_radius=3 (2-file-refs-derived-T-3189); tier=2 
       (workflow:build); effort=8 (lines=264,acs=4)
+    rubric_sha: e4a00f38e801
+bvp_scores_proposed:
+  - ts: '2026-11-01T23:48:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
     rubric_sha: e4a00f38e801
 ---
 
@@ -100,14 +112,18 @@ learning.
 
 ## Context
 
+**Background / trigger:** A 2026-09-26 measurement claimed that 44% of declared BVP weight was never scored and that F-ORCH was a phantom driver.
+**Problem / hypothesis:** The claim was false. It compared estimator output against the framework's template value-drivers.yaml, not the project copy everything reads (see WITHDRAWN above).
+**Goal:** Withdraw the finding, retract it where it was sent, and keep the record.
+**Expected outcome:** No code change. The finding stays withdrawn, with the retraction at framework:pickup offset 189.
+
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Withdrawn, nothing to do: the finding was a measurement error, and re-measurement against the project's policy/value-drivers.yaml showed 0% unscored weight. The retraction was posted to 832 at framework:pickup offset 189 and read back. Kept as a record. (evidence: git 45475f2b8 "T-3173 WITHDRAWN"; WITHDRAWN section above)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -231,6 +247,8 @@ learning.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+git cat-file -e 45475f2b8^{commit}
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -246,6 +264,12 @@ learning.
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+There was no defect in the code. This RCA covers the false finding.
+**Symptom:** A reported "44% of declared BVP weight unscored / F-ORCH phantom" was sent to another project as confirmation.
+**Root cause:** The measurement used the framework's TEMPLATE `policy/value-drivers.yaml` instead of the PROJECT copy that `lib/bvp.sh` and `estimator.py` read. The two are meant to differ.
+**Why structurally allowed:** A vendored install has two files with the same name and no marker of which one is live. Nothing checked the measurement's source before the claim went out.
+**Prevention:** Learning PL-386 (mis-selecting a source the system already owns). This record argues for a check rather than another learning. The retraction is at framework:pickup offset 189.
 
 ## Evolution
 
@@ -327,3 +351,25 @@ learning.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3173-bvp-scores-44-percent-of-declared-weight.md
 - **Context:** Initial task creation
+
+### 2026-11-01T23:48:30Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-01T23:49:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-615a398c
+- **Timestamp:** 2026-11-01T23:49:10Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Withdrawn, nothing to do: the finding was a measurement error, and re-measurement against the project's policy/value-drivers.yaml showed 0% unscored weight. The retraction was posted to 832 at framewo
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=policy/value-drivers.yaml in: Withdrawn, nothing to do: the finding was a measurement error, and re-measurement against the project's policy/value-drivers.yaml showed 0% unscored w`

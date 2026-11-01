@@ -22011,3 +22011,21 @@ scan_id: R-78d5d2b5
 task_id: T-3160
 payload:
   task_file: .tasks/active/T-3160-ack-the-framework-pickup-canary-after-tr.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:49:10Z'
+scan_id: R-615a398c
+task_id: T-3173
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:49:10Z'
+scan_id: R-615a398c
+task_id: T-3173
+payload:
+  task_file: .tasks/active/T-3173-bvp-scores-44-percent-of-declared-weight.md

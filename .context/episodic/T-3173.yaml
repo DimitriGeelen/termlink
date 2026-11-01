@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3173: WITHDRAWN - BVP driver coverage finding was a measurement error, not a defect
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:49:17Z
+# ============================================================================
+
+task_id: T-3173
+task_name: "WITHDRAWN - BVP driver coverage finding was a measurement error, not a defect"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-26T18:16:09Z
+completed: 2026-11-01T23:49:09Z
+duration_days: 36
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Confirms 832's pickup offset 180 finding against our own tree, and adds an inverse defect they do not have. MEASURED across all 449 proposals in the corpus. The estimator emits exactly six drivers: D1, D2, D3, D4 (100% of proposals), F-RECALL and F-ORCH (98%). policy/value-drivers.yaml declares nine: D1-D4, F-RECALL, F-AUTONOMY, F3, F1, F2. (1) DECLARED BUT NEVER SCORED: F-AUTONOMY (w4), F3 (w7), F1 (w7), F2 (w6) = 24 of 54 weight units, 44%, never participate in any score. 832 measured 43% at their site and found the consequence was that their ranking could not see product value at all, so three consecutive autonomous prioritisation runs each chose framework-remediation work, every selection correct against a model measuring 57% of itself. (2) SCORED BUT NOT DECLARED: F-ORCH is commented out at value-drivers.yaml:133 and is still scored in 442 proposals - a retired driver contributing to every score. The audit's standing F-ORCH retire_when WARN (one of the 8) is therefore about a driver already retired in the policy while the estimator keeps scoring it. Both directions are silent at the ranking surface: fw bvp prints BVP and NORM with no indication that 44% of declared weight took no part. 832's suggested fix is small and worth copying - print 'NORM 0.54 (over 30/54 weight; F1,F2,F3,F-AUTONOMY unscored)', the same shape as our own T-3105 abstention convention applied to the ranking line. Note this compounds with T-3170: there is no point auto-confirming scores produced by a model that measures 56% of itself.
+
+# Key outcomes
+outcomes:
+  - 'Withdrawn, nothing to do: the finding was a measurement error, and re-measurement against the project''s policy/value-drivers.yaml showed 0% unscored weight. The retraction was posted to 832 at framework:pickup offset 189 and read back. Kept as a record. (evidence: git 45475f2b8 "T-3173 WITHDRAWN"; WITHDRAWN section above)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 52173 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 52173
+  commits: 1
+  files_changed: 3
+  lines_added: 143
+  lines_removed: 6
+  footprint_refreshed_at: '2026-11-01T23:49:22Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3173-bvp-scores-44-percent-of-declared-weight.md
+generated_by: context-agent-hybrid
