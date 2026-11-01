@@ -105,7 +105,7 @@ rexec() {  # $1 = remote timeout secs, $2 = command; stdout/stderr pass through,
     sess=$(cat "$WORK/.session"); rc=0
     out=$(timeout $((t+5)) termlink remote exec --timeout "$t" "$HUB" "$sess" "$cmd" 2>"$errf") || rc=$?
     if [ "$rc" -ne 0 ] && [ "$SESSION_EXPLICIT" = 0 ] && [ "$switches" -lt 3 ] \
-       && { cat "$errf"; printf '%s' "$out"; } | grep -qE "Session .* not found"; then
+       && { cat "$errf"; printf '%s' "$out"; } | grep -E "Session .* not found" >/dev/null; then
       new=$(discover_session)
       if [ -n "$new" ] && [ "$new" != "$sess" ]; then
         printf '%s' "$new" > "$WORK/.session"; SESSION="$new"; switches=$((switches+1))
@@ -173,7 +173,7 @@ MAX_ATTEMPTS=$(( ${#BACKOFF[@]} + 1 ))
 abort_stream() {
   echo "ERROR: $1" >&2
   # Best effort: do not leave megabytes of staged chunks on the remote.
-  if rexec 25 "rm -rf '$REMOTE_DIR' && echo CLEANED" 2>/dev/null | grep -q CLEANED; then
+  if rexec 25 "rm -rf '$REMOTE_DIR' && echo CLEANED" 2>/dev/null | grep CLEANED >/dev/null; then
     echo "  removed remote staging dir $REMOTE_DIR" >&2
   else
     echo "  WARNING: could not remove remote staging dir $REMOTE_DIR" >&2
@@ -246,7 +246,7 @@ if [ "$SWAP" = "1" ]; then
   # unit-less hosts are this script's original audience.
   echo ">>> G-070 guard: checking target for termlink-hub.service"
   UNIT_PRESENT=$({ rexec 25 \
-    "if command -v systemctl >/dev/null 2>&1; then systemctl list-unit-files termlink-hub.service 2>/dev/null | grep -q '^termlink-hub.service' && echo 1 || echo 0; else echo no-systemd; fi" 2>/dev/null || true; } | tr -d '[:space:]')
+    "if command -v systemctl >/dev/null 2>&1; then systemctl list-unit-files termlink-hub.service 2>/dev/null | grep '^termlink-hub.service' >/dev/null && echo 1 || echo 0; else echo no-systemd; fi" 2>/dev/null || true; } | tr -d '[:space:]')
   case "$UNIT_PRESENT" in
     1)
       if [ "${FORCE_DETACHED}" != "1" ]; then

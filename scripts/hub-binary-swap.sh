@@ -140,7 +140,7 @@ echo \"OLD_VERSION=\$(/usr/local/bin/termlink --version)\"
 echo \"NEW_VERSION=\$('$STAGED_PATH' --version)\"
 echo \"SECRET_SHA=\$(sha256sum /var/lib/termlink/hub.secret | awk '{print \$1}')\"
 echo \"CERT_SHA=\$(sha256sum /var/lib/termlink/hub.cert.pem | awk '{print \$1}')\"
-echo \"UNIT_PRESENT=\$(if command -v systemctl >/dev/null 2>&1; then systemctl list-unit-files termlink-hub.service 2>/dev/null | grep -q '^termlink-hub.service' && echo 1 || echo 0; else echo no-systemd; fi)\"
+echo \"UNIT_PRESENT=\$(if command -v systemctl >/dev/null 2>&1; then systemctl list-unit-files termlink-hub.service 2>/dev/null | grep '^termlink-hub.service' >/dev/null && echo 1 || echo 0; else echo no-systemd; fi)\"
 ")
 
 echo "$PRE_STATE" | sed 's/^/  /'

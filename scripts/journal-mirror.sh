@@ -104,7 +104,7 @@ SQL
 # existing column is an error, and a migration whose idempotency depends on swallowing
 # errors also swallows the ones that matter. So ask the schema first.
 if ! sqlite3 "$JOURNAL" "SELECT 1 FROM pragma_table_info('messages') WHERE name='priority';" \
-     | grep -q 1; then
+     | grep 1 >/dev/null; then
     sqlite3 "$JOURNAL" "ALTER TABLE messages ADD COLUMN priority INTEGER NOT NULL DEFAULT 0;" \
         || die "cannot add priority column to $JOURNAL"
     # DEFAULT 0 backfills every existing row to the normal band, so migrating changes

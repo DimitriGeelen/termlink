@@ -138,7 +138,7 @@ queue_rows() {  # $1 topic ; echoes offset|priority|ts|sender_id|payload-head pe
     local topic="$1" sql_topic wm prio_order
     sql_topic="${topic//\'/\'\'}"
     wm="$(queue_wm "$topic")"
-    if sqlite3 "$JOURNAL" "SELECT 1 FROM pragma_table_info('messages') WHERE name='priority';" 2>/dev/null | grep -q 1; then
+    if sqlite3 "$JOURNAL" "SELECT 1 FROM pragma_table_info('messages') WHERE name='priority';" 2>/dev/null | grep 1 >/dev/null; then
         prio_order="COALESCE(priority,0) DESC, "
     else prio_order=""; fi
     sqlite3 -separator '|' "$JOURNAL" \
@@ -156,7 +156,7 @@ session_present() {  # 0 present, 1 absent
     if [ -n "${SIDECAR_API_TEST_SESSION_STATE:-}" ]; then
         [ "$SIDECAR_API_TEST_SESSION_STATE" = "present" ]; return
     fi
-    "$TERMLINK" list 2>/dev/null | awk 'NR>2 {print $1; print $2}' | grep -qxF -- "$SESSION"
+    "$TERMLINK" list 2>/dev/null | awk 'NR>2 {print $1; print $2}' | grep -xF -- "$SESSION" >/dev/null
 }
 prompt_state() {
     if [ -n "${SIDECAR_API_TEST_PTY_STATE:-}" ]; then printf '%s' "$SIDECAR_API_TEST_PTY_STATE"; return; fi

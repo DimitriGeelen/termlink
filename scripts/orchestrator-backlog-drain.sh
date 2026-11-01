@@ -265,7 +265,7 @@ while IFS='|' read -r tid classification ac_count name; do
   if [ -z "$queue_offset" ]; then
     failures=$((failures+1))
     # surface the canonical "unknown topic" error loudly
-    if echo "$post_resp" | grep -q "unknown topic"; then
+    if grep -q "unknown topic" <<< "$post_resp"; then
       echo "DISPATCH [POST-FAIL] unit=$tid — topic '$QUEUE_TOPIC' does not exist on hub."
       echo "  Create it once with:"
       echo "    termlink channel create --retention 'messages:1000' $QUEUE_TOPIC"

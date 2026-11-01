@@ -19,7 +19,7 @@ FILE="docs/reports/T-908-api-relay-governance.md"
 DEFAULT_MSG="T-908: Batch 3 inception exploration — spike plan, threat model, schema, migration, cost, observability, playbook, ADR, scaffold, deep dives, deps, fixtures, perf"
 MSG="${1:-$DEFAULT_MSG}"
 
-if ! git status --porcelain "$FILE" | grep -q "^ M"; then
+if ! git status --porcelain "$FILE" | grep "^ M" >/dev/null; then
     echo "==> Nothing to commit in $FILE (no modifications)"
     git log --oneline -1
     exit 0
@@ -30,7 +30,7 @@ git add "$FILE"
 
 echo "==> Attempting commit (tier0 block expected)"
 if git commit --no-verify -m "$MSG" 2>&1 | tee /tmp/commit-attempt.log; then
-    if git log --oneline -1 | grep -q "T-908"; then
+    if git log --oneline -1 | grep "T-908" >/dev/null; then
         echo "==> Commit succeeded on first try"
         git log --oneline -1
         exit 0

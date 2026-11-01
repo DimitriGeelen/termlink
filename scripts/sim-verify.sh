@@ -65,7 +65,7 @@ command -v tmux >/dev/null 2>&1 || { echo "ERROR: tmux not installed" >&2; exit 
 command -v git >/dev/null 2>&1 || { echo "ERROR: git not found" >&2; exit 1; }
 
 # Check hub is running
-if ! termlink info 2>/dev/null | grep -q "Hub:.*running"; then
+if ! termlink info 2>/dev/null | grep "Hub:.*running" >/dev/null; then
     echo "ERROR: TermLink hub not running. Start with: termlink hub &" >&2
     exit 1
 fi
@@ -197,7 +197,7 @@ if should_run "T-156" || should_run "T-158"; then
         # Wait for registration — tmux spawn is async, poll up to 10s
         REGISTERED=false
         for i in $(seq 1 10); do
-            if termlink list 2>/dev/null | grep -q "$SIM_SESSION"; then
+            if termlink list 2>/dev/null | grep "$SIM_SESSION" >/dev/null; then
                 REGISTERED=true
                 break
             fi
@@ -209,7 +209,7 @@ if should_run "T-156" || should_run "T-158"; then
             TMUX_NAME="tl-$SIM_SESSION"
             TMUX_EXISTS=false
 
-            tmux list-sessions 2>/dev/null | grep -q "$SIM_SESSION" && TMUX_EXISTS=true
+            tmux list-sessions 2>/dev/null | grep "$SIM_SESSION" >/dev/null && TMUX_EXISTS=true
 
             if $TMUX_EXISTS && $REGISTERED; then
                 vlog "tmux session: present, TermLink registration: present"
@@ -235,7 +235,7 @@ if should_run "T-156" || should_run "T-158"; then
             sleep 3
 
             # tmux session should still exist (remain-on-exit keeps the pane)
-            if tmux list-sessions 2>/dev/null | grep -q "$SIM_SESSION"; then
+            if tmux list-sessions 2>/dev/null | grep "$SIM_SESSION" >/dev/null; then
                 vlog "tmux session persists after inner bash exited"
                 pass "T-158" "Session persistence — tmux session survives inner process exit"
             else
@@ -285,7 +285,7 @@ if should_run "T-178"; then
             sleep 2
             OUTPUT=$(tmux capture-pane -t "$TMUX_PTY" -p 2>/dev/null || echo "")
 
-            if echo "$OUTPUT" | grep -q "SIM-VERIFY-INJECT-OK"; then
+            if grep -q "SIM-VERIFY-INJECT-OK" <<< "$OUTPUT"; then
                 pass "T-178" "PTY inject Enter — inject reached bash via tmux"
             else
                 # pty inject on tmux backend may not reach inner bash
@@ -295,7 +295,7 @@ if should_run "T-178"; then
                 tmux send-keys -t "$TMUX_PTY" "echo SIM-VERIFY-SENDKEYS-OK" Enter
                 sleep 2
                 OUTPUT2=$(tmux capture-pane -t "$TMUX_PTY" -p 2>/dev/null || echo "")
-                if echo "$OUTPUT2" | grep -q "SIM-VERIFY-SENDKEYS-OK"; then
+                if grep -q "SIM-VERIFY-SENDKEYS-OK" <<< "$OUTPUT2"; then
                     pass "T-178" "PTY inject Enter — tmux backend (inject=$INJECT_OUT, Enter via send-keys works)"
                 else
                     fail "T-178" "Neither inject nor send-keys submitted"

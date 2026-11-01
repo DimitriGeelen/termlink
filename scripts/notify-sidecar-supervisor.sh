@@ -288,7 +288,7 @@ loop_alive_pid() {
     kill -0 "$p" 2>/dev/null || return 1
     # pid-recycle guard (T-2239 pattern): the live pid must be THIS script in --loop mode.
     if [ -r "/proc/$p/cmdline" ]; then
-        tr '\0' ' ' < "/proc/$p/cmdline" | grep -q -- "$(basename "${BASH_SOURCE[0]}") .*--loop" || return 1
+        tr '\0' ' ' < "/proc/$p/cmdline" | grep -- "$(basename "${BASH_SOURCE[0]}") .*--loop" >/dev/null || return 1
     fi
     echo "$p"
 }

@@ -117,7 +117,7 @@ chmod 600 "${LOCAL_SECRET_FILE}"
     || warn "Profile add via CLI failed — adding manually"
 
 # Verify profile exists
-if ! "${LOCAL_BIN}" remote profile list 2>/dev/null | grep -q "${PROFILE}"; then
+if ! "${LOCAL_BIN}" remote profile list 2>/dev/null | grep "${PROFILE}" >/dev/null; then
     warn "Profile not found in list — may need manual verification"
 fi
 

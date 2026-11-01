@@ -192,7 +192,7 @@ if [ "$FAIL" -eq 0 ]; then
   # must refuse (non-zero) AND mention the allowlist AND deliver nothing
   if [ "$SSRF_RC" -eq 0 ]; then
     note_fail "webhook test to 169.254.169.254 SUCCEEDED — SSRF guard did not refuse" 8
-  elif ! printf '%s' "$SSRF_OUT" | grep -qiE 'allowlist|allowed|ssrf|not allow'; then
+  elif ! grep -qiE 'allowlist|allowed|ssrf|not allow' <<< "$SSRF_OUT"; then
     note_fail "webhook test refused (rc=$SSRF_RC) but message lacks an allowlist reason: $SSRF_OUT" 8
   elif [ "$(sink_count)" -ne "$CNT_PRE_SSRF" ]; then
     note_fail "SSRF path still delivered to the sink (guard fired AFTER a network call)" 8
