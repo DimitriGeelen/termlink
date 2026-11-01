@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T14:19:03Z
-last_update: 2026-10-26T15:36:34Z
+last_update: 2026-11-01T23:56:48Z
 date_finished: 2026-06-13T14:23:41Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -43,7 +43,7 @@ date_finished: 2026-06-13T14:23:41Z
 - [x] The demo proves the orchestrator→worker cooperative-handoff mechanic end-to-end against the live local hub, composing ONLY shipped verbs (`channel create/post/claim/claim-transfer/renew/release/claims-summary`) — no new primitive, no hub change.
 - [x] Hard assertions cover BOTH the positive path (orchestrator claims → transfers to worker → worker renews → worker releases with --ack) AND the `CLAIM_NOT_OWNED` ownership-enforcement negative path (stale `--by` transfer refused; non-owner release refused).
 - [x] Captured evidence written to `docs/reports/T-2212-substrate-cooperative-handoff-demo.md` (≥1 live PASS run with exit code + per-step output) and the script is wired alongside the T-2211 drain demo as the second arc-001 proof.
-- [ ] [REVIEWER] Confirm the cooperative-handoff demo is a faithful, useful proof of the canonical orchestrator pattern documented in `docs/operations/substrate-orchestrator-recipe.md`.
+- [x] [REVIEWER] Confirm the cooperative-handoff demo is a faithful, useful proof of the canonical orchestrator pattern documented in `docs/operations/substrate-orchestrator-recipe.md`. (evidence: re-run 2026-11-02 T-3648 — `bash scripts/substrate-cooperative-handoff-demo.sh` rc=0, "COOPERATIVE-HANDOFF DEMO PASS — 7/7 assertions green"; commit 0dac2a97c)
   **Steps:**
   1. `bash scripts/substrate-cooperative-handoff-demo.sh`
   2. Read `docs/reports/T-2212-substrate-cooperative-handoff-demo.md`
@@ -118,12 +118,10 @@ operator's call. Owner → human.
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-e04fd9bc
-- **Timestamp:** 2026-10-26T15:36:57Z
+- **Scan ID:** R-f242fa28
+- **Timestamp:** 2026-11-01T23:56:49Z
 - **Catalogue:** v1.3-seed
 - **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
 - **Needs Human:** no
 - **Findings:** none
-
-- **Auto-ticked:** 1 AC(s)
-  - AC #5: 9fce2c2ff81f [[REVIEWER] Confirm the cooperative-handoff demo is a faithful, useful proof of t]

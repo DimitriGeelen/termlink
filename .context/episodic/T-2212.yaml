@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2212: substrate cooperative-handoff demo — claim-transfer ownership proof
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:56:50Z
+# ============================================================================
+
+task_id: T-2212
+task_name: "substrate cooperative-handoff demo — claim-transfer ownership proof"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-06-13T14:19:03Z
+completed: 2026-10-26T15:36:34Z
+duration_days: 135
+updates_count: 2
+first_commit: 2026-06-13T16:24:07+02:00
+last_commit: 2026-06-13T16:26:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate cooperative-handoff demo — claim-transfer ownership proof (arc-001 proof #2). cross-reference both runnable arc proofs in orchestrator recipe doc
+
+# Key outcomes
+outcomes:
+  - '`scripts/substrate-cooperative-handoff-demo.sh` exists, is executable, and passes `bash -n` (syntax-clean).'
+  - 'The demo proves the orchestrator→worker cooperative-handoff mechanic end-to-end against the live local hub, composing ONLY shipped verbs (`channel create/post/claim/claim-transfer/renew/release/claims-summary`) — no new primitive, no hub change.'
+  - 'Hard assertions cover BOTH the positive path (orchestrator claims → transfers to worker → worker renews → worker releases with --ack) AND the `CLAIM_NOT_OWNED` ownership-enforcement negative path (stale `--by` transfer refused; non-owner release refused).'
+  - 'Captured evidence written to `docs/reports/T-2212-substrate-cooperative-handoff-demo.md` (≥1 live PASS run with exit code + per-step output) and the script is wired alongside the T-2211 drain demo as the second arc-001 proof.'
+  - '[REVIEWER] Confirm the cooperative-handoff demo is a faithful, useful proof of the canonical orchestrator pattern documented in `docs/operations/substrate-orchestrator-recipe.md`. (evidence: re-run 2026-11-02 T-3648 — `bash scripts/substrate-cooperative-handoff-demo.sh` rc=0, "COOPERATIVE-HANDOFF DEMO PASS — 7/7 assertions green"; commit 0dac2a97c)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/arc-parallel-substrate.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.tasks/active/T-2212-substrate-cooperative-handoff-demo--clai.md'
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+  - 'docs/reports/T-2212-substrate-cooperative-handoff-demo.md'
+  - 'scripts/substrate-cooperative-handoff-demo.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-06-13T16:24:07'
+    action: 'T-2212: substrate cooperative-handoff demo — claim-transfer ownership proof (arc-001 proof #2)'
+  - time: '2026-06-13T16:26:01'
+    action: 'T-2212: cross-reference both runnable arc proofs in orchestrator recipe doc'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 194477 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 194477
+  commits: 3
+  files_changed: 9
+  lines_added: 519
+  lines_removed: 19
+  footprint_refreshed_at: '2026-11-01T23:56:56Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2212-substrate-cooperative-handoff-demo--clai.md
+generated_by: context-agent-hybrid

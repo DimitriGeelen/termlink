@@ -22191,3 +22191,21 @@ scan_id: R-80729444
 task_id: T-1501
 payload:
   task_file: .tasks/active/T-1501-agent-recent--on-thread--timeline---grep.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:56:49Z'
+scan_id: R-f242fa28
+task_id: T-2212
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:56:49Z'
+scan_id: R-f242fa28
+task_id: T-2212
+payload:
+  task_file: .tasks/active/T-2212-substrate-cooperative-handoff-demo--clai.md
