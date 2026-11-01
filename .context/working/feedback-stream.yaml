@@ -21957,3 +21957,21 @@ scan_id: R-751f2648
 task_id: T-3123
 payload:
   task_file: .tasks/active/T-3123-fw-doctor-warn-71-stale-tasks-no-updates.md
+---
+kind: scan_emitted
+timestamp: '2026-11-01T23:45:17Z'
+scan_id: R-fdedd9df
+task_id: T-3125
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-01T23:45:17Z'
+scan_id: R-fdedd9df
+task_id: T-3125
+payload:
+  task_file: .tasks/active/T-3125-arc-mcp-slimming-has-no-task-commits-in-.md

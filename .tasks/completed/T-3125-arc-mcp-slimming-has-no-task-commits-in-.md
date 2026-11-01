@@ -7,10 +7,10 @@ description: >
   either close/abandon the arc via fw arc close, or update a relevant task's last-update
   timestamp if work is genuinely ongoing.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -25,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T00:01:18Z
-last_update: 2026-10-26T15:21:41Z
-date_finished:
+last_update: 2026-11-01T23:45:15Z
+date_finished: 2026-11-01T23:45:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +51,17 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=3 (body:portability-abstraction); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:44:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-25T00:07:08Z'
     estimator: bvp-estimator-v1-heuristic
@@ -69,11 +80,16 @@ cost_estimate_proposed:
 
 Sovereign: closing/abandoning an arc, or judging whether its 2 tasks are still active work, is a human call.
 
+**Background / trigger:** fw audit flagged arc mcp-slimming (arc-005) for having no task commits in 30 days.
+**Problem / hypothesis:** The arc's work was finished but the arc was left open, so it reads as abandoned.
+**Goal:** The operator decides whether to close or abandon the arc.
+**Expected outcome:** The arc file shows a terminal status and the inactivity warning clears.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Human decides whether arc mcp-slimming is abandoned (fw arc abandon/close) or its tasks need a fresh last-update touch
+- [x] Human decides whether arc mcp-slimming is abandoned (fw arc abandon/close) or its tasks need a fresh last-update touch (evidence: the operator closed it, .context/arcs/mcp-slimming.yaml status closed, closed_at 2026-11-01T08:35:14Z, closed_via human; git ae1016ae3 / T-3637)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -169,7 +185,8 @@ Sovereign: closing/abandoning an arc, or judging whether its 2 tasks are still a
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-true
+grep -q '^status: closed' .context/arcs/mcp-slimming.yaml
+grep -q '^closed_via: human' .context/arcs/mcp-slimming.yaml
 
 ## RCA
 
@@ -210,6 +227,11 @@ true
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-11-02 — answered by the operator's close
+- **What changed:** The arc was not abandoned. Its work was done and the operator closed it on 2026-11-01 (T-3637, git ae1016ae3). The inactivity signal was a finished arc left open.
+- **Plan impact:** Nothing left. The same close also answered T-3121.
+- **Triggered:** Closed under the T-3648 backlog triage (operator ruling 2026-11-02).
 
 ## Recommendation
 
@@ -271,3 +293,19 @@ true
 ### 2026-10-26T15:21:41Z — status-update [task-update-agent]
 - **Change:** owner: human → agent
 - **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion
+
+### 2026-11-01T23:44:34Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-01T23:45:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-fdedd9df
+- **Timestamp:** 2026-11-01T23:45:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
