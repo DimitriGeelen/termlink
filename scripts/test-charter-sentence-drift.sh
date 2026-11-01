@@ -79,14 +79,14 @@ check "README missing the anchor -> tooling(2)" 2 "$(run "$R")"
 # 6. drift diagnostic names the drifted surface (stderr table).
 R="$TMP/readme2"; build_repo "$R" "${SENT/control terminal sessions/control terminal WINDOWS}" "$SENT"
 err="$(CHARTER_SENTENCE_REPO_ROOT="$R" bash "$SCRIPT" --no-heartbeat 2>&1 || true)"
-if printf '%s' "$err" | grep -q "readme"; then
+if grep -q "readme" <<< "$err"; then
     echo "  ok   drift table names the drifted surface"
 else
     echo "  FAIL drift table missing surface name"; fails=$((fails+1))
 fi
 
 # 7. --help documents the concept.
-if bash "$SCRIPT" --help 2>&1 | grep -q "canonical"; then
+if bash "$SCRIPT" --help 2>&1 | grep "canonical" >/dev/null; then
     echo "  ok   --help documents the canonical sentence"
 else
     echo "  FAIL --help missing 'canonical'"; fails=$((fails+1))

@@ -65,7 +65,7 @@ check "dead (LIVE but age > STALE_SECS)"             3 "$(run "$TMP/live_old.jso
 check "dead (peer absent from presence)"             3 "$(run "$TMP/absent.json")"
 
 # --help must document the busy-or-manual class (verification greps for it)
-if bash "$SCRIPT" --help 2>&1 | grep -q "busy-or-manual"; then
+if bash "$SCRIPT" --help 2>&1 | grep "busy-or-manual" >/dev/null; then
     echo "  ok   --help documents busy-or-manual"
 else
     echo "  FAIL --help missing busy-or-manual"; fails=$((fails+1))

@@ -171,7 +171,7 @@ jchk "both failing attributes to OUTPUT, not INJECT" "$(jsonp FAIL FAIL)" \
      '.broken_stage=="OUTPUT"'
 
 # 9. --help documents the charter verb.
-if bash "$SCRIPT" --help 2>&1 | grep -q "control terminal sessions"; then
+if bash "$SCRIPT" --help 2>&1 | grep "control terminal sessions" >/dev/null; then
     echo "  ok   --help documents the charter verb"
 else
     echo "  FAIL --help missing charter verb"; fails=$((fails+1))

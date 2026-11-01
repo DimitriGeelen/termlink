@@ -44,14 +44,14 @@ fi
 # --- Negative: a foreign service (no /api/_identity) is NOT ours, and survives ---
 dummy_port=""
 for p in 39517 39518 39519 39521 39523; do
-    if ! ss -tlnp 2>/dev/null | grep -q ":${p} "; then dummy_port="$p"; break; fi
+    if ! ss -tlnp 2>/dev/null | grep ":${p} " >/dev/null; then dummy_port="$p"; break; fi
 done
 if [ -z "$dummy_port" ]; then
     echo "SKIP negative: no free port for dummy foreign service"
 else
     python3 -m http.server "$dummy_port" --bind 127.0.0.1 >/dev/null 2>&1 &
     dummy_pid=$!
-    for _ in 1 2 3 4 5; do ss -tlnp 2>/dev/null | grep -q ":${dummy_port} " && break; sleep 0.5; done
+    for _ in 1 2 3 4 5; do ss -tlnp 2>/dev/null | grep ":${dummy_port} " >/dev/null && break; sleep 0.5; done
 
     if _watchtower_port_holder_is_ours "$dummy_port"; then
         echo "FAIL negative: foreign service on :$dummy_port WRONGLY identified as ours"; fail=1

@@ -97,7 +97,7 @@ fi
 
 # 12. --help documents the three stages
 help_out="$(bash "$SCRIPT" --help 2>&1)"
-if printf '%s' "$help_out" | grep -q "DISCOVER" && printf '%s' "$help_out" | grep -q "CONSUME"; then
+if grep -q "DISCOVER" <<< "$help_out" && grep -q "CONSUME" <<< "$help_out"; then
     echo "  ok   --help documents stages"
 else
     echo "  FAIL --help missing stage names"; fails=$((fails+1))

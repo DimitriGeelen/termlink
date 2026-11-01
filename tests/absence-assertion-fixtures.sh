@@ -54,7 +54,7 @@ echo
 rm -f "$TASKS"/*.md
 mktask T-001 '! grep -q "BADWORD" src/thing.sh'
 out=$(run); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "VACUOUS-RISK" && printf '%s' "$out" | grep -q "T-001"; then
+if [ "$rc" -eq 1 ] && grep -q "VACUOUS-RISK" <<< "$out" && grep -q "T-001" <<< "$out"; then
     ok "naked '! grep -q PATTERN FILE' fires"
 else
     bad "naked negated grep fires" "exit $rc; out: $out"
@@ -65,7 +65,7 @@ fi
 rm -f "$TASKS"/*.md
 mktask T-002 '[ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]'
 out=$(run); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "T-002"; then
+if [ "$rc" -eq 1 ] && grep -q "T-002" <<< "$out"; then
     ok "count-equals-zero over a command's output fires"
 else
     bad "count-equals-zero fires" "exit $rc; out: $out"
@@ -181,7 +181,7 @@ mktask T-011 '! grep -q "BADWORD" src/thing.sh'
 ACK="$SCRATCH/ack"
 printf 'T-011::! grep -q "BADWORD" src/thing.sh  # acknowledged for the fixture\n' > "$ACK"
 out=$(bash "$SCRIPT" --tasks-dir "$TASKS" --allowlist "$ACK" --no-heartbeat 2>&1); rc=$?
-if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q "ACK" && ! printf '%s' "$out" | grep -q "VACUOUS-RISK"; then
+if [ "$rc" -eq 0 ] && grep -q "ACK" <<< "$out" && ! grep -q "VACUOUS-RISK" <<< "$out"; then
     ok "acknowledged finding clears the exit code but is still named in the output"
 else
     bad "acknowledged finding must be reported, not muted" "exit $rc; out: $out"
@@ -190,7 +190,7 @@ fi
 # --- 12. removing the acknowledgement re-fires ------------------------------
 printf '# nothing acknowledged\n' > "$ACK"
 out=$(bash "$SCRIPT" --tasks-dir "$TASKS" --allowlist "$ACK" --no-heartbeat 2>&1); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "VACUOUS-RISK"; then
+if [ "$rc" -eq 1 ] && grep -q "VACUOUS-RISK" <<< "$out"; then
     ok "removing the acknowledgement re-fires the finding"
 else
     bad "ledger must not be a one-way door" "exit $rc; out: $out"
@@ -223,7 +223,7 @@ fi
 rm -f "$TASKS"/*.md
 mktask T-015 'test -f src/thing.sh && ! grep -q "BADWORD" src/thing.sh'
 out=$(run); rc=$?
-if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q "Scope:" && printf '%s' "$out" | grep -q "does NOT audit"; then
+if [ "$rc" -eq 0 ] && grep -q "Scope:" <<< "$out" && grep -q "does NOT audit" <<< "$out"; then
     ok "a green states what it does not cover (T-2680)"
 else
     bad "clean path must carry the scope disclaimer" "exit $rc; out: $out"

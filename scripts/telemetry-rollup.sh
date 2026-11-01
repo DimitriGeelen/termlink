@@ -712,7 +712,7 @@ if OUT="$(timeout 30 "$TL" channel post "$TOPIC" --msg-type telemetry-rollup --p
     # (review item 11/39). A "Queued to" post sits in the offline queue and may yet be
     # dead-lettered, so the day stays a gap and the next --catch-up posts it again; the
     # fleet view keeps one report per host and day, so a late duplicate does no harm.
-    if printf '%s\n' "$OUT" | grep -q "^Posted to .*offset="; then
+    if grep -q "^Posted to .*offset=" <<< "$OUT"; then
         echo "telemetry-rollup: $HOST $DAY_OUT -> $TOPIC: $OUT"
         echo "$HOST $DAY_OUT" >> "$POSTED_STATE" 2>/dev/null || true
         # The standing-restart baseline moves only with a delivered report, so a lost report

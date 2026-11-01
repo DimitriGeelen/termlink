@@ -100,7 +100,7 @@ check "no assertions -> tooling(2)" 2 "$(run bash "$SCRIPT" --hub primary)"
 check "missing --hub -> tooling(2)" 2 "$(run bash "$SCRIPT" --min-version 0.11.700)"
 
 # 14. --help documents the shipped==live concept + exit codes
-if bash "$SCRIPT" --help 2>&1 | grep -q "shipped"; then
+if bash "$SCRIPT" --help 2>&1 | grep "shipped" >/dev/null; then
     echo "  ok   --help documents shipped==live"
 else
     echo "  FAIL --help missing shipped"; fails=$((fails+1))

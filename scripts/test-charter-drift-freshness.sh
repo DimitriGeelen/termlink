@@ -77,7 +77,7 @@ else
 fi
 
 # --help documents the concept
-if bash "$SCRIPT" --help 2>&1 | grep -q "charter"; then
+if bash "$SCRIPT" --help 2>&1 | grep "charter" >/dev/null; then
     echo "  ok   --help documents charter drift"
 else
     echo "  FAIL --help missing charter"; fails=$((fails+1))
