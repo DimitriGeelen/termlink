@@ -79,7 +79,7 @@ else bad "no changes since baseline" "rc=$rc out=$out"; fi
 echo "local fix" >> .agentic-framework/lib/thing.sh
 git add -A && git commit -qm "T-2001: fix a real thing in vendored code"
 out=$(run); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q 'T-2001'; then
+if [ "$rc" -eq 1 ] && grep -q 'T-2001' <<< "$out"; then
     ok "unregistered local change FIRES and names the commit"
 else
     bad "unregistered local change must fire" "rc=$rc out=$out"
@@ -113,7 +113,7 @@ else bad "vendor event should be excluded" "rc=$rc out=$out"; fi
 echo "another" >> .agentic-framework/lib/thing.sh
 git add -A && git commit -qm "T-2003: another local fix"
 out=$(run); rc=$?
-if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q 'T-2003'; then
+if [ "$rc" -eq 1 ] && grep -q 'T-2003' <<< "$out"; then
     ok "a NEW unregistered change fires even after earlier ones are registered"
 else
     bad "new unregistered change must fire" "rc=$rc out=$out"
@@ -143,8 +143,8 @@ else bad "unparseable register must exit 2" "rc=$rc out=$out"; fi
 # --- 10. --json shape --------------------------------------------------------
 write_register "" "T-2001"
 jout=$(run --json)
-if printf '%s' "$jout" | grep -q '"unregistered_count": 1' \
-   && printf '%s' "$jout" | grep -q '"baseline"'; then
+if grep -q '"unregistered_count": 1' <<< "$jout" \
+   && grep -q '"baseline"' <<< "$jout"; then
     ok "--json carries baseline, counts and the unregistered list"
 else
     bad "--json shape" "got: $jout"

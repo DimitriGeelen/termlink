@@ -80,7 +80,7 @@ if [ "$SKIP_REAL" = "0" ]; then
     # --- 1. risky shape fires -----------------------------------------------
     mk "$T/active/T-risky.md" 'termlink fleet doctor 2>&1 | grep -q PASS'
     out=$(run); rc=$?
-    if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "T-risky.md"; then
+    if [ "$rc" -eq 1 ] && grep -q "T-risky.md" <<< "$out"; then
         ok "risky 'cmd | grep -q' fires (exit 1) and names the file"
     else
         bad "risky shape fires" "exit $rc; out: $out"
@@ -139,9 +139,9 @@ if [ "$SKIP_REAL" = "0" ]; then
 
     # --- 7. --json shape ----------------------------------------------------
     jout=$(run --json)
-    if printf '%s' "$jout" | grep -q '"ok": false' \
-       && printf '%s' "$jout" | grep -q '"finding_count": 1' \
-       && printf '%s' "$jout" | grep -q 'T-old.md'; then
+    if grep -q '"ok": false' <<< "$jout" \
+       && grep -q '"finding_count": 1' <<< "$jout" \
+       && grep -q 'T-old.md' <<< "$jout"; then
         ok "--json carries ok/finding_count/findings[]"
     else
         bad "--json shape" "got: $jout"

@@ -43,11 +43,11 @@ mk T-103 build     2026-10-01 ""
 mk T-104 inception 2026-01-01 "voi_score: 0.5"
 rc_is "pending work -> rc 1" 1 "$(chkrc)"
 o="$(chk --json)"
-printf '%s' "$o" | grep -q '"pending_count": 2' && ok "asks about exactly the 2 that need it" || bad "pending_count" "$o"
-printf '%s' "$o" | grep -q 'T-100' && printf '%s' "$o" | grep -q 'T-101' && ok "  the default AND the absent one" || bad "which pending" "$o"
-printf '%s' "$o" | grep -q 'T-102' && bad "a considered value must not be asked about" "$o" || ok "a considered value is never asked about"
-printf '%s' "$o" | grep -q 'T-103' && bad "non-inception asked about" "$o" || ok "non-inception is never asked about"
-printf '%s' "$o" | grep -q 'T-104' && bad "pre-cutoff task asked about" "$o" || ok "pre-cutoff task is grandfathered"
+grep -q '"pending_count": 2' <<< "$o" && ok "asks about exactly the 2 that need it" || bad "pending_count" "$o"
+grep -q 'T-100' <<< "$o" && grep -q 'T-101' <<< "$o" && ok "  the default AND the absent one" || bad "which pending" "$o"
+grep -q 'T-102' <<< "$o" && bad "a considered value must not be asked about" "$o" || ok "a considered value is never asked about"
+grep -q 'T-103' <<< "$o" && bad "non-inception asked about" "$o" || ok "non-inception is never asked about"
+grep -q 'T-104' <<< "$o" && bad "pre-cutoff task asked about" "$o" || ok "pre-cutoff task is grandfathered"
 
 echo "== Case 2: THE CYCLE — snooze, silence for exactly N, then re-ask =="
 # --snooze 3 => silent for runs 1,2,3 and re-asked at run 4 (askable_at_run = R+N+1)
@@ -67,11 +67,11 @@ rec --global --choice snooze --snooze 2 >/dev/null 2>&1
 # snooze N recorded at run R is askable at R+N+1, so N=2 -> silent for runs 1,2; expires at run 3
 rm -f "$ST" "$ST.runs"; rec --global --choice snooze --snooze 2 >/dev/null 2>&1
 o="$(chk --json)"                       # run 1: silent
-printf '%s' "$o" | grep -q '"global_suppressed": true' && ok "global snooze silences everything" || bad "global snooze" "$o"
-printf '%s' "$o" | grep -q '"pending_count": 0' && ok "  nothing pending while globally snoozed" || bad "global pending" "$o"
+grep -q '"global_suppressed": true' <<< "$o" && ok "global snooze silences everything" || bad "global snooze" "$o"
+grep -q '"pending_count": 0' <<< "$o" && ok "  nothing pending while globally snoozed" || bad "global pending" "$o"
 rc_is "  and rc is 0, so it is genuinely quiet" 0 "$(chkrc)"   # run 2: silent
 o="$(chk --json)"                       # run 3: expiry
-printf '%s' "$o" | grep -q 'EXPIRED' && ok "global snooze EXPIRES and says so" || bad "global expiry" "$o"
+grep -q 'EXPIRED' <<< "$o" && ok "global snooze EXPIRES and says so" || bad "global expiry" "$o"
 
 echo "== Case 4: a permanent waiver still needs a reason (carried from T-3174) =="
 rm -f "$ST" "$ST.runs"
@@ -110,7 +110,7 @@ o="$(FW_VOI_TASKS_DIR="$TMP/empty" FW_VOI_STORE="$ST" bash "$S" --check --quiet 
 [ -z "$o" ] && ok "--quiet is silent when there is nothing to ask" || bad "--quiet" "$o"
 rec --task T-300 --choice snooze --snooze 4 >/dev/null 2>&1
 o="$(FW_VOI_STORE="$ST" bash "$S" --status 2>&1)"
-printf '%s' "$o" | grep -q 'run(s) left' && ok "--status shows how many runs remain on a snooze" || bad "status" "$o"
+grep -q 'run(s) left' <<< "$o" && ok "--status shows how many runs remain on a snooze" || bad "status" "$o"
 grep -q '^# guard-layer: source' "$S" && ok "carries the guard-layer marker" || bad "marker" ""
 
 echo "== Case 7b: a check never rewrites the tracked store (T-3508) =="

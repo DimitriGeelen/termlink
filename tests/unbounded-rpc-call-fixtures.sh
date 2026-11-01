@@ -35,11 +35,11 @@ assert_rc() { # <desc> <expected-rc> <actual-rc>
     else fail=$((fail+1)); echo "  FAIL: $1 — expected rc=$2 got rc=$3" >&2; fi
 }
 assert_contains() { # <desc> <needle> <haystack>
-    if printf '%s' "$3" | grep -qF -- "$2"; then pass=$((pass+1)); echo "  ok: $1";
+    if grep -qF -- "$2" <<< "$3"; then pass=$((pass+1)); echo "  ok: $1";
     else fail=$((fail+1)); echo "  FAIL: $1 — expected to find '$2'" >&2; fi
 }
 assert_not_contains() { # <desc> <needle> <haystack>
-    if printf '%s' "$3" | grep -qF -- "$2"; then fail=$((fail+1)); echo "  FAIL: $1 — did not expect '$2'" >&2;
+    if grep -qF -- "$2" <<< "$3"; then fail=$((fail+1)); echo "  FAIL: $1 — did not expect '$2'" >&2;
     else pass=$((pass+1)); echo "  ok: $1"; fi
 }
 run()      { bash "$CHECK" --no-heartbeat --root "$SRC" --allowlist "$ALLOW" >/dev/null 2>&1; echo $?; }

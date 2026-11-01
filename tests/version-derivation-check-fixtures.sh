@@ -25,11 +25,11 @@ assert_rc() { # <desc> <expected-rc> <actual-rc>
     else fail=$((fail+1)); echo "  FAIL: $1 — expected rc=$2 got rc=$3" >&2; fi
 }
 assert_contains() { # <desc> <haystack> <needle>
-    if printf '%s' "$2" | grep -q -- "$3"; then pass=$((pass+1)); echo "  ok: $1";
+    if grep -q -- "$3" <<< "$2"; then pass=$((pass+1)); echo "  ok: $1";
     else fail=$((fail+1)); echo "  FAIL: $1 — output did not contain '$3'" >&2; fi
 }
 assert_absent() { # <desc> <haystack> <needle>
-    if printf '%s' "$2" | grep -q -- "$3"; then fail=$((fail+1)); echo "  FAIL: $1 — output unexpectedly contained '$3'" >&2;
+    if grep -q -- "$3" <<< "$2"; then fail=$((fail+1)); echo "  FAIL: $1 — output unexpectedly contained '$3'" >&2;
     else pass=$((pass+1)); echo "  ok: $1"; fi
 }
 run_rc() { bash "$CHECK" --no-heartbeat --root "$ROOT" --allowlist "$ALLOW" "$@" >/dev/null 2>&1; echo $?; }

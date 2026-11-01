@@ -26,19 +26,19 @@ run() { VEC_INDEX_DB="$TMP/idx.db" VEC_TASKS_DIR="$TMP/tasks" VEC_IMPORT_RC="${I
 
 mktasks 1 2 100; mkdb 100
 out="$(run)"; rc=$?
-[ "$rc" = 0 ] && printf '%s' "$out" | grep -q 'covers through T-100' && ok "current index: healthy, exit 0" || bad "healthy (rc=$rc $out)"
+[ "$rc" = 0 ] && grep -q 'covers through T-100' <<< "$out" && ok "current index: healthy, exit 0" || bad "healthy (rc=$rc $out)"
 [ -f "$TMP/hb" ] && ok "heartbeat written on exit" || bad "heartbeat"
 
 mktasks 1 2 100 400; mkdb 100
 out="$(run --quiet)"; rc=$?
-[ "$rc" = 1 ] && printf '%s' "$out" | grep -q 'B: index stops at T-100, newest task is T-400 (lag 300 > 50)' \
+[ "$rc" = 1 ] && grep -q 'B: index stops at T-100, newest task is T-400 (lag 300 > 50)' <<< "$out" \
     && ok "index lagging 300 tasks fires (the real 2026-10-03 shape)" || bad "lag (rc=$rc $out)"
 out="$(run --quiet --max-task-lag 500)"; rc=$?
 [ "$rc" = 0 ] && ok "--max-task-lag raises the bar" || bad "lag threshold rc=$rc"
 
 mktasks 1 2 100; mkdb 100
 out="$(IMP=1 run --quiet)"; rc=$?
-[ "$rc" = 1 ] && printf '%s' "$out" | grep -q 'A: reindex import path broken' \
+[ "$rc" = 1 ] && grep -q 'A: reindex import path broken' <<< "$out" \
     && ok "broken import path fires even when coverage looks current" || bad "import (rc=$rc $out)"
 
 j="$(mktasks 1 2 100 400; mkdb 100; run --json)"

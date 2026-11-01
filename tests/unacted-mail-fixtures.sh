@@ -68,7 +68,7 @@ reset
 post "dm+3bba+d199" 136 197 055-cockpit "Finding: claude-fw guard bug"
 receipt "dm+3bba+d199" 137 197 136; receipt "dm+3bba+d199" 138 196 136
 out="$(run)"; rc=$?
-[ "$rc" = 1 ] && printf '%s' "$out" | grep -q '^UNACTED  dm  dm:3bba:d199  offset 136  from=055-cockpit  age=197h  Finding: claude-fw guard bug' \
+[ "$rc" = 1 ] && grep -q '^UNACTED  dm  dm:3bba:d199  offset 136  from=055-cockpit  age=197h  Finding: claude-fw guard bug' <<< "$out" \
     && ok "dm: an unanswered message (receipts after it do not count as an answer) is listed, exit 1" || bad "dm unanswered: rc=$rc $out"
 
 # 2. answered: a later real message
@@ -77,10 +77,10 @@ out="$(run)"; rc=$?
 [ "$rc" = 0 ] && [ -z "$out" ] && ok "dm: answered topic is not listed, exit 0" || bad "dm answered: rc=$rc $out"
 reset; post "dm+e+f" 1 60 050-pen "ask"; post "dm+e+f" 2 30 050-pen "ask again, still nothing"
 out="$(run)"
-printf '%s' "$out" | grep -q 'dm:e:f  offset 2  from=050-pen' && ok "dm: a sender's own follow-up with no answer is still listed" || bad "own follow-up: $out"
+grep -q 'dm:e:f  offset 2  from=050-pen' <<< "$out" && ok "dm: a sender's own follow-up with no answer is still listed" || bad "own follow-up: $out"
 reset; post "dm+e+f" 1 400 010-tl "old exchange"; post "dm+e+f" 2 30 050-pen "new ask, two weeks later"
 out="$(run)"
-printf '%s' "$out" | grep -q 'dm:e:f  offset 2  from=050-pen' \
+grep -q 'dm:e:f  offset 2  from=050-pen' <<< "$out" \
     && ok "dm: a message long after the other side's last one is a new ask, listed (the Pen case)" || bad "Pen case: $out"
 reset; post "dm+e+f" 1 60 050-pen "ask"; post "dm+e+f" 2 50 010-tl "answer"; post "dm+e+f" 3 30 050-pen "follow-up"
 out="$(run)"
@@ -93,8 +93,8 @@ post "dm+r+r" 19 50 050-pen "for 010" '"to_project":"010-termlink"'
 post "dm+r+r" 20 40 1023-vault "for AEF too" '"to_project":"999-AEF"'
 post "dm+r+r" 21 30 010-termlink "re 050: done"
 out="$(run)"
-printf '%s' "$out" | grep -q 'offset 16  from=0235-voice  to=999-AEF' && printf '%s' "$out" | grep -q 'offset 20  from=1023-vault  to=999-AEF' \
-    && ! printf '%s' "$out" | grep -q 'offset 19' \
+grep -q 'offset 16  from=0235-voice  to=999-AEF' <<< "$out" && grep -q 'offset 20  from=1023-vault  to=999-AEF' <<< "$out" \
+    && ! grep -q 'offset 19' <<< "$out" \
     && ok "dm: shared mailbox — each message waits for its own to_project; one answered by its addressee is not listed" || bad "shared mailbox: $out"
 
 # 3. threshold and window
@@ -102,7 +102,7 @@ reset; post "dm+a+b" 1 2 x "too new"; post "dm+c+d" 1 400 x "older than the wind
 out="$(run)"; rc=$?
 [ "$rc" = 0 ] && [ -z "$out" ] && ok "dm: younger than 24 h and older than 14 days are not listed" || bad "dm window: rc=$rc $out"
 out="$(run --threshold-hours 1)"
-printf '%s' "$out" | grep -q 'dm:a:b  offset 1' && ok "dm: --threshold-hours moves the lower bound" || bad "threshold flag: $out"
+grep -q 'dm:a:b  offset 1' <<< "$out" && ok "dm: --threshold-hours moves the lower bound" || bad "threshold flag: $out"
 
 # 4. a reply or a notice as the last word is not a question left open
 reset; post "dm+a+b" 3 30 x "here is the answer" '"in_reply_to":"m1"'; post "dm+c+d" 4 30 y "fyi" '"notice":true'
@@ -116,7 +116,7 @@ out="$(run)"; rc=$?
 [ "$rc" = 0 ] && [ -z "$out" ] && ok "dm: an ignored topic and a handled offset are skipped" || bad "ignore/handled: rc=$rc $out"
 post "dm+c+d" 7 25 y "second ask"
 out="$(run)"
-printf '%s' "$out" | grep -q 'dm:c:d  offset 7' && ok "dm: a later message re-flags a handled topic" || bad "handled re-flag: $out"
+grep -q 'dm:c:d  offset 7' <<< "$out" && ok "dm: a later message re-flags a handled topic" || bad "handled re-flag: $out"
 
 # 6. other rails, each listed by name (guards against a rail silently dropped)
 reset
@@ -127,28 +127,28 @@ post "dm+a+b" 1 30 x "ask"
 out="$(run)"; rc=$?
 n="$(printf '%s\n' "$out" | grep -c '^UNACTED')"
 [ "$rc" = 1 ] && [ "$n" = 4 ] \
-    && printf '%s' "$out" | grep -q '^UNACTED  inbox  inbox:h/010  unread=2  age_hours=30.5  oldest_from=055' \
-    && printf '%s' "$out" | grep -q '^UNACTED  held  m9  age_hours=48  from=aef' \
-    && printf '%s' "$out" | grep -q '^UNACTED  orphan  inbox:h/ring20-manager  unread=14' \
+    && grep -q '^UNACTED  inbox  inbox:h/010  unread=2  age_hours=30.5  oldest_from=055' <<< "$out" \
+    && grep -q '^UNACTED  held  m9  age_hours=48  from=aef' <<< "$out" \
+    && grep -q '^UNACTED  orphan  inbox:h/ring20-manager  unread=14' <<< "$out" \
     && ok "all four rails report (dm, inbox, held, orphan); orphan-inboxes' own exit 1 is a finding, not a failure" \
     || bad "four rails: rc=$rc n=$n $out"
 
 # 7. fail-closed: could not look is exit 2, never clean
 reset
 out="$(FAKE_LIST_FAIL=1 run)"; rc=$?
-[ "$rc" = 2 ] && printf '%s' "$out" | grep -q '^NOT CHECKED dm: termlink channel list --prefix dm: failed' \
+[ "$rc" = 2 ] && grep -q '^NOT CHECKED dm: termlink channel list --prefix dm: failed' <<< "$out" \
     && ok "dm: the hub cannot be listed => NOT CHECKED, exit 2" || bad "dm list fail: rc=$rc $out"
 post "dm+a+b" 1 30 x "ask"
 out="$(FAKE_READ_FAIL=1 run)"; rc=$?
-[ "$rc" = 2 ] && printf '%s' "$out" | grep -q '^NOT CHECKED dm: dm:a:b could not be read' \
+[ "$rc" = 2 ] && grep -q '^NOT CHECKED dm: dm:a:b could not be read' <<< "$out" \
     && ok "dm: a topic that cannot be read => NOT CHECKED, exit 2" || bad "dm read fail: rc=$rc $out"
 out="$(FAKE_FW_FAIL=held-unsurfaced run)"; rc=$?
-[ "$rc" = 1 ] && printf '%s' "$out" | grep -q '^NOT CHECKED held: fw sidecar held-unsurfaced failed' \
-    && printf '%s' "$out" | grep -q '^UNACTED  dm  dm:a:b' \
+[ "$rc" = 1 ] && grep -q '^NOT CHECKED held: fw sidecar held-unsurfaced failed' <<< "$out" \
+    && grep -q '^UNACTED  dm  dm:a:b' <<< "$out" \
     && ok "a finding wins over a read error (exit 1), the NOT CHECKED line is still printed" || bad "finding+blind: rc=$rc $out"
 echo 'not json' > "$TMP/facts/inbox-stale"; rm -f "$TMP/topics/"*
 out="$(run)"; rc=$?
-[ "$rc" = 2 ] && printf '%s' "$out" | grep -q '^NOT CHECKED inbox:' \
+[ "$rc" = 2 ] && grep -q '^NOT CHECKED inbox:' <<< "$out" \
     && ok "a fact verb answering non-JSON => NOT CHECKED, exit 2" || bad "non-json: rc=$rc $out"
 out="$(run --bogus 2>&1)"; rc=$?
 [ "$rc" = 2 ] && ok "unknown argument => exit 2" || bad "bogus arg rc=$rc"

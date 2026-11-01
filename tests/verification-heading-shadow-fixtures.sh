@@ -230,7 +230,7 @@ out_p="$(HEADING_SHADOW_MODE=per-file bash "$CHECK" --tasks-dir "$TMP/t" --json 
 if [ "$rc_b" = "$rc_p" ] && [ "$out_b" = "$out_p" ]; then ok "batch and per-file give the identical verdict + JSON on the awkward corpus (rc=$rc_b)"
 else bad "batch/per-file diverge (batch rc=$rc_b, per-file rc=$rc_p)"; fi
 pout="$(bash "$ROOT/tests/verification-block-batch-proof.sh" --tasks-dir "$TMP/t" 2>&1)"; prc=$?
-if [ "$prc" = "0" ] && echo "$pout" | grep -q "5 file(s) compared.*0 mismatch"; then ok "full proof: all 5 fixture files byte-identical to extract_verification_block"
+if [ "$prc" = "0" ] && grep -q "5 file(s) compared.*0 mismatch" <<< "$pout"; then ok "full proof: all 5 fixture files byte-identical to extract_verification_block"
 else bad "fixture-corpus proof failed (rc=$prc): $pout"; fi
 
 # A DRIFTED batch extractor must be caught by the run-time cross-check as TOOLING
@@ -239,7 +239,7 @@ else bad "fixture-corpus proof failed (rc=$prc): $pout"; fi
 sed 's@^            if not seen:@            if True:@' "$ROOT/scripts/lib/verification-block-batch.py" > "$TMP/drift-batch.py"
 if cmp -s "$ROOT/scripts/lib/verification-block-batch.py" "$TMP/drift-batch.py"; then bad "drift mutant did not apply"; else
   dout="$(HEADING_SHADOW_BATCH="$TMP/drift-batch.py" HEADING_SHADOW_XCHECK=100 bash "$CHECK" --tasks-dir "$TMP/t" 2>&1)"; drc=$?
-  if [ "$drc" = "2" ] && echo "$dout" | grep -q "diverged from extract_verification_block"; then ok "drifted batch extractor caught by the cross-check (rc 2, no verdict)"
+  if [ "$drc" = "2" ] && grep -q "diverged from extract_verification_block" <<< "$dout"; then ok "drifted batch extractor caught by the cross-check (rc 2, no verdict)"
   else bad "drift mutant SURVIVED (rc=$drc)"; fi
 fi
 
