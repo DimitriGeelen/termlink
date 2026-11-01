@@ -74,9 +74,9 @@ for d in $DIRS; do
                 [ -n "$reason" ] || firing+=("NO-REASON  $f — '$first' needs '# <reason>' (runs as FAIL until fixed)") ;;
             *)
                 rest_words="$(printf '%s' "$pre" | awk '{$1=""; print}')"
-                if [ "$first" != fail ] && printf '%s' " $first $rest_words " | grep -qwE 'warn|info|advisory'; then
+                if [ "$first" != fail ] && printf '%s' " $first $rest_words " | grep -wE 'warn|info|advisory' >/dev/null; then
                     firing+=("MISPLACED  $f — a severity word must be the first word after 'source' (currently passed to the script as an argument)")
-                elif [ "$first" = fail ] && printf '%s' "$rest_words" | grep -qwE 'warn|info|advisory'; then
+                elif [ "$first" = fail ] && grep -qwE 'warn|info|advisory' <<< "$rest_words"; then
                     firing+=("MISPLACED  $f — a severity word must be the first word after 'source' (currently passed to the script as an argument)")
                 fi ;;
         esac

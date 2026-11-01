@@ -193,7 +193,7 @@ if [ "$SKIP_AGREEMENT" != "1" ]; then
         exit 2
     fi
     for b in ${marked[@]+"${marked[@]}"}; do
-        printf '%s\n' "$runner_members" | grep -qxF -- "$b" \
+        grep -qxF -- "$b" <<< "$runner_members" \
             || unenumerated+=("$b|carries the guard-layer marker but the runner does not enumerate it — declared, never run")
     done
 fi

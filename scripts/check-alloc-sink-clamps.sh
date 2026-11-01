@@ -124,12 +124,12 @@ classify_arg() {
         *".len()"*|*".len ("*|*".clamp("*|*".min("*|*".take("*|*".saturating_"*) echo "SAFE"; return ;;
     esac
     # pure numeric / arithmetic-of-literals / SCREAMING_CONST (optionally * / + with literals) -> SAFE
-    if printf '%s' "$a" | grep -qE '^[0-9][0-9_]*([[:space:]]*[*+][[:space:]]*[0-9][0-9_]*)*$'; then echo "SAFE"; return; fi
-    if printf '%s' "$a" | grep -qE '^[A-Z][A-Z0-9_]+([[:space:]]*[*+][[:space:]]*([0-9][0-9_]*|[A-Z][A-Z0-9_]+))*$'; then echo "SAFE"; return; fi
+    if grep -qE '^[0-9][0-9_]*([[:space:]]*[*+][[:space:]]*[0-9][0-9_]*)*$' <<< "$a"; then echo "SAFE"; return; fi
+    if grep -qE '^[A-Z][A-Z0-9_]+([[:space:]]*[*+][[:space:]]*([0-9][0-9_]*|[A-Z][A-Z0-9_]+))*$' <<< "$a"; then echo "SAFE"; return; fi
     # bare lowercase ident -> CANDIDATE
-    if printf '%s' "$a" | grep -qE '^[a-z_][a-z0-9_]*$'; then echo "CANDIDATE $a"; return; fi
+    if grep -qE '^[a-z_][a-z0-9_]*$' <<< "$a"; then echo "CANDIDATE $a"; return; fi
     # p.field / params.field / self.field style -> CANDIDATE (report the leaf ident)
-    if printf '%s' "$a" | grep -qE '^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$'; then
+    if grep -qE '^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$' <<< "$a"; then
         echo "CANDIDATE ${a##*.}"; return
     fi
     # anything else (compound expr with operators, method chains we don't recognize)
@@ -172,21 +172,21 @@ while IFS= read -r file; do
         # strip line comments (heuristic; sink lines never contain URLs)
         codestripped="$(printf '%s' "$code" | sed -E 's://.*$::')"
         # skip if the sink keyword is gone after comment-strip (was inside a comment)
-        printf '%s' "$codestripped" | grep -qE '(with_capacity|Semaphore::new|vec!\[|\.repeat)\(' || \
-          printf '%s' "$codestripped" | grep -qE 'vec!\[[^]]*;' || continue
+        grep -qE '(with_capacity|Semaphore::new|vec!\[|\.repeat)\(' <<< "$codestripped" || \
+          grep -qE 'vec!\[[^]]*;' <<< "$codestripped" || continue
 
         # try each sink shape; extract arg
         sink="" arg=""
-        if printf '%s' "$codestripped" | grep -qE '(Vec|String|HashMap|HashSet|VecDeque|BTreeMap)::with_capacity\('; then
+        if grep -qE '(Vec|String|HashMap|HashSet|VecDeque|BTreeMap)::with_capacity\(' <<< "$codestripped"; then
             sink="with_capacity"
             arg="$(printf '%s' "$codestripped" | sed -E 's/.*::with_capacity\(//; s/\).*//')"
-        elif printf '%s' "$codestripped" | grep -qE 'Semaphore::new\('; then
+        elif grep -qE 'Semaphore::new\(' <<< "$codestripped"; then
             sink="Semaphore::new"
             arg="$(printf '%s' "$codestripped" | sed -E 's/.*Semaphore::new\(//; s/\).*//')"
-        elif printf '%s' "$codestripped" | grep -qE 'vec!\[[^]]*;'; then
+        elif grep -qE 'vec!\[[^]]*;' <<< "$codestripped"; then
             sink="vec!"
             arg="$(printf '%s' "$codestripped" | sed -E 's/.*vec!\[[^;]*;[[:space:]]*//; s/\].*//')"
-        elif printf '%s' "$codestripped" | grep -qE '\.repeat\('; then
+        elif grep -qE '\.repeat\(' <<< "$codestripped"; then
             sink="repeat"
             arg="$(printf '%s' "$codestripped" | sed -E 's/.*\.repeat\(//; s/\).*//')"
         else

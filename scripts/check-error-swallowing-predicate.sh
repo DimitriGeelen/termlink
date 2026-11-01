@@ -174,7 +174,7 @@ while IFS= read -r file; do
         code="${hit#*:}"
         # A comment mentioning the shape is not the shape. Strip, then re-confirm.
         codestripped="$(printf '%s' "$code" | sed -E 's://.*$::')"
-        printf '%s' "$codestripped" | grep -qE "$GATE_RE" || continue
+        grep -qE "$GATE_RE" <<< "$codestripped" || continue
 
         checked=$((checked + 1))
 
@@ -194,7 +194,7 @@ while IFS= read -r file; do
             nexttrim="$candtrim"; break
         done
 
-        printf '%s' "$nexttrim" | grep -qE "$EMPTY_RE" || continue
+        grep -qE "$EMPTY_RE" <<< "$nexttrim" || continue
 
         # Normalise the returned value for the report (jq-safe: no quotes/backslashes).
         rettrim="$(printf '%s' "$nexttrim" | sed -E 's/[[:space:]]+/ /g; s/"/\x27/g; s/\\//g')"

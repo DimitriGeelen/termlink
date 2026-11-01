@@ -127,12 +127,12 @@ for f in "${candidates[@]}"; do
         echo "check-canary-log-isolation: cannot read $f" >&2
         exit 2
     }
-    printf '%s' "$body" | grep -q 'agent-send\.sh' || continue
+    grep -q 'agent-send\.sh' <<< "$body" || continue
 
     checked=$((checked+1))
     # Redirected if the file assigns TERMLINK_WOKEN_SILENT_LOG anywhere —
     # exported, or set inline on a single invocation. Either isolates the log.
-    if printf '%s' "$body" | grep -qE 'TERMLINK_WOKEN_SILENT_LOG[[:space:]]*='; then
+    if grep -qE 'TERMLINK_WOKEN_SILENT_LOG[[:space:]]*=' <<< "$body"; then
         continue
     fi
     firing+=("$f|invokes agent-send.sh but never assigns TERMLINK_WOKEN_SILENT_LOG — its give-up path appends to the real .woken-but-silent-canary.log")

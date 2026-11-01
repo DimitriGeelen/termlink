@@ -109,11 +109,11 @@ FN_RE='(^|[^A-Za-z0-9_])fn[[:space:]]+[A-Za-z0-9_]+'
 # classify which sink a (comment-stripped) code line contains; echoes the sink token or "".
 sink_token() {
     local code="$1"
-    if   printf '%s' "$code" | grep -qE '\.output\(\)';                                    then echo "output";
-    elif printf '%s' "$code" | grep -qE '\.read_to_end\(';                                 then echo "read_to_end";
-    elif printf '%s' "$code" | grep -qE '\.read_to_string\(';                              then echo "read_to_string";
-    elif printf '%s' "$code" | grep -qE '\.collect::<[[:space:]]*Vec[[:space:]]*<[[:space:]]*u8'; then echo "collect_vec_u8";
-    elif printf '%s' "$code" | grep -qE '\.bytes\(\)[[:space:]]*\.collect';                then echo "bytes_collect";
+    if   grep -qE '\.output\(\)' <<< "$code";                                    then echo "output";
+    elif grep -qE '\.read_to_end\(' <<< "$code";                                 then echo "read_to_end";
+    elif grep -qE '\.read_to_string\(' <<< "$code";                              then echo "read_to_string";
+    elif grep -qE '\.collect::<[[:space:]]*Vec[[:space:]]*<[[:space:]]*u8' <<< "$code"; then echo "collect_vec_u8";
+    elif grep -qE '\.bytes\(\)[[:space:]]*\.collect' <<< "$code";                then echo "bytes_collect";
     else echo ""; fi
 }
 
@@ -159,7 +159,7 @@ while IFS= read -r file; do
         # proximity SAFE: a `.take(N)` on the same line bounds a read drain
         case "$sink" in
             read_to_end|read_to_string)
-                printf '%s' "$codestripped" | grep -qE '\.take\(' && continue ;;
+                grep -qE '\.take\(' <<< "$codestripped" && continue ;;
         esac
 
         checked=$((checked + 1))

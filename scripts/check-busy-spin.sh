@@ -186,12 +186,12 @@ while IFS= read -r file; do
         body="$(sed -n "${startln},${endln}p" "$file")"
 
         # candidate iff the body re-dispatches a long-poll RPC method string
-        printf '%s' "$body" | grep -qE "$LONGPOLL_RE" || continue
+        grep -qE "$LONGPOLL_RE" <<< "$body" || continue
 
         checked=$((checked + 1))
 
         # clear if the body carries a backoff sleep anywhere
-        printf '%s' "$body" | grep -q "$SLEEP_RE" && continue
+        grep -q "$SLEEP_RE" <<< "$body" && continue
 
         # enclosing fn = the fn-decl line with the largest lineno <= this loop's opener
         encfn="-"

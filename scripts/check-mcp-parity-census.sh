@@ -130,7 +130,7 @@ total="$(printf '%s' "$TOOLS" | grep -c . || true)"
 covered_n=0 ack_n=0 unexamined=""
 while IFS= read -r tool; do
     [ -n "$tool" ] || continue
-    if printf '%s\n' "$COVERED" | grep -qx "$tool"; then
+    if grep -qx "$tool" <<< "$COVERED"; then
         covered_n=$((covered_n + 1))
     elif [ -n "${ALLOW[$tool]:-}" ]; then
         ack_n=$((ack_n + 1))

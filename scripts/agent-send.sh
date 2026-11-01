@@ -370,14 +370,14 @@ elif [ -n "$peer_fp" ]; then
                 topic="$peer_active"
             fi
         elif [ "$n_active" -gt 1 ]; then
-            if ! printf '%s\n' "$peer_active" | grep -qxF "$topic"; then
+            if ! grep -qxF "$topic" <<< "$peer_active"; then
                 die "ambiguous: $n_active existing dm threads with peer-fp $peer_fp have peer posts and none matches the canonical mint '$topic' — pass --topic explicitly. Candidates: $(printf '%s ' $peer_active)"
             fi
         else
             # No candidate has peer posts (peer never replied anywhere yet).
             # Trust the canonical mint if it already exists; a single existing
             # candidate is still better than minting a second thread.
-            if ! printf '%s\n' "$candidates" | grep -qxF "$topic"; then
+            if ! grep -qxF "$topic" <<< "$candidates"; then
                 n_cand="$(printf '%s\n' "$candidates" | wc -l)"
                 if [ "$n_cand" -eq 1 ]; then
                     echo "agent-send: NOTE using existing dm topic '$candidates' (peer-fp match, no peer posts yet) instead of minting '$topic'" >&2

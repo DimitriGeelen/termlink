@@ -163,7 +163,7 @@ while IFS= read -r decl; do
     # platform-lock and silent-exit checks make, and the same way a false NEGATIVE
     # hides in a guard that otherwise looks thorough.
     if [ -n "$value" ] && xargs -a "$SCAN_LIST" sed -E 's://.*$::' 2>/dev/null \
-        | grep -q -- "$value"; then
+        | grep -- "$value" >/dev/null; then
         continue
     fi
     [ -n "${ALLOW[$name]:-}" ] && continue
