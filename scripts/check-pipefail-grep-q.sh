@@ -36,7 +36,8 @@ for a in "$@"; do
 done
 [ -d "$ROOT/scripts" ] || { echo "check-pipefail-grep-q: no scripts/ under $ROOT (fail-closed)" >&2; exit 2; }
 
-SITE_RE='^[^#]*\|[[:space:]]*grep[[:space:]]+-q'
+# A pipe, not the second `|` of `||` (`a || grep -q x f` is no pipeline; T-3631 worker finding).
+SITE_RE='^([^#]*[^|#])?\|[[:space:]]*grep[[:space:]]+-q'
 declare -A now=() base=()
 scanned=0
 shopt -s nullglob

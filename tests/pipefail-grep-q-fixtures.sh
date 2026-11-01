@@ -34,6 +34,8 @@ root 5; printf '#!/usr/bin/env bash\n%s\n' "$SITE" > "$R/scripts/nopf.sh"; run
 [ "$RC" = 0 ] && ok "C3 a file without pipefail is out of scope" || bad C3 "rc=$RC $OUT"
 root 6; printf '#!/usr/bin/env bash\nset -o pipefail\n# %s\n' "$SITE" > "$R/scripts/cmt.sh"; run
 [ "$RC" = 0 ] && ok "C4 a commented site is not counted" || bad C4 "rc=$RC $OUT"
+root 11; printf '#!/usr/bin/env bash\nset -o pipefail\ntrue %s%s grep -q x f\n' "$P" "$P" > "$R/scripts/or.sh"; run
+[ "$RC" = 0 ] && ok "C5 'a || grep -q x f' is not a pipeline and is not counted" || bad C5 "rc=$RC $OUT"
 root 7; rm -f "$R/base"; run
 [ "$RC" = 2 ] && has "missing (fail-closed" && ok "T1 missing baseline => tooling rc 2, never clean" || bad T1 "rc=$RC $OUT"
 root 8; printf '%s\n' "$SITE" >> "$R/scripts/a.sh"; cp "$R/base" "$R/base.before"; run --update-baseline
