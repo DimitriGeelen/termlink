@@ -1,0 +1,205 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3352: arc-011 role chain step 3: security floor and phasing
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:56:25Z
+# ============================================================================
+
+task_id: T-3352
+task_name: "arc-011 role chain step 3: security floor and phasing"
+workflow_type: specification
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-06T10:13:12Z
+completed: 2026-11-01T23:56:17Z
+duration_days: 26
+updates_count: 3
+first_commit: 2026-10-11T13:26:35+02:00
+last_commit: 2026-10-12T16:47:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  role chain records step 2 approved (2026-10-11, threat model v0.3.7, residual risks accepted) and step 1 re-approved as v0.5.2 (T-3388); step 3 may start. step 3 draft v0.1, part 1 (inputs of record, reading rules, security floor table). step 3 draft v0.1, part 2 (floor status of security-typed requirements, adversary coverage, drawing D-2). step 3 draft v0.1, part 3 (prioritisation table by R-n with evidence). step 3 draft v0.1, part 4 (basic version, phase rules, PH-0 to PH-2). step 3 draft v0.1, part 5 (PH-3 to PH-6, tracks, external gates, drawing D-1). step 3 draft v0.1, part 6 (GP-12 numbers, CAND-3 staging). step 3 draft v0.1, part 7 (hypotheses with measurements and thresholds). step 3 draft v0.1, part 8 (accounts price and order, Tier 0 event classes). step 3 draft v0.1, part 9 (policy record format, interim controls, outage-log reconciliation). step 3 draft v0.1, part 10 (risk-acceptance requests, change requests, operator questions, handoff, coverage). step 3 draft v0.1, part 11 (consistency fixes: six standing controls, hub signing key in PH-2, RK-6 in PH-4). step 3 draft v0.1, part 12 (D-1 redrawn, render check section). step 3 role hand-back record (role-handback/1, validated against the schema). close-out of T-3393 (runme re-run rc=0: ring20-dashboard on 0.12.395, operator ticks recorded). step 3 review round 1 — Codex and GLM both 'fit after listed fixes', stored unedited; disposition of 17 findings (13 editorial, 4 to the operator). step 3 r1 fixes, policy format and Tier 0 classes (rows 1-6: removal value, C-17 and C-15 batch withdrawn, C-9c constrained, signing payload, event verbs, epochs, same-level resolution). step 3 r1 fixes, phasing and questions (rows 7-12, 14-17: PH-3 policy test, account pilot to PH-3, PH-0 rollback keeps recorder, RA-4 split, SI-15 estate guard, RA-9, OP-21 to OP-23, BV-5 pending, hub-plaintext baseline, P1 wording). step 3 r1 fixes, drawing D-1 PH-6 rollback, render check re-run, X4 estate guard (row 13). step 3 r1 fixes report and handback back to ready-for-review (v0.2, 17 rows fixed). confirmation of step 3 v0.2 — Codex run cut off by its usage limit (no verdict, stored); GLM 'confirmed after listed fixes' (17/17 rows fixed, no new contradiction with rulings, 3 small format gaps). step 3 v0.2.1, confirmation-check fixes (10.3.7.b.1 matching predicate, Tier 0 classes without event verb need schema extension, be_main removed from 10.3.8). OP-1 external review (operator request) — GLM recommends B with two amendments (inventory in PH-0; no new root agents after the price gate); Codex blocked by usage limit, retry scheduled 19:50. OP-1 ruled B with two amendments (root inventory in PH-0; no new root agents after the price gate) — recorded in T-3352 Decisions and step-3 doc 10.1.8.f / 13.2.1. 17 step-3 confirmations ruled in one explicit list (OP-2..4, 6..11 A; OP-13..20 = RA-1..8 as recommended); triage and process change recorded; root-process figure corrected from the PH-0 measurement. handover S-2026-1011-1919 (step 3 triage, OP-1 ruled, PH-0 building, next: OP-21). OP-1 external review — Codex (after its usage limit lifted): modified B (A3 before PH-4 authority is operational; root orchestrator executing agent-writable scripts loses root before A3; minimal helper in A0; gate decides budget not whether); stored unedited. OP-1 extended with Codex's four tightenings (operator: yes) and operator direction: Tier 0 override always available; configurable per-project security level (step 4 proposes levels). OP-21 ruled B — all mail reaches a busy agent at its next tool call, as today; SI-18/SI-23/allow-list move into PH-1. OQ-1 ruled A by the operator - the sidecar stays Rust in the TermLink workspace (crates/termlink-sidecar). operator ruled A - arc-011 moves to PH-2 (PH-1 exits X1..X6 met)
+
+# Key outcomes
+outcomes:
+  - 'Step 2 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3) (evidence: c53d24da4 2026-10-11 13:26 records step 2 approved, before the first draft commit 5647ca93d at 13:43; T-3351 work-completed, signed per bbb4cb8bd)'
+  - 'Role session dispatched with the yaml''s order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evidence: docs/reports/T-3352-role-handback.json, schema `role-handback/1`, validated per 578d415ad; session report .context/dispatch-results/step3-floor.md)'
+  - '`docs/design/interactive-agent-communication-03-floor-and-phasing.md` exists with a version table and an inputs-of-record section citing the input hashes (evidence: §0 Version history table, §1 Inputs of record with sha256 columns)'
+  - 'Every P1/P2 item from the step-1 rulings is placed in a phase, with the security floor that must hold in every phase (evidence: §3 floor of 39 items, each with entry and completion phase; §4 classes all 82 requirements; §6 phases PH-0..PH-6; §15 coverage)'
+  - 'GP-12 diagnosis-time bound and message-state cap set (handed to step 3 by the GP-12 ruling) (evidence: §7 "GP-12: the diagnosis-time bound and the message-state cap", 60 s diagnosis and 14 states / 8 markers; part 6 commit 9058f342d)'
+  - 'CAND-3 staging: for each test dimension, the phase in which its subject exists and the test becomes required (evidence: §8 "CAND-3 staging", commit 9058f342d)'
+  - 'Role-chain yaml step 3 `task:` set to this task id (evidence: docs/design/interactive-agent-communication-role-chain.yaml:59 `task: T-3352`)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'step 3 v0.2.1, confirmation-check fixes (10.3.7.b.1 matching predicate, Tier 0 classes without event verb need schema extension, be_main removed from 10.3.8)'
+    source: git-mined
+  - description: 'confirmation of step 3 v0.2 — Codex run cut off by its usage limit (no verdict, stored); GLM ''confirmed after listed fixes'' (17/17 rows fixed, no new contradiction with rulings, 3 small format gaps)'
+    source: git-mined
+  - description: 'step 3 r1 fixes report and handback back to ready-for-review (v0.2, 17 rows fixed)'
+    source: git-mined
+  - description: 'step 3 r1 fixes, drawing D-1 PH-6 rollback, render check re-run, X4 estate guard (row 13)'
+    source: git-mined
+  - description: 'step 3 r1 fixes, phasing and questions (rows 7-12, 14-17: PH-3 policy test, account pilot to PH-3, PH-0 rollback keeps recorder, RA-4 split, SI-15 estate guard, RA-9, OP-21 to OP-23, BV-5 pending, hub-plaintext baseline, P1 wording)'
+    source: git-mined
+  - description: 'step 3 r1 fixes, policy format and Tier 0 classes (rows 1-6: removal value, C-17 and C-15 batch withdrawn, C-9c constrained, signing payload, event verbs, epochs, same-level resolution)'
+    source: git-mined
+  - description: 'step 3 review round 1 — Codex and GLM both ''fit after listed fixes'', stored unedited; disposition of 17 findings (13 editorial, 4 to the operator)'
+    source: git-mined
+  - description: 'step 3 draft v0.1, part 11 (consistency fixes: six standing controls, hub signing key in PH-2, RK-6 in PH-4)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-11 — OP-1 per-agent accounts: order and price (operator ruling)'
+    chose: 'B with GLM''s two amendments: 1. A0 pilot in PH-3 (once the C-15 Tier 0 route exists); price gate after the pilot, back to the operator with the measured price (H-28); A3 (every agent on its own account) before PH-4 exits; A4 (orchestrator, runme, cron, hub restarts without general root) in PH-6. PH-2/PH-3 run at base strength under RA-1. 2. Amendment 1: the read-only inventory of which processes need root, and why, is a PH-0 exit item. 3. Amendment 2: after the price gate, no new agent is started as root. Every account creation stays one Tier 0 event with its own digest (R-82.a (3)).'
+    alternatives_rejected: ['A (accounts before PH-2: the largest unknown blocks a release that does not need it), C (after PH-5: every capability phase adds power to root agents), D (pilot only, migration its own arc: target drifts).']
+  - decision: '2026-10-11 — Triage of the remaining step-3 questions, and 17 confirmations (operator ruling)'
+  - decision: '2026-10-11 — OP-1 additions from the Codex review, and a per-project security level (operator ruling + direction)'
+  - decision: '2026-10-11 — OP-21 delivery point for normal mail (operator ruling)'
+    chose: 'B: every message (normal and urgent) reaches a working agent at its next tool call. Consequences per 12.3/CX-2: SI-18 (priority, urgency and trust decided at the receiver), SI-23 (kill switch) and the interrupt allow-list move from PH-2 into PH-1 and apply to all mail; the basic version delivers mid-turn and its estate needs the kill switch; R-48.e stands as written; R-63.a''s "urgent mid-turn" becomes "all mid-turn, urgency sets priority" (a step-1 wording change, CX-2).'
+    alternatives_rejected: ['A (slower than today), C (needs PH-4; A or B needed anyway until then), D (another round).']
+  - decision: '2026-10-12 — OQ-2 message from a sender outside the roster (operator ruling)'
+    alternatives_rejected: ['A (silent to the sender, no way in); B (stranger''s text reaches the agent mid-turn); receiving agent or orchestrator as the relay (no route for headless agents, and an agent cannot decide under SI-8). - **Limits accepted:** in PH-1 the operator sees the question at the next session start on this host (away-from-host reach is T-3385); "from the operator" means the admin route the operator runs, separated by convention until Track A and an operator key.']
+  - decision: '2026-10-12 — OQ-1 implementation language and home of the sidecar (operator ruling)'
+    chose: 'A: Rust, in the TermLink workspace (`crates/termlink-sidecar`), as built for PH-1 (B1..B15).'
+    rationale: 'the recommendation (OD-9 C): it lives in the binary''s own workspace, so a re-vendor of the framework cannot delete it (G-062), and PH-1 was already built, tested and live-proven there (18 kill-checked controls, B14 PASS).'
+    alternatives_rejected: ['B, Python in the vendored framework tree with a later port (re-vendor loss; a rewrite of what exists).']
+  - decision: '2026-10-12 — PH-1 exit X6: the operator ran the demonstration (record)'
+  - decision: '2026-10-12 — Move arc-011 to PH-2 (operator ruling)'
+    chose: 'A: PH-1 is closed, PH-2 starts. The next session plans PH-2 into build tasks the way PH-1 was planned (architecture note, then a build table), from step 3 section 6.2.3 (PH-2 scope and exit) and the items deferred to PH-2 (doorbell wave W2, reconciliation with the hub record SI-15, the daily two-agent canary H-14, install from the release artifact, SI-18/SI-23 completion, T-3423 review on 2026-11-12).'
+    alternatives_rejected: ['B (hold PH-1 and pick something else first).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3393.yaml'
+  - '.context/episodic/T-3424.yaml'
+  - '.context/handovers/S-2026-1011-1919.md'
+  - '.tasks/active/T-3352-arc-011-role-chain-step-3-security-floor.md'
+  - '.tasks/completed/T-3393-runme-action-14-record-operator-watchtow.md'
+  - 'docs/design/arc-011-ph1-architecture.md'
+  - 'docs/design/interactive-agent-communication-03-floor-and-phasing.md'
+  - 'docs/design/interactive-agent-communication-role-chain.yaml'
+  - 'docs/reports/T-3352-op1-review/brief.md'
+  - 'docs/reports/T-3352-op1-review/codex.md'
+  - 'docs/reports/T-3352-op1-review/codex.raw'
+  - 'docs/reports/T-3352-op1-review/codex.rc'
+  - 'docs/reports/T-3352-op1-review/glm.md'
+  - 'docs/reports/T-3352-op1-review/glm.raw'
+  - 'docs/reports/T-3352-op1-review/glm.rc'
+  - 'docs/reports/T-3352-role-handback.json'
+  - 'docs/reports/T-3352-step3-review/brief-confirm.md'
+  - 'docs/reports/T-3352-step3-review/brief.md'
+  - 'docs/reports/T-3352-step3-review/codex-confirm.md'
+  - 'docs/reports/T-3352-step3-review/codex-confirm.raw'
+  - 'docs/reports/T-3352-step3-review/codex-confirm.rc'
+  - 'docs/reports/T-3352-step3-review/codex.md'
+  - 'docs/reports/T-3352-step3-review/codex.raw'
+  - 'docs/reports/T-3352-step3-review/codex.rc'
+  - 'docs/reports/T-3352-step3-review/disposition-r1.md'
+  - 'docs/reports/T-3352-step3-review/fixes-r1.md'
+  - 'docs/reports/T-3352-step3-review/glm-confirm.md'
+  - 'docs/reports/T-3352-step3-review/glm-confirm.raw'
+  - 'docs/reports/T-3352-step3-review/glm-confirm.rc'
+  - 'docs/reports/T-3352-step3-review/glm.md'
+  - 'docs/reports/T-3352-step3-review/glm.raw'
+  - 'docs/reports/T-3352-step3-review/glm.rc'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T13:26:35'
+    action: 'T-3352: role chain records step 2 approved (2026-10-11, threat model v0.3.7, residual risks accepted) and step 1 re-approved as v0.5.2 (T-3388); step 3 may start'
+  - time: '2026-10-11T13:43:40'
+    action: 'T-3352: step 3 draft v0.1, part 1 (inputs of record, reading rules, security floor table)'
+  - time: '2026-10-11T13:45:20'
+    action: 'T-3352: step 3 draft v0.1, part 2 (floor status of security-typed requirements, adversary coverage, drawing D-2)'
+  - time: '2026-10-11T13:46:12'
+    action: 'T-3352: step 3 draft v0.1, part 3 (prioritisation table by R-n with evidence)'
+  - time: '2026-10-11T13:48:10'
+    action: 'T-3352: step 3 draft v0.1, part 4 (basic version, phase rules, PH-0 to PH-2)'
+  - time: '2026-10-11T13:50:46'
+    action: 'T-3352: step 3 draft v0.1, part 5 (PH-3 to PH-6, tracks, external gates, drawing D-1)'
+  - time: '2026-10-11T13:51:27'
+    action: 'T-3352: step 3 draft v0.1, part 6 (GP-12 numbers, CAND-3 staging)'
+  - time: '2026-10-11T13:53:45'
+    action: 'T-3352: step 3 draft v0.1, part 7 (hypotheses with measurements and thresholds)'
+  - time: '2026-10-11T13:54:36'
+    action: 'T-3352: step 3 draft v0.1, part 8 (accounts price and order, Tier 0 event classes)'
+  - time: '2026-10-11T13:55:53'
+    action: 'T-3352: step 3 draft v0.1, part 9 (policy record format, interim controls, outage-log reconciliation)'
+  - time: '2026-10-11T13:58:26'
+    action: 'T-3352: step 3 draft v0.1, part 10 (risk-acceptance requests, change requests, operator questions, handoff, coverage)'
+  - time: '2026-10-11T13:59:09'
+    action: 'T-3352: step 3 draft v0.1, part 11 (consistency fixes: six standing controls, hub signing key in PH-2, RK-6 in PH-4)'
+  - time: '2026-10-11T14:01:15'
+    action: 'T-3352: step 3 draft v0.1, part 12 (D-1 redrawn, render check section)'
+  - time: '2026-10-11T14:01:33'
+    action: 'T-3352: step 3 role hand-back record (role-handback/1, validated against the schema)'
+  - time: '2026-10-11T15:37:19'
+    action: 'T-3352: close-out of T-3393 (runme re-run rc=0: ring20-dashboard on 0.12.395, operator ticks recorded)'
+  - time: '2026-10-11T15:47:11'
+    action: 'T-3352: step 3 review round 1 — Codex and GLM both ''fit after listed fixes'', stored unedited; disposition of 17 findings (13 editorial, 4 to the operator)'
+  - time: '2026-10-11T15:51:50'
+    action: 'T-3352: step 3 r1 fixes, policy format and Tier 0 classes (rows 1-6: removal value, C-17 and C-15 batch withdrawn, C-9c constrained, signing payload, event verbs, epochs, same-level resolution)'
+  - time: '2026-10-11T15:53:50'
+    action: 'T-3352: step 3 r1 fixes, phasing and questions (rows 7-12, 14-17: PH-3 policy test, account pilot to PH-3, PH-0 rollback keeps recorder, RA-4 split, SI-15 estate guard, RA-9, OP-21 to OP-23, BV-5 pending, hub-plaintext baseline, P1 wording)'
+  - time: '2026-10-11T15:54:31'
+    action: 'T-3352: step 3 r1 fixes, drawing D-1 PH-6 rollback, render check re-run, X4 estate guard (row 13)'
+  - time: '2026-10-11T15:55:07'
+    action: 'T-3352: step 3 r1 fixes report and handback back to ready-for-review (v0.2, 17 rows fixed)'
+  - time: '2026-10-11T16:00:11'
+    action: 'T-3352: confirmation of step 3 v0.2 — Codex run cut off by its usage limit (no verdict, stored); GLM ''confirmed after listed fixes'' (17/17 rows fixed, no new contradiction with rulings, 3 small format gaps)'
+  - time: '2026-10-11T16:01:18'
+    action: 'T-3352: step 3 v0.2.1, confirmation-check fixes (10.3.7.b.1 matching predicate, Tier 0 classes without event verb need schema extension, be_main removed from 10.3.8)'
+  - time: '2026-10-11T16:09:14'
+    action: 'T-3352: OP-1 external review (operator request) — GLM recommends B with two amendments (inventory in PH-0; no new root agents after the price gate); Codex blocked by usage limit, retry scheduled 19:50'
+  - time: '2026-10-11T17:14:47'
+    action: 'T-3352: OP-1 ruled B with two amendments (root inventory in PH-0; no new root agents after the price gate) — recorded in T-3352 Decisions and step-3 doc 10.1.8.f / 13.2.1'
+  - time: '2026-10-11T19:17:31'
+    action: 'T-3352: 17 step-3 confirmations ruled in one explicit list (OP-2..4, 6..11 A; OP-13..20 = RA-1..8 as recommended); triage and process change recorded; root-process figure corrected from the PH-0 measurement'
+  - time: '2026-10-11T19:22:20'
+    action: 'T-3352: handover S-2026-1011-1919 (step 3 triage, OP-1 ruled, PH-0 building, next: OP-21)'
+  - time: '2026-10-11T19:51:23'
+    action: 'T-3352: OP-1 external review — Codex (after its usage limit lifted): modified B (A3 before PH-4 authority is operational; root orchestrator executing agent-writable scripts loses root before A3; minimal helper in A0; gate decides budget not whether); stored unedited'
+  - time: '2026-10-11T19:57:31'
+    action: 'T-3352: OP-1 extended with Codex''s four tightenings (operator: yes) and operator direction: Tier 0 override always available; configurable per-project security level (step 4 proposes levels)'
+  - time: '2026-10-11T19:59:54'
+    action: 'T-3352: OP-21 ruled B — all mail reaches a busy agent at its next tool call, as today; SI-18/SI-23/allow-list move into PH-1'
+  - time: '2026-10-12T16:06:45'
+    action: 'T-3352: OQ-1 ruled A by the operator - the sidecar stays Rust in the TermLink workspace (crates/termlink-sidecar)'
+  - time: '2026-10-12T16:47:06'
+    action: 'T-3352: operator ruled A - arc-011 moves to PH-2 (PH-1 exits X1..X6 met)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 31 commit(s), 38263 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 38263
+  commits: 32
+  files_changed: 35
+  lines_added: 6974
+  lines_removed: 162
+  footprint_refreshed_at: '2026-11-01T23:56:30Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3352-arc-011-role-chain-step-3-security-floor.md
+generated_by: context-agent-hybrid

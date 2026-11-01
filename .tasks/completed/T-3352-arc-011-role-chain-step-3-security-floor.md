@@ -6,10 +6,10 @@ description: >
   output docs/design/interactive-agent-communication-03-floor-and-phasing.md. Starts
   only after step 2 is approved by the operator.
 
-status: started-work
+status: work-completed
 workflow_type: specification
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -25,8 +25,8 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:12Z
-last_update: '2026-10-18T22:32:47Z'
-date_finished:
+last_update: 2026-11-01T23:56:17Z
+date_finished: 2026-11-01T23:56:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -87,16 +87,21 @@ Step 3 of the arc-011 role chain (docs/design/interactive-agent-communication-ro
 
 Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 
+**Background / trigger:** The arc-011 design role chain reached step 3 after the operator signed step 2 (threat model v0.3.7) on 2026-10-11.
+**Problem / hypothesis:** The requirements and threat model need a security floor that holds in every phase and an order of build. Without one, step 4 (architecture) has nothing to build against.
+**Goal:** Produce the floor-and-phasing document via a role session: floor, prioritisation, phases, GP-12 numbers, CAND-3 staging, and the operator questions.
+**Expected outcome:** docs/design/interactive-agent-communication-03-floor-and-phasing.md, with its confirmations ruled by the operator and the arc moved on to PH-2.
+
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Step 2 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3)
-- [ ] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned
-- [ ] `docs/design/interactive-agent-communication-03-floor-and-phasing.md` exists with a version table and an inputs-of-record section citing the input hashes
-- [ ] Every P1/P2 item from the step-1 rulings is placed in a phase, with the security floor that must hold in every phase
-- [ ] GP-12 diagnosis-time bound and message-state cap set (handed to step 3 by the GP-12 ruling)
-- [ ] CAND-3 staging: for each test dimension, the phase in which its subject exists and the test becomes required
-- [ ] Role-chain yaml step 3 `task:` set to this task id
+- [x] Step 2 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3) (evidence: c53d24da4 2026-10-11 13:26 records step 2 approved, before the first draft commit 5647ca93d at 13:43; T-3351 work-completed, signed per bbb4cb8bd)
+- [x] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evidence: docs/reports/T-3352-role-handback.json, schema `role-handback/1`, validated per 578d415ad; session report .context/dispatch-results/step3-floor.md)
+- [x] `docs/design/interactive-agent-communication-03-floor-and-phasing.md` exists with a version table and an inputs-of-record section citing the input hashes (evidence: §0 Version history table, §1 Inputs of record with sha256 columns)
+- [x] Every P1/P2 item from the step-1 rulings is placed in a phase, with the security floor that must hold in every phase (evidence: §3 floor of 39 items, each with entry and completion phase; §4 classes all 82 requirements; §6 phases PH-0..PH-6; §15 coverage)
+- [x] GP-12 diagnosis-time bound and message-state cap set (handed to step 3 by the GP-12 ruling) (evidence: §7 "GP-12: the diagnosis-time bound and the message-state cap", 60 s diagnosis and 14 states / 8 markers; part 6 commit 9058f342d)
+- [x] CAND-3 staging: for each test dimension, the phase in which its subject exists and the test becomes required (evidence: §8 "CAND-3 staging", commit 9058f342d)
+- [x] Role-chain yaml step 3 `task:` set to this task id (evidence: docs/design/interactive-agent-communication-role-chain.yaml:59 `task: T-3352`)
 
 ## Verification
 
@@ -142,6 +147,18 @@ grep -q 'task: T-3352' docs/design/interactive-agent-communication-role-chain.ya
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+Written retrospectively on 2026-11-02 by the T-3648 closer, from this task's commits (2026-10-11 to 10-12).
+
+### 2026-10-11 — draft, review, and the operator's confirmations
+- **What changed:** The v0.1 draft (12 parts) went through an external review (Codex and GLM, 17 findings, 68e7a9465) to v0.2/v0.2.1. The operator then ruled the confirmations in one explicit list (e12bb7298). OP-1 went to an external review at the operator's request, was ruled B with amendments (dc68998cc), and was later tightened with Codex's four points (f0e99b302). The root-process figure was corrected from the PH-0 measurement.
+- **Plan impact:** Four change requests went back to steps 1 and 2 (CX-1..4). OP-21 moved SI-18/SI-23/allow-list into PH-1 (d44495678). OQ-1 kept the sidecar in Rust in the TermLink workspace (ab2c360b1).
+- **Triggered:** Per-project security levels for step 4 to propose (f0e99b302). The PH-1 demonstration (T-3424, 703a83fd8).
+
+### 2026-10-12 — phase gate
+- **What changed:** PH-1 exits X1..X6 met, and the operator ruled arc-011 into PH-2 (3eef28065).
+- **Plan impact:** Step 3's output became the build order for PH-2 (T-3426 planning).
+- **Triggered:** Step 4 (T-3353, architect) takes the handoff in §14 of the step-3 document.
 
 ## Recommendation
 
@@ -322,3 +339,21 @@ grep -q 'task: T-3352' docs/design/interactive-agent-communication-role-chain.ya
 ### 2026-10-11T11:26:17Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-01T23:56:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3a18ef47
+- **Timestamp:** 2026-11-01T23:56:18Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evidence: docs/reports/T-3352-role-handback.json, sch
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=docs/reports/T-3352-role-handback.json in: Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evi`
