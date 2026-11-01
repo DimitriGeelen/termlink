@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3027: Pickup: fw pickup process is unserialised and records its dedup row ~60s after (from 010-termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:38:19Z
+# ============================================================================
+
+task_id: T-3027
+task_name: "Pickup: fw pickup process is unserialised and records its dedup row ~60s after (from 010-termlink)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-20T14:02:02Z
+completed: 2026-11-01T23:38:10Z
+duration_days: 42
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Auto-created from pickup envelope. Source: 010-termlink, task T-3025. Type: bug-report.
+
+# Key outcomes
+outcomes:
+  - 'Duplicate (losing pickup racer of envelope P-081, canonical T-3026, now closed); the substance was filed and closed under T-3025. No work of its own. (evidence: .tasks/completed/T-3025-fw-pickup-process-creates-three-identica.md status work-completed)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 61056 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 61056
+  commits: 1
+  files_changed: 3
+  lines_added: 135
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-01T23:38:24Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3027-pickup-fw-pickup-process-is-unserialised.md
+generated_by: context-agent-hybrid
