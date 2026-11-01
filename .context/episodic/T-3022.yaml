@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3022: Pickup: CTL-029 prescribes a command R-033 refuses: 28 of 28 of its warnings are (from 010-termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-01T23:35:12Z
+# ============================================================================
+
+task_id: T-3022
+task_name: "Pickup: CTL-029 prescribes a command R-033 refuses: 28 of 28 of its warnings are (from 010-termlink)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-20T13:30:15Z
+completed: 2026-11-01T23:35:03Z
+duration_days: 42
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Auto-created from pickup envelope. Source: 010-termlink, task T-3016. Type: bug-report.
+
+# Key outcomes
+outcomes:
+  - 'Superseded: this is a round-trip of this project''s own filing. The substance was investigated and filed upstream at framework:pickup@127 under T-3016, which is closed. No work of its own. (evidence: .tasks/completed/T-3016-ctl-029-advises-closing-human-owned-task.md status work-completed; git 786014647)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 61084 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 61084
+  commits: 1
+  files_changed: 3
+  lines_added: 135
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-01T23:35:17Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3022-pickup-ctl-029-prescribes-a-command-r-03.md
+generated_by: context-agent-hybrid
