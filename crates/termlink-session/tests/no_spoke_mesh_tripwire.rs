@@ -62,6 +62,16 @@
 //! * **the hub router → a local proxy** (`connect_addr_raw`). The hub is still the
 //!   mediator; that is the star working, not a bypass of it.
 //!
+//! * **a circuit opened with a hub-minted credential** (T-3643, adopted purpose T-3612
+//!   draft v0.9 §6.5). The charter now forbids *unauthenticated* spoke-to-spoke
+//!   connections, not direct circuits as such: a hub-brokered direct circuit, opened
+//!   with a credential the hub minted, keeps the hub as the authority that decides who
+//!   may talk. No circuit type exists in the code yet, so the allowance is keyed to the
+//!   narrowest names the draft gives: a module whose file name starts with `circuit`
+//!   ([`CIRCUIT_MODULE_PREFIX`]) whose dialling fn names [`HUB_MINTED_CREDENTIAL`]
+//!   between its `fn` line and the connect. A connect in a circuit module WITHOUT that
+//!   credential is an unauthenticated spoke-to-spoke connection and fails check 1.
+//!
 //! # Scope and residual risk (stated so nobody over-reads a green result)
 //!
 //! This is a source-level invariant over one crate, not a runtime proof.
@@ -109,6 +119,54 @@ const TRANSPORT_MODULES: &[(&str, usize)] = &[
     ("tofu.rs", 1),
     ("ws_consumer.rs", 1),
 ];
+
+/// T-3643: the narrowest names the adopted draft gives for a permitted direct circuit
+/// ("circuits opened with a hub-minted credential", T-3612 v0.9 §6.5).
+const CIRCUIT_MODULE_PREFIX: &str = "circuit";
+const HUB_MINTED_CREDENTIAL: &str = "HubMintedCredential";
+
+fn is_circuit_module(name: &str) -> bool {
+    name.starts_with(CIRCUIT_MODULE_PREFIX)
+}
+
+/// The text of the enclosing fn from its `fn` line through `lineno` (1-based), or the
+/// file up to `lineno` when no fn precedes it. Used to ask whether a circuit's connect
+/// is opened with a hub-minted credential.
+fn enclosing_fn_prefix(body: &str, lineno: usize) -> String {
+    let lines: Vec<&str> = body.lines().take(lineno).collect();
+    let start = lines
+        .iter()
+        .rposition(|l| {
+            let t = l.trim_start();
+            t.starts_with("fn ") || t.starts_with("pub fn ") || t.starts_with("async fn ")
+                || t.starts_with("pub async fn ") || t.starts_with("pub(crate) fn ")
+                || t.starts_with("pub(crate) async fn ")
+        })
+        .unwrap_or(0);
+    lines[start..].join("\n")
+}
+
+/// Connect sites outside the transport modules that are not credentialed circuits.
+fn stray_connects(sources: &[(String, String)]) -> Vec<String> {
+    let mut strays = Vec::new();
+    for (name, body) in sources {
+        if is_transport_module(name) {
+            continue;
+        }
+        for (lineno, line) in code_lines(body) {
+            if !is_connect(line) {
+                continue;
+            }
+            if is_circuit_module(name)
+                && enclosing_fn_prefix(body, lineno).contains(HUB_MINTED_CREDENTIAL)
+            {
+                continue;
+            }
+            strays.push(format!("{name}:{lineno}: {}", line.trim()));
+        }
+    }
+    strays
+}
 
 fn is_transport_module(name: &str) -> bool {
     TRANSPORT_MODULES.iter().any(|(m, _)| *m == name)
@@ -215,17 +273,7 @@ fn is_connect(line: &str) -> bool {
 /// to reach a peer directly — rather than as a sixth arm inside the transport layer.
 #[test]
 fn connections_are_constructed_only_in_transport_modules() {
-    let mut strays = Vec::new();
-    for (name, body) in session_sources() {
-        if is_transport_module(&name) {
-            continue;
-        }
-        for (lineno, line) in code_lines(&body) {
-            if is_connect(line) {
-                strays.push(format!("{name}:{lineno}: {}", line.trim()));
-            }
-        }
-    }
+    let strays = stray_connects(&session_sources());
     assert!(
         strays.is_empty(),
         "spoke↔spoke mesh tripwire (T-2703): connection(s) constructed outside the \
@@ -236,8 +284,10 @@ fn connections_are_constructed_only_in_transport_modules() {
          bounded surface to audit when asking what this process can dial.\n\
          If the new site dials the HUB, a LOCAL session control plane, or a hub-router \
          proxy, add its module to TRANSPORT_MODULES with a comment naming the target. \
-         If it dials a PEER SPOKE, it contradicts an invariant the architecture doc \
-         calls decisive — amend that document first.",
+         If it dials a PEER SPOKE, it must be a circuit opened with a hub-minted \
+         credential: a `circuit*.rs` module whose dialling fn takes a \
+         HubMintedCredential (T-3643). An unauthenticated spoke-to-spoke connection \
+         contradicts the charter.",
         strays.join("\n  ")
     );
 }
@@ -297,4 +347,43 @@ fn tripwire_is_not_vacuous() {
         "found zero connect sites across every transport module — the scan is reading \
          nothing, so checks 1 and 2 would pass vacuously"
     );
+}
+
+/// CHECK 4 (T-3643) — negative and positive cases on synthetic sources, so a green
+/// check 1 means it can fire, not merely that it found nothing.
+#[test]
+fn negative_cases_fire() {
+    let src = |name: &str, body: &str| vec![(name.to_string(), body.to_string())];
+
+    // An unauthenticated spoke-to-spoke connection in an ordinary module.
+    let mesh = src("presence.rs", "pub async fn dial_peer(addr: &str) {\n    let _s = TcpStream::connect(addr).await;\n}\n");
+    assert_eq!(stray_connects(&mesh).len(), 1, "a peer dial outside the transport modules must fire");
+
+    // The forbidden case inside a circuit module: no hub-minted credential.
+    let bare_circuit = src(
+        "circuit.rs",
+        "pub async fn open(peer: &str) {\n    let _s = TcpStream::connect(peer).await;\n}\n",
+    );
+    assert_eq!(stray_connects(&bare_circuit).len(), 1, "an unauthenticated circuit dial must fire");
+
+    // A credential in a DIFFERENT fn does not authenticate this one.
+    let elsewhere = src(
+        "circuit.rs",
+        "pub fn mint(c: HubMintedCredential) {}\npub async fn open(peer: &str) {\n    let _s = TcpStream::connect(peer).await;\n}\n",
+    );
+    assert_eq!(stray_connects(&elsewhere).len(), 1, "a credential in another fn must not cover this dial");
+
+    // A credential outside a circuit module is not an allowance.
+    let not_circuit = src(
+        "presence.rs",
+        "pub async fn open(peer: &str, cred: HubMintedCredential) {\n    let _s = TcpStream::connect(peer).await;\n}\n",
+    );
+    assert_eq!(stray_connects(&not_circuit).len(), 1, "only circuit modules carry the allowance");
+
+    // Permitted: a circuit opened with a hub-minted credential.
+    let credentialed = src(
+        "circuit.rs",
+        "pub async fn open(\n    peer: &str,\n    cred: HubMintedCredential,\n) {\n    let _s = TcpStream::connect(peer).await;\n}\n",
+    );
+    assert!(stray_connects(&credentialed).is_empty(), "a credentialed circuit must pass");
 }

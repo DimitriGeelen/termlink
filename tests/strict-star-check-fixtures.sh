@@ -129,6 +129,45 @@ out="$(cd "$HERE/.." && bash "$CHECK" 2>&1)"; rc=$?
 assert_rc 0 "$rc" "the real tree scans clean"
 assert_contains "$out" "acknowledged" "the real-tree run reports its acknowledged count"
 
+# --- Case 10 (T-3643): a circuit opened with a hub-minted credential passes ---
+mkdir -p "$TMP/c10/src"
+cat > "$TMP/c10/src/circuit.rs" <<'RS'
+pub async fn open_circuit(
+    peer: &str,
+    cred: HubMintedCredential,
+) {
+    let _s = TcpStream::connect(peer).await.unwrap();
+}
+RS
+: > "$TMP/c10.allow"
+out="$(bash "$CHECK" --root "$TMP/c10/src" --allowlist "$TMP/c10.allow" 2>&1)"; rc=$?
+assert_rc 0 "$rc" "a circuit opened with a hub-minted credential is allowed"
+assert_contains "$out" "1 credentialed circuit" "credentialed circuits are counted, not hidden"
+
+# --- Case 11 (T-3643, LOAD-BEARING): an unauthenticated circuit dial FIRES ----
+mkdir -p "$TMP/c11/src"
+cat > "$TMP/c11/src/circuit.rs" <<'RS'
+pub fn mint(cred: HubMintedCredential) {}
+
+pub async fn open_bare(peer: &str) {
+    let _s = TcpStream::connect(peer).await.unwrap();
+}
+RS
+: > "$TMP/c11.allow"
+out="$(bash "$CHECK" --root "$TMP/c11/src" --allowlist "$TMP/c11.allow" 2>&1)"; rc=$?
+assert_rc 1 "$rc" "a circuit dial without a credential in its own fn fires"
+assert_contains "$out" "open_bare" "the unauthenticated circuit is named"
+
+# --- Case 12 (T-3643): the credential outside a circuit file is no allowance ---
+mkdir -p "$TMP/c12/src"
+cat > "$TMP/c12/src/presence.rs" <<'RS'
+pub async fn dial_peer(peer: &str, cred: HubMintedCredential) {
+    let _s = TcpStream::connect(peer).await.unwrap();
+}
+RS
+out="$(bash "$CHECK" --root "$TMP/c12/src" --allowlist "$TMP/c11.allow" 2>&1)"; rc=$?
+assert_rc 1 "$rc" "only circuit* files carry the credentialed-circuit allowance"
+
 echo "strict-star check fixtures: $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1
 exit 0

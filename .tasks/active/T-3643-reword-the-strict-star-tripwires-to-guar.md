@@ -1,13 +1,20 @@
 ---
 id: T-3643
-name: "Reword the strict-star tripwires to guard no-message-relay (T-3612 draft v0.9 section 6.5)"
+name: "Reword the strict-star tripwires to guard no-message-relay (T-3612 draft v0.9
+  section 6.5)"
 description: >
-  Before OD-11 lands, narrow crates/termlink-hub/tests/no_federation_tripwire.rs so hubs may exchange signed directory cards while topic-message relay between hubs stays forbidden. Before OD-1 lands, change crates/termlink-session/tests/no_spoke_mesh_tripwire.rs and scripts/check-strict-star.sh to forbid unauthenticated spoke-to-spoke connections while allowing circuits opened with a hub-minted credential. Change assertions and allow-lists, not only comments. Source: docs/reports/T-3612-round4-draft.md section 6.5; follows T-3642.
+  Before OD-11 lands, narrow crates/termlink-hub/tests/no_federation_tripwire.rs so
+  hubs may exchange signed directory cards while topic-message relay between hubs
+  stays forbidden. Before OD-1 lands, change crates/termlink-session/tests/no_spoke_mesh_tripwire.rs
+  and scripts/check-strict-star.sh to forbid unauthenticated spoke-to-spoke connections
+  while allowing circuits opened with a hub-minted credential. Change assertions and
+  allow-lists, not only comments. Source: docs/reports/T-3612-round4-draft.md section
+  6.5; follows T-3642.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [charter, purpose, tripwire]
 components: []
 related_tasks: [T-3612, T-3642]
@@ -39,8 +46,8 @@ origin: {kind: "agent", source: "T-3642"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T16:09:09Z
-last_update: 2026-11-01T16:09:09Z
-date_finished: null
+last_update: 2026-11-01T21:31:23Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +58,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-01T21:27:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3643: Reword the strict-star tripwires to guard no-message-relay (T-3612 draft v0.9 section 6.5)
@@ -73,11 +92,11 @@ spoke-to-spoke connections.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] no_federation tripwire: allows signed directory-card exchange between hubs, still fails on hub-to-hub topic-message
+- [x] no_federation tripwire: allows signed directory-card exchange between hubs, still fails on hub-to-hub topic-message
       relay (a negative case proves it)
-- [ ] no_spoke_mesh tripwire and check-strict-star.sh: allow circuits opened with a hub-minted credential, still fail on
+- [x] no_spoke_mesh tripwire and check-strict-star.sh: allow circuits opened with a hub-minted credential, still fail on
       an unauthenticated spoke-to-spoke connection (a negative case each)
-- [ ] `cargo test -p termlink-hub --test no_federation_tripwire` and `-p termlink-session --test no_spoke_mesh_tripwire`
+- [x] `cargo test -p termlink-hub --test no_federation_tripwire` and `-p termlink-session --test no_spoke_mesh_tripwire`
       pass; `bash scripts/check-strict-star.sh` exits 0 on the repo
 
 ### Human
@@ -283,6 +302,11 @@ spoke-to-spoke connections.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-hub --test no_federation_tripwire > .context/working/.t3643-v1.out 2>&1 && grep -q "test negative_cases_fire ... ok" .context/working/.t3643-v1.out && grep -q "4 passed; 0 failed" .context/working/.t3643-v1.out
+cargo test -p termlink-session --test no_spoke_mesh_tripwire > .context/working/.t3643-v2.out 2>&1 && grep -q "test negative_cases_fire ... ok" .context/working/.t3643-v2.out && grep -q "4 passed; 0 failed" .context/working/.t3643-v2.out
+bash scripts/check-strict-star.sh > .context/working/.t3643-v3.out 2>&1 && grep -q "strict-star: clean" .context/working/.t3643-v3.out
+bash tests/strict-star-check-fixtures.sh > .context/working/.t3643-v4.out 2>&1 && grep -q " 0 failed" .context/working/.t3643-v4.out
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -363,6 +387,11 @@ spoke-to-spoke connections.
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-01 — keying the allowances to names, because the protocol notions do not exist yet
+- **Chose:** hub-to-hub contact is allowed only in a hub module named `directory_card*.rs`, and topic-message RPCs or the topic store are forbidden there too. A spoke dial is allowed only in a `circuit*.rs` module (Rust test) or file (check-strict-star.sh) whose enclosing fn names `HubMintedCredential` between its `fn` line and the connect.
+- **Why:** the code has no directory-card type and no circuit or credential type, so the brief said to allow-list each by the narrowest name the draft gives. A credential named in another fn, or outside a circuit module, does not count.
+- **Rejected:** dropping legs (a) and (b) of the federation test outright, because that would have allowed relay from any module.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -379,3 +408,7 @@ spoke-to-spoke connections.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3643-reword-the-strict-star-tripwires-to-guar.md
 - **Context:** Initial task creation
+
+### 2026-11-01T21:27:13Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

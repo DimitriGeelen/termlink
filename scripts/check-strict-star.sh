@@ -53,7 +53,15 @@
 #   (a) test-context (inside the file's `#[cfg(test)]` region — a test
 #       connecting to a socket it just bound itself is not a mesh), or
 #   (b) listed in the allowlist WITH a cited reason naming what the target
-#       is and why it is not a peer spoke.
+#       is and why it is not a peer spoke, or
+#   (c) a CREDENTIALED CIRCUIT (T-3643): the file's name starts with `circuit`
+#       and the enclosing fn names `HubMintedCredential` between its `fn` line
+#       and the dial. The adopted purpose (T-3612 draft v0.9 section 6.5)
+#       forbids UNAUTHENTICATED spoke-to-spoke connections and allows direct
+#       circuits opened with a hub-minted credential. No circuit type exists in
+#       the code yet, so the allowance is keyed to the narrowest names the
+#       draft gives. A dial in a circuit file WITHOUT that credential is an
+#       unauthenticated spoke-to-spoke connection and fires.
 #
 # Today's surface is frozen and visible; a NEW dial site is in neither set
 # and fires on the next run. That is the property T-2571's test structurally
@@ -106,7 +114,7 @@
 #      on the next run, but nothing here notices the attribute's removal
 #      specifically.
 #
-# Exit codes: 0 = every dial site acknowledged, 1 = an unacknowledged dial
+# Exit codes: 0 = every dial site acknowledged or a credentialed circuit, 1 = an unacknowledged dial
 # site, 2 = tooling error (fail-closed — an empty scan is NEVER clean).
 set -uo pipefail
 
@@ -206,11 +214,14 @@ fi
 # spoke-to-spoke channel would have to be built on; higher-level helpers all
 # bottom out here.
 DIAL_RE='(TcpStream::connect|UnixStream::connect|connect_timeout)'
+CIRCUIT_FILE_PREFIX="circuit"
+HUB_MINTED_CREDENTIAL="HubMintedCredential"
 
 checked=0
 firing_lines=()
 unacked=0
 testctx=0
+circuits=0
 
 for root in "${present_roots[@]}"; do
     while IFS= read -r file; do
@@ -257,6 +268,23 @@ for root in "${present_roots[@]}"; do
             if [ -n "${ACK_REASON[$sig]+set}" ]; then
                 continue
             fi
+
+            # (c) credentialed circuit: circuit* file, and the enclosing fn's
+            # text from its `fn` line through the dial names the credential.
+            base="$(basename "$file")"
+            case "$base" in
+                "${CIRCUIT_FILE_PREFIX}"*)
+                    if awk -v n="$lineno" -v cred="$HUB_MINTED_CREDENTIAL" '
+                        NR > n { exit }
+                        /^[[:space:]]*(pub(\(crate\))?[[:space:]]+)?(async[[:space:]]+)?fn[[:space:]]/ { buf="" }
+                        { buf = buf "\n" $0 }
+                        END { exit (index(buf, cred) > 0 ? 0 : 1) }
+                    ' "$file"; then
+                        circuits=$((circuits+1))
+                        continue
+                    fi
+                    ;;
+            esac
             unacked=$((unacked+1))
             firing_lines+=("${file}|${lineno}|${fn}")
         done < <(grep -nE "$DIAL_RE" "$file" 2>/dev/null | grep -vE '^[0-9]+:[[:space:]]*//' | grep -vE '^[0-9]+:[[:space:]]*///')
@@ -275,9 +303,9 @@ fi
 SCOPE="detects raw dial SITES and whether each is acknowledged; does not resolve what any runtime address points at"
 
 if [ "$JSON" = "1" ]; then
-    printf '{"ok":%s,"checked":%d,"test_context":%d,"acknowledged":%d,"unacknowledged":%d,"scope":"%s","firing":[' \
+    printf '{"ok":%s,"checked":%d,"test_context":%d,"acknowledged":%d,"credentialed_circuits":%d,"unacknowledged":%d,"scope":"%s","firing":[' \
         "$([ "$unacked" -eq 0 ] && echo true || echo false)" \
-        "$checked" "$testctx" "$ack_count" "$unacked" "$SCOPE"
+        "$checked" "$testctx" "$ack_count" "$circuits" "$unacked" "$SCOPE"
     first=1
     for f in "${firing_lines[@]:-}"; do
         [ -n "$f" ] || continue
@@ -292,15 +320,15 @@ fi
 
 if [ "$unacked" -eq 0 ]; then
     if [ "$QUIET" != "1" ]; then
-        echo "strict-star: clean — $checked dial site(s): $testctx test-context, $((checked-testctx)) acknowledged."
-        echo "  invariant: spokes never connect to one another (substrate doc § 10)"
+        echo "strict-star: clean — $checked dial site(s): $testctx test-context, $circuits credentialed circuit(s), $((checked-testctx-circuits)) acknowledged."
+        echo "  invariant: no unauthenticated spoke-to-spoke connection (substrate doc § 10, narrowed by T-3612 §6.5)"
         echo "  scope: $SCOPE"
     fi
     exit 0
 fi
 
 echo "strict-star: $unacked unacknowledged dial site(s) of $checked scanned."
-echo "  invariant: spokes never connect to one another (substrate doc § 10)"
+echo "  invariant: no unauthenticated spoke-to-spoke connection (substrate doc § 10, narrowed by T-3612 §6.5)"
 echo "  scope: $SCOPE"
 echo
 for f in "${firing_lines[@]}"; do
@@ -312,9 +340,12 @@ echo "Each dial site must be one of:"
 echo "  - a connection to a HUB address (the star's centre) — the allowed edge;"
 echo "  - a connection to a LOCAL session socket on this host (an operator tool"
 echo "    reaching a local session is not the agent-to-agent mesh, T-2702);"
-echo "  - test-context (inside #[cfg(test)])."
+echo "  - test-context (inside #[cfg(test)]);"
+echo "  - a circuit opened with a hub-minted credential: a ${CIRCUIT_FILE_PREFIX}*.rs file"
+echo "    whose dialling function names a ${HUB_MINTED_CREDENTIAL} (T-3643)."
 echo
-echo "If it is one of those, acknowledge it in $ALLOWLIST as:"
+echo "If it is one of the first two, acknowledge it in $ALLOWLIST as:"
 echo "  <relpath>::<fn>  # <what the target is, and why it is not a peer spoke>"
-echo "If it dials another SPOKE, it violates the invariant — remove it."
+echo "An unauthenticated dial to another SPOKE violates the invariant — remove it,"
+echo "or open it as a credentialed circuit."
 exit 1
