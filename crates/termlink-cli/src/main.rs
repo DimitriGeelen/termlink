@@ -285,6 +285,30 @@ async fn main() -> Result<()> {
             Some(HubAction::Fingerprint { json }) => commands::infrastructure::cmd_hub_fingerprint(json),
             Some(HubAction::Probe { addr, json }) => commands::infrastructure::cmd_hub_probe(&addr, json).await,
         },
+        Command::Main { action } => {
+            use commands::main_lease::{MainArgs, MainVerb, cmd_main};
+            let (verb, c) = match action {
+                MainAction::Claim { common } => (MainVerb::Claim, common),
+                MainAction::Renew { common } => (MainVerb::Renew, common),
+                MainAction::Release { common } => (MainVerb::Release, common),
+                MainAction::Status { common } => (MainVerb::Status, common),
+                MainAction::AmI { common } => (MainVerb::AmI, common),
+                MainAction::Pin { common, to, clear, reason, by } => {
+                    (MainVerb::Pin { session: to, clear, reason, by }, common)
+                }
+            };
+            let a = MainArgs {
+                project: c.project,
+                hub: c.hub,
+                session: c.session,
+                session_from_stdin: c.session_from_stdin,
+                agent: c.agent,
+                pid: c.pid,
+                obligation_topics: c.obligation_topics,
+                json: c.json,
+            };
+            std::process::exit(cmd_main(verb, a).await);
+        }
         Command::Sidecar { args } => {
             // The sidecar builds its own tokio runtime, which must not start inside
             // this one: run it on a plain thread that carries no runtime context.

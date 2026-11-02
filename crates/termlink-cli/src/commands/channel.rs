@@ -273,7 +273,7 @@ fn parse_hub_addr(s: &str) -> TransportAddr {
 
 /// T-1385: returns a TransportAddr (Unix or TCP). Variable name `sock` is
 /// preserved across the file for call-site stability — it holds an addr now.
-fn hub_socket(hub: Option<&str>) -> Result<TransportAddr> {
+pub(crate) fn hub_socket(hub: Option<&str>) -> Result<TransportAddr> {
     if let Some(h) = hub {
         return Ok(parse_hub_addr(h));
     }

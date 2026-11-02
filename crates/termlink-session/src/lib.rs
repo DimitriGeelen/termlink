@@ -16,6 +16,7 @@ pub mod assignment;
 pub mod bus_client;
 pub mod child_env;
 pub mod claim_client;
+pub mod main_lease;
 pub mod client;
 pub mod codec;
 pub mod offline_queue;

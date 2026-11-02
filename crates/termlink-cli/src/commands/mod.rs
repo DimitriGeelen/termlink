@@ -16,6 +16,7 @@ pub(crate) mod push;
 pub(crate) mod vendor;
 pub(crate) mod identity;
 pub(crate) mod channel;
+pub(crate) mod main_lease;
 pub(crate) mod help;
 pub(crate) mod agent_find_idle;
 pub(crate) mod agent_work;

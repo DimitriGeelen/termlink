@@ -974,6 +974,13 @@ pub(crate) enum Command {
         action: TmuxAction,
     },
 
+    /// The project's main session lease at the home hub (T-3654, OD-18 / R-67).
+    /// Exit codes for hooks: 0 main, 1 not-main (holder printed), 2 unknown (never main).
+    Main {
+        #[command(subcommand)]
+        action: MainAction,
+    },
+
     /// Per-agent message sidecar (arc-011): start, hook, finalize, send, reply, status, admin.
     /// Every argument after `sidecar` is passed through unchanged; run `termlink sidecar` for usage.
     #[command(disable_help_flag = true)]
@@ -1275,6 +1282,83 @@ impl std::fmt::Display for SpawnBackend {
             SpawnBackend::Background => write!(f, "background"),
         }
     }
+}
+
+/// Shared selectors for `termlink main` verbs (T-3654).
+#[derive(clap::Args, Clone, Debug)]
+pub(crate) struct MainCommon {
+    /// Project name (default: $TERMLINK_MAIN_PROJECT, else project_name in .framework.yaml above the cwd)
+    #[arg(long)]
+    pub project: Option<String>,
+    /// Home hub (socket path, host:port or hubs.toml profile; default: the local hub)
+    #[arg(long)]
+    pub hub: Option<String>,
+    /// Session id (default: $CLAUDE_SESSION_ID, else $TERMLINK_SESSION_ID)
+    #[arg(long)]
+    pub session: Option<String>,
+    /// Read Claude Code hook input JSON on stdin and use its session_id
+    #[arg(long)]
+    pub session_from_stdin: bool,
+    /// Agent id recorded with the holder (default: $TERMLINK_AGENT_ID)
+    #[arg(long)]
+    pub agent: Option<String>,
+    /// Pid recorded with the holder (default: the parent process, i.e. the harness running the hook)
+    #[arg(long)]
+    pub pid: Option<u32>,
+    /// Topic whose open claims a lapsed holder left are recorded as uncertain obligations on takeover
+    /// (repeatable; also $TERMLINK_MAIN_OBLIGATION_TOPICS, comma-separated)
+    #[arg(long = "obligation-topic")]
+    pub obligation_topics: Vec<String>,
+    /// Output JSON
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `termlink main` verbs (T-3654).
+#[derive(Subcommand)]
+pub(crate) enum MainAction {
+    /// Acquire main for this session if the R-67 rules allow it, or renew it if held
+    Claim {
+        #[command(flatten)]
+        common: MainCommon,
+    },
+    /// Renew main if this session holds it (never acquires someone else's)
+    Renew {
+        #[command(flatten)]
+        common: MainCommon,
+    },
+    /// Release main on a clean shutdown
+    Release {
+        #[command(flatten)]
+        common: MainCommon,
+    },
+    /// Who holds main: holder, generation, since, pin, timing, recent records (read-only)
+    Status {
+        #[command(flatten)]
+        common: MainCommon,
+    },
+    /// Is this session main? exit 0 main, 1 not-main, 2 unknown (read-only)
+    AmI {
+        #[command(flatten)]
+        common: MainCommon,
+    },
+    /// Operator pin: the named session takes main at its next claim, even from a live holder (audited)
+    Pin {
+        #[command(flatten)]
+        common: MainCommon,
+        /// The session to pin (this flag shadows the common --session)
+        #[arg(long = "to")]
+        to: Option<String>,
+        /// Remove the pin
+        #[arg(long, conflicts_with = "to")]
+        clear: bool,
+        /// Why (recorded in the audit record)
+        #[arg(long, default_value = "operator pin")]
+        reason: String,
+        /// Who pins (default: $USER)
+        #[arg(long)]
+        by: Option<String>,
+    },
 }
 
 /// Per-project tmux server actions (T-3552). Every form takes a project PATH, never a socket.
