@@ -25,3 +25,5 @@ decision: "GO — reliable cross-agent comms shipped: send-by-identity, direct h
 bvp_scores: {}
 scoped_drivers: []           # max 3, weight ≤6 each (M2). Approved by fw arc approve-driver (T-1926).
 proposed_scoped_drivers: []  # uncapped persistence (D7-reframe). Estimator may write here freely.
+# T-3650: valued under policy/value-drivers-product.yaml (AEF per-arc driver sets, T-4986)
+driver_set: product
