@@ -5,7 +5,7 @@ description: >
   Drop for PtySession sends SIGKILL then waitpid with WNOHANG, which returns before
   the kernel reaps the just-killed child, leaking a zombie per dropped session.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
@@ -17,7 +17,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T16:52:30Z
-last_update: '2026-11-02T00:11:32Z'
+last_update: 2026-11-02T00:13:03Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -247,3 +247,6 @@ bounded" helper reused by other fork sites.
 ### 2026-11-02T00:11:31Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-02T00:13:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured

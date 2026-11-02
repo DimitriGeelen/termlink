@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T19:14:20Z
-last_update: '2026-09-27T21:34:05Z'
+last_update: 2026-11-02T00:14:28Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -48,6 +48,17 @@ bvp_scores_proposed:
       (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
       (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-02T00:13:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=3 (body:test-or-audit-check); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-08T21:30:39Z'
     estimator: bvp-estimator-v1-heuristic
@@ -72,6 +83,11 @@ cost_estimate_proposed:
 # T-2651: cmd_request emit + cursor-fetch RPCs ignore --timeout (naked rpc_call, no wall-clock bound)
 
 ## Context
+
+**Background / trigger:** Found in the round-10 divergence hunt (details below).
+**Problem / hypothesis:** `cmd_request --timeout` bounds only the reply-wait loop. Its RPCs use the unbounded `rpc_call`, so a target that accepts but never answers hangs the command forever.
+**Goal:** `--timeout` bounds the whole request: emit, cursor fetch and wait.
+**Expected outcome:** Every RPC in `cmd_request` is client-bounded, with a hung-socket regression test. Status 2026-11-02 (T-3648 triage): the emit was bounded by T-2669 slice 2 (281237933), though by a fixed 30s rather than one derived from `--timeout`, and the cursor subscribe (execution.rs:186) and the in-loop subscribe (:270) still use the unbounded `rpc_call`, so this task stays open.
 
 Found in round-10 divergence hunt (verified in code). `cmd_request`
 (crates/termlink-cli/src/commands/execution.rs) accepts a `--timeout` (seconds) that the
@@ -258,3 +274,9 @@ on the same read).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2651-cmdrequest-emit--cursor-fetch-rpcs-ignor.md
 - **Context:** Initial task creation
+
+### 2026-11-02T00:13:07Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-02T00:14:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
