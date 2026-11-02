@@ -22353,3 +22353,21 @@ scan_id: R-6a872184
 task_id: T-2689
 payload:
   task_file: .tasks/active/T-2689-mcpcli-parity-harness-covers-24-of-68-pa.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T00:00:50Z'
+scan_id: R-fce52bac
+task_id: T-3616
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T00:00:50Z'
+scan_id: R-fce52bac
+task_id: T-3616
+payload:
+  task_file: .tasks/active/T-3616-canary-framework-pickup-canary-is-firing.md

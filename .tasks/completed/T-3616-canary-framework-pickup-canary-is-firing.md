@@ -2,12 +2,14 @@
 id: T-3616
 name: "Canary framework-pickup-canary is FIRING — investigate and fix"
 description: >
-  The framework-pickup-canary canary reports FIRING on /canaries. Filed automatically by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary always has a task naming it.
+  The framework-pickup-canary canary reports FIRING on /canaries. Filed automatically
+  by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary
+  always has a task naming it.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [canary-escalation]
 components: []
 related_tasks: []
@@ -38,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-28T08:15:04Z
-last_update: 2026-10-28T08:15:04Z
-date_finished: null
+last_update: 2026-11-02T00:00:49Z
+date_finished: 2026-11-02T00:00:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +52,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-01T23:59:34Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3616: Canary framework-pickup-canary is FIRING — investigate and fix
@@ -71,11 +85,16 @@ Filed automatically by scripts/canary-escalation-file.sh (T-2985) from the daily
 
 Closing this task while the canary is still bad files a new one 24h after the close.
 
+**Background / trigger:** The daily cron reported framework-pickup-canary FIRING on 2026-10-28, with unprocessed inbound filings on framework:pickup from offset 320.
+**Problem / hypothesis:** Inbound filings from other projects sat unread past the ack marker, which is the G-063 miss the canary exists to catch.
+**Goal:** Each surfaced filing is read and handled, then acked through `--ack`, and the canary reports HEALTHY.
+**Expected outcome:** `bash scripts/canary-status.sh` shows framework-pickup-canary HEALTHY, with no inbound filing acked unread.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `framework-pickup-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
+- [x] `framework-pickup-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false) (evidence: canary-status 2026-11-02 shows HEALTHY, and a direct run gives rc 0, "acked up to offset 359". The canary log shows the backlog from 320 acked in steps to 325/339/354/358 (358 read and acked in T-3583). The last ack, to 359 (marker mtime 2026-10-29 00:18), has no written record. On 2026-11-02 the T-3648 closer read offset 359: a feature-proposal from aef-greenfield-test T-352 about AEF's T-4737 (Watchtower GET /api/field-catalog), addressed to the framework, with nothing for TermLink.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -280,6 +299,8 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash scripts/check-framework-pickup-freshness.sh > .context/working/.t3616.out 2>&1 && grep -q 'healthy' .context/working/.t3616.out
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -295,6 +316,12 @@ Closing this task while the canary is still bad files a new one 24h after the cl
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+There was no defect. The canary did its job.
+**Symptom:** FIRING from 2026-10-28 on inbound framework:pickup filings past the ack marker (first signal off=320, 999-AEF feature proposal), reaching 4 unprocessed at its peak.
+**Root cause:** Other projects kept filing onto the shared pickup topic faster than this project read it. Most filings were addressed to AEF, and each still needs a read before ack.
+**Why structurally allowed:** Working as designed. The canary fires on any unread inbound filing, and the cure is to read it and `--ack`.
+**Prevention:** None needed for the canary. Gap noted: `--ack` keeps no ledger of who acked what after reading it (the 359 ack had no record). A note in the commit or task that does the ack is the current convention.
 
 ## Evolution
 
@@ -376,3 +403,24 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3616-canary-framework-pickup-canary-is-firing.md
 - **Context:** Initial task creation
+
+### 2026-11-01T23:59:33Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-02T00:00:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-fce52bac
+- **Timestamp:** 2026-11-02T00:00:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `framework-pickup-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false) (evidence: canary-status 2026-11-02 shows HEALTHY, and a di
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/canary-status.sh in: `framework-pickup-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false) (evidence`
