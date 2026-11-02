@@ -333,6 +333,29 @@ EOS
 chmod +x "$TMP/crontab"
 printf '0 6 * * * /opt/x/update.sh\n# other job\n' > "$CT"
 export RUNME_CRONTAB="$TMP/crontab" RUNME_CRONTAB_BACKUP="$TMP/crontab.bak.T-476"
+# T-3657 action 26: a fake fw answering `sidecar waiting --json` / `sidecar drop` over a
+# scratch id file. Empty by default, so ordinary runs skip; the action-26 cases seed it.
+# The fake refuses a drop under CLAUDECODE=1 without --i-am-human, exactly as the real one.
+export FAKE_WAIT_IDS="$TMP/waiting.ids" FAKE_DROP_LOG="$TMP/drops.log"
+: > "$FAKE_WAIT_IDS"
+cat > "$TMP/fake-drop-fw" <<'EOS'
+#!/usr/bin/env bash
+[ "$1" = sidecar ] || exit 3
+case "$2" in
+  waiting) [ -n "${FAKE_WAIT_UNREADABLE:-}" ] && { echo "boom" >&2; exit 1; }
+           python3 -c 'import json,sys; print(json.dumps({"items":[{"id":l.strip(),"side":"inbound"} for l in open(sys.argv[1]) if l.strip()]}))' "$FAKE_WAIT_IDS" ;;
+  drop)    id="$3"; reason=""; human=0; shift 3
+           while [ $# -gt 0 ]; do case "$1" in --reason) reason="$2"; shift ;; --i-am-human) human=1 ;; esac; shift; done
+           if [ "${CLAUDECODE:-}" = 1 ] && [ "$human" = 0 ]; then echo "operator-only — refused under CLAUDECODE=1" >&2; exit 2; fi
+           [ "$human" = 1 ] && echo "FORGED $id" >> "$FAKE_DROP_LOG"
+           [ "${FAKE_DROP_REFUSE:-}" = "$id" ] && { echo "refused $id" >&2; exit 1; }
+           printf '%s|%s\n' "$id" "$reason" >> "$FAKE_DROP_LOG"
+           grep -vxF -- "$id" "$FAKE_WAIT_IDS" > "$FAKE_WAIT_IDS.n"; mv "$FAKE_WAIT_IDS.n" "$FAKE_WAIT_IDS" ;;
+esac
+EOS
+chmod +x "$TMP/fake-drop-fw"
+printf 'aaaa-1111\tT-3656: e2e residue: selftest conv x\nbbbb-2222\tT-3656: answered: reply "ok" posted 2026-10-06\ncccc-3333\tT-3656: answered: gone already\n' > "$TMP/drop-list.tsv"
+export RUNME_DROP_FW="$TMP/fake-drop-fw" RUNME_DROP_LIST="$TMP/drop-list.tsv"
 # T-3443: let the real-run cases run as a non-root CI user too (fixture mode only;
 # case 11 unsets this to test the real non-root refusal).
 export RUNME_FIXTURE_ALLOW_NONROOT=1
@@ -688,7 +711,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 40 ))   # +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 41 ))   # +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1973,6 +1996,38 @@ if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  the installed crontab is not t
     ok "25: installed table differs from old-minus-ntfy => FAILED, the original is restored"
 else bad "25 drift" "rc=$rc: $x"; fi
 printf '0 6 * * * /opt/x/update.sh\n# other job\n' > "$CT"; rm -f "$TMP"/crontab.bak.T-476*
+
+# ---------------------------------------------------------------------------
+# T-3657 action 26 — drop the waiting messages T-3656 proved harmless.
+# ---------------------------------------------------------------------------
+s26() { echo "$1" | sed -n '/^.*26\. Drop the/,/^.*Verification/p'; }
+seed_w() { printf 'aaaa-1111\nbbbb-2222\nzzzz-9999\n' > "$FAKE_WAIT_IDS"; : > "$FAKE_DROP_LOG"; }
+seed_w; out=$(CLAUDECODE= run --dry-run); x=$(s26 "$out")
+if echo "$x" | grep_all '\[DRY\]   would drop 2 of 3 listed waiting messages' && [ "$(wc -l < "$FAKE_WAIT_IDS")" = 3 ] && [ ! -s "$FAKE_DROP_LOG" ]; then
+    ok "26: --dry-run counts the 2 still waiting of 3 listed and drops nothing"
+else bad "26 dry-run" "$x"; fi
+seed_w; out=$(CLAUDECODE=1 run); rc=$?; x=$(s26 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  2 messages left to drop, but this shell is an agent's (CLAUDECODE=1)" \
+   && [ ! -s "$FAKE_DROP_LOG" ] && [ "$(wc -l < "$FAKE_WAIT_IDS")" = 3 ]; then
+    ok "26: under CLAUDECODE=1 => FAILED with the run-it-yourself line; no drop attempted, no --i-am-human forged"
+else bad "26 agent shell" "rc=$rc: $x"; fi
+seed_w; out=$(CLAUDECODE= run); rc=$?; x=$(s26 "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'OK      dropped 2 waiting messages with their evidence' \
+   && [ "$(cat "$FAKE_WAIT_IDS")" = "zzzz-9999" ] && grep -qxF 'bbbb-2222|T-3656: answered: reply "ok" posted 2026-10-06' "$FAKE_DROP_LOG" \
+   && grep -qxF 'aaaa-1111|T-3656: e2e residue: selftest conv x' "$FAKE_DROP_LOG" && ! grep -q FORGED "$FAKE_DROP_LOG" && ! grep -q cccc "$FAKE_DROP_LOG"; then
+    ok "26: drops exactly the listed ids still waiting, each with its evidence as --reason; unlisted id untouched"
+else bad "26 drop" "rc=$rc: $x / $(cat "$FAKE_DROP_LOG")"; fi
+out=$(CLAUDECODE= run); x=$(s26 "$out")
+if echo "$x" | grep_all 'skip    none of the 3 listed messages is still waiting'; then ok "26: second run skips (idempotent)"; else bad "26 idempotent" "$x"; fi
+seed_w; out=$(CLAUDECODE= FAKE_DROP_REFUSE=bbbb-2222 run); rc=$?; x=$(s26 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  1 of 2 listed messages are still waiting after the drop (first: bbbb-2222)'; then
+    ok "26: a drop that does not take => FAILED by the on-disk re-read, naming the id"
+else bad "26 refuse" "rc=$rc: $x"; fi
+seed_w; out=$(CLAUDECODE= FAKE_WAIT_UNREADABLE=1 run); rc=$?; x=$(s26 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  could not read 'fw sidecar waiting --json'; nothing dropped" && [ ! -s "$FAKE_DROP_LOG" ]; then
+    ok "26: unreadable waiting list => FAILED, nothing dropped (never a skip)"
+else bad "26 unreadable" "rc=$rc: $x"; fi
+: > "$FAKE_WAIT_IDS"; : > "$FAKE_DROP_LOG"
 
 # ---- T-3647: action 4b restarts W1 sidecars running older code -------------------
 echo "T-3647: 4b W1 sidecars onto the installed binary"

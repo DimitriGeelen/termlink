@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T13:04:17Z
-last_update: '2026-11-02T13:05:00Z'
+last_update: 2026-11-02T13:19:49Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -88,11 +88,11 @@ real stuck mail is hidden among them.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Check 7 in `scripts/substrate-preflight.sh`: an undeclared second hub (or a second termlink binary of a different
+- [x] Check 7 in `scripts/substrate-preflight.sh`: an undeclared second hub (or a second termlink binary of a different
       version on PATH) is FAIL (exit 1); a declared one (`--allow-second-hub` / a declaration file) stays PASS/WARN as
       today; fixtures cover undeclared=FAIL, declared=not FAIL, single=PASS; the doc line in
       `docs/operations/guard-layer-and-canaries.md` updated
-- [ ] runme.sh action: drops each id in a committed copy of the drop list with `fw sidecar drop <id> --reason
+- [x] runme.sh action: drops each id in a committed copy of the drop list with `fw sidecar drop <id> --reason
       "<evidence>"`, idempotent (skip ids no longer waiting), verified on disk (`fw sidecar waiting --json` no longer
       lists them), FAILED otherwise; hermetic fixtures via RUNME_* seams; `tests/runme-fixtures.sh` passes
 
@@ -145,6 +145,14 @@ real stuck mail is hidden among them.
 -->
 
 ## Verification
+
+bash -n runme.sh
+bash tests/substrate-preflight-single-hub-fixtures.sh > .context/working/.t3657-preflight.out 2>&1 && grep -q "failed: 0" .context/working/.t3657-preflight.out
+bash tests/runme-fixtures.sh > .context/working/.t3657-runme.out 2>&1 && grep -q "fixtures: [0-9]* passed, 0 failed" .context/working/.t3657-runme.out
+grep -q "26: drops exactly the listed ids still waiting" .context/working/.t3657-runme.out
+TMPDIR=/var/tmp cargo test -p termlink --bin termlink t3657_declare_second_hub_marker > .context/working/.t3657-cargo.out 2>&1 && grep -q "1 passed; 0 failed" .context/working/.t3657-cargo.out
+test "$(grep -c . .context/sidecar/drop-list-T-3656.tsv)" = 44
+grep -q "second-hub.declared" docs/operations/guard-layer-and-canaries.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -369,6 +377,32 @@ real stuck mail is hidden among them.
 -->
 
 ## Decisions
+
+### 2026-11-02 — FAIL means the script's own exit 2, not "exit 1"
+- **Chose:** undeclared second hub / second version = severity high, status fail, preflight exit 2.
+- **Why:** substrate-preflight's contract is 0 PASS / 1 WARN / 2 FAIL (header, --help, guard doc); the AC's
+  "(exit 1)" was shorthand for "fails". Exit 1 would be indistinguishable from WARN for every caller and cron.
+- **Rejected:** exit 1.
+
+### 2026-11-02 — How a second hub is declared: a marker in its runtime dir
+- **Chose:** `<runtime_dir>/second-hub.declared`, written by `termlink hub start --allow-second-hub` and removed by
+  a plain start; an operator can also create it by hand for a hub already running. Two+ live hubs with at most one
+  undeclared = WARN (as before); two+ undeclared = FAIL.
+- **Why:** `--allow-second-hub` was a start-time flag with no trace on disk, so preflight could not tell declared
+  from accidental. A per-dir marker needs no HOME, travels with the hub, and is cleared on an ordinary restart.
+- **Rejected:** a central list in ~/.termlink (goes stale when dirs move); an env var (invisible to cron).
+- **Shipped≠live:** the CLI half takes effect once the rebuilt binary is installed (runme action 4); the
+  preflight half and a hand-made marker work now.
+
+### 2026-11-02 — Second-binary detection is cheap, so it is in
+- **Chose:** sibling row `single-binary`: `type -aP termlink`, deduped by realpath, each `--version`; two or more
+  distinct versions FAIL unless the odd paths are listed in `~/.termlink/declared-binaries`
+  (`TERMLINK_DECLARED_BINARIES_FILE`). This host today: three copies, all 0.12.1415, PASS.
+
+### 2026-11-02 — runme action 26 and the operator-only drop
+- **Chose:** `fw sidecar drop` refuses under CLAUDECODE=1 unless `--i-am-human`; from the operator's own terminal it
+  records `by: human`. The action never passes `--i-am-human`; under CLAUDECODE=1 it is FAILED with "run it from
+  your own terminal" (dry-run still previews). Drop list committed at `.context/sidecar/drop-list-T-3656.tsv`.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

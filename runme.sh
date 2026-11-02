@@ -2516,6 +2516,73 @@ head2 "25. Remove 150-skills-manager's retired ntfy cron lines from root's cront
 drop_ntfy_cron
 
 # ---------------------------------------------------------------------------
+# 26. Drop the waiting messages T-3656 proved harmless (T-3657; operator 2026-11-02 "both yes")
+# T-3656 classified the 74 entries in `fw sidecar waiting`: 44 are test residue or already
+# answered, each with its evidence, in the committed list .context/sidecar/drop-list-T-3656.tsv
+# (<id> TAB <evidence>). This drops each one still waiting with its evidence as --reason (the
+# sender is told), skips ids no longer waiting, then re-reads `fw sidecar waiting --json` and is
+# FAILED if any listed id is still there. `fw sidecar drop` is operator-only: it refuses under
+# CLAUDECODE=1 unless --i-am-human, and this script never passes that flag on anyone's behalf,
+# so from an agent shell the action is FAILED with the instruction to run it from a terminal.
+# Seams (fixtures only): RUNME_DROP_FW (the fw that answers `sidecar waiting|drop`),
+# RUNME_DROP_LIST (the list).
+# ---------------------------------------------------------------------------
+seam DROP_FW RUNME_DROP_FW "$PROJECT_ROOT/.agentic-framework/bin/fw"
+seam DROP_LIST RUNME_DROP_LIST "$PROJECT_ROOT/.context/sidecar/drop-list-T-3656.tsv"
+
+waiting_ids() {  # prints the ids `fw sidecar waiting --json` lists, one per line; rc 1 if unreadable
+    local j
+    j="$("$DROP_FW" sidecar waiting --json 2>/dev/null)" || return 1
+    printf '%s' "$j" | python3 -c 'import json,sys; [print(i["id"]) for i in json.load(sys.stdin)["items"]]' 2>/dev/null
+}
+
+drop_t3656_waiting() {
+    local listed waiting pending=() id reason n_listed still=() bad=0
+    if [ ! -s "$DROP_LIST" ]; then
+        say "  FAILED  drop list missing or empty: $DROP_LIST"; FAILED=$((FAILED+1)); return
+    fi
+    if ! waiting="$(waiting_ids)"; then
+        say "  FAILED  could not read 'fw sidecar waiting --json'; nothing dropped"; FAILED=$((FAILED+1)); return
+    fi
+    n_listed=0
+    while IFS=$'\t' read -r id reason; do
+        [ -n "$id" ] || continue
+        n_listed=$((n_listed+1))
+        printf '%s\n' "$waiting" | grep -qxF -- "$id" && pending+=("$id")
+    done < "$DROP_LIST"
+    if [ "${#pending[@]}" = 0 ]; then
+        say "  skip    none of the $n_listed listed messages is still waiting (already dropped or handled)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would drop ${#pending[@]} of $n_listed listed waiting messages, each with its T-3656 evidence as the reason ($((n_listed-${#pending[@]})) no longer waiting)"
+        DONE=$((DONE+1)); return
+    fi
+    if [ "${CLAUDECODE:-}" = "1" ]; then
+        say "  FAILED  ${#pending[@]} messages left to drop, but this shell is an agent's (CLAUDECODE=1): 'fw sidecar drop' is operator-only and this script will not pass --i-am-human for you. Run $PROJECT_ROOT/runme.sh from your own terminal."
+        FAILED=$((FAILED+1)); return
+    fi
+    while IFS=$'\t' read -r id reason; do
+        [ -n "$id" ] || continue
+        printf '%s\n' "${pending[@]}" | grep -qxF -- "$id" || continue
+        if ! "$DROP_FW" sidecar drop "$id" --reason "$reason" > /tmp/.runme-drop-out 2>&1; then
+            say "  note    drop $id refused: $(tail -1 /tmp/.runme-drop-out)"; bad=$((bad+1))
+        fi
+    done < "$DROP_LIST"
+    if ! waiting="$(waiting_ids)"; then
+        say "  FAILED  dropped (refusals: $bad) but could not re-read 'fw sidecar waiting --json' to verify"; FAILED=$((FAILED+1)); return
+    fi
+    for id in "${pending[@]}"; do printf '%s\n' "$waiting" | grep -qxF -- "$id" && still+=("$id"); done
+    if [ "${#still[@]}" -gt 0 ]; then
+        say "  FAILED  ${#still[@]} of ${#pending[@]} listed messages are still waiting after the drop (first: ${still[0]})"; FAILED=$((FAILED+1)); return
+    fi
+    say "  OK      dropped ${#pending[@]} waiting messages with their evidence; 'fw sidecar waiting' no longer lists any of the $n_listed"
+    DONE=$((DONE+1))
+}
+
+head2 "26. Drop the $(grep -c . "$DROP_LIST" 2>/dev/null || echo 0) waiting messages T-3656 proved harmless (T-3657; operator 2026-11-02)"
+drop_t3656_waiting
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.

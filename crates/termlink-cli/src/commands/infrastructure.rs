@@ -38,6 +38,28 @@ pub(crate) fn second_hub_refusal(
     ))
 }
 
+/// T-3657: write (allow) or remove (!allow) `<runtime_dir>/second-hub.declared`,
+/// the marker `scripts/substrate-preflight.sh` Check 7 reads. Best effort: a
+/// failure to write is reported on stderr and never stops the hub.
+pub(crate) fn declare_second_hub(runtime_dir: &std::path::Path, allow: bool) {
+    let marker = runtime_dir.join("second-hub.declared");
+    if allow {
+        let _ = std::fs::create_dir_all(runtime_dir);
+        let body = format!(
+            "declared by 'termlink hub start --allow-second-hub' at unix {}\n",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+        );
+        if let Err(e) = std::fs::write(&marker, body) {
+            eprintln!("Warning: could not write {}: {e}", marker.display());
+        }
+    } else {
+        let _ = std::fs::remove_file(&marker);
+    }
+}
+
 /// T-2633: shared HOME-anchored resolver for the CLI's `~/.termlink/*.log`
 /// observability audit trails (substrate.log / find-idle.log / queue.log /
 /// claims.log). Before this, the per-file default-path helpers had drifted into
@@ -137,6 +159,9 @@ pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>, json_output: bool, all
         }
         std::process::exit(1);
     }
+    // T-3657: --allow-second-hub is the declaration that preflight Check 7 reads;
+    // without it, an undeclared second hub FAILs. A plain start clears a stale marker.
+    declare_second_hub(&termlink_session::discovery::runtime_dir(), allow_second_hub);
 
     if !json_output {
         println!("Starting hub server...");
@@ -1424,6 +1449,20 @@ mod tests {
         assert_eq!(super::second_hub_refusal(true, false, &def, &dirs), None, "explicit env var is deliberate");
         assert_eq!(super::second_hub_refusal(false, true, &def, &dirs), None, "--allow-second-hub overrides");
         assert_eq!(super::second_hub_refusal(false, false, &alt, &dirs), None, "own dir is not another hub");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// T-3657: --allow-second-hub writes the marker preflight Check 7 reads; a plain
+    /// start removes a stale one.
+    #[test]
+    fn t3657_declare_second_hub_marker() {
+        let (base, def, _alt) = t3340_dirs("declare");
+        let marker = def.join("second-hub.declared");
+        super::declare_second_hub(&def, true);
+        assert!(marker.is_file(), "allow must write the marker");
+        super::declare_second_hub(&def, false);
+        assert!(!marker.exists(), "a plain start must clear a stale marker");
+        super::declare_second_hub(&def, false); // idempotent when absent
         let _ = std::fs::remove_dir_all(&base);
     }
 

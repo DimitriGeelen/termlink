@@ -67,9 +67,16 @@
 #   Check 7: one hub per user (T-3340, AEF T-3779, 055 M1)
 #            → 2026-10-04: a stray hub at /tmp/termlink-0 (32 sessions) ran beside
 #              the /var/lib/termlink hub and split sessions from inboxes silently;
-#              Check 6 stops at the first pidfile, so it never saw it. WARNs when
-#              more than one live termlink hub runs for this uid, naming each
-#              runtime dir, pid and session count.
+#              Check 6 stops at the first pidfile, so it never saw it. FAILs (T-3657,
+#              operator ruling 2026-10-03 relayed in AEF ac9d2de7: one version and one
+#              hub per host unless declared) when more than one live termlink hub runs
+#              for this uid and at least two of them are undeclared, naming each runtime
+#              dir, pid and session count. A hub is declared by the marker file
+#              <runtime_dir>/second-hub.declared ('termlink hub start --allow-second-hub'
+#              writes it); with every extra hub declared the result stays WARN.
+#              Also FAILs when the termlink binaries on PATH report more than one
+#              version, unless the odd ones are listed (absolute path per line) in
+#              ${TERMLINK_DECLARED_BINARIES_FILE:-~/.termlink/declared-binaries}.
 #   Check 8: the running hub answers on its unix socket (T-3495, T-3367 follow-up)
 #            → ring20-dashboard: a hub served TCP while its hub.sock had been
 #              replaced, so local clients got ECONNREFUSED and every pidfile-based
@@ -810,7 +817,7 @@ fi
 #   TERMLINK_PREFLIGHT_TEST_HUB_DIRS   colon-separated candidate runtime dirs
 #   TERMLINK_PREFLIGHT_TEST_ALIVE_PIDS space-separated pids treated as live termlink
 check_single_hub() {
-    local uid dirs d pf pid n live_rows="" live_count=0 seen=" "
+    local uid dirs d pf pid n tag live_rows="" live_count=0 undeclared=0 seen=" "
     uid="${TERMLINK_PREFLIGHT_TEST_UID:-$(id -u)}"
     if [ -n "${TERMLINK_PREFLIGHT_TEST_HUB_DIRS:-}" ]; then
         dirs="${TERMLINK_PREFLIGHT_TEST_HUB_DIRS//:/ }"
@@ -834,9 +841,15 @@ check_single_hub() {
         fi
         n=$(find "$d/sessions" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
         live_count=$((live_count + 1))
-        live_rows="${live_rows}${live_rows:+; }pid $pid in $d ($n sessions)"
+        tag=""
+        if [ -f "$d/second-hub.declared" ]; then tag=", declared"; else undeclared=$((undeclared + 1)); fi
+        live_rows="${live_rows}${live_rows:+; }pid $pid in $d ($n sessions$tag)"
     done
-    if [ "$live_count" -gt 1 ]; then
+    if [ "$live_count" -gt 1 ] && [ "$undeclared" -gt 1 ]; then
+        emit_check "single-hub" "high" "fail" \
+            "$live_count live termlink hubs for uid $uid, $undeclared undeclared: $live_rows — agents bound to the wrong one miss their mail, silently (T-3340; FAIL since T-3657: one hub per host unless declared)" \
+            "Pick the canonical hub (/var/lib/termlink under systemd), set TERMLINK_RUNTIME_DIR for every launcher, re-register the other hub's sessions there, then stop the other hub. If the second hub is intended, declare it: restart it with 'termlink hub start --allow-second-hub' (writes <runtime_dir>/second-hub.declared) or create that file by hand."
+    elif [ "$live_count" -gt 1 ]; then
         emit_check "single-hub" "medium" "warn" \
             "$live_count live termlink hubs for uid $uid: $live_rows — agents bound to the wrong one miss their mail, silently (T-3340)" \
             "Pick the canonical hub (/var/lib/termlink under systemd), set TERMLINK_RUNTIME_DIR for every launcher, re-register the other hub's sessions there, then stop the other hub. Since T-3340, 'termlink hub start' refuses a second hub unless --allow-second-hub."
@@ -844,6 +857,44 @@ check_single_hub() {
         emit_check "single-hub" "medium" "pass" "one live termlink hub for uid $uid: $live_rows"
     else
         emit_check "single-hub" "medium" "pass" "no live termlink hub found for uid $uid (Check 6 covers a down hub)"
+    fi
+}
+
+# Check 7b (T-3657): one termlink version on PATH. Two binaries of different versions
+# mean cron, systemd and shells can each run a different termlink, silently. Seams:
+#   TERMLINK_PREFLIGHT_TEST_BINARIES   space-separated path=version pairs (replaces PATH scan)
+#   TERMLINK_DECLARED_BINARIES_FILE    declaration file (default ~/.termlink/declared-binaries)
+check_single_binary() {
+    local pairs p path ver real decl_file versions="" rows="" seen=" " n_ver=0
+    decl_file="${TERMLINK_DECLARED_BINARIES_FILE:-${HOME:-/nonexistent}/.termlink/declared-binaries}"
+    if [ -n "${TERMLINK_PREFLIGHT_TEST_BINARIES:-}" ]; then
+        pairs="$TERMLINK_PREFLIGHT_TEST_BINARIES"
+    else
+        pairs=""
+        for path in $(type -aP termlink 2>/dev/null); do
+            real=$(readlink -f "$path" 2>/dev/null || echo "$path")
+            case "$seen" in *" $real "*) continue ;; esac
+            seen="$seen$real "
+            ver=$("$path" --version 2>/dev/null | awk '{print $NF; exit}')
+            pairs="$pairs $path=${ver:-unknown}"
+        done
+    fi
+    [ -n "${pairs// /}" ] || return 0
+    for p in $pairs; do
+        path="${p%%=*}"; ver="${p#*=}"
+        if [ -f "$decl_file" ] && grep -qxF "$path" "$decl_file" 2>/dev/null; then
+            rows="${rows}${rows:+; }$path $ver (declared)"
+            continue
+        fi
+        rows="${rows}${rows:+; }$path $ver"
+        case " $versions " in *" $ver "*) ;; *) versions="$versions $ver"; n_ver=$((n_ver + 1)) ;; esac
+    done
+    if [ "$n_ver" -gt 1 ]; then
+        emit_check "single-binary" "high" "fail" \
+            "$n_ver different termlink versions on PATH, undeclared: $rows — which one runs depends on the caller's PATH (T-3657: one version per host unless declared)" \
+            "Install one version everywhere (cargo install, or copy the same binary over the others), or remove the stale copies. If a second version is intended, list its absolute path in $decl_file."
+    else
+        emit_check "single-binary" "medium" "pass" "one termlink version on PATH: $rows"
     fi
 }
 
@@ -881,6 +932,7 @@ check_binary_freshness
 check_hub_binary_freshness
 check_hub_unit_health
 check_single_hub
+check_single_binary
 check_hub_socket
 
 # ---- Summary -----------------------------------------------------------

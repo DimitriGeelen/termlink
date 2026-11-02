@@ -54,6 +54,13 @@ for forensic clarity. Ad-hoc check: `/preflight` (skill, T-2158) or
 `bash scripts/substrate-preflight.sh` (exit 0 PASS / 1 WARN / 2 FAIL).
 Pair with the mirror-drift canary above — both follow the same
 "empty-log = healthy" convention.
+Check 7 (one hub, one version per host; T-3340, FAIL since T-3657 per the operator ruling
+relayed in AEF ac9d2de7): two or more live undeclared hubs for one uid FAIL (exit 2); a hub is
+declared by `<runtime_dir>/second-hub.declared`, written by `termlink hub start --allow-second-hub`
+(a plain start removes it), and with every extra hub declared the row stays WARN. Its sibling row
+`single-binary` FAILs when the termlink binaries on PATH report different versions, unless the
+odd ones are listed by absolute path in `~/.termlink/declared-binaries`
+(`TERMLINK_DECLARED_BINARIES_FILE`). Fixtures: `bash tests/substrate-preflight-single-hub-fixtures.sh`.
 
 ### Framework-pickup canary (T-2231, G-063 prevention)
 
