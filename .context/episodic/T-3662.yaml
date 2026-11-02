@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3662: Re-vendor AEF v1.8.16-be.27 (main-only gate verdict logged in receiver events)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T22:41:41Z
+# ============================================================================
+
+task_id: T-3662
+task_name: "Re-vendor AEF v1.8.16-be.27 (main-only gate verdict logged in receiver events)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-02T21:46:43Z
+completed: 2026-11-02T22:40:37Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-02T22:47:24+01:00
+last_commit: 2026-11-02T23:40:33+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor be.27, context and ACs. fw upgrade v1.8.16-be.26 -> be.27 (c55b395a3, 6 commits; T-5014 main-only verdict in receiver events). .vendor-divergence.yaml baseline 10d2bf6d9 (v1.8.16-be.27); ACs ticked with evidence; verification lines
+
+# Key outcomes
+outcomes:
+  - 'Ancestry be.26 (db97fbae4) -> be.27 (c55b395a3) verified; rehearsal + real run from fresh clones per'
+  - 'check-vendor-divergence rc 0; fw doctor no new FAIL; guard layer `--gate release` only check-drain-sink-caps.sh FAIL'
+  - 'The be.27 receiver code that writes main_only / INJECT_BLOCKED / SURFACE_WITHHELD is present in the vendored tree'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/docs/reports/T-5006-requirements.md'
+  - '.agentic-framework/lib/sidecar/hooks.py'
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - '.agentic-framework/lib/sidecar/main_session.py'
+  - '.framework.yaml'
+  - '.tasks/active/T-3662-re-vendor-aef-v1816-be27-main-only-gate-.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-02T22:47:24'
+    action: 'T-3662: re-vendor be.27, context and ACs'
+  - time: '2026-11-02T23:22:51'
+    action: 'T-3662: fw upgrade v1.8.16-be.26 -> be.27 (c55b395a3, 6 commits; T-5014 main-only verdict in receiver events)'
+  - time: '2026-11-02T23:40:33'
+    action: 'T-3662: .vendor-divergence.yaml baseline 10d2bf6d9 (v1.8.16-be.27); ACs ticked with evidence; verification lines'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 53 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 53
+  commits: 4
+  files_changed: 12
+  lines_added: 601
+  lines_removed: 26
+  footprint_refreshed_at: '2026-11-02T22:41:51Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3662-re-vendor-aef-v1816-be27-main-only-gate-.md
+generated_by: context-agent-hybrid

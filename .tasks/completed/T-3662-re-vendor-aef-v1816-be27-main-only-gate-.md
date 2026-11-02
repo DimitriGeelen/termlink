@@ -5,10 +5,10 @@ description: >
   Operator 2026-11-02 'yes, 1 and 2': small follow-up to T-3659 (be.26); be.27 = c55b395a3
   adds main_only/INJECT_BLOCKED/SURFACE_WITHHELD to receiver/events.jsonl.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -39,8 +39,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T21:46:43Z
-last_update: 2026-11-02T21:47:45Z
-date_finished:
+last_update: 2026-11-02T22:40:37Z
+date_finished: 2026-11-02T22:40:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -405,3 +405,16 @@ grep -q 'termlink main release --session-from-stdin' .claude/settings.json
 
 ### 2026-11-02T21:47:05Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-02T22:40:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ab465cf8
+- **Timestamp:** 2026-11-02T22:41:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
