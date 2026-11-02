@@ -76,6 +76,21 @@ bash scripts/chat-arc-broadcast.sh --payload "..." --json | jq '.results[]'
 DM topics (`dm:<a>:<b>`) and project-private topics still need the manual
 `--hub` per post — only chat-arc has a fleet-wide convenience wrapper today.
 
+## Size limits (T-3652)
+
+Two different limits apply, and the smaller one is the one a message meets first.
+
+| Limit | Value | Applies to | Refusal | Source |
+|---|---|---|---|---|
+| Frame / request line | 16 MiB (16,777,216 bytes) | one data-plane frame, one JSON-RPC request line to the hub | connection error | `crates/termlink-protocol/src/lib.rs` `MAX_PAYLOAD_SIZE` |
+| Plaintext field in `channel.post` | **512 KiB (524,288 bytes)** | the decoded `payload`, and each metadata value on its own | JSON-RPC **-32025** `PLAINTEXT_FIELD_TOO_LARGE`, data `{field, bytes, max_bytes}` | `crates/termlink-hub/src/channel.rs` `MAX_PLAINTEXT_FIELD_BYTES` (T-3432) |
+
+So a channel message carries at most 512 KiB of payload, not 16 MiB. If the payload you
+post is itself base64 text (a bundle encoded by the sender), the cap counts that text, so
+the raw content fits only up to 3/4 of it: 393,216 bytes. Larger content goes by reference:
+`termlink file send`, or an artifact plus a reference in the post. Field report: ring20
+(kommunal-pool, 2026-10-28) was refused a 2.1 MB bundle posted as base64 (2,800,032 bytes).
+
 ## Diagnostic recipe — "topic out of sync across hubs"
 
 Use this BEFORE filing a federation bug:

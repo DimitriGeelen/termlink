@@ -38,6 +38,14 @@ pub const FRAME_MAGIC: [u8; 2] = [0x54, 0x4C];
 pub const FRAME_HEADER_SIZE: usize = 22;
 
 /// Maximum payload size: 16 MiB.
+///
+/// This is the FRAME limit (data plane frames, and the hub's per-line bound on a
+/// JSON-RPC request). It is not what a channel message may carry: `channel.post`
+/// separately refuses any plaintext field (the decoded payload, or any one
+/// metadata value) over 512 KiB = 524,288 bytes with -32025
+/// `PLAINTEXT_FIELD_TOO_LARGE` (`termlink-hub` `channel.rs`
+/// `MAX_PLAINTEXT_FIELD_BYTES`, T-3432). See
+/// `docs/operations/channel-topic-semantics.md` § Size limits (T-3652).
 pub const MAX_PAYLOAD_SIZE: u32 = 16 * 1024 * 1024;
 
 /// Shell-escape a string for safe embedding in `sh -c` commands.

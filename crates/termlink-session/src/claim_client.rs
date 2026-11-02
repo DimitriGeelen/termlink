@@ -33,7 +33,7 @@ use termlink_protocol::control::{error_code, method};
 use termlink_protocol::jsonrpc::RpcResponse;
 use termlink_protocol::transport::TransportAddr;
 
-use crate::client::{rpc_call_addr, ClientError};
+use crate::client::{rpc_call_addr, Client, ClientError};
 
 /// Successful response shape for `channel.claim` and `channel.renew`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -148,9 +148,52 @@ pub enum ClaimError {
     Protocol(String),
 }
 
+/// T-3652: one RPC, with an optional `hub.auth` handshake on the same connection.
+///
+/// Before T-3652 every wrapper here used plain `rpc_call_addr`, which never
+/// authenticates. That is fine on the local unix socket (the hub grants a
+/// same-uid peer Execute at accept time) but over TCP the connection starts with
+/// no scope, so `channel claim --hub host:port` got -32009 "Authentication
+/// required" while list/post/subscribe (which go through the CLI's authed
+/// funnel) worked. A refused `hub.auth` is returned as the RPC response so the
+/// caller's parser maps it to `ClaimError::Hub { code, message }` with the hub's
+/// own code; the token never appears in any error text.
+async fn call(
+    addr: &TransportAddr,
+    auth: Option<&str>,
+    rpc_method: &str,
+    params: Value,
+) -> Result<RpcResponse, ClientError> {
+    let Some(token) = auth else {
+        return rpc_call_addr(addr, rpc_method, params).await;
+    };
+    let mut c = Client::connect_addr(addr).await?;
+    let auth_resp = c
+        .call(method::HUB_AUTH, json!("claim-auth"), json!({ "token": token }))
+        .await?;
+    if matches!(auth_resp, RpcResponse::Error(_)) {
+        return Ok(auth_resp);
+    }
+    c.call(rpc_method, json!("cli-1"), params).await
+}
+
 /// Issue a single `channel.claim` RPC. Direct call — never queued.
 pub async fn channel_claim(
     addr: &TransportAddr,
+    topic: &str,
+    offset: u64,
+    claimer: &str,
+    ttl_ms: u32,
+) -> Result<ClaimSummary, ClaimError> {
+    channel_claim_authed(addr, None, topic, offset, claimer, ttl_ms).await
+}
+
+/// T-3652: [`channel_claim`] that presents `auth` in `hub.auth` first. Pass `Some(token)` for
+/// a TCP hub (a TCP connection starts with no scope, so without it the hub answers
+/// -32009); `None` keeps the unix-socket behaviour (peer-uid trust, no handshake).
+pub async fn channel_claim_authed(
+    addr: &TransportAddr,
+    auth: Option<&str>,
     topic: &str,
     offset: u64,
     claimer: &str,
@@ -162,7 +205,7 @@ pub async fn channel_claim(
         "claimer": claimer,
         "ttl_ms": ttl_ms,
     });
-    let resp = rpc_call_addr(addr, method::CHANNEL_CLAIM, params).await?;
+    let resp = call(addr, auth, method::CHANNEL_CLAIM, params).await?;
     parse_claim_response(resp)
 }
 
@@ -173,12 +216,25 @@ pub async fn channel_renew(
     claimer: &str,
     additional_ttl_ms: u32,
 ) -> Result<ClaimSummary, ClaimError> {
+    channel_renew_authed(addr, None, claim_id, claimer, additional_ttl_ms).await
+}
+
+/// T-3652: [`channel_renew`] that presents `auth` in `hub.auth` first. Pass `Some(token)` for
+/// a TCP hub (a TCP connection starts with no scope, so without it the hub answers
+/// -32009); `None` keeps the unix-socket behaviour (peer-uid trust, no handshake).
+pub async fn channel_renew_authed(
+    addr: &TransportAddr,
+    auth: Option<&str>,
+    claim_id: &str,
+    claimer: &str,
+    additional_ttl_ms: u32,
+) -> Result<ClaimSummary, ClaimError> {
     let params = json!({
         "claim_id": claim_id,
         "claimer": claimer,
         "additional_ttl_ms": additional_ttl_ms,
     });
-    let resp = rpc_call_addr(addr, method::CHANNEL_RENEW, params).await?;
+    let resp = call(addr, auth, method::CHANNEL_RENEW, params).await?;
     parse_claim_response(resp)
 }
 
@@ -189,12 +245,25 @@ pub async fn channel_release(
     claimer: &str,
     ack: bool,
 ) -> Result<ReleaseSummary, ClaimError> {
+    channel_release_authed(addr, None, claim_id, claimer, ack).await
+}
+
+/// T-3652: [`channel_release`] that presents `auth` in `hub.auth` first. Pass `Some(token)` for
+/// a TCP hub (a TCP connection starts with no scope, so without it the hub answers
+/// -32009); `None` keeps the unix-socket behaviour (peer-uid trust, no handshake).
+pub async fn channel_release_authed(
+    addr: &TransportAddr,
+    auth: Option<&str>,
+    claim_id: &str,
+    claimer: &str,
+    ack: bool,
+) -> Result<ReleaseSummary, ClaimError> {
     let params = json!({
         "claim_id": claim_id,
         "claimer": claimer,
         "ack": ack,
     });
-    let resp = rpc_call_addr(addr, method::CHANNEL_RELEASE, params).await?;
+    let resp = call(addr, auth, method::CHANNEL_RELEASE, params).await?;
     parse_release_response(resp)
 }
 
@@ -209,11 +278,23 @@ pub async fn channel_force_release(
     claim_id: &str,
     reason: Option<&str>,
 ) -> Result<ForceReleaseSummary, ClaimError> {
+    channel_force_release_authed(addr, None, claim_id, reason).await
+}
+
+/// T-3652: [`channel_force_release`] that presents `auth` in `hub.auth` first. Pass `Some(token)` for
+/// a TCP hub (a TCP connection starts with no scope, so without it the hub answers
+/// -32009); `None` keeps the unix-socket behaviour (peer-uid trust, no handshake).
+pub async fn channel_force_release_authed(
+    addr: &TransportAddr,
+    auth: Option<&str>,
+    claim_id: &str,
+    reason: Option<&str>,
+) -> Result<ForceReleaseSummary, ClaimError> {
     let mut params = json!({ "claim_id": claim_id });
     if let Some(r) = reason {
         params["reason"] = json!(r);
     }
-    let resp = rpc_call_addr(addr, method::CHANNEL_FORCE_RELEASE, params).await?;
+    let resp = call(addr, auth, method::CHANNEL_FORCE_RELEASE, params).await?;
     parse_force_release_response(resp)
 }
 
@@ -233,6 +314,20 @@ pub async fn channel_transfer_claim(
     by: &str,
     reason: Option<&str>,
 ) -> Result<TransferSummary, ClaimError> {
+    channel_transfer_claim_authed(addr, None, claim_id, to_owner, by, reason).await
+}
+
+/// T-3652: [`channel_transfer_claim`] that presents `auth` in `hub.auth` first. Pass `Some(token)` for
+/// a TCP hub (a TCP connection starts with no scope, so without it the hub answers
+/// -32009); `None` keeps the unix-socket behaviour (peer-uid trust, no handshake).
+pub async fn channel_transfer_claim_authed(
+    addr: &TransportAddr,
+    auth: Option<&str>,
+    claim_id: &str,
+    to_owner: &str,
+    by: &str,
+    reason: Option<&str>,
+) -> Result<TransferSummary, ClaimError> {
     let mut params = json!({
         "claim_id": claim_id,
         "to_owner": to_owner,
@@ -241,7 +336,7 @@ pub async fn channel_transfer_claim(
     if let Some(r) = reason {
         params["reason"] = json!(r);
     }
-    let resp = rpc_call_addr(addr, method::CHANNEL_TRANSFER_CLAIM, params).await?;
+    let resp = call(addr, auth, method::CHANNEL_TRANSFER_CLAIM, params).await?;
     parse_transfer_response(resp)
 }
 
@@ -262,11 +357,23 @@ pub async fn channel_claims(
     topic: &str,
     include_expired: bool,
 ) -> Result<Vec<ClaimSummary>, ClaimError> {
+    channel_claims_authed(addr, None, topic, include_expired).await
+}
+
+/// T-3652: [`channel_claims`] that presents `auth` in `hub.auth` first. Pass `Some(token)` for
+/// a TCP hub (a TCP connection starts with no scope, so without it the hub answers
+/// -32009); `None` keeps the unix-socket behaviour (peer-uid trust, no handshake).
+pub async fn channel_claims_authed(
+    addr: &TransportAddr,
+    auth: Option<&str>,
+    topic: &str,
+    include_expired: bool,
+) -> Result<Vec<ClaimSummary>, ClaimError> {
     let params = json!({
         "topic": topic,
         "include_expired": include_expired,
     });
-    let resp = rpc_call_addr(addr, method::CHANNEL_CLAIMS, params).await?;
+    let resp = call(addr, auth, method::CHANNEL_CLAIMS, params).await?;
     parse_claims_response(resp, topic)
 }
 
@@ -284,8 +391,19 @@ pub async fn channel_claims_summary(
     addr: &TransportAddr,
     topic: &str,
 ) -> Result<ClaimsAggregate, ClaimError> {
+    channel_claims_summary_authed(addr, None, topic).await
+}
+
+/// T-3652: [`channel_claims_summary`] that presents `auth` in `hub.auth` first. Pass `Some(token)` for
+/// a TCP hub (a TCP connection starts with no scope, so without it the hub answers
+/// -32009); `None` keeps the unix-socket behaviour (peer-uid trust, no handshake).
+pub async fn channel_claims_summary_authed(
+    addr: &TransportAddr,
+    auth: Option<&str>,
+    topic: &str,
+) -> Result<ClaimsAggregate, ClaimError> {
     let params = json!({ "topic": topic });
-    let resp = rpc_call_addr(addr, method::CHANNEL_CLAIMS_SUMMARY, params).await?;
+    let resp = call(addr, auth, method::CHANNEL_CLAIMS_SUMMARY, params).await?;
     parse_claims_summary_response(resp, topic)
 }
 

@@ -4559,3 +4559,64 @@ fn cli_subscribe_push_on_inbox_topic_prints_backlog_and_live_envelopes() {
     assert!(out.contains("backlog-one"), "backlog not delivered: {out}");
     assert!(out.contains("live-two"), "live post not delivered by wake: {out}");
 }
+
+#[test]
+fn cli_claim_verbs_authenticate_over_tcp_with_interact_token() {
+    // T-3652: over TCP the claim verbs sent no `hub.auth`, so `channel claim/claims/
+    // renew/release --hub host:port` all came back -32009 while post and list (which
+    // authenticate) worked with the same interact token. Measured by ring20 on node1's
+    // hub (inbox offset 22). Throwaway hub: temp runtime dir, HOME and identity dir,
+    // TCP on an ephemeral 127.0.0.1 port, so nothing outside the test is touched.
+    let dir = TestDir::new("claim-tcp-auth");
+    let cmd = |args: &[&str]| {
+        let mut c = termlink_cmd(&dir.path);
+        c.env("HOME", &dir.path)
+            .env("TERMLINK_IDENTITY_DIR", dir.path.join("id"))
+            .args(args);
+        c
+    };
+    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let tcp = format!("127.0.0.1:{port}");
+    let hub_child = cmd(&["hub", "start", "--tcp", &tcp])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn hub");
+    let _hub = ProcessGuard::new(hub_child, "claim-tcp-auth-hub");
+    let sock = dir.path.join("hub.sock");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !sock.exists() || std::net::TcpStream::connect(&tcp).is_err() {
+        assert!(Instant::now() < deadline, "hub socket/TCP listener never appeared");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let sock = sock.to_string_lossy().to_string();
+    let ok = |args: &[&str]| -> String {
+        let o = cmd(args).output().unwrap();
+        let text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&o.stdout),
+            String::from_utf8_lossy(&o.stderr)
+        );
+        assert!(o.status.success(), "{args:?} failed: {text}");
+        text
+    };
+    ok(&["channel", "create", "pool:out", "--hub", &sock]);
+    let tok = dir.path.join("tok").to_string_lossy().to_string();
+    ok(&["hub", "token", "--out", &tok, "--scope", "interact"]);
+    ok(&["remote", "profile", "add", "t3652", &tcp, "--token-file", &tok]);
+
+    // Control: these already authenticated before the fix.
+    ok(&["channel", "post", "pool:out", "--payload", "job-0", "--hub", &tcp]);
+    ok(&["channel", "list", "--hub", &tcp]);
+
+    // The fix: each of these was -32009 before T-3652.
+    let claimed = ok(&["channel", "claim", "pool:out", "0", "--claimer", "w", "--hub", &tcp, "--json"]);
+    let v: serde_json::Value = serde_json::from_str(claimed.trim()).expect("claim json");
+    let cid = v["claim_id"].as_str().expect("claim_id").to_string();
+    let listed = ok(&["channel", "claims", "pool:out", "--hub", &tcp, "--json"]);
+    assert!(listed.contains(&cid), "claims over TCP must list the claim: {listed}");
+    ok(&["channel", "claims-summary", "pool:out", "--hub", &tcp]);
+    ok(&["channel", "renew", "--claim-id", &cid, "--claimer", "w", "--hub", &tcp]);
+    let released = ok(&["channel", "release", "--claim-id", &cid, "--claimer", "w", "--ack", "--hub", &tcp, "--json"]);
+    assert!(released.contains("\"ack\":true"), "release over TCP: {released}");
+}

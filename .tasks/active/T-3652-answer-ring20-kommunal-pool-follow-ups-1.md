@@ -1,10 +1,12 @@
 ---
 id: T-3652
-name: "Answer ring20 kommunal-pool follow-ups 19-22 (root on agent-owned hub socket; claim over TCP -32009; 512 KB cap doc)"
+name: "Answer ring20 kommunal-pool follow-ups 19-22 (root on agent-owned hub socket;
+  claim over TCP -32009; 512 KB cap doc)"
 description: >
-  Operator 2026-11-02: top priority. ring20 messages on inbox:22c19fedafd73da2/010-termlink offsets 19-22 (2026-10-27/28) were never read.
+  Operator 2026-11-02: top priority. ring20 messages on inbox:22c19fedafd73da2/010-termlink
+  offsets 19-22 (2026-10-27/28) were never read.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T12:08:53Z
-last_update: 2026-11-02T12:08:53Z
-date_finished: null
+last_update: 2026-11-02T12:23:53Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +52,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-02T12:10:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=3 (body:test-or-audit-check); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3652: Answer ring20 kommunal-pool follow-ups 19-22 (root on agent-owned hub socket; claim over TCP -32009; 512 KB cap doc)
@@ -73,11 +87,25 @@ which our docs do not state next to the 16 MB frame limit.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] (22) reproduced or refuted against a local test hub over TCP with an interact token (claim, renew, release,
+- [x] (22) reproduced or refuted against a local test hub over TCP with an interact token (claim, renew, release,
       plus list/post as control); root cause cited at file:line; fixed with a regression test if it is a bug
-- [ ] (20) answered from code: why root is dropped on the agent-owned socket (file:line), and the recommended path for
+      **Evidence:** reproduced on a throwaway hub (temp HOME/runtime dir, TCP 127.0.0.1, `hub token --scope interact`,
+      profile `token_file`): installed 0.12.1415 gives post/list rc=0 and claim/claims/renew/release -32009
+      (`.context/working/t3652/repro-before.out`); fixed build all rc=0 (`repro-after.out`). Root cause:
+      `claim_client.rs` sent every verb through plain `rpc_call_addr` (no `hub.auth`), while list/post go through
+      `rpc_call_authed` (`channel.rs:477`). Fix: `claim_client::call` + `*_authed` twins (`claim_client.rs:161`),
+      CLI `claim_auth` (`channel.rs:469`) on all 11 claim call sites. Regression test
+      `cli_claim_verbs_authenticate_over_tcp_with_interact_token` (real hub over TCP); a mutant that sends no token
+      goes red with the field -32009.
+- [x] (20) answered from code: why root is dropped on the agent-owned socket (file:line), and the recommended path for
       a root poold (e.g. TCP with a minted token once (22) works, or a socket-mode option), stated plainly
-- [ ] (21) the 512 KB plaintext payload cap documented next to the 16 MB frame limit (file named in the reply)
+      **Evidence:** `server.rs:974` owner_uid = the hub's getuid; `decide_unix_peer` (`server.rs:947-958`) rejects any
+      other uid, root included (`auth.rs:56` is strict equality); the reject arm `continue`s (`server.rs:1015`) and
+      drops the stream with no reply, hence reset/broken pipe. No socket-mode option exists. Path: TCP + minted
+      interact token with a fixed CLI (claim/renew/release need Interact, `server.rs:2315-2317`).
+- [x] (21) the 512 KB plaintext payload cap documented next to the 16 MB frame limit (file named in the reply)
+      **Evidence:** `docs/operations/channel-topic-semantics.md` § Size limits (16 MiB frame vs 524,288-byte
+      plaintext field, -32025) and the `MAX_PAYLOAD_SIZE` doc comment in `crates/termlink-protocol/src/lib.rs`.
 - [ ] Reply sent to proxmox-ring20-management on conversation kommunal-pool, posted on their hub
       (`inbox:22c19fedafd73da2/proxmox-ring20-management`) AND via `fw sidecar send`, referencing offsets 19-22
 
@@ -130,6 +158,14 @@ which our docs do not state next to the 16 MB frame limit.
 -->
 
 ## Verification
+
+TMPDIR=/var/tmp cargo test -p termlink --test cli_integration cli_claim_verbs_authenticate_over_tcp > .context/working/t3652/v-tcp.out 2>&1 && grep -q "test result: ok. 1 passed" .context/working/t3652/v-tcp.out
+TMPDIR=/var/tmp cargo test -p termlink --bin termlink claim_auth > .context/working/t3652/v-unit.out 2>&1 && grep -q "test result: ok. 1 passed" .context/working/t3652/v-unit.out
+TMPDIR=/var/tmp cargo test -p termlink-session --test claim_client_integration > .context/working/t3652/v-sess.out 2>&1 && grep -q "test result: ok" .context/working/t3652/v-sess.out
+TMPDIR=/var/tmp cargo test -p termlink --test channel_claim_cli_integration > .context/working/t3652/v-clicl.out 2>&1 && grep -q "test result: ok" .context/working/t3652/v-clicl.out
+TMPDIR=/var/tmp cargo clippy -p termlink-session -p termlink-protocol -p termlink --all-targets > .context/working/t3652/v-clippy.out 2>&1 && grep -q "Finished" .context/working/t3652/v-clippy.out && ! grep -qE "^(warning|error)" .context/working/t3652/v-clippy.out
+grep -q "524,288" docs/operations/channel-topic-semantics.md && grep -q "MAX_PLAINTEXT_FIELD_BYTES" crates/termlink-protocol/src/lib.rs
+grep -q '"ok"' .context/working/t3652/reply-sidecar.out && grep -q "offset" .context/working/t3652/reply-post.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -286,6 +322,19 @@ which our docs do not state next to the 16 MB frame limit.
 
 ## RCA
 
+**Symptom:** over TCP, `termlink channel claim/claims/claims-summary/renew/release/claim-force-release/claim-transfer
+--hub host:port` answered -32009 "Authentication required" while `channel list/post/subscribe` with the same profile
+worked (ring20 offset 22, node1 hub 0.12.1084).
+**Root cause:** the claim verbs (T-2031) were built on `termlink_session::claim_client`, whose wrappers called plain
+`rpc_call_addr` and never sent `hub.auth`. Every other channel verb goes through the CLI's `rpc_call_authed` funnel,
+which authenticates on TCP. A TCP connection starts with no scope, so every claim call was refused.
+**Why structurally allowed:** every claim test (session `claim_client_integration.rs`, CLI
+`channel_claim_cli_integration.rs`) runs a fake hub on a unix socket, where the hub grants a same-uid peer Execute
+with no handshake. No test drove a claim verb over TCP, so the missing handshake could not fail any test.
+**Prevention:** `cli_claim_verbs_authenticate_over_tcp_with_interact_token` drives claim, claims, claims-summary,
+renew and release over TCP against a real throwaway hub with an interact token (the no-token mutant goes red);
+`claim_auth_none_on_unix_and_never_silent_none_on_tcp` pins that a TCP address never resolves to "no auth".
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -380,3 +429,6 @@ which our docs do not state next to the 16 MB frame limit.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3652-answer-ring20-kommunal-pool-follow-ups-1.md
 - **Context:** Initial task creation
+
+### 2026-11-02T12:10:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

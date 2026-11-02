@@ -460,6 +460,20 @@ fn rpc_read_timeout() -> std::time::Duration {
     )
 }
 
+/// T-3652: the token the `claim_client` verbs present over TCP. `None` on the unix
+/// socket (the hub trusts a same-uid peer at accept time and needs no handshake);
+/// over TCP the same token `rpc_call_authed` sends, so `channel claim/renew/release/
+/// claims/claims-summary/claim-force-release/claim-transfer --hub host:port`
+/// authenticate exactly like list/post/subscribe do. Before this they sent no
+/// `hub.auth` at all and every TCP call came back -32009.
+pub(crate) fn claim_auth(addr: &TransportAddr) -> Result<Option<String>> {
+    if addr.is_unix() {
+        Ok(None)
+    } else {
+        tcp_hub_auth_token(addr).map(Some)
+    }
+}
+
 async fn rpc_call_authed(
     addr: &TransportAddr,
     method: &str,
@@ -11805,7 +11819,7 @@ pub(crate) async fn cmd_channel_claim(
     json_output: bool,
 ) -> Result<()> {
     let addr = hub_socket(hub)?;
-    let s = termlink_session::claim_client::channel_claim(&addr, topic, offset, claimer, ttl_ms)
+    let s = termlink_session::claim_client::channel_claim_authed(&addr, claim_auth(&addr)?.as_deref(), topic, offset, claimer, ttl_ms)
         .await
         .map_err(|e| claim_err_actionable("claim", e))?;
     if json_output {
@@ -11841,8 +11855,9 @@ pub(crate) async fn cmd_channel_renew(
     json_output: bool,
 ) -> Result<()> {
     let addr = hub_socket(hub)?;
-    let s = termlink_session::claim_client::channel_renew(
+    let s = termlink_session::claim_client::channel_renew_authed(
         &addr,
+        claim_auth(&addr)?.as_deref(),
         claim_id,
         claimer,
         additional_ttl_ms,
@@ -11903,7 +11918,7 @@ pub(crate) async fn cmd_channel_release(
     json_output: bool,
 ) -> Result<()> {
     let addr = hub_socket(hub)?;
-    let r = termlink_session::claim_client::channel_release(&addr, claim_id, claimer, ack)
+    let r = termlink_session::claim_client::channel_release_authed(&addr, claim_auth(&addr)?.as_deref(), claim_id, claimer, ack)
         .await
         .map_err(|e| claim_err_actionable("release", e))?;
     if json_output {
@@ -11945,7 +11960,7 @@ pub(crate) async fn cmd_channel_claim_force_release(
     json_output: bool,
 ) -> Result<()> {
     let addr = hub_socket(hub)?;
-    let r = termlink_session::claim_client::channel_force_release(&addr, claim_id, reason)
+    let r = termlink_session::claim_client::channel_force_release_authed(&addr, claim_auth(&addr)?.as_deref(), claim_id, reason)
         .await
         .map_err(|e| claim_err_actionable("force_release", e))?;
     if json_output {
@@ -11995,8 +12010,9 @@ pub(crate) async fn cmd_channel_claim_transfer(
     json_output: bool,
 ) -> Result<()> {
     let addr = hub_socket(hub)?;
-    let r = termlink_session::claim_client::channel_transfer_claim(
-        &addr, claim_id, to_owner, by, reason,
+    let r = termlink_session::claim_client::channel_transfer_claim_authed(
+        &addr,
+        claim_auth(&addr)?.as_deref(), claim_id, to_owner, by, reason,
     )
     .await
     .map_err(|e| claim_err_actionable("transfer_claim", e))?;
@@ -12041,7 +12057,7 @@ pub(crate) async fn cmd_channel_claims(
     json_output: bool,
 ) -> Result<()> {
     let addr = hub_socket(hub)?;
-    let claims = termlink_session::claim_client::channel_claims(&addr, topic, include_expired)
+    let claims = termlink_session::claim_client::channel_claims_authed(&addr, claim_auth(&addr)?.as_deref(), topic, include_expired)
         .await
         .map_err(|e| claim_err_actionable("claims", e))?;
     if json_output {
@@ -12206,7 +12222,7 @@ pub(crate) async fn cmd_channel_claims_summary(
                     "# channel claims-summary --watch | topic={:?} | interval={}s | {}",
                     t, interval, now_str
                 );
-                match termlink_session::claim_client::channel_claims_summary(&addr, t).await {
+                match termlink_session::claim_client::channel_claims_summary_authed(&addr, claim_auth(&addr)?.as_deref(), t).await {
                     Ok(summary) => {
                         render_claims_summary_text(&summary);
                         let snap = ClaimSnapshot::from_summary(&summary);
@@ -12258,7 +12274,7 @@ pub(crate) async fn cmd_channel_claims_summary(
 
     // Single-topic one-shot path (T-2039 original Slice 6 shape).
     let t = topic.expect("topic guaranteed Some by validation above");
-    let summary = termlink_session::claim_client::channel_claims_summary(&addr, t)
+    let summary = termlink_session::claim_client::channel_claims_summary_authed(&addr, claim_auth(&addr)?.as_deref(), t)
         .await
         .map_err(|e| claim_err_actionable("claims_summary", e))?;
     if json_output {
@@ -12966,7 +12982,7 @@ async fn collect_claims_summary_fleet_snapshot(
     let topics = fetch_topic_names(addr).await?;
     let mut out = std::collections::BTreeMap::new();
     for t in &topics {
-        if let Ok(s) = termlink_session::claim_client::channel_claims_summary(addr, t).await {
+        if let Ok(s) = termlink_session::claim_client::channel_claims_summary_authed(addr, claim_auth(addr)?.as_deref(), t).await {
             out.insert(t.clone(), ClaimSnapshot::from_summary(&s));
         }
         // Silent skip on per-topic fetch error: the screen render below
@@ -13070,7 +13086,7 @@ async fn render_claims_summary_fleet_text(addr: &TransportAddr, only_stuck: bool
         Vec::with_capacity(topics.len());
     let mut stuck_count: u64 = 0;
     for t in &topics {
-        match termlink_session::claim_client::channel_claims_summary(addr, t).await {
+        match termlink_session::claim_client::channel_claims_summary_authed(addr, claim_auth(addr)?.as_deref(), t).await {
             Ok(summary) => {
                 if is_potentially_stuck(&summary) {
                     stuck_count += 1;
@@ -13139,7 +13155,7 @@ async fn render_claims_summary_fleet_json(addr: &TransportAddr, only_stuck: bool
     // on a hub that serves the field.
     let mut expired_arm_inert = false;
     for t in &topics {
-        match termlink_session::claim_client::channel_claims_summary(addr, t).await {
+        match termlink_session::claim_client::channel_claims_summary_authed(addr, claim_auth(addr)?.as_deref(), t).await {
             Ok(summary) => {
                 let stuck = is_potentially_stuck(&summary);
                 if stuck {
@@ -13582,6 +13598,19 @@ mod tests {
     // Serialises the two env vars this test mutates so a parallel test can't
     // observe a transient TERMLINK_RPC_READ_TIMEOUT_SECS override.
     static RPC_TIMEOUT_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// T-3652: the unix socket needs no handshake (peer-uid trust at accept), so
+    /// `claim_auth` must not try to resolve a token there; a TCP address with no
+    /// matching hubs.toml profile must fail loudly rather than fall back to `None`
+    /// (which would silently send the unauthenticated call that got -32009).
+    #[test]
+    fn claim_auth_none_on_unix_and_never_silent_none_on_tcp() {
+        let unix = TransportAddr::unix(std::path::PathBuf::from("/nonexistent/hub.sock"));
+        assert!(matches!(claim_auth(&unix), Ok(None)));
+        let tcp = parse_hub_addr("127.0.0.1:1");
+        assert!(!tcp.is_unix());
+        assert!(!matches!(claim_auth(&tcp), Ok(None)), "TCP must never resolve to no-auth");
+    }
 
     /// The unix branch of `rpc_call_authed` must bound its RPC read: a local
     /// hub that ACCEPTS the connection and drains the request but never writes
