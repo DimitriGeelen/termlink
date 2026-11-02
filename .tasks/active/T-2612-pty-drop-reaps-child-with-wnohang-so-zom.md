@@ -5,10 +5,10 @@ description: >
   Drop for PtySession sends SIGKILL then waitpid with WNOHANG, which returns before
   the kernel reaps the just-killed child, leaking a zombie per dropped session.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -17,7 +17,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T16:52:30Z
-last_update: '2026-09-27T21:34:05Z'
+last_update: '2026-11-02T00:11:32Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -42,6 +42,17 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
       (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
       (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-11-02T00:11:32Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=3 (body:test-or-audit-check); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-08T21:30:39Z'
@@ -68,7 +79,12 @@ cost_estimate_proposed:
 
 ## Context
 
-`Drop for PtySession` (crates/termlink-session/src/pty.rs ~456-466) does:
+**Background / trigger:** Code-reading finding: `Drop for PtySession` reaped the child with a single `WNOHANG` waitpid right after SIGKILL (original analysis below).
+**Problem / hypothesis:** WNOHANG returns before the kernel has turned the killed child into a zombie, so nothing is reaped and every dropped PTY session leaks a zombie until the host exits.
+**Goal:** Drop reliably reaps its child without ever hanging.
+**Expected outcome:** No zombie after Drop, proven by a real-PTY test, with a bounded reap and pid-safety reasoning recorded.
+
+Original analysis — `Drop for PtySession` (crates/termlink-session/src/pty.rs ~456-466) does:
 ```
 libc::kill(pid, libc::SIGKILL);
 let mut status = 0;
@@ -88,10 +104,10 @@ a bounded/non-hanging reap is required.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `Drop for PtySession` reliably reaps the child (no lingering zombie) after SIGKILL — verified by a test that spawns a real PTY, drops it, and asserts the pid is reaped (waitpid returns ECHILD / the pid is gone)
-- [ ] The reap cannot hang Drop indefinitely (bounded wait or guaranteed-terminated precondition documented)
+- [x] `Drop for PtySession` reliably reaps the child (no lingering zombie) after SIGKILL — verified by a test that spawns a real PTY, drops it, and asserts the pid is reaped (waitpid returns ECHILD / the pid is gone) (evidence: `pty::tests::drop_leaves_no_zombie_for_a_spawned_session` (T-2581) passes 2026-11-02; Drop calls `reap_child_bounded`, commit 11ce67e6c T-2737)
+- [x] The reap cannot hang Drop indefinitely (bounded wait or guaranteed-terminated precondition documented) (evidence: `REAP_BUDGET` = 100ms in crates/termlink-session/src/pty.rs, TimedOut path logs a warn; `bounded_reap_times_out_against_a_live_child` passes)
 - [ ] Process-group and pid-recycle safety considered and documented in the Decisions section
-- [ ] `cargo test -p termlink-session` passes
+- [x] `cargo test -p termlink-session` passes (evidence: 2026-11-02 T-3648 run — 589 lib tests + 5 other suites, 0 failed)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -227,3 +243,7 @@ bounded" helper reused by other fork sites.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2612-pty-drop-reaps-child-with-wnohang-so-zom.md
 - **Context:** Initial task creation
+
+### 2026-11-02T00:11:31Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
