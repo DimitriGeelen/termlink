@@ -40,7 +40,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T12:53:07Z
-last_update: '2026-11-02T12:53:44Z'
+last_update: 2026-11-02T13:00:47Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -89,13 +89,17 @@ reason.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Every waiting message classified with evidence: seen+acted (where), seen not acted, never seen; e2e test residue
+- [x] Every waiting message classified with evidence: seen+acted (where), seen not acted, never seen; e2e test residue
       identified as such; outbound ones: whether the peer received it another way
-- [ ] Never-seen or not-acted inbound mail listed for the orchestrator (sender, conv, one line each), not answered by
-      the worker
+      (report.md items 1-5: 9 e2e, 35 answered, 3 acted-no-reply, 9 never seen, 18 outbound 13/3/2)
+- [x] Never-seen or not-acted inbound mail listed for the orchestrator (sender, conv, one line each), not answered by
+      the worker (report.md items 6-8: fe30dbda, ac9d2de7, e50761d3)
 - [ ] Root cause of no-live-recipient for this project stated with file:line in AEF's receiver, and the fix proposed
       (e.g. register the session / claude-fw --termlink / receiver fallback); test residue cleared with `fw sidecar drop
       --reason` only for messages proven to be test residue or proven delivered
+      (PARTIAL: root cause + fix in report.md items 9-16, seen.py:172-193 vs waiting.py:279-290. Clearing NOT done:
+      `fw sidecar drop` is operator-only, refused under CLAUDECODE=1; worker did not use --i-am-human. The 44 proven
+      ids with evidence are in .context/working/t3656/drop-list.tsv for an operator/runme action.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -299,6 +303,8 @@ reason.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+test -f .context/working/t3656/report.md && grep -q "Root cause" .context/working/t3656/report.md
+test "$(wc -l < .context/working/t3656/drop-list.tsv)" -gt 0
 
 ## RCA
 
