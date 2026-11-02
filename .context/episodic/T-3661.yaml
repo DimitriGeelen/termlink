@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3661: artifact put notice posts to inbox:<project> instead of inbox:<hub>/<project> (exit 1 after a good upload); file send loses chunks (5 MB: missing chunk 99/107) while its replacement 'channel post --file' does not exist (055 report)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T22:15:25Z
+# ============================================================================
+
+task_id: T-3661
+task_name: "artifact put notice posts to inbox:<project> instead of inbox:<hub>/<project> (exit 1 after a good upload); file send loses chunks (5 MB: missing chunk 99/107) while its replacement 'channel post --file' does not exist (055 report)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-02T21:17:24Z
+completed: 2026-11-02T22:14:40Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-02T22:43:53+01:00
+last_commit: 2026-11-02T23:14:34+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  artifact put inbox name + file send chunk loss (055 report), context and ACs. artifact put posts to the hub-qualified inbox; file receive no longer skips a chunk per 100-event batch. reword comment so the deprecation-text absence check measures code only; tick 055 reply AC
+
+# Key outcomes
+outcomes:
+  - 'artifact put posts its notice to the hub-qualified inbox (same resolution as `fw sidecar send` / channel inbox'
+  - 'file send: the chunk loss reproduced (5 MB+) and root-caused at file:line, then fixed (or, if file send is truly'
+  - 'The deprecation message names a command that exists in this build'
+  - 'Reply to 055 with the result; cross-hub delivery (`--hub`) stays T-3614'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-02 — artifact put inbox resolution'
+    chose: 'resolve in the CLI before upload: a `to` with `/` is used as given; else `inbox:<hub_id>/<to>` if it exists; else a legacy bare `inbox:<to>` if it exists; else a loud error naming both, before any bytes move.'
+    rationale: 'reuses the sidecar topic shape and `hub.version`''s hub_id; failing before the upload means no exit 1 after success. `send_artifact_via_client` is untouched, so file send / MCP / remote callers keep their bare-topic behaviour.'
+    alternatives_rejected: ['changing `send_artifact_via_client` for every caller (legacy `file receive` reads the bare topic).']
+  - decision: '2026-11-02 — file send: fix, not delegate'
+    chose: 'fix the receiver cursor (`since_for_next_seq`) and keep file send; deprecation text now names `artifact put` / `artifact get`, which exist (`channel post --file` was never built).'
+    rationale: 'the loss was one off-by-one in `file receive`; delegating would change a deprecated command''s contract.'
+    alternatives_rejected: ['flipping `event.subscribe`''s `since` to inclusive server-side (every other caller already subtracts 1 and would then get duplicates).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3661-artifact-put-notice-posts-to-inboxprojec.md'
+  - 'crates/termlink-cli/src/commands/artifact.rs'
+  - 'crates/termlink-cli/src/commands/file.rs'
+  - 'crates/termlink-cli/tests/cli_integration.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-02T22:43:53'
+    action: 'T-3661: artifact put inbox name + file send chunk loss (055 report), context and ACs'
+  - time: '2026-11-02T22:54:42'
+    action: 'T-3661: artifact put posts to the hub-qualified inbox; file receive no longer skips a chunk per 100-event batch'
+  - time: '2026-11-02T23:14:34'
+    action: 'T-3661: reword comment so the deprecation-text absence check measures code only; tick 055 reply AC'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 57 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 57
+  commits: 4
+  files_changed: 7
+  lines_added: 836
+  lines_removed: 19
+  footprint_refreshed_at: '2026-11-02T22:16:03Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3661-artifact-put-notice-posts-to-inboxprojec.md
+generated_by: context-agent-hybrid
