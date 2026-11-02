@@ -39,7 +39,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T21:46:43Z
-last_update: '2026-11-02T21:47:05Z'
+last_update: 2026-11-02T21:47:45Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -82,10 +82,19 @@ be.26 since T-3659. Operator 2026-11-02: "yes, 1 and 2" (2 = take be.27).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Ancestry be.26 (db97fbae4) -> be.27 (c55b395a3) verified; rehearsal + real run from fresh clones per
+- [x] Ancestry be.26 (db97fbae4) -> be.27 (c55b395a3) verified; rehearsal + real run from fresh clones per
       `.vendor-divergence.yaml`; preserved files kept (3-way merge base be.26); CLAUDE.md project part identical
-- [ ] check-vendor-divergence rc 0; fw doctor no new FAIL; guard layer `--gate release` only check-drain-sink-caps.sh FAIL
-- [ ] The be.27 receiver code that writes main_only / INJECT_BLOCKED / SURFACE_WITHHELD is present in the vendored tree
+      **Evidence:** tag v1.8.16-be.27 = c55b395a3; db97fbae4 is an ancestor (6 commits). Rehearsal and real run rc 0,
+      dry-runs rc 0 (24 / 21 changes), env unset. 12/12 preserved files byte-identical, markers present; inject.py (the
+      only one changed upstream) merged with 0 conflicts, upstream test_t5014 32 passed with it; triage 12 passed;
+      CLAUDE.md diff 0 lines. Commit 10d2bf6d9. Logs: .context/working/t3662/{rehearse,real}.log
+- [x] check-vendor-divergence rc 0; fw doctor no new FAIL; guard layer `--gate release` only check-drain-sink-caps.sh FAIL
+      **Evidence:** check-vendor-divergence rc 0 (baseline 10d2bf6d9); fw doctor rc 0, 0 FAIL. Guard after: 1 FAIL
+      (check-drain-sink-caps.sh), 231 passed, 0 errored. Before: same plus runme-fixtures (521 s under load; 258/0 when
+      rerun alone).
+- [x] The be.27 receiver code that writes main_only / INJECT_BLOCKED / SURFACE_WITHHELD is present in the vendored tree
+      **Evidence:** inject.py records INJECT_BLOCKED and passes main_only=_main_only_note(why) on INJECT_ATTEMPT;
+      hooks.py records SURFACE_WITHHELD with main_only + holder.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -289,6 +298,13 @@ be.26 since T-3659. Operator 2026-11-02: "yes, 1 and 2" (2 = take be.27).
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+.agentic-framework/bin/fw doctor > .context/working/t3662/v-doc.out 2>&1 && grep -q 'OK' .context/working/t3662/v-doc.out && ! grep -q 'FAIL' .context/working/t3662/v-doc.out
+bash scripts/check-vendor-divergence.sh > .context/working/t3662/v-cvd.out 2>&1 && grep -q 'all registered' .context/working/t3662/v-cvd.out
+grep -q 'version_sha: c55b395a3' .framework.yaml
+grep -q '"INJECT_BLOCKED"' .agentic-framework/lib/sidecar/inject.py && grep -q 'main_only=_main_only_note' .agentic-framework/lib/sidecar/inject.py && grep -q '"SURFACE_WITHHELD"' .agentic-framework/lib/sidecar/hooks.py && grep -q 'T-3533' .agentic-framework/lib/sidecar/inject.py
+(cd .agentic-framework && TMPDIR=/var/tmp timeout 300 python3 -m pytest -q web/test_triage.py > ../.context/working/t3662/v-tri.out 2>&1) && grep -q passed .context/working/t3662/v-tri.out
+grep -q 'termlink main release --session-from-stdin' .claude/settings.json
 
 ## RCA
 
