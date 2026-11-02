@@ -107,9 +107,10 @@ Evidence files: `.context/working/t3650/`.
 - [x] `.vendor-divergence.yaml` last_vendor_event updated; `bash scripts/check-vendor-divergence.sh` rc 0 — c9aeea9e0, rc 0
 - [x] fw doctor no new FAIL; guard layer `--gate release`: no new FAIL vs baseline (check-drain-sink-caps.sh) — doctor
       rc 0, 0 FAIL; guard before/after identical: 1 FAIL drain-sink, 4 WARN red (231 passed)
-- [ ] Product arcs carry `driver_set: product`; `fw bvp rank` shows the SET column and exits 0 — BLOCKED on the arc-011
-      id clash (see Context state). `fw bvp --include-proposed` (there is no `rank` verb; plain `fw bvp` prints no table
-      because no task has confirmed scores) shows SET and exits 0 with marks withheld; marks pending operator decision
+- [x] Product arcs carry `driver_set: product`; `fw bvp rank` shows the SET column and exits 0 — the arc-011 id clash
+      was a mislabel, fixed by the orchestrator (ids = slug = filename; nothing referenced arc-010); 8 marks re-applied
+      (b69e359fe). `fw bvp --include-proposed` (no `rank` verb exists) rc 0, SET column, 25 rows product, 0 refused;
+      fw audit "[PASS] Arc driver sets: 8 arc(s) name a driver set, every one resolves and validates"
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
