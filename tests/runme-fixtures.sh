@@ -409,6 +409,8 @@ export RUNME_W1_UNITS="" RUNME_W1_SYSTEMCTL="$W1R/systemctl" RUNME_W1_PROC="$W1R
 mkdir -p "$W1R/conf"
 export RUNME_W1_REPIN_MAIN="" RUNME_W1_CONF_DIR="$W1R/conf" RUNME_W1_SOCK_DIR="$W1R/sock" \
        RUNME_W1_STATUS_TL="$W1R/status-tl" RUNME_W1_PIN_AUDIT="$W1R/repins.jsonl"
+# T-3654 (action 4d): the project the W1 sidecars are given; scratch env files live in $W1R/conf.
+export RUNME_W1_MAIN_PROJECT="010-termlink"
 # T-3290: the hub-restart action must NEVER reach the real systemctl, /proc or
 # /var/lib/termlink. A fake systemctl keeps MainPID in a state file; `restart`
 # bumps the pid and points its fake /proc exe at the installed binary (or, with
@@ -2069,7 +2071,7 @@ rm -f "$W1R"/pid.* "$W1R/restarts"
 
 # ---- T-3651: action 4c lists or re-pins the W1 main, audited ----------------------
 echo "T-3651: 4c W1 pinned main re-pin"
-s4c() { echo "$1" | sed -n '/^.*4c\. W1 pinned main/,/^.*5\. /p'; }
+s4c() { echo "$1" | sed -n '/^.*4c\. W1 pinned main/,/^.*4d\. W1 sidecars know/p'; }
 # The fake live sidecar: `restart` (fake systemctl above) re-reads nothing, so the live pin is
 # kept in live.<agent> and refreshed from the config here on restart unless FAKE_W1_LIVE_STALE=1.
 cat > "$W1R/status-tl" <<'EOS'
@@ -2135,6 +2137,88 @@ if [ "$rc" = 1 ] && echo "$x" | grep_all 'names no recorder' && [ ! -e "$W1R/res
     ok "T-3651: re-pin with no recorder => refused, nothing changed"
 else bad "T-3651 no recorder" "rc=$rc: $x"; fi
 rm -f "$W1R"/pid.* "$W1R"/live.* "$W1R/restarts" "$W1R/repins.jsonl" "$W1R"/conf/*
+
+# ---- T-3654: action 4d gives the W1 sidecars their project (main.lease readable) ----
+echo "T-3654: 4d W1 sidecars know their project"
+s4d() { echo "$1" | sed -n '/^.*4d\. W1 sidecars know their project/,/^.*5\. /p'; }
+# Fake live sidecar: lease.<agent> holds "state|project|why"; status reports it as main.lease.
+cat > "$W1R/status-tl" <<'EOS'
+#!/usr/bin/env bash
+D="${FAKE_W1_DIR:?}"; a=$(basename "${TERMLINK_SIDECAR_STATUS_SOCKET:?}" .status.sock)
+[ -f "$D/lease.$a" ] || { echo '{"ok":false,"error":"no socket"}'; exit 1; }
+IFS='|' read -r st pr wy < "$D/lease.$a"
+python3 -c 'import json,sys; s,p,w=sys.argv[1:4]; l={"state":s}; p and l.update(project=p); w and l.update(why=w); print(json.dumps({"ok":True,"main":{"pinned":"","lease":l}}))' "$st" "$pr" "$wy"
+EOS
+chmod +x "$W1R/status-tl"
+mv "$W1R/systemctl" "$W1R/systemctl.4c"
+cat > "$W1R/systemctl" <<'EOS'
+#!/usr/bin/env bash
+# On restart the fake sidecar re-reads its env file: with the project line it reads the lease.
+D="${FAKE_W1_DIR:?}"; u="${@: -1}"
+"$D/systemctl.4c" "$@"; rc=$?
+if [ "$1" = restart ]; then
+    p=$(sed -n 's/^TERMLINK_MAIN_PROJECT=//p' "$D/conf/$u.env" 2>/dev/null)
+    if [ -n "$p" ]; then echo "${FAKE_W1_LEASE_STATE:-vacant}|$p|${FAKE_W1_LEASE_WHY:-}" > "$D/lease.$u"
+    else echo "unknown||no main_project configured for this sidecar" > "$D/lease.$u"; fi
+fi
+exit $rc
+EOS
+chmod +x "$W1R/systemctl"
+w1_env() {  # <unit> [extra line]: a provisioned env file without (or with) a project line
+    printf 'PROJECT_DIR=/x\nAGENT=%s\nHOME=/root\n' "$1" > "$W1R/conf/$1.env"
+    [ -z "${2:-}" ] || echo "$2" >> "$W1R/conf/$1.env"
+    chmod 0640 "$W1R/conf/$1.env"
+}
+w1_reset4d() { rm -f "$W1R"/restarts "$W1R"/lease.* "$W1R"/conf/*; w1_unit u-main 41 termlink-new; w1_unit u-alt 42 termlink-new
+    w1_env u-main; w1_env u-alt
+    echo "unknown||no main_project configured for this sidecar" > "$W1R/lease.u-main"; cp "$W1R/lease.u-main" "$W1R/lease.u-alt"; }
+w1_reset4d
+out=$(RUNME_W1_UNITS="u-main u-alt" run --dry-run); x=$(s4d "$out")
+if echo "$x" | grep_all '\[DRY\]   would set TERMLINK_MAIN_PROJECT=010-termlink in .*/u-main.env and restart u-main' \
+   && ! grep -q TERMLINK_MAIN_PROJECT "$W1R/conf/u-main.env" && [ ! -e "$W1R/restarts" ]; then
+    ok "T-3654: dry-run names the change, writes and restarts nothing"
+else bad "T-3654 dry" "$x"; fi
+out=$(RUNME_W1_UNITS="u-main u-alt" run); rc=$?; x=$(s4d "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'OK      u-main: TERMLINK_MAIN_PROJECT=010-termlink; u-main restarted (pid 141); main.lease.state=vacant' \
+   && echo "$x" | grep_all 'OK      u-alt: TERMLINK_MAIN_PROJECT=010-termlink' \
+   && [ "$(grep -cx 'TERMLINK_MAIN_PROJECT=010-termlink' "$W1R/conf/u-main.env")" = 1 ] && [ "$(tail -1 "$W1R/conf/u-main.env")" = "TERMLINK_MAIN_PROJECT=010-termlink" ] \
+   && [ "$(stat -c %a "$W1R/conf/u-main.env")" = 640 ] && [ "$(ls "$W1R/conf" | grep -c '^u-main.env.bak-')" = 1 ] \
+   && [ "$(wc -l < "$W1R/restarts")" = 2 ]; then
+    ok "T-3654: env without project => backed up, line appended (mode kept), restarted, lease state verified"
+else bad "T-3654 set" "rc=$rc: $x"; fi
+out=$(RUNME_W1_UNITS="u-main u-alt" run); rc=$?; x=$(s4d "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'skip    u-main: project 010-termlink set and status reports main.lease.state=vacant' \
+   && [ "$(wc -l < "$W1R/restarts")" = 2 ] && [ "$(ls "$W1R/conf" | grep -c '^u-main.env.bak-')" = 1 ]; then
+    ok "T-3654: second run skips (idempotent: no write, no restart)"
+else bad "T-3654 idempotent" "rc=$rc: $x"; fi
+w1_reset4d; w1_env u-main "TERMLINK_MAIN_PROJECT=010-termlink"
+out=$(RUNME_W1_UNITS="u-main" run); rc=$?; x=$(s4d "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'OK      u-main: TERMLINK_MAIN_PROJECT=010-termlink; u-main restarted' \
+   && ! ls "$W1R/conf" | grep_all bak && [ "$(wc -l < "$W1R/restarts")" = 1 ]; then
+    ok "T-3654: env right but running sidecar predates it => restart only, no rewrite"
+else bad "T-3654 restart-only" "rc=$rc: $x"; fi
+w1_reset4d; w1_env u-main "TERMLINK_MAIN_PROJECT=010-termlink"; echo "unknown|010-termlink|hub unreachable" > "$W1R/lease.u-main"
+out=$(RUNME_W1_UNITS="u-main" run); rc=$?; x=$(s4d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  u-main: project 010-termlink set but main.lease.state=unknown (hub unreachable); not restarted' \
+   && [ ! -e "$W1R/restarts" ]; then
+    ok "T-3654: project set but lease unknown for another reason => FAILED, rc 1, no restart"
+else bad "T-3654 hub-down" "rc=$rc: $x"; fi
+w1_reset4d
+out=$(FAKE_W1_LEASE_STATE=unknown FAKE_W1_LEASE_WHY="not read yet" RUNME_W1_UNITS="u-main" run); rc=$?; x=$(s4d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  u-main: after restart main.lease.state=unknown (not read yet), not held or vacant'; then
+    ok "T-3654: lease still unknown after restart => FAILED, rc 1"
+else bad "T-3654 verify-miss" "rc=$rc: $x"; fi
+w1_reset4d; w1_env u-main "TERMLINK_MAIN_PROJECT=other-project"
+out=$(FAKE_W1_LEASE_STATE=held RUNME_W1_UNITS="u-main" run); rc=$?; x=$(s4d "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'main.lease.state=held' && ! grep -q other-project "$W1R/conf/u-main.env" \
+   && [ "$(grep -c '^TERMLINK_MAIN_PROJECT=' "$W1R/conf/u-main.env")" = 1 ]; then
+    ok "T-3654: a different project line is replaced, never duplicated"
+else bad "T-3654 replace" "rc=$rc: $x"; fi
+w1_reset4d; rm -f "$W1R/conf/u-alt.env"
+out=$(RUNME_W1_UNITS="u-alt" run); x=$(s4d "$out")
+if echo "$x" | grep_all 'skip    u-alt: no settings at' && [ ! -e "$W1R/restarts" ]; then ok "T-3654: no env file => skip, nothing restarted"
+else bad "T-3654 absent" "$x"; fi
+rm -f "$W1R"/pid.* "$W1R"/live.* "$W1R"/lease.* "$W1R/restarts" "$W1R"/conf/*
 
 echo ""
 echo "----------------------------------------"

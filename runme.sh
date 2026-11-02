@@ -835,6 +835,86 @@ head2 "4c. W1 pinned main — list, or re-pin to the recorded agent (T-3651)"
 w1_repin_main
 
 # ---------------------------------------------------------------------------
+# ACTION 4d — give the W1 sidecars their project, so their main-lease view works (T-3654)
+#
+# The sidecar reads the project's main lease (`main:<project>` at the hub) only when it knows the
+# project: `main_project` in its JSON config, else $TERMLINK_MAIN_PROJECT (daemon.rs). Without it
+# `sidecar status` reports main.lease.state=unknown ("no main_project configured") and the pull
+# gate never engages. The env file /etc/termlink-sidecar/<instance>.env is the unit's
+# EnvironmentFile, and arc011-w1-provision.sh (action 17) writes the same line last, so the two
+# never fight. Per sidecar: back up the env file (<env>.bak-<UTC>), drop any other
+# TERMLINK_MAIN_PROJECT line, append ours, read it back, restart through 4b's w1_restart_unit,
+# then verify status reports main.lease.state held or vacant (anything else is FAILED, with why).
+# Idempotent: env already right and live state held|vacant => skip. Env right but the live
+# sidecar has no project (it predates the line) => restart only. Env right, project set, state
+# unknown for another reason (hub down) => FAILED without a restart (a restart would not help).
+# Seams (fixtures only): RUNME_W1_MAIN_PROJECT (plus 4b/4c's W1 seams).
+# ---------------------------------------------------------------------------
+seam W1_MAIN_PROJECT RUNME_W1_MAIN_PROJECT "010-termlink"
+w1_instance_of() { local i="${1#termlink-sidecar@}"; echo "${i%.service}"; }
+w1_live_lease() {  # <agent>: "<state>|<project or empty>|<why>"; "unreadable||..." if status cannot be read
+    local out
+    out="$(TERMLINK_SIDECAR_STATUS_SOCKET="$W1_SOCK_DIR/$1.status.sock" $W1_STATUS_TL sidecar status --json 2>/dev/null)"
+    python3 -c 'import json,sys
+try: v=json.loads(sys.argv[1])
+except Exception: print("unreadable||status did not answer JSON"); sys.exit()
+if not v.get("ok"): print("unreadable||status not ok"); sys.exit()
+l=(v.get("main") or {}).get("lease") or {}
+print("%s|%s|%s" % (l.get("state") or "absent", l.get("project") or "", l.get("why") or ""))' "$out" 2>/dev/null || echo "unreadable||python3"
+}
+w1_env_has_project() { grep -qx "TERMLINK_MAIN_PROJECT=$W1_MAIN_PROJECT" "$1" && [ "$(grep -c '^TERMLINK_MAIN_PROJECT=' "$1")" = 1 ]; }
+w1_env_write_project() {  # <env file>: same mode, atomic
+    local f="$1" t="$1.tmp.$$"
+    { grep -v '^TERMLINK_MAIN_PROJECT=' "$f"; echo "TERMLINK_MAIN_PROJECT=$W1_MAIN_PROJECT"; } > "$t" \
+        && chmod "$(stat -c %a "$f")" "$t" && mv -f "$t" "$f"
+}
+w1_set_main_project() {
+    local unit a env live state proj why changed bak i
+    for unit in $W1_UNITS; do
+        a="$(w1_agent_of "$unit")"; env="$W1_CONF_DIR/$(w1_instance_of "$unit").env"
+        if [ ! -f "$env" ]; then say "  skip    $a: no settings at $env (W1 not provisioned here)"; SKIPPED=$((SKIPPED+1)); continue; fi
+        live="$(w1_live_lease "$a")"; state="${live%%|*}"; proj="${live#*|}"; why="${proj#*|}"; proj="${proj%%|*}"
+        if w1_env_has_project "$env"; then
+            case "$state" in
+                held|vacant) say "  skip    $a: project $W1_MAIN_PROJECT set and status reports main.lease.state=$state"; SKIPPED=$((SKIPPED+1)); continue ;;
+            esac
+            if [ -n "$proj" ]; then
+                say "  FAILED  $a: project $proj set but main.lease.state=$state ($why); not restarted, a restart would not fix that"; FAILED=$((FAILED+1)); continue
+            fi
+            changed=0
+        else
+            changed=1
+        fi
+        if [ "$DRY_RUN" = "1" ]; then
+            if [ "$changed" = 1 ]; then say "  [DRY]   would set TERMLINK_MAIN_PROJECT=$W1_MAIN_PROJECT in $env and restart $unit"
+            else say "  [DRY]   would restart $unit (its running sidecar has no project; state=$state)"; fi
+            DONE=$((DONE+1)); continue
+        fi
+        if [ "$changed" = 1 ]; then
+            bak="$env.bak-$(date -u +%Y%m%dT%H%M%SZ)"
+            if ! cp -p "$env" "$bak"; then say "  FAILED  $a: cannot back up $env; not changed"; FAILED=$((FAILED+1)); continue; fi
+            if ! w1_env_write_project "$env" || ! w1_env_has_project "$env"; then
+                say "  FAILED  $a: $env does not read back TERMLINK_MAIN_PROJECT=$W1_MAIN_PROJECT (backup at $bak)"; FAILED=$((FAILED+1)); continue
+            fi
+        fi
+        if ! w1_restart_unit "$unit"; then say "  FAILED  $W1_WHY"; FAILED=$((FAILED+1)); continue; fi
+        # The lease reader's first read lands within one interval (15 s); allow two.
+        for i in $(seq 1 30); do
+            live="$(w1_live_lease "$a")"; state="${live%%|*}"
+            case "$state" in held|vacant) break ;; esac
+            nap 1
+        done
+        why="${live#*|}"; why="${why#*|}"
+        case "$state" in
+            held|vacant) say "  OK      $a: TERMLINK_MAIN_PROJECT=$W1_MAIN_PROJECT; $unit restarted (pid $W1_PID); main.lease.state=$state"; DONE=$((DONE+1)) ;;
+            *) say "  FAILED  $a: after restart main.lease.state=$state${why:+ ($why)}, not held or vacant"; FAILED=$((FAILED+1)) ;;
+        esac
+    done
+}
+head2 "4d. W1 sidecars know their project, so main.lease is read (T-3654)"
+w1_set_main_project
+
+# ---------------------------------------------------------------------------
 # ACTION 5 — restart the local hub onto the installed binary (T-3290)
 #
 # Installing a binary does not change a running process. The hub kept serving

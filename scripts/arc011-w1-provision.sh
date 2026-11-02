@@ -16,7 +16,7 @@
 #                  the production marker .termlink-sidecar-root (0644)
 #               4. config        /etc/termlink-sidecar/<agent>.json (roster = the
 #                  partner's key; book = partner -> its instance; main pinned)
-#               5. settings      /etc/termlink-sidecar/<project>--<agent>.env
+#               5. settings      /etc/termlink-sidecar/<project>--<agent>.env (last line TERMLINK_MAIN_PROJECT, T-3654)
 #               6. admin list    <project>/.context/working/sidecar-admin-sockets.list
 #               7. setting       SIDECAR_KEEP_RUNNING: on in <project>/.framework.yaml
 #               8. start         sidecar-supervise.sh start <project>--<agent>
@@ -150,6 +150,7 @@ SIDECAR_BIN=$BIN
 TERMLINK_SIDECAR_STORE=$VARLIB/$a
 TERMLINK_RUNTIME_DIR=$HUB_RT
 HOME=$SHOME
+TERMLINK_MAIN_PROJECT=$PROJECT
 " "$a settings"
     done
     # 6: admin-socket list (the fleet kill switch and the alerts read it)
