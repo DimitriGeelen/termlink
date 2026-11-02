@@ -1,0 +1,132 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3659: Re-vendor AEF v1.8.16-be.26 (T-5014 main-only delivery hook on termlink main am-i)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T19:48:52Z
+# ============================================================================
+
+task_id: T-3659
+task_name: "Re-vendor AEF v1.8.16-be.26 (T-5014 main-only delivery hook on termlink main am-i)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-02T18:58:18Z
+completed: 2026-11-02T19:47:41Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-02T19:59:16+01:00
+last_commit: 2026-11-02T20:47:31+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor be.26 (operator go), context and ACs. fw upgrade v1.8.16-be.21 -> be.26 (db97fbae4, 118 commits; T-5014 main-only delivery). .vendor-divergence.yaml baseline 79108e56b (v1.8.16-be.26); ACs ticked with evidence; claim-hook decision; verification lines
+
+# Key outcomes
+outcomes:
+  - 'Ancestry be.21 (7f525edee) -> be.26 (318fddf57) verified; rehearsal on a fresh clone, real run from a second fresh'
+  - 'Every preserved file kept (changed-upstream ones 3-way merged, base be.21); triage page tests pass; CLAUDE.md'
+  - '`.vendor-divergence.yaml` last_vendor_event updated; check-vendor-divergence rc 0; fw doctor no new FAIL; guard'
+  - 'Live check: the receiver hook''s am-i gate is wired (hook script/config present and calls `termlink main am-i`);'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-02 — our T-3654 claim hooks vs AEF be.26''s'
+    chose: 'drop our SessionStart/UserPromptSubmit `termlink main claim --session-from-stdin`; keep our SessionEnd release.'
+    rationale: 'be.26 hooks.py and sidecar-autostart claim the same lease (same Claude session id, same project resolution in termlink) on SessionStart (forced), UserPromptSubmit and Stop, and refuse headless, review and dispatched sessions. Ours claimed from every session, workers included. AEF''s main_session.release() is not wired.'
+    alternatives_rejected: ['keeping both (two claims per prompt, and ours lets a `claude -p` worker take main).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/context/sidecar-autostart.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/generated/components/lib-access_grants.md'
+  - '.agentic-framework/docs/generated/components/lib-bvp.md'
+  - '.agentic-framework/docs/generated/components/lib-driver_sets.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4951_readiness_missing_policy_test.md'
+  - '.agentic-framework/docs/reports/T-1549-escalation-scan-v0.md'
+  - '.agentic-framework/docs/reports/T-5006-github-contributions.md'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/01-T-2222-inception-protocol-v0.3.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/02-threat-modeler.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/03-mvp-specialist.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/04-architect.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/05-evidence-specialist.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/06-pseudo-coder.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/07-review-panel.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/08-planner.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/09-adapter-aef.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/10-remaining-files-list.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/11-role-chain.yaml.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/12-role-chain.py.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/13-role-handback-1.schema.json.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/14-role-handback-check.py.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/15-profile-ring20.md.txt'
+  - '.agentic-framework/docs/reports/T-5006-inputs/role-chain/16-test-role-chain.py.txt'
+  - '.agentic-framework/docs/reports/T-5006-requirements.md'
+  - '.agentic-framework/docs/reports/T-5007-pickups-to-github.md'
+  - '.agentic-framework/docs/reports/T-5007-review-codex.md'
+  - '.agentic-framework/docs/reports/T-5007-review-opencode.md'
+  - '.agentic-framework/docs/reports/T-5008-review-codex.md'
+  - '.agentic-framework/docs/reports/T-5021-review-codex.md'
+  - '.agentic-framework/docs/reports/T-5021-review-opencode.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.16-results.md'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/review.sh'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/sidecar/hooks.py'
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - '.agentic-framework/lib/sidecar/main_session.py'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.claude/settings.json'
+  - '.context/project/enforcement-baseline.sha256'
+  - '.framework.yaml'
+  - '.tasks/active/T-3659-re-vendor-aef-v1816-be26-t-5014-main-onl.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-02T19:59:16'
+    action: 'T-3659: re-vendor be.26 (operator go), context and ACs'
+  - time: '2026-11-02T20:27:03'
+    action: 'T-3659: fw upgrade v1.8.16-be.21 -> be.26 (db97fbae4, 118 commits; T-5014 main-only delivery)'
+  - time: '2026-11-02T20:47:31'
+    action: 'T-3659: .vendor-divergence.yaml baseline 79108e56b (v1.8.16-be.26); ACs ticked with evidence; claim-hook decision; verification lines'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 49 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 49
+  commits: 4
+  files_changed: 50
+  lines_added: 5320
+  lines_removed: 80
+  footprint_refreshed_at: '2026-11-02T19:49:08Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3659-re-vendor-aef-v1816-be26-t-5014-main-onl.md
+generated_by: context-agent-hybrid
