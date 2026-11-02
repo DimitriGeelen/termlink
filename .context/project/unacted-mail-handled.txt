@@ -5,3 +5,9 @@ dm:d1993c2c3ec44c94:d1993c2c3ec44c94 20 2026-10-28 1023 report for AEF forwarded
 dm:8e6fd77ec6f74b37:d1993c2c3ec44c94 19 2026-10-28 050 hub-sandbox tmux bug filed as T-3620; 050 answered (hub-tmux-sandbox, 8538ed71)
 dm:9219671e28054458:cacc73ea32b121dd 0 2026-10-28 150 T-476 acknowledged on the thread; operator ruling A: runme action 25 removed the 2 ntfy jobs + 2 comments (log runme-20261028T182938Z-713638 rc=0), 150 told on the thread
 inbox:cacc73ea32b121dd/aef-greenfield-test 18 2026-11-01 not ours: aef-greenfield-test lives on .132 and has no reader on this hub; holds our own 10-14 nudges (tl-132-hub-recovery, closed) and 055 estate broadcast T-677 (answered by us on its own conversation)
+inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 12 2026-11-02 t2250 message, answered under T-3344
+inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 17 2026-11-02 T-2222 inception protocol, handled under T-3335
+inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 19 2026-11-02 kommunal-pool follow-up, answered 2026-11-02 under T-3652 (reply .122 offset 2829 + sidecar send)
+inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 20 2026-11-02 kommunal-pool follow-up, answered 2026-11-02 under T-3652 (reply .122 offset 2829 + sidecar send)
+inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 21 2026-11-02 kommunal-pool follow-up, answered 2026-11-02 under T-3652 (reply .122 offset 2829 + sidecar send)
+inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 22 2026-11-02 kommunal-pool follow-up, answered 2026-11-02 under T-3652 (reply .122 offset 2829 + sidecar send)
