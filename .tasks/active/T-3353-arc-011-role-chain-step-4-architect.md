@@ -6,10 +6,10 @@ description: >
   output docs/design/interactive-agent-communication-04-architecture.md. Starts only
   after step 3 is approved by the operator.
 
-status: captured
+status: started-work
 workflow_type: design
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:26Z
-last_update: '2026-10-18T22:32:47Z'
+last_update: '2026-11-02T21:47:34Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,11 +77,42 @@ bvp_scores_proposed:
       D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted);
       F-ORCH=0 (no-signal)'
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-02T21:47:34Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 0
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=0 (L0: no signal); D1=0 (no-signal); D2=0 (no-signal);
+      D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0:
+      no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3353: arc-011 role chain step 4: architect
 
 ## Context
+
+**Background / trigger:** operator 2026-11-02 ("yes, 1 and 2"): the remaining arc-011 work that sets a security
+boundary, an interface others build on, or spans hosts goes through the role sequence; steps 1-3 are done (step 3's
+confirmations ruled 2026-10-11, e12bb7298); the main lease (R-67) was built and rolled out today (T-3654/T-3660).
+
+**Problem / hypothesis:** the remaining PH-2 rows (P10 hub signing key, P11 revocation list, P13, P15 blobs, P16-P19,
+P21, P22, P24) and R-67.a1(4) forward-once have no architecture and no tasks, so they cannot be built safely.
+
+**Goal:** the step-4 architecture document per the architect card, with a build table mapping each item to a task.
+
+**Expected outcome:** `docs/design/interactive-agent-communication-04-architecture.md` + role hand-back, ready for the
+independent review; only real decisions go to the operator.
 
 Step 4 of the arc-011 role chain (docs/design/interactive-agent-communication-role-chain.yaml), card per the yaml. Inputs listed in the yaml for step 4. Items handed to this step by the step-1 interview: docs/reports/T-3344-step1-rulings-summary.md section 11. 
 
@@ -198,3 +229,7 @@ grep -q 'task: T-3353' docs/design/interactive-agent-communication-role-chain.ya
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3353-arc-011-role-chain-step-4-architect.md
 - **Context:** Initial task creation
+
+### 2026-11-02T21:47:33Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
