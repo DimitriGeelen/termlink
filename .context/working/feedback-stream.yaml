@@ -22551,3 +22551,21 @@ scan_id: R-b8a38e32
 task_id: T-3019
 payload:
   task_file: .tasks/active/T-3019-pickup-handover-generator--precompact-au.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T00:10:47Z'
+scan_id: R-a06f33b1
+task_id: T-2011
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T00:10:47Z'
+scan_id: R-a06f33b1
+task_id: T-2011
+payload:
+  task_file: .tasks/active/T-2011-propagate-t-2010-auditsh-patch-to-upstre.md

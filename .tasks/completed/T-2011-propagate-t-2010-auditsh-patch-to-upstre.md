@@ -12,16 +12,16 @@ description: >
   pattern catches it. Lower priority than T-2010 itself because the lint works locally
   today.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: []
 components: []
 related_tasks: [T-2010, T-1887]
 created: 2026-06-05T22:44:53Z
-last_update: '2026-09-27T21:34:04Z'
-date_finished:
+last_update: 2026-11-02T00:10:45Z
+date_finished: 2026-11-02T00:10:45Z
 bvp_scores_proposed:
   - ts: '2026-09-08T21:30:27Z'
     estimator: bvp-estimator-v1-heuristic
@@ -35,6 +35,17 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
       D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
       (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-11-02T00:10:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-08T21:30:37Z'
@@ -61,14 +72,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-2010 extended the vendored audit.sh cron-misload lint with a byte-identical source-vs-installed diff check, as a local patch to vendored code.
+**Problem / hypothesis:** A local patch to `.agentic-framework/` is erased by the next re-vendor (G-062), so the check would silently disappear unless propagated upstream.
+**Goal:** Keep cron source-vs-installed drift detection alive across re-vendors.
+**Expected outcome:** Superseded. The re-vendor did remove the local patch (no T-2010 in the vendored audit.sh), but the purpose is now covered repo-side, outside the vendored tree, by `scripts/check-cron-install-drift.sh` (T-2561, commit 4d8aa1f22). Nothing is left to propagate (T-3648 triage).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Superseded: cron source-vs-installed drift detection now lives repo-side in `scripts/check-cron-install-drift.sh` (T-2561, 4d8aa1f22), which survives re-vendors; the vendored audit.sh no longer carries the T-2010 patch, so nothing remains to propagate upstream (evidence: `grep -c T-2010 .agentic-framework/agents/audit/audit.sh` = 0; script present, 2026-11-02)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -95,6 +108,8 @@ cost_estimate_proposed:
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+test -x scripts/check-cron-install-drift.sh
+bash -n scripts/check-cron-install-drift.sh
 
 ## RCA
 
@@ -163,3 +178,25 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2011-propagate-t-2010-auditsh-patch-to-upstre.md
 - **Context:** Initial task creation
+
+### 2026-11-02T00:10:12Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-02T00:10:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a06f33b1
+- **Timestamp:** 2026-11-02T00:10:47Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Superseded: cron source-vs-installed drift detection now lives repo-side in `scripts/check-cron-install-drift.sh` (T-2561, 4d8aa1f22), which survives re-vendors; the vendored audit.sh no longer carrie
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=agentic-framework/agents/audit/audit.sh in: Superseded: cron source-vs-installed drift detection now lives repo-side in `scripts/check-cron-install-drift.sh` (T-2561, 4d8aa1f22), which survives `
