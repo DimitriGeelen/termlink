@@ -18,10 +18,10 @@ description: >
   — worthwhile even if (a) is declined). Round-16 reliability hunt F1, captured in
   T-2462.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -30,8 +30,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-23T09:28:28Z
-last_update: '2026-09-27T21:34:04Z'
-date_finished:
+last_update: 2026-11-02T00:04:27Z
+date_finished: 2026-11-02T00:04:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -55,6 +55,17 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
       (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
       (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-11-02T00:03:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-08T21:30:38Z'
@@ -81,14 +92,17 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Round-16 reliability hunt F1 (captured in T-2462): the bus fsynced its SQLite index but wrote the log payload without fsync.
+**Problem / hypothesis:** After power loss the index could point at payload bytes that never reached disk. The reader then failed on that offset forever, blocking the whole topic stream.
+**Goal:** (a) Make "accepted" mean "stored" by fsyncing the payload before the index commit. (b) Turn a poison record into a logged gap rather than a permanent wall.
+**Expected outcome:** Both are already in the code. T-3461 added `file.sync_data()` before the index commit (crates/termlink-bus/src/log.rs:68-98, operator rule 2026-10-18), and `ReaderIter::next` skips truncated or undecodable records with a loud WARN (log.rs:162+). This task closes as done (T-3648 triage).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Log payload is fsynced before the index commit, so the index never points at bytes not on disk (evidence: crates/termlink-bus/src/log.rs `append_then` calls `file.sync_data()` before returning to `Bus::post`'s commit; commit 1a78b25da, T-3461)
+- [x] A poison or truncated record is skipped with a loud WARN instead of wedging the topic stream (evidence: log.rs `ReaderIter::next` loop, "WARN skipping truncated record")
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -153,6 +167,8 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q 'file.sync_data()' crates/termlink-bus/src/log.rs
+grep -q 'skipping truncated record' crates/termlink-bus/src/log.rs
 
 ## RCA
 
@@ -259,3 +275,20 @@ cost_estimate_proposed:
 - **Disposition unchanged:** still human-gated (durability-vs-throughput / ADR
   single-supervised-hub power-loss-scope call). No code changed. This entry only
   sharpens the severity picture the eventual go/no-go decision rests on.
+
+### 2026-11-02T00:03:47Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-02T00:04:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a5aaccff
+- **Timestamp:** 2026-11-02T00:04:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
