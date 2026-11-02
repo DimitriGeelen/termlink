@@ -1,0 +1,178 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3650: Re-vendor AEF v1.8.16-be.21 (driver sets T-4984..T-4986) after T-3649; then driver_set: product on the product arcs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T08:09:41Z
+# ============================================================================
+
+task_id: T-3650
+task_name: "Re-vendor AEF v1.8.16-be.21 (driver sets T-4984..T-4986) after T-3649; then driver_set: product on the product arcs"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-01T23:45:17Z
+completed: 2026-11-02T08:09:04Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-02T08:04:08+01:00
+last_commit: 2026-11-02T09:09:04+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  context and ACs for the be.21 re-vendor (operator ruling A); worker brief. fw upgrade v1.8.16-be.4 -> be.21 (7f525edee, 366 commits; driver sets T-4984..T-4986). .vendor-divergence.yaml baseline 577d7ece2 (v1.8.16-be.21); previous ccd17d25c prepended. driver_set: product on the 8 TermLink product arcs; product set made valid for be.21. hold driver_set: product off the 8 arcs until the arc-011 id clash is fixed. ACs 1-4 ticked with evidence; AC 5 blocked on the arc-011 id clash (operator decision); verification lines. arc ids equal slug and filename (arc-011.yaml id arc-010 -> arc-011; arc-012.yaml id arc-011 -> arc-012); ends the ambiguous arc-011 reference. driver_set: product back on the 8 TermLink product arcs (arc id clash fixed). AC 5 met — arc id clash fixed, 8 product arcs marked, bvp rc 0 with SET, audit driver sets PASS
+
+# Key outcomes
+outcomes:
+  - 'Target chosen by ancestry (be.4 10c32eca3 is an ancestor of be.21 7f525edee); rehearsed from a fresh clone, then'
+  - 'Every `.fwvendor-preserve.yaml` file kept; those changed upstream 3-way merged (base be.4); the T-3649 triage'
+  - '`.vendor-divergence.yaml` last_vendor_event updated; `bash scripts/check-vendor-divergence.sh` rc 0 — c9aeea9e0, rc 0'
+  - 'fw doctor no new FAIL; guard layer `--gate release`: no new FAIL vs baseline (check-drain-sink-caps.sh) — doctor'
+  - 'Product arcs carry `driver_set: product`; `fw bvp rank` shows the SET column and exits 0 — the arc-011 id clash'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'AC 5 met — arc id clash fixed, 8 product arcs marked, bvp rc 0 with SET, audit driver sets PASS'
+    source: git-mined
+  - description: 'driver_set: product back on the 8 TermLink product arcs (arc id clash fixed)'
+    source: git-mined
+  - description: 'hold driver_set: product off the 8 arcs until the arc-011 id clash is fixed'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/audit/unit_suite_baseline.py'
+  - '.agentic-framework/agents/audit/unit_tier.py'
+  - '.agentic-framework/agents/context/check-project-boundary.sh'
+  - '.agentic-framework/agents/context/check-tier0.sh'
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.agentic-framework/agents/observe/observe.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/bvp-estimator/AGENT.md'
+  - '.agentic-framework/agents/termlink/bvp-estimator/estimator.py'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/agents/ux-review/ux_shots.py'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/generated/components/bin-claude-fw.md'
+  - '.agentic-framework/docs/generated/components/lib-governance_known.md'
+  - '.agentic-framework/docs/generated/components/lib-review_seat_evidence.md'
+  - '.agentic-framework/docs/generated/components/lib-reviewer-restatement_cli.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4932_judge_get_routes_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4933_review_seat_evidence_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4935_boundary_extra_read_symlink.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4943_capture_every_required_page_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t4930_restatement.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t4941_host_fingerprint_signing.md'
+  - '.agentic-framework/docs/reports/T-1549-escalation-scan-v0.md'
+  - '.agentic-framework/docs/reports/T-4944-harness-seat-vision.md'
+  - '.agentic-framework/docs/reports/T-4953-readonly-pipe-consult.md'
+  - '.agentic-framework/docs/reports/T-4961-driver-sets.md'
+  - '.agentic-framework/docs/reports/T-4965-review-codex.md'
+  - '.agentic-framework/docs/reports/T-4965-review-opencode.md'
+  - '.agentic-framework/docs/reports/T-4965-scoped-access-grants.md'
+  - '.agentic-framework/docs/reports/T-4967-review-codex.md'
+  - '.agentic-framework/docs/reports/T-4967-review-opencode.md'
+  - '.agentic-framework/docs/reports/T-4969-ownership-ruleset-review.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.16-results.md'
+  - '.agentic-framework/lib/access_grants.py'
+  - '.agentic-framework/lib/arc-driver-review.sh'
+  - '.agentic-framework/lib/arc_close_readiness.py'
+  - '.agentic-framework/lib/bvp-scorability.sh'
+  - '.agentic-framework/lib/bvp.sh'
+  - '.agentic-framework/lib/delegation.py'
+  - '.agentic-framework/lib/driver_sets.py'
+  - '.agentic-framework/lib/govd_sandbox.py'
+  - '.agentic-framework/lib/hook-dispatch.sh'
+  - '.agentic-framework/lib/resolver.py'
+  - '.agentic-framework/lib/review.sh'
+  - '.agentic-framework/lib/review_cost.py'
+  - '.agentic-framework/lib/review_seat_evidence.py'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/reviewer/restatement_cli.py'
+  - '.agentic-framework/lib/shell_write_scan.py'
+  - '.agentic-framework/lib/sidecar/dm.py'
+  - '.agentic-framework/lib/sidecar/retry.py'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/policy/review-backends.yaml'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.35.0.html'
+  - '.agentic-framework/vendor/designer/validate-workflow-0.35.0.py'
+  - '.agentic-framework/web/blueprints/approvals.py'
+  - '.agentic-framework/web/blueprints/bvp.py'
+  - '.agentic-framework/web/blueprints/tasks.py'
+  - '.agentic-framework/web/templates/bvp.html'
+  - '.agentic-framework/web/templates/task_detail.html'
+  - '.context/arcs/arc-011.yaml'
+  - '.context/arcs/arc-012.yaml'
+  - '.context/arcs/arc-parallel-substrate.yaml'
+  - '.context/arcs/arc-substrate-fitness.yaml'
+  - '.context/arcs/comms-loudness.yaml'
+  - '.context/arcs/mcp-slimming.yaml'
+  - '.context/arcs/push-transport.yaml'
+  - '.context/arcs/reliable-comms.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-2017-t-2013-follow-up-141-channelinfo-wedges-.md'
+  - '.tasks/active/T-3650-re-vendor-aef-v1816-be21-driver-sets-t-4.md'
+  - '.vendor-divergence.yaml'
+  - 'policy/value-drivers-product.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-02T08:04:08'
+    action: 'T-3650: context and ACs for the be.21 re-vendor (operator ruling A); worker brief'
+  - time: '2026-11-02T08:24:28'
+    action: 'T-3650: fw upgrade v1.8.16-be.4 -> be.21 (7f525edee, 366 commits; driver sets T-4984..T-4986)'
+  - time: '2026-11-02T08:24:41'
+    action: 'T-3650: .vendor-divergence.yaml baseline 577d7ece2 (v1.8.16-be.21); previous ccd17d25c prepended'
+  - time: '2026-11-02T08:26:26'
+    action: 'T-3650: driver_set: product on the 8 TermLink product arcs; product set made valid for be.21'
+  - time: '2026-11-02T08:40:26'
+    action: 'T-3650: hold driver_set: product off the 8 arcs until the arc-011 id clash is fixed'
+  - time: '2026-11-02T08:43:00'
+    action: 'T-3650: ACs 1-4 ticked with evidence; AC 5 blocked on the arc-011 id clash (operator decision); verification lines'
+  - time: '2026-11-02T08:57:54'
+    action: 'T-3650: arc ids equal slug and filename (arc-011.yaml id arc-010 -> arc-011; arc-012.yaml id arc-011 -> arc-012); ends the ambiguous arc-011 reference'
+  - time: '2026-11-02T09:08:20'
+    action: 'T-3650: driver_set: product back on the 8 TermLink product arcs (arc id clash fixed)'
+  - time: '2026-11-02T09:09:04'
+    action: 'T-3650: AC 5 met — arc id clash fixed, 8 product arcs marked, bvp rc 0 with SET, audit driver sets PASS'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 9 commit(s), 503 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 503
+  commits: 10
+  files_changed: 81
+  lines_added: 5472
+  lines_removed: 452
+  footprint_refreshed_at: '2026-11-02T08:09:43Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3650-re-vendor-aef-v1816-be21-driver-sets-t-4.md
+generated_by: context-agent-hybrid
