@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T21:17:24Z
-last_update: 2026-11-02T21:54:42Z
+last_update: 2026-11-02T22:14:34Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -96,7 +96,7 @@ complete or fails loudly; the deprecation text points to something that exists.
       superseded by artifact put, make it delegate to artifact put); never reports success on an incomplete transfer;
       test with a multi-MB file
 - [x] The deprecation message names a command that exists in this build
-- [ ] Reply to 055 with the result; cross-hub delivery (`--hub`) stays T-3614
+- [x] Reply to 055 with the result; cross-hub delivery (`--hub`) stays T-3614
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

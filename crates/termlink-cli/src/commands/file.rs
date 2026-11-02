@@ -182,7 +182,7 @@ async fn try_send_via_artifact(
 }
 
 pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, json: bool, timeout_secs: u64) -> Result<()> {
-    // T-3661: `channel post --file` was named here but never built; artifact put is the
+    // T-3661: the old replacement named here (a `--file` flag on channel post) was never built; artifact put is the
     // path that exists (and that this command itself tries first).
     super::print_deprecation_warning("file send", "artifact put");
     use base64::Engine;
