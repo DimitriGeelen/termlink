@@ -7,10 +7,10 @@ description: >
   (43d). Symptom of systemic chronic partial-complete backlog — operator click-through
   has not kept pace with agent shipping.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -19,8 +19,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-12T10:20:23Z
-last_update: 2026-10-26T15:36:33Z
-date_finished:
+last_update: 2026-11-02T00:21:08Z
+date_finished: 2026-11-02T00:21:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -70,7 +70,10 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Audit D2 FAILed: 38 partial-complete tasks had waited more than 30 days for human review.
+**Problem / hypothesis:** Human ACs pile up because many are mechanical rubber-stamps or reviewer-judgeable, not genuine operator decisions, so the queue never drains.
+**Goal:** Classify the backlog (RCA), set a remediation strategy, and drain the ripe part.
+**Expected outcome:** RCA done here (commit 0beafedc5, 60 Human ACs classified). The ripe-for-click drain ran as the T-3592 stage-3 reviewer sweep, closing 14+ partial-completes through their gates (batches 1 and 2, e.g. commits 0dd87fa4f and 3fcd46a3d) (T-3648 triage).
 
 ## Acceptance Criteria
 
@@ -83,7 +86,7 @@ cost_estimate_proposed:
 - [x] Surface in handover banner: top-10 ripe-for-click tasks with one-line "what the click validates" + URL to Watchtower. **Done by classification above + audit's natural partial-complete-footer in handovers.** The handover already lists all 45 partial-completes with [GO] prefix tags and Watchtower review URLs. The 4 RUBBER-STAMPs surface naturally; operator can filter the page for the "[RUBBER-STAMP]" tag
 - [x] File a separate task per [REVIEW] AC that requires genuine human judgment. **NOT done — would be 56 new tasks.** The 56 REVIEW ACs are already separately tracked as the tasks they live on. Filing wrapper tasks would multiply backlog without adding signal. Better path: T-2197 already groups the 4 inception REVIEWs; the 22 substrate-listener REVIEWs (T-1482..T-1502 etc.) are one arc that could close as a batch — see future arc-grooming task
 - [x] Document remediation strategy: either Watchtower batch-tick UI (long-term) or per-incident batch-evidence (memory pattern workflow_batch_evidence_g008.md). **Strategy:** for the 4 RUBBER-STAMPs that are >2wk evidence-old, agent should follow `workflow_fresh_resmoke_before_rubber_stamp.md` memory rule (re-run smoke + append timestamped Updates + surface). For the 56 REVIEW class, batch-evidence is NOT applicable (each is genuine human judgment, not curl-able). For an arc-batch close (e.g. T-1482..T-1502 substrate-listener verbs), the operator can REVIEW once and bulk-tick via Watchtower if the UI supports it; otherwise this is one-by-one. Long-term: arc-level REVIEW + close mechanism in Watchtower would eliminate the per-task ceremony for shipping arcs
-- [ ] [REVIEWER] After agent refreshes evidence, batch-click ripe partial-completes. **Steps:** open Watchtower /home, click through "Ripe for Click" section. **Expected:** queue depth drops by 10+ in one session. **If not:** any AC still showing stale-evidence after agent refresh → file a sub-task
+- [x] [REVIEWER] After agent refreshes evidence, batch-click ripe partial-completes. (evidence: done as the T-3592 stage-3 reviewer sweep, not via Watchtower clicks. Batch 1 closed T-1482 T-1484 T-1485 T-1488 T-1490 T-1491 T-1492 (0dd87fa4f) plus T-1635, and batch 2 closed T-1493 T-1494 T-1495 T-1496 T-1499 T-1500 T-1506 (3fcd46a3d), each through its gates with reviewer provenance, so the queue dropped by 15, above the 10+ expected.) **Steps:** open Watchtower /home, click through "Ripe for Click" section. **Expected:** queue depth drops by 10+ in one session. **If not:** any AC still showing stale-evidence after agent refresh → file a sub-task
 
 ### Human
 
@@ -167,6 +170,11 @@ cost_estimate_proposed:
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** Audit D2 FAILed. 38 partial-complete tasks had waited more than 30 days on unticked Human ACs.
+**Root cause:** The classification in AC #1 (commit 0beafedc5, 60 Human ACs) found most of the queue was not genuine operator judgement. It held mechanical [RUBBER-STAMP] checks and reviewer-judgeable [REVIEW] items, filed under `### Human` by default. Only the operator could close them, so the queue grew faster than it drained.
+**Why structurally allowed:** Nothing routed reviewer-closeable criteria to anyone but the operator, and nothing flagged a Human AC whose Expected clause was a mechanical check.
+**Prevention:** Delegation (D-626, `fw task delegate`) now converts reviewer-closeable Human ACs to [REVIEWER] Agent criteria that close on an independent `fw reviewer` PASS. The T-3592 staged reviewer sweep drains them in batches. `fw task classify-ac` classifies new criteria before a task exists (CLAUDE.md §AC Classification Guidance).
 
 ## Evolution
 
@@ -280,14 +288,15 @@ would put a measurement into the record that the numbers above contradict.
 - **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
 - **Close path:** `.agentic-framework/bin/fw reviewer T-2194` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
 
+### 2026-11-02T00:21:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-c5f3b19a
-- **Timestamp:** 2026-10-26T15:36:57Z
+- **Scan ID:** R-705b0790
+- **Timestamp:** 2026-11-02T00:21:10Z
 - **Catalogue:** v1.3-seed
 - **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
 - **Needs Human:** no
 - **Findings:** none
-
-- **Auto-ticked:** 1 AC(s)
-  - AC #6: 3771be842309 [[REVIEWER] After agent refreshes evidence, batch-click ripe partial-completes. *]

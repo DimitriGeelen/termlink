@@ -22623,3 +22623,75 @@ scan_id: R-b9c0a15f
 task_id: T-1296
 payload:
   task_file: .tasks/active/T-1296-migrate-ring20-dashboard-hub-runtimedir-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T00:20:51Z'
+scan_id: R-b91d3cae
+task_id: T-2194
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T00:20:51Z'
+scan_id: R-b91d3cae
+task_id: T-2194
+payload:
+  task_file: .tasks/active/T-2194-audit-d2-fail--human-review-queue-38-par.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T00:20:55Z'
+scan_id: R-f52a66dd
+task_id: T-2194
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T00:20:55Z'
+scan_id: R-f52a66dd
+task_id: T-2194
+payload:
+  task_file: .tasks/active/T-2194-audit-d2-fail--human-review-queue-38-par.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T00:21:09Z'
+scan_id: R-acd9657c
+task_id: T-2194
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T00:21:09Z'
+scan_id: R-acd9657c
+task_id: T-2194
+payload:
+  task_file: .tasks/active/T-2194-audit-d2-fail--human-review-queue-38-par.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T00:21:10Z'
+scan_id: R-705b0790
+task_id: T-2194
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T00:21:10Z'
+scan_id: R-705b0790
+task_id: T-2194
+payload:
+  task_file: .tasks/active/T-2194-audit-d2-fail--human-review-queue-38-par.md
