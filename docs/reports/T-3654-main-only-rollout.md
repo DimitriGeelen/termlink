@@ -24,5 +24,5 @@ operator runme 2026-11-02 17:22Z) + AEF v1.8.16-be.26 or later (T-5014 hook). No
 | aef-greenfield-test | .132 | NOTIFIED | |
 | dimitri-mint-dev | .107 | WAITS .107 REBOOT | mid disk migration (T-213); cutover + reboot of .107 pending; re-vendor after, with operator OK (msg c7d43c64) |
 | fan-dashboard | .107 | WAITS OPERATOR GO | on 1.8.15+3; termlink ok, lease vacant (msg 972b2085) |
-| ring20-dashboard | .121 | NOTIFIED | |
+| ring20-dashboard | .121 | WAITS OPERATOR RUN | termlink 0.12.1494 ok, lease vacant; be.19 -> be.26 prepared (its T-2632), queued as the operator's run (msg bcf60ab9) |
 | claude-shared-toolkit | ? | NOT REACHED | send refused (no receiver); check whether it is an agent project at all |
