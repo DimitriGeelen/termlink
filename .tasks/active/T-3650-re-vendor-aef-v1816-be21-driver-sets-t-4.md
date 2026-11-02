@@ -40,7 +40,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-01T23:45:17Z
-last_update: 2026-11-02T07:40:26Z
+last_update: 2026-11-02T07:43:00Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -82,17 +82,34 @@ T-3649 triage files), then mark the product arcs `driver_set: product`.
 **Expected outcome:** `fw version` shows be.21; preserved files intact; `fw bvp` ranks with a SET column; fw doctor and
 the guard layer show no new FAIL.
 
+**State 2026-11-02 (worker t3650-revendor):** re-vendor done (577d7ece2, baseline c9aeea9e0). Product set file made
+valid for be.21 (version 1 -> 3; the validator refused it) and T-2017's bogus `arc:T-2013` tag moved to related_tasks
+(555c9e1cb). The 8 product-arc marks were applied and then WITHDRAWN (789dc453a): `arc-011` is claimed by two arc
+files (arc-011.yaml slug arc-011 / id arc-010; arc-012.yaml id arc-011). With any arc naming a set, be.21 refuses
+every task with an ambiguous arc reference: measured 19 delivery-arc tasks refused (`fw bvp --include-proposed` rc 3,
+also out of the resolver picker) and 2 `fw audit` FAILs "Arc driver set does not resolve". **Blocker: operator
+decision on unique arc ids** (recommended: id = slug = filename for arc-011.yaml -> arc-011 and arc-012.yaml ->
+arc-012; 0 references to arc-010 anywhere). Then re-append the 8 marks (arc-011, arc-012, arc-parallel-substrate,
+arc-substrate-fitness, comms-loudness, reliable-comms, push-transport, mcp-slimming; text in 555c9e1cb) and tick AC 5.
+Evidence files: `.context/working/t3650/`.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Target chosen by ancestry (be.4 10c32eca3 is an ancestor of be.21 7f525edee); rehearsed from a fresh clone, then
+- [x] Target chosen by ancestry (be.4 10c32eca3 is an ancestor of be.21 7f525edee); rehearsed from a fresh clone, then
       the real run from a second fresh clone, dry-run first in each, env FRAMEWORK_ROOT/PROJECT_ROOT/FW_ROUTED_FROM unset
-- [ ] Every `.fwvendor-preserve.yaml` file kept; those changed upstream 3-way merged (base be.4); the T-3649 triage
+      — evidence: t3650/prep.sh "ancestor ok, 366 commits"; rehearse.log + real.log: dry-run rc 0, run rc 0 (24 / 21 changes)
+- [x] Every `.fwvendor-preserve.yaml` file kept; those changed upstream 3-way merged (base be.4); the T-3649 triage
       files present and `web/test_triage.py` passes; CLAUDE.md project part identical (diff vs CLAUDE.md.prevendor)
-- [ ] `.vendor-divergence.yaml` last_vendor_event updated; `bash scripts/check-vendor-divergence.sh` rc 0
-- [ ] fw doctor no new FAIL; guard layer `--gate release`: no new FAIL vs baseline (check-drain-sink-caps.sh)
-- [ ] Product arcs carry `driver_set: product`; `fw bvp rank` shows the SET column and exits 0
+      — evidence: real.log: 12/12 identical + markers; safe-commands.sh, estimator.py, bvp.sh merged 0 conflicts;
+      10 passed; CLAUDE.md diff 0 lines
+- [x] `.vendor-divergence.yaml` last_vendor_event updated; `bash scripts/check-vendor-divergence.sh` rc 0 — c9aeea9e0, rc 0
+- [x] fw doctor no new FAIL; guard layer `--gate release`: no new FAIL vs baseline (check-drain-sink-caps.sh) — doctor
+      rc 0, 0 FAIL; guard before/after identical: 1 FAIL drain-sink, 4 WARN red (231 passed)
+- [ ] Product arcs carry `driver_set: product`; `fw bvp rank` shows the SET column and exits 0 — BLOCKED on the arc-011
+      id clash (see Context state). `fw bvp --include-proposed` (there is no `rank` verb; plain `fw bvp` prints no table
+      because no task has confirmed scores) shows SET and exits 0 with marks withheld; marks pending operator decision
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -143,6 +160,12 @@ the guard layer show no new FAIL.
 -->
 
 ## Verification
+grep -q '7f525edee' .framework.yaml
+bash scripts/check-vendor-divergence.sh > .context/working/.t3650v.out 2>&1
+cd .agentic-framework && TMPDIR=/var/tmp python3 -m pytest -q web/test_triage.py > ../.context/working/.t3650t.out 2>&1
+python3 .agentic-framework/lib/driver_sets.py audit "$PWD" > .context/working/.t3650a.out 2>&1
+.agentic-framework/bin/fw bvp --include-proposed > .context/working/.t3650b.out 2>&1 && grep -q ' SET ' .context/working/.t3650b.out
+test "$(grep -l '^driver_set: product' .context/arcs/*.yaml | wc -l)" -ge 8
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
