@@ -85,9 +85,9 @@ RUNG_COST = review_policy.RUNG_COST
 #: IW-7: a rung-5 panel is three reviewers from three different vendors. WHICH vendors is the
 #: registry's business (policy/review-backends.yaml), not this module's.
 PANEL_SIZE = review_policy.PANEL_SIZE
-#: Screenshots taken per run. Pages beyond the cap are still REQUIRED: they are registered as
-#: not captured, so the ledger refuses a render green (round 3: no silent truncation).
-MAX_CAPTURE_PAGES = 6
+#: Seconds a review seat runs before the dispatcher stops it (T-4933: the brief states it, so a
+#: harness seat prints its verdicts before the stop instead of recording nothing).
+HARNESS_SEAT_TIMEOUT = 900
 DEGRADED_SINGLE_VENDOR = "degraded: single-vendor panel"
 UNKNOWN = "unknown"
 #: Seat outcomes that let a sequential panel go on to its next seat (T-3986).
@@ -134,6 +134,24 @@ def _load_task(task_id: str, root: Path) -> dict | None:
         return None
 
 
+# T-4978 (ring20): a criterion that describes what an app page shows ("[REVIEW] /classic SSL
+# Certificates widget shows 4 tiles ...") classifies taste or unclassified when its task does not
+# touch AEF's own web/ layout, so `render` stays False and a seat that cannot see images sat it.
+# `page` is the judge's own, wider question: does the criterion name a route of the app? It only
+# decides who may sit the criterion (vision); the ledger's render rules still key on `render`.
+_PAGE_ROUTE_RE = re.compile(r"(?<![\w/.:~-])/([a-z][\w-]*)(?:/[\w-]+)*(?![\w/.-])", re.IGNORECASE)
+_NOT_A_PAGE = {"tmp", "opt", "etc", "usr", "var", "root", "home", "dev", "proc", "bin", "srv", "mnt",
+               "api"}
+
+
+def names_page(text: str) -> bool:
+    """True when `text` names an app route (`/classic`, `/cicd/builds`) or a URL with a path.
+    Filesystem roots and /api/ endpoints are not pages; neither is a token with a file suffix."""
+    if re.search(r"https?://[\w.<>-]+(?::\d+)?/[a-z]", text, re.IGNORECASE):
+        return True
+    return any(m.group(1).lower() not in _NOT_A_PAGE for m in _PAGE_ROUTE_RE.finditer(text))
+
+
 def _partition(task_data: dict, root: Path, task_id: str,
                criterion_n: int | None = None) -> tuple[list[dict], list[dict]]:
     """Split the open Human criteria into (judged, operator_only).
@@ -152,6 +170,7 @@ def _partition(task_data: dict, root: Path, task_id: str,
         item = {"index": len(judged) + 1, "ac_index": crit.index, "text": crit.title.strip(),
                 "body": vl.criterion_body(crit), "class": cl.cls,
                 "render": cl.cls == "render-surface" and bool(vl._RENDER_REVIEW_RE.search(vl.criterion_body(crit)))}
+        item["page"] = item["render"] or names_page(f"{crit.title}\n{item['body']}")
         if cl.delegation_class == REVIEWER_JUDGES:
             judged.append(item)
         elif cl.delegation_class == OPERATOR_ONLY:
@@ -286,7 +305,21 @@ _rung_label = review_policy.rung_label
 
 # ── evidence: screenshots of the pages the task touched ──────────────────────
 
-_ROUTE_RE = re.compile(r"""@\w+\.route\(\s*["'](/[^"'<>]*)["']""")
+_ROUTE_RE = re.compile(r"""@\w+\.route\(\s*["'](/[^"'<>]*)["']([^)]*)\)""")
+_METHODS_RE = re.compile(r"""methods\s*=\s*[\[(]([^\])]*)[\])]""")
+
+
+def _get_routes(src: str) -> list[str]:
+    """Paths of the routes a browser GET can render. T-4932: a route declared with
+    `methods=` that lacks GET (`/api/task/create`, POST only) answers 405, and requiring
+    a screenshot of it made every seat return not-evaluated. No `methods=` is Flask's GET."""
+    out = []
+    for path, rest in _ROUTE_RE.findall(src):
+        m = _METHODS_RE.search(rest)
+        if m and "GET" not in re.findall(r"[A-Za-z]+", m.group(1).upper()):
+            continue
+        out.append(path)
+    return out
 # T-4455: a criterion names pages as a backticked path with a query (`/search?q=a b`) or as
 # a full URL on this project's Watchtower, backticked or bare (http://<host>:3000/cron).
 _BACKTICK_RE = re.compile(r"`([^`\n]+)`")
@@ -363,13 +396,13 @@ def _pages_for(root: Path, task_id: str, task_text: str, criteria: list[dict]) -
             hit = rel in changed or any(
                 Path(f).name in src for f in changed if f.startswith("web/templates/"))
             if hit:
-                pages += [r for r in _ROUTE_RE.findall(src) if "<" not in r]
+                pages += [r for r in _get_routes(src) if "<" not in r]
     seen, out = set(), []
     for p in pages:
         if p not in seen:
             seen.add(p)
             out.append(p)
-    return out          # every required page; capture is capped separately (MAX_CAPTURE_PAGES)
+    return out          # every required page, and every one is captured (T-4943)
 
 
 def _watchtower_url(root: Path) -> str:
@@ -381,9 +414,19 @@ def _shot_name(i: int, page: str) -> str:
     return f"{i + 1:02d}-{re.sub(r'[^a-z0-9]+', '-', page.lower()).strip('-') or 'root'}.png"
 
 
+# T-4960: a full-page shot of /approvals (81,749 px) ran past Playwright's 30 s screenshot
+# timeout, so every render review of it was PARTIAL, and a finished one is unreadable anyway.
+# Above this height the judge keeps the viewport and says so in the brief; the task's own
+# `fw ux shots` crops cover the sections.
+MAX_FULL_PAGE_PX = 16000
+CAPTURE_NOTES = "capture-notes.json"
+MAX_CONSOLE_ERRORS = 20
+
+
 def _capture_playwright(base_url: str, pages: list[str], outdir: Path) -> tuple[list[Path], str]:
     """Real capturer. Returns (paths, error); shots are named `_shot_name(i, page)` so each page's
-    result can be told apart, and a partial failure comes back as 'partial: <page>: <why>; ...'."""
+    result can be told apart, and a partial failure comes back as 'partial: <page>: <why>; ...'.
+    Per-page notes (height, viewport-only, console errors) go to `CAPTURE_NOTES` in outdir."""
     if not base_url:
         return [], "no running Watchtower (.context/working/watchtower.url missing)"
     if not pages:
@@ -393,26 +436,39 @@ def _capture_playwright(base_url: str, pages: list[str], outdir: Path) -> tuple[
     except Exception as e:  # noqa: BLE001
         return [], f"playwright unavailable: {e}"
     outdir.mkdir(parents=True, exist_ok=True)
+    (outdir / CAPTURE_NOTES).unlink(missing_ok=True)
     shots: list[Path] = []
     errs: list[str] = []
+    notes: dict[str, dict] = {}
+    console: list[str] = []
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch()
             page = browser.new_page(viewport={"width": 1280, "height": 900})
+            page.on("console", lambda m: m.type == "error" and console.append(f"console: {m.text}"))
+            page.on("pageerror", lambda e: console.append(f"page error: {e}"))
             for i, p in enumerate(pages):
+                console.clear()
                 try:
                     resp = page.goto(base_url.rstrip("/") + p, timeout=30000)
                     if resp is None or resp.status >= 400:
                         errs.append(f"{p}: HTTP {getattr(resp, 'status', '?')}")
                         continue
                     f = outdir / _shot_name(i, p)
-                    page.screenshot(path=str(f), full_page=True)
+                    height = int(page.evaluate("() => document.documentElement.scrollHeight"))
+                    tall = height > MAX_FULL_PAGE_PX
+                    page.screenshot(path=str(f), full_page=not tall)
                     shots.append(f)
+                    notes[p] = {"height": height, "viewport_only": tall,
+                                "console_errors": [c[:300] for c in console[:MAX_CONSOLE_ERRORS]],
+                                "console_error_count": len(console)}
                 except Exception as e:  # noqa: BLE001
                     errs.append(f"{p}: {e}")
             browser.close()
     except Exception as e:  # noqa: BLE001
         return shots, f"browser failure: {e}"
+    if notes:
+        (outdir / CAPTURE_NOTES).write_text(json.dumps(notes, indent=1), encoding="utf-8")
     if not shots:
         return [], "; ".join(errs) or "no screenshot captured"
     return shots, ("partial: " + "; ".join(errs)) if errs else ""
@@ -494,6 +550,33 @@ def _steps_record(root: Path, task_id: str, state: str, problems: list[str]) -> 
     return want or "missing", shots
 
 
+def _capture_notes(path: Path, pages: list[str]) -> dict:
+    """T-4960: the capturer's per-page notes for the pages planned now; {} when absent or bad."""
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {p: raw[p] for p in pages if isinstance(raw, dict) and isinstance(raw.get(p), dict)}
+
+
+def _note_lines(notes: dict) -> list[str]:
+    """Brief lines for the capture notes: tall pages shown from the top, and console errors."""
+    out: list[str] = []
+    for p, n in notes.items():
+        if n.get("viewport_only"):
+            out.append(f"- `{p}` is {n.get('height', '?'):,} px tall, over the {MAX_FULL_PAGE_PX:,} px "
+                       "full-page limit: its screenshot shows the top of the page only. Judge sections "
+                       "further down from the task's own visual evidence (fw ux shots crops) below.")
+        errs = n.get("console_errors") or []
+        count = n.get("console_error_count", len(errs))
+        if count:
+            out.append(f"- `{p}`: the browser reported {count} console/page error(s):")
+            out += [f"  - {e}" for e in errs]
+        else:
+            out.append(f"- `{p}`: the browser reported no console or page errors.")
+    return out
+
+
 def _gather_evidence(root: Path, task_id: str, task_data: dict, criteria: list[dict],
                      capture: Capturer, *, dry_run: bool) -> dict:
     """{'needed', 'pages', 'shots', 'error', 'captures', 'partial'}.
@@ -509,20 +592,18 @@ def _gather_evidence(root: Path, task_id: str, task_data: dict, criteria: list[d
     ev["visual"] = _gather_visual(root, task_id, task_data)
     if dry_run:
         return ev
-    shoot = ev["pages"][:MAX_CAPTURE_PAGES]
+    # T-4943: every required page is captured. A cap below the required set (6, from T-3580
+    # round 3) recorded the rest as not captured, so the ledger refused every render green on
+    # a plan larger than the cap and no reviewer could ever close it.
     try:
-        shots, err = capture(_watchtower_url(root), shoot, root / EVIDENCE_DIR / task_id)
+        shots, err = capture(_watchtower_url(root), ev["pages"], root / EVIDENCE_DIR / task_id)
     except Exception as e:  # noqa: BLE001
         shots, err = [], f"capture crashed: {e}"
     by_name = {Path(x).name: Path(x) for x in shots if Path(x).exists()}
     errs = err[len("partial: "):].split("; ") if err.startswith("partial: ") else []
     for i, pg in enumerate(ev["pages"]):
-        f = by_name.get(_shot_name(i, pg)) if i < MAX_CAPTURE_PAGES else None
-        if i >= MAX_CAPTURE_PAGES:
-            ev["captures"].append({"page": pg, "ok": False, "sha256": "", "path": "",
-                                   "error": f"not captured: capture is capped at "
-                                            f"{MAX_CAPTURE_PAGES} pages"})
-        elif f is not None:
+        f = by_name.get(_shot_name(i, pg))
+        if f is not None:
             ev["captures"].append({"page": pg, "ok": True, "sha256": vl._hash_path(f),
                                    "path": str(f.resolve().relative_to(root.resolve())), "error": ""})
         else:
@@ -530,6 +611,7 @@ def _gather_evidence(root: Path, task_id: str, task_data: dict, criteria: list[d
             ev["captures"].append({"page": pg, "ok": False, "sha256": "", "path": "", "error": why})
     ev["shots"] = [c["path"] for c in ev["captures"] if c["ok"]]
     ev["partial"] = [c["page"] for c in ev["captures"] if not c["ok"]]
+    ev["notes"] = _capture_notes(root / EVIDENCE_DIR / task_id / CAPTURE_NOTES, ev["pages"])
     ev["error"] = err if (err and not ev["shots"]) else ""
     if not ev["shots"] and not ev["error"]:
         ev["error"] = "no screenshot captured"
@@ -591,9 +673,16 @@ def _build_brief(task_id: str, criteria: list[dict], *, rung: int = 1, rung_reas
         "where only `.agentic-framework/bin/fw` exists) do NOT return green on what it probably "
         "meant: that would rewrite an operator-written criterion without the operator seeing it. "
         "Return **amber**, say which part is out of date, and give a proposed restatement as "
-        "a line `PROPOSED RESTATEMENT: <the criterion as it should read now>` together with "
-        "whether the evidence meets that restatement. The operator accepts or rejects the "
-        "restatement once (operator ruling 2026-10-30, T-4916, decision i). Evidence blocks "
+        "a line `PROPOSED RESTATEMENT: <the criterion as it should read now>`. That line holds "
+        "the criterion text ONLY: it is written into the operator's criterion as it stands, "
+        "so put whether the evidence meets the restatement on the NEXT line, never after it "
+        "on the same line (T-4939). Put the line in your verdict's guidance (`--guidance`, "
+        "or the GUIDANCE you print), not only in your evidence report (T-4942). "
+        "The operator accepts or rejects the "
+        "restatement once (operator ruling 2026-10-30, T-4916, decision i). A criterion with a "
+        "`**Restated:**` line is one the operator already restated (`fw reviewer restatement "
+        "accept`, T-4930): judge it by its title, which supersedes an older literal left in its "
+        "Expected clause. Evidence blocks "
         "already written under a criterion are input: check them, do not take them on trust.",
         "",
         f"## Independence: {_rung_label(rung, seat)}",
@@ -625,6 +714,9 @@ def _build_brief(task_id: str, criteria: list[dict], *, rung: int = 1, rung_reas
                              "`not-evaluated` for it, naming the pages you did not see.")
             lines.append("Cite EVERY screenshot above as `--evidence` (the copy in your report "
                          "directory); the ledger checks each required page's screenshot hash.")
+            notes = _note_lines(ev.get("notes") or {})
+            if notes:
+                lines += ["", "What the capturing browser recorded (T-4960):"] + notes
         else:
             lines += [
                 f"**SCREENSHOT CAPTURE FAILED: {ev['error'] or 'no screenshot captured'}.**",
@@ -664,11 +756,24 @@ def _build_brief(task_id: str, criteria: list[dict], *, rung: int = 1, rung_reas
             f"You review revision `{revision or 'the registered revision'}`. Your working directory is "
             "an export of exactly that revision (without `.context/`). Do NOT modify any file in "
             "it: it is fingerprinted, and a seat that changed it has none of its greens counted. "
-            "Do not try to run `fw` or `git commit`: you need not.",
+            "Do not try to run `fw` or `git commit`: you need not. The evidence files cited "
+            "above (`.context/working/judge-evidence/…`, `.context/visual/…`) are copied into "
+            "the export at those same relative paths (T-4933); nothing else from `.context/` is.",
+            "",
+            f"Time limit: this run is stopped after {HARNESS_SEAT_TIMEOUT // 60} minutes, and a "
+            "stopped run records nothing. Print your verdict lines before then: by about two "
+            "thirds of that time, stop investigating and print what you have, using "
+            "`not-evaluated` (with the reason) for anything you could not finish checking.",
             "",
             "Scratch space: `$TMPDIR` is a writable directory of your own for this run (a test "
             "harness's temp files, a build cache). If what a criterion needs still cannot run, "
             "return `not-evaluated` with the reason — never a verdict on what you could not check.",
+            "",
+            # T-4978 (ring20): a seat booted the app under TestClient; the app created its sqlite
+            # state file under its own code root, i.e. inside the export, and the seat was voided.
+            "Running project code: an app or test may write files next to its own code (a SQLite "
+            "database, a cache, a log). Never run it in place. Copy the export first and run the "
+            "copy: `cp -a . \"$TMPDIR/run\" && cd \"$TMPDIR/run\"`.",
             "",
             "When you finish, the dispatch runtime records the verdicts you PRINT, under your own "
             "reviewer identity, with your full output as the evidence report, and signs your "
@@ -780,7 +885,8 @@ def _await_worker(fw: Path, did: str, root: Path, timeout: int) -> int:
 
 
 def _dispatch_real(*, task_id: str, brief: str, root: Path, name: str, vendor: str,
-                   timeout: int = 900, revision: str = "", run_id: str = "", seat: str = "") -> str:
+                   timeout: int = HARNESS_SEAT_TIMEOUT, revision: str = "", run_id: str = "",
+                   seat: str = "") -> str:
     """Spawn the review worker via `fw termlink dispatch --task-type review`, wait for it, and
     return its dispatch id (the wrapper appends a random suffix and registers it)."""
     fw = Path(os.environ.get("FRAMEWORK_ROOT") or root) / "bin" / "fw"
@@ -1033,7 +1139,8 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
     judged, operator = _partition(task_data, root, task_id, criterion_n)
     res: dict = {"task_id": task_id, "dry_run": dry_run, "operator_only": [
         {"ac": c["ac_index"], "class": c["class"], "reason": c["reason"]} for c in operator],
-        "criteria": [{"ac": c["ac_index"], "text": c["text"][:80], "class": c["class"]} for c in judged]}
+        "criteria": [{"ac": c["ac_index"], "text": c["text"][:80], "class": c["class"],
+                      "page": bool(c.get("page"))} for c in judged]}
     if not judged:
         res.update(error=f"No REVIEWER_JUDGES criteria found for {task_id}", code=1)
         return res
@@ -1072,10 +1179,17 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
         if retired:
             res["model_retired"] = retired
             kinds -= set(retired)
+    # T-4944 (operator 2026-11-01, "vision-gated"): a page check goes only to seats that can see
+    # the screenshots. A kind the committed registry declares `vision: false` (opencode: its model
+    # takes no images) can only return not-evaluated there, so it does not sit a render run.
+    blind = set()
+    if any(c["render"] or c.get("page") for c in judged):   # T-4978: page criteria too
+        blind = {k for k, seen in vl.kind_vision(root, revision).items() if seen is False}
+        res["blind_kinds"] = sorted(blind)
     try:
         plan = _plan_seats(root, rung, kinds,
                            _kind_vendors(root) if kind_vendors is None else dict(kind_vendors),
-                           exclude_kinds=set(exclude_kinds))
+                           exclude_kinds=set(exclude_kinds) | blind)
     except Exception as e:  # noqa: BLE001 - an unreadable registry is a refusal, not a default
         res.update(error=f"review backend registry unavailable: {e}", code=1)
         return res

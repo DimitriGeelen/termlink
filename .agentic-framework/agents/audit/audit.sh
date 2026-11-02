@@ -2563,7 +2563,10 @@ for scan_dir in web lib; do
         [ -z "$hit" ] && continue
         case "$hit" in
             # Per-project policy instances (T-2229 --init model).
-            *value-drivers.yaml*|*bvp-scoring-rubric.md*) continue ;;
+            # value-drivers*.yaml also covers named driver sets
+            # (policy/value-drivers-<name>.yaml, T-4984): set files are per
+            # project, so FRAMEWORK_ROOT would be the wrong root for them.
+            *value-drivers*.yaml*|*bvp-scoring-rubric.md*) continue ;;
             # Explicit annotated exemption (must carry a reason in-source).
             *OBS-097-allow:*) continue ;;
             *tests/*|*docs/*) continue ;;
@@ -3376,6 +3379,22 @@ else
     fail "Human-AC ticks: lib/human_ac_ticks.py is missing — Human ticks UNVERIFIED" \
          "detector code unavailable" \
          "Restore it: bin/fw vendor self (or fw upgrade)"
+fi
+
+# T-4988 (T-4965 GO): the operator-owned grant file. Silent without a committed file. WARN, not
+# FAIL: the trailer makes an agent or script change VISIBLE; it cannot prove who wrote it (the
+# same-user residual, T-3581), and an invalid file already grants nothing.
+if git -C "$PROJECT_ROOT" cat-file -e "HEAD:policy/access-grants.yaml" 2>/dev/null \
+        && [ -f "$FRAMEWORK_ROOT/lib/access_grants.py" ]; then
+    _ag_out=$(python3 "$FRAMEWORK_ROOT/lib/access_grants.py" audit "$PROJECT_ROOT" 2>&1)
+    _ag_bad=$(python3 "$FRAMEWORK_ROOT/lib/access_grants.py" doctor "$PROJECT_ROOT" 2>&1 | grep '^WARN' || true)
+    if [ -z "$_ag_out" ] && [ -z "$_ag_bad" ]; then
+        pass "Access grants: committed file valid, every change carries 'Grants-Change: operator'"
+    else
+        warn "Access grants: $(printf '%s\n%s\n' "$_ag_out" "$_ag_bad" | grep -c '^WARN') finding(s)" \
+             "$(printf '%s\n%s\n' "$_ag_out" "$_ag_bad" | grep '^WARN' | head -3 | tr '\n' ';')" \
+             "A change without the trailer: the operator checks it (git show <sha> -- policy/access-grants.yaml) and, if theirs, re-commits it with 'Grants-Change: operator'; an invalid file grants nothing until fixed (fw grants show)"
+    fi
 fi
 
 # T-4081 / G-114: a Watchtower decision commit that a later commit reverted (the scratch-index
@@ -5147,6 +5166,48 @@ PY
     done <<< "$_rows"
 }
 check_arc_driver_reviewer_record
+
+# T-4984 (T-4961 driver sets, slice 1). An arc may name a driver set
+# (`driver_set: <name>` -> policy/value-drivers-<name>.yaml). A set that does
+# not resolve or does not validate is a refusal for every task in that arc, so
+# it must not sit unnoticed until a scorer trips on it: FAIL naming the arc and
+# the reason. Project-level keys in a set, or a set file using the reserved
+# name 'default', WARN. Silent when no arc names a set. One resolver for all
+# of it: lib/driver_sets.py (never re-derived here).
+check_arc_driver_sets() {
+    [ -f "$FRAMEWORK_ROOT/lib/driver_sets.py" ] || return 0
+    [ -d "$PROJECT_ROOT/.context/arcs" ] || return 0
+
+    local _out _rc
+    _out=$(python3 "$FRAMEWORK_ROOT/lib/driver_sets.py" audit "$PROJECT_ROOT" 2>&1); _rc=$?
+    if [ "$_rc" -ne 0 ]; then
+        fail "Arc driver sets could not be checked" \
+             "lib/driver_sets.py audit exited $_rc: $(printf '%s' "$_out" | tail -1)" \
+             "Run: python3 lib/driver_sets.py audit \"\$PWD\" — an unreadable check would hide a set that every scorer refuses (T-4984)"
+        return 0
+    fi
+    [ -n "$_out" ] || return 0
+
+    local _level _where _msg _ok=0 _bad=0
+    while IFS=$'\t' read -r _level _where _msg; do
+        case "$_level" in
+            OK) _ok=$((_ok + 1)) ;;
+            WARN)
+                warn "Driver set warning: $_where" "$_msg" \
+                     "Remove project-level keys (auto_promote, inception_scoring_exception) from set files and do not name a set 'default'; see docs/reports/T-4961-driver-sets.md §4"
+                ;;
+            FAIL)
+                _bad=$((_bad + 1))
+                fail "Arc driver set does not resolve: .context/arcs/$_where" "$_msg" \
+                     "Fix the arc's driver_set: or the set file policy/value-drivers-<name>.yaml (contract: docs/reports/T-4961-driver-sets.md §4). Check with: python3 lib/driver_sets.py audit \"\$PWD\""
+                ;;
+        esac
+    done <<< "$_out"
+    if [ "$_bad" -eq 0 ] && [ "$_ok" -gt 0 ]; then
+        pass "Arc driver sets: $_ok arc(s) name a driver set, every one resolves and validates (T-4984)"
+    fi
+}
+check_arc_driver_sets
 
 # T-3445 (mechanism for D-626) — the delegation surface. 832's ask (a).
 #

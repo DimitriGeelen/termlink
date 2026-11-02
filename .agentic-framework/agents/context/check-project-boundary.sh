@@ -51,14 +51,20 @@ BOUNDARY_HOME="${BOUNDARY_HOME%/}"
 BOUNDARY_EXTRA_READ=""
 _bd_extra_raw=$(fw_config BOUNDARY_EXTRA_READ_PATHS "" 2>/dev/null || true)
 IFS=':' read -r -a _bd_extra_list <<< "$_bd_extra_raw"
+# T-4935 (GitHub #104 reply): each entry counts as written (normalised, links not
+# followed) AND as resolved. Command paths are compared as typed, so a listed symlink
+# kept only in resolved form never matched the link path the operator runs.
 for _bd_p in "${_bd_extra_list[@]}"; do
     case "$_bd_p" in /?*) ;; *) continue ;; esac
-    _bd_p=$(realpath -m "$_bd_p" 2>/dev/null || echo "$_bd_p")
-    _bd_p="${_bd_p%/}"
-    [ -n "$_bd_p" ] || continue
-    BOUNDARY_EXTRA_READ="${BOUNDARY_EXTRA_READ:+$BOUNDARY_EXTRA_READ:}$_bd_p"
+    for _bd_q in "$(realpath -m -s "$_bd_p" 2>/dev/null || echo "$_bd_p")" \
+                 "$(realpath -m "$_bd_p" 2>/dev/null || echo "$_bd_p")"; do
+        _bd_q="${_bd_q%/}"
+        [ -n "$_bd_q" ] || continue
+        case ":$BOUNDARY_EXTRA_READ:" in *":$_bd_q:"*) continue ;; esac
+        BOUNDARY_EXTRA_READ="${BOUNDARY_EXTRA_READ:+$BOUNDARY_EXTRA_READ:}$_bd_q"
+    done
 done
-unset _bd_extra_raw _bd_extra_list _bd_p
+unset _bd_extra_raw _bd_extra_list _bd_p _bd_q
 
 # Read stdin (JSON from Claude Code)
 INPUT=$(cat)
@@ -99,6 +105,15 @@ except:
     # Resolve to absolute path
     RESOLVED=$(realpath -m "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")
 
+    # T-4988: the operator-owned grant file is never written by the agent.
+    if [ "$RESOLVED" = "$(realpath -m "$PROJECT_ROOT/policy/access-grants.yaml")" ]; then
+        echo "" >&2
+        echo "  ACCESS GRANTS — policy/access-grants.yaml is the operator's file (T-4988)." >&2
+        echo "  The agent never writes it. Ask the operator to change it and commit it with" >&2
+        echo "  the trailer 'Grants-Change: operator'; only the committed version counts." >&2
+        exit 2
+    fi
+
     # Allowed zones
     case "$RESOLVED" in
         "$PROJECT_ROOT"/*)
@@ -133,6 +148,17 @@ except:
                 ;;
         esac
     done < <(git -C "$PROJECT_ROOT" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p')
+
+    # T-4989: a create-level access grant (committed policy/access-grants.yaml) allows the write;
+    # never_write roots and paths resolving outside the grant do not pass. The NAS judges ownership.
+    if git -C "$PROJECT_ROOT" cat-file -e "HEAD:policy/access-grants.yaml" 2>/dev/null \
+            && python3 "$FRAMEWORK_ROOT/lib/access_grants.py" write-ok "$PROJECT_ROOT" "$FILE_PATH" 2>/dev/null; then
+        mkdir -p "$PROJECT_ROOT/.context/grants" 2>/dev/null \
+            && printf '{"ts": "%s", "tool": "%s", "target": "%s", "decision": "allowed-by-grant"}\n' \
+                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$TOOL_NAME" "${FILE_PATH//\"/\\\"}" \
+                >> "$PROJECT_ROOT/.context/grants/audit.jsonl" 2>/dev/null
+        exit 0
+    fi
 
     # Everything else: BLOCK
     echo "" >&2
@@ -228,6 +254,21 @@ except Exception:
     export _BOUNDARY_CWD="$CMD_CWD"
     export _BOUNDARY_FW_LIB="$FRAMEWORK_ROOT/lib"   # T-3766: registered credential files
     export _BOUNDARY_HOME="$BOUNDARY_HOME"           # T-4361
+    # T-4988: paths granted by the operator-owned grant file (read and create levels), as
+    # COMMITTED at HEAD. The cheap cat-file probe keeps projects without the file at no cost.
+    _BOUNDARY_GRANT_CREATE=""; _BOUNDARY_GRANT_NEVER=""
+    if git -C "$PROJECT_ROOT" cat-file -e "HEAD:policy/access-grants.yaml" 2>/dev/null; then
+        while IFS= read -r _bd_g; do
+            case "$_bd_g" in /?*) ;; *) continue ;; esac
+            case ":$BOUNDARY_EXTRA_READ:" in *":$_bd_g:"*) continue ;; esac
+            BOUNDARY_EXTRA_READ="${BOUNDARY_EXTRA_READ:+$BOUNDARY_EXTRA_READ:}$_bd_g"
+        done < <(python3 "$FRAMEWORK_ROOT/lib/access_grants.py" read-paths "$PROJECT_ROOT" 2>/dev/null)
+        # T-4989: create-level paths (typed writes allowed; the NAS judges ownership) and the
+        # never_write roots, which win over any grant.
+        _BOUNDARY_GRANT_CREATE=$(python3 "$FRAMEWORK_ROOT/lib/access_grants.py" create-paths "$PROJECT_ROOT" 2>/dev/null | paste -sd: -)
+        _BOUNDARY_GRANT_NEVER=$(python3 "$FRAMEWORK_ROOT/lib/access_grants.py" never-write "$PROJECT_ROOT" 2>/dev/null | paste -sd: -)
+    fi
+    export _BOUNDARY_GRANT_CREATE _BOUNDARY_GRANT_NEVER
     export _BOUNDARY_EXTRA_READ="$BOUNDARY_EXTRA_READ"
     MATCH_RESULT=$(python3 << 'PYEOF'
 import re, sys, os, subprocess
@@ -257,6 +298,30 @@ _HOME = os.environ.get('_BOUNDARY_HOME', '').rstrip('/')
 _CLAUDE_ZONES = ('/root/.claude',) + ((_HOME + '/.claude',) if _HOME else ())
 _EXTRA_READ = tuple(p.rstrip('/') for p in os.environ.get('_BOUNDARY_EXTRA_READ', '').split(':')
                     if p.startswith('/') and p.rstrip('/'))
+# T-4989: create-level grant paths (typed writes allowed; the NAS judges ownership) and the
+# never_write roots (win over every grant), from the COMMITTED policy/access-grants.yaml.
+_GRANT_CREATE = [p for p in os.environ.get('_BOUNDARY_GRANT_CREATE', '').split(':') if p.startswith('/')]
+_GRANT_NEVER = [p for p in os.environ.get('_BOUNDARY_GRANT_NEVER', '').split(':') if p.startswith('/')]
+_GRANT_WRITES = []   # targets allowed by a grant; logged only when the verdict is SAFE
+
+
+def _grant_write_ok(p):
+    if not _GRANT_CREATE:
+        return False
+    try:
+        sys.path.insert(0, os.environ.get('_BOUNDARY_FW_LIB', ''))
+        import access_grants
+        ok = access_grants.write_allowed(p, _GRANT_CREATE, _GRANT_NEVER)
+    except Exception:
+        return False   # fail closed: an unreadable library grants nothing
+    if ok and p not in _GRANT_WRITES:
+        _GRANT_WRITES.append(p)
+    return ok
+
+
+def _under_never(p):
+    cands = {os.path.normpath(p), os.path.realpath(p)}
+    return any(c == n or c.startswith(n.rstrip('/') + '/') for c in cands for n in _GRANT_NEVER)
 
 
 def _in_claude_zone(p):
@@ -852,9 +917,28 @@ def _write_verb_targets(cmd):
                 yield a
 
 
+# T-4989: on granted paths the operator refused metadata changes, and archive extraction writes
+# members the typed text never names (`../` included). Refused when the command names a grant.
+_GRANT_REFUSED_VERBS = {'chmod', 'chown', 'chgrp', 'touch', 'setfacl', 'chattr',
+                        'tar', 'bsdtar', 'unzip', '7z', '7za', 'cpio', 'pax'}
+if _GRANT_CREATE:
+    _raw_for_grants = _BOUNDARY_CMD_RAW
+    if any(g in _raw_for_grants for g in _GRANT_CREATE):
+        for _seg in re.split(r'[;&|\n()]', command):
+            _toks = _seg.split()
+            _verb = next((t.rsplit('/', 1)[-1] for t in _toks
+                          if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', t)
+                          and t.rsplit('/', 1)[-1] not in _WRAPPERS), '')
+            if _verb in _GRANT_REFUSED_VERBS:
+                print(f'BLOCKED|{_verb} on a granted path is refused (T-4989: no metadata changes, '
+                      f'no archive extraction under an access grant)')
+                sys.exit(0)
+
 for target_file in (list(write_ops.findall(command)) + list(_tee_targets(command))
                     + [t for t in _write_verb_targets(command) if t.startswith('/')]):
     if target_file.startswith(('/tmp/', '/dev/', '/etc/cron.d/')) or _in_claude_zone(target_file):
+        continue
+    if _grant_write_ok(target_file):   # T-4989: under a create grant, not never_write
         continue
     if not target_file.startswith(project_root + '/'):
         if _in_sibling_worktree(target_file):   # F-25
@@ -1041,8 +1125,25 @@ def _under(p, base):
     return p == base or p.startswith(base.rstrip('/') + '/')
 
 
+def _grant_file_guarded(p):
+    # T-4988: the operator-owned grant file and every directory above it inside the project
+    # are never written from a typed command (a move or removal of a parent replaces it).
+    try:
+        sys.path.insert(0, os.environ.get('_BOUNDARY_FW_LIB', ''))
+        import access_grants
+        return access_grants.is_grant_file_or_ancestor(p, project_root)
+    except Exception:
+        return False
+
+
 def _write_guarded(p):
     p = p.rstrip('/') or '/'
+    if _grant_file_guarded(p):
+        return True
+    if _GRANT_NEVER and _under_never(p):   # T-4989: never_write wins over every zone and grant
+        return True
+    if _grant_write_ok(p):                 # T-4989: create grant
+        return False
     if any(_under(p, r) for r in _ROOTS) or any(_under(p, z) for z in _ZONES):
         return False
     return not _in_sibling_worktree(p)
@@ -1071,6 +1172,21 @@ if _hits:
     tgt = f' {h.target}' if h.target else ''
     print(f'BLOCKED|{h.reason}{tgt} (outside project root {project_root})')
     sys.exit(0)
+
+# T-4989: every write a grant allowed, logged once the whole command is SAFE (an audit aid;
+# the NAS is the authority and keeps its own record).
+if _GRANT_WRITES:
+    try:
+        import json as _json, time as _time
+        _gl = os.path.join(project_root, '.context', 'grants', 'audit.jsonl')
+        os.makedirs(os.path.dirname(_gl), exist_ok=True)
+        with open(_gl, 'a') as _fh:
+            for _t in _GRANT_WRITES:
+                _fh.write(_json.dumps({'ts': _time.strftime('%Y-%m-%dT%H:%M:%SZ', _time.gmtime()),
+                                       'tool': 'Bash', 'target': _t, 'decision': 'allowed-by-grant',
+                                       'command': _BOUNDARY_CMD_RAW[:300]}) + '\n')
+    except OSError:
+        pass
 
 # T-4751: a verdict that used the BOUNDARY_EXTRA_READ_PATHS exemption says so, for the log.
 _cmd_raw = _strip_heredocs(_BOUNDARY_CMD_RAW)

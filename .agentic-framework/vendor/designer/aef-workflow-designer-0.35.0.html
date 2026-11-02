@@ -2438,6 +2438,10 @@ const NODE_DEFAULTS = {
   // it shares their alignment rows; slightly wider to carry the [+] marker.
   subProcess:        { w: 120, h: 64, lane: 'agent' },
 };
+// T-1350: a node's drawn size. Every node is drawn at its type's size except a host whose boundary events would not fit
+// on its edges at that size: the importer gives it its own `drawSize` (the file's size, grown to fit), and every
+// geometry read goes through here so the host, its events, its flows and its lane all agree on it.
+function dims(n) { return n.drawSize || NODE_DEFAULTS[n.type]; }
 
 // Which aef:* fields are meaningful for each node type.
 // T-566: `note` is listed on EVERY type, and that is a deliberate departure from how
@@ -2909,7 +2913,7 @@ function poolHeight() {
 function contentRightEdgeNatural() {
   let right = POOL_X + LANE_HEADER + POOL_WIDTH; // authored minimum
   for (const n of (state?.nodes || [])) {
-    const d = NODE_DEFAULTS[n.type] || NODE_DEFAULTS.serviceTask;
+    const d = dims(n) || NODE_DEFAULTS.serviceTask;
     right = Math.max(right, n.x + d.w + 60 /* right margin */);
   }
   return right;
@@ -3670,7 +3674,7 @@ function aefApplyAnnotations(list) {
     try { host = gNodes.querySelector('g[data-id="' + CSS.escape(a.uid) + '"]'); } catch (_) { host = null; }
     const n = findNode(a.uid);
     if (!host || !n) continue; // unknown uid — silently ignored (ratified)
-    const def = NODE_DEFAULTS[n.type] || { w: 120, h: 48 };
+    const def = dims(n) || { w: 120, h: 48 };
     // T-261: tone from either vocabulary — wire-canonical severity (info|warn|alert,
     // AEF's live feed) wins when present, else the documented tone alias.
     const tone = AEF_SEVERITY_TONE[a.severity] || (AEF_ANNOTATION_TONES[a.tone] ? a.tone : 'info');
@@ -4102,7 +4106,7 @@ function boundaryHostOf(n) {
   return findNode(n.aef.hostRef) || null;
 }
 function boundaryPerimeterPoint(host, frac) {
-  const hd = NODE_DEFAULTS[host.type] || NODE_DEFAULTS.serviceTask;
+  const hd = dims(host) || NODE_DEFAULTS.serviceTask;
   const hw = hd.w, hh = hd.h, hx = host.x, hy = host.y;
   const f = (typeof frac === 'number' && isFinite(frac)) ? ((frac % 1) + 1) % 1 : null;
   if (f == null) return { x: hx + hw / 2, y: hy + hh };        // default: bottom-centre
@@ -4125,7 +4129,7 @@ function boundaryPerimeterPoint(host, frac) {
 // the exit direction can never disagree with where the event was placed — a
 // centre-to-centre heuristic ties (and picks the wrong axis) at the corners.
 function boundaryOutwardPort(node, host) {
-  const hd = NODE_DEFAULTS[host.type] || NODE_DEFAULTS.serviceTask;
+  const hd = dims(host) || NODE_DEFAULTS.serviceTask;
   const hw = hd.w, hh = hd.h;
   const raw = node.aef ? node.aef.boundaryPos : null;
   const frac = (raw != null && raw !== '') ? parseFloat(raw) : null;
@@ -4146,7 +4150,7 @@ function syncBoundaryPositions() {
   for (const n of state.nodes) {
     const host = boundaryHostOf(n);
     if (!host) continue;
-    const def = NODE_DEFAULTS[n.type];
+    const def = dims(n);
     const raw = n.aef.boundaryPos;
     const frac = (raw != null && raw !== '') ? parseFloat(raw) : null;
     const pt = boundaryPerimeterPoint(host, frac);
@@ -4183,7 +4187,7 @@ function renderNodes() {
   // so the saved element order) is untouched.
   const drawOrder = [...state.nodes.filter(n => !boundaryHostOf(n)), ...state.nodes.filter(n => boundaryHostOf(n))];
   for (const n of drawOrder) {
-    const def = NODE_DEFAULTS[n.type];
+    const def = dims(n);
     const isPrimary = selection?.kind === 'node' && selection.id === n.id;
     const isInMulti = multiSelect.has(n.id);
     const cls = 'node' + (isPrimary ? ' selected' : '') + (isInMulti && !isPrimary ? ' multi-selected' : '');
@@ -4606,7 +4610,7 @@ function fitNodeLabels() {
   for (const n of state.nodes) {
     let texts = Array.from(gNodes.querySelectorAll(`text[data-fitn="${n.uid}"]`));
     if (!texts.length) continue;
-    const def = NODE_DEFAULTS[n.type];
+    const def = dims(n);
     const maxW = def.w - 8;
     const lx = n.x + def.w / 2;
     const g = texts[0].parentNode;
@@ -4711,7 +4715,7 @@ function adjustLabelPlacements() {
   const nodeOverlaps = (r, self) => {
     let cost = 0;
     for (const n of state.nodes) {
-      const d = NODE_DEFAULTS[n.type];
+      const d = dims(n);
       if (n === self) { if (onShape(r, n, d)) cost += 30; continue; }
       if (n.x + d.w + 4 < r.x1 || n.x - 4 > r.x2) continue;
       if (nodeVisualBottom(n) < r.y1 || n.y - 4 > r.y2) continue;
@@ -4766,7 +4770,7 @@ function adjustLabelPlacements() {
   // diverged enough from real metrics to move labels onto other edges —
   // measuring the actual result is the only honest check.
   const ownBand = (self) => {
-    const cy = self.y + NODE_DEFAULTS[self.type].h / 2;
+    const cy = self.y + dims(self).h / 2;
     return laneBands.find(b => cy >= b.y1 && cy < b.y2) || null;
   };
   // T-1068 (reviewer F1 on T-601): a label block never STARTS on the lane header strip. Every
@@ -4797,7 +4801,7 @@ function adjustLabelPlacements() {
     if (els.length < 2) continue;
     const scDefault = bboxScore(els, n);
     if (scDefault === 0) continue; // uncontested — keep the default placement
-    const d = NODE_DEFAULTS[n.type];
+    const d = dims(n);
     const cy = n.y + d.h / 2;
     const orig = els.map(t => ({ x: t.getAttribute('x'), y: t.getAttribute('y'), a: t.getAttribute('text-anchor') }));
     // Stack all label lines (wrapped name lines + id, T-105) vertically centred on
@@ -4962,7 +4966,7 @@ function clearLabelsOfFlows() {
   };
   const inter = (a, b) => a.x1 < b.x2 && b.x1 < a.x2 && a.y1 < b.y2 && b.y1 < a.y2;
   const boxOf = t => { const b = t.getBBox(); return b.width ? { x1: b.x - PAD, y1: b.y - PAD, x2: b.x + b.width + PAD, y2: b.y + b.height + PAD } : null; };
-  const shapes = state.nodes.map(n => { const d = NODE_DEFAULTS[n.type]; return { x1: n.x - 2, y1: n.y - 2, x2: n.x + d.w + 2, y2: n.y + d.h + 2 }; });
+  const shapes = state.nodes.map(n => { const d = dims(n); return { x1: n.x - 2, y1: n.y - 2, x2: n.x + d.w + 2, y2: n.y + d.h + 2 }; });
   const bandTop = POOL_Y + POOL_HEADER, lanes = [];
   { let y = bandTop; for (const l of getLanes()) { lanes.push({ y1: y, y2: y + l.height }); y += l.height; } }
   const pw = contentRightEdge() - POOL_X, ph = poolHeight();
@@ -4983,7 +4987,7 @@ function clearLabelsOfFlows() {
   };
   const blocks = [];
   for (const n of state.nodes) {
-    const d = NODE_DEFAULTS[n.type];
+    const d = dims(n);
     let els;
     if (isBelow(n)) els = Array.from(gNodes.querySelectorAll(`text[data-nl="${n.uid}"]`));
     else {
@@ -5121,7 +5125,7 @@ function clearFlowLabels() {
   const inter = (a, b) => a.x1 < b.x2 && b.x1 < a.x2 && a.y1 < b.y2 && b.y1 < a.y2;
   // The text's box with the room its pad (halo) takes, plus a little air, so two labels never touch.
   const boxOf = t => { const b = t.getBBox(); return b.width ? { x1: b.x - 3, y1: b.y - 1, x2: b.x + b.width + 3, y2: b.y + b.height + 1 } : null; };
-  const shapes = state.nodes.map(n => { const d = NODE_DEFAULTS[n.type]; return { x1: n.x - 2, y1: n.y - 2, x2: n.x + d.w + 2, y2: n.y + d.h + 2 }; });
+  const shapes = state.nodes.map(n => { const d = dims(n); return { x1: n.x - 2, y1: n.y - 2, x2: n.x + d.w + 2, y2: n.y + d.h + 2 }; });
   const nodeTextEls = Array.from(gNodes.querySelectorAll('text.node-label, text.node-id-badge, text.node-io-badge'))
     .filter(t => !t.closest('#g-sticky-lanes'));
   const nodeBoxes = nodeTextEls.map(boxOf).filter(Boolean);
@@ -5259,7 +5263,7 @@ function adjustEdgeLabelPlacements() {
   // precisely by nodeTexts (measured), so blocking the full nodeVisualBottom
   // band would waste usable space beside narrow id badges.
   const nodeRects = state.nodes.map(n => {
-    const d = NODE_DEFAULTS[n.type];
+    const d = dims(n);
     return { x1: n.x - 2, x2: n.x + d.w + 2, y1: n.y - 2, y2: n.y + d.h + 2 };
   });
   const nodeTexts = Array.from(gNodes.querySelectorAll('text.node-label, text.node-id-badge, text.node-io-badge'))
@@ -5675,7 +5679,7 @@ function renderPortIndicators(node, role, edge) {
 function estLabelWidth(s) { return s.length * 5.2; }
 
 function centerOf(n) {
-  const d = NODE_DEFAULTS[n.type];
+  const d = dims(n);
   return { x: n.x + d.w / 2, y: n.y + d.h / 2 };
 }
 
@@ -5696,7 +5700,7 @@ const PORT_OFFSETS = {
 // Resolve a port name to absolute coordinates on a node. For circular shapes
 // (events) and diamonds (gateways), the offset is projected to the perimeter.
 function portPointAt(node, portName) {
-  const d = NODE_DEFAULTS[node.type];
+  const d = dims(node);
   const cx = node.x + d.w / 2, cy = node.y + d.h / 2;
   const off = PORT_OFFSETS[portName];
   if (!off) return { x: cx, y: cy };
@@ -5769,7 +5773,7 @@ function anchorPoint(node, port, towardPt) {
 // actually crosses; portPointAt then resolves the mid-side point per shape
 // class (rect mid-edge, circle cardinal point, diamond tip).
 function midSideAnchor(node, towardPt) {
-  const d = NODE_DEFAULTS[node.type];
+  const d = dims(node);
   const cx = node.x + d.w / 2, cy = node.y + d.h / 2;
   const dx = towardPt.x - cx, dy = towardPt.y - cy;
   const side = Math.abs(dx) * d.h >= Math.abs(dy) * d.w
@@ -5780,7 +5784,7 @@ function midSideAnchor(node, towardPt) {
 
 function portPointTowards(from, towardPt) {
   // returns nearest border point on `from` toward an arbitrary world point
-  const fd = NODE_DEFAULTS[from.type];
+  const fd = dims(from);
   const fcx = from.x + fd.w / 2, fcy = from.y + fd.h / 2;
   const dx = towardPt.x - fcx, dy = towardPt.y - fcy;
   if (from.type === 'startEvent' || from.type === 'endEvent' ||
@@ -5826,7 +5830,7 @@ function lShapePorts(e, src, tgt) {
   if ((e.sourcePort && e.sourcePort !== 'auto') || (e.targetPort && e.targetPort !== 'auto')) return null;
   if ((e.waypoints && e.waypoints.length) || (e.routingHints && Object.keys(e.routingHints).length) ||
       typeof e.detourY === 'number' || e.forceStraight || boundaryHostOf(src)) return null;
-  const sd = NODE_DEFAULTS[src.type], td = NODE_DEFAULTS[tgt.type];
+  const sd = dims(src), td = dims(tgt);
   if (!sd || !td || tgt.x < src.x + sd.w + 2 * STUB) return null;
   const dy = centerOf(tgt).y - centerOf(src).y;
   if (Math.abs(dy) <= routingPrefs.straightenTol) return null;
@@ -5866,7 +5870,7 @@ const STRAIGHTEN_TOL = 16; // px — max off-axis delta that still straightens
 // (y for E/W sides, x for N/S). Returns null when the shape cannot reach
 // that coordinate without leaving the side (clamp = bail, never distort).
 function sideBoundaryPointAt(node, dir, coord) {
-  const d = NODE_DEFAULTS[node.type];
+  const d = dims(node);
   const cx = node.x + d.w / 2, cy = node.y + d.h / 2;
   const isCircle = node.type === 'startEvent' || node.type === 'endEvent';
   const isDiamond = node.type === 'exclusiveGateway' || node.type === 'parallelGateway';
@@ -5953,7 +5957,7 @@ function nodeSideForExitDir(dir) {
 
 // Returns the side-length on a node for a given side direction.
 function nodeSideLength(node, side) {
-  const d = NODE_DEFAULTS[node.type];
+  const d = dims(node);
   if (node.type === 'startEvent' || node.type === 'endEvent') return d.w; // circle diameter — approximate
   if (node.type === 'exclusiveGateway' || node.type === 'parallelGateway') return d.w * 0.7; // diamonds: usable spread is narrower
   return (side === 'N' || side === 'S') ? d.w : d.h;
@@ -6309,7 +6313,7 @@ function applyRoutingHints(orthoResult, hints, stubA, stubB) {
 // render name + id below the shape (baselines +14 and +26). Routing that
 // clears the box but cuts this text band reads as a collision (survey R-2).
 function nodeVisualBottom(n) {
-  const d = NODE_DEFAULTS[n.type];
+  const d = dims(n);
   const labelBelow = n.type === 'startEvent' || n.type === 'endEvent' ||
     n.type.endsWith('Gateway') || n.type.startsWith('linkEvent') || n.type.startsWith('event');
   return n.y + d.h + (labelBelow ? 30 : 16);
@@ -6346,7 +6350,7 @@ function loopPathCrossings(spA, spB, y, src, tgt, margin = 8) {
   let count = 0;
   for (const n of state.nodes) {
     if (n.id === src.id || n.id === tgt.id) continue;
-    const d = NODE_DEFAULTS[n.type];
+    const d = dims(n);
     const nx1 = n.x - margin, nx2 = n.x + d.w + margin;
     const ny1 = n.y - margin, ny2 = nodeVisualBottom(n) + margin;
     for (const s of segs) {
@@ -6367,7 +6371,7 @@ function corridorSplit(y, x1, x2, src, tgt) {
   let above = 0, below = 0;
   for (const n of state.nodes) {
     if (n.id === src.id || n.id === tgt.id) continue;
-    const d = NODE_DEFAULTS[n.type];
+    const d = dims(n);
     if (n.x + d.w < xMin || n.x > xMax) continue;
     if (nodeVisualBottom(n) < y) above++;
     else if (n.y > y) below++;
@@ -6386,7 +6390,7 @@ function polylineCrossesNodes(points, src, tgt, margin = 4) {
     const y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
     for (const n of state.nodes) {
       if (n.id === src.id || n.id === tgt.id) continue;
-      const d = NODE_DEFAULTS[n.type];
+      const d = dims(n);
       const nx1 = n.x - margin, nx2 = n.x + d.w + margin;
       const ny1 = n.y - margin, ny2 = n.y + d.h + margin;
       // segment vs rect intersection — for axis-aligned segments this reduces to:
@@ -6472,7 +6476,7 @@ function orthoLoopBack(spA, spB, dirA, dirB, src, tgt, edge) {
   let corTop = Infinity, corBottom = -Infinity;
   for (const n of state.nodes) {
     if (n.id === src.id || n.id === tgt.id) continue;
-    const d = NODE_DEFAULTS[n.type];
+    const d = dims(n);
     if (n.x + d.w < perXMin || n.x > perXMax) continue;
     corTop = Math.min(corTop, n.y);
     corBottom = Math.max(corBottom, nodeVisualBottom(n));
@@ -6519,7 +6523,7 @@ function countNodeCrossings(points, src, tgt, margin = 4) {
     const y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
     for (const n of state.nodes) {
       if ((src && n.id === src.id) || (tgt && n.id === tgt.id)) continue;
-      const d = NODE_DEFAULTS[n.type];
+      const d = dims(n);
       if (x2 < n.x - margin || x1 > n.x + d.w + margin) continue;
       if (y2 < n.y - margin || y1 > n.y + d.h + margin) continue;
       hit.add(n.id);
@@ -6550,7 +6554,7 @@ function routeAroundObstacles(spA, spB, src, tgt) {
   const obstacles = [];
   for (const n of state.nodes) {
     if ((src && n.id === src.id) || (tgt && n.id === tgt.id)) continue;
-    const d = NODE_DEFAULTS[n.type];
+    const d = dims(n);
     obstacles.push({ x1: n.x, y1: n.y, x2: n.x + d.w, y2: n.y + d.h });
   }
 
@@ -6660,7 +6664,7 @@ function routeAroundObstacles(spA, spB, src, tgt) {
 // and the stub point STUB px out. Used by the obstacle router to CHOOSE a clean arrival/
 // departure side instead of accepting a pre-set stub that lands inside a sibling (T-114).
 function nodeSideStub(n, side) {
-  const d = NODE_DEFAULTS[n.type];
+  const d = dims(n);
   const cx = n.x + d.w / 2, cy = n.y + d.h / 2;
   switch (side) {
     case 'N': return { anchor: { x: cx, y: n.y },        stub: { x: cx, y: n.y - STUB } };
@@ -6674,7 +6678,7 @@ function nodeSideStub(n, side) {
 function pointClearOfNodes(p, src, tgt, margin = 4) {
   for (const n of state.nodes) {
     if ((src && n.id === src.id) || (tgt && n.id === tgt.id)) continue;
-    const d = NODE_DEFAULTS[n.type];
+    const d = dims(n);
     if (p.x > n.x - margin && p.x < n.x + d.w + margin && p.y > n.y - margin && p.y < n.y + d.h + margin) return false;
   }
   return true;
@@ -7131,8 +7135,8 @@ function midOfPath(sp, tp) {
 // already-close nodes). Each op snapshots for undo (B5 history stack, T-132), mutates the
 // selected nodes' x/y, then re-renders and autosaves. Additive — the global toolbar is
 // unchanged; this bar only appears when 2+ nodes are multi-selected.
-const _nW = n => NODE_DEFAULTS[n.type].w;
-const _nH = n => NODE_DEFAULTS[n.type].h;
+const _nW = n => dims(n).w;
+const _nH = n => dims(n).h;
 const _mean = a => a.reduce((s, v) => s + v, 0) / a.length;
 function _selectedNodes() { return [...multiSelect].map(findNode).filter(Boolean); }
 function _applyAlignDistribute(fn) {
@@ -8138,11 +8142,11 @@ function _renderPropsInto(props, details) {
     n.lane = v;
     // snap to the new lane's row line nearest the node's current centre —
     // in a tall lane the centre can sit BETWEEN rows (T-079)
-    const cy = n.y + NODE_DEFAULTS[n.type].h / 2;
+    const cy = n.y + dims(n).h / 2;
     const rows = laneRowYs(v);
     let rowY = rows.length ? rows[0] : laneCenterY(v);
     for (const r of rows) if (Math.abs(r - cy) < Math.abs(rowY - cy)) rowY = r;
-    n.y = rowY - NODE_DEFAULTS[n.type].h / 2;
+    n.y = rowY - dims(n).h / 2;
     refreshDisplayIds();
     renderNodes(); renderEdges();
     renderProperties();
@@ -9320,11 +9324,15 @@ document.addEventListener('keydown', e => {
       // Delete the whole multi-selection if it has more than one node
       if (multiSelect.size > 1) {
         const ids = new Set(multiSelect);
+        pushHistory();   // T-1345: a multi-delete is undoable like a single one (it recorded no step before)
+        const movedMsg = moveContentsOutOf([...ids]);
         state.nodes = state.nodes.filter(n => !ids.has(n.id));
         state.edges = state.edges.filter(ed => !ids.has(ed.source) && !ids.has(ed.target));
         selection = null;
         multiSelect = new Set();
+        refreshDisplayIds();
         renderAll();
+        if (movedMsg) showToast(movedMsg);
       } else {
         deleteNode(selection.id);
       }
@@ -9641,7 +9649,7 @@ svg.addEventListener('mousemove', e => {
     // Source anchor: start from the port pinned at the first click (if any), else centre.
     const fc = connectFromPort
       ? portPointAt(from, connectFromPort)
-      : { x: from.x + NODE_DEFAULTS[from.type].w / 2, y: from.y + NODE_DEFAULTS[from.type].h / 2 };
+      : { x: from.x + dims(from).w / 2, y: from.y + dims(from).h / 2 };
     gPreview.innerHTML = '';
     // T-168: aim-assist — reveal candidate ports on nodes near the cursor and snap the
     // preview end to the nearest in-radius port, so "attach to a point" is discoverable.
@@ -9651,7 +9659,7 @@ svg.addEventListener('mousemove', e => {
     connectPreviewSnap = null;
     for (const nd of state.nodes) {
       if (nd.id === connectFrom) continue;
-      const nc = { x: nd.x + NODE_DEFAULTS[nd.type].w / 2, y: nd.y + NODE_DEFAULTS[nd.type].h / 2 };
+      const nc = { x: nd.x + dims(nd).w / 2, y: nd.y + dims(nd).h / 2 };
       const distToNode = Math.hypot(pt.x - nc.x, pt.y - nc.y);
       if (distToNode > AIM_RADIUS) continue;
       const t = Math.max(0, Math.min(1, (AIM_RADIUS - distToNode) / (AIM_RADIUS - 60)));
@@ -9679,14 +9687,14 @@ svg.addEventListener('mousemove', e => {
       drag.moved = true;
       lastTidy = null; // manual move supersedes the pending tidy revert (T-079)
       const n = findNode(drag.id);
-      const nd = NODE_DEFAULTS[n.type];
+      const nd = dims(n);
       // Magnetic snapping (T-074) works in centre coordinates
       const snapped = magneticSnap(n, pt.x - drag.offX + nd.w / 2, pt.y - drag.offY + nd.h / 2);
       n.x = snapped.cx - nd.w / 2;
       n.y = snapped.cy - nd.h / 2;
       renderSnapGuides(snapped.guides);
       // lane reassignment based on y (centre of node)
-      const centerY = n.y + NODE_DEFAULTS[n.type].h / 2;
+      const centerY = n.y + dims(n).h / 2;
       const newLane = laneAtY(centerY);
       if (newLane) n.lane = newLane;
       renderNodes(); renderEdges();
@@ -9707,7 +9715,7 @@ svg.addEventListener('mousemove', e => {
           node.x = orig.x + dx;
           node.y = orig.y + dy;
           // lane reassign per node
-          const centerY = node.y + NODE_DEFAULTS[node.type].h / 2;
+          const centerY = node.y + dims(node).h / 2;
           const newLane = laneAtY(centerY);
           if (newLane) node.lane = newLane;
         }
@@ -9894,7 +9902,7 @@ svg.addEventListener('mousemove', e => {
         const belowLane = lanesArr[i];
         for (const n of state.nodes) {
           if (n.lane === belowLane.id) {
-            n.y = laneCenterY(belowLane.id) - NODE_DEFAULTS[n.type].h / 2;
+            n.y = laneCenterY(belowLane.id) - dims(n).h / 2;
           }
         }
       }
@@ -9904,7 +9912,7 @@ svg.addEventListener('mousemove', e => {
       const top = laneTop(lane.id);
       for (const n of state.nodes) {
         if (n.lane === lane.id) {
-          const def = NODE_DEFAULTS[n.type];
+          const def = dims(n);
           const cy = n.y + def.h / 2;
           if (cy < top || cy > top + newH) {
             n.y = top + newH / 2 - def.h / 2;
@@ -9929,6 +9937,11 @@ window.addEventListener('mouseup', e => {
           else edge.targetPort = snapPort;
           edge.waypoints = [];
         }
+      } else if (crossBoundaryRefusal(edgeDrag.role === 'source' ? snapId : edge.source,
+                                      edgeDrag.role === 'source' ? edge.target : snapId)) {
+        // T-1345: re-anchoring would make the flow cross a subprocess boundary; the edge stays as it was
+        showToast(crossBoundaryRefusal(edgeDrag.role === 'source' ? snapId : edge.source,
+                                       edgeDrag.role === 'source' ? edge.target : snapId));
       } else {
         // re-anchor to a different node, with the snapped port
         if (edgeDrag.role === 'source') {
@@ -10080,7 +10093,7 @@ function magneticSnap(node, cx, cy) {
     }
     for (const o of state.nodes) {
       if (o === node) continue;
-      const od = NODE_DEFAULTS[o.type];
+      const od = dims(o);
       const ocx = o.x + od.w / 2, ocy = o.y + od.h / 2;
       const isConn = connected.has(o);
       const near = Math.abs(ocx - cx) <= NEAR_RANGE && Math.abs(ocy - cy) <= NEAR_RANGE;
@@ -10129,7 +10142,7 @@ let lastTidy = null; // { laneId, positions: [{ id, y }], laneHeight: { id, heig
 // a pitch below the 64px task height, and row-snapping them would pile
 // stack-mates onto the same row instead of separating them.
 const BRANCH_GAP = { compact: 6, auto: 12, roomy: 28 };
-const nodeRect = n => { const d = NODE_DEFAULTS[n.type]; return { x: n.x, y: n.y, w: d.w, h: d.h }; };
+const nodeRect = n => { const d = dims(n); return { x: n.x, y: n.y, w: d.w, h: d.h }; };
 const rectsIntersect = (a, b) =>
   a.x < b.x + b.w - 1 && b.x < a.x + a.w - 1 && a.y < b.y + b.h - 1 && b.y < a.y + a.h - 1;
 function branchStacksInLane(laneId) {
@@ -10147,7 +10160,7 @@ function branchStacksInLane(laneId) {
     if (free.length < 2) continue;
     // Cluster by centre-x: sorted, split where neighbours sit >40px apart —
     // only vertically stacked siblings count, not branches fanning sideways.
-    free.sort((a, b) => (a.x + NODE_DEFAULTS[a.type].w / 2) - (b.x + NODE_DEFAULTS[b.type].w / 2));
+    free.sort((a, b) => (a.x + dims(a).w / 2) - (b.x + dims(b).w / 2));
     let cluster = [free[0]];
     const flush = () => {
       if (cluster.length >= 2) {
@@ -10157,8 +10170,8 @@ function branchStacksInLane(laneId) {
       cluster = [];
     };
     for (let i = 1; i < free.length; i++) {
-      const prevCx = free[i - 1].x + NODE_DEFAULTS[free[i - 1].type].w / 2;
-      const cx = free[i].x + NODE_DEFAULTS[free[i].type].w / 2;
+      const prevCx = free[i - 1].x + dims(free[i - 1]).w / 2;
+      const cx = free[i].x + dims(free[i]).w / 2;
       if (cx - prevCx > 40) flush();
       cluster.push(free[i]);
     }
@@ -10175,7 +10188,7 @@ function tidyLane(laneId) {
   const inStack = new Set(stacks.flat().map(n => n.id));
   for (const n of state.nodes) {
     if (n.lane !== laneId || inStack.has(n.id)) continue;
-    const d = NODE_DEFAULTS[n.type];
+    const d = dims(n);
     const cy = n.y + d.h / 2;
     let best = rows[0];
     for (const r of rows) if (Math.abs(r - cy) < Math.abs(best - cy)) best = r;
@@ -10207,11 +10220,11 @@ function tidyLane(laneId) {
   const gap = BRANCH_GAP[viewPrefs.branchPitch] ?? BRANCH_GAP.auto;
   let laneHeightSaved = null;
   for (const stack of stacks) {
-    const pitch = Math.max(...stack.map(n => NODE_DEFAULTS[n.type].h)) + gap;
+    const pitch = Math.max(...stack.map(n => dims(n).h)) + gap;
     const order = stack.slice().sort((a, b) => a.y - b.y);
     let minPitch = Infinity;
     for (let i = 1; i < order.length; i++) {
-      const p = (order[i].y + NODE_DEFAULTS[order[i].type].h / 2) - (order[i - 1].y + NODE_DEFAULTS[order[i - 1].type].h / 2);
+      const p = (order[i].y + dims(order[i]).h / 2) - (order[i - 1].y + dims(order[i - 1]).h / 2);
       if (p < minPitch) minPitch = p;
     }
     if (minPitch >= pitch - 0.5) continue; // already at/beyond target — not our defect
@@ -10223,13 +10236,13 @@ function tidyLane(laneId) {
     };
     const before = order.map(n => ({ n, y: n.y }));
     const collBefore = collisionsWith();
-    const centroid = stack.reduce((s, n) => s + n.y + NODE_DEFAULTS[n.type].h / 2, 0) / stack.length;
+    const centroid = stack.reduce((s, n) => s + n.y + dims(n).h / 2, 0) / stack.length;
     let cy = centroid - (order.length - 1) * pitch / 2;
     // Keep the stack inside the lane top; grow the lane bottom if it no longer fits.
-    const topOverflow = (lTop + 8) - (cy - NODE_DEFAULTS[order[0].type].h / 2);
+    const topOverflow = (lTop + 8) - (cy - dims(order[0]).h / 2);
     if (topOverflow > 0) cy += topOverflow;
     for (const n of order) {
-      n.y = cy - NODE_DEFAULTS[n.type].h / 2;
+      n.y = cy - dims(n).h / 2;
       cy += pitch;
     }
     if (collisionsWith() > collBefore) {
@@ -10239,7 +10252,7 @@ function tidyLane(laneId) {
     for (const b of before) {
       if (Math.abs(b.n.y - b.y) > 0.01) moved.push({ id: b.n.id, y: b.y });
     }
-    const bottom = order[order.length - 1].y + NODE_DEFAULTS[order[order.length - 1].type].h;
+    const bottom = order[order.length - 1].y + dims(order[order.length - 1]).h;
     if (lane && bottom > lTop + lane.height - 8) {
       if (!laneHeightSaved) laneHeightSaved = { id: laneId, height: lane.height };
       lane.height = bottom - lTop + 8;
@@ -10389,7 +10402,7 @@ const laneLabelBelow = t => (t === 'startEvent' || t === 'endEvent' ||
   t === 'linkEventThrow' || t === 'linkEventCatch' ||
   t.startsWith('event') || t.endsWith('Gateway'));
 const laneTopOf = n => n.y;
-const laneBotOf = n => n.y + (NODE_DEFAULTS[n.type] || NODE_DEFAULTS.serviceTask).h +
+const laneBotOf = n => n.y + (dims(n) || NODE_DEFAULTS.serviceTask).h +
   (laneLabelBelow(n.type) ? LANE_FIT_LABEL : 0);
 
 // T-315: grow a lane that cannot contain its own declared members, at import,
@@ -10463,7 +10476,7 @@ function growUnderDeclaredLanes(lanes, nodes) {
 
 function compactLanesFit() {
   const labelBelow = laneLabelBelow;
-  const cyOf = n => n.y + NODE_DEFAULTS[n.type].h / 2;
+  const cyOf = n => n.y + dims(n).h / 2;
   const topOf = laneTopOf;
   const botOf = laneBotOf;
   let yCursor = POOL_Y + POOL_HEADER;
@@ -10626,7 +10639,7 @@ function mapMessiness() {
     const xDisjoint = ra.x + ra.w <= rb.x || rb.x + rb.w <= ra.x;
     if (!xDisjoint) continue;
     if (inStack.has(a.id) || inStack.has(b.id)) continue; // by-design pitch offset, not fixable mess
-    const cyA = a.y + NODE_DEFAULTS[a.type].h / 2, cyB = b.y + NODE_DEFAULTS[b.type].h / 2;
+    const cyA = a.y + dims(a).h / 2, cyB = b.y + dims(b).h / 2;
     const dcy = Math.abs(cyA - cyB);
     if (dcy >= 1 && dcy <= 14) { involved.add(a.id); involved.add(b.id); }
   }
@@ -10710,8 +10723,9 @@ function maybeShowLaneFixNotice() {
   }
   // T-1327: what a save of THIS file will not keep (T-1322 option C), stated last like the T-603 line.
   const nk = _importNotKeptReport || {};
+  // T-1339 (T-1266 GO, slice 1): the nesting is now kept on save; the canvas still draws the contents flat.
   if (nk.hoistedNodes) parts.push(`${nk.hoistedNodes} element${nk.hoistedNodes === 1 ? '' : 's'} inside ` +
-    `${nk.hoistingSubs} subprocess${nk.hoistingSubs === 1 ? '' : 'es'} shown and saved at the top level — the subprocess nesting is NOT kept`);
+    `${nk.hoistingSubs} subprocess${nk.hoistingSubs === 1 ? '' : 'es'} drawn at the top level of the canvas — on save they stay inside their subprocess`);
   if (nk.nestedLanes) parts.push(`${nk.nestedLanes} nested lane${nk.nestedLanes === 1 ? '' : 's'} shown and saved as ` +
     `top-level lane${nk.nestedLanes === 1 ? '' : 's'} — the lane nesting is NOT kept`);
   // T-1264: unmoved shapes and lines keep the file's own geometry (a node moved back into its lane, or by the person,
@@ -10768,7 +10782,7 @@ function alignRowsLane(laneId) {
   const inStack = new Set(branchStacksInLane(laneId).flat().map(n => n.id));
   const items = state.nodes
     .filter(n => n.lane === laneId && !inStack.has(n.id))
-    .map(n => ({ n, cy: n.y + NODE_DEFAULTS[n.type].h / 2 }))
+    .map(n => ({ n, cy: n.y + dims(n).h / 2 }))
     .sort((a, b) => a.cy - b.cy);
   const moved = [];
   let i = 0;
@@ -10791,7 +10805,7 @@ function alignRowsLane(laneId) {
     };
     const before = cluster.map(c => ({ n: c.n, y: c.n.y }));
     const collBefore = collisions();
-    for (const c of cluster) c.n.y = median - NODE_DEFAULTS[c.n.type].h / 2;
+    for (const c of cluster) c.n.y = median - dims(c.n).h / 2;
     if (collisions() > collBefore) {
       for (const b of before) b.n.y = b.y; // flattening would pile nodes up — leave this cluster
       continue;
@@ -10834,7 +10848,7 @@ function alignColumns() {
 // measure-after-move guard reverts any snap that would create a node overlap.
 function alignColumnsMoves() {
   const COL_TOL = 14;
-  const cx = n => n.x + NODE_DEFAULTS[n.type].w / 2;
+  const cx = n => n.x + dims(n).w / 2;
   // Union-find over nodes joined by near-x edges → vertical column components.
   const parent = new Map();
   state.nodes.forEach(n => parent.set(n.id, n.id));
@@ -10867,7 +10881,7 @@ function alignColumnsMoves() {
     };
     const before = group.map(n => ({ n, x: n.x }));
     const collBefore = collisions();
-    for (const n of group) n.x = median - NODE_DEFAULTS[n.type].w / 2;
+    for (const n of group) n.x = median - dims(n).w / 2;
     if (collisions() > collBefore) {
       for (const b of before) b.n.x = b.x; // snapping would overlap — leave this column
       continue;
@@ -10894,7 +10908,7 @@ function alignColumnsMoves() {
 // (T-093) and Vertical spacing (T-108) — this is horizontal only.
 function distributeEvenly() {
   const EVEN_TOL = 2; // px — gap spread at/below which a row already counts as even
-  const cyOf = n => n.y + NODE_DEFAULTS[n.type].h / 2;
+  const cyOf = n => n.y + dims(n).h / 2;
   const moved = [];
   for (const lane of state.lanes) {
     const laneNodes = state.nodes.filter(n => n.lane === lane.id);
@@ -10911,7 +10925,7 @@ function distributeEvenly() {
     for (const row of rows) {
       if (row.length < 3) continue;
       const ns = row.map(r => r.n).sort((a, b) => a.x - b.x);
-      const wOf = n => NODE_DEFAULTS[n.type].w;
+      const wOf = n => dims(n).w;
       const left = ns[0].x;                              // leftmost edge — anchored
       const right = ns[ns.length - 1].x + wOf(ns[ns.length - 1]); // rightmost edge — anchored
       const span = right - left;
@@ -10962,7 +10976,7 @@ const ROW_SPACING_MIN = 72, ROW_SPACING_MAX = 240;
 const ROW_SPACING_BAND = 28; // centre-y gap (px) above which two nodes are different rows
 function respaceRows(gap) {
   gap = Math.max(ROW_SPACING_MIN, Math.min(ROW_SPACING_MAX, Math.round(gap)));
-  const cyOf = n => n.y + NODE_DEFAULTS[n.type].h / 2;
+  const cyOf = n => n.y + dims(n).h / 2;
   const beforeY = new Map(state.nodes.map(n => [n.id, n.y]));
   const beforeH = new Map(state.lanes.map(l => [l.id, l.height]));
   for (const lane of state.lanes) {
@@ -10987,7 +11001,7 @@ function respaceRows(gap) {
     // Grow the lane so the lowest node still fits with margin (never shrink — a
     // tight re-space shouldn't clip a lane the user widened for other reasons).
     const top = laneTop(lane.id);
-    const bottom = Math.max(...nodes.map(n => n.y + NODE_DEFAULTS[n.type].h));
+    const bottom = Math.max(...nodes.map(n => n.y + dims(n).h));
     const need = (bottom - top) + 12;
     if (need > lane.height) lane.height = need;
   }
@@ -11027,7 +11041,7 @@ const COL_SPACING_MIN = 130, COL_SPACING_MAX = 360;
 const COL_SPACING_BAND = 48; // centre-x gap (px) above which two nodes are different columns
 function respaceColumns(gap) {
   gap = Math.max(COL_SPACING_MIN, Math.min(COL_SPACING_MAX, Math.round(gap)));
-  const cxOf = n => n.x + NODE_DEFAULTS[n.type].w / 2;
+  const cxOf = n => n.x + dims(n).w / 2;
   const beforeX = new Map(state.nodes.map(n => [n.id, n.x]));
   if (state.nodes.length < 2) return 0;
   const sorted = state.nodes.map(n => ({ n, cx: cxOf(n) })).sort((a, b) => a.cx - b.cx);
@@ -11348,7 +11362,7 @@ function nodeAt(x, y) {
   // iterate in reverse render order so later (visually-on-top) nodes win
   for (let i = state.nodes.length - 1; i >= 0; i--) {
     const n = state.nodes[i];
-    const d = NODE_DEFAULTS[n.type];
+    const d = dims(n);
     if (n.type === 'startEvent' || n.type === 'endEvent') {
       const cx = n.x + d.w / 2, cy = n.y + d.h / 2;
       if (Math.hypot(x - cx, y - cy) <= d.w / 2) return n.id;
@@ -11391,7 +11405,7 @@ function finalizeRubberBandSelection() {
   }
   const hits = [];
   for (const n of state.nodes) {
-    const d = NODE_DEFAULTS[n.type];
+    const d = dims(n);
     const cx = n.x + d.w / 2, cy = n.y + d.h / 2;
     if (cx >= x1 && cx <= x2 && cy >= y1 && cy <= y2) hits.push(n.id);
   }
@@ -11517,7 +11531,28 @@ function defaultName(type) {
     subProcess: 'Sub-process',
   })[type] || type;
 }
+// T-1345 (T-1266 GO, slice 2): a node's container, as the export resolves it — the uid of the subprocess, transaction or
+// adHocSubProcess it sits in, '' for the process. Only another tool's file has nested nodes (T-1339); the canvas draws
+// them flat, so these rules are what keep an edit from producing a file BPMN forbids.
+function containerOfNode(n) {
+  return n && n.parent && n.parent !== n.uid && state.nodes.some(x => x.uid === n.parent) ? n.parent : '';
+}
+function containerLabel(uid) {
+  const c = uid && state.nodes.find(x => x.uid === uid);
+  return c ? `subprocess "${c.name || displayIdOf(c)}"` : 'the process';
+}
+// A sequence flow cannot cross a subprocess boundary. Returns the refusal message, or '' when the two may be joined.
+function crossBoundaryRefusal(sourceId, targetId) {
+  const a = findNode(sourceId), b = findNode(targetId);
+  const ca = containerOfNode(a), cb = containerOfNode(b);
+  if (!a || !b || ca === cb) return '';
+  const nm = n => `"${n.name || displayIdOf(n)}"`;
+  return `Not connected: ${nm(a)} is in ${containerLabel(ca)} and ${nm(b)} is in ${containerLabel(cb)} — ` +
+    `a sequence flow cannot cross a subprocess boundary`;
+}
 function addEdge(source, target, opts) {
+  const refused = crossBoundaryRefusal(source, target);   // T-1345: before the undo step, so a refusal records none
+  if (refused) { showToast(refused); return null; }
   pushHistory();   // B5: undo entry before adding an edge (connect gesture only)
   const uid = generateUid('e');
   const edge = { uid, id: uid, source, target };
@@ -11531,14 +11566,37 @@ function addEdge(source, target, opts) {
   refreshDisplayIds();
   renderEdges();
 }
+// T-1345: before nodes are deleted, move what sits inside a deleted subprocess into its nearest surviving container
+// (the process, or the outer subprocess), so nothing is deleted with it unasked and no node names a container that is
+// gone. Flows among the moved nodes follow (the export places a flow by its ends). Returns the message, or ''.
+function moveContentsOutOf(deletedIds) {
+  const gone = new Set(deletedIds), byUid = new Map(state.nodes.map(n => [n.uid, n]));
+  let moved = 0, into = null;
+  for (const n of state.nodes) {
+    if (gone.has(n.id) || !n.parent || !gone.has(n.parent)) continue;
+    let p = n.parent;
+    while (p && gone.has(p)) p = (byUid.get(p) || {}).parent;
+    const dest = p && byUid.has(p) ? p : '';
+    if (dest) n.parent = dest; else delete n.parent;
+    moved++;
+    into = into === null || into === dest ? dest : '*';
+  }
+  if (!moved) return '';
+  const what = `${moved} element${moved === 1 ? '' : 's'}`;
+  const from = gone.size === 1 ? containerLabel([...gone][0]) : 'the deleted subprocesses';
+  return into === '*' ? `${what} moved out of ${from} into their nearest remaining container`
+    : `${what} moved out of ${from} into ${containerLabel(into)}`;
+}
 function deleteNode(id) {
   pushHistory();   // B5: undo entry before deleting a node (+ its incident edges)
+  const movedMsg = moveContentsOutOf([id]);   // T-1345, while the deleted node can still be named
   state.nodes = state.nodes.filter(n => n.id !== id);
   state.edges = state.edges.filter(e => e.source !== id && e.target !== id);
   selection = null;
   multiSelect = new Set();
   refreshDisplayIds();
   renderAll();
+  if (movedMsg) showToast(movedMsg);
 }
 function deleteEdge(id) {
   pushHistory();   // B5: undo entry before deleting an edge
@@ -11583,7 +11641,7 @@ function deleteLane(id) {
   state.lanes = remaining;
   // re-snap every node's y to its lane's centre — the lane layout has shifted
   state.nodes.forEach(n => {
-    n.y = laneCenterY(n.lane) - NODE_DEFAULTS[n.type].h / 2;
+    n.y = laneCenterY(n.lane) - dims(n).h / 2;
   });
   // strip waypoints on any edge — old waypoints made sense for the old geometry
   state.edges.forEach(e => { if (e.waypoints) e.waypoints = []; });
@@ -11601,7 +11659,7 @@ function moveLane(id, newIdx) {
   // re-snap every node to its lane's vertical centre — the absolute y values
   // for every node have shifted relative to lane positions.
   state.nodes.forEach(n => {
-    n.y = laneCenterY(n.lane) - NODE_DEFAULTS[n.type].h / 2;
+    n.y = laneCenterY(n.lane) - dims(n).h / 2;
   });
   // strip waypoints — old routings made sense for the old geometry
   state.edges.forEach(e => { if (e.waypoints) e.waypoints = []; });
@@ -13676,7 +13734,7 @@ const BPMN_EXPORTER = 'aef-workflow-designer';
 //
 // KEEP IN STEP WITH ./VERSION. Not by remembering — tools/_t808-version-parity.sh is
 // wired into release-designer.sh ahead of every write to dist/.
-const APP_VERSION = '0.32.0';
+const APP_VERSION = '0.35.0';
 
 // A comment is the document's doc block only if it LEADS the document — appears
 // before any element child — and is not our own trailer. Position is the rule AEF's
@@ -13891,8 +13949,9 @@ function buildBpmnXml(s) {
   }
   lines.push(`    </bpmn:laneSet>`);
 
-  // nodes
-  for (const n of s.nodes) {
+  // nodes. T-1339: one node's lines, ending with its close tag (a container's contents go before that, below).
+  const nodeLines = n => {
+    const lines = [];
     // T-337: an element whose BPMN tag is outside the importer's allowlist rides
     // through as `foreignTag` and is re-emitted verbatim. Absent on every node the
     // allowlist could type, so this moves no bytes for well-formed input.
@@ -13935,8 +13994,8 @@ function buildBpmnXml(s) {
     }
     const aefBlock = aefExtensionXml(n);
     if (aefBlock) lines.push(aefBlock.trimEnd());
-    if (incoming) lines.push(incoming);
-    if (outgoing) lines.push(outgoing);
+    if (incoming) lines.push(...incoming.split('\n'));   // T-1339: one entry per line, so a nested node indents each
+    if (outgoing) lines.push(...outgoing.split('\n'));
     // T-1325: an event's kept children (dataOutput, outputSet, ...) come before its event definitions, which close
     // tCatchEvent/tThrowEvent; an activity's come last (below).
     const keptKids = (nk && nk.children) || [], eventHost = /Event$/.test(tag);
@@ -13957,10 +14016,12 @@ function buildBpmnXml(s) {
     // loopCharacteristics; then a scriptTask's script), in source order.
     if (!eventHost) for (const x of keptKids) lines.push(`      ${x}`);
     lines.push(`    </bpmn:${tag}>`);
-  }
+    return lines;
+  };
 
-  // edges
-  for (const e of s.edges) {
+  // edges. T-1339: one flow's lines.
+  const edgeLines = e => {
+    const lines = [];
     lines.push(``);
     const edgeDisplayId = displayIdOf(e);
     const nameAttr = e.name ? ` name="${escAttr(e.name)}"` : '';
@@ -14022,7 +14083,35 @@ function buildBpmnXml(s) {
     }
     for (const x of (e.kept && e.kept.children) || []) lines.push(`      ${x}`);   // T-1325
     lines.push(`    </bpmn:sequenceFlow>`);
+    return lines;
+  };
+
+  // T-1339 (T-1266 GO, slice 1): a node whose container still exists is written inside it, after the container's own
+  // content (tSubProcess extends tActivity: flow elements come last), then the flows whose two ends share that
+  // container; any other flow stays at the process level, as before. With no nested node (every designer-written map)
+  // this writes exactly the old flat sequence: all nodes, then all flows.
+  const liveUids = new Set(s.nodes.map(n => n.uid));
+  const homeOf = n => (n && n.parent && n.parent !== n.uid && liveUids.has(n.parent)) ? n.parent : '';
+  const kidsOf = new Map(), flowsOf = new Map();
+  for (const n of s.nodes) { const k = homeOf(n); if (!kidsOf.has(k)) kidsOf.set(k, []); kidsOf.get(k).push(n); }
+  for (const e of s.edges) {
+    const a = homeOf(findNode(e.source)), k = a && a === homeOf(findNode(e.target)) ? a : '';
+    if (!flowsOf.has(k)) flowsOf.set(k, []);
+    flowsOf.get(k).push(e);
   }
+  // Only each entry's first line: an entry's inner lines can be kept XML, verbatim with the file's own whitespace, which
+  // the next import keeps as it is; indenting them would add two spaces at every save.
+  const indentBy = (arr, d) => d ? arr.map(l => l && '  '.repeat(d) + l) : arr;
+  const emitIn = (home, d, seen) => {
+    for (const n of kidsOf.get(home) || []) {
+      const nl = nodeLines(n), close = nl.pop();
+      lines.push(...indentBy(nl, d));
+      if (!seen.has(n.uid) && (kidsOf.has(n.uid) || flowsOf.has(n.uid))) emitIn(n.uid, d + 1, new Set([...seen, n.uid]));
+      lines.push(...indentBy([close], d));
+    }
+    for (const e of flowsOf.get(home) || []) lines.push(...indentBy(edgeLines(e), d));
+  };
+  emitIn('', 0, new Set());
 
   // T-1096: the process's kept data objects and stores, verbatim
   if (s.dataKept) for (const x of s.dataKept.elements || []) { lines.push(``); lines.push(`    ${x}`); }
@@ -14096,7 +14185,7 @@ function buildBpmnXml(s) {
     lines.push(`    <bpmndi:BPMNPlane id="BPMNPlane_${wfId}" bpmnElement="${escAttr(ids.proc)}">`);
   }
   for (const n of s.nodes) {
-    const def = NODE_DEFAULTS[n.type] || { w: 120, h: 48 };
+    const def = dims(n) || { w: 120, h: 48 };
     if (typeof n.x !== 'number' || typeof n.y !== 'number') continue;
     const keptShape = keptShapeXml(n, displayIdOf(n));   // T-1264: another tool's geometry, while unmoved
     if (keptShape) { for (const l of keptShape) lines.push(`      ${l}`); continue; }
@@ -14300,7 +14389,7 @@ function captureImportedDi(doc, s, nodeUidByFileId, flowUidByFileId) {
   for (const [fileId, uid] of nodeUidByFileId) {
     const n = byUid.get(uid), el = shapes.get(fileId);
     if (!n || !el || typeof n.x !== 'number' || typeof n.y !== 'number') continue;
-    const def = NODE_DEFAULTS[n.type] || { w: 120, h: 48 };
+    const def = dims(n) || { w: 120, h: 48 };
     const k = diShapeParts(el, `BPMNShape_${fileId}`);
     const b = Array.from(el.children).find(c => c.namespaceURI === DC_NS_URI && c.localName === 'Bounds');
     const bx = b ? parseFloat(b.getAttribute('x')) : NaN, by = b ? parseFloat(b.getAttribute('y')) : NaN;
@@ -14332,7 +14421,7 @@ function captureImportedDi(doc, s, nodeUidByFileId, flowUidByFileId) {
 function keptShapeXml(n, disp) {
   const k = n.diKept;
   if (!k || k.at[0] !== n.x || k.at[1] !== n.y) return null;
-  const def = NODE_DEFAULTS[n.type] || { w: 120, h: 48 };
+  const def = dims(n) || { w: 120, h: 48 };
   const out = [`<bpmndi:BPMNShape id="${escAttr(k.id || `BPMNShape_${disp}`)}" bpmnElement="${escAttr(disp)}"${keptAttrsXml(k.attrs)}>`,
     `  <dc:Bounds x="${n.x.toFixed(1)}" y="${n.y.toFixed(1)}" width="${escAttr(k.w || String(def.w))}" height="${escAttr(k.h || String(def.h))}"/>`];
   for (const c of k.children || []) out.push(`  ${c}`);
@@ -14614,7 +14703,7 @@ function collabLayout(s) {
   const boxOf = ref => {
     if (c.idMap && Object.prototype.hasOwnProperty.call(c.idMap, ref)) {
       const n = s.nodes.find(x => x.uid === c.idMap[ref]);
-      if (n) { const d = NODE_DEFAULTS[n.type] || NODE_DEFAULTS.serviceTask; return { x: n.x, y: n.y, w: d.w, h: d.h }; }
+      if (n) { const d = dims(n) || NODE_DEFAULTS.serviceTask; return { x: n.x, y: n.y, w: d.w, h: d.h }; }
     }
     if (elems[ref]) return elems[ref];
     const b = bands.find(x => x.id === ref); if (b) return { ...b, band: true };
@@ -14718,7 +14807,9 @@ function parseBpmnXml(text) {
     const y = parseFloat(b.getAttribute('y'));
     // A shape carrying a non-numeric or absent x/y is skipped rather than defaulted
     // to 0 — a node silently stacked at the origin is worse than one auto-laid-out.
-    if (Number.isFinite(x) && Number.isFinite(y)) diBounds.set(ref, { x, y });
+    // T-1344: width/height too (absent stays undefined), so a boundary event can be placed on its host as the file drew it
+    const w = parseFloat(b.getAttribute('width')), h = parseFloat(b.getAttribute('height'));
+    if (Number.isFinite(x) && Number.isFinite(y)) diBounds.set(ref, { x, y, ...(w > 0 && h > 0 ? { w, h } : {}) });
   }
   // Did the INPUT carry DI? The export side re-emits DI only when this is true, which
   // is the whole of ruling (b)'s export half. Corpus measurement 2026-08-14, 145 .bpmn
@@ -15012,9 +15103,12 @@ function parseBpmnXml(text) {
   // bpmn:task) nested in a subProcess was not, so its flows were written pointing at an id the export did not contain
   // (third-party simple.bpmn, boundary-events.bpmn: targetRef="Task_1"). A subProcess's own non-node children
   // (incoming/outgoing, loop characteristics, data associations) are skipped as well as the process-level ones.
+  // T-1337: every subprocess kind BPMN has, not only subProcess: a plain task inside a transaction or an
+  // adHocSubProcess was never collected (dangling flows, the T-1131 class). completionCondition is an adHoc's own.
   const SUBPROC_NON_FLOWNODE = new Set(['incoming', 'outgoing', 'standardLoopCharacteristics',
-    'multiInstanceLoopCharacteristics', 'dataInputAssociation', 'dataOutputAssociation']);
-  const foreignContainers = [proc, ...byBpmn(proc, 'subProcess')];
+    'multiInstanceLoopCharacteristics', 'dataInputAssociation', 'dataOutputAssociation', 'completionCondition']);
+  const SUBPROC_TAGS = new Set(['subProcess', 'transaction', 'adHocSubProcess']);
+  const foreignContainers = [proc, ...Array.from(proc.getElementsByTagNameNS(BPMN_NS, '*')).filter(el => SUBPROC_TAGS.has(el.localName))];
   for (const cont of foreignContainers) {
     for (const el of Array.from(cont.children || [])) {
       if (el.namespaceURI !== BPMN_NS) continue;
@@ -15031,7 +15125,14 @@ function parseBpmnXml(text) {
 
   {
     const nodeWorkEls = new Set(nodeWork.map(w => w[1]));   // T-1325: a subprocess's own nodes are not its kept children
+    const uidByEl = new Map();   // T-1339: element -> node uid, to find each nested node's container
+    const byAefAll = byAef, byBpmnAll = byBpmn;   // T-1339: the loop below narrows these to the node's own content
     for (const [tag, el, foreignTag] of nodeWork) {
+      // T-1339: byAef/byBpmn are descendant queries. Once a saved container holds its nodes, a query on the container
+      // would also find each nested node's aef:position, aef:meta, documentation ... and read them as its own. Here
+      // they stop at another imported node; for an element with no nested node this returns what it always did.
+      const ownOnly = list => list.filter(x => { for (let p = x.parentNode; p && p !== el; p = p.parentNode) if (nodeWorkEls.has(p)) return false; return true; });
+      const byAef = (e, k) => ownOnly(byAefAll(e, k)), byBpmn = (e, k) => ownOnly(byBpmnAll(e, k));
       const displayId = el.getAttribute('id') || '';
       // T-1218: an unnamed start or end event stays unnamed. The id used to stand in as its name, so the
       // canvas showed "Start_8" and the save wrote it back as name="Start_8" (aef-greenfield-test, 41 maps).
@@ -15306,6 +15407,16 @@ function parseBpmnXml(text) {
         ...(originalId ? { originalId } : {}),
       });
       displayIdToUid.set(displayId, uid);
+      uidByEl.set(el, uid);
+    }
+    // T-1339 (T-1266 GO, slice 1): a node inside a subprocess, transaction or adHocSubProcess remembers the uid of its
+    // innermost container, so a save writes it back inside. Only nested nodes get the key, so a designer-written map's
+    // project JSON and export are unchanged. The canvas still draws every node flat.
+    const nodeByUid = new Map(nodes.map(n => [n.uid, n]));
+    for (const [el, uid] of uidByEl) {
+      let p = el.parentNode;
+      while (p && p !== proc && !(SUBPROC_TAGS.has(p.localName) && uidByEl.has(p))) p = p.parentNode;
+      if (p && p !== proc && nodeByUid.has(uid)) nodeByUid.get(uid).parent = uidByEl.get(p);
     }
   }
 
@@ -15325,9 +15436,67 @@ function parseBpmnXml(text) {
   // boundary, or one typed from its native definition) are placed: the designer's own boundary events, with or
   // without a position, are untouched, so its own maps save byte-identically.
   {
-    const byHost = new Map();
+    // T-1344: first, the file's own placement. An event and its host both drawn in the file: the event's centre,
+    // projected onto the host's outline as the FILE sized it, becomes the perimeter fraction (clockwise from the
+    // top-left corner, the walk boundaryPerimeterPoint takes). The designer draws the host at its own size, so the
+    // fraction, not the coordinate, is what carries over. Events placed here are left out of the spread below.
+    const fileIdOf = new Map(Array.from(displayIdToUid, ([did, uid]) => [uid, did]));
+    // T-1350: a host the file draws bigger than its type, carrying more boundary events on one edge than that edge holds
+    // at the type's size (44 px each: a 36 px circle and a gap), is drawn at the file's size, grown if even that is too
+    // small. Read from the file's geometry for every boundary event, positioned or not, so a file this designer saved
+    // (and every undo, which re-parses one) gets the same size back. A host the file draws at its type's size never
+    // grows: the designer's own maps are unchanged.
+    {
+      const perEdge = new Map();   // hostUid -> event count on [top, right, bottom, left]
+      for (const n of nodes) {
+        if (!n.aef || !n.aef.hostRef) continue;
+        const eb = diBounds.get(fileIdOf.get(n.uid)), hb = diBounds.get(fileIdOf.get(n.aef.hostRef));
+        if (!eb || !hb || !hb.w || !eb.w) continue;
+        const cx = eb.x + eb.w / 2, cy = eb.y + eb.h / 2;
+        const off = [Math.abs(cy - hb.y), Math.abs(cx - (hb.x + hb.w)), Math.abs(cy - (hb.y + hb.h)), Math.abs(cx - hb.x)];
+        const edge = off.reduce((a, d, i) => (d < off[a] ? i : a), 0);
+        // only an event whose centre sits ON the outline counts (tools, this one included, centre them on it). A save
+        // keeps another tool's host shape at the file's size while the host is drawn smaller (T-1264), and the events
+        // drawn on the smaller box must not then be counted against the bigger one's edges.
+        const inSpan = edge % 2 === 0 ? cx >= hb.x - 6 && cx <= hb.x + hb.w + 6 : cy >= hb.y - 6 && cy <= hb.y + hb.h + 6;
+        if (off[edge] > 6 || !inSpan) continue;
+        if (!perEdge.has(n.aef.hostRef)) perEdge.set(n.aef.hostRef, [0, 0, 0, 0]);
+        perEdge.get(n.aef.hostRef)[edge]++;
+      }
+      for (const [hostUid, k] of perEdge) {
+        const host = nodes.find(h => h.uid === hostUid), hb = host && diBounds.get(fileIdOf.get(hostUid));
+        const td = host && NODE_DEFAULTS[host.type];
+        if (!td || !hb || !(hb.w > td.w || hb.h > td.h)) continue;
+        const across = Math.max(k[0], k[2]), down = Math.max(k[1], k[3]);
+        if (across * 44 <= td.w && down * 44 <= td.h) continue;
+        // T-1344 keeps events off the corners (the middle 84% of an edge), so the fit is reckoned on that share
+        host.drawSize = { ...td, w: Math.max(td.w, hb.w, Math.ceil(across * 44 / 0.84)),
+                                 h: Math.max(td.h, hb.h, Math.ceil(down * 44 / 0.84)) };
+      }
+    }
+    const fromFile = new Set();
     for (const n of nodes) {
       if (!n.aef || !n.aef.hostRef || n.aef.boundaryPos) continue;
+      const thirdParty = (n.type === 'linkEventCatch' && !n.linkDef) || (n.nativeEventDefs || []).length > 0;
+      const eb = diBounds.get(fileIdOf.get(n.uid)), hb = diBounds.get(fileIdOf.get(n.aef.hostRef));
+      if (!thirdParty || !eb || !hb || !hb.w || !eb.w) continue;
+      const cx = eb.x + eb.w / 2, cy = eb.y + eb.h / 2, W = hb.w, H = hb.h;
+      // the edge nearest the centre in the FILE, and how far along it (0..1, in the walk's direction); the fraction is
+      // then rebuilt on the designer's host size, so the event keeps its edge whatever the two hosts' proportions
+      const s = Math.min(Math.max((cx - hb.x) / W, 0), 1), t = Math.min(Math.max((cy - hb.y) / H, 0), 1);
+      const edge = [[Math.abs(cy - hb.y), 0, s], [Math.abs(cx - (hb.x + W)), 1, t],
+                    [Math.abs(cy - (hb.y + H)), 2, 1 - s], [Math.abs(cx - hb.x), 3, 1 - t]]
+        .reduce((a, b) => (b[0] < a[0] ? b : a));
+      edge[2] = 0.08 + 0.84 * edge[2];   // off the corners: on one, the edge it belongs to is a tie
+      const host = nodes.find(h => h.uid === n.aef.hostRef);
+      const hd = (host && dims(host)) || NODE_DEFAULTS.serviceTask;
+      const lens = [hd.w, hd.h, hd.w, hd.h], start = [0, hd.w, hd.w + hd.h, 2 * hd.w + hd.h][edge[1]];
+      n.aef.boundaryPos = ((start + edge[2] * lens[edge[1]]) / (2 * (hd.w + hd.h))).toFixed(4);
+      fromFile.add(n.uid);
+    }
+    const byHost = new Map();
+    for (const n of nodes) {
+      if (!n.aef || !n.aef.hostRef || n.aef.boundaryPos || fromFile.has(n.uid)) continue;
       const thirdParty = (n.type === 'linkEventCatch' && !n.linkDef) || (n.nativeEventDefs || []).length > 0;
       if (!thirdParty) continue;
       if (!byHost.has(n.aef.hostRef)) byHost.set(n.aef.hostRef, []);
@@ -15336,7 +15505,7 @@ function parseBpmnXml(text) {
     for (const [hostUid, evs] of byHost) {
       if (evs.length < 2) continue;
       const host = nodes.find(h => h.uid === hostUid);
-      const hd = (host && NODE_DEFAULTS[host.type]) || NODE_DEFAULTS.serviceTask;
+      const hd = (host && dims(host)) || NODE_DEFAULTS.serviceTask;
       const P = 2 * (hd.w + hd.h);
       // bottom edge runs right-to-left in the perimeter walk: d from w+h (bottom-right) to 2w+h (bottom-left);
       // spread across 10%..90% of it so the labels under neighbouring events have room
@@ -15448,8 +15617,7 @@ function parseBpmnXml(text) {
   })();
   // T-1327: what this file loses on save, for the import notice. A file the designer wrote has its geometry by
   // construction, so only another tool's DI is "redrawn".
-  const SUBPROC_TAGS = new Set(['subProcess', 'transaction', 'adHocSubProcess']);
-  const hoisted = nodeWork.filter(w => w[1].parentNode && SUBPROC_TAGS.has(w[1].parentNode.localName));
+  const hoisted =nodeWork.filter(w => w[1].parentNode && SUBPROC_TAGS.has(w[1].parentNode.localName));
   _importNotKeptReport = {
     diRedrawn: sourceCarriedDi && doc.documentElement.getAttribute('exporter') !== BPMN_EXPORTER,
     hoistedNodes: hoisted.length,
@@ -15510,7 +15678,7 @@ function parseBpmnXml(text) {
   // there is byte-identical to before.
   _laneGrowReport = growUnderDeclaredLanes(lanes, nodes);
   for (const n of nodes) {
-    const def = NODE_DEFAULTS[n.type] || NODE_DEFAULTS.serviceTask;
+    const def = dims(n) || NODE_DEFAULTS.serviceTask;
     if (n.y === 0) {
       n.y = laneCenterY(n.lane) - def.h / 2;
       continue;
@@ -15529,11 +15697,18 @@ function parseBpmnXml(text) {
     // Deliberately NOT silent: the count drives a dismissible notice on user import.
     // Rewriting the operator's geometry without saying so is the same sin as
     // rewriting their membership without saying so.
+    // T-1342: an attached boundary event is where its host's perimeter is (syncBoundaryPositions, before every render),
+    // not where a lane band says; moving it here wrote a position the next render undoes, and counted it as moved.
+    if (n.aef && n.aef.hostRef && nodes.some(h => h.uid === n.aef.hostRef)) continue;
     if (findLane(n.lane) && laneAtY(n.y + def.h / 2) !== n.lane) {
       n.y = laneCenterY(n.lane) - def.h / 2;
       _laneReconcileCount++;
     }
   }
+  // T-1342: attached boundary events onto their hosts now, as every render would. Display ids are numbered by position
+  // (computeDisplayId), so numbering a file's boundary events at its own coordinates and saving them at their hosts'
+  // renumbered them on the next open.
+  state = result; syncBoundaryPositions();
   // T-1264: what of the file's own geometry differs from ours, at the positions now final (routing reads `state`)
   if (sourceCarriedDi) { state = result; captureImportedDi(doc, result, displayIdToUid, flowIdToUid); }
   state = prev;

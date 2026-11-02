@@ -84,6 +84,8 @@ NOTICE = "notice"
 SETTLED = "settled"
 EXHAUSTED = "ladder-exhausted"
 UNRETRYABLE = "ladder-unretryable"
+#: T-4962: conversation-id prefix of the live sidecar self-test (e2e.Config).
+E2E_PREFIX = "e2e-"
 
 
 def _now(now: str | datetime | None) -> datetime:
@@ -225,7 +227,39 @@ def reply_signals(*, reader=inbox.default_reader,
             if len(page) < inbox.DEFAULT_LIMIT or highest <= cursor:
                 break
             cursor = highest
+    direct_reply_signals(me, answered, replied)
     return answered, replied
+
+
+def direct_reply_signals(me: str, answered: set[str], replied: set[str]) -> None:
+    """T-4963: add replies that came over the DIRECT route to both sets.
+
+    The receiver stores every direct message as `<id>.json` with its
+    `conversation_id`, and the hub walk above never sees them. 055's consult
+    2ad78ca1 was answered on its own conversation that way, by a peer other
+    than the one addressed, and was chased for days. Like the hub walk, any
+    peer's message on the conversation counts; our own do not. A reply on a
+    DIFFERENT conversation is not guessed at: the sender settles that one with
+    `fw sidecar settle-sent`.
+    """
+    from . import receiver
+    from .receipts import base_id
+    messages = receiver._root() / ".context" / "sidecar" / "receiver" / "messages"
+    try:
+        files = list(messages.glob("*.json"))
+    except OSError:
+        return
+    for f in files:
+        try:
+            env = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(env, dict) or env.get("from") == me or env.get("kind") == "receipt":
+            continue
+        if env.get("conversation_id"):
+            answered.add(env["conversation_id"])
+        if env.get("in_reply_to"):
+            replied.add(base_id(env["in_reply_to"]))
 
 
 def _fw_binary() -> str | None:
@@ -367,7 +401,7 @@ def sweep(*, now: str | datetime | None = None,
 
     report: dict = {"considered": len(rows), "due": 0, "reposted": 0,
                     "nudged": 0, "operator": 0, "deadlettered": 0,
-                    "answered": 0, "read": 0, "actions": []}
+                    "answered": 0, "read": 0, "released": 0, "actions": []}
     if not rows:
         return report
 
@@ -381,6 +415,19 @@ def sweep(*, now: str | datetime | None = None,
     for cmid, row in sorted(rows.items()):
         attempts, next_rung, due_at = ladder_position(row)
         posted = row.get("state") in (outbox.INJECTED_NOW, outbox.INJECTED_LATER)
+
+        # T-4962: the live self-test (lib/sidecar/e2e.py) sends through the real
+        # outbox on an `e2e-<run>` conversation. It is never a consult to chase:
+        # 055 saw such leftovers reposted and escalated as "unanswered". Released,
+        # not dead-lettered, so the audit rail does not count them as failures.
+        conversation = (_read_message(cmid) or {}).get("conversation_id") or ""
+        if conversation.startswith(E2E_PREFIX):
+            _close(cmid, row, attempts, row.get("state"),
+                   f"{RELEASED}: e2e self-test {conversation}")
+            report["released"] += 1
+            report["actions"].append({"client_msg_id": cmid, "verb": RELEASED,
+                                      "conversation_id": conversation})
+            continue
 
         if cmid in replied:
             # Settled now, whether or not a rung is due: an answered consult

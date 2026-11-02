@@ -143,6 +143,11 @@ TYPE_PERFORMER = {
     # only for the type-vs-lane mismatch message; membership in this table is what makes
     # the node participate in ownership checks at all.
     "task": None,
+    # T-1358: the plain task subtypes, None for the same reason as <task>: the lane decides, the type is presentational.
+    "sendTask": None,
+    "receiveTask": None,
+    "manualTask": None,
+    "businessRuleTask": None,
 }
 
 # section 3: required top-level keys (lanes >= 1; nodes/edges may be empty)
@@ -270,7 +275,14 @@ XML_TRANSLATED_NODE_TYPES = frozenset(
 # MAPPING ROWS — what each type compiles to — and it reads like an input vocabulary. It is
 # not one. XML_ONLY because the YAML form has its own authored type list; nothing here
 # changes what the designer emits.
-XML_ONLY_NODE_TYPES = frozenset({"boundaryEvent", "task"})
+#
+# T-1358: the plain BPMN 2.0 task subtypes on the same footing, for the same reason. Greenfield's map
+# tobe-sales-without-novis drew 7 E-XML-NODE-TYPE on <sendTask>, which the designer imports (as a serviceTask shape)
+# and writes back unchanged: the editor round-tripped an element its own validator refused. sendTask, receiveTask,
+# manualTask and businessRuleTask imply no performer the lane does not already decide (O-1), exactly like <task>.
+# Admitting a type means THREE tables (this one, TYPE_PERFORMER, NODE_OCCUPANCY): T-972 and T-975 each repaired a
+# missed one; tests/test_xml_node_type_vocab.py now fails if a task-like type here is missing from the other two.
+XML_ONLY_NODE_TYPES = frozenset({"boundaryEvent", "task", "sendTask", "receiveTask", "manualTask", "businessRuleTask"})
 
 XML_NODE_TYPES = XML_TRANSLATED_NODE_TYPES | XML_ONLY_NODE_TYPES
 
@@ -313,6 +325,11 @@ NODE_OCCUPANCY = {
     # shape, tag re-emitted verbatim), so on the canvas it occupies exactly a serviceTask.
     # Without this row every lane holding a plain task was SKIPPED by capacity checking.
     "task": 64,
+    # T-1358: imported like <task> as a foreign node drawn with the serviceTask shape (src foreignDisplayTag).
+    "sendTask": 64,
+    "receiveTask": 64,
+    "manualTask": 64,
+    "businessRuleTask": 64,
 }
 
 # src:6966 — the containment margin the Clean layout applies at BOTH edges. Used
@@ -1093,6 +1110,31 @@ class XmlValidator:
         # strip '{namespace}' prefix from an ElementTree tag
         return tag.rsplit("}", 1)[-1] if "}" in tag else tag
 
+    # T-1339 (T-1266 GO, slice 1): the designer now saves another tool's nested nodes and flows inside their
+    # subprocess, transaction or adHocSubProcess. A walk of the process's direct children would not see them.
+    SUBPROC_KINDS = ("subProcess", "transaction", "adHocSubProcess")
+    # A container's own content, which is not a flow element of it.
+    SUBPROC_OWN = {"incoming", "outgoing", "standardLoopCharacteristics", "multiInstanceLoopCharacteristics",
+                   "completionCondition"}
+
+    def _flow_children(self, process):
+        """The process's children, each subprocess-kind child followed by the elements inside it (depth first,
+        document order). For a process with no nested content this is list(process)."""
+        def walk(parent, top):
+            for child in list(parent):
+                local = self._local(child.tag)
+                if not top and local in self.SUBPROC_OWN:
+                    continue
+                yield child
+                if local in self.SUBPROC_KINDS:
+                    yield from walk(child, False)
+        return list(walk(process, True))
+
+    def _nested_ids(self, process):
+        """ids of the elements inside a subprocess-kind container (not the process's own children)."""
+        top = {id(c) for c in list(process)}
+        return {c.get("id") for c in self._flow_children(process) if id(c) not in top and c.get("id")}
+
     def validate(self, root):
         # section 7: root is bpmn:definitions containing a bpmn:process
         process = root.find("{%s}process" % BPMN_NS)
@@ -1141,7 +1183,7 @@ class XmlValidator:
         gateways = []
         gateway_default = {}   # T-1284: exclusiveGateway id -> its `default` attribute, when present
         parallel_gateways = []
-        for child in list(process):
+        for child in self._flow_children(process):   # T-1339: and inside subprocesses
             local = self._local(child.tag)
             if local == "sequenceFlow":
                 seq_flows.append(child)
@@ -1364,8 +1406,11 @@ class XmlValidator:
         # them were ALREADY exit=2, so this adds an error to files that were invalid anyway
         # and flips no verdict. The two that would have flipped were repaired first, as
         # their own task (T-909).
+        # T-1339: a node inside a subprocess is not reported. Other tools (Camunda Modeler, T-1266 F3) list no nested
+        # node in the process's lanes; whether a nested node takes its container's lane is a slice 2 rule.
+        nested_ids = self._nested_ids(process)
         for node_id in sorted(flow_node_ids):
-            if node_id not in assigned:
+            if node_id not in assigned and node_id not in nested_ids:
                 self.err(
                     "E-XML-NODE-UNASSIGNED",
                     "node '%s'" % node_id,
@@ -1685,7 +1730,7 @@ class XmlValidator:
         """Flow nodes of a process as ({id: element}, [id, ...]) in document order."""
         node_el = {}
         doc_order = []
-        for child in list(process):
+        for child in self._flow_children(process):   # T-1339: and inside subprocesses
             local = self._local(child.tag)
             if local == "sequenceFlow" or local in XML_NON_FLOWNODE_TAGS:
                 continue
@@ -2108,7 +2153,7 @@ class XmlValidator:
                     # hand and lm already resolved.
                     node_lane_default[ref] = lane_default
                     node_lane_id[ref] = lane.get("id") or "?"
-        for child in list(process):
+        for child in self._flow_children(process):   # T-1339: and inside subprocesses
             local = self._local(child.tag)
             nid = child.get("id")
             if nid is None:

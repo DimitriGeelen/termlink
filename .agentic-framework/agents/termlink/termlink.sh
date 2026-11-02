@@ -1874,6 +1874,13 @@ elif [ -n "$HARNESS" ]; then
     elif ! { mkdir -p "$TREE" && git -C "$PROJECT_DIR" archive --format=tar "${FW_REVIEW_REVISION:-HEAD}" -- . ':(exclude).context' | tar -x -C "$TREE"; }; then
         echo "FATAL: cannot export revision ${FW_REVIEW_REVISION:-HEAD} for the $WORKER_KIND worker" >> "$WDIR/stderr.log"
     else
+        # T-4933: the export has no `.context/`, so the screenshots the brief cites were not
+        # there, and opencode refuses reads outside its directory: every render judge ended
+        # with no verdict. Copy exactly the cited evidence files in, before the fingerprint.
+        if [ -f "$FRAMEWORK_ROOT/lib/review_seat_evidence.py" ] && [ -f "$WDIR/brief.md" ]; then
+            python3 "$FRAMEWORK_ROOT/lib/review_seat_evidence.py" "$WDIR/brief.md" "$PROJECT_DIR" "$TREE" >> "$WDIR/stderr.log" 2>&1 \
+                || echo "WARN: cited evidence not copied into the export (T-4933)" >> "$WDIR/stderr.log"
+        fi
         chmod -R a+rX "$WDIR" 2>/dev/null
         # T-3986 (832 T-1082): a seat whose sandbox could not write a temp file could not run a
         # browser harness, and voted on what it never saw. Every harness seat gets a writable
@@ -1881,8 +1888,12 @@ elif [ -n "$HARNESS" ]; then
         # user), and the export it reviews is fingerprinted before and checked after the run.
         SEAT_TMP="$WDIR/tmp"
         mkdir -p "$SEAT_TMP" && chmod 1777 "$SEAT_TMP"
-        _tree_fp() { ( cd "$TREE" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1 ); }
-        TREE_FP_BEFORE="$(_tree_fp)"
+        _tree_list() { ( cd "$TREE" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum 2>/dev/null ); }
+        _tree_fp() { _tree_list | sha256sum | cut -d' ' -f1; }
+        # T-4978: keep the per-file list too, so a voided seat names WHAT changed (ring20's opencode
+        # seat was voided and the cause could only be guessed). The fingerprint itself is unchanged.
+        TREE_LIST_BEFORE="$(_tree_list)"
+        TREE_FP_BEFORE="$(printf '%s\n' "$TREE_LIST_BEFORE" | sha256sum | cut -d' ' -f1)"
         PROMPT_TEXT="$(cat "$WDIR/prompt.md")"
         _fw_record_worker_bin "$WORKER_BIN"
         case "$WORKER_KIND" in
@@ -1919,6 +1930,10 @@ elif [ -n "$HARNESS" ]; then
         # what it reviewed exits non-zero, so none of its greens can count.
         if [ "$(_tree_fp)" != "$TREE_FP_BEFORE" ]; then
             echo "FATAL: the $WORKER_KIND reviewer modified the export it reviewed (T-3986) — its greens do not count" >> "$WDIR/stderr.log"
+            diff <(printf '%s\n' "$TREE_LIST_BEFORE") <(_tree_list) \
+                | awk '/^[<>] /{p=substr($0,69); s[p]=s[p] substr($0,1,1)}
+                       END{for(p in s){t=(s[p]~/</&&s[p]~/>/)?"modified":(s[p]~/>/?"added":"removed"); print "  export " t ": " p}}' \
+                | LC_ALL=C sort | head -20 >> "$WDIR/stderr.log"
             EXIT_CODE=1
         fi
         # Normalise every harness to one result.md: the worker's final text, no ANSI.
@@ -1927,6 +1942,20 @@ import json, re, sys
 from pathlib import Path
 w, kind = Path(sys.argv[1]), sys.argv[2]
 ansi = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07")
+# T-4978: a harness that failed (codex 'usage limit') said so only inside result.jsonl, so the run
+# showed exit 1 and an empty result. Name every error event on stderr (this block's stderr is the log).
+_seen = set()
+for line in (w / "result.jsonl").read_text(errors="replace").splitlines() if (w / "result.jsonl").is_file() else []:
+    try:
+        ev = json.loads(line)
+    except ValueError:
+        continue
+    if isinstance(ev, dict) and ev.get("type") in ("error", "turn.failed"):
+        err = ev.get("error")
+        msg = str(ev.get("message") or (err.get("message") if isinstance(err, dict) else err) or "").strip()
+        if msg and msg not in _seen:
+            _seen.add(msg)
+            print(f"HARNESS ERROR ({kind}): {msg[:400]}", file=sys.stderr)
 if kind == "opencode":
     parts = []
     for line in (w / "result.jsonl").read_text(errors="replace").splitlines() if (w / "result.jsonl").is_file() else []:
