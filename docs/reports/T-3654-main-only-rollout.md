@@ -25,4 +25,4 @@ operator runme 2026-11-02 17:22Z) + AEF v1.8.16-be.26 or later (T-5014 hook). No
 | dimitri-mint-dev | .107 | WAITS .107 REBOOT | mid disk migration (T-213); cutover + reboot of .107 pending; re-vendor after, with operator OK (msg c7d43c64) |
 | fan-dashboard | .107 | LIVE | AEF HEAD cee5af07b (T-5014); main a06ea9fb gen 1; am-i 1/0 correct (msg 181fa697) |
 | ring20-dashboard | .121 | LIVE | be.26; main 5362761e@dashboard-agent gen 1; am-i 1/0 correct (msg 6f846691) |
-| claude-shared-toolkit | ? | NOT REACHED | send refused (no receiver); check whether it is an agent project at all |
+| claude-shared-toolkit | — | N/A (not an agent) | no agent reads its inbox (Pen msg e4fb4bc0); do not address it; toolkit matters go to 050 |
