@@ -6,12 +6,12 @@ description: >
   Operator ruling 2026-10-28 (T-3359 Decisions, option C): PH-2 visibility for the
   pinned main; takeover stays manual until PH-4 lease (T-3359).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc-011, main, OD-18]
-components: []
+components: [crates/termlink-sidecar/src/api.rs, crates/termlink-sidecar/src/book.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -40,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-28T17:19:43Z
-last_update: 2026-10-29T09:32:45Z
-date_finished:
+last_update: 2026-11-02T00:02:45Z
+date_finished: 2026-11-02T00:02:45Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -81,6 +81,11 @@ Slices, in order (this task delivers slice 1; 2 and 3 are filed as their own tas
 2. Liveness and alarm: whether the pinned main's sidecar is alive and draining. This needs a design choice (which
    signal: the main's sidecar heartbeat on the hub, or its presence record), so it is put to the operator.
 3. MCP twin and an audited re-pin through runme.
+
+**Background / trigger:** Operator ruling C (2026-10-28, T-3359): make the PH-2 pinned main visible now. Nothing reported who holds main.
+**Problem / hypothesis:** The pin exists only in the sidecar's address book, so no agent or operator can see who main is or whether it is this agent.
+**Goal:** Slice 1: the sidecar `status` call names the pinned main, its instance, and whether it is this agent.
+**Expected outcome:** `status` carries a `main` object (no book gives a null pin, not an error), covered by unit tests. Slice 2 shipped as T-3646 (closed). Slice 3 (MCP twin, audited re-pin) has no task yet; at close (2026-11-02) it was referenced only in T-3359's decision text (line 179).
 
 ## Acceptance Criteria
 
@@ -409,3 +414,16 @@ grep -q "book::main_view(book, agent)" crates/termlink-sidecar/src/api.rs
 ### 2026-10-29T09:29:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-02T00:02:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ef4aaee6
+- **Timestamp:** 2026-11-02T00:02:46Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

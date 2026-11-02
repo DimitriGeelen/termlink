@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3619: Pinned main visible: who holds main and is it alive (status+MCP), needs-attention alarm, audited re-pin via runme (OD-18 C)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T00:02:53Z
+# ============================================================================
+
+task_id: T-3619
+task_name: "Pinned main visible: who holds main and is it alive (status+MCP), needs-attention alarm, audited re-pin via runme (OD-18 C)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-28T17:19:43Z
+completed: 2026-11-02T00:02:45Z
+duration_days: 5
+updates_count: 3
+first_commit: 2026-10-29T10:32:44+01:00
+last_commit: 2026-11-01T20:01:59+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  slice 1 — sidecar status names who holds main (pinned agent, instance, is_self; no-book case reported); 174/174 sidecar tests. slice 2 liveness signal — operator ruling B (main posts 'alive, drained up to N' on the hub; alarm on stale note or stuck N)
+
+# Key outcomes
+outcomes:
+  - '`status` returns a `main` object: `{pinned: <agent> | null, instance: <id> | null, is_self: bool}` from the'
+  - 'Unit tests: a pinned peer main, main = this agent, no pin, no book.'
+  - 'The sidecar crate''s tests pass (174 passed, 0 failed). It goes live on the W1 pair with the next install'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-01 — slice 2: which liveness signal for the pinned main? B (operator ruling)'
+    chose: 'B (operator: "b"). The main''s sidecar posts a periodic hub note "alive, drained up to offset N"; peers read it from any host. The needs-attention alarm fires when the note goes stale or N stops advancing while mail waits.'
+    rationale: 'answers both "alive?" and "draining?" from any machine with no test traffic. Scored B +31, C +21, A +9, D −16 (D1–D4 9/7/5/3; F-RECALL untouched).'
+    alternatives_rejected: ['A (local heartbeat file: same-host only), C (active probe: proves most but adds constant traffic), D (wait: a dead main stays invisible). - **Left open:** note interval and staleness threshold (set in the slice 2 build, stated in its task); slice 3 (MCP twin + audited re-pin) unchanged.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3619-pinned-main-visible-who-holds-main-and-i.md'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/book.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-29T10:32:44'
+    action: 'T-3619: slice 1 — sidecar status names who holds main (pinned agent, instance, is_self; no-book case reported); 174/174 sidecar tests'
+  - time: '2026-11-01T20:01:59'
+    action: 'T-3619: slice 2 liveness signal — operator ruling B (main posts ''alive, drained up to N'' on the hub; alarm on stale note or stuck N)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6163 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc-011, main, OD-18]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6163
+  commits: 3
+  files_changed: 6
+  lines_added: 219
+  lines_removed: 15
+  footprint_refreshed_at: '2026-11-02T00:02:58Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3619-pinned-main-visible-who-holds-main-and-i.md
+generated_by: context-agent-hybrid
