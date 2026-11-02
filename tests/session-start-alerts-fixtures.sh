@@ -61,7 +61,25 @@ chmod +x "$TMP/termlink"
 printf '#!/usr/bin/env bash\n[ -n "${FAKE_UNACTED:-}" ] && printf "%%s\\n" "$FAKE_UNACTED"\nexit "${FAKE_UNACTED_RC:-0}"\n' > "$TMP/unacted"
 chmod +x "$TMP/unacted"
 : > "$TMP/hubs-none.toml"   # T-3653: hermetic by default, no remote hub is ever contacted
-run() { SESSION_ALERTS_TL="$TMP/termlink" SESSION_ALERTS_CANARY_JSON="${CJ:-$TMP/canaries.json}" \
+# T-3655: a fixture focus anchor + working focus + task dir; the real anchor is never read.
+TD="$TMP/tdir"; mkdir -p "$TD/active"
+cat > "$TMP/anchor.yaml" <<'Y'
+goal: >
+  ship the widget
+arc: arc-777
+task: T-0001
+in_scope:
+  - T-0002 the widget docs
+check_question: "Does this ship the widget sooner?"
+Y
+printf -- '---\nid: T-0003\narc_id: arc-777\n---\n' > "$TD/active/T-0003-in-arc.md"
+printf -- '---\nid: T-0004\ntags: [arc:other]\n---\n' > "$TD/active/T-0004-elsewhere.md"
+printf -- '---\nid: T-0005\ntags: [arc:arc-777]\n---\n' > "$TD/active/T-0005-tag-arc.md"
+printf 'current_task: T-0001\n' > "$TMP/wf-anchor.yaml"
+focus_sh() { FOCUS_ANCHOR="${FA:-$TMP/anchor.yaml}" FOCUS_WORKING="${FW_:-$TMP/wf-anchor.yaml}" FOCUS_TASKS_DIR="$TD" \
+        bash "$PROJECT_ROOT/scripts/focus.sh" "$@"; }
+run() { FOCUS_ANCHOR="${FA:-$TMP/anchor.yaml}" FOCUS_WORKING="${FW_:-$TMP/wf-anchor.yaml}" FOCUS_TASKS_DIR="$TD" \
+        SESSION_ALERTS_TL="$TMP/termlink" SESSION_ALERTS_CANARY_JSON="${CJ:-$TMP/canaries.json}" \
         SESSION_ALERTS_UNACTED="$TMP/unacted" FAKE_REMOTE="$TMP/remote" \
         REMOTE_INBOX_HUBS_TOML="${HUBS_TOML:-$TMP/hubs-none.toml}" REMOTE_INBOX_LOCAL_HOSTS=127.0.0.1 REMOTE_INBOX_TIMEOUT=5 \
         SESSION_ALERTS_STATE_DIR="$TMP/state" FW_SIDECAR_SELF_PROJECT=010-termlink bash "$SCRIPT" "$@"; }
@@ -203,6 +221,33 @@ printf '%s' "$j" | jq -e '.errors | any(test("could not read hubs file"))' >/dev
 j="$(SESSION_ALERTS_REMOTE=false run --json)"
 printf '%s' "$j" | jq -e '.errors | any(test("could not read remote-hub inboxes"))' >/dev/null \
     && ok "remote: a helper that dies without JSON is reported" || bad "remote helper dead ($j)"
+
+# ---- T-3655: focus anchor ------------------------------------------------------
+txt="$(run)"
+[ "$(head -1 <<< "$txt")" = "FOCUS: ship the widget | check: Does this ship the widget sooner?" ] \
+    && [ "$(sed -n 2p <<< "$txt")" = "Canaries needing attention: 3" ] \
+    && ok "focus: anchor goal and check question printed FIRST; aligned task => no mismatch line" || bad "focus shown: $(head -3 <<< "$txt")"
+for t in T-0002 T-0003 T-0005 WM-12; do
+    printf 'current_task: %s\n' "$t" > "$TMP/wf-x.yaml"
+    FW_="$TMP/wf-x.yaml" focus_sh check >/dev/null
+    rc=$?; [ "$rc" = 0 ] && ok "focus: $t is aligned (in_scope / arc_id / arc: tag / WM)" || bad "focus: $t rc=$rc"
+done
+printf 'current_task: T-0004\n' > "$TMP/wf-mis.yaml"
+txt="$(FW_="$TMP/wf-mis.yaml" run)"
+grep -q '^FOCUS MISMATCH: working on T-0004 (arc: other), anchor is T-0001 / arc-777' <<< "$(sed -n 2p <<< "$txt")" \
+    && ok "focus: a task outside the anchor prints the mismatch line second" || bad "focus mismatch: $(head -3 <<< "$txt")"
+FW_="$TMP/wf-mis.yaml" focus_sh check >/dev/null
+rc=$?; [ "$rc" = 1 ] && ok "focus.sh check: mismatch exits 1" || bad "focus.sh mismatch rc=$rc"
+j="$(FW_="$TMP/wf-mis.yaml" run --json)"
+[ "$(printf '%s' "$j" | jq -r '.focus.rc')" = 1 ] && ok "focus: --json carries the mismatch (rc 1)" || bad "focus json: $(printf '%s' "$j" | jq -c .focus)"
+txt="$(FA="$TMP/no-anchor.yaml" run)"; rc=$?
+grep -q '^FOCUS NOT CHECKED: anchor .*no-anchor.yaml missing or unreadable' <<< "$(head -1 <<< "$txt")" &&[ "$rc" = 0 ] \
+    && ok "focus: a missing anchor is NOT CHECKED (never silent); the script still reports" || bad "focus missing: $(head -2 <<< "$txt")"
+FA="$TMP/no-anchor.yaml" focus_sh check >/dev/null
+rc=$?; [ "$rc" = 2 ] && ok "focus.sh check: missing anchor exits 2" || bad "focus.sh missing rc=$rc"
+printf 'goal: [unclosed\n' > "$TMP/bad-anchor.yaml"
+FA="$TMP/bad-anchor.yaml" focus_sh show >/dev/null
+rc=$?; [ "$rc" = 2 ] && ok "focus.sh show: unreadable anchor exits 2" || bad "focus.sh bad rc=$rc"
 
 echo; echo "  passed: $PASS   failed: $FAIL"
 [ "$FAIL" -eq 0 ]

@@ -33,7 +33,8 @@
 #   FW_SIDECAR_SELF_PROJECT (our project, default 010-termlink),
 #   SESSION_ALERTS_SIDECAR_BIN (termlink-sidecar), SESSION_ALERTS_SIDECAR_SOCKETS,
 #   SESSION_ALERTS_SIDECAR_LIST (the socket list file), SESSION_ALERTS_REMOTE (remote-inbox
-#   helper command, T-3653; its own seams: REMOTE_INBOX_HUBS_TOML, REMOTE_INBOX_LOCAL_HOSTS).
+#   helper command, T-3653; its own seams: REMOTE_INBOX_HUBS_TOML, REMOTE_INBOX_LOCAL_HOSTS),
+#   SESSION_ALERTS_FOCUS (focus.sh command, T-3655; its own seams: FOCUS_ANCHOR, FOCUS_WORKING, FOCUS_TASKS_DIR).
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -51,6 +52,18 @@ while [ $# -gt 0 ]; do
         *) echo "session-start-alerts: unknown arg $1" >&2; exit 2 ;;
     esac
 done
+
+# ---- 0. the operator-set focus anchor (T-3655, adopted from 1409 T-1954) --------------
+# Printed FIRST: the goal and its check question, then a mismatch line when the current task
+# focus is outside the anchor. A missing/unreadable anchor is NOT CHECKED, never silent.
+FOCUS_CMD="${SESSION_ALERTS_FOCUS:-bash $HERE/focus.sh}"
+focus_line="$($FOCUS_CMD show --line 2>&1)"; focus_show_rc=$?
+focus_check="$($FOCUS_CMD check 2>&1)"; focus_rc=$?
+if [ "$focus_show_rc" -ne 0 ]; then
+    focus_line="FOCUS NOT CHECKED: $(printf '%s' "$focus_line" | sed 's/^FOCUS NOT CHECKED: //' | head -1)"
+    focus_check=""; focus_rc=2
+fi
+if [ "$focus_rc" -eq 0 ]; then focus_check=""; else focus_check="$(printf '%s' "$focus_check" | head -1)"; fi
 
 # ---- 1. canaries --------------------------------------------------------------
 if [ -n "${SESSION_ALERTS_CANARY_JSON:-}" ]; then
@@ -209,9 +222,12 @@ if [ "$json" -eq 1 ]; then
         --argjson at "$att" --arg ce "$canary_err" --arg me "$mail_err" --arg pe "$pin_err" --arg he "$held_err" --arg ae "$att_err" \
         --argjson un "$unacted" --arg ue "$unacted_err" \
         --argjson rm "$remote_mail" --argjson rh "$remote_hubs" --arg re "$remote_err" \
-        '{canaries:$c, mail:$m, remote_mail:$rm, remote_hubs:$rh, pin_events:$p, held:$h, held_note:$hn, attention:$at, unacted:$un, errors:([$ce,$me,$re,$pe,$he,$ae,$ue] | map(select(. != "")))}'
+        --arg fl "$focus_line" --arg fc "$focus_check" --argjson frc "$focus_rc" \
+        '{focus:{line:$fl, check:$fc, rc:$frc}, canaries:$c, mail:$m, remote_mail:$rm, remote_hubs:$rh, pin_events:$p, held:$h, held_note:$hn, attention:$at, unacted:$un, errors:([$ce,$me,$re,$pe,$he,$ae,$ue] | map(select(. != "")))}'
     exit 0
 fi
+echo "$focus_line"
+[ -n "$focus_check" ] && echo "$focus_check"
 nc="$(printf '%s' "$canaries" | jq 'length')"; nm="$(printf '%s' "$mail" | jq 'length')"
 echo "Canaries needing attention: $nc"
 printf '%s' "$canaries" | jq -r '.[] | "  \(.status)  \(.name)\n      ↳ \(.latest)"'

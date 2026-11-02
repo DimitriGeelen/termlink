@@ -40,7 +40,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T12:48:49Z
-last_update: '2026-11-02T12:49:19Z'
+last_update: 2026-11-02T12:53:37Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -89,12 +89,12 @@ anchor's scope shows a visible mismatch line at session start and in the prompt 
 ### Agent
 - [x] `.context/project/focus.yaml` written with the operator's 2026-11-02 words verbatim (goal arc-011, task T-3654,
       in scope / parked / never / check question)
-- [ ] `scripts/focus.sh show|check` (not a check-*.sh: DP-3 cap): `show` prints the anchor; `check` exits 1 naming the
+- [x] `scripts/focus.sh show|check` (not a check-*.sh: DP-3 cap): `show` prints the anchor; `check` exits 1 naming the
       mismatch when the current task focus is not the anchor task, not in the anchor's arc and not in in_scope;
       exit 2 when the anchor is missing or unreadable
-- [ ] `scripts/session-start-alerts.sh` prints the anchor's goal and check question first, and the mismatch line when
+- [x] `scripts/session-start-alerts.sh` prints the anchor's goal and check question first, and the mismatch line when
       `check` fails; fixtures cover anchor shown, mismatch shown, missing anchor = NOT CHECKED
-- [ ] CLAUDE.md (above `## Core Principle`) states the rule: only the operator sets the anchor; every proposal answers
+- [x] CLAUDE.md (above `## Core Principle`) states the rule: only the operator sets the anchor; every proposal answers
       the check question; parked items are never proposed
 
 ### Human
@@ -299,6 +299,11 @@ anchor's scope shows a visible mismatch line at session start and in the prompt 
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash tests/session-start-alerts-fixtures.sh > .context/working/.t3655-fix.out 2>&1 && grep -q 'passed: [0-9]* *failed: 0' .context/working/.t3655-fix.out
+bash scripts/focus.sh show --line > .context/working/.t3655-show.out 2>&1 && grep -q '^FOCUS: .* | check: ' .context/working/.t3655-show.out
+python3 -I -c "import yaml; d=yaml.safe_load(open('.context/project/focus.yaml')); assert d['goal'] and d['check_question']"
+test -f CLAUDE.md && awk '/^## Core Principle/{exit} /focus anchor is the operator/{f=1} END{exit !f}' CLAUDE.md
 
 ## RCA
 

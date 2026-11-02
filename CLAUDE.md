@@ -134,6 +134,13 @@ and overwrite them. Where the template and this section disagree about a
 
 - **Every list item carries a unique label the operator can cite (operator standing instruction, 2026-10-03, T-3329).** Never write a plain `-`/`*` bullet list in text meant for the operator. Label items hierarchically: top level `1`, `2`, `3`; the next level appends a letter, `1a`, `1b`; the level after appends another, `1aa`, `1ab`. Numbering is **unique across the whole message**: do not restart at 1 in each section, continue (a later section starts at 4 if the earlier one ended at 3), so "3" or "2b" names exactly one item. Decision options keep their letters `A`–`D` (already unique). Why: the operator answers by reference ("do 2b, skip 3"), often by voice, and an unlabelled bullet forces them to quote the text back. Tables and code blocks are exempt; a list inside a table cell is not. This applies to replies, decision briefs, handover text written for the operator, and messages to peer agents.
 
+- **The focus anchor is the operator's, and every proposal answers its check question (1409 T-1954, ours T-3655).**
+  `.context/project/focus.yaml` holds the operator-set goal, arc, task, in_scope, parked, never and `check_question`.
+  Only the operator sets or changes it; the agent records their words verbatim with the date and never edits the goal.
+  `scripts/session-start-alerts.sh` prints `FOCUS: <goal> | check: <question>` first, then a `FOCUS MISMATCH` line when
+  the current task is outside the anchor (`bash scripts/focus.sh show|check`: 0 aligned, 1 mismatch, 2 anchor unreadable).
+  Every proposal answers the check question; parked items are never proposed, at most named as parked.
+
 - **State budget stop conditions by threshold NAME, never by number (T-3192).**
   *Fixed upstream in AEF 1.8.3 (re-vendored 2026-10-06, T-3370):* the governance section
   below now states the ladder as percentages of `FW_CONTEXT_WINDOW` (75 / 85 / 95 %) and names
