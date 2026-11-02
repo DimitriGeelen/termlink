@@ -1,0 +1,105 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3618: Message-loss sweep across every mail rail: delivered-but-not-acted mail surfaced by name in needs-attention
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T00:01:57Z
+# ============================================================================
+
+task_id: T-3618
+task_name: "Message-loss sweep across every mail rail: delivered-but-not-acted mail surfaced by name in needs-attention"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-28T17:19:42Z
+completed: 2026-11-02T00:01:38Z
+duration_days: 5
+updates_count: 7
+first_commit: 2026-10-28T18:34:06+01:00
+last_commit: 2026-10-28T21:59:48+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  unanswered-mail sweep across every rail, shown at session start; first run found 4 lost messages (055, 050, 1023, 150), handled; T-3620/T-3621 filed from them. 055 report was acted on via the 10-23 relay (AEF T-4714) — handled note corrected; T-3620 gains 050's per-project tmux server detail. runme action 25 — remove 150-skills-manager's retired ntfy cron lines (operator ruling A); 5 fixtures, 233 pass. 150's ntfy cron lines removed by runme action 25 (rc=0, verified, no container start after 18:30); 150 told. AEF adopted the per-message addressee rule upstream (AEF T-4880); follow-up noted. 1023's report was resolved with 055 the same night (acted on via another route)
+
+# Key outcomes
+outcomes:
+  - 'An inventory (in this task''s Updates) of every rail mail travels on at .107 (AEF sidecar project inboxes incl. nickname inboxes, dm:* topics, the termlink sidecar store, framework:pickup), what "acted on" means on each, and which existing detector covers it; uncovered rails named'
+  - 'scripts/check-unacted-mail.sh reports, per rail, each message delivered but not acted on past a threshold (default 24 h), by topic, offset, sender, age; exit 0 none / 1 found / 2 could not look (fail-closed, never "clean" on a read error); receipts and probe posts are not counted as mail'
+  - 'It finds the real 2026-10-20 055 report on the dm rail when run live (or reports it handled, once item 8 is done)'
+  - 'scripts/session-start-alerts.sh lists every finding by name in needs-attention (not only as an audit WARN)'
+  - 'Hermetic fixtures (tests/unacted-mail-fixtures.sh) cover each rail, the threshold, receipt-only topics, a read error (exit 2), and a mutant that drops one rail'
+  - 'Documented in docs/operations/guard-layer-and-canaries.md and indexed in CLAUDE.md (exit codes 0/1/2). Revised from "registered in the guard layer": the check reads the live hub, so by the layer''s own rule it is not a `source` member; its fixtures are (naming convention). No cron canary added (the D′ dev-project canary cap is not yet numbered); it runs at every session start instead'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 25 — remove 150-skills-manager''s retired ntfy cron lines (operator ruling A); 5 fixtures, 233 pass'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/unacted-mail-handled.txt'
+  - '.tasks/.id-highwater'
+  - '.tasks/active/T-3618-message-loss-sweep-across-every-mail-rai.md'
+  - '.tasks/active/T-3620-hub-sandbox-breaks-tmux-spawn-after-boot.md'
+  - '.tasks/active/T-3621-mcp-termlinkagentlistenersfleet-fails-ag.md'
+  - 'CLAUDE.md'
+  - 'docs/operations/guard-layer-and-canaries.md'
+  - 'runme.sh'
+  - 'scripts/check-unacted-mail.sh'
+  - 'scripts/session-start-alerts.sh'
+  - 'scripts/unacted-mail-ignore.txt'
+  - 'tests/runme-fixtures.sh'
+  - 'tests/session-start-alerts-fixtures.sh'
+  - 'tests/unacted-mail-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-28T18:34:06'
+    action: 'T-3618: unanswered-mail sweep across every rail, shown at session start; first run found 4 lost messages (055, 050, 1023, 150), handled; T-3620/T-3621 filed from them'
+  - time: '2026-10-28T18:36:40'
+    action: 'T-3618: 055 report was acted on via the 10-23 relay (AEF T-4714) — handled note corrected; T-3620 gains 050''s per-project tmux server detail'
+  - time: '2026-10-28T19:23:13'
+    action: 'T-3618: runme action 25 — remove 150-skills-manager''s retired ntfy cron lines (operator ruling A); 5 fixtures, 233 pass'
+  - time: '2026-10-28T19:36:23'
+    action: 'T-3618: 150''s ntfy cron lines removed by runme action 25 (rc=0, verified, no container start after 18:30); 150 told'
+  - time: '2026-10-28T19:38:08'
+    action: 'T-3618: AEF adopted the per-message addressee rule upstream (AEF T-4880); follow-up noted'
+  - time: '2026-10-28T21:59:48'
+    action: 'T-3618: 1023''s report was resolved with 055 the same night (acted on via another route)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 6161 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [mail, loss, arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6161
+  commits: 7
+  files_changed: 17
+  lines_added: 1470
+  lines_removed: 20
+  footprint_refreshed_at: '2026-11-02T00:02:03Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3618-message-loss-sweep-across-every-mail-rai.md
+generated_by: context-agent-hybrid

@@ -9,12 +9,12 @@ description: >
   needs-attention (not an audit WARN); per-class owner. Found case: 055 report on
   dm:3bba15e681b3a078:d1993c2c3ec44c94 (2026-10-20) receipted delivered, never read.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [mail, loss, arc-011]
-components: []
+components: [runme.sh, scripts/check-unacted-mail.sh, scripts/session-start-alerts.sh, tests/runme-fixtures.sh, tests/session-start-alerts-fixtures.sh, tests/unacted-mail-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -43,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-28T17:19:42Z
-last_update: 2026-10-28T20:59:49Z
-date_finished:
+last_update: 2026-11-02T00:01:38Z
+date_finished: 2026-11-02T00:01:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -80,6 +80,11 @@ dm:3bba15e681b3a078:d1993c2c3ec44c94 receipted "delivered" 2026-10-20 and never 
 share one gap: "delivered" counts as done, and mail nobody acted on is at most one audit WARN among many. Existing
 partial detectors to reuse, not duplicate: `fw sidecar dm-stale`, the audit's "peer mail held unsurfaced", the
 unconfirmed-delivery canary, scripts/session-start-alerts.sh. Ruling context: T-3359 Decisions 2026-10-28 (C).
+
+**Background / trigger:** Operator, 2026-10-28: "messages get lost". Recorded losses include 14 consults to an unread nickname inbox and a 055 bug report receipted "delivered" on 2026-10-20 that nobody acted on.
+**Problem / hypothesis:** "Delivered" counts as done, and mail nobody acts on surfaces at most as one audit WARN among many.
+**Goal:** One sweep across every mail rail that names each delivered-but-not-acted message, surfaced at session start.
+**Expected outcome:** scripts/check-unacted-mail.sh (exit 0/1/2), fixtures, session-start listing, and docs, plus the found messages handled.
 
 ## Acceptance Criteria
 
@@ -447,3 +452,16 @@ that was probably never read either.
 
 ### 2026-10-28T17:20:19Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-02T00:01:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6e27fae0
+- **Timestamp:** 2026-11-02T00:01:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
