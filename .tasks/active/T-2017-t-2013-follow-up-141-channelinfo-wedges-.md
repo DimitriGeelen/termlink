@@ -24,9 +24,9 @@ status: started-work
 workflow_type: build
 owner: agent
 horizon: now
-tags: [arc:T-2013, host:141, network]
+tags: [host:141, network]
 components: []
-related_tasks: []
+related_tasks: [T-2013]  # T-3650: was tag arc:T-2013 (a task, not an arc; the driver-set resolver refused it)
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.

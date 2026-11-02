@@ -6,19 +6,16 @@
 # by T-3642 (section 6.3).
 #
 # ---------------------------------------------------------------------------
-# DECLARATIVE ONLY -- NOTHING READS THIS FILE YET.
+# LIVE SINCE AEF v1.8.16-be.21 (T-3650, 2026-11-02).
 # ---------------------------------------------------------------------------
-# The live driver file is policy/value-drivers.yaml, which holds the DEVELOPMENT
-# project's set (D1-D4 at 9/7/5/3 + F-RECALL 6). Rankings read only that file
-# (lib/bvp.sh), the live file wins any id collision (estimator.py), D1-D4 cannot
-# be arc-scoped, and arc-scoped weights are capped. So this set is declarative
-# until AEF ships per-arc driver sets: AEF inception T-4961 (GO, narrow form: an
-# arc names `driver_set: <name>`), tracked here as T-3638.
-#
-# Until then, a product score in a brief or decision is computed by hand from the
-# weights below and LABELLED "product set" (with this file's git revision), so it
-# is never confused with a live `fw bvp` score. Old totals belong to the old set:
-# recompute any comparison against the current set (draft section 6.6).
+# AEF per-arc driver sets (T-4984..T-4986, our ask T-3638): an arc YAML that carries
+# `driver_set: product` values its tasks under THIS file in fw bvp (SET column), fw bvp
+# arcs, the estimator, the resolver picker and /bvp. Tasks with no arc, or whose arc
+# names no set, use the live policy/value-drivers.yaml (the DEVELOPMENT set). The
+# validator (lib/driver_sets.py) requires `version` to equal the live file's and D1-D4
+# to match the live file except in weight; an invalid set is a refusal, never a
+# fallback. Product scores computed by hand before 2026-11-02 were labelled
+# "product set" and belong to this file's revision of that day.
 #
 # D1-D4 are protected: same meaning as the Constitutional Directives, weights
 # differ from the development set. A free driver is justified only for an axis
@@ -30,9 +27,7 @@
 #
 # Objectives (P-1..P-7, DP-1..DP-5): .context/project/objectives.yaml.
 
-version: 1
-driver_set: product
-status: declarative   # until AEF T-4961 / T-3638
+version: 3                          # must equal policy/value-drivers.yaml (driver_sets.py validator)
 
 protected_drivers:
   - id: D1

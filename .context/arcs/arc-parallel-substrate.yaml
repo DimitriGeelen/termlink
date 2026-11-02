@@ -42,3 +42,5 @@ blockers:
     primitive: "#8 typed agent-launch surface (checkout/commit/publish RPCs)"
     state: deferred-pending-human
     note: "ADR-design DEFER. Decision route: /inception/T-2026 Watchtower"
+# T-3650: valued under policy/value-drivers-product.yaml (AEF per-arc driver sets, T-4986)
+driver_set: product
