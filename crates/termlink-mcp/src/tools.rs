@@ -1336,7 +1336,8 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_help", "Discover MCP tools by category, search by substring (this tool itself)"),
             ("termlink_info", "Runtime info and paths"),
             ("termlink_doctor", "Health check"),
-            ("termlink_sidecar_main", "Pinned main of this project's sidecar: pin, instance, is_self, liveness (read-only)"),
+            ("termlink_sidecar_main", "Pinned main of this project's sidecar: pin, instance, is_self, liveness, lease (read-only)"),
+            ("termlink_main_status", "Main lease holder of a project and whether a session is main: main|not-main|unknown (read-only)"),
             ("termlink_version", "Version and build info"),
             ("termlink_pty_mode", "Query terminal mode"),
             ("termlink_output", "Read PTY output"),
@@ -11756,6 +11757,14 @@ const SIDECAR_STATUS_SOCKET_ENV: &str = "TERMLINK_SIDECAR_STATUS_SOCKET";
 const SIDECAR_SEND_SOCKET_ENV: &str = "TERMLINK_SIDECAR_SOCKET";
 
 #[derive(Deserialize, JsonSchema)]
+pub struct MainStatusParams {
+    /// Project name whose lease (`main:<project>`) to read.
+    pub project: String,
+    /// Session id to classify (main | not-main); omit for "who holds main".
+    pub session: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct SidecarMainParams {
     /// Sidecar agent to ask (its socket is <runtime_dir>/sidecar/<agent>.status.sock). Default: this
     /// session's sidecar, from TERMLINK_SIDECAR_STATUS_SOCKET or beside TERMLINK_SIDECAR_SOCKET.
@@ -11880,13 +11889,16 @@ mod sidecar_main_tests {
     #[tokio::test]
     async fn returns_the_main_object_from_a_live_sidecar() {
         let d = tempfile::tempdir().unwrap();
-        let sock = serve_once(d.path(), r#"{"ok":true,"agent":"claude-termlink-alt","main":{"book":true,"pinned":"claude-termlink","instance":"claude-termlink.w1-20261014","is_self":false,"liveness":{"state":"alive","note_age_ms":4000,"drained_up_to":12}}}"#);
+        let sock = serve_once(d.path(), r#"{"ok":true,"agent":"claude-termlink-alt","main":{"book":true,"pinned":"claude-termlink","instance":"claude-termlink.w1-20261014","is_self":false,"liveness":{"state":"alive","note_age_ms":4000,"drained_up_to":12},"lease":{"state":"held","project":"010-termlink","holder":{"session":"afce1d16","agent":"claude-termlink","host":"h","pid":7},"generation":3,"since_ms":1,"pinned":null,"checked_at_ms":2}}}"#);
         let v = sidecar_main_view(&sock, sidecar_status_query(&sock, std::time::Duration::from_secs(5)).await);
         println!("termlink_sidecar_main example: {v}");
         assert_eq!(v["ok"], true);
         assert_eq!(v["main"]["pinned"], "claude-termlink");
         assert_eq!(v["main"]["is_self"], false);
         assert_eq!(v["main"]["liveness"]["state"], "alive");
+        // T-3654: the lease holder rides along in the same object.
+        assert_eq!(v["main"]["lease"]["holder"]["session"], "afce1d16");
+        assert_eq!(v["main"]["lease"]["generation"], 3);
     }
 
     #[tokio::test]
@@ -18633,7 +18645,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_sidecar_main",
-        description = "Who is this project's pinned main and is it alive: the sidecar `status` main object (pinned, instance, is_self, liveness). Read-only; {ok:false, error} when the sidecar cannot be read."
+        description = "Who is this project's pinned main and is it alive: the sidecar `status` main object (pinned, instance, is_self, liveness, and since T-3654 `lease`: the main-lease holder session, generation, since, operator pin, checked_at_ms). Read-only; {ok:false, error} when the sidecar cannot be read."
     )]
     async fn termlink_sidecar_main(&self, Parameters(p): Parameters<SidecarMainParams>) -> String {
         let socket = match sidecar_status_socket(
@@ -18647,6 +18659,31 @@ impl TermLinkTools {
         };
         let answer = sidecar_status_query(&socket, std::time::Duration::from_secs(5)).await;
         serde_json::to_string_pretty(&sidecar_main_view(&socket, answer)).unwrap_or_else(json_err)
+    }
+
+    // === Main lease (T-3654, OD-18 / R-67): MCP twin of `termlink main status|am-i` ===
+
+    #[tool(
+        name = "termlink_main_status",
+        description = "Who holds the project's main lease at the local hub (T-3654, R-67), and with `session`: is that session main. Returns `{verdict: main|not-main|unknown, exit_code: 0|1|2, holder{session,agent,host,pid}, generation, since_ms, claimed_until_ms, pinned, vacant_since_ms, eligible_at_ms, lost, recent[...]}`. Fail-closed: hub down or unreadable is `unknown`, never main. Read-only (claim/renew/release/pin are CLI verbs run by the session's own hooks or the operator)."
+    )]
+    async fn termlink_main_status(&self, Parameters(p): Parameters<MainStatusParams>) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        let client = termlink_session::main_lease::LeaseClient {
+            addr: termlink_protocol::transport::TransportAddr::unix(hub_socket.clone()),
+            auth: None,
+            identity: None,
+            timing: termlink_session::main_lease::Timing::from_env(),
+            obligation_topics: vec![],
+        };
+        let o = if hub_socket.exists() {
+            client.status(&p.project, p.session.as_deref()).await
+        } else {
+            termlink_session::main_lease::Outcome::unknown(p.session.as_deref(), "hub unreachable: no local hub socket")
+        };
+        let mut v = o.to_json();
+        v["exit_code"] = serde_json::json!(o.verdict.exit_code());
+        serde_json::to_string_pretty(&v).unwrap_or_else(json_err)
     }
 
     // === Substrate status (T-2116 / T-2111 arc Slice 6 — T-2018 §6) ===

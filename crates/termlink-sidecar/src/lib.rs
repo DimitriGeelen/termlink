@@ -24,3 +24,4 @@ pub mod book;
 pub mod tools;
 pub mod activity;
 pub mod liveness;
+pub mod lease;

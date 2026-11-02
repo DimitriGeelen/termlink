@@ -96,6 +96,7 @@ fn start(e: &Estate, who: &str, name: &str, inst: &str, hub_id: &str, projects: 
         claude_projects: Some(projects.to_path_buf()),
         key_register: None,
         book: Default::default(),
+        main_project: None,
     };
     let path = e.root().join(format!("sidecar-{who}.json"));
     std::fs::write(&path, serde_json::to_string(&cfg).unwrap()).unwrap();

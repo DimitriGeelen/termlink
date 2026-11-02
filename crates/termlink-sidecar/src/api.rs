@@ -120,6 +120,8 @@ pub struct ApiConfig {
     pub book: Option<crate::book::Book>,
     /// The pinned main's liveness check (T-3646) and its interval in ms; `status` reads its verdict.
     pub liveness: Option<(Arc<crate::liveness::Shared>, u64)>,
+    /// T-3654: the project's main lease as last read from the hub; `status` shows it, `pull` gates on it.
+    pub lease: Option<Arc<crate::lease::Shared>>,
 }
 
 impl ApiConfig {
@@ -134,6 +136,7 @@ impl ApiConfig {
             deliverer: None,
             book: None,
             liveness: None,
+            lease: None,
         }
     }
 }
@@ -310,7 +313,7 @@ fn serve(s: UnixStream, scope: Scope, sh: &Shared) -> io::Result<()> {
 fn handle(req: &Value, scope: Scope, sh: &Shared) -> Value {
     // The peer passed the owner check, so its uid is the owner's.
     let who = format!("admin-uid-{}", sh.cfg.owner_uid);
-    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref(), liveness: sh.cfg.liveness.as_ref().map(|(l, e)| (&**l, *e)) };
+    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref(), liveness: sh.cfg.liveness.as_ref().map(|(l, e)| (&**l, *e)), lease: sh.cfg.lease.as_deref() };
     dispatch_inner(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref(), ctx)
 }
 
@@ -328,7 +331,7 @@ pub fn dispatch_with(
     hub_id: Option<&str>,
     sender: Option<&Sender>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None, liveness: None })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None, liveness: None, lease: None })
 }
 
 /// [`dispatch_with`] with the deliver path attached as well.
@@ -341,7 +344,7 @@ pub fn dispatch_full(
     sender: Option<&Sender>,
     deliverer: Option<&Deliverer>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease: None })
 }
 
 #[derive(Clone, Copy)]
@@ -351,6 +354,7 @@ struct Ctx<'a> {
     who: &'a str,
     book: Option<&'a crate::book::Book>,
     liveness: Option<(&'a crate::liveness::Shared, u64)>,
+    lease: Option<&'a crate::lease::Shared>,
 }
 
 fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id: Option<&str>, ctx: Ctx<'_>) -> Value {
@@ -399,6 +403,11 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 v["main"] = crate::book::main_view(book, agent);
                 // T-3646 (ruling B): whether that main is alive and draining, from its hub note.
                 v["main"]["liveness"] = crate::liveness::status_view(book, ctx.liveness, crate::store::now_ms());
+                // T-3654 (R-67): the lease holder (session, generation, since) next to pin and liveness.
+                v["main"]["lease"] = match ctx.lease {
+                    Some(l) => l.status_view(crate::store::now_ms()),
+                    None => serde_json::json!({"state": "unknown", "why": "this sidecar reads no main lease"}),
+                };
             }
             v
         }
@@ -411,7 +420,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         "attention" => attention(obj, store),
         "note" => note(obj, store),
         "undrain" => undrain(obj, store, who),
-        "pull" => pull(obj, ctx.deliverer),
+        "pull" => pull(obj, ctx.deliverer, ctx.lease, agent),
         "claim" => claim(obj, ctx.deliverer),
         "handed-over" => handed_over(obj, ctx.deliverer),
         "ready" => ready(obj, ctx.deliverer),
@@ -428,7 +437,7 @@ fn no_deliverer() -> Value {
     err("not-configured", "this sidecar has no deliver path configured", "start it with a store, a policy and a send path")
 }
 
-fn pull(obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>) -> Value {
+fn pull(obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>, lease: Option<&crate::lease::Shared>, agent: &str) -> Value {
     let Some(d) = d else { return no_deliverer() };
     let text = |k: &str| obj.get(k).and_then(Value::as_str);
     let (Some(session), Some(hook)) = (text("session"), text("hook")) else {
@@ -436,6 +445,10 @@ fn pull(obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>) -> Value {
     };
     if !matches!(hook, "post-tool-use" | "stop") {
         return err("bad-request", "hook must be post-tool-use or stop", "the hook that is calling");
+    }
+    // T-3654 (R-67.a1 (4), minimum): a session that is not main leaves the mail unread for main.
+    if let Some((line, notice)) = lease.and_then(|l| l.withhold(agent, session, crate::store::now_ms())) {
+        return json!({"none": true, "why": "not-main", "not_main": line, "notice": notice});
     }
     match d.pull(session, hook, text("tool_use_id")) {
         Ok(Pulled::Nothing { why }) => json!({"none": true, "why": why}),

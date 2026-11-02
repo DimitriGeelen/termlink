@@ -257,3 +257,4 @@ termlink_token_create  # unexamined — no parity assertion exists; expansion tr
 termlink_token_inspect  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_wait  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_sidecar_main  # unexamined — reads the sidecar status socket; its CLI twin `termlink sidecar status --json` is unit-tested in termlink-sidecar (T-3651)
+termlink_main_status  # unexamined — calls the same library function (termlink_session::main_lease::LeaseClient::status) as `termlink main status|am-i --json`, which main_lease_integration.rs drives against a real throwaway hub (T-3654)

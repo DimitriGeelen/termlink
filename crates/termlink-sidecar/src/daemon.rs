@@ -52,6 +52,10 @@ pub struct Config {
     /// Required in production.
     #[serde(default)]
     pub book: crate::book::Book,
+    /// T-3654: the project whose main lease (`main:<project>` on `hub`) gates this agent's
+    /// sessions; default `$TERMLINK_MAIN_PROJECT`. Unset: no gate, status says so.
+    #[serde(default)]
+    pub main_project: Option<String>,
 }
 
 fn default_poll_ms() -> u64 {
@@ -73,6 +77,7 @@ pub struct Running {
     sweep_stop: Arc<std::sync::atomic::AtomicBool>,
     sweeper: Option<std::thread::JoinHandle<()>>,
     liveness: Option<std::thread::JoinHandle<()>>,
+    lease: Option<std::thread::JoinHandle<()>>,
 }
 
 /// How often open attempts are swept, and how old one must be for the final check.
@@ -86,6 +91,9 @@ impl Drop for Running {
             let _ = t.join();
         }
         if let Some(t) = self.liveness.take() {
+            let _ = t.join();
+        }
+        if let Some(t) = self.lease.take() {
             let _ = t.join();
         }
     }
@@ -214,6 +222,14 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     api_cfg.sender = Some(sender.clone());
     api_cfg.deliverer = Some(deliverer.clone());
     api_cfg.book = (!cfg.book.is_empty()).then(|| cfg.book.clone());
+    // T-3654: read-only view of the project's main lease.
+    let main_project = cfg
+        .main_project
+        .clone()
+        .or_else(|| std::env::var("TERMLINK_MAIN_PROJECT").ok())
+        .filter(|p| !p.trim().is_empty());
+    let lease_shared = crate::lease::Shared::new(main_project.clone(), crate::lease::every_ms(store.mode()));
+    api_cfg.lease = Some(lease_shared.clone());
     let api = Api::start(api_cfg, store.clone()).map_err(|e| format!("api: {e}"))?;
     let liveness = match liveness_monitor {
         None => None,
@@ -221,6 +237,13 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
             let hub = crate::liveness::RpcHub::new(cfg.hub.clone(), timeout).map_err(|e| format!("liveness runtime: {e}"))?;
             Some(m.spawn(hub, sweep_stop.clone()))
         }
+    };
+    let lease = match main_project {
+        None => None,
+        Some(_) => Some(
+            crate::lease::spawn(crate::lease::client(cfg.hub.clone()), lease_shared, sweep_stop.clone())
+                .map_err(|e| format!("lease runtime: {e}"))?,
+        ),
     };
     // Decide attempts whose finalizer never ran or died (B13).
     let tick_beat = Arc::new(std::sync::atomic::AtomicU64::new(crate::store::now_ms()));
@@ -253,7 +276,7 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
         let r = receiver.clone();
         Box::new(move || r.last_beat_ms())
     };
-    Ok(Running { store, sender, deliverer, _receiver: receiver, api, receiver_beat, tick_beat, sweep_stop, sweeper: Some(sweeper), liveness })
+    Ok(Running { store, sender, deliverer, _receiver: receiver, api, receiver_beat, tick_beat, sweep_stop, sweeper: Some(sweeper), liveness, lease })
 }
 
 impl Running {

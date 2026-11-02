@@ -117,7 +117,12 @@ pub fn run(event: &str, input: &str, socket: Option<&Path>, log: Option<&Path>) 
             let out = json!({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": frame}});
             HookOutcome { stdout: Some(out.to_string()), finalize: Some(nonce.to_owned()), error: None }
         }
-        _ if resp.get("none").and_then(Value::as_bool) == Some(true) => HookOutcome { stdout: None, finalize: None, error: None },
+        // T-3654: a session that is not main is told once per holder generation who main is.
+        _ if resp.get("none").and_then(Value::as_bool) == Some(true) => {
+            let line = resp.get("not_main").and_then(Value::as_str).filter(|_| resp.get("notice").and_then(Value::as_bool) == Some(true));
+            let stdout = line.map(|l| json!({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": l}}).to_string());
+            HookOutcome { stdout, finalize: None, error: None }
+        }
         _ => none(format!("unexpected answer: {resp}")),
     }
 }
