@@ -6,12 +6,12 @@ description: >
   Operator 2026-11-02: top priority. ring20 messages on inbox:22c19fedafd73da2/010-termlink
   offsets 19-22 (2026-10-27/28) were never read.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/tests/cli_integration.rs, crates/termlink-protocol/src/lib.rs, crates/termlink-session/src/claim_client.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -40,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T12:08:53Z
-last_update: 2026-11-02T12:23:53Z
-date_finished:
+last_update: 2026-11-02T12:26:12Z
+date_finished: 2026-11-02T12:26:12Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -106,8 +106,10 @@ which our docs do not state next to the 16 MB frame limit.
 - [x] (21) the 512 KB plaintext payload cap documented next to the 16 MB frame limit (file named in the reply)
       **Evidence:** `docs/operations/channel-topic-semantics.md` § Size limits (16 MiB frame vs 524,288-byte
       plaintext field, -32025) and the `MAX_PAYLOAD_SIZE` doc comment in `crates/termlink-protocol/src/lib.rs`.
-- [ ] Reply sent to proxmox-ring20-management on conversation kommunal-pool, posted on their hub
+- [x] Reply sent to proxmox-ring20-management on conversation kommunal-pool, posted on their hub
       (`inbox:22c19fedafd73da2/proxmox-ring20-management`) AND via `fw sidecar send`, referencing offsets 19-22
+      **Evidence:** 2026-11-02, `fw sidecar send` HUB_ACCEPTED (client_msg_id 1be7b725-eb34-4988-a76f-3ae0a47a1396)
+      and `channel post` offset=2829 on 192.168.10.122:9100; text at `.context/working/t3652/reply.txt`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -165,7 +167,7 @@ TMPDIR=/var/tmp cargo test -p termlink-session --test claim_client_integration >
 TMPDIR=/var/tmp cargo test -p termlink --test channel_claim_cli_integration > .context/working/t3652/v-clicl.out 2>&1 && grep -q "test result: ok" .context/working/t3652/v-clicl.out
 TMPDIR=/var/tmp cargo clippy -p termlink-session -p termlink-protocol -p termlink --all-targets > .context/working/t3652/v-clippy.out 2>&1 && grep -q "Finished" .context/working/t3652/v-clippy.out && ! grep -qE "^(warning|error)" .context/working/t3652/v-clippy.out
 grep -q "524,288" docs/operations/channel-topic-semantics.md && grep -q "MAX_PLAINTEXT_FIELD_BYTES" crates/termlink-protocol/src/lib.rs
-grep -q '"ok"' .context/working/t3652/reply-sidecar.out && grep -q "offset" .context/working/t3652/reply-post.out
+grep -q "HUB_ACCEPTED" .context/working/t3652/reply-sidecar.out && grep -q "offset" .context/working/t3652/reply-post.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -432,3 +434,16 @@ renew and release over TCP against a real throwaway hub with an interact token (
 
 ### 2026-11-02T12:10:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-02T12:26:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-46f049df
+- **Timestamp:** 2026-11-02T12:27:10Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

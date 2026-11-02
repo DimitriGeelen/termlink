@@ -22749,3 +22749,21 @@ scan_id: R-b64d2f87
 task_id: T-3653
 payload:
   task_file: .tasks/active/T-3653-mail-on-our-inboxes-on-remote-hubs-is-ne.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T12:27:10Z'
+scan_id: R-46f049df
+task_id: T-3652
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T12:27:10Z'
+scan_id: R-46f049df
+task_id: T-3652
+payload:
+  task_file: .tasks/active/T-3652-answer-ring20-kommunal-pool-follow-ups-1.md

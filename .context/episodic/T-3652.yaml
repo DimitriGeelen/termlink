@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3652: Answer ring20 kommunal-pool follow-ups 19-22 (root on agent-owned hub socket; claim over TCP -32009; 512 KB cap doc)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T12:27:15Z
+# ============================================================================
+
+task_id: T-3652
+task_name: "Answer ring20 kommunal-pool follow-ups 19-22 (root on agent-owned hub socket; claim over TCP -32009; 512 KB cap doc)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-02T12:08:53Z
+completed: 2026-11-02T12:26:12Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-02T13:23:53+01:00
+last_commit: 2026-11-02T13:23:53+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  claim verbs authenticate over TCP (-32009 fix); 512 KiB post cap documented
+
+# Key outcomes
+outcomes:
+  - '(22) reproduced or refuted against a local test hub over TCP with an interact token (claim, renew, release,'
+  - '(20) answered from code: why root is dropped on the agent-owned socket (file:line), and the recommended path for'
+  - '(21) the 512 KB plaintext payload cap documented next to the 16 MB frame limit (file named in the reply)'
+  - 'Reply sent to proxmox-ring20-management on conversation kommunal-pool, posted on their hub'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'claim verbs authenticate over TCP (-32009 fix); 512 KiB post cap documented'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3652-answer-ring20-kommunal-pool-follow-ups-1.md'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/tests/cli_integration.rs'
+  - 'crates/termlink-protocol/src/lib.rs'
+  - 'crates/termlink-session/src/claim_client.rs'
+  - 'docs/operations/channel-topic-semantics.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-02T13:23:53'
+    action: 'T-3652: claim verbs authenticate over TCP (-32009 fix); 512 KiB post cap documented'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 17
+  commits: 2
+  files_changed: 9
+  lines_added: 436
+  lines_removed: 35
+  footprint_refreshed_at: '2026-11-02T12:27:29Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3652-answer-ring20-kommunal-pool-follow-ups-1.md
+generated_by: context-agent-hybrid
