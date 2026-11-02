@@ -22569,3 +22569,57 @@ scan_id: R-a06f33b1
 task_id: T-2011
 payload:
   task_file: .tasks/active/T-2011-propagate-t-2010-auditsh-patch-to-upstre.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T00:17:35Z'
+scan_id: R-3a6ccbc0
+task_id: T-1296
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T00:17:35Z'
+scan_id: R-3a6ccbc0
+task_id: T-1296
+payload:
+  task_file: .tasks/active/T-1296-migrate-ring20-dashboard-hub-runtimedir-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T00:17:42Z'
+scan_id: R-747d46bf
+task_id: T-1296
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T00:17:42Z'
+scan_id: R-747d46bf
+task_id: T-1296
+payload:
+  task_file: .tasks/active/T-1296-migrate-ring20-dashboard-hub-runtimedir-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T00:17:43Z'
+scan_id: R-b9c0a15f
+task_id: T-1296
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T00:17:43Z'
+scan_id: R-b9c0a15f
+task_id: T-1296
+payload:
+  task_file: .tasks/active/T-1296-migrate-ring20-dashboard-hub-runtimedir-.md

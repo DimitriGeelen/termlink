@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1296: Migrate ring20-dashboard hub runtime_dir (.121) — same as T-1294
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T00:17:50Z
+# ============================================================================
+
+task_id: T-1296
+task_name: "Migrate ring20-dashboard hub runtime_dir (.121) — same as T-1294"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-26T14:27:17Z
+completed: 2026-11-02T00:17:38Z
+duration_days: 190
+updates_count: 8
+first_commit: 2026-04-26T16:58:21+02:00
+last_commit: 2026-05-31T23:19:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fill in operator runbook from T-1294 proven recipe. migration already applied on .121 — surface for operator close
+
+# Key outcomes
+outcomes:
+  - '[REVIEWER] Apply same migration recipe as T-1294 AC 2 (evidence: 2026-05-31 Updates entry — live `ls` on .121 shows hub.cert/.key/.secret under /var/lib/termlink/ and no hub files left in /tmp/termlink-0/; commit 976566078)'
+  - '[REVIEWER] Re-pin from .102 + fleet doctor green (evidence: 2026-11-02 T-3648 — `termlink fleet doctor` → ring20-dashboard (192.168.10.121:9100) [PASS] connected in 42ms, v0.12.1395; `termlink hub probe` serves sha256:1389a831016c…, matching the pinned entry)'
+  - '[REVIEWER] Verify CT 101 reboot persistence (ground truth) (evidence: passive, accepted by the operator''s 2026-11-02 T-3648 ruling to close this list — the hub''s TLS identity sha256:1389a831016c… recorded at migration on 2026-05-03 is the one .121 serves on 2026-11-02, six months on, and on 2026-05-31 the hub.secret/cert files dated May 2 had survived a May 28 container boot. On the pre-migration /tmp layout the identity rotated on every boot.)'
+  - '[REVIEW] Spike 1 verification — confirm same volatile-runtime_dir pattern on CT 101 (.121)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-1296-migrate-ring20-dashboard-hub-runtimedir-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-04-26T16:58:21'
+    action: 'T-1296: Fill in operator runbook from T-1294 proven recipe'
+  - time: '2026-05-31T23:19:38'
+    action: 'T-1296: migration already applied on .121 — surface for operator close'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 272750 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [auth, infrastructure, ring20-dashboard, G-011, runtime_dir,  T-1294-followup]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 272750
+  commits: 7
+  files_changed: 10
+  lines_added: 739
+  lines_removed: 42
+  footprint_refreshed_at: '2026-11-02T00:17:55Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1296-migrate-ring20-dashboard-hub-runtimedir-.md
+generated_by: context-agent-hybrid

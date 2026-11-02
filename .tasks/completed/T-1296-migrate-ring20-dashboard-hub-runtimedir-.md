@@ -12,17 +12,17 @@ description: >
   until .121 is also on /var/lib/termlink/. Completing this task heals both: .121
   cascade prevention AND restores cross-host peer-refresh.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [auth, infrastructure, ring20-dashboard, G-011, runtime_dir, 
       T-1294-followup]
 components: []
 related_tasks: [T-1294, T-1290, T-1291, T-935]
 created: 2026-04-26T14:27:17Z
-last_update: 2026-10-26T15:36:30Z
-date_finished:
+last_update: 2026-11-02T00:17:38Z
+date_finished: 2026-11-02T00:17:38Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
     estimator: bvp-estimator-v1-heuristic
@@ -83,6 +83,11 @@ cost_estimate_proposed:
 
 ## Context
 
+**Background / trigger:** T-1294 moved the .122 hub's runtime_dir off volatile /tmp after a reboot rotated its secret and cert (PL-021). The .121 hub (CT 101, ring20-dashboard) had the same /tmp layout.
+**Problem / hypothesis:** With runtime_dir on /tmp, every CT 101 reboot would regenerate .121's secret and TLS cert, breaking every client's auth (the G-011 cascade).
+**Goal:** Move .121's runtime_dir to /var/lib/termlink so its identity survives reboots.
+**Expected outcome:** The hub runs from /var/lib/termlink and its TLS fingerprint stays stable across reboots. Status: applied by 2026-05-31; fingerprint sha256:1389a831016c… unchanged from 2026-05-03 to 2026-11-02 (T-3648 triage).
+
 Mirror of T-1294 for the OTHER ring20 hub at .121 (proxmox4 ct 101 ring20-dashboard). T-1294 fixed .122 by editing `/root/proxmox-ring20-management/scripts/ring20-watchdog.sh` to export `TERMLINK_RUNTIME_DIR=/var/lib/termlink` and replace 3 hardcoded `/tmp/termlink-0/` references. .121 likely has a parallel `ring20-dashboard-watchdog.sh` (or same name) doing the same thing — needs the same patch.
 
 **Current fleet state (2026-04-26T14:55Z):** `termlink fleet doctor` shows ring20-dashboard PASS — auth currently works because the cached secret on /opt/termlink (.102) matches what .121's hub generated at its last boot. But the volatile-runtime_dir cause is structurally present, so the next CT 101 reboot will trigger the same G-011 cascade we just fixed for .122. Migration is preventive, not currently-failing.
@@ -94,7 +99,7 @@ Mirror of T-1294 for the OTHER ring20 hub at .121 (proxmox4 ct 101 ring20-dashbo
 ## Acceptance Criteria
 
 ### Agent
-- [ ] [REVIEWER] Apply same migration recipe as T-1294 AC 2
+- [x] [REVIEWER] Apply same migration recipe as T-1294 AC 2 (evidence: 2026-05-31 Updates entry — live `ls` on .121 shows hub.cert/.key/.secret under /var/lib/termlink/ and no hub files left in /tmp/termlink-0/; commit 976566078)
   **Steps:**
   1. Find the watchdog script: `ls /root/*/scripts/*watchdog*.sh` (likely `/root/ring20-dashboard/scripts/ring20-dashboard-watchdog.sh` or similar)
   2. `mkdir -p /var/lib/termlink && chmod 700 /var/lib/termlink && cp -a /tmp/termlink-0/. /var/lib/termlink/`
@@ -107,14 +112,14 @@ Mirror of T-1294 for the OTHER ring20 hub at .121 (proxmox4 ct 101 ring20-dashbo
   6. Verify: `ls -la /var/lib/termlink/`, `pgrep -af 'termlink hub'`, `tail -5 /root/.../termlink-hub.log` (look for `persist-if-present` line)
   **Expected:** hub running on `/var/lib/termlink/`, secret preserved.
   **If not:** see T-1294 AC 2 troubleshooting notes.
-- [ ] [REVIEWER] Re-pin from .102 + fleet doctor green
+- [x] [REVIEWER] Re-pin from .102 + fleet doctor green (evidence: 2026-11-02 T-3648 — `termlink fleet doctor` → ring20-dashboard (192.168.10.121:9100) [PASS] connected in 42ms, v0.12.1395; `termlink hub probe` serves sha256:1389a831016c…, matching the pinned entry)
   **Steps:**
   1. From .121 console: `cat /var/lib/termlink/hub.secret` — paste output
   2. From .102 (this container): `printf '<paste>' > /tmp/secret.hex && termlink fleet reauth ring20-dashboard --bootstrap-from file:/tmp/secret.hex && rm /tmp/secret.hex`
   3. `termlink fleet doctor` — ring20-dashboard PASS
   4. `termlink remote ping ring20-dashboard` — PONG
   **Expected:** All green, fleet PASS 3/3.
-- [ ] [REVIEWER] Verify CT 101 reboot persistence (ground truth)
+- [x] [REVIEWER] Verify CT 101 reboot persistence (ground truth) (evidence: passive, accepted by the operator's 2026-11-02 T-3648 ruling to close this list — the hub's TLS identity sha256:1389a831016c… recorded at migration on 2026-05-03 is the one .121 serves on 2026-11-02, six months on, and on 2026-05-31 the hub.secret/cert files dated May 2 had survived a May 28 container boot. On the pre-migration /tmp layout the identity rotated on every boot.)
   **Steps:**
   1. `sha256sum /var/lib/termlink/hub.secret` (note hash)
   2. `pct reboot 101` from proxmox4
@@ -139,7 +144,7 @@ Mirror of T-1294 for the OTHER ring20 hub at .121 (proxmox4 ct 101 ring20-dashbo
 ## Verification
 
 # Agent-runnable: confirm fleet still green after operator finishes (post-AC 3)
-( termlink fleet doctor 2>&1 ) > /tmp/.v-t-1296-1.out && grep -q 'ring20-dashboard.*PASS' /tmp/.v-t-1296-1.out
+( termlink fleet doctor 2>&1 ) > .context/working/.v-t-1296-1.out; grep -A1 '^--- ring20-dashboard ' .context/working/.v-t-1296-1.out > .context/working/.v-t-1296-1b.out && grep -q 'PASS' .context/working/.v-t-1296-1b.out
 .agentic-framework/bin/fw reviewer T-1296 > /tmp/.fw-reviewer-T-1296.out 2>&1 && grep -q "Overall:.*PASS" /tmp/.fw-reviewer-T-1296.out
 
 ## Recommendation
@@ -305,20 +310,19 @@ Executed via `termlink remote exec ring20-dashboard tl-4augvpzt`. Watchdog patch
 - **Left under ### Human:** none (reviewer-judgeable ones are reported, not converted — T-3557; nothing closes without an independent verdict)
 - **Close path:** `.agentic-framework/bin/fw reviewer T-1296` PASS auto-ticks the converted criteria (T-1985); the normal close gates do the rest.
 
+### 2026-11-02T00:17:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-cbc555b1
-- **Timestamp:** 2026-10-26T15:36:55Z
+- **Scan ID:** R-b9c0a15f
+- **Timestamp:** 2026-11-02T00:17:43Z
 - **Catalogue:** v1.3-seed
 - **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
 - **Needs Human:** yes
 - **Findings:** none
 
 - **Layer-1 escalations:** 1
   1. **cross-project-blast** (medium) — Cross-project or cross-repo change
      - matched: `fleet doctor`
-
-- **Auto-ticked:** 3 AC(s)
-  - AC #1: 035d76ee2917 [[REVIEWER] Apply same migration recipe as T-1294 AC 2]
-  - AC #2: 6b9e89ecaf5a [[REVIEWER] Re-pin from .102 + fleet doctor green]
-  - AC #3: baff158c4984 [[REVIEWER] Verify CT 101 reboot persistence (ground truth)]
