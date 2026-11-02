@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3660: Fix today's regressions: 4 new guard-layer FAILs (strict-star + fixtures, mcp-desc-budget, arc-claim-drift) and termlink main release from a separate process (rc 2 'held by another claimer')
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T20:18:36Z
+# ============================================================================
+
+task_id: T-3660
+task_name: "Fix today's regressions: 4 new guard-layer FAILs (strict-star + fixtures, mcp-desc-budget, arc-claim-drift) and termlink main release from a separate process (rc 2 'held by another claimer')"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-02T19:51:11Z
+completed: 2026-11-02T20:17:44Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-02T20:52:07+01:00
+last_commit: 2026-11-02T20:58:33+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  today's regressions (4 guard FAILs + main release per-process), context and ACs. strict-star — allow-list sidecar_status_query (local sidecar status Unix socket, introduced by T-3651 3173b7bed). MCP desc budget back under ceiling (107891 -> 107493 bytes). main lease renew/release match by SESSION, not by claiming process. RCA, decisions, verification lines; ACs 1-2 ticked with evidence
+
+# Key outcomes
+outcomes:
+  - 'Each of the 4 new FAILs root-caused to the commit that introduced it (git bisect or log) and fixed honestly (fix'
+  - '`termlink main release --session <sid>` succeeds from a different process than the claimer when the session id'
+  - 'Guard layer `--gate release`: only check-drain-sink-caps.sh FAIL (2026-11-02: 1 FAIL drain-sink, 231 passed, 0 errored, 4 WARN red; .context/working/t3660/guard.out)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-02 — release/renew identity'
+    chose: 'present the live hub row''s own claimer string when its parsed session equals ours (`session_claimer`).'
+    rationale: 'the session is the lease identity everywhere else (fold, am_i, plan_claim); only the two hub calls used the per-process string. No hub or protocol change, so no ordering constraint on the fleet rollout.'
+    alternatives_rejected: ['dropping pid/agent/host from the claimer (changes the recorded holder format for live rows); hub-side force-release (operator authority, bypasses ownership).']
+  - decision: '2026-11-02 — desc budget'
+    chose: 'trim the two new descriptions to their contract and drop task-ID archaeology from 5 older ones (107891 -> 107493).'
+    alternatives_rejected: ['raising TOTAL_DESC_CEILING (the guard exists to prevent exactly that).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/strict-star-allowlist'
+  - '.tasks/active/T-3660-fix-todays-regressions-4-new-guard-layer.md'
+  - 'crates/termlink-cli/tests/main_lease_integration.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'crates/termlink-session/src/main_lease.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-02T20:52:07'
+    action: 'T-3660: today''s regressions (4 guard FAILs + main release per-process), context and ACs'
+  - time: '2026-11-02T20:53:24'
+    action: 'T-3660: strict-star — allow-list sidecar_status_query (local sidecar status Unix socket, introduced by T-3651 3173b7bed)'
+  - time: '2026-11-02T20:54:24'
+    action: 'T-3660: MCP desc budget back under ceiling (107891 -> 107493 bytes)'
+  - time: '2026-11-02T20:57:24'
+    action: 'T-3660: main lease renew/release match by SESSION, not by claiming process'
+  - time: '2026-11-02T20:58:33'
+    action: 'T-3660: RCA, decisions, verification lines; ACs 1-2 ticked with evidence'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 26 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 26
+  commits: 6
+  files_changed: 8
+  lines_added: 651
+  lines_removed: 24
+  footprint_refreshed_at: '2026-11-02T20:18:44Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3660-fix-todays-regressions-4-new-guard-layer.md
+generated_by: context-agent-hybrid

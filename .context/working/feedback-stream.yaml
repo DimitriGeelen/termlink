@@ -22839,3 +22839,21 @@ scan_id: R-b2b96bf6
 task_id: T-3659
 payload:
   task_file: .tasks/active/T-3659-re-vendor-aef-v1816-be26-t-5014-main-onl.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T20:18:28Z'
+scan_id: R-cc8c2432
+task_id: T-3660
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T20:18:28Z'
+scan_id: R-cc8c2432
+task_id: T-3660
+payload:
+  task_file: .tasks/active/T-3660-fix-todays-regressions-4-new-guard-layer.md

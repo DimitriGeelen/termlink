@@ -8,12 +8,12 @@ description: >
   T-3650) to 5; and SessionEnd release never releases because the claimer identity
   is per-process.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T19:51:11Z
-last_update: 2026-11-02T19:58:33Z
-date_finished:
+last_update: 2026-11-02T20:17:44Z
+date_finished: 2026-11-02T20:17:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -95,7 +95,7 @@ frees the lease at once.
       the code or the allow-list with a reason; never weaken a guard to pass)
 - [x] `termlink main release --session <sid>` succeeds from a different process than the claimer when the session id
       matches (and still refuses a different session id); regression test on a throwaway hub
-- [ ] Guard layer `--gate release`: only check-drain-sink-caps.sh FAIL
+- [x] Guard layer `--gate release`: only check-drain-sink-caps.sh FAIL (2026-11-02: 1 FAIL drain-sink, 231 passed, 0 errored, 4 WARN red; .context/working/t3660/guard.out)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -422,3 +422,21 @@ TMPDIR=/var/tmp cargo test -p termlink --test main_lease_integration > .context/
 
 ### 2026-11-02T19:51:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-02T20:17:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-cc8c2432
+- **Timestamp:** 2026-11-02T20:18:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — Guard layer `--gate release`: only check-drain-sink-caps.sh FAIL (2026-11-02: 1 FAIL drain-sink, 231 passed, 0 errored, 4 WARN red; .context/working/t3660/guard.out)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/working/t3660/guard.out in: Guard layer `--gate release`: only check-drain-sink-caps.sh FAIL (2026-11-02: 1 FAIL drain-sink, 231 passed, 0 errored, 4 WARN red; .context/working/t`
