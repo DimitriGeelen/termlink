@@ -140,5 +140,3 @@ scoped_drivers:              # max 3, weight ≤6 each (M2). Approved by fw arc 
       /opt/termlink/docs/reports/T-3440-driver-specs/AS_RESOURCE_FOOTPRINT.yaml
     scoring_attached_at: '2026-10-18T22:12:18Z'
 proposed_scoped_drivers: []  # PROPOSALS from HANDOFF-termlink-remediation-2026-06-22 (claude-primary). NOT approved.
-# T-3650: valued under policy/value-drivers-product.yaml (AEF per-arc driver sets, T-4986)
-driver_set: product

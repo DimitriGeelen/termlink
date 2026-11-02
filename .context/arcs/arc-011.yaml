@@ -738,5 +738,3 @@ sovereign_questions:
       claims to be - a fragility, not a weighting trade. CONSEQUENCE: T-3075''s build
       scope grows by a portable fallback; do not treat D4''s low weight as licence
       to skip it.'
-# T-3650: valued under policy/value-drivers-product.yaml (AEF per-arc driver sets, T-4986)
-driver_set: product
