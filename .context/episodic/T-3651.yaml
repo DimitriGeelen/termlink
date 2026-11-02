@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3651: Pinned main slice 3: MCP twin of status main (incl. liveness) + audited re-pin through runme (T-3619 slice 3, T-3359 C)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T09:04:52Z
+# ============================================================================
+
+task_id: T-3651
+task_name: "Pinned main slice 3: MCP twin of status main (incl. liveness) + audited re-pin through runme (T-3619 slice 3, T-3359 C)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-02T00:24:39Z
+completed: 2026-11-02T08:56:51Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-02T09:40:21+01:00
+last_commit: 2026-11-02T09:56:44+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  context and ACs (slice 3: MCP twin + audited re-pin), worker brief. termlink_sidecar_main MCP tool + runme 4c audited W1 main re-pin
+
+# Key outcomes
+outcomes:
+  - 'MCP tool (e.g. `termlink_sidecar_main`) returns the sidecar `status` `main` object read-only, fail-closed'
+  - 'runme action: re-pin `book.main` in every W1 sidecar config to a value recorded in runme (empty = list-only, no'
+  - 'Hermetic fixtures for the runme action (empty = no change, pin change OK, already pinned = skip, verification'
+  - '`cargo test -p termlink-mcp` and the sidecar crate pass; clippy clean on touched crates'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-02 — provisioning keeps an existing pin'
+    chose: '`scripts/arc011-w1-provision.sh` keeps an existing config''s `book.main` (W1_MAIN still overrides; the default applies only on first provisioning).'
+    rationale: 'runme action 17 re-applies provisioning on every run while the W1 go is recorded; with a fixed default it would silently revert any 4c re-pin on the next run.'
+    alternatives_rejected: ['passing W1_REPIN_MAIN into action 17 (reverts again once the operator empties the variable).']
+  - decision: '2026-11-02 — MCP reads the status socket directly'
+    chose: 'one `{"op":"status"}` line over the sidecar status unix socket from tokio, 5s timeout.'
+    rationale: 'termlink-mcp does not link termlink-sidecar; the wire is a single JSON line each way; no subprocess needed.'
+    alternatives_rejected: ['subprocess-self `termlink sidecar status --json` (extra process, same socket).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/mcp-parity-census-allowlist'
+  - '.tasks/active/T-3651-pinned-main-slice-3-mcp-twin-of-status-m.md'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'runme.sh'
+  - 'scripts/arc011-w1-provision.sh'
+  - 'tests/arc011-w1-provision-fixtures.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-02T09:40:21'
+    action: 'T-3651: context and ACs (slice 3: MCP twin + audited re-pin), worker brief'
+  - time: '2026-11-02T09:56:44'
+    action: 'T-3651: termlink_sidecar_main MCP tool + runme 4c audited W1 main re-pin'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 512 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 512
+  commits: 3
+  files_changed: 10
+  lines_added: 942
+  lines_removed: 24
+  footprint_refreshed_at: '2026-11-02T09:04:57Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3651-pinned-main-slice-3-mcp-twin-of-status-m.md
+generated_by: context-agent-hybrid
