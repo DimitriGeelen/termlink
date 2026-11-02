@@ -8,10 +8,10 @@ description: >
   cd, read, or commit in its own main checkout, and the hook's suggested remedies
   restore nothing. Filed upstream at framework:pickup offset 84.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -26,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-03T07:12:17Z
-last_update: '2026-09-08T21:30:40Z'
-date_finished:
+last_update: 2026-11-02T00:06:14Z
+date_finished: 2026-11-02T00:06:14Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -52,6 +52,17 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-02T00:05:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-08T21:30:40Z'
     estimator: bvp-estimator-v1-heuristic
@@ -68,14 +79,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** The T-559 project-boundary hook took PROJECT_ROOT from its own location, so a git worktree of this repo (with its own .framework.yaml) counted as a foreign project. A session whose cwd moved into one could no longer reach its main checkout. This was filed upstream at framework:pickup offset 84.
+**Problem / hypothesis:** The hook did not recognise sibling worktrees of the same repository as the same project.
+**Goal:** Treat worktrees sharing this repo's .git as in-boundary, without admitting genuinely foreign projects.
+**Expected outcome:** Fixed upstream as F-25 and now vendored. `.agentic-framework/agents/context/check-project-boundary.sh:121-135` (Write/Edit path) and `_worktree_roots` at :670-697 (Bash path) admit any root listed by `git worktree list` (T-3648 triage).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The vendored boundary hook treats a sibling git worktree of this repo as the same project, on both the Write/Edit and Bash paths (evidence: `.agentic-framework/agents/context/check-project-boundary.sh:121` and `:678` `_worktree_roots`, upstream fix F-25, arrived with the re-vendor)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -170,6 +183,8 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q 'F-25: a sibling git worktree' .agentic-framework/agents/context/check-project-boundary.sh
+grep -q 'def _worktree_roots' .agentic-framework/agents/context/check-project-boundary.sh
 
 ## RCA
 
@@ -267,3 +282,19 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2885-t-559-boundary-hook-strands-any-session-.md
 - **Context:** Initial task creation
+
+### 2026-11-02T00:05:44Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-02T00:06:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3d4e8f58
+- **Timestamp:** 2026-11-02T00:06:15Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
