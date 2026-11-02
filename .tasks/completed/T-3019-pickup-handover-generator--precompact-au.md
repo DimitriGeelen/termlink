@@ -5,10 +5,10 @@ name: "Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b F
 description: >
   Auto-created from pickup envelope. Source: 010-termlink, task T-3015. Type: bug-report.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -23,8 +23,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T13:20:02Z
-last_update: 2026-10-22T13:39:00Z
-date_finished:
+last_update: 2026-11-02T00:09:53Z
+date_finished: 2026-11-02T00:09:53Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +51,17 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-02T00:09:10Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=1 (body:episodic-only)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-22T14:57:41Z'
     estimator: bvp-estimator-v1-heuristic
@@ -67,14 +78,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Auto-created from a framework:pickup envelope whose source is this project's own T-3015. That task investigated the handover generator and PreCompact auto-commit minting a fresh D8/D8b FAIL, and filed it upstream at framework:pickup offset 126.
+**Problem / hypothesis:** No new defect here. The pickup pipeline consumed our own outbound report back as a local task (see DISPOSITION below).
+**Goal:** Avoid a second open task for work already investigated, filed and closed.
+**Expected outcome:** This task closes as a round-trip of T-3015, which is in .tasks/completed/. Any remaining fix belongs upstream (T-3648 triage).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Round-trip of our own upstream filing: the substance (investigation, write-up and upstream filing at framework:pickup offset 126) was done under T-3015, which is closed; no work remains under this ID (evidence: .tasks/completed/T-3015-handover-generator-emits-5-unfilled-todo.md, status work-completed 2026-09-20; DISPOSITION section below)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -169,6 +182,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q '^status: work-completed' .tasks/completed/T-3015-handover-generator-emits-5-unfilled-todo.md
 
 ## RCA
 
@@ -185,6 +199,11 @@ cost_estimate_proposed:
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** Every handover generation and PreCompact auto-commit minted a fresh D8/D8b audit FAIL (reported under T-3015).
+**Root cause:** The full RCA is recorded in T-3015 (.tasks/completed/T-3015-handover-generator-emits-5-unfilled-todo.md): the handover generator emitted unfilled `[TODO]` sections that the D8 checks count. This task is only the pickup round-trip of that filing.
+**Why structurally allowed:** The handover generator is vendored framework code (G-062), so it can only be fixed upstream. And the pickup pipeline turns an outbound filing back into a local task without recognising it as our own.
+**Prevention:** The fix itself was filed upstream at framework:pickup offset 126 under T-3015. The `[TODO]` frontmatter part has since been vendored (see T-2890). The round-trip artefact is recorded in the DISPOSITION section (arc-008 pickup-race task).
 
 ## Evolution
 
@@ -267,6 +286,13 @@ cost_estimate_proposed:
 - **Output:** /opt/termlink/.tasks/active/T-3019-pickup-handover-generator--precompact-au.md
 - **Context:** Initial task creation
 
+### 2026-11-02T00:09:09Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-02T00:09:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
 ## DISPOSITION (arc-008, recorded under the pickup-race task)
 
 **Round-trip of this project's own upstream filing. No work to do here.**
@@ -283,3 +309,13 @@ file does not contain. Moved to `horizon: later`.
 
 ### 2026-09-20T14:01:27Z — status-update [task-update-agent]
 - **Change:** horizon: next → later
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b8a38e32
+- **Timestamp:** 2026-11-02T00:09:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
