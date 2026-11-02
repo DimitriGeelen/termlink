@@ -773,7 +773,12 @@ def _build_brief(task_id: str, criteria: list[dict], *, rung: int = 1, rung_reas
             # state file under its own code root, i.e. inside the export, and the seat was voided.
             "Running project code: an app or test may write files next to its own code (a SQLite "
             "database, a cache, a log). Never run it in place. Copy the export first and run the "
-            "copy: `cp -a . \"$TMPDIR/run\" && cd \"$TMPDIR/run\"`.",
+            "copy: `cp -a . \"$TMPDIR/run\" && cd \"$TMPDIR/run\"`. "
+            # T-5008 (ring20-dashboard): a seat stopped its own test server with
+            # `pkill -f 'uvicorn main:app'` and took down the live service with the same line.
+            "Never stop or signal a process you did not start: no `pkill`, no `killall`, no "
+            "`kill $(pgrep …)`. Stop a server you started by the PID you started it with "
+            "(`server & pid=$!` … `kill \"$pid\"`).",
             "",
             "When you finish, the dispatch runtime records the verdicts you PRINT, under your own "
             "reviewer identity, with your full output as the evidence report, and signs your "
@@ -1193,6 +1198,12 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
     except Exception as e:  # noqa: BLE001 - an unreadable registry is a refusal, not a default
         res.update(error=f"review backend registry unavailable: {e}", code=1)
         return res
+    # T-4996: an estate-only project (REVIEW_PAID_BACKENDS=never) gets no paid seats and no
+    # proposals its operator will never approve; each unfilled seat says why instead.
+    paid_never = review_policy.config_value(root, "REVIEW_PAID_BACKENDS", "allowed").strip().lower() == "never"
+    if paid_never:
+        plan["paid"] = []
+        res["paid_backends"] = "never"
     seats, required = plan["seats"], plan["required"]
     degraded = (DEGRADED_SINGLE_VENDOR if rung >= 5 and (len(plan["dispatch"]) < required
                                                          or len(plan["vendors"]) < required) else "")
@@ -1299,6 +1310,9 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
                                          "status": p.get("status", "pending")})
             except Exception as e:  # noqa: BLE001
                 entry.update(backend=backend, status=f"proposal refused: {e}")
+        elif paid_never:
+            entry["status"] = ("paid backends are not allowed in this project "
+                               "(REVIEW_PAID_BACKENDS=never); no internal backend can fill this seat")
         else:
             entry["status"] = "no backend (internal or paid) can fill this seat"
         for r in entry["results"]:

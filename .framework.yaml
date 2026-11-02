@@ -1,17 +1,17 @@
 # Agentic Engineering Framework - Project Configuration
 # framework_path removed (T-498) — fw resolves from .agentic-framework/bin/fw location
 project_name: 010-termlink
-version: 1.8.15+547.g7f525edee
+version: 1.8.15+665.gdb97fbae4
 provider: generic
 initialized_at: 2026-03-25T17:34:50Z
 
 upstream_repo: DimitriGeelen/agentic-engineering-framework
-upgraded_from: 1.8.15+181.g10c32eca3
-last_upgrade: 2026-11-02T07:22:13Z
+upgraded_from: 1.8.15+547.g7f525edee
+last_upgrade: 2026-11-02T19:23:34Z
 # inception_commit_limit (lowercase) is never read: the gate reads INCEPTION_COMMIT_LIMIT
 # only (case-sensitive lookup; filed upstream framework:pickup offset 339). Set below.
 PORT: 3003
-version_sha: 7f525edee1d69fc24de470df4ec3b06bd629ef96
+version_sha: db97fbae46b03eb413c7e2fed886eabda8758202
 RAIL_PROJECT_LABEL: 010-termlink
 CONTEXT_WINDOW: 950000
 project_id: pid-4c0095875ce41e2f

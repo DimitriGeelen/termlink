@@ -6,6 +6,7 @@ UserPromptSubmit hook clears it FIRST, at once, before anything else runs.
 
     python3 lib/sidecar/hooks.py stop      # Stop
     python3 lib/sidecar/hooks.py prompt    # UserPromptSubmit
+    python3 lib/sidecar/hooks.py session-start   # SessionStart (T-5014 main claim)
 
 Invoked through `fw hook sidecar-receiver-ready` / `fw hook
 sidecar-receiver-adapter` (agents/context/*.sh), alongside stop-driver.sh and
@@ -45,7 +46,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     __package__ = "lib.sidecar"
 
-from . import adapter, circuit, direct, identity, inject, lifecycle, receiver  # noqa: E402
+from . import adapter, circuit, direct, identity, inject, lifecycle, main_session, receiver  # noqa: E402
 
 BODY_CAP = 4000
 # T-3840: Claude Code keeps a hook's additionalContext inline only up to ~10,000
@@ -90,9 +91,34 @@ def stop(hook_input: dict) -> int:
         return 0
     # T-3745: this session's own record first — it is the one the injector
     # reads. The project-wide file is a display summary only.
-    adapter.set_session_ready(hook_input, True)
+    me = adapter.set_session_ready(hook_input, True)
     adapter.set_ready_for_input(True)
+    # T-5014: a long turn keeps the main lease (rate-limited renewal).
+    if main_session.may_claim(me):
+        main_session.claim(me["session_id"])
     return 0
+
+
+def session_start(hook_input: dict, spawn: bool = True) -> str | None:
+    """T-5014: SessionStart — an interactive session claims the project's main
+    lease at once (forced, not rate-limited). Who may claim is decided HERE,
+    synchronously, while the claude ancestor is still readable; only the claim
+    itself (a few hub RPCs) runs detached, so a session start never waits.
+    Returns the claim result, 'spawned', or None when this session may not claim."""
+    if not _active():
+        return None
+    me = adapter.session_identity(hook_input)
+    if not main_session.may_claim(me):
+        return None
+    if not spawn:
+        return main_session.claim(me["session_id"], force=True)
+    subprocess.Popen(
+        [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "main_session.py"),
+         "claim", me["session_id"]],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        env=dict(os.environ, PROJECT_ROOT=str(receiver._root())),
+        start_new_session=True)
+    return "spawned"
 
 
 _META_UNSAFE = __import__("re").compile(r"[^A-Za-z0-9._:/@=+-]")
@@ -285,6 +311,40 @@ def prompt(hook_input: dict, out=sys.stdout, spawn=True) -> list[str]:
     # prompt already; it is not surfaced a second time here.
     waiting = [i for i in receiver.awaiting_handover() if not _being_finalized(i, now)
                and not waiting_mod.recovering(i)]
+    # T-5014: peer mail surfaces only in the project's MAIN session (TermLink owns
+    # the pin: `termlink main am-i`). This interactive session first claims (or
+    # renews, rate-limited) the main lease — nobody holds main until a session
+    # claims it. Not main → nothing here (no claim, no shown mark); not main
+    # because the lease is VACANT and could not be claimed (quiet/cooldown) → one
+    # line saying mail waits. Unknown → nothing, plus one line. termlink without
+    # the verb → today's delivery, said once per session. am-i is asked only when
+    # mail waits.
+    claimed = (main_session.claim(my_sid) if main_session.may_claim(me)
+               else main_session.INELIGIBLE)
+    notice = None
+    if waiting:
+        answer, _holder, vacant = main_session.ask(my_sid)
+        if answer == main_session.NOT_MAIN and vacant and claimed == main_session.SKIPPED:
+            # Claimed under a minute ago, yet vacant now (released or lost): try once more.
+            if main_session.claim(my_sid, force=True) == main_session.CLAIMED:
+                answer, _holder, vacant = main_session.ask(my_sid)
+        if answer == main_session.NOT_MAIN:
+            if vacant and claimed != main_session.INELIGIBLE:
+                out.write(json.dumps({"hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": main_session.VACANT_LINE,
+                }}) + "\n")
+                out.flush()
+            return []
+        if answer == main_session.UNKNOWN:
+            out.write(json.dumps({"hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": main_session.UNKNOWN_LINE,
+            }}) + "\n")
+            out.flush()
+            return []
+        if answer == main_session.UNSUPPORTED:
+            notice = _unsupported_notice_once(my_sid)
     ids = [i for i in waiting if inject.is_claimed_for(i, me)]
     # A project where the injector has DECIDED no TermLink session is
     # registered (plain terminals only) has no injection target at all; the
@@ -334,12 +394,16 @@ def prompt(hook_input: dict, out=sys.stdout, spawn=True) -> list[str]:
             }}) + "\n")
             out.flush()
         return []
+    if notice and not _mark_notice_said(my_sid):
+        notice = None
     surfacing = secrets.token_hex(16)
     messages, frame = _fit([by_id[i] for i in order], surfacing)
     surfaced = [str(m.get("client_msg_id")) for m in messages]
+    # The frame keeps its place (stale note first, as before); the notice trails it.
+    context = "\n\n".join(x for x in (stale, frame, notice) if x)
     out.write(json.dumps({"hookSpecificOutput": {
         "hookEventName": "UserPromptSubmit",
-        "additionalContext": f"{stale}\n\n{frame}" if stale else frame,
+        "additionalContext": context,
     }}) + "\n")
     out.flush()
     try:
@@ -360,6 +424,36 @@ def prompt(hook_input: dict, out=sys.stdout, spawn=True) -> list[str]:
             env=dict(os.environ, PROJECT_ROOT=str(receiver._root())),
             start_new_session=True)
     return surfaced
+
+
+def _notice_marker(session_id: str):
+    safe = "".join(c for c in str(session_id) if c.isalnum() or c in "-_")[:80] or "unknown"
+    d = receiver._receiver_dir() / "main-only-notice"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / safe
+
+
+def _unsupported_notice_once(session_id: str) -> str | None:
+    """T-5014 (010's ask): the "main-only delivery not active" line, if this
+    session has not been told yet. Said only alongside mail it surfaces."""
+    try:
+        if _notice_marker(session_id).exists():
+            return None
+    except OSError:
+        return None
+    return main_session.UNSUPPORTED_LINE
+
+
+def _mark_notice_said(session_id: str) -> bool:
+    """Record the notice as said; False when another prompt already said it."""
+    try:
+        fd = os.open(_notice_marker(session_id), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+    except FileExistsError:
+        return False
+    except OSError:
+        return True   # cannot record it: say it rather than stay silent
+    os.close(fd)
+    return True
 
 
 def _stale_doorbell(prompt_text) -> str | None:
@@ -509,6 +603,9 @@ def main(argv=None) -> int:
         if which == "prompt":
             prompt(hook_input)
             return 0
+        if which == "session-start":
+            session_start(hook_input)
+            return 0
         if which == "finalize":
             rest = argv[2:]
             token = None
@@ -516,7 +613,7 @@ def main(argv=None) -> int:
                 token, rest = rest[1], rest[2:]
             finalize(argv[1] if len(argv) > 1 else "", rest, surfacing=token)
             return 0
-        print(f"usage: hooks.py stop|prompt (got {which!r})", file=sys.stderr)
+        print(f"usage: hooks.py stop|prompt|session-start (got {which!r})", file=sys.stderr)
         return 0
     except Exception:
         _log_error(which)

@@ -55,11 +55,6 @@
           {
             "type": "command",
             "command": "[ -z \"${TERMLINK_SIDECAR_SOCKET:-}\" ] || exec termlink sidecar hook session-start"
-          },
-          {
-            "type": "command",
-            "command": "[ -z \"$(command -v termlink)\" ] || { if command -v timeout >/dev/null 2>&1; then timeout 5 termlink main claim --session-from-stdin; else termlink main claim --session-from-stdin; fi; } >/dev/null 2>&1; exit 0",
-            "timeout": 10
           }
         ]
       }
@@ -272,11 +267,6 @@
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook sidecar-receiver-adapter"
-          },
-          {
-            "type": "command",
-            "command": "[ -z \"$(command -v termlink)\" ] || { if command -v timeout >/dev/null 2>&1; then timeout 5 termlink main claim --session-from-stdin; else termlink main claim --session-from-stdin; fi; } >/dev/null 2>&1; exit 0",
-            "timeout": 10
           }
         ]
       }
