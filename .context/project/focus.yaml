@@ -1,0 +1,28 @@
+# Focus anchor (adopted from 1409-sprind's protocol, T-1954; ours T-3655).
+# ONLY the operator sets or changes this. The agent records the operator's words verbatim with the date and never
+# edits the goal on its own. Every proposal is measured against `check_question`. Parked items are never proposed,
+# at most mentioned as parked. Old versions move to `history`.
+goal: >
+  arc-011 live for all projects: every message reaches the agent's ONE main session; a non-main session never takes
+  it but leaves or forwards it to the main; with no main, the sessions settle who becomes main (ruled OD-18, R-67).
+arc: arc-011
+task: T-3654
+operator_words:
+  - date: 2026-11-02
+    text: "That's a protocol we designed ... TermLink should have designed that and dispatched and rolled that out ... everyone in a similar project knows there's one master; if it gets messages and it's not master, it forwards to the master; if there is no master, you negotiate who becomes master."
+  - date: 2026-11-02
+    text: "It is not live, and we're going to focus on this."
+  - date: 2026-11-02
+    text: "Find that arc where we've got all this work in and we focus on completing that arc."
+in_scope:
+  - T-3654 main lease (one main per project, am-i, takeover, pin) and its rollout via runme
+  - AEF T-5014 (hook surfaces only in main): interface, test, be-tag
+  - the remaining arc-011 critical path (map: .context/working/arc011-map/map.md)
+  - incoming peer mail about delivery failures (answer, then back to focus)
+parked:
+  - T-3648/T-3649 backlog triage and the /triage page (operator clicks whenever he wants; no agent work)
+  - T-3643/T-3644 follow-ups, BVP/driver-set work, scoring consultations
+never:
+  - starting new side work while arc-011 is not live without the operator's word
+check_question: "Does this make arc-011's one-main delivery live sooner for every project?"
+history: []
