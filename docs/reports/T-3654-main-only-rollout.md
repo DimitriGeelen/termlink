@@ -20,7 +20,7 @@ operator runme 2026-11-02 17:22Z) + AEF v1.8.16-be.26 or later (T-5014 hook). No
 | 0909-boot-into-timeshift-snapshots | ? | NOTIFIED | |
 | 1023-portable-encrypted-chromium-vault | .107 | WAITS OPERATOR GO | on 1.8.12; needs the operator's go in its own session (msg aaef341a) |
 | 1409-sprind | .107 | WAITS OPERATOR GO | upgrades only via an operator runme; queued as a question to its operator (msg b697905f) |
-| 832-Workflow-designer | .107 | WAITS OPERATOR GO | on be.15; operator job (msg 8cf1f171) |
+| 832-Workflow-designer | .107 | LIVE | be.26 on operator go (job 120); main 572fe488 gen 1; am-i 1 for x (msg 10007efd) |
 | aef-greenfield-test | .132 | NOTIFIED | |
 | dimitri-mint-dev | .107 | WAITS .107 REBOOT | mid disk migration (T-213); cutover + reboot of .107 pending; re-vendor after, with operator OK (msg c7d43c64) |
 | fan-dashboard | .107 | LIVE | AEF HEAD cee5af07b (T-5014); main a06ea9fb gen 1; am-i 1/0 correct (msg 181fa697) |
