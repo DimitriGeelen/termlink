@@ -40,7 +40,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T18:58:18Z
-last_update: 2026-11-02T19:27:03Z
+last_update: 2026-11-02T19:47:31Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -85,14 +85,28 @@ triage files and our T-3654 hooks in .claude/settings.json).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Ancestry be.21 (7f525edee) -> be.26 (318fddf57) verified; rehearsal on a fresh clone, real run from a second fresh
+- [x] Ancestry be.21 (7f525edee) -> be.26 (318fddf57) verified; rehearsal on a fresh clone, real run from a second fresh
       clone, dry-run first in each, env FRAMEWORK_ROOT/PROJECT_ROOT/FW_ROUTED_FROM unset
-- [ ] Every preserved file kept (changed-upstream ones 3-way merged, base be.21); triage page tests pass; CLAUDE.md
+      **Evidence:** 318fddf57 is not an object in the upstream repo (no ref, no object); tag v1.8.16-be.26 = db97fbae4,
+      which carries all T-5014 commits, used instead. 7f525edee is an ancestor of db97fbae4 (118 commits). Rehearsal and
+      real run rc 0, dry-runs rc 0 (24 / 21 changes). Commit 79108e56b. Logs: .context/working/t3659/{rehearse,real}.log
+- [x] Every preserved file kept (changed-upstream ones 3-way merged, base be.21); triage page tests pass; CLAUDE.md
       project part identical; .claude/settings.json keeps our `termlink main` hooks next to AEF's
-- [ ] `.vendor-divergence.yaml` last_vendor_event updated; check-vendor-divergence rc 0; fw doctor no new FAIL; guard
+      **Evidence:** 12/12 preserved files byte-identical, markers present; inject.py (the only one upstream changed) merged
+      with 0 conflicts; web/test_triage.py 12 passed; CLAUDE.md diff 0 lines. settings.json: our two `main claim` entries
+      dropped because AEF's fw hooks claim the same lease, interactive sessions only (see Decisions); our SessionEnd
+      `main release` kept, since AEF does not wire one.
+- [x] `.vendor-divergence.yaml` last_vendor_event updated; check-vendor-divergence rc 0; fw doctor no new FAIL; guard
       layer `--gate release` no new FAIL vs baseline
-- [ ] Live check: the receiver hook's am-i gate is wired (hook script/config present and calls `termlink main am-i`);
+      **Evidence:** last_vendor_event = 79108e56b; check-vendor-divergence rc 0; fw doctor rc 0, 0 FAIL (one new WARN:
+      Watchtower predates its source, not restarted). Guard layer before and after are identical: 5 FAIL (arc-claim-drift,
+      drain-sink-caps, strict-star + fixtures, mcp-desc-budget, all already red before), 227 passed, 4 WARN red.
+- [x] Live check: the receiver hook's am-i gate is wired (hook script/config present and calls `termlink main am-i`);
       `termlink main am-i` for this session's id exits 0, for a fake id exits 1
+      **Evidence:** vendored lib/sidecar/main_session.py runs `termlink main am-i`; hooks.py calls it; settings.json wires
+      `fw hook sidecar-receiver-adapter`. At check time the real lease was VACANT (holder 10c2f139, gen 1, had gone
+      quiet), and a dispatched worker must not claim it, so the 0/1 contract was proven on a scratch key
+      (TERMLINK_MAIN_PROJECT=t3659-livecheck): claimant rc 0, fake id rc 1. Real lease, fake id: rc 1.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -297,6 +311,13 @@ triage files and our T-3654 hooks in .claude/settings.json).
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+.agentic-framework/bin/fw doctor > .context/working/t3659/v-doc.out 2>&1 && grep -q 'OK' .context/working/t3659/v-doc.out && ! grep -q 'FAIL' .context/working/t3659/v-doc.out
+bash scripts/check-vendor-divergence.sh > .context/working/t3659/v-cvd.out 2>&1 && grep -q 'all registered' .context/working/t3659/v-cvd.out
+grep -q '"am-i"' .agentic-framework/lib/sidecar/main_session.py && grep -q 'sidecar-receiver-adapter' .claude/settings.json && grep -q 'termlink main release --session-from-stdin' .claude/settings.json && ! grep -q 'termlink main claim' .claude/settings.json
+grep -q 'version_sha: db97fbae4' .framework.yaml
+(cd .agentic-framework && TMPDIR=/var/tmp timeout 300 python3 -m pytest -q web/test_triage.py > ../.context/working/t3659/v-tri.out 2>&1) && grep -q passed .context/working/t3659/v-tri.out
+bash -c 'timeout 10 termlink main am-i --session 00000000-fake >/dev/null 2>&1; test $? -eq 1'
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -367,6 +388,13 @@ triage files and our T-3654 hooks in .claude/settings.json).
 -->
 
 ## Decisions
+
+### 2026-11-02 — our T-3654 claim hooks vs AEF be.26's
+- **Chose:** drop our SessionStart/UserPromptSubmit `termlink main claim --session-from-stdin`; keep our SessionEnd release.
+- **Why:** be.26 hooks.py and sidecar-autostart claim the same lease (same Claude session id, same project resolution in
+  termlink) on SessionStart (forced), UserPromptSubmit and Stop, and refuse headless, review and dispatched sessions.
+  Ours claimed from every session, workers included. AEF's main_session.release() is not wired.
+- **Rejected:** keeping both (two claims per prompt, and ours lets a `claude -p` worker take main).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
