@@ -1336,6 +1336,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_help", "Discover MCP tools by category, search by substring (this tool itself)"),
             ("termlink_info", "Runtime info and paths"),
             ("termlink_doctor", "Health check"),
+            ("termlink_sidecar_main", "Pinned main of this project's sidecar: pin, instance, is_self, liveness (read-only)"),
             ("termlink_version", "Version and build info"),
             ("termlink_pty_mode", "Query terminal mode"),
             ("termlink_output", "Read PTY output"),
@@ -11748,6 +11749,171 @@ pub struct FleetBootstrapCheckParams {
     pub timeout_secs: Option<u64>,
 }
 
+// T-3651 (T-3359 ruling C, slice 3): `termlink_sidecar_main` reads the same `main` object as
+// `termlink sidecar status` straight from the sidecar's status socket (the MCP crate does not
+// link the sidecar crate; the wire is one JSON line each way, see termlink-sidecar hook::call).
+const SIDECAR_STATUS_SOCKET_ENV: &str = "TERMLINK_SIDECAR_STATUS_SOCKET";
+const SIDECAR_SEND_SOCKET_ENV: &str = "TERMLINK_SIDECAR_SOCKET";
+
+#[derive(Deserialize, JsonSchema)]
+pub struct SidecarMainParams {
+    /// Sidecar agent to ask (its socket is <runtime_dir>/sidecar/<agent>.status.sock). Default: this
+    /// session's sidecar, from TERMLINK_SIDECAR_STATUS_SOCKET or beside TERMLINK_SIDECAR_SOCKET.
+    pub agent: Option<String>,
+}
+
+/// The status socket to ask: an explicit agent under the runtime dir, else the status-socket env,
+/// else the send socket's `<agent>.status.sock` sibling (the sidecar CLI's own rule).
+fn sidecar_status_socket(
+    agent: Option<&str>,
+    runtime: &std::path::Path,
+    status_env: Option<String>,
+    send_env: Option<String>,
+) -> Result<std::path::PathBuf, String> {
+    if let Some(a) = agent {
+        let plain = !a.is_empty()
+            && a != "."
+            && a != ".."
+            && a.len() <= 200
+            && a.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-' | b':'));
+        if !plain {
+            return Err(format!("agent {a:?} is not a plain name (letters, digits, . _ - : only)"));
+        }
+        return Ok(runtime.join("sidecar").join(format!("{a}.status.sock")));
+    }
+    if let Some(s) = status_env.filter(|s| !s.is_empty()) {
+        return Ok(std::path::PathBuf::from(s));
+    }
+    let send = send_env.filter(|s| !s.is_empty()).map(std::path::PathBuf::from);
+    let derived = send.as_ref().and_then(|p| {
+        let name = p.file_name()?.to_str()?;
+        let a = name.strip_suffix(".send.sock")?;
+        Some(p.with_file_name(format!("{a}.status.sock")))
+    });
+    derived.ok_or_else(|| {
+        format!("no sidecar to ask: pass `agent`, or set {SIDECAR_STATUS_SOCKET_ENV} (or {SIDECAR_SEND_SOCKET_ENV})")
+    })
+}
+
+/// One `{"op":"status"}` round trip on the status socket, bounded by `timeout`.
+async fn sidecar_status_query(
+    socket: &std::path::Path,
+    timeout: std::time::Duration,
+) -> Result<serde_json::Value, String> {
+    use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+    let round_trip = async {
+        let mut s = tokio::net::UnixStream::connect(socket)
+            .await
+            .map_err(|e| format!("connect {}: {e}", socket.display()))?;
+        s.write_all(b"{\"op\":\"status\"}\n").await.map_err(|e| format!("write: {e}"))?;
+        let mut line = String::new();
+        tokio::io::BufReader::new(s)
+            .take(4 * 1024 * 1024)
+            .read_line(&mut line)
+            .await
+            .map_err(|e| format!("read: {e}"))?;
+        if line.is_empty() {
+            return Err("the sidecar closed the connection without answering".to_string());
+        }
+        serde_json::from_str(&line).map_err(|e| format!("bad answer: {e}"))
+    };
+    tokio::time::timeout(timeout, round_trip)
+        .await
+        .map_err(|_| format!("no answer from {} within {}s", socket.display(), timeout.as_secs()))?
+}
+
+/// Fail-closed shaping: `ok:true` only when the sidecar answered ok AND carried a `main` object.
+/// Never invents a liveness verdict; a missing one stays absent for the caller to see.
+fn sidecar_main_view(
+    socket: &std::path::Path,
+    answer: Result<serde_json::Value, String>,
+) -> serde_json::Value {
+    let sock = socket.display().to_string();
+    match answer {
+        Err(e) => serde_json::json!({"ok": false, "socket": sock, "error": e}),
+        Ok(v) if v.get("ok") != Some(&serde_json::Value::Bool(true)) => serde_json::json!({
+            "ok": false, "socket": sock,
+            "error": format!("the sidecar refused status: {}", v.get("error").and_then(|e| e.as_str()).unwrap_or("no reason given")),
+        }),
+        Ok(v) => match v.get("main").filter(|m| m.is_object()) {
+            None => serde_json::json!({"ok": false, "socket": sock, "error": "status carries no `main` (sidecar older than T-3619)"}),
+            Some(m) => serde_json::json!({"ok": true, "socket": sock, "main": m}),
+        },
+    }
+}
+
+#[cfg(test)]
+mod sidecar_main_tests {
+    use super::*;
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn socket_resolution_follows_agent_then_env_then_send_sibling() {
+        let rt = Path::new("/rt");
+        assert_eq!(sidecar_status_socket(Some("claude-termlink"), rt, Some("/x".into()), None).unwrap(), PathBuf::from("/rt/sidecar/claude-termlink.status.sock"));
+        assert_eq!(sidecar_status_socket(None, rt, Some("/s/a.status.sock".into()), Some("/s/b.send.sock".into())).unwrap(), PathBuf::from("/s/a.status.sock"));
+        assert_eq!(sidecar_status_socket(None, rt, Some(String::new()), Some("/s/b.send.sock".into())).unwrap(), PathBuf::from("/s/b.status.sock"));
+        assert!(sidecar_status_socket(None, rt, None, None).is_err());
+        assert!(sidecar_status_socket(None, rt, None, Some("/s/odd.sock".into())).is_err());
+        assert!(sidecar_status_socket(Some("../etc"), rt, None, None).is_err());
+        assert!(sidecar_status_socket(Some("a/b"), rt, None, None).is_err());
+    }
+
+    fn serve_once(dir: &Path, answer: &'static str) -> PathBuf {
+        let sock = dir.join("a.status.sock");
+        let listener = tokio::net::UnixListener::bind(&sock).unwrap();
+        tokio::spawn(async move {
+            use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+            let (s, _) = listener.accept().await.unwrap();
+            let (r, mut w) = s.into_split();
+            let mut line = String::new();
+            tokio::io::BufReader::new(r).read_line(&mut line).await.unwrap();
+            assert_eq!(line.trim(), r#"{"op":"status"}"#);
+            if !answer.is_empty() {
+                w.write_all(answer.as_bytes()).await.unwrap();
+                w.write_all(b"\n").await.unwrap();
+            }
+        });
+        sock
+    }
+
+    #[tokio::test]
+    async fn returns_the_main_object_from_a_live_sidecar() {
+        let d = tempfile::tempdir().unwrap();
+        let sock = serve_once(d.path(), r#"{"ok":true,"agent":"claude-termlink-alt","main":{"book":true,"pinned":"claude-termlink","instance":"claude-termlink.w1-20261014","is_self":false,"liveness":{"state":"alive","note_age_ms":4000,"drained_up_to":12}}}"#);
+        let v = sidecar_main_view(&sock, sidecar_status_query(&sock, std::time::Duration::from_secs(5)).await);
+        println!("termlink_sidecar_main example: {v}");
+        assert_eq!(v["ok"], true);
+        assert_eq!(v["main"]["pinned"], "claude-termlink");
+        assert_eq!(v["main"]["is_self"], false);
+        assert_eq!(v["main"]["liveness"]["state"], "alive");
+    }
+
+    #[tokio::test]
+    async fn fails_closed_and_never_fabricates_liveness() {
+        let d = tempfile::tempdir().unwrap();
+        // No sidecar listening.
+        let gone = d.path().join("gone.status.sock");
+        let v = sidecar_main_view(&gone, sidecar_status_query(&gone, std::time::Duration::from_secs(2)).await);
+        assert_eq!(v["ok"], false);
+        assert!(v["error"].as_str().unwrap().contains("connect"));
+        assert!(v.get("main").is_none(), "no main, so no liveness, when the sidecar is unreachable");
+        // A refusal is not a verdict.
+        let v = sidecar_main_view(&gone, Ok(serde_json::json!({"ok": false, "error": "wrong socket"})));
+        assert_eq!(v["ok"], false);
+        assert!(v["error"].as_str().unwrap().contains("wrong socket"));
+        // An old sidecar without `main`.
+        let v = sidecar_main_view(&gone, Ok(serde_json::json!({"ok": true})));
+        assert_eq!(v["ok"], false);
+        // A sidecar that hangs up without answering.
+        let d2 = tempfile::tempdir().unwrap();
+        let sock = serve_once(d2.path(), "");
+        let v = sidecar_main_view(&sock, sidecar_status_query(&sock, std::time::Duration::from_secs(5)).await);
+        assert_eq!(v["ok"], false);
+        assert!(v.get("main").is_none());
+    }
+}
+
 // T-2116 (T-2111 arc Slice 6 — T-2018 §6 observability roll-up):
 // Subprocess-self MCP parity for `substrate status` CLI verb (Slice 1).
 // Mirror of FleetBootstrapCheckParams shape — subprocess pattern (own
@@ -18461,6 +18627,26 @@ impl TermLinkTools {
                 stderr.chars().take(300).collect::<String>()
             )),
         }
+    }
+
+    // === Sidecar pinned main (T-3651: MCP twin of `sidecar status` main, T-3359 ruling C) ===
+
+    #[tool(
+        name = "termlink_sidecar_main",
+        description = "Who is this project's pinned main and is it alive: the sidecar `status` main object (pinned, instance, is_self, liveness). Read-only; {ok:false, error} when the sidecar cannot be read."
+    )]
+    async fn termlink_sidecar_main(&self, Parameters(p): Parameters<SidecarMainParams>) -> String {
+        let socket = match sidecar_status_socket(
+            p.agent.as_deref(),
+            &termlink_session::discovery::runtime_dir(),
+            std::env::var(SIDECAR_STATUS_SOCKET_ENV).ok(),
+            std::env::var(SIDECAR_SEND_SOCKET_ENV).ok(),
+        ) {
+            Ok(s) => s,
+            Err(e) => return json_err(e),
+        };
+        let answer = sidecar_status_query(&socket, std::time::Duration::from_secs(5)).await;
+        serde_json::to_string_pretty(&sidecar_main_view(&socket, answer)).unwrap_or_else(json_err)
     }
 
     // === Substrate status (T-2116 / T-2111 arc Slice 6 — T-2018 §6) ===

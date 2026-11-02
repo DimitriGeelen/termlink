@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T00:24:39Z
-last_update: '2026-11-02T08:39:43Z'
+last_update: 2026-11-02T08:56:44Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -87,16 +87,23 @@ the main on the W1 pair only when the operator has recorded which agent, and log
 ## Acceptance Criteria
 
 ### Agent
-- [ ] MCP tool (e.g. `termlink_sidecar_main`) returns the sidecar `status` `main` object read-only, fail-closed
+- [x] MCP tool (e.g. `termlink_sidecar_main`) returns the sidecar `status` `main` object read-only, fail-closed
       (sidecar unreachable -> `{ok:false, error}`, never a fabricated `alive`); help/description within the MCP
       description budget (`scripts/test-mcp-desc-budget.sh` passes); MCP/CLI parity census updated if it requires
-- [ ] runme action: re-pin `book.main` in every W1 sidecar config to a value recorded in runme (empty = list-only, no
+- [x] runme action: re-pin `book.main` in every W1 sidecar config to a value recorded in runme (empty = list-only, no
       change); idempotent (skip when already pinned); backs up each config; restarts the units through the same path
       as action 4b; verifies `status` reports the new pin; appends one line to an audit log (time, from, to, who
       recorded it); FAILED on any verification miss
-- [ ] Hermetic fixtures for the runme action (empty = no change, pin change OK, already pinned = skip, verification
+- [x] Hermetic fixtures for the runme action (empty = no change, pin change OK, already pinned = skip, verification
       miss = FAILED) through RUNME_* seams; `tests/runme-fixtures.sh` passes
-- [ ] `cargo test -p termlink-mcp` and the sidecar crate pass; clippy clean on touched crates
+- [x] `cargo test -p termlink-mcp` and the sidecar crate pass; clippy clean on touched crates
+
+      Evidence (2026-11-02): `termlink_sidecar_main` in crates/termlink-mcp/src/tools.rs, 3 unit tests (unreachable,
+      refusal, no-main, hang-up all give ok:false with no `main`); desc budget PASS 107323/107500; parity census clean
+      (allowlisted). runme action 4c `w1_repin_main` (W1_REPIN_MAIN="<agent>|<recorder>"); restart shared with 4b via
+      `w1_restart_unit`; audit log `.context/audits/w1-main-repins.jsonl`; 7 new fixtures, runme-fixtures 244 passed / 0
+      failed; real `--dry-run` lists both pins and changes nothing. `cargo test -p termlink-mcp -p termlink-sidecar`
+      rc 0 (mcp lib 944 passed); clippy -D warnings rc 0.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -301,6 +308,13 @@ the main on the W1 pair only when the operator has recorded which agent, and log
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+TMPDIR=/var/tmp bash tests/runme-fixtures.sh > .context/working/.t3651-fx.out 2>&1 && grep -q "T-3651: recorded re-pin => both configs" .context/working/.t3651-fx.out
+TMPDIR=/var/tmp bash tests/arc011-w1-provision-fixtures.sh > .context/working/.t3651-pf.out 2>&1 && grep -q "ok   3c an existing pin" .context/working/.t3651-pf.out
+bash scripts/test-mcp-desc-budget.sh > .context/working/.t3651-budget.out 2>&1 && grep -q "RESULT: PASS" .context/working/.t3651-budget.out
+bash scripts/check-mcp-parity-census.sh > .context/working/.t3651-census.out 2>&1 && grep -q "0 unexamined" .context/working/.t3651-census.out
+TMPDIR=/var/tmp cargo test -p termlink-mcp --lib sidecar_main > .context/working/.t3651-mcp.out 2>&1 && grep -q "3 passed; 0 failed" .context/working/.t3651-mcp.out
+grep -q 'W1_REPIN_MAIN="${RUNME_W1_REPIN_MAIN-}"' runme.sh
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -380,6 +394,16 @@ the main on the W1 pair only when the operator has recorded which agent, and log
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-02 — provisioning keeps an existing pin
+- **Chose:** `scripts/arc011-w1-provision.sh` keeps an existing config's `book.main` (W1_MAIN still overrides; the default applies only on first provisioning).
+- **Why:** runme action 17 re-applies provisioning on every run while the W1 go is recorded; with a fixed default it would silently revert any 4c re-pin on the next run.
+- **Rejected:** passing W1_REPIN_MAIN into action 17 (reverts again once the operator empties the variable).
+
+### 2026-11-02 — MCP reads the status socket directly
+- **Chose:** one `{"op":"status"}` line over the sidecar status unix socket from tokio, 5s timeout.
+- **Why:** termlink-mcp does not link termlink-sidecar; the wire is a single JSON line each way; no subprocess needed.
+- **Rejected:** subprocess-self `termlink sidecar status --json` (extra process, same socket).
 
 ## Decision
 

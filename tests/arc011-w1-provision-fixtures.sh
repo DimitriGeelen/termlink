@@ -73,6 +73,12 @@ out=$(W1_STAMP=w1-20991231 bash "$SUT" --apply 2>&1); rc=$?
 check "3a a second apply writes nothing new" '[ $rc = 0 ] && ! grep -q "written and verified" <<< "$out" && ! grep -q FAILED <<< "$out"'
 check "3b the instance id is kept, not re-minted" '[ "$(cat "$T/etc/instances/claude-termlink")" = claude-termlink.w1-20261013 ]'
 
+# 3c (T-3651) a re-pinned main is kept by the next apply, not reverted to the default
+python3 -c 'import json,sys; p=sys.argv[1]; c=json.load(open(p)); c["book"]["main"]="claude-termlink-alt"; open(p,"w").write(json.dumps(c,indent=2,sort_keys=True))' "$T/etc/claude-termlink.json"
+out=$(bash "$SUT" --apply 2>&1); rc=$?
+check "3c an existing pin (re-pinned by runme 4c) survives a re-apply" '[ $rc = 0 ] && ! grep -q "claude-termlink sidecar config written" <<< "$out" && python3 -c "import json,sys; sys.exit(0 if json.load(open(\"$T/etc/claude-termlink.json\"))[\"book\"][\"main\"]==\"claude-termlink-alt\" else 1)"'
+python3 -c 'import json,sys; p=sys.argv[1]; c=json.load(open(p)); c["book"]["main"]="claude-termlink"; open(p,"w").write(json.dumps(c,indent=2,sort_keys=True))' "$T/etc/claude-termlink.json"
+
 # 4 a changed key is refused, nothing rewritten
 cp "$T/etc/claude-termlink.json" "$T/cfg.before"
 echo "seed-other" > "$T/ident/claude-termlink.key"

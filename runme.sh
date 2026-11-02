@@ -720,23 +720,119 @@ w1_restart_onto_binary() {
             say "  skip    $unit already runs the installed binary (pid $pid)"; SKIPPED=$((SKIPPED+1)); continue
         fi
         if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would restart $unit (pid $pid runs older code)"; DONE=$((DONE+1)); continue; fi
-        if ! $W1_SYSTEMCTL restart "$unit"; then
-            say "  FAILED  systemctl restart $unit"; FAILED=$((FAILED+1)); continue
-        fi
-        for i in 1 2 3 4 5 6 7 8 9 10; do
-            pid="$($W1_SYSTEMCTL show -p MainPID --value "$unit" 2>/dev/null)"
-            [ -n "$pid" ] && [ "$pid" != "0" ] && [ "$W1_PROC/$pid/exe" -ef "$W1_BIN" ] && break
-            [ "${RUNME_FIXTURE:-0}" = "1" ] || sleep 1
-        done
-        if [ "$($W1_SYSTEMCTL is-active "$unit" 2>/dev/null)" = "active" ] && [ "$W1_PROC/$pid/exe" -ef "$W1_BIN" ]; then
-            say "  OK      $unit restarted and verified: active, pid $pid runs the installed binary"; DONE=$((DONE+1))
+        if w1_restart_unit "$unit"; then
+            say "  OK      $unit restarted and verified: active, pid $W1_PID runs the installed binary"; DONE=$((DONE+1))
         else
-            say "  FAILED  $unit after restart: not active or not on the installed binary (pid ${pid:-none})"; FAILED=$((FAILED+1))
+            say "  FAILED  $W1_WHY"; FAILED=$((FAILED+1))
         fi
     done
 }
+# w1_restart_unit <unit>: restart, then wait for an active unit whose main process runs the installed
+# binary. 0 = verified (pid in W1_PID); 1 = not (reason in W1_WHY). Shared by 4b and 4c (T-3651).
+w1_restart_unit() {
+    local unit="$1" pid="" i
+    W1_PID=""; W1_WHY=""
+    if ! $W1_SYSTEMCTL restart "$unit"; then W1_WHY="systemctl restart $unit"; return 1; fi
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        pid="$($W1_SYSTEMCTL show -p MainPID --value "$unit" 2>/dev/null)"
+        [ -n "$pid" ] && [ "$pid" != "0" ] && [ "$W1_PROC/$pid/exe" -ef "$W1_BIN" ] && break
+        [ "${RUNME_FIXTURE:-0}" = "1" ] || sleep 1
+    done
+    W1_PID="$pid"
+    if [ "$($W1_SYSTEMCTL is-active "$unit" 2>/dev/null)" = "active" ] && [ "$W1_PROC/$pid/exe" -ef "$W1_BIN" ]; then return 0; fi
+    W1_WHY="$unit after restart: not active or not on the installed binary (pid ${pid:-none})"; return 1
+}
 head2 "4b. W1 sidecars onto the installed binary (T-3647, makes T-3646 live)"
 w1_restart_onto_binary
+
+# ---------------------------------------------------------------------------
+# ACTION 4c — re-pin the W1 pair's main, audited (T-3651; T-3359 operator ruling C)
+#
+# Who is "main" lives in `book.main` of each W1 sidecar config (/etc/termlink-sidecar/<agent>.json).
+# Changing it by hand leaves no record, so it is done here, and ONLY to a value the operator has
+# recorded below. Empty (the default) = list-only: every run prints each sidecar's current pin and
+# changes nothing. To re-pin: set W1_REPIN_MAIN="<agent>|<who decided, and where it is recorded>",
+# run /opt/termlink/runme.sh, then empty it again (leaving it set is harmless: re-runs skip).
+# Refused before any change when <agent> is not this agent or a peer in EVERY config (the sidecar
+# would refuse to start on such a book). Per sidecar: back up the config (<cfg>.bak-<UTC>), write
+# the new pin, restart through the same path as 4b, then verify `sidecar status` reports the pin.
+# Skip when the config AND the live status already name it. One JSONL line per changing run goes
+# to the audit log (time, from, to, recorded, outcome), failed attempts included.
+# Action 17's provisioning keeps an existing pin (T-3651), so it does not revert this one.
+# Seams (fixtures only): RUNME_W1_REPIN_MAIN, RUNME_W1_CONF_DIR, RUNME_W1_SOCK_DIR,
+#   RUNME_W1_STATUS_TL, RUNME_W1_PIN_AUDIT (plus 4b's RUNME_W1_UNITS/SYSTEMCTL/PROC/BIN).
+# ---------------------------------------------------------------------------
+# The recorded operator re-pin: "<agent>|<who, date, where recorded>". Empty = list-only.
+W1_REPIN_MAIN="${RUNME_W1_REPIN_MAIN-}"
+seam W1_CONF_DIR RUNME_W1_CONF_DIR "/etc/termlink-sidecar"
+seam W1_SOCK_DIR RUNME_W1_SOCK_DIR "/var/lib/termlink/sidecar"
+seam W1_STATUS_TL RUNME_W1_STATUS_TL "$W1_BIN"
+seam W1_PIN_AUDIT RUNME_W1_PIN_AUDIT "$PROJECT_ROOT/.context/audits/w1-main-repins.jsonl"
+w1_agent_of() { local a="${1#termlink-sidecar@010-termlink--}"; echo "${a%.service}"; }
+w1_conf_main() { python3 -c 'import json,sys; m=(json.load(open(sys.argv[1])).get("book") or {}).get("main"); print(m or "")' "$1" 2>/dev/null; }
+w1_conf_knows() { python3 -c 'import json,sys; c=json.load(open(sys.argv[1])); sys.exit(0 if sys.argv[2]==c.get("agent") or sys.argv[2] in (c.get("book") or {}).get("peers",{}) else 1)' "$1" "$2" 2>/dev/null; }
+w1_conf_write_main() { python3 -c 'import json,os,sys
+p,to=sys.argv[1:3]; c=json.load(open(p)); c.setdefault("book",{})["main"]=to; t=p+".tmp.%d"%os.getpid()
+open(t,"w").write(json.dumps(c,indent=2,sort_keys=True)); os.chmod(t,os.stat(p).st_mode&0o7777); os.replace(t,p)' "$1" "$2"; }
+w1_live_main() {  # <agent>: the pin the running sidecar reports, empty if it cannot be read
+    local out
+    out="$(TERMLINK_SIDECAR_STATUS_SOCKET="$W1_SOCK_DIR/$1.status.sock" $W1_STATUS_TL sidecar status --json 2>/dev/null)"
+    python3 -c 'import json,sys; v=json.loads(sys.argv[1]); print(((v.get("main") or {}).get("pinned") or "") if v.get("ok") else "")' "$out" 2>/dev/null
+}
+w1_repin_main() {
+    local to="${W1_REPIN_MAIN%%|*}" rec="" unit a cfg cur live bak i got outcome="ok" from="" n=0 nfail=0
+    [ "$W1_REPIN_MAIN" = "${W1_REPIN_MAIN#*|}" ] || rec="${W1_REPIN_MAIN#*|}"
+    for unit in $W1_UNITS; do
+        a="$(w1_agent_of "$unit")"; cfg="$W1_CONF_DIR/$a.json"
+        if [ ! -f "$cfg" ]; then say "  skip    $a: no config at $cfg (W1 not provisioned here)"; SKIPPED=$((SKIPPED+1)); continue; fi
+        cur="$(w1_conf_main "$cfg")"
+        if [ -z "$to" ]; then
+            say "  list    $a: main pinned to ${cur:-<none>} (no re-pin recorded; nothing changed)"; SKIPPED=$((SKIPPED+1)); continue
+        fi
+        if ! w1_conf_knows "$cfg" "$to"; then
+            say "  FAILED  re-pin refused: $to is neither $a nor a peer in $cfg; nothing changed"; FAILED=$((FAILED+1)); return
+        fi
+    done
+    [ -n "$to" ] || return 0
+    if [ -z "$rec" ]; then
+        say "  FAILED  re-pin refused: W1_REPIN_MAIN names no recorder (\"<agent>|<who, where recorded>\"); nothing changed"; FAILED=$((FAILED+1)); return
+    fi
+    for unit in $W1_UNITS; do
+        a="$(w1_agent_of "$unit")"; cfg="$W1_CONF_DIR/$a.json"
+        [ -f "$cfg" ] || continue
+        cur="$(w1_conf_main "$cfg")"; live="$(w1_live_main "$a")"
+        if [ "$cur" = "$to" ] && [ "$live" = "$to" ]; then
+            say "  skip    $a: main already pinned to $to (config and live status)"; SKIPPED=$((SKIPPED+1)); continue
+        fi
+        if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would re-pin $a main ${cur:-<none>} -> $to and restart $unit"; DONE=$((DONE+1)); continue; fi
+        n=$((n+1)); from="$from${from:+,}$a=${cur:-none}"
+        if [ "$cur" != "$to" ]; then
+            bak="$cfg.bak-$(date -u +%Y%m%dT%H%M%SZ)"
+            if ! cp -p "$cfg" "$bak"; then say "  FAILED  $a: cannot back up $cfg; not changed"; FAILED=$((FAILED+1)); nfail=$((nfail+1)); continue; fi
+            if ! w1_conf_write_main "$cfg" "$to" || [ "$(w1_conf_main "$cfg")" != "$to" ]; then
+                say "  FAILED  $a: $cfg does not read back main=$to (backup at $bak)"; FAILED=$((FAILED+1)); nfail=$((nfail+1)); continue
+            fi
+        fi
+        if ! w1_restart_unit "$unit"; then say "  FAILED  $W1_WHY"; FAILED=$((FAILED+1)); nfail=$((nfail+1)); continue; fi
+        got=""
+        for i in 1 2 3 4 5 6 7 8 9 10; do got="$(w1_live_main "$a")"; [ "$got" = "$to" ] && break; nap 1; done
+        if [ "$got" = "$to" ]; then
+            say "  OK      $a: main re-pinned ${cur:-<none>} -> $to; $unit restarted (pid $W1_PID) and status reports $to"; DONE=$((DONE+1))
+        else
+            say "  FAILED  $a: after restart status reports main=${got:-<unreadable>}, not $to"; FAILED=$((FAILED+1)); nfail=$((nfail+1))
+        fi
+    done
+    [ "$n" -gt 0 ] || return 0
+    [ "$nfail" = 0 ] || outcome="failed"
+    if mkdir -p "$(dirname "$W1_PIN_AUDIT")" && python3 -c 'import json,sys; print(json.dumps(dict(zip(["ts","from","to","recorded","outcome","log"],sys.argv[1:]))))' \
+        "$(date -u +%FT%TZ)" "$from" "$to" "$rec" "$outcome" "${RUNME_LOG:-}" >> "$W1_PIN_AUDIT"; then
+        say "  audit   appended to $W1_PIN_AUDIT ($outcome)"
+    else
+        say "  FAILED  cannot append the re-pin audit line to $W1_PIN_AUDIT"; FAILED=$((FAILED+1))
+    fi
+}
+head2 "4c. W1 pinned main — list, or re-pin to the recorded agent (T-3651)"
+w1_repin_main
 
 # ---------------------------------------------------------------------------
 # ACTION 5 — restart the local hub onto the installed binary (T-3290)

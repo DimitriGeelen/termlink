@@ -382,6 +382,10 @@ export RUNME_SKIP_BUILD=1 RUNME_TERMLINK_SRC="$TMP/tl-new" RUNME_TERMLINK_DEST="
 # cases see nothing from 4b; its own cases below set RUNME_W1_UNITS.
 W1R="$TMP/w1r"; mkdir -p "$W1R/proc"
 export RUNME_W1_UNITS="" RUNME_W1_SYSTEMCTL="$W1R/systemctl" RUNME_W1_PROC="$W1R/proc" RUNME_W1_BIN="$W1R/termlink-new"
+# T-3651 (action 4c): scratch configs, sockets, status client and audit log; no re-pin recorded.
+mkdir -p "$W1R/conf"
+export RUNME_W1_REPIN_MAIN="" RUNME_W1_CONF_DIR="$W1R/conf" RUNME_W1_SOCK_DIR="$W1R/sock" \
+       RUNME_W1_STATUS_TL="$W1R/status-tl" RUNME_W1_PIN_AUDIT="$W1R/repins.jsonl"
 # T-3290: the hub-restart action must NEVER reach the real systemctl, /proc or
 # /var/lib/termlink. A fake systemctl keeps MainPID in a state file; `restart`
 # bumps the pid and points its fake /proc exe at the installed binary (or, with
@@ -2007,6 +2011,75 @@ rm -f "$W1R/pid.u-none"; out=$(RUNME_W1_UNITS="u-none" run); x=$(s4b "$out")
 if echo "$x" | grep_all 'skip    u-none not running'; then ok "T-3647: unit not running => skip, nothing restarted"
 else bad "T-3647 absent" "$x"; fi
 rm -f "$W1R"/pid.* "$W1R/restarts"
+
+# ---- T-3651: action 4c lists or re-pins the W1 main, audited ----------------------
+echo "T-3651: 4c W1 pinned main re-pin"
+s4c() { echo "$1" | sed -n '/^.*4c\. W1 pinned main/,/^.*5\. /p'; }
+# The fake live sidecar: `restart` (fake systemctl above) re-reads nothing, so the live pin is
+# kept in live.<agent> and refreshed from the config here on restart unless FAKE_W1_LIVE_STALE=1.
+cat > "$W1R/status-tl" <<'EOS'
+#!/usr/bin/env bash
+D="${FAKE_W1_DIR:?}"; a=$(basename "${TERMLINK_SIDECAR_STATUS_SOCKET:?}" .status.sock)
+[ -f "$D/live.$a" ] || { echo '{"ok":false,"error":"no socket"}'; exit 1; }
+printf '{"ok":true,"main":{"pinned":"%s","liveness":{"state":"alive"}}}\n' "$(cat "$D/live.$a")"
+EOS
+chmod +x "$W1R/status-tl"
+mv "$W1R/systemctl" "$W1R/systemctl.4b"
+cat > "$W1R/systemctl" <<'EOS'
+#!/usr/bin/env bash
+D="${FAKE_W1_DIR:?}"; u="${@: -1}"
+"$D/systemctl.4b" "$@"; rc=$?
+if [ "$1" = restart ] && [ "${FAKE_W1_LIVE_STALE:-0}" != 1 ]; then
+    python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["book"]["main"])' "$D/conf/$u.json" > "$D/live.$u" 2>/dev/null
+fi
+exit $rc
+EOS
+chmod +x "$W1R/systemctl"
+w1_conf() {  # <agent> <peer> <main>
+    printf '{\n  "agent": "%s",\n  "book": {\n    "main": "%s",\n    "peers": {\n      "%s": "%s.w1"\n    }\n  }\n}' "$1" "$3" "$2" "$2" > "$W1R/conf/$1.json"
+    chmod 0644 "$W1R/conf/$1.json"; echo "$3" > "$W1R/live.$1"
+}
+w1_reset4c() { rm -f "$W1R"/restarts "$W1R"/repins.jsonl "$W1R"/conf/*; w1_conf u-main u-alt u-main; w1_conf u-alt u-main u-main
+    w1_unit u-main 31 termlink-new; w1_unit u-alt 32 termlink-new; }
+w1_reset4c
+out=$(RUNME_W1_UNITS="u-main u-alt" run); x=$(s4c "$out")
+if echo "$x" | grep_all 'list    u-main: main pinned to u-main (no re-pin recorded' && echo "$x" | grep_all 'list    u-alt: main pinned to u-main' \
+   && [ ! -e "$W1R/restarts" ] && [ ! -e "$W1R/repins.jsonl" ] && ! ls "$W1R/conf" | grep_all bak; then
+    ok "T-3651: empty W1_REPIN_MAIN => list-only, nothing restarted, written or audited"
+else bad "T-3651 list-only" "$x"; fi
+out=$(RUNME_W1_REPIN_MAIN="u-alt|operator 2026-11-02, T-3651 fixture" RUNME_W1_UNITS="u-main u-alt" run); rc=$?; x=$(s4c "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'OK      u-main: main re-pinned u-main -> u-alt; u-main restarted (pid 131) and status reports u-alt' \
+   && echo "$x" | grep_all 'OK      u-alt: main re-pinned u-main -> u-alt' \
+   && [ "$(w1_m=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["book"]["main"])' "$W1R/conf/u-alt.json"); echo "$w1_m")" = u-alt ] \
+   && [ "$(ls "$W1R/conf" | grep -c '^u-main.json.bak-')" = 1 ] && [ "$(stat -c %a "$W1R/conf/u-main.json")" = 644 ] \
+   && [ "$(wc -l < "$W1R/repins.jsonl")" = 1 ] \
+   && python3 -c 'import json,sys; e=json.loads(open(sys.argv[1]).readline()); sys.exit(0 if e["to"]=="u-alt" and e["from"]=="u-main=u-main,u-alt=u-main" and e["recorded"].startswith("operator 2026-11-02") and e["outcome"]=="ok" and e["ts"] else 1)' "$W1R/repins.jsonl"; then
+    ok "T-3651: recorded re-pin => both configs backed up + rewritten, restarted, status verified, one audit line"
+else bad "T-3651 re-pin" "rc=$rc: $x"; fi
+out=$(RUNME_W1_REPIN_MAIN="u-alt|operator 2026-11-02, T-3651 fixture" RUNME_W1_UNITS="u-main u-alt" run); rc=$?; x=$(s4c "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'skip    u-main: main already pinned to u-alt (config and live status)' \
+   && echo "$x" | grep_all 'skip    u-alt: main already pinned' && [ "$(wc -l < "$W1R/restarts")" = 2 ] && [ "$(wc -l < "$W1R/repins.jsonl")" = 1 ]; then
+    ok "T-3651: second run with the same recorded pin skips (idempotent, no restart, no audit line)"
+else bad "T-3651 idempotent" "rc=$rc: $x"; fi
+out=$(RUNME_W1_REPIN_MAIN="u-alt|x" RUNME_W1_UNITS="u-main u-alt" run --dry-run); x=$(s4c "$out")
+if echo "$x" | grep_all 'skip    u-main: main already pinned'; then ok "T-3651: dry-run reads, changes nothing"; else bad "T-3651 dry" "$x"; fi
+w1_reset4c
+out=$(FAKE_W1_LIVE_STALE=1 RUNME_W1_REPIN_MAIN="u-alt|operator, fixture" RUNME_W1_UNITS="u-main" run); rc=$?; x=$(s4c "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  u-main: after restart status reports main=u-main, not u-alt' \
+   && python3 -c 'import json,sys; sys.exit(0 if json.loads(open(sys.argv[1]).readline())["outcome"]=="failed" else 1)' "$W1R/repins.jsonl"; then
+    ok "T-3651: status not reporting the new pin => FAILED, rc 1, audit line says failed"
+else bad "T-3651 verify-miss" "rc=$rc: $x"; fi
+w1_reset4c
+out=$(RUNME_W1_REPIN_MAIN="u-ghost|operator, fixture" RUNME_W1_UNITS="u-main u-alt" run); rc=$?; x=$(s4c "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 're-pin refused: u-ghost is neither u-main nor a peer' && [ ! -e "$W1R/restarts" ] \
+   && ! ls "$W1R/conf" | grep_all bak && [ ! -e "$W1R/repins.jsonl" ]; then
+    ok "T-3651: pin to an agent outside the book => refused before any change"
+else bad "T-3651 unknown agent" "rc=$rc: $x"; fi
+out=$(RUNME_W1_REPIN_MAIN="u-alt" RUNME_W1_UNITS="u-main u-alt" run); rc=$?; x=$(s4c "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'names no recorder' && [ ! -e "$W1R/restarts" ]; then
+    ok "T-3651: re-pin with no recorder => refused, nothing changed"
+else bad "T-3651 no recorder" "rc=$rc: $x"; fi
+rm -f "$W1R"/pid.* "$W1R"/live.* "$W1R/restarts" "$W1R/repins.jsonl" "$W1R"/conf/*
 
 echo ""
 echo "----------------------------------------"

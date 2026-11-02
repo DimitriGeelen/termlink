@@ -34,7 +34,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT="${W1_PROJECT:-010-termlink}"
 PDIR="${W1_PROJECT_DIR:-$ROOT}"
 PAIR="${W1_PAIR:-claude-termlink claude-termlink-alt}"
-MAIN="${W1_MAIN:-claude-termlink}"
+# The pin for a FIRST provisioning. Once a config exists its book.main is kept (T-3651): a re-pin
+# made by runme action 4c must not be reverted by the next provisioning pass. W1_MAIN overrides both.
+MAIN_DEFAULT="claude-termlink"
 IDENT="${W1_IDENT_DIR:-${HOME:-/root}/.termlink/identities}"
 ETC="${W1_ETC:-/etc/termlink-sidecar}"
 VARLIB="${W1_VARLIB:-/var/lib/termlink-sidecar}"
@@ -123,8 +125,10 @@ apply() {
             [ "$peer" = "$a" ] && continue
             roster="$roster$sep\"${PUB[$peer]}\""; peers="$peers$sep\"$peer\": \"${INST[$peer]}\""; sep=", "
         done
-        local cfg
-        cfg=$(python3 - "$a" "${INST[$a]}" "$HUB_RT/hub.sock" "$hid" "$IDENT/$a.key" "$VARLIB/$a/outbox.sqlite" "$ETC/keys/$a.pub" "$MAIN" "[$roster]" "{$peers}" <<'EOF'
+        local cfg main="${W1_MAIN:-}"
+        [ -n "$main" ] || main=$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("book") or {}).get("main") or "")' "$ETC/$a.json" 2>/dev/null)
+        [ -n "$main" ] || main="$MAIN_DEFAULT"
+        cfg=$(python3 - "$a" "${INST[$a]}" "$HUB_RT/hub.sock" "$hid" "$IDENT/$a.key" "$VARLIB/$a/outbox.sqlite" "$ETC/keys/$a.pub" "$main" "[$roster]" "{$peers}" <<'EOF'
 import json, sys
 a, inst, sock, hid, key, queue, reg, main, roster, peers = sys.argv[1:11]
 print(json.dumps({
