@@ -18645,7 +18645,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_sidecar_main",
-        description = "Who is this project's pinned main and is it alive: the sidecar `status` main object (pinned, instance, is_self, liveness, and since T-3654 `lease`: the main-lease holder session, generation, since, operator pin, checked_at_ms). Read-only; {ok:false, error} when the sidecar cannot be read."
+        description = "This project's pinned main and whether it is alive: the sidecar `status` main object (pinned, instance, is_self, liveness, lease holder/generation). Read-only; {ok:false, error} when the sidecar cannot be read."
     )]
     async fn termlink_sidecar_main(&self, Parameters(p): Parameters<SidecarMainParams>) -> String {
         let socket = match sidecar_status_socket(
@@ -18665,7 +18665,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_main_status",
-        description = "Who holds the project's main lease at the local hub (T-3654, R-67), and with `session`: is that session main. Returns `{verdict: main|not-main|unknown, exit_code: 0|1|2, holder{session,agent,host,pid}, generation, since_ms, claimed_until_ms, pinned, vacant_since_ms, eligible_at_ms, lost, recent[...]}`. Fail-closed: hub down or unreadable is `unknown`, never main. Read-only (claim/renew/release/pin are CLI verbs run by the session's own hooks or the operator)."
+        description = "Who holds the project's main lease at the local hub; with `session`, whether that session is main. Returns {verdict: main|not-main|unknown, exit_code 0|1|2, holder, generation, claimed_until_ms, pinned, recent}. Fail-closed: hub unreadable is `unknown`, never main. Read-only; claim/renew/release are CLI verbs."
     )]
     async fn termlink_main_status(&self, Parameters(p): Parameters<MainStatusParams>) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
@@ -23410,7 +23410,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_renew",
-        description = "Extend the lease on a held claim. Sets `claimed_until = max(now + additional_ttl_ms, current_claimed_until)` — monotonic-forward, so a renew NEVER shortens an active lease (T-2510): a small `additional_ttl_ms` against a longer-lived lease is a no-op, not a shortening. Returns `{ok, claim_id, topic, offset, claimer, claimed_at, claimed_until}`. Errors: CLAIM_NOT_FOUND (-32016); CLAIM_NOT_OWNED (-32017) on `claimer` mismatch; CLAIM_EXPIRED (-32018) if the lease already lapsed (then re-`claim` fresh). For long-running work call `renew` at ttl/2 cadence (the Rust `LeasedClaim` helper does this automatically). WRITES state."
+        description = "Extend the lease on a held claim. Sets `claimed_until = max(now + additional_ttl_ms, current_claimed_until)` — monotonic-forward, so a renew NEVER shortens an active lease: a small `additional_ttl_ms` against a longer-lived lease is a no-op, not a shortening. Returns `{ok, claim_id, topic, offset, claimer, claimed_at, claimed_until}`. Errors: CLAIM_NOT_FOUND (-32016); CLAIM_NOT_OWNED (-32017) on `claimer` mismatch; CLAIM_EXPIRED (-32018) if the lease already lapsed (then re-`claim` fresh). For long-running work call `renew` at ttl/2 cadence (the Rust `LeasedClaim` helper does this automatically). WRITES state."
     )]
     async fn termlink_channel_renew(
         &self,
@@ -23443,7 +23443,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_checkout",
-        description = "T-3470 (T-2026 slice 2): check out a claimed unit into a private clone. Renews the claim first, so only the holder can check it out: CLAIM_NOT_OWNED (-32017) / CLAIM_NOT_FOUND (-32016) refuse before git runs. Clones `repo` into `$TERMLINK_WORK_DIR/<hub8>/<claim_id>` on branch `work/<hub8>/<claim_id>`. Strategy from TERMLINK_WORKTREE_STRATEGY: reflink (btrfs default), snapshot, or clone. Refuses with WORK_GUARD_MISSING (-32029) when a framework clone lacks its guard hooks. Never a git worktree. Returns {ok, claim_id, topic, offset, dir, branch, base, head, claimed_until, strategy, notes}. Subprocesses `termlink agent checkout --json`. WRITES state."
+        description = "Check out a claimed unit into a private clone. Renews the claim first, so only the holder can check it out: CLAIM_NOT_OWNED (-32017) / CLAIM_NOT_FOUND (-32016) refuse before git runs. Clones `repo` into `$TERMLINK_WORK_DIR/<hub8>/<claim_id>` on branch `work/<hub8>/<claim_id>`. Strategy from TERMLINK_WORKTREE_STRATEGY: reflink (btrfs default), snapshot, or clone. Refuses with WORK_GUARD_MISSING (-32029) when a framework clone lacks its guard hooks. Never a git worktree. Returns {ok, claim_id, topic, offset, dir, branch, base, head, claimed_until, strategy, notes}. WRITES state."
     )]
     async fn termlink_agent_checkout(
         &self,
@@ -23474,7 +23474,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_commit",
-        description = "T-3470 (T-2026 slice 2): commit the work in a claimed clone, keeping the claim. Renews the claim first (CLAIM_NOT_OWNED / CLAIM_NOT_FOUND refuse before git runs). Stages `paths` (default: everything) and runs a plain `git commit`, so the repo's own hooks run. A refused commit returns the hook output as the error and KEEPS the claim. `release=true` releases the claim with ack after the commit exists. Returns {ok, claim_id, topic, commit, paths_added, paths_modified, paths_deleted, claimed_until, released}. Subprocesses `termlink agent commit --json`. WRITES state."
+        description = "Commit the work in a claimed clone, keeping the claim. Renews the claim first (CLAIM_NOT_OWNED / CLAIM_NOT_FOUND refuse before git runs). Stages `paths` (default: everything) and runs a plain `git commit`, so the repo's own hooks run. A refused commit returns the hook output as the error and KEEPS the claim. `release=true` releases the claim with ack after the commit exists. Returns {ok, claim_id, topic, commit, paths_added, paths_modified, paths_deleted, claimed_until, released}. WRITES state."
     )]
     async fn termlink_agent_commit(
         &self,
@@ -29767,7 +29767,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_dialog_presence",
-        description = "Who has posted into a conversation, and when last (T-3249). Read-only view of the hub's passive dialog-presence tracker: every agent whose post carried `metadata.conversation_id` is recorded with its last-seen time. Returns `{presences:[{agent_id, last_seen_ms}, ...]}` sorted by agent_id. An unknown conversation_id returns an empty list, not an error."
+        description = "Who has posted into a conversation, and when last. Read-only view of the hub's passive dialog-presence tracker: every agent whose post carried `metadata.conversation_id` is recorded with its last-seen time. Returns `{presences:[{agent_id, last_seen_ms}, ...]}` sorted by agent_id. An unknown conversation_id returns an empty list, not an error."
     )]
     async fn termlink_dialog_presence(
         &self,
@@ -30033,7 +30033,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_queue_status",
-        description = "Read-only view of the local T-1161 offline-queue: pending-post count, cap, head-of-line post metadata, AND the durable dead-letter backlog — `dead_letters` (exact count) + `dead_letter_rows` (up to 50, each carrying topic/msg_type/sender_id/reason/attempts/enqueued_ms/dead_lettered_ms). A poison-drop that crossed POISON_THRESHOLD is recoverable here, not silent. Does not contact the hub."
+        description = "Read-only view of the local offline-queue: pending-post count, cap, head-of-line post metadata, AND the durable dead-letter backlog — `dead_letters` (exact count) + `dead_letter_rows` (up to 50, each carrying topic/msg_type/sender_id/reason/attempts/enqueued_ms/dead_lettered_ms). A poison-drop that crossed POISON_THRESHOLD is recoverable here, not silent. Does not contact the hub."
     )]
     async fn termlink_channel_queue_status(
         &self,
