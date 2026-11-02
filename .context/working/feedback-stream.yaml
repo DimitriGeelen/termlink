@@ -22515,3 +22515,21 @@ scan_id: R-ff05c76d
 task_id: T-2916
 payload:
   task_file: .tasks/active/T-2916-pickup-ring20-apiv1-001--vendored-apipy-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T00:08:57Z'
+scan_id: R-72ed5533
+task_id: T-2970
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T00:08:57Z'
+scan_id: R-72ed5533
+task_id: T-2970
+payload:
+  task_file: .tasks/active/T-2970-ring20-management-122-agent-presence-is-.md

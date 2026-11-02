@@ -16,10 +16,10 @@ description: >
   it onto a current binary is the first hypothesis. Note the fleet-binary canary did
   not surface this because .122 is within its declared floor.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -34,8 +34,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-16T19:46:40Z
-last_update: '2026-09-20T08:45:19Z'
-date_finished:
+last_update: 2026-11-02T00:08:55Z
+date_finished: 2026-11-02T00:08:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -60,6 +60,17 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-02T00:08:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-20T08:45:19Z'
     estimator: bvp-estimator-v1-heuristic
@@ -76,14 +87,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** While trying to reach ring20-management-agent under T-2967, `channel.subscribe` on agent-presence at 192.168.10.122:9100 (then v0.11.1411) timed out after 30s, even though `channel list` and fleet doctor were fast.
+**Problem / hypothesis:** A record-walk fault on an old hub binary, about 355 commits behind, made presence on .122 unreadable from outside, so verb 1 (discover) was dark for that hub.
+**Goal:** Make agent-presence on .122 readable again.
+**Expected outcome:** Resolved by the hub upgrade. On 2026-11-02 the same subscribe returned a presence record in 0s (T-3648 triage).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] agent-presence on ring20-management (.122) is readable again: `channel subscribe agent-presence --hub 192.168.10.122:9100 --limit 1 --json` returns a record (ring20-management-agent) in 0s, where it used to wedge for 30s (evidence: re-run 2026-11-02 T-3648, rc=0; the hub has been upgraded since filing)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -178,6 +191,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+timeout 60 termlink channel subscribe agent-presence --hub 192.168.10.122:9100 --limit 1 --json > .context/working/.v-t2970.out 2>&1 && grep -q '"agent_id"' .context/working/.v-t2970.out
 
 ## RCA
 
@@ -275,3 +289,19 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2970-ring20-management-122-agent-presence-is-.md
 - **Context:** Initial task creation
+
+### 2026-11-02T00:08:15Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-02T00:08:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-72ed5533
+- **Timestamp:** 2026-11-02T00:08:57Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
