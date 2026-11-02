@@ -558,6 +558,17 @@ fn describe(verdict: Verdict, session: Option<&str>, v: &View) -> String {
     }
 }
 
+/// The claimer string to present to the hub for a renew/release by `session`.
+///
+/// The lease identity is the SESSION; the hub checks ownership by the exact `claimer` string,
+/// which also carries the agent, host and pid of the process that claimed. A later process of
+/// the same session (a SessionEnd hook, a prompt hook) differs in pid, so it presents the live
+/// row's own claimer. `None` when there is no row or the row belongs to another session, so
+/// another session is still refused (T-3660).
+pub fn session_claimer(row: Option<&Row>, session: &str) -> Option<String> {
+    row.filter(|r| Holder::from_claimer(&r.claimer).session == session).map(|r| r.claimer.clone())
+}
+
 /// Classify a hub claim row on offset 0 for one session (for the sidecar and `am-i`).
 pub fn am_i(v: &View, session: &str) -> Verdict {
     match &v.holder {
@@ -758,7 +769,7 @@ impl LeaseClient {
         let claimer = me.claimer();
         let ttl = self.timing.lease_ms as u32;
         for _ in 0..3 {
-            let (f, _row, v) = self.snapshot(project).await?;
+            let (f, row, v) = self.snapshot(project).await?;
             let take = |reason: &'static str, from: Option<Holder>, generation: u64, lapsed: Option<u64>| {
                 let me = me.clone();
                 let t = t.clone();
@@ -793,7 +804,8 @@ impl LeaseClient {
             };
             let action = match plan_claim(&v, &f, &me.session) {
                 Plan::Renew { claim_id } => {
-                    match claim_client::channel_renew_authed(&self.addr, self.auth.as_deref(), &claim_id, &claimer, ttl).await {
+                    let held_as = session_claimer(row.as_ref(), &me.session).unwrap_or_else(|| claimer.clone());
+                    match claim_client::channel_renew_authed(&self.addr, self.auth.as_deref(), &claim_id, &held_as, ttl).await {
                         Ok(_) => {
                             // Self-heal a claim whose acquire record is missing (crash between claim and post).
                             if !v.consistent {
@@ -885,11 +897,12 @@ impl LeaseClient {
     /// Release on a clean shutdown.
     pub async fn release(&self, project: &str, me: &Holder) -> Outcome {
         let r = async {
-            let (f, _, v) = self.snapshot(project).await?;
-            let Some(claim_id) = v.claim_id.clone().filter(|_| am_i(&v, &me.session) == Verdict::Main) else {
+            let (f, row, v) = self.snapshot(project).await?;
+            let held = v.claim_id.clone().filter(|_| am_i(&v, &me.session) == Verdict::Main).zip(session_claimer(row.as_ref(), &me.session));
+            let Some((claim_id, held_as)) = held else {
                 return Ok::<_, LeaseError>(outcome(Verdict::NotMain, Some(&me.session), "none", &f, v));
             };
-            claim_client::channel_release_authed(&self.addr, self.auth.as_deref(), &claim_id, &me.claimer(), false).await?;
+            claim_client::channel_release_authed(&self.addr, self.auth.as_deref(), &claim_id, &held_as, false).await?;
             self.post(project, &Event::Release { generation: v.generation, holder: me.clone(), at_ms: now_ms() }).await?;
             let (f, _, v) = self.snapshot(project).await?;
             Ok(outcome(Verdict::NotMain, Some(&me.session), "released", &f, v))
@@ -1050,6 +1063,20 @@ mod tests {
         let f = fold(&log);
         assert_eq!(f.current.unwrap().holder.session, "yyy");
         assert!(f.duplicate.is_some());
+    }
+
+    #[test]
+    fn session_claimer_matches_by_session_not_process() {
+        let r = row("S-A", 1, 10);
+        let mut later = h("S-A");
+        later.pid = 99;
+        later.agent = "hook".into();
+        assert_ne!(later.claimer(), r.claimer, "a later process of the session has another claimer string");
+        assert_eq!(session_claimer(Some(&r), "S-A"), Some(r.claimer.clone()));
+        assert_eq!(session_claimer(Some(&r), "S-B"), None, "another session is refused");
+        assert_eq!(session_claimer(None, "S-A"), None);
+        let raw = Row { claimer: "worker-7".into(), ..r.clone() };
+        assert_eq!(session_claimer(Some(&raw), "S-A"), None);
     }
 
     #[test]

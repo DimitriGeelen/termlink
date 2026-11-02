@@ -254,3 +254,46 @@ fn r68_stuck_holder_with_live_reader_ends_in_a_visible_takeover() {
     assert_eq!(recent_acquires(&s).last().unwrap()["from"]["session"], "S-A");
     assert_eq!(hub.main(&["am-i", "--session", "S-A"]).0, 1);
 }
+
+/// T-3660: the lease identity is the SESSION, not the process. A SessionEnd hook (or any later
+/// process of the same session) has a different pid and agent from the process that claimed;
+/// the hub checks ownership by the exact claimer string, which carries the pid. Release and
+/// renew must still work for the same session, and must still refuse another session.
+/// (Every `hub.main` call here is its own process; `--pid` makes them differ the way a real
+/// hook's parent does, because the default `parent_id()` is this test runner for all of them.)
+#[test]
+fn same_session_from_another_process_renews_and_releases_other_sessions_refused() {
+    let hub = start_hub("t3660-xproc");
+    let (rc, a) = hub.main(&["claim", "--session", "S-A", "--pid", "1111", "--agent", "claimer-proc"]);
+    assert_eq!(rc, 0, "{a}");
+    let generation = a["generation"].as_u64().unwrap();
+
+    // Another session, any pid: refused, nothing changes.
+    let (rc, x) = hub.main(&["release", "--session", "S-X", "--pid", "1111"]);
+    assert_eq!((rc, x["action"].as_str()), (1, Some("none")), "{x}");
+    assert_eq!(hub.main(&["renew", "--session", "S-X", "--pid", "1111"]).0, 1);
+    assert_eq!(hub.main(&["am-i", "--session", "S-A"]).0, 0, "S-A still main");
+
+    // Same session, different process: renew keeps it.
+    let (rc, r) = hub.main(&["renew", "--session", "S-A", "--pid", "2222"]);
+    assert_eq!((rc, r["action"].as_str()), (0, Some("renewed")), "{r}");
+    assert_eq!(r["generation"].as_u64(), Some(generation));
+
+    // Same session, a third process (the SessionEnd hook): release frees it at once.
+    let (rc, rel) = hub.main(&["release", "--session", "S-A", "--pid", "3333", "--agent", "hook-proc"]);
+    assert_eq!((rc, rel["action"].as_str()), (1, Some("released")), "{rel}");
+    let (_, s) = hub.main(&["status"]);
+    assert!(s["holder"].is_null(), "lease vacant after release: {s}");
+    assert_eq!(s["generation"].as_u64(), Some(generation));
+    let release = s["recent"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rev()
+        .find(|r| r["event"]["kind"] == "release")
+        .unwrap_or_else(|| panic!("release recorded: {s}"))["event"]
+        .clone();
+    assert_eq!(release["generation"].as_u64(), Some(generation));
+    assert_eq!(release["holder"]["session"], "S-A");
+    assert_eq!(hub.main(&["am-i", "--session", "S-A"]).0, 1);
+}
