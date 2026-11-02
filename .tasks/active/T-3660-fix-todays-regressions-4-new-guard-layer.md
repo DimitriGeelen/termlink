@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T19:51:11Z
-last_update: 2026-11-02T19:57:24Z
+last_update: 2026-11-02T19:58:33Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -91,9 +91,9 @@ frees the lease at once.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Each of the 4 new FAILs root-caused to the commit that introduced it (git bisect or log) and fixed honestly (fix
+- [x] Each of the 4 new FAILs root-caused to the commit that introduced it (git bisect or log) and fixed honestly (fix
       the code or the allow-list with a reason; never weaken a guard to pass)
-- [ ] `termlink main release --session <sid>` succeeds from a different process than the claimer when the session id
+- [x] `termlink main release --session <sid>` succeeds from a different process than the claimer when the session id
       matches (and still refuses a different session id); regression test on a throwaway hub
 - [ ] Guard layer `--gate release`: only check-drain-sink-caps.sh FAIL
 
@@ -299,8 +299,22 @@ frees the lease at once.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash scripts/check-strict-star.sh > .context/working/t3660/v-star.out 2>&1
+bash tests/strict-star-check-fixtures.sh > .context/working/t3660/v-starfx.out 2>&1
+bash scripts/test-mcp-desc-budget.sh > .context/working/t3660/v-desc.out 2>&1 && grep -q "RESULT: PASS" .context/working/t3660/v-desc.out
+bash scripts/check-arc-claim-drift.sh > .context/working/t3660/v-arc.out 2>&1
+TMPDIR=/var/tmp cargo test -p termlink-session session_claimer_matches_by_session > .context/working/t3660/v-unit.out 2>&1 && grep -q "1 passed" .context/working/t3660/v-unit.out
+TMPDIR=/var/tmp cargo test -p termlink --test main_lease_integration > .context/working/t3660/v-int.out 2>&1 && grep -q "6 passed; 0 failed" .context/working/t3660/v-int.out
 
 ## RCA
+
+**Symptom:** `run-guard-layer.sh --gate release` went from 1 FAIL (the drain-sink baseline) to 5 in one day. `termlink main release --session <sid>` run from the SessionEnd hook returned rc 2 "claim ... is held by another claimer".
+
+**Root cause:** (1) strict-star and its fixture: 3173b7bed (T-3651) added `sidecar_status_query`, a Unix-socket dial to the host's own sidecar status socket, without an allow-list entry. (2) mcp-desc-budget: 3173b7bed took the total from 107139 to 107323 bytes, and ed1e9a869 (T-3654) took it to 107891, over the 107500 ceiling. (3) arc-claim-drift is not a separate defect. arc-005's prover is test-mcp-desc-budget.sh, so it fired because (2) did. (4) Release: the hub matches claim ownership by the exact claimer string `main;s=..;a=..;h=..;p=<pid>`, but the lease identity is the session. A later process of the same session (a hook) has another pid, so release and renew got CLAIM_NOT_OWNED.
+
+**Why structurally allowed:** each worker ran only its own tests, not the guard layer. The T-3654 integration test did release from a separate process, but it passed vacuously: every subprocess defaulted `pid` to `parent_id()`, which was the test runner for all of them.
+
+**Prevention:** a new integration test pins a distinct `--pid`/`--agent` for each of claim, renew and release, and checks that another session is still refused. Unit test `session_claimer_matches_by_session_not_process`. The desc budget now has 7 bytes of headroom, so the next MCP tool must trim before it lands, and the guard says so.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -379,6 +393,15 @@ frees the lease at once.
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-02 — release/renew identity
+- **Chose:** present the live hub row's own claimer string when its parsed session equals ours (`session_claimer`).
+- **Why:** the session is the lease identity everywhere else (fold, am_i, plan_claim); only the two hub calls used the per-process string. No hub or protocol change, so no ordering constraint on the fleet rollout.
+- **Rejected:** dropping pid/agent/host from the claimer (changes the recorded holder format for live rows); hub-side force-release (operator authority, bypasses ownership).
+
+### 2026-11-02 — desc budget
+- **Chose:** trim the two new descriptions to their contract and drop task-ID archaeology from 5 older ones (107891 -> 107493).
+- **Rejected:** raising TOTAL_DESC_CEILING (the guard exists to prevent exactly that).
 
 ## Decision
 
