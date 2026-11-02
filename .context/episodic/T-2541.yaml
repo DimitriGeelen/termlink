@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2541: Charter clarification: note local data-plane exception in the Hub-mediated strict-star bullet
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T00:05:36Z
+# ============================================================================
+
+task_id: T-2541
+task_name: "Charter clarification: note local data-plane exception in the Hub-mediated strict-star bullet"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-08T16:30:55Z
+completed: 2026-11-02T00:05:25Z
+duration_days: 86
+updates_count: 4
+first_commit: 2026-08-08T18:31:11+02:00
+last_commit: 2026-08-08T18:31:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file optional charter clarification — strict-star invariant RESPECTED, note local data-plane exception in Hub-mediated bullet
+
+# Key outcomes
+outcomes:
+  - 'Obviated: the charter no longer carries the absolute "spokes never talk peer-to-peer" phrase; the Hub-mediated bullet was rewritten (evidence: docs/CHARTER.md:33-36; `grep -ciE ''never talk|peer-to-peer'' docs/CHARTER.md` = 0 on 2026-11-02)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-08.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2540-charter-non-goal-4-violation-orchestrato.md'
+  - '.tasks/active/T-2541-charter-clarification-note-local-data-pl.md'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-08T18:31:11'
+    action: 'T-2541: file optional charter clarification — strict-star invariant RESPECTED, note local data-plane exception in Hub-mediated bullet'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 122854 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 122854
+  commits: 2
+  files_changed: 14
+  lines_added: 378
+  lines_removed: 44
+  footprint_refreshed_at: '2026-11-02T00:05:41Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2541-charter-clarification-note-local-data-pl.md
+generated_by: context-agent-hybrid

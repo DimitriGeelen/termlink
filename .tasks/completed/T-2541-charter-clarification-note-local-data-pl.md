@@ -20,10 +20,10 @@ description: >
   not a real gap). Does NOT trip the T-2484 canonical-sentence-drift canary (edits
   a bullet, not the canonical sentence).
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -32,8 +32,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T16:30:55Z
-last_update: 2026-10-26T15:21:34Z
-date_finished:
+last_update: 2026-11-02T00:05:25Z
+date_finished: 2026-11-02T00:05:25Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -58,6 +58,17 @@ bvp_scores_proposed:
       (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
       (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-02T00:04:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-08T21:30:38Z'
     estimator: bvp-estimator-v1-heuristic
@@ -74,14 +85,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** The T-2468 purpose review found the strict-star invariant honoured. Its only nuance was that the charter's absolute "spokes never talk peer-to-peer" did not carve out the same-host local data plane (.sock.data PTY attach).
+**Problem / hypothesis:** The phrase was not literally airtight against host-local IPC. This was wording only, not a breach.
+**Goal:** Stop the charter bullet overclaiming.
+**Expected outcome:** Already obviated. The Hub-mediated bullet (docs/CHARTER.md:33-36) has since been rewritten around hub-owned topic records, with no absolute peer-to-peer claim, so nothing remains to carve out (T-3648 triage).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Obviated: the charter no longer carries the absolute "spokes never talk peer-to-peer" phrase; the Hub-mediated bullet was rewritten (evidence: docs/CHARTER.md:33-36; `grep -ciE 'never talk|peer-to-peer' docs/CHARTER.md` = 0 on 2026-11-02)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -146,6 +159,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+! grep -qiE 'never talk|peer-to-peer' docs/CHARTER.md
 
 ## RCA
 
@@ -218,3 +232,20 @@ cost_estimate_proposed:
 ### 2026-10-26T15:21:34Z — status-update [task-update-agent]
 - **Change:** owner: human → agent
 - **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion
+
+### 2026-11-02T00:04:50Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-02T00:05:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a50142b1
+- **Timestamp:** 2026-11-02T00:05:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
