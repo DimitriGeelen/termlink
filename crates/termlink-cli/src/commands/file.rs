@@ -182,7 +182,9 @@ async fn try_send_via_artifact(
 }
 
 pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, json: bool, timeout_secs: u64) -> Result<()> {
-    super::print_deprecation_warning("file send", "channel post --file");
+    // T-3661: `channel post --file` was named here but never built; artifact put is the
+    // path that exists (and that this command itself tries first).
+    super::print_deprecation_warning("file send", "artifact put");
     use base64::Engine;
     use sha2::{Digest, Sha256};
 
@@ -645,6 +647,13 @@ fn reconcile_expected_sha256(actual: &str, expected: Option<&str>, via: &str) ->
 /// the source session is gone, and waiting out the full timeout tells the user nothing.
 pub(crate) const RECEIVE_RPC_ERROR_BAIL_AFTER: u32 = 3;
 
+/// T-3661: convert a `next_seq` cursor (first seq not yet read; what both `event.poll`
+/// and `event.subscribe` return) into the EXCLUSIVE `since` that `event.subscribe`
+/// takes. `next_seq == 0` means nothing was ever emitted: no `since`, live only.
+pub(crate) fn since_for_next_seq(next_seq: u64) -> Option<u64> {
+    next_seq.checked_sub(1)
+}
+
 pub(crate) fn receive_should_bail_on_rpc_errors(consecutive: u32) -> bool {
     consecutive >= RECEIVE_RPC_ERROR_BAIL_AFTER
 }
@@ -658,7 +667,7 @@ pub(crate) async fn cmd_file_receive(
     expected_sha256: Option<&str>,
     json: bool,
 ) -> Result<()> {
-    super::print_deprecation_warning("file receive", "channel subscribe");
+    super::print_deprecation_warning("file receive", "artifact get");
     use base64::Engine;
     use sha2::{Digest, Sha256};
 
@@ -806,7 +815,11 @@ pub(crate) async fn cmd_file_receive(
             let remaining = timeout_dur.saturating_sub(start.elapsed());
             let effective_timeout = subscribe_timeout.min(remaining.as_millis() as u64);
             let mut params = serde_json::json!({"timeout_ms": effective_timeout});
-            if let Some(c) = poll_cursor {
+            // T-3661: `poll_cursor` holds a `next_seq` (the first seq NOT yet read), but
+            // `since` is exclusive (`seq > since`, EventBus::poll). Passing next_seq as is
+            // skipped one buffered event each time a subscribe returned at its 100-event
+            // cap: a 5 MB send (init + 107 chunks) lost chunk 99 (055 report).
+            if let Some(c) = poll_cursor.and_then(since_for_next_seq) {
                 params["since"] = serde_json::json!(c);
             }
             let rpc_timeout = std::time::Duration::from_secs(effective_timeout / 1000 + 5);
@@ -1155,6 +1168,15 @@ mod tests {
     // T-2662: a dropped source must end the receive, not ride out the timeout.
 
     // T-3235: every arm of the receive loop must reach the overall-timeout check.
+    #[test]
+    fn since_for_next_seq_is_exclusive_cursor() {
+        // T-3661: next_seq N means "seq N not read yet"; since must be N-1 so seq N is
+        // returned (EventBus::poll takes seq > since).
+        assert_eq!(since_for_next_seq(0), None);
+        assert_eq!(since_for_next_seq(1), Some(0));
+        assert_eq!(since_for_next_seq(100), Some(99));
+    }
+
     #[test]
     fn receive_rpc_timeout_arm_does_not_skip_the_overall_timeout() {
         let src = include_str!("file.rs");

@@ -44,6 +44,69 @@ pub(crate) fn sha256_args_agree(requested: &str, expected: &str) -> bool {
     requested.trim().eq_ignore_ascii_case(expected.trim())
 }
 
+/// T-3661: which inbox topic (without the `inbox:` prefix) an `artifact put --to <to>`
+/// notice goes to. Since the sidecar scheme, an agent's inbox is hub-qualified,
+/// `inbox:<hub_id>/<agent>` (`termlink_sidecar::send::inbox_topic`); posting to the bare
+/// `inbox:<agent>` failed with -32013 unknown topic AFTER the bytes were stored (055 report).
+///
+/// Order: a `to` that already names a hub (`<hub_id>/<agent>`) is used as given; else the
+/// hub-qualified inbox when it exists on this hub; else a legacy bare `inbox:<to>` when
+/// that exists. Neither existing is an error naming both, raised BEFORE any upload.
+pub(crate) fn pick_inbox_target(
+    to: &str,
+    hub_id: Option<&str>,
+    existing_topics: &[String],
+) -> Result<String, String> {
+    if to.contains('/') {
+        return Ok(to.to_string());
+    }
+    let has = |t: &str| existing_topics.iter().any(|e| e == t);
+    if let Some(h) = hub_id {
+        let qualified = format!("{h}/{to}");
+        if has(&format!("inbox:{qualified}")) {
+            return Ok(qualified);
+        }
+    }
+    if has(&format!("inbox:{to}")) {
+        return Ok(to.to_string());
+    }
+    let looked = match hub_id {
+        Some(h) => format!("inbox:{h}/{to} or inbox:{to}"),
+        None => format!("inbox:{to} (the hub states no hub_id)"),
+    };
+    Err(format!(
+        "no inbox for '{to}' on this hub: looked for {looked}. Is the agent's sidecar \
+         running on this hub? (cross-hub delivery is not supported here, T-3614)"
+    ))
+}
+
+/// T-3661: ask the local hub for its id and its `inbox:` topics, then pick the target.
+async fn resolve_inbox_target(client: &mut client::Client, to: &str) -> Result<String, String> {
+    use termlink_protocol::jsonrpc::RpcResponse;
+    let hub_id = match client.call("hub.version", serde_json::json!("artifact-hub-id"), serde_json::json!({})).await {
+        Ok(RpcResponse::Success(ok)) => ok.result.get("hub_id").and_then(|v| v.as_str()).map(str::to_owned),
+        _ => None,
+    };
+    let topics: Vec<String> = match client
+        .call(
+            termlink_protocol::control::method::CHANNEL_LIST,
+            serde_json::json!("artifact-inboxes"),
+            serde_json::json!({"prefix": "inbox:"}),
+        )
+        .await
+    {
+        Ok(RpcResponse::Success(ok)) => ok.result["topics"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|t| t["name"].as_str().map(str::to_owned)).collect())
+            .unwrap_or_default(),
+        Ok(RpcResponse::Error(e)) => {
+            return Err(format!("channel.list error {}: {} (could not look up the inbox)", e.error.code, e.error.message));
+        }
+        Err(e) => return Err(format!("channel.list: {e} (could not look up the inbox)")),
+    };
+    pick_inbox_target(to, hub_id.as_deref(), &topics)
+}
+
 pub(crate) async fn cmd_artifact_put(
     path: &str,
     to: &str,
@@ -83,6 +146,15 @@ pub(crate) async fn cmd_artifact_put(
     let mut client = client::Client::connect_addr(&addr)
         .await
         .with_context(|| format!("connect hub at {}", hub_socket.display()))?;
+    let inbox_target = match resolve_inbox_target(&mut client, to).await {
+        Ok(t) => t,
+        Err(msg) => {
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "target": to, "error": msg}));
+            }
+            anyhow::bail!(msg);
+        }
+    };
     let host_port = format!("local:{}", hub_socket.display());
     let cache = HubCapabilitiesCache::new();
     let mut ctx = FallbackCtx::new();
@@ -107,7 +179,7 @@ pub(crate) async fn cmd_artifact_put(
         send_artifact_via_client(
             &mut client,
             &host_port,
-            to,
+            &inbox_target,
             &file_data,
             &manifest,
             &identity,
@@ -123,8 +195,7 @@ pub(crate) async fn cmd_artifact_put(
         SendOutcome::LegacyOnly => {
             let msg = format!(
                 "peer '{to}' hub does not advertise artifact.put/channel.post — \
-                 fall back to `termlink channel post --file {path} --to {to}` \
-                 (or `file send`, deprecated)"
+                 fall back to `termlink file send {to} {path}` (deprecated)"
             );
             if json {
                 super::json_error_exit(
@@ -147,13 +218,14 @@ pub(crate) async fn cmd_artifact_put(
                         "size": total_bytes,
                         "sha256": sha256,
                         "target": to,
+                        "topic": format!("inbox:{inbox_target}"),
                         "channel_offset": channel_offset,
                         "via": via,
                     })
                 );
             } else {
                 println!(
-                    "Uploaded {filename} ({total_bytes} bytes) to inbox:{to} via {via}"
+                    "Uploaded {filename} ({total_bytes} bytes) to inbox:{inbox_target} via {via}"
                 );
                 println!("  sha256:         {sha256}");
                 println!("  channel_offset: {channel_offset}");
@@ -291,5 +363,46 @@ mod tests {
         let full = "d".repeat(64);
         let truncated = "d".repeat(32);
         assert!(!sha256_args_agree(&full, &truncated));
+    }
+
+    // T-3661: the 055 report — the notice went to bare inbox:<agent> while the real inbox
+    // was hub-qualified, so put exited 1 after a good upload.
+    fn topics(names: &[&str]) -> Vec<String> {
+        names.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn pick_inbox_target_prefers_hub_qualified_inbox() {
+        let t = topics(&["inbox:cacc73ea32b121dd/055-agentic-fleet-cockpit", "inbox:055-agentic-fleet-cockpit"]);
+        assert_eq!(
+            pick_inbox_target("055-agentic-fleet-cockpit", Some("cacc73ea32b121dd"), &t).unwrap(),
+            "cacc73ea32b121dd/055-agentic-fleet-cockpit"
+        );
+    }
+
+    #[test]
+    fn pick_inbox_target_only_qualified_exists_is_the_055_case() {
+        let t = topics(&["inbox:cacc73ea32b121dd/055-agentic-fleet-cockpit"]);
+        assert_eq!(
+            pick_inbox_target("055-agentic-fleet-cockpit", Some("cacc73ea32b121dd"), &t).unwrap(),
+            "cacc73ea32b121dd/055-agentic-fleet-cockpit"
+        );
+    }
+
+    #[test]
+    fn pick_inbox_target_falls_back_to_legacy_bare_inbox() {
+        let t = topics(&["inbox:old-agent"]);
+        assert_eq!(pick_inbox_target("old-agent", Some("abc"), &t).unwrap(), "old-agent");
+    }
+
+    #[test]
+    fn pick_inbox_target_qualified_to_is_used_as_given() {
+        assert_eq!(pick_inbox_target("abc/agent", Some("zzz"), &[]).unwrap(), "abc/agent");
+    }
+
+    #[test]
+    fn pick_inbox_target_no_inbox_is_an_error_naming_both() {
+        let e = pick_inbox_target("ghost", Some("abc"), &topics(&["inbox:abc/other"])).unwrap_err();
+        assert!(e.contains("inbox:abc/ghost") && e.contains("inbox:ghost"), "{e}");
     }
 }

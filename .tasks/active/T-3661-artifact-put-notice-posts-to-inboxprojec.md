@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T21:17:24Z
-last_update: '2026-11-02T21:43:16Z'
+last_update: 2026-11-02T21:54:42Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -90,12 +90,12 @@ complete or fails loudly; the deprecation text points to something that exists.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] artifact put posts its notice to the hub-qualified inbox (same resolution as `fw sidecar send` / channel inbox
+- [x] artifact put posts its notice to the hub-qualified inbox (same resolution as `fw sidecar send` / channel inbox
       helpers); exit 0 after a successful upload; regression test on a throwaway hub with a hub-qualified inbox
-- [ ] file send: the chunk loss reproduced (5 MB+) and root-caused at file:line, then fixed (or, if file send is truly
+- [x] file send: the chunk loss reproduced (5 MB+) and root-caused at file:line, then fixed (or, if file send is truly
       superseded by artifact put, make it delegate to artifact put); never reports success on an incomplete transfer;
       test with a multi-MB file
-- [ ] The deprecation message names a command that exists in this build
+- [x] The deprecation message names a command that exists in this build
 - [ ] Reply to 055 with the result; cross-hub delivery (`--hub`) stays T-3614
 
 ### Human
@@ -147,6 +147,10 @@ complete or fails loudly; the deprecation text points to something that exists.
 -->
 
 ## Verification
+
+cargo test -p termlink --bin termlink -- artifact::tests since_for_next_seq > .context/working/t3661/v1.out 2>&1 && grep -q "test result: ok" .context/working/t3661/v1.out
+cargo test -p termlink --test cli_integration -- cli_artifact_put_posts_notice_to_hub_qualified_inbox cli_file_send_receive_multi_mb_loses_no_chunk > .context/working/t3661/v2.out 2>&1 && grep -q "2 passed" .context/working/t3661/v2.out
+grep -q 'print_deprecation_warning("file send", "artifact put")' crates/termlink-cli/src/commands/file.rs && ! grep -rq "post --file" crates/termlink-cli/src
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -303,6 +307,27 @@ complete or fails loudly; the deprecation text points to something that exists.
 
 ## RCA
 
+**Symptom:** (1) `artifact put --to 055-agentic-fleet-cockpit` stored the bytes, then exited 1 with
+`-32013 unknown topic inbox:055-agentic-fleet-cockpit`. (2) A 5 MB `file send` arrived as "Missing chunk 99 of 107".
+
+**Root cause:** (1) `send_artifact_via_client` (crates/termlink-session/src/artifact.rs:231) posts to `inbox:{target}`,
+and `cmd_artifact_put` passed the bare agent id; since the sidecar scheme an agent's inbox is
+`inbox:<hub_id>/<agent>` (termlink-sidecar send.rs `inbox_topic`). (2) `cmd_file_receive` (commands/file.rs, the
+event.subscribe params) passed the `next_seq` cursor straight as `since`, but `since` is exclusive (`seq > since`,
+termlink-session events.rs `EventBus::poll`). Each time a subscribe returned at its 100-event cap
+(`DEFAULT_SUBSCRIBE_MAX_EVENTS`, handler.rs:920) with more already buffered, one event was skipped: init + chunks
+0..98 = 100 events, so chunk 99 went missing. Every other follower (events.rs, mcp tools.rs) already converts with
+`next - 1`. `file send` reached the legacy path at all because its artifact attempt hit the same bare-inbox -32013 and
+silently fell back.
+
+**Why structurally allowed:** no test sent a file larger than one subscribe batch (100 events, about 4.8 MB) over the
+legacy route, and no test ran `artifact put` against a hub-qualified inbox; the artifact unit tests use a stub hub that
+accepts any topic.
+
+**Prevention:** `cli_file_send_receive_multi_mb_loses_no_chunk` (6 MB, 123 chunks; with the fix reverted it fails
+"Missing chunk 25 of 123") and `cli_artifact_put_posts_notice_to_hub_qualified_inbox` (throwaway TCP hub,
+hub-qualified inbox, asserts exit 0 and the notice on that topic), crates/termlink-cli/tests/cli_integration.rs.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -371,6 +396,20 @@ complete or fails loudly; the deprecation text points to something that exists.
 -->
 
 ## Decisions
+
+### 2026-11-02 — artifact put inbox resolution
+- **Chose:** resolve in the CLI before upload: a `to` with `/` is used as given; else `inbox:<hub_id>/<to>` if it
+  exists; else a legacy bare `inbox:<to>` if it exists; else a loud error naming both, before any bytes move.
+- **Why:** reuses the sidecar topic shape and `hub.version`'s hub_id; failing before the upload means no exit 1 after
+  success. `send_artifact_via_client` is untouched, so file send / MCP / remote callers keep their bare-topic behaviour.
+- **Rejected:** changing `send_artifact_via_client` for every caller (legacy `file receive` reads the bare topic).
+
+### 2026-11-02 — file send: fix, not delegate
+- **Chose:** fix the receiver cursor (`since_for_next_seq`) and keep file send; deprecation text now names
+  `artifact put` / `artifact get`, which exist (`channel post --file` was never built).
+- **Why:** the loss was one off-by-one in `file receive`; delegating would change a deprecated command's contract.
+- **Rejected:** flipping `event.subscribe`'s `since` to inclusive server-side (every other caller already subtracts 1
+  and would then get duplicates).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

@@ -4620,3 +4620,120 @@ fn cli_claim_verbs_authenticate_over_tcp_with_interact_token() {
     let released = ok(&["channel", "release", "--claim-id", &cid, "--claimer", "w", "--ack", "--hub", &tcp, "--json"]);
     assert!(released.contains("\"ack\":true"), "release over TCP: {released}");
 }
+
+#[test]
+fn cli_artifact_put_posts_notice_to_hub_qualified_inbox() {
+    // T-3661 (055 report): `artifact put --to <agent>` stored the bytes, then posted its
+    // notice to bare `inbox:<agent>` and exited 1 (-32013 unknown topic) because the
+    // agent's real inbox is `inbox:<hub_id>/<agent>`. Throwaway unix-only hub in a temp
+    // runtime dir, temp HOME and identity dir: nothing outside the test is touched.
+    let dir = TestDir::new("artifact-put-inbox");
+    let cmd = |args: &[&str]| {
+        let mut c = termlink_cmd(&dir.path);
+        c.env("HOME", &dir.path)
+            .env("TERMLINK_IDENTITY_DIR", dir.path.join("id"))
+            .args(args);
+        c
+    };
+    // A hub states a hub_id only once it has a TLS cert, i.e. with --tcp: an ephemeral
+    // 127.0.0.1 port, as the T-3652 test does.
+    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let tcp = format!("127.0.0.1:{port}");
+    let hub_child = cmd(&["hub", "start", "--tcp", &tcp])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn hub");
+    let _hub = ProcessGuard::new(hub_child, "artifact-put-hub");
+    let sock_path = dir.path.join("hub.sock");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !sock_path.exists() {
+        assert!(Instant::now() < deadline, "hub socket never appeared");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let sock = sock_path.to_string_lossy().to_string();
+    let hub_id = {
+        let deadline = Instant::now() + Duration::from_secs(30);
+        loop {
+            let o = cmd(&["sidecar", "hub-id", "--hub-socket", &sock]).output().unwrap();
+            if o.status.success() {
+                break String::from_utf8_lossy(&o.stdout).trim().to_string();
+            }
+            assert!(Instant::now() < deadline, "hub-id never answered: {}", String::from_utf8_lossy(&o.stderr));
+            std::thread::sleep(Duration::from_millis(200));
+        }
+    };
+    let topic = format!("inbox:{hub_id}/t3661-agent");
+    assert!(cmd(&["channel", "create", &topic, "--hub", &sock]).output().unwrap().status.success());
+
+    let file = dir.path.join("blob.bin");
+    std::fs::write(&file, vec![7u8; 300_000]).unwrap();
+    let out = cmd(&["artifact", "put", file.to_str().unwrap(), "--to", "t3661-agent", "--json"])
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(out.status.success(), "artifact put must exit 0: {stdout} {}", String::from_utf8_lossy(&out.stderr));
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    assert_eq!(v["ok"], true);
+    assert_eq!(v["topic"], serde_json::json!(topic), "notice must go to the hub-qualified inbox");
+
+    // The notice is really on the qualified inbox.
+    let sub = cmd(&["channel", "subscribe", &topic, "--hub", &sock, "--limit", "10"])
+        .output()
+        .unwrap();
+    let subs = String::from_utf8_lossy(&sub.stdout);
+    assert!(subs.contains("blob.bin"), "notice not on {topic}: {subs}");
+
+    // No inbox at all: a loud error naming the topics, before any upload.
+    let out = cmd(&["artifact", "put", file.to_str().unwrap(), "--to", "nobody-here", "--json"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let err = String::from_utf8_lossy(&out.stdout);
+    assert!(err.contains(&format!("inbox:{hub_id}/nobody-here")), "{err}");
+}
+
+#[test]
+fn cli_file_send_receive_multi_mb_loses_no_chunk() {
+    // T-3661 (055 report): a 5 MB legacy transfer arrived as "Missing chunk 99 of 107".
+    // `file receive` passed next_seq as event.subscribe's EXCLUSIVE `since`, so each time
+    // a subscribe returned at its 100-event cap one buffered event was skipped. No hub:
+    // the direct session route, the path that lost the chunk.
+    let dir = TestDir::new("fsend-multimb");
+    let _guard = start_register(&dir.path, "mb-target");
+    wait_for_socket(&dir.sessions_dir(), Duration::from_secs(10)).unwrap();
+    let out_dir = dir.path.join("out");
+    let src = dir.path.join("big.bin");
+    let data: Vec<u8> = (0..6_000_000u32).map(|i| (i.wrapping_mul(2654435761) >> 13) as u8).collect();
+    std::fs::write(&src, &data).unwrap();
+
+    let recv = termlink_cmd(&dir.path)
+        .args(["file", "receive", "mb-target", "--output-dir", out_dir.to_str().unwrap(), "--timeout", "120", "--json"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn file receive");
+    let mut recv = ProcessGuard::new(recv, "fsend-multimb-recv");
+    std::thread::sleep(Duration::from_secs(2));
+    let send = termlink_cmd(&dir.path)
+        .args(["file", "send", "mb-target", src.to_str().unwrap(), "--json"])
+        .output()
+        .unwrap();
+    assert!(send.status.success(), "file send failed: {}", String::from_utf8_lossy(&send.stderr));
+
+    let deadline = Instant::now() + Duration::from_secs(120);
+    let status = loop {
+        if let Some(s) = recv.child().try_wait().unwrap() {
+            break s;
+        }
+        assert!(Instant::now() < deadline, "file receive did not finish");
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    let mut out = String::new();
+    use std::io::Read as _;
+    recv.child().stdout.take().unwrap().read_to_string(&mut out).unwrap();
+    assert!(status.success(), "file receive failed: {out}");
+    let got = std::fs::read(out_dir.join("big.bin")).unwrap();
+    assert_eq!(got.len(), data.len());
+    assert!(got == data, "received bytes differ");
+}
