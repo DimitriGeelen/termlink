@@ -13,10 +13,10 @@ description: >
   re-vendor; decide whether to carry a registered divergence (.vendor-divergence.yaml)
   or wait for upstream landing.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -31,8 +31,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-07T20:04:08Z
-last_update: 2026-10-26T15:21:36Z
-date_finished:
+last_update: 2026-11-02T00:08:00Z
+date_finished: 2026-11-02T00:08:00Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -56,6 +56,17 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-11-02T00:07:28Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-08T21:30:40Z'
@@ -82,14 +93,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** framework:pickup offset 88 (from ring20-management T-1710). The vendored `web/blueprints/api.py` imported `web.llm` at call time without a guard, so hosts without the optional AI stack returned HTTP 500 on /health, /ask and /search.
+**Problem / hypothesis:** A missing optional dependency surfaced as an unhandled ModuleNotFoundError. A local patch would be erased on re-vendor (G-062).
+**Goal:** Get the guard from upstream instead of carrying a divergence.
+**Expected outcome:** Upstream landed it (T-4657) and it is now vendored. `_missing()` catches ImportError, `health()` returns 200 "degraded" naming what is missing, and the other endpoints return a 503 JSON via `_unavailable()`. No local divergence is needed (T-3648 triage).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The vendored api.py guards the optional AI import (missing stack → health 200 "degraded", endpoints 503 JSON, no 500), landed upstream so no local divergence is carried (evidence: `.agentic-framework/web/blueprints/api.py` `_missing()` `except ImportError` :46-50, `_unavailable()` :53, `health()` :362; no api.py entry in .vendor-divergence.yaml)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -184,6 +197,8 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q 'except ImportError' .agentic-framework/web/blueprints/api.py
+grep -q '"status": "degraded"' .agentic-framework/web/blueprints/api.py
 
 ## RCA
 
@@ -285,3 +300,20 @@ cost_estimate_proposed:
 ### 2026-10-26T15:21:36Z — status-update [task-update-agent]
 - **Change:** owner: human → agent
 - **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion
+
+### 2026-11-02T00:07:27Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-02T00:08:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ff05c76d
+- **Timestamp:** 2026-11-02T00:08:02Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

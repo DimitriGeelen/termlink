@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2916: Pickup: RING20-APIV1-001 — vendored api.py health endpoint 500s on missing optional AI deps (offset 88)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T00:08:08Z
+# ============================================================================
+
+task_id: T-2916
+task_name: "Pickup: RING20-APIV1-001 — vendored api.py health endpoint 500s on missing optional AI deps (offset 88)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-07T20:04:08Z
+completed: 2026-11-02T00:08:00Z
+duration_days: 56
+updates_count: 4
+first_commit: 2026-09-07T22:08:14+02:00
+last_commit: 2026-09-07T22:08:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  pickup offsets 87-99 triaged — T-2916 (api.py health-500, off 88), T-2917 (promotion-ledger, off 91), T-2918 (operator-desk inception, off 90+92, DEFER-recommended); 87/89/93-99 were T-2894+T-2912 last session. Canary ack still owed (budget gate) — run: bash scripts/check-framework-pickup-freshness.sh --ack
+
+# Key outcomes
+outcomes:
+  - 'The vendored api.py guards the optional AI import (missing stack → health 200 "degraded", endpoints 503 JSON, no 500), landed upstream so no local divergence is carried (evidence: `.agentic-framework/web/blueprints/api.py` `_missing()` `except ImportError` :46-50, `_unavailable()` :53, `health()` :362; no api.py entry in .vendor-divergence.yaml)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2916-pickup-ring20-apiv1-001--vendored-apipy-.md'
+  - '.tasks/active/T-2917-pickup-aef-promotion-machinery-gap--outc.md'
+  - '.tasks/active/T-2918-pickup-two-way-operator-channel-capabili.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-07T22:08:14'
+    action: 'T-2916: pickup offsets 87-99 triaged — T-2916 (api.py health-500, off 88), T-2917 (promotion-ledger, off 91), T-2918 (operator-desk inception, off 90+92, DEFER-recommended); 87/89/93-99 were T-2894+T-2912 last session. Canary ack still owed (budget gate) — run: bash scripts/check-framework-pickup-freshness.sh --ack'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 79443 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 79443
+  commits: 2
+  files_changed: 6
+  lines_added: 754
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-02T00:08:13Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2916-pickup-ring20-apiv1-001--vendored-apipy-.md
+generated_by: context-agent-hybrid
