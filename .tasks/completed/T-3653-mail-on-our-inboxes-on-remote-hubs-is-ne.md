@@ -7,12 +7,12 @@ description: >
   sweep read only the local hub; peers on other hubs write to our inbox on their hub
   (ring20 lesson 5.11).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-unacted-mail.sh, scripts/lib/remote-inbox-mail.py, scripts/session-start-alerts.sh, tests/session-start-alerts-fixtures.sh, tests/unacted-mail-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T12:08:54Z
-last_update: 2026-11-02T12:20:38Z
-date_finished:
+last_update: 2026-11-02T12:21:11Z
+date_finished: 2026-11-02T12:21:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -427,3 +427,16 @@ test ! -e scripts/check-remote-inbox-mail.sh && grep -q 'remote-inbox-mail.py' s
 5. 192.168.10.141:9100 (laptop-141): unreachable (No route to host) — NOT CHECKED, now reported as such by both checks.
 6. The sweep will keep listing .122 @19-22 until T-3652 answers and records them in
    .context/project/unacted-mail-handled.txt as `inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 <offset> ...`.
+
+### 2026-11-02T12:21:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b64d2f87
+- **Timestamp:** 2026-11-02T12:21:37Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

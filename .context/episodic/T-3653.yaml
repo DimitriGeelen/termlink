@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3653: Mail on our inboxes on REMOTE hubs is never read (ring20 .122 inbox:22c19fedafd73da2/010-termlink sat 5 days)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T12:21:44Z
+# ============================================================================
+
+task_id: T-3653
+task_name: "Mail on our inboxes on REMOTE hubs is never read (ring20 .122 inbox:22c19fedafd73da2/010-termlink sat 5 days)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-02T12:08:54Z
+completed: 2026-11-02T12:21:11Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-11-02T13:20:38+01:00
+last_commit: 2026-11-02T13:20:38+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  read our inboxes on REMOTE hubs at session start and in the unacted-mail sweep
+
+# Key outcomes
+outcomes:
+  - 'Census: list every inbox addressed to us (`010-termlink`, `termlink`, `claude-termlink*`, and sender-keyed'
+  - '`scripts/session-start-alerts.sh` lists unseen peer mail on our inboxes on remote hubs (per hub, with offset and'
+  - '`scripts/check-unacted-mail.sh` (the T-3618 sweep) covers remote hubs the same way (no new check script: DP-3 cap).'
+  - 'Hermetic fixtures for both (fake remote hub listing/reading via existing seams); suites pass.'
+  - 'Gap registered in `.context/project/concerns.yaml` (G-019 rule: blind > 7 days) with prevention = these checks. Evidence: G-097'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/concerns.yaml'
+  - '.fabric/components/scripts-lib-remote-inbox-mail.yaml'
+  - '.tasks/active/T-3653-mail-on-our-inboxes-on-remote-hubs-is-ne.md'
+  - 'scripts/check-unacted-mail.sh'
+  - 'scripts/lib/remote-inbox-mail.py'
+  - 'scripts/session-start-alerts.sh'
+  - 'tests/session-start-alerts-fixtures.sh'
+  - 'tests/unacted-mail-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-02T13:20:38'
+    action: 'T-3653: read our inboxes on REMOTE hubs at session start and in the unacted-mail sweep'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 12
+  commits: 3
+  files_changed: 12
+  lines_added: 1424
+  lines_removed: 27
+  footprint_refreshed_at: '2026-11-02T12:21:56Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3653-mail-on-our-inboxes-on-remote-hubs-is-ne.md
+generated_by: context-agent-hybrid
