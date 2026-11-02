@@ -7,12 +7,12 @@ description: >
   Operator rulings 2026-11-02: (1) undeclared second hub = FAIL, not WARN; (2) clear
   the 44 waiting entries proven test residue or already answered.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs, runme.sh, scripts/substrate-preflight.sh, tests/runme-fixtures.sh, tests/substrate-preflight-single-hub-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T13:04:17Z
-last_update: 2026-11-02T13:19:49Z
-date_finished:
+last_update: 2026-11-02T13:19:55Z
+date_finished: 2026-11-02T13:19:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -432,3 +432,21 @@ grep -q "second-hub.declared" docs/operations/guard-layer-and-canaries.md
 
 ### 2026-11-02T13:05:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-02T13:19:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-744717b6
+- **Timestamp:** 2026-11-02T13:28:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Check 7 in `scripts/substrate-preflight.sh`: an undeclared second hub (or a second termlink binary of a different
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/substrate-preflight.sh in: Check 7 in `scripts/substrate-preflight.sh`: an undeclared second hub (or a second termlink binary of a different`

@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3657: Operator 2026-11-02 'both yes': preflight Check 7 FAILs on an undeclared second hub/binary (ruling 10-03 via AEF ac9d2de7) + runme action drops the 44 proven-harmless waiting messages (T-3656 drop-list)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T13:29:00Z
+# ============================================================================
+
+task_id: T-3657
+task_name: "Operator 2026-11-02 'both yes': preflight Check 7 FAILs on an undeclared second hub/binary (ruling 10-03 via AEF ac9d2de7) + runme action drops the 44 proven-harmless waiting messages (T-3656 drop-list)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-02T13:04:17Z
+completed: 2026-11-02T13:19:55Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-02T14:05:17+01:00
+last_commit: 2026-11-02T14:19:49+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  operator 'both yes' — Check 7 FAIL on undeclared second hub; runme drop of 44 proven-harmless waiting entries (context, ACs). preflight Check 7 FAILs on an undeclared second hub or a second termlink version (hub start --allow-second-hub writes <runtime_dir>/second-hub.declared); runme action 26 drops the 44 T-3656-proven waiting messages with their evidence, operator terminal only
+
+# Key outcomes
+outcomes:
+  - 'Check 7 in `scripts/substrate-preflight.sh`: an undeclared second hub (or a second termlink binary of a different'
+  - 'runme.sh action: drops each id in a committed copy of the drop list with `fw sidecar drop <id> --reason'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-02 — FAIL means the script''s own exit 2, not "exit 1"'
+    chose: 'undeclared second hub / second version = severity high, status fail, preflight exit 2.'
+    rationale: 'substrate-preflight''s contract is 0 PASS / 1 WARN / 2 FAIL (header, --help, guard doc); the AC''s "(exit 1)" was shorthand for "fails". Exit 1 would be indistinguishable from WARN for every caller and cron.'
+    alternatives_rejected: ['exit 1.']
+  - decision: '2026-11-02 — How a second hub is declared: a marker in its runtime dir'
+    chose: '`<runtime_dir>/second-hub.declared`, written by `termlink hub start --allow-second-hub` and removed by a plain start; an operator can also create it by hand for a hub already running. Two+ live hubs with at most one undeclared = WARN (as before); two+ undeclared = FAIL.'
+    rationale: '`--allow-second-hub` was a start-time flag with no trace on disk, so preflight could not tell declared from accidental. A per-dir marker needs no HOME, travels with the hub, and is cleared on an ordinary restart.'
+    alternatives_rejected: ['a central list in ~/.termlink (goes stale when dirs move); an env var (invisible to cron). - **Shipped≠live:** the CLI half takes effect once the rebuilt binary is installed (runme action 4); the preflight half and a hand-made marker work now.']
+  - decision: '2026-11-02 — Second-binary detection is cheap, so it is in'
+    chose: 'sibling row `single-binary`: `type -aP termlink`, deduped by realpath, each `--version`; two or more distinct versions FAIL unless the odd paths are listed in `~/.termlink/declared-binaries` (`TERMLINK_DECLARED_BINARIES_FILE`). This host today: three copies, all 0.12.1415, PASS.'
+  - decision: '2026-11-02 — runme action 26 and the operator-only drop'
+    chose: '`fw sidecar drop` refuses under CLAUDECODE=1 unless `--i-am-human`; from the operator''s own terminal it records `by: human`. The action never passes `--i-am-human`; under CLAUDECODE=1 it is FAILED with "run it from your own terminal" (dry-run still previews). Drop list committed at `.context/sidecar/drop-list-T-3656.tsv`.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/sidecar/drop-list-T-3656.tsv'
+  - '.tasks/active/T-3657-operator-2026-11-02-both-yes-preflight-c.md'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'docs/operations/guard-layer-and-canaries.md'
+  - 'runme.sh'
+  - 'scripts/substrate-preflight.sh'
+  - 'tests/runme-fixtures.sh'
+  - 'tests/substrate-preflight-single-hub-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-02T14:05:17'
+    action: 'T-3657: operator ''both yes'' — Check 7 FAIL on undeclared second hub; runme drop of 44 proven-harmless waiting entries (context, ACs)'
+  - time: '2026-11-02T14:19:49'
+    action: 'T-3657: preflight Check 7 FAILs on an undeclared second hub or a second termlink version (hub start --allow-second-hub writes <runtime_dir>/second-hub.declared); runme action 26 drops the 44 T-3656-proven waiting messages with their evidence, operator terminal only'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 15
+  commits: 3
+  files_changed: 11
+  lines_added: 888
+  lines_removed: 20
+  footprint_refreshed_at: '2026-11-02T13:29:08Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3657-operator-2026-11-02-both-yes-preflight-c.md
+generated_by: context-agent-hybrid

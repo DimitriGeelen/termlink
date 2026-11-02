@@ -22785,3 +22785,21 @@ scan_id: R-61c4302f
 task_id: T-3655
 payload:
   task_file: .tasks/active/T-3655-adopt-1409s-focus-anchor-contextprojectf.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T13:28:54Z'
+scan_id: R-744717b6
+task_id: T-3657
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T13:28:54Z'
+scan_id: R-744717b6
+task_id: T-3657
+payload:
+  task_file: .tasks/active/T-3657-operator-2026-11-02-both-yes-preflight-c.md
