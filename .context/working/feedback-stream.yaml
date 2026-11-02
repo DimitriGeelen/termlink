@@ -22803,3 +22803,21 @@ scan_id: R-744717b6
 task_id: T-3657
 payload:
   task_file: .tasks/active/T-3657-operator-2026-11-02-both-yes-preflight-c.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T14:07:49Z'
+scan_id: R-2c96bd4d
+task_id: T-3658
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T14:07:49Z'
+scan_id: R-2c96bd4d
+task_id: T-3658
+payload:
+  task_file: .tasks/active/T-3658-triage-page-more-compact-and-easier-to-n.md

@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3658: Triage page: more compact and easier to navigate (operator 2026-11-02, via the design skill)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T14:07:56Z
+# ============================================================================
+
+task_id: T-3658
+task_name: "Triage page: more compact and easier to navigate (operator 2026-11-02, via the design skill)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-02T14:00:03Z
+completed: 2026-11-02T14:07:30Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-02T15:01:03+01:00
+last_commit: 2026-11-02T15:07:24+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  triage page compact + navigation (operator request), context and ACs. /triage compact rows (one grid row per task, details on o/Enter), sticky group bar with overall + per-group progress, keyboard j/k 1-6 n [ ] documented on the page, cursor to next unanswered after an answer; same data contract; design via /design (docs/reports/T-3658-triage-design.md); tests 12 passed; screenshots 1024/1440/1920
+
+# Key outcomes
+outcomes:
+  - 'Design reviewed with the `/design` skill (its output saved under `docs/reports/T-3658-triage-design.md`)'
+  - 'Compact layout: one row per task by default (id, title, one-line summary, proposal, six buttons), evidence and'
+  - 'Navigation: sticky group bar with counts and a progress indicator; keyboard shortcuts (j/k next/prev, 1-6 or'
+  - 'Contract unchanged: batch.json in, answers.jsonl out, page never writes a task file; `web/test_triage.py` passes'
+  - 'Screenshots at 1024/1440/1920 read back and attached under `.context/visual/T-3658/`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/web/templates/triage.html'
+  - '.agentic-framework/web/test_triage.py'
+  - '.context/visual/T-3658/rows@1024.png'
+  - '.context/visual/T-3658/rows@1440.png'
+  - '.context/visual/T-3658/rows@1920.png'
+  - '.context/visual/T-3658/scrolled-sticky@1024.png'
+  - '.tasks/active/T-3658-triage-page-more-compact-and-easier-to-n.md'
+  - '.vendor-divergence.yaml'
+  - 'docs/reports/T-3658-triage-design.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-02T15:01:03'
+    action: 'T-3658: triage page compact + navigation (operator request), context and ACs'
+  - time: '2026-11-02T15:07:24'
+    action: 'T-3658: /triage compact rows (one grid row per task, details on o/Enter), sticky group bar with overall + per-group progress, keyboard j/k 1-6 n [ ] documented on the page, cursor to next unanswered after an answer; same data contract; design via /design (docs/reports/T-3658-triage-design.md); tests 12 passed; screenshots 1024/1440/1920'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7
+  commits: 3
+  files_changed: 12
+  lines_added: 935
+  lines_removed: 93
+  footprint_refreshed_at: '2026-11-02T14:08:04Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3658-triage-page-more-compact-and-easier-to-n.md
+generated_by: context-agent-hybrid
