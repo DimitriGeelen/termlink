@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2689: MCP/CLI parity harness covers 24 of 68+ parallel implementations; the divergence-heavy agent_* group has zero coverage
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T00:00:37Z
+# ============================================================================
+
+task_id: T-2689
+task_name: "MCP/CLI parity harness covers 24 of 68+ parallel implementations; the divergence-heavy agent_* group has zero coverage"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-14T06:29:18Z
+completed: 2026-11-02T00:00:25Z
+duration_days: 80
+updates_count: 4
+first_commit: 2026-08-20T01:50:30+02:00
+last_commit: 2026-08-20T01:50:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  detect vendored-framework files that are unreachable from git
+
+# Key outcomes
+outcomes:
+  - 'Superseded by T-2748: the same parity-coverage gap, re-measured by the T-2747 census (24 of 260 tools, remainder in .context/checks/mcp-parity-census-allowlist) and worked down there; closed here so it is not tracked twice (evidence: T-2748 is in .tasks/active/, allowlist file exists; T-3648 triage)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/.hook-counter'
+  - '.context/working/.tool-counter'
+  - '.context/working/focus.yaml'
+  - '.context/working/session.yaml'
+  - '.fabric/components/scripts-check-framework-tracking-drift.yaml'
+  - '.fabric/components/tests-framework-tracking-drift-fixtures.yaml'
+  - '.tasks/active/T-2689-stale-gitignore-silently-untracks-new-ve.md'
+  - '.termlink-task'
+  - 'scripts/check-framework-tracking-drift.sh'
+  - 'tests/framework-tracking-drift-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-20T01:50:30'
+    action: 'T-2689: detect vendored-framework files that are unreachable from git'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 114811 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 114811
+  commits: 2
+  files_changed: 13
+  lines_added: 783
+  lines_removed: 25
+  footprint_refreshed_at: '2026-11-02T00:00:43Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2689-mcpcli-parity-harness-covers-24-of-68-pa.md
+generated_by: context-agent-hybrid

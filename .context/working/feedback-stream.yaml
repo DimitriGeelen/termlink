@@ -22335,3 +22335,21 @@ scan_id: R-03b722f0
 task_id: T-2594
 payload:
   task_file: .tasks/active/T-2594-ptysessionspawn-leaks-masterfd-and-orpha.md
+---
+kind: scan_emitted
+timestamp: '2026-11-02T00:00:27Z'
+scan_id: R-6a872184
+task_id: T-2689
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-02T00:00:27Z'
+scan_id: R-6a872184
+task_id: T-2689
+payload:
+  task_file: .tasks/active/T-2689-mcpcli-parity-harness-covers-24-of-68-pa.md

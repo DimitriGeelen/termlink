@@ -9,20 +9,20 @@ description: >
   live — a real divergence sat undetected inside a COVERED pair; uncovered pairs have
   no detection at all. Sizing: this is an arc, not a task.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: []
-components: []
+components: [scripts/check-framework-tracking-drift.sh, tests/framework-tracking-drift-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T06:29:18Z
-last_update: '2026-09-08T21:30:39Z'
-date_finished:
+last_update: 2026-11-02T00:00:25Z
+date_finished: 2026-11-02T00:00:25Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -47,6 +47,17 @@ bvp_scores_proposed:
       (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
       (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:59:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-08T21:30:39Z'
     estimator: bvp-estimator-v1-heuristic
@@ -63,14 +74,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-1909's parity harness promised to expand to the channel_* and chat-arc agent_* pairs but never did: 24 cases exist. T-2687 then showed a real MCP/CLI divergence slipping through.
+**Problem / hypothesis:** Most parallel MCP/CLI implementations have no parity assertion, so a divergence there goes undetected.
+**Goal:** Track the coverage gap once, against a measured baseline.
+**Expected outcome:** This task closes as superseded. T-2747's census re-measured the gap (24 of 260 MCP tools, the rest listed in .context/checks/mcp-parity-census-allowlist), and expanding coverage family by family is owned by T-2748, still active (T-3648 triage, operator ruling 2026-11-02).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Superseded by T-2748: the same parity-coverage gap, re-measured by the T-2747 census (24 of 260 tools, remainder in .context/checks/mcp-parity-census-allowlist) and worked down there; closed here so it is not tracked twice (evidence: T-2748 is in .tasks/active/, allowlist file exists; T-3648 triage)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -135,6 +148,8 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+test -f .context/checks/mcp-parity-census-allowlist
+ls .tasks/active/ .tasks/completed/ > .context/working/.v-t2689.out 2>&1 && grep -q '^T-2748-' .context/working/.v-t2689.out
 
 ## RCA
 
@@ -206,3 +221,20 @@ cost_estimate_proposed:
 
 ### 2026-08-14T06:29:31Z — status-update [task-update-agent]
 - **Change:** horizon: now → next
+
+### 2026-11-01T23:59:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-02T00:00:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6a872184
+- **Timestamp:** 2026-11-02T00:00:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
