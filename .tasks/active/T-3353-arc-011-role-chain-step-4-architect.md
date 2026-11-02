@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:26Z
-last_update: '2026-11-02T21:47:34Z'
+last_update: 2026-11-02T22:06:31Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -121,12 +121,12 @@ Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Step 3 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3)
-- [ ] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned
-- [ ] `docs/design/interactive-agent-communication-04-architecture.md` exists with a version table and an inputs-of-record section citing the input hashes
-- [ ] Every value left open to step 4 is decided or listed as open (summary section 11 row 4: hub-id minting, grant format, retention ceilings, jitter/cap/hop limit, skew bound, gap-wait bound, mail-hub declaration format, idle no-surfacing threshold, 'main' lease durations and priority format, GP-4 offline)
-- [ ] Ownership split TermLink/AEF stated per component (OD-7, OD-9, CAND-10)
-- [ ] Role-chain yaml step 4 `task:` set to this task id
+- [x] Step 3 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3) (evidence: e12bb7298 2026-10-11 records the operator's step-3 confirmations incl. OP-10 A floor and OP-11 A phasing; later rulings f0e99b302 and d44495678 the same day; T-3352 work-completed; operator's go for step 4 2026-11-02 "yes, 1 and 2" (f1ca9f841). Note: the chain yaml's step-3 entry has no `approval:` line yet, unlike steps 1 and 2; the orchestrator may add it)
+- [x] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evidence: docs/design/interactive-agent-communication/role-handback-step-04.json, validated against schemas/role-handback-1.schema.json; inputs read in that order, hashes in the output §1)
+- [x] `docs/design/interactive-agent-communication-04-architecture.md` exists with a version table and an inputs-of-record section citing the input hashes (evidence: §0 version table, §1 inputs of record with sha256; sub-document 04a-traceability)
+- [x] Every value left open to step 4 is decided or listed as open (summary section 11 row 4: hub-id minting, grant format, retention ceilings, jitter/cap/hop limit, skew bound, gap-wait bound, mail-hub declaration format, idle no-surfacing threshold, 'main' lease durations and priority format, GP-4 offline) (evidence: §8 table V-1..V-16 incl. the J5 numbers V-11..V-13; GP-4 in §8.2; GP-11 listed open as V-16)
+- [x] Ownership split TermLink/AEF stated per component (OD-7, OD-9, CAND-10) (evidence: §16 table; owner column in §5.1)
+- [x] Role-chain yaml step 4 `task:` set to this task id (evidence: role-chain yaml step 4 `task: T-3353`, already present)
 
 ## Verification
 

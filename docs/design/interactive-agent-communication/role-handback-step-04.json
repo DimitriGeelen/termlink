@@ -1,0 +1,112 @@
+{
+  "schema": "role-handback/1",
+  "chain": "arc-011-design",
+  "step": 4,
+  "role": "architect",
+  "task": "T-3353",
+  "status": "ready-for-review",
+  "output": {
+    "path": "docs/design/interactive-agent-communication-04-architecture.md",
+    "sha256": "935a3de4d6a5af777c52ed9b7793c3c2ab3e0fa84d2c02bb45ec4d34da94715c"
+  },
+  "inputs": [
+    {
+      "path": "docs/design/interactive-agent-communication-01-requirements.md",
+      "sha256": "d2d839fb743eb4c542f337f2b3d244e3df4a47ac40807ebbc5f7dda5ead0a3d4"
+    },
+    {
+      "path": "docs/design/interactive-agent-communication-02-threat-model.md",
+      "sha256": "88961693384966502f4ca4eb515ed4b0590a29c3d61ac0c619e17ea4562693f3"
+    },
+    {
+      "path": "docs/design/interactive-agent-communication-03-floor-and-phasing.md",
+      "sha256": "8f4b8c060af635317f91a4a38dfa3f9059897937b2135e0b560fcc10b5cc8fe1"
+    },
+    {
+      "path": "docs/reports/T-3344-step1-rulings-summary.md",
+      "sha256": "6381769f3b2a98f3bdc1e1cfe6c6c16c35891b5e5c9fedca55014ceaff13e418"
+    },
+    {
+      "path": "docs/design/arc-011-ph2-architecture.md",
+      "sha256": "b8a941e5563b72707bb3abbe89677ba42ab5560dc1882721b59f59390d84d589"
+    },
+    {
+      "path": "docs/operations/main-lease.md",
+      "sha256": "f4d79119a1105f94fc47c88715d9d7368402ae7b44bb3867ddc52b4d21bcf743"
+    }
+  ],
+  "summary": "Architecture v0.1 with sub-document 04a-traceability (sha256 597988d775eb2f4cf9c56f147ca933efa5072421c82c2ff1612f80fdff73af9a). Records the built PH-1/PH-2 system and the main lease as baseline. Designs the eleven PH-2 rows without tasks (P10 minted hub id + hub signing key; P11 signed revocation list pulled each tick; P13 receiver quotas, adaptive window, hop limit; P15 blobs encrypted to a new per-agent X25519 key, ciphertext in the recipient's home hub store, artifact --hub encrypted only; P16 reconciliation on start; P17 consumer list, admin log, sweep refusal, founding-verb log, key card, signed dead letter; P18 status strength flags, reachability card, CLEAR; P19 six fault injectors; P21 doorbell only for unattended sessions with an SI-1 line; P22 vendor-channel log; P24 W3 acceptance) and R-67.a1(4) forward-once in a FORWARD envelope with VIA notice. Decides the step-4 values V-1..V-15 as starting values (GP-11 open), proposes security levels L0-L2, 14 decision records, 6 change requests, 24 build items.",
+  "completion": [
+    {
+      "condition": "6.1 Every R-n, TH-n and SI-n is addressed; no unexplained design element",
+      "met": true,
+      "evidence": "04a tables 1-4 (SI-1..31, FX-1..8, R-1..R-82, TH-1..TH-65, elements to sources; 4.1)"
+    },
+    {
+      "condition": "6.2 Baseline, transitions and target present, with boundaries and instrumentation",
+      "met": true,
+      "evidence": "ARC4 section 4 (baseline), 5 (D-1 with TB and [i] points, D-2), 11 (D-5), 12 (target PH-3..PH-6)"
+    },
+    {
+      "condition": "6.3 Every bypass route has a removal or a monitored residual",
+      "met": true,
+      "evidence": "ARC4 section 14: BP-1..BP-19 plus proposed BP-20, BP-21"
+    },
+    {
+      "condition": "6.4 Every open decision is a decision record with options and a recommendation",
+      "met": true,
+      "evidence": "ARC4 section 18 DR-1..DR-14; operator questions O-1..O-7 in section 21"
+    },
+    {
+      "condition": "6.5 Every required drawing (D-1 to D-5) is present with its id, caption and textual equivalent, and renders without error",
+      "met": true,
+      "evidence": "D-1 5.2/5.3, D-2 5.4/5.5, D-3 7.6/7.7, D-4 10.1/10.2, D-5 11.1/11.2; mmdc exit 0 for all five, section 24.2"
+    }
+  ],
+  "open_questions": [
+    "21.1 O-1 cross-hub file delivery encrypted only",
+    "21.2 O-2 doorbell only for unattended sessions",
+    "21.3 O-3 main eligibility until signed profiles",
+    "21.4 O-4 deny SendMessage now (T-3386 done)",
+    "21.5 O-5 starting numbers as one package",
+    "21.6 O-6 unruled step-3 OP-5, OP-12, OP-22, OP-23",
+    "21.7 O-7 security levels L0-L2",
+    "8.1 V-16 GP-11 open"
+  ],
+  "change_requests": [
+    {
+      "step": 3,
+      "what": "XR-1: FP 6.2.3.e re-post with original signature is impossible; reword to kept and listed (OQ-j A)"
+    },
+    {
+      "step": 1,
+      "what": "XR-2: R-67.a1(4) keeping the original signature: inside a forward envelope signed by the forwarder"
+    },
+    {
+      "step": 3,
+      "what": "XR-3: FP 4.2 row R-67: lease and gate built in PH-2 (T-3654); NK note for eligibility interim (DR-9)"
+    },
+    {
+      "step": 3,
+      "what": "XR-4: confirm REFUSED and FORWARDED are receiver outcomes, not new state values under FP-2"
+    },
+    {
+      "step": 3,
+      "what": "XR-5: per-agent encryption keys enter PH-2 for blobs (FX-5A C prime); DM encryption stays PH-4"
+    },
+    {
+      "step": 3,
+      "what": "XR-6: add Tier 0 classes for lowering (high-impact) and raising a project's security level"
+    }
+  ],
+  "decisions_needed": [
+    "O-1",
+    "O-2",
+    "O-3",
+    "O-4",
+    "O-5",
+    "O-6",
+    "O-7",
+    "approval of the step-4 output (decides: true)"
+  ]
+}
