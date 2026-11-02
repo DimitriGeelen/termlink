@@ -24,26 +24,32 @@ receipt() { printf '{"offset":%s,"msg_type":"chat","sender_id":"3bba15e681b3a078
         "$2" "$(h "$3")" "$4" >> "$TMP/topics/$1"; }
 
 reset() {
-    rm -f "$TMP/topics/"* "$TMP/facts/"*
+    rm -f "$TMP/topics/"* "$TMP/facts/"*; rm -rf "$TMP/hubs"
     for v in inbox-stale held-unsurfaced orphan-inboxes; do echo '[]' > "$TMP/facts/$v"; done
     : > "$TMP/ignore"; : > "$TMP/handled"
 }
 
 cat > "$TMP/termlink" <<STUB
 #!/usr/bin/env bash
-T="$TMP/topics"
+T="$TMP/topics"; R="$TMP/hubs"
 STUB
 cat >> "$TMP/termlink" <<'STUB'
+# T-3653: --hub <addr> reads that hub's own topic dir; FAKE_DOWN_HUB cannot be reached.
+hub=""; prev=""; for a in "$@"; do [ "$prev" = "--hub" ] && hub="$a"; prev="$a"; done
+if [ -n "$hub" ]; then
+    [ "$hub" = "${FAKE_DOWN_HUB:-}" ] && { echo "Hub rpc_call failed: No route to host" >&2; exit 1; }
+    T="$R/$hub"; mkdir -p "$T"
+fi
 case "$1 $2" in
   "channel list")
       [ -n "${FAKE_LIST_FAIL:-}" ] && { echo "hub down" >&2; exit 1; }
       printf '{"topics":['; first=1
       for f in "$T"/*; do [ -e "$f" ] || continue; [ $first = 1 ] || printf ','; first=0
-          printf '{"name":"%s"}' "$(basename "$f" | tr '+' ':')"; done
+          printf '{"name":"%s"}' "$(basename "$f" | tr '+%' ':/')"; done
       printf ']}\n'; exit 0 ;;
   "channel subscribe")
       [ -n "${FAKE_READ_FAIL:-}" ] && exit 1
-      cat "$T/$(printf '%s' "$3" | tr ':' '+')"; exit 0 ;;
+      cat "$T/$(printf '%s' "$3" | tr ':/' '+%')"; exit 0 ;;
 esac
 exit 0
 STUB
@@ -60,8 +66,10 @@ cat "$F/$v"
 exit 0
 STUB
 chmod +x "$TMP/termlink" "$TMP/fw"
+: > "$TMP/hubs-none.toml"   # T-3653: hermetic by default, no remote hub is ever contacted
 run() { UNACTED_TL="$TMP/termlink" UNACTED_FW="$TMP/fw" UNACTED_IGNORE="$TMP/ignore" \
-        UNACTED_HANDLED="$TMP/handled" bash "$SCRIPT" "$@"; }
+        UNACTED_HANDLED="$TMP/handled" REMOTE_INBOX_HUBS_TOML="${HUBS_TOML:-$TMP/hubs-none.toml}" \
+        REMOTE_INBOX_LOCAL_HOSTS="127.0.0.1" REMOTE_INBOX_TIMEOUT=5 bash "$SCRIPT" "$@"; }
 
 # 1. the 055 shape: last real message 197 h old, only receipts after it
 reset
@@ -152,6 +160,64 @@ out="$(run)"; rc=$?
     && ok "a fact verb answering non-JSON => NOT CHECKED, exit 2" || bad "non-json: rc=$rc $out"
 out="$(run --bogus 2>&1)"; rc=$?
 [ "$rc" = 2 ] && ok "unknown argument => exit 2" || bad "bogus arg rc=$rc"
+
+# ---- T-3653: our inboxes on REMOTE hubs ------------------------------------------
+cat > "$TMP/hubs.toml" <<'T'
+[hubs.local-test]
+address = "127.0.0.1:9100"
+[hubs.ring20-management]
+address = "10.9.9.2:9100"
+[hubs.laptop]
+address = "10.9.9.3:9100"
+T
+rpost() {  # <hub> <topic file> <offset> <hours ago> <msg_type> <from_project> <body> [extra metadata]
+    mkdir -p "$TMP/hubs/$1"
+    printf '{"offset":%s,"msg_type":"%s","sender_id":"9219671e28054458","ts":%s,"metadata":{"from_project":"%s"%s},"payload_b64":"%s"}\n' \
+        "$3" "$5" "$(h "$4")" "$6" "${8:+,$8}" "$(b64 "$7")" >> "$TMP/hubs/$1/$2"
+}
+remote_world() {
+    reset
+    rpost 10.9.9.2:9100 "inbox+22c1%010-termlink" 0 40 sidecar.receipt ring20 "[sidecar receipt] RECEIVED" '"kind":"receipt","receipt_for":"x"'
+    rpost 10.9.9.2:9100 "inbox+22c1%010-termlink" 1 400 turn ring20 "too old, past the window"
+    rpost 10.9.9.2:9100 "inbox+22c1%010-termlink" 2 30 turn ring20 "a likely CLI bug for you"
+    rpost 10.9.9.2:9100 "inbox+22c1%010-termlink" 3 29 turn 010-termlink "our own post"
+    rpost 10.9.9.2:9100 "inbox+22c1%010-termlink" 4 2 turn ring20 "too young for the threshold"
+    rpost 10.9.9.2:9100 "inbox+22c1%ring20%010-termlink" 7 30 sidecar.consult ring20 "sender-keyed sub-inbox"
+    rpost 10.9.9.2:9100 "inbox+22c1%other-project" 9 30 turn ring20 "not addressed to us"
+    rpost 127.0.0.1:9100 "inbox+cacc%010-termlink" 5 30 turn ring20 "local hub: never read as remote"
+}
+remote_world
+out="$(HUBS_TOML="$TMP/hubs.toml" run)"; rc=$?
+[ "$rc" = 1 ] && grep -q '^UNACTED  remote  inbox:22c1/010-termlink@10.9.9.2:9100  offset 2  from=ring20  age=30h  a likely CLI bug for you' <<< "$out" \
+    && grep -q '^UNACTED  remote  inbox:22c1/ring20/010-termlink@10.9.9.2:9100  offset 7  from=ring20' <<< "$out" \
+    && [ "$(grep -c '^UNACTED  remote' <<< "$out")" = 2 ] \
+    && ok "remote: peer mail on our inbox (and a sender-keyed sub-inbox) on another hub is listed; receipts, our own, too young, too old and other projects' inboxes are not" \
+    || bad "remote listing: rc=$rc $out"
+grep -q '127.0.0.1' <<< "$out" && bad "remote: the local hub was read as a remote one ($out)" \
+    || ok "remote: a hubs.toml profile pointing at this host is not read as remote"
+printf '%s\n' "inbox:22c1/010-termlink@10.9.9.2:9100 2 2026-11-02 answered in T-3652" \
+    "inbox:22c1/ring20/010-termlink@10.9.9.2:9100 7 2026-11-02 answered" > "$TMP/handled"
+out="$(HUBS_TOML="$TMP/hubs.toml" run)"; rc=$?
+[ "$rc" = 0 ] && ! grep -q 'remote' <<< "$out" \
+    && ok "remote: offsets recorded as <topic>@<hub> in the handled file are dismissed, exit 0" || bad "remote handled: rc=$rc $out"
+out="$(FAKE_DOWN_HUB=10.9.9.3:9100 HUBS_TOML="$TMP/hubs.toml" run)"; rc=$?
+[ "$rc" = 2 ] && grep -q '^NOT CHECKED remote: 10.9.9.3:9100 (laptop) channel list failed' <<< "$out" \
+    && ok "remote: an unreachable hub is NOT CHECKED (exit 2), never clean" || bad "remote down: rc=$rc $out"
+: > "$TMP/handled"
+out="$(FAKE_DOWN_HUB=10.9.9.3:9100 HUBS_TOML="$TMP/hubs.toml" run)"; rc=$?
+[ "$rc" = 1 ] && grep -q '^NOT CHECKED remote: 10.9.9.3:9100' <<< "$out" && grep -q '^UNACTED  remote' <<< "$out" \
+    && ok "remote: a finding on one hub wins over another hub being down (exit 1, both printed)" || bad "remote find+down: rc=$rc $out"
+out="$(HUBS_TOML="$TMP/no-such-hubs.toml" run)"; rc=$?
+[ "$rc" = 2 ] && grep -q '^NOT CHECKED remote: could not read hubs file' <<< "$out" \
+    && ok "remote: an unreadable hubs file is NOT CHECKED, exit 2" || bad "remote no toml: rc=$rc $out"
+printf '#!/usr/bin/env bash\nsleep 30\n' > "$TMP/slow-tl"
+printf '#!/usr/bin/env bash\nexec python3 %s "$@" --tl %s\n' "$PROJECT_ROOT/scripts/lib/remote-inbox-mail.py" "$TMP/slow-tl" > "$TMP/remote-slow"
+chmod +x "$TMP/slow-tl" "$TMP/remote-slow"
+start=$(date +%s)
+out="$(HUBS_TOML="$TMP/hubs.toml" REMOTE_INBOX_TIMEOUT=1 UNACTED_REMOTE="$TMP/remote-slow" run)"; rc=$?
+el=$(( $(date +%s) - start ))
+[ "$el" -lt 20 ] && grep -q '^NOT CHECKED remote: 10.9.9.2:9100' <<< "$out" \
+    && ok "remote: a hanging hub is cut off by the timeout and NOT CHECKED (${el}s)" || bad "remote hang: ${el}s rc=$rc $out"
 
 echo; echo "  passed: $PASS   failed: $FAIL"
 [ "$FAIL" -eq 0 ]

@@ -2602,3 +2602,30 @@ concerns:
   - T-2409
   - T-2359
   - T-2377
+- id: G-097
+  type: gap
+  severity: high
+  title: Mail on our inboxes on REMOTE hubs was never read (every mail check read only the local hub)
+  description: 'Found 2026-11-02 (T-3653) when the operator had to relay that proxmox-ring20-management had written
+    four follow-ups (offsets 19-22, 2026-10-27/28) to inbox:22c19fedafd73da2/010-termlink on the .122 hub. A peer
+    replying from its own hub writes to our inbox ON ITS HUB (ring20 lesson 5.11, T-2222, sent to us 2026-10-06), and
+    session-start-alerts.sh, check-unacted-mail.sh (T-3618), the W1 sidecars and fw sidecar alerts all read only the
+    local hub (.107). The inbox existed since 2026-10-06 and nothing ever read it (its 2026-10-06 consults @12/@17 were
+    answered only because they also arrived on other rails); @19-22 sat 5 days unseen. Blind well over the 7-day
+    G-019 line. Census 2026-11-02 of every hubs.toml hub: ours on .122 (inbox:22c19fedafd73da2/010-termlink, 23 posts)
+    and .121 (inbox:1389a831016c4bf1/010-termlink, inbox:cacc73ea32b121dd/010-termlink, receipts only); none on .132
+    or .122:19100; .141 unreachable. PREVENTION (T-3653): scripts/lib/remote-inbox-mail.py reads our inboxes (id,
+    aliases, sender-keyed sub-inboxes, claude-termlink*) on every non-local hub in ~/.termlink/hubs.toml, bounded by a
+    per-call timeout and in parallel; session-start-alerts.sh section 2b lists unseen remote peer mail per hub with
+    offset and sender (own seen-marker), and check-unacted-mail.sh has a remote rail (handled-file key
+    <topic>@<hub>). A hub that cannot be read is NOT CHECKED, never clean. Fixtures: tests/session-start-alerts-fixtures.sh,
+    tests/unacted-mail-fixtures.sh. Remaining: the W1 sidecars still watch only the local hub (no live push of remote
+    mail; detection is at session start and on each sweep).'
+  status: watching
+  created: 2026-11-02
+  last_reviewed: 2026-11-02
+  related_tasks:
+  - T-3653
+  - T-3652
+  - T-3618
+  - T-3640

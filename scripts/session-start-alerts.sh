@@ -32,7 +32,8 @@
 #   (file with canary-status --json output), SESSION_ALERTS_STATE_DIR (marker dir),
 #   FW_SIDECAR_SELF_PROJECT (our project, default 010-termlink),
 #   SESSION_ALERTS_SIDECAR_BIN (termlink-sidecar), SESSION_ALERTS_SIDECAR_SOCKETS,
-#   SESSION_ALERTS_SIDECAR_LIST (the socket list file).
+#   SESSION_ALERTS_SIDECAR_LIST (the socket list file), SESSION_ALERTS_REMOTE (remote-inbox
+#   helper command, T-3653; its own seams: REMOTE_INBOX_HUBS_TOML, REMOTE_INBOX_LOCAL_HOSTS).
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -164,6 +165,26 @@ for t in $topics; do
     [ -n "$last" ] && mark_lines="$mark_lines$key $last"$'\n'
 done
 
+# ---- 2b. peer mail on OUR inboxes on REMOTE hubs (T-3653) -------------------------
+# A peer replying from its own hub writes to our inbox ON ITS HUB (ring20 lesson 5.11);
+# section 2 reads only the local hub, so four ring20 follow-ups sat 5 days on .122.
+# Every hub in ~/.termlink/hubs.toml that is not ours is read (bounded, in parallel), with
+# its own seen-marker per hub and topic. A hub that cannot be read is NOT CHECKED.
+REMOTE_CMD="${SESSION_ALERTS_REMOTE:-python3 $HERE/lib/remote-inbox-mail.py}"
+remote_out="$($REMOTE_CMD --mode unseen --state-dir "$STATE_DIR" --tl "$TL" --self "$SELF_PROJECT" --aliases "$SELF_ALIASES" 2>/dev/null)"
+remote_rc=$?
+remote_mail="$(printf '%s' "$remote_out" | jq -c '.mail // empty' 2>/dev/null)"
+remote_hubs="$(printf '%s' "$remote_out" | jq -c '[.hubs[]? | {hub, profiles, status, error}]' 2>/dev/null)"
+remote_err=""
+if [ -z "$remote_mail" ] || [ -z "$remote_hubs" ]; then
+    remote_mail="[]"; remote_hubs="[]"
+    remote_err="could not read remote-hub inboxes (remote-inbox-mail.py exited $remote_rc, no JSON)"
+else
+    remote_err="$(printf '%s' "$remote_out" | jq -r '[(.error // "" | select(. != "")),
+        (.hubs[]? | select(.status != "ok") | "NOT CHECKED \(.hub) (\(.profiles | join(","))): \(.error)")] | join("; ")')"
+    mark_lines="$mark_lines$(printf '%s' "$remote_out" | jq -r '.marks[]? | "\(.key) \(.offset)"')"$'\n'
+fi
+
 # ---- 3. mail delivered but never acted on, every rail (T-3618) --------------------
 # Not "since last shown": a message stays listed until it is answered or recorded as
 # handled in .context/project/unacted-mail-handled.txt. Exit 2 = a rail could not be read.
@@ -187,7 +208,8 @@ if [ "$json" -eq 1 ]; then
     jq -cn --argjson c "$canaries" --argjson m "$mail" --argjson p "$pins" --argjson h "$held" --arg hn "$held_note" \
         --argjson at "$att" --arg ce "$canary_err" --arg me "$mail_err" --arg pe "$pin_err" --arg he "$held_err" --arg ae "$att_err" \
         --argjson un "$unacted" --arg ue "$unacted_err" \
-        '{canaries:$c, mail:$m, pin_events:$p, held:$h, held_note:$hn, attention:$at, unacted:$un, errors:([$ce,$me,$pe,$he,$ae,$ue] | map(select(. != "")))}'
+        --argjson rm "$remote_mail" --argjson rh "$remote_hubs" --arg re "$remote_err" \
+        '{canaries:$c, mail:$m, remote_mail:$rm, remote_hubs:$rh, pin_events:$p, held:$h, held_note:$hn, attention:$at, unacted:$un, errors:([$ce,$me,$re,$pe,$he,$ae,$ue] | map(select(. != "")))}'
     exit 0
 fi
 nc="$(printf '%s' "$canaries" | jq 'length')"; nm="$(printf '%s' "$mail" | jq 'length')"
@@ -220,6 +242,11 @@ echo "Peer mail not yet shown to this agent: $nm"
 printf '%s' "$mail" | jq -r --argjson l "$limit" '.[:$l][] | "  @\(.offset) \(.topic | split("/") | last)  from \(.from)  \(.age_min) min ago  cid=\(.conversation_id)\n      \(.preview)"'
 [ "$nm" -gt "$limit" ] && echo "  … and $((nm - limit)) more"
 [ -n "$mail_err" ] && echo "  CHECK FAILED: $mail_err"
+nrm="$(printf '%s' "$remote_mail" | jq 'length')"
+echo "Peer mail on our inboxes on other hubs, not yet shown: $nrm ($(printf '%s' "$remote_hubs" | jq 'length') remote hubs)"
+printf '%s' "$remote_mail" | jq -r --argjson l "$limit" '.[:$l][] | "  @\(.offset) \(.topic) on \(.hub)  from \(.from)  \(.age_min) min ago  cid=\(.conversation_id)\n      \(.preview)"'
+[ "$nrm" -gt "$limit" ] && echo "  … and $((nrm - limit)) more"
+[ -n "$remote_err" ] && printf '%s\n' "$remote_err" | tr ';' '\n' | sed 's/^ *//; s/^/  /'
 nun="$(printf '%s' "$unacted" | jq 'length')"
 echo "Mail delivered but never acted on (any rail, any project on this hub): $nun"
 printf '%s' "$unacted" | jq -r '.[] | "  " + (sub("^UNACTED +"; "") | .[0:200])'

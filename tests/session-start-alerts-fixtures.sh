@@ -34,6 +34,18 @@ cat > "$TMP/termlink" <<STUB
 ENVS="$TMP/envs.ndjson"
 STUB
 cat >> "$TMP/termlink" <<'STUB'
+# T-3653: --hub <addr> serves that remote hub from $FAKE_REMOTE/<addr>/; FAKE_DOWN_HUB is unreachable.
+hub=""; prev=""; cur=0; for a in "$@"; do [ "$prev" = "--hub" ] && hub="$a"; [ "$prev" = "--cursor" ] && cur="$a"; prev="$a"; done
+if [ -n "$hub" ]; then
+    [ "$hub" = "${FAKE_DOWN_HUB:-}" ] && { echo "Hub rpc_call failed: No route to host" >&2; exit 1; }
+    D="$FAKE_REMOTE/$hub"
+    case "$1 $2" in
+      "channel list") cat "$D/list.json" 2>/dev/null || echo '{"topics":[]}'; exit 0 ;;
+      "channel subscribe") f="$D/$(printf '%s' "$3" | tr -c 'A-Za-z0-9-' '_').ndjson"
+          [ -r "$f" ] && jq -c --argjson c "$cur" 'select(.offset >= $c)' "$f"; exit 0 ;;
+    esac
+    exit 0
+fi
 case "$1 $2" in
   "channel list") [ -n "${FAKE_NO_TOPICS:-}" ] && { echo '{"topics":[]}'; exit 0; }
       echo '{"topics":[{"name":"inbox:hub/010-termlink"},{"name":"inbox:hub/055-cockpit"}]}'; exit 0 ;;
@@ -48,8 +60,10 @@ chmod +x "$TMP/termlink"
 # T-3618: the unanswered-mail sweep is stubbed (it has its own fixtures); default: nothing found.
 printf '#!/usr/bin/env bash\n[ -n "${FAKE_UNACTED:-}" ] && printf "%%s\\n" "$FAKE_UNACTED"\nexit "${FAKE_UNACTED_RC:-0}"\n' > "$TMP/unacted"
 chmod +x "$TMP/unacted"
+: > "$TMP/hubs-none.toml"   # T-3653: hermetic by default, no remote hub is ever contacted
 run() { SESSION_ALERTS_TL="$TMP/termlink" SESSION_ALERTS_CANARY_JSON="${CJ:-$TMP/canaries.json}" \
-        SESSION_ALERTS_UNACTED="$TMP/unacted" \
+        SESSION_ALERTS_UNACTED="$TMP/unacted" FAKE_REMOTE="$TMP/remote" \
+        REMOTE_INBOX_HUBS_TOML="${HUBS_TOML:-$TMP/hubs-none.toml}" REMOTE_INBOX_LOCAL_HOSTS=127.0.0.1 REMOTE_INBOX_TIMEOUT=5 \
         SESSION_ALERTS_STATE_DIR="$TMP/state" FW_SIDECAR_SELF_PROJECT=010-termlink bash "$SCRIPT" "$@"; }
 
 j="$(run --json)"; rc=$?
@@ -150,6 +164,45 @@ j="$(FAKE_UNACTED='NOT CHECKED dm: termlink channel list --prefix dm: failed' FA
 j="$(FAKE_UNACTED_RC=7 run --json)"
 printf '%s' "$j" | jq -e '.errors | any(test("exited 7"))' >/dev/null \
     && ok "unacted: an unexpected exit code is reported" || bad "unacted rc7: $j"
+
+# ---- T-3653: peer mail on our inboxes on REMOTE hubs ------------------------------
+mkdir -p "$TMP/remote/10.9.9.2:9100"
+printf '[hubs.local-hub]\naddress = "127.0.0.1:9100"\n[hubs.ring20-management]\naddress = "10.9.9.2:9100"\n[hubs.laptop]\naddress = "10.9.9.3:9100"\n' > "$TMP/hubs.toml"
+echo '{"topics":[{"name":"inbox:22c1/010-termlink"},{"name":"inbox:22c1/proxmox-ring20-management"}]}' > "$TMP/remote/10.9.9.2:9100/list.json"
+cat > "$TMP/remote/10.9.9.2:9100/inbox_22c1_010-termlink.ndjson" <<J
+{"offset":18,"msg_type":"sidecar.receipt","ts":2000,"metadata":{"from_project":"proxmox-ring20-management","kind":"receipt","receipt_for":"x"},"payload_b64":"$(b64 'receipt')"}
+{"offset":19,"msg_type":"turn","ts":2001,"metadata":{"from_project":"proxmox-ring20-management"},"payload_b64":"$(b64 'kommunal-pool B2 follow-up')"}
+{"offset":20,"msg_type":"turn","ts":2002,"metadata":{"from_project":"010-termlink"},"payload_b64":"$(b64 'our own ack')"}
+J
+echo '{"offset":0,"msg_type":"turn","ts":2003,"metadata":{"from_project":"x"},"payload_b64":""}' > "$TMP/remote/10.9.9.2:9100/inbox_22c1_proxmox-ring20-management.ndjson"
+rm -rf "$TMP/state"
+j="$(FAKE_DOWN_HUB=10.9.9.3:9100 HUBS_TOML="$TMP/hubs.toml" run --json)"
+[ "$(printf '%s' "$j" | jq -r '[.remote_mail[] | "\(.hub) \(.topic) \(.offset) \(.from)"] | join("|")')" = "10.9.9.2:9100 inbox:22c1/010-termlink 19 proxmox-ring20-management" ] \
+    && ok "remote: peer mail on our inbox on another hub is listed with hub, offset and sender (not receipts, not ours, not other inboxes)" \
+    || bad "remote mail ($(printf '%s' "$j" | jq -c '.remote_mail'))"
+printf '%s' "$j" | jq -e '.errors | any(test("NOT CHECKED 10.9.9.3:9100 \\(laptop\\)"))' >/dev/null \
+    && printf '%s' "$j" | jq -e '.remote_hubs | map(.hub) == ["10.9.9.2:9100","10.9.9.3:9100"]' >/dev/null \
+    && ok "remote: an unreachable hub is NOT CHECKED, never clean; the local hub is not read as remote" || bad "remote down ($j)"
+txt="$(FAKE_DOWN_HUB=10.9.9.3:9100 HUBS_TOML="$TMP/hubs.toml" run)"
+grep -q '^Peer mail on our inboxes on other hubs, not yet shown: 1 (2 remote hubs)' <<< "$txt" \
+    && grep -q '^  @19 inbox:22c1/010-termlink on 10.9.9.2:9100  from proxmox-ring20-management' <<< "$txt" \
+    && grep -q '^  NOT CHECKED 10.9.9.3:9100 (laptop): channel list failed' <<< "$txt" \
+    && ok "remote: text output names hub, offset, sender and the NOT CHECKED hub" || bad "remote text: $txt"
+HUBS_TOML="$TMP/hubs.toml" run --mark-seen >/dev/null
+j="$(HUBS_TOML="$TMP/hubs.toml" run --json)"
+[ "$(printf '%s' "$j" | jq '.remote_mail | length')" = 0 ] && [ "$(printf '%s' "$j" | jq '.errors | length')" = 0 ] \
+    && ok "remote: --mark-seen advances the per-hub marker; nothing new => 0, no error" || bad "remote mark-seen ($j)"
+printf '{"offset":21,"msg_type":"turn","ts":2005,"metadata":{"from_project":"proxmox-ring20-management"},"payload_b64":"%s"}\n' "$(b64 'a likely CLI bug')" \
+    >> "$TMP/remote/10.9.9.2:9100/inbox_22c1_010-termlink.ndjson"
+j="$(HUBS_TOML="$TMP/hubs.toml" run --json)"
+[ "$(printf '%s' "$j" | jq -r '[.remote_mail[].offset] | join(",")')" = "21" ] \
+    && ok "remote: a later message after the marker is shown" || bad "remote new ($(printf '%s' "$j" | jq -c '.remote_mail'))"
+j="$(HUBS_TOML="$TMP/no-such.toml" run --json)"
+printf '%s' "$j" | jq -e '.errors | any(test("could not read hubs file"))' >/dev/null \
+    && ok "remote: an unreadable hubs file is an error, never a clean 0" || bad "remote no toml ($j)"
+j="$(SESSION_ALERTS_REMOTE=false run --json)"
+printf '%s' "$j" | jq -e '.errors | any(test("could not read remote-hub inboxes"))' >/dev/null \
+    && ok "remote: a helper that dies without JSON is reported" || bad "remote helper dead ($j)"
 
 echo; echo "  passed: $PASS   failed: $FAIL"
 [ "$FAIL" -eq 0 ]

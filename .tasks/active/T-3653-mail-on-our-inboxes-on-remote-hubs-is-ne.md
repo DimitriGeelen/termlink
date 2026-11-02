@@ -1,10 +1,13 @@
 ---
 id: T-3653
-name: "Mail on our inboxes on REMOTE hubs is never read (ring20 .122 inbox:22c19fedafd73da2/010-termlink sat 5 days)"
+name: "Mail on our inboxes on REMOTE hubs is never read (ring20 .122 inbox:22c19fedafd73da2/010-termlink
+  sat 5 days)"
 description: >
-  Operator 2026-11-02: top priority. session-start-alerts, the sidecar and the unacted-mail sweep read only the local hub; peers on other hubs write to our inbox on their hub (ring20 lesson 5.11).
+  Operator 2026-11-02: top priority. session-start-alerts, the sidecar and the unacted-mail
+  sweep read only the local hub; peers on other hubs write to our inbox on their hub
+  (ring20 lesson 5.11).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T12:08:54Z
-last_update: 2026-11-02T12:08:54Z
-date_finished: null
+last_update: 2026-11-02T12:20:38Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +53,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-02T12:10:34Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=2 (body:lightly-promoted)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3653: Mail on our inboxes on REMOTE hubs is never read (ring20 .122 inbox:22c19fedafd73da2/010-termlink sat 5 days)
@@ -73,14 +88,18 @@ within one check, without the operator relaying it.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Census: list every inbox addressed to us (`010-termlink`, `termlink`, `claude-termlink*`, and sender-keyed
+- [x] Census: list every inbox addressed to us (`010-termlink`, `termlink`, `claude-termlink*`, and sender-keyed
       sub-inboxes `inbox:<hub>/<sender>/010-termlink`) on every hub in hubs.toml; record which hold unread mail
-      and read/handle any found (report in Updates)
-- [ ] `scripts/session-start-alerts.sh` lists unseen peer mail on our inboxes on remote hubs (per hub, with offset and
-      sender), using its own seen-marker; a hub it cannot reach is printed as NOT CHECKED (exit 2 semantics), never clean
-- [ ] `scripts/check-unacted-mail.sh` (the T-3618 sweep) covers remote hubs the same way (no new check script: DP-3 cap)
-- [ ] Hermetic fixtures for both (fake remote hub listing/reading via existing seams); suites pass
-- [ ] Gap registered in `.context/project/concerns.yaml` (G-019 rule: blind > 7 days) with prevention = these checks
+      and read/handle any found (report in Updates). Evidence: census in Updates 2026-11-02T13:00Z
+- [x] `scripts/session-start-alerts.sh` lists unseen peer mail on our inboxes on remote hubs (per hub, with offset and
+      sender), using its own seen-marker; a hub it cannot reach is printed as NOT CHECKED (exit 2 semantics), never clean.
+      Evidence: section 2b via `scripts/lib/remote-inbox-mail.py --mode unseen`; live run lists .122 @12/17/19-22
+- [x] `scripts/check-unacted-mail.sh` (the T-3618 sweep) covers remote hubs the same way (no new check script: DP-3 cap).
+      Evidence: `remote` rail; live run lists .122 @19-22 and `NOT CHECKED remote: 192.168.10.141:9100 (laptop-141)`
+- [x] Hermetic fixtures for both (fake remote hub listing/reading via existing seams); suites pass.
+      Evidence: session-start-alerts-fixtures 28/28 (7 remote), unacted-mail-fixtures 24/24 (7 remote, incl. 1s timeout
+      on a hanging hub); both default to an empty hubs file so no fixture contacts a real hub
+- [x] Gap registered in `.context/project/concerns.yaml` (G-019 rule: blind > 7 days) with prevention = these checks. Evidence: G-097
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -284,8 +303,18 @@ within one check, without the operator relaying it.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash tests/session-start-alerts-fixtures.sh > .context/working/t3653/v-ssa.out 2>&1 && grep -q 'remote: an unreachable hub is NOT CHECKED' .context/working/t3653/v-ssa.out && ! grep -q '^  FAIL' .context/working/t3653/v-ssa.out
+bash tests/unacted-mail-fixtures.sh > .context/working/t3653/v-unacted.out 2>&1 && grep -q 'remote: a hanging hub is cut off by the timeout' .context/working/t3653/v-unacted.out && ! grep -q '^  FAIL' .context/working/t3653/v-unacted.out
+bash -n scripts/session-start-alerts.sh && bash -n scripts/check-unacted-mail.sh && python3 -m py_compile scripts/lib/remote-inbox-mail.py
+python3 -c "import yaml,sys; c=yaml.safe_load(open('.context/project/concerns.yaml'))['concerns']; sys.exit(0 if any(g.get('id')=='G-097' and 'T-3653' in g.get('related_tasks',[]) for g in c) else 1)"
+test ! -e scripts/check-remote-inbox-mail.sh && grep -q 'remote-inbox-mail.py' scripts/check-unacted-mail.sh && grep -q 'remote-inbox-mail.py' scripts/session-start-alerts.sh
 
 ## RCA
+
+**Symptom:** four ring20 follow-ups on `inbox:22c19fedafd73da2/010-termlink` on .122 sat 5 days unseen; the operator relayed them.
+**Root cause:** every mail reader (session-start-alerts section 2, check-unacted-mail, sidecars) listed topics on the local hub only; a peer's reply from its own hub lands in our inbox on ITS hub.
+**Why structurally allowed:** "our inbox" was modelled as one topic on one hub; nothing enumerated the fleet (hubs.toml) for inboxes addressed to us, so a whole class of mail had no reader and no check said "not looked at".
+**Prevention:** `scripts/lib/remote-inbox-mail.py` used by both checks, reading every non-local hub with bounded timeouts; unreachable hubs are NOT CHECKED; fixtures pin listing, dismissal, down hub, hang, unreadable hubs file. G-097.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -381,3 +410,20 @@ within one check, without the operator relaying it.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3653-mail-on-our-inboxes-on-remote-hubs-is-ne.md
 - **Context:** Initial task creation
+
+### 2026-11-02T12:10:32Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-02T13:00Z — census of our inboxes on every hubs.toml hub [t3653-w]
+1. 127.0.0.1:9100 / 192.168.10.107:9100 (local, already read by section 2 + sweep): inbox:cacc73ea32b121dd/{010-termlink,
+   termlink, claude-termlink, claude-termlink-alt, 010-termlink/{aef-greenfield-test,dimitri-mint-dev,t3370-probe,
+   w-crosshost-research}}. Not re-read here (local scope unchanged).
+2. 192.168.10.122:9100: inbox:22c19fedafd73da2/010-termlink (23 posts). Peer mail: @12 (2026-10-06, t2250 S-1 contract;
+   answered under T-3344), @17 (2026-10-06, T-2222 inception protocol file; handled under T-3335 cover note),
+   @19-22 (2026-10-27/28, kommunal-pool follow-ups: owned by T-3652, not answered here). Rest are sidecar receipts.
+3. 192.168.10.121:9100: inbox:1389a831016c4bf1/010-termlink (9) and inbox:cacc73ea32b121dd/010-termlink (3): receipts only
+   (last one DROPPED by the operator, T-2476 triage -> our T-3367). Nothing to act on.
+4. 192.168.10.132:9100 and 192.168.10.122:19100 (node1-pool): no inbox addressed to us.
+5. 192.168.10.141:9100 (laptop-141): unreachable (No route to host) — NOT CHECKED, now reported as such by both checks.
+6. The sweep will keep listing .122 @19-22 until T-3652 answers and records them in
+   .context/project/unacted-mail-handled.txt as `inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 <offset> ...`.

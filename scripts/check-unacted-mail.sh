@@ -23,6 +23,8 @@
 #   inbox   consult inboxes holding an unread consult (inbox-stale).
 #   held    receiver mail held that no session was ever shown (held-unsurfaced).
 #   orphan  project-level inboxes nothing reads: mail sent to a nickname (orphan-inboxes).
+#   remote  our inboxes on every OTHER hub in ~/.termlink/hubs.toml (T-3653); handled-file
+#           key is "<topic>@<hub>".
 # The termlink sidecar's own unsurfaced mail is raised by the sidecar itself into its
 # needs-attention list, which session-start-alerts.sh section 1d already shows.
 #
@@ -39,14 +41,16 @@
 # is recorded in .context/project/unacted-mail-handled.txt as "<topic> <offset> <date>
 # <what was done>"; only that offset is skipped, so a later message re-flags the topic.
 # Seams (fixtures): UNACTED_FW (fw launcher), UNACTED_TL (termlink CLI),
-#   UNACTED_IGNORE, UNACTED_HANDLED, UNACTED_WINDOW_DAYS (default 14).
+#   UNACTED_IGNORE, UNACTED_HANDLED, UNACTED_WINDOW_DAYS (default 14),
+#   UNACTED_REMOTE (remote-inbox helper command; its own seams REMOTE_INBOX_HUBS_TOML,
+#   REMOTE_INBOX_LOCAL_HOSTS, REMOTE_INBOX_TIMEOUT).
 set -u
 
 THRESHOLD=24
 while [ $# -gt 0 ]; do
     case "$1" in
         --threshold-hours) THRESHOLD="${2:-}"; shift 2 ;;
-        -h|--help) sed -n '2,35p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,40p' "$0"; exit 0 ;;
         *) echo "check-unacted-mail: unknown argument $1" >&2; exit 2 ;;
     esac
 done
@@ -163,6 +167,37 @@ PY
 )"
     if [ -n "$lines" ]; then printf '%s\n' "$lines"; FOUND=1; fi
 done
+
+# ---- remote: our inboxes on OTHER hubs (T-3653) -----------------------------------
+# A peer replying from its own hub writes to our inbox on ITS hub (ring20 lesson 5.11):
+# 4 ring20 follow-ups sat 5 days on .122. Every hub in ~/.termlink/hubs.toml that is not
+# ours is read (bounded, in parallel). A post is listed until its offset is recorded in
+# the handled file as "<topic>@<hub> <offset> <date> <what was done>". A hub that cannot
+# be read is NOT CHECKED, never clean.
+REMOTE_CMD="${UNACTED_REMOTE:-python3 $ROOT/scripts/lib/remote-inbox-mail.py}"
+$REMOTE_CMD --mode unacted --tl "$TL" --threshold-hours "$THRESHOLD" --window-days "$WINDOW_DAYS" \
+    --handled "$HANDLED" > "$SCRATCH/remote.json" 2>"$SCRATCH/remote.err"; remote_rc=$?
+if ! python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if isinstance(d.get("hubs"),list) else 1)' "$SCRATCH/remote.json" 2>/dev/null; then
+    blind remote "remote-inbox-mail.py exited $remote_rc without JSON ($(head -c 200 "$SCRATCH/remote.err" 2>/dev/null))"
+else
+    while IFS= read -r l; do
+        case "$l" in
+            "NOT CHECKED "*) echo "$l"; BLIND=1 ;;
+            UNACTED*) echo "$l"; FOUND=1 ;;
+        esac
+    done < <(python3 - "$SCRATCH/remote.json" <<'PY2'
+import json, sys
+d = json.load(open(sys.argv[1]))
+if d.get("error"):
+    print(f"NOT CHECKED remote: {d['error']}")
+for h in d.get("hubs", []):
+    if h.get("status") != "ok":
+        print(f"NOT CHECKED remote: {h['hub']} ({','.join(h.get('profiles') or [])}) {h.get('error','')}")
+for m in d.get("mail", []):
+    print(f"UNACTED  remote  {m['topic']}@{m['hub']}  offset {m['offset']}  from={m['from']}  age={m['age_hours']}h  {m['preview'][:90]}")
+PY2
+)
+fi
 
 [ "$FOUND" = 1 ] && exit 1
 [ "$BLIND" = 1 ] && exit 2
