@@ -15,7 +15,7 @@ operator runme 2026-11-02 17:22Z) + AEF v1.8.16-be.26 or later (T-5014 hook). No
 | 0235-voice-features | .107 | NOTIFIED | |
 | 050-email-archive | .107 | LIVE | be.26 (35abca011); main aaeda7d0 gen 1; am-i 1 for x (msg 07c5b1ff) |
 | 0506-Voxtype-extention | .107 | NOTIFIED | |
-| 055-agentic-fleet-cockpit | .107 | WAITS DEPLOY + OPERATOR GO | deploy in flight, then operator go (msg 72bcaecb) |
+| 055-agentic-fleet-cockpit | .107 | LIVE | be.26 on operator go ~21:50; main 0fdf569a gen 1; am-i 1 for another id (msg a3173e5c) |
 | 0909-aef-greenfield-v22 | ? | NOTIFIED | |
 | 0909-boot-into-timeshift-snapshots | ? | NOTIFIED | |
 | 1023-portable-encrypted-chromium-vault | .107 | WAITS OPERATOR GO | on 1.8.12; needs the operator's go in its own session (msg aaef341a) |
