@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-18T21:31:22Z
-last_update: '2026-09-27T21:34:03Z'
+last_update: 2026-11-02T00:18:13Z
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:36Z'
@@ -61,6 +61,11 @@ cost_estimate_proposed:
 # T-1699: framework upgrade 1.6.160 + test suite (dispatched)
 
 ## Context
+
+**Background / trigger:** In May 2026 a dispatcher asked this project to `fw upgrade` to AEF 1.6.160, run the test suite and report back. `fw upgrade` fork-bombed twice. Upstream fixed it as T-2099 (findings below).
+**Problem / hypothesis:** The upgrade handoff leaked FRAMEWORK_ROOT, so the replayed `fw` recursed into itself.
+**Goal:** Complete the upgrade, verify the framework's health, reconcile vendored drift, and report.
+**Expected outcome:** Superseded. Later upgrades went through cleanly: the T-3370 re-vendor to v1.8.3, then 1.8.15 on 2026-10-31 (.framework.yaml). The 1.6.160 dispatch and its report are moot (T-3648 triage).
 
 Dispatched directive: upgrade framework on this host (consumer-initialized shape — `/opt/termlink`), run test suite, report back via TermLink. Pinned upstream = GitHub canonical (OneDev mid-migration).
 
