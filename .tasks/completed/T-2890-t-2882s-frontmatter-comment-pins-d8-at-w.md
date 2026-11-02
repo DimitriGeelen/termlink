@@ -12,10 +12,10 @@ description: >
   watching D8 still refuse to pass. handover.sh is vendored (G-062) and already carries
   a registered divergence from T-2882 at framework:pickup offset 83.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -30,8 +30,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-03T12:07:12Z
-last_update: '2026-09-08T21:30:40Z'
-date_finished:
+last_update: 2026-11-02T00:07:13Z
+date_finished: 2026-11-02T00:07:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -56,6 +56,17 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-02T00:06:29Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=1 (body:episodic-only)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-08T21:30:40Z'
     estimator: bvp-estimator-v1-heuristic
@@ -72,14 +83,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-2889 enriched LATEST.md down to zero real placeholders and D8 still would not pass. The cause was a frontmatter comment from handover.sh (added by T-2882) containing the literal `[TODO]`.
+**Problem / hypothesis:** D8 greps the whole handover for `[TODO`, so an unfillable comment kept it at WARN forever and it could no longer tell a skeleton from an enriched handover.
+**Goal:** D8 counts only placeholders a session can actually fill.
+**Expected outcome:** Fixed upstream and vendored. handover.sh no longer emits that frontmatter comment, and a generated LATEST.md has no `[TODO]` in its frontmatter (T-3648 triage).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The handover generator no longer writes the unfillable `[TODO]` frontmatter comment that pinned D8 at WARN. The only `[TODO]`s left in handover.sh are an operator echo hint (:679), the digest-fallback fields (:1225-1226) and the three fillable body sections (:1587-1595), and the generated LATEST.md frontmatter carries none (evidence: `grep -n '\[TODO\]' .agentic-framework/agents/handover/handover.sh` on 2026-11-02; Verification below)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,6 +187,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+awk 'NR==1&&/^---/{f=1;next} f&&/^---/{exit} f' .context/handovers/LATEST.md > .context/working/.v-t2890.out && ! grep -q '\[TODO' .context/working/.v-t2890.out
 
 ## RCA
 
@@ -271,3 +285,24 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2890-t-2882s-frontmatter-comment-pins-d8-at-w.md
 - **Context:** Initial task creation
+
+### 2026-11-02T00:06:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-02T00:07:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-66e590fb
+- **Timestamp:** 2026-11-02T00:07:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — The handover generator no longer writes the unfillable `[TODO]` frontmatter comment that pinned D8 at WARN. The only `[TODO]`s left in handover.sh are an operator echo hint (:679), the digest-fallback
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=agentic-framework/agents/handover/handover.sh in: The handover generator no longer writes the unfillable `[TODO]` frontmatter comment that pinned D8 at WARN. The only `[TODO]`s left in handover.sh are`

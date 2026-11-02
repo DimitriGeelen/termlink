@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2890: T-2882's frontmatter comment pins D8 at WARN: the handover check can never reach PASS again
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T00:07:20Z
+# ============================================================================
+
+task_id: T-2890
+task_name: "T-2882's frontmatter comment pins D8 at WARN: the handover check can never reach PASS again"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-03T12:07:12Z
+completed: 2026-11-02T00:07:13Z
+duration_days: 60
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  handover.sh:712 emits a frontmatter comment containing the literal string [TODO], and the D8 audit check greps the WHOLE file for that string. So every handover the fixed generator produces carries one hit no matter how thoroughly it is enriched, and D8 is pinned at WARN(1) minimum forever — it can no longer distinguish an unfilled skeleton from a fully enriched handover, which is the single thing it exists to measure. Found by T-2889 after enriching LATEST.md to zero real placeholders and watching D8 still refuse to pass. handover.sh is vendored (G-062) and already carries a registered divergence from T-2882 at framework:pickup offset 83.
+
+# Key outcomes
+outcomes:
+  - 'The handover generator no longer writes the unfillable `[TODO]` frontmatter comment that pinned D8 at WARN. The only `[TODO]`s left in handover.sh are an operator echo hint (:679), the digest-fallback fields (:1225-1226) and the three fillable body sections (:1587-1595), and the generated LATEST.md frontmatter carries none (evidence: `grep -n ''\[TODO\]'' .agentic-framework/agents/handover/handover.sh` on 2026-11-02; Verification below)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 85680 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 85680
+  commits: 1
+  files_changed: 3
+  lines_added: 133
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-02T00:07:26Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2890-t-2882s-frontmatter-comment-pins-d8-at-w.md
+generated_by: context-agent-hybrid
