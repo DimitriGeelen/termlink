@@ -36,7 +36,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-26T22:28:52Z
-last_update: 2026-10-26T15:21:42Z
+last_update: 2026-11-01T23:50:32Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -57,6 +57,18 @@ cost_estimate_proposed:
       effort: 8
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
       (workflow:build); effort=8 (lines=232,acs=4)
+    rubric_sha: e4a00f38e801
+bvp_scores_proposed:
+  - ts: '2026-11-01T23:49:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
     rubric_sha: e4a00f38e801
 ---
 
@@ -295,3 +307,14 @@ cost_estimate_proposed:
 ### 2026-10-26T15:21:42Z — status-update [task-update-agent]
 - **Change:** owner: human → agent
 - **Reason:** T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion
+
+### 2026-11-01T23:49:23Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-02 — T-3648 close-2: NOT closed
+- The triage cited 5802c0ed9 ("did not reproduce, workers_registered:1"). That covers only the probe. The same commit says it was "recorded so T-3181 is not treated as settled on my say-so".
+- The defect this task names, the result SHAPE, is still in code: crates/termlink-mcp/src/tools.rs:14440 sets `timed_out = collected_count < registered_count` and :14472 sets `ok = !timed_out && no crashes`. With workers_spawned 1 and workers_registered 0, that gives ok:true, timed_out:false. The CLI path (crates/termlink-cli/src/commands/dispatch.rs:726) was not checked. 5802c0ed9 finding 1 shows a related false-success: a refused `claude -p` still registers.
+- Stays open: ok should be false (or a distinct state) when registered < spawned.
+
+### 2026-11-01T23:50:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured

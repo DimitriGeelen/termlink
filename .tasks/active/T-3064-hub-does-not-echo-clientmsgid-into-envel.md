@@ -31,7 +31,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T09:02:21Z
-last_update: '2026-09-22T14:57:41Z'
+last_update: 2026-11-01T23:40:37Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,6 +56,17 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-11-01T23:39:26Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-22T14:57:41Z'
@@ -272,3 +283,15 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3064-hub-does-not-echo-clientmsgid-into-envel.md
 - **Context:** Initial task creation
+
+### 2026-11-01T23:39:25Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-02 — T-3648 close-2: NOT closed (partial)
+- **Done:** the hub stores `client_msg_id` on the record (crates/termlink-hub/src/channel.rs:1060, T-3515, git d562ec5c0), read back by `dedupe::find_stored_post` and covered by `dedupe_survives_a_restart_by_finding_the_stored_record`.
+- **Open:** 1) `metadata.insert` overwrites any sender-supplied `client_msg_id`, where this task asked for the sender's value to win. 2) docs/operations/substrate-post-idempotency.md:158 still says cross-restart dedupe is not done, and it does not document the stored key. Close once the doc is updated and the overwrite is either changed or recorded as a decision.
+
+### 2026-11-01T23:40:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
+- **Change:** horizon: now → next

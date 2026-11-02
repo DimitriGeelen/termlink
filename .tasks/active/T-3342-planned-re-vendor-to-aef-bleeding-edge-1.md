@@ -2,7 +2,11 @@
 id: T-3342
 name: "Planned re-vendor to AEF bleeding-edge 1.7.424 (sequence from T-3341 rehearsal)"
 description: >
-  Operator: proceed as recommended (2026-10-04). Follow docs/reports/T-3341-revendor-rehearsal.md section 4.2: decide OD-9 receiver first; narrow .gitignore re-includes (.context/designer only); upgrade from bleeding-edge clone with FRAMEWORK_ROOT/PROJECT_ROOT set; restore the 15 toolkit files + resume.md from git; work the 22 guard reds; handle H1; done when guard layer >= baseline (183/191) and fw doctor clean.
+  Operator: proceed as recommended (2026-10-04). Follow docs/reports/T-3341-revendor-rehearsal.md
+  section 4.2: decide OD-9 receiver first; narrow .gitignore re-includes (.context/designer
+  only); upgrade from bleeding-edge clone with FRAMEWORK_ROOT/PROJECT_ROOT set; restore
+  the 15 toolkit files + resume.md from git; work the 22 guard reds; handle H1; done
+  when guard layer >= baseline (183/191) and fw doctor clean.
 
 status: captured
 workflow_type: build
@@ -22,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T13:17:37Z
-last_update: 2026-10-04T14:43:09Z
-date_finished: null
+last_update: 2026-11-01T23:54:56Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +38,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-01T23:53:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3342: Planned re-vendor to AEF bleeding-edge 1.7.424 (sequence from T-3341 rehearsal)
@@ -41,6 +57,8 @@ date_finished: null
 ## Context
 
 OD-9 ruling (2026-10-05, T-3344 interview): at this re-vendor AEF's receiver becomes the ONE receiver for this project's inbox; retire TermLink's notify-sidecar scripts from it in the same step (one receiver per inbox, never two).
+
+**T-3648 close-2 (2026-11-02): NOT closed.** The 1.7.424 target is superseded: the vendored copy is now 1.8.15+181 (T-3634, git ccd17d25c). But the OD-9 step attached to this re-vendor is not visibly done. /etc/cron.d/termlink-notify-sidecar-supervisor and termlink-notify-wake-supervisor are still installed, and no open task was found carrying "retire the TermLink receiver where AEF's receiver runs". Before closing, move that obligation to a live task (or record that it was done or re-ruled).
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
@@ -269,3 +287,11 @@ OD-9 ruling (2026-10-05, T-3344 interview): at this re-vendor AEF's receiver bec
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3342-planned-re-vendor-to-aef-bleeding-edge-1.md
 - **Context:** Initial task creation
+
+### 2026-11-01T23:53:47Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-01T23:54:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
+- **Change:** horizon: now → next
