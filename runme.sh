@@ -2628,7 +2628,7 @@ drop_t3656_waiting() {
     while IFS=$'\t' read -r id reason; do
         [ -n "$id" ] || continue
         n_listed=$((n_listed+1))
-        printf '%s\n' "$waiting" | grep -qxF -- "$id" && pending+=("$id")
+        grep -qxF -- "$id" <<< "$waiting" && pending+=("$id")
     done < "$DROP_LIST"
     if [ "${#pending[@]}" = 0 ]; then
         say "  skip    none of the $n_listed listed messages is still waiting (already dropped or handled)"; SKIPPED=$((SKIPPED+1)); return
@@ -2643,7 +2643,7 @@ drop_t3656_waiting() {
     fi
     while IFS=$'\t' read -r id reason; do
         [ -n "$id" ] || continue
-        printf '%s\n' "${pending[@]}" | grep -qxF -- "$id" || continue
+        grep -qxF -- "$id" <<< "$(printf '%s\n' "${pending[@]}")" || continue
         if ! "$DROP_FW" sidecar drop "$id" --reason "$reason" > /tmp/.runme-drop-out 2>&1; then
             say "  note    drop $id refused: $(tail -1 /tmp/.runme-drop-out)"; bad=$((bad+1))
         fi
@@ -2651,7 +2651,7 @@ drop_t3656_waiting() {
     if ! waiting="$(waiting_ids)"; then
         say "  FAILED  dropped (refusals: $bad) but could not re-read 'fw sidecar waiting --json' to verify"; FAILED=$((FAILED+1)); return
     fi
-    for id in "${pending[@]}"; do printf '%s\n' "$waiting" | grep -qxF -- "$id" && still+=("$id"); done
+    for id in "${pending[@]}"; do grep -qxF -- "$id" <<< "$waiting" && still+=("$id"); done
     if [ "${#still[@]}" -gt 0 ]; then
         say "  FAILED  ${#still[@]} of ${#pending[@]} listed messages are still waiting after the drop (first: ${still[0]})"; FAILED=$((FAILED+1)); return
     fi
