@@ -1369,6 +1369,34 @@ divergences:
       Blueprint tests: render, escaping, POST appends + last wins, bad choice 400, CSRF 403, group filter, bad batch, no task-file write, nav leaf.
     evidence: "python3 -m pytest web/test_triage.py (10 passed); tests/triage-apply-fixtures.sh (13 passed)."
     upstream_note: "Operator ruling B (2026-11-02): to be offered to AEF (055's T-682 pattern). Also listed in .fwvendor-preserve.yaml."
+  - task: T-3658
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the change.
+    date: 2026-11-02
+    file: .agentic-framework/web/templates/triage.html
+    status: local-only
+    kind: feature
+    generality: GENERIC
+    symptom: >-
+      Operator 2026-11-02: /triage too tall (one card filled most of a 1920 screen for 287 tasks), no quick navigation.
+    fix: >-
+      Compact one-row-per-task grid, details expandable, sticky bar with overall and per-group progress, keyboard (j/k, 1-6, o/Enter, n, [ ]) documented on the page, cursor moves to the next unanswered row after an answer. Same endpoint and data contract. Design: docs/reports/T-3658-triage-design.md.
+    evidence: "python3 -m pytest web/test_triage.py (12 passed); screenshots .context/visual/T-3658/ at 1024/1440/1920."
+    upstream_note: "Follows T-3649 (operator ruling B): offered to AEF together with the /triage page. Listed in .fwvendor-preserve.yaml."
+  - task: T-3658
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the change.
+    date: 2026-11-02
+    file: .agentic-framework/web/test_triage.py
+    status: local-only
+    kind: feature
+    generality: GENERIC
+    symptom: >-
+      Operator 2026-11-02: /triage too tall (one card filled most of a 1920 screen for 287 tasks), no quick navigation.
+    fix: >-
+      Two tests for the compact markup: details hidden, sticky bar + progress, keys documented, group pill progress, nothing pre-selected.
+    evidence: "python3 -m pytest web/test_triage.py (12 passed); screenshots .context/visual/T-3658/ at 1024/1440/1920."
+    upstream_note: "Follows T-3649 (operator ruling B): offered to AEF together with the /triage page. Listed in .fwvendor-preserve.yaml."
   - task: T-3649
     commit: pending-same-commit
     commit_note: Registered in the same commit that carries the change.

@@ -146,3 +146,29 @@ def test_page_never_writes_a_task_file(client, tdir, tmp_path):
 def test_nav_has_triage_leaf():
     from web.shared import nav_group_labels
     assert "Triage" in nav_group_labels("Govern")
+
+
+def test_compact_rows_details_hidden_and_keys_documented(client, tdir):
+    """T-3658: one grid row per task, details collapsed, sticky bar with progress, keys on the page."""
+    c, _ = client
+    html = c.get("/triage").get_data(as_text=True)
+    assert 'id="triage-bar"' in html and "position: sticky" in html
+    assert '<progress id="triage-progress" value="0" max="3">' in html
+    assert html.count('class="triage-more" hidden') == 3
+    assert 'id="triage-keys"' in html
+    for key in ("<kbd>j</kbd>", "<kbd>k</kbd>", "<kbd>1</kbd>", "<kbd>6</kbd>", "<kbd>o</kbd>", "<kbd>n</kbd>"):
+        assert key in html
+    # digit hints follow the button order, one per button
+    assert html.count('title="Tell me more (6)"') == 3
+    assert "window.__triageKeysInstalled" in html
+
+
+def test_group_pills_carry_progress(client, tdir):
+    c, token = client
+    _post(c, token, task="T-1", choice="keep")
+    html = c.get("/triage").get_data(as_text=True)
+    assert 'data-group="C"' in html
+    assert '<span class="triage-g-answered">1</span>/2' in html
+    assert "width: 50%" in html
+    # proposal still only highlighted after an answer elsewhere
+    assert 'aria-pressed="true"' not in html

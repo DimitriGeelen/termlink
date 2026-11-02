@@ -40,7 +40,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-02T14:00:03Z
-last_update: '2026-11-02T14:00:46Z'
+last_update: 2026-11-02T14:07:23Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -85,14 +85,14 @@ compact rows with expandable details) and see progress.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Design reviewed with the `/design` skill (its output saved under `docs/reports/T-3658-triage-design.md`)
-- [ ] Compact layout: one row per task by default (id, title, one-line summary, proposal, six buttons), evidence and
+- [x] Design reviewed with the `/design` skill (its output saved under `docs/reports/T-3658-triage-design.md`)
+- [x] Compact layout: one row per task by default (id, title, one-line summary, proposal, six buttons), evidence and
       details expandable; at least 6 tasks visible at 1920x1080
-- [ ] Navigation: sticky group bar with counts and a progress indicator; keyboard shortcuts (j/k next/prev, 1-6 or
+- [x] Navigation: sticky group bar with counts and a progress indicator; keyboard shortcuts (j/k next/prev, 1-6 or
       p/k/a/d/c/m for the six choices) documented on the page; after a click the next unanswered row is focused
-- [ ] Contract unchanged: batch.json in, answers.jsonl out, page never writes a task file; `web/test_triage.py` passes
+- [x] Contract unchanged: batch.json in, answers.jsonl out, page never writes a task file; `web/test_triage.py` passes
       (extended for the new markup); the file stays registered in `.vendor-divergence.yaml` / `.fwvendor-preserve.yaml`
-- [ ] Screenshots at 1024/1440/1920 read back and attached under `.context/visual/T-3658/`
+- [x] Screenshots at 1024/1440/1920 read back and attached under `.context/visual/T-3658/`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -296,6 +296,18 @@ compact rows with expandable details) and see progress.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+test -f docs/reports/T-3658-triage-design.md && grep -q "Status: VALIDATED" docs/reports/T-3658-triage-design.md
+cd .agentic-framework && python3 -m pytest web/test_triage.py -q > /tmp/.t3658-pytest.out 2>&1 && grep -q passed /tmp/.t3658-pytest.out
+bash scripts/check-vendor-divergence.sh > /tmp/.t3658-div.out 2>&1
+test -s .context/visual/T-3658/rows@1024.png && test -s .context/visual/T-3658/rows@1440.png && test -s .context/visual/T-3658/rows@1920.png
+grep -q "web/templates/triage.html" .fwvendor-preserve.yaml && grep -q "task: T-3658" .vendor-divergence.yaml
+
+## Visual Verification
+
+| state | control | 1024 | 1440 | 1920 | note |
+|-------|---------|------|------|------|------|
+| rows (show=all, one answered) | six buttons, proposal dashed, chosen filled, group bar | ok | ok | ok | .context/visual/T-3658/rows@{1024,1440,1920}.png; 1024 uses short labels. Sticky bar after scroll shot only at 1024 (scrolled-sticky@1024.png, bar top 0) |
 
 ## RCA
 

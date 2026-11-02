@@ -1,112 +1,258 @@
-{# Six-button backlog triage (T-3649, 055 pattern), rendered by web/blueprints/triage.py from .context/triage/batch.json. #}
-<h1>Triage</h1>
-
-<p class="muted">
-    One card per task. The agent's proposal is highlighted, not selected. A click records
-    your answer in <code>.context/triage/answers.jsonl</code> (the last click per task wins);
-    this page never edits a task. The agent applies answers afterwards through the normal gates.
-</p>
+{# Six-button backlog triage (T-3649, 055 pattern; compact rows + keyboard, T-3658), rendered by
+   web/blueprints/triage.py from .context/triage/batch.json. Design: docs/reports/T-3658-triage-design.md. #}
+{% set short_labels = {"prioritize": "Prio", "keep": "Keep", "park": "Park", "drop": "Drop", "close": "Close", "more": "More"} %}
 
 {% if error %}
+<h1>Triage</h1>
 <article><strong>No batch to triage.</strong> {{ error }}</article>
 {% else %}
-<p>
-    Batch <code>{{ batch_id }}</code>:
-    <strong id="triage-answered">{{ answered_in_scope }}</strong> of <strong>{{ in_scope }}</strong> answered
-    {% if group %}in group <strong>{{ group }}</strong> ({{ answered_total }} of {{ total }} overall){% endif %}
-</p>
-
-<div class="triage-filters">
-    <span>Group:</span>
-    <a href="?show={{ show }}" {% if not group %}aria-current="page"{% endif %}>all ({{ total }})</a>
-    {% for g in groups %}
-    &middot; <a href="?group={{ g.name|urlencode }}&show={{ show }}" {% if group == g.name %}aria-current="page"{% endif %}>{{ g.name }} ({{ g.answered }}/{{ g.total }})</a>
-    {% endfor %}
-    <span style="margin-left:1.5rem">Show:</span>
-    <a href="?group={{ group|urlencode }}&show=open" {% if show == 'open' %}aria-current="page"{% endif %}>unanswered</a>
-    &middot; <a href="?group={{ group|urlencode }}&show=all" {% if show == 'all' %}aria-current="page"{% endif %}>all</a>
+<div class="triage-bar" id="triage-bar">
+    <div class="triage-bar-top">
+        <strong class="triage-h">Triage</strong>
+        <code class="triage-batch">{{ batch_id }}</code>
+        <progress id="triage-progress" value="{{ answered_in_scope }}" max="{{ in_scope or 1 }}"></progress>
+        <span class="triage-count"><strong id="triage-answered">{{ answered_in_scope }}</strong>/<span id="triage-inscope">{{ in_scope }}</span> answered{% if group %} in {{ group }} &middot; {{ answered_total }}/{{ total }} overall{% endif %}</span>
+        <span class="triage-show">
+            <a href="?group={{ group|urlencode }}&show=open" {% if show == 'open' %}aria-current="page"{% endif %}>unanswered</a>
+            <a href="?group={{ group|urlencode }}&show=all" {% if show == 'all' %}aria-current="page"{% endif %}>all</a>
+        </span>
+    </div>
+    <div class="triage-groups" role="navigation" aria-label="Triage groups">
+        <a class="triage-pill" href="?show={{ show }}" {% if not group %}aria-current="page"{% endif %}>all <small>{{ answered_total }}/{{ total }}</small></a>
+        {% for g in groups %}
+        <a class="triage-pill" href="?group={{ g.name|urlencode }}&show={{ show }}" data-group="{{ g.name }}"
+           {% if group == g.name %}aria-current="page"{% endif %}>
+            {{ g.name }} <small><span class="triage-g-answered">{{ g.answered }}</span>/{{ g.total }}</small>
+            <span class="triage-pill-bar"><span style="width: {{ (100 * g.answered / g.total)|round|int if g.total else 0 }}%"></span></span>
+        </a>
+        {% endfor %}
+    </div>
+    <p class="triage-keys" id="triage-keys">
+        Keys: <kbd>j</kbd>/<kbd>k</kbd> or <kbd>&darr;</kbd>/<kbd>&uarr;</kbd> move &middot;
+        <kbd>1</kbd>&ndash;<kbd>6</kbd> answer ({% for c in choices %}{{ loop.index }} {{ choice_labels[c] }}{% if not loop.last %}, {% endif %}{% endfor %}) &middot;
+        <kbd>o</kbd>/<kbd>Enter</kbd> details &middot; <kbd>n</kbd> next unanswered &middot;
+        <kbd>[</kbd>/<kbd>]</kbd> prev/next group.
+        The <span class="triage-proposed-demo">dashed</span> button is the agent's proposal, never pre-selected.
+        A click appends to <code>.context/triage/answers.jsonl</code> (last click per task wins); this page never edits a task.
+    </p>
 </div>
 
 {% if not rows %}
 <p class="muted">Nothing left to answer here.</p>
 {% endif %}
 
+<div id="triage-list" class="triage-list" data-group="{{ group }}">
 {% for r in rows %}
-<article class="triage-card{% if r.answer %} triage-answered{% endif %}" id="card-{{ r.task }}" data-task="{{ r.task }}">
-    <header>
-        <a href="/tasks/{{ r.task }}"><strong>{{ r.task }}</strong></a> {{ r.title }}
-        {% if r.group %}<small class="muted">&middot; group {{ r.group }}</small>{% endif %}
-    </header>
-    <p>{{ r.summary }}</p>
-    {% if r.evidence %}<p><small><strong>Evidence:</strong> {{ r.evidence }}</small></p>{% endif %}
-    {% if r.details %}<p><small class="muted">{{ r.details }}</small></p>{% endif %}
-    <p>
-        <small>Proposed: <mark>{{ choice_labels.get(r.proposed, r.proposed) or 'none' }}</mark></small>
-        <small class="triage-status">{% if r.answer %}Answered: <strong>{{ choice_labels[r.answer] }}</strong>{% endif %}</small>
-    </p>
-    <div class="triage-buttons">
+<article class="triage-card{% if r.answer %} triage-answered{% endif %}" id="card-{{ r.task }}" data-task="{{ r.task }}" data-group="{{ r.group }}" tabindex="-1">
+    <a class="triage-id" href="/tasks/{{ r.task }}">{{ r.task }}</a>
+    <div class="triage-text" title="Show details (o)">
+        <span class="triage-title">{{ r.title }}</span>
+        <span class="triage-summary">{{ r.summary }}</span>
+    </div>
+    <div class="triage-buttons" role="group" aria-label="Answer for {{ r.task }}">
         {% for c in choices %}
-        <button type="button" data-choice="{{ c }}"
+        <button type="button" data-choice="{{ c }}" data-label="{{ choice_labels[c] }}" title="{{ choice_labels[c] }} ({{ loop.index }})"
                 class="triage-btn{% if c == r.proposed %} triage-proposed{% endif %}{% if c == r.answer %} triage-chosen{% endif %}"
-                {% if c != r.answer %}aria-pressed="false"{% else %}aria-pressed="true"{% endif %}>{{ choice_labels[c] }}</button>
+                {% if c != r.answer %}aria-pressed="false"{% else %}aria-pressed="true"{% endif %}><kbd>{{ loop.index }}</kbd> <span class="lbl-long">{{ choice_labels[c] }}</span><span class="lbl-short">{{ short_labels[c] }}</span></button>
         {% endfor %}
+    </div>
+    <div class="triage-more" hidden>
+        <p>{{ r.summary }}</p>
+        {% if r.evidence %}<p><strong>Evidence:</strong> {{ r.evidence }}</p>{% endif %}
+        {% if r.details %}<p class="muted">{{ r.details }}</p>{% endif %}
+        <p>Proposed: <mark>{{ choice_labels.get(r.proposed, r.proposed) or 'none' }}</mark>
+           <span class="triage-status">{% if r.answer %}Answered: <strong>{{ choice_labels[r.answer] }}</strong>{% endif %}</span>
+           &middot; <a href="/tasks/{{ r.task }}">open {{ r.task }}</a></p>
     </div>
 </article>
 {% endfor %}
+</div>
 {% endif %}
 
 <style>
-.triage-filters { margin-bottom: 1rem; }
-.triage-filters a[aria-current="page"] { font-weight: bold; text-decoration: underline; }
-.triage-card.triage-answered { opacity: 0.75; }
-.triage-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.triage-buttons button { width: auto; margin: 0; padding: 0.35rem 0.9rem; }
+.triage-bar { position: sticky; top: 0; z-index: 20; background: var(--pico-background-color, #fff);
+  border-bottom: 1px solid var(--pico-muted-border-color, #ccc); padding: 0.4rem 0 0.3rem; margin-bottom: 0.4rem; }
+.triage-bar-top { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; font-size: 0.9rem; }
+.triage-h { font-size: 1.1rem; }
+.triage-batch { font-size: 0.75rem; }
+.triage-bar progress { width: 12rem; margin: 0; height: 0.5rem; }
+.triage-show { margin-left: auto; display: flex; gap: 0.6rem; }
+.triage-show a[aria-current="page"], .triage-pill[aria-current="page"] { font-weight: bold; }
+.triage-groups { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 0.35rem; margin: 0.35rem 0 0.2rem; }
+.triage-pill { display: inline-flex; flex-direction: column; align-items: stretch; padding: 0.1rem 0.55rem 0.15rem;
+  border: 1px solid var(--pico-muted-border-color, #ccc); border-radius: 0.4rem; font-size: 0.82rem;
+  text-decoration: none; line-height: 1.2; }
+.triage-pill[aria-current="page"] { border-color: var(--pico-primary, #1095c1); background: var(--pico-primary-focus, rgba(16,149,193,.12)); }
+.triage-pill-bar { display: block; height: 3px; background: var(--pico-muted-border-color, #ddd); border-radius: 2px; margin-top: 2px; }
+.triage-pill-bar > span { display: block; height: 100%; background: var(--pico-primary, #1095c1); border-radius: 2px; }
+.triage-keys { font-size: 0.75rem; margin: 0.15rem 0 0; color: var(--pico-muted-color, #666); }
+.triage-keys kbd { font-size: 0.7rem; padding: 0 0.3rem; }
+.triage-proposed-demo { border: 2px dashed var(--pico-primary, #1095c1); padding: 0 0.25rem; border-radius: 3px; }
+
+.triage-list { display: flex; flex-direction: column; }
+.triage-card { display: grid; grid-template-columns: 5.2rem minmax(0, 1fr) auto; align-items: center; column-gap: 0.6rem;
+  margin: 0; padding: 0.22rem 0.4rem; border-radius: 0; box-shadow: none; background: transparent;
+  border-bottom: 1px solid var(--pico-muted-border-color, #e3e3e3); font-size: 0.86rem; outline: none; }
+.triage-card:hover { background: var(--pico-card-sectioning-background-color, rgba(0,0,0,.03)); }
+.triage-card.triage-cursor { background: var(--pico-primary-focus, rgba(16,149,193,.12)); box-shadow: inset 3px 0 0 var(--pico-primary, #1095c1); }
+.triage-card.triage-answered { opacity: 0.6; }
+.triage-card.triage-answered.triage-cursor { opacity: 0.9; }
+.triage-id { font-weight: bold; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.triage-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.triage-title { font-weight: 600; }
+.triage-summary { color: var(--pico-muted-color, #666); margin-left: 0.5rem; }
+.triage-buttons { display: flex; gap: 0.25rem; }
+.triage-buttons button { width: auto; margin: 0; padding: 0.1rem 0.45rem; font-size: 0.78rem; line-height: 1.4; white-space: nowrap; }
+.triage-buttons kbd { font-size: 0.65rem; padding: 0 0.2rem; background: transparent; color: inherit; opacity: 0.6; box-shadow: none; }
 .triage-btn { background: transparent; color: inherit; border: 1px solid var(--pico-muted-border-color, #888); }
 .triage-btn.triage-proposed { border: 2px dashed var(--pico-primary, #1095c1); }
 .triage-btn.triage-chosen { background: var(--pico-primary, #1095c1); color: #fff; border-style: solid; }
+.triage-btn .lbl-short { display: none; }
+.triage-more { grid-column: 2 / -1; font-size: 0.82rem; padding: 0.3rem 0 0.2rem; }
+.triage-more p { margin: 0 0 0.25rem; }
+@media (max-width: 1280px) {
+  .triage-btn .lbl-long { display: none; }
+  .triage-btn .lbl-short { display: inline; }
+  .triage-card { grid-template-columns: 4.6rem minmax(0, 1fr) auto; }
+}
 </style>
 
 <script>
-document.querySelectorAll('.triage-card').forEach(function(card) {
-    var task = card.getAttribute('data-task');
-    card.querySelectorAll('.triage-btn').forEach(function(btn) {
-        btn.addEventListener('click', async function() {
-            var choice = btn.getAttribute('data-choice');
-            var buttons = card.querySelectorAll('.triage-btn');
-            buttons.forEach(function(b) { b.disabled = true; });
-            // csrf_protect (app.py) needs the X-CSRF-Token header for a JSON POST (T-3251).
-            var meta = document.querySelector('meta[name="csrf-token"]');
-            var headers = {'Content-Type': 'application/json'};
-            if (meta) { headers['X-CSRF-Token'] = meta.content; }
-            try {
-                var resp = await fetch('/api/v1/triage/answer', {
-                    method: 'POST', headers: headers,
-                    body: JSON.stringify({task: task, choice: choice})
-                });
-                var data = await resp.json().catch(function() { return {}; });
-                if (!resp.ok) { alert('Not recorded: ' + (data.error || resp.status)); return; }
-                var wasAnswered = card.classList.contains('triage-answered');
-                buttons.forEach(function(b) {
-                    var on = b === btn;
-                    b.classList.toggle('triage-chosen', on);
-                    b.setAttribute('aria-pressed', on ? 'true' : 'false');
-                });
-                card.classList.add('triage-answered');
-                var st = card.querySelector('.triage-status');
-                st.textContent = 'Answered: ';
-                var s = document.createElement('strong');
-                s.textContent = btn.textContent;
-                st.appendChild(s);
-                if (!wasAnswered) {
-                    var n = document.getElementById('triage-answered');
-                    if (n) { n.textContent = String(parseInt(n.textContent, 10) + 1); }
-                }
-            } catch (err) {
-                alert('Not recorded: ' + err.message);
-            } finally {
-                buttons.forEach(function(b) { b.disabled = false; });
-            }
+(function() {
+    var LIST = function() { return document.getElementById('triage-list'); };
+    function rows() { var l = LIST(); return l ? Array.prototype.slice.call(l.querySelectorAll('.triage-card')) : []; }
+    function cursor() { var l = LIST(); return l ? l.querySelector('.triage-card.triage-cursor') : null; }
+    function setCursor(card, scroll) {
+        if (!card) { return; }
+        rows().forEach(function(r) { r.classList.remove('triage-cursor'); });
+        card.classList.add('triage-cursor');
+        card.focus({preventScroll: true});
+        if (scroll !== false) {
+            // Keep the row clear of the sticky bar.
+            var bar = document.getElementById('triage-bar');
+            var barH = bar ? bar.getBoundingClientRect().height : 0;
+            var rect = card.getBoundingClientRect();
+            if (rect.top < barH + 4) { window.scrollBy(0, rect.top - barH - 8); }
+            else if (rect.bottom > window.innerHeight - 4) { window.scrollBy(0, rect.bottom - window.innerHeight + 8); }
+        }
+    }
+    function move(delta) {
+        var all = rows(); if (!all.length) { return; }
+        var i = all.indexOf(cursor());
+        var j = i < 0 ? 0 : Math.max(0, Math.min(all.length - 1, i + delta));
+        setCursor(all[j]);
+    }
+    function nextUnanswered(from) {
+        var all = rows(); var i = all.indexOf(from || cursor());
+        for (var k = 1; k <= all.length; k++) {
+            var c = all[(i + k + all.length) % all.length];
+            if (!c.classList.contains('triage-answered')) { return c; }
+        }
+        return null;
+    }
+    function toggle(card) {
+        var more = card && card.querySelector('.triage-more');
+        if (!more) { return; }
+        more.hidden = !more.hidden;
+        card.setAttribute('aria-expanded', more.hidden ? 'false' : 'true');
+    }
+    function bump(card) {
+        var n = document.getElementById('triage-answered');
+        if (n) { n.textContent = String(parseInt(n.textContent, 10) + 1); }
+        var p = document.getElementById('triage-progress');
+        if (p) { p.value = Number(p.value) + 1; }
+        var g = card.getAttribute('data-group');
+        document.querySelectorAll('.triage-pill[data-group]').forEach(function(pill) {
+            if (pill.getAttribute('data-group') !== g) { return; }
+            var a = pill.querySelector('.triage-g-answered');
+            var t = parseInt(a.parentNode.textContent.split('/')[1], 10);
+            var v = parseInt(a.textContent, 10) + 1;
+            a.textContent = String(v);
+            var bar = pill.querySelector('.triage-pill-bar > span');
+            if (bar && t) { bar.style.width = Math.round(100 * v / t) + '%'; }
         });
+    }
+    async function answer(card, btn) {
+        var task = card.getAttribute('data-task');
+        var choice = btn.getAttribute('data-choice');
+        var buttons = card.querySelectorAll('.triage-btn');
+        buttons.forEach(function(b) { b.disabled = true; });
+        // csrf_protect (app.py) needs the X-CSRF-Token header for a JSON POST (T-3251).
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        var headers = {'Content-Type': 'application/json'};
+        if (meta) { headers['X-CSRF-Token'] = meta.content; }
+        try {
+            var resp = await fetch('/api/v1/triage/answer', {
+                method: 'POST', headers: headers, body: JSON.stringify({task: task, choice: choice})
+            });
+            var data = await resp.json().catch(function() { return {}; });
+            if (!resp.ok) { alert('Not recorded: ' + (data.error || resp.status)); return; }
+            var wasAnswered = card.classList.contains('triage-answered');
+            buttons.forEach(function(b) {
+                var on = b === btn;
+                b.classList.toggle('triage-chosen', on);
+                b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+            card.classList.add('triage-answered');
+            var st = card.querySelector('.triage-status');
+            st.textContent = 'Answered: ';
+            var s = document.createElement('strong');
+            s.textContent = btn.getAttribute('data-label');
+            st.appendChild(s);
+            if (!wasAnswered) { bump(card); }
+            var more = card.querySelector('.triage-more');
+            if (more) { more.hidden = true; card.setAttribute('aria-expanded', 'false'); }
+            var next = nextUnanswered(card);
+            if (next) { setCursor(next); }
+        } catch (err) {
+            alert('Not recorded: ' + err.message);
+        } finally {
+            buttons.forEach(function(b) { b.disabled = false; });
+        }
+    }
+    function gotoGroup(delta) {
+        var pills = Array.prototype.slice.call(document.querySelectorAll('.triage-groups .triage-pill'));
+        if (!pills.length) { return; }
+        var i = pills.findIndex(function(p) { return p.getAttribute('aria-current') === 'page'; });
+        var j = Math.max(0, Math.min(pills.length - 1, (i < 0 ? 0 : i) + delta));
+        if (j !== i) { pills[j].click(); }
+    }
+
+    // Per render (hx-boost swaps #content and re-runs this script): wire the rows.
+    rows().forEach(function(card) {
+        card.querySelectorAll('.triage-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) { e.stopPropagation(); setCursor(card, false); answer(card, btn); });
+        });
+        card.querySelector('.triage-text').addEventListener('click', function() { setCursor(card, false); toggle(card); });
+        card.addEventListener('click', function() { setCursor(card, false); });
     });
-});
+    var first = nextUnanswered(null) || rows()[0];
+    if (first) { setCursor(first, false); }
+
+    // Once per document: one key handler that only acts while #triage-list is on the page.
+    if (window.__triageKeysInstalled) { return; }
+    window.__triageKeysInstalled = true;
+    document.addEventListener('keydown', function(e) {
+        if (!LIST() || e.ctrlKey || e.metaKey || e.altKey) { return; }
+        var t = e.target;
+        if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) { return; }
+        var pal = document.getElementById('wt-command-palette');
+        var ovl = document.getElementById('wt-shortcuts-overlay');
+        if ((pal && !pal.hidden) || (ovl && !ovl.hidden)) { return; }
+        var card = cursor();
+        var k = e.key;
+        if (k === 'j' || k === 'ArrowDown') { move(1); }
+        else if (k === 'k' || k === 'ArrowUp') { move(-1); }
+        else if (k === 'n') { setCursor(nextUnanswered(card)); }
+        else if ((k === 'o' || k === 'Enter') && card && (t === card || t === document.body)) { toggle(card); }
+        else if (/^[1-6]$/.test(k) && card) {
+            var btn = card.querySelectorAll('.triage-btn')[parseInt(k, 10) - 1];
+            if (btn && !btn.disabled) { answer(card, btn); }
+        }
+        else if (k === '[') { gotoGroup(-1); }
+        else if (k === ']') { gotoGroup(1); }
+        else { return; }
+        e.preventDefault();
+    });
+})();
 </script>
