@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3655: Adopt 1409's focus anchor: .context/project/focus.yaml (operator-set goal), shown at every session start, mismatch with task focus surfaced
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-02T12:54:03Z
+# ============================================================================
+
+task_id: T-3655
+task_name: "Adopt 1409's focus anchor: .context/project/focus.yaml (operator-set goal), shown at every session start, mismatch with task focus surfaced"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-02T12:48:49Z
+completed: 2026-11-02T12:53:42Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-02T13:50:15+01:00
+last_commit: 2026-11-02T13:53:37+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  focus anchor adopted from 1409 (operator 2026-11-02): goal arc-011 one-main delivery live for all projects; task with ACs. focus anchor shown first at session start; scripts/focus.sh show|check (0/1/2), mismatch line, fixtures, CLAUDE.md rule (from 1409 T-1954)
+
+# Key outcomes
+outcomes:
+  - '`.context/project/focus.yaml` written with the operator''s 2026-11-02 words verbatim (goal arc-011, task T-3654,'
+  - '`scripts/focus.sh show|check` (not a check-*.sh: DP-3 cap): `show` prints the anchor; `check` exits 1 naming the'
+  - '`scripts/session-start-alerts.sh` prints the anchor''s goal and check question first, and the mismatch line when'
+  - 'CLAUDE.md (above `## Core Principle`) states the rule: only the operator sets the anchor; every proposal answers'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'focus anchor shown first at session start; scripts/focus.sh show|check (0/1/2), mismatch line, fixtures, CLAUDE.md rule (from 1409 T-1954)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/focus.yaml'
+  - '.fabric/components/scripts-focus.yaml'
+  - '.tasks/active/T-3655-adopt-1409s-focus-anchor-contextprojectf.md'
+  - 'CLAUDE.md'
+  - 'scripts/focus.sh'
+  - 'scripts/session-start-alerts.sh'
+  - 'tests/session-start-alerts-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-02T13:50:15'
+    action: 'T-3655: focus anchor adopted from 1409 (operator 2026-11-02): goal arc-011 one-main delivery live for all projects; task with ACs'
+  - time: '2026-11-02T13:53:37'
+    action: 'T-3655: focus anchor shown first at session start; scripts/focus.sh show|check (0/1/2), mismatch line, fixtures, CLAUDE.md rule (from 1409 T-1954)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 3
+  files_changed: 10
+  lines_added: 780
+  lines_removed: 12
+  footprint_refreshed_at: '2026-11-02T12:54:10Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3655-adopt-1409s-focus-anchor-contextprojectf.md
+generated_by: context-agent-hybrid
