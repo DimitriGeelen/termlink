@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-11-02T12:11:07Z
-last_update: '2026-11-02T12:44:13Z'
+last_update: 2026-11-02T12:45:40Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -109,21 +109,33 @@ period + cooldown, visibly; an operator pin wins and is logged.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Main lease per project at the home hub, generic (any project, any agent id): claim / renew / release / status,
+- [x] Main lease per project at the home hub, generic (any project, any agent id): claim / renew / release / status,
       holder = one SESSION (session id + pid + host), durable generation never reused, built on the existing hub
       claim/lease primitives where possible (no new protocol if the claim substrate suffices)
-- [ ] Selection and takeover per R-67.a/a1: operator pin first; else healthy incumbent keeps it (busy keeps main, no
+- [x] Selection and takeover per R-67.a/a1: operator pin first; else healthy incumbent keeps it (busy keeps main, no
       automatic take-back); takeover only after lapse + quiet period + cooldown (constants stated in Decisions);
       duplicate claimants resolved by pin, else longest uninterrupted holder, else stable id; every change and every
       override written to an audit record and visible in status
-- [ ] One answer for hooks: `termlink main am-i --session <id>` (and the sidecar status socket / MCP) returns
+- [x] One answer for hooks: `termlink main am-i --session <id>` (and the sidecar status socket / MCP) returns
       main | not-main(holder) | unknown; fail-closed (hub down -> unknown, never main)
 - [ ] Non-main copy behaviour (R-67.a1 (4)): role-addressed mail seen by a non-main is left unread for main / forwarded
       once to main with the original signature; the sender is told "delivered via X; main is Y (generation N)"
-- [ ] Tests: two-session fixture on a throwaway hub: only the holder handles mail; holder dies -> takeover after the
+- [x] Tests: two-session fixture on a throwaway hub: only the holder handles mail; holder dies -> takeover after the
       stated delay with generation+1; pin overrides; hub down -> unknown; plus the two R-68 tests (lapse during an open
       obligation; stuck holder with live sidecar) end in a visible takeover
 - [ ] Interface handed to AEF for T-5014 (exact command / socket call and outputs) and to ring20
+
+      Evidence (2026-11-02, worker t3654-main-lease): lease = hub claim on offset 0 of `main:<project>` + signed
+      `main.lease.v1` records on that topic (crates/termlink-session/src/main_lease.rs); CLI `termlink main
+      claim|renew|release|status|am-i|pin`; sidecar status `main.lease` + pull gate (crates/termlink-sidecar/src/lease.rs);
+      MCP `termlink_main_status`, and `termlink_sidecar_main` now carries `main.lease`. Tests: main_lease unit 10/10,
+      sidecar lease unit 2/2 (the "only the holder handles mail" gate), crates/termlink-cli/tests/main_lease_integration.rs
+      5/5 on throwaway hubs (two sessions + takeover after lapse+quiet with generation+1, pin override, hub down ->
+      unknown, R-68 (1) open obligation recorded uncertain->operator, R-68 (2) stuck holder with a live reader).
+      AC4 PARTIAL, left unticked: same-sidecar non-main sessions leave role mail unread for main and are told once who
+      main is; forward-once across sidecars with the original signature, and the sender notice "delivered via X; main
+      is Y (generation N)", are NOT built (needs a new stage notice kind + AEF T-5014). AC6 left unticked: the interface
+      is in docs/operations/main-lease.md and .context/working/t3654/handback.md, not yet sent to AEF / ring20.
 
 ### Human
 <!-- @auto-tick-on-decide -->
@@ -156,6 +168,10 @@ period + cooldown, visibly; an operator pin wins and is logged.
 # *.go, Cargo.toml, tsconfig.json, or pom.xml in the build task, plan to add the
 # matching build command (dotnet build / go build / cargo check / tsc --noEmit /
 # mvn compile) to that build task's ## Verification — P-011 only runs what you write.
+cargo test -p termlink-session --lib main_lease > .context/working/.t3654-unit.out 2>&1 && grep -q "test result: ok. 10 passed" .context/working/.t3654-unit.out
+cargo test -p termlink-sidecar --lib lease:: > .context/working/.t3654-sidecar.out 2>&1 && grep -q "test result: ok. 2 passed" .context/working/.t3654-sidecar.out
+cargo test -p termlink --test main_lease_integration > .context/working/.t3654-int.out 2>&1 && grep -q "test result: ok. 5 passed" .context/working/.t3654-int.out
+test -f docs/operations/main-lease.md
 
 ## Recommendation
 
@@ -181,6 +197,27 @@ Shaping in progress. ring20 escalation (msg f873982f): Pen's fax-password reques
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-02 — main-lease constants (R-67.g left them open)
+- **Chose:** lease 15 min (renewed by the session's own hook), quiet period 5 min after a lapse, cooldown 10 min
+  between generation changes; a clean release skips the quiet period. Worst-case takeover after a holder dies: 20 min.
+  Test seams only: `TERMLINK_MAIN_TEST_LEASE_MS|_QUIET_MS|_COOLDOWN_MS`.
+- **Why:** conservative: a pausing operator session must not lose main (no automatic take-back makes a loss sticky),
+  and a flapping pair must not churn the generation. Hub claim TTL bounds: 1 s .. 1 h.
+- **Rejected:** a sidecar-renewed lease (R-67.c: proves a process, not a turn); minute-scale constants (flap risk).
+
+### 2026-11-02 — build on the claim substrate, records in the same topic
+- **Chose:** the lease is `channel.claim` on offset 0 of `main:<project>` (retention newest 1000); acquire, release,
+  lapse and pin are signed `main.lease.v1` posts on that topic; generation = highest acquire generation in the log.
+- **Why:** AC1 "no new protocol if the claim substrate suffices": the hub claim is the mutual exclusion, the log is
+  durable and auditable. Quiet/cooldown are enforced by the client verbs every caller uses (a client that bypasses
+  them and claims offset 0 raw is still named as holder, never mistaken for anyone else).
+- **Rejected:** a new hub RPC (protocol change + rollout to every hub); a KV value (no history, no audit).
+
+### 2026-11-02 — sidecar gate fails open, `am-i` fails closed
+- **Chose:** the sidecar withholds a pull only when a FRESH lease names another session of the same agent; unknown,
+  stale, vacant, or another agent's main leaves delivery unchanged. `termlink main am-i` is unknown (exit 2) on any error.
+- **Why:** a lease outage must not stop all mail; the hook contract still never reports main without proof.
 
 ## Decision
 
