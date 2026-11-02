@@ -7,10 +7,10 @@ description: >
   checks to the verified fingerprint; add negative-auth tests (wrong identity must
   be refused). Evidence: consolidated C-09.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -25,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:03:21Z
-last_update: '2026-09-20T08:45:19Z'
-date_finished:
+last_update: 2026-11-02T00:01:23Z
+date_finished: 2026-11-02T00:01:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +51,17 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-02T00:00:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=2 (body:learning-ref); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-20T08:45:19Z'
     estimator: bvp-estimator-v1-heuristic
@@ -67,14 +78,16 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Value-review finding S-7/C-09 (G-086/G-087 class): the claim verbs trust a caller-supplied claimer string instead of the T-1427 verified identity fingerprint. The same gap was already filed as T-2534, the build task for the T-2454 GO.
+**Problem / hypothesis:** Any Interact-scoped peer can renew, release or transfer another agent's claim, causing double grants or silent work loss.
+**Goal:** Fix this gap once, under the task that carries the GO decision.
+**Expected outcome:** This task closes as a duplicate. The identity binding and negative-auth tests land under T-2534, still open (T-3648 triage, operator ruling 2026-11-02).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Duplicate of T-2534: the same claim-verb identity-binding gap (claim/renew/release/transfer trust free-text claimer, not the T-1427 fingerprint) with negative-auth tests is the scope of T-2534; closed here so it is not built twice (evidence: T-2534 is in .tasks/active/; T-3648 triage)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -169,6 +182,7 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+ls .tasks/active/ .tasks/completed/ > .context/working/.v-t2980.out 2>&1 && grep -q '^T-2534-' .context/working/.v-t2980.out
 
 ## RCA
 
@@ -209,6 +223,11 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-11-02 — closed as duplicate before any build
+- **What changed:** The T-3648 backlog triage found this filing has the same scope as T-2534 (claim-verb identity binding, the T-2454 GO). Nothing was built under this ID.
+- **Plan impact:** None for arc-009. The work stays in its original home.
+- **Triggered:** No new task. T-2534 keeps the build; this one closes as a duplicate.
 
 ## Recommendation
 
@@ -269,3 +288,19 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:08:35Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-11-02T00:00:45Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-02T00:01:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d0707cd6
+- **Timestamp:** 2026-11-02T00:01:25Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
