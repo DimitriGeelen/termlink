@@ -22947,3 +22947,21 @@ scan_id: R-d59f7c60
 task_id: T-3667
 payload:
   task_file: .tasks/active/T-3667-termlink-remote-push-writes-received-fil.md
+---
+kind: scan_emitted
+timestamp: '2026-11-03T19:31:43Z'
+scan_id: R-26b97aeb
+task_id: T-3668
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-03T19:31:43Z'
+scan_id: R-26b97aeb
+task_id: T-3668
+payload:
+  task_file: .tasks/active/T-3668-termlink-main-uses-the-wrong-session-id-.md
