@@ -252,6 +252,30 @@ grep -q 'task: T-3353' docs/design/interactive-agent-communication-role-chain.ya
   NOT covered by O-1 and stay as they are for now: `termlink file send` (TLS in transit, readable on the hub), the runme
   fleet upgrade stream, ssh/scp, Pen's SMB mounts, 055's ssh gate. Follow-up: bring them under the same rule later.
 
+### 2026-11-03 — O-2 doorbell: D+ with an external 300 s fallback (operator ruling; supersedes DR-6 A)
+- **Chose:** D+ (operator: "D plus is fine but we also need to have a fallback option ..."). Not A: the operator
+  rejected A because agents must receive and act on messages without a person pressing Enter.
+  1. Normal ring: only when the session's adapter READY flag says the agent has finished its turn, AND no one typed in
+     that terminal recently (activity veto, T-3387; 30 s), AND no conversation is under way in that session.
+  2. Fallback (outside the agent's own flag, a watchdog the sidecar runs): if NOTHING has happened in the session for
+     300 s, inject anyway even when the flag says busy, so a stuck or false flag can never hold a message forever.
+     "Nothing happened" = no typing AND no human-to-agent or agent-to-agent communication in either direction (operator:
+     "that means typing but also H2H communication, so you need to figure out how you can measure that").
+  3. Delivery stays strict: a typed line is ATTEMPTED; HANDED_OVER only from transcript evidence (as built in AEF
+     inject.py/hooks.py: "Injection alone never records HANDED_OVER"; no evidence in 90 s = HANDOVER_UNCONFIRMED).
+  4. Line format without brackets (SI-1), as DR-6 proposed.
+  5. The READY flag is harness-neutral: written per harness by its adapter (Claude Code via hooks; others via theirs).
+- **Why:** operator: the point is that agents receive and act; also observed that typed lines arrive mid-task, sit
+  unsent when Enter did not take, and that he deletes them; a false "delivered" must be impossible.
+- **Rejected:** A (ring only when no client attached: an attended-but-idle agent never acts); B (today's always-ring:
+  types into a busy session and into a person's half-written prompt).
+- **Change requests to step 4 (architect, next revision):** CR-O2a define and measure "communication under way /
+  last activity" per session: terminal input (typing), agent output (transcript growth, turn start/stop events), and
+  peer traffic for that session (messages sent/received on its inbox and DM topics, hook surfacing events), so the
+  300 s fallback and the conversation check have a measured signal; CR-O2b the 300 s fallback as a sidecar watchdog
+  independent of the READY flag, with its own audit row; CR-O2c conversation detection (operator<->agent and
+  agent<->agent) as a separate signal from the agent's busy flag.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
