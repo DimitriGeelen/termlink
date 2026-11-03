@@ -1883,6 +1883,12 @@ pub(crate) enum RemoteAction {
         #[arg(long, short)]
         message: Option<String>,
 
+        /// Target directory on the remote side (default: the receiving user's
+        /// ~/.termlink/inbox, T-3667). Pass /tmp/termlink-inbox for the old location.
+        /// Always made 0700 and must be owned by the receiving user; file is 0600.
+        #[arg(long)]
+        dest: Option<String>,
+
         /// Path to file containing 32-byte hex secret
         #[arg(long)]
         secret_file: Option<String>,

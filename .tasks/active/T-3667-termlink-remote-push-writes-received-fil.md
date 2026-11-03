@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-03T16:21:52Z
-last_update: '2026-11-03T16:22:13Z'
+last_update: 2026-11-03T16:33:57Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -89,13 +89,13 @@ existing callers keep working (documented change).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Target file written with mode 0600 inside a 0700 directory owned by the receiving user (umask set explicitly in
+- [x] Target file written with mode 0600 inside a 0700 directory owned by the receiving user (umask set explicitly in
       the remote command); default location moved out of the shared /tmp to a per-user path, with the old path still
       accepted as an explicit `--dest` so existing scripts keep working (standing rule: nothing working is switched off
       implicitly)
-- [ ] Payload delivered via stdin (or the artifact route), never inside the command string, so it does not show in `ps`
-- [ ] Tests: unit/integration on a throwaway hub verify mode 0600/0700 and no payload in the executed command line
-- [ ] CHANGELOG/doc note for the changed default path; `cargo test -p termlink` + clippy -D warnings clean
+- [x] Payload delivered via stdin (or the artifact route), never inside the command string, so it does not show in `ps`
+- [x] Tests: unit/integration on a throwaway hub verify mode 0600/0700 and no payload in the executed command line
+- [x] CHANGELOG/doc note for the changed default path; `cargo test -p termlink` + clippy -D warnings clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -146,6 +146,11 @@ existing callers keep working (documented change).
 -->
 
 ## Verification
+
+cargo test -p termlink --bin termlink push:: > .context/working/t3667/v-test.out 2>&1 && grep -q "test result: ok. 12 passed" .context/working/t3667/v-test.out
+cargo clippy -p termlink --all-targets -- -D warnings > .context/working/t3667/v-clippy.out 2>&1
+grep -q 'TERMLINK_PUSH_B64' crates/termlink-cli/src/commands/push.rs && ! grep -q "echo '{}' | base64 -d" crates/termlink-cli/src/commands/push.rs
+grep -q 'T-3667' CHANGELOG.md && grep -q -- '--dest /tmp/termlink-inbox' CHANGELOG.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -302,6 +307,11 @@ existing callers keep working (documented change).
 
 ## RCA
 
+**Symptom:** `remote push` left received files world-readable in shared `/tmp/termlink-inbox`; the base64 payload was in the `sh -c` argv on the target (visible in `ps`).
+**Root cause:** push.rs built `mkdir -p /tmp/termlink-inbox && echo '<b64>' | base64 -d > f`: fixed shared path, inherited umask, payload inlined in the command string.
+**Why structurally allowed:** the G-048 work only redacted the payload from error text; nothing tested file modes or the argv of the remote write.
+**Prevention:** unit tests run the built command through the real session executor and pin modes 0700/0600, symlink refusal, and (via a `base64` shim reading /proc cmdline) payload absence from every argv. Two mutants (payload back in argv; umask/chmod dropped) both fail the suite.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -370,6 +380,12 @@ existing callers keep working (documented change).
 -->
 
 ## Decisions
+
+### 2026-11-03 — how to keep the payload off the command line
+- **Chose:** carry the base64 in the `command.execute` `env` map (`TERMLINK_PUSH_B64`); the command reads `"$VAR"` via the `printf` builtin.
+- **Why:** `command.execute` has no stdin; `env` has been honoured by every session since T-019, so no target upgrade is needed. `/proc/<pid>/environ` is uid/root-only, unlike argv.
+- **Rejected:** adding stdin to `command.execute` (every target would need re-installing first); artifact route (larger change, different delivery semantics).
+- **Live check:** throwaway hub (isolated runtime dir, loopback TCP, temp HOME): default and `--dest` pushes rc 0, modes 700/600, content identical, `inbox_path` reports the real path.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

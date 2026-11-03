@@ -743,10 +743,10 @@ async fn main() -> Result<()> {
                 let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("execute"), token_file: p.token_file.as_deref() };
                 commands::remote::cmd_remote_exec(&conn, &session, &command, timeout, cwd.as_deref(), json).await
             }
-            RemoteAction::Push { hub, session, file, message, secret_file, secret, scope, json, timeout } => {
+            RemoteAction::Push { hub, session, file, message, dest, secret_file, secret, scope, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
                 let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("execute"), token_file: p.token_file.as_deref() };
-                commands::push::cmd_push(&conn, &session, file.as_deref(), message.as_deref(), json, timeout).await
+                commands::push::cmd_push(&conn, &session, file.as_deref(), message.as_deref(), dest.as_deref(), json, timeout).await
             }
             RemoteAction::Inbox { hub, action, secret_file, secret, scope, timeout } => {
                 let action = action.unwrap_or(RemoteInboxAction::Status { json: false });

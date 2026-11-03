@@ -24,6 +24,17 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   replaces the `token_secret` field with `token_auth: true`; the default output says token auth is
   enabled without the value. The secret stays in the session registration file, where
   `termlink token create` reads it.
+- **`termlink remote push` default inbox moved from `/tmp/termlink-inbox` to the receiving
+  user's `~/.termlink/inbox`** (T-3667, T-3663 A4). Received files were world-readable in shared
+  `/tmp` and the base64 payload sat in the target's process list. Now: the remote command sets
+  `umask 077`, the directory is chmod 0700 and must be a real directory owned by the receiving
+  user (a symlink or foreign-owned dir is refused, exit 4), the file is 0600, and the payload is
+  passed in the `command.execute` env map (`TERMLINK_PUSH_B64`), never in the command line.
+  The PTY notification and `--json` `inbox_path` give the actual path. **Old location still
+  available:** `--dest /tmp/termlink-inbox` (it gets the same 0700/0600 treatment). Sessions with
+  an `--allowed-commands` allowlist must now allow the prefix `umask 077;` instead of `mkdir -p`.
+  Payload limit is now ~95 KiB of input (130,000 base64 bytes, the kernel env-string limit);
+  use `termlink file send` beyond that. Received files are still not deleted automatically.
 
 See `docs/operations/session-token-doorbell.md`.
 
