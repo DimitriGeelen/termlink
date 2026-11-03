@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-11-02T12:11:07Z
-last_update: 2026-11-03T20:50:11Z
+last_update: 2026-11-03T22:08:30Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -221,6 +221,12 @@ Shaping in progress. ring20 escalation (msg f873982f): Pen's fax-password reques
 - **Chose:** the sidecar withholds a pull only when a FRESH lease names another session of the same agent; unknown,
   stale, vacant, or another agent's main leaves delivery unchanged. `termlink main am-i` is unknown (exit 2) on any error.
 - **Why:** a lease outage must not stop all mail; the hook contract still never reports main without proof.
+
+### 2026-11-03 — T-3668 fix ships with the next normal release (operator: "A")
+- **Chose:** A, wait for the next real release; no runme install on .107 and no v0.12.5 cut for this fix alone.
+- **Why:** the mail-delivery hooks pass `--session` explicitly, so only a bare `termlink main` typed inside Claude Code
+  answers wrongly; the workaround (`--session "$CLAUDE_CODE_SESSION_ID"`) is in handover S-2026-1103-2047.
+- **Rejected:** B, a runme.sh action to install 0.12.1568 on .107; C, cut v0.12.5 now (1,568 commits since v0.12.4).
 
 ## Decision
 
