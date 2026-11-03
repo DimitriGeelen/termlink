@@ -40,7 +40,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-03T11:54:56Z
-last_update: '2026-11-03T11:55:31Z'
+last_update: 2026-11-03T12:08:48Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -85,15 +85,20 @@ moment he chooses).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] runme action: backup daemon.json (`.bak-<UTC>`, mode kept), remove the tcp host (keep everything else byte-for-
+- [x] runme action: backup daemon.json (`.bak-<UTC>`, mode kept), remove the tcp host (keep everything else byte-for-
       byte, e.g. insecure-registries, runtimes); handle the systemd ExecStart (`-H fd://` drop-in) so dockerd still
       starts (no hosts conflict); `systemctl restart docker`; verify: active, no listener on :2375 (`ss -ltn`), `docker
       ps` works, every container that ran before (by name) runs again or is reported by name; FAILED otherwise, with the
       backup path for rollback printed
-- [ ] Idempotent: skip when no tcp host is configured and nothing listens on 2375
-- [ ] Hermetic fixtures via RUNME_* seams (fake daemon.json dir, fake systemctl/ss/docker): open -> closed OK;
+      Evidence: runme.sh action 27 `close_docker_tcp`; `systemctl show -p ExecStart docker` on .107 has no -H (drop-in
+      override.conf clears it), so hosts becomes ["fd://"]; ExecStart with -H is refused before any change.
+- [x] Idempotent: skip when no tcp host is configured and nothing listens on 2375
+- [x] Hermetic fixtures via RUNME_* seams (fake daemon.json dir, fake systemctl/ss/docker): open -> closed OK;
       already closed -> skip; restart leaves the port open -> FAILED; a container that does not come back -> named
-- [ ] `tests/runme-fixtures.sh` passes; `/opt/termlink/runme.sh --dry-run` shows the action
+      Evidence: 9 `27:` cases in tests/runme-fixtures.sh (also -H refusal, inactive, docker ps broken, stray listener)
+- [x] `tests/runme-fixtures.sh` passes; `/opt/termlink/runme.sh --dry-run` shows the action
+      Evidence: 267 passed, 0 failed; dry-run: `[DRY]   would remove tcp://0.0.0.0:2375 from /etc/docker/daemon.json hosts ...
+      the 3 running container(s) come back: open-webui sprechloop-dev watchtower`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -144,6 +149,9 @@ moment he chooses).
 -->
 
 ## Verification
+
+timeout 900 bash tests/runme-fixtures.sh > .context/working/t3664/fix.out 2>&1 && grep -q '27: open -> closed' .context/working/t3664/fix.out && ! grep -q 'FAIL  27' .context/working/t3664/fix.out
+/opt/termlink/runme.sh --dry-run > .context/working/t3664/dry.out 2>&1 && grep -q 'would remove tcp://0.0.0.0:2375 from /etc/docker/daemon.json' .context/working/t3664/dry.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

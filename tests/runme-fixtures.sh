@@ -356,6 +356,36 @@ EOS
 chmod +x "$TMP/fake-drop-fw"
 printf 'aaaa-1111\tT-3656: e2e residue: selftest conv x\nbbbb-2222\tT-3656: answered: reply "ok" posted 2026-10-06\ncccc-3333\tT-3656: answered: gone already\n' > "$TMP/drop-list.tsv"
 export RUNME_DROP_FW="$TMP/fake-drop-fw" RUNME_DROP_LIST="$TMP/drop-list.tsv"
+# T-3664 action 27: fake systemctl/ss/docker over a scratch daemon.json. Default = already closed
+# (fd:// only, nothing on :2375), so ordinary runs skip; the action-27 cases seed the open state.
+DK="$TMP/docker"; mkdir -p "$DK"
+export FAKE_DK="$DK" RUNME_DOCKER_CONF="$DK/daemon.json" RUNME_DOCKER_SYSTEMCTL="$DK/systemctl" RUNME_DOCKER_SS="$DK/ss" RUNME_DOCKER_CLI="$DK/docker"
+printf '{\n    "hosts": ["fd://"]\n}\n' > "$DK/daemon.json"
+cat > "$DK/systemctl" <<'EOS'
+#!/usr/bin/env bash
+D="$FAKE_DK"
+case "$1" in
+  show) echo "ExecStart={ path=/usr/bin/dockerd ; argv[]=/usr/bin/dockerd ${FAKE_DK_EXECARGS:---containerd=/run/containerd/containerd.sock} ; }" ;;
+  is-active) [ -n "${FAKE_DK_INACTIVE:-}" ] && exit 3; exit 0 ;;
+  restart) echo restart >> "$D/restarts"
+           if grep -q 'tcp://' "$D/daemon.json" || [ -n "${FAKE_DK_PORT_STAYS:-}" ]; then : > "$D/listen"; else rm -f "$D/listen"; fi
+           grep -vxF -- "${FAKE_DK_LOST:-@none@}" "$D/names.before" > "$D/names" || true ;;
+esac
+EOS
+cat > "$DK/ss" <<'EOS'
+#!/usr/bin/env bash
+echo "LISTEN 0      4096   127.0.0.1:9100 0.0.0.0:*"
+[ -e "$FAKE_DK/listen" ] && echo "LISTEN 0      4096   *:2375 *:*"
+exit 0
+EOS
+cat > "$DK/docker" <<'EOS'
+#!/usr/bin/env bash
+[ -n "${FAKE_DK_PS_BROKEN:-}" ] && exit 1
+[ "$1" = ps ] || exit 3
+if [ "${2:-}" = --format ]; then cat "$FAKE_DK/names" 2>/dev/null; else echo "CONTAINER ID   IMAGE"; fi
+EOS
+chmod +x "$DK/systemctl" "$DK/ss" "$DK/docker"
+printf 'watchtower\nsprechloop-dev\nopen-webui\n' > "$DK/names"
 # T-3443: let the real-run cases run as a non-root CI user too (fixture mode only;
 # case 11 unsets this to test the real non-root refusal).
 export RUNME_FIXTURE_ALLOW_NONROOT=1
@@ -713,7 +743,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 41 ))   # +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 42 ))   # +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -2030,6 +2060,74 @@ if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  could not read 'fw sidecar wai
     ok "26: unreadable waiting list => FAILED, nothing dropped (never a skip)"
 else bad "26 unreadable" "rc=$rc: $x"; fi
 : > "$FAKE_WAIT_IDS"; : > "$FAKE_DROP_LOG"
+
+# ---------------------------------------------------------------------------
+# T-3664 action 27 — close .107's Docker API on tcp 2375 (operator ruling A).
+# ---------------------------------------------------------------------------
+s27() { echo "$1" | sed -n '/^.*27\. Close .107.s Docker API/,/^.*Verification/p'; }
+DK_OPEN='{
+    "hosts": ["fd://", "tcp://0.0.0.0:2375"],
+    "insecure-registries": ["192.168.10.201:5000"],
+    "runtimes": {
+        "nvidia": {
+            "args": [],
+            "path": "nvidia-container-runtime"
+        }
+    }
+}'
+DK_CLOSED='{
+    "hosts": ["fd://"],
+    "insecure-registries": ["192.168.10.201:5000"],
+    "runtimes": {
+        "nvidia": {
+            "args": [],
+            "path": "nvidia-container-runtime"
+        }
+    }
+}'
+seed_dk() { printf '%s\n' "$DK_OPEN" > "$DK/daemon.json"; chmod 640 "$DK/daemon.json"; : > "$DK/listen"
+            printf 'watchtower\nsprechloop-dev\nopen-webui\n' > "$DK/names"; cp "$DK/names" "$DK/names.before"
+            rm -f "$DK/restarts" "$DK"/daemon.json.bak-*; }
+seed_dk; out=$(run --dry-run); x=$(s27 "$out")
+if echo "$x" | grep_all '\[DRY\]   would remove tcp://0.0.0.0:2375 from .*daemon.json hosts .* the 3 running container(s) come back' \
+   && [ "$(cat "$DK/daemon.json")" = "$DK_OPEN" ] && [ ! -e "$DK/restarts" ] && ! ls "$DK" | grep_all bak-; then
+    ok "27: --dry-run names the tcp host and the 3 containers, changes nothing, no restart"
+else bad "27 dry-run" "$x"; fi
+seed_dk; out=$(run); rc=$?; x=$(s27 "$out"); bk=$(ls "$DK"/daemon.json.bak-* 2>/dev/null | head -1)
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'OK      :2375 closed (dockerd on its local socket only), docker active, .docker ps. works, all 3 container(s) running again' \
+   && [ "$(cat "$DK/daemon.json")" = "$DK_CLOSED" ] && [ -n "$bk" ] && [ "$(cat "$bk")" = "$DK_OPEN" ] \
+   && [ "$(stat -c %a "$bk")" = 640 ] && [ "$(stat -c %a "$DK/daemon.json")" = 640 ] && [ "$(wc -l < "$DK/restarts")" = 1 ]; then
+    ok "27: open -> closed: only the tcp host removed (rest byte-for-byte), mode kept, backup holds the original, one restart, all containers back"
+else bad "27 close" "rc=$rc: $x / $(cat "$DK/daemon.json")"; fi
+out=$(run); rc=$?; x=$(s27 "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'skip    .*daemon.json has no tcp host and nothing listens on :2375 (already closed)' && [ "$(wc -l < "$DK/restarts")" = 1 ]; then
+    ok "27: second run skips (idempotent: no rewrite, no restart)"
+else bad "27 idempotent" "rc=$rc: $x"; fi
+seed_dk; out=$(FAKE_DK_PORT_STAYS=1 run); rc=$?; x=$(s27 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  something still listens on :2375 after the restart. Roll back: cp -p .*daemon.json.bak-.* && systemctl restart docker'; then
+    ok "27: restart leaves the port open => FAILED, rc 1, prints the rollback with the backup path"
+else bad "27 port stays" "rc=$rc: $x"; fi
+seed_dk; out=$(FAKE_DK_LOST=sprechloop-dev run); rc=$?; x=$(s27 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  :2375 is closed, but 1 of 3 container(s) did not come back: sprechloop-dev\. .*roll back: cp -p'; then
+    ok "27: a container that does not come back => FAILED, named, with the rollback"
+else bad "27 lost container" "rc=$rc: $x"; fi
+seed_dk; out=$(FAKE_DK_EXECARGS="-H fd:// --containerd=/run/containerd/containerd.sock" run); rc=$?; x=$(s27 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  docker.s ExecStart passes -H/--host' && [ "$(cat "$DK/daemon.json")" = "$DK_OPEN" ] && [ ! -e "$DK/restarts" ]; then
+    ok "27: ExecStart with -H (no clearing drop-in) => refused before any change, no restart"
+else bad "27 -H" "rc=$rc: $x"; fi
+seed_dk; out=$(FAKE_DK_INACTIVE=1 run); rc=$?; x=$(s27 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  docker is not active after the restart. Roll back:'; then
+    ok "27: docker not active after restart => FAILED with rollback"
+else bad "27 inactive" "rc=$rc: $x"; fi
+seed_dk; out=$(FAKE_DK_PS_BROKEN=1 run); rc=$?; x=$(s27 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  'docker ps' does not work before the change; nothing changed" && [ "$(cat "$DK/daemon.json")" = "$DK_OPEN" ] && [ ! -e "$DK/restarts" ]; then
+    ok "27: docker ps broken beforehand => FAILED, nothing changed"
+else bad "27 ps broken" "rc=$rc: $x"; fi
+seed_dk; printf '{\n    "hosts": ["fd://"]\n}\n' > "$DK/daemon.json"; out=$(run); rc=$?; x=$(s27 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  .*has no tcp host, yet something listens on :2375; not restarting docker blind' && [ ! -e "$DK/restarts" ]; then
+    ok "27: no tcp host but port open => FAILED, no blind restart"
+else bad "27 unexplained listener" "rc=$rc: $x"; fi
+printf '{\n    "hosts": ["fd://"]\n}\n' > "$DK/daemon.json"; rm -f "$DK/listen" "$DK/restarts" "$DK"/daemon.json.bak-*
 
 # ---- T-3647: action 4b restarts W1 sidecars running older code -------------------
 echo "T-3647: 4b W1 sidecars onto the installed binary"

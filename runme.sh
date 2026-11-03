@@ -2663,6 +2663,147 @@ head2 "26. Drop the $(grep -c . "$DROP_LIST" 2>/dev/null || echo 0) waiting mess
 drop_t3656_waiting
 
 # ---------------------------------------------------------------------------
+# 27. Close .107's Docker API on tcp 2375 (T-3664; T-3663 finding B5; operator ruling A, 2026-11-03)
+# /etc/docker/daemon.json had "hosts": ["fd://", "tcp://0.0.0.0:2375"]: dockerd answered on *:2375
+# with no TLS and no auth, so anyone on the LAN was root on .107. This removes the tcp host(s) from
+# the hosts array and nothing else: every byte outside that array is kept (insecure-registries,
+# runtimes), the file keeps its mode and owner. The unit's ExecStart must not pass -H as well
+# (dockerd refuses to start when flags and daemon.json both set hosts); on .107 the drop-in
+# docker.service.d/override.conf clears ExecStart to a line with no -H, and the action refuses
+# before changing anything if the effective ExecStart has -H/--host. Then `systemctl restart docker`
+# (the containers stop briefly) and verify: active, no listener on :2375, `docker ps` works, and
+# every container that ran before (by name) runs again; any miss is FAILED with the rollback line.
+# Idempotent: no tcp host configured and nothing listening on 2375 -> skip.
+# Seams (fixtures only): RUNME_DOCKER_CONF, RUNME_DOCKER_SYSTEMCTL, RUNME_DOCKER_SS, RUNME_DOCKER_CLI.
+# ---------------------------------------------------------------------------
+seam DOCKER_CONF RUNME_DOCKER_CONF "/etc/docker/daemon.json"
+seam DOCKER_SYSTEMCTL RUNME_DOCKER_SYSTEMCTL "systemctl"
+seam DOCKER_SS RUNME_DOCKER_SS "ss"
+seam DOCKER_CLI RUNME_DOCKER_CLI "docker"
+DOCKER_TCP_PORT=2375
+
+docker_tcp_hosts() {  # prints the tcp:// entries of daemon.json "hosts", one per line; rc 2 if unreadable
+    python3 -c 'import json,sys
+d=json.load(open(sys.argv[1]))
+h=d.get("hosts",[])
+if not isinstance(h,list): sys.exit(2)
+[print(x) for x in h if isinstance(x,str) and x.startswith("tcp://")]' "$DOCKER_CONF" 2>/dev/null || return 2
+}
+docker_port_listening() { "$DOCKER_SS" -ltnH 2>/dev/null | awk -v p=":$DOCKER_TCP_PORT" '{ if (substr($4, length($4)-length(p)+1) == p) f=1 } END { exit !f }'; }
+docker_names() { "$DOCKER_CLI" ps --format '{{.Names}}' 2>/dev/null | sort; }
+
+# Rewrites ONLY the "hosts" array without its tcp:// entries; verifies the result parses, equals the
+# old document with hosts changed, and is byte-identical outside the array. rc 0 ok, 1 refused.
+docker_strip_tcp() {  # docker_strip_tcp <file>
+    python3 - "$1" <<'PY'
+import json, re, sys
+p = sys.argv[1]
+raw = open(p, encoding="utf-8").read()
+m = list(re.finditer(r'"hosts"\s*:\s*\[[^\]]*\]', raw))
+if len(m) != 1:
+    print("hosts array not found exactly once"); sys.exit(1)
+m = m[0]
+old = json.loads(raw)
+keep = [h for h in old["hosts"] if not h.startswith("tcp://")]
+if not keep:
+    print("no non-tcp host would remain"); sys.exit(1)
+new_raw = raw[:m.start()] + '"hosts": [' + ", ".join(json.dumps(h) for h in keep) + "]" + raw[m.end():]
+new = json.loads(new_raw)
+want = dict(old); want["hosts"] = keep
+if new != want:
+    print("rewritten document differs from the old one beyond hosts"); sys.exit(1)
+with open(p, "r+", encoding="utf-8") as f:   # in place: inode, mode and owner kept
+    f.seek(0); f.write(new_raw); f.truncate()
+back = open(p, encoding="utf-8").read()
+if back != new_raw or json.loads(back) != want:
+    print("read-back differs from what was written"); sys.exit(1)
+PY
+}
+
+close_docker_tcp() {
+    local tcp listening=0 execstart before after missing=() n bk why i
+    if [ ! -e "$DOCKER_CONF" ]; then
+        if docker_port_listening; then
+            say "  FAILED  something listens on :$DOCKER_TCP_PORT but $DOCKER_CONF does not exist; look with 'ss -ltnp'"; FAILED=$((FAILED+1))
+        else
+            say "  skip    no $DOCKER_CONF and nothing listens on :$DOCKER_TCP_PORT"; SKIPPED=$((SKIPPED+1))
+        fi
+        return
+    fi
+    if ! tcp="$(docker_tcp_hosts)"; then
+        say "  FAILED  could not parse $DOCKER_CONF (or its hosts is not a list); nothing changed"; FAILED=$((FAILED+1)); return
+    fi
+    docker_port_listening && listening=1
+    if [ -z "$tcp" ] && [ "$listening" = 0 ]; then
+        say "  skip    $DOCKER_CONF has no tcp host and nothing listens on :$DOCKER_TCP_PORT (already closed)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ -z "$tcp" ]; then
+        say "  FAILED  $DOCKER_CONF has no tcp host, yet something listens on :$DOCKER_TCP_PORT; not restarting docker blind. Look with 'ss -ltnp'"; FAILED=$((FAILED+1)); return
+    fi
+    execstart="$("$DOCKER_SYSTEMCTL" show -p ExecStart docker 2>/dev/null)"
+    if [ -z "$execstart" ]; then
+        say "  FAILED  could not read docker's ExecStart; nothing changed"; FAILED=$((FAILED+1)); return
+    fi
+    if printf '%s\n' "$execstart" | grep_all -E '(^|[ =])(-H|--host)([ =]|$)'; then
+        say "  FAILED  docker's ExecStart passes -H/--host and $DOCKER_CONF sets hosts too; dockerd would not start. Needs a drop-in that clears ExecStart (see .107's docker.service.d/override.conf). Nothing changed"
+        FAILED=$((FAILED+1)); return
+    fi
+    if ! before="$(docker_names)" || ! "$DOCKER_CLI" ps >/dev/null 2>&1; then
+        say "  FAILED  'docker ps' does not work before the change; nothing changed"; FAILED=$((FAILED+1)); return
+    fi
+    n="$(printf '%s' "$before" | grep -c .)"
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would remove $(echo $tcp) from $DOCKER_CONF hosts (backup first), restart docker, and verify :$DOCKER_TCP_PORT is closed and the $n running container(s) come back: $(echo $before)"
+        DONE=$((DONE+1)); return
+    fi
+    bk="$DOCKER_CONF.bak-$(date -u +%Y%m%dT%H%M%SZ)"
+    if ! cp -p "$DOCKER_CONF" "$bk" || ! cmp -s "$DOCKER_CONF" "$bk"; then
+        say "  FAILED  could not write the backup $bk; nothing changed"; FAILED=$((FAILED+1)); return
+    fi
+    local rollback="cp -p $bk $DOCKER_CONF && systemctl restart docker"
+    if ! why="$(docker_strip_tcp "$DOCKER_CONF" 2>&1)"; then
+        cp -p "$bk" "$DOCKER_CONF"
+        say "  FAILED  could not rewrite $DOCKER_CONF ($why); restored from $bk, docker not restarted"; FAILED=$((FAILED+1)); return
+    fi
+    if [ -n "$(docker_tcp_hosts)" ]; then
+        cp -p "$bk" "$DOCKER_CONF"
+        say "  FAILED  $DOCKER_CONF still lists a tcp host after the rewrite; restored from $bk, docker not restarted"; FAILED=$((FAILED+1)); return
+    fi
+    say "  note    $DOCKER_CONF: removed $(echo $tcp); backup $bk. Restarting docker (containers stop briefly)"
+    if ! "$DOCKER_SYSTEMCTL" restart docker >/dev/null 2>&1; then
+        say "  FAILED  'systemctl restart docker' failed. Roll back: $rollback"; FAILED=$((FAILED+1)); return
+    fi
+    for i in $(seq 1 30); do   # up to ~60 s for dockerd and the restart policies to settle
+        if "$DOCKER_SYSTEMCTL" is-active --quiet docker && after="$(docker_names)" && "$DOCKER_CLI" ps >/dev/null 2>&1; then
+            missing=()
+            while IFS= read -r c; do [ -n "$c" ] && ! grep -qxF -- "$c" <<< "$after" && missing+=("$c"); done <<< "$before"
+            [ "${#missing[@]}" = 0 ] && break
+        fi
+        nap 2
+    done
+    if ! "$DOCKER_SYSTEMCTL" is-active --quiet docker; then
+        say "  FAILED  docker is not active after the restart. Roll back: $rollback"; FAILED=$((FAILED+1)); return
+    fi
+    if ! "$DOCKER_CLI" ps >/dev/null 2>&1; then
+        say "  FAILED  docker is active but 'docker ps' does not work. Roll back: $rollback"; FAILED=$((FAILED+1)); return
+    fi
+    if docker_port_listening; then
+        say "  FAILED  something still listens on :$DOCKER_TCP_PORT after the restart. Roll back: $rollback"; FAILED=$((FAILED+1)); return
+    fi
+    after="$(docker_names)"; missing=()
+    while IFS= read -r c; do [ -n "$c" ] && ! grep -qxF -- "$c" <<< "$after" && missing+=("$c"); done <<< "$before"
+    if [ "${#missing[@]}" -gt 0 ]; then
+        say "  FAILED  :$DOCKER_TCP_PORT is closed, but ${#missing[@]} of $n container(s) did not come back: ${missing[*]}. Start them by name, or roll back: $rollback"
+        FAILED=$((FAILED+1)); return
+    fi
+    say "  OK      :$DOCKER_TCP_PORT closed (dockerd on its local socket only), docker active, 'docker ps' works, all $n container(s) running again: $(echo $before); backup $bk"
+    DONE=$((DONE+1))
+}
+
+head2 "27. Close .107's Docker API on tcp :2375, local socket only — DOCKER RESTARTS, containers stop briefly (T-3664; operator ruling A)"
+close_docker_tcp
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
