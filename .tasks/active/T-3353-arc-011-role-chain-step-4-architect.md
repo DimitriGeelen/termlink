@@ -300,6 +300,15 @@ grep -q 'task: T-3353' docs/design/interactive-agent-communication-role-chain.ya
 - **Left open:** the deny is an operator act (6.10.2): delivered as a runme action under build item B-18; the session
   message prover (T-2876) uses SendMessage and must be re-based on TermLink before or with the deny.
 
+### 2026-11-03 — O-5 the starting values of section 8: A, accepted as one package (operator ruling)
+- **Chose:** A (operator: "A"). V-1..V-13 (and the related DR-3, DR-12, DR-14) accepted as starting values under FP-4:
+  each is measured in operation, its measurement is an acceptance item of its build item, and it is tuned from the
+  measurement. V-9's lease constants stand together with O-3's fast-takeover tightening (CR-O3).
+- **Why:** starting values with built-in measurement correct themselves; 15 separate rulings would spend operator
+  attention on details.
+- **Rejected:** B one by one; C defer.
+- **Left open:** V-14 (GP-4 offline, 8.2) and V-15 (security levels) are O-7's subject; V-16 (GP-11) stays open.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
