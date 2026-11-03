@@ -291,6 +291,15 @@ grep -q 'task: T-3353' docs/design/interactive-agent-communication-role-chain.ya
   ties to CR-O2a's activity measurement), (b) the fast-takeover rule and its bound, (c) the waiting-mail signal and
   where it lands (session-start alerts, cockpit, operator).
 
+### 2026-11-03 — O-4 switch off Claude Code SendMessage for this project: A (operator ruling)
+- **Chose:** A (operator: "A"). `permissions.deny` for `SendMessage` in this project's settings (6.10.2, ends RA-5);
+  the in-process sub-agent tool (Agent/Task) stays allowed and logged (6.10.1) while the framework's dispatch uses it.
+- **Why:** one audited route for agent mail (FX-1), consistent with O-3; the replacement route (T-3386) is done.
+  Scored A +16, B 0, C -9 (product set).
+- **Rejected:** B log only (a second, unaudited mail channel stays open); C disable both (breaks framework dispatch).
+- **Left open:** the deny is an operator act (6.10.2): delivered as a runme action under build item B-18; the session
+  message prover (T-2876) uses SendMessage and must be re-based on TermLink before or with the deny.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
