@@ -22893,3 +22893,21 @@ scan_id: R-ab465cf8
 task_id: T-3662
 payload:
   task_file: .tasks/active/T-3662-re-vendor-aef-v1816-be27-main-only-gate-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-03T12:19:34Z'
+scan_id: R-e45b57a4
+task_id: T-3664
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-03T12:19:34Z'
+scan_id: R-e45b57a4
+task_id: T-3664
+payload:
+  task_file: .tasks/active/T-3664-close-107-docker-api-tcp00002375-no-auth.md

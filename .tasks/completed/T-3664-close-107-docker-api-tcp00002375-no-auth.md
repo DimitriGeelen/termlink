@@ -6,12 +6,12 @@ description: >
   Operator 2026-11-03: A. /etc/docker/daemon.json hosts [fd://, tcp://0.0.0.0:2375];
   no current connections; restart briefly stops containers.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -40,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-03T11:54:56Z
-last_update: 2026-11-03T12:08:48Z
-date_finished:
+last_update: 2026-11-03T12:08:55Z
+date_finished: 2026-11-03T12:08:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -405,3 +405,16 @@ timeout 900 bash tests/runme-fixtures.sh > .context/working/t3664/fix.out 2>&1 &
 
 ### 2026-11-03T11:55:30Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-03T12:08:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e45b57a4
+- **Timestamp:** 2026-11-03T12:19:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
