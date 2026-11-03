@@ -230,6 +230,18 @@ grep -q 'task: T-3353' docs/design/interactive-agent-communication-role-chain.ya
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-03 — step 4 independent review: accept two green verdicts (operator ruling A)
+- **Chose:** A (operator: "A"). Round 2 (rung 5, architecture v0.2) is accepted as the independent review on the green
+  verdicts of two vendors: V-20261103-1fb14fee (claude-code) and V-20261103-a97bbeb8 (antigravity), no findings.
+- **Why:** the other seats failed for tooling reasons, not content: codex not-evaluated (cannot launch Chromium to
+  render Mermaid), opencode no verdict (its render tmp dir auto-rejected as external), both AEF T-5042; the panel's
+  fall-through to a paid seat cannot complete a run today (AEF T-5046, T-5043). Round 1 (V-20261103-717b2df9, amber)
+  findings were all fixed in v0.2.
+- **Rejected:** B paid seat (approved paid seats are never dispatched into the panel today, AEF T-5046); C wait for
+  AEF's fixes (delays the operator's O-1..O-7 rulings for a tooling defect).
+- **Left open:** the "[REVIEW] Independent review" Human box is the operator's to tick (agent never ticks Human ACs);
+  next: operator questions O-1..O-7 one at a time.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
