@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3666: Hub: channel.post of ~300 KB within ~1 s of a previous large post gets no reply (30 s timeout, record never lands) — ring20 node1 report (hub 0.12.1084)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-03T16:30:36Z
+# ============================================================================
+
+task_id: T-3666
+task_name: "Hub: channel.post of ~300 KB within ~1 s of a previous large post gets no reply (30 s timeout, record never lands) — ring20 node1 report (hub 0.12.1084)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-03T16:13:26Z
+completed: 2026-11-03T16:30:13Z
+duration_days: 0
+updates_count: 5
+first_commit: 2026-11-03T17:18:31+01:00
+last_commit: 2026-11-03T17:29:50+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  reproduce the large back-to-back post stall (operator: start the reproduction) — context and ACs. ring20 data — failures cluster at 50-150 KB (size band), chunk 10 never landed. client flushes after write_all — TLS tail of a 50-300 KB request was stranded in rustls on a narrow path, hub never got the line, no reply
+
+# Key outcomes
+outcomes:
+  - 'Reproduction on a throwaway hub (temp runtime dir under .context/working, TCP + token) behind a narrow-window'
+  - 'Root cause at crates/termlink-session/src/client.rs `Client::call` (and `notify`): `write_all` with no `flush`'
+  - 'Answer sent to ring20 on conversation node1-hub-large-post-stall-2026-11-03 (client_msg_id'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-03 — fix in the client, not the hub'
+    chose: 'flush after `write_all` in `Client::call`/`notify` (termlink-session), the mirror of the hub-side T-3474.'
+    rationale: 'tokio-rustls `poll_write` returns Ok once rustls holds the plaintext; TLS records that did not fit the socket send buffer stay in rustls, and the read path never writes them. On a narrow path (ring20''s SSH -L forward) the tail of the request, newline included, is stranded, so the hub never sees a complete line and never replies. Whether the last write blocks depends on where the drain stands, which is why 50/150 KB failed while 300 KB passed.'
+    alternatives_rejected: ['hub-side changes (the hub never received the whole request); client-side retry (masks the bug and duplicates posts unless the client_msg_id is reused).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3666-hub-channelpost-of-300-kb-within-1-s-of-.md'
+  - 'crates/termlink-session/src/client.rs'
+  - 'tests/t3666-narrow-path-proxy.py'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-03T17:18:31'
+    action: 'T-3666: reproduce the large back-to-back post stall (operator: start the reproduction) — context and ACs'
+  - time: '2026-11-03T17:27:13'
+    action: 'T-3666: ring20 data — failures cluster at 50-150 KB (size band), chunk 10 never landed'
+  - time: '2026-11-03T17:29:50'
+    action: 'T-3666: client flushes after write_all — TLS tail of a 50-300 KB request was stranded in rustls on a narrow path, hub never got the line, no reply'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 16
+  commits: 4
+  files_changed: 6
+  lines_added: 705
+  lines_removed: 13
+  footprint_refreshed_at: '2026-11-03T16:31:05Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3666-hub-channelpost-of-300-kb-within-1-s-of-.md
+generated_by: context-agent-hybrid

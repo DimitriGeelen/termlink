@@ -8,12 +8,12 @@ description: >
   Hub log: accepted + authenticated, nothing after. node1 runs 0.12.1084 (old). Reproduce
   on current code first.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-session/src/client.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-03T16:13:26Z
-last_update: 2026-11-03T16:29:50Z
-date_finished:
+last_update: 2026-11-03T16:30:13Z
+date_finished: 2026-11-03T16:30:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -101,7 +101,8 @@ affected.
 - [x] Root cause at crates/termlink-session/src/client.rs `Client::call` (and `notify`): `write_all` with no `flush`
       over TLS; fixed with a flush; regression test `t3666_large_call_over_narrow_tls_path_gets_reply` fails without
       the flush (10 s timeout) and passes with it
-- [ ] Answer sent to ring20 on conversation node1-hub-large-post-stall-2026-11-03
+- [x] Answer sent to ring20 on conversation node1-hub-large-post-stall-2026-11-03 (client_msg_id
+      8182997f-5723-4826-a825-0608afbf9e41, HUB_ACCEPTED 2026-11-03; cites a8311bf1b)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -436,3 +437,16 @@ python3 -c "import ast,sys; ast.parse(open('tests/t3666-narrow-path-proxy.py').r
 
 ### 2026-11-03T16:17:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-03T16:30:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-faa68725
+- **Timestamp:** 2026-11-03T16:30:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
