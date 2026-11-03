@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-11-02T12:11:07Z
-last_update: 2026-11-02T13:50:31Z
+last_update: 2026-11-03T20:28:51Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -136,7 +136,8 @@ period + cooldown, visibly; an operator pin wins and is logged.
       unknown, R-68 (1) open obligation recorded uncertain->operator, R-68 (2) stuck holder with a live reader).
       AC4 PARTIAL, left unticked: same-sidecar non-main sessions leave role mail unread for main and are told once who
       main is; forward-once across sidecars with the original signature, and the sender notice "delivered via X; main
-      is Y (generation N)", are NOT built (needs a new stage notice kind + AEF T-5014). AC6 left unticked: the interface
+      is Y (generation N)", are NOT built (needs a new stage notice kind + AEF T-5014). 2026-11-03: that remainder is
+      split out as T-3669 (horizon later; no trigger while every project runs on one host). AC6 left unticked: the interface
       is in docs/operations/main-lease.md and .context/working/t3654/handback.md, not yet sent to AEF / ring20.
 
 ### Human
