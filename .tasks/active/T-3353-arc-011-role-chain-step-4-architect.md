@@ -309,6 +309,25 @@ grep -q 'task: T-3353' docs/design/interactive-agent-communication-role-chain.ya
 - **Rejected:** B one by one; C defer.
 - **Left open:** V-14 (GP-4 offline, 8.2) and V-15 (security levels) are O-7's subject; V-16 (GP-11) stays open.
 
+### 2026-11-03 — O-6 the four step-3 assumptions (operator rulings, all four recorded as below; not "as assumed")
+- **OP-5 interim approvals:** NOT a new hub-admin verb. Approvals go through the existing surfaces: Watchtower and the
+  operator's out-of-band channels (inventory T-3350, GP-11: ring20 named six channels, three two-way, Mattermost desk;
+  GP-11 channel standard is AEF's). Operator: "we have Watchtower and we have out-of-band channels". CR-O6a: step 4
+  replaces the hub-verb placement (10.4.2 / 6.x approval broker) with Watchtower + OOB channels.
+- **OP-12 thresholds:** H-21 ("at most 10 approval events a day") is DROPPED as a quality threshold: it measures
+  utilisation, not reliability (operator: "my car could be very reliable if I drive it once per year"). Thresholds must
+  measure reliability: share of messages that reach the agent's conversation (HANDED_OVER) per attempt, every failure
+  visible, zero false "delivered". Operator load may be tracked separately as a cost, never as quality. H-14 stays.
+  CR-O6b: revise section 9 / FP-4 thresholds accordingly.
+- **OP-22 who builds the receive side:** OD-7 as RULED 2026-10-06 applies: TermLink owns the adapter CONTRACT; each
+  harness team owns its adapter (Claude Code included); OD-9 C for the receiver. The section 16 table ("TermLink owns the
+  Claude Code adapter + hooks, OP-22 A in fact") is wrong on the rule and on the facts (AEF built the T-5014 hook gate).
+  CR-O6c: correct section 16 to OD-7/OD-9; align the split with AEF explicitly.
+- **OP-23 + standing rule:** keep every existing route working until its replacement is built, tested and proven in the
+  field; never decommission implicitly; only with the operator's explicit, documented approval (operator: "never
+  implicit ... explicit documented approval"). RA-9 (old rails unframed until PH-4) accepted under this rule. Recorded
+  as a project standing rule in CLAUDE.md.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
