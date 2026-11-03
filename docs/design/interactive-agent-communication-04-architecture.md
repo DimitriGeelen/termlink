@@ -1,10 +1,16 @@
 # Interactive agent communication: step 4, architecture
 
 **Task:** T-3353 · **Arc:** arc-011 · **Chain:** arc-011-design, step 4 · **Role:** architect
-**Status:** DRAFT v0.2 (round 1 remediation) for independent review, then the operator. Nothing in this document is approved. Every
-decision record (section 18) is **proposed** until the operator accepts it (card section 5). Everything tagged
-**[P]** is a proposal; **[B]** marks a fact about what is built and live today, read from the repository on
-2026-11-02 and recorded as baseline, not redesigned.
+**Status:** DRAFT v0.3, the operator's rulings O-1 to O-7 of 2026-11-03 applied (T-3353 `## Decisions`). The
+independent review of v0.2 was accepted (operator ruling A, 2026-11-03). The step output as a whole is not yet
+approved. The decision records the operator ruled carry **accepted** with the ruling date (section 18); the others
+stay **proposed** until the operator approves this step (card section 5). Everything tagged **[P]** is a proposal;
+**[R]** marks an operator ruling of 2026-11-03 as it is stated in T-3353; **[B]** marks a fact about what is built and
+live today, read from the repository on 2026-11-02 and recorded as baseline, not redesigned.
+**Standing rules applied throughout (CLAUDE.md, 2026-11-03):** (1) nothing working is switched off until its
+replacement is proven in the field, and only with the operator's explicit, documented approval; never as a side
+effect of another step (cited as **NID**, "no implicit decommission", wherever a retirement appears); (2) quality
+and acceptance thresholds measure reliability, never usage (cited as **RNU**).
 **Review link:** none. This project's Watchtower has no inline design-review page (profile P2.1); the operator reads
 this file in the repository.
 **Sub-documents** (card 4.1), each reviewable on its own:
@@ -16,6 +22,7 @@ this file in the repository.
 
 | Version | Date | Change | Task |
 |---|---|---|---|
+| 0.3 | 2026-11-03 | Operator rulings O-1..O-7 applied, and only what follows from them. O-1 A: 6.4.6, DR-5, BP-21 decided; other file routes out of scope (T-3663). O-2 D+ supersedes DR-6: 6.9 rewritten (READY + no typing + no conversation; external 300 s watchdog), new 6.14 activity and conversation signals (CR-O2a, CR-O2c), watchdog with audit row (CR-O2b), DR-15. O-3 A + tightening: new 6.13 (human-initiated renewal, fast takeover with its bound, waiting-mail signal; CR-O3), DR-9 accepted, DR-16. O-4 A: 6.10.2, BP-14, B-18 (operator runme act) and B-26 (T-2876 prover re-based on TermLink). O-5 A: section 8 package accepted (DR-3, DR-12, DR-14). O-6: approvals via Watchtower and the operator's out-of-band channels, no new hub verb (12.2, K-27, XR-8); H-21 dropped, thresholds by reliability (15.2, XR-7); section 16 corrected to OD-7/OD-9; NID stated at every retirement (11, 12.8, 14). O-7 A: 8.4, DR-13 accepted. Section 17 is now the adapter contract AEF implements from. Build table: B-13, B-16, B-18, B-23, B-24 changed; B-25..B-29 new. 04a traceability v0.3. Drawings D-1, D-3, D-4, D-5 updated and re-rendered (24.4). | T-3353 |
 | 0.2 | 2026-11-03 | Round 1 remediation of review V-20261103-717b2df9 (amber), its three findings only: 11.4 states that D-1's built-coloured subset is the baseline view, 11.5 gives per transition (baseline, T1..T6, target) the trust boundaries introduced or changed and the [i] that shows it took effect; D-1 labels corrected (operator zone is TB-10, the lease is TB-12 [i]); section 15 rows K-12, K-17, K-24, K-25 and 15.1 (built and PH-3+ components); section 18 Status and Decision columns, 18.1, and 18.2 disposing of every FP 14.1.b hand-over item. Review evidence added to the inputs (1.5). Drawings re-rendered (24.3). | T-3353 |
 | 0.1 | 2026-11-02 | First complete draft, batch mode. Baseline recorded from the PH-1/PH-2 build (ARCH, ARCH2, the main lease); the eleven PH-2 rows without tasks designed (P10, P11, P13, P15 to P19, P21, P22, P24) plus R-67.a1 (4) forward-once; the step-4 open values decided as [P] starting values or listed open; views D-1 to D-5; TCB; bypass closure; measurement; ownership split; 14 decision records; 6 change requests; a 24-row build table. | T-3353 |
 
@@ -78,6 +85,19 @@ topic logs, 59 MB in all, the largest 8 MB, and a 64 MB artifact store; the hub 
 
 1.5.a Every other input above was re-hashed on 2026-11-03 and is unchanged.
 
+1.6 Rulings input for v0.3. The binding text is T-3353's `## Decisions`, entries of 2026-11-03 (review ruling and
+O-1..O-7), read at commit `bd9380d10`; and the two CLAUDE.md standing rules recorded with O-6 (commit `6078601dd`).
+The task file changes as work proceeds, so it is cited by commit, not hashed.
+
+| Short | Path | sha256 |
+|---|---|---|
+| RULINGS | `.tasks/active/T-3353-arc-011-role-chain-step-4-architect.md` at `bd9380d10` | cited by commit |
+| RULES′ | `CLAUDE.md` (re-hashed 2026-11-03, after the O-6 standing rules) | `a9b38fd1aeed0145289c6a8c89c491c2ae077d06e1847110209827f33e172aa3` |
+| O3C | `docs/reports/T-3353-O3-consultation/` (opencode, antigravity, codex answers to O-3) | read for the residual risk only; not hashed |
+
+1.6.a CLAUDE.md changed since 1.3 (the two standing rules above `## Core Principle`); RULES′ replaces RULES. Every
+other input of 1.1 to 1.5 was re-hashed on 2026-11-03 and is unchanged.
+
 ## 2 How to read this document
 
 2.1 Identifiers new here: `K-n` components (K-1 to K-21 are ARCH2's and keep their numbers; K-22 and up are new),
@@ -104,12 +124,20 @@ transitions, TCB, bypass closure) in sections 11 and 12, with their detailed des
 where a gate (T-2470, T-3385, Track A) has not opened.
 3.3 **What is built and live is baseline (brief).** I record it (section 4) and design only what an input requires to
 change. Three built facts do conflict with a ruled text; each is a DR or XR, not a silent redesign: the main lease
-built in PH-2 with every session eligible (DR-9, XR-3), the doorbell line of T-3533 outside the SI-1 alphabet (DR-6),
-and the re-post-with-signature rollback that cannot exist (XR-1, already ruled OQ-j A).
-3.4 **Step-3 questions still unruled that this step builds on.** OP-5 (where the interim approval sits), OP-12
-(hypothesis thresholds), OP-22 (who writes the receive side) and OP-23 (RA-9) carry no ruling marker in FP 13.2. The
-build has followed OP-22 A in fact (TermLink wrote the Claude adapter and hooks, K-7). I assume A for OP-5, OP-22
-and OP-23 and the thresholds as written for OP-12 **[A]**, and list them as O-6 so the operator can rule them.
+built in PH-2 with every session eligible (DR-9, XR-3; ruled O-3 A with a tightening, 6.13), the doorbell line of
+T-3533 outside the SI-1 alphabet (DR-6, superseded by DR-15 as ruled O-2, which keeps the bracket-free line), and the
+re-post-with-signature rollback that cannot exist (XR-1, already ruled OQ-j A).
+3.4 **Step-3 questions ruled on 2026-11-03 (O-6) [R].** v0.2 assumed A for OP-5, OP-22, OP-23 and OP-12 as written.
+The operator ruled otherwise on three of them, and the design now follows the rulings:
+3.4.a OP-5: interim approvals go through the existing surfaces, Watchtower and the operator's out-of-band channels
+(inventory T-3350, GP-11; the channel standard is AEF's), not a new hub-admin verb (12.2, XR-8).
+3.4.b OP-12: H-21 ("at most 10 approval events a day") is dropped as a quality threshold. Thresholds measure
+reliability: the share of messages that reach the agent's conversation (HANDED_OVER) per attempt, every failure
+visible, zero false "delivered". Operator load may be tracked as a cost, never as quality (RNU; 15.2, XR-7).
+3.4.c OP-22: OD-7 as ruled 2026-10-06 applies. TermLink owns the adapter contract; each harness team owns its adapter,
+Claude Code's included; OD-9 C for the receiver (section 16, section 17).
+3.4.d OP-23: RA-9 accepted under the standing rule NID: every existing route keeps working until its replacement is
+built, tested and proven in the field, and is switched off only with explicit documented operator approval.
 
 ## 4 Baseline view: what runs today (2026-11-02)
 
@@ -139,7 +167,12 @@ hub signing key exists; `webhook.rs` signs with HMAC only.
 hub-qualified inbox; `file send` chunk loss fixed (T-3661). `artifact put --hub` (a remote hub's store) is T-3614,
 captured.
 4.8 [B] Other receivers: AEF's receiver (`fw sidecar`) serves the inboxes of the other projects on their hosts
-(R-49.a (1)); AEF T-5014 gates its receiver hook on `termlink main am-i`.
+(R-49.a (1)); AEF T-5014 gates its receiver hook on `termlink main am-i`. AEF's receiver records HANDED_OVER only
+from transcript evidence ("Injection alone never records HANDED_OVER"; no evidence in 90 s = HANDOVER_UNCONFIRMED,
+AEF `inject.py`/`hooks.py`). Today AEF has the T-5014 gate; it does **not** yet write the harness-neutral READY flag or
+the hand-over evidence report of the adapter contract (section 17); that is AEF T-5054 (section 16).
+4.9 [B] The main lease renews on every UserPromptSubmit and PostToolUse hook call (LEASE "hooks" table), so any
+prompt, including an automated one, renews it. O-3's tightening changes that (6.13).
 
 ## 5 Target architecture: components and placement
 
@@ -159,15 +192,18 @@ captured.
 | K-16 | Status, CLEAR, reachability card, strength flags (P18) | sidecar | TermLink | new, 6.7 |
 | K-17 | Fault injectors (P19) | tests, scripts | TermLink | new, 6.8 |
 | K-18 | Activity veto + readiness re-check (P20) | sidecar | TermLink | [B] veto; re-check in 6.9 |
-| K-19 | Doorbell (P21) | sidecar → session `command.notify` | TermLink | new, 6.9 |
-| K-20 | Vendor-channel log (P22) | hooks | TermLink (adapter) | new, 6.10 |
+| K-19 | Doorbell (P21), O-2 D+ | sidecar → session `command.notify` | TermLink | new, 6.9 |
+| K-20 | Vendor-channel log (P22) | hooks → sidecar | TermLink (sidecar endpoint); the hook entry is part of the Claude Code adapter (AEF, section 16) | new, 6.10 |
 | K-21 | Daily canary (P23, T-3361) | cron, testdev pair | TermLink | task exists |
-| K-22 | Main lease | hub claim + session hooks | TermLink (lease); AEF (its receiver's gate, T-5014) | [B] |
+| K-22 | Main lease, tightened by O-3 (human-initiated renewal, fast takeover, 6.13) | hub claim + session hooks | TermLink (lease, `am-i`); each harness adapter supplies the prompt-origin report (17); AEF (its receiver's gate, T-5014) | [B]; tightening new |
+| K-32 | Per-session activity meter and conversation signal (CR-O2a, CR-O2c) | sidecar (+ session PTY input counters) | TermLink; adapter reports turn events (17) | new, 6.14 |
+| K-33 | Doorbell watchdog, 300 s, independent of READY (CR-O2b) | sidecar, its own loop | TermLink | new, 6.9.7 |
+| K-34 | "Mail waiting, main not reading" signal (CR-O3 (c)) | sidecar + status + session-start alerts; out-of-band via AEF's channel standard | TermLink (signal); AEF (Watchtower, OOB delivery) | new, 6.13.5 |
 | K-23 | Forward-once of role mail + sender notice (R-67.a1 (4)) | sidecar | TermLink | new, section 7 |
 | K-24 | Per-agent encryption key register (part of B′ stage 2, pulled forward for blobs) | `/etc/termlink-sidecar/keys`, hub card | TermLink | new, 6.4 |
 | K-25 | Mail-hub declaration | `.framework.yaml` + sidecar config | AEF file, TermLink reader | value 8.7 |
 | K-26 | Policy store (signed records of FP 10.3) and policy head | hub + sidecar | TermLink (format ruled OP-4 A) | PH-4, 12.3 |
-| K-27 | Tier 0 event registry, approve verb, audit trail | hub admin scope | TermLink; surfaces: runme, Watchtower, cockpit | PH-3, 12.2 |
+| K-27 | Tier 0 event registry and audit trail (records); approvals given through Watchtower and the operator's out-of-band channels, no new hub verb (O-6 OP-5) | hub (records); Watchtower, OOB channels (surfaces) | TermLink (registry, records); AEF (Watchtower, GP-11 channel standard) | PH-3, 12.2 |
 | K-28 | Directory: roster, signed cards, project root key | hub | TermLink | PH-3, 12.1 |
 | K-29 | Circuit: minting, sender-constrained credential, outage log | hub + sidecar | TermLink | PH-5, 12.5 |
 | K-30 | Account helper and template (Track A) | host, one sudoers entry | TermLink | A0 in PH-3, 12.6 |
@@ -189,7 +225,8 @@ flowchart LR
     AG["Agent harness (Claude Code)"]:::built
     HK["Hooks: session-start, post-tool-use, stop, session-end, main claim [i]"]:::built
     SC["termlink sidecar: send, receive, store, tick [i heartbeat]"]:::built
-    VET["Activity veto K-18 + doorbell K-19"]:::new
+    VET["Activity veto K-18, doorbell K-19, watchdog K-33 [i audit row]"]:::new
+    ACT["Activity meter + conversation signal K-32 [i]"]:::new
     QUO["Caps and quotas K-11, seq window K-10"]:::new
     REC["Reconciliation K-14"]:::new
     FWD["Forward-once K-23"]:::new
@@ -214,6 +251,8 @@ flowchart LR
   AG -->|"hook call"| HK
   HK -->|"send, pull, claim: owner-only socket SI-14"| SC
   SC --- VET
+  ACT -->|"last activity, conversation"| VET
+  HK -->|"turn events, prompt origin (adapter contract)"| ACT
   SC --- QUO
   SC --- REC
   SC --- FWD
@@ -241,9 +280,11 @@ flowchart LR
 and confirmation provider later), the agent host (one OS user today, so TB-1 and TB-2 separate nobody until Track
 A), the home hub, and a peer host with its own hub.
 5.3.2 On the agent host the harness calls its hooks; the hooks call the sidecar over its owner-only local sockets
-(send, pull, claim). The sidecar holds the new parts: the activity veto and doorbell (which type one fixed line into
-the session through the `notify` scope), caps and the sequence window, reconciliation, forward-once, the status
-call, and the key register with a signing and an encryption key per agent. The supervisor restarts the sidecar.
+(send, pull, claim) and report turn events and each prompt's origin (the adapter contract, section 17) to the
+activity meter. The sidecar holds the new parts: the activity meter and conversation signal, which feed the activity
+veto, the doorbell (one fixed line into the session through the `notify` scope) and the 300 s watchdog, which writes
+its own audit row each time it fires; caps and the sequence window, reconciliation, forward-once, the status call,
+and the key register with a signing and an encryption key per agent. The supervisor restarts the sidecar.
 5.3.3 The sidecar talks to its home hub over TLS with signed messages: inbox topics and stage writes, a revocation
 pull each tick, ciphertext blobs in the artifact store. The hooks claim and renew the main lease at the hub. The
 hub holds its minted id and its signing key, which signs the revocation list; its consumer list, admin log and
@@ -253,7 +294,8 @@ admin socket, both reached by `runme.sh`. Dashed (later phases): the operator ke
 sidecars verify, the directory exchanges signed cards with peer hubs, and cross-hub posting reaches a peer hub and
 its sidecars.
 5.3.5 Instrumentation points ([i]): the hooks (main claim results, hand-over evidence), the sidecar heartbeat per
-component, the status call, the supervisor and backstop logs, and the hub's consumer list and admin log.
+component, the activity meter (last activity per source), the watchdog's audit rows, the status call, the
+supervisor and backstop logs, and the hub's consumer list and admin log.
 
 5.4 **Drawing D-2 — deployment view (structure): hosts, networks and what crosses each boundary**
 
@@ -402,11 +444,17 @@ needs-attention. A partial transfer never reads as success (the T-3661 lesson).
 stay allow-listed (the baseline of 9); any new writer must go through the wrapper (it stores only objects whose first
 bytes are the wrapper's magic and version), plus the plaintext size cap on message fields so content cannot be
 tunnelled. Retention of blob objects follows their message (8.3).
-6.4.6 **Cross-hub file delivery outside the sidecar (T-3614).** `termlink artifact put --hub <addr>` writes into a remote
-hub's store. Under FX-5A that is a new hub-readable copy unless it is encrypted. Proposal: `--hub` is accepted only
-with `--encrypt-to <agent>` (the wrapper of 6.4.3, recipient key from the register or the hub key card), and a
-plaintext cross-hub put is refused with a reason. This is DR-5 and operator question O-1, because ring20 asked for a
-plaintext pool (T-3614 name) and the answer changes what they get.
+6.4.6 **Cross-hub file delivery outside the sidecar (T-3614) [R] O-1 A, 2026-11-03.** `termlink artifact put --hub
+<addr>` writes into a remote hub's store. Under FX-5A that is a new hub-readable copy unless it is encrypted. As ruled:
+`--hub` is accepted only with `--encrypt-to <agent>` (the wrapper of 6.4.3, recipient key from the register or the hub
+key card), and a plaintext cross-hub put is refused with a reason that names the rule and the `--encrypt-to` form
+(DR-5 accepted). ring20 gets encrypted pool transfers once per-agent keys exist (B-11); until then a cross-hub put is
+refused, not downgraded. The operator's words were "for now", with the wish to improve it later: a future plaintext
+or other mode is a new decision, not a knob of this design.
+6.4.6.a **Out of scope here (O-1 left open, T-3663).** The routes that already carry files between machines are not
+covered by O-1 and keep working as they are (NID): `termlink file send` (TLS in transit, readable on the hub), the
+runme fleet upgrade stream, ssh/scp, Pen's SMB mounts, 055's ssh gate. T-3663 brings them under the same rule later;
+nothing in this design changes or switches them off.
 6.4.7 Proof: H-7 (largest blob ≤ 8 MiB), round trip of 1, 5 and 16 MiB, a corrupted chunk refused, a path-traversal
 `name_hint` stored under the digest, a token holder reads only ciphertext (FX-5 probe). Mutant: store under
 `name_hint`. Build items B-11 (keys + wrapper + writer check), B-12 (blobs on the chain), B-13 (T-3614 re-scoped).
@@ -490,30 +538,73 @@ needs zero manual steps once the fault is removed (H-18, H-19). The drill: three
 status output, median ≤ 5 minutes, all correct.
 6.8.3 Each injector has a negative control: with the diagnosis code removed the run fails. Build item B-15.
 
-### 6.9 P21 — the doorbell and H-11 (K-19 with K-18; SI-1, SI-2, R-19..R-23, R-81, V-8)
+### 6.9 P21 — the doorbell and H-11, as ruled O-2 D+ (K-19, K-18, K-32, K-33; SI-1, SI-2, R-19..R-23, R-81, V-8)
 
-6.9.1 **When it rings [P].** Once per tick, for each own session that is a TermLink PTY session launched by the
-reachable launcher: mail is STORED and not handed over, no hook fired for it within 1 tick, the session's adapter
-flag says READY (written by the Stop hook, cleared by UserPromptSubmit and PreToolUse), and **no terminal client is
-attached to the session** (DR-6). An attached session means a person may be typing; their next prompt runs the
-UserPromptSubmit hook, which hands the mail over without any typing, so the doorbell is never needed there.
+6.9.0 **The ruling [R] (O-2 D+, 2026-11-03; supersedes DR-6 A).** Agents must receive and act on messages without a
+person pressing Enter. The doorbell therefore rings attended sessions too, but only when the agent is idle, nobody is
+typing and no conversation is under way; and an external 300 s watchdog makes sure a stuck or false READY flag can
+never hold a message forever. Ringing only unattended sessions (v0.2's DR-6 A) is rejected: an attended-but-idle
+agent would never act. Always-ring (B) is rejected: it types into busy sessions and into a person's half-written
+prompt.
+
+6.9.1 **Normal ring: when [R].** Once per tick, for each own session that is a TermLink PTY session launched by the
+reachable launcher, the sidecar rings when ALL hold:
+6.9.1.a mail is STORED and not handed over, and no hook fired for it within 1 tick;
+6.9.1.b **READY**: the session's adapter READY flag says the agent has finished its turn (17.3: written by the
+harness's adapter; for Claude Code set by the Stop hook, cleared by UserPromptSubmit and PreToolUse);
+6.9.1.c **no typing**: no terminal input from an attached client in the last 30 s (signal S1 of 6.14; the activity
+veto window, T-3387, V-17);
+6.9.1.d **no conversation**: the conversation signal of 6.14.4 reads `none` for this session.
+
 6.9.2 **Immediately before typing**, in this order, each failing closed: the kill switch (SI-23); READY re-read and its
-age ≤ 1 tick; the foreground process of the PTY is the registered harness; the activity veto (built, T-3387); still
-no client attached. The interval from the last check to the keystrokes is logged (H-11 (a)).
-6.9.3 **What is typed (SI-1).** The sidecar calls the session's `command.notify` with at most 4 message ids (32 lowercase
-hex). The built line (`[sidecar] N peer messages waiting (ids …). …`) uses `[`, `]`, `(` and `)`, outside the SI-1
-alphabet (letters, digits, spaces and `. , : -`). P21 changes it to: `sidecar: N peer messages waiting, ids X Y. The
-prompt hook shows them as untrusted data.` First word `sidecar:` is not an installed command. DR-6.
-6.9.4 **Afterwards.** The doorbell records ATTEMPTED (a ring is not a hand-over). The UserPromptSubmit hook that the
-typed line triggers pulls with the atomic claim and the nonce; HANDED_OVER follows from transcript evidence only
-(SI-17, SI-30). No hand-over within 2 ticks: next ring after 4, then 8 ticks, at most every 10 minutes; the R-44.e
-"not handed over" deadline then makes it STUCK with a notice. One ring per session per tick at most.
-6.9.5 **Known hazard to test (T-3591):** Claude Code restored a stale doorbell line from its last-prompt history. The
-line carries ids, so a restored ring for mail already handed over pulls nothing; the hook records it as a stray ring
-(H-11 (b)).
+age ≤ 1 tick; the foreground process of the PTY is the registered harness; the built process-tree activity veto
+(T-3387: network send, CPU, disk over 1.5 s); no client input in the last 30 s (re-read); conversation still `none`.
+The interval from the last check to the keystrokes is logged (H-11 (a)).
+
+6.9.3 **What is typed (SI-1) [R].** The sidecar calls the session's `command.notify` with at most 4 message ids (32
+lowercase hex). The line has no brackets (O-2 item 4): `sidecar: N peer messages waiting, ids X Y. The prompt hook shows
+them as untrusted data.` First word `sidecar:` is not an installed command. The built T-3533 line (`[sidecar] ...`)
+changes to this.
+
+6.9.4 **Delivery stays strict [R] (O-2 item 3).** A typed line is ATTEMPTED, never more. The UserPromptSubmit hook that
+the line triggers pulls with the atomic claim and the nonce; HANDED_OVER follows only from transcript evidence (SI-17,
+SI-30; as AEF built it: "Injection alone never records HANDED_OVER"). No evidence within 90 s: the message is labelled
+HANDOVER_UNCONFIRMED (a label on ATTEMPTED shown to the sender, not a new state value, XR-4) and stays owed. A false
+"delivered" is impossible by construction: the only writer of HANDED_OVER is the evidence check. Back-off: no hand-over
+within 2 ticks, next ring after 4, then 8 ticks, at most every 10 minutes; the R-44.e "not handed over" deadline then
+makes it STUCK with a notice. One ring per session per tick at most.
+
+6.9.5 **Known hazards to test.** (a) T-3591: Claude Code restored a stale doorbell line from its last-prompt history.
+The line carries ids, so a restored ring for mail already handed over pulls nothing; the hook records it as a stray ring
+(H-11 (b)). (b) The operator observed typed lines arriving mid-task and sitting unsent when Enter did not take, then
+deleting them by hand. The READY + no-typing + no-conversation gate removes mid-task arrival; an unsent line is
+detected because no UserPromptSubmit carrying its ids follows within 1 tick, and is counted (H-11 (e)); it is not
+re-typed on top of itself: while a typed line has had no submit, the doorbell does not ring that session again and
+only the watchdog (6.9.7) may, after its full silence interval.
+
 6.9.6 **H-11 harness:** (a) check-to-keystroke interval, (b) stray lines per 1000 rings, (c) vetoes while idle and
-ready, (d) rings within 2 s of a turn start; 7 days in W2. Kill switch proven on the typed path (exit 4). Build item
-B-16; W2 is the operator's runme action (B-17).
+ready, (d) rings within 2 s of a turn start, (e) typed lines not followed by a submit within 1 tick, (f) watchdog fires
+per 1000 rings and how many of them found the READY flag false-busy (6.9.7); 7 days in W2. Kill switch proven on the
+typed path (exit 4). Build item B-16; W2 is the operator's runme action (B-17).
+
+6.9.7 **The 300 s watchdog [R] (O-2 item 2, CR-O2b; K-33).** A separate loop in the sidecar, outside the agent's own
+flag, and independent of READY:
+6.9.7.a **Fires** when, for a session with mail STORED and not handed over, **nothing has happened** in that session
+for 300 s (V-18): no terminal input (S1), no agent output or turn event (S2), no peer traffic for that session in
+either direction and no hook surfacing event (S3), all as measured by 6.14. The ring of the doorbell itself is not
+activity (it is typed through `notify`, counted apart from client input, 6.14.2).
+6.9.7.b **Types anyway**, even when READY says busy, the same SI-1 line, after these checks only: the kill switch;
+the foreground process is the registered harness (never type into a shell); the built process-tree activity veto at
+that moment (a long silent tool run that still uses CPU, network or disk in the agent's tree holds it). It does not
+check READY or the conversation signal (that is the point: they may be what is stuck).
+6.9.7.c **Its own audit row (CR-O2b).** Every fire, and every hold by one of 6.9.7.b's checks, appends a row to the
+sidecar's admin chain: `{kind: "doorbell-watchdog", session, at, silent_for_s, ready_flag: busy|ready|absent,
+ready_age_s, last_activity: {s1, s2, s3}, checks, outcome: typed|held:<check>, message_ids}`, and the hub stage write
+for the message carries `via: watchdog`. A fire while the flag said `busy` raises a needs-attention entry "READY flag
+busy for N s while nothing happened in the session" (evidence of a stuck or false flag, coalesced per session per day).
+6.9.7.d **Bound.** At most one watchdog fire per session per 300 s of silence; after a fire without hand-over it waits
+another full 300 s of silence. Delivery rules of 6.9.4 apply unchanged (ATTEMPTED only; HANDED_OVER only from
+evidence). The watchdog is measured by H-11 (f) and its audit rows; its interval is a starting value under FP-4.
 
 ### 6.10 P22 — vendor-channel use logged and shown (K-20; FX-1, R-79, RA-5)
 
@@ -521,11 +612,19 @@ B-16; W2 is the operator's runme action (B-17).
 sidecar hook vendor-channel` with the tool name; the sidecar appends a row to its admin chain and a routine
 needs-attention entry of kind `vendor-channel-use` (coalesced per session per day, R-37T A′ rules apply). The hook
 never blocks the call in this row.
-6.10.2 **The disable half.** RA-5 ends when T-3386 is done and the operator configures the disable. T-3386 is done
-[B]. The disable is a `permissions.deny` entry for `SendMessage` in the project settings, an operator act. The
-in-process sub-agent tool stays logged-only while the vendored framework's dispatch protocol uses it. Operator
-question O-4; FX-1 completes when both are disabled or the remaining one is ruled.
-6.10.3 Proof: call each tool in a fixture session, require the row and the entry. Build item B-18.
+6.10.2 **The disable half [R] (O-4 A, 2026-11-03).** RA-5 ends when T-3386 is done and the operator configures the
+disable. T-3386 is done [B]. As ruled: a `permissions.deny` entry for `SendMessage` in this project's settings. It is
+an operator act, delivered as one idempotent action in `/opt/termlink/runme.sh` under B-18 (checks whether the entry is
+present, adds it, verifies it on disk, FAILED otherwise; a hermetic fixture in `tests/runme-fixtures.sh`). The
+in-process sub-agent tool (Agent/Task) stays allowed and logged (6.10.1) while the framework's dispatch uses it. FX-1
+completes for this project when the deny is in place and the sub-agent tool's remaining use is logged (as ruled).
+6.10.2.a **Order (NID).** The session message prover T-2876 (`scripts/session-message-selftest.sh`) sends with
+SendMessage. It is re-based on TermLink (the sidecar send API or `termlink agent send`, asserting on the receiver's
+transcript as today) **before or with** the deny (B-26), so the deny never switches off a working prover without its
+replacement in place. The runme action refuses to add the deny until B-26's prover passes once on the TermLink rail.
+6.10.3 Proof: call each tool in a fixture session, require the row and the entry; after the deny, a SendMessage call
+in a fixture session is refused by the harness (whether a denied call still reaches the PreToolUse log is recorded by
+the fixture, not assumed). Build items B-18, B-26.
 
 ### 6.11 P24 — W3 acceptance and the PH-2 exit report
 
@@ -535,12 +634,124 @@ action after W2's H-11 bound is met and the canary (P23) runs daily (ARCH2 3).
 checks the PH-2 exits 1 to 8 (ARCH2 4) and writes `docs/reports/<task>-ph2-exit.md` with each exit's evidence; gives
 AEF the FP-3 fixtures through `framework:pickup` (an act the orchestrator performs, FP 14.6). W4 follows only on the
 operator's go. Build items B-21 (W3), B-22 (P24), B-23 (W4).
+6.11.3 **W4 is a decommission (NID).** W4 switches AEF's receiver and the legacy notify-sidecar off for this host's
+inboxes. It runs only after the replacement (the TermLink sidecar with the doorbell) has run reliably in the field
+(W2 and W3 bounds met, the PH-2 exit report) and only with the operator's explicit approval recorded, in the
+operator's words, in the W4 task's Decisions. The P24 report is evidence for that decision, never the decision; the
+runme action for W4 refuses to run without the recorded approval. The switched-off rails stay installed until PH-3
+exits (11.2.4).
 
 ### 6.12 Rows with tasks already (P12, P14, P23)
 
 6.12.1 P12 (T-3362): the gap-wait bound is V-6. P14 (T-3358): `--priority`, the ladders as sidecar code, the owed list;
 the per-message answer deadline and "no action" deferred from P2 land here. P23 (T-3361): the canary's staleness
 threshold is V-13. No design change from this step.
+
+### 6.13 The main lease, tightened as ruled O-3 A (K-22, K-34; R-67, CR-O3, V-9, V-20, V-21)
+
+6.13.0 **The ruling [R] (O-3 A with a tightening, 2026-11-03).** Any interactive session of the project may become
+main (first claim wins; the operator pin overrides), as built, plus three tightenings: (1) a renewal or takeover counts
+only on a **human-initiated prompt**, never on automated activity (timers, background prompts, injected lines); (2) a
+session where the operator actually prompts takes main over faster than lapse + quiet + cooldown when the holder shows
+no human activity; (3) a loud "mail waiting, main not reading" signal. The residual risk the tightening closes, named
+by all three consultants (O3C): a forgotten session renewing forever through automated prompts.
+
+6.13.1 **What counts as a claim (CR-O3 (a)).** Every hook call that claims or renews passes the prompt origin the
+adapter reports (17.5): `human` (basis `pty-input` or `inferred`), `automated`, or `unknown`. The hub counts a claim or
+renewal only when the origin is `human`; `automated` and `unknown` claims are answered (exit codes as built) but do not
+renew, acquire or take over, and are recorded as `ignored: origin` in the lease's recent records (visible in
+`termlink main status`). Changes to the built hooks (4.9): UserPromptSubmit claims with the origin; **PostToolUse no
+longer renews** (tool activity is the agent's, not the operator's); SessionStart may take a **vacant** lease only
+provisionally (6.13.2). An operator pin is a human act and is unchanged.
+6.13.1.a **No implicit change for projects whose hooks are not updated (NID).** The lease runs in 8 projects through
+their own hooks, which send no origin today. A claim with **no origin field** is counted as before and recorded
+`origin: absent`, and `termlink main status` shows "this project's hooks do not report prompt origin" for it. The
+tightening applies to a project from the first claim that carries an origin field; from then on the hub records the
+project as origin-reporting and an `absent` claim from it is ignored like `unknown`. So the lease never stops renewing
+in a project merely because TermLink shipped first.
+6.13.2 **Provisional first claim.** "First claim wins" stays: at SessionStart of an interactive session, a vacant lease
+is taken `provisional`, valid 5 min, renewable only by a human-initiated prompt in that session. A provisional holder
+never blocks anyone: a human-prompt claim from any session takes it at once (no quiet period, no cooldown), and it
+lapses after 5 min without a human prompt straight to VACANT. A provisional holder is main for `am-i` (mail is
+surfaced there) while it holds.
+6.13.3 **Fast takeover and its bound (CR-O3 (b)).** Each human-counted renewal stamps `last_human_at` in the claim
+record at the hub, so every claimer on any host reads the holder's human activity from one place. A claim with origin
+`human` from session S2 takes main from holder S1 **at once** (generation +1, record `reason: fast-takeover, from: S1,
+holder_human_age_s`) when S1's `last_human_at` is older than 5 min (V-20, the built quiet period) and S1 is not the
+pinned session. The lapse wait and the cooldown do not apply to a fast takeover. If S1 had a human prompt within 5 min,
+the built rule applies (S1 keeps main; the operator pins to choose). **Bound:** main reaches the session the operator
+is using at the first human prompt there that comes at least 5 min after the operator's last prompt to the holder;
+worst case 5 min plus the time to that prompt, instead of lapse + quiet (20 min) plus cooldown. Flapping needs a
+person prompting two sessions alternately at least 5 min apart, which is the operator's intent and is recorded each
+time.
+6.13.4 **Lapse without human activity.** With renewals only on human prompts, a holder with no human prompt for 15 min
+(V-9) lapses as built, even if its agent is busy. A lapsed lease stays LAPSED until a human prompt claims it: in the
+holder's session it resumes at the same generation (as built); in any other session it is taken at once, because the
+holder's last human prompt is then older than 5 min (6.13.3). Automated claims never take it (6.13.1), so the built
+quiet period and cooldown now matter only between sessions that both see human prompts. Role mail meanwhile follows the
+fail directions of LEASE (vacant or lapsed: delivered as before by the TermLink sidecar; not surfaced by `am-i`
+gated receivers) and raises the signal of 6.13.5.
+6.13.5 **"Mail waiting, main not reading" (CR-O3 (c), K-34).** The receiver that holds the project's role mail (the
+TermLink sidecar for its inboxes; AEF's receiver for the inboxes it serves, by the same definition in the adapter
+contract, 17.7) raises the signal when role mail (addressed to main or the project, not an exact instance) has been
+STORED and not HANDED_OVER for 10 min (V-21) **and** the lease is vacant, lapsed, provisional or unknown, or its
+holder has had no human-initiated prompt for 10 min. Where it lands, in order of escalation:
+6.13.5.a at once: a needs-attention entry, and the status field `main.mail_waiting {count, oldest_age_s, holder,
+holder_human_age_s, since}`;
+6.13.5.b at the start of every session of the project: one line from `scripts/session-start-alerts.sh` ("MAIL WAITING:
+N role messages, oldest M min; main S has not read since T"); and in a non-main session at its next human prompt, one
+line once per generation saying that a prompt there takes main (6.13.3) or that the operator can pin;
+6.13.5.c the Watchtower / cockpit view of the project (AEF's surface, reading the status field);
+6.13.5.d after 30 min (V-21): one notice through the operator's out-of-band channels by AEF's GP-11 channel standard
+(T-3350), at most one per project per hour. Until that standard is live, status shows `oob: not available` for the
+signal; it is never reported as sent.
+The signal clears when the mail is handed over. It measures a failure to read, so it is a reliability signal (RNU),
+and its count per week is reported, never capped.
+6.13.6 Proof: fixtures for each origin (`human` renews; `automated`, `unknown` ignored and recorded); PostToolUse no
+longer renews; provisional claim taken at once by a human claim and lapsing in 5 min; fast takeover at 5 min + 1 s and
+refused at 4 min 59 s; pinned holder never fast-taken; the waiting-mail signal at 10 min and its OOB step at 30 min
+(simulated clock). Mutants: count `unknown` as human (the ignored-origin case goes red); drop the 5 min check (the
+4 min 59 s case goes red). Live: in W2, the share of lease renewals by basis (`pty-input`, `inferred`) and of ignored
+claims is measured for 7 days. Build item B-25 (TermLink lease and hooks), with the origin report from each adapter
+(AEF T-5054 for Claude Code).
+
+### 6.14 Per-session activity and conversation signals (K-32; CR-O2a, CR-O2c, V-17..V-19)
+
+6.14.1 **Purpose.** The doorbell (6.9.1), the watchdog (6.9.7) and the lease (6.13) need a measured answer to "is
+anything happening in this session, and is a conversation under way". The operator: "typing but also H2H
+communication, so you need to figure out how you can measure that". Three sources, each with its own last-time stamp,
+kept per session by the sidecar; none is the agent's own busy flag.
+
+| Signal | What is measured | Source | Where it cannot be measured |
+|---|---|---|---|
+| S1 terminal input | bytes written to the session's PTY by an attached client (keystrokes) | the TermLink session counts PTY input **per source**: `client`, `notify` (doorbell), `inject` (inject RPCs); the sidecar reads `last_at` per source each tick through a session RPC in the `notify` scope | sessions not under a TermLink PTY: `unknown` (the doorbell and watchdog do not ring those sessions at all, 6.9.1) |
+| S2 agent output and turn events | (a) turn events the adapter reports: prompt submitted (with origin), tool start, tool end, turn stop, session start and end (17.4); (b) growth of the session's transcript (size and mtime each tick) | hooks → sidecar `hook event`; transcript path from the adapter's session-start report | a harness without an adapter: (b) only, if a transcript path is known; else `unknown` |
+| S3 communication | messages the session's agent **sent** from that session, and messages **handed over** to it (hook surfacing events, HANDED_OVER); the operator's prompts counted by S2 (a) | the sidecar's own send API and stage records, per session | none (the sidecar is on both paths) |
+
+6.14.2 **What does not count.** Doorbell and watchdog keystrokes (`notify` source) are not S1. Mail merely arriving
+(STORED, not yet handed over) is not S3: it is the thing waiting, and counting it would let a steady inflow keep the
+watchdog from ever firing. Receipts and marked automatic content (R-56.a) are not S3. Keep-alive traffic is not
+activity (as in the built veto).
+6.14.3 **Last activity.** `last_activity = max(S1, S2, S3)` with its source; the watchdog's "nothing happened for 300 s"
+is `now - last_activity > 300 s` with no source `unknown` for S2 and S3 (a session whose S2 is unknown has no watchdog;
+it shows `watchdog: unavailable` in status rather than firing blind).
+6.14.4 **Conversation signal (CR-O2c), separate from READY.** Per session, `conversation: none | operator | agent`:
+6.14.4.a `operator`: from a prompt the adapter reports as `human` (or `unknown`, failing toward not interrupting) until
+120 s (V-19) after the turn it started has stopped, extended by any S1 client input meanwhile. While it reads
+`operator`, the doorbell does not ring at all; the person's next prompt runs UserPromptSubmit, which hands the mail over
+without typing, and if the person leaves, normal rings resume 120 s later and the watchdog covers anything stuck.
+6.14.4.b `agent`: the session's agent sent a conversation message, or had one handed over, in the last 120 s (V-19) and
+that conversation has an owed answer either way. While it reads `agent`, the doorbell holds rings for mail of **other**
+conversations only; mail of the conversation under way is rung as normal (ringing it is the conversation going on).
+6.14.4.c The signal is computed from S1, S2 (a) and S3 and the prompt origin, never from the READY flag, so a stuck
+flag cannot fake or hide a conversation.
+6.14.5 **Measured, not assumed (CR-O2a).** Status shows per session `activity {s1_at, s2_at, s3_at, last, source,
+conversation}`, each with its freshness. Every ring decision and watchdog decision logs the three ages. In W2 the
+H-11 harness reports, per session over 7 days: the distribution of gaps between activity events, how often each gate
+(typing 30 s, conversation, READY) held a ring, and the watchdog fires (6.9.6 (f)), which is the evidence for tuning
+30 s, 120 s and 300 s by FP-4. Each signal has a fixture with a negative control: client keystrokes move S1 and
+`notify` keystrokes do not; a hook event moves S2; a sent message moves S3 and an arriving one does not.
+6.14.6 Build item B-27 (meter, conversation signal, session input counters), before B-16 (the doorbell uses it).
 
 ## 7 R-67.a1 (4): forward-once of role mail to a main behind another sidecar or host (K-23)
 
@@ -590,9 +801,10 @@ sequenceDiagram
   RS->>H: pull (500 ms loop)
   RS->>RS: verify, revocation, quota, store, fsync
   RS->>H: stage RECEIVED then STORED
-  RS->>RS: tick - not handed over, READY, nobody attached, veto clear
+  RS->>RS: tick - not handed over, READY, no typing 30 s, no conversation, veto clear
   RS->>RA: command.notify with ids (one fixed line)
   RS->>H: stage ATTEMPTED
+  Note over RS,RA: watchdog - nothing happened 300 s, rings even if READY says busy, audit row, via watchdog
   RA->>RS: UserPromptSubmit hook pulls
   RS->>RA: framed content with nonce
   RS->>H: stage HANDED_OVER (nonce found in transcript)
@@ -619,10 +831,12 @@ sequenceDiagram
 7.7.1 (a) The sender agent calls send on its sidecar, which signs and numbers the message, checks its window and
 posts it to the receiver's inbox on the home hub; the hub verifies the signature against the agent's key card. The
 receiver's sidecar pulls it, verifies signature and revocation, checks quotas, stores and flushes it, and writes
-RECEIVED and STORED to the hub record. At the next tick, with the message not handed over, the session READY, no
-client attached and the veto clear, it calls `command.notify` with the ids and records ATTEMPTED. The typed line
+RECEIVED and STORED to the hub record. At the next tick, with the message not handed over, the session READY, nobody
+typing for 30 s, no conversation under way and the veto clear, it calls `command.notify` with the ids and records
+ATTEMPTED. (If nothing at all has happened in the session for 300 s, the watchdog rings even when the READY flag says
+busy, writes its audit row and marks the stage `via: watchdog`; delivery evidence is still required.) The typed line
 makes the session's UserPromptSubmit hook pull; the sidecar returns the framed content with a nonce and records
-HANDED_OVER once the nonce is in the transcript. The receiver replies through its send API; REPLIED is recorded.
+HANDED_OVER once the nonce is in the transcript (no evidence in 90 s: HANDOVER_UNCONFIRMED, still owed). The receiver replies through its send API; REPLIED is recorded.
 The sender reads the hub record and sees the five stages.
 7.7.2 (b) The operator revokes key F at the hub; the list's sequence number rises and the hub signs it. The receiver
 sidecar sees the new head on its tick and fetches the list. A message signed with F is pulled, found on the list,
@@ -633,9 +847,13 @@ and sends the sender a VIA notice, which the sender reads as "delivered via Y, m
 
 ## 8 The step-4 open values (RUL section 11 row 4, REQ 13.1 and 13.4.3, FP 14.1.b)
 
-8.1 Rule for every number below: it is an [R~]-style starting value **[P]**, its measurement is an acceptance item of
-the first build of its subject (OQ-9 D), and it moves by FP-4 (7.5) without a new ruling; the change is recorded in
-the R-70 inventory file.
+8.1 Rule for every number below: it is an [R~]-style starting value, its measurement is an acceptance item of the
+first build of its subject (OQ-9 D), and it moves by FP-4 (7.5) without a new ruling; the change is recorded in the
+R-70 inventory file. **[R] O-5 A (2026-11-03): V-1..V-13 (with DR-3, DR-12, DR-14) are accepted as one package of
+starting values under FP-4**; each is measured in operation, its measurement is an acceptance item of its build item,
+and it is tuned from the measurement. V-9's lease constants stand together with O-3's tightening (6.13). V-14 and V-15
+were O-7's subject (ruled, 8.4); V-16 (GP-11) stays open, owned by AEF. V-17..V-21 are new in v0.3, follow from the
+O-2 and O-3 rulings, and are starting values under the same FP-4 rule **[P]**, approved with this step.
 
 | V | Item | Source | Value [P] | Subject built in |
 |---|---|---|---|---|
@@ -647,14 +865,19 @@ the R-70 inventory file.
 | V-6 | Gap-wait bound | CAND-18, R-59 | Messages beyond a gap are STORED at once and held from hand-over; after 2 ticks a signed resend request for the gap; after 10 ticks (5 min) the later messages are handed over marked "gap before N" and needs-attention names the gap; window 256 (PN-5) | B-8 (T-3362) |
 | V-7 | Mail-hub declaration format | CAND-8, R-54 | In the project's `.framework.yaml`: `mail_hub: {id: <16 hex>, address: <host:port>}`; the sidecar config carries a copy that MUST equal it at start (refuse otherwise); clients verify `hub_id` from `hub.version`; no runtime-directory fallback. Owner of the file: AEF (DR-7) | B-1 (reader), AEF (key) |
 | V-8 | Idle no-surfacing threshold | CAND-6, R-53, R-29.e | Bad when a STORED message is not handed over 2 ticks after the agent became READY or after the first hook call that did not hand it over; never bad by age alone when nothing is pending (6.7.3) | B-14 |
-| V-9 | "main" lease durations, quiet period, cooldown | OD-18, R-67 | Lease 15 min, quiet 5 min, cooldown 10 min [B] (T-3654 Decisions); worst-case takeover 20 min; idle readiness check = a renewal from UserPromptSubmit or PostToolUse | built |
+| V-9 | "main" lease durations, quiet period, cooldown | OD-18, R-67 | Lease 15 min, quiet 5 min, cooldown 10 min [B] (T-3654 Decisions); worst-case takeover without a human prompt 20 min; renewal only by a human-initiated prompt (O-3, 6.13.1; was: any UserPromptSubmit or PostToolUse); fast takeover V-20 | built; tightening B-25 |
 | V-10 | "main" priority format | OD-18, R-67 | `main_priority`: integer 0..9 in the agent's `profile` policy record (FP 10.3), default 0; with `eligible_for_main` (default `no`, OP-4 A); read by the hub at vacancy only; PH-2 interim in DR-9 | PH-4 (K-26) |
 | V-11 | One-receiver observation window | R-49.e | 24 h of the hub's consumer list per inbox, checked each tick | B-2 |
 | V-12 | Detection of a second live copy of a project | R-60.e | Same hub: within 1 tick of the second registration. Across hubs (PH-3): within 2 × PN-9 (20 min) of the first card exchange after the second copy registers | B-2, PH-3 |
 | V-13 | Daily canary staleness | R-66.e | Stale when no completed run for 26 h (daily plus 2 h slack); detected by the canary meta-check (T-1723) | B-19 (T-3361) |
 | V-14 | GP-4 offline behaviour | GP-4 | 8.2 | B-14 |
-| V-15 | Per-project security levels (FP 10.1.8.g operator direction) | OP-1 extension | 8.4, DR-13 | PH-3/PH-4 |
-| V-16 | GP-11, the operator as a party | GP-11 | **Open**: not ruled; no design (R-1.e (3), R-37 urgent channel) | — |
+| V-15 | Per-project security levels (FP 10.1.8.g operator direction) | OP-1 extension | **[R] O-7 A**: three fixed levels L0/L1/L2 (8.4, DR-13) | PH-3/PH-4 |
+| V-16 | GP-11, the operator as a party | GP-11 | **Open**, owned by AEF (channel standard; inventory T-3350). Used by 12.2 (approvals) and 6.13.5.d (waiting-mail notice) once it exists | — |
+| V-17 | Doorbell typing veto window | O-2 item 1, T-3387 | No client PTY input (S1) for 30 s before a ring | B-27, B-16 |
+| V-18 | Doorbell watchdog silence interval | O-2 item 2 (ruled 300 s) | 300 s of no S1, S2, S3 activity; at most one fire per 300 s of silence per session | B-16 |
+| V-19 | Conversation window | O-2 item 1, CR-O2c | 120 s after the end of a human-prompted turn (operator); 120 s after the session's agent last sent or was handed a message in a conversation with an owed answer (agent) | B-27 |
+| V-20 | Fast-takeover threshold | O-3 (2), CR-O3 (b) | Holder's last human-initiated prompt older than 5 min (the built quiet period); provisional SessionStart claim valid 5 min | B-25 |
+| V-21 | Waiting-mail signal | O-3 (3), CR-O3 (c) | Role mail not handed over for 10 min with no reading main: needs-attention, status, session-start line; out-of-band notice at 30 min, at most one per project per hour | B-25, B-28 |
 
 8.2 **GP-4 offline [P].**
 8.2.1 Receiver's host offline for days: its liveness card expires (PN-9, 600 s), so the sender sees WAITING FOR
@@ -669,15 +892,16 @@ conversations continue only on a circuit (PH-5).
 8.3 **Retention ceilings, why these sizes.** The ceilings are an allocation-sink guard, not a budget: 32 MiB per topic
 is four times today's largest topic; 2 GiB per hub is about 35 times today's total; blobs share the 4 GiB store with
 16 MiB per blob (PN-11). FP-4 moves them after measurement.
-8.4 **Per-project security levels [P] (operator direction, FP 10.1.8.g).** A level selects which costly strength a
-project requires; it never switches a floor item off (the floor is not traded, FP 3.1.a).
+8.4 **Per-project security levels [R] (O-7 A, 2026-11-03: three fixed levels per project).** A level selects which
+costly strength a project requires; it never switches a floor item off at any level (the floor is not traded, FP
+3.1.a). A free per-item matrix (O-7 B) is rejected.
 8.4.1 **L0 base** (today, every project): the floor at base strength; status names the absent flags.
 8.4.2 **L1 accounts**: requires Track A for the project's agents (A3); the project's sidecars refuse to run as root.
 8.4.3 **L2 keyed**: L1 plus the operator key: policy records must be operator-signed (`require_operator_signature_from
 _epoch`), high-impact classes need the confirmation provider, and direct messages are encrypted (B′ stage 2).
 8.4.4 The level is the `security_level` field of the project's `profile` record; raising it is a human-route Tier 0
-event; lowering it is high-impact (a new class, C-17 **[P]**, XR-6). The Tier 0 override stays available at every
-level as break-glass: operator-initiated, logged, shown (SI-24).
+event; lowering it is high-impact (a new class, C-17, XR-6) [R]. The Tier 0 override stays available at every level
+as logged break-glass: operator-initiated, logged, shown (SI-24) [R].
 
 ## 9 Flows: failure and timeout paths not shown in D-3
 
@@ -689,9 +913,15 @@ level as break-glass: operator-initiated, logged, shown (SI-24).
 9.6 Lease unknown: role mail delivered as before, no forward; `am-i` says unknown and surfaces nothing (LEASE fail
 directions).
 9.7 Blob fetch fails: not STORED, refusal, needs-attention (6.4.4).
-9.8 Doorbell vetoed or attached client: retried next tick; after the deadline STUCK names "not handed over" (6.9.4).
+9.8 Doorbell held (not READY, typing within 30 s, conversation under way, veto): retried next tick; after the
+deadline STUCK names "not handed over" (6.9.4). READY stuck or false: the 300 s watchdog rings, writes its audit row
+and a needs-attention entry (6.9.7). Typed line not submitted: counted, not re-typed (6.9.5 (b)).
 9.9 Second consumer: flagged (W1..W3), refused after bind (6.6.2).
 9.10 Hub id mismatch: client refuses, status names both ids (FX-2, FC-14).
+9.11 Lease claim with prompt origin `automated` or `unknown`: answered, not counted, recorded `ignored: origin`
+(6.13.1).
+9.12 Role mail unread for 10 min with no reading main: the waiting-mail signal, escalating to the operator's
+out-of-band channel at 30 min (6.13.5).
 
 ## 10 State view
 
@@ -706,7 +936,8 @@ stateDiagram-v2
     RECEIVED --> STORED: verified, durable, checksum
     STORED --> FORWARDED: role mail, lease names another agent
     STORED --> QUEUED: flag raised
-    QUEUED --> ATTEMPTED: doorbell rang or hook pulled with claim
+    QUEUED --> ATTEMPTED: doorbell or watchdog rang, or hook pulled with claim
+    ATTEMPTED --> ATTEMPTED: no evidence in 90 s, labelled HANDOVER_UNCONFIRMED
     ATTEMPTED --> HANDED_OVER: nonce in transcript
     ATTEMPTED --> UNCERTAIN: crash, no evidence point
     ATTEMPTED --> QUEUED: proof of absence
@@ -721,14 +952,16 @@ stateDiagram-v2
   }
   state "Main lease" as L {
     [*] --> VACANT
-    VACANT --> HELD: claim, generation plus 1
-    HELD --> HELD: renew by the session
-    HELD --> LAPSED: no renewal for 15 min
-    LAPSED --> HELD: same holder resumes, same generation
+    VACANT --> PROVISIONAL: session start, 5 min
+    PROVISIONAL --> HELD: human prompt in any session, generation plus 1
+    PROVISIONAL --> VACANT: no human prompt for 5 min
+    VACANT --> HELD: claim by a human prompt, generation plus 1
+    HELD --> HELD: holder human renew, or fast takeover after 5 min without holder human prompt (generation plus 1), or operator pin override (recorded)
+    HELD --> LAPSED: no human renewal for 15 min
+    LAPSED --> HELD: human prompt, holder resumes or another takes at once
     LAPSED --> ELIGIBLE: quiet 5 min and cooldown 10 min passed
-    ELIGIBLE --> HELD: another session claims, generation plus 1
+    ELIGIBLE --> HELD: another session claims by a human prompt, generation plus 1
     HELD --> VACANT: clean release
-    HELD --> HELD: operator pin override, recorded
   }
   state "Revocation list in a sidecar" as V {
     [*] --> UNVERIFIED
@@ -747,13 +980,18 @@ the hop limit or a failed blob; otherwise STORED once verified and durable. Role
 agent becomes FORWARDED (final at this receiver). Otherwise the flag makes it QUEUED; a doorbell ring or a hook pull
 with the claim makes it ATTEMPTED; the nonce in the transcript makes it HANDED_OVER; a crash without an evidence point
 makes it UNCERTAIN, which only the operator resolves (to HANDED_OVER or back to QUEUED); proof of absence returns it
-to QUEUED. From HANDED_OVER it ends REPLIED or acknowledged with no action. (REFUSED and FORWARDED are receiver-side
+to QUEUED. A watchdog ring also makes it ATTEMPTED; with no evidence within 90 s it stays ATTEMPTED and is labelled
+HANDOVER_UNCONFIRMED (a label, not a state). From HANDED_OVER it ends REPLIED or acknowledged with no action. (REFUSED and FORWARDED are receiver-side
 outcomes, not new sender states: the sender sees them as notices on the existing states, so the FP-2 cap is unchanged,
 see XR-4.)
-10.2.2 (b) The lease starts VACANT; a claim makes it HELD and raises the generation; the session's renewals keep it
-HELD; 15 minutes without renewal make it LAPSED, from which the same holder may resume at the same generation; after
-the quiet period and cooldown it is ELIGIBLE and another session's claim makes it HELD with a new generation. A clean
-release makes it VACANT. An operator pin overrides a live holder and is recorded.
+10.2.2 (b) The lease starts VACANT. A session start takes it PROVISIONAL for 5 minutes; a human prompt in any
+session then makes it HELD with a new generation, and with no human prompt it returns to VACANT. A claim by a human
+prompt makes a vacant lease HELD and raises the generation. Only the holder's human-initiated prompts renew it. A human
+prompt in another session takes it over at once (fast takeover, new generation) when the holder has had no human
+prompt for 5 minutes. 15 minutes without a human renewal make it LAPSED; a human prompt then lets the holder resume or
+another session take it at once; otherwise, after the quiet period and cooldown it is ELIGIBLE and the next human-prompt
+claim makes it HELD with a new generation. A clean release makes it VACANT. An operator pin overrides a live holder and
+is recorded. Claims from automated or unknown prompts change nothing (6.13.1).
 10.2.3 (c) A sidecar's revocation list starts UNVERIFIED and becomes VERIFIED with a signed list whose sequence is not
 lower. It stays VERIFIED while heads are unchanged or newer lists verify; PN-13 without a verified pull makes it
 STALE until the next verified pull; a lower sequence is a ROLLBACK that is refused, keeping the previous list.
@@ -768,16 +1006,16 @@ flowchart TB
   classDef st fill:#eef,stroke:#446
   classDef rm fill:#fee,stroke:#a44
   B0["Baseline 2026-11-02: PH-1 core, PH-2 P0 to P9 and P20, main lease in 8 projects, W1 pair live"]:::st
-  T1["T1 PH-2 hardening: hub id and signing key, revocation, caps, hub changes, reconciliation, blobs encrypted, status flags, injectors"]:::st
-  T2["T2 W2: doorbell on for the pair, H-11 for 7 days, forward-once"]:::st
-  T3["T3 W3 and W4: every agent of 010 on .107 via the launcher, canary daily, AEF receiver and notify-sidecar off on .107"]:::st
+  T1["T1 PH-2 hardening: hub id and signing key, revocation, caps, hub changes, reconciliation, blobs encrypted, status flags, injectors, lease tightening, waiting-mail signal, SendMessage deny after the prover moved"]:::st
+  T2["T2 W2: activity meter, doorbell D+ with 300 s watchdog for the pair, H-11 for 7 days, forward-once"]:::st
+  T3["T3 W3 and W4: every agent of 010 on .107 via the launcher, canary daily, then W4 only on explicit operator approval"]:::st
   T4["T4 PH-3: roster, signed cards, Tier 0 registry and approve verb, every client verifies hub id, cross-hub mail, account pilot A0"]:::st
   T5["T5 PH-4: policy store and rule engine, grants, lease eligibility from signed profiles, membership, DM encryption, framing on old rails, FX-1 and FX-4 complete, A3"]:::st
   T6["T6 PH-5: direct circuit, outage log and reconciliation RC-1 to RC-9"]:::st
   TG["Target PH-6: project mail and custody, operator key and real provider, orchestrator without root, shell sidecars retired"]:::st
-  R1["Removed at T3: AEF receiver on .107 inboxes (switched off), notify-sidecar"]:::rm
-  R2["Removed at T4: sidecar alias, TOFU re-pin without Tier 0"]:::rm
-  R3["Removed at TG: hub-signed policy records (operator-signed from epoch N), shell sidecars"]:::rm
+  R1["At W4, only with explicit documented operator approval after the replacement is proven in the field: AEF receiver on .107 inboxes, notify-sidecar"]:::rm
+  R2["At T4, same approval rule: sidecar alias, TOFU re-pin without Tier 0"]:::rm
+  R3["At TG, same approval rule: hub-signed policy records (operator-signed from epoch N), shell sidecars"]:::rm
   B0 --> T1 --> T2 --> T3 --> T4 --> T5 --> T6 --> TG
   T3 -.-> R1
   T4 -.-> R2
@@ -789,11 +1027,14 @@ flowchart TB
 11.2.2 T1, PH-2 hardening (no wave change): the hub's minted id and signing key, the revocation list, caps and
 quotas, the hub changes (consumer list, admin log, sweep refusal, founding-verb log, key card, dead letter),
 reconciliation on start, encrypted blobs with encryption keys, status flags and the reachability card, the fault
-injectors.
-11.2.3 T2, wave W2: the doorbell on for the pair with the H-11 measurement for 7 days, and forward-once.
-11.2.4 T3, waves W3 and W4: every agent of this project on .107 through the launcher, the daily canary; then AEF's
-receiver and the legacy notify-sidecar switched off for this host's inboxes (removed, kept installed until PH-3
-exits).
+injectors; the lease tightening of O-3 with the waiting-mail signal; the session prover moved to TermLink, then the
+SendMessage deny (operator runme act).
+11.2.3 T2, wave W2: the activity meter and conversation signal, the doorbell as ruled O-2 D+ with the 300 s watchdog
+for the pair, with the H-11 measurement for 7 days, and forward-once.
+11.2.4 T3, waves W3 and W4: every agent of this project on .107 through the launcher, the daily canary. W4, which
+switches AEF's receiver and the legacy notify-sidecar off for this host's inboxes, is a decommission: it runs only
+after the replacement has run reliably in the field and only with the operator's explicit approval recorded in his
+words (NID, 6.11.3); the switched-off rails stay installed until PH-3 exits.
 11.2.5 T4, PH-3: roster and signed cards, the Tier 0 registry with the approve verb, every client verifying the hub
 id, cross-hub mail, the account pilot A0. Removed: the `sidecar:` alias, TOFU re-pin without a Tier 0 event.
 11.2.6 T5, PH-4: the policy store and rule engine, grants, lease eligibility from signed profiles, membership,
@@ -802,6 +1043,10 @@ encrypted direct messages, framing on the old rails, FX-1 and FX-4 complete, acc
 11.2.8 Target, PH-6: project mail and custody, the operator key and the real confirmation provider, the orchestrator
 without root, the shell sidecars retired. Removed: hub-signed policy records (operator-signed from an epoch), the
 shell sidecars.
+11.2.9 **Every removal in D-5 (R1, R2, R3) and in sections 12 and 14 is a decommission under NID.** None happens as a
+side effect of the transition that makes it possible: each needs its replacement built, tested and proven in the field,
+and the operator's explicit approval recorded in a task's Decisions in the operator's words. Until then the old route keeps
+working and is monitored (section 14).
 11.3 Every transition keeps the floor items that have entered (FP 3.1.d) and has the rollback of its phase (FP 6);
 the PH-2 transitions use the drain of K-4 with the kept-and-listed rule of OQ-j A.
 
@@ -819,9 +1064,9 @@ effect.** TB-n are TM section 5. A transition counts as done only when every [i]
 | Step | Trust boundaries introduced (+) or changed (~) | Instrumentation [i] that shows it took effect |
 |---|---|---|
 | Baseline | as 11.4: TB-1 hook channel (framed), TB-3 owner-only sockets (SI-14), TB-4 store with checksums and chain, TB-5 TLS + signed messages, TB-9 nonce evidence, TB-10 runme and root-only sockets, TB-12 main lease, TB-13 release checksums in status | hook logs; component heartbeat; supervisor and backstop logs; `termlink main status`; status `binary`, `supervision`, `main` |
-| T1 PH-2 hardening | ~TB-5: the hub becomes verifiable (minted id, signing key, signed revocation list, key card, signed DEAD); ~TB-4: reconciliation on start and daily head compare; ~TB-1: blobs cross only after both digests check, ciphertext at the hub; ~TB-10: admin log, sweep refusal; ~TB-13: fault injectors exercise the estate | status fields `hub {id, declared, match}`, `revocation` (fresh), `quota`, `consumers`, `reachability`, `clear`, `strength` present and fresh; hub `inbox.consumers` and admin-log rows with `admin: true`; daily head-compare count; FX-5 probe shows ciphertext only; H-18 100 of 100 |
-| T2 W2 | +TB-2: first crossing, the doorbell's one fixed line via the `notify` scope, only into unattended sessions; ~TB-12: forward-once between copies of an agent (through the hub, TB-5) with the VIA notice | H-11 (a)..(d) over 7 days; ring log per session with the re-check result; FORWARDED outcome and VIA notice in the sender's record; H-24 |
-| T3 W3, W4 | ~TB-3/TB-5: every agent of 010 on .107 behind its own sidecar; ~TB-1: the AEF receiver rail and notify-sidecar into .107 inboxes removed (BP-16); ~TB-5: each inbox bound to one consumer after W4; ~TB-13: daily canary on the installed artifact | consumer list shows one identity per inbox over the V-11 window, bind rows in the admin log; AEF receiver unit inactive for .107 inboxes; canary log daily, no staleness alarm (V-13); P24 W3 acceptance and PH-2 exit report |
+| T1 PH-2 hardening | ~TB-5: the hub becomes verifiable (minted id, signing key, signed revocation list, key card, signed DEAD); ~TB-4: reconciliation on start and daily head compare; ~TB-1: blobs cross only after both digests check, ciphertext at the hub; ~TB-10: admin log, sweep refusal; ~TB-12: lease counts only human-initiated prompts, fast takeover; ~TB-1: SendMessage denied (after B-26); ~TB-13: fault injectors exercise the estate | lease records with `origin` and `ignored: origin`, `reason: fast-takeover`; status `main.mail_waiting`; the SendMessage deny present in settings (runme log OK); status fields `hub {id, declared, match}`, `revocation` (fresh), `quota`, `consumers`, `reachability`, `clear`, `strength` present and fresh; hub `inbox.consumers` and admin-log rows with `admin: true`; daily head-compare count; FX-5 probe shows ciphertext only; H-18 100 of 100 |
+| T2 W2 | +TB-2: first crossing, the doorbell's one fixed line via the `notify` scope, into sessions that are READY with no typing and no conversation, plus the 300 s watchdog independent of READY; ~TB-12: forward-once between copies of an agent (through the hub, TB-5) with the VIA notice | H-11 (a)..(f) over 7 days; status `activity` per session fresh; watchdog audit rows; ring log per session with the re-check result; FORWARDED outcome and VIA notice in the sender's record; H-24 |
+| T3 W3, W4 | ~TB-3/TB-5: every agent of 010 on .107 behind its own sidecar; ~TB-1: the AEF receiver rail and notify-sidecar into .107 inboxes switched off at W4 only with the operator's recorded approval (NID, BP-16); ~TB-5: each inbox bound to one consumer after W4; ~TB-13: daily canary on the installed artifact | consumer list shows one identity per inbox over the V-11 window, bind rows in the admin log; AEF receiver unit inactive for .107 inboxes; canary log daily, no staleness alarm (V-13); P24 W3 acceptance and PH-2 exit report |
 | T4 PH-3 | +TB-8: hub-to-hub signed cards and roster seq; ~TB-5: every client verifies the hub id; ~TB-10: Tier 0 registry and approve verb; ~TB-1/TB-2/TB-4: the A0 account pilot separates its first agent; TB-12: `sidecar:` alias ended | roster `seq` in every exchange, card TTL ages; status `hub.match` on every client; Tier 0 audit trail rows; A0 pilot report; alias calls refused with a reason |
 | T5 PH-4 | ~TB-1, TB-2, TB-4 become real between agents (A3 accounts); +TB-11: starts and resumes only under signed grants; ~TB-12: eligibility from signed profiles; ~TB-5: direct-message content encrypted, the hub reads envelopes only; ~TB-1: framing on the old rails (FX-1, FX-4 complete) | `strength.per_agent_accounts: yes`, `policy_records` with the policy head and epoch; grant-use log; lease records citing the profile; FX-5 probe shows no plaintext DM content |
 | T6 PH-5 | +TB-7: the sender-constrained circuit between sidecars; TB-6 stays unused (OQ-4: a new conversation always needs the hub) | circuit minting log at the hubs; outage log; RC-1..RC-9 reconciliation counts after each outage |
@@ -837,8 +1082,15 @@ and hub-key rotation as signed statements. Enrolment: C-1 human route through th
 fingerprint (PR-14). Gate: T-2470 (charter rewording) **open**. Detailed sub-design: open (`04b`, after T-2470).
 12.2 **Tier 0 events and the approval surface (K-27).** One registry table (FP 10.2, classes C-1..C-16, routes as
 ruled OP-2 A and OP-3 A). Events are records `{class, who, what, evidence, digest}` on the hub's admin scope; one
-`approve <digest>` verb (IC-2) that every surface calls: the operator's terminal via runme first, Watchtower and the
-cockpit later (OP-5 A assumed, O-6). Every decision in one audit trail and needs-attention. Expiry 10 min (PN-15).
+**[R] O-6 OP-5 (2026-11-03): approvals go through the existing surfaces, Watchtower and the operator's out-of-band
+channels, not a new hub-admin verb.** The registry and its records stay TermLink's (who asks, what, evidence, digest,
+expiry); the operator sees and decides an event in Watchtower or answers it on one of the out-of-band channels
+(inventory T-3350, GP-11: ring20 named six channels, three two-way, the Mattermost desk). The channel standard and the
+Watchtower surface are AEF's (section 16). The decision is written back as a record bound to the event's digest in the
+same audit trail, by the surface through the existing admin path (the root-only local socket that `runme.sh` already
+uses), so no new hub verb is added; a decision whose digest, executor or target differs is refused (SI-13) and every
+decision raises a needs-attention row. Expiry 10 min (PN-15). The interim control IC-2 of FP is reworded accordingly
+(XR-8). The detailed interface waits for AEF's GP-11 standard and T-3385 (18.2.17).
 12.3 **Policy store (K-26).** Signed numbered hub state, one counter per (scope, kind), the head in every fetch (FP
 10.3.2.d); fetched each tick with the revocation head; cut-over to operator signatures by
 `require_operator_signature_from_epoch` (IC-3 → K4).
@@ -858,7 +1110,9 @@ log. Shared checkout by group per FP 10.1.6. Hook wiring at A1: Claude Code's ma
 (R-80.a (5)); break-glass after K. Re-wrap cost for history sharing (R-74, R-80): content keys are re-wrapped (32 bytes
 per message per new reader), content is never re-encrypted; sizing open until PH-4 data.
 12.8 **Migration.** Per host: the PH-2 wave pattern (W1..W4) repeated, with the drain of K-4; per project on AEF's
-receiver: the switch only after the two-agent acceptance with a negative control on that host (R-49.a (3)).
+receiver: the switch only after the two-agent acceptance with a negative control on that host (R-49.a (3), OD-9) and,
+because a switch turns a working receiver off, only with the operator's explicit approval recorded for that host
+(NID). Until then both keep working.
 
 ## 13 Trusted computing base
 
@@ -891,16 +1145,16 @@ A, a hijacked agent equals this adversary on its host (FP 3.7.1).
 | BP-9 | `sidecar:` alias, broadcast topics | R-71 end date (PH-3); framing | removed at T4 |
 | BP-10 | backups and snapshots | K-14 reconciliation, receipts' chain heads, revocation seq | monitored; RR-20 |
 | BP-11 | root, units, cron | install-drift check, backstop logs | open (RR-2) |
-| BP-12 | other inbound rails | SI-7 on every rail (PH-4, RA-9) | open until PH-4 |
+| BP-12 | other inbound rails | SI-7 on every rail (PH-4, RA-9 accepted under NID, O-6) | open and kept working until PH-4 frames them; none switched off without the operator's approval |
 | BP-13 | operator terminal | none | open by design |
-| BP-14 | Claude Code SendMessage | K-20 log (6.10); deny entry (O-4) | monitored now; removed on O-4 |
+| BP-14 | Claude Code SendMessage | K-20 log (6.10); deny entry ruled O-4 A, an operator runme act (B-18) after the T-2876 prover moves to TermLink (B-26) | monitored now; removed when the deny is in place |
 | BP-15 | second inbox consumer | K-15 consumer list (6.6.1) | monitored now; removed (refused) after W4 bind |
-| BP-16 | AEF loopback API | W4 on .107 | removed per host at its switch |
+| BP-16 | AEF loopback API | W4 on .107 | removed per host at its switch, which needs the operator's explicit approval (NID, 6.11.3, 12.8); monitored until then |
 | BP-17 | OneDev, mirror, release | SI-27 checksums; canaries | monitored |
 | BP-18 | cron canary files | canary meta-check, install drift | monitored; root residual |
 | BP-19 | TOFU repair paths | T-3384 record (built); Tier 0 C-7 in PH-3 | monitored now; gated at T4 |
 | BP-20 [P] | shared writable checkout and its hook wiring (FP CX-1) | managed hook settings and hash check at A1 (12.6) | monitored from A1; RR-21 |
-| BP-21 [P] | `artifact put --hub` plaintext to a remote hub store (new route, 6.4.6) | wrapper-only writers, `--encrypt-to` | removed if O-1 A |
+| BP-21 | `artifact put --hub` plaintext to a remote hub store (new route, 6.4.6) | wrapper-only writers, `--encrypt-to` (O-1 A) | removed: never opened in plaintext (B-13). Existing file routes (6.4.6.a) are out of scope, T-3663 |
 
 ## 15 Measurement per component
 
@@ -916,38 +1170,115 @@ A, a hijacked agent equals this adversary on its host (FP 3.7.1).
 | K-15 hub | second consumer seen within 60 s; sweep of open mail refused | FP-1 failure 2 injection | that a root process on the hub host cannot edit the log |
 | K-16 status | names the cause within 60 s, answers in 5 s | H-18 injections | causes outside the six faults |
 | K-17 fault injectors | each of the six faults is named by status with its fix within 60 s, 100 of 100, recovery with zero manual steps; each run goes red with the diagnosis code removed | 6.8.2 runs, tier 1 and tier 3 on the installed artifact; the drill (three readers, median at most 5 min) | faults outside the six; in production mode tier 3 can only stop the whole sidecar, not one loop |
-| K-19 doorbell | rings reach idle sessions without stray lines | H-11 (a)..(d) | absence of the check-to-keystroke race (RR-19) |
+| K-19 doorbell | rings reach READY sessions with no typing and no conversation, without stray lines; every ring is ATTEMPTED only and HANDED_OVER needs evidence | H-11 (a)..(e); share of rings followed by HANDED_OVER per attempt (15.2) | absence of the check-to-keystroke race (RR-19); that the agent acted on the mail |
+| K-32 activity meter, conversation signal | each source moves on its own events and only on them; the conversation signal holds rings while a person or a peer exchange is active | fixtures with negative controls (6.14.5); W2 gap distributions and hold counts per gate | intent: a person reading silently for longer than 120 s is not seen |
+| K-33 watchdog | a stuck or false READY flag never holds mail longer than 300 s of silence plus one tick; every fire leaves an audit row | watchdog audit rows; H-11 (f); fixture with READY forced busy | that the typed line is submitted (counted by H-11 (e)) |
+| K-34 waiting-mail signal | role mail unread by a reading main is shown within 10 min and reaches the operator out of band at 30 min | fixture on a simulated clock; count per week, reported | that the operator acts on it |
 | K-20 vendor log | every vendor-channel use leaves a row | fixture per tool | uses in sessions without the hook |
 | K-21 canary | daily two-agent round trip with negative control | canary log and staleness (V-13) | delivery for pairs not in the rotation |
-| K-22 lease | one main per project, takeover visible | `termlink main status`; R-68 tests | that main is the right session for the operator's intent |
+| K-22 lease | one main per project, takeover visible; renewed only by human-initiated prompts; fast takeover within the 6.13.3 bound | `termlink main status` (records with `origin`, `ignored: origin`, `fast-takeover`); R-68 tests; 6.13.6 fixtures; W2 share of renewals by basis | that main is the right session for the operator's intent; an adapter that misreports an automated prompt as human (17.5, AR-6) |
 | K-23 forward | no role mail lost or doubled across copies | H-24 | conversation mail (never forwarded by design) |
 | K-24 encryption keys | every agent's register entry matches the private key in its store; a blob to the agent opens only with that key; the hub holds ciphertext only | start-up check refuses on mismatch (status); B-11/B-12 round trip; FX-5 probe of the artifact store | key secrecy against root on the agent's host (RR-2, AR-4) |
 | K-25 mail-hub declaration | a sidecar whose config copy differs from `.framework.yaml`, or whose hub answers another `hub_id`, does not run | refusal at start; status `hub {declared, match}` each tick; fault injector (5) of 6.8.1 | that the declaration names the hub the operator intended (who wrote the file) |
 
 15.1 K-1..K-8 and the K-18 activity veto are built; their measurement is the PH-2 acceptance already passed (4.2); the K-18 readiness re-check is measured with K-19 (H-11), and the built lease K-22 has its own row above. K-26 to K-31 (PH-3 to PH-6) get their rows in their sub-designs (12.1 to 12.7); measurement for them is deferred to those sub-designs, and each sub-design MUST add its row here before its build starts.
 
-## 16 Ownership split TermLink / AEF (OD-7, OD-9, CAND-10, RUL section 12)
 
-| Element | TermLink | AEF |
+15.2 **Thresholds measure reliability, not usage [R] (O-6 OP-12, RNU; CR-O6b).** Every acceptance and quality
+threshold in this design and its build items is one of these, or a bound on a single event's latency:
+15.2.a **Reach:** the share of messages that reach the agent's conversation (HANDED_OVER with transcript evidence) per
+attempt (each ATTEMPTED, doorbell, watchdog or hook) and per message within its deadline (H-14's denominator).
+15.2.b **Visible failure:** every message not handed over shows a sender state by its deadline (WAITING FOR RECIPIENT,
+STUCK, UNKNOWN, or the HANDOVER_UNCONFIRMED label); 100%.
+15.2.c **Zero false delivered:** HANDED_OVER without evidence, 0; a typed line counted as delivered, 0.
+15.2.d **Dropped:** H-21 ("at most 10 approval events a day") is not a threshold of this design. Operator load
+(approval events, needs-attention entries and alarms per day, H-20's first two figures) is tracked and reported as a
+**cost**, never as pass/fail. Stray doorbell lines per 1000 rings stays a threshold: a stray line is a delivery
+failure, not usage. XR-7 asks step 3 to reword H-20 and H-21 accordingly.
+## 16 Ownership split TermLink / AEF (OD-7, OD-9, CAND-10, RUL section 12) — corrected as ruled O-6 OP-22
+
+16.1 **The rule [R] (O-6 OP-22, 2026-11-03: OD-7 as ruled 2026-10-06 applies; CR-O6c).** TermLink owns the adapter
+**contract** (section 17). Each harness team owns its **adapter**, Claude Code's included: AEF builds the Claude Code
+adapter (AEF T-5054); 055 builds opencode's. OD-9 C for the receiver. v0.2's row ("TermLink owns the Claude Code adapter
++ hooks, OP-22 A in fact") was wrong on the rule and on the facts and is withdrawn.
+16.2 **The facts today [B].** AEF has built the T-5014 hook gate (its receiver surfaces only when `termlink main am-i`
+says this session is main). AEF does **not** yet have the READY flag or the hand-over evidence report of the contract,
+nor the prompt-origin and turn-event reports added by O-2 and O-3 (17.4, 17.5); those are T-5054. TermLink's own hooks
+(K-7, `termlink sidecar hook ...`) drive the W1 pair today; they keep working until AEF's adapter passes the contract's
+parity test in the field, and are retired only with the operator's explicit approval (NID).
+
+| Element | TermLink | AEF (and other harness teams) |
 |---|---|---|
-| Adapter contract (R-47) | owns the contract and the Claude Code adapter + hooks (built, OP-22 A in fact) | supplies adapters for harnesses it runs, if any; 055 supplies opencode's |
-| Receive side (OD-9 C) | `termlink sidecar`, the only receiver after a host's switch | its receiver serves its inboxes until that host's switch (R-49.a (1)); gates its hook on `termlink main am-i` (T-5014) |
+| Adapter contract (R-47 as refined by CR-O2 and CR-O3; section 17) | owns the contract, its versions, the parity fixtures and the sidecar side of every report | each team owns and builds its adapter against it: AEF the Claude Code adapter (AEF T-5054); 055 opencode's |
+| Claude Code adapter today | its W1 hooks run until AEF's adapter is proven (NID) | T-5014 gate built; READY flag, hand-over evidence, prompt origin, turn events: T-5054 |
+| Receive side (OD-9 C) | `termlink sidecar`, the only receiver after a host's switch | its receiver serves its inboxes until that host's switch (R-49.a (1)), which needs the operator's explicit approval (NID); gates its hook on `termlink main am-i` (T-5014) |
 | Send-and-wait (CAND-10, R-55) | the primitive: cross-hub read of stage and reply by id (T-3347) | the tool |
 | Re-send ladders, `priority` field, HANDED_OVER vocabulary and five states (R-30, R-31, R-52, R-44) | the chase as sidecar code (K-12) | carries the field and the vocabulary; replaces D-600 for agent mail |
 | Project id minting and fork re-mint (R-60) | reads it | owns it |
 | Mail-hub declaration (R-54, V-7) | reads and verifies | owns the `.framework.yaml` key (DR-7) |
-| Main lease (R-67) | the lease, `am-i`, the sidecar gate, forward-once | its receiver's gate |
-| Hub, revocation, policy store, Tier 0 registry, directory, circuit | all | none |
-| GP-11 channel standard | — | owns (open) |
+| Main lease (R-67) and its O-3 tightening | the lease, `am-i`, origin counting, fast takeover, the sidecar gate, forward-once | its receiver's gate; the Claude Code adapter's prompt-origin report (17.5) |
+| Waiting-mail signal (6.13.5) | computes it for TermLink inboxes; status field; session-start line | computes it for the inboxes its receiver serves (same definition, 17.7); shows it in Watchtower; delivers the out-of-band notice |
+| Approvals (OP-5, 12.2) | Tier 0 registry and records, digest binding, audit trail | Watchtower and the out-of-band channels by its GP-11 standard (T-3350) |
+| Hub, revocation, policy store, directory, circuit | all | none |
+| GP-11 channel standard | — | owns (open, V-16) |
 | Amended D-660 text | — | owns |
 
-## 17 Harness and transport neutrality (card 3.9)
+## 17 The adapter contract `termlink.adapter/2` (R-47 as refined by CR-O2 and CR-O3), and neutrality
 
-17.1 The send and status API is a local socket with a JSON request format (ARCH), harness-independent; the adapter is
-the only harness-specific part and its four reports are a contract (R-47). The doorbell is a session RPC with ids
-only. Forwarding, revocation, blobs and the lease use hub RPCs over the existing transport (Unix socket or TLS); the
-circuit (PH-5) is a second transport under the same delivery contract (R-46.a (3)). Nothing depends on a vendor
-channel (R-79).
+17.1 **What this section is.** The single statement of what a harness adapter reports to the receiver, written so
+that a harness team (AEF for Claude Code, T-5054) can implement from it. TermLink owns it (16.1). It extends R-47.a
+(READY, BUSY, NOT RUNNING, evidence of hand-over, the evidence-complete point, framing, vendor channels) with the turn
+events and the prompt origin that O-2 and O-3 need. Version `termlink.adapter/2`; `/1` is R-47.a as ruled in REQ v0.5.
+MUST, SHOULD and MAY are RFC 2119.
+17.2 **Transport.** The adapter reports to the receiver serving the session (the TermLink sidecar's owner-only hook
+socket, or AEF's receiver for the inboxes it serves) as one JSON object per event:
+`{schema: "termlink.adapter/2", harness, harness_version, session_id, agent_id, event, at_ms, ...fields}`. `at_ms` is the
+adapter's monotonic-anchored wall time; the receiver stamps its own receive time and uses that for deadlines (V-5). A
+report the receiver cannot parse is ignored and counted; it never counts as READY, human or evidence.
+17.3 **R1 readiness (R-21.a, R-47.a) — MUST.** `event: "ready"` with `state: READY | BUSY | NOT_RUNNING`. READY at the
+end of a turn (Claude Code: Stop); BUSY before a turn or tool (Claude Code: UserPromptSubmit, PreToolUse); NOT_RUNNING at
+session end. The receiver keeps it as the session's READY flag with its age. A missing, unreadable or stale flag reads
+as not ready. The flag gates the normal doorbell (6.9.1) and nothing else: the watchdog (6.9.7), the conversation
+signal (6.14.4) and the lease (6.13) never read it.
+17.4 **R2 turn events (CR-O2a) — MUST.** `event` one of `session_start {transcript_path, interactive: bool}`,
+`prompt_submit {origin}` (17.5), `tool_start {tool}`, `tool_end {tool}`, `turn_stop`, `session_end`. They feed S2 of
+6.14 and the vendor-channel log (`tool_start` with a vendor tool, 6.10). `transcript_path` MAY be absent; then S2 uses
+turn events only.
+17.5 **R3 prompt origin (CR-O3 (a)) — MUST.** Every `prompt_submit` carries `origin: human | automated | unknown` and
+`basis`:
+17.5.a `automated` MUST be reported when the adapter can tell the prompt did not come from a person: the prompt text is
+a line the receiver typed (the doorbell line, recognisable by its fixed prefix and ids; basis `doorbell`); the session
+is non-interactive (print mode, background or dispatched worker; basis `non-interactive`); the harness marks the prompt
+as generated (scheduled wake-up, loop, timer, sub-agent; basis `harness-mark`); input that reached the PTY through
+`inject` or `notify` rather than a client (basis `pty-input`).
+17.5.b `human` MAY be reported with basis `pty-input` when the session runs under a TermLink PTY and the submitted
+input came from the attached client (the session's per-source input counters, 6.14.1 S1); or with basis `inferred`
+when the session is interactive, none of 17.5.a applies, and the harness gives no origin mark. `inferred` is accepted
+and its share is measured (6.13.6); it is the weak point (AR-6).
+17.5.c `unknown` when the adapter cannot decide. Receivers treat `unknown` as **not human** for the lease (no renewal,
+6.13.1) and as **human** for the conversation signal (do not interrupt, 6.14.4.a): each fails toward the safer side.
+17.5.d Whether Claude Code's hook input or transcript marks generated prompts is an **[A]** that AEF verifies in T-5054;
+until verified, the Claude Code adapter uses `doorbell`, `non-interactive`, `pty-input` and `inferred` only.
+17.6 **R4 evidence of hand-over and evidence-complete point (R-24.a, R-47.a (1), R-51.a) — MUST / SHOULD.**
+`event: "evidence" {nonce, record_ref}` when a delivery nonce appears in a harness-written transcript record (MUST);
+HANDED_OVER is written only from it, and no evidence within 90 s labels the message HANDOVER_UNCONFIRMED (6.9.4).
+`event: "complete" {turn_boundary}` or `{exited: true}` (SHOULD); without it every crash in the window waits for the
+operator (RR-17).
+17.7 **R5 framing and the waiting-mail definition (R-50.a) — MUST.** The adapter frames peer content as untrusted data
+(its own markers) when it surfaces it. A receiver that holds role mail computes the waiting-mail signal exactly as
+6.13.5 defines it, so TermLink and AEF receivers raise the same signal for the same facts.
+17.8 **R6 vendor channels (R-47.a (3), R-79) — MUST.** The adapter reports `tool_start` for vendor peer channels and
+in-process sub-agents; disabling them is an operator configuration act (6.10.2), never done by the agent.
+17.9 **Parity and acceptance (R-47.d, R-47.e).** TermLink ships the fixtures: one scenario file per report above,
+run against every adapter per release, with negative controls (a doorbell line reported `human` fails; a missing READY
+read as ready fails; evidence without the nonce fails). A harness without an adapter is unreachable by design, never
+delivered (GP-8). AEF's Claude Code adapter replaces TermLink's W1 hooks only after it passes the fixtures and runs in
+the field, with the operator's approval (NID).
+17.10 **Neutrality (card 3.9).** The send and status API is a local socket with a JSON request format (ARCH),
+harness-independent; the adapter is the only harness-specific part and this section is its whole contract. The
+doorbell is a session RPC with ids only. Forwarding, revocation, blobs and the lease use hub RPCs over the existing
+transport (Unix socket or TLS); the circuit (PH-5) is a second transport under the same delivery contract (R-46.a (3)).
+Nothing depends on a vendor channel (R-79).
 
 ## 18 Decision records (all proposed; the operator decides)
 
@@ -955,23 +1286,25 @@ channel (R-79).
 |---|---|---|---|---|---|---|
 | DR-1 | Hub id minting (V-1) | A mint once, fingerprint-derived for existing hubs, refuse re-mint beside state; B keep deriving from the fingerprint; C random id for all, rename inboxes | **A** | no inbox renamed; PL-021 fails loudly; socket-only hubs get ids | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
 | DR-2 | Hub signing key pinning in PH-2 | A TOFU pin in each sidecar store, mismatch refused; B no pin until PH-3 out-of-band | **A** | revocation list unforgeable to a remote attacker now; same limit as TLS TOFU | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
-| DR-3 | Receiver quotas (V-4, 6.3) | A numbers of 6.3; B sender cap only | **A** | SI-19 holds at the receiver (floor) | proposed; operator rules it as O-5 (section 21) | none yet |
+| DR-3 | Receiver quotas (V-4, 6.3) | A numbers of 6.3; B sender cap only | **A** | SI-19 holds at the receiver (floor) | **accepted** 2026-11-03 (O-5) | A, as one package of starting values under FP-4 (O-5 A, `0c57b7b51`) |
 | DR-4 | Blob confidentiality (FX-5A) | A encrypt to the recipient's X25519 key, ciphertext in the recipient's home hub store; B wait for the circuit; C plaintext with RA | **A** | needs encryption keys now (K-24, XR-5) | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
-| DR-5 | `artifact put --hub` (T-3614) | A only with `--encrypt-to`, plaintext refused; B allow plaintext between hubs of this operator, with a risk acceptance; C defer T-3614 to PH-4 | **A** | ring20 gets encrypted pool transfers, not plaintext (O-1) | proposed; operator rules it as O-1 (section 21) | none yet |
-| DR-6 | Doorbell conditions and line (6.9) | A ring only when no client is attached; line inside the SI-1 alphabet; B ring when attached too; C keep the T-3533 line | **A** | no typing into a person's half-written prompt; one built line changes | proposed; operator rules it as O-2 (section 21) | none yet |
+| DR-5 | `artifact put --hub` (T-3614) | A only with `--encrypt-to`, plaintext refused; B allow plaintext between hubs of this operator, with a risk acceptance; C defer T-3614 to PH-4 | **A** | ring20 gets encrypted pool transfers, not plaintext (O-1) | **accepted** 2026-11-03 (O-1) | A "for now"; improve later; other file routes out of scope, T-3663 (O-1 A) |
+| DR-6 | Doorbell conditions and line (6.9) | A ring only when no client is attached; line inside the SI-1 alphabet; B ring when attached too; C keep the T-3533 line | **A** | no typing into a person's half-written prompt; one built line changes | **superseded** 2026-11-03 by DR-15 (O-2) | A rejected: an attended-but-idle agent would never act; the bracket-free line of A is kept in DR-15 |
 | DR-7 | Mail-hub declaration location | A `.framework.yaml` `mail_hub` (AEF's file) with a verified copy in the sidecar config; B a TermLink file `.termlink/mail-hub.toml` | **A** | one place per project; AEF must accept the key | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
 | DR-8 | Revocation stale rule effect in PH-2 | A narrow allow-list to own project, downgrade urgent; B stop all delivery | **A** | never stops all mail on a hub blip | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
-| DR-9 | Main eligibility while no policy record exists | A record the built lease (every session of the project's agents eligible) as the PH-2 interim under the 2026-11-02 instruction; OP-4's default `no` applies when profiles exist (PH-4); B restrict now to the pinned main's agent; C only pinned sessions | **A** | matches what runs in 8 projects; XR-3 | proposed; operator rules it as O-3 (section 21) | none yet |
+| DR-9 | Main eligibility while no policy record exists | A record the built lease (every session of the project's agents eligible) as the PH-2 interim under the 2026-11-02 instruction; OP-4's default `no` applies when profiles exist (PH-4); B restrict now to the pinned main's agent; C only pinned sessions | **A** | matches what runs in 8 projects; XR-3 | **accepted** 2026-11-03 (O-3) | A with the tightening (DR-16; O-3, `c04ffb160`) |
 | DR-10 | Forward-once envelope (section 7) | A outer FORWARD signed by the forwarder carrying the original signed bytes; B re-sign the content as the forwarder | **A** | original signature kept (R-67.a1 (4)); XR-2 | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
 | DR-11 | Second inbox consumer | A flag during waves, refuse after W4 bind; B refuse at once | **A** | wave switches stay possible | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
-| DR-12 | Gap wait (V-6) | A store at once, hold hand-over, release after 5 min marked; B hold indefinitely; C no hold | **A** | bounded head-of-line wait | proposed; operator rules it as O-5 (section 21) | none yet |
-| DR-13 | Security levels (8.4) | A L0/L1/L2 selecting only costly strength, floor never off; B a free per-item matrix | **A** | small, auditable; lowering is high-impact (XR-6) | proposed; operator rules it as O-7 (section 21) | none yet |
-| DR-14 | Retention ceilings (V-3) | A the numbers of 8.1; B measure first, no ceiling | **A** | allocation sinks bounded from the first build | proposed; operator rules it as O-5 (section 21) | none yet |
+| DR-12 | Gap wait (V-6) | A store at once, hold hand-over, release after 5 min marked; B hold indefinitely; C no hold | **A** | bounded head-of-line wait | **accepted** 2026-11-03 (O-5) | A, in the O-5 package |
+| DR-13 | Security levels (8.4) | A L0/L1/L2 selecting only costly strength, floor never off; B a free per-item matrix | **A** | small, auditable; lowering is high-impact (XR-6) | **accepted** 2026-11-03 (O-7) | A, three fixed levels; floor never off; Tier 0 override as logged break-glass (O-7 A, `bd9380d10`) |
+| DR-14 | Retention ceilings (V-3) | A the numbers of 8.1; B measure first, no ceiling | **A** | allocation sinks bounded from the first build | **accepted** 2026-11-03 (O-5) | A, in the O-5 package |
+| DR-15 | Doorbell conditions, fallback and line (6.9), superseding DR-6 | A (v0.2) ring only unattended sessions; B always ring; D+ ring when READY, no typing for 30 s and no conversation, plus an external 300 s watchdog independent of READY, strict delivery, bracket-free line | **D+** (operator's) | agents act without a person pressing Enter; a stuck flag cannot hold mail; new K-32, K-33, V-17..V-19, B-27; AR-2 and AR-5 | **accepted** 2026-11-03 (O-2) | D+ with the 300 s fallback; CR-O2a..c applied in 6.9, 6.14 |
+| DR-16 | Main before signed profiles: the O-3 tightening (6.13) | A count only human-initiated prompts, provisional first claim, fast takeover at 5 min, waiting-mail signal; B tightening without fast takeover; C pin-only | **A** | the forgotten-session risk closes; depends on each adapter's prompt-origin report (17.5); AR-6 | **accepted** 2026-11-03 (O-3) as to the three tightenings; the provisional claim, the 5 min threshold and the 10/30 min signal times are this design's [P] values (V-20, V-21), approved with this step | O-3 A with the tightening |
 
-18.1 **Status and decision fields (card 3.8).** Every DR above has status **proposed** and decision **none yet**. A DR
-moves to `accepted A|B|C` (with the date and the ruling commit) or `rejected` only when the operator rules it: through
-its operator question O-n where the Status column names one, otherwise with the approval of this step's output. No DR
-is applied to a build item before its decision is recorded here.
+18.1 **Status and decision fields (card 3.8).** Ruled on 2026-11-03: DR-3, DR-5, DR-9, DR-12, DR-13, DR-14, DR-15,
+DR-16 accepted; DR-6 superseded by DR-15. Still **proposed**, decided with the approval of this step's output: DR-1, DR-2,
+DR-4, DR-7, DR-8, DR-10, DR-11 (and the [P] values inside DR-16). No DR is applied to a build item before its decision
+is recorded here.
 
 18.2 **Disposition of each FP 14.1.b hand-over item.** "Built" means satisfied by what runs today and recorded as
 baseline (section 4), not redesigned.
@@ -984,7 +1317,7 @@ baseline (section 4), not redesigned.
 | 18.2.4 | Narrow privileged helper and account template (R-82, 10.1.5) | **Decided [P]:** one helper, one sudoers entry, fixed template, refuses without a decided C-15 event | 12.6 (K-30) |
 | 18.2.5 | Hub-side visibility of an inbox's consumers (SI-16, FP-1 failure 2) | **Decided [P]:** consumer list per inbox, flag now, bind-and-refuse after W4 | 6.6.1-2, DR-11, B-2 |
 | 18.2.6 | 30-second component heartbeats (FP-1) | **Built** (P2 tick, P3 component heartbeat, T-3428, T-3435) | 4.2 |
-| 18.2.7 | Claim mechanism and "transcript complete" signal per harness (R-51.a, R-47.a) | **Built for Claude Code:** atomic claim before content leaves the store (SI-30, ARCH C-9 `deliver.rs`), hand-over evidence = the delivery nonce in a harness-written record (SI-17, ARCH C-11). Other harnesses: their adapter owes the same two reports under the R-47 contract (16, 17) | 4.1, 6.9, 16 |
+| 18.2.7 | Claim mechanism and "transcript complete" signal per harness (R-51.a, R-47.a) | **Built for Claude Code in TermLink's W1 hooks:** atomic claim before content leaves the store (SI-30, ARCH C-9 `deliver.rs`), hand-over evidence = the delivery nonce in a harness-written record (SI-17, ARCH C-11). Every adapter, AEF's Claude Code adapter (T-5054) included, owes the reports of `termlink.adapter/2` (17.6) | 4.1, 6.9, 16, 17 |
 | 18.2.8 | Hub id minting and mail-hub declaration format (R-61, R-54) | **Decided [P]** | V-1, V-7, DR-1, DR-7 |
 | 18.2.9 | Grant fields (`limits` of 10.3.4) | **Decided [P]** | V-2 |
 | 18.2.10 | Lease durations, quiet period, cooldown of "main" (R-67) | **Built** (15/5/10 min, T-3654) | V-9, 4.3 |
@@ -994,20 +1327,30 @@ baseline (section 4), not redesigned.
 | 18.2.14 | Roster format and enrolment (R-77) | **Decided at architecture level [P]**; detailed sub-design open behind T-2470 | 12.1 |
 | 18.2.15 | Key pinning and rotation (R-75) | **Decided [P] for PH-2** (TOFU pin of the hub signing key, rotation keeps id and key; agent key replacement only by old-key statement or runme); out-of-band pinning at PH-3 | 6.1, 6.6.5, DR-2, AR-1, 12.1 |
 | 18.2.16 | Re-wrap cost for long histories (R-74, R-80) | **Partly decided:** re-wrap content keys only, never re-encrypt content; sizing **open** until PH-4 data | 12.7 |
-| 18.2.17 | Confirmation-provider interface after T-3385 (10.3.10) | **Open:** gated by T-3385; one `approve <digest>` verb is the only interface fixed now | 12.2, 23.3 |
-| 18.2.18 | GP-11 | **Open**, not ruled | V-16, 21.8 |
+| 18.2.17 | Confirmation-provider interface after T-3385 (10.3.10) | **Placement ruled (O-6 OP-5):** Watchtower and the operator's out-of-band channels, no new hub verb; decisions bound to the event digest in one audit trail. Interface details **open**, gated by T-3385 and AEF's GP-11 standard | 12.2, XR-8 |
+| 18.2.18 | GP-11 | **Open**, owned by AEF (T-3350); referenced by 12.2 and 6.13.5.d | V-16, 21.8 |
 
 ## 19 Residual risks for the operator
 
 19.1 Nothing accepted earlier is reopened (RR-1..RR-20, RA-1..RA-9). New or sharpened by this design:
 19.2 **AR-1** The hub signing key's first pin is TOFU (DR-2): a host that is already compromised at first contact can
 pin a rogue key. Ends at PH-3 out-of-band pinning. Same class as RR-18.
-19.3 **AR-2** The doorbell's check-to-keystroke race (RR-19) remains for unattended sessions; an attached session is
-never rung (DR-6), which removes the operator's own prompt from it.
+19.3 **AR-2** The doorbell's check-to-keystroke race (RR-19) remains. Under DR-15 attached sessions are rung too, so
+the race now includes the operator's own prompt; it is narrowed by the 30 s typing veto and the conversation signal,
+both re-read immediately before typing, and measured by H-11 (a) and (d).
 19.4 **AR-3** A lost `RESEND-REQUEST` answer (sender no longer holds the payload) makes a lost-after-STORED message
 unrecoverable before PH-5's encrypted hub copy; it is shown to both sides, never silent.
 19.5 **AR-4** On .107 the hub runs on the agents' host, so a hijacked root agent holds the hub signing key: revocation
 and dead letters are forgeable locally until the hub runs under its own account (Track A, FP 10.1.5 "hub access").
+19.6 **AR-5** The 300 s watchdog types even when READY says busy. If the agent is in a long, silent, idle wait (no
+transcript growth, no tool events, a process tree quiet enough to pass the veto), the line arrives mid-turn and waits
+in the harness's input as the next prompt. Ruled acceptable by O-2 (a stuck flag must never hold a message forever);
+bounded to one line per 300 s of silence; every fire has its audit row and, when READY said busy, a needs-attention
+entry.
+19.7 **AR-6** The lease tightening is only as good as each adapter's prompt-origin report (17.5). With basis
+`inferred`, a harness-generated prompt the adapter cannot recognise counts as human and renews main. Measured (share of
+renewals by basis, 6.13.6); closes when the harness exposes an origin mark (17.5.d) or the session runs under a
+TermLink PTY (basis `pty-input`).
 
 ## 20 Change requests to earlier steps (requests, not edits)
 
@@ -1028,22 +1371,34 @@ reserved slot is taken and FORWARDED trips the cap review (7.3.e).
 2026-10-13) requires encrypted blobs in PH-2, so per-agent encryption keys enter in PH-2 (K-24); DM content
 encryption stays PH-4.
 20.6 **XR-6 (step 3).** Add class C-17 "lower a project's security level" (human, high-impact) and C-18 "raise it"
-(human) to FP 10.2.2, for the operator direction of FP 10.1.8.g (DR-13).
+(human) to FP 10.2.2, for the operator direction of FP 10.1.8.g (DR-13, accepted O-7 A).
+20.7 **XR-7 (step 3), from O-6 OP-12.** FP section 9: drop H-21 as a quality threshold (and its "REFUTES THE APPROACH"
+mark, 9.1.b, and the reference in H-12's failure column); reword H-20 so approval events, needs-attention entries and
+alarms per day are tracked as a cost, not pass/fail, keeping stray doorbell lines per 1000 as a threshold; state the
+reliability thresholds of 15.2 (reach per attempt, visible failure, zero false delivered) in FP-4.
+20.8 **XR-8 (step 3), from O-6 OP-5.** FP 10.4 IC-2 places the interim confirmation in "the one `approve` verb of the
+hub's admin scope". Reword: the operator approves through Watchtower or the out-of-band channels (GP-11 standard,
+AEF); the decision is bound to the event digest and recorded in the one audit trail; no new hub verb (12.2). The same
+for the PH-3 scope item 6.2.4.a (2) wherever it names the verb.
+20.9 **XR-9 (step 1), from O-2 and O-3.** R-47.a: record the contract additions of 17.4 (turn events) and 17.5 (prompt
+origin) as part of the adapter contract (`termlink.adapter/2`); R-19/R-20: record that the doorbell rings attended
+sessions under the D+ conditions with the 300 s watchdog (DR-15); R-67: renewal and takeover only on human-initiated
+prompts, fast takeover and the waiting-mail signal (DR-16).
 
-## 21 Open questions for the operator (one at a time, in this order)
+## 21 Operator questions: all ruled 2026-11-03
 
-21.1 **O-1** Cross-hub file delivery: encrypted only (DR-5 A), or plaintext allowed between this operator's hubs with a
-risk acceptance (B), or defer (C). Recommendation A.
-21.2 **O-2** The doorbell rings only for sessions nobody is attached to (DR-6 A). Recommendation A.
-21.3 **O-3** Who may be main until signed profiles exist (DR-9). Recommendation A.
-21.4 **O-4** Switch off Claude Code's SendMessage for this project now that T-3386 is done (6.10.2); keep the
-sub-agent tool logged. Recommendation: yes for SendMessage.
-21.5 **O-5** The starting numbers of section 8 as one package under FP-4 (DR-3, DR-12, DR-14, V-4..V-13).
-Recommendation: accept.
-21.6 **O-6** The four step-3 questions without a ruling that this design assumes: OP-5 A, OP-12 as written, OP-22 A
-(already built so), OP-23 A. Recommendation: rule them as assumed.
-21.7 **O-7** The security levels L0/L1/L2 (DR-13). Recommendation A.
-21.8 GP-11 stays open (V-16); not a question for this step.
+21.1 **O-1** Cross-hub file delivery: **A, encrypted only, for now** (DR-5; 6.4.6). Follow-up for existing routes: T-3663.
+21.2 **O-2** Doorbell: **D+ with an external 300 s fallback** (DR-15 supersedes DR-6; 6.9, 6.14).
+21.3 **O-3** Main before signed profiles: **A with the tightening** (DR-9, DR-16; 6.13).
+21.4 **O-4** SendMessage: **A, deny for this project** as an operator runme act; sub-agent tool logged (6.10.2; B-18,
+B-26).
+21.5 **O-5** Section 8 starting values: **A, one package** under FP-4 (DR-3, DR-12, DR-14; 8.1).
+21.6 **O-6** Step-3 assumptions: OP-5 Watchtower + out-of-band channels (12.2, XR-8); OP-12 H-21 dropped, reliability
+thresholds (15.2, XR-7); OP-22 OD-7 as ruled (16, 17); OP-23 RA-9 under NID (3.4.d).
+21.7 **O-7** Security levels: **A, three fixed levels** (DR-13; 8.4).
+21.8 GP-11 stays open, owned by AEF (V-16); not a question for this step.
+21.9 What remains for the operator in this step: approval of the step-4 output as a whole, which also decides the
+DRs still proposed (18.1) and the new [P] values V-17..V-21; and, later, the W4 decommission approval (6.11.3).
 
 ## 22 Build table (dependency order; each one deliverable, one session)
 
@@ -1061,21 +1416,30 @@ Recommendation: accept.
 | B-10 | P16 | Reconciliation on start, daily head compare, VM host-crash test (6.5) | B-8 | new |
 | B-11 | P15a | Per-agent encryption keys in the register + the encryption wrapper + artifact writer check (6.4.2, 6.4.5) | — | new |
 | B-12 | P15b | Blobs on the chain with both digests, H-7 (6.4.3-4) | B-11 | new |
-| B-13 | T-3614 | `artifact put --hub` with `--encrypt-to` only (6.4.6, O-1) | B-11, O-1 | T-3614 (re-scope) |
+| B-13 | T-3614 | `artifact put --hub` with `--encrypt-to` only; plaintext refused with a reason (6.4.6, O-1 A ruled) | B-11 | T-3614 (re-scope) |
 | B-14 | P18 | Status strength flags, reachability card, CLEAR, skew, GP-4 lines (6.7, V-5, V-8, 8.2) | B-2, B-5 | new |
 | B-15 | P19 | Six fault injectors, tier 1 and tier 3, drill (6.8) | B-14 | new |
-| B-16 | P21 | Doorbell: conditions, re-checks, SI-1 line, back-off, H-11 harness (6.9) | B-14, O-2 | new |
+| B-16 | P21 | Doorbell as ruled O-2 D+: READY + no typing 30 s + no conversation, re-checks, bracket-free SI-1 line, strict delivery with HANDOVER_UNCONFIRMED at 90 s, back-off, no re-type of an unsubmitted line; the 300 s watchdog (K-33) with its audit row; H-11 (a)..(f) (6.9) | B-14, B-27 | new (changed) |
 | B-17 | W2 | Operator runs the W2 runme action | W1 7 days, B-16 | runme |
-| B-18 | P22 | Vendor-channel log hook; SendMessage deny if O-4 yes (6.10) | — | new |
+| B-18 | P22 | Vendor-channel log hook; the SendMessage deny as an idempotent operator action in `/opt/termlink/runme.sh` with its hermetic fixture, refusing to run before B-26's prover has passed (6.10, O-4 A) | B-26 (deny half only) | new (changed) |
 | B-19 | P23 | Daily canary on the installed artifact, staleness 26 h (V-13) | — | T-3361 |
 | B-20 | R-67.a1 (4) | Forward-once, VIA and FORWARD-STALE notices, H-24 (section 7) | B-6 | new |
 | B-21 | W3 | Operator runs the W3 runme action | W2 bound, B-19 | runme |
 | B-22 | P24 | W3 two-agent acceptance + PH-2 exit report + FP-3 fixtures to AEF (6.11) | all above | new |
-| B-23 | W4 | Operator runs the W4 runme action | B-22 | runme |
-| B-24 | XR | Fold accepted XR-1..XR-6 into steps 1 and 3 (orchestrator reopens them) | operator | orchestrator |
+| B-23 | W4 | Operator runs the W4 runme action; a decommission: only with the operator's explicit approval recorded in the W4 task's Decisions; the action refuses without it (NID, 6.11.3) | B-22, operator approval | runme |
+| B-24 | XR | Fold accepted XR-1..XR-9 into steps 1 and 3 (orchestrator reopens them) | operator | orchestrator |
+| B-25 | R-67, O-3 | Lease tightening at the hub and in TermLink's hooks: origin counting with `ignored: origin`, `absent` kept as before per project until it reports origin, PostToolUse no longer renews, provisional SessionStart claim, fast takeover (V-20) with `last_human_at`, waiting-mail signal K-34 (status, needs-attention, session-start line; V-21) (6.13) | — | new |
+| B-26 | O-4 | Re-base the session message prover (T-2876, `scripts/session-message-selftest.sh`) on the TermLink rail, keeping assert-on-the-receiver and its fixtures and mutants (6.10.2.a) | — | T-2876 (re-open) or new |
+| B-27 | CR-O2a, CR-O2c | Activity meter (S1 per-source PTY input counters in the session, S2 turn events and transcript growth, S3 sent and handed-over), conversation signal, status `activity`, fixtures with negative controls (6.14) | — | new |
+| B-28 | CR-O3 (c), OP-5 | AEF side: Watchtower view of `main.mail_waiting` and the out-of-band notice at 30 min by the GP-11 standard; approvals via Watchtower and OOB channels (12.2) | B-25, AEF GP-11 (T-3350) | AEF (pickup) |
+| B-29 | OD-7, section 17 | AEF side: the Claude Code adapter to `termlink.adapter/2` (READY, turn events, prompt origin, evidence, complete), passing TermLink's parity fixtures; TermLink publishes the fixtures with B-25/B-27 | B-25, B-27 (fixtures) | AEF T-5054 |
 
 22.1 Every build item ships its floor probe with a mutant that turns it red (FP 3.1.b) and its own `## Verification`.
-The order is dependency order; B-1 to B-4, B-7, B-11 and B-18 have no dependency and may run in any order.
+The order is dependency order; B-1 to B-4, B-7, B-11, B-25, B-26, B-27 and B-18's log half have no dependency and may
+run in any order. B-28 and B-29 are AEF's (section 16); the orchestrator hands them over by `framework:pickup`.
+22.2 **Changed in v0.3:** B-13 (O-1 ruled), B-16 (O-2 D+ and the watchdog; now depends on B-27), B-18 (deny as an
+operator runme act after B-26), B-23 (explicit approval, NID), B-24 (XR-7..XR-9). **New:** B-25, B-26, B-27, B-28,
+B-29. Every acceptance threshold in a build item follows 15.2 (RNU).
 
 ## 23 Coverage: the card and the task
 
@@ -1086,6 +1450,10 @@ record with options, recommendation, status and decision: section 18 (18.1; 18.2
 rendering: 5.2, 5.4, 7.6, 10.1, 11.1, section 24.
 23.2 T-3353 agent criteria: inputs of record with hashes (section 1); every row-4 value decided or open (section 8,
 V-1..V-16); ownership per component (section 16 and 5.1); role-chain step 4 `task: T-3353` (already set in CHAIN).
+23.2.a v0.3: every operator ruling O-1..O-7 and each change request is placed: O-1 6.4.6, 6.4.6.a, DR-5, BP-21;
+O-2 and CR-O2a..c 6.9, 6.14, DR-15, K-32, K-33; O-3 and CR-O3 (a)..(c) 6.13, 17.5, DR-9, DR-16, K-34; O-4 6.10.2,
+BP-14, B-18, B-26; O-5 8.1; O-6 CR-O6a 12.2, K-27, XR-8, CR-O6b 15.2, XR-7, CR-O6c section 16, NID at 6.11.3, 11.2.9,
+12.8, BP-12, BP-16; O-7 8.4, DR-13. The adapter contract AEF implements from is section 17.
 23.3 Limits. PH-3 to PH-6 are at architecture level; their detailed sub-designs are open where their gates are
 closed (T-2470, T-3385, H-1, H-27, Track A). I did not measure the numbers; they are starting values.
 
@@ -1102,3 +1470,10 @@ semicolon in any sequence message or note.
 24.3 Result, 2026-11-03, on v0.2 (script `.context/working/t3353/render/r1.sh`, same method). Only D-1 changed (two
 labels). Every block exit code 0; SVG sizes 47343, 26237, 43435, 73445 and 24588 bytes; no "syntax error" or "parse
 error" in any log or SVG.
+24.4 Result, 2026-11-03, on v0.3 (script `.context/working/t3353/render/r2.sh`, same method). D-1 (activity meter,
+watchdog), D-3 (ring conditions, watchdog note), D-4 (watchdog ring, HANDOVER_UNCONFIRMED label, PROVISIONAL state,
+human-prompt renewal and fast takeover) and D-5 (transition contents, removals only on explicit approval) changed;
+D-2 unchanged. Every block exit code 0; SVG sizes 50690, 26237, 43920, 81624 and 24856 bytes; no "syntax error" or
+"parse error" in any log or SVG. D-4 was rendered to PNG and read: in the first render the three HELD self-loops of the
+lease collapsed into one visible label, so they were merged into one labelled loop; the re-render shows every
+transition labelled.

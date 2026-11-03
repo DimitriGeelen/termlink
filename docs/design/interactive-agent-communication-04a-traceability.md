@@ -1,7 +1,7 @@
 # Interactive agent communication: step 4, traceability (sub-document of the architecture)
 
 **Task:** T-3353 · **Arc:** arc-011 · **Chain:** arc-011-design, step 4 · **Role:** architect
-**Status:** DRAFT v0.1, part of `docs/design/interactive-agent-communication-04-architecture.md` ("ARC4"), reviewed with
+**Status:** DRAFT v0.3 (follows ARC4 v0.3; there was no 04a v0.2), part of `docs/design/interactive-agent-communication-04-architecture.md` ("ARC4"), reviewed with
 it. Card 3.6 and 4.2: every R-n, TH-n, SI-n and FX-n maps to a design element; every element serves an R-n or TH-n.
 Elements are ARC4's `K-n` components (5.1) and sections; `[B]` built, `PH-n` the phase where the element lands.
 
@@ -9,14 +9,15 @@ Elements are ARC4's `K-n` components (5.1) and sections; `[B]` built, `PH-n` the
 
 | Version | Date | Change | Task |
 |---|---|---|---|
+| 0.3 | 2026-11-03 | ARC4 v0.3 (operator rulings O-1..O-7): SI-1, SI-2, FX-1, R-20, R-21, R-47, R-67 rows updated; elements K-32, K-33, K-34, the adapter contract (ARC4 17) and the lease tightening (6.13) added to table 4 with their sources | T-3353 |
 | 0.1 | 2026-11-02 | Four tables: floor items, requirements, threats, elements | T-3353 |
 
 ## 1 Floor items to elements (SI-1..SI-31, FX-1..FX-8)
 
 | Item | Element (ARC4 section) | Phase | Probe owner |
 |---|---|---|---|
-| SI-1 | K-19 doorbell line inside the SI-1 alphabet (6.9.3, DR-6) | PH-2 | B-16 |
-| SI-2 | K-18 veto [B] + K-19 re-checks, no attached client (6.9.1-2) | PH-2 | B-16 |
+| SI-1 | K-19 doorbell line inside the SI-1 alphabet (6.9.3, DR-15, as ruled O-2) | PH-2 | B-16 |
+| SI-2 | K-18 veto [B] + K-19 re-checks: READY, no typing 30 s, no conversation (6.9.1-2, K-32); watchdog checks (6.9.7) | PH-2 | B-16, B-27 |
 | SI-3 | sidecar signatures [B]; K-15 key card, post-time check (6.6.5) | PH-1 [B], PH-2 | B-6 |
 | SI-4 | identity triple + digest [B] | PH-1 [B] | built |
 | SI-5 | K-10 window, equivocation (V-6) | PH-2 | B-8 |
@@ -46,7 +47,7 @@ Elements are ARC4's `K-n` components (5.1) and sections; `[B]` built, `PH-n` the
 | SI-29 | membership epochs (12, PH-4) | PH-4 | PH-4 |
 | SI-30 | atomic claim [B]; doorbell does not bypass it (6.9.4) | PH-1 [B] | built |
 | SI-31 | K-27 + provider (Track K) | PH-3 contract, PH-6 real | PH-3 |
-| FX-1 | K-20 vendor-channel log (6.10); disable O-4 | PH-2, PH-4 | B-18 |
+| FX-1 | K-20 vendor-channel log (6.10); SendMessage deny, O-4 A (6.10.2) after B-26 | PH-2, PH-4 | B-18, B-26 |
 | FX-2 | hub id check [B]; V-1 minted id; V-7 declaration | PH-1 [B], PH-2, PH-3 every client | B-1 |
 | FX-3 | resume only on signed DEAD + host check (PH-4) | PH-4 | PH-4 |
 | FX-4 | scopes [B]; K-15 use log, owner-only (6.6.4); boundary model PH-4 | PH-2, PH-4 | B-4 |
@@ -64,7 +65,7 @@ Elements are ARC4's `K-n` components (5.1) and sections; `[B]` built, `PH-n` the
 | R-3 | hooks [B]; doorbell K-19 (6.9); WAITING FOR RECIPIENT | | R-44 | deadlines [B]; DEAD dead letter (6.6.6) |
 | R-4 | verbs kept; FX-4 log (6.6.4) | | R-45 | hub record first [B]; K-14 (6.5) |
 | R-5 | hub path [B] | | R-46 | K-29 (12.5) |
-| R-6 | sidecar [B]; status K-16 | | R-47 | adapter contract (16, 17) |
+| R-6 | sidecar [B]; status K-16 | | R-47 | adapter contract `termlink.adapter/2` (17), ownership (16) |
 | R-7 | PH-5 circuit (12.5); GP-4 (8.2) | | R-48 | hooks + launcher [B] |
 | R-8 | K-3 [B] | | R-49 | K-15 consumers (6.6.1-2), V-11 |
 | R-9 | deferred PH-6 (grants first) | | R-50 | frame [B]; other rails PH-4 |
@@ -78,13 +79,13 @@ Elements are ARC4's `K-n` components (5.1) and sections; `[B]` built, `PH-n` the
 | R-17 | tick [B] | | R-58 | owed list B-9 |
 | R-18 | priority order B-9 | | R-59 | K-10, V-6 |
 | R-19 | hook route [B]; doorbell 6.9 | | R-60 | K-28 (12.1), V-12 |
-| R-20 | READY + veto (6.9.2) | | R-61 | K-9a (6.1), V-1 |
-| R-21 | adapter READY flag (6.9.1) | | R-62 | exact instance [B]; dead letter (6.6.6) |
+| R-20 | READY + typing veto + conversation + veto (6.9.1-2); watchdog (6.9.7) | | R-61 | K-9a (6.1), V-1 |
+| R-21 | adapter READY flag (17.3) | | R-62 | exact instance [B]; dead letter (6.6.6) |
 | R-22 | never the screen; attached check is terminal metadata (6.9.1) | | R-63 | allow-list [B]; policy store PH-4 (V-2) |
 | R-23 | SI-1 line (6.9.3) | | R-64 | grants V-2 (PH-4) |
 | R-24 | nonce evidence [B] | | R-65 | PH-4 resume (FX-3) |
 | R-25 | flag down when queue empty [B]; doorbell back-off (6.9.4) | | R-66 | K-21 canary, V-13 |
-| R-26 | ANSWER READY [B] | | R-67 | K-22 [B], V-9, V-10, DR-9 |
+| R-26 | ANSWER READY [B] | | R-67 | K-22 [B], 6.13, V-9, V-10, V-20, V-21, DR-9, DR-16 |
 | R-27 | reply path [B] | | R-67.a1 | K-23 forward-once (section 7) |
 | R-28 | no-action B-9 | | R-68 | standing tests (PH-4; lease built) |
 | R-29 | CLEAR (6.7.4) | | R-69 | probes and mutants per B (22.1) |
@@ -157,7 +158,12 @@ Floor items are TM 18.1's "Covers" column read backwards; the element is table 1
 | K-16 status | R-6, R-29, R-53, R-57, R-70; FX-8, FP 3.1.e |
 | K-17 injectors | R-6.e, R-69, R-70 |
 | K-18 veto | R-81; SI-2; TH-62 |
-| K-19 doorbell | R-3, R-19..R-23; SI-1, SI-2; TH-6, TH-16 |
+| K-19 doorbell | R-3, R-19..R-23; SI-1, SI-2; TH-6, TH-16; O-2 D+ (DR-15) |
+| K-32 activity meter, conversation signal | R-20, R-81, R-47 (turn events); SI-2; O-2 CR-O2a, CR-O2c |
+| K-33 doorbell watchdog | R-19, R-44 (no message held forever), R-24 (strict evidence); O-2 CR-O2b |
+| K-34 waiting-mail signal | R-67, R-53, R-29; FX-8; O-3 CR-O3 (c) |
+| Adapter contract (ARC4 17) | R-21, R-24, R-47, R-50, R-51, R-79; O-2, O-3 (CR-O3 (a)); OD-7 as ruled |
+| Lease tightening (ARC4 6.13) | R-67, R-68; O-3 A with tightening (DR-16) |
 | K-20 vendor log | R-79; FX-1 |
 | K-21 canary | R-66 |
 | K-22 lease | R-67, R-68; SI-20; TH-33, TH-41 |
@@ -176,3 +182,5 @@ Floor items are TM 18.1's "Covers" column read backwards; the element is table 1
 
 4.1 No element without a source was found. Two elements reveal a requirement gap and are raised as change requests
 rather than gold-plating: the per-agent encryption key in PH-2 (XR-5) and the security-level classes (XR-6).
+4.2 v0.3: the elements added for O-2 and O-3 serve the operator's rulings directly; their requirement-side wording is
+raised as XR-9 (R-19/R-20, R-47, R-67), and the threshold and approval wording as XR-7 and XR-8 (step 3).
