@@ -34,19 +34,34 @@ fn env(k: &str) -> Option<String> {
     std::env::var(k).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
 }
 
-/// `--session`, else the hook input's `session_id`, else `$CLAUDE_SESSION_ID`, else `$TERMLINK_SESSION_ID`.
 fn resolve_session(a: &MainArgs) -> Option<String> {
-    if let Some(s) = a.session.clone().filter(|s| !s.trim().is_empty()) {
-        return Some(s.trim().to_string());
-    }
-    if a.session_from_stdin {
+    let stdin = a.session_from_stdin.then(|| {
         let mut buf = String::new();
         let _ = std::io::stdin().take(4 * 1024 * 1024).read_to_string(&mut buf);
-        if let Some(s) = serde_json::from_str::<Value>(&buf).ok().and_then(|v| v.get("session_id").and_then(Value::as_str).map(str::to_string)) {
-            return Some(s);
-        }
+        buf
+    });
+    pick_session(a.session.as_deref(), stdin.as_deref(), env)
+}
+
+/// T-3668: `--session`, else the hook input's non-empty `session_id`, else `$CLAUDE_SESSION_ID`,
+/// else `$CLAUDE_CODE_SESSION_ID` (what Claude Code actually exports), else `$TERMLINK_SESSION_ID`
+/// ONLY outside Claude Code. Inside Claude Code (`$CLAUDECODE` set) the TermLink session id is a
+/// different identity from the session the hooks claim main with, so guessing it would answer
+/// "not-main" for the real main, or claim main for an id nobody recognises (PL-373): refuse instead.
+fn pick_session(flag: Option<&str>, stdin: Option<&str>, env: impl Fn(&str) -> Option<String>) -> Option<String> {
+    let nonempty = |s: &str| Some(s.trim().to_string()).filter(|s| !s.is_empty());
+    if let Some(s) = flag.and_then(nonempty) {
+        return Some(s);
     }
-    env("CLAUDE_SESSION_ID").or_else(|| env("TERMLINK_SESSION_ID"))
+    if let Some(s) = stdin
+        .and_then(|b| serde_json::from_str::<Value>(b).ok())
+        .and_then(|v| v.get("session_id").and_then(Value::as_str).and_then(nonempty))
+    {
+        return Some(s);
+    }
+    env("CLAUDE_SESSION_ID")
+        .or_else(|| env("CLAUDE_CODE_SESSION_ID"))
+        .or_else(|| if env("CLAUDECODE").is_some() { None } else { env("TERMLINK_SESSION_ID") })
 }
 
 /// `--project`, else `$TERMLINK_MAIN_PROJECT`, else `.framework.yaml`'s project_name above the cwd.
@@ -128,7 +143,7 @@ pub(crate) async fn cmd_main(verb: MainVerb, a: MainArgs) -> i32 {
         host: hostname(),
         pid: a.pid.unwrap_or_else(std::os::unix::process::parent_id),
     };
-    let need_session = || "no session: pass --session, --session-from-stdin, or set CLAUDE_SESSION_ID / TERMLINK_SESSION_ID".to_string();
+    let need_session = || "no session: pass --session or --session-from-stdin, or set CLAUDE_SESSION_ID / CLAUDE_CODE_SESSION_ID (TERMLINK_SESSION_ID is used only outside Claude Code)".to_string();
     let o = match verb {
         MainVerb::Status => client.status(&project, session.as_deref()).await,
         MainVerb::AmI => match &session {
@@ -164,4 +179,48 @@ pub(crate) async fn cmd_main(verb: MainVerb, a: MainArgs) -> i32 {
         }
     };
     print(&o, json)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pick_session;
+
+    fn envs(pairs: &'static [(&'static str, &'static str)]) -> impl Fn(&str) -> Option<String> {
+        move |k| pairs.iter().find(|(n, _)| *n == k).map(|(_, v)| v.to_string()).filter(|v| !v.is_empty())
+    }
+
+    #[test]
+    fn flag_wins_then_hook_input() {
+        let e = envs(&[("CLAUDE_CODE_SESSION_ID", "cc"), ("TERMLINK_SESSION_ID", "tl-x")]);
+        assert_eq!(pick_session(Some(" s1 "), Some(r#"{"session_id":"s2"}"#), &e).as_deref(), Some("s1"));
+        assert_eq!(pick_session(None, Some(r#"{"session_id":"s2"}"#), &e).as_deref(), Some("s2"));
+    }
+
+    #[test]
+    fn empty_hook_session_id_is_absent() {
+        let e = envs(&[("CLAUDE_CODE_SESSION_ID", "cc")]);
+        assert_eq!(pick_session(None, Some(r#"{"session_id":""}"#), &e).as_deref(), Some("cc"));
+        assert_eq!(pick_session(Some("  "), None, &e).as_deref(), Some("cc"));
+    }
+
+    #[test]
+    fn claude_session_vars_in_order() {
+        let both = envs(&[("CLAUDE_SESSION_ID", "a"), ("CLAUDE_CODE_SESSION_ID", "b"), ("CLAUDECODE", "1")]);
+        assert_eq!(pick_session(None, None, &both).as_deref(), Some("a"));
+        let code = envs(&[("CLAUDE_CODE_SESSION_ID", "b"), ("CLAUDECODE", "1"), ("TERMLINK_SESSION_ID", "tl-x")]);
+        assert_eq!(pick_session(None, None, &code).as_deref(), Some("b"));
+    }
+
+    #[test]
+    fn termlink_session_never_stands_in_for_a_claude_session() {
+        let e = envs(&[("CLAUDECODE", "1"), ("TERMLINK_SESSION_ID", "tl-x")]);
+        assert_eq!(pick_session(None, None, &e), None);
+    }
+
+    #[test]
+    fn termlink_session_used_outside_claude_code() {
+        let e = envs(&[("TERMLINK_SESSION_ID", "tl-x")]);
+        assert_eq!(pick_session(None, None, &e).as_deref(), Some("tl-x"));
+        assert_eq!(pick_session(None, None, envs(&[])), None);
+    }
 }

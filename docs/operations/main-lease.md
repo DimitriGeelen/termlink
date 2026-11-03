@@ -49,8 +49,11 @@ The sidecar's `termlink sidecar status --json` carries the same answer as `main.
 object) and `termlink_main_status {project, session?}`.
 
 Defaults: `--project` from `$TERMLINK_MAIN_PROJECT`, else `project_name` in `.framework.yaml`
-above the cwd; `--hub` the local hub; `--session` from `$CLAUDE_SESSION_ID`, else
-`$TERMLINK_SESSION_ID`, or `--session-from-stdin` (Claude Code hook input JSON).
+above the cwd; `--hub` the local hub; `--session` from `--session-from-stdin` (Claude Code
+hook input JSON; an empty `session_id` counts as absent), else `$CLAUDE_SESSION_ID`, else `$CLAUDE_CODE_SESSION_ID`
+(what Claude Code exports to its shells), else `$TERMLINK_SESSION_ID` **only outside Claude Code**. Inside Claude Code
+(`$CLAUDECODE` set) the TermLink session id is a different identity, so with no Claude session id the verbs answer
+unknown (exit 2) rather than guess (T-3668).
 
 ## How to pin (operator)
 

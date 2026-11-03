@@ -57,3 +57,11 @@ rc=1
 
 ## (c) Session id
 Unknown. CLAUDE_SESSION_ID was empty in this session, so am-i got `{"session_id":""}`.
+
+---
+# Caveat added 2026-11-03 (T-3668)
+The `am-i` / `status` outputs above (rc 1) do NOT prove the second session was answered as not-main.
+CLAUDE_SESSION_ID was empty, so the CLI fell back to $TERMLINK_SESSION_ID (the TermLink `tl-…` id), and it would
+have said not-main from the main session too. The evidence that stands is (a): no peer mail reached the second
+session. T-3668 fixed the resolution: inside Claude Code the CLI now reads $CLAUDE_CODE_SESSION_ID and never the
+TermLink id.

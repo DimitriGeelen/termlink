@@ -123,7 +123,9 @@ period + cooldown, visibly; an operator pin wins and is logged.
 - [x] Tests: two-session fixture on a throwaway hub: only the holder handles mail; holder dies -> takeover after the
       stated delay with generation+1; pin overrides; hub down -> unknown; plus the two R-68 tests (lapse during an open
       obligation; stuck holder with live sidecar) end in a visible takeover
-- [ ] Interface handed to AEF for T-5014 (exact command / socket call and outputs) and to ring20
+- [x] Interface handed to AEF for T-5014 (exact command / socket call and outputs) and to ring20
+      (2026-11-03: AEF shipped T-5014 against it in v1.8.16-be.26, vendored here by T-3659: lib/sidecar/main_session.py
+      calls `termlink main am-i`/`claim`/`release`; ring20 LIVE on it, msg 25bff094 main afce1d16 gen 1)
 
       Evidence (2026-11-02, worker t3654-main-lease): lease = hub claim on offset 0 of `main:<project>` + signed
       `main.lease.v1` records on that topic (crates/termlink-session/src/main_lease.rs); CLI `termlink main

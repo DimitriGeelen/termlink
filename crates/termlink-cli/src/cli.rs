@@ -1293,7 +1293,7 @@ pub(crate) struct MainCommon {
     /// Home hub (socket path, host:port or hubs.toml profile; default: the local hub)
     #[arg(long)]
     pub hub: Option<String>,
-    /// Session id (default: $CLAUDE_SESSION_ID, else $TERMLINK_SESSION_ID)
+    /// Session id (default: $CLAUDE_SESSION_ID, else $CLAUDE_CODE_SESSION_ID, else $TERMLINK_SESSION_ID outside Claude Code only)
     #[arg(long)]
     pub session: Option<String>,
     /// Read Claude Code hook input JSON on stdin and use its session_id
