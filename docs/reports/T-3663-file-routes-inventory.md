@@ -86,3 +86,96 @@ backups, C9.
 
 Suggested order for the plan (the operator decides): B5 and B4 (cheap, high exposure) → C2, C1 (peer-owned; tell
 ring20) → A1/A2/A8 encrypt-to after B-11 keys exist → A4 retire → A7 stdin → B1/B2/B3 hardening.
+
+## Status updates
+- 2026-11-03 15:51Z: **B5 FIXED** (operator ruling A, T-3664, runme action 27): .107 dockerd on its local socket only; :2375 closed (verified ss + docker ps); all 3 containers back; backup /etc/docker/daemon.json.bak-20261103T155056Z.
+- 2026-11-03: **C1 OneDev plain HTTP FIXED for 4 projects** (onedev-https-2026-11-03): 050 (HTTPS, .107 only; its CT 250 .129 deploy fetch still http, operator deferred), proxmox-ring20-management (HTTPS, push proven), ring20-dashboard (SSH, push proven; old http remote kept unused for a few days), dimitri-mint-dev (HTTPS, push proven).
+## 0506-Voxtype-extention (msg 948500e9, 2026-11-03)
+- One cross-machine route: git push over HTTPS from .107 /opt/0506-Voxtype-extention to OneDev (repo voxtype-review):
+  source, task files, handovers, small synthetic WAV test fixtures. TLS in transit; at rest readable by anyone with
+  access to that OneDev repo.
+- Everything else stays on .107: dictation audio goes daemon -> 127.0.0.1:8095 (whisper) and Pen -> 127.0.0.1:8430
+  (loopback HTTP only); temp WAVs are mode 600 and deleted after each call. Peer mail goes through the local hub.
+  No scp/rsync, no mounts, no termlink file send or artifact uploads.
+
+## 1023-portable-encrypted-chromium-vault (msg cd906dbd)
+- In use today between machines: NONE (no git remote; tests on loopback; peer mail via the local hub).
+- Designed, not deployed: rsync over SSH over WireGuard, device <-> canonical host (not assigned yet; test guest
+  requested from ring20-manager). Payload: gocryptfs ciphertext of a Chromium profile + lease/heartbeat metadata.
+  In transit: WireGuard + SSH (forced command, restricted account vaultsync). At rest: ciphertext only; the
+  passphrase never leaves the devices.
+
+## 999-Agentic-Engineering-Framework (msg ccacdd35)
+1. git push over HTTPS .107 -> GitHub (since 2026-11-03 the SOURCE repo, remote origin; the repo is PUBLIC) and
+   .107 -> OneDev (mirror, fw mirror sync every 15 min). Source, tasks, reports. TLS.
+2. Consumers pull from GitHub over HTTPS (fw upgrade).
+3. TermLink sidecar/hub messages between projects and hosts, sometimes whole files as bodies; at rest in each
+   receiver's store under .context. AEF believes the transport is TLS with a pinned hub identity, not verified by AEF.
+4. Review seats: briefs and the code they read go to external providers (OpenAI, Z.ai, Anthropic) over HTTPS.
+5. The agent session itself: content goes to Anthropic's API over HTTPS.
+6. No SMB/NFS, NAS, scp or rsync. One document went to claude.ai by mistake on 2026-11-02 and was deleted the same day.
+
+## dimitri-mint-dev (msg c851c956)
+1. SMB 3.1.1 mounts .107 -> NAS .210 (share Dimitri_Share_Sync at /mnt/nas210-pen-create rw and /mnt/nas210-pen-read
+   ro): Pen's documents. No seal option, so encryption in transit is NOT verified.
+2. sshfs .107 -> .210 as adminDimitri (/NasRing20, allow_other) and svc-107-backup (/NasRing20-svc): backups, SSH.
+   allow_other exposes /NasRing20 to every local user on .107.
+3. git push over PLAIN HTTP .107 -> 192.168.10.201:6610 (repo dimitri-mint-dev-workstation): NOT encrypted in transit.
+4. termlink remote exec .107 -> .132:9100 (greenfield-exec, WSL root): commands and small writes (today an SSH public
+   key); hub TLS with a pinned cert.
+5. termlink sidecar/pickup messages (text only).
+6. Occasional Artifact publish to claude.ai (private by default).
+Not used: scp/rsync, NFS, termlink file send.
+
+## 055-agentic-fleet-cockpit (msg d4d318f6)
+1. git push over HTTPS .107 -> OneDev: commits and reports; TLS; at rest readable by repo users.
+2. scp .107 -> .132 Windows OpenSSH (C:/Users/<win-user>/cockpit-gate-install-<date>/): a small install bundle (gate
+   scripts + the cockpit's PUBLIC ssh key), only when the operator runs run-me.sh --laptop/--win-user; SSH.
+Not file routes: the cockpit's ssh to remote gates carries terminal show/steer only. The file drop (T-691, live today)
+is same-host only (.107 -> <project>/.context/inbox/files; root writes, owned by the project owner, mode 644, not
+encrypted at rest). Planned: a cross-machine file drop (T-692, a 'receive' verb in their ssh gate, per machine,
+operator-enabled). Nothing uses termlink file send / artifact put, SMB/NFS, the NAS or node1.
+
+## fan-dashboard (msg 6b015c84)
+1. git push/fetch .107 -> OneDev 192.168.10.201:6611 over SSH: repo contents; SSH-encrypted; at rest repo users.
+2. Dashboard HTTP .107:8087 and Watchtower .107:3571 to LAN clients: JSON status and HTML only, no uploads; plain
+   HTTP, not encrypted (status, not files).
+3. Sidecar/TermLink peer messages via the local hub, text only.
+No scp/rsync/SMB/NFS/termlink file send/artifact put; nothing to other hosts.
+
+## 1409-sprind (msg ad1f2e25)
+1. git push to OneDev over HTTPS: the whole repo (code, reports, evidence snapshots, tasks). TLS; at rest repo users.
+   Push currently blocked by 2 REF audit fails.
+2. Daily raw-data backup: systemd 1409-sicherung.timer runs tools/sicherung_rohdaten.sh --echt, which rsyncs --delete
+   evidence raw data to NAS .210 NetBackup/1409-sprind/current via the sshfs mount (svc-107-backup). SSH in transit.
+3. Read-only source corpus: sources/508-Sprin-D is a symlink into NAS .210 Dimitri_Share_Sync (sshfs as adminDimitri,
+   allow_other); never written. SSH in transit.
+4. node1: no direct route; one judge-bundle probe ran via the ring20 pool client, not by 1409.
+5. TermLink sidecar: text only.
+6. Outbound HTTPS paid reviews (OpenRouter/Mistral, tools/externe_review.py): task file + diff + named reports,
+   operator-approved per round, logged with sha256.
+None to .121/.122/.132/.141; no secrets moved (api-keys.enc is machine-bound).
+
+## 050-email-archive / Pen (msg 2284f4c8; ignore its earlier 'test-resolve')
+1. SMB/CIFS .107 -> NAS .210 Dimitri_Share_Sync: /mnt/nas210-pen-read (ro, pen-read, whole share) and
+   /mnt/nas210-pen-create (rw, pen-create; writes only into the grant folders in policy/access-grants.yaml). Report
+   drafts, receipts (PDF/DOCX/MD). SMB 3.1.1, no 'seal' option: encryption in transit depends on the NAS setting, not
+   verified. At rest on the NAS share (its users) with btrfs snapshots.
+2. sshfs .107 -> NAS .210: /NasRing20 (adminDimitri, the operator's admin mount; the agent never writes) and
+   /NasRing20-svc (svc-107-backup, backups). SSH.
+3. git push over plain HTTP .107 -> OneDev .201:6610 (email-archive.git): source + framework/task files, NOT encrypted
+   in transit; token via a credential helper, not stored.
+4. OneDev CI -> CT 250 .129: ssh as deploy, then git fetch from OneDev on .129 (prod /opt/penelope-prod, dev
+   /opt/penelope): code only; the ssh leg is encrypted, the fetch leg is plain http.
+5. scripts/pg-migrate-to-ring20.sh (scp/rsync of a PG dump to Ring20): exists, one-off, not routine.
+6. termlink: messages/DMs only, via hubs .107/.122; no file send in routine use.
+None to .121/.132/.141/node1.
+
+## 832-Workflow-designer (msg 2f17dfaf)
+1. git push/fetch over SSH .107 -> .201:6611: source, release artifacts (dist/), task and context files. SSH; at rest
+   repo users.
+2. Sidecar/TermLink messages via the hub, text only; peers sometimes send file contents as message text (owner
+   approved). At rest in .context/sidecar/ on .107; client files copied only to a git-ignored build/peer-data/ dir
+   (mode 600/700), never committed.
+3. Watchtower HTTP on .107 itself only.
+Not used: scp, rsync, SMB/NFS (the /mnt/nas210-* mounts are not touched by 832), termlink file send, artifact put.
