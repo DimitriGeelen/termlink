@@ -276,6 +276,21 @@ grep -q 'task: T-3353' docs/design/interactive-agent-communication-role-chain.ya
   independent of the READY flag, with its own audit row; CR-O2c conversation detection (operator<->agent and
   agent<->agent) as a separate signal from the agent's busy flag.
 
+### 2026-11-03 — O-3 who may be main before signed profiles: A with a tightening (operator ruling, after consultation)
+- **Chose:** A with the tightening (operator: "A with the tightening"). Any interactive session of the project may
+  become main (first claim wins; operator pin overrides), as built, PLUS: (1) a renewal or takeover counts only on a
+  HUMAN-initiated prompt, never on automated activity (timers, background prompts, injected lines); (2) a session where
+  the operator actually prompts can take main over faster than lapse + quiet + cooldown when the holder shows no human
+  activity; (3) a loud "mail waiting, main not reading" signal to the operator.
+- **Why:** consultation (docs/reports/T-3353-O3-consultation/: opencode A, antigravity A, codex C if operator attention
+  is binding, else A defensible). All three: B is degenerate (all sessions share one agent id; no named agent = no main
+  at all, the operator's objection). All three named the residual risk of A: a forgotten session renewing forever via
+  automated prompts; the tightening is their shared fix.
+- **Rejected:** B (filters nothing, adds a no-main outage); C (no pin = no main, mail waits; pin fatigue).
+- **Change request CR-O3:** architect specifies (a) how "human-initiated prompt" is detected per harness (adapter;
+  ties to CR-O2a's activity measurement), (b) the fast-takeover rule and its bound, (c) the waiting-mail signal and
+  where it lands (session-start alerts, cockpit, operator).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
