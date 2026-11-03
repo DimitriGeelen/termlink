@@ -1,7 +1,8 @@
 # Interactive agent communication: step 4, architecture
 
 **Task:** T-3353 · **Arc:** arc-011 · **Chain:** arc-011-design, step 4 · **Role:** architect
-**Status:** DRAFT v0.3, the operator's rulings O-1 to O-7 of 2026-11-03 applied (T-3353 `## Decisions`). The
+**Status:** DRAFT v0.3.1, the operator's rulings O-1 to O-7 of 2026-11-03 applied (T-3353 `## Decisions`); the
+one finding of review round 3 (V-20261103-de612e86) fixed and accepted with change per the round cap. The
 independent review of v0.2 was accepted (operator ruling A, 2026-11-03). The step output as a whole is not yet
 approved. The decision records the operator ruled carry **accepted** with the ruling date (section 18); the others
 stay **proposed** until the operator approves this step (card section 5). Everything tagged **[P]** is a proposal;
@@ -22,6 +23,7 @@ this file in the repository.
 
 | Version | Date | Change | Task |
 |---|---|---|---|
+| 0.3.1 | 2026-11-03 | Round 3 finding of review V-20261103-de612e86 (amber), accepted with change per the round cap (no further review round): every remaining "approve verb" wording reworded to the 12.2 placement (Watchtower and the operator's out-of-band channels, decision written back through the existing admin path, no new hub verb) in D-5 node T4, 11.2.5, 11.5 row T4 (TB-10) and 12.1 (enrolment C-1). Minor: the section 18 heading no longer says "all proposed". D-5 re-rendered (24.5). | T-3353 |
 | 0.3 | 2026-11-03 | Operator rulings O-1..O-7 applied, and only what follows from them. O-1 A: 6.4.6, DR-5, BP-21 decided; other file routes out of scope (T-3663). O-2 D+ supersedes DR-6: 6.9 rewritten (READY + no typing + no conversation; external 300 s watchdog), new 6.14 activity and conversation signals (CR-O2a, CR-O2c), watchdog with audit row (CR-O2b), DR-15. O-3 A + tightening: new 6.13 (human-initiated renewal, fast takeover with its bound, waiting-mail signal; CR-O3), DR-9 accepted, DR-16. O-4 A: 6.10.2, BP-14, B-18 (operator runme act) and B-26 (T-2876 prover re-based on TermLink). O-5 A: section 8 package accepted (DR-3, DR-12, DR-14). O-6: approvals via Watchtower and the operator's out-of-band channels, no new hub verb (12.2, K-27, XR-8); H-21 dropped, thresholds by reliability (15.2, XR-7); section 16 corrected to OD-7/OD-9; NID stated at every retirement (11, 12.8, 14). O-7 A: 8.4, DR-13 accepted. Section 17 is now the adapter contract AEF implements from. Build table: B-13, B-16, B-18, B-23, B-24 changed; B-25..B-29 new. 04a traceability v0.3. Drawings D-1, D-3, D-4, D-5 updated and re-rendered (24.4). | T-3353 |
 | 0.2 | 2026-11-03 | Round 1 remediation of review V-20261103-717b2df9 (amber), its three findings only: 11.4 states that D-1's built-coloured subset is the baseline view, 11.5 gives per transition (baseline, T1..T6, target) the trust boundaries introduced or changed and the [i] that shows it took effect; D-1 labels corrected (operator zone is TB-10, the lease is TB-12 [i]); section 15 rows K-12, K-17, K-24, K-25 and 15.1 (built and PH-3+ components); section 18 Status and Decision columns, 18.1, and 18.2 disposing of every FP 14.1.b hand-over item. Review evidence added to the inputs (1.5). Drawings re-rendered (24.3). | T-3353 |
 | 0.1 | 2026-11-02 | First complete draft, batch mode. Baseline recorded from the PH-1/PH-2 build (ARCH, ARCH2, the main lease); the eleven PH-2 rows without tasks designed (P10, P11, P13, P15 to P19, P21, P22, P24) plus R-67.a1 (4) forward-once; the step-4 open values decided as [P] starting values or listed open; views D-1 to D-5; TCB; bypass closure; measurement; ownership split; 14 decision records; 6 change requests; a 24-row build table. | T-3353 |
@@ -1009,7 +1011,7 @@ flowchart TB
   T1["T1 PH-2 hardening: hub id and signing key, revocation, caps, hub changes, reconciliation, blobs encrypted, status flags, injectors, lease tightening, waiting-mail signal, SendMessage deny after the prover moved"]:::st
   T2["T2 W2: activity meter, doorbell D+ with 300 s watchdog for the pair, H-11 for 7 days, forward-once"]:::st
   T3["T3 W3 and W4: every agent of 010 on .107 via the launcher, canary daily, then W4 only on explicit operator approval"]:::st
-  T4["T4 PH-3: roster, signed cards, Tier 0 registry and approve verb, every client verifies hub id, cross-hub mail, account pilot A0"]:::st
+  T4["T4 PH-3: roster, signed cards, Tier 0 registry with approvals via Watchtower and OOB channels, every client verifies hub id, cross-hub mail, account pilot A0"]:::st
   T5["T5 PH-4: policy store and rule engine, grants, lease eligibility from signed profiles, membership, DM encryption, framing on old rails, FX-1 and FX-4 complete, A3"]:::st
   T6["T6 PH-5: direct circuit, outage log and reconciliation RC-1 to RC-9"]:::st
   TG["Target PH-6: project mail and custody, operator key and real provider, orchestrator without root, shell sidecars retired"]:::st
@@ -1035,7 +1037,8 @@ for the pair, with the H-11 measurement for 7 days, and forward-once.
 switches AEF's receiver and the legacy notify-sidecar off for this host's inboxes, is a decommission: it runs only
 after the replacement has run reliably in the field and only with the operator's explicit approval recorded in his
 words (NID, 6.11.3); the switched-off rails stay installed until PH-3 exits.
-11.2.5 T4, PH-3: roster and signed cards, the Tier 0 registry with the approve verb, every client verifying the hub
+11.2.5 T4, PH-3: roster and signed cards, the Tier 0 registry with approvals given in Watchtower or on the operator's
+out-of-band channels and written back through the existing admin path (12.2, no new hub verb), every client verifying the hub
 id, cross-hub mail, the account pilot A0. Removed: the `sidecar:` alias, TOFU re-pin without a Tier 0 event.
 11.2.6 T5, PH-4: the policy store and rule engine, grants, lease eligibility from signed profiles, membership,
 encrypted direct messages, framing on the old rails, FX-1 and FX-4 complete, accounts at A3.
@@ -1067,7 +1070,7 @@ effect.** TB-n are TM section 5. A transition counts as done only when every [i]
 | T1 PH-2 hardening | ~TB-5: the hub becomes verifiable (minted id, signing key, signed revocation list, key card, signed DEAD); ~TB-4: reconciliation on start and daily head compare; ~TB-1: blobs cross only after both digests check, ciphertext at the hub; ~TB-10: admin log, sweep refusal; ~TB-12: lease counts only human-initiated prompts, fast takeover; ~TB-1: SendMessage denied (after B-26); ~TB-13: fault injectors exercise the estate | lease records with `origin` and `ignored: origin`, `reason: fast-takeover`; status `main.mail_waiting`; the SendMessage deny present in settings (runme log OK); status fields `hub {id, declared, match}`, `revocation` (fresh), `quota`, `consumers`, `reachability`, `clear`, `strength` present and fresh; hub `inbox.consumers` and admin-log rows with `admin: true`; daily head-compare count; FX-5 probe shows ciphertext only; H-18 100 of 100 |
 | T2 W2 | +TB-2: first crossing, the doorbell's one fixed line via the `notify` scope, into sessions that are READY with no typing and no conversation, plus the 300 s watchdog independent of READY; ~TB-12: forward-once between copies of an agent (through the hub, TB-5) with the VIA notice | H-11 (a)..(f) over 7 days; status `activity` per session fresh; watchdog audit rows; ring log per session with the re-check result; FORWARDED outcome and VIA notice in the sender's record; H-24 |
 | T3 W3, W4 | ~TB-3/TB-5: every agent of 010 on .107 behind its own sidecar; ~TB-1: the AEF receiver rail and notify-sidecar into .107 inboxes switched off at W4 only with the operator's recorded approval (NID, BP-16); ~TB-5: each inbox bound to one consumer after W4; ~TB-13: daily canary on the installed artifact | consumer list shows one identity per inbox over the V-11 window, bind rows in the admin log; AEF receiver unit inactive for .107 inboxes; canary log daily, no staleness alarm (V-13); P24 W3 acceptance and PH-2 exit report |
-| T4 PH-3 | +TB-8: hub-to-hub signed cards and roster seq; ~TB-5: every client verifies the hub id; ~TB-10: Tier 0 registry and approve verb; ~TB-1/TB-2/TB-4: the A0 account pilot separates its first agent; TB-12: `sidecar:` alias ended | roster `seq` in every exchange, card TTL ages; status `hub.match` on every client; Tier 0 audit trail rows; A0 pilot report; alias calls refused with a reason |
+| T4 PH-3 | +TB-8: hub-to-hub signed cards and roster seq; ~TB-5: every client verifies the hub id; ~TB-10: Tier 0 registry; approvals via Watchtower and the out-of-band channels, decision written back through the existing admin path (12.2, no new hub verb); ~TB-1/TB-2/TB-4: the A0 account pilot separates its first agent; TB-12: `sidecar:` alias ended | roster `seq` in every exchange, card TTL ages; status `hub.match` on every client; Tier 0 audit trail rows; A0 pilot report; alias calls refused with a reason |
 | T5 PH-4 | ~TB-1, TB-2, TB-4 become real between agents (A3 accounts); +TB-11: starts and resumes only under signed grants; ~TB-12: eligibility from signed profiles; ~TB-5: direct-message content encrypted, the hub reads envelopes only; ~TB-1: framing on the old rails (FX-1, FX-4 complete) | `strength.per_agent_accounts: yes`, `policy_records` with the policy head and epoch; grant-use log; lease records citing the profile; FX-5 probe shows no plaintext DM content |
 | T6 PH-5 | +TB-7: the sender-constrained circuit between sidecars; TB-6 stays unused (OQ-4: a new conversation always needs the hub) | circuit minting log at the hubs; outage log; RC-1..RC-9 reconciliation counts after each outage |
 | Target PH-6 | ~TB-10: operator key and real confirmation provider sign approvals and policy records; ~TB-4: custody key in a supervisor account; ~TB-11: the orchestrator without root | `strength.operator_key: yes`, `confirmation_provider: yes`; policy head at an operator-signed epoch; custody release log (C-10); shell sidecar units absent from the install-drift check |
@@ -1078,8 +1081,8 @@ effect.** TB-n are TM section 5. A transition counts as done only when every [i]
 in the interim (IC-3), each entry `{hub_id, signing_key, address, admitted_at, event_digest}`, rising `seq` carried in
 every hub-to-hub exchange (R-77). Cards `termlink.card/1` signed by the originating hub with `seq` and TTL 600 s
 (PN-9). Project root key per project, held by the operator's runme in L0/L1, by the operator key in L2. "Moved to"
-and hub-key rotation as signed statements. Enrolment: C-1 human route through the approve verb with the typed-back
-fingerprint (PR-14). Gate: T-2470 (charter rewording) **open**. Detailed sub-design: open (`04b`, after T-2470).
+and hub-key rotation as signed statements. Enrolment: C-1 human route as a Tier 0 event approved in Watchtower or on an out-of-band channel, with the
+typed-back fingerprint, the decision written back through the existing admin path (12.2, PR-14). Gate: T-2470 (charter rewording) **open**. Detailed sub-design: open (`04b`, after T-2470).
 12.2 **Tier 0 events and the approval surface (K-27).** One registry table (FP 10.2, classes C-1..C-16, routes as
 ruled OP-2 A and OP-3 A). Events are records `{class, who, what, evidence, digest}` on the hub's admin scope; one
 **[R] O-6 OP-5 (2026-11-03): approvals go through the existing surfaces, Watchtower and the operator's out-of-band
@@ -1280,7 +1283,7 @@ doorbell is a session RPC with ids only. Forwarding, revocation, blobs and the l
 transport (Unix socket or TLS); the circuit (PH-5) is a second transport under the same delivery contract (R-46.a (3)).
 Nothing depends on a vendor channel (R-79).
 
-## 18 Decision records (all proposed; the operator decides)
+## 18 Decision records (status per record: accepted with ruling date, superseded, or proposed)
 
 | DR | Context | Options | Recommendation | Consequences | Status | Decision |
 |---|---|---|---|---|---|---|
@@ -1477,3 +1480,6 @@ D-2 unchanged. Every block exit code 0; SVG sizes 50690, 26237, 43920, 81624 and
 "parse error" in any log or SVG. D-4 was rendered to PNG and read: in the first render the three HELD self-loops of the
 lease collapsed into one visible label, so they were merged into one labelled loop; the re-render shows every
 transition labelled.
+24.5 Result, 2026-11-03, on v0.3.1 (script `.context/working/t3353/render/r3.sh`, same method). Only D-5 changed
+(node T4 label). Every block exit code 0; SVG sizes 50690, 26237, 43920, 81624 and 24886 bytes; no "syntax error" or
+"parse error" in any log or SVG.
