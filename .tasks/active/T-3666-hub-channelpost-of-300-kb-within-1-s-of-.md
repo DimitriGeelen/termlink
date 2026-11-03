@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-03T16:13:26Z
-last_update: '2026-11-03T16:17:51Z'
+last_update: 2026-11-03T16:21:28Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -394,6 +394,14 @@ affected.
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-11-03 — ring20 data, msg d5be8dcf (for the worker: a SIZE BAND, not chance)
+- 1409 paced 10-chunk upload ~16:19Z: chunks 1-9 (300 KB each) landed; chunk 10 (~103 KB tail) timed out 4 times and
+  NEVER landed (contrast: msg 1e42e8e8 saw records land with the reply lost).
+- ring20 singles 16:20Z: 50 KB timeout, 150 KB timeout, 300 KB ok; tiny posts ok.
+- Hypothesis to test first: a payload-size band (~50-150 KB) that hits a buffer/frame/TLS-record or SSH-window boundary
+  in the request write or the hub's body read (e.g. a read that waits for more bytes than arrive, a length prefix vs
+  partial read, a fixed 64 KiB buffer). Test sizes 32..400 KB in fine steps through a TCP proxy and an SSH -L forward.
 
 ### 2026-11-03T16:13:26Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
