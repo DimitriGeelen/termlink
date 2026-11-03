@@ -1,7 +1,7 @@
 # Interactive agent communication: step 4, architecture
 
 **Task:** T-3353 · **Arc:** arc-011 · **Chain:** arc-011-design, step 4 · **Role:** architect
-**Status:** DRAFT v0.1 for independent review, then the operator. Nothing in this document is approved. Every
+**Status:** DRAFT v0.2 (round 1 remediation) for independent review, then the operator. Nothing in this document is approved. Every
 decision record (section 18) is **proposed** until the operator accepts it (card section 5). Everything tagged
 **[P]** is a proposal; **[B]** marks a fact about what is built and live today, read from the repository on
 2026-11-02 and recorded as baseline, not redesigned.
@@ -16,6 +16,7 @@ this file in the repository.
 
 | Version | Date | Change | Task |
 |---|---|---|---|
+| 0.2 | 2026-11-03 | Round 1 remediation of review V-20261103-717b2df9 (amber), its three findings only: 11.4 states that D-1's built-coloured subset is the baseline view, 11.5 gives per transition (baseline, T1..T6, target) the trust boundaries introduced or changed and the [i] that shows it took effect; D-1 labels corrected (operator zone is TB-10, the lease is TB-12 [i]); section 15 rows K-12, K-17, K-24, K-25 and 15.1 (built and PH-3+ components); section 18 Status and Decision columns, 18.1, and 18.2 disposing of every FP 14.1.b hand-over item. Review evidence added to the inputs (1.5). Drawings re-rendered (24.3). | T-3353 |
 | 0.1 | 2026-11-02 | First complete draft, batch mode. Baseline recorded from the PH-1/PH-2 build (ARCH, ARCH2, the main lease); the eleven PH-2 rows without tasks designed (P10, P11, P13, P15 to P19, P21, P22, P24) plus R-67.a1 (4) forward-once; the step-4 open values decided as [P] starting values or listed open; views D-1 to D-5; TCB; bypass closure; measurement; ownership split; 14 decision records; 6 change requests; a 24-row build table. | T-3353 |
 
 ## 1 Inputs of record
@@ -68,6 +69,14 @@ change request (section 20, XR-n).
 1.4.d Read-only host facts used (2026-11-02, `.107`): the hub's runtime directory `/var/lib/termlink` holds 365
 topic logs, 59 MB in all, the largest 8 MB, and a 64 MB artifact store; the hub audit logs (`rpc-audit.jsonl`,
 39 MB live plus a 101 MB rotation) exist. Used only for the retention ceilings (8.3).
+
+1.5 Review input for round 1 (v0.2).
+
+| Short | Path | sha256 |
+|---|---|---|
+| REV1 | `.context/reviews/evidence/T-3353/AC1-judge-t-3353-r1-c975edf4772f.md` (verdict V-20261103-717b2df9, amber) | `290d5d9d7023783bd7f9a2f80fbd0cc8f16b35306de35bf6bd8381059a4f50b5` |
+
+1.5.a Every other input above was re-hashed on 2026-11-03 and is unchanged.
 
 ## 2 How to read this document
 
@@ -172,7 +181,7 @@ flowchart LR
   classDef new fill:#efe,stroke:#363
   classDef built fill:#eef,stroke:#446
   classDef later fill:#eee,stroke:#888,stroke-dasharray: 4 3
-  subgraph OPZ["Operator zone (TB-12)"]
+  subgraph OPZ["Operator zone (TB-10)"]
     OP["Operator terminal, runme.sh"]:::built
     OPK["Operator key + confirmation provider (Track K)"]:::later
   end
@@ -194,7 +203,7 @@ flowchart LR
     RV["Revocation list K-9b"]:::new
     CON["Consumer list, admin log, sweep refusal K-15 [i]"]:::new
     AS["Artifact store, ciphertext only K-13"]:::new
-    LS["Main lease K-22"]:::built
+    LS["Main lease K-22 (TB-12) [i]"]:::built
     POL["Policy store K-26 + Tier 0 registry K-27"]:::later
     DIR["Directory, roster, cards K-28"]:::later
   end
@@ -796,6 +805,28 @@ shell sidecars.
 11.3 Every transition keeps the floor items that have entered (FP 3.1.d) and has the rollback of its phase (FP 6);
 the PH-2 transitions use the drain of K-4 with the kept-and-listed rule of OQ-j A.
 
+11.4 **The baseline view is D-1's built-coloured subset.** D-1 (5.2) is both the target view and, restricted to its
+blue (built) nodes and the edges between them, the baseline view: the operator zone (TB-10) with `runme.sh`, the agent
+host (TB-1 to TB-4, TB-9) with harness, hooks, sidecar and supervisor, the home hub (TB-5) with inbox topics and the
+main lease (TB-12), and the peer sidecar reached only through the hub. Its [i] points are the built ones: the hooks
+(main claim results, hand-over evidence), the sidecar heartbeat per component, the supervisor and backstop logs, the
+lease (`termlink main status`). On the baseline TB-1, TB-2 and TB-4 separate nobody (one OS user, root), TB-2 is not
+crossed (doorbell off), and TB-6, TB-7, TB-8 and TB-11 do not exist yet. Section 4 is the text equivalent.
+
+11.5 **Per transition: trust boundaries introduced or changed, and the instrumentation that shows the transition took
+effect.** TB-n are TM section 5. A transition counts as done only when every [i] in its row reads as stated.
+
+| Step | Trust boundaries introduced (+) or changed (~) | Instrumentation [i] that shows it took effect |
+|---|---|---|
+| Baseline | as 11.4: TB-1 hook channel (framed), TB-3 owner-only sockets (SI-14), TB-4 store with checksums and chain, TB-5 TLS + signed messages, TB-9 nonce evidence, TB-10 runme and root-only sockets, TB-12 main lease, TB-13 release checksums in status | hook logs; component heartbeat; supervisor and backstop logs; `termlink main status`; status `binary`, `supervision`, `main` |
+| T1 PH-2 hardening | ~TB-5: the hub becomes verifiable (minted id, signing key, signed revocation list, key card, signed DEAD); ~TB-4: reconciliation on start and daily head compare; ~TB-1: blobs cross only after both digests check, ciphertext at the hub; ~TB-10: admin log, sweep refusal; ~TB-13: fault injectors exercise the estate | status fields `hub {id, declared, match}`, `revocation` (fresh), `quota`, `consumers`, `reachability`, `clear`, `strength` present and fresh; hub `inbox.consumers` and admin-log rows with `admin: true`; daily head-compare count; FX-5 probe shows ciphertext only; H-18 100 of 100 |
+| T2 W2 | +TB-2: first crossing, the doorbell's one fixed line via the `notify` scope, only into unattended sessions; ~TB-12: forward-once between copies of an agent (through the hub, TB-5) with the VIA notice | H-11 (a)..(d) over 7 days; ring log per session with the re-check result; FORWARDED outcome and VIA notice in the sender's record; H-24 |
+| T3 W3, W4 | ~TB-3/TB-5: every agent of 010 on .107 behind its own sidecar; ~TB-1: the AEF receiver rail and notify-sidecar into .107 inboxes removed (BP-16); ~TB-5: each inbox bound to one consumer after W4; ~TB-13: daily canary on the installed artifact | consumer list shows one identity per inbox over the V-11 window, bind rows in the admin log; AEF receiver unit inactive for .107 inboxes; canary log daily, no staleness alarm (V-13); P24 W3 acceptance and PH-2 exit report |
+| T4 PH-3 | +TB-8: hub-to-hub signed cards and roster seq; ~TB-5: every client verifies the hub id; ~TB-10: Tier 0 registry and approve verb; ~TB-1/TB-2/TB-4: the A0 account pilot separates its first agent; TB-12: `sidecar:` alias ended | roster `seq` in every exchange, card TTL ages; status `hub.match` on every client; Tier 0 audit trail rows; A0 pilot report; alias calls refused with a reason |
+| T5 PH-4 | ~TB-1, TB-2, TB-4 become real between agents (A3 accounts); +TB-11: starts and resumes only under signed grants; ~TB-12: eligibility from signed profiles; ~TB-5: direct-message content encrypted, the hub reads envelopes only; ~TB-1: framing on the old rails (FX-1, FX-4 complete) | `strength.per_agent_accounts: yes`, `policy_records` with the policy head and epoch; grant-use log; lease records citing the profile; FX-5 probe shows no plaintext DM content |
+| T6 PH-5 | +TB-7: the sender-constrained circuit between sidecars; TB-6 stays unused (OQ-4: a new conversation always needs the hub) | circuit minting log at the hubs; outage log; RC-1..RC-9 reconciliation counts after each outage |
+| Target PH-6 | ~TB-10: operator key and real confirmation provider sign approvals and policy records; ~TB-4: custody key in a supervisor account; ~TB-11: the orchestrator without root | `strength.operator_key: yes`, `confirmation_provider: yes`; policy head at an operator-signed epoch; custody release log (C-10); shell sidecar units absent from the install-drift check |
+
 ## 12 Later phases at architecture level (PH-3 to PH-6)
 
 12.1 **PH-3 identity, directory, admission (K-28).** Roster `termlink.roster/1` record, signed by the hub signing key
@@ -879,15 +910,21 @@ A, a hijacked agent equals this adversary on its host (FP 3.7.1).
 | K-9b revocation | a revoked key is refused within one tick | status `revocation` freshness; drill | anything while the hub is down longer than PN-13 beyond narrowing |
 | K-10 seq window | no gap undetected, no reuse accepted | H-3; receipts' `up_to` | ordering outside a conversation |
 | K-11 caps | floods wait, receipts flow | H-13; quota notices count | fairness between projects |
+| K-12 ladders and owed list | an unanswered message is re-sent on each rung and stays on the owed list until answered or ended, never dropped silently | P14 fixture on a simulated clock (T-3358); owed-list count compared with the hub record each tick | that the recipient acted on it (delivered is not acted on) |
 | K-13 blobs | a blob round-trips with both digests checked; hub holds ciphertext | H-7; FX-5 inventory probe | confidentiality against the host's root |
 | K-14 reconciliation | no silent divergence after start | daily head compare count | prevention of same-user rewrite (RR-2) |
 | K-15 hub | second consumer seen within 60 s; sweep of open mail refused | FP-1 failure 2 injection | that a root process on the hub host cannot edit the log |
 | K-16 status | names the cause within 60 s, answers in 5 s | H-18 injections | causes outside the six faults |
+| K-17 fault injectors | each of the six faults is named by status with its fix within 60 s, 100 of 100, recovery with zero manual steps; each run goes red with the diagnosis code removed | 6.8.2 runs, tier 1 and tier 3 on the installed artifact; the drill (three readers, median at most 5 min) | faults outside the six; in production mode tier 3 can only stop the whole sidecar, not one loop |
 | K-19 doorbell | rings reach idle sessions without stray lines | H-11 (a)..(d) | absence of the check-to-keystroke race (RR-19) |
 | K-20 vendor log | every vendor-channel use leaves a row | fixture per tool | uses in sessions without the hook |
 | K-21 canary | daily two-agent round trip with negative control | canary log and staleness (V-13) | delivery for pairs not in the rotation |
 | K-22 lease | one main per project, takeover visible | `termlink main status`; R-68 tests | that main is the right session for the operator's intent |
 | K-23 forward | no role mail lost or doubled across copies | H-24 | conversation mail (never forwarded by design) |
+| K-24 encryption keys | every agent's register entry matches the private key in its store; a blob to the agent opens only with that key; the hub holds ciphertext only | start-up check refuses on mismatch (status); B-11/B-12 round trip; FX-5 probe of the artifact store | key secrecy against root on the agent's host (RR-2, AR-4) |
+| K-25 mail-hub declaration | a sidecar whose config copy differs from `.framework.yaml`, or whose hub answers another `hub_id`, does not run | refusal at start; status `hub {declared, match}` each tick; fault injector (5) of 6.8.1 | that the declaration names the hub the operator intended (who wrote the file) |
+
+15.1 K-1..K-8 and the K-18 activity veto are built; their measurement is the PH-2 acceptance already passed (4.2); the K-18 readiness re-check is measured with K-19 (H-11), and the built lease K-22 has its own row above. K-26 to K-31 (PH-3 to PH-6) get their rows in their sub-designs (12.1 to 12.7); measurement for them is deferred to those sub-designs, and each sub-design MUST add its row here before its build starts.
 
 ## 16 Ownership split TermLink / AEF (OD-7, OD-9, CAND-10, RUL section 12)
 
@@ -914,22 +951,51 @@ channel (R-79).
 
 ## 18 Decision records (all proposed; the operator decides)
 
-| DR | Context | Options | Recommendation | Consequences |
-|---|---|---|---|---|
-| DR-1 | Hub id minting (V-1) | A mint once, fingerprint-derived for existing hubs, refuse re-mint beside state; B keep deriving from the fingerprint; C random id for all, rename inboxes | **A** | no inbox renamed; PL-021 fails loudly; socket-only hubs get ids |
-| DR-2 | Hub signing key pinning in PH-2 | A TOFU pin in each sidecar store, mismatch refused; B no pin until PH-3 out-of-band | **A** | revocation list unforgeable to a remote attacker now; same limit as TLS TOFU |
-| DR-3 | Receiver quotas (V-4, 6.3) | A numbers of 6.3; B sender cap only | **A** | SI-19 holds at the receiver (floor) |
-| DR-4 | Blob confidentiality (FX-5A) | A encrypt to the recipient's X25519 key, ciphertext in the recipient's home hub store; B wait for the circuit; C plaintext with RA | **A** | needs encryption keys now (K-24, XR-5) |
-| DR-5 | `artifact put --hub` (T-3614) | A only with `--encrypt-to`, plaintext refused; B allow plaintext between hubs of this operator, with a risk acceptance; C defer T-3614 to PH-4 | **A** | ring20 gets encrypted pool transfers, not plaintext (O-1) |
-| DR-6 | Doorbell conditions and line (6.9) | A ring only when no client is attached; line inside the SI-1 alphabet; B ring when attached too; C keep the T-3533 line | **A** | no typing into a person's half-written prompt; one built line changes |
-| DR-7 | Mail-hub declaration location | A `.framework.yaml` `mail_hub` (AEF's file) with a verified copy in the sidecar config; B a TermLink file `.termlink/mail-hub.toml` | **A** | one place per project; AEF must accept the key |
-| DR-8 | Revocation stale rule effect in PH-2 | A narrow allow-list to own project, downgrade urgent; B stop all delivery | **A** | never stops all mail on a hub blip |
-| DR-9 | Main eligibility while no policy record exists | A record the built lease (every session of the project's agents eligible) as the PH-2 interim under the 2026-11-02 instruction; OP-4's default `no` applies when profiles exist (PH-4); B restrict now to the pinned main's agent; C only pinned sessions | **A** | matches what runs in 8 projects; XR-3 |
-| DR-10 | Forward-once envelope (section 7) | A outer FORWARD signed by the forwarder carrying the original signed bytes; B re-sign the content as the forwarder | **A** | original signature kept (R-67.a1 (4)); XR-2 |
-| DR-11 | Second inbox consumer | A flag during waves, refuse after W4 bind; B refuse at once | **A** | wave switches stay possible |
-| DR-12 | Gap wait (V-6) | A store at once, hold hand-over, release after 5 min marked; B hold indefinitely; C no hold | **A** | bounded head-of-line wait |
-| DR-13 | Security levels (8.4) | A L0/L1/L2 selecting only costly strength, floor never off; B a free per-item matrix | **A** | small, auditable; lowering is high-impact (XR-6) |
-| DR-14 | Retention ceilings (V-3) | A the numbers of 8.1; B measure first, no ceiling | **A** | allocation sinks bounded from the first build |
+| DR | Context | Options | Recommendation | Consequences | Status | Decision |
+|---|---|---|---|---|---|---|
+| DR-1 | Hub id minting (V-1) | A mint once, fingerprint-derived for existing hubs, refuse re-mint beside state; B keep deriving from the fingerprint; C random id for all, rename inboxes | **A** | no inbox renamed; PL-021 fails loudly; socket-only hubs get ids | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
+| DR-2 | Hub signing key pinning in PH-2 | A TOFU pin in each sidecar store, mismatch refused; B no pin until PH-3 out-of-band | **A** | revocation list unforgeable to a remote attacker now; same limit as TLS TOFU | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
+| DR-3 | Receiver quotas (V-4, 6.3) | A numbers of 6.3; B sender cap only | **A** | SI-19 holds at the receiver (floor) | proposed; operator rules it as O-5 (section 21) | none yet |
+| DR-4 | Blob confidentiality (FX-5A) | A encrypt to the recipient's X25519 key, ciphertext in the recipient's home hub store; B wait for the circuit; C plaintext with RA | **A** | needs encryption keys now (K-24, XR-5) | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
+| DR-5 | `artifact put --hub` (T-3614) | A only with `--encrypt-to`, plaintext refused; B allow plaintext between hubs of this operator, with a risk acceptance; C defer T-3614 to PH-4 | **A** | ring20 gets encrypted pool transfers, not plaintext (O-1) | proposed; operator rules it as O-1 (section 21) | none yet |
+| DR-6 | Doorbell conditions and line (6.9) | A ring only when no client is attached; line inside the SI-1 alphabet; B ring when attached too; C keep the T-3533 line | **A** | no typing into a person's half-written prompt; one built line changes | proposed; operator rules it as O-2 (section 21) | none yet |
+| DR-7 | Mail-hub declaration location | A `.framework.yaml` `mail_hub` (AEF's file) with a verified copy in the sidecar config; B a TermLink file `.termlink/mail-hub.toml` | **A** | one place per project; AEF must accept the key | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
+| DR-8 | Revocation stale rule effect in PH-2 | A narrow allow-list to own project, downgrade urgent; B stop all delivery | **A** | never stops all mail on a hub blip | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
+| DR-9 | Main eligibility while no policy record exists | A record the built lease (every session of the project's agents eligible) as the PH-2 interim under the 2026-11-02 instruction; OP-4's default `no` applies when profiles exist (PH-4); B restrict now to the pinned main's agent; C only pinned sessions | **A** | matches what runs in 8 projects; XR-3 | proposed; operator rules it as O-3 (section 21) | none yet |
+| DR-10 | Forward-once envelope (section 7) | A outer FORWARD signed by the forwarder carrying the original signed bytes; B re-sign the content as the forwarder | **A** | original signature kept (R-67.a1 (4)); XR-2 | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
+| DR-11 | Second inbox consumer | A flag during waves, refuse after W4 bind; B refuse at once | **A** | wave switches stay possible | proposed; operator rules it with the approval of this step (no separate O-n) | none yet |
+| DR-12 | Gap wait (V-6) | A store at once, hold hand-over, release after 5 min marked; B hold indefinitely; C no hold | **A** | bounded head-of-line wait | proposed; operator rules it as O-5 (section 21) | none yet |
+| DR-13 | Security levels (8.4) | A L0/L1/L2 selecting only costly strength, floor never off; B a free per-item matrix | **A** | small, auditable; lowering is high-impact (XR-6) | proposed; operator rules it as O-7 (section 21) | none yet |
+| DR-14 | Retention ceilings (V-3) | A the numbers of 8.1; B measure first, no ceiling | **A** | allocation sinks bounded from the first build | proposed; operator rules it as O-5 (section 21) | none yet |
+
+18.1 **Status and decision fields (card 3.8).** Every DR above has status **proposed** and decision **none yet**. A DR
+moves to `accepted A|B|C` (with the date and the ruling commit) or `rejected` only when the operator rules it: through
+its operator question O-n where the Status column names one, otherwise with the approval of this step's output. No DR
+is applied to a build item before its decision is recorded here.
+
+18.2 **Disposition of each FP 14.1.b hand-over item.** "Built" means satisfied by what runs today and recorded as
+baseline (section 4), not redesigned.
+
+| # | FP 14.1.b item | Disposition | Where |
+|---|---|---|---|
+| 18.2.1 | Composition of the BV (FP 5.1) | **Built.** The BV is the PH-1 core as composed in ARCH (C-1..C-11: one `termlink sidecar` per agent, hub, Claude adapter by hooks) and accepted as X1..X6; PH-2 extends it, no re-composition | 4.1, 4.2 |
+| 18.2.2 | Where policy records live, fetch, stale rule (10.3.11) | **Decided [P]:** policy store K-26 at the home hub, fetched each tick with the revocation head, stale rule narrows to own project | V-2, 12.3, DR-8 |
+| 18.2.3 | Hook wiring and installed-code boundary (10.1.6, RA-7, CX-1) | **Decided [P] for A1, monitored until then:** managed hook settings root-owned plus hash check; the settings-file location is an [A] to verify in A0 | 12.6, BP-20, 13.1 |
+| 18.2.4 | Narrow privileged helper and account template (R-82, 10.1.5) | **Decided [P]:** one helper, one sudoers entry, fixed template, refuses without a decided C-15 event | 12.6 (K-30) |
+| 18.2.5 | Hub-side visibility of an inbox's consumers (SI-16, FP-1 failure 2) | **Decided [P]:** consumer list per inbox, flag now, bind-and-refuse after W4 | 6.6.1-2, DR-11, B-2 |
+| 18.2.6 | 30-second component heartbeats (FP-1) | **Built** (P2 tick, P3 component heartbeat, T-3428, T-3435) | 4.2 |
+| 18.2.7 | Claim mechanism and "transcript complete" signal per harness (R-51.a, R-47.a) | **Built for Claude Code:** atomic claim before content leaves the store (SI-30, ARCH C-9 `deliver.rs`), hand-over evidence = the delivery nonce in a harness-written record (SI-17, ARCH C-11). Other harnesses: their adapter owes the same two reports under the R-47 contract (16, 17) | 4.1, 6.9, 16 |
+| 18.2.8 | Hub id minting and mail-hub declaration format (R-61, R-54) | **Decided [P]** | V-1, V-7, DR-1, DR-7 |
+| 18.2.9 | Grant fields (`limits` of 10.3.4) | **Decided [P]** | V-2 |
+| 18.2.10 | Lease durations, quiet period, cooldown of "main" (R-67) | **Built** (15/5/10 min, T-3654) | V-9, 4.3 |
+| 18.2.11 | One-receiver window, second-copy detection, canary staleness (REQ 13.4.3) | **Decided [P]** | V-11, V-12, V-13 |
+| 18.2.12 | Skew bound, gap-wait bound, jitter, adaptive cap, hop limit (R-57, R-59, R-56) | **Decided [P]** | V-4, V-5, V-6, DR-12 |
+| 18.2.13 | Retention ceilings (R-35) | **Decided [P]** | V-3, DR-14 |
+| 18.2.14 | Roster format and enrolment (R-77) | **Decided at architecture level [P]**; detailed sub-design open behind T-2470 | 12.1 |
+| 18.2.15 | Key pinning and rotation (R-75) | **Decided [P] for PH-2** (TOFU pin of the hub signing key, rotation keeps id and key; agent key replacement only by old-key statement or runme); out-of-band pinning at PH-3 | 6.1, 6.6.5, DR-2, AR-1, 12.1 |
+| 18.2.16 | Re-wrap cost for long histories (R-74, R-80) | **Partly decided:** re-wrap content keys only, never re-encrypt content; sizing **open** until PH-4 data | 12.7 |
+| 18.2.17 | Confirmation-provider interface after T-3385 (10.3.10) | **Open:** gated by T-3385; one `approve <digest>` verb is the only interface fixed now | 12.2, 23.3 |
+| 18.2.18 | GP-11 | **Open**, not ruled | V-16, 21.8 |
 
 ## 19 Residual risks for the operator
 
@@ -1014,9 +1080,9 @@ The order is dependency order; B-1 to B-4, B-7, B-11 and B-18 have no dependency
 ## 23 Coverage: the card and the task
 
 23.1 Card completion conditions. 6.1 every R-n, TH-n, SI-n addressed, no unexplained element: 04a tables 1 to 4. 6.2
-baseline, transitions, target with boundaries and instrumentation: sections 4, 5 (D-1, D-2), 11 (D-5), 12. 6.3 every
+baseline, transitions, target with boundaries and instrumentation: sections 4, 5 (D-1, D-2), 11 (D-5, 11.4 baseline view, 11.5 boundaries and [i] per transition), 12. 6.3 every
 bypass route removed or monitored: section 14 (BP-1..BP-19 plus BP-20, BP-21). 6.4 every open decision a decision
-record with options and recommendation: section 18. 6.5 drawings D-1..D-5 with ids, captions, text equivalents,
+record with options, recommendation, status and decision: section 18 (18.1; 18.2 disposes of FP 14.1.b). 6.5 drawings D-1..D-5 with ids, captions, text equivalents,
 rendering: 5.2, 5.4, 7.6, 10.1, 11.1, section 24.
 23.2 T-3353 agent criteria: inputs of record with hashes (section 1); every row-4 value decided or open (section 8,
 V-1..V-16); ownership per component (section 16 and 5.1); role-chain step 4 `task: T-3353` (already set in CHAIN).
@@ -1033,3 +1099,6 @@ Every block exit code 0; SVG sizes 47324, 26237, 43435, 73445 and 24588 bytes; n
 any log or SVG. D-1 and D-4 were also rendered to PNG and read: D-1 shows the four zones with the new components
 green and later ones dashed; D-4 shows the three state machines side by side with every transition labelled. No
 semicolon in any sequence message or note.
+24.3 Result, 2026-11-03, on v0.2 (script `.context/working/t3353/render/r1.sh`, same method). Only D-1 changed (two
+labels). Every block exit code 0; SVG sizes 47343, 26237, 43435, 73445 and 24588 bytes; no "syntax error" or "parse
+error" in any log or SVG.

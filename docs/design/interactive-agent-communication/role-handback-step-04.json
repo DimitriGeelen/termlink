@@ -7,7 +7,7 @@
   "status": "ready-for-review",
   "output": {
     "path": "docs/design/interactive-agent-communication-04-architecture.md",
-    "sha256": "935a3de4d6a5af777c52ed9b7793c3c2ab3e0fa84d2c02bb45ec4d34da94715c"
+    "sha256": "96659c769cf8e32549b332da62b1f3c0181f3ec41fa125bb0f9b2440d39e08cc"
   },
   "inputs": [
     {
@@ -33,9 +33,13 @@
     {
       "path": "docs/operations/main-lease.md",
       "sha256": "f4d79119a1105f94fc47c88715d9d7368402ae7b44bb3867ddc52b4d21bcf743"
+    },
+    {
+      "path": ".context/reviews/evidence/T-3353/AC1-judge-t-3353-r1-c975edf4772f.md",
+      "sha256": "290d5d9d7023783bd7f9a2f80fbd0cc8f16b35306de35bf6bd8381059a4f50b5"
     }
   ],
-  "summary": "Architecture v0.1 with sub-document 04a-traceability (sha256 597988d775eb2f4cf9c56f147ca933efa5072421c82c2ff1612f80fdff73af9a). Records the built PH-1/PH-2 system and the main lease as baseline. Designs the eleven PH-2 rows without tasks (P10 minted hub id + hub signing key; P11 signed revocation list pulled each tick; P13 receiver quotas, adaptive window, hop limit; P15 blobs encrypted to a new per-agent X25519 key, ciphertext in the recipient's home hub store, artifact --hub encrypted only; P16 reconciliation on start; P17 consumer list, admin log, sweep refusal, founding-verb log, key card, signed dead letter; P18 status strength flags, reachability card, CLEAR; P19 six fault injectors; P21 doorbell only for unattended sessions with an SI-1 line; P22 vendor-channel log; P24 W3 acceptance) and R-67.a1(4) forward-once in a FORWARD envelope with VIA notice. Decides the step-4 values V-1..V-15 as starting values (GP-11 open), proposes security levels L0-L2, 14 decision records, 6 change requests, 24 build items.",
+  "summary": "Architecture v0.2 (round 1 remediation of review V-20261103-717b2df9, amber; 04a-traceability unchanged, sha256 597988d775eb2f4cf9c56f147ca933efa5072421c82c2ff1612f80fdff73af9a). Fixes exactly the three findings: 11.4 names D-1's built-coloured subset as the baseline view and 11.5 gives, per transition baseline/T1..T6/target, the trust boundaries introduced or changed and the instrumentation that shows it took effect (D-1 labels corrected: operator zone TB-10, lease TB-12 [i]); section 15 adds K-12, K-17, K-24, K-25 and 15.1 for built and PH-3+ components; section 18 adds Status and Decision per DR (18.1) and a disposition per FP 14.1.b item (18.2). v0.1 content otherwise unchanged: baseline, the eleven PH-2 rows, forward-once, V-1..V-16, 14 DRs, 6 XRs, 24 build items.",
   "completion": [
     {
       "condition": "6.1 Every R-n, TH-n and SI-n is addressed; no unexplained design element",
@@ -45,7 +49,7 @@
     {
       "condition": "6.2 Baseline, transitions and target present, with boundaries and instrumentation",
       "met": true,
-      "evidence": "ARC4 section 4 (baseline), 5 (D-1 with TB and [i] points, D-2), 11 (D-5), 12 (target PH-3..PH-6)"
+      "evidence": "ARC4 section 4 (baseline text), 11.4 (D-1 built subset as baseline view), 5 (D-1 target with TB and [i], D-2), 11 (D-5, 11.5 TB-n and [i] per transition), 12"
     },
     {
       "condition": "6.3 Every bypass route has a removal or a monitored residual",
@@ -55,12 +59,12 @@
     {
       "condition": "6.4 Every open decision is a decision record with options and a recommendation",
       "met": true,
-      "evidence": "ARC4 section 18 DR-1..DR-14; operator questions O-1..O-7 in section 21"
+      "evidence": "ARC4 section 18 DR-1..DR-14 with Status and Decision columns (18.1), 18.2 FP 14.1.b dispositions; operator questions O-1..O-7 in section 21"
     },
     {
       "condition": "6.5 Every required drawing (D-1 to D-5) is present with its id, caption and textual equivalent, and renders without error",
       "met": true,
-      "evidence": "D-1 5.2/5.3, D-2 5.4/5.5, D-3 7.6/7.7, D-4 10.1/10.2, D-5 11.1/11.2; mmdc exit 0 for all five, section 24.2"
+      "evidence": "D-1 5.2/5.3, D-2 5.4/5.5, D-3 7.6/7.7, D-4 10.1/10.2, D-5 11.1/11.2; mmdc exit 0 for all five on v0.2, section 24.3"
     }
   ],
   "open_questions": [
