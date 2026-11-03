@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3667: termlink remote push writes received files world-readable to /tmp/termlink-inbox and never removes them; payload visible in the target's process list (T-3663 A4)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-03T16:35:18Z
+# ============================================================================
+
+task_id: T-3667
+task_name: "termlink remote push writes received files world-readable to /tmp/termlink-inbox and never removes them; payload visible in the target's process list (T-3663 A4)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-03T16:21:52Z
+completed: 2026-11-03T16:34:07Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-03T17:22:52+01:00
+last_commit: 2026-11-03T17:33:57+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  remote push world-readable /tmp files + payload in ps (T-3663 A4), context and ACs. remote push writes 0600 into a 0700 per-user inbox, payload via env not argv
+
+# Key outcomes
+outcomes:
+  - 'Target file written with mode 0600 inside a 0700 directory owned by the receiving user (umask set explicitly in'
+  - 'Payload delivered via stdin (or the artifact route), never inside the command string, so it does not show in `ps`'
+  - 'Tests: unit/integration on a throwaway hub verify mode 0600/0700 and no payload in the executed command line'
+  - 'CHANGELOG/doc note for the changed default path; `cargo test -p termlink` + clippy -D warnings clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-03 — how to keep the payload off the command line'
+    chose: 'carry the base64 in the `command.execute` `env` map (`TERMLINK_PUSH_B64`); the command reads `"$VAR"` via the `printf` builtin.'
+    rationale: '`command.execute` has no stdin; `env` has been honoured by every session since T-019, so no target upgrade is needed. `/proc/<pid>/environ` is uid/root-only, unlike argv.'
+    alternatives_rejected: ['adding stdin to `command.execute` (every target would need re-installing first); artifact route (larger change, different delivery semantics). - **Live check:** throwaway hub (isolated runtime dir, loopback TCP, temp HOME): default and `--dest` pushes rc 0, modes 700/600, content identical, `inbox_path` reports the real path.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3667-termlink-remote-push-writes-received-fil.md'
+  - 'CHANGELOG.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/push.rs'
+  - 'crates/termlink-cli/src/main.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-03T17:22:52'
+    action: 'T-3667: remote push world-readable /tmp files + payload in ps (T-3663 A4), context and ACs'
+  - time: '2026-11-03T17:33:57'
+    action: 'T-3667: remote push writes 0600 into a 0700 per-user inbox, payload via env not argv'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 12
+  commits: 3
+  files_changed: 8
+  lines_added: 776
+  lines_removed: 34
+  footprint_refreshed_at: '2026-11-03T16:35:36Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3667-termlink-remote-push-writes-received-fil.md
+generated_by: context-agent-hybrid
