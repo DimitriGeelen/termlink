@@ -189,6 +189,14 @@ impl Client {
         json.push('\n');
 
         self.writer.write_all(json.as_bytes()).await?;
+        // T-3666: flush before reading. Over TLS, write_all returns once rustls
+        // has accepted the plaintext; whatever did not fit the socket send buffer
+        // stays queued inside rustls, and reading never pushes it out. Through a
+        // narrow path (ring20's SSH forward) the tail of a 50-300 KB request, its
+        // newline included, sat in the client until the 30 s read timeout: the
+        // hub never saw a complete line, so it never replied. Mirror of the
+        // hub-side fix T-3474.
+        self.writer.flush().await?;
 
         let line = self
             .reader
@@ -265,7 +273,22 @@ impl Client {
         json.push('\n');
 
         self.writer.write_all(json.as_bytes()).await?;
+        // T-3666: same as `call` — a notification left in rustls is never sent.
+        self.writer.flush().await?;
         Ok(())
+    }
+
+    /// T-3666: build a client over any already-connected byte stream (e.g. a
+    /// TLS stream over an in-memory pipe in tests).
+    pub fn from_stream<S>(stream: S) -> Self
+    where
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + 'static,
+    {
+        let (reader, writer) = tokio::io::split(stream);
+        Self {
+            writer: Box::new(writer),
+            reader: BufReader::new(Box::new(reader) as Box<dyn tokio::io::AsyncRead + Send + Unpin>).lines(),
+        }
     }
 }
 
@@ -456,6 +479,89 @@ mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
     use tokio::sync::RwLock;
+
+    /// T-3666: a large request over TLS on a narrow path must reach the peer
+    /// whole. The transport is a 2 KB in-memory pipe drained slowly, so the
+    /// last `poll_write` of `write_all` leaves TLS records queued in rustls.
+    /// Without the flush in `call` the server never sees the newline and the
+    /// call times out (the ring20 node1 symptom); with it the reply arrives.
+    #[tokio::test]
+    async fn t3666_large_call_over_narrow_tls_path_gets_reply() {
+        use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, ServerName};
+        use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+
+        let ck = rcgen::generate_simple_self_signed(vec!["localhost".to_string()]).unwrap();
+        let cert = CertificateDer::from(ck.cert.der().to_vec());
+        let key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(ck.key_pair.serialize_der()));
+        let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
+        let server_cfg = rustls::ServerConfig::builder_with_provider(provider.clone())
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .with_no_client_auth()
+            .with_single_cert(vec![cert.clone()], key)
+            .unwrap();
+        let mut roots = rustls::RootCertStore::empty();
+        roots.add(cert).unwrap();
+        let client_cfg = rustls::ClientConfig::builder_with_provider(provider)
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .with_root_certificates(roots)
+            .with_no_client_auth();
+
+        let (client_io, server_io) = tokio::io::duplex(2048);
+        let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(server_cfg));
+        let server = tokio::spawn(async move {
+            let tls = acceptor.accept(server_io).await.unwrap();
+            let (r, mut w) = tokio::io::split(tls);
+            // A slow reader: small reads with a pause, so the pipe stays full.
+            let mut slow = tokio::io::BufReader::with_capacity(1024, r);
+            let mut line = Vec::new();
+            loop {
+                let buf = slow.fill_buf().await.unwrap();
+                if buf.is_empty() {
+                    return None;
+                }
+                let n = buf.len().min(1024);
+                let chunk = buf[..n].to_vec();
+                slow.consume(n);
+                line.extend_from_slice(&chunk);
+                if chunk.contains(&b'\n') {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_micros(200)).await;
+            }
+            let req: serde_json::Value = serde_json::from_slice(&line).unwrap();
+            let resp = serde_json::json!({"jsonrpc": "2.0", "id": req["id"], "result": {"offset": 7}});
+            let mut out = serde_json::to_vec(&resp).unwrap();
+            out.push(b'\n');
+            w.write_all(&out).await.unwrap();
+            w.flush().await.unwrap();
+            let mut rest = Vec::new();
+            let _ = slow.read_to_end(&mut rest).await;
+            Some(req["params"]["payload_b64"].as_str().map(str::len))
+        });
+
+        let connector = tokio_rustls::TlsConnector::from(Arc::new(client_cfg));
+        let tls = connector
+            .connect(ServerName::try_from("localhost").unwrap(), client_io)
+            .await
+            .unwrap();
+        let mut client = Client::from_stream(tls);
+        let payload = "A".repeat(200 * 1024);
+        let resp = client
+            .call_with_timeout(
+                "channel.post",
+                serde_json::json!("cli-1"),
+                serde_json::json!({"topic": "pool:ref", "payload_b64": payload}),
+                std::time::Duration::from_secs(10),
+            )
+            .await
+            .expect("reply must arrive; a timeout here is the T-3666 stranded-tail bug");
+        let r = unwrap_result(resp).unwrap();
+        assert_eq!(r["offset"], 7);
+        drop(client);
+        assert_eq!(server.await.unwrap(), Some(Some(200 * 1024)));
+    }
 
     #[test]
     fn deadline_partial_page_turns_deadline_error_into_page() {

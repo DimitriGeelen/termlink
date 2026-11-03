@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-03T16:13:26Z
-last_update: 2026-11-03T16:21:28Z
+last_update: 2026-11-03T16:29:50Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -93,11 +93,14 @@ affected.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Reproduction script on throwaway hubs (temp runtime dirs, TCP + token like node1): the exact pattern (4 x 300 KB
-      back to back on one topic with retention days:14; then 3 s apart), run against current code and against 0.12.1084
-      (built from its git tag/commit in a separate clone outside the project, never a git worktree); results recorded
-- [ ] If current code reproduces: root cause at file:line, fix, regression test that fails on the old code; if not:
-      the commit range that fixed it identified
+- [x] Reproduction on a throwaway hub (temp runtime dir under .context/working, TCP + token) behind a narrow-window
+      proxy (`tests/t3666-narrow-path-proxy.py`: MSS 1400, 4 KB rcvbuf, slow drain), corrected pattern (single posts,
+      1/50/150/300 KB, then 4 x 300 KB back to back): the shipped client (0.12.1484) gets no reply for every 50-300 KB
+      post, the record never lands, a 1 KB post is fine; the fixed client: 7/7 replies in ~1 s each. Results in Updates.
+      (No 0.12.1084 hub build: the defect is in the CLIENT; the hub-side flush is T-3474, 0.12.716, older than 1084.)
+- [x] Root cause at crates/termlink-session/src/client.rs `Client::call` (and `notify`): `write_all` with no `flush`
+      over TLS; fixed with a flush; regression test `t3666_large_call_over_narrow_tls_path_gets_reply` fails without
+      the flush (10 s timeout) and passes with it
 - [ ] Answer sent to ring20 on conversation node1-hub-large-post-stall-2026-11-03
 
 ### Human
@@ -149,6 +152,10 @@ affected.
 -->
 
 ## Verification
+
+cargo test -p termlink-session --lib t3666_large_call_over_narrow_tls_path_gets_reply > .context/working/.t3666.out 2>&1 && grep -q "test result: ok. 1 passed" .context/working/.t3666.out
+grep -q "T-3666: flush before reading" crates/termlink-session/src/client.rs
+python3 -c "import ast,sys; ast.parse(open('tests/t3666-narrow-path-proxy.py').read())"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -383,6 +390,15 @@ affected.
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-03 — fix in the client, not the hub
+- **Chose:** flush after `write_all` in `Client::call`/`notify` (termlink-session), the mirror of the hub-side T-3474.
+- **Why:** tokio-rustls `poll_write` returns Ok once rustls holds the plaintext; TLS records that did not fit the
+  socket send buffer stay in rustls, and the read path never writes them. On a narrow path (ring20's SSH -L forward)
+  the tail of the request, newline included, is stranded, so the hub never sees a complete line and never replies.
+  Whether the last write blocks depends on where the drain stands, which is why 50/150 KB failed while 300 KB passed.
+- **Rejected:** hub-side changes (the hub never received the whole request); client-side retry (masks the bug and
+  duplicates posts unless the client_msg_id is reused).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -394,6 +410,16 @@ affected.
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-11-03 — worker t3666-repro2: root cause found and fixed (client-side missing flush)
+- Repro (throwaway hub 0.12.1484 + tests/t3666-narrow-path-proxy.py, read timeout 8 s): direct 1/50/150/300 KB all
+  ok; through the proxy with the shipped client: 1 KB ok, 50/150/300 KB (x2 each) all TIMEOUT, topic count unchanged
+  (record does NOT land); fixed client: 1/50/150/300 KB + 4 x 300 KB back to back, 7/7 ok in 0.2-1.0 s, all landed.
+- Idempotency (R-51.a): exists. `channel post --client-msg-id <id>` (T-2049) makes the hub dedupe on
+  (sender_id, client_msg_id) for ~5 min; without it each CLI invocation mints a fresh id, so a shell-level retry after
+  a lost reply would duplicate. Advice to ring20: pass a content-hash id on retries.
+- Open: msg 1e42e8e8 says some timed-out posts landed; msg d5be8dcf (tail chunk never landed) and this repro say a
+  timed-out post does not land. To settle it: compare each attempt's payload hash against the channel records.
 
 ### 2026-11-03 — ring20 data, msg d5be8dcf (for the worker: a SIZE BAND, not chance)
 - 1409 paced 10-chunk upload ~16:19Z: chunks 1-9 (300 KB each) landed; chunk 10 (~103 KB tail) timed out 4 times and
