@@ -242,6 +242,16 @@ grep -q 'task: T-3353' docs/design/interactive-agent-communication-role-chain.ya
 - **Left open:** the "[REVIEW] Independent review" Human box is the operator's to tick (agent never ticks Human ACs);
   next: operator questions O-1..O-7 one at a time.
 
+### 2026-11-03 — O-1 cross-hub file delivery: A, encrypted only, for now (operator ruling)
+- **Chose:** A (operator: "For now yes, but we want to improve it for the future"). `artifact put --hub` only with
+  `--encrypt-to <agent>`; a plaintext cross-hub put is refused with a reason (DR-5 A, 6.4.6).
+- **Why:** the only option where a file's content is not readable on another machine's hub; costs ring20 a short wait
+  for per-agent keys (B-11). Scored A +16, B -7, C -16 (product set).
+- **Rejected:** B plaintext between the operator's hubs with a risk acceptance; C defer to PH-4.
+- **Left open (operator's "improve for the future"):** existing routes that already carry files between machines are
+  NOT covered by O-1 and stay as they are for now: `termlink file send` (TLS in transit, readable on the hub), the runme
+  fleet upgrade stream, ssh/scp, Pen's SMB mounts, 055's ssh gate. Follow-up: bring them under the same rule later.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
