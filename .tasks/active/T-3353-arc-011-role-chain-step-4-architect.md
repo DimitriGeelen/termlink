@@ -328,6 +328,16 @@ grep -q 'task: T-3353' docs/design/interactive-agent-communication-role-chain.ya
   implicit ... explicit documented approval"). RA-9 (old rails unframed until PH-4) accepted under this rule. Recorded
   as a project standing rule in CLAUDE.md.
 
+### 2026-11-03 — O-7 security levels: A, three fixed levels per project (operator ruling)
+- **Chose:** A (operator: "A"). L0 base (today, every project), L1 separate accounts (agents never as root), L2 keyed
+  (operator-signed policy records, confirmation for high-impact classes, encrypted DMs). The floor is never switched off
+  at any level; raising a level is an approval, lowering is high-impact (XR-6); the Tier 0 override stays as logged
+  break-glass (8.4, DR-13 A).
+- **Why:** small and auditable. Scored A +14, B -3 (product set).
+- **Rejected:** B a free per-item matrix (hard to oversee, invites weak combinations).
+- **Step 4 status:** all operator questions O-1..O-7 ruled 2026-11-03. Change requests for the architect's revision:
+  CR-O2a..c, CR-O3, CR-O6a..c, and O-1's follow-up (T-3663). GP-11 (V-16) stays open, owned by AEF.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
