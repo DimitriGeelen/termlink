@@ -40,7 +40,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-03T11:25:05Z
-last_update: '2026-11-03T11:25:39Z'
+last_update: 2026-11-03T11:26:41Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -88,11 +88,13 @@ way to bring it under the rule; then the operator decides the plan.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Inventory written from evidence (code paths file:line, runme actions, cron entries, peer answers, mounts), every
+- [x] Inventory written from evidence (code paths file:line, runme actions, cron entries, peer answers, mounts), every
       route with: users, payload kind, transport, at-rest location and readers, current protection, candidate fix
+      — evidence: docs/reports/T-3663-file-routes-inventory.md (29 routes: A1-A10 TermLink, B1-B8 host, C1-C9 peer; each with file:line or command)
 - [ ] Peers asked once on the estate conversation for routes we cannot see (their own scripts and gates), answers
       recorded
-- [ ] Read-only: no route changed, no file moved
+      — asked 2026-11-03 (16 projects, .context/working/t3663/sends.log); 2 answered (ring20-dashboard, proxmox-ring20-management) and recorded as C1-C9; 13 still open, so this stays unticked
+- [x] Read-only: no route changed, no file moved — only the report, this task file and the handback were written; no unit, mount, script or remote touched
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
