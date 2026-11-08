@@ -18,8 +18,8 @@ operator runme 2026-11-02 17:22Z) + AEF v1.8.16-be.26 or later (T-5014 hook). No
 | 055-agentic-fleet-cockpit | .107 | LIVE | be.26 on operator go ~21:50; main 0fdf569a gen 1; am-i 1 for another id (msg a3173e5c) |
 | 0909-aef-greenfield-v22 | ? | NOTIFIED | |
 | 0909-boot-into-timeshift-snapshots | ? | NOTIFIED | |
-| 1023-portable-encrypted-chromium-vault | .107 | WAITS OPERATOR GO | on 1.8.12; needs the operator's go in its own session (msg aaef341a) |
-| 1409-sprind | .107 | WAITS OPERATOR GO | upgrades only via an operator runme; queued as a question to its operator (msg b697905f) |
+| 1023-portable-encrypted-chromium-vault | .107 | GO SENT, WAITS UPGRADE | operator go 2026-11-08 ("go for be.26 on 1023 and 1409"), relayed msg 31904e02 |
+| 1409-sprind | .107 | GO SENT, WAITS UPGRADE | operator go 2026-11-08, relayed msg 32fa90a0; upgrade via its operator runme |
 | 832-Workflow-designer | .107 | LIVE | be.26 on operator go (job 120); main 572fe488 gen 1; am-i 1 for x (msg 10007efd) |
 | aef-greenfield-test | .132 | NOTIFIED | |
 | dimitri-mint-dev | .107 | WAITS .107 REBOOT | mid disk migration (T-213); cutover + reboot of .107 pending; re-vendor after, with operator OK (msg c7d43c64) |
