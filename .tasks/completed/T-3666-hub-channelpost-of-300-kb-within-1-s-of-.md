@@ -441,6 +441,10 @@ python3 -c "import ast,sys; ast.parse(open('tests/t3666-narrow-path-proxy.py').r
 ### 2026-11-03T16:30:13Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 
+### 2026-11-08 — field proof (installed and retested)
+- Installed 0.12.1583 on .107, .122 and .121 via the operator runme (log runme-20261108T134900Z-3703919.log; greenfield .132 offline).
+- ring20 retest 14:0xZ from .107 over the narrow path (.122:19100, SSH forward to node1): 8 back-to-back posts alternating 380 KB / 480 KB, all rc=0 in 406-535 ms, no timeout; before the fix the second large post hung 30 s (ring20 msg 69bf6777).
+
 ## Reviewer Verdict (v1.5)
 
 - **Scan ID:** R-faa68725
