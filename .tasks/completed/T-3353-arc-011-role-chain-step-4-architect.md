@@ -6,10 +6,10 @@ description: >
   output docs/design/interactive-agent-communication-04-architecture.md. Starts only
   after step 3 is approved by the operator.
 
-status: started-work
+status: work-completed
 workflow_type: design
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011, security]
 arc_id: arc-011
 components: []
@@ -25,8 +25,8 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:26Z
-last_update: 2026-11-03T16:11:06Z
-date_finished:
+last_update: 2026-11-08T17:53:42Z
+date_finished: 2026-11-08T17:53:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -129,7 +129,7 @@ Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 - [x] Role-chain yaml step 4 `task:` set to this task id (evidence: role-chain yaml step 4 `task: T-3353`, already present)
 
 ### Human
-- [ ] [REVIEW] Independent review: step 4 output meets the architect card's completion conditions and is fit as input
+- [x] [REVIEW] Independent review: step 4 output meets the architect card's completion conditions and is fit as input
       for step 5
   **Steps:**
   1. The ORCHESTRATOR (never a reviewer seat) runs `fw reviewer judge T-3353 --criterion 1` against
@@ -138,7 +138,7 @@ Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
   **Expected:** a green verdict bound to the reviewed revision, applied with `fw reviewer verdict apply T-3353`.
   **If not:** findings go back to the architect role (max 2-3 rounds), then each is dispositioned (accept with change
   request / reject with reason / defer with risk acceptance).
-- [ ] [REVIEW] Step 4 output approved
+- [x] [REVIEW] Step 4 output approved
   **Sovereignty:** operator decision only.
   **Steps:**
   1. Read the operator questions O-1..O-7 (section of the architecture doc), presented one at a time by the agent.
@@ -361,3 +361,29 @@ grep -q 'task: T-3353' docs/design/interactive-agent-communication-role-chain.ya
 
 ### 2026-11-03T07:35:09Z — status-update [task-update-agent]
 - **Change:** tags: +security
+
+### 2026-11-08T17:53:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)
+
+### 2026-11-08 — step 4 approved by the operator (both [REVIEW] boxes ticked in Watchtower; chat: "done")
+- **Reading recorded (operator may overturn):** approval of the step 4 output includes the document's
+  recommendations on the three items presented in chat that day and not ruled separately: decision 1, DR-1, DR-2,
+  DR-4, DR-7, DR-8, DR-10, DR-11 all A; decision 2, AR-1..AR-6 accepted as stated; decision 3, XR-1..XR-9 accepted
+  with XR-4 answered "not new state values" (any later notice that changes a message's path counts as a state).
+- **Next:** step 5 (T-3354); the orchestrator folds XR-1..XR-9 into steps 1 and 3 (B-24).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6a03d4ec
+- **Timestamp:** 2026-11-08T17:53:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evidence: docs/design/interactive-agent-communication
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=docs/design/interactive-agent-communication/role-handback-step-04.json in: Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evi`
