@@ -430,3 +430,253 @@ E-31.2 ARRANGE: lease records retained for 7 days.
 E-31.3 ACT: normal work.
 E-31.4 ASSERT: report with numerator and denominator per basis; no threshold (a measurement for AR-6); any `automated` claim that changed the holder is a FAIL.
 E-31.5 CONTROL: report generator checked on a seeded record set.
+
+### 6.4 Forward-once of role mail (K-23; ARC4 7; B-20)
+
+**E-32 — Forward-once happy path across two sidecars.** Links: R-67.a1, R-51, R-62, TH-33, AFC-19. Category: core function. Level: L4. Tier: 2. Phase: PH-2 (B-20).
+E-32.1 EVIDENCE: role mail reaching agent Y while the lease names X of another agent of the same project is stored at Y, forwarded once in a `FORWARD` envelope signed by Y carrying the original signed bytes unchanged with `generation` and `hop` +1, handed over at X, and the sender gets a signed `VIA` notice (ARC4 7.2, 7.3).
+E-32.2 ARRANGE: throwaway hub; project P with agents `fx-x` and `fx-y` on separate sidecars; lease held by `fx-x`; sender `fx-s`.
+E-32.3 ACT: `fx-s` sends to `main` of P at Y's inbox.
+E-32.4 ASSERT: Y's copy STORED then `forwarded` (final at Y, never handed over at Y); X's inbox holds one FORWARD whose inner bytes equal the original byte for byte and whose inner signature verifies against the original topic; X hands over once; the sender's record shows the VIA line "delivered via Y; main is X (generation N)".
+E-32.5 CONTROL: mutant that re-signs the content as Y (DR-10 option B) fails the byte-equality and inner-signature assertions.
+
+**E-33 — FORWARD-STALE when the lease moves in flight.** Links: R-67.a1, R-67.e, R-51, AFC-19. Category: edge case. Level: L4. Tier: 2. Phase: PH-2 (B-20).
+E-33.1 EVIDENCE: if X is no longer main when the FORWARD arrives, X stores it, does not forward it, posts `FORWARD-STALE`; the sender re-resolves through the home hub and re-sends the same message id; exactly one hand-over happens, at the new main (ARC4 7.3).
+E-33.2 ARRANGE: as E-32, plus a third agent `fx-z`; a test hook that moves the lease to `fx-z` between Y's forward and X's pull.
+E-33.3 ACT: send; move the lease; let all pull.
+E-33.4 ASSERT: one FORWARD-STALE notice; one re-send with the same id; exactly one HANDED_OVER across X, Y, Z (at Z); identity-triple dedupe holds (R-51).
+E-33.5 CONTROL: mutant without the generation check at X hands over at X and again at Z (two hand-overs).
+
+**E-34 — Forward refusals: what is never forwarded or accepted.** Links: R-67.a1, R-62, SI-3, SI-26, TH-33, AFC-19. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-20).
+E-34.1 EVIDENCE: a FORWARD is accepted only with an outer signature by a roster member of the same project, an intact inner signature for a role address of that project and a matching generation; Y never forwards conversation mail bound to an exact instance, never forwards a FORWARD, and never forwards on an unknown, stale or vacant lease (ARC4 7.2.d, 7.3).
+E-34.2 ARRANGE: estate EP-2 with a project-foreign signer `fx-c`.
+E-34.3 ACT: deliver (a) a FORWARD signed by `fx-c`; (b) one with one inner byte flipped; (c) one whose inner topic is another project's role address; (d) a FORWARD of a FORWARD; (e) exact-instance mail to Y with the lease on X; (f) role mail to Y with the lease unknown, stale (> 15 s read period), vacant.
+E-34.4 ASSERT: (a)..(d) refused, recorded, no hand-over, signed refusal notice to the outer signer; (e) delivered at Y as addressed, not forwarded; (f) delivered at Y as before, status says why no forward; `hop` never exceeds 1 for a forward.
+E-34.5 CONTROL: one mutant per check (outer roster check, inner signature, generation, hop rule, exact-instance rule, lease freshness), each turning its case red.
+
+**E-35 — H-24, forward part: 1000 forwards, none processed twice.** Links: R-67.a1, R-51, H-24, SI-30. Category: integration. Level: L6. Tier: 2. Phase: PH-2 (B-20); duplicate-main part PH-4.
+E-35.1 EVIDENCE: across 1000 forwarded role messages with lease moves and sidecar kills at random points, zero messages are handed over twice and none is lost after STORED.
+E-35.2 ARRANGE: EP-2 on a throwaway hub; a seeded schedule of lease moves (one per 50 messages) and kills of X or Y (one per 100).
+E-35.3 ACT: send 1000 role messages.
+E-35.4 ASSERT: per message id exactly one HANDED_OVER or a visible non-final state by its deadline; 0 doubles; 0 lost after STORED. Result: counts in the evidence record.
+E-35.5 CONTROL: the E-33 mutant produces doubles in this run.
+
+### 6.5 Hub identity, signing key and the revocation list (K-9a, K-9b, K-25; ARC4 6.1, 6.2; B-1, B-5)
+
+**E-36 — Hub id: mint once, keep, refuse a silent re-mint.** Links: R-61, R-54, R-33, FX-2, TH-3, AFC-20. Category: core function. Level: L2 + L4. Tier: 1 and 2. Phase: PH-2 (B-1).
+E-36.1 EVIDENCE: a fresh runtime directory mints `hub.id` (fingerprint-derived when a certificate exists, else 64 random bits); an existing id is kept across restarts and certificate rotation; `hub.id` missing beside existing state refuses start with the stated message; a socket-only hub has an id; `hub.version` reads the file, never the fingerprint (ARC4 6.1).
+E-36.2 ARRANGE: throwaway hub runtime directories: empty; with cert only (legacy hub); with `hub.secret` and cert but no `hub.id`; with `hub.id` and a regenerated cert; socket-only.
+E-36.3 ACT: start the hub in each; call `hub.version`; restart; rotate the certificate; restart.
+E-36.4 ASSERT: ids as expected (legacy hub keeps `first16(fingerprint)`, so no inbox renames); the partial-state case exits non-zero with "hub.id missing beside existing state" and writes no file; after rotation id and signing key unchanged; `hub.id` is 16 lowercase hex, mode 0644, written via temp + fsync + rename.
+E-36.5 CONTROL: mutant "derive from the fingerprint on each call" fails the rotation case (ARC4 6.1.7).
+
+**E-37 — Hub signing key: persisted, never printed, pinned on first contact.** Links: R-61, R-75, SI-25, SI-11, AR-1, AFC-20. Category: adversarial. Level: L2 + L4. Tier: 1 and 2. Phase: PH-2 (B-1).
+E-37.1 EVIDENCE: `hub.signing.key` (0600) persists like the secret; `hub.version` returns only `ed25519:<fingerprint>`; each sidecar pins the fingerprint on first verified contact and refuses a different key with a needs-attention entry naming both (ARC4 6.1.4, 6.1.5).
+E-37.2 ARRANGE: throwaway hub; a sidecar with an empty pin; a second hub key prepared.
+E-37.3 ACT: first contact; restart hub; swap the key file; contact again.
+E-37.4 ASSERT: pin recorded; same key after restart; after the swap every signed hub object is refused and the entry names old and new fingerprints; the private key bytes appear in no log, status or record (SI-25 scan, E-101).
+E-37.5 CONTROL: mutant that re-pins silently on mismatch passes the swapped key and fails. Limit (AR-1): a rogue key present at first contact is pinned; recorded as `LIMIT` in a separate run.
+
+**E-38 — Mail-hub declaration: refuse on mismatch, no fallback.** Links: R-54, FX-2, TH-3, BP-8, AFC-21. Category: error handling. Level: L2 + L4. Tier: 1 and 2. Phase: PH-2 (B-1; AEF owns the key, DR-7).
+E-38.1 EVIDENCE: a sidecar whose config copy of `mail_hub` differs from `.framework.yaml`, or whose hub answers another `hub_id`, does not run, and status names both ids; there is no runtime-directory fallback (V-7, ARC4 9.10).
+E-38.2 ARRANGE: two throwaway hubs (EP-3); project files with matching, differing and missing declarations.
+E-38.3 ACT: start the sidecar in each case; then point the declared address at the second hub.
+E-38.4 ASSERT: matching runs; differing and missing refuse at start (exit non-zero, reason); wrong hub at the address: refusal, status `hub {declared, match: false}` with both ids; no message posted to the wrong hub.
+E-38.5 CONTROL: the built mutant `fc-14-no-hub-id-check` fails the wrong-hub case.
+
+**E-39 — A revoked key is refused within one tick.** Links: SI-11, R-46, RK-1, TH-26, TH-56, AFC-22. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-5).
+E-39.1 EVIDENCE: after `admin revoke --key F`, a message signed with F is refused at the receiver from the next tick with the hub reachable, recorded, and the sender sees a signed refusal notice; mail to the revoked agent waits (ARC4 6.2.5).
+E-39.2 ARRANGE: throwaway hub; sidecars `fx-a` (sender, key F) and `fx-b`.
+E-39.3 ACT: revoke F through the root-only admin socket; `fx-a` sends immediately and again after one tick; `fx-b` sends to `fx-a`.
+E-39.4 ASSERT: time from revoke to the first refusal ≤ one tick + one pull; nothing STORED from F after that; the sender's record shows "refused-revoked"; `fx-b`'s message to `fx-a` waits (not dropped); admin-log row and needs-attention entry for the revocation (SI-24).
+E-39.5 CONTROL: mutant that skips the revocation check stores the message.
+
+**E-40 — Rollback of the list and restore from backup.** Links: SI-11, TH-58, RR-20, AFC-22. Category: adversarial. Level: L4 + L6. Tier: 2. Phase: PH-2 (B-5).
+E-40.1 EVIDENCE: a list with a lower `seq` is refused and the previous kept and flagged; a sidecar restored from backup with an older list and its older stored `seq` detects the higher head on first contact and refuses the revoked key; with the hub unreachable after such a restore, normal delivery from the revoked key is the stated limit RR-20 (TM SI-11 probe).
+E-40.2 ARRANGE: throwaway hub at `seq` 7 with F revoked at 6; a snapshot of the sidecar store taken at `seq` 5.
+E-40.3 ACT: (a) serve `seq` 5 from a test proxy; (b) restore the snapshot and reconnect; (c) restore the snapshot with the hub unreachable and send from F.
+E-40.4 ASSERT: (a) refused, status `ROLLBACK refused, kept seq 7`; (b) first head read shows 7, list fetched, F refused; (c) verdict `LIMIT` naming RR-20, with no circuit and no urgent delivery from F.
+E-40.5 CONTROL: mutant that accepts any `seq` passes (a) and fails.
+
+**E-41 — A failed pull is not an empty list; the stale rule narrows, never stops.** Links: SI-11, SI-18, R-63, DR-8, AFC-22. Category: error handling. Level: L2. Tier: 1. Phase: PH-2 (B-5).
+E-41.1 EVIDENCE: when only the list fetch fails while posts succeed, status shows `unverified since T`; after PN-13 (1 h) the interrupt allow-list narrows to the own project's verified roster, urgent mail from others is downgraded (never dropped), a needs-attention entry appears, and keys on the last verified list stay refused (ARC4 6.2.4).
+E-41.2 ARRANGE: simulated clock; a hub client stub that fails `revocation.head` and `revocation.get` only.
+E-41.3 ACT: advance 59:59 and 60:01; send urgent from another project's allowed sender and from a key on the last list.
+E-41.4 ASSERT: status values at both times; after 60:01 the urgent message is STORED and handed over as normal priority with a recorded downgrade; the revoked key's message refused; zero messages dropped.
+E-41.5 CONTROL: mutant "failed pull treated as an empty list" accepts the revoked key (ARC4 6.2.6).
+
+**E-42 — Forged or malformed revocation lists are refused (fuzz).** Links: SI-11, TH-26, TH-58, AFC-22. Category: adversarial. Level: L3. Tier: 1. Phase: PH-2 (B-5).
+E-42.1 EVIDENCE: only a list whose canonical form (RFC 8785) hashes to `digest`, whose `signature` verifies over `termlink.revocation/1\n<digest>` with the pinned key, whose `prev_digest` chains and whose `seq` is not lower is accepted.
+E-42.2 ARRANGE: a valid list; a mutator over JSON (key order, whitespace, number forms `1.0`/`1e0`, Unicode escapes, duplicate keys, missing fields, signature by another key, signature over the digest without the domain prefix, broken `prev_digest`).
+E-42.3 ACT: feed at least 10^5 mutated lists.
+E-42.4 ASSERT: every list that is not canonically equal to a validly signed one is refused; semantically equal re-encodings of the valid list verify the same; no crash.
+E-42.5 CONTROL: mutant that verifies over the raw bytes instead of the canonical form fails the key-order cases.
+
+**E-43 — Self-revocation and the audit of every revocation.** Links: SI-11, SI-24, TH-34, TH-56. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-5).
+E-43.1 EVIDENCE: a `revocation.request` signed by the old key is accepted without the operator; one signed by another key is refused; every revocation writes an admin-log row, a needs-attention entry and re-signs the list (ARC4 6.2.2).
+E-43.2 ARRANGE: throwaway hub; agents `fx-a`, `fx-b`.
+E-43.3 ACT: `fx-a` self-revokes; `fx-b` submits a request to revoke `fx-a`'s new key.
+E-43.4 ASSERT: first accepted (`by: self`), `seq` +1; second refused and logged; each accepted revocation has its three traces.
+E-43.5 CONTROL: mutant accepting any signed request revokes another agent's key.
+
+### 6.6 Blobs and per-agent encryption keys (K-13, K-24; ARC4 6.4; B-11, B-12, B-13)
+
+**E-44 — Blob round trip with both digests; STORED only after the plaintext is on disk.** Links: R-11, R-15, R-80, SI-28, FX-5, AFC-23. Category: core function. Level: L4. Tier: 2. Phase: PH-2 (B-12).
+E-44.1 EVIDENCE: a file of 1, 5 and 16 MiB sent by path is encrypted to the recipient, stored as ciphertext in the recipient's home hub store, fetched in 256 KiB chunks, checked against `cipher_sha256`, decrypted, checked against `plain_sha256`, written to `<store>/blobs/<plain_sha256>` (0600) by temp + fsync + rename, and only then reported STORED (ARC4 6.4.3, 6.4.4).
+E-44.2 ARRANGE: throwaway hub; `fx-a` and `fx-b` with signing and X25519 keys in the estate register.
+E-44.3 ACT: send each size; send 16 MiB + 1 byte.
+E-44.4 ASSERT: received file equals the sent file byte for byte; STORED stage time is after the rename (stage log order); file mode 0600; 16 MiB + 1 refused at the sender before upload with the PN-11 reason.
+E-44.5 CONTROL: mutant reporting STORED before the plaintext digest check fails the order assertion (pattern of ARCH `fc-03-stored-line-before-the-record`).
+
+**E-45 — A partial or corrupt blob is never success.** Links: R-11, R-15, R-42, AFC-23. Category: error handling. Level: L2 + L4. Tier: 1 and 2. Phase: PH-2 (B-12).
+E-45.1 EVIDENCE: a corrupted chunk, a missing chunk, a wrong wrapped key or a plaintext digest mismatch yields not STORED, a signed refusal to the sender and a needs-attention entry (the T-3661 lesson).
+E-45.2 ARRANGE: a test proxy in front of `artifact get` that flips a byte, drops a chunk, truncates; a message with a key wrapped to another agent.
+E-45.3 ACT: deliver each case.
+E-45.4 ASSERT: no file in `blobs/`, no temp file left, no STORED stage; refusal notice and entry present per case.
+E-45.5 CONTROL: mutant that skips `cipher_sha256` verification stores the flipped-byte case.
+
+**E-46 — A peer-supplied name is never a file name (SI-28, fuzz).** Links: SI-28, TH-57, R-11, AFC-23. Category: adversarial. Level: L3. Tier: 1. Phase: PH-2 (B-12).
+E-46.1 EVIDENCE: whatever `name_hint` holds, the blob is stored only under its digest in the private directory.
+E-46.2 ARRANGE: generator of `name_hint` values: `../x`, `../../etc/passwd`, absolute paths, NUL bytes, 4 KiB names, Unicode slashes, `.`, `..`, symlink names pre-created in the store.
+E-46.3 ACT: store at least 10^4 blobs with generated hints.
+E-46.4 ASSERT: every file created is `<store>/blobs/<64 hex>`; no file or link created outside; the hint appears only as display text.
+E-46.5 CONTROL: mutant "store under name_hint" (ARC4 6.4.7) writes outside the directory.
+
+**E-47 — The hub holds ciphertext only (FX-5 probe).** Links: FX-5, R-80, TH-22, BP-21, AFC-23. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-11).
+E-47.1 EVIDENCE: a hub-token holder reading the artifact store finds no arc-011 plaintext: every new object starts with the wrapper's magic and version; a writer without the wrapper is refused; message fields have a plaintext size cap so content cannot be tunnelled (ARC4 6.4.5).
+E-47.2 ARRANGE: throwaway hub; blobs containing a known 32-byte canary string; the FX-5 baseline of 9 allow-listed writers.
+E-47.3 ACT: send blobs; read the whole store with a hub token; try a raw `artifact put` of plaintext through the arc-011 path; post a message with an over-cap inline field.
+E-47.4 ASSERT: the canary is found in no object; every arc-011 object has the wrapper header; the raw put is refused; the over-cap field is refused; the writer inventory still lists 9 plus the wrapper (`scripts/check-arc011-inventory.sh` green).
+E-47.5 CONTROL: mutant that uploads plaintext makes the canary search hit.
+
+**E-48 — Encryption key register: mismatch refused; one agent's key opens only its blobs.** Links: R-80, FX-5, AFC-24. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-11).
+E-48.1 EVIDENCE: a sidecar whose private X25519 key does not match its root-owned register entry refuses to start; a blob wrapped to A cannot be opened with B's key (ARC4 6.4.2, 15 K-24).
+E-48.2 ARRANGE: estate register with entries for `fx-a`, `fx-b`; a swapped entry variant.
+E-48.3 ACT: start with the swapped entry; decrypt A's blob with B's key.
+E-48.4 ASSERT: start refused with both fingerprints in the reason; decrypt fails authenticated decryption (no partial plaintext written).
+E-48.5 CONTROL: mutant without the start-up comparison starts.
+
+**E-49 — `artifact put --hub` needs `--encrypt-to`; plaintext cross-hub put refused.** Links: FX-5, BP-21, R-80, DR-5. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-13).
+E-49.1 EVIDENCE: as ruled O-1 A, `--hub <addr>` without `--encrypt-to <agent>` is refused with a reason naming the rule and the `--encrypt-to` form; with it, only ciphertext reaches the remote store (ARC4 6.4.6).
+E-49.2 ARRANGE: two throwaway hubs (EP-3); a recipient key in the register.
+E-49.3 ACT: put a canary file with `--hub` only; with `--hub --encrypt-to`.
+E-49.4 ASSERT: first exits non-zero with the reason text and leaves nothing at the remote store; second leaves one wrapped object; canary absent from the remote store.
+E-49.5 CONTROL: mutant that downgrades to plaintext on a missing key fails the canary search. Existing routes (`file send`, ssh, SMB) are not exercised here: out of scope (ARC4 6.4.6.a, T-3663).
+
+### 6.7 Caps, quotas, hop limit, adaptive window (K-11; ARC4 6.3; B-7)
+
+**E-50 — Receiver limits, in order, with nothing dropped.** Links: SI-19, R-56, TH-28, TH-30, TH-36. Category: core function. Level: L2. Tier: 1. Phase: PH-2 (B-7).
+E-50.1 EVIDENCE: at STORED time the receiver checks inline ≤ 8 KiB, blob ≤ 16 MiB, per-sender open ≤ 32, aggregate ≤ 256 and ≤ 64 MiB, reserved shares 10% receipts and 20% own project; over a limit the message is not STORED, a signed `QUOTA` notice names the limit, one coalesced needs-attention entry per sender per tick appears, and nothing is dropped (ARC4 6.3.1, 6.3.2).
+E-50.2 ARRANGE: estate EP-2; a sender that does not stop at `QUOTA`.
+E-50.3 ACT: send 8 KiB and 8 KiB + 1 inline; 33 open messages from one sender; fill the aggregate to 256.
+E-50.4 ASSERT: refusals at exactly the stated limits with the limit named; each refused message is still in the sender's outbox; entries coalesced (one per sender per tick).
+E-50.5 CONTROL: mutant that drops over-limit messages at the sender loses them from the outbox.
+
+**E-51 — Many honest senders cannot starve receipts or the own project (SI-19).** Links: SI-19, R-56, TH-28, TH-30. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-7).
+E-51.1 EVIDENCE: a dishonest sender ignoring its own cap, and many admitted senders each within quota up to the aggregate ceiling, still leave room for receipts and own-project mail (TM SI-19 probe).
+E-51.2 ARRANGE: 20 foreign senders each with 31 open messages; one dishonest sender; own-project sender; receipts flowing.
+E-51.3 ACT: fill to the ceiling; then send an own-project message and receipts.
+E-51.4 ASSERT: own-project message STORED; every receipt processed; receipts never counted against a sender quota.
+E-51.5 CONTROL: mutant counting receipts against the quota stops the receipts (ARC4 6.3.6).
+
+**E-52 — Sender window AIMD and the 101st message.** Links: R-56, AFC-5. Category: core function. Level: L1. Tier: 1. Phase: PH-2 (B-7).
+E-52.1 EVIDENCE: the window starts at 100, rises +5 per tick with receipts advancing and no `QUOTA`, to 400; halves on `QUOTA`, floor 10; overflow waits with a needs-attention entry (V-4).
+E-52.2 ARRANGE: property generator of tick sequences with receipt progress and `QUOTA` notices.
+E-52.3 ACT: run the window function on at least 10^4 sequences.
+E-52.4 ASSERT: window always in [10, 400]; equals the AIMD recurrence; message 101 in the first tick waits, with one entry.
+E-52.5 CONTROL: mutant without the floor reaches 0 and deadlocks the sender.
+
+**E-53 — Hop limit stops automatic loops; receipts answer nothing.** Links: R-56, SI-19, TH-29. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-7).
+E-53.1 EVIDENCE: deliberate content starts at hop 0, automatic content and forwards add 1, a receiver refuses hop > 3 with a notice; `hop` is inside the signature (ARC4 6.3.4).
+E-53.2 ARRANGE: two fake agents that auto-reply to everything; a message with `hop` edited after signing.
+E-53.3 ACT: send one deliberate message; deliver the edited message.
+E-53.4 ASSERT: the loop ends at hop 3 with a refusal notice (at most 4 automatic messages); the edited message fails signature verification; no receipt produces a message.
+E-53.5 CONTROL: mutant with `hop` outside the signed payload accepts the edited message.
+
+**E-54 — Jitter and early re-send refusal.** Links: R-56, R-30. Category: edge case. Level: L1. Tier: 1. Phase: PH-2 (B-7, B-9).
+E-54.1 EVIDENCE: each ladder rung waits its interval × U[0.8, 1.2]; a re-send earlier than 0.8 of the rung is refused by the sender's own ledger (ARC4 6.3.5).
+E-54.2 ARRANGE: seeded generator of rung schedules.
+E-54.3 ACT: 10^4 re-send attempts at random times.
+E-54.4 ASSERT: every accepted re-send is at ≥ 0.8 × rung; every earlier attempt refused and recorded; the empirical factor distribution covers [0.8, 1.2] (Kolmogorov–Smirnov p > 0.01 against uniform) [P].
+E-54.5 CONTROL: mutant without the ledger check accepts an early re-send.
+
+### 6.8 Status, CLEAR, reachability card, strength flags (K-16; ARC4 6.7; B-14)
+
+**E-55 — Status fields present, stamped, and fast under a fault.** Links: R-6, R-29, R-53, R-70, FX-8. Category: core function. Level: L2 + L4. Tier: 1 and 3. Phase: PH-2 (B-14).
+E-55.1 EVIDENCE: status returns `mode`, `binary`, `supervision`, `main`, `hub {id, declared, match}`, `revocation`, `quota`, `consumers`, `reachability`, `clear`, `strength {…}` and `activity`, each with a freshness stamp; a stale field reads unknown; p95 ≤ 5 s under each injected fault of E-63 (ARC4 6.7.1).
+E-55.2 ARRANGE: tier 1 estate; tier 3 EP-5 with the installed artifact.
+E-55.3 ACT: 100 status calls per fault.
+E-55.4 ASSERT: JSON schema check of every field; p95 latency ≤ 5 s per fault; stale fields `unknown`.
+E-55.5 CONTROL: mutant returning a cached field without a stamp fails the schema check.
+
+**E-56 — CLEAR is never a fresh heartbeat alone (FX-8; standing control INC-d).** Links: FX-8, R-29, R-53, TH-23. Category: adversarial. Level: L2 + L4. Tier: 1 and 2. Phase: PH-2 (B-14).
+E-56.1 EVIDENCE: a sidecar with a seconds-old heartbeat that refuses every confirmation reads NOT CLEAR with the field bad; CLEAR needs, when anything was pending in the last hour, a real surfacing after it (ARC4 6.7.4).
+E-56.2 ARRANGE: the 32,205-refusal injection (a receiver whose confirmations are all refused) with a fresh heartbeat; a healthy receiver.
+E-56.3 ACT: send mail; read status.
+E-56.4 ASSERT: injected: `clear: NOT CLEAR`, `reachability.last_surface` bad; healthy: CLEAR after the hand-over.
+E-56.5 CONTROL: mutant "heartbeat counts as surfacing" reads CLEAR in the injected case (ARC4 6.7.5).
+
+**E-57 — The no-surfacing threshold (V-8) and UNKNOWN, never DEAD.** Links: R-53, R-29, R-44, FX-8. Category: edge case. Level: L2. Tier: 1. Phase: PH-2 (B-14).
+E-57.1 EVIDENCE: "last surface time" turns bad when a STORED message is not handed over 2 ticks after the agent became READY or after the first hook call that did not hand it over; an idle agent with nothing pending is never bad by age; a silent back channel reads UNKNOWN, never DEAD (ARC4 6.7.3).
+E-57.2 ARRANGE: simulated clock; idle agent for 48 h with nothing pending; then a STORED message; then a cut back channel.
+E-57.3 ACT: tick through each case.
+E-57.4 ASSERT: idle 48 h: not bad, age shown; bad exactly at READY + 2 ticks without hand-over; cut channel: UNKNOWN.
+E-57.5 CONTROL: mutant with an age threshold on the idle agent turns it bad.
+
+**E-58 — Strength flags tell the truth about the host.** Links: SI-14, R-82, FP 3.1.e, TH-25. Category: adversarial. Level: L4. Tier: 3. Phase: PH-2 (B-14).
+E-58.1 EVIDENCE: `strength` flags state absent strength honestly: `per_agent_accounts: no`, `same_user_separation: "absent: agents run as root"` while agents run as root, `operator_key: no`, `confirmation_provider: no`, `policy_records: "none (fixed defaults)"` (ARC4 6.7.1; status honesty).
+E-58.2 ARRANGE: EP-5 and the W1 pair host.
+E-58.3 ACT: read status; read the process owner of every agent and sidecar (`ps -o user=`).
+E-58.4 ASSERT: each flag equals what the host shows; a flag claiming strength that the host lacks is FAIL.
+E-58.5 CONTROL: a fixture that fakes `per_agent_accounts: yes` on a root host fails the comparison.
+
+**E-59 — Skew and the observer's own clock.** Links: R-57, SI-9, TH-37, T-16. Category: edge case. Level: L2. Tier: 1. Phase: PH-2 (B-14).
+E-59.1 EVIDENCE: deadlines use only the observer's monotonic clock; the skew estimate from hub round trips flags "clock skew" above 2 s and marks cross-host delay figures unusable above 30 s; NTP state is shown or "unchecked" (V-5).
+E-59.2 ARRANGE: hub stub that reports wall times offset by 0, 3, 45 s and jumps the sidecar's wall clock by ±1 h.
+E-59.3 ACT: run deadlines and status across the jumps.
+E-59.4 ASSERT: no deadline fires early or late by the wall jump; flags at 3 s and 45 s as stated; NTP field `unchecked` when `timedatectl` and `chronyc` are absent.
+E-59.5 CONTROL: mutant using wall time for a deadline fires at the jump.
+
+**E-60 — GP-4 offline behaviour is visible, never silent.** Links: R-7, R-44, R-45, TH-35. Category: error handling. Level: L4. Tier: 2. Phase: PH-2 (B-14).
+E-60.1 EVIDENCE: receiver host offline: the sender sees WAITING FOR RECIPIENT after the liveness card expires (600 s), not STUCK; sender without network: `send` returns an id, the message is durable in the outbox, the sender sees WAITING "home hub unreachable since T", nothing claims RECEIVED; on return the sender reads the hub record first and posts what is missing (ARC4 8.2).
+E-60.2 ARRANGE: throwaway hub; network namespace or firewall rule cutting a sidecar.
+E-60.3 ACT: cut the receiver for 30 min; separately cut the sender, send 5, restore.
+E-60.4 ASSERT: states as stated with the "since T"; after restore no duplicates on the hub (identity triple) and all 5 present.
+E-60.5 CONTROL: mutant that reports RECEIVED from the local outbox fails.
+
+**E-61 — Reachability card content and readers.** Links: R-53, TH-23, CR-11. Category: core function. Level: L4. Tier: 2. Phase: PH-2 content (B-14); read scope enforced PH-3.
+E-61.1 EVIDENCE: each agent's card on its home hub carries receiver up, right hub, adapter present, last surface time (a real HANDED_OVER or confirmation, never a heartbeat); other projects' readers see only reachable yes/no and the version class once the PH-3 read scope exists (ARC4 6.7.2).
+E-61.2 ARRANGE: throwaway hub, one agent with deliveries, one without.
+E-61.3 ACT: read the cards; (PH-3) read as another project.
+E-61.4 ASSERT: four fields with values matching the stage log; `last_surface` equals the latest HANDED_OVER time, never a heartbeat time; PH-3: foreign read shows two fields only.
+E-61.5 CONTROL: mutant writing heartbeat time into `last_surface` fails.
+
+### 6.9 Fault injectors and the drill (K-17; ARC4 6.8; B-15)
+
+**E-62 — Each injector has a negative control (meta-evidence).** Links: R-69, R-6, GP-12, T-10. Category: integration. Level: L2. Tier: 1. Phase: PH-2 (B-15).
+E-62.1 EVIDENCE: for each of the six faults of ARC4 6.8.1, a run with the diagnosis code removed fails, so a green injector run is not vacuous.
+E-62.2 ARRANGE: `scripts/arc011-fault-inject.sh <fault> --tier 1` with a build that removes the diagnosis for that fault.
+E-62.3 ACT: run all six.
+E-62.4 ASSERT: six FAIL verdicts, each naming the missing diagnosis.
+E-62.5 CONTROL: this spec is the control of E-63.
+
+**E-63 — Six faults named with their fix within 60 s, 100 of 100, zero manual recovery.** Links: R-6, R-70, R-29, R-49, R-54, FX-2, FX-8, SI-16, H-18, H-19. Category: error handling. Level: L6. Tier: 1 and 3. Phase: PH-2 (B-15).
+E-63.1 EVIDENCE: (1) signing key filed under another agent, (2) second inbox consumer, (3) receipts under another identity, (4) a dead component (tier 1 one loop; tier 3 SIGSTOP of the sidecar), (5) a second hub or wrong runtime directory, (6) unsurfaced mail (hooks removed) are each named by status with cause and fix within 60 s (30 s for start-up checks), and recovery needs zero manual steps once the fault is removed (ARC4 6.8.2).
+E-63.2 ARRANGE: tier 1 simulated clock; tier 3 EP-5 on the installed artifact.
+E-63.3 ACT: 20 injections of each fault per tier.
+E-63.4 ASSERT: 120 of 120 per tier named within the bound with the documented fix text; after removal, status returns to its pre-fault values without any operator step. Result: per-fault counts and latency distribution.
+E-63.5 CONTROL: E-62.
+
+**E-64 — The drill: first-time readers diagnose from status alone.** Links: R-6, GP-12, H-18. Category: user workflow. Level: L5. Tier: 4. Phase: PH-2 (B-15).
+E-64.1 EVIDENCE: three readers who have not seen the system, given only status output of an injected fault, name the cause correctly with median ≤ 5 min.
+E-64.2 ARRANGE: three status captures from E-63 (different faults); readers are agents in fresh sessions with no repository access, or people the operator names.
+E-64.3 ACT: each reader answers "what is wrong and what do you do".
+E-64.4 ASSERT: all three correct; median time ≤ 5 min; answers stored unedited.
+E-64.5 CONTROL: one capture with the cause line removed MUST lead to a wrong or "cannot tell" answer, else the drill is not measuring the status text.
+
+**E-65 — H-19: 500 process kills, every one recovers or is visible.** Links: R-8, H-19, SI-15. Category: error handling. Level: L6. Tier: 3. Phase: PH-2 (built supervisor; re-run with B-15).
+E-65.1 EVIDENCE: after 500 injected kills of sidecar components, ≥ 99% recover within the supervision interval and the rest end in a visible needs-attention entry; none silent.
+E-65.2 ARRANGE: EP-5 with systemd units and the cron backstop as installed.
+E-65.3 ACT: 500 kills at random times and signals.
+E-65.4 ASSERT: per kill: recovered within interval, or entry present; 0 silent.
+E-65.5 CONTROL: with the backstop disabled and the unit's restart off, kills produce silent cases and the run fails.
