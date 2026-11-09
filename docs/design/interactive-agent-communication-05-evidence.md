@@ -828,3 +828,262 @@ E-85.2 ARRANGE: EP-5 under a TermLink PTY; a print-mode session; an injected pro
 E-85.3 ACT: submit a prompt by each route.
 E-85.4 ASSERT: origin and basis per route as stated; the `inferred` share is reported (AR-6 measured, not closed).
 E-85.5 CONTROL: an adapter variant that reports every prompt `human` MUST fail the doorbell and inject routes.
+
+## 7 PH-2 rows that already have tasks (P12, P14, P16; B-8, B-9, B-10)
+
+**E-86 — Sequence window: equivocation, out-of-window numbers, namespace across key rotation.** Links: SI-5, R-59, TH-11, TH-31. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-8, T-3362).
+E-86.1 EVIDENCE: the same (sender identity, conversation, number) with another digest is refused and flagged as equivocation; numbers beyond the window (256) are refused; a key rotation keeps the namespace (TM SI-5 probe).
+E-86.2 ARRANGE: estate EP-1.
+E-86.3 ACT: send number 5 twice with different content; send 2^31; rotate `fx-a`'s key and resend number 5 with other content.
+E-86.4 ASSERT: second 5 refused with a CONFLICT/equivocation entry and the first copy kept; 2^31 refused; post-rotation 5 refused as equivocation, not accepted as a fresh namespace.
+E-86.5 CONTROL: the built mutant `fc-10-no-digest-comparison` accepts the second 5.
+
+**E-87 — Gap wait (V-6): store at once, hold, resend request, bounded release.** Links: R-59, SI-5, SI-6, TH-31, H-3. Category: edge case. Level: L2. Tier: 1. Phase: PH-2 (B-8).
+E-87.1 EVIDENCE: messages beyond a gap are STORED at once and held from hand-over; after 2 ticks a signed resend request for the gap is sent; after 10 ticks they are handed over marked "gap before N" with a needs-attention entry naming the gap; the largest held count is recorded for H-3.
+E-87.2 ARRANGE: simulated clock; sender sends 1, 3, 4 (2 withheld).
+E-87.3 ACT: tick 0..12; then deliver 2.
+E-87.4 ASSERT: 3 and 4 STORED at tick 0 and not handed over; resend request at tick 2; release with the mark at tick 10; 2 handed over on arrival; `max_held` metric = 2.
+E-87.5 CONTROL: mutant without the release bound holds 3 and 4 forever (DR-12 option B).
+
+**E-88 — Receipts are signed, contiguous and believed only when valid.** Links: SI-6, R-45, TH-12, TH-15. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-8).
+E-88.1 EVIDENCE: `up_to` is the highest contiguous durably stored number; a forged receipt with `up_to` beyond the stored number is not believed and the sender keeps chasing (TM SI-6 probe).
+E-88.2 ARRANGE: estate; receiver stores 1 and 3.
+E-88.3 ACT: read the receipt; post a forged receipt `up_to: 5` signed by a non-recorder key.
+E-88.4 ASSERT: genuine receipt says 1; forged one refused; sender ladder continues for 2..5.
+E-88.5 CONTROL: mutant computing `up_to` as the highest stored number says 3.
+
+**E-89 — Ladders and the owed list: never dropped silently.** Links: R-18, R-25, R-28, R-30, R-31, R-52, R-58, SI-18. Category: core function. Level: L2. Tier: 1. Phase: PH-2 (B-9, T-3358).
+E-89.1 EVIDENCE: an unanswered message is re-sent on each rung of its priority class and stays on the owed list until answered or ended; the owed count equals the hub record's each tick; the queue is read highest priority first, oldest first; priority is clamped at the receiver; an edited priority in the local queue file has no effect (ARC4 15 K-12; TM SI-18 probe).
+E-89.2 ARRANGE: simulated clock; messages of priorities 9, 0, -9; a sender off the allow-list sending 9.
+E-89.3 ACT: run both ladders for 24 simulated hours with no answer; edit the queue file's priority field.
+E-89.4 ASSERT: re-sends at the rung times; owed list complete each tick and equal to the hub-record computation; hand-over order by priority then age; the off-list 9 delivered as normal with a recorded downgrade; the file edit ignored.
+E-89.5 CONTROL: mutant that drops a message after the last rung empties the owed list silently.
+
+**E-90 — Reconciliation on start: each outcome (RC-1..RC-6).** Links: SI-15, R-15, R-45, TH-14. Category: error handling. Level: L2 + L4. Tier: 1 and 2. Phase: PH-2 (B-10).
+E-90.1 EVIDENCE: on start, a local stage missing on the hub is written (idempotent); a hub STORED-or-later stage for a message the store lacks yields `lost-after-STORED`, needs-attention and a signed RESEND-REQUEST, and, if the sender lacks the payload, both sides show the loss; a different digest or chain link is a conflict kept on both sides as "unreconciled" for the operator; the label clears only after a clean pass (ARC4 6.5.2).
+E-90.2 ARRANGE: throwaway hub; a store edited per case between stop and start.
+E-90.3 ACT: start the sidecar per case; run twice.
+E-90.4 ASSERT: per case the stated outcome; the second start adds nothing (idempotence); no silent merge.
+E-90.5 CONTROL: mutant "merge a conflicting record silently" passes the conflict case and fails.
+
+**E-91 — Daily head compare and the chain limits.** Links: SI-22, TH-14, TH-15, TH-19, TH-65, RR-15. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-10).
+E-91.1 EVIDENCE: removing a record in the middle, altering a digest, truncating inside the anchored prefix and rewriting the receiver's chain alone are detected on the next read or the daily compare; truncating only after the newest receipt and newest hub write, or rewriting chain, hub copy and receipt copy together, is the stated limit (TM SI-22 probe).
+E-91.2 ARRANGE: estate with a 50-record conversation and receipts.
+E-91.3 ACT: each edit, then read and run the compare.
+E-91.4 ASSERT: first four: "unreconciled" fork entry; last two: verdict `LIMIT` naming RR-15 and the coordinated rewrite.
+E-91.5 CONTROL: the built mutant `fc-15-no-chain-check` misses the middle removal.
+
+**E-92 — Host crash on a real disk: STORED survives.** Links: SI-15, R-15, R-16, T-7, F-7. Category: error handling. Level: L6. Tier: 3. Phase: PH-2 (B-10).
+E-92.1 EVIDENCE: a VM killed mid-write on a real disk image loses no message reported STORED, and every record that fails its checksum after boot is flagged (ARC4 6.5.4).
+E-92.2 ARRANGE: EP-12 VM with the installed artifact; a sender outside the VM sending continuously.
+E-92.3 ACT: 50 hard power-offs at random times during writes.
+E-92.4 ASSERT: after each boot, every id the sender saw STORED is present and verifies; flagged records counted; 0 unflagged corruption.
+E-92.5 CONTROL: a build without the fsync of the directory entry MUST lose a STORED message in at least one of 50 runs, else the test is not reaching the window (record as TOOLING if not).
+
+## 8 Baseline re-assertion: built invariants that stay under evidence
+
+8.1 These subjects are built and live (ARC4 4). They are not redesigned. They stay under evidence because every PH-2
+item touches their code paths; the specs below are the regression gate each PH-2 build item MUST run.
+
+**E-93 — PH-1 acceptance X1..X6 and the FC matrix stay green with their mutants red.** Links: R-2, R-5, R-14, R-15, R-16, R-24, R-42, R-45, R-51, R-69, FX-7, T-10, T-13. Category: core function. Level: L2 + L4. Tier: 1 and 2. Phase: PH-1 built; every push.
+E-93.1 EVIDENCE: the built acceptance (`crates/termlink-sidecar/tests/acceptance.rs`, `fc_matrix.rs`) passes and every patch `fc-01`..`fc-19` turns its named test red under `scripts/arc011-mutants.sh`.
+E-93.2 ARRANGE: the workspace at the commit under test.
+E-93.3 ACT: `cargo test --workspace`; `bash scripts/arc011-mutants.sh --report <file>`.
+E-93.4 ASSERT: tests exit 0; mutants exit 0 (every mutant killed); report lists 19 of 19 killed plus every new PH-2 mutant named in this document.
+E-93.5 CONTROL: the mutants are the controls; a surviving mutant is exit 1.
+
+**E-94 — Message identity and conflict (SI-4).** Links: SI-4, R-51, TH-9, TH-10, RR-10. Category: adversarial. Level: L2. Tier: 1. Phase: PH-1 built.
+E-94.1 EVIDENCE: (sender identity, conversation id, message id) bound to a digest; the same identity with another digest is never stored or handed over and creates a CONFLICT; the first signed copy stays; after the stage memory ages past retention the conflict is not recognised (limit RR-10) (TM SI-4 probe).
+E-94.2 ARRANGE: estate EP-2.
+E-94.3 ACT: id X with A then B; B then A; A from a second sender key; aged stage memory.
+E-94.4 ASSERT: first three as stated; aged case `LIMIT` naming RR-10.
+E-94.5 CONTROL: `fc-10-no-digest-comparison`.
+
+**E-95 — Framing (SI-7) cannot be closed or imitated by content.** Links: SI-7, R-50, TH-38, TH-39. Category: adversarial. Level: L3. Tier: 1. Phase: PH-1 built (other rails PH-4).
+E-95.1 EVIDENCE: peer content is delivered only inside a frame with a per-delivery random boundary; content containing the frame markers or a copy of an earlier boundary leaves the frame intact.
+E-95.2 ARRANGE: fuzz corpus of contents with marker strings, earlier boundaries, ANSI sequences, Unicode confusables.
+E-95.3 ACT: frame at least 10^5 contents.
+E-95.4 ASSERT: a parser of the frame recovers exactly the original content and the verified header fields for every case.
+E-95.5 CONTROL: `fc-12-frame-without-boundary`.
+
+**E-96 — Owner-only sockets and separate admin credential (SI-14).** Links: SI-14, TH-2, TH-43. Category: adversarial. Level: L4. Tier: 2. Phase: PH-1 built.
+E-96.1 EVIDENCE: the send/status API answers only its owner; admin needs its own credential; another user's connect is refused.
+E-96.2 ARRANGE: estate sockets; a second Unix user (`nobody`).
+E-96.3 ACT: connect as `nobody`; call admin with the agent credential.
+E-96.4 ASSERT: both refused; status still names "same-user separation absent" (E-58) because root is not stopped.
+E-96.5 CONTROL: a socket created with mode 0666 in a fixture MUST let `nobody` connect, proving the probe reaches the check.
+
+**E-97 — HANDED_OVER evidence (SI-17) and its limit.** Links: SI-17, R-24, TH-7, RR-7. Category: adversarial. Level: L2. Tier: 1. Phase: PH-1 built.
+E-97.1 EVIDENCE: echoing the nonce in the agent's own output gives no HANDED_OVER; appending a well-formed harness-type record with the nonce as a same-user process is the stated limit RR-7.
+E-97.2 ARRANGE: estate transcript writer.
+E-97.3 ACT: echo case; forged-record case.
+E-97.4 ASSERT: echo: no HANDED_OVER; forged record: `LIMIT` naming RR-7, never a pass of the control.
+E-97.5 CONTROL: `fc-11-any-record-is-evidence`.
+
+**E-98 — Atomic claim: one delivery per message across kills and concurrency (SI-30, H-16).** Links: SI-30, R-51, R-24, TH-52, TH-63, H-16, T-6. Category: error handling. Level: L6. Tier: 1. Phase: PH-1 built; re-run with B-16 (the doorbell does not bypass the claim).
+E-98.1 EVIDENCE: with kills at every step between delivery and record, and two hook calls (or a hook and a doorbell-triggered hook) at once for one message, a message is handed over at most once; after restart an open attempt resolves by nonce or waits for the evidence-complete point or the operator.
+E-98.2 ARRANGE: estate; 1000 randomised kill points across store, claim and record (H-16).
+E-98.3 ACT: run the kill campaign; fire concurrent pulls.
+E-98.4 ASSERT: 0 lost after STORED; 0 delivered twice in the transcript; every unresolved attempt visible.
+E-98.5 CONTROL: `fc-04-no-claim-file` produces a double delivery.
+
+**E-99 — Exact instance addressing and no cross-project fallback.** Links: SI-26, R-34, R-62, TH-54. Category: adversarial. Level: L4. Tier: 2. Phase: PH-1 built (dead letter E-70 in PH-2).
+E-99.1 EVIDENCE: a message to an exact instance reaches only it and fails loudly if it ended; a `to_circuit` address never falls back to another project.
+E-99.2 ARRANGE: throwaway hub; two projects with an agent of the same role name.
+E-99.3 ACT: send to an ended instance; send to project P's role while only Q has a live agent of that role.
+E-99.4 ASSERT: loud failure state; nothing reaches Q.
+E-99.5 CONTROL: `fc-18-stranger-pass-taken-as-admission` and the R-62 standing test.
+
+**E-100 — Release checksums in status and the "accepted/stored" wording.** Links: SI-27, FX-7, R-42, R-39, TH-17. Category: adversarial. Level: L4. Tier: 3. Phase: PH-2 built (P9).
+E-100.1 EVIDENCE: every status call verifies the installed binaries against `checksums.txt`; no tool prints "delivered" without a recorded HANDED_OVER.
+E-100.2 ARRANGE: EP-5; a modified binary; `grep` corpus of every CLI and MCP output string.
+E-100.3 ACT: status with the original and the modified binary; run every send path without hand-over.
+E-100.4 ASSERT: modified binary flagged; no output contains "delivered" before HANDED_OVER.
+E-100.5 CONTROL: `fc-16-acceptance-called-delivered`.
+
+**E-101 — No secret in any artifact (SI-25).** Links: SI-25, TH-24, TH-26. Category: adversarial. Level: L2. Tier: 1, 2, 3. Phase: PH-0 onward, every build item.
+E-101.1 EVIDENCE: no hub secret, token, private key, signing key or circuit credential appears in logs, status, the doorbell line, a frame, a stage record, the hub record, an evidence record (5.6) or a report.
+E-101.2 ARRANGE: the estate's exported canary secret (`TERMLINK_ESTATE_CANARY`) and canary keys; for PH-2 also the hub signing key and X25519 keys.
+E-101.3 ACT: run the full suite of the build item; search every file the run produced and every hub object for each canary (raw, hex, base64).
+E-101.4 ASSERT: zero hits.
+E-101.5 CONTROL: the built mutant `fc-17-environment-logged` produces a hit.
+
+**E-102 — Hook route delivers to every working session; the receive path is independent of the hub for stored mail.** Links: R-48, R-19, R-3, R-6, R-7, R-13, R-17. Category: integration. Level: L4. Tier: 3. Phase: PH-1/PH-2 built.
+E-102.1 EVIDENCE: the PostToolUse and Stop hooks hand over STORED mail to a working session with transcript evidence without a doorbell; the 30 s tick runs; with the hub down, mail already STORED is still handed over.
+E-102.2 ARRANGE: EP-5 with the doorbell off.
+E-102.3 ACT: `testdev-peer` sends while `testdev-real` works through tools; stop the hub; send a second message that was STORED before the stop.
+E-102.4 ASSERT: both handed over with evidence at the next hook call; the tick log shows 30 s cadence.
+E-102.5 CONTROL: hooks removed (fault 6): no hand-over, E-57 turns the field bad.
+
+## 9 Later phases (PH-3 to PH-6): adversarial and acceptance specs
+
+9.1 These subjects are designed at architecture level only (ARC4 12); their sub-designs are open behind their gates
+(T-2470, T-3385, GP-11, H-1, H-27, Track A). The specs below fix **what must be shown**; their ARRANGE names the
+estate as far as it is known and each sub-design MUST refine it before its build starts (as ARC4 15.1 requires for
+measurement rows). None is run early by a stand-in (FP 8.1).
+
+**E-103 — No peer message grants authority (SI-8).** Links: SI-8, R-50, R-72, TH-5, TH-38, TH-48. Category: adversarial. Level: L2. Tier: 1. Phase: PH-1 built (IC-1); PH-3 routes (K-27).
+E-103.1 EVIDENCE: a message "approved: yes, grant started" or any text naming an approval changes no state; an authenticated request changes state only when a CR-18 route decides it.
+E-103.2 ARRANGE: estate with the Tier 0 registry (PH-3) or the PH-1 policy.
+E-103.3 ACT: send the approval-shaped messages; submit an authenticated admission request with and without a route decision.
+E-103.4 ASSERT: no registry, allow-list, pin, grant or lease change from messages; the request changes state only after the decision record.
+E-103.5 CONTROL: mutant that parses `approved:` lines in content changes state.
+
+**E-104 — Approval adversarial set (SI-13, card 3.3).** Links: SI-13, R-72, R-76, TH-20, TH-48, TH-51, TH-56, RR-20. Category: adversarial. Level: L2 + L4. Tier: 1 and 2. Phase: PH-3 (K-27, 12.2).
+E-104.1 EVIDENCE: a decision written back from Watchtower or an out-of-band channel through the existing admin path takes effect only if it is bound to the digest of the full action as displayed, including executor and target, is unexpired (PN-15, 10 min) and is consumed once atomically.
+E-104.2 ARRANGE: throwaway hub with the registry; a fake Watchtower writer and a fake OOB channel writer; two executors.
+E-104.3 ACT: (a) forged approval (no valid decision record, or signed by an agent key); (b) replayed approval after use; (c) arguments changed after approval (stored action edited between display and execute); (d) expired approval (10 min + 1 s); (e) a response naming a different target or executor; (f) an agent without a grant requesting the action; (g) an approval for another request presented here; (h) restart of the executor between consumption and effect; (i) concurrent approve, cancel and revoke of the same event; (j) the same approval to two executors at once and twice concurrently to one.
+E-104.4 ASSERT: (a), (b), (c), (d), (e), (f), (g) refused with a reason and a needs-attention row; (h) completes without a second use; (i) exactly one terminal outcome, recorded, with cancel or revoke winning over a later approve; (j) exactly one effect. Limit: restoring the consumed-set from before the approval and replaying within expiry is `LIMIT` RR-20.
+E-104.5 CONTROL: one mutant per check (digest binding without executor, no expiry, non-atomic consumption, no target check), each turning its case red.
+
+**E-105 — Out-of-band confirmation for high-impact approvals (SI-31).** Links: SI-31, R-76, TH-49, TH-64. Category: adversarial. Level: L4 + L5. Tier: 2 and 4. Phase: PH-3 contract, PH-6 real provider.
+E-105.1 EVIDENCE: a high-impact approval without the active out-of-band confirmation has no effect and expires visibly within PN-15; with the confirmation it takes effect once; approvals signed with a revoked operator key are refused; enrolment uses the typed-back fingerprint (PR-14).
+E-105.2 ARRANGE: PH-3 stub provider; PH-6 the real provider and operator key (Track K).
+E-105.3 ACT: approve without, then with, confirmation; revoke the operator key and approve; enrol with a wrong typed-back fingerprint.
+E-105.4 ASSERT: as stated; the wrong fingerprint refused.
+E-105.5 CONTROL: mutant skipping the confirmation check takes effect.
+
+**E-106 — Grants: an agent cannot create or widen authority (SI-21, H-25).** Links: SI-21, R-63, R-64, R-73, R-78, TH-18, TH-42, TH-47, H-25. Category: adversarial. Level: L2 + L4. Tier: 1 and 2. Phase: PH-4 (K-26).
+E-106.1 EVIDENCE: a grant written as a file by the agent and presented unsigned is ignored; one signed with an agent key is refused; a start beyond budget and a replayed expired grant are refused; 30 of 30 API attempts refused; 30 of 30 direct file writes detected and shown within a tick at base strength.
+E-106.2 ARRANGE: policy store K-26 on a throwaway hub; an agent with write access to its own files.
+E-106.3 ACT: the TM SI-21 probe set; H-25's 30 + 30 attempts.
+E-106.4 ASSERT: as stated; every refusal and detection has an entry.
+E-106.5 CONTROL: mutant verifying grants against any known key accepts the agent-signed grant.
+
+**E-107 — Eligibility and priority only from signed configuration (SI-20).** Links: SI-20, R-67, R-78, TH-41, TH-33, H-24. Category: adversarial. Level: L4. Tier: 2. Phase: PH-4 (V-10); PH-2 part is E-20..E-26.
+E-107.1 EVIDENCE: a self-attested higher priority or eligibility has no effect; a second copy is resolved within one tick plus one pull (20 of 20); main's stopped renewals end in a visible takeover; the hub reads `main_priority` only at vacancy.
+E-107.2 ARRANGE: profile records with `eligible_for_main` and `main_priority`; two copies of one agent.
+E-107.3 ACT: self-attest; start a second copy 20 times; stop renewals.
+E-107.4 ASSERT: as stated.
+E-107.5 CONTROL: mutant reading eligibility from the agent's card makes the self-attestation effective.
+
+**E-108 — Cards and roster (SI-12).** Links: SI-12, R-60, R-77, TH-3, TH-4, TH-8, TH-45, TH-51, TH-59, TH-60, T-5. Category: adversarial. Level: L4. Tier: 2. Phase: PH-3 (K-28).
+E-108.1 EVIDENCE: a card is accepted only if signed by a roster hub for a project it homes, within TTL (600 s) and with a rising seq; a second hub claiming a bound project is flagged and gets no conversation mail; a second live copy across hubs is seen within 2 × PN-9 (V-12).
+E-108.2 ARRANGE: EP-3 two throwaway hubs, then EP-11.
+E-108.3 ACT: post an unsigned card, a card from an unadmitted hub, an old card, a replayed seq, a second claim.
+E-108.4 ASSERT: all refused or flagged; the original binding keeps resolving.
+E-108.5 CONTROL: mutant without the seq check accepts the replayed card.
+
+**E-109 — Cross-hub mail: five rows across two hubs (T-5).** Links: R-1, R-2, R-5, R-13, R-45, R-55, T-5. Category: integration. Level: L4 + L5. Tier: 2 and 4. Phase: PH-3 (hub path); PH-5 (circuit).
+E-109.1 EVIDENCE: a round trip between agents homed on two hubs shows the five rows to the sender; send-and-wait reads the stage and the reply by id across hubs (the T-3347 primitive; AEF owns the tool).
+E-109.2 ARRANGE: EP-3, then EP-11.
+E-109.3 ACT: send with "awaiting reply by" a deadline; reply.
+E-109.4 ASSERT: five rows with times; the reply handed over linked to the conversation; on deadline without reply the sender sees the state.
+E-109.5 CONTROL: with the cross-hub post disabled the sender MUST see UNKNOWN or WAITING, never RECEIVED.
+
+**E-110 — Circuit credentials (SI-9, SI-10).** Links: SI-9, SI-10, R-7, R-10, R-12, R-46, R-32, TH-44, TH-46, TH-50, TH-37, H-4, H-8. Category: adversarial. Level: L4. Tier: 2. Phase: PH-5 (K-29).
+E-110.1 EVIDENCE: the TM SI-9 and SI-10 probe sets: replay on a second connection, delayed first use after the set-up window, after expiry, for another conversation, to post to a topic, after a restart, renew after revocation, resume keeps expiry; minting refuses a revoked key, a dead instance, a foreign bound instance; a sender off the allow-list gets a circuit and its priority 9 is delivered as normal; push first, hub fallback when push cannot land; address re-resolution when the name stops resolving.
+E-110.2 ARRANGE: two sidecars and two hubs with a controllable clock.
+E-110.3 ACT: each probe.
+E-110.4 ASSERT: each refused or delivered as stated. Limit: a removed participant's circuit works until expiry with the hub unreachable (RR-5) is `LIMIT`.
+E-110.5 CONTROL: mutant not binding the credential to the TLS exporter accepts the replay.
+
+**E-111 — Membership (SI-29) and three-agent many to many (T-4c).** Links: SI-29, R-1, R-74, TH-9, TH-61, RR-5. Category: adversarial. Level: L4 + L5. Tier: 2 and 4. Phase: PH-4.
+E-111.1 EVIDENCE: the TM SI-29 probe set refused with entries; A's post and B's reply reach C in a three-agent conversation (EP-10).
+E-111.2 ARRANGE: throwaway hub; EP-10.
+E-111.3 ACT: the probes; one three-party exchange.
+E-111.4 ASSERT: probes refused; all three see both turns with evidence.
+E-111.5 CONTROL: mutant accepting a join signed only by the joiner fails.
+
+**E-112 — Resume only on signed DEAD and a free session (FX-3, T-4d).** Links: FX-3, R-65, R-9, TH-54. Category: adversarial. Level: L4 + L5. Tier: 2 and 4. Phase: PH-4.
+E-112.1 EVIDENCE: an exact instance is resumed only when the home hub's DEAD is signed and sequenced and the host supervisor verified no process holds the session; resume is refused on UNKNOWN or when a process holds it.
+E-112.2 ARRANGE: a held session; an unsigned DEAD; an UNKNOWN state.
+E-112.3 ACT: request resume in each.
+E-112.4 ASSERT: refused in all three; allowed after a signed DEAD with a free session.
+E-112.5 CONTROL: mutant skipping the process check resumes over a live session.
+
+**E-113 — Break-glass drill: every action logged and shown (SI-24).** Links: SI-24, SI-23, TH-21, TH-34, TH-53, TH-19, R-82. Category: adversarial. Level: L5. Tier: 4 (operator runme drill). Phase: PH-2 for built actions; PH-3/PH-4 for the rest.
+E-113.1 EVIDENCE: each break-glass action (main pin override, forced re-home, kill switch, revocation, manual store edit, TOFU re-pin, Tier 0 override at any security level) is operator-initiated, logged with who, when and why, and appears in needs-attention.
+E-113.2 ARRANGE: a runme drill action per available action, on the W1 pair host.
+E-113.3 ACT: the operator runs the drill.
+E-113.4 ASSERT: one log row and one entry per action; none possible from the agent's credential.
+E-113.5 CONTROL: the same action attempted from the agent credential MUST be refused.
+
+**E-114 — Account isolation (Track A, T-20) and the A0 pilot (H-28).** Links: R-82, SI-14, TH-2, TH-25, H-28, T-20. Category: adversarial. Level: L4 + L5. Tier: 3 and 4. Phase: PH-3 (A0) onward.
+E-114.1 EVIDENCE: agent A under its own account cannot read agent B's keys; host root still can and status says so; the account helper refuses without a decided C-15 event; a pilot agent completes a normal task cycle under its own account; at L1 the project's sidecars refuse to run as root.
+E-114.2 ARRANGE: the A0 pilot host; the helper with one sudoers entry.
+E-114.3 ACT: read B's key as A; run the helper with and without a decided event; run the pilot cycle; start a sidecar as root in an L1 project.
+E-114.4 ASSERT: as stated.
+E-114.5 CONTROL: a key file left 0644 in a fixture MUST be readable by A, proving the probe reaches the check.
+
+**E-115 — Security levels select strength and never switch a floor item off.** Links: R-82, R-76, SI-24, DR-13. Category: adversarial. Level: L2. Tier: 1. Phase: PH-3/PH-4.
+E-115.1 EVIDENCE: at L0, L1 and L2 every floor probe of this document still runs and passes; raising a level is a human-route Tier 0 event (C-18), lowering one is high-impact (C-17); the Tier 0 override stays available as logged break-glass.
+E-115.2 ARRANGE: the floor probe set parameterised by level.
+E-115.3 ACT: run at each level; change levels by each route.
+E-115.4 ASSERT: same floor verdicts at every level; level changes only via their classes.
+E-115.5 CONTROL: mutant that skips one floor check at L0 fails at L0 only.
+
+**E-116 — Rogue hub and unadmitted joiner (R-72).** Links: R-72, SI-12, ADV-11, ADV-12. Category: adversarial. Level: L4. Tier: 2. Phase: PH-3.
+E-116.1 EVIDENCE: a hub not on the roster and a joiner without an approved request get no mail, no card acceptance and a flagged entry.
+E-116.2 ARRANGE: EP-3 plus a third, unadmitted hub.
+E-116.3 ACT: the rogue hub announces cards and requests conversation mail; an agent registers without approval.
+E-116.4 ASSERT: refused and flagged; nothing delivered.
+E-116.5 CONTROL: shared with E-108.
+
+**E-117 — Reconciliation after an outage RC-1..RC-9 (T-18).** Links: R-45, R-46, SI-15, SI-22, TH-55. Category: error handling. Level: L6. Tier: 2. Phase: PH-5.
+E-117.1 EVIDENCE: after a circuit outage the local log reconciles with the hub record by RC-1..RC-9 with counts per outcome.
+E-117.2 ARRANGE: two sidecars on a circuit; hub cut mid-conversation.
+E-117.3 ACT: exchange 100 turns across the outage; restore.
+E-117.4 ASSERT: per-RC counts; 0 silent divergence.
+E-117.5 CONTROL: mutant skipping RC-7 (circuit rules) leaves a divergence unflagged.
+
+**E-118 — The `sidecar:` alias ends with a reason (R-71).** Links: R-71, BP-9. Category: edge case. Level: L4. Tier: 2. Phase: PH-3 (T4).
+E-118.1 EVIDENCE: until the end date, mail to the alias is forwarded with a sender warning; after it, calls are refused with a reason; the removal happens only with the operator's recorded approval (NID).
+E-118.2 ARRANGE: throwaway hub with the alias and a configurable date.
+E-118.3 ACT: post before and after the date.
+E-118.4 ASSERT: as stated.
+E-118.5 CONTROL: mutant dropping alias mail silently fails the warning assertion.
+
+**E-119 — Custody releases only as ruled (H-29).** Links: R-80, R-36, H-29. Category: adversarial. Level: L2. Tier: 1. Phase: PH-6 (K-31).
+E-119.1 EVIDENCE: in 100 tests, no release while the original is alive; every release after DEAD plus a same-role lease successor plus an explicit hand-over; 100% logged.
+E-119.2 ARRANGE: the custody holder in a supervisor account (fixture).
+E-119.3 ACT: 100 release requests across the states.
+E-119.4 ASSERT: as stated.
+E-119.5 CONTROL: mutant releasing on DEAD alone fails.
+
+**E-120 — DM content encryption: the hub reads envelopes only (FX-5, PH-4).** Links: FX-5, R-80, TH-22. Category: adversarial. Level: L4. Tier: 2. Phase: PH-4.
+E-120.1 EVIDENCE: with direct-message encryption on, a hub-token holder finds no message content in any topic or record.
+E-120.2 ARRANGE: throwaway hub; canary content.
+E-120.3 ACT: exchange messages; read every topic with a hub token.
+E-120.4 ASSERT: zero canary hits; envelope fields present.
+E-120.5 CONTROL: a project at L0 without DM encryption MUST show the canary (today's disclosure, unchanged).
