@@ -1,0 +1,124 @@
+{
+  "schema": "role-handback/1",
+  "chain": "arc-011-design",
+  "step": 5,
+  "role": "evidence-specialist",
+  "task": "T-3354",
+  "status": "ready-for-review",
+  "output": {
+    "path": "docs/design/interactive-agent-communication-05-evidence.md",
+    "sha256": "29be80ae3ad8d32b71ef53caa00f9fdc6d03426c901215eaed85c019f889526e"
+  },
+  "inputs": [
+    {
+      "path": "docs/design/interactive-agent-communication-04-architecture.md",
+      "sha256": "29c6d1f7de9f18898cab105651f17977ebf97da30f32d16501819bad217dd69c"
+    },
+    {
+      "path": "docs/design/interactive-agent-communication-04a-traceability.md",
+      "sha256": "c516a290997e0c75957c0be95af4d611e58155cd818d2fbae961c0f4ad6d4667"
+    },
+    {
+      "path": "docs/design/interactive-agent-communication-01-requirements.md",
+      "sha256": "f6ce42a2984bd18e049f1f4dda05e6eaab2cc3508396fe373060c6fc527193c9"
+    },
+    {
+      "path": "docs/design/interactive-agent-communication-02-threat-model.md",
+      "sha256": "88961693384966502f4ca4eb515ed4b0590a29c3d61ac0c619e17ea4562693f3"
+    },
+    {
+      "path": "docs/design/interactive-agent-communication-03-floor-and-phasing.md",
+      "sha256": "e4de2e3e102ee59f6434db584e099e5bb180c6b33dfd823ae217e6ebb4e5a8c4"
+    },
+    {
+      "path": "docs/design/arc-011-ph2-architecture.md",
+      "sha256": "b8a941e5563b72707bb3abbe89677ba42ab5560dc1882721b59f59390d84d589"
+    },
+    {
+      "path": "docs/operations/main-lease.md",
+      "sha256": "c95c12e76e0e3b8166badf4919e262916210c89b427ac2d4be996cda65c51e9a"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "a9b38fd1aeed0145289c6a8c89c491c2ae077d06e1847110209827f33e172aa3"
+    },
+    {
+      "path": "docs/design/roles/cards/_common.md",
+      "sha256": "cca38806358d7a6c09e64289164977a825f2cf57e914f672076ff77a2bdb5563"
+    },
+    {
+      "path": "docs/design/roles/cards/evidence-specialist.md",
+      "sha256": "b829e633f8119e5870b335e440b899784708878b4306523c6a69a60fde9a9c4e"
+    },
+    {
+      "path": "docs/design/roles/adapters/aef.md",
+      "sha256": "d840a77649888cdbfd37d1166c15eecd6cd3c8399d497fb6b1b2c52455c6c4a4"
+    },
+    {
+      "path": "docs/design/roles/profiles/termlink.md",
+      "sha256": "b6bc160242d96ca9a8fc167c6845e292529c162fa23faa2945d4742b676e7b21"
+    },
+    {
+      "path": "docs/design/roles/README.md",
+      "sha256": "3881d5302313a0d0ca4c9ef1b4688dae101b6d693df823be962e9b70946368e0"
+    },
+    {
+      "path": "docs/design/interactive-agent-communication-role-chain.yaml",
+      "sha256": "6ed4d708b8364428a5f9f2996519e8956be02b31e5a10817b55df29be99b8752"
+    },
+    {
+      "path": "docs/design/roles/schemas/role-handback-1.schema.json",
+      "sha256": "288a4e312f00bac978a4b2a87e57ee8a05cb14f916d77c397e601e03c703c148"
+    }
+  ],
+  "summary": "Evidence specification v0.1 (batch mode) with sub-document 05a-coverage (sha256 16a4aa77b23cad191cf1b9153e60016a266ffc763c54674cb2d6e1f6341824fc, generated from the spec headers, 0 undeclared gaps). 152 specs E-1..E-152 in EVIDENCE/ARRANGE/ACT/ASSERT/CONTROL form: PH-2 next items first (doorbell D+ and 300 s watchdog E-1..E-14, activity meter E-15..E-19, lease tightening and waiting-mail E-20..E-31, forward-once E-32..E-35, hub id/key/revocation E-36..E-43, blobs and per-agent keys E-44..E-49, caps E-50..E-54, status/CLEAR E-55..E-61, fault injectors E-62..E-65, hub changes E-66..E-70, vendor channels and SendMessage deny E-71..E-74, W3/PH-2 exit E-75..E-83, adapter parity E-84..E-85), PH-2 task rows E-86..E-92, baseline re-assertion E-93..E-102 and E-121..E-124, later phases E-103..E-120, production invariant checks E-125..E-152 (one per ARC4 15 property plus 15.2 reach, visible failure, zero false delivered). Test estate and agent pairs per CAND-3 tier (section 3: EP-1..EP-12; tier 3 needs the testdev pair, T-3361, not built). Levels L1..L7 (L7 added for checks in operation); result record termlink.evidence/1 with PASS/FAIL/TOOLING/LIMIT. Architecture fail-closed conditions AFC-1..AFC-34 each with a spec; pseudo-code FAILS CLOSED WHEN coverage open for step 6 (section 14, eight questions). Drawings D-1, D-2 rendered (section 18). Change requests YR-1..YR-4.",
+  "completion": [
+    {
+      "condition": "6.1 Coverage table complete as in 3.5, or every gap listed with its reason",
+      "met": true,
+      "evidence": "05a tables 2.1-2.7 (generator exit 0, 0 undeclared gaps; declared gaps R-36, R-38, R-40, R-41, R-43 with reasons); every SI-n and every impossible requirement has an adversarial spec (05a 2.4, 2.5); FAILS CLOSED WHEN of the pseudo-code listed as open with its reason (EV5 11.3, 14); measured properties section 10"
+    },
+    {
+      "condition": "6.2 Every spec states its evidence level and observable result",
+      "met": true,
+      "evidence": "every header carries Level and Tier; every spec has ASSERT and CONTROL (structure check: 124 header specs with all five parts, 28 table rows); record format EV5 section 5"
+    },
+    {
+      "condition": "6.3 No claim of total confidence or proven impossibility",
+      "met": true,
+      "evidence": "EV5 15.1, 15.2 (limit probes recorded as LIMIT), 5.3, residual risks ER-1..ER-5 (16)"
+    },
+    {
+      "condition": "6.4 Every required drawing (D-1 to D-2) is present with its id, caption and textual equivalent, and renders without error",
+      "met": true,
+      "evidence": "EV5 12.1-12.4; render check 18.2 (mmdc + local Chromium, both exit 0, no parse errors, PNGs read); script .context/working/t3354/render/r1.sh"
+    }
+  ],
+  "open_questions": [
+    "EV5 14.3.a-h: values and definitions the pseudo-code must settle (back-off schedule, READY age clock, owed answer, provisional last_human_at, 15 s lease boundary, failed-pull classes, seam refusal list, evidence record emission points)",
+    "EV5 15.6.a: testdev account subscription before tier 3 and the canary can run",
+    "EV5 15.6.b: guard cap fit for the 28 production checks"
+  ],
+  "change_requests": [
+    {
+      "step": 3,
+      "what": "YR-1: FP 9 H-11 lists (a)-(d) only; add (e) typed lines not followed by a submit and (f) watchdog fires and false-busy share (ARC4 6.9.6); give (e) a bound per attempt or state it is reported only (RNU)"
+    },
+    {
+      "step": 3,
+      "what": "YR-2: FP 9 H-24 sits in PH-4 but its forward half is measured in PH-2 (ARC4 7.5, B-20); split it"
+    },
+    {
+      "step": 4,
+      "what": "YR-3: ARC4 15 production checks do not say how they fit the guard cap (DP-3); state status call plus one aggregated arc-011 invariant check"
+    },
+    {
+      "step": 4,
+      "what": "YR-4: ambiguous boundaries block exact asserts: back-off schedule (6.9.4), provisional claim and last_human_at (6.13.2/6.13.3), 15 s lease freshness for forward-once (7.2); lapses if step 6 settles them"
+    }
+  ],
+  "decisions_needed": [
+    "None for this step (decides: false). Operator items, not blocking: the testdev subscription (ARCH2 OQ-i open item) and whether the production checks are folded into one guard check under the cap (YR-3)"
+  ],
+  "render_check": ".context/working/t3354/render/r1.sh"
+}

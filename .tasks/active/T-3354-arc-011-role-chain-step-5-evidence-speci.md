@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:40Z
-last_update: 2026-11-09T16:47:22Z
+last_update: 2026-11-09T17:09:22Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -124,9 +124,9 @@ false`); no operator approval is needed for it alone.
 
 ### Agent
 - [x] Step 4 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3) (evidence: T-3353 both [REVIEW] boxes ticked and closed in Watchtower 2026-11-08T17:53Z, recorded c77e01404; yaml step 4 `approval:` added 2026-11-09)
-- [ ] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned
-- [ ] `docs/design/interactive-agent-communication-05-evidence.md` exists with a version table and an inputs-of-record section citing the input hashes
-- [ ] Test estate and agent pairs named for each CAND-3 tier (fixture, live hub, one real agent + scripted peer, real agents)
+- [x] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evidence: inputs read and hashed in that order, 05 section 1.3; record `docs/design/interactive-agent-communication/role-handback-step-05.json`, validated against role-handback-1.schema.json)
+- [x] `docs/design/interactive-agent-communication-05-evidence.md` exists with a version table and an inputs-of-record section citing the input hashes (evidence: sections 0 and 1, full sha256 per input)
+- [x] Test estate and agent pairs named for each CAND-3 tier (fixture, live hub, one real agent + scripted peer, real agents) (evidence: 05 section 3, EP-1..EP-12; tier 3 pair EP-5 needs T-3361)
 - [x] Role-chain yaml step 5 `task:` set to this task id (evidence: yaml step 5 `task: T-3354`, already present)
 
 ## Verification
