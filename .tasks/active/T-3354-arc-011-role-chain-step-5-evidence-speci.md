@@ -227,6 +227,13 @@ grep -q 'task: T-3354' docs/design/interactive-agent-communication-role-chain.ya
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-09 — production checks of ARC4 15 under the guard cap (operator: "yes, why not")
+- **Chose:** the ~28 always-on production checks (E-121..E-148, handback item 9b) are built as one combined check plus
+  status fields, so the DP-3 guard cap (99 checks / 34 canary crons) holds without retiring other guards.
+- **Why:** recommended by the evidence specialist and the orchestrator; one check, one cron, the figures visible in
+  the status call.
+- **Rejected:** retiring other guards one-for-one to make room for ~28 separate checks.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
