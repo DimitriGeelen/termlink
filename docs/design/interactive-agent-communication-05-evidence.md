@@ -680,3 +680,151 @@ E-65.2 ARRANGE: EP-5 with systemd units and the cron backstop as installed.
 E-65.3 ACT: 500 kills at random times and signals.
 E-65.4 ASSERT: per kill: recovered within interval, or entry present; 0 silent.
 E-65.5 CONTROL: with the backstop disabled and the unit's restart off, kills produce silent cases and the run fails.
+
+### 6.10 Hub changes (K-15; ARC4 6.6; B-2, B-3, B-4, B-6)
+
+**E-66 — A second inbox consumer is flagged within 60 s, refused after bind.** Links: SI-16, R-49, BP-15, DR-11, R-60. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-2).
+E-66.1 EVIDENCE: the hub records per inbox every identity that subscribed, acked or claimed (16 kept, eviction logged); a second identity within 24 h (V-11) shows in status as "inbox consumed by two identities: A, B" and needs-attention within 60 s; after `admin inbox bind`, ack and claim from any other identity are refused; a second live copy of a project on the same hub is seen within one tick (V-12) (ARC4 6.6.1, 6.6.2).
+E-66.2 ARRANGE: throwaway hub; sidecar `fx-a` consuming its inbox; a raw client with identity `fx-z`.
+E-66.3 ACT: `fx-z` subscribes and acks `fx-a`'s inbox; then bind to `fx-a` and repeat; register 17 identities; register a second copy of `fx-a`'s project.
+E-66.4 ASSERT: flag within 60 s naming both; after bind `fx-z` refused with a reason and an admin-log row; eviction of the oldest logged; second copy flagged within one tick.
+E-66.5 CONTROL: mutant that records only subscribers (not ackers) misses `fx-z` (the BP-15 route).
+
+**E-67 — Admin RPCs are logged; a sweep of open mail is refused; retention ceilings.** Links: FX-6, BP-7, R-35, TH-30, SI-24. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-3).
+E-67.1 EVIDENCE: every admin-scope RPC appends caller, method, params digest, result with `admin: true`, kept ≥ 30 days; `channel.sweep`, `set-retention` and trim on an `inbox:` or conversation topic are refused when they would remove an offset whose message is not final; past a V-3 ceiling the oldest final records go first, loudly, and open ones only as a last resort with needs-attention (ARC4 6.6.3, V-3).
+E-67.2 ARRANGE: throwaway hub; an inbox with final and open messages; ceilings shrunk by a test seam.
+E-67.3 ACT: sweep, set-retention, trim across the open offset; call each admin RPC once; exceed the ceiling.
+E-67.4 ASSERT: refusals with reason; one admin row per call; the log rotation keeps `admin: true` rows ≥ 30 days (rotation simulated); ceiling: final removed first, entry raised, no open message removed while a final one remains.
+E-67.5 CONTROL: mutant without the open-offset check removes an open message.
+
+**E-68 — Founding verbs need their own scope, are logged, and can be owner-only.** Links: FX-4, R-4, BP-1, BP-2, TH-2. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-4).
+E-68.1 EVIDENCE: `inject` needs `control` and `exec` needs `execute` (built); every `command.inject`, `pty inject`, `command.execute` and `remote exec` is logged with the caller at the session and at the hub; a session spawned `--owner-only` refuses other callers; R-4's ability to inject and read back stays (ARC4 6.6.4).
+E-68.2 ARRANGE: EP-4 session; tokens with `observe`, `notify`, `control`, `execute`; a second identity.
+E-68.3 ACT: call each verb with each token and identity.
+E-68.4 ASSERT: refusals with `observe` and `notify`; every attempt (allowed or refused) has a log row at session and hub with caller identity; owner-only refuses the second identity; the owner can still inject and read output back.
+E-68.5 CONTROL: mutant with no hub-side log row fails the row count.
+
+**E-69 — Posts are checked against the agent key card; replacement only by old key or runme.** Links: SI-3, R-75, TH-1, TH-8, TH-56. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-6).
+E-69.1 EVIDENCE: the hub refuses a post whose signature does not verify against the poster's card; a forged message with the shared host key or a sibling's key id is refused at hub and receiver with an entry; a card replacement is accepted only as a statement signed by the old key or a runme action (ARC4 6.6.5; TM SI-3 probe).
+E-69.2 ARRANGE: throwaway hub with cards for `fx-a`, `fx-b`; the hub HMAC secret.
+E-69.3 ACT: post as `fx-a` signed with `fx-b`'s key; post with the hub secret only (BP-3); submit a card replacement signed by the new key; signed by the old key.
+E-69.4 ASSERT: first two refused at the hub (and, bypassing the hub check, at the receiver) with entries; new-key replacement refused; old-key replacement accepted and logged.
+E-69.5 CONTROL: the built mutant `fc-01-verify-accepts-any-signature` turns this red.
+
+**E-70 — Signed dead letter for a retired instance.** Links: SI-26, R-44, R-62, TH-54. Category: core function. Level: L4. Tier: 2. Phase: PH-2 (B-6).
+E-70.1 EVIDENCE: retiring an instance by runme makes the hub write a signed, sequenced `DEAD`; a sender's conversation mail to it ends DEAD and stops polling; an unsigned or wrongly signed DEAD is refused (ARC4 6.6.6).
+E-70.2 ARRANGE: throwaway hub; a conversation between `fx-a` and instance `fx-b#1`.
+E-70.3 ACT: retire `fx-b#1`; `fx-a` sends inside the conversation; inject an unsigned DEAD for `fx-a`.
+E-70.4 ASSERT: sender state DEAD with the statement's seq; polling stops; unsigned DEAD refused and flagged; the message is never delivered to another instance (SI-26).
+E-70.5 CONTROL: mutant accepting unsigned DEAD stops a live conversation.
+
+### 6.11 Vendor channels and the SendMessage deny (K-20; ARC4 6.10; B-18, B-26)
+
+**E-71 — Every vendor-channel use leaves a row and an entry; the hook never blocks.** Links: FX-1, R-79, BP-14, R-47. Category: core function. Level: L2 + L4. Tier: 1 and 3. Phase: PH-2 (B-18 log half).
+E-71.1 EVIDENCE: a PreToolUse call for `SendMessage`, `Agent` or `Task` appends a row to the sidecar's admin chain and a routine needs-attention entry `vendor-channel-use`, coalesced per session per day; the hook exits 0 (ARC4 6.10.1).
+E-71.2 ARRANGE: tier 1 hook fixture with the three tool names; tier 3 EP-5 with the hook installed.
+E-71.3 ACT: call each tool twice in one session.
+E-71.4 ASSERT: six rows, three entries (coalesced); each tool call completes.
+E-71.5 CONTROL: mutant hook matching `SendMessage` only misses the sub-agent rows.
+
+**E-72 — The SendMessage deny is an idempotent operator action that waits for the re-based prover.** Links: FX-1, R-79, BP-14. Category: user workflow. Level: L2. Tier: 1. Phase: PH-2 (B-18 deny half).
+E-72.1 EVIDENCE: the runme action checks for the `permissions.deny` entry, adds it, verifies it on disk, reports FAILED otherwise, and refuses to add it until B-26's prover has passed once on the TermLink rail (ARC4 6.10.2, 6.10.2.a).
+E-72.2 ARRANGE: `tests/runme-fixtures.sh` with `RUNME_*` seams; a fake settings file; a fake prover result absent, failed, passed.
+E-72.3 ACT: run the action three times per prover state.
+E-72.4 ASSERT: prover absent or failed: action refuses, settings unchanged, log line FAILED with the reason; passed: first run adds the entry and verifies (OK), second and third `skip`; a corrupted settings file after the write gives FAILED.
+E-72.5 CONTROL: mutant that trusts the write's exit code without re-reading misses the corruption case.
+
+**E-73 — After the deny, SendMessage is refused by the harness; what the log sees is recorded.** Links: FX-1, BP-14. Category: integration. Level: L4. Tier: 3. Phase: PH-2 (B-18).
+E-73.1 EVIDENCE: with the deny in place a SendMessage call in a session is refused by the harness; whether the refused call still reaches the PreToolUse log is observed and recorded, not assumed (ARC4 6.10.3).
+E-73.2 ARRANGE: EP-5 session with a project settings copy that has the deny.
+E-73.3 ACT: the agent attempts a SendMessage.
+E-73.4 ASSERT: the tool result is a refusal; the record states `logged: yes|no` as observed.
+E-73.5 CONTROL: same session without the deny: the call is not refused (otherwise the spec is vacuous).
+
+**E-74 — The session message prover works on the TermLink rail.** Links: FX-1, R-24, R-42, R-79. Category: integration. Level: L4 + L5. Tier: 1 and 4. Phase: PH-2 (B-26).
+E-74.1 EVIDENCE: `scripts/session-message-selftest.sh`, re-based on the sidecar send API (or `termlink agent send`), keeps assert-on-the-receiver: DELIVERED (0), BLOCKED (1), ENQUEUED (1), UNDELIVERED (1), TOOLING (2), with its fixtures and mutants (CLAUDE.md T-2876 section).
+E-74.2 ARRANGE: tier 1 its fixture suite with `SESSION_MSG_TEST_*` seams; tier 4 EP-7.
+E-74.3 ACT: run the suite; live: send a sentinel over TermLink and assert on the receiver's transcript; send a control sentinel that was never sent.
+E-74.4 ASSERT: suite green with its pinned mutants red; live DELIVERED rc 0 and control UNDELIVERED rc 1; an unreadable receiver gives TOOLING rc 2.
+E-74.5 CONTROL: the suite's pinned mutants (removing the BLOCKED branch, the reachability gate, collapsing ENQUEUED into UNDELIVERED) stay red after the re-base.
+
+### 6.12 W3 acceptance, soak, canary and the PH-2 exit (ARC4 6.11; B-19, B-21, B-22, B-23)
+
+**E-75 — Two-agent live test with a negative control on the installed artifact.** Links: R-2, R-3, R-14, R-15, R-24, R-26, R-27, R-44, R-45, R-66, R-69, T-4a. Category: user workflow. Level: L5. Tier: 4. Phase: PH-2 (B-22; ARCH2 exit 2).
+E-75.1 EVIDENCE: a round trip between two real agents through the installed artifact shows the five stage rows with times (RECEIVED, STORED, HANDED_OVER with transcript evidence, REPLIED, and the reply's own stages) to the sender; with the hooks removed from the receiver (fault 6) the sender sees a visible non-delivered state by its deadline.
+E-75.2 ARRANGE: EP-9 (two agents of 010 on .107 via the reachable launcher), `scripts/arc011-ph1-demo.sh` in installed-artifact mode.
+E-75.3 ACT: A asks B a question; B replies; repeat with B's hooks removed.
+E-75.4 ASSERT: run 1: five rows, HANDED_OVER `record_ref` resolvable in B's transcript, REPLIED linked to the conversation; run 2: no HANDED_OVER, sender state WAITING FOR RECIPIENT, STUCK or UNKNOWN by the deadline, never "delivered".
+E-75.5 CONTROL: run 2 is the negative control; it MUST end not-delivered.
+
+**E-76 — "No action" is a visible terminal stage.** Links: R-28, R-44, T-4b. Category: user workflow. Level: L5. Tier: 4. Phase: PH-1 built; re-run in PH-2 (B-22).
+E-76.1 EVIDENCE: a woken agent that has nothing to do ends the message ACKNOWLEDGED_NO_ACTION, visible to the sender; it never stays silent.
+E-76.2 ARRANGE: EP-7.
+E-76.3 ACT: send an informational message that needs no answer.
+E-76.4 ASSERT: sender sees ACKNOWLEDGED_NO_ACTION within the deadline.
+E-76.5 CONTROL: an agent session with the no-action path removed (fixture) leaves the message owed and the sender sees STUCK.
+
+**E-77 — H-14 soak: the approach works for real agents (REFUTES THE APPROACH).** Links: R-1, R-2, R-3, R-24, R-42, R-44, FX-7, H-14, T-21. Category: integration. Level: L7. Tier: 4. Phase: PH-2 (B-22).
+E-77.1 EVIDENCE: over 14 days and at least 500 messages on EP-9, at least 95% of the denominator (messages to an agent that was READY, or whose hook fired, within twice the R-44 deadline after STORED) reach HANDED_OVER with transcript evidence in time; 100% of the rest show a sender state by their deadline; zero HANDED_OVER without evidence; zero STORED messages missing (FP 9 H-14).
+E-77.2 ARRANGE: stage records, transcripts and ring logs retained 14 days.
+E-77.3 ACT: real work.
+E-77.4 ASSERT: report with numerator and denominator per attempt and per message (RNU, ARC4 15.2.a); any false HANDED_OVER or silent loss that survives one fix cycle is FAIL and triggers the operator brief.
+E-77.5 CONTROL: the report generator runs on a seeded week with one false HANDED_OVER and MUST fail.
+
+**E-78 — Daily canary from the installed artifact, with staleness.** Links: R-66, R-69, T-12, V-13. Category: integration. Level: L7. Tier: 4. Phase: PH-2 (B-19, T-3361).
+E-78.1 EVIDENCE: once a day the canary pair EP-8 completes RECEIVED, STORED, HANDED_OVER in the receiver's transcript and REPLIED within the R-44 deadlines, with a negative control; a missing run for 26 h is detected by the canary meta-check; it re-runs after a rotation, a re-vendor and a reboot.
+E-78.2 ARRANGE: testdev cron via runme; the canary meta-check (T-1723).
+E-78.3 ACT: daily; stop the canary for 27 h once.
+E-78.4 ASSERT: daily log rows with the four stages; control red each day; staleness alarm at 26 h; re-run entries after each event.
+E-78.5 CONTROL: the daily negative control (a message to a receiver with hooks removed) MUST be red.
+
+**E-79 — Standing controls of the three real failures.** Links: R-69, R-29, R-54, FX-8, T-11, H-15. Category: adversarial. Level: L2 + L4. Tier: 1 and 2. Phase: PH-0 red, green from PH-2, per release.
+E-79.1 EVIDENCE: INC-a (2026-10-03 mail stored and receipted, never surfaced), INC-b (the stray hub), INC-d (the 32,205-refusal sidecar) are each detected: red before the fix, green after, red again on revert.
+E-79.2 ARRANGE: the three fixtures of H-15.
+E-79.3 ACT: run per release on the release commit and on the commit with each fix reverted.
+E-79.4 ASSERT: green on release; red with each revert, for its named reason.
+E-79.5 CONTROL: the revert runs are the controls.
+
+**E-80 — Installed system: clean host, upgrade, rollback, restart, reboot, mixed version.** Links: R-39, R-8, SI-27, TH-17, T-8, T-9, T-15. Category: integration. Level: L6. Tier: 3. Phase: PH-2 (built P9; re-run per release).
+E-80.1 EVIDENCE: the release artifact installs on a clean host, upgrades, rolls back and restarts with the runtime directory persisted (PL-021); after a reboot the sidecar is back and the canary clean; checksums are verified in every status call; a mixed-version pair is refused loudly, not dropped.
+E-80.2 ARRANGE: `tests/arc011-clean-host.sh`; EP-12 VM; two binaries of adjacent versions on EP-3.
+E-80.3 ACT: install, upgrade, rollback, restart, reboot; replace the binary with a modified copy; pair old and new.
+E-80.4 ASSERT: each step's status green; `hub.id` and secrets unchanged across reboot; modified binary flagged by status (SI-27); mixed pair refused with a reason naming both versions.
+E-80.5 CONTROL: a runtime directory on a volatile path (PL-021) MUST give a new hub id after reboot and fail E-36's keep rule, proving the check sees it.
+
+**E-81 — Rollback keeps and lists STORED messages (OQ-j A, XR-1).** Links: R-15, R-49, SI-15. Category: error handling. Level: L4. Tier: 2. Phase: PH-2 (built K-4; re-run per wave).
+E-81.1 EVIDENCE: a wave rollback by the K-4 drain keeps every STORED message in the store and lists it in the rollback report; the count compare between old and new receivers matches.
+E-81.2 ARRANGE: throwaway hub; an agent with STORED, ATTEMPTED and HANDED_OVER messages.
+E-81.3 ACT: run the drain and rollback.
+E-81.4 ASSERT: report lists every non-final message; counts equal; none re-posted as bare (the signature binds the topic).
+E-81.5 CONTROL: a drain that skips the count compare MUST be refused by the runme action.
+
+**E-82 — W4 decommission refuses without the operator's recorded approval (NID).** Links: R-49, BP-16, NID. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-23).
+E-82.1 EVIDENCE: the W4 runme action switches AEF's receiver and the notify-sidecar off for .107 inboxes only when the W4 task's Decisions contain the operator's approval in the operator's own words; otherwise it refuses and changes nothing (ARC4 6.11.3).
+E-82.2 ARRANGE: `tests/runme-fixtures.sh` with a fake task file with and without the approval record, and a fake unit state.
+E-82.3 ACT: run the action in both states, twice each.
+E-82.4 ASSERT: without approval: FAILED with the reason, units untouched; with approval: units off and verified on disk, second run `skip`; switched-off rails remain installed.
+E-82.5 CONTROL: mutant that reads the approval from the task's status field instead of its Decisions runs without the record and fails.
+
+**E-83 — One receiver per inbox after W4, and bypass routes do not grow.** Links: R-49, SI-16, H-26, BP-15, BP-16. Category: integration. Level: L7. Tier: 4. Phase: PH-2 exit (B-22).
+E-83.1 EVIDENCE: over the V-11 window after W4 each .107 inbox shows one consumer identity; at each phase exit the TM section 17 bypass inventory is re-run and no route is newly open (H-26).
+E-83.2 ARRANGE: hub consumer lists; the bypass inventory script.
+E-83.3 ACT: read lists daily; run the inventory at the exit.
+E-83.4 ASSERT: one identity per inbox for 24 h; inventory diff shows no new open route and BP-15 moved to removed.
+E-83.5 CONTROL: inject a second consumer (E-66) during the window; the check MUST fire.
+
+### 6.13 The adapter contract `termlink.adapter/2` (ARC4 17; B-29, AEF T-5054)
+
+**E-84 — Parity fixtures per report, with negative controls, against every adapter.** Links: R-47, R-21, R-24, R-50, R-51, R-79, GP-8, T-19, AFC-14. Category: integration. Level: L2. Tier: 1. Phase: PH-2 (fixtures with B-25/B-27; AEF adapter B-29).
+E-84.1 EVIDENCE: one scenario file per report (R1 readiness, R2 turn events, R3 prompt origin, R4 evidence and complete point, R5 framing and waiting-mail definition, R6 vendor channels) runs against every adapter per release with the same meaning; the negative controls fail: a doorbell line reported `human`, a missing READY read as ready, evidence without the nonce; a harness without an adapter is unreachable, never delivered (ARC4 17.9).
+E-84.2 ARRANGE: TermLink's W1 hooks as the reference adapter; AEF's Claude Code adapter when T-5054 delivers; 055's opencode adapter when it exists.
+E-84.3 ACT: replay each scenario through each adapter into a receiver in a test estate.
+E-84.4 ASSERT: identical receiver-side outcomes per scenario across adapters; each negative control scenario FAILS for its adapter variant; "no adapter" yields unreachable status.
+E-84.5 CONTROL: the three negative-control scenarios are the controls; an adapter that passes them is defective.
+
+**E-85 — Prompt-origin bases are reported as the contract says.** Links: R-47, R-67, AR-6. Category: adversarial. Level: L4. Tier: 3. Phase: PH-2 (B-29).
+E-85.1 EVIDENCE: `automated` is reported for a doorbell line (basis `doorbell`), a non-interactive session (`non-interactive`), input that reached the PTY by `inject` or `notify`; `human` only with basis `pty-input` from client input or `inferred`; `unknown` otherwise (ARC4 17.5).
+E-85.2 ARRANGE: EP-5 under a TermLink PTY; a print-mode session; an injected prompt.
+E-85.3 ACT: submit a prompt by each route.
+E-85.4 ASSERT: origin and basis per route as stated; the `inferred` share is reported (AR-6 measured, not closed).
+E-85.5 CONTROL: an adapter variant that reports every prompt `human` MUST fail the doorbell and inject routes.
