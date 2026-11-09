@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3676: arc-011: fold step 4 change requests XR-1..XR-9 into the step 1 and step 3 documents (B-24)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-09T15:18:16Z
+# ============================================================================
+
+task_id: T-3676
+task_name: "arc-011: fold step 4 change requests XR-1..XR-9 into the step 1 and step 3 documents (B-24)"
+workflow_type: specification
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-09T15:13:01Z
+completed: 2026-11-09T15:17:36Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-09T16:17:33+01:00
+last_commit: 2026-11-09T16:17:33+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fold step 4 change requests XR-1..XR-9 into requirements v0.5.3 and floor-and-phasing v0.3
+
+# Key outcomes
+outcomes:
+  - 'Floor-and-phasing v0.3 carries XR-1, XR-3, XR-4, XR-5, XR-6, XR-7, XR-8, each marked, with a version row'
+  - 'Requirements v0.5.3 carries XR-2 and XR-9, each marked, with a version row'
+  - 'No "approve` verb" placement and no "REFUTES THE APPROACH" mark on H-21 remain in the step 3 document'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3676-arc-011-fold-step-4-change-requests-xr-1.md'
+  - 'docs/design/interactive-agent-communication-01-requirements.md'
+  - 'docs/design/interactive-agent-communication-03-floor-and-phasing.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-09T16:17:33'
+    action: 'T-3676: fold step 4 change requests XR-1..XR-9 into requirements v0.5.3 and floor-and-phasing v0.3'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 6
+  lines_added: 526
+  lines_removed: 24
+  footprint_refreshed_at: '2026-11-09T15:18:28Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3676-arc-011-fold-step-4-change-requests-xr-1.md
+generated_by: context-agent-hybrid
