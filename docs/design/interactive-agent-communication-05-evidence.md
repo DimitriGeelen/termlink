@@ -21,7 +21,7 @@ the reviewers read this file in the repository.
 
 | Version | Date | Change | Task |
 |---|---|---|---|
-| 0.1 | 2026-11-09 | First complete draft, batch mode. Test estate and agent pairs per CAND-3 tier; evidence levels; result format; specs E-1 to E-148 (PH-2 first, then baseline re-assertion, later phases, production invariant checks); architecture fail-closed conditions AFC-1 to AFC-24 with specs; pseudo-code FAILS CLOSED WHEN coverage open for step 6; drawings D-1 and D-2; residual risks; change requests. | T-3354 |
+| 0.1 | 2026-11-09 | First complete draft, batch mode. Test estate and agent pairs per CAND-3 tier; evidence levels; result format; specs E-1 to E-152 (PH-2 first, then baseline re-assertion, later phases, production invariant checks); architecture fail-closed conditions AFC-1 to AFC-34 with specs; pseudo-code FAILS CLOSED WHEN coverage open for step 6; drawings D-1 and D-2; residual risks; change requests. | T-3354 |
 
 ## 1 Inputs of record
 
@@ -44,8 +44,8 @@ the reviewers read this file in the repository.
 | CODE | `crates/termlink-sidecar/src/` (notably `testkit.rs`, `beat.rs`, `lease.rs`, `activity.rs`), `crates/termlink-sidecar/tests/` (incl. `mutants/fc-01..fc-19`), `scripts/arc011-mutants.sh`, `scripts/arc011-ph1-demo.sh`, `scripts/session-message-selftest.sh`, `tests/runme-fixtures.sh` at `1c71223fd` | not hashed; cited by path |
 
 1.2.a LEASE changed since step 4 read it (`f4d79119…`): commit `07da39022` (T-3668, `termlink main` reads
-`CLAUDE_CODE_SESSION_ID` and never the TermLink session id inside Claude Code). It changes no lease rule; E-28 and
-E-31 use the corrected session identity.
+`CLAUDE_CODE_SESSION_ID` and never the TermLink session id inside Claude Code). It changes no lease rule; E-20 and
+E-28 use the corrected session identity.
 
 1.3 Role inputs, in the order given (README 3.3).
 
@@ -228,7 +228,7 @@ E-2.5 CONTROL: removing any one re-check makes its run write keystrokes (six mut
 E-3.1 EVIDENCE: every line the doorbell can produce matches `^sidecar: [0-9]+ peer messages waiting, ids( [0-9a-f]{32}){1,4}\. The prompt hook shows them as untrusted data\.$`; no byte chosen by a peer reaches it; typed into a shell it starts nothing.
 E-3.2 ARRANGE: tier 1: a generator of message ids and counts, including ids with a newline, ESC sequences, `$(id)`, backticks, `;`, Unicode look-alikes, 31 and 33 hex characters, upper-case hex, an empty id, and more than four pending messages. Tier 2 (EP-4): a TermLink PTY whose foreground process is `bash`, then `sh`, then `zsh`, run as root and as an unprivileged user.
 E-3.3 ACT: tier 1: build the line for each generated input (at least 10^5 cases, seeded). Tier 2: write the fixed line produced for a valid id set into each shell and press Enter.
-E-3.4 ASSERT: tier 1: every produced line matches the regular expression; every input with an invalid id is refused before a line exists and the refusal is recorded; at most 4 ids appear. Tier 2: the only new process is the shell's "command not found" path (exit 127; process list before and after differs by nothing that outlives it); `command -v sidecar` is empty on the host (also an L7 check on every fleet host, E-121).
+E-3.4 ASSERT: tier 1: every produced line matches the regular expression; every input with an invalid id is refused before a line exists and the refusal is recorded; at most 4 ids appear. Tier 2: the only new process is the shell's "command not found" path (exit 127; process list before and after differs by nothing that outlives it); `command -v sidecar` is empty on the host (also an L7 check on every fleet host, E-125).
 E-3.5 CONTROL: mutant that interpolates the message's `name_hint` or subject into the line fails the regular expression; mutant that skips id validation lets a newline through.
 
 **E-4 — A ring is ATTEMPTED, never HANDED_OVER; no false "delivered".** Links: R-24, R-42, FX-7, SI-17, SI-30, TH-7, AFC-4. Category: adversarial. Level: L2 + L4. Tier: 1 and 3. Phase: PH-2 (B-16).
@@ -401,7 +401,7 @@ E-27.1 EVIDENCE: the UserPromptSubmit triggered by a doorbell or watchdog line i
 E-27.2 ARRANGE: EP-5, `testdev-real` not main, doorbell on; a second testdev session holds main.
 E-27.3 ACT: a ring is typed and submitted in `testdev-real`.
 E-27.4 ASSERT: lease records show `ignored: origin, basis: doorbell` for that claim; holder unchanged.
-E-27.5 CONTROL: adapter fixture reporting the doorbell line as `human` fails the parity scenario (E-108).
+E-27.5 CONTROL: adapter fixture reporting the doorbell line as `human` fails the parity scenario (E-84).
 
 **E-28 — Waiting-mail signal: 10 min, its four landing places, and honest OOB status.** Links: R-67, R-53, R-29, FX-8, AFC-18. Category: core function. Level: L2. Tier: 1. Phase: PH-2 (B-25; B-28 for Watchtower and OOB).
 E-28.1 EVIDENCE: role mail STORED and not handed over for 10 min (V-21) while the lease is vacant, lapsed, provisional or unknown, or its holder has had no human prompt for 10 min, raises: a needs-attention entry and status `main.mail_waiting {count, oldest_age_s, holder, holder_human_age_s, since}` at once; one session-start line; one line per generation in a non-main session at its next human prompt; an out-of-band notice at 30 min, at most one per project per hour; before GP-11 exists status shows `oob: not available` and never "sent"; it clears on hand-over (ARC4 6.13.5). The session identity is `CLAUDE_CODE_SESSION_ID` (LEASE, T-3668).
@@ -955,6 +955,36 @@ E-102.3 ACT: `testdev-peer` sends while `testdev-real` works through tools; stop
 E-102.4 ASSERT: both handed over with evidence at the next hook call; the tick log shows 30 s cadence.
 E-102.5 CONTROL: hooks removed (fault 6): no hand-over, E-57 turns the field bad.
 
+8.2 Adversarial complements: four "impossible" requirements and two invariants whose other specs are not adversarial.
+
+**E-121 — A screen that looks idle never opens the gate.** Links: R-22, R-20, SI-2, TH-16. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-16).
+E-121.1 EVIDENCE: the ring decision never reads the screen, so output that paints an idle prompt while the adapter says BUSY, or a blank screen while a turn runs, cannot cause a ring (R-22.f: ADV-1).
+E-121.2 ARRANGE: EP-4 PTY whose fake harness prints a perfect copy of the idle Claude Code prompt every second while its READY flag is BUSY; a second variant clears the screen during a turn.
+E-121.3 ACT: run 20 ticks with mail pending.
+E-121.4 ASSERT: zero rings in both variants; decision records show `ready: BUSY`; the fake session counts zero output reads by the ring path.
+E-121.5 CONTROL: a mutant that infers READY from a prompt pattern in the output rings in the first variant.
+
+**E-122 — STORED cannot be claimed early, and tampering with the store is seen (SI-15).** Links: SI-15, R-15, R-16, TH-14, TH-30. Category: adversarial. Level: L4 + L6. Tier: 2. Phase: PH-1 built; re-run with B-10, B-12.
+E-122.1 EVIDENCE: STORED is reported, and the flag raised, only after the record and its directory entry are on stable storage with a checksum; a full disk, a deleted stored message and a restored old snapshot are detected at the next start (TM SI-15 probe; R-15.f, R-16.f: ADV-3, ADV-4).
+E-122.2 ARRANGE: throwaway hub; a store on a small loop-mounted filesystem; a snapshot of the store.
+E-122.3 ACT: fill the disk mid-receive; delete a stored message file; restore the old snapshot; restart.
+E-122.4 ASSERT: disk full: not STORED, no flag, sender chases, needs-attention (ARC4 9.2); deleted file: `lost-after-STORED` (E-90 path); snapshot: the hub record's newer stages flag every missing message.
+E-122.5 CONTROL: the built mutants `fc-02-stored-reported-on-write-error` and `fc-03-stored-line-before-the-record`.
+
+**E-123 — A silent agent is never read as success (R-2, R-28).** Links: R-2, R-28, R-44, R-58, TH-7. Category: adversarial. Level: L4. Tier: 3. Phase: PH-1 built; re-run with B-9.
+E-123.1 EVIDENCE: an agent that receives a message and neither replies nor says "no action" leaves the message owed, and the sender sees a state that names it (R-2.f, R-28.f: ADV-1 silent agent, ADV-3 false success).
+E-123.2 ARRANGE: EP-5 with `testdev-real` instructed by its own prompt to ignore peer mail.
+E-123.3 ACT: `testdev-peer` sends; wait past the answer deadline.
+E-123.4 ASSERT: HANDED_OVER with evidence, then no REPLIED or ACKNOWLEDGED_NO_ACTION; the sender sees STUCK (or the owed state of R-58) by the deadline, never a terminal success; the receiver's owed list shows it at session start.
+E-123.5 CONTROL: a mutant that treats HANDED_OVER as terminal shows the message finished.
+
+**E-124 — Priority and trust cannot be raised by the sender's bytes or a local file (SI-18).** Links: SI-18, R-52, R-63, TH-13. Category: adversarial. Level: L2. Tier: 1. Phase: PH-1 built.
+E-124.1 EVIDENCE: priority, urgency and trust class are decided at the receiver from the verified sender, the signed fields and the allow-list; an edited queue file, priority 9 from a sender off the allow-list, or a typed line cannot raise them; a downgrade is recorded, never a drop (TM SI-18 probe).
+E-124.2 ARRANGE: estate EP-2; `fx-c` off the allow-list.
+E-124.3 ACT: `fx-c` sends priority 9; edit a queued message's priority file to 9; submit a doorbell-shaped line naming a fake urgent id.
+E-124.4 ASSERT: `fx-c`'s message handed over as normal (not mid-turn) with a recorded downgrade; the file edit ignored; the fake line pulls nothing urgent.
+E-124.5 CONTROL: a mutant reading priority from the queue file honours the edit.
+
 ## 9 Later phases (PH-3 to PH-6): adversarial and acceptance specs
 
 9.1 These subjects are designed at architecture level only (ARC4 12); their sub-designs are open behind their gates
@@ -1074,7 +1104,7 @@ E-118.3 ACT: post before and after the date.
 E-118.4 ASSERT: as stated.
 E-118.5 CONTROL: mutant dropping alias mail silently fails the warning assertion.
 
-**E-119 — Custody releases only as ruled (H-29).** Links: R-80, R-36, H-29. Category: adversarial. Level: L2. Tier: 1. Phase: PH-6 (K-31).
+**E-119 — Custody releases only as ruled (H-29).** Links: R-80, H-29. Category: adversarial. Level: L2. Tier: 1. Phase: PH-6 (K-31).
 E-119.1 EVIDENCE: in 100 tests, no release while the original is alive; every release after DEAD plus a same-role lease successor plus an explicit hand-over; 100% logged.
 E-119.2 ARRANGE: the custody holder in a supervisor account (fixture).
 E-119.3 ACT: 100 release requests across the states.
@@ -1100,31 +1130,291 @@ the period observed**, the specs show it **in the cases tried**.
 
 | E | Links | EVIDENCE (property, ARC4 15) | ARRANGE | ACT | ASSERT (fires with exit 1 when) | CONTROL | Not proven |
 |---|---|---|---|---|---|---|---|
-| E-121 | SI-1, R-23, K-19 | No installed command is named `sidecar` on any host the doorbell types on | fleet host list | `command -v sidecar` per host, daily | any host returns a path | a fixture host with a `sidecar` stub fires | shells with other first-word resolution (aliases) |
-| E-122 | K-9a, R-61, FX-2 | Hub id unchanged across restart and certificate rotation | status `hub {id, declared, match}` each tick; last id per hub kept | compare each tick and after each hub restart | `match: false` or id changed | fake status with another id fires | the right hub after a full restore (RR-20) |
-| E-123 | K-9b, SI-11 | A revoked key is refused within one tick; the list is fresh | status `revocation` | read each tick; count refusals after each revocation row | `unverified` older than PN-13 without the narrowing applied, or a message from a revoked key STORED | drill revocation (E-39) on the canary pair | anything while the hub is down longer than PN-13 beyond narrowing |
-| E-124 | K-10, SI-5, H-3 | No gap undetected, no reuse accepted | receipts' `up_to`; equivocation entries; `max_held` | weekly report | any accepted reuse; `max_held` > 128 (H-3 bound) is reported for FP-4, not fired | seeded log with a reuse fires | ordering outside a conversation |
-| E-125 | K-11, SI-19, H-13 | Floods wait, receipts flow | quota notices, receipt share, own-project share | daily | a receipt refused for quota; receipts share > 5% or own-project > 10% is reported for FP-4 | seeded refusal fires | fairness between projects |
-| E-126 | K-12, R-58 | Unanswered messages are re-sent per rung and stay owed until answered or ended | owed list vs the hub record | each tick | owed count differs from the hub-record computation | delete an owed row in a fixture: fires | that the recipient acted on it |
-| E-127 | K-13, FX-5, H-7 | Blobs round-trip with both digests; hub holds ciphertext | FX-5 inventory probe; blob log | daily probe; per blob | a plaintext canary or an object without the wrapper header in the store; a STORED blob without both digests; largest blob > 8 MiB reported for FP-4 | plant a plaintext object: fires | confidentiality against the host's root |
-| E-128 | K-14, SI-22 | No silent divergence after start | daily head-compare count | daily and on start | a mismatch without a needs-attention entry | seeded fork without entry fires | prevention of same-user rewrite (RR-2) |
-| E-129 | K-15, SI-16, FX-6 | Second consumer seen within 60 s; sweep of open mail refused | `inbox.consumers`; admin log | each tick | two identities without a flag after 60 s; a sweep row removing an open offset | E-66 injection fires | a root process editing the log |
-| E-130 | K-16, FX-8, H-18 | Status names the cause within 60 s and answers in 5 s | status latency log | each call | p95 > 5 s over a day; a known fault unnamed after 60 s | E-63 runs | causes outside the six faults |
-| E-131 | K-17, R-69 | Each of the six faults named with its fix, 100 of 100, recovery without manual steps; each injector red without its diagnosis | E-62, E-63 per release | per release | any of 120 not named in bound; any injector green with diagnosis removed | E-62 | faults outside the six |
-| E-132 | K-19, H-11, H-20 | Rings reach READY idle sessions without stray lines; every ring ATTEMPTED only; reach per attempt measured | ring log; transcripts | daily | a HANDED_OVER without a nonce record; stray lines > 1 per 1000 over 14 days | seeded stray line fires | the race RR-19; that the agent acted |
-| E-133 | K-32, R-20 | Each activity source moves only on its events; holds counted per gate | status `activity`; ring decisions | daily | an S1 move with only `notify` input in the interval; a ring while `conversation != none` | E-15 control | a person reading silently > 120 s |
-| E-134 | K-33, R-44 | A stuck or false READY never holds mail longer than 300 s of silence plus one tick; every fire has an audit row | watchdog audit rows; stage records | daily | a pending message in a silent, unvetoed session with no fire after 300 s + 1 tick; a `via: watchdog` stage without a row | fixture with READY stuck busy | that the typed line is submitted |
-| E-135 | K-34, R-67 | Role mail unread by a reading main is shown within 10 min and reaches the operator out of band at 30 min | `main.mail_waiting`; OOB log | each tick | waiting > 10 min with no entry; > 30 min with GP-11 live and no OOB record; any OOB "sent" without the channel | seeded waiting mail | that the operator acts |
-| E-136 | K-20, FX-1 | Every vendor-channel use leaves a row | admin chain; session tool logs | daily | a session tool log showing `SendMessage`, `Agent` or `Task` without a matching row | fixture session | sessions without the hook |
-| E-137 | K-21, R-66, V-13 | Daily two-agent round trip with its control; never stale | canary log | daily | no completed run for 26 h; control green | stopped canary (E-78) | pairs not in the rotation |
-| E-138 | K-22, R-67, SI-20 | One main per project; takeovers visible; renewals only by human-origin prompts | `termlink main status` records | each tick | two holders of one generation; a holder change with no record; a counted renewal with origin `automated` | E-25 mutant replay | right session for the operator's intent; AR-6 |
-| E-139 | K-23, R-67.a1, H-24 | No role mail lost or doubled across copies | forward and VIA records; stage records | daily | a message id handed over twice; a FORWARD without VIA | seeded double fires | conversation mail (never forwarded) |
-| E-140 | K-24, R-80 | Register entry matches the private key; blobs open only with that key | start-up check; FX-5 probe | on start, daily | a sidecar running with a mismatch; plaintext in the store | swapped register (E-48) | secrecy against root (RR-2, AR-4) |
-| E-141 | K-25, R-54, FX-2 | A sidecar with a differing declaration or answering hub does not run | status `hub`; process list | each tick | a running sidecar with `match: false` | fault injector 5 | that the declaration names the intended hub |
-| E-142 | R-1, R-2, R-24, ARC4 15.2.a | **Reach:** the share of messages that reach the agent's conversation (HANDED_OVER with evidence) per attempt and per message within its deadline | stage records with `via`; transcripts | daily, 14-day window | per-message reach in the H-14 denominator < 95% (H-14 bound) | seeded week (E-77 control) | that the agent acted on the message |
-| E-143 | R-44, R-29, ARC4 15.2.b | **Visible failure:** every message not handed over shows a sender state by its deadline | stage records; sender states | each tick | any message past its deadline with no state among WAITING FOR RECIPIENT, STUCK, UNKNOWN, HANDOVER_UNCONFIRMED | seeded silent message | that the state was read |
-| E-144 | R-42, FX-7, ARC4 15.2.c | **Zero false delivered:** no HANDED_OVER without evidence; no typed line counted as delivered | stage records; evidence events | each tick | any HANDED_OVER without an `evidence` event with a nonce in a harness-written record | `fc-07` replay | a well-formed forged record (RR-7) |
-| E-145 | R-37, R-29 | Only urgent messages raise an immediate alarm; everything else escalates when it piles up; operator load is reported as a cost | needs-attention entries; alarms | daily | an immediate alarm for a non-urgent item; a firing that is a usage count (RNU) | seeded non-urgent alarm | that the operator reads it |
-| E-146 | R-70, GP-12 | Inventories of components, stores, identities, keys, operations and states are current; every addition is justified | `scripts/check-arc011-inventory.sh` | per push | inventory drift | the script's own fixtures (`tests/arc011-inventory-check-fixtures.sh`) | quality of the justification |
-| E-147 | R-69, T-13, T-10 | Every floor probe stays kill-checked | E-93 report and the PH-2 mutants of this document | per push for invariants | a surviving mutant | the mutants themselves | equivalent mutants nobody wrote |
-| E-148 | H-26, TM 17 | Bypass routes do not grow | bypass inventory | each phase exit | a newly open route | E-83 control | routes not in the inventory |
+| E-125 | SI-1, R-23, K-19 | No installed command is named `sidecar` on any host the doorbell types on | fleet host list | `command -v sidecar` per host, daily | any host returns a path | a fixture host with a `sidecar` stub fires | shells with other first-word resolution (aliases) |
+| E-126 | K-9a, R-61, FX-2 | Hub id unchanged across restart and certificate rotation | status `hub {id, declared, match}` each tick; last id per hub kept | compare each tick and after each hub restart | `match: false` or id changed | fake status with another id fires | the right hub after a full restore (RR-20) |
+| E-127 | K-9b, SI-11 | A revoked key is refused within one tick; the list is fresh | status `revocation` | read each tick; count refusals after each revocation row | `unverified` older than PN-13 without the narrowing applied, or a message from a revoked key STORED | drill revocation (E-39) on the canary pair | anything while the hub is down longer than PN-13 beyond narrowing |
+| E-128 | K-10, SI-5, H-3 | No gap undetected, no reuse accepted | receipts' `up_to`; equivocation entries; `max_held` | weekly report | any accepted reuse; `max_held` > 128 (H-3 bound) is reported for FP-4, not fired | seeded log with a reuse fires | ordering outside a conversation |
+| E-129 | K-11, SI-19, H-13 | Floods wait, receipts flow | quota notices, receipt share, own-project share | daily | a receipt refused for quota; receipts share > 5% or own-project > 10% is reported for FP-4 | seeded refusal fires | fairness between projects |
+| E-130 | K-12, R-58 | Unanswered messages are re-sent per rung and stay owed until answered or ended | owed list vs the hub record | each tick | owed count differs from the hub-record computation | delete an owed row in a fixture: fires | that the recipient acted on it |
+| E-131 | K-13, FX-5, H-7 | Blobs round-trip with both digests; hub holds ciphertext | FX-5 inventory probe; blob log | daily probe; per blob | a plaintext canary or an object without the wrapper header in the store; a STORED blob without both digests; largest blob > 8 MiB reported for FP-4 | plant a plaintext object: fires | confidentiality against the host's root |
+| E-132 | K-14, SI-22 | No silent divergence after start | daily head-compare count | daily and on start | a mismatch without a needs-attention entry | seeded fork without entry fires | prevention of same-user rewrite (RR-2) |
+| E-133 | K-15, SI-16, FX-6 | Second consumer seen within 60 s; sweep of open mail refused | `inbox.consumers`; admin log | each tick | two identities without a flag after 60 s; a sweep row removing an open offset | E-66 injection fires | a root process editing the log |
+| E-134 | K-16, FX-8, H-18 | Status names the cause within 60 s and answers in 5 s | status latency log | each call | p95 > 5 s over a day; a known fault unnamed after 60 s | E-63 runs | causes outside the six faults |
+| E-135 | K-17, R-69 | Each of the six faults named with its fix, 100 of 100, recovery without manual steps; each injector red without its diagnosis | E-62, E-63 per release | per release | any of 120 not named in bound; any injector green with diagnosis removed | E-62 | faults outside the six |
+| E-136 | K-19, H-11, H-20 | Rings reach READY idle sessions without stray lines; every ring ATTEMPTED only; reach per attempt measured | ring log; transcripts | daily | a HANDED_OVER without a nonce record; stray lines > 1 per 1000 over 14 days | seeded stray line fires | the race RR-19; that the agent acted |
+| E-137 | K-32, R-20 | Each activity source moves only on its events; holds counted per gate | status `activity`; ring decisions | daily | an S1 move with only `notify` input in the interval; a ring while `conversation != none` | E-15 control | a person reading silently > 120 s |
+| E-138 | K-33, R-44 | A stuck or false READY never holds mail longer than 300 s of silence plus one tick; every fire has an audit row | watchdog audit rows; stage records | daily | a pending message in a silent, unvetoed session with no fire after 300 s + 1 tick; a `via: watchdog` stage without a row | fixture with READY stuck busy | that the typed line is submitted |
+| E-139 | K-34, R-67 | Role mail unread by a reading main is shown within 10 min and reaches the operator out of band at 30 min | `main.mail_waiting`; OOB log | each tick | waiting > 10 min with no entry; > 30 min with GP-11 live and no OOB record; any OOB "sent" without the channel | seeded waiting mail | that the operator acts |
+| E-140 | K-20, FX-1 | Every vendor-channel use leaves a row | admin chain; session tool logs | daily | a session tool log showing `SendMessage`, `Agent` or `Task` without a matching row | fixture session | sessions without the hook |
+| E-141 | K-21, R-66, V-13 | Daily two-agent round trip with its control; never stale | canary log | daily | no completed run for 26 h; control green | stopped canary (E-78) | pairs not in the rotation |
+| E-142 | K-22, R-67, SI-20 | One main per project; takeovers visible; renewals only by human-origin prompts | `termlink main status` records | each tick | two holders of one generation; a holder change with no record; a counted renewal with origin `automated` | E-25 mutant replay | right session for the operator's intent; AR-6 |
+| E-143 | K-23, R-67.a1, H-24 | No role mail lost or doubled across copies | forward and VIA records; stage records | daily | a message id handed over twice; a FORWARD without VIA | seeded double fires | conversation mail (never forwarded) |
+| E-144 | K-24, R-80 | Register entry matches the private key; blobs open only with that key | start-up check; FX-5 probe | on start, daily | a sidecar running with a mismatch; plaintext in the store | swapped register (E-48) | secrecy against root (RR-2, AR-4) |
+| E-145 | K-25, R-54, FX-2 | A sidecar with a differing declaration or answering hub does not run | status `hub`; process list | each tick | a running sidecar with `match: false` | fault injector 5 | that the declaration names the intended hub |
+| E-146 | R-1, R-2, R-24, ARC4 15.2.a | **Reach:** the share of messages that reach the agent's conversation (HANDED_OVER with evidence) per attempt and per message within its deadline | stage records with `via`; transcripts | daily, 14-day window | per-message reach in the H-14 denominator < 95% (H-14 bound) | seeded week (E-77 control) | that the agent acted on the message |
+| E-147 | R-44, R-29, ARC4 15.2.b | **Visible failure:** every message not handed over shows a sender state by its deadline | stage records; sender states | each tick | any message past its deadline with no state among WAITING FOR RECIPIENT, STUCK, UNKNOWN, HANDOVER_UNCONFIRMED | seeded silent message | that the state was read |
+| E-148 | R-42, FX-7, ARC4 15.2.c | **Zero false delivered:** no HANDED_OVER without evidence; no typed line counted as delivered | stage records; evidence events | each tick | any HANDED_OVER without an `evidence` event with a nonce in a harness-written record | `fc-07` replay | a well-formed forged record (RR-7) |
+| E-149 | R-37, R-29 | Only urgent messages raise an immediate alarm; everything else escalates when it piles up; operator load is reported as a cost | needs-attention entries; alarms | daily | an immediate alarm for a non-urgent item; a firing that is a usage count (RNU) | seeded non-urgent alarm | that the operator reads it |
+| E-150 | R-70, GP-12 | Inventories of components, stores, identities, keys, operations and states are current; every addition is justified | `scripts/check-arc011-inventory.sh` | per push | inventory drift | the script's own fixtures (`tests/arc011-inventory-check-fixtures.sh`) | quality of the justification |
+| E-151 | R-69, T-13, T-10 | Every floor probe stays kill-checked | E-93 report and the PH-2 mutants of this document | per push for invariants | a surviving mutant | the mutants themselves | equivalent mutants nobody wrote |
+| E-152 | H-26, TM 17 | Bypass routes do not grow | bypass inventory | each phase exit | a newly open route | E-83 control | routes not in the inventory |
+
+## 11 Coverage (card 4.2): summary; the tables are in 05a
+
+11.1 The full tables (R-1..R-82 and R-67.a1, SI-1..SI-31, FX-1..FX-8, the "impossible" requirements with their
+adversarial specs, every SI-n with its adversarial spec, AFC-n, the measured properties of ARC4 15, and the counts by
+category and level) are in `docs/design/interactive-agent-communication-05a-coverage.md`, generated from this file.
+11.2 Declared gaps, each with its reason: R-36 (daily digest, deferred to PH-6), R-38 (deferred by ruling), R-40
+(merged into R-28, evidenced through E-76), R-41 (deferred to the planner), R-43 (dropped). No other R-n, SI-n or FX-n
+is without a spec; every SI-n and every "impossible" requirement has at least one adversarial spec (05a 2.4, 2.5).
+11.3 **Open by construction:** the pseudo-code's FAILS CLOSED WHEN conditions (section 14) do not exist yet. They are
+the main coverage gap of this version and the reason this step iterates with step 6.
+11.4 **Not run until their estate exists** (not gaps in the specification, gaps in what can be shown today): every
+tier-3 spec until EP-5 (`testdev`, T-3361) exists; EP-8 canary specs until B-19; EP-11 cross-host until PH-3; EP-12 host
+crash until the VM is provisioned. Each phase report lists them as "not run" (5.5), never as passed.
+
+## 12 Drawings
+
+12.1 **Drawing D-1 — coverage map (structure): requirements, invariants and fail-closed conditions linked to the
+specs that evidence them, gaps visible**
+
+```mermaid
+flowchart LR
+  classDef src fill:#eef,stroke:#446
+  classDef spec fill:#efe,stroke:#363
+  classDef gap fill:#fee,stroke:#a44,stroke-dasharray: 4 3
+  subgraph SRC["What must be shown"]
+    RD["R-19 R-20 R-22 R-23 R-24 R-81<br/>SI-1 SI-2 SI-17 SI-23 SI-30"]:::src
+    RL["R-67 R-67.a1 R-68<br/>SI-20"]:::src
+    RH["R-54 R-61 R-46 R-75<br/>SI-3 SI-11 FX-2"]:::src
+    RB["R-11 R-80<br/>SI-28 FX-5"]:::src
+    RQ["R-56 R-59 R-45<br/>SI-5 SI-6 SI-15 SI-19 SI-22"]:::src
+    RS["R-6 R-29 R-53 R-57 R-70<br/>FX-8 SI-14 SI-16 FX-4 FX-6"]:::src
+    RE["R-2 R-3 R-28 R-44 R-66 R-69<br/>FX-7 H-14"]:::src
+    RV["R-47 R-79 FX-1"]:::src
+    RP["Later phases: SI-8 SI-9 SI-10 SI-12 SI-13<br/>SI-21 SI-24 SI-29 SI-31 FX-3 R-72 R-82"]:::src
+    KM["ARC4 15 measured properties<br/>K-9a to K-34, 15.2 reach, visible, zero false"]:::src
+    AF["Architecture fail-closed AFC-1 to AFC-34"]:::src
+  end
+  subgraph SPECS["Specs E-n"]
+    ED["E-1 to E-19 doorbell, watchdog, activity"]:::spec
+    EL["E-20 to E-35 lease, waiting mail, forward"]:::spec
+    EH["E-36 to E-43 hub id, key, revocation"]:::spec
+    EB["E-44 to E-49 blobs and keys"]:::spec
+    EQ["E-50 to E-54, E-86 to E-92 caps, window, receipts, reconciliation"]:::spec
+    ES["E-55 to E-70 status, injectors, hub changes"]:::spec
+    EE["E-75 to E-83, E-93 to E-102, E-121 to E-124 acceptance, soak, canary, baseline"]:::spec
+    EV["E-71 to E-74, E-84, E-85 vendor channels, adapter parity"]:::spec
+    EP["E-103 to E-120 later phases"]:::spec
+    EI["E-125 to E-152 production invariant checks"]:::spec
+  end
+  subgraph GAPS["Gaps, marked"]
+    G1["FCW-n pseudo-code conditions: open, step 6"]:::gap
+    G2["R-36 R-38 R-41 deferred, R-40 merged, R-43 dropped"]:::gap
+    G3["Tier 3 and canary estate EP-5, EP-8 not built (T-3361)"]:::gap
+  end
+  RD --> ED
+  RL --> EL
+  RH --> EH
+  RB --> EB
+  RQ --> EQ
+  RS --> ES
+  RE --> EE
+  RV --> EV
+  RP --> EP
+  KM --> EI
+  AF --> ED
+  AF --> EL
+  AF --> EH
+  AF --> EB
+  AF -.-> G1
+  RE -.-> G2
+  ED -.-> G3
+  EE -.-> G3
+```
+
+12.2 Text equivalent of D-1.
+12.2.1 Left, what must be shown, in eleven groups: the doorbell family (R-19, R-20, R-22, R-23, R-24, R-81 with SI-1,
+SI-2, SI-17, SI-23, SI-30); the lease and forward family (R-67, R-67.a1, R-68, SI-20); hub identity and revocation
+(R-54, R-61, R-46, R-75, SI-3, SI-11, FX-2); blobs (R-11, R-80, SI-28, FX-5); flow control and durability (R-56,
+R-59, R-45, SI-5, SI-6, SI-15, SI-19, SI-22); status and the hub (R-6, R-29, R-53, R-57, R-70, FX-8, SI-14, SI-16,
+FX-4, FX-6); end to end (R-2, R-3, R-28, R-44, R-66, R-69, FX-7, H-14); vendor channels and the adapter (R-47, R-79,
+FX-1); the later-phase invariants; the measured properties of ARC4 15; and the architecture's fail-closed conditions.
+12.2.2 Middle, the spec ranges that evidence each group: E-1..E-19, E-20..E-35, E-36..E-43, E-44..E-49, E-50..E-54
+with E-86..E-92, E-55..E-70, E-75..E-83 with E-93..E-102 and E-121..E-124, E-71..E-74 with E-84 and E-85, E-103..E-120, and the
+production checks E-125..E-152. The fail-closed conditions point at the four PH-2 spec families that carry them
+(section 13 names the exact specs).
+12.2.3 Right, the gaps, drawn dashed: the pseudo-code's FAILS CLOSED WHEN conditions are open for step 6; R-36, R-38
+and R-41 are deferred, R-40 merged into R-28, R-43 dropped; the tier-3 and canary estate (EP-5, EP-8) is not built, so
+the specs of the doorbell and end-to-end families that need it cannot run yet. The exact item-by-item map is 05a.
+
+12.3 **Drawing D-2 — evidence flow (behaviour): where each kind of spec runs, what produces its result, and where the
+result is recorded**
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant DEV as Build session
+  participant GL as Guard layer (tier 1, 2)
+  participant MU as Mutant runner
+  participant REL as Release on testdev (tier 3)
+  participant OP as Operator via runme.sh
+  participant LIVE as Real agents (tier 4)
+  participant ST as Status and L7 checks
+  participant REC as Records and reports
+  DEV->>GL: push - fixtures L1 L2 L3, live-hub L4
+  GL->>MU: per push for invariants - apply each mutant
+  MU->>REC: kill report, every control red
+  GL->>REC: evidence lines with verdict PASS FAIL TOOLING LIMIT
+  DEV->>REL: release artifact and checksums
+  REL->>REC: tier 3 runs, injectors, crash and reboot (L4 L6)
+  OP->>LIVE: wave or drill action (W2, W3, kill switch, break-glass)
+  LIVE->>REC: drill and wave reports with JSONL (L5)
+  LIVE->>ST: daily canary and soak traffic
+  ST->>ST: invariant checks each tick or day (L7)
+  ST->>REC: needs-attention entries, canary log, exit 0 1 2
+  REC->>OP: phase exit report lists every spec, last verdict, not-run reasons
+```
+
+12.4 Text equivalent of D-2.
+12.4.1 A build session pushes; the guard layer runs tier-1 fixtures (property, hermetic, fuzz) and tier-2 live-hub
+integration specs; for invariants the mutant runner applies each mutant and records a kill report in which every
+control must be red. Each run writes one evidence line per spec with its verdict (PASS, FAIL, TOOLING or LIMIT).
+12.4.2 A release goes to the `testdev` estate on the installed artifact: tier-3 specs, the fault injectors, host
+crash and reboot runs write their records.
+12.4.3 The operator runs wave and drill actions through `runme.sh` (W2, W3, kill switch, break-glass); the real
+agents produce the drill and wave reports with their JSONL. Real traffic and the daily canary feed the status call
+and the production invariant checks, which run each tick or day and record needs-attention entries, the canary log
+and their exit codes.
+12.4.4 At a phase exit the report collects every spec of the phase with its last verdict and the commit, and lists
+every spec not run with the reason; it goes to the operator as evidence, never as the decision.
+
+## 13 Architecture fail-closed conditions (AFC-n) and their specs
+
+13.1 The architecture states these conditions directly; each has at least one spec. They are not the pseudo-code's
+FAILS CLOSED WHEN list (section 14), which will be finer and will be mapped onto this table in the step-6 iteration.
+
+| AFC | Condition (fails closed when …) | ARC4 | Specs |
+|---|---|---|---|
+| AFC-1 | any ring condition is false or unknown: no ring | 6.9.1 | E-1 |
+| AFC-2 | any pre-typing re-check fails or cannot be read: no keystroke | 6.9.2 | E-2 |
+| AFC-3 | a message id is not 32 lowercase hex or the count is not decimal: no line | 6.9.3, SI-1 | E-3 |
+| AFC-4 | no nonce in a harness-written record: never HANDED_OVER; 90 s: HANDOVER_UNCONFIRMED | 6.9.4, 17.6 | E-4, E-97 |
+| AFC-5 | a typed line had no submit, or the sender window is full: no re-ring, the message waits | 6.9.4, 6.9.5, 6.3.3 | E-5, E-52 |
+| AFC-6 | a ring names ids already claimed or handed over: nothing pulled | 6.9.5 (a), SI-30 | E-6, E-98 |
+| AFC-7 | less than 300 s of silence: no watchdog fire | 6.9.7.a, 6.9.7.d | E-7, E-11 |
+| AFC-8 | kill switch on, foreground not the harness, or veto active: watchdog holds | 6.9.7.b | E-8 |
+| AFC-9 | arrivals, receipts, automatic content, keep-alive or `notify` input: not activity | 6.14.2 | E-9, E-17 |
+| AFC-10 | S2 unknown: no watchdog, status `watchdog: unavailable` | 6.14.3 | E-10 |
+| AFC-11 | a fire without hand-over: wait another full 300 s | 6.9.7.d | E-11 |
+| AFC-12 | delivery switched off: nothing typed, urgent downgraded | 6.9.2, SI-23 | E-12 |
+| AFC-13 | session not under a TermLink PTY: S1 unknown, no ring and no watchdog | 6.14.1, 6.9.1 | E-15 |
+| AFC-14 | adapter report unparseable, READY missing or stale: ignored and counted, reads not ready | 17.2, 17.3 | E-16, E-84 |
+| AFC-15 | prompt origin unknown: counts as human for the conversation signal (no interrupt) | 17.5.c, 6.14.4.a | E-18 |
+| AFC-16 | origin automated or unknown, or lease unreadable: no renewal, no takeover, `am-i` unknown never main | 6.13.1, 17.5.c, LEASE | E-20, E-21, E-23, E-24, E-25, E-26, E-27 |
+| AFC-17 | a project's hooks report no origin: claims counted as before, status says so (NID) | 6.13.1.a | E-22 |
+| AFC-18 | no out-of-band channel: status `oob: not available`, never "sent" | 6.13.5.d | E-28, E-29 |
+| AFC-19 | lease unknown, stale or vacant, generation mismatch, a FORWARD of a FORWARD, exact-instance mail: no forward | 7.2.d, 7.3 | E-32, E-33, E-34 |
+| AFC-20 | `hub.id` missing beside state, id or key unreadable, signing key differs from the pin: refuse | 6.1.2, 6.1.5, 6.1.6 | E-36, E-37 |
+| AFC-21 | declared hub differs from the config copy or from the answering hub: refuse | V-7, 9.10 | E-38 |
+| AFC-22 | revocation pull failed: not an empty list; lower seq: refused; stale past PN-13: narrow | 6.2.3, 6.2.4 | E-39, E-40, E-41, E-42 |
+| AFC-23 | blob digest, chunk or unwrap fails: not STORED; object without the wrapper: refused | 6.4.4, 6.4.5 | E-44, E-45, E-46, E-47 |
+| AFC-24 | encryption key does not match the register: refuse start | 6.4.2 | E-48 |
+| AFC-25 | over a size, quota or ceiling: not STORED, `QUOTA` notice, nothing dropped | 6.3.2 | E-50, E-51 |
+| AFC-26 | `hop` > 3: refused with a notice | 6.3.4 | E-53 |
+| AFC-27 | a status field older than its freshness bound: reads unknown | 6.7.1 | E-19, E-55 |
+| AFC-28 | a conflicting record at start: kept on both sides, "unreconciled", operator decides | 6.5.2 | E-90 |
+| AFC-29 | `artifact put --hub` without `--encrypt-to`: refused with the rule | 6.4.6 | E-49 |
+| AFC-30 | W4 without the operator's recorded approval: the action refuses | 6.11.3 | E-82 |
+| AFC-31 | SendMessage deny before the re-based prover passed: the action refuses | 6.10.2.a | E-72 |
+| AFC-32 | sweep, retention or trim below an open message: refused and logged | 6.6.3 | E-67 |
+| AFC-33 | a post whose signature does not verify against the key card: refused | 6.6.5 | E-69 |
+| AFC-34 | an unsigned or wrongly signed DEAD: refused | 6.6.6 | E-70 |
+
+## 14 FAILS CLOSED WHEN of the pseudo-code: open for the step-6 iteration
+
+14.1 Status: **open**. The pseudo-code (step 6, T-3355) does not exist. Card 3.5 requires a spec for every FAILS CLOSED
+WHEN condition; that coverage cannot be claimed in this version.
+14.2 What step 6 MUST hand back for this step to close the gap: every FAILS CLOSED WHEN condition with an id `FCW-n`,
+the AFC-n it refines (or "new"), and the routine it sits in. This step then adds or extends one spec per FCW-n and a
+05a table "FCW-n → E-n" in the next iteration.
+14.3 Questions the evidence raises that the algorithms must answer (each blocks a precise ASSERT):
+14.3.a the back-off schedule's exact form (6.9.4: "after 4, then 8 ticks, at most every 10 minutes") as a function of
+ticks since the first ring, so E-5 has one expected table;
+14.3.b the READY age bound: "age ≤ 1 tick" measured from the adapter's `at_ms` or from the receiver's receive time
+(17.2 says deadlines use the receiver's time);
+14.3.c "an owed answer either way" for the `agent` conversation value (6.14.4.b): which ledger, and when it ends;
+14.3.d whether a provisional claim stamps `last_human_at` (6.13.2 vs 6.13.3), which decides E-23 (a) against E-24;
+14.3.e the lease freshness used by forward-once ("read within its 15 s period", 7.2): the boundary at exactly 15 s;
+14.3.f which revocation RPC failures count as "a failed pull" (head ok and get failing; timeout versus refusal);
+14.3.g the list of test seams and the production-mode refusal of each (3.2.b), so that a seam can never be on in the
+installed artifact (an E-101-style scan for seam variables in the production environment);
+14.3.h the emission points of the `termlink.evidence/1` record (5.1) in each routine.
+
+## 15 Open items and the limits of this evidence (card 3.6, 6.3)
+
+15.1 **Tests do not prove that the system cannot be bypassed; they show the cases tried.** No spec here claims total
+confidence or proven impossibility. A property-based or model check (L1) proves the model over its bound, not the
+code; fuzzing (L3) covers the corpus and the time it ran; live runs (L5, L7) cover the period observed.
+15.2 **Limit probes record accepted risks, they do not close them:** RR-5 (E-110), RR-7 (E-97), RR-10 (E-94), RR-15
+(E-91), RR-19 and AR-2 (E-14), RR-20 (E-40, E-104), AR-1 (E-37). Their verdict is `LIMIT` (5.3).
+15.3 **One host.** PH-2's tiers 2 to 4 all run on .107, where agents run as root and the hub shares the host (AR-4,
+RR-2). Specs about separation (E-58, E-96) show what status says and what a non-root user cannot do, not separation
+from root.
+15.4 **Measured, not closed:** AR-6 (`inferred` prompt origin, E-31, E-85); H-11 (e) and (f) have no bound (YR-1).
+15.5 **Volume dependence:** H-14 (E-77) needs at least 500 messages in 14 days on EP-9; with less traffic it is "not
+concluded", never passed.
+15.6 Open items for the operator (plain language), none blocking this step:
+15.6.a the `testdev` account's Claude subscription (ARCH2 OQ-i open item) is needed before any tier-3 spec and the
+canary can run;
+15.6.b how the 28 production checks fit the guard cap of 99 (DP-3): this document proposes folding them into the
+status call plus one aggregated guard check (YR-3); retiring other checks instead is the operator's call.
+
+## 16 Residual risks of the evidence (ER-n)
+
+16.1 **ER-1** The model checks (E-11, E-25, E-52, E-54) assert that the implementation's transition function equals
+the model's on the explored states; a divergence outside the bound is not seen.
+16.2 **ER-2** Until EP-5 and EP-8 exist, the harness half of every PH-2 item rests on the W1 pair alone (EP-7), one
+pair of one project; a harness behaviour specific to other projects' hooks is not seen (AEF's adapter: E-84 only).
+16.3 **ER-3** Mutants are written by the same builders as the code; an equivalent or missing mutant leaves a control
+untested (E-151 watches survival, not completeness).
+16.4 **ER-4** First-time readers in the drill (E-64) are agents unless the operator names people; agents may read
+status text better or worse than a person under pressure.
+16.5 **ER-5** The production checks (section 10) read the same status call and logs that a same-user process can
+rewrite (RR-2); they detect drift and accident, not a hostile root.
+
+## 17 Change requests to earlier steps (requests, not edits)
+
+17.1 **YR-1 (step 3, FP 9 H-11).** H-11 lists (a)..(d); ARC4 6.9.6 adds (e) typed lines not followed by a submit and (f)
+watchdog fires and false-busy share. Add (e) and (f) to H-11. Under RNU an unsubmitted typed line is a failed attempt:
+propose a bound for (e) (for example at most 1 per 1000 rings **[P]**) or state explicitly that it is reported only.
+17.2 **YR-2 (step 3, FP 9 H-24).** H-24 is placed in PH-4, but ARC4 7.5 and B-20 measure its forward half in PH-2.
+Split H-24 into "forwarding never double-processes" (PH-2, B-20) and "a duplicate main is resolved fast" (PH-4).
+17.3 **YR-3 (step 4, ARC4 15; for the planner, step 8).** ARC4 15 gives each component a production check but does not
+say how they fit the guard cap (DP-3: 99 checks, one in one out). State that the K-n rows are realised through the
+status call plus one aggregated arc-011 invariant check with the 0/1/2 exit rule, so the cap is respected without
+retiring unrelated guards.
+17.4 **YR-4 (step 4, ARC4 6.9.4, 6.13.2, 7.2).** Three values are ambiguous at the boundary and block an exact ASSERT:
+the back-off schedule, whether a provisional claim stamps `last_human_at`, and the 15 s lease freshness boundary for
+forward-once (section 14.3 a, d, e). If step 6 settles them, this request lapses.
+
+## 18 Render check of the drawings
+
+18.1 Method as steps 2 to 4: each Mermaid block extracted in order and rendered with `mmdc -p <puppeteer config> -i
+bN.mmd -o bN.svg`, config `{"executablePath":"/usr/bin/chromium","args":["--no-sandbox"]}`; no `render_check` record
+(the checker is not adopted, profile P4.5). Script `.context/working/t3354/render/r1.sh`.
+18.2 Result, 2026-11-09, on v0.1. Block order in the file: D-1 (12.1), D-2 (12.3). Both blocks exit code 0; SVG sizes
+43513 and 35085 bytes; no "syntax error" or "parse error" in any log or SVG. Both were also rendered to PNG and read:
+D-1 shows the three columns (what must be shown, specs, gaps) with the gap nodes red and dashed; D-2 shows the eight
+participants and the twelve numbered steps, every label legible. No semicolon in any sequence message.
+
+## 19 Card completion conditions and the T-3354 criteria
+
+19.1 Card 6.1, coverage complete or every gap listed with its reason: 05a (generated, 0 undeclared gaps) and section
+11; the FAILS CLOSED WHEN coverage is open and listed (section 14).
+19.2 Card 6.2, every spec states its evidence level and observable result: every header carries Level and Tier, every
+spec an ASSERT with a mechanically checkable result and a CONTROL; record format section 5.
+19.3 Card 6.3, no claim of total confidence or proven impossibility: section 15.1, 15.2 and the LIMIT verdict (5.3).
+19.4 Card 6.4, drawings D-1 and D-2 with id, caption and text equivalent, rendering without error: section 12 and 18.
+19.5 T-3354: version table and inputs of record with hashes (sections 0, 1); test estate and agent pairs per CAND-3
+tier (section 3).
