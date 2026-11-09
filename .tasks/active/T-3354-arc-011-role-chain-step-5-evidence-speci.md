@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:40Z
-last_update: 2026-11-09T17:09:22Z
+last_update: 2026-11-09T17:12:06Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -128,6 +128,19 @@ false`); no operator approval is needed for it alone.
 - [x] `docs/design/interactive-agent-communication-05-evidence.md` exists with a version table and an inputs-of-record section citing the input hashes (evidence: sections 0 and 1, full sha256 per input)
 - [x] Test estate and agent pairs named for each CAND-3 tier (fixture, live hub, one real agent + scripted peer, real agents) (evidence: 05 section 3, EP-1..EP-12; tier 3 pair EP-5 needs T-3361)
 - [x] Role-chain yaml step 5 `task:` set to this task id (evidence: yaml step 5 `task: T-3354`, already present)
+
+### Human
+- [ ] [REVIEW] Independent review: step 5 output meets the evidence-specialist card's completion conditions and is fit
+      as input for step 6
+  **Steps:**
+  1. The ORCHESTRATOR (never a reviewer seat) runs `fw reviewer judge T-3354 --criterion 1` against
+     `docs/design/interactive-agent-communication-05-evidence.md`, its sub-document `05a-coverage.md` and its
+     hand-back `docs/design/interactive-agent-communication/role-handback-step-05.json`.
+  **Expected:** a green verdict bound to the reviewed revision, applied with `fw reviewer verdict apply T-3354`.
+  **If not:** findings go back to the evidence-specialist role (max 2-3 rounds), then each is dispositioned (accept
+  with change request / reject with reason / defer with risk acceptance).
+  (Added 2026-11-09 by the orchestrator: README section 5 requires this criterion on every step task; it was missing.
+  Step 5 does not decide (`decides: false`), so no separate approval criterion; the operator approves at step 7.)
 
 ## Verification
 
