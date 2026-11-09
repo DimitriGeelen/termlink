@@ -144,9 +144,9 @@ fn diff_json(name: &str, mcp: &Value, cli: &Value, ignore: &HashSet<&'static str
 // `version` and `commit` are baked into each crate at COMPILE time by its
 // build.rs, which reads git. The two sides of a parity test are not compiled at
 // the same moment: the MCP side is this test binary (compiled when `cargo test`
-// starts), while the CLI side is `target/release/termlink`, rebuilt by
+// starts), while the CLI side is the termlink binary rebuilt by
 // `find_termlink_bin_fresh()` at test RUNTIME — minutes later on a workspace
-// build. Any commit landing in that window makes the two disagree.
+// build (T-3679: now the same target dir and profile, usually a no-op). Any commit landing in that window makes the two disagree.
 //
 // That is not a product defect, but it fails the test naming `version` — a
 // field neither side got wrong. It blocked T-2757's completion gate at 19/21
@@ -436,10 +436,11 @@ async fn parity_version() {
 
     // Build-coherence: parity_version compares git-derived commit/version
     // fields. The MCP test recompiles on every cargo-test invocation (gets
-    // the current HEAD's commit) but `target/release/termlink` is whatever
-    // the last cargo-build wrote. If the binary is stale, commit hashes
-    // diverge between CLI and MCP even when both sides' build.rs scripts
-    // work correctly. find_termlink_bin_fresh forces a build first.
+    // the current HEAD's commit) but the CLI binary is whatever the last
+    // cargo-build wrote. If the binary is stale, commit hashes diverge
+    // between CLI and MCP even when both sides' build.rs scripts work
+    // correctly. find_termlink_bin_fresh forces a build first, in this test
+    // binary's own target dir and profile (T-3679; was --release, ~18 min cold).
     let bin = find_termlink_bin_fresh().expect("build + find termlink binary");
 
     let client = mcp_client().await;

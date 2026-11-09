@@ -208,22 +208,39 @@ pub fn termlink_cmd(binary: &Path, runtime_dir: &Path) -> Command {
     cmd
 }
 
+/// The build-profile directory the running test binary lives in, e.g.
+/// `<target-dir>/debug` for `<target-dir>/debug/deps/parity-1a2b`.
+///
+/// T-3679: this is where cargo put every binary of THIS build, whatever
+/// `--target-dir` / `CARGO_TARGET_DIR` / `--profile` the run used. Returns
+/// `None` when the current executable is not in a `deps/` directory (not a
+/// cargo test binary).
+fn current_profile_dir() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let deps = exe.parent()?;
+    if deps.file_name()? != "deps" {
+        return None;
+    }
+    deps.parent().map(Path::to_path_buf)
+}
+
 /// Find the `termlink` CLI binary path for cross-crate integration tests.
 ///
 /// CARGO_BIN_EXE_termlink is only set when the binary's own crate runs its
 /// tests — cross-crate tests (e.g. `termlink-mcp/tests/parity.rs` invoking
-/// the CLI for MCP/CLI parity checks, T-1909) need a workspace-root-relative
-/// path. Walks up from CARGO_MANIFEST_DIR to find Cargo.lock (workspace root)
-/// then tries `target/release/termlink` first, falling back to
-/// `target/debug/termlink`. Returns the first path that exists.
-///
-/// Honors `TERMLINK_BIN` env var as an explicit override (CI / cross-compile).
+/// the CLI for MCP/CLI parity checks, T-1909) need another way. Order:
+/// 1. `TERMLINK_BIN` env var, an explicit override (CI / cross-compile);
+/// 2. (T-3679) `termlink` next to the running test binary: the same target
+///    dir and profile as this build, so a custom `--target-dir` is honoured
+///    and a stale `target/release/termlink` is never preferred over the
+///    binary this very `cargo test` just built;
+/// 3. fallback: walk up from CARGO_MANIFEST_DIR to the workspace root and try
+///    `target/release/termlink`, then `target/debug/termlink`.
 ///
 /// **Note (T-1912):** This function does NOT rebuild the CLI binary. If
 /// you depend on git-derived version metadata being coherent between the
 /// CLI binary and the freshly-recompiled MCP test crate (e.g. comparing
-/// commit hashes), use [`find_termlink_bin_fresh`] instead, which runs
-/// `cargo build -p termlink --release` first.
+/// commit hashes), use [`find_termlink_bin_fresh`] instead.
 pub fn find_termlink_bin() -> Result<PathBuf, String> {
     if let Ok(override_path) = std::env::var("TERMLINK_BIN") {
         let p = PathBuf::from(override_path);
@@ -231,6 +248,12 @@ pub fn find_termlink_bin() -> Result<PathBuf, String> {
             return Ok(p);
         }
         return Err(format!("$TERMLINK_BIN points at {p:?} which does not exist"));
+    }
+    if let Some(profile_dir) = current_profile_dir() {
+        let candidate = profile_dir.join("termlink");
+        if candidate.exists() {
+            return Ok(candidate);
+        }
     }
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
         .map_err(|_| "CARGO_MANIFEST_DIR not set — call from inside a cargo test".to_string())?;
@@ -254,11 +277,18 @@ pub fn find_termlink_bin() -> Result<PathBuf, String> {
     ))
 }
 
-/// Like [`find_termlink_bin`], but first runs `cargo build -p termlink
-/// --release` (once per test process) so the binary reflects the current
-/// git state. Required for parity tests that compare git-derived
-/// metadata (commit, version) between the CLI binary and a freshly-
-/// recompiled MCP test crate.
+/// Like [`find_termlink_bin`], but first runs `cargo build -p termlink`
+/// (once per test process) so the binary reflects the current git state.
+/// Required for parity tests that compare git-derived metadata (commit,
+/// version) between the CLI binary and a freshly-recompiled MCP test crate.
+///
+/// T-3679: the build uses the SAME target dir and profile as the running
+/// test binary. It used to be `--release` into the default target dir: from a
+/// cold target dir that is a second full build (~18 min on .107, holding the
+/// parity tests' ENV_LOCK the whole time), and with a custom `--target-dir`
+/// it built into one directory while `find_termlink_bin` read another. In a
+/// `cargo test --workspace` run cargo has already built this binary, so the
+/// build is a no-op of a second or two.
 ///
 /// Skips the build when `TERMLINK_BIN` is set (assumes the override is
 /// authoritative and may be a cross-compiled artifact).
@@ -268,13 +298,30 @@ pub fn find_termlink_bin_fresh() -> Result<PathBuf, String> {
     }
     static BUILT: std::sync::OnceLock<Result<(), String>> = std::sync::OnceLock::new();
     let build_result = BUILT.get_or_init(|| {
+        let mut args: Vec<String> = vec!["build".into(), "-p".into(), "termlink".into(), "--quiet".into()];
+        if let Some(profile_dir) = current_profile_dir() {
+            let profile = profile_dir
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("debug")
+                .to_string();
+            if let Some(target_dir) = profile_dir.parent() {
+                args.push("--target-dir".into());
+                args.push(target_dir.to_string_lossy().into_owned());
+            }
+            // cargo names the dev profile's directory "debug".
+            let profile = if profile == "debug" { "dev".to_string() } else { profile };
+            args.push("--profile".into());
+            args.push(profile);
+        }
         let output = Command::new("cargo")
-            .args(["build", "-p", "termlink", "--release", "--quiet"])
+            .args(&args)
             .output()
             .map_err(|e| format!("spawn cargo build: {e}"))?;
         if !output.status.success() {
             return Err(format!(
-                "cargo build -p termlink --release failed: stderr={}",
+                "cargo {} failed: stderr={}",
+                args.join(" "),
                 String::from_utf8_lossy(&output.stderr)
             ));
         }
