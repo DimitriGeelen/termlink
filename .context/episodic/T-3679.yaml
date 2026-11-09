@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3679: termlink-mcp tests/parity.rs takes 19 min: *_no_hub tests wait on timeouts
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-09T21:19:55Z
+# ============================================================================
+
+task_id: T-3679
+task_name: "termlink-mcp tests/parity.rs takes 19 min: *_no_hub tests wait on timeouts"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-09T19:31:08Z
+completed: 2026-11-09T21:18:47Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-09T22:18:44+01:00
+last_commit: 2026-11-09T22:18:44+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  test helpers use the running test binary's target dir and profile; parity suite 1129 s -> 104 s cold, honours --target-dir
+
+# Key outcomes
+outcomes:
+  - 'Per-test timings of tests/parity.rs measured; the slow tests and the cause of their time named (evidence: all 41 tests 0.3-1.5 s alone; the time was `find_termlink_bin_fresh` running `cargo build -p termlink --release` at test runtime, a full cold release build ~18 min, holding ENV_LOCK. Second defect: `find_termlink_bin` read `<workspace>/target/{release,debug}` and ignored a custom target dir, so with --target-dir it used a stale repo binary)'
+  - 'Cause fixed without removing an assertion; the parity binary passes and runs in under 5 min on .107 (evidence: helpers now use the running test binary''s own target dir and profile; no test assertion changed. Cold full suite, -j 12, debug off: 23m39s -> 8m03s; parity 1129 s -> 104 s; peak RSS 3.4 -> 1.7 GB; 4293 passed, 1 failed = sidecar deliver flake, 5/5 pass alone, filed T-3680. Parity alone in the normal target: 41 passed in 63 s)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3679-termlink-mcp-testsparityrs-takes-19-min-.md'
+  - '.tasks/active/T-3680-intermittent-sidecar-deliveranopenclaims.md'
+  - 'crates/termlink-mcp/tests/parity.rs'
+  - 'crates/termlink-test-utils/src/lib.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-09T22:18:44'
+    action: 'T-3679: test helpers use the running test binary''s target dir and profile; parity suite 1129 s -> 104 s cold, honours --target-dir'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 107 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 107
+  commits: 2
+  files_changed: 7
+  lines_added: 969
+  lines_removed: 26
+  footprint_refreshed_at: '2026-11-09T21:20:25Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3679-termlink-mcp-testsparityrs-takes-19-min-.md
+generated_by: context-agent-hybrid
