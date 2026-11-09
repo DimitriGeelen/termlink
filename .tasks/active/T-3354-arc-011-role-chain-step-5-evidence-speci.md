@@ -6,10 +6,10 @@ description: >
   output docs/design/interactive-agent-communication-05-evidence.md. Starts only after
   step 4 is approved by the operator.
 
-status: captured
+status: started-work
 workflow_type: specification
 owner: agent
-horizon: later
+horizon: now
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:40Z
-last_update: '2026-10-18T22:32:48Z'
+last_update: 2026-11-09T16:47:22Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,6 +77,25 @@ bvp_scores_proposed:
       D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted);
       F-ORCH=0 (no-signal)'
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-09T16:46:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 0
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=0 (L0: no signal); D1=0 (no-signal); D2=0 (no-signal);
+      D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0:
+      no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3354: arc-011 role chain step 5: evidence specialist
@@ -87,14 +106,28 @@ Step 5 of the arc-011 role chain (docs/design/interactive-agent-communication-ro
 
 Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 
+**Background / trigger:** Step 4 (architecture v0.3.1, T-3353) was approved by the operator in Watchtower on
+2026-11-08; the step 4 change requests were folded into steps 1 and 3 (T-3676). Operator 2026-11-09: "Proceed as
+you see fit please" after being asked whether to start step 5.
+
+**Problem / hypothesis:** The architecture states what to build but not yet how each requirement, invariant and
+fails-closed condition will be proven; without that, build items have no agreed evidence and "done" is a claim.
+
+**Goal:** A role session (evidence specialist card) writes the evidence specification E-n with a coverage table,
+evidence levels, test estate per CAND-3 tier and the two required drawings, and hands back a role-handback/1 record.
+
+**Expected outcome:** `docs/design/interactive-agent-communication-05-evidence.md` exists, reviewed independently by
+the orchestrator's consultation, ready to iterate with step 6 (pseudo-coder). The step does not decide (`decides:
+false`); no operator approval is needed for it alone.
+
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Step 4 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3)
+- [x] Step 4 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3) (evidence: T-3353 both [REVIEW] boxes ticked and closed in Watchtower 2026-11-08T17:53Z, recorded c77e01404; yaml step 4 `approval:` added 2026-11-09)
 - [ ] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned
 - [ ] `docs/design/interactive-agent-communication-05-evidence.md` exists with a version table and an inputs-of-record section citing the input hashes
 - [ ] Test estate and agent pairs named for each CAND-3 tier (fixture, live hub, one real agent + scripted peer, real agents)
-- [ ] Role-chain yaml step 5 `task:` set to this task id
+- [x] Role-chain yaml step 5 `task:` set to this task id (evidence: yaml step 5 `task: T-3354`, already present)
 
 ## Verification
 
@@ -197,3 +230,10 @@ grep -q 'task: T-3354' docs/design/interactive-agent-communication-role-chain.ya
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3354-arc-011-role-chain-step-5-evidence-speci.md
 - **Context:** Initial task creation
+
+### 2026-11-09T16:46:30Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-09T16:46:54Z — status-update [task-update-agent]
+- **Change:** horizon: now → now

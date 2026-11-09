@@ -68,6 +68,11 @@ steps:
     inputs: [docs/design/interactive-agent-communication-01-requirements.md, docs/design/interactive-agent-communication-02-threat-model.md, docs/design/interactive-agent-communication-03-floor-and-phasing.md]
     output: docs/design/interactive-agent-communication-04-architecture.md
     decides: true
+    approval: >-
+      approved by the operator 2026-11-08: architecture v0.3.1, operator rulings O-1..O-7 (2026-11-03), both T-3353
+      [REVIEW] boxes ticked and the task closed in Watchtower (recorded c77e01404). The approval is read as accepting
+      the document's recommendations on the proposed DRs, AR-1..AR-6 and XR-1..XR-9 (XR-4: notices, not states);
+      XR-1..XR-9 folded into requirements v0.5.3 and floor-and-phasing v0.3 (T-3676). Step 5 reads these.
   - step: 5
     role: Evidence specialist
     task: T-3354
