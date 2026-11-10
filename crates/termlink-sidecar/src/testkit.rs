@@ -86,9 +86,26 @@ fn time_factor(raw: Option<&str>) -> u32 {
 }
 
 /// Locate the `termlink` binary used for the throwaway hub.
+///
+/// Order: `TERMLINK_BIN`; then (T-3677) the `termlink` beside the running test
+/// binary (`<target-dir>/<profile>/deps/x` → `<target-dir>/<profile>/termlink`),
+/// so a build with `--target-dir` elsewhere (node1 runs from a read-only source
+/// tree with `--target-dir ../target`) finds the binary of the same build; then
+/// the workspace's own `target/{debug,release}`, newest first.
 pub fn termlink_bin() -> Option<PathBuf> {
     if let Some(p) = std::env::var_os("TERMLINK_BIN") {
         return Some(PathBuf::from(p));
+    }
+    if let Some(profile_dir) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(Path::to_path_buf))
+        .filter(|deps| deps.file_name().is_some_and(|n| n == "deps"))
+        .and_then(|deps| deps.parent().map(Path::to_path_buf))
+    {
+        let candidate = profile_dir.join("termlink");
+        if candidate.is_file() {
+            return Some(candidate);
+        }
     }
     let ws = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     ["debug", "release"]

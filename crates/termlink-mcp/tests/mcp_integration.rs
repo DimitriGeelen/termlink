@@ -1260,8 +1260,13 @@ async fn test_dispatch_status_with_manifest() {
     let dir = TestDir::new("mcp-dispatch-status-manifest");
     unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
 
-    // Create a dispatch manifest in current dir
-    let manifest_dir = std::env::current_dir().unwrap().join(".termlink");
+    // Create a dispatch manifest in the current dir. termlink_dispatch_status
+    // reads `<cwd>/.termlink/`, so run from the test's own scratch dir rather
+    // than the crate source dir, which is read-only on node1 (T-3677).
+    // ENV_LOCK (held above) serialises this process-wide chdir.
+    let prev_cwd = std::env::current_dir().unwrap();
+    std::env::set_current_dir(&dir.path).unwrap();
+    let manifest_dir = dir.path.join(".termlink");
     let _ = std::fs::create_dir_all(&manifest_dir);
     let manifest_path = manifest_dir.join("dispatch-manifest.json");
     let manifest_content = json!({
@@ -1303,6 +1308,7 @@ async fn test_dispatch_status_with_manifest() {
 
     // Cleanup
     let _ = std::fs::remove_file(&manifest_path);
+    std::env::set_current_dir(&prev_cwd).unwrap();
     client.cancel().await.unwrap();
 }
 

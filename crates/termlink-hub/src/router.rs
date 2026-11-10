@@ -1999,6 +1999,21 @@ mod tests {
     use super::*;
     use serde_json::json;
     use std::path::{Path, PathBuf};
+
+    /// A scratch root that is writable and NOT under /tmp (the volatile-dir
+    /// heuristic must not fire). T-3677: it sits in this build's own target dir
+    /// (`<target-dir>/<profile>/test-tmp`, from the test binary's location), not
+    /// in the source tree, so a run from a read-only source tree with
+    /// `--target-dir` elsewhere (node1) works. Falls back to the old
+    /// `CARGO_MANIFEST_DIR/target/test-tmp`.
+    fn test_tmp_root() -> PathBuf {
+        std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(Path::to_path_buf))
+            .filter(|deps| deps.file_name().is_some_and(|n| n == "deps"))
+            .and_then(|deps| deps.parent().map(|p| p.join("test-tmp")))
+            .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/test-tmp"))
+    }
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
     use tokio::io::AsyncWriteExt;
@@ -3512,8 +3527,7 @@ mod tests {
     async fn emit_to_file_event_surfaces_inbox_io_error_as_internal_error() {
         let _lock = ENV_LOCK.lock().await;
         // A path that is a regular file, not a directory — create_dir_all under it fails.
-        let file_as_runtime = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("target/test-tmp")
+        let file_as_runtime = test_tmp_root()
             .join(format!("tl-hub-eto-iofail-{}", std::process::id()));
         std::fs::create_dir_all(file_as_runtime.parent().unwrap()).unwrap();
         let _ = std::fs::remove_dir_all(&file_as_runtime);
@@ -3876,11 +3890,9 @@ mod tests {
     #[tokio::test]
     async fn hub_bus_state_reports_durable_for_var_lib_path() {
         let _lock = ENV_LOCK.lock().await;
-        // Use a CARGO_MANIFEST_DIR-rooted path so runtime_dir doesn't start
-        // with /tmp/ (which would trigger the volatile heuristic and defeat
-        // the test).
-        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("target/test-tmp")
+        // Use a path that does not start with /tmp/ (which would trigger the
+        // volatile heuristic and defeat the test): the build's own target dir.
+        let dir = test_tmp_root()
             .join(format!("tl-hub-bs-durable-{}", std::process::id()));
         let bus_dir = dir.join("bus");
         std::fs::create_dir_all(&bus_dir).unwrap();
