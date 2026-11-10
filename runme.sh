@@ -2804,6 +2804,92 @@ head2 "27. Close .107's Docker API on tcp :2375, local socket only — DOCKER RE
 close_docker_tcp
 
 # ---------------------------------------------------------------------------
+# ACTION 28 — a long-lived Claude token for the test user `testdev` (T-3685; T-3354
+# hand-back 9a; operator ruling A, 2026-11-10: "its own token")
+#
+# testdev's claude.ai login from 2026-10-12 has expired ("OAuth session expired and
+# could not be refreshed", measured 2026-11-10), so the arc-011 tier-3 tests and the
+# daily two-agent canary cannot run as testdev. `claude setup-token` makes a long-lived
+# token on your subscription for testdev alone: revocable on its own, and your own
+# login is never copied.
+#
+# YOU ARE ASKED TWO THINGS AT THE TERMINAL: (1) `claude setup-token` runs as testdev and
+# shows a link to open in your browser; (2) when it prints the token, paste it at the
+# hidden prompt. Both talk to your terminal directly: the token is never written to the
+# run log. It is stored only in testdev's home (owner testdev, mode 600), and testdev's
+# ~/.profile exports it as CLAUDE_CODE_OAUTH_TOKEN for login shells.
+# Verified by effect: one tiny prompt as testdev must answer "OK".
+# Idempotent: skipped when a stored token already answers. Without a terminal (cron, a
+# piped run) it is HELD, not FAILED.
+# Seams (fixtures only): RUNME_TESTDEV_RUN, RUNME_TESTDEV_TOKEN_FILE,
+# RUNME_TESTDEV_PROFILE, RUNME_TESTDEV_TTY_IN, RUNME_TESTDEV_TTY_OUT, RUNME_TESTDEV_OWNER.
+# ---------------------------------------------------------------------------
+seam TESTDEV_RUN RUNME_TESTDEV_RUN "su - testdev -c"
+seam TESTDEV_TOKEN_FILE RUNME_TESTDEV_TOKEN_FILE "/home/testdev/.config/claude/oauth-token"
+seam TESTDEV_PROFILE RUNME_TESTDEV_PROFILE "/home/testdev/.profile"
+seam TESTDEV_TTY_IN RUNME_TESTDEV_TTY_IN "/dev/tty"
+seam TESTDEV_TTY_OUT RUNME_TESTDEV_TTY_OUT "/dev/tty"
+seam TESTDEV_OWNER RUNME_TESTDEV_OWNER "testdev:testdev"
+TESTDEV_PROFILE_MARK="# T-3685: long-lived Claude token for testdev (runme action 28)"
+
+testdev_token_answers() {  # 0 when a prompt run as testdev with the stored token answers OK
+    [ -s "$TESTDEV_TOKEN_FILE" ] || return 1
+    local out
+    out="$($TESTDEV_RUN "cd /tmp && CLAUDE_CODE_OAUTH_TOKEN=\"\$(cat '$TESTDEV_TOKEN_FILE')\" timeout 120 claude -p --model haiku 'Reply with exactly: OK'" 2>&1 | tail -1)"
+    [ "$out" = "OK" ]
+}
+
+testdev_claude_token() {
+    if testdev_token_answers; then
+        say "  skip    testdev's stored token answers (one prompt as testdev returned OK)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would run 'claude setup-token' as testdev at your terminal, ask you to paste the token (hidden), store it in $TESTDEV_TOKEN_FILE (testdev, 600), export it from $TESTDEV_PROFILE, and check one prompt answers OK"; DONE=$((DONE+1)); return
+    fi
+    if ! { : <"$TESTDEV_TTY_IN"; } 2>/dev/null || ! { : >>"$TESTDEV_TTY_OUT"; } 2>/dev/null; then
+        say "  HELD    no terminal to ask you on ($TESTDEV_TTY_IN); run /opt/termlink/runme.sh from a terminal"; HELD=$((HELD+1)); return
+    fi
+    say "  ...     running 'claude setup-token' as testdev ON YOUR TERMINAL (not logged): open the link, log in, copy the token it prints"
+    $TESTDEV_RUN "claude setup-token" <"$TESTDEV_TTY_IN" >>"$TESTDEV_TTY_OUT" 2>&1 || true
+    local token=""
+    printf '\n  Paste the token for testdev (input hidden), then Enter: ' >>"$TESTDEV_TTY_OUT"
+    IFS= read -rs token <"$TESTDEV_TTY_IN" || true
+    printf '\n' >>"$TESTDEV_TTY_OUT"
+    token="$(printf '%s' "$token" | tr -d '[:space:]')"
+    case "$token" in
+        sk-ant-oat*) : ;;
+        "") say "  FAILED  no token pasted; nothing stored"; FAILED=$((FAILED+1)); return ;;
+        *) token=""; say "  FAILED  that does not look like a setup-token (expected it to start with sk-ant-oat); nothing stored"; FAILED=$((FAILED+1)); return ;;
+    esac
+    local dir; dir="$(dirname "$TESTDEV_TOKEN_FILE")"
+    mkdir -p "$dir" && chmod 700 "$dir"
+    ( umask 077; printf '%s\n' "$token" > "$TESTDEV_TOKEN_FILE.new" ) && mv -f "$TESTDEV_TOKEN_FILE.new" "$TESTDEV_TOKEN_FILE"
+    token=""
+    chown "$TESTDEV_OWNER" "$dir" "$TESTDEV_TOKEN_FILE" 2>/dev/null || true
+    chmod 600 "$TESTDEV_TOKEN_FILE"
+    if ! grep -qxF "$TESTDEV_PROFILE_MARK" "$TESTDEV_PROFILE" 2>/dev/null; then
+        printf '\n%s\n[ -r "%s" ] && export CLAUDE_CODE_OAUTH_TOKEN="$(cat "%s")"\n' \
+            "$TESTDEV_PROFILE_MARK" "$TESTDEV_TOKEN_FILE" "$TESTDEV_TOKEN_FILE" >> "$TESTDEV_PROFILE"
+    fi
+    local mode; mode="$(stat -c %a "$TESTDEV_TOKEN_FILE" 2>/dev/null)"
+    if [ "$mode" != "600" ]; then
+        say "  FAILED  $TESTDEV_TOKEN_FILE has mode ${mode:-?}, need 600"; FAILED=$((FAILED+1)); return
+    fi
+    if ! grep -qxF "$TESTDEV_PROFILE_MARK" "$TESTDEV_PROFILE" 2>/dev/null; then
+        say "  FAILED  $TESTDEV_PROFILE does not load the token"; FAILED=$((FAILED+1)); return
+    fi
+    if testdev_token_answers; then
+        say "  OK      testdev has its own long-lived token ($TESTDEV_TOKEN_FILE, mode 600, loaded by $TESTDEV_PROFILE); one prompt as testdev answered OK"
+        DONE=$((DONE+1))
+    else
+        say "  FAILED  token stored, but a prompt as testdev did not answer OK; re-run to paste a fresh token"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "28. A long-lived Claude token for the test user testdev — ASKS YOU at the terminal (T-3685; operator ruling A)"
+testdev_claude_token
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.

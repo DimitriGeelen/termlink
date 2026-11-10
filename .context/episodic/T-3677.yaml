@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3677: node1 offload trial: Rust test suite and musl build as ring20.pool.cmd/1 jobs (operator yes 2026-11-09)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-10T17:48:33Z
+# ============================================================================
+
+task_id: T-3677
+task_name: "node1 offload trial: Rust test suite and musl build as ring20.pool.cmd/1 jobs (operator yes 2026-11-09)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-09T17:14:45Z
+completed: 2026-11-10T17:47:51Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-11-09T18:15:38+01:00
+last_commit: 2026-11-10T18:47:49+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  node1 offload trial task (operator yes). tests run from a read-only source tree with --target-dir elsewhere (node1): sidecar testkit finds termlink beside the test binary; hub router scratch dirs under the build's target; MCP dispatch-status test writes in its own scratch dir. a pidfile naming our own pid is our own hub; MCP hub-status tests passed only because their path contained 'termlink' (failed on node1). tmux leak test probes a detached session first and skips loudly when the sandbox cannot run one (node1). node1 trial results recorded (test 4294 run, 1 expected failure; build ok)
+
+# Key outcomes
+outcomes:
+  - 'Job facts measured on .107 and sent to ring20: commands, rustc/cargo version and targets, vendored tar size, peak RAM and wall time of the test suite and the musl build (evidence: msgs to ring20 2026-11-09/10; .107 cold -j 12: musl build 4m04s, 2.5 GB, target 1.5 GB; full suite 8m03s after T-3679, 1.7 GB, target 4.4 GB with debug off; code 32 MB gz, vendor 50 MB gz)'
+  - 'One trial job of each kind run on node1 with its result compared to the .107 run (pass/fail counts, wall time) (evidence: t3677-build-3 succeeded, 936 s on node1 vs 244 s on .107; test trials 3/4/5: 84 -> 4 -> 1 failed of 4294, 43 -> 14.5 -> 16 min; the one remaining failure is parity_version, expected without .git, T-3681)'
+  - 'Nothing on .107 changed or switched off by this task (evidence: no service, cron or config on .107 changed; only test code fixed and committed)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3677-node1-offload-trial-rust-test-suite-and-.md'
+  - 'crates/termlink-cli/src/commands/tmux_spawn.rs'
+  - 'crates/termlink-hub/src/pidfile.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-mcp/tests/mcp_integration.rs'
+  - 'crates/termlink-sidecar/src/testkit.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-09T18:15:38'
+    action: 'T-3677: node1 offload trial task (operator yes)'
+  - time: '2026-11-10T09:39:54'
+    action: 'T-3677: tests run from a read-only source tree with --target-dir elsewhere (node1): sidecar testkit finds termlink beside the test binary; hub router scratch dirs under the build''s target; MCP dispatch-status test writes in its own scratch dir'
+  - time: '2026-11-10T18:28:57'
+    action: 'T-3677: a pidfile naming our own pid is our own hub; MCP hub-status tests passed only because their path contained ''termlink'' (failed on node1)'
+  - time: '2026-11-10T18:31:08'
+    action: 'T-3677: tmux leak test probes a detached session first and skips loudly when the sandbox cannot run one (node1)'
+  - time: '2026-11-10T18:47:49'
+    action: 'T-3677: node1 trial results recorded (test 4294 run, 1 expected failure; build ok)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 1473 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1473
+  commits: 5
+  files_changed: 6
+  lines_added: 485
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3677-node1-offload-trial-rust-test-suite-and-.md
+generated_by: context-agent-hybrid

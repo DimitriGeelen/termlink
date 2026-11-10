@@ -356,6 +356,24 @@ EOS
 chmod +x "$TMP/fake-drop-fw"
 printf 'aaaa-1111\tT-3656: e2e residue: selftest conv x\nbbbb-2222\tT-3656: answered: reply "ok" posted 2026-10-06\ncccc-3333\tT-3656: answered: gone already\n' > "$TMP/drop-list.tsv"
 export RUNME_DROP_FW="$TMP/fake-drop-fw" RUNME_DROP_LIST="$TMP/drop-list.tsv"
+# T-3685 action 28: a fake `su - testdev -c` that answers OK only for the GOOD token in the
+# scratch token file, and fake terminal files. Default = a working token, so ordinary runs skip.
+TD="$TMP/testdev"; mkdir -p "$TD/home/.config/claude"
+TD_GOOD="sk-ant-oat01-FIXTUREgoodTOKEN0123456789"
+cat > "$TD/run" <<'EOS'
+#!/usr/bin/env bash
+case "$1" in
+  *setup-token*) echo "fake setup-token: open https://claude.ai/oauth/fixture and log in"; echo "fake setup-token printed a token" ;;
+  *"claude -p"*) if [ "$(cat "${FAKE_TD_TOKEN_FILE:?}" 2>/dev/null)" = "${FAKE_TD_GOOD:?}" ]; then echo OK; else echo "Failed to authenticate: OAuth session expired"; fi ;;
+  *) echo "fake su: unexpected command: $1" >&2; exit 9 ;;
+esac
+EOS
+chmod +x "$TD/run"
+export FAKE_TD_TOKEN_FILE="$TD/home/.config/claude/oauth-token" FAKE_TD_GOOD="$TD_GOOD"
+export RUNME_TESTDEV_RUN="$TD/run" RUNME_TESTDEV_TOKEN_FILE="$TD/home/.config/claude/oauth-token" \
+       RUNME_TESTDEV_PROFILE="$TD/home/.profile" RUNME_TESTDEV_TTY_IN="$TD/tty-in" RUNME_TESTDEV_TTY_OUT="$TD/tty-out" \
+       RUNME_TESTDEV_OWNER="$(id -u):$(id -g)"
+printf '%s\n' "$TD_GOOD" > "$TD/home/.config/claude/oauth-token"; chmod 600 "$TD/home/.config/claude/oauth-token"
 # T-3664 action 27: fake systemctl/ss/docker over a scratch daemon.json. Default = already closed
 # (fd:// only, nothing on :2375), so ordinary runs skip; the action-27 cases seed the open state.
 DK="$TMP/docker"; mkdir -p "$DK"
@@ -743,7 +761,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 42 ))   # +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 43 ))   # +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -2128,6 +2146,49 @@ if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  .*has no tcp host, yet somethi
     ok "27: no tcp host but port open => FAILED, no blind restart"
 else bad "27 unexplained listener" "rc=$rc: $x"; fi
 printf '{\n    "hosts": ["fd://"]\n}\n' > "$DK/daemon.json"; rm -f "$DK/listen" "$DK/restarts" "$DK"/daemon.json.bak-*
+
+# ---------------------------------------------------------------------------
+# T-3685 action 28 — a long-lived Claude token for testdev (operator ruling A).
+# ---------------------------------------------------------------------------
+echo "T-3685: 28 testdev's long-lived Claude token"
+s28() { echo "$1" | sed -n '/^.*28\. A long-lived Claude token/,/^.*Verification/p'; }
+TDF="$TD/home/.config/claude/oauth-token"
+expire_td() { printf 'sk-ant-oat01-EXPIRED\n' > "$TDF"; chmod 600 "$TDF"; rm -f "$TD/home/.profile" "$TD/tty-out"; }
+out=$(run --dry-run); x=$(s28 "$out")
+if echo "$x" | grep_all "skip    testdev's stored token answers"; then ok "28: a working token is skipped"
+else bad "28 skip" "$x"; fi
+expire_td; out=$(run --dry-run); x=$(s28 "$out")
+if echo "$x" | grep_all "\[DRY\]   would run 'claude setup-token' as testdev" && [ "$(cat "$TDF")" = "sk-ant-oat01-EXPIRED" ] && [ ! -e "$TD/home/.profile" ]; then
+    ok "28: --dry-run with an expired token describes the step and changes nothing"
+else bad "28 dry-run" "$x"; fi
+expire_td; out=$(RUNME_TESTDEV_TTY_IN="$TD/no-such-tty" run); rc=$?; x=$(s28 "$out")
+if echo "$x" | grep_all "HELD    no terminal to ask you on" && [ "$(cat "$TDF")" = "sk-ant-oat01-EXPIRED" ]; then
+    ok "28: no terminal => HELD, nothing stored"
+else bad "28 no tty" "rc=$rc: $x"; fi
+expire_td; printf 'hello there\n' > "$TD/tty-in"; out=$(run); rc=$?; x=$(s28 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  that does not look like a setup-token" && [ "$(cat "$TDF")" = "sk-ant-oat01-EXPIRED" ] && [ ! -e "$TD/home/.profile" ]; then
+    ok "28: a paste that is not a setup-token => FAILED, nothing stored"
+else bad "28 bad paste" "rc=$rc: $x"; fi
+expire_td; : > "$TD/tty-in"; out=$(run); rc=$?; x=$(s28 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  no token pasted; nothing stored"; then ok "28: an empty paste => FAILED"
+else bad "28 empty paste" "rc=$rc: $x"; fi
+expire_td; printf '  %s  \n' "$TD_GOOD" > "$TD/tty-in"; out=$(run); rc=$?; x=$(s28 "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all "OK      testdev has its own long-lived token" && [ "$(cat "$TDF")" = "$TD_GOOD" ] \
+   && [ "$(stat -c %a "$TDF")" = 600 ] && [ "$(stat -c %a "$(dirname "$TDF")")" = 700 ] \
+   && grep_all -c 'T-3685: long-lived Claude token for testdev' "$TD/home/.profile" \
+   && grep_all 'export CLAUDE_CODE_OAUTH_TOKEN=' "$TD/home/.profile" && grep_all 'fake setup-token: open' "$TD/tty-out"; then
+    ok "28: a good paste (whitespace trimmed) is stored 600 in a 700 dir, exported from .profile, verified OK; setup-token talked to the terminal"
+else bad "28 good paste" "rc=$rc: $x"; fi
+# Absence check that could have looked (T-3144): the log dir must exist and hold this run's log.
+if [ -d "$RUNME_LOG_DIR" ] && ls "$RUNME_LOG_DIR"/runme-*.log >/dev/null 2>&1 \
+   && ! echo "$out" | grep_all -F "$TD_GOOD" && ! grep -rlF "$TD_GOOD" "$RUNME_LOG_DIR" >/dev/null 2>&1; then
+    ok "28: the token appears nowhere in the run's output or the run logs"
+else bad "28 token leak" "the token appeared in stdout or in $RUNME_LOG_DIR (or that dir holds no log)"; fi
+printf '%s\n' "$TD_GOOD" > "$TD/tty-in"; printf 'sk-ant-oat01-EXPIRED\n' > "$TDF"; out=$(run); x=$(s28 "$out")
+if [ "$(grep -c 'T-3685: long-lived Claude token for testdev' "$TD/home/.profile")" = 1 ]; then
+    ok "28: a second store does not add the .profile line twice"
+else bad "28 profile twice" "$(cat "$TD/home/.profile")"; fi
+printf '%s\n' "$TD_GOOD" > "$TDF"; chmod 600 "$TDF"; rm -f "$TD/tty-in" "$TD/tty-out" "$TD/home/.profile"
 
 # ---- T-3647: action 4b restarts W1 sidecars running older code -------------------
 echo "T-3647: 4b W1 sidecars onto the installed binary"
