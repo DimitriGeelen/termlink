@@ -292,6 +292,38 @@ mod tests {
         let pid = std::process::id();
         let dir = std::env::temp_dir().join(format!("t3550-{pid}"));
         std::fs::create_dir_all(&dir).unwrap();
+        // T-3677: a batch sandbox (node1: no terminal, private pid namespace, a system-call
+        // filter) can have tmux installed yet unable to run a session's command. Probe
+        // exactly what this test needs, on its own private server: a detached session
+        // whose command writes a file. If that does not work the test cannot observe a
+        // leak either way, so it skips and says why on stderr (a skip reports "ok", so
+        // the reason must be visible in the log, T-3217).
+        {
+            let probe_sock = format!("t3677-probe-{pid}");
+            let marker = dir.join("probe.ok");
+            let _ = Command::new("tmux")
+                .args(["-L", &probe_sock, "new-session", "-d", &format!("touch {}", marker.display())])
+                .output();
+            let mut ok = false;
+            for _ in 0..60 {
+                if marker.exists() {
+                    ok = true;
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            let _ = Command::new("tmux").args(["-L", &probe_sock, "kill-server"]).output();
+            if !ok {
+                eprintln!(
+                    "SKIP spawned_sessions_carry_no_caller_project_live: tmux is installed but a \
+                     detached session on a private server did not run its command within 3 s \
+                     (batch sandbox without a usable terminal?); the leak check did not run"
+                );
+                let _ = std::fs::remove_dir_all(&dir);
+                return;
+            }
+            let _ = std::fs::remove_file(&marker);
+        }
         let global_has = |sock: &str, var: &str| {
             let o = Command::new("tmux").args(["-L", sock, "show-environment", "-g", var]).output().unwrap();
             String::from_utf8_lossy(&o.stdout).trim().starts_with(&format!("{var}="))
