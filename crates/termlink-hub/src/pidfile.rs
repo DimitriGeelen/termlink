@@ -94,7 +94,16 @@ fn process_start_epoch_secs(pid: u32) -> Option<f64> {
 /// T-3340: is `pid` a termlink process? Reads the process command line where the
 /// platform exposes one (procfs). Without procfs (macOS) it cannot tell, and
 /// answers true so behaviour there is unchanged: existence alone, as before.
+///
+/// T-3677: the calling process itself always counts. A live pid belongs to one
+/// process, so a pidfile naming our own pid was written by us: a hub this process
+/// runs in-process (an MCP server's `hub_start`, or a test binary). Judging that by
+/// the command-line name made the answer depend on where the binary sits: the MCP
+/// hub tests passed on .107 only because their path contained "termlink".
 pub fn is_termlink_process(pid: u32) -> bool {
+    if pid == std::process::id() {
+        return true;
+    }
     let proc_root = Path::new("/proc");
     if !proc_root.join("self").join("cmdline").exists() {
         return true;
