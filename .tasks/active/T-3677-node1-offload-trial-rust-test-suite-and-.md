@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-09T17:14:45Z
-last_update: 2026-11-10T17:31:08Z
+last_update: 2026-11-10T17:47:48Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -75,9 +75,20 @@ rule: a working route stays until its replacement is proven in the field and the
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Job facts measured on .107 and sent to ring20: commands, rustc/cargo version and targets, vendored tar size, peak RAM and wall time of the test suite and the musl build
-- [ ] One trial job of each kind run on node1 with its result compared to the .107 run (pass/fail counts, wall time)
-- [ ] Nothing on .107 changed or switched off by this task
+- [x] Job facts measured on .107 and sent to ring20: commands, rustc/cargo version and targets, vendored tar size, peak RAM and wall time of the test suite and the musl build (evidence: msgs to ring20 2026-11-09/10; .107 cold -j 12: musl build 4m04s, 2.5 GB, target 1.5 GB; full suite 8m03s after T-3679, 1.7 GB, target 4.4 GB with debug off; code 32 MB gz, vendor 50 MB gz)
+- [x] One trial job of each kind run on node1 with its result compared to the .107 run (pass/fail counts, wall time) (evidence: t3677-build-3 succeeded, 936 s on node1 vs 244 s on .107; test trials 3/4/5: 84 -> 4 -> 1 failed of 4294, 43 -> 14.5 -> 16 min; the one remaining failure is parity_version, expected without .git, T-3681)
+- [x] Nothing on .107 changed or switched off by this task (evidence: no service, cron or config on .107 changed; only test code fixed and committed)
+
+### 2026-11-10 — trial findings (what node1 exposed)
+- Ours, fixed: sidecar testkit could not find termlink under a custom --target-dir (49 tests); 3 tests wrote into the
+  source tree; MCP hub-status passed only because the path contained "termlink" (pid check, now accepts own pid);
+  tmux live test now probes a session first and skips when the sandbox cannot run one.
+- Ours, open: T-3681 (git-less builds report 0.9.0 / commit unknown); T-3678, T-3680 intermittent tests did not recur.
+- ring20's, fixed by them: ref store cap 2 GiB -> 100 GiB; symlinks refused in tars (good rule; our packer drops
+  .context/ and links); PrivateNetwork=yes was a no-op in the Incus container, so jobs ran in the host namespace with
+  the public internet reachable (trial 3 test job included). Now each job has its own namespace, verified by effect.
+- Known limit: a skipped test's SKIP line is not in the node1 log (libtest captures stderr of passing tests), so
+  whether tmux_spawn ..._live ran or skipped on node1 is not visible. Fix if wanted: run the entry with --show-output.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -128,6 +139,8 @@ rule: a working route stays until its replacement is proven in the field and the
 -->
 
 ## Verification
+test -s .context/working/node1/results/t3677-build-3/build.txt
+grep -q '"outcome": "succeeded"' .context/working/node1/results/t3677-build-3/pool-result.json
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
