@@ -23,6 +23,7 @@ this file in the repository.
 
 | Version | Date | Change | Task |
 |---|---|---|---|
+| 0.3.2 | 2026-11-11 | Redaction only, no content change: the operator LAN subnet in drawing D-1 replaced by "private subnet", so the document can go to the step 7 panel's outside vendors (operator ruling A, T-3356). | T-3356 |
 | 0.3.1 | 2026-11-03 | Round 3 finding of review V-20261103-de612e86 (amber), accepted with change per the round cap (no further review round): every remaining "approve verb" wording reworded to the 12.2 placement (Watchtower and the operator's out-of-band channels, decision written back through the existing admin path, no new hub verb) in D-5 node T4, 11.2.5, 11.5 row T4 (TB-10) and 12.1 (enrolment C-1). Minor: the section 18 heading no longer says "all proposed". D-5 re-rendered (24.5). | T-3353 |
 | 0.3 | 2026-11-03 | Operator rulings O-1..O-7 applied, and only what follows from them. O-1 A: 6.4.6, DR-5, BP-21 decided; other file routes out of scope (T-3663). O-2 D+ supersedes DR-6: 6.9 rewritten (READY + no typing + no conversation; external 300 s watchdog), new 6.14 activity and conversation signals (CR-O2a, CR-O2c), watchdog with audit row (CR-O2b), DR-15. O-3 A + tightening: new 6.13 (human-initiated renewal, fast takeover with its bound, waiting-mail signal; CR-O3), DR-9 accepted, DR-16. O-4 A: 6.10.2, BP-14, B-18 (operator runme act) and B-26 (T-2876 prover re-based on TermLink). O-5 A: section 8 package accepted (DR-3, DR-12, DR-14). O-6: approvals via Watchtower and the operator's out-of-band channels, no new hub verb (12.2, K-27, XR-8); H-21 dropped, thresholds by reliability (15.2, XR-7); section 16 corrected to OD-7/OD-9; NID stated at every retirement (11, 12.8, 14). O-7 A: 8.4, DR-13 accepted. Section 17 is now the adapter contract AEF implements from. Build table: B-13, B-16, B-18, B-23, B-24 changed; B-25..B-29 new. 04a traceability v0.3. Drawings D-1, D-3, D-4, D-5 updated and re-rendered (24.4). | T-3353 |
 | 0.2 | 2026-11-03 | Round 1 remediation of review V-20261103-717b2df9 (amber), its three findings only: 11.4 states that D-1's built-coloured subset is the baseline view, 11.5 gives per transition (baseline, T1..T6, target) the trust boundaries introduced or changed and the [i] that shows it took effect; D-1 labels corrected (operator zone is TB-10, the lease is TB-12 [i]); section 15 rows K-12, K-17, K-24, K-25 and 15.1 (built and PH-3+ components); section 18 Status and Decision columns, 18.1, and 18.2 disposing of every FP 14.1.b hand-over item. Review evidence added to the inputs (1.5). Drawings re-rendered (24.3). | T-3353 |
@@ -305,7 +306,7 @@ supervisor and backstop logs, and the hub's consumer list and admin log.
 flowchart TB
   classDef host fill:#eef,stroke:#446
   classDef wire fill:#ffd,stroke:#a80
-  subgraph LAN["Operator LAN 192.168.10.0/24"]
+  subgraph LAN["Operator LAN (private subnet)"]
     subgraph H107["Host .107 (this project, hub cacc73ea32b121dd)"]
       A107["Agents of 010, 055, 832 and others, root today"]:::host
       S107["termlink sidecar per agent (W1 pair) or AEF receiver per project"]:::host

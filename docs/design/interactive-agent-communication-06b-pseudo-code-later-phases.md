@@ -16,6 +16,7 @@ fails closed, and what happens on a crash. Field names and transports that a gat
 |---|---|---|---|
 | 0.1 | 2026-11-11 | First draft: AL-41..AL-53 (approval broker scope of the card; policy, grants, roster and cards, circuit, membership, break-glass, custody, account helper, security levels); test vector V-T0-1; drawings D-1.12, D-1.13, D-2.7, D-2.8. | T-3355 |
 | 0.2 | 2026-11-11 | Remediation of review r1: F-1 AL-43 consume as one conditional hub step under event.lock with the AL-42 lock rule, FCW-191, D-1.12 and D-2.7 relabelled; F-2 AL-46 check and use as one hub reserve under grant.lock, AL-45 hub write under the same lock, FCW-192, FCW-193; F-3 AL-44 recover() matches its crash table, FCW-194; F-4 concurrency items for AL-45, AL-47..AL-53. Nothing else changed. | T-3355 |
+| 0.2.1 | 2026-11-11 | Redaction only: test vector V-T0-1's target uses the documentation address 198.51.100.122 instead of a LAN hub address; digest and signature recomputed with the step-6 generator (`.context/working/t3355/vectors.py`, which reproduced the old values exactly before the change). For the step 7 panel's outside vendors (T-3356). | T-3356 |
 
 ## 1 Scope and inputs
 
@@ -42,10 +43,11 @@ create_action(a):
  3  digest = sha256_hex(c); display text = render(a) from the canonical object only (never from free text)
 ```
 2.1.c.1 **Test vector V-T0-1** (06a AL-20 method, RFC 8032 test key 1): class C-7, executor `hub:cacc73ea32b121dd`,
-target `known_hubs:192.168.10.122:9100`, op `tofu-repin` with `new_fingerprint: sha256:abab…ab` (32 × `ab`),
+target `known_hubs:198.51.100.122:9100` (an RFC 5737 documentation address), op `tofu-repin` with
+`new_fingerprint: sha256:abab…ab` (32 × `ab`),
 `event_id 0f1e2d3c4b5a69788796a5b4c3d2e1f0`, `expires_at 1762863000000` → canonical 366 bytes, digest
-`0f41bddce59e28e68ad5fefcbfb7eb175e8eb17e99c25174b48d53ec945627ac`, signature over
-`termlink.tier0-action/1\n<digest>`: `3091e682a73e21a159b62b0db94c57b34bb2084c515fffbdda2436b22fbfab9f5734f21ea1795a7043c3e4b9147e9ff9caee7e13877aa1cb21048e8699ccda08`.
+`c9117286f7f8ab737dbd80f39e5ee10c570c8b1f17fecdf42f9cb15f0b6b3ac2`, signature over
+`termlink.tier0-action/1\n<digest>`: `9238f20f125a9f9aa55cab62cd902a770fc2fda42415a65004709162dde5d4297c4bbec71e685b297ce4862f0f523881952ab77a6456cae6e6afe7a48caef306`.
 Changing only `executor` or `target` changes the digest (the binding SI-13 needs).
 2.1.d **INVARIANTS:** two actions that differ in executor, target, operation, parameters or expiry have different
 digests. 2.1.e **FAILS CLOSED WHEN:** 2.1.e.1 **FCW-153** [new; E-104, ZR-1] the class is not registered, or executor,

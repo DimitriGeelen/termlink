@@ -37,10 +37,10 @@ answer and review what you find, naming the hash you read.
 | Id | Path | Version | sha256 |
 |---|---|---|---|
 | REQ | `docs/design/interactive-agent-communication-01-requirements.md` | v0.5.3 | `f6ce42a2984bd18e049f1f4dda05e6eaab2cc3508396fe373060c6fc527193c9` |
-| ARC | `docs/design/interactive-agent-communication-04-architecture.md` | v0.3.1 | `29c6d1f7de9f18898cab105651f17977ebf97da30f32d16501819bad217dd69c` |
+| ARC | `docs/design/interactive-agent-communication-04-architecture.md` | v0.3.2 (redaction only) | `a5cc08eba8f72ddaabc09e31939db9072155066313e7bced4b437b4eda24927a` |
 | PC | `docs/design/interactive-agent-communication-06-pseudo-code.md` | v0.2 | `7d469813239e991304ddad04b35fe2dc713c1d0e2ed8142ee7c05b5ff4dbffcc` |
 | PCa | `docs/design/interactive-agent-communication-06a-pseudo-code-ph2-hardening.md` | v0.2 | `1db1532a8d1d4c1002326a4b4e948be959b7a52c5bd33b8fba0ee2f405b69ebf` |
-| PCb | `docs/design/interactive-agent-communication-06b-pseudo-code-later-phases.md` | v0.2 | `6b4e5296fe7673360ff054919c15a851fdb5bdc8af366f6222de79967e092ddf` |
+| PCb | `docs/design/interactive-agent-communication-06b-pseudo-code-later-phases.md` | v0.2.1 (redaction only) | `8878cf38acb328b5aee89ef43be71685f4cbd044bb63006b6d3189e268c9f8c2` |
 
 2.2 **Context** (read the parts you need to judge the material; findings against these are welcome too).
 
