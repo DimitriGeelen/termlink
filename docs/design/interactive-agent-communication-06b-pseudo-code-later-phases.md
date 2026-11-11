@@ -87,7 +87,13 @@ decide(event_id, decision, digest, via):
  5  if digest != e.digest: refuse, needs-attention ("decision for another action")                  # FCW-156
  6  if decision == approve and e.class is high-impact and not confirmation_ok(e) (AL-43): refuse    # FCW-159
  7  append decision record (admin log first, then the event); e.state = APPROVED | DENIED
-expiry sweeper (each tick on the hub): PENDING or APPROVED past expires_at -> EXPIRED with a record
+expiry sweeper (each tick on the hub): with event.lock: re-load; PENDING or APPROVED past expires_at -> EXPIRED with a record
+cancel(event_id, who) and revoke(event_id, why): with event.lock: e = load(event_id)
+    if e.state in {PENDING, APPROVED}: e.state = CANCELLED | REVOKED, record
+    else: refuse "already <state>" (record the attempt); a CONSUMED event is not cancelled: its effect may be under
+          way, and AL-44 settles it                                                                      # FCW-158
+lock rule: decide, cancel, revoke, the expiry sweeper and AL-43's consume step are the only writers of e.state, and each
+    reads and writes it inside event.lock (one lock per event, held by the hub); no writer acts on a state read outside it
 ```
 2.2.d **INVARIANTS:** (1) states only move forward along the table; (2) final states never change; (3) every
 transition has a record in the one audit trail and a needs-attention row; (4) an approval never outlives its expiry.
@@ -98,7 +104,8 @@ transition has a record in the one audit trail and a needs-attention row; (4) an
 recorded. 2.2.e.5 **FCW-159** [new; E-105] a high-impact approval without the out-of-band confirmation → no APPROVED.
 2.2.f **EDGE CASES:** (1) clock: expiry on the hub's wall clock, the single place it is decided; a surface showing a
 countdown uses it for display only; (2) concurrency: approve and cancel race: the event lock orders them; the later one
-is refused by FCW-158; (3) a peer message saying "approved" changes nothing (SI-8): only `decide` changes state;
+is refused by FCW-158; cancel, revoke or expiry racing the executor's consume are ordered by the same lock (AL-43 step
+3): whichever takes it first wins, and the other is refused (FCW-158 or FCW-191); (3) a peer message saying "approved" changes nothing (SI-8): only `decide` changes state;
 (4) crash table:
 
 | Crash between | State after restart | Recovery |
@@ -115,31 +122,53 @@ key, BP-13, RR-16); with Track K the decision carries an operator signature **[o
 
 2.3.a **SERVES:** SI-13, SI-31; TH-48, TH-51, TH-56, TH-20, TH-64.
 2.3.b **PROBLEM:** an approval must be used once, by the named executor, for the displayed action, even with two
-executors or two requests racing. **APPROACH:** the executor recomputes the digest from the action it is about to
-perform, compares executor and target, then inserts the approval id into a durable consumed set with insert-if-absent
-**before** the effect.
+executors or two requests racing, and never after a cancel, revoke or expiry has ended it. **APPROACH:** the executor
+recomputes the digest from the action it is about to perform and compares executor and target; then the hub, in **one
+conditional step under event.lock**, re-checks that the event is still APPROVED and unexpired, inserts the approval id
+into the durable consumed set with insert-if-absent and moves the event to CONSUMED, in one transaction, **before** the
+effect (compare-and-set: state APPROVED → CONSUMED only if it is APPROVED at that moment).
 2.3.c **ALGORITHM:**
 ```text
-consume(event, my_action, me):
+consume(event_id, my_action, me):                   # steps 1..2 at the executor, step 3 at the hub
  1  d = digest(my_action) (AL-41); if d != event.digest: refuse                                     # FCW-160
  2  if my_action.executor != me or my_action.target != the object I am about to change: refuse         # FCW-161
- 3  if event.state != APPROVED or wall_hub() >= event.expires_at: refuse
- 4  confirmation_ok(event): high-impact classes need an out-of-band confirmation record bound to event.digest, by the
-    confirmation provider, within expiry [open: T-3385, GP-11]; absent -> refuse                     # FCW-159 (AL-42)
- 5  r = consumed_set.insert_if_absent(event.approval_id, {executor: me, digest: d, at}) with fsync
-    if r == exists: refuse "approval already used"                                                    # FCW-162
-    if r == error: refuse, nothing done                                                                # FCW-163
- 6  event.state = CONSUMED; then AL-44
+ 3  hub.consume(event_id, d, me): ONE step, with event.lock held (the lock of AL-42's lock rule):
+      e = load(event_id)
+      a  if e.state != APPROVED: refuse "no longer approved: <e.state>", record the attempt          # FCW-191
+      b  if wall_hub() >= e.expires_at: e.state = EXPIRED, record; refuse                             # FCW-155 (AL-42)
+      c  if d != e.digest: refuse                                                                     # FCW-160
+      d  confirmation_ok(e): high-impact classes need an out-of-band confirmation record bound to e.digest, by the
+         confirmation provider, within expiry [open: T-3385, GP-11]; absent -> refuse                 # FCW-159 (AL-42)
+      e  one durable transaction of the hub store (fsync before the reply):
+           r = consumed_set.insert_if_absent(e.approval_id, {executor: me, digest: d, at})
+           if r == exists: abort; refuse "approval already used"                                       # FCW-162
+           e.state = CONSUMED (compare-and-set from APPROVED, which step a saw under the same lock)
+           commit; on any error: abort, both unchanged; refuse, nothing done                           # FCW-163
+    release event.lock; reply CONSUMED
+ 4  only on the reply CONSUMED: AL-44 execute (no reply or an error reply: nothing is applied; see 2.3.f (6))
 ```
 2.3.d **INVARIANTS:** at most one successful `consume` per approval id across all executors (the consumed set is at the
 hub, one place). 2.3.e **FAILS CLOSED WHEN:** 2.3.e.1 **FCW-160** [new; E-104] the recomputed digest differs →
 refused. 2.3.e.2 **FCW-161** [new; E-104] the executor or the target differs → refused. 2.3.e.3 **FCW-162** [new;
 E-104] the approval id is already consumed → refused. 2.3.e.4 **FCW-163** [new; ZR-1] the consumed-set insert fails →
-refused, nothing done.
+refused, nothing done. 2.3.e.5 **FCW-191** [new; E-104, ZR-1] at the hub's conditional step the event is no longer
+APPROVED (a cancel, revoke or expiry took event.lock first, between the executor's read and the insert) → refused,
+nothing inserted, nothing applied, the attempt recorded; E-104 (i) covers approve against cancel and revoke, ZR-1 asks
+for cancel, revoke and expiry racing the consume.
 2.3.f **EDGE CASES:** (1) replay within validity: FCW-162; (2) two executors at once: one insert wins; (3) a consumed
 set restored from a backup older than the approval accepts it again within its expiry: RR-20 limit (E-104 probe);
-(4) crash after insert, before the effect: AL-44 recovery completes under the same id (not a second use).
-2.3.g the insert is the at-most-once point. 2.3.h SHA-256 digest; signatures as AL-42. **OBS:** OBS-70 consumed set rows.
+(4) crash after the commit, before the effect: AL-44 recovery completes under the same id (not a second use);
+(5) cancel, revoke or expiry during the consume (time of check to time of use, card 4.f): the executor's own reads in
+steps 1..2 decide nothing about state; the state is checked and changed only inside step 3 under event.lock, which the
+cancel, revoke and the expiry sweeper also take (AL-42 lock rule). If one of them takes the lock first, the event is
+final and step 3a refuses (FCW-191); if the consume takes it first, the event is CONSUMED and the later cancel or revoke
+is refused (FCW-158) and AL-44 settles the effect. No interleaving lets a final state become CONSUMED (AL-42 invariant
+2); (6) crash or lost reply around step 3: the transaction either committed (CONSUMED, consumed row present) or did not
+(APPROVED, no row); the hub never holds one without the other. An executor that did not receive the reply applies
+nothing; at its start AL-44 recover() reads the consumed set for rows naming it and settles those. A retry of
+consume after a committed but unanswered step is refused by FCW-191 or FCW-162 and is answered by recover(), not by a
+second use.
+2.3.g the committed transaction of step 3e (consumed row and CONSUMED together) is the at-most-once point. 2.3.h SHA-256 digest; signatures as AL-42. **OBS:** OBS-70 consumed set rows.
 
 ### 2.4 AL-44 — Execute once, record the outcome, check the post-condition (K-27; SI-13; card 4.g)
 
@@ -369,7 +398,7 @@ stateDiagram-v2
   PENDING --> EXPIRED: expiry
   PENDING --> CANCELLED: cancel
   PENDING --> REVOKED: requester key revoked or operator revoke
-  APPROVED --> CONSUMED: executor inserts approval id
+  APPROVED --> CONSUMED: hub step under event lock, still APPROVED, insert and state in one transaction
   APPROVED --> EXPIRED: expiry before consumption
   APPROVED --> CANCELLED: cancel
   APPROVED --> REVOKED: revoke
@@ -389,7 +418,9 @@ stateDiagram-v2
 3.1 Text equivalent of D-1.12. 3.1.1 An event is created PENDING with its action digest. 3.1.2 From PENDING an approval
 (through the admin path, matching digest, before expiry, with the out-of-band confirmation for high-impact classes)
 makes it APPROVED; a denial DENIED; expiry EXPIRED; a cancel CANCELLED; a revocation REVOKED. 3.1.3 From APPROVED the
-executor's insert of the approval id makes it CONSUMED; expiry, cancel or revoke before that end it. 3.1.4 From CONSUMED
+hub's one conditional step under the event lock (still APPROVED and unexpired, then the approval id inserted and the
+state set CONSUMED in one transaction) makes it CONSUMED; an expiry, cancel or revoke that takes the lock first ends it,
+and the consume is then refused. 3.1.4 From CONSUMED
 a post-condition that holds gives DONE, one that fails gives FAILED, and a crash whose effect cannot be read gives
 OUTCOME_UNKNOWN, which only the operator reconciles to DONE or FAILED. 3.1.5 DENIED, EXPIRED, CANCELLED, REVOKED, DONE
 and FAILED are final.
@@ -434,7 +465,7 @@ sequenceDiagram
     H->>H: APPROVED, record
   end
   EX->>H: consume, recomputed digest, executor and target
-  alt mismatch or already consumed
+  alt mismatch, no longer APPROVED under the event lock, or already consumed
     H-->>EX: refused
   else insert approval id succeeds
     H-->>EX: CONSUMED
@@ -450,8 +481,9 @@ an out-of-band channel shows the event, rendered from the canonical action. 3.3.
 fingerprint suffix where the class needs it); the surface writes the decision through the root-only admin path, bound
 to the digest. 3.3.4 The hub refuses and records a decision whose digest differs, that is late, that targets a final
 event, or that lacks the out-of-band confirmation of a high-impact class; otherwise the event is APPROVED. 3.3.5 The
-executor recomputes the digest and checks executor and target; a mismatch or a used approval is refused; otherwise the
-approval id is inserted (CONSUMED), the effect applied with the approval id as its tag, the post-condition read from
+executor recomputes the digest and checks executor and target; under the event lock the hub refuses a mismatch,
+an event that a cancel, revoke or expiry has already ended, or a used approval; otherwise it inserts the approval id
+and sets CONSUMED in one transaction, the effect applied with the approval id as its tag, the post-condition read from
 the target, and the outcome recorded.
 
 **Drawing D-2.8 — circuit set-up (interaction sequence, AL-48), with the fails-closed paths**
