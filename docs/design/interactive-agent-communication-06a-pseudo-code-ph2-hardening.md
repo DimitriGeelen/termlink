@@ -343,3 +343,590 @@ re-draw an earlier time; (2) crash: `w` restarts at 100 after a restart (conserv
 by the receiver **[B]**.
 **OBS:** OBS-47 status `send.window` per receiver; OBS-48 refused early re-sends.
 
+### 2.9 AL-25 — Encryption key register check at start (K-24; ARC4 6.4.2; B-11)
+
+2.9.a **SERVES:** R-80; FX-5; AFC-24.
+2.9.b **PROBLEM:** a blob wrapped to an agent must open only with that agent's private key, and a swapped register
+entry must not go unnoticed. **APPROACH:** the built signing-key register rule (P7-2 **[B]**) applied to the X25519 key.
+2.9.c **ALGORITHM:**
+```text
+start (production):
+ 1  reg = /etc/termlink-sidecar/keys/<agent>.x25519.pub
+    require reg exists, owner root, not group- or world-writable, 32 bytes (hex or base64 as the signing register)  # FCW-110
+ 2  priv = <store>/keys/x25519.key (0600, owner = sidecar user); never minted in production [B rule P7-2]
+ 3  if x25519_public(priv) != reg: refuse start, reason with both fingerprints                                      # FCW-109
+```
+2.9.d **INVARIANTS:** a production sidecar runs only with a private key whose public half is the root-owned register
+entry. 2.9.e **FAILS CLOSED WHEN:** 2.9.e.1 **FCW-109** [AFC-24; E-48] the private key does not match the register →
+refuse to start. 2.9.e.2 **FCW-110** [new; ZR-1] the register entry is missing, not root-owned, or group- or
+world-writable → refuse to start.
+2.9.f **EDGE CASES:** root can replace both (RR-2, AR-4); stateless otherwise. 2.9.g none. 2.9.h X25519 (RFC 7748);
+fingerprint as AL-18. **OBS:** OBS-49 the refusal reason; status `keys.encryption {fingerprint, register: match}`.
+
+### 2.10 AL-26 — Blob send: encrypt to the recipient, upload to the recipient's home hub (K-13; ARC4 6.4.3; B-12; DR-4)
+
+2.10.a **SERVES:** R-11, R-80; SI-28; FX-5; AFC-23, AFC-25.
+2.10.b **PROBLEM:** a file must reach the recipient through a hub that never holds it readable. **APPROACH:** a random
+content key, AEAD with the recipient bound in the associated data, the content key sealed to the recipient's X25519
+key, ciphertext uploaded to the hub the recipient pulls from.
+2.10.c **ALGORITHM:**
+```text
+send_blob(path, to):
+ 1  st = lstat(path); require regular file; size = st.size; if size > 16 MiB: refuse before reading (PN-11)      # FCW-111
+ 2  rpub = encryption key of `to` from the register (same host) or the hub key card (AL-33); none -> refuse     # FCW-112
+ 3  plain = read(path) (exactly size bytes; a file that changes while read -> refuse); ps = sha256(plain)
+ 4  k = random 32 bytes; n = random 24 bytes; aad = utf8("termlink.blob/1\n" + to + "\n" + hex(ps))
+    obj = "TLBLOB" || 0x01 (format version) || 0x01 (alg: XChaCha20-Poly1305, X25519 sealed box) || n
+          || xchacha20poly1305_encrypt(k, n, plain, aad)
+    cs = sha256(obj); wk = crypto_box_seal(rpub, k)            # 80 bytes
+ 5  artifact.put(obj) to the recipient's home hub in 256 KiB chunks; require the hub reports digest == cs;
+    Err or mismatch -> the message is not sent; it stays in the outbox with the reason                         # FCW-113
+ 6  m.blob = {cipher_sha256: cs, plain_sha256: ps, size, wrapped_key: base64(wk), name_hint: basename (display only)}
+    sign and post m as any message (the blob fields are inside the signed payload)
+ 7  wipe k and plain from memory
+```
+2.10.d **INVARIANTS:** (1) the hub receives only `obj`; (2) the plaintext digest and size are signed by the sender.
+2.10.e **FAILS CLOSED WHEN:** 2.10.e.1 **FCW-111** [AFC-25; E-44] the file is over 16 MiB (or not a regular file) →
+refused before upload. 2.10.e.2 **FCW-112** [AFC-23, AFC-29; E-49] the recipient has no registered encryption key →
+refused, never sent in plaintext. 2.10.e.3 **FCW-113** [new; ZR-1] the upload fails or the hub's digest differs → the
+message is not sent.
+2.10.f **EDGE CASES:** (1) a file growing during the read: size check against the bytes read; (2) crash between upload
+and post: an orphan ciphertext object on the hub; it has no message, so blob retention (V-3) treats it as final 24 h
+after upload **[P]** and removes it; (3) concurrency: none (per call).
+2.10.g **EXECUTION SEMANTICS:** upload is idempotent by content digest (the store is content-addressed **[B]**).
+2.10.h **CRYPTOGRAPHY:** XChaCha20-Poly1305 and the X25519 sealed box as ARC4 6.4.3 chose; the object header (magic,
+format version, algorithm id) and the associated data are this step's proposal **[P]** (ZR-6); a new algorithm needs a
+new algorithm id, never a silent change.
+**OBS:** OBS-50 the outbox record with the blob fields; OBS-51 the hub's put reply.
+
+### 2.11 AL-27 — Blob receive: fetch, verify, decrypt, store under the digest (K-13; ARC4 6.4.4; B-12)
+
+2.11.a **SERVES:** R-11, R-15, R-42; SI-15, SI-28; TH-57; AFC-23, AFC-25.
+2.11.b **PROBLEM:** STORED must mean the plaintext is on disk and correct; a partial transfer never reads as success
+(T-3661). **APPROACH:** fetch into a private temp with a byte cap, check both digests, write under the plaintext digest.
+2.11.c **ALGORITHM:**
+```text
+fetch_blob(m) (AL-23 step 9):
+ 1  require m.blob.size <= 16 MiB; cap = m.blob.size + 32 (header + tag)                                     # FCW-116
+ 2  tmp = <store>/blobs/.tmp-<random>; mode 0600
+    for each 256 KiB chunk of artifact.get(cs): append; if bytes > cap: abort                                 # FCW-116
+ 3  require sha256(tmp) == m.blob.cipher_sha256                                                                # FCW-114
+ 4  parse header: magic "TLBLOB", version 1, alg 1, else refuse                                               # FCW-114
+    k = crypto_box_seal_open(my_x25519, base64(m.blob.wrapped_key)); Err -> refuse                             # FCW-114
+    plain = xchacha20poly1305_decrypt(k, n, ct, aad(MY_AGENT, m.blob.plain_sha256)); Err -> refuse            # FCW-114
+    require len(plain) == m.blob.size and sha256(plain) == m.blob.plain_sha256                                 # FCW-114
+ 5  atomic_write(<store>/blobs/<plain_sha256>, plain, mode 0600)          # never a path from the message      (FCW-115)
+ 6  remove tmp; return ok
+on any failure: remove tmp; not STORED; notice(m.sender, REFUSED, {reason}); attention("blob refused", coalesce = (sender, tick))
+```
+2.11.d **INVARIANTS:** (1) a file in `blobs/` is named by its own content digest; (2) `name_hint` is never a file name;
+(3) no STORED without both digests checked.
+2.11.e **FAILS CLOSED WHEN:** 2.11.e.1 **FCW-114** [AFC-23; E-45] the ciphertext digest, the header, the key unwrap,
+the authenticated decryption, the size or the plaintext digest fails → not STORED, refusal to the sender,
+needs-attention, temp removed. 2.11.e.2 **FCW-115** [AFC-23; E-46] whatever `name_hint` holds → the file is named by
+its digest only. 2.11.e.3 **FCW-116** [AFC-25; E-44] the declared size is over 16 MiB, or
+more bytes arrive than declared → the fetch stops; not STORED.
+2.11.f **EDGE CASES:** (1) the same blob in two messages: one file (content-addressed), written once; (2) a blob wrapped
+to another agent: unwrap fails (E-45 wrong key case); (3) crash: temp files are removed at start; a crash after the
+rename leaves the blob without STORED: the message is pulled again and the rename is idempotent.
+2.11.g **EXECUTION SEMANTICS:** idempotent by digest. 2.11.h **CRYPTOGRAPHY:** as AL-26.
+**OBS:** OBS-52 refusal reasons per step; stage STORED after the rename (order in the stage log).
+
+### 2.12 AL-28 — Artifact writer check at the hub, and `artifact put --hub` (K-13; ARC4 6.4.5, 6.4.6; B-11, B-13; DR-5, O-1 A)
+
+2.12.a **SERVES:** FX-5, FX-5A C′, R-80; BP-21; AFC-23, AFC-29.
+2.12.b **PROBLEM:** no new plaintext copy of a content class may appear in a hub store. **APPROACH:** today's nine
+writers stay allow-listed **[B]** (P8 baseline); every new writer must present the wrapper; the CLI refuses a
+plaintext cross-hub put.
+2.12.c **ALGORITHM:**
+```text
+hub artifact.put(obj, writer_class):
+ 1  if writer_class in BASELINE_WRITERS (the 9 of P8): accept as today [B]
+ 2  else: require obj starts with "TLBLOB" || 0x01 || a known alg id; else refuse "unwrapped object"              # FCW-117
+CLI termlink artifact put <file> --hub <addr> [--encrypt-to <agent>]:
+ 1  if --hub and not --encrypt-to: refuse "a cross-hub put must be encrypted (O-1 A); use --encrypt-to <agent>"   # FCW-118
+ 2  rpub = register or the remote hub's key card for <agent>; none -> refuse                                       # FCW-119
+ 3  wrap as AL-26 steps 3..4 (aad names <agent>), put to <addr>, print cipher digest and wrapped key for the recipient
+message fields with plaintext (AL-23 step 2): over 8 KiB -> refused, so content cannot be tunnelled past the store
+```
+2.12.d **INVARIANTS:** after B-11 every object a non-baseline writer stores begins with the wrapper header.
+2.12.e **FAILS CLOSED WHEN:** 2.12.e.1 **FCW-117** [AFC-23; E-47] a non-baseline writer stores an object without the
+wrapper header → refused. 2.12.e.2 **FCW-118** [AFC-29; E-49] `--hub` without `--encrypt-to` → refused with the rule
+and the form. 2.12.e.3 **FCW-119** [AFC-29; E-49] the named agent has no encryption key → refused, never downgraded.
+2.12.f **EDGE CASES:** (1) a baseline writer used to smuggle content: the writer inventory check (E-150) watches the
+list; (2) existing routes `file send`, ssh, SMB: out of scope (T-3663), untouched (NID); (3) stateless.
+2.12.g none. 2.12.h as AL-26. **OBS:** OBS-53 hub refusal records; `scripts/check-arc011-inventory.sh` result.
+
+### 2.13 AL-29 — Status view: freshness, CLEAR, reachability card, no-surfacing threshold (K-16; ARC4 6.7; V-5, V-8; B-14)
+
+2.13.a **SERVES:** R-6, R-29, R-53, R-70; FX-8; FP 3.1.e; TH-23; AFC-27.
+2.13.b **PROBLEM:** status must never show a stale value as current, never call a heartbeat "surfacing", and must name
+absent strength. **APPROACH:** every field carries the `mono()` time of its producer's last success and a bound; the
+view applies the bound; CLEAR is computed from fields, never from liveness alone.
+2.13.c **ALGORITHM:**
+```text
+field(name) = (value, produced_at, bound)   # bounds: 2 ticks for per-tick fields; 60 s for heartbeat; 1 h for daily-derived [P]
+render(name): if mono() - produced_at > bound or produced_at absent: "unknown (last at T)" else value               # FCW-120
+bad fields: hub.match false or unknown; revocation stale; consumers > 1 identity; supervision dead; quota refusing
+            receipts; reachability.last_surface bad (below); any component heartbeat older than 3 ticks
+last_surface bad (V-8) iff exists STORED m, not handed over, and
+     (agent became READY at t_r and mono() - t_r > 2 ticks) or (a hook call at t_h did not hand m over and mono() - t_h > 2 ticks)
+     an idle agent with nothing pending is never bad; its age is shown
+CLEAR iff no field bad and no field unknown and (nothing pending in the last hour
+         or exists a HANDED_OVER with evidence after the earliest pending STORED of the last hour)                   # FCW-121
+         a heartbeat, a ready report, a pull without evidence never count as surfacing
+reachability card (published on the home hub with the liveness note, every tick): {receiver_up: heartbeat fresh,
+     right_hub: hub.match, adapter_present: a valid adapter report within 24 h, last_surface: time of the latest
+     HANDED_OVER with evidence or confirmation} ; a reader whose last card is older than 2 x PN-9 sees UNKNOWN, never DEAD   # FCW-122
+strength flags: computed from the host at each status call; a flag that cannot be computed reads as the absent value
+     (e.g. per_agent_accounts: "no (could not check)"), never as present                                         # FCW-123
+skew (V-5): estimate from hub round trips; "clock skew" at > 2 s; cross-host delay figures "unusable" at > 30 s;
+     NTP state from timedatectl or chronyc, else "unchecked"
+```
+2.13.d **INVARIANTS:** (1) a rendered value is never older than its bound; (2) CLEAR implies real surfacing progress
+when anything was pending; (3) no flag claims strength the host lacks.
+2.13.e **FAILS CLOSED WHEN:** 2.13.e.1 **FCW-120** [AFC-27; E-55, E-19] a field is older than its bound → `unknown`.
+2.13.e.2 **FCW-121** [new; E-56] any field bad or unknown, or pending mail without a real surfacing after it → NOT
+CLEAR. 2.13.e.3 **FCW-122** [new; E-57, E-61] a peer's card or back channel is silent → UNKNOWN, never DEAD.
+2.13.e.4 **FCW-123** [new; E-58] a strength flag cannot be determined → it reads as absent.
+2.13.f **EDGE CASES:** (1) a status call under an injected fault: the view reads in-memory fields only (no blocking
+RPC in the status path) so p95 ≤ 5 s holds (E-55); (2) clock: freshness on `mono()`; (3) crash: after a restart every
+field is absent until produced → `unknown`, so a restarted sidecar is never CLEAR until it has re-measured.
+2.13.g none. 2.13.h none. **OBS:** OBS-54 the status JSON (schema checked by E-55); OBS-55 the reachability card.
+
+### 2.14 AL-30 — Inbox consumer list, flag and bind (K-15; ARC4 6.6.1, 6.6.2; V-11, V-12; B-2; DR-11)
+
+2.14.a **SERVES:** SI-16, R-49, R-60; BP-15.
+2.14.b **PROBLEM:** a second identity consuming an inbox (BP-15) was invisible. **APPROACH:** the hub records consumers
+per inbox; sidecars flag a second one each tick; after W4 the operator binds the inbox and the hub refuses others.
+2.14.c **ALGORITHM:**
+```text
+hub, on channel.subscribe | ack | claim of an inbox: or conversation topic by identity I:
+ 1  if bound(topic) and I != bound(topic): refuse "inbox bound to <identity>", admin_log row                          # FCW-124
+ 2  consumers[topic][I] = {first: first or now, last: now}; if len > 16: evict the oldest by last, admin_log "evicted I"
+hub inbox.consumers(topic, window) -> [{identity, first, last}] with last >= now - window
+admin inbox bind <topic> <identity> (root-only socket, runme): admin_log first; then bound(topic) = identity (durable)
+sidecar tick: r = inbox.consumers(MY_INBOX, 24 h); Err -> status consumers: unknown                                 # FCW-125
+              others = [c in r if c.identity != MY_IDENTITY]
+              if others: status consumers = "inbox consumed by two identities: A, B"; attention(coalesce = (topic, identity, day))
+```
+2.14.d **INVARIANTS:** after a bind, only the bound identity acks or claims. 2.14.e **FAILS CLOSED WHEN:** 2.14.e.1
+**FCW-124** [new; E-66] an inbox is bound and another identity acks, claims or subscribes → refused and logged.
+2.14.e.2 **FCW-125** [new; ZR-1] the consumer list cannot be read → status `consumers: unknown` (never "one").
+2.14.f **EDGE CASES:** (1) a legitimate switch during W1..W3 shows two identities for minutes: flagged, not refused
+(DR-11); (2) a second live copy of a project on the same hub is seen within one tick (V-12); (3) crash: the consumer
+table is durable hub state written with the RPC; a crash loses at most the last update, which the next RPC repeats.
+2.14.g none. 2.14.h the identity is the authenticated caller of the RPC **[B]**. **OBS:** OBS-56 `inbox.consumers`;
+status `consumers`; admin rows `bind`, `evicted`.
+
+### 2.15 AL-31 — Admin log, sweep and trim refusal, retention ceilings (K-15; ARC4 6.6.3; V-3; B-3)
+
+2.15.a **SERVES:** FX-6, R-35, SI-24; BP-7; TH-30; AFC-32.
+2.15.b **PROBLEM:** an admin RPC could remove open mail silently. **APPROACH:** log first, check finality of every
+offset to be removed against the hub record, trim by ceilings oldest-final-first.
+2.15.c **ALGORITHM:**
+```text
+any admin-scope RPC:
+ 1  admin_log.append({caller, method, params_digest, admin: true}); Err -> refuse the RPC                          # FCW-128
+ 2  if method in {channel.sweep, set-retention, trim} and topic is inbox:* or a conversation topic:
+        R = offsets the call would remove
+        for o in R: f = finality(o) from the hub record   # final: REPLIED, ACK_NO_ACTION, REFUSED, FORWARDED, DEAD
+            if f unreadable: refuse "cannot read finality"                                                         # FCW-127
+            if not final: refuse "would remove an open message at offset o"                                       # FCW-126
+ 3  run the RPC; append its result to the log row
+retention ceilings (V-3), hub, daily and on write:
+ 1  per topic > 50,000 records or 32 MiB, per hub arc-011 classes > 2 GiB, artifact store > 4 GiB:
+      remove oldest final records first, each removal logged; if only open ones remain over the ceiling:
+      remove the oldest open one only as a last resort, with needs-attention naming it (R-35.o (3))               # FCW-129
+log rotation: rows with admin: true are kept >= 30 days whatever the rotation size
+```
+2.15.d **INVARIANTS:** (1) every admin RPC has a row before it acts; (2) no open message is removed while a final one
+over the ceiling remains. 2.15.e **FAILS CLOSED WHEN:** 2.15.e.1 **FCW-126** [AFC-32; E-67] a sweep, retention change
+or trim would remove an open message → refused and logged. 2.15.e.2 **FCW-127** [new; ZR-1] finality cannot be read →
+refused. 2.15.e.3 **FCW-128** [new; ZR-1] the admin-log row cannot be written → the RPC is refused. 2.15.e.4
+**FCW-129** [new; E-67] past a ceiling → final first; open only as a last resort, loudly.
+2.15.f **EDGE CASES:** root on the hub host can edit the log (RR-2, ARC4 15 K-15); crash: the row before the act means a
+crash shows an intent without a result, which is visible. 2.15.g none. 2.15.h none.
+**OBS:** OBS-57 `rpc-audit.jsonl` rows with `admin: true`; ceiling removal rows.
+
+### 2.16 AL-32 — Founding verbs: scope, use log, owner-only sessions (K-15; ARC4 6.6.4; B-4)
+
+2.16.a **SERVES:** FX-4, R-4; BP-1, BP-2; TH-2.
+2.16.b **PROBLEM:** `inject` and `exec` are the founding verbs and stay open by design (RR-13); their use must be seen.
+**APPROACH:** scopes as built; a log row at the session and at the hub for every call, allowed or refused; an
+owner-only flag on sessions the sidecar launches.
+2.16.c **ALGORITHM:**
+```text
+session, on command.inject | pty inject | command.execute | remote exec from caller C with token scope s:
+ 1  row = {verb, caller: C, scope: s, at}; append to the session's use log; Err -> refuse the verb                    # FCW-132
+ 2  if verb in {inject, pty inject} and s lacks control, or verb in {execute, remote exec} and s lacks execute: refuse [B]  # FCW-130
+ 3  if session.owner_only and C != session.owner: refuse                                                              # FCW-131
+ 4  hub (relaying remote calls): the same row in the hub log
+spawn --owner-only: default on for sessions launched by the reachable launcher
+```
+2.16.d **INVARIANTS:** every founding-verb call leaves a row at the session (and at the hub when relayed).
+2.16.e **FAILS CLOSED WHEN:** 2.16.e.1 **FCW-130** [new; E-68] the token lacks `control` (inject) or `execute` (exec) →
+refused **[B]**. 2.16.e.2 **FCW-131** [new; E-68] an owner-only session is called by another identity → refused.
+2.16.e.3 **FCW-132** [new; ZR-1] the use-log row cannot be written → the verb is refused.
+2.16.f **EDGE CASES:** R-4 (the owner can still inject and read back) is kept; cross-project use is logged only until
+PH-4 (RA-2). Crash: row before effect. 2.16.g none. 2.16.h token scopes **[B]**. **OBS:** OBS-58 session and hub use logs.
+
+### 2.17 AL-33 — Agent key card: post-time check and replacement (K-15; ARC4 6.6.5; B-6; P7-2)
+
+2.17.a **SERVES:** SI-3, R-75; TH-1, TH-8, TH-56; BP-3; AFC-33.
+2.17.b **PROBLEM:** the hub accepted any post from a token holder (BP-3). **APPROACH:** a card per agent registered by
+runme; every arc-011 post is verified against the poster's card; a card changes only by an old-key statement or runme.
+2.17.c **ALGORITHM:**
+```text
+card = {schema: termlink.key-card/1, agent, project, signing_key, encryption_key, instances, seq, by: runme|old-key}
+hub, on post of an arc-011 message type to inbox:*:
+ 1  c = card(m.sender); none -> refuse "no key card" (arc-011 types only; other channels unchanged, NID)             # FCW-135
+ 2  verify(c.signing_key, m) else refuse, admin_log, needs-attention                                                  # FCW-133
+key.replace statement {schema: termlink.key-replace/1, agent, old, new_signing, new_encryption, at} signed by old:
+ 1  require verify(card.signing_key, stmt) and stmt.old == card.signing_key; else refuse, log                         # FCW-134
+ 2  card.seq += 1; persist atomically; admin_log; attention("key replaced")
+runme provisioning: writes or replaces a card (root-only socket), logged
+```
+2.17.d **INVARIANTS:** after B-6 every stored arc-011 post verified against a card at the hub and again at the receiver
+(AL-23). 2.17.e **FAILS CLOSED WHEN:** 2.17.e.1 **FCW-133** [AFC-33; E-69] the signature does not verify against the
+card → refused. 2.17.e.2 **FCW-134** [new; E-69] a replacement not signed by the current key and not a runme act →
+refused. 2.17.e.3 **FCW-135** [new; ZR-1] no card for the poster → refused (arc-011 message types only).
+2.17.f **EDGE CASES:** (1) a stolen old key can replace the card (RR-2 class; revocation AL-21 is the answer); (2) crash
+between persist and log: start-up compares card `seq` with the last logged `seq`. 2.17.g none. 2.17.h ed25519 via AL-20
+(schema domain). **OBS:** OBS-59 hub refusals; card `seq`.
+
+### 2.18 AL-34 — Signed dead letter for a retired instance (K-15; ARC4 6.6.6; R-44, R-60, R-62; B-6)
+
+2.18.a **SERVES:** SI-26, R-44, R-62; TH-54; AFC-34.
+2.18.b **APPROACH:** provisioning retires an instance; the hub writes a signed, sequenced DEAD; a sender verifies it
+before ending a conversation.
+2.18.c **ALGORITHM:**
+```text
+runme retire <project> <instance>: hub writes {schema: termlink.dead/1, hub_id, project, instance, seq: project_seq + 1,
+                                              at, reason} signed (AL-20); admin_log; attention
+sender, polling a conversation to instance i:
+ 1  d = DEAD record for i, if any
+ 2  require verify(pin, d) and d.hub_id == declared home hub and d.seq > last_dead_seq(project) seen ... else refuse, flag  # FCW-136
+ 3  conversation state DEAD (seq shown); stop polling; never redirect to another instance (SI-26)
+```
+2.18.d **INVARIANTS:** only a hub-signed DEAD ends a conversation (R-60: only the home hub may say DEAD).
+2.18.e **FAILS CLOSED WHEN:** 2.18.e.1 **FCW-136** [AFC-34; E-70] the DEAD is unsigned, signed by another key, from
+another hub, or its sequence does not rise → refused and flagged; polling continues.
+2.18.f **EDGE CASES:** DEAD from liveness alone is PH-3 (R-60.a); crash: the record is atomic. 2.18.g none. 2.18.h AL-20.
+**OBS:** OBS-60 the sender's state with the DEAD seq.
+
+### 2.19 AL-35 — Reconciliation on start and the daily head compare (K-14; ARC4 6.5; B-10)
+
+2.19.a **SERVES:** SI-15, SI-22, R-15, R-45; TH-14, TH-15, TH-19, TH-65; AFC-28.
+2.19.b **PROBLEM:** the store and the hub record can diverge across a crash, a restore or tampering. **APPROACH:** at
+start and daily, compare per conversation; never merge a conflict.
+2.19.c **ALGORITHM:**
+```text
+on start (after the PH-1 checksum pass [B]):
+ 1  state = UNRECONCILED; if the hub is unreachable: stay UNRECONCILED (status, not CLEAR) until a pass completes    # FCW-138
+ 2  for each conversation c with a non-final message:
+      H = hub record stages for c; S = local stages and newest signed receipts (with chain heads)
+      local stage missing on hub -> hub.stage(write) (idempotent)                                          # RC-1, RC-3
+      hub says STORED-or-later for an own message the store lacks -> mark lost-after-STORED; attention;
+          notice(sender, RESEND-REQUEST, {msg}); if the sender answers "payload gone": both sides show the loss   # FCW-139
+      digest or chain-link differs -> conflict: keep both, label c "unreconciled", attention; operator decides       # FCW-137
+ 3  a conversation's label clears only after a clean pass for it
+daily: for each c: compare local chain head with the head the hub recorded from the receiver's last receipt;
+       mismatch -> fork: "unreconciled", attention                                                         # FCW-140
+```
+2.19.d **INVARIANTS:** no conflicting record is merged or dropped; every divergence is labelled until a clean pass.
+2.19.e **FAILS CLOSED WHEN:** 2.19.e.1 **FCW-137** [AFC-28; E-90] a different digest or chain link → kept on both
+sides, "unreconciled", operator decides. 2.19.e.2 **FCW-138** [new; ZR-1] the hub is unreachable at start → the
+sidecar stays UNRECONCILED and never CLEAR until a pass completes. 2.19.e.3 **FCW-139** [new; E-90] a message the hub
+says is STORED is missing locally → lost-after-STORED, needs-attention, RESEND-REQUEST. 2.19.e.4 **FCW-140** [new;
+E-91] the daily head compare finds a fork → unreconciled, needs-attention.
+2.19.f **EDGE CASES:** unanchored-suffix truncation and a coordinated rewrite are RR-15 (E-91 limit); crash during the
+pass: it restarts from the top and is idempotent (E-90 second start adds nothing). 2.19.g idempotent writes.
+2.19.h signatures of receipts and stage records **[B]**. **OBS:** OBS-61 status `reconciled` per conversation;
+OBS-62 attention entries; daily compare count.
+
+### 2.20 AL-36 — Sequence window and the gap wait (K-10; V-6; DR-12; B-8, task T-3362)
+
+2.20.a **SERVES:** SI-5, SI-6, R-59; TH-11, TH-31; H-3.
+2.20.b **APPROACH:** store beyond a gap at once, hold hand-over, ask after 2 ticks, release marked after 10.
+2.20.c **ALGORITHM:**
+```text
+on admit (AL-23 step 7) of (sender, conversation, number n, digest d):
+ 1  if seen(sender, conv, n) with another digest: refuse "equivocation", keep the first, attention                 # FCW-142
+ 2  if n > up_to + 256 or n < 1: refuse "out of window"
+ 3  store; if n > up_to + 1: held_since[n] = mono()                     # beyond a gap
+release (per tick): for held n: if all numbers below n are stored: release
+                    elif mono() - held_since >= 2 ticks and no request sent: notice(sender, RESEND-REQUEST, gap)
+                    elif mono() - held_since >= 10 ticks: release marked "gap before n"; attention naming the gap    # FCW-141
+up_to = highest contiguous stored number (signed receipt) [SI-6]
+```
+2.20.d **INVARIANTS:** a held message is never handed over before the gap fills or 10 ticks pass. 2.20.e **FAILS CLOSED
+WHEN:** 2.20.e.1 **FCW-141** [new; E-87] a message beyond a gap → not offered for hand-over until the gap is filled or
+10 ticks pass (then marked). 2.20.e.2 **FCW-142** [new; E-86] the same number with another digest → refused, first kept.
+2.20.f crash: `held_since` is durable with the store line. 2.20.g none. 2.20.h signed receipts **[B]**. **OBS:** OBS-63
+`max_held`; resend requests.
+
+### 2.21 AL-37 — Re-send ladders and the owed list (K-12; ARC4 15 K-12; B-9, task T-3358)
+
+2.21.a **SERVES:** R-18, R-25, R-28, R-30, R-31, R-52, R-58; SI-18.
+2.21.b **APPROACH:** the ladder per priority class re-sends the same message id on each rung (AL-24 jitter); the owed
+list is the 06 answer 4.4 function; priority is decided at the receiver.
+2.21.c **ALGORITHM:**
+```text
+owed list = owed(c) of 06 4.4 over every conversation; compared each tick with the hub-record computation
+receiver priority: p = clamp(m.priority, -9, 9); if m.sender not on the interrupt allow-list and p > 0: p = 0,
+                   record "downgraded"                                                                                # FCW-144
+                   local queue files are never read for priority (the store line is the source)                      # FCW-143
+sender ladder: re-send at each rung of its class until REPLIED, ACK_NO_ACTION, DEAD or ended by its deadline; ended is
+               visible (STUCK naming the step), never dropped silently
+```
+2.21.d **INVARIANTS:** a message leaves the owed list only by an answer or a visible end. 2.21.e **FAILS CLOSED WHEN:**
+2.21.e.1 **FCW-143** [new; E-89] a local queue file's priority → ignored. 2.21.e.2 **FCW-144** [new; E-89, E-124] a
+sender off the allow-list asks for a raised priority → downgraded and recorded, never dropped.
+2.21.f crash: the ledger is durable (AL-24). 2.21.g re-sends carry the same id; the receiver dedupes **[B]**.
+2.21.h none. **OBS:** OBS-64 owed list vs hub record (E-130).
+
+### 2.22 AL-38 — Fault injectors and the drill driver (K-17; ARC4 6.8; B-15)
+
+2.22.a **SERVES:** R-6, R-69, R-70, GP-12; H-18, H-19.
+2.22.b **APPROACH:** one driver per fault and tier; a run counts only with its negative control kill-checked.
+2.22.c **ALGORITHM:**
+```text
+inject(fault f in 1..6, tier):
+ 1  baseline = status(); apply f by its tier form (tier 3: SIGSTOP, throwaway hub config, hooks removed)
+ 2  poll status every 1 s up to 60 s (30 s for start-up checks): pass when status names f's cause and its fix text
+ 3  remove f; poll until status equals baseline on the named fields with no operator step; record recovery time
+ 4  record {fault, tier, named_at_s, recovered_at_s}
+run(f): 20 injections; then the same with the build that removes f's diagnosis: every injection MUST fail
+        if the control run was not made, or passed: the run's verdict is TOOLING, never PASS                         # FCW-145
+```
+2.22.d **INVARIANTS:** no injector result counts without its control. 2.22.e **FAILS CLOSED WHEN:** 2.22.e.1 **FCW-145**
+[new; E-62] the negative control was not run or did not fail → the run is TOOLING (exit 2).
+2.22.f tier 3 in production mode cannot stop one loop (seams refused, AL-16); crash of the driver: it removes the fault
+in a trap. 2.22.g none. 2.22.h none. **OBS:** OBS-65 per-injection records (the runner writes `termlink.evidence/1`).
+
+### 2.23 AL-39 — Vendor-channel use log (K-20; ARC4 6.10.1; B-18 log half)
+
+2.23.a **SERVES:** FX-1, R-79; BP-14.
+2.23.b **APPROACH:** a PreToolUse hook reports the tool; the sidecar logs it; the hook never blocks (ruled).
+2.23.c **ALGORITHM:**
+```text
+hook (matcher SendMessage|Agent|Task): termlink sidecar hook vendor-channel --tool <name>; always exit 0
+sidecar: admin_row({kind: vendor-channel-use, session, tool, at}); attention(kind vendor-channel-use, routine,
+         coalesce = (session, day))
+hook cannot reach the sidecar: append to the hook error log; count; status vendor_log: degraded                      # FCW-146
+```
+2.23.d **INVARIANTS:** every reported use has a row. 2.23.e **FAILS CLOSED WHEN:** 2.23.e.1 **FCW-146** [new; ZR-1] the
+row cannot be written → the use is recorded in the hook error log and status shows `vendor_log: degraded` (the call
+itself is not blocked: ruled, ARC4 6.10.1). 2.23.f uses in sessions without the hook are not seen. 2.23.g none.
+2.23.h none. **OBS:** OBS-66 admin rows; E-140.
+
+### 2.24 AL-40 — Operator runme actions: the SendMessage deny and the wave gates W2, W3, W4 (ARC4 6.10.2, 6.11; B-17, B-18, B-21, B-23, B-26)
+
+2.24.a **SERVES:** FX-1, R-49, R-79; BP-14, BP-16; NID; AFC-30, AFC-31.
+2.24.b **PROBLEM:** these actions change the estate; each must be idempotent, gated on recorded evidence or approval,
+verified on disk, and FAILED when the check fails (CLAUDE.md runme rule). **APPROACH:** one pattern: check → gate → act
+→ re-read → OK, skip or FAILED (exit 1).
+2.24.c **ALGORITHM:**
+```text
+action(name):
+ 1  if done_on_disk(name): print "skip"; return 0
+ 2  g = gate(name); if not g.ok: print "FAILED <name>: " + g.reason; return 1
+ 3  act(name); 4 if not done_on_disk(name): print "FAILED <name>: not verified on disk"; return 1               # FCW-148
+ 5  print "OK <name>"; return 0
+gate(sendmessage-deny): a prover result file from B-26 on the TermLink rail with verdict DELIVERED rc 0 and its control
+                        UNDELIVERED rc 1, newer than the last change of the prover script; else refuse          # FCW-147
+done_on_disk(sendmessage-deny): .claude/settings.json parses and permissions.deny contains "SendMessage"
+gate(w2): W1 started >= 7 days ago; no unresolved urgent needs-attention for the pair in those 7 days; B-16 merged and
+          installed (binary checksum verified); the typed-path kill-switch drill record passed                     # FCW-149
+gate(w3): the W2 H-11 report exists with (a)..(d) within bounds over >= 7 days; the canary (B-19) completed a run in
+          each of the last 7 days and is not stale (V-13)                                                          # FCW-150
+gate(w4): the W4 task's ## Decisions holds an entry with the operator's approval in the operator's words (a quoted line
+          and a date), and the P24 report exists; the task status field is never read for this                     # FCW-151
+act(w4): drain each old receiver's count compare first [B K-4]; mismatch -> refuse ("do not start/stop")           # FCW-152
+         then switch AEF's receiver and the notify-sidecar off for .107 inboxes; leave them installed
+done_on_disk(w4): the units are inactive for the listed inboxes and still installed; the consumer list shows one identity
+```
+2.24.d **INVARIANTS:** (1) no action runs past a failed gate; (2) a second run of a done action is `skip`; (3) nothing is
+decommissioned without the recorded approval (NID).
+2.24.e **FAILS CLOSED WHEN:** 2.24.e.1 **FCW-147** [AFC-31; E-72] the deny is attempted before B-26's prover has passed
+on the TermLink rail → refused, settings unchanged. 2.24.e.2 **FCW-148** [new; E-72] the re-read after the act does
+not show the change → FAILED. 2.24.e.3 **FCW-149** [new; ZR-1] W2's gate is not met → refused. 2.24.e.4 **FCW-150**
+[new; ZR-1] W3's gate is not met → refused. 2.24.e.5 **FCW-151** [AFC-30; E-82] W4 without the operator's approval in
+the W4 task's Decisions → refused, nothing changed. 2.24.e.6 **FCW-152** [new; E-81] the drain's count compare does not
+match → the switch is refused **[B]**.
+2.24.f **EDGE CASES:** (1) the settings file edited by hand between the act and the re-read: the re-read is what counts;
+(2) concurrency: runme is one process; (3) crash during act: the next run re-checks `done_on_disk` and completes or
+repeats (each act is idempotent). Every action has a hermetic case in `tests/runme-fixtures.sh` through the `RUNME_*`
+seams (CLAUDE.md).
+2.24.g at-least-once act, verified on disk. 2.24.h none. **OBS:** OBS-67 the runme log lines `OK`, `skip`, `FAILED`
+with `finished rc=`.
+
+## 3 Drawings for this part (D-1.8 to D-1.11, D-2.5, D-2.6; index in 06 section 7)
+
+**Drawing D-1.8 — revocation list at a sidecar (state machine, AL-22), including failure and crash states**
+
+```mermaid
+stateDiagram-v2
+  [*] --> UNVERIFIED_SINCE_START: start or restore
+  UNVERIFIED_SINCE_START --> VERIFIED: head verified and list current
+  UNVERIFIED_SINCE_START --> UNVERIFIED_SINCE_START: failed pull, narrowing applies
+  VERIFIED --> VERIFIED: head unchanged and verified, or newer list verified and installed
+  VERIFIED --> UNVERIFIED: failed pull (timeout, refusal, bad signature, digest, get failed)
+  VERIFIED --> TAMPER_SEEN: lower seq or fork offered
+  TAMPER_SEEN --> VERIFIED: refused, previous list kept, next pull verified
+  TAMPER_SEEN --> UNVERIFIED: next pull failed
+  UNVERIFIED --> VERIFIED: verified pull
+  UNVERIFIED --> STALE: no verified pull for PN-13
+  STALE --> VERIFIED: verified pull
+  VERIFIED --> UNVERIFIED_SINCE_START: crash or restart
+  STALE --> UNVERIFIED_SINCE_START: crash or restart
+```
+
+3.1 Text equivalent of D-1.8. 3.1.1 A sidecar starts, or is restored, in UNVERIFIED_SINCE_START; it narrows the
+allow-list until its first verified pull makes it VERIFIED. 3.1.2 In VERIFIED, an unchanged verified head or a newer
+verified list keeps it VERIFIED. 3.1.3 Any failed pull makes it UNVERIFIED; the time of the last verified pull is kept;
+after PN-13 (1 h) without one it becomes STALE and narrows. 3.1.4 A lower sequence or a fork moves it to TAMPER_SEEN:
+the offer is refused, the previous list kept, a tamper entry raised; the next pull decides. 3.1.5 A verified pull from
+UNVERIFIED or STALE returns to VERIFIED. 3.1.6 A crash or restart from any state returns to UNVERIFIED_SINCE_START with
+the stored list still refusing its keys.
+
+**Drawing D-1.9 — hub id and signing key at hub start (state machine, AL-17, AL-18)**
+
+```mermaid
+stateDiagram-v2
+  [*] --> CHECK
+  CHECK --> RUN: hub.id valid and key valid
+  CHECK --> MINT: empty runtime directory
+  CHECK --> REFUSED: hub.id missing beside prior state
+  CHECK --> REFUSED: hub.id malformed or key unreadable
+  MINT --> RUN: id and key written atomically
+  MINT --> REFUSED: write failed, temp removed
+  MINT --> CHECK: crash before rename, temp removed at next start
+  REFUSED --> CHECK: operator restores hub.id or runs the legacy migration
+  RUN --> CHECK: restart
+```
+
+3.2 Text equivalent of D-1.9. 3.2.1 At start the hub CHECKs its runtime directory. 3.2.2 A valid `hub.id` and signing
+key lead to RUN. 3.2.3 An empty directory leads to MINT, which writes both atomically and runs, or is REFUSED when the
+write fails; a crash during MINT leaves only a temp file, removed at the next CHECK. 3.2.4 A missing `hub.id` beside prior
+state, a malformed id or an unreadable key is REFUSED; only an operator restore or the one-time legacy migration (a
+runme action) leads back to CHECK. 3.2.5 A restart from RUN checks again; the id and key never change.
+
+**Drawing D-1.10 — a blob at the receiver (state machine, AL-27)**
+
+```mermaid
+stateDiagram-v2
+  [*] --> FETCHING: message with blob passed checks 1 to 8
+  FETCHING --> FETCHING: next 256 KiB chunk
+  FETCHING --> REFUSED: more bytes than declared, or fetch error
+  FETCHING --> CHECK_CIPHER: all chunks
+  CHECK_CIPHER --> REFUSED: cipher digest mismatch
+  CHECK_CIPHER --> DECRYPT: digest ok
+  DECRYPT --> REFUSED: bad header, unwrap or authentication failure
+  DECRYPT --> CHECK_PLAIN: decrypted
+  CHECK_PLAIN --> REFUSED: size or plain digest mismatch
+  CHECK_PLAIN --> WRITTEN: renamed to blobs/digest
+  WRITTEN --> STORED: store line and fsync
+  FETCHING --> CLEANUP: crash
+  DECRYPT --> CLEANUP: crash
+  CLEANUP --> FETCHING: temp removed at start, message pulled again
+  REFUSED --> [*]
+  STORED --> [*]
+```
+
+3.3 Text equivalent of D-1.10. 3.3.1 A message whose blob passed the earlier checks is FETCHING, chunk by chunk;
+too many bytes or a fetch error REFUSES it. 3.3.2 With all chunks it checks the ciphertext digest, then decrypts (header,
+unwrap, authenticated decryption), then checks size and plaintext digest; any failure REFUSES it (not STORED, notice to
+the sender, needs-attention, temp removed). 3.3.3 Success renames the file to its digest (WRITTEN) and then records
+STORED. 3.3.4 A crash during fetch or decrypt is cleaned at the next start (temp removed) and the message is pulled again.
+
+**Drawing D-1.11 — an inbox's consumers at the hub (state machine, AL-30)**
+
+```mermaid
+stateDiagram-v2
+  [*] --> ONE_CONSUMER: first subscribe, ack or claim
+  ONE_CONSUMER --> FLAGGED: a second identity within 24 h
+  FLAGGED --> ONE_CONSUMER: the other identity ages out of the window
+  ONE_CONSUMER --> BOUND: admin inbox bind, logged
+  FLAGGED --> BOUND: admin inbox bind, logged
+  BOUND --> BOUND: other identity refused and logged
+```
+
+3.4 Text equivalent of D-1.11. 3.4.1 An inbox has ONE_CONSUMER after the first subscribe, ack or claim. 3.4.2 A second
+identity within the 24 h window makes it FLAGGED (status and needs-attention within 60 s); it returns to ONE_CONSUMER
+when the other identity ages out. 3.4.3 The operator's logged bind makes it BOUND from either state; from then on any
+other identity is refused and logged.
+
+**Drawing D-2.5 — revocation: issue, pull, refusal (interaction sequence, AL-21, AL-22, AL-23), with the fails-closed paths**
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant OP as Operator runme
+  participant H as Home hub
+  participant RS as Receiver sidecar
+  participant SS as Sender sidecar, key F
+  OP->>H: admin revoke key F, why
+  H->>H: admin log row first, refuse if it fails
+  H->>H: next list seq plus 1, sign, atomic write
+  H-->>OP: ok, seq N
+  RS->>H: revocation.head
+  H-->>RS: signed head seq N
+  RS->>RS: verify head with the pinned key
+  alt head newer
+    RS->>H: revocation.get
+    H-->>RS: list N
+    RS->>RS: verify digest, signature, chain, install
+  else timeout, refusal or bad signature
+    RS->>RS: failed pull, unverified since last verified
+  else lower seq
+    RS->>RS: refuse rollback, keep list, tamper entry
+  end
+  SS->>H: post signed with key F
+  RS->>H: pull
+  RS->>RS: key F on the verified list
+  RS->>H: signed refusal notice, nothing stored
+```
+
+3.5 Text equivalent of D-2.5. 3.5.1 The operator's runme action asks the hub to revoke key F; the hub writes its admin
+log row first (and refuses if it cannot), builds the next list with sequence + 1, signs it and writes it atomically, then
+answers. 3.5.2 Each tick the receiver sidecar reads the signed head and verifies it with its pinned key. 3.5.3 If the
+head is newer it fetches the list, verifies digest, signature and chain and installs it; a timeout, refusal or bad
+signature is a failed pull (the last verified time stays); a lower sequence is refused as a rollback with a tamper entry.
+3.5.4 A message the sender posts with key F is pulled, found on the verified list and refused with a signed notice;
+nothing is stored.
+
+**Drawing D-2.6 — a blob from sender to receiver (interaction sequence, AL-26, AL-27), with the fails-closed paths**
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant SA as Sender sidecar
+  participant RH as Recipient home hub
+  participant RS as Recipient sidecar
+  SA->>SA: size at most 16 MiB, recipient key from register or card
+  SA->>SA: content key, encrypt, seal key to recipient
+  SA->>RH: artifact put ciphertext in 256 KiB chunks
+  RH-->>SA: stored, cipher digest
+  alt put failed or digest differs
+    SA->>SA: message not sent, stays in outbox
+  end
+  SA->>RH: post signed message with blob digests and wrapped key
+  RS->>RH: pull message, checks 1 to 8
+  RS->>RH: artifact get by cipher digest
+  RS->>RS: check cipher digest, unwrap, decrypt, check plain digest
+  alt any check fails
+    RS->>RH: signed refusal, not stored, temp removed
+  else all checks pass
+    RS->>RS: rename to blobs by digest, then STORED
+    RS->>RH: stage STORED
+  end
+```
+
+3.6 Text equivalent of D-2.6. 3.6.1 The sender checks the size and finds the recipient's encryption key, encrypts with a
+fresh content key and seals that key to the recipient. 3.6.2 It uploads the ciphertext to the recipient's home hub in
+chunks; a failed put or a digest mismatch keeps the message in the outbox, unsent. 3.6.3 It posts the signed message
+carrying both digests and the wrapped key. 3.6.4 The recipient's sidecar pulls the message, fetches the ciphertext,
+checks its digest, unwraps, decrypts and checks the plaintext digest; any failure is a signed refusal with nothing stored;
+success renames the file to its digest, records STORED and writes the stage.
