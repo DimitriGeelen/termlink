@@ -593,7 +593,7 @@ session side, command.notify {ids, count}:                     # Δ replaces the
 ```
 5.6.c.1 Test vector (SI-1): `ids = [0123456789abcdef0123456789abcdef, fedcba9876543210fedcba9876543210]`, `count = 5`
 → `sidecar: 5 peer messages waiting, ids 0123456789abcdef0123456789abcdef fedcba9876543210fedcba9876543210. The prompt
-hook shows them as untrusted data.` (152 bytes, then Enter). Refused: an id of 31 or 33 hex, upper-case hex, an empty
+hook shows them as untrusted data.` (150 bytes, then Enter; measured as `len(line.encode("utf-8"))` of the string compose() builds from these inputs, python3, 2026-11-11; v0.1 said 152, which was wrong). Refused: an id of 31 or 33 hex, upper-case hex, an empty
 id, five ids, two equal ids, `count = 1` with two ids, `count = "5"` (a string), `count = 5.0`.
 5.6.c.2 The line matches EV5 E-3's regular expression and SI-1's alphabet (letters, digits, spaces, `.`, `,`, `:`);
 its first word `sidecar:` is not an installed command (E-125).
