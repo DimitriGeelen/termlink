@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-11T21:46:09Z
-last_update: 2026-11-11T22:13:54Z
+last_update: 2026-11-11T22:22:46Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -92,11 +92,16 @@ growth, S3 sent and handed-over), the conversation signal, and the `activity` fi
 ## Acceptance Criteria
 
 ### Agent
-- [ ] AL-1..AL-4 implemented as specified in 06 (adapter report intake, PTY input counters per source, the S1/S2/S3 meter, the conversation signal), with the deviations from the pseudo-code listed in this task
-- [ ] Status exposes `activity` per session (last activity per source, conversation signal) as in 04 6.14
-- [ ] Hermetic tests for each signal with a negative control (removing the code turns the test red), per the evidence spec's B-27 specs (05)
-- [ ] No behaviour change for sessions and projects that do not report the new fields (NID): defaults keep today's behaviour
-- [ ] `cargo test` for the touched crates passes; full workspace suite has no new failure
+- [x] AL-1..AL-4 implemented as specified in 06 (adapter report intake, PTY input counters per source, the S1/S2/S3 meter, the conversation signal), with the deviations from the pseudo-code listed in this task
+  Evidence: AL-2 `crates/termlink-session/src/input_meter.rs`, `pty.rs` (`write_from`), `handler.rs` (`session.input_activity`; inject/notify tagged), `auth.rs` (notify scope); AL-1/AL-3/AL-4 `crates/termlink-sidecar/src/meter.rs`, wired in `api.rs`, `deliver.rs`, `daemon.rs`. Deviations D-1..D-8 in Decisions.
+- [x] Status exposes `activity` per session (last activity per source, conversation signal) as in 04 6.14
+  Evidence: `status` → `activity.sessions.<id>` = {s1_at, s2_at, s3_at, last, source, conversation, watchdog, ready, last_prompt, stamped_at, ...} plus `activity.counters` (OBS-1); test `api_tests::b27_send_socket_takes_adapter_reports_and_status_shows_activity`.
+- [x] Hermetic tests for each signal with a negative control (removing the code turns the test red), per the evidence spec's B-27 specs (05)
+  Evidence: E-15 `handler::tests::input_activity_counts_pty_input_per_source`, `server::tests::input_activity_needs_notify_scope`, `tests/meter_session_rpc.rs` (real PTY + socket, notify vs observe token), `meter_tests::e15_*`, `fcw12_*`; E-16 `e16_*` (incl. 10^5 fuzz), `fcw3/4/5/7/8`; E-17 `e17_*`, `deliver_tests::b27_handed_over_moves_s3_and_arrival_does_not`; E-18 `e18_*` (READY forced to every value); E-19 `e19_stale_status_reads_unknown`. Mutants: 2 session-side and 12 sidecar-side (`.context/working/t3687/mutants.py`), all killed.
+- [x] No behaviour change for sessions and projects that do not report the new fields (NID): defaults keep today's behaviour
+  Evidence: `api_tests::b27_without_a_meter_nothing_changes` (a line without op still gets "missing op", no `activity` field); existing ops' replies are unchanged (the meter only observes); `pty.write` keeps its signature (unclassified = client); all pre-existing sidecar and session tests pass.
+- [x] `cargo test` for the touched crates passes; full workspace suite has no new failure
+  Evidence: `cargo test -p termlink-sidecar -p termlink-session -p termlink-protocol` rc 0; `cargo test --workspace` rc 0 (58 result lines, 4324 passed, 0 failed), 2026-11-11.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -148,6 +153,9 @@ growth, S3 sent and handed-over), the conversation signal, and the `activity` fi
 
 ## Verification
 
+TMPDIR=/var/tmp cargo test -p termlink-sidecar --test meter_tests --test meter_session_rpc > .context/working/t3687/v1.out 2>&1 && grep -q "test result: ok" .context/working/t3687/v1.out
+TMPDIR=/var/tmp cargo test -p termlink-session --lib input_activity > .context/working/t3687/v2.out 2>&1 && grep -q "test result: ok. 3 passed" .context/working/t3687/v2.out
+TMPDIR=/var/tmp cargo test -p termlink-sidecar --test api_tests --test deliver_tests b27 > .context/working/t3687/v3.out 2>&1 && grep -q "test result: ok" .context/working/t3687/v3.out
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -319,6 +327,11 @@ growth, S3 sent and handed-over), the conversation signal, and the `activity` fi
 
 ## Evolution
 
+### 2026-11-11 — B-27 built
+- **What changed:** the sidecar cannot tell which session a send came from, and nothing binds a harness session to a TermLink session. S3 and S1 both need these in the field.
+- **Plan impact:** B-16 must bind sessions (for S1 and for notify), and B-29's send path must name its session (D-3, D-6). Until then status shows S1 unknown and `watchdog: unavailable`, which is the designed fail direction.
+- **Triggered:** nothing new filed; listed in the hand-back for B-16.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -371,6 +384,16 @@ growth, S3 sent and handed-over), the conversation signal, and the `activity` fi
 -->
 
 ## Decisions
+
+### 2026-11-11 — Deviations from 06 AL-1..AL-4 (the brief asks each to be listed with its reason)
+- **D-1 (AL-1 transport):** a report is one line with no `op` on the existing owner-only **send** socket (its peer-uid check is FCW-1); lines with `op` are unchanged. The reply is `{ok:true}`, `{ok:true,dropped}` or `{ok:false,ignored}` rather than always `{ok:true}`, so an adapter author can see a refusal. Why: an owner-only socket already exists, and a second one adds nothing.
+- **D-2 (S2 from the built hooks):** the W1 hook calls (`ready` for session-start, stop and session-end; `pull` for post-tool-use) also move S2 (a), and `stop` counts as a turn stop. Why: until B-29 (the AEF adapter) ships, no `adapter/2` reports arrive in the field, so without this S2 would read unknown everywhere (no watchdog). They are valid reports of the reference adapter (17.9).
+- **D-3 (S3 attribution):** `send` and `reply` take an optional `session`. Only a successful send that names a session the meter knows moves S3; any other is counted as `s3_unattributed`. Why: the send API had no session field, and guessing would attribute sends to the wrong session. The agent's send tool must pass it (B-29 / B-16).
+- **D-4 (READY record):** kept in memory per sidecar epoch, not persisted. Why: the built R-44.e notice logic reads the legacy `ready-<session>` state, which is untouched. After a restart the record reads absent, which is exactly what FCW-6 requires.
+- **D-5 (owed deadline):** the ledger applies the normal 1 h "not answered" deadline to every message; the urgent 5 min deadline is not applied. The store has no ACKNOWLEDGED_NO_ACTION or DEAD stage yet (the names are honoured once they appear), and no marker for automatic content exists yet (R-56.a), so nothing is excluded on that basis. Why: urgency needs the payload parse. The only effect is that `agent` can hold other conversations' rings a little longer; the watchdog is never affected.
+- **D-6 (S1 binding):** S1 is read through `SessionRpc` (notify token, 2 s timeout). Nothing binds a harness session to a TermLink session yet, so in the field S1 reads `unknown` (no watchdog) until B-16 binds them; B-16 needs the same binding for `command.notify`.
+- **D-7 (left to later items):** `evidence` and `complete` reports are recorded (and move S2) but not acted on (AL-9, B-16/B-20). `ring_log.on_submit` (AL-7) and `vendor_log` (AL-39) are not called. `note_typed()` exists so that B-16 can feed FCW-5.
+- **D-8 (FCW-17):** "the last S2 event after the prompt" uses the last turn event (a report), not transcript growth.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
