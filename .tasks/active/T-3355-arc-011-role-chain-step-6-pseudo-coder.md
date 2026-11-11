@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:55Z
-last_update: 2026-11-11T20:12:17Z
+last_update: 2026-11-11T22:11:10Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -129,7 +129,7 @@ with step 5 where needed, ready for step 7 (review panel; the next operator appr
 - [x] Role-chain yaml step 6 `task:` set to this task id (evidence: yaml step 6 `task: T-3355`, already present)
 
 ### Human
-- [ ] [REVIEW] Independent review: step 6 output meets the pseudo-coder card's completion conditions and is fit as input
+- [x] [REVIEW] Independent review: step 6 output meets the pseudo-coder card's completion conditions and is fit as input
       for step 7
   **Steps:**
   1. The ORCHESTRATOR (never a reviewer seat) runs `fw reviewer judge T-3355 --criterion 1` against
@@ -137,6 +137,7 @@ with step 5 where needed, ready for step 7 (review panel; the next operator appr
      `docs/design/interactive-agent-communication/role-handback-step-06.json`.
   **Expected:** a green verdict bound to the reviewed revision, applied with `fw reviewer verdict apply T-3355`.
   **If not:** findings go back to the pseudo-coder role (max 2-3 rounds), then each is dispositioned.
+  **Reviewer verdict:** green V-20261111-7120be32 — reviewer-judge-t-3355-r1-4dee79280791:reviewer (rung rung-1-same-vendor-independent), digest 8d67fba04ce6; dispatch judge-t-3355-r1-4dee79280791; evidence: .context/reviews/evidence/T-3355/AC1-judge-t-3355-r1-4dee79280791.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 
