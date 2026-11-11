@@ -1,13 +1,16 @@
 ---
 id: T-3665
-name: "WireGuard conf incl. private key delivered over plain HTTP (vpn-api .25:5001 -> laptop .132; T-3663 C2): encrypted route + new key, AFTER the operator's trip"
+name: "WireGuard conf incl. private key delivered over plain HTTP (vpn-api .25:5001
+  -> laptop .132; T-3663 C2): encrypted route + new key, AFTER the operator's trip"
 description: >
-  Operator 2026-11-03: postpone until back next week (travelling; no VPN changes before). Options then: A encrypted route + new key (recommended), B route only. No change to VPN service or keys until the operator's explicit go.
+  Operator 2026-11-03: postpone until back next week (travelling; no VPN changes before).
+  Options then: A encrypted route + new key (recommended), B route only. No change
+  to VPN service or keys until the operator's explicit go.
 
-status: captured
+status: started-work
 workflow_type: specification
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,10 +41,11 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-03T16:12:13Z
-last_update: 2026-11-03T16:12:13Z
-date_finished: null
+last_update: 2026-11-11T17:05:08Z
+date_finished:
 revisit_at: 2026-11-10          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
-revisit_evidence_needed: operator back from travel; then decide A (encrypted route + new key) or B with ring20 #        # T-1451: one-line description of what evidence makes the revisit actionable
+revisit_evidence_needed: operator back from travel; then decide A (encrypted 
+  route + new key) or B with ring20                                                                            #        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
 # bvp_scores:                     # confirmed per-driver scores 0-5, set by `fw bvp confirm` (T-1924).
 #                                 # Sovereignty boundary — only set after human or agent confirmation.
@@ -50,20 +54,42 @@ revisit_evidence_needed: operator back from travel; then decide A (encrypted rou
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-11T17:04:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3665: WireGuard conf incl. private key delivered over plain HTTP (vpn-api .25:5001 -> laptop .132; T-3663 C2): encrypted route + new key, AFTER the operator's trip
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** The file-routes inventory (T-3663, finding C2, ring20-mgmt answer 5) found that the laptop
+(.132) downloads its WireGuard configuration, including its private key, from ring20's vpn-api at
+http://192.168.10.25:5001 over plain HTTP. Operator 2026-11-03: postpone until back, no VPN changes before.
+
+**Problem / hypothesis:** Anyone on the LAN can read the key in transit and pose as the laptop on the VPN. A key that has
+already travelled this way must be treated as possibly copied, so an encrypted route alone does not remove the risk.
+
+**Goal:** Operator ruling A (2026-11-11): an encrypted delivery route plus a new key for the laptop, the old key revoked.
+The service is ring20's: ring20 builds it and hands the operator a runme; we only ask and track.
+
+**Expected outcome:** the conf reaches .132 only over TLS or SSH; a new keypair is live and the old public key is
+removed from the WireGuard peer list; the plain-HTTP endpoint no longer serves keys.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] The ruling is relayed to ring20 with the scope (encrypted route + key rotation, executed once .132 is back online) and ring20's task id recorded here
+- [ ] After ring20's runme: evidence recorded that the conf is served only over TLS/SSH and that the old key is gone from the peer list (ring20's report, checked where we can)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -348,6 +374,13 @@ revisit_evidence_needed: operator back from travel; then decide A (encrypted rou
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-11 — WireGuard key over plain HTTP (operator: "A")
+- **Chose:** A, an encrypted delivery route (TLS or SSH) AND a new key for the laptop, old key revoked; carried out once
+  .132 is back online, by ring20 (owner of vpn-api .25:5001) as a runme for the operator.
+- **Why:** closes the route and makes any key copied in transit worthless.
+- **Rejected:** B route only (a possibly copied key stays valid); C postpone again (the next download leaks it again).
+- **Scored:** A +20, B +16, C −9 (D1–D4).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -364,3 +397,10 @@ revisit_evidence_needed: operator back from travel; then decide A (encrypted rou
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3665-wireguard-conf-incl-private-key-delivere.md
 - **Context:** Initial task creation
+
+### 2026-11-11T17:04:21Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-11T17:05:08Z — status-update [task-update-agent]
+- **Change:** horizon: now → now
