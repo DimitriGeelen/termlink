@@ -49,6 +49,10 @@ pub mod method {
     /// (`ids`), never free text: the session renders its own line. Needs the
     /// `notify` scope, which ranks below `interact` and above `observe`.
     pub const COMMAND_NOTIFY: &str = "command.notify";
+    /// arc-011 B-27 (AL-2) — Tier-A — per-source PTY input counters
+    /// (`client`, `client_auto`, `notify`, `inject`) and the foreground
+    /// process. Read-only, but needs the `notify` scope (FCW-9).
+    pub const SESSION_INPUT_ACTIVITY: &str = "session.input_activity";
     /// Tier-B — typed signal name + target.
     pub const COMMAND_SIGNAL: &str = "command.signal";
     /// Tier-B — typed resize dimensions (rows, cols).

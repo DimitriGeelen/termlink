@@ -229,6 +229,7 @@ pub async fn dispatch(req: &Request, ctx: &SessionContext) -> Option<RpcResponse
         }
         control::method::COMMAND_INJECT => handle_command_inject(id, &req.params, ctx).await,
         control::method::COMMAND_NOTIFY => handle_command_notify(id, &req.params, ctx).await,
+        control::method::SESSION_INPUT_ACTIVITY => handle_input_activity(id, ctx),
         control::method::COMMAND_SIGNAL => {
             handle_command_signal(id, &req.params, ctx)
         }
@@ -577,7 +578,7 @@ async fn handle_command_inject(
             .and_then(|v| v.as_u64()),
     );
 
-    inject_keys(id, &keys, delay_ms, ctx).await
+    inject_keys(id, &keys, delay_ms, crate::input_meter::InputSource::Inject, ctx).await
 }
 
 /// T-3533: how many message ids one doorbell may name. The sidecar batches
@@ -656,7 +657,33 @@ async fn handle_command_notify(
         KeyEntry::Text(doorbell_line(&ids)),
         KeyEntry::Key("Enter".to_string()),
     ];
-    inject_keys(id, &keys, 10, ctx).await
+    inject_keys(id, &keys, 10, crate::input_meter::InputSource::Notify, ctx).await
+}
+
+/// Handle `session.input_activity` (B-27 AL-2): the per-source PTY input
+/// counters and the foreground process, for the sidecar's activity meter.
+/// Needs the `notify` scope (FCW-9, checked by the server before dispatch).
+/// A session without a PTY answers `pty: false` and no sources: the reader
+/// treats S1 as unknown, never as "nobody typed".
+fn handle_input_activity(id: serde_json::Value, ctx: &SessionContext) -> RpcResponse {
+    let base = json!({
+        "boot_id": crate::input_meter::boot_id(),
+        "mono_now": crate::input_meter::mono_ms(),
+    });
+    let mut v = base;
+    match &ctx.pty {
+        Some(pty) => {
+            v["pty"] = json!(true);
+            v["sources"] = pty.input_meter().sources_json();
+            v["foreground"] = pty.foreground();
+        }
+        None => {
+            v["pty"] = json!(false);
+            v["sources"] = serde_json::Value::Null;
+            v["foreground"] = serde_json::Value::Null;
+        }
+    }
+    Response::success(id, v).into()
 }
 
 /// Resolve `keys` and write them to the PTY, one write per entry, with
@@ -666,6 +693,7 @@ async fn inject_keys(
     id: serde_json::Value,
     keys: &[KeyEntry],
     delay_ms: u64,
+    src: crate::input_meter::InputSource,
     ctx: &SessionContext,
 ) -> RpcResponse {
     // Resolve each entry individually for separate writes
@@ -695,7 +723,7 @@ async fn inject_keys(
             if *is_special && i > 0 && delay_ms > 0 {
                 tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
             }
-            if let Err(e) = pty.write(bytes).await {
+            if let Err(e) = pty.write_from(src, bytes).await {
                 return ErrorResponse::new(
                     id,
                     control::error_code::INJECTION_FAILED,
@@ -1551,6 +1579,70 @@ mod tests {
                 );
             }
             RpcResponse::Error(e) => panic!("expected success, got error: {:?}", e.error),
+        }
+    }
+
+    // B-27 E-15 (AL-2): on a real PTY, S1 counts client keystrokes only.
+    // `notify` and `inject` move their own counters and never `client`.
+    // Negative control: route inject_keys' writes through `pty.write` (the
+    // unclassified path, counted as client) and the client asserts go red.
+    #[tokio::test]
+    async fn input_activity_counts_pty_input_per_source() {
+        use crate::input_meter::InputSource;
+        let pty = Arc::new(crate::pty::PtySession::spawn(Some("/bin/sh"), 4096).unwrap());
+        let ctx = SessionContext::with_pty(test_registration(), pty.clone());
+        let read = |ctx: &SessionContext| {
+            let r = handle_input_activity(json!("ia"), ctx);
+            match r {
+                RpcResponse::Success(r) => r.result,
+                RpcResponse::Error(e) => panic!("input_activity refused: {:?}", e.error),
+            }
+        };
+        let r0 = read(&ctx);
+        assert_eq!(r0["pty"], true);
+        assert!(r0["mono_now"].as_u64().unwrap() > 0);
+        for s in ["client", "client_auto", "notify", "inject"] {
+            assert_eq!(r0["sources"][s]["writes"], 0, "{s} starts at zero");
+            assert!(r0["sources"][s]["last_mono"].is_null());
+        }
+
+        // The doorbell (command.notify) moves notify only.
+        let n = Request::new(control::method::COMMAND_NOTIFY, json!("n"), json!({"ids": ["m-1"]}));
+        assert!(matches!(dispatch(&n, &ctx).await.unwrap(), RpcResponse::Success(_)));
+        // command.inject moves inject only.
+        let i = Request::new(control::method::COMMAND_INJECT, json!("i"), json!({"keys": [{"type": "text", "value": "true"}]}));
+        assert!(matches!(dispatch(&i, &ctx).await.unwrap(), RpcResponse::Success(_)));
+        let r1 = read(&ctx);
+        assert_eq!(r1["sources"]["notify"]["writes"], 2, "line + Enter");
+        assert_eq!(r1["sources"]["inject"]["writes"], 1);
+        assert!(r1["sources"]["client"]["last_mono"].is_null(), "notify/inject must not move S1: {r1}");
+
+        // A terminal reply from the client is client_auto; a keystroke is client.
+        pty.write_from(InputSource::Client, b"\x1b[I").await.unwrap();
+        assert!(read(&ctx)["sources"]["client"]["last_mono"].is_null(), "focus event is not typing");
+        pty.write_from(InputSource::Client, b"x").await.unwrap();
+        let r2 = read(&ctx);
+        assert_eq!(r2["sources"]["client_auto"]["writes"], 1);
+        assert_eq!(r2["sources"]["client"]["writes"], 1);
+        assert_eq!(r2["sources"]["client"]["bytes"], 1);
+        assert!(r2["sources"]["client"]["last_mono"].as_u64().unwrap() <= r2["mono_now"].as_u64().unwrap());
+        // The unclassified path counts as client (FCW-10).
+        pty.write(b"y").await.unwrap();
+        assert_eq!(read(&ctx)["sources"]["client"]["writes"], 2);
+        let _ = pty.write(b"exit\n").await;
+    }
+
+    // B-27 AL-2: no PTY -> no sources; the reader must treat S1 as unknown.
+    #[tokio::test]
+    async fn input_activity_without_pty_has_no_sources() {
+        let ctx = test_ctx();
+        let req = Request::new(control::method::SESSION_INPUT_ACTIVITY, json!("ia"), json!({}));
+        match dispatch(&req, &ctx).await.unwrap() {
+            RpcResponse::Success(r) => {
+                assert_eq!(r.result["pty"], false);
+                assert!(r.result["sources"].is_null());
+            }
+            RpcResponse::Error(e) => panic!("{:?}", e.error),
         }
     }
 

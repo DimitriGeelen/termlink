@@ -188,7 +188,9 @@ pub fn method_scope(method: &str) -> PermissionScope {
         | control::method::KV_LIST => PermissionScope::Observe,
 
         // Notify: the sidecar doorbell's fixed action (T-3533). Below Interact.
-        control::method::COMMAND_NOTIFY => PermissionScope::Notify,
+        control::method::COMMAND_NOTIFY
+        // B-27 AL-2: the sidecar's read of the per-source input counters (FCW-9: not observe).
+        | control::method::SESSION_INPUT_ACTIVITY => PermissionScope::Notify,
 
         // Interact: mutates session state or event bus
         | control::method::EVENT_EMIT
@@ -668,6 +670,8 @@ mod tests {
         assert!(PermissionScope::Control.satisfies(PermissionScope::Notify));
 
         assert_eq!(method_scope(method::COMMAND_NOTIFY), PermissionScope::Notify);
+        // B-27 AL-2 FCW-9: the input counters are read with notify, not observe.
+        assert_eq!(method_scope(method::SESSION_INPUT_ACTIVITY), PermissionScope::Notify);
         // The keystroke path stays Control: notify does not widen inject.
         assert_eq!(method_scope(method::COMMAND_INJECT), PermissionScope::Control);
     }

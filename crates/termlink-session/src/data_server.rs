@@ -141,7 +141,7 @@ async fn handle_data_connection(
                     Ok(Some(frame)) => {
                         match frame.header.frame_type {
                             FrameType::Input => {
-                                if let Err(e) = pty.write(&frame.payload).await {
+                                if let Err(e) = pty.write_from(crate::input_meter::InputSource::Client, &frame.payload).await {
                                     tracing::warn!(error = %e, "Data plane: PTY write failed");
                                 }
                             }

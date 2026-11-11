@@ -105,6 +105,8 @@ pub struct PtySession {
     paste_scan_carry: Arc<Mutex<Vec<u8>>>,
     /// Last known terminal mode (for change detection).
     last_mode: Arc<Mutex<Option<TerminalMode>>>,
+    /// Per-source input counters (B-27 AL-2, S1).
+    input_meter: Arc<crate::input_meter::InputMeter>,
 }
 
 /// Initial PTY row count, applied at `openpty` time (T-2727).
@@ -262,6 +264,7 @@ impl PtySession {
             bracketed_paste: Arc::new(Mutex::new(false)),
             paste_scan_carry: Arc::new(Mutex::new(Vec::new())),
             last_mode: Arc::new(Mutex::new(None)),
+            input_meter: Arc::new(crate::input_meter::InputMeter::new()),
         })
     }
 
@@ -334,8 +337,31 @@ impl PtySession {
         }
     }
 
-    /// Write bytes to the PTY master (input injection).
+    /// Write bytes to the PTY master. A write whose source the caller does not
+    /// name counts as `client` (B-27 FCW-10: someone may be typing).
     pub async fn write(&self, data: &[u8]) -> Result<(), PtyError> {
+        self.write_from(crate::input_meter::InputSource::Client, data).await
+    }
+
+    /// Write bytes to the PTY master, counted under `src` (B-27 AL-2). A
+    /// `client` write that is one terminal reply counts as `client_auto`.
+    pub async fn write_from(&self, src: crate::input_meter::InputSource, data: &[u8]) -> Result<(), PtyError> {
+        self.write_raw(data).await?;
+        self.input_meter.record(crate::input_meter::InputMeter::classify(src, data), data.len());
+        Ok(())
+    }
+
+    /// The per-source input counters (B-27 AL-2).
+    pub fn input_meter(&self) -> Arc<crate::input_meter::InputMeter> {
+        self.input_meter.clone()
+    }
+
+    /// The PTY's foreground process group (B-27 AL-2 `foreground`).
+    pub fn foreground(&self) -> serde_json::Value {
+        crate::input_meter::foreground(self.master_read.as_raw_fd())
+    }
+
+    async fn write_raw(&self, data: &[u8]) -> Result<(), PtyError> {
         let fd_guard = self.master_write_fd.lock().await;
         let fd = fd_guard.as_raw_fd();
         let mut offset = 0;

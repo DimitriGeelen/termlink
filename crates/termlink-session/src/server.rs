@@ -836,6 +836,42 @@ mod tests {
         let _ = std::fs::remove_file(&socket_path);
     }
 
+    /// B-27 E-15.4 / FCW-9: `session.input_activity` is refused with an observe
+    /// token and served with notify. Negative control: map the method to
+    /// Observe in `auth::method_scope` and the observe assert goes red.
+    #[tokio::test]
+    async fn input_activity_needs_notify_scope() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let (ctx, secret) = test_session_with_tokens(socket_path.clone());
+        let shared = Arc::new(RwLock::new(ctx));
+        let handle = tokio::spawn({
+            let shared = shared.clone();
+            async move { run_accept_loop(listener, shared).await }
+        });
+        let req = json!({"jsonrpc": "2.0", "method": "session.input_activity", "id": "ia", "params": {}});
+        for (scope, ok) in [(PermissionScope::Observe, false), (PermissionScope::Notify, true)] {
+            let stream = tokio::net::UnixStream::connect(&socket_path).await.unwrap();
+            let (reader, mut writer) = stream.into_split();
+            let mut lines = BufReader::new(reader).lines();
+            let token = auth::create_token(&secret, scope, "", 3600);
+            let a = json!({"jsonrpc": "2.0", "method": "auth.token", "id": "a1", "params": {"token": token.raw}});
+            writer.write_all(format!("{}\n", a).as_bytes()).await.unwrap();
+            let _ = lines.next_line().await.unwrap().unwrap();
+            writer.write_all(format!("{}\n", req).as_bytes()).await.unwrap();
+            let resp: serde_json::Value = serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            if ok {
+                assert!(resp["error"].is_null(), "notify must read the counters: {resp}");
+                assert!(resp["result"]["mono_now"].as_u64().is_some());
+            } else {
+                assert_eq!(resp["error"]["code"], -32010, "observe must be refused: {resp}");
+            }
+        }
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
     /// T-3533: on a `--token-secret` session the doorbell rings on a notify token
     /// and keystrokes stay behind Control. The sidecar's notify token cannot inject,
     /// and an unauthenticated notify is refused in the handshake.

@@ -30,6 +30,7 @@ pub mod hub_capabilities;
 pub mod audit_append;
 pub mod event_log;
 pub mod inbox_channel;
+pub mod input_meter;
 pub mod invocation_audit;
 pub mod pty;
 pub mod scrollback;
