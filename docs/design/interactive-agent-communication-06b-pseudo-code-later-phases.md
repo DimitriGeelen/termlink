@@ -219,6 +219,9 @@ policy_tick(): head = hub.policy.head (signed, AL-20); fail classes as 06 4.7 ->
                                record.epoch <= head.epoch; record.digest recomputes; not expired
                            install atomically
    if mono() - last_verified > PN-13: grant starts stop; allow-list narrows to the own project                 # FCW-169
+hub, on writing a policy record (a grant, a grant's revocation, a profile): one transaction with grant.lock held for
+   each grant id the record names (the lock AL-46 step 3 takes): store the signed record, raise its (scope, kind) counter
+   and the head; a reserve (AL-46) sees the grant either wholly before or wholly after the write
 ```
 2.5.d **INVARIANTS:** counters never decrease; after epoch E no hub-signed record takes effect. 2.5.e **FAILS CLOSED
 WHEN:** 2.5.e.1 **FCW-166** [new; E-106, E-107] a failed fetch → not verified (never "no policy"). 2.5.e.2 **FCW-167**
@@ -231,24 +234,47 @@ verified head → no grant starts, allow-list narrowed.
 ### 2.6 AL-46 — Check a grant before a start or resume (K-26; V-2; SI-21; H-25)
 
 2.6.a **SERVES:** SI-21, R-63, R-64, R-65; TH-18, TH-42, TH-47.
-2.6.b **APPROACH:** a start or resume cites a grant; the check is signature, epoch, expiry, scope, budget; the use is
-logged before the start.
+2.6.b **APPROACH:** a start or resume cites a grant; the local check (signature, epoch, expiry, scope) is a fast
+pre-filter only; the decision is **one conditional step at the hub**, under the grant's lock, that re-reads the
+installed grant record, checks validity and budget, and appends the use row with its counter in one transaction (a
+counter insert with a limit). Check and use cannot be separated, so neither a concurrent start nor a revocation can slip
+between them.
 2.6.c **ALGORITHM:**
 ```text
-may_start(agent, kind in {start, resume}, grant_id):
+may_start(agent, kind in {start, resume}, grant_id):            # steps 1..2 local pre-filter, step 3 at the hub
  1  g = held grant records (AL-45) by grant_id; none -> refuse                                                  # FCW-170
  2  require g verified (AL-45), not expired, g.epoch current, g.rules.may includes kind, g.scope covers agent  # FCW-170
- 3  u = use counter for (grant_id, per window); if u.starts >= g.limits.budget or u.restarts >= g.limits.restarts: refuse  # FCW-171
- 4  append grant-use log {grant_id, agent, kind, at}; Err -> refuse                                            # FCW-172
- 5  allow; the start records the grant id
+ 3  r = hub.grant_reserve(grant_id, agent, kind, window): ONE step, with grant.lock (per grant id) held; AL-45's
+    install of a policy record that names this grant takes the same lock:
+      a  G = the hub's installed record for grant_id; absent, revoked, expired on wall_hub(), G.epoch superseded,
+         kind not in G.rules.may, or agent outside G.scope -> refuse "grant no longer valid: <reason>"          # FCW-193
+      b  one durable transaction: u = use counter (grant_id, window)
+           if kind == start and u.starts + 1 > G.limits.budget, or kind == resume and u.restarts + 1 > G.limits.restarts:
+               abort; refuse                                                                               # FCW-171, FCW-192
+           append the use row {use_id, grant_id, agent, kind, at}; u.starts or u.restarts += 1; commit (fsync)
+         any error, or the hub unreachable: abort; refuse                                                  # FCW-172
+    reply {use_id}
+ 4  only on a reply with use_id: allow; the start records the grant id and use_id
 ```
 2.6.d **INVARIANTS:** every start or resume cites a verified grant and is logged; an agent cannot create or widen one
 (it holds no key that verifies). 2.6.e **FAILS CLOSED WHEN:** 2.6.e.1 **FCW-170** [new; E-106] no grant, or an
 unsigned, expired, wrong-epoch or out-of-scope one → no start. 2.6.e.2 **FCW-171** [new; E-106] budget or restarts
-exhausted → no start. 2.6.e.3 **FCW-172** [new; ZR-1] the use log cannot be written → no start.
+exhausted → no start. 2.6.e.3 **FCW-172** [new; ZR-1] the use log cannot be written, or the hub's reserve step cannot complete → no start.
+2.6.e.4 **FCW-192** [new; E-106, ZR-1] concurrent starts or resumes under one grant would together exceed its budget or
+restarts → the hub's conditional reserve admits at most the limit, each admitted one with its use row; the rest are
+refused. 2.6.e.5 **FCW-193** [new; ZR-1] the grant passed the local check but at the hub's reserve step it is revoked,
+expired, of a superseded epoch or no longer covers the agent or the kind → refused, no use row, no start.
 2.6.f **EDGE CASES:** a same-user agent can delete or withhold a grant (SI-21 allows), never forge one; before CR-14 the
-invariant holds only against remote adversaries (SI-21 condition). Crash: log before start. 2.6.g at-most-once start
-per log row. 2.6.h AL-45. **OBS:** OBS-73 the grant-use log.
+invariant holds only against remote adversaries (SI-21 condition). Concurrency: (1) two starts racing under one
+grant: grant.lock orders them and the counter insert with a limit admits at most the budget (FCW-192); (2) revocation
+or expiry during a check (time of check to time of use, card 4.f): the local steps 1..2 decide nothing; validity is
+re-read inside step 3 under grant.lock, which AL-45's install also takes, so a revocation installed first refuses the
+start (FCW-193), and a revocation installed after the commit finds the start already admitted and logged: it governs the
+next start or resume, and stopping a running agent is not this algorithm's (a grant authorises starts and resumes,
+R-63..R-65); (3) the local held record and the hub's installed record differ (a tick behind): the hub's decides. Crash:
+(a) between the commit and the start: a use row without a start; the budget counts it (fail-closed: a lost start costs
+budget, never grants extra) and the row stays visible; (b) before the commit: no row, no start; the caller may retry. 2.6.g at-most-once start
+per use row; the reserve's committed transaction is the decision point. 2.6.h AL-45. **OBS:** OBS-73 the grant-use log.
 
 ### 2.7 AL-47 — Roster and card acceptance (K-28; ARC4 12.1; SI-12; R-72, R-77) [PH-3, gate T-2470]
 

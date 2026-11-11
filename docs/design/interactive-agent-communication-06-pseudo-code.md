@@ -1217,12 +1217,12 @@ scan (4.8.b) is run once before B-25 ships, and any hit is fixed first, so the c
 
 ## 6 The FAILS CLOSED WHEN register (all three files; EV5 14.2)
 
-6.1 **Totals.** 191 conditions FCW-1 to FCW-191: 96 refine one or more of the architecture's AFC-1 to AFC-34 (every
-AFC is refined at least once, table 6.3), 95 are new. 147 already have at least one spec of EV5 that exercises them;
-**44 have none yet** and are handed to step 5 as change request ZR-1: FCW-3, 6, 8, 10, 11, 17, 18, 26, 35, 36, 37, 41,
+6.1 **Totals.** 193 conditions FCW-1 to FCW-193: 96 refine one or more of the architecture's AFC-1 to AFC-34 (every
+AFC is refined at least once, table 6.3), 97 are new. 148 already have at least one spec of EV5 that exercises them;
+**45 have none yet** and are handed to step 5 as change request ZR-1: FCW-3, 6, 8, 10, 11, 17, 18, 26, 35, 36, 37, 41,
 42, 48, 49, 55, 58, 59, 60, 70, 77, 78, 81, 84, 87, 91, 92, 108, 110, 113, 125, 127, 128, 132, 135, 138, 146, 149,
-150, 157, 163, 164, 165, 172. Where an FCW names both an E-n and ZR-1, the E-n covers part of it and ZR-1 asks for the
-rest (named in the condition); these are FCW-4, 5, 12, 28, 56, 63, 71, 96, 100, 153, 191.
+150, 157, 163, 164, 165, 172, 193. Where an FCW names both an E-n and ZR-1, the E-n covers part of it and ZR-1 asks
+for the rest (named in the condition); these are FCW-4, 5, 12, 28, 56, 63, 71, 96, 100, 153, 191, 192.
 6.2 **How the table is made.** `.context/working/t3355/fcw_register.py` reads every `**FCW-n** [refines; specs]`
 definition in the three files and builds the table below; it exits 1 on a duplicate id, a gap in the numbering, or an
 FCW without a spec or change request. The table is therefore the files' own list, not a second copy kept by hand.
@@ -1401,7 +1401,7 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | FCW-169 | 06b | AL-45 | new | E-106 | PN-13 without a verified head → no grant starts, allow-list narrowed. |
 | FCW-170 | 06b | AL-46 | new | E-106 | no grant, or an unsigned, expired, wrong-epoch or out-of-scope one → no start. |
 | FCW-171 | 06b | AL-46 | new | E-106 | budget or restarts exhausted → no start. |
-| FCW-172 | 06b | AL-46 | new | ZR-1 | the use log cannot be written → no start. |
+| FCW-172 | 06b | AL-46 | new | ZR-1 | the use log cannot be written, or the hub's reserve step cannot complete → no start. |
 | FCW-173 | 06b | AL-47 | new | E-108 | a card unsigned, from an unadmitted hub, from a hub that is not the project's home, expired or with a non-rising sequence → ignored and flagged. |
 | FCW-174 | 06b | AL-47 | new | E-108, E-116 | a second hub claims a bound project → flagged, the binding stays. |
 | FCW-175 | 06b | AL-47 | new | E-108 | a roster with a lower sequence → refused. |
@@ -1421,6 +1421,8 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | FCW-189 | 06b | AL-53 | new | E-115 | raising without a C-18 approval → refused. |
 | FCW-190 | 06b | AL-53 | new | E-115 | a level configuration that would switch a floor item off → refused at load. |
 | FCW-191 | 06b | AL-43 | new | E-104, ZR-1 | at the hub's conditional step the event is no longer APPROVED (a cancel, revoke or expiry took event.lock first, between the executor's read and the insert) → refused, nothing inserted, nothing applied, the attempt recorded; E-104 (i) covers approve against cancel and revoke, ZR-1 asks for cancel, revoke and expiry racing the consume. |
+| FCW-192 | 06b | AL-46 | new | E-106, ZR-1 | concurrent starts or resumes under one grant would together exceed its budget or restarts → the hub's conditional reserve admits at most the limit, each admitted one with its use row; the rest are refused. |
+| FCW-193 | 06b | AL-46 | new | ZR-1 | the grant passed the local check but at the hub's reserve step it is revoked, expired, of a superseded epoch or no longer covers the agent or the kind → refused, no use row, no start. |
 
 6.3 **AFC-n → FCW-n** (for step 5's 05a table "FCW-n → E-n", EV5 14.2).
 
@@ -1867,7 +1869,10 @@ else a synchronous read).
 (f) From the remediation of review r1 (v0.2), the cases step 5 lacks: (f1) FCW-191: extend E-104 (i) so a cancel, a
 revoke and an expiry each race a consume of the same APPROVED event in both orders; assert exactly one of CONSUMED or the
 final state, never CONSUMED after a final state, and no effect applied after a final state (mutant: the state check
-outside the event lock turns it red).
+outside the event lock turns it red). (f2) FCW-192: N concurrent starts under a grant with budget B < N; assert exactly B
+use rows and B starts (mutant: check and append as two steps). (f3) FCW-193: revoke and expire a grant between the
+local check and the hub's reserve; assert no use row and no start. (f4) FCW-172: the hub unreachable at the reserve;
+assert no start.
 9.2 **ZR-2 (step 4, ARC4 6.9.2).** Reword "READY re-read and its age ≤ 1 tick" as: "the READY record re-read is still
 READY with the same sequence number and the current sidecar process, and the re-checks were made at most 1 tick
 before the keystrokes" (4.3). The literal reading would never ring an agent idle for more than 30 s.
