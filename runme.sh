@@ -2822,7 +2822,8 @@ close_docker_tcp
 # Idempotent: skipped when a stored token already answers. Without a terminal (cron, a
 # piped run) it is HELD, not FAILED.
 # Seams (fixtures only): RUNME_TESTDEV_RUN, RUNME_TESTDEV_TOKEN_FILE,
-# RUNME_TESTDEV_PROFILE, RUNME_TESTDEV_TTY_IN, RUNME_TESTDEV_TTY_OUT, RUNME_TESTDEV_OWNER.
+# RUNME_TESTDEV_PROFILE, RUNME_TESTDEV_TTY_IN, RUNME_TESTDEV_TTY_OUT, RUNME_TESTDEV_OWNER,
+# RUNME_TESTDEV_SCRIPT, RUNME_TESTDEV_REC_DIR.
 # ---------------------------------------------------------------------------
 seam TESTDEV_RUN RUNME_TESTDEV_RUN "su - testdev -c"
 seam TESTDEV_TOKEN_FILE RUNME_TESTDEV_TOKEN_FILE "/home/testdev/.config/claude/oauth-token"
@@ -2830,6 +2831,8 @@ seam TESTDEV_PROFILE RUNME_TESTDEV_PROFILE "/home/testdev/.profile"
 seam TESTDEV_TTY_IN RUNME_TESTDEV_TTY_IN "/dev/tty"
 seam TESTDEV_TTY_OUT RUNME_TESTDEV_TTY_OUT "/dev/tty"
 seam TESTDEV_OWNER RUNME_TESTDEV_OWNER "testdev:testdev"
+seam TESTDEV_SCRIPT RUNME_TESTDEV_SCRIPT "script"
+seam TESTDEV_REC_DIR RUNME_TESTDEV_REC_DIR "/root/.cache/runme-setup-token"
 TESTDEV_PROFILE_MARK="# T-3685: long-lived Claude token for testdev (runme action 28)"
 # T-3685 (run of 2026-11-11): /etc/environment sets CLAUDE_CODE_TMPDIR=/var/tmp/claude for every
 # user, but that dir is root's (755), so testdev's claude died with "EACCES ... mkdir
@@ -2873,12 +2876,53 @@ testdev_claude_token() {
     if ! { : <"$TESTDEV_TTY_IN"; } 2>/dev/null || ! { : >>"$TESTDEV_TTY_OUT"; } 2>/dev/null; then
         say "  HELD    no terminal to ask you on ($TESTDEV_TTY_IN); run /opt/termlink/runme.sh from a terminal"; HELD=$((HELD+1)); return
     fi
-    say "  ...     running 'claude setup-token' as testdev ON YOUR TERMINAL (not logged): open the link, log in, copy the token it prints"
-    $TESTDEV_RUN "claude setup-token" <"$TESTDEV_TTY_IN" >>"$TESTDEV_TTY_OUT" 2>&1 || true
-    local token=""
-    printf '\n  Paste the token for testdev (input hidden), then Enter: ' >>"$TESTDEV_TTY_OUT"
-    IFS= read -rs token <"$TESTDEV_TTY_IN" || true
-    printf '\n' >>"$TESTDEV_TTY_OUT"
+    say "  ...     running 'claude setup-token' as testdev ON YOUR TERMINAL (not logged): open the link and log in; the token is picked up for you"
+    # T-3685 (runs of 2026-11-11): two pastes stored exactly 43 characters, a 401 each time.
+    # setup-token prints the token wrapped over several lines, and a copied wrap brings a line
+    # break, so `read` kept only the first line (and the rest fell through to the shell). Now
+    # the session is recorded with script(1) into a root-only file, the token is taken from it
+    # with its wrapped continuation lines joined, and the file is deleted at once. Only if no
+    # token is found are you asked to paste, and then every pasted line is read.
+    local token="" rec
+    mkdir -p "$TESTDEV_REC_DIR" && chmod 700 "$TESTDEV_REC_DIR"
+    rec="$(umask 077; mktemp -p "$TESTDEV_REC_DIR" .setup-token.XXXXXX)" || rec=""
+    if [ -n "$rec" ]; then
+        $TESTDEV_SCRIPT -q -e -c "$TESTDEV_RUN 'claude setup-token'" "$rec" <"$TESTDEV_TTY_IN" >>"$TESTDEV_TTY_OUT" 2>&1 || true
+        token="$(python3 - "$rec" <<'PY' 2>/dev/null
+import re, sys
+s = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+s = re.sub(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07|\x1b[()][A-Za-z0-9]", "", s).replace("\r", "")
+lines = s.split("\n")
+found = ""
+for i, line in enumerate(lines):
+    j = line.find("sk-ant-oat")
+    if j < 0:
+        continue
+    m = re.match(r"[A-Za-z0-9_-]+", line[j:])
+    tok = m.group(0)
+    for nxt in lines[i + 1:]:
+        part = nxt.strip()
+        if part and re.fullmatch(r"[A-Za-z0-9_-]+", part):
+            tok += part
+        else:
+            break
+    found = tok
+print(found)
+PY
+)"
+        rm -f "$rec"
+    else
+        $TESTDEV_RUN "claude setup-token" <"$TESTDEV_TTY_IN" >>"$TESTDEV_TTY_OUT" 2>&1 || true
+    fi
+    if [ -z "$token" ]; then
+        local fd more=""
+        printf '\n  The token was not picked up. Paste it for testdev (input hidden; several lines are fine), then Enter: ' >>"$TESTDEV_TTY_OUT"
+        exec {fd}<"$TESTDEV_TTY_IN"
+        IFS= read -rs -u "$fd" token || true
+        while IFS= read -rs -u "$fd" -t 1 more; do token+="$more"; done
+        exec {fd}<&-
+        printf '\n' >>"$TESTDEV_TTY_OUT"
+    fi
     token="$(printf '%s' "$token" | tr -d '[:space:]')"
     case "$token" in
         sk-ant-oat*) : ;;

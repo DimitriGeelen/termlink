@@ -370,6 +370,15 @@ case "$1" in
 esac
 EOS
 chmod +x "$TD/run"
+# Fake script(1): the recording gets $FAKE_TD_SETUP_OUT (what setup-token "printed"), the terminal a line.
+cat > "$TD/script" <<'EOS'
+#!/usr/bin/env bash
+rec="${@: -1}"; cat "${FAKE_TD_SETUP_OUT:?}" > "$rec" 2>/dev/null || : > "$rec"
+cp "$rec" "${FAKE_TD_SETUP_OUT}.seen-rec" 2>/dev/null || true; echo "fake setup-token: open https://claude.ai/oauth/fixture and log in"
+EOS
+chmod +x "$TD/script"
+printf 'Welcome to setup-token\nOpen the link above and log in.\n' > "$TD/setup-out-notoken"
+export FAKE_TD_SETUP_OUT="$TD/setup-out-notoken" RUNME_TESTDEV_SCRIPT="$TD/script" RUNME_TESTDEV_REC_DIR="$TD/rec"
 export FAKE_TD_TOKEN_FILE="$TD/home/.config/claude/oauth-token" FAKE_TD_GOOD="$TD_GOOD" FAKE_TD_PROFILE="$TD/home/.profile"
 export RUNME_TESTDEV_RUN="$TD/run" RUNME_TESTDEV_TOKEN_FILE="$TD/home/.config/claude/oauth-token" \
        RUNME_TESTDEV_PROFILE="$TD/home/.profile" RUNME_TESTDEV_TTY_IN="$TD/tty-in" RUNME_TESTDEV_TTY_OUT="$TD/tty-out" \
@@ -2179,7 +2188,8 @@ expire_td; printf '  %s  \n' "$TD_GOOD" > "$TD/tty-in"; out=$(run); rc=$?; x=$(s
 if [ "$rc" = 0 ] && echo "$x" | grep_all "OK      testdev has its own long-lived token" && [ "$(cat "$TDF")" = "$TD_GOOD" ] \
    && [ "$(stat -c %a "$TDF")" = 600 ] && [ "$(stat -c %a "$(dirname "$TDF")")" = 700 ] \
    && grep_all -c 'T-3685: long-lived Claude token for testdev' "$TD/home/.profile" \
-   && grep_all 'export CLAUDE_CODE_OAUTH_TOKEN=' "$TD/home/.profile" && grep_all 'fake setup-token: open' "$TD/tty-out"; then
+   && grep_all 'export CLAUDE_CODE_OAUTH_TOKEN=' "$TD/home/.profile" && grep_all 'fake setup-token: open' "$TD/tty-out" \
+   && [ -z "$(ls -A "$TD/rec" 2>/dev/null)" ]; then
     ok "28: a good paste (whitespace trimmed) is stored 600 in a 700 dir, exported from .profile, verified OK; setup-token talked to the terminal"
 else bad "28 good paste" "rc=$rc: $x"; fi
 # Absence check that could have looked (T-3144): the log dir must exist and hold this run's log.
@@ -2203,6 +2213,21 @@ printf 'sk-ant-oat01-EXPIRED\n' > "$TDF"; printf '%s\n' "sk-ant-oat01-STILLBAD" 
 if echo "$x" | grep_all 'FAILED  token stored, but a prompt as testdev did not answer OK (it said: Failed to authenticate' && ! echo "$x" | grep_all 'STILLBAD'; then
     ok "28: a failed check names what testdev's claude said, with any token masked"
 else bad "28 failed check detail" "$x"; fi
+# Runs of 2026-11-11: setup-token printed the token wrapped over three lines (ANSI around it);
+# pasting kept only the first line (43 chars, 401). Now it is taken from the recording, joined.
+expire_td; printf '%s\n' "$TD_TMPLINE" > "$TD/home/.profile"; : > "$TD/tty-in"
+printf '\033[1mYour OAuth token (valid for 1 year):\033[0m\r\n\r\n  \033[32m%s\r\n  %s\r\n  %s\033[0m\r\n\r\nStore this token securely.\r\n' \
+    "${TD_GOOD:0:16}" "${TD_GOOD:16:12}" "${TD_GOOD:28}" > "$TD/setup-out-wrapped"
+out=$(FAKE_TD_SETUP_OUT="$TD/setup-out-wrapped" run); rc=$?; x=$(s28 "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all "OK      testdev has its own long-lived token" && [ "$(cat "$TDF")" = "$TD_GOOD" ] \
+   && ! grep_all 'was not picked up' "$TD/tty-out" && [ -z "$(ls -A "$TD/rec" 2>/dev/null)" ] && ! echo "$out" | grep_all -F "${TD_GOOD:16:12}"; then
+    ok "28: a token wrapped over 3 lines with colour codes is picked up whole from the recording, no paste asked, recording deleted, not in output"
+else bad "28 wrapped token" "rc=$rc: $x / tty: $(cat "$TD/tty-out" 2>/dev/null | tail -2)"; fi
+expire_td; printf '%s\n' "$TD_TMPLINE" > "$TD/home/.profile"; printf '%s\n%s\n' "${TD_GOOD:0:20}" "${TD_GOOD:20}" > "$TD/tty-in"
+out=$(run); rc=$?; x=$(s28 "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all "OK      testdev has its own long-lived token" && [ "$(cat "$TDF")" = "$TD_GOOD" ] && grep_all 'was not picked up' "$TD/tty-out"; then
+    ok "28: no token in the recording => paste asked; a paste over 2 lines is joined whole"
+else bad "28 two-line paste" "rc=$rc: $x"; fi
 printf '%s\n' "$TD_GOOD" > "$TDF"; chmod 600 "$TDF"; rm -f "$TD/tty-in" "$TD/tty-out"
 printf '%s\nexport CLAUDE_CODE_TMPDIR="$HOME/.cache/claude-tmp"\n' "$TD_TMPLINE" > "$TD/home/.profile"
 
