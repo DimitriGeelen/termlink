@@ -24,7 +24,7 @@ the reviewers read the files in the repository.
 
 | Version | Date | Change | Task |
 |---|---|---|---|
-| 0.1 | 2026-11-11 | First complete draft, batch mode. 53 algorithms AL-1..AL-53 in the card's form 4.a..4.h across three files; answers to step 5's questions 14.3 (a)..(i); FAILS CLOSED WHEN register FCW-1..FCW-n with the AFC each refines and its spec or a change request; drawings D-1 (state machines) and D-2 (interaction sequences); canonicalisation test vectors; residual risks QR-n; change requests ZR-n. | T-3355 |
+| 0.1 | 2026-11-11 | First complete draft, batch mode. 53 algorithms AL-1..AL-53 in the card's form 4.a..4.h across three files; answers to step 5's questions 14.3 (a)..(i); FAILS CLOSED WHEN register FCW-1..FCW-190 with the AFC each refines and its spec or a change request; drawings D-1 (state machines) and D-2 (interaction sequences); canonicalisation test vectors; residual risks QR-n; change requests ZR-n. | T-3355 |
 
 ## 1 Inputs of record
 
@@ -548,7 +548,9 @@ the line from a fixed template, a decimal count and validated ids on both sides 
 before the keystrokes and the outcome after.
 5.6.c **ALGORITHM:**
 ```text
-type_ring(sess, ids, count, snap, via = doorbell):          # via = watchdog when called from AL-8 (checks differ)
+type_ring(sess, ids, count, snap, via = doorbell, intent = none):   # via = watchdog from AL-8 (checks differ; its
+                                                 # intent is the admin-chain row AL-8 passes in)
+ 0  t0 = mono()                                   # start of the re-checks
  1  if not delivery_on(): return held("kill-switch")                                  # FCW-27 (AL-10)
  2  if via == doorbell:
       r = reread(sess.ready)
@@ -566,10 +568,11 @@ type_ring(sess, ids, count, snap, via = doorbell):          # via = watchdog whe
       if Err or (s1.client.last_mono and mono() - s1.client.last_mono < 30 s): return held("typing")   # FCW-31
       if conversation(sess, mono()) not compatible with snap.conversation and ids: return held("conversation")  # FCW-32
  6  line = compose(ids, count)                        # Err -> refuse; flag every id that failed     (FCW-33)
- 7  t_last = mono()
-    if Err(ring_log.append_intent({ring_id: new_id(), sess, ids, count, via, checks: [1..5 results],
-                                   t_last_check: t_last})): return held("intent-unrecorded")   # FCW-35
- 8  if mono() - t_last > TICK: return held("stale-checks")                             # re-read older than 1 tick (FCW-28)
+ 7  t_last = mono()                               # end of the last re-check
+    rec = intent or ring_log record; rec += {ring_id: new_id(), sess, ids, count, via, checks: [1..5 results],
+                                           t_last_check: t_last}
+    if Err(durable append of rec (ring log; for via = watchdog the admin chain)): return held("intent-unrecorded")  # FCW-35, FCW-42
+ 8  if mono() - t0 > TICK: return held("stale-checks")                                # checks began over 1 tick ago (FCW-28)
  9  res = session_rpc(sess, command.notify, {ids, count}, timeout 5 s)
 10  ring_log.append_outcome(ring_id, typed | failed(<error>) | unknown(timeout), check_to_keystroke_ms = mono() - t_last)
 11  if res is typed or unknown:                                                         # FCW-36: unknown = maybe typed
