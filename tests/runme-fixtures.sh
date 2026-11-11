@@ -364,16 +364,19 @@ cat > "$TD/run" <<'EOS'
 #!/usr/bin/env bash
 case "$1" in
   *setup-token*) echo "fake setup-token: open https://claude.ai/oauth/fixture and log in"; echo "fake setup-token printed a token" ;;
-  *"claude -p"*) if [ "$(cat "${FAKE_TD_TOKEN_FILE:?}" 2>/dev/null)" = "${FAKE_TD_GOOD:?}" ]; then echo OK; else echo "Failed to authenticate: OAuth session expired"; fi ;;
+  *"claude -p"*) if ! grep -q "testdev's own Claude temp dir" "${FAKE_TD_PROFILE:?}" 2>/dev/null; then echo "EACCES: permission denied, mkdir '/var/tmp/claude/claude-1001'"
+                 elif [ "$(cat "${FAKE_TD_TOKEN_FILE:?}" 2>/dev/null)" = "${FAKE_TD_GOOD:?}" ]; then echo OK; else echo "Failed to authenticate: OAuth session expired"; fi ;;
   *) echo "fake su: unexpected command: $1" >&2; exit 9 ;;
 esac
 EOS
 chmod +x "$TD/run"
-export FAKE_TD_TOKEN_FILE="$TD/home/.config/claude/oauth-token" FAKE_TD_GOOD="$TD_GOOD"
+export FAKE_TD_TOKEN_FILE="$TD/home/.config/claude/oauth-token" FAKE_TD_GOOD="$TD_GOOD" FAKE_TD_PROFILE="$TD/home/.profile"
 export RUNME_TESTDEV_RUN="$TD/run" RUNME_TESTDEV_TOKEN_FILE="$TD/home/.config/claude/oauth-token" \
        RUNME_TESTDEV_PROFILE="$TD/home/.profile" RUNME_TESTDEV_TTY_IN="$TD/tty-in" RUNME_TESTDEV_TTY_OUT="$TD/tty-out" \
        RUNME_TESTDEV_OWNER="$(id -u):$(id -g)"
 printf '%s\n' "$TD_GOOD" > "$TD/home/.config/claude/oauth-token"; chmod 600 "$TD/home/.config/claude/oauth-token"
+TD_TMPLINE="# T-3685: testdev's own Claude temp dir (/etc/environment's /var/tmp/claude is root's)"
+printf '%s\nexport CLAUDE_CODE_TMPDIR="$HOME/.cache/claude-tmp"\n' "$TD_TMPLINE" > "$TD/home/.profile"
 # T-3664 action 27: fake systemctl/ss/docker over a scratch daemon.json. Default = already closed
 # (fd:// only, nothing on :2375), so ordinary runs skip; the action-27 cases seed the open state.
 DK="$TMP/docker"; mkdir -p "$DK"
@@ -2166,7 +2169,7 @@ if echo "$x" | grep_all "HELD    no terminal to ask you on" && [ "$(cat "$TDF")"
     ok "28: no terminal => HELD, nothing stored"
 else bad "28 no tty" "rc=$rc: $x"; fi
 expire_td; printf 'hello there\n' > "$TD/tty-in"; out=$(run); rc=$?; x=$(s28 "$out")
-if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  that does not look like a setup-token" && [ "$(cat "$TDF")" = "sk-ant-oat01-EXPIRED" ] && [ ! -e "$TD/home/.profile" ]; then
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  that does not look like a setup-token" && [ "$(cat "$TDF")" = "sk-ant-oat01-EXPIRED" ] && ! grep_all 'T-3685: long-lived Claude token' "$TD/home/.profile"; then
     ok "28: a paste that is not a setup-token => FAILED, nothing stored"
 else bad "28 bad paste" "rc=$rc: $x"; fi
 expire_td; : > "$TD/tty-in"; out=$(run); rc=$?; x=$(s28 "$out")
@@ -2188,7 +2191,20 @@ printf '%s\n' "$TD_GOOD" > "$TD/tty-in"; printf 'sk-ant-oat01-EXPIRED\n' > "$TDF
 if [ "$(grep -c 'T-3685: long-lived Claude token for testdev' "$TD/home/.profile")" = 1 ]; then
     ok "28: a second store does not add the .profile line twice"
 else bad "28 profile twice" "$(cat "$TD/home/.profile")"; fi
+# Run of 2026-11-11: token fine, but /etc/environment's root-owned temp dir broke testdev's claude.
 printf '%s\n' "$TD_GOOD" > "$TDF"; chmod 600 "$TDF"; rm -f "$TD/tty-in" "$TD/tty-out" "$TD/home/.profile"
+out=$(run); rc=$?; x=$(s28 "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all "OK      testdev's Claude temp dir is now its own" && grep_all -F "$TD_TMPLINE" "$TD/home/.profile" \
+   && ! echo "$x" | grep_all 'HELD\|Paste the token'; then
+    ok "28: a good stored token behind the root-owned temp dir => temp dir line added, OK, no new paste asked"
+else bad "28 tmp dir" "rc=$rc: $x"; fi
+printf '%s\n' "$TD_TMPLINE" > "$TD/home/.profile"
+printf 'sk-ant-oat01-EXPIRED\n' > "$TDF"; printf '%s\n' "sk-ant-oat01-STILLBAD" > "$TD/tty-in"; out=$(run); x=$(s28 "$out")
+if echo "$x" | grep_all 'FAILED  token stored, but a prompt as testdev did not answer OK (it said: Failed to authenticate' && ! echo "$x" | grep_all 'STILLBAD'; then
+    ok "28: a failed check names what testdev's claude said, with any token masked"
+else bad "28 failed check detail" "$x"; fi
+printf '%s\n' "$TD_GOOD" > "$TDF"; chmod 600 "$TDF"; rm -f "$TD/tty-in" "$TD/tty-out"
+printf '%s\nexport CLAUDE_CODE_TMPDIR="$HOME/.cache/claude-tmp"\n' "$TD_TMPLINE" > "$TD/home/.profile"
 
 # ---- T-3647: action 4b restarts W1 sidecars running older code -------------------
 echo "T-3647: 4b W1 sidecars onto the installed binary"

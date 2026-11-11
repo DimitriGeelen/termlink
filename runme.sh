@@ -2831,17 +2831,41 @@ seam TESTDEV_TTY_IN RUNME_TESTDEV_TTY_IN "/dev/tty"
 seam TESTDEV_TTY_OUT RUNME_TESTDEV_TTY_OUT "/dev/tty"
 seam TESTDEV_OWNER RUNME_TESTDEV_OWNER "testdev:testdev"
 TESTDEV_PROFILE_MARK="# T-3685: long-lived Claude token for testdev (runme action 28)"
+# T-3685 (run of 2026-11-11): /etc/environment sets CLAUDE_CODE_TMPDIR=/var/tmp/claude for every
+# user, but that dir is root's (755), so testdev's claude died with "EACCES ... mkdir
+# '/var/tmp/claude/claude-1001'" before it ever used the token. testdev gets its own temp dir in
+# its ~/.profile (login shells, after /etc/environment); root's setting stays as it is.
+TESTDEV_TMP_MARK="# T-3685: testdev's own Claude temp dir (/etc/environment's /var/tmp/claude is root's)"
 
 testdev_token_answers() {  # 0 when a prompt run as testdev with the stored token answers OK
     [ -s "$TESTDEV_TOKEN_FILE" ] || return 1
     local out
     out="$($TESTDEV_RUN "cd /tmp && CLAUDE_CODE_OAUTH_TOKEN=\"\$(cat '$TESTDEV_TOKEN_FILE')\" timeout 120 claude -p --model haiku 'Reply with exactly: OK'" 2>&1 | tail -1)"
+    TESTDEV_LAST_ANSWER="$out"
     [ "$out" = "OK" ]
 }
 
 testdev_claude_token() {
+    local tmp_added=0
+    if ! grep -qxF "$TESTDEV_TMP_MARK" "$TESTDEV_PROFILE" 2>/dev/null; then
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would give testdev its own Claude temp dir in $TESTDEV_PROFILE (CLAUDE_CODE_TMPDIR=\$HOME/.cache/claude-tmp; /etc/environment's /var/tmp/claude is root's)"
+        else
+            printf '\n%s\nexport CLAUDE_CODE_TMPDIR="$HOME/.cache/claude-tmp"\n' "$TESTDEV_TMP_MARK" >> "$TESTDEV_PROFILE"
+            if ! grep -qxF "$TESTDEV_TMP_MARK" "$TESTDEV_PROFILE" 2>/dev/null; then
+                say "  FAILED  could not add testdev's own Claude temp dir to $TESTDEV_PROFILE"; FAILED=$((FAILED+1)); return
+            fi
+            chown "$TESTDEV_OWNER" "$TESTDEV_PROFILE" 2>/dev/null || true
+            tmp_added=1
+        fi
+    fi
     if testdev_token_answers; then
-        say "  skip    testdev's stored token answers (one prompt as testdev returned OK)"; SKIPPED=$((SKIPPED+1)); return
+        if [ "$tmp_added" = 1 ]; then
+            say "  OK      testdev's Claude temp dir is now its own (\$HOME/.cache/claude-tmp, in $TESTDEV_PROFILE); the stored token answers (one prompt as testdev returned OK)"; DONE=$((DONE+1))
+        else
+            say "  skip    testdev's stored token answers (one prompt as testdev returned OK)"; SKIPPED=$((SKIPPED+1))
+        fi
+        return
     fi
     if [ "$DRY_RUN" = "1" ]; then
         say "  [DRY]   would run 'claude setup-token' as testdev at your terminal, ask you to paste the token (hidden), store it in $TESTDEV_TOKEN_FILE (testdev, 600), export it from $TESTDEV_PROFILE, and check one prompt answers OK"; DONE=$((DONE+1)); return
@@ -2882,7 +2906,7 @@ testdev_claude_token() {
         say "  OK      testdev has its own long-lived token ($TESTDEV_TOKEN_FILE, mode 600, loaded by $TESTDEV_PROFILE); one prompt as testdev answered OK"
         DONE=$((DONE+1))
     else
-        say "  FAILED  token stored, but a prompt as testdev did not answer OK; re-run to paste a fresh token"; FAILED=$((FAILED+1))
+        say "  FAILED  token stored, but a prompt as testdev did not answer OK (it said: $(printf '%s' "${TESTDEV_LAST_ANSWER:-nothing}" | sed -E 's/sk-ant-[A-Za-z0-9_-]+/sk-ant-<hidden>/g' | cut -c1-160)); re-run to paste a fresh token"; FAILED=$((FAILED+1))
     fi
 }
 
