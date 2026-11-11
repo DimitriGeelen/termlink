@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-11-02T12:11:07Z
-last_update: 2026-11-11T16:30:35Z
+last_update: 2026-11-11T16:40:16Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -234,6 +234,11 @@ Shaping in progress. ring20 escalation (msg f873982f): Pen's fax-password reques
   after each reports main status held and am-i 0/1.
 - **Note:** T-3668 is now installed as a side effect of the 2026-11-08 runme (0.12.1583 on .107), which supersedes the
   wait in the decision above.
+
+### 2026-11-11 — be.26 go for 0506-Voxtype-extention (operator: "A")
+- **Chose:** A, 0506 may upgrade its vendored AEF (be.5) to be.26 or later on its normal agent-run path; relayed on
+  `main-only-rollout-2026-11-02` (msg 98372e6c). 0506 had asked on 2026-11-02; the ask never reached the operator.
+- **Rejected:** B, not now.
 
 ## Decision
 
