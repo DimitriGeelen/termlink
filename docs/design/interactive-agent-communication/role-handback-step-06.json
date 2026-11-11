@@ -1,0 +1,159 @@
+{
+ "schema": "role-handback/1",
+ "chain": "arc-011-design",
+ "step": 6,
+ "role": "pseudo-coder",
+ "task": "T-3355",
+ "status": "ready-for-review",
+ "output": {
+  "path": "docs/design/interactive-agent-communication-06-pseudo-code.md",
+  "sha256": "167f9ace59c86f8f1a19ec475568267ebcaef2bc424c371b9b1432a51ef07f10"
+ },
+ "inputs": [
+  {
+   "path": "CLAUDE.md",
+   "sha256": "a9b38fd1aeed0145289c6a8c89c491c2ae077d06e1847110209827f33e172aa3"
+  },
+  {
+   "path": "docs/design/roles/README.md",
+   "sha256": "3881d5302313a0d0ca4c9ef1b4688dae101b6d693df823be962e9b70946368e0"
+  },
+  {
+   "path": "docs/design/roles/cards/_common.md",
+   "sha256": "cca38806358d7a6c09e64289164977a825f2cf57e914f672076ff77a2bdb5563"
+  },
+  {
+   "path": "docs/design/roles/cards/pseudo-coder.md",
+   "sha256": "4801aa19de42c170e347ac1d5517b0ee6106cd94eb76a2cc7d856e601ab65f76"
+  },
+  {
+   "path": "docs/design/roles/adapters/aef.md",
+   "sha256": "d840a77649888cdbfd37d1166c15eecd6cd3c8399d497fb6b1b2c52455c6c4a4"
+  },
+  {
+   "path": "docs/design/roles/profiles/termlink.md",
+   "sha256": "b6bc160242d96ca9a8fc167c6845e292529c162fa23faa2945d4742b676e7b21"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-role-chain.yaml",
+   "sha256": "6ed4d708b8364428a5f9f2996519e8956be02b31e5a10817b55df29be99b8752"
+  },
+  {
+   "path": "docs/design/roles/schemas/role-handback-1.schema.json",
+   "sha256": "288a4e312f00bac978a4b2a87e57ee8a05cb14f916d77c397e601e03c703c148"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-04-architecture.md",
+   "sha256": "29c6d1f7de9f18898cab105651f17977ebf97da30f32d16501819bad217dd69c"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-04a-traceability.md",
+   "sha256": "c516a290997e0c75957c0be95af4d611e58155cd818d2fbae961c0f4ad6d4667"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-05-evidence.md",
+   "sha256": "29be80ae3ad8d32b71ef53caa00f9fdc6d03426c901215eaed85c019f889526e"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-05a-coverage.md",
+   "sha256": "16a4aa77b23cad191cf1b9153e60016a266ffc763c54674cb2d6e1f6341824fc"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication/role-handback-step-05.json",
+   "sha256": "03fbef422d071ba1b322216cae46515b2472901eff68fbc03c967b06185315b6"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-01-requirements.md",
+   "sha256": "f6ce42a2984bd18e049f1f4dda05e6eaab2cc3508396fe373060c6fc527193c9"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-02-threat-model.md",
+   "sha256": "88961693384966502f4ca4eb515ed4b0590a29c3d61ac0c619e17ea4562693f3"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-03-floor-and-phasing.md",
+   "sha256": "e4de2e3e102ee59f6434db584e099e5bb180c6b33dfd823ae217e6ebb4e5a8c4"
+  },
+  {
+   "path": "docs/design/arc-011-ph2-architecture.md",
+   "sha256": "b8a941e5563b72707bb3abbe89677ba42ab5560dc1882721b59f59390d84d589"
+  },
+  {
+   "path": "docs/operations/main-lease.md",
+   "sha256": "c95c12e76e0e3b8166badf4919e262916210c89b427ac2d4be996cda65c51e9a"
+  }
+ ],
+ "summary": "Pseudo-code v0.1 (batch mode) in three files: 06 (conventions, answers to step 5's questions (a)-(i), PH-2 delivery path AL-1..AL-16, FCW register, drawings, risks, change requests; sha256 above), 06a PH-2 hardening AL-17..AL-40 (sha256 dd93ba4676fe63245863a14d378f3781a2af19b42884534be6cf5fe9d226ce9e), 06b later phases AL-41..AL-53 (sha256 dcb6c730a6396644a694c86eb54b8fb628e1694fef6a58143a9299afa095b990). 53 algorithms in the card's form 4.a-4.h with concurrency and crash cases; built facts (main lease, claim/nonce/finalizer, kill switch, activity veto) written as built, deltas marked. 190 FAILS CLOSED WHEN conditions FCW-1..FCW-190 (96 refine AFC-1..AFC-34, all 34 covered; 94 new; 146 with an existing E-n; 44 handed to step 5 as ZR-1). Key answers: back-off ring offsets 0,4,12 then every 20 ticks, none while a line is unsubmitted; READY ordered by adapter at_ms, aged on the receiver's monotonic clock, re-check = same READY seq and epoch; provisional claim does not stamp last_human_at; forward-once needs a lease read after STORED <= 15 000 ms inclusive else a sync read; seams honoured only in a test estate. Finding: built TERMLINK_MAIN_TEST_* lease seams are honoured in production (QR-1, ZR-10). Canonicalisation test vectors (RFC 8032 test key). 21 drawings render (mmdc).",
+ "completion": [
+  {
+   "condition": "7.1 Every algorithm in scope present in the full form 4.a to 4.h",
+   "met": true,
+   "evidence": "06 sections 5.1-5.16 (AL-1..AL-16), 06a section 2 (AL-17..AL-40), 06b section 2 (AL-41..AL-53); approval-broker minimum mapped in 06 10.1; test vectors 06a 2.4.c.1, 06b 2.1.c.1, 06 5.6.c.1"
+  },
+  {
+   "condition": "7.2 Every FAILS CLOSED WHEN condition handed to the evidence specialist for a spec",
+   "met": true,
+   "evidence": "06 section 6: 190 FCWs, each with the AFC it refines or new, and an E-n or ZR-1; 44 without a spec listed in 6.1 and requested by ZR-1 (06 9.1); AFC->FCW table 6.3; generated by .context/working/t3355/fcw_register.py"
+  },
+  {
+   "condition": "7.3 Concurrency and crash cases covered for every state-changing step",
+   "met": true,
+   "evidence": "part f of every algorithm: concurrency item and crash table or crash statement (06 10.3 lists them)"
+  },
+  {
+   "condition": "7.4 Every required drawing (D-1 to D-2) is present with its id, caption and textual equivalent, and renders without error",
+   "met": true,
+   "evidence": "D-1.1..D-1.13 and D-2.1..D-2.8 across 06 section 7, 06a section 3, 06b section 3, each with a numbered text equivalent; 21 blocks render, 06 section 11, .context/working/t3355/render/r1.out"
+  }
+ ],
+ "open_questions": [
+  "06 4.8 / 9.1 (b): the production seam scan needs a spec and one run on the fleet before B-25 (QR-1)",
+  "06b: formats marked [open: gate] wait for the gated PH-3..PH-6 sub-designs; their FCWs are re-confirmed then (QR-7)"
+ ],
+ "change_requests": [
+  {
+   "step": 5,
+   "what": "ZR-1: specs for the 44 FCWs without one (06 6.1), the 05a FCW->E-n table (06 6.3), a production seam-scan spec, E-5 expected table per 06 4.2, E-34 (f) boundary per 06 4.6"
+  },
+  {
+   "step": 4,
+   "what": "ZR-2: 6.9.2 'READY re-read and its age <= 1 tick' reworded (same READY seq and sidecar epoch, checks within 1 tick of the keystrokes); the literal reading never rings an idle agent"
+  },
+  {
+   "step": 4,
+   "what": "ZR-3: provisional take raises the generation, promotion keeps it (D-4 b label); last_human_at is the newest human Acquire/Promote/Touch record, Touch and Ignored on their own topics main-touch and main-ignored; 'the hub counts' means the claimer over hub primitives"
+  },
+  {
+   "step": 4,
+   "what": "ZR-4: the watchdog holds when the activity veto cannot measure (6.9.7.b); OQ-16 D 3 stays for the normal ring"
+  },
+  {
+   "step": 4,
+   "what": "ZR-5: hub signing-key fingerprint form ed25519: + hex SHA-256 of the public key (6.1.4)"
+  },
+  {
+   "step": 4,
+   "what": "ZR-6: blob wrapper header TLBLOB, version 1, alg id 1, and AEAD associated data binding recipient and plaintext digest (6.4.3, 6.4.5)"
+  },
+  {
+   "step": 4,
+   "what": "ZR-7: adapter contract: prompt_submit with basis doorbell SHOULD carry doorbell_ids; receivers order ready reports by at_ms, tie keeps BUSY (17.2, 17.5.a)"
+  },
+  {
+   "step": 4,
+   "what": "ZR-8: forward-once lease freshness (read after STORED, <= 15 s inclusive, else sync read) and FORWARD-STALE on an unknown lease at X (7.2, 7.3)"
+  },
+  {
+   "step": 4,
+   "what": "ZR-9: revocation.head is signed (schema termlink.revocation-head/1), so an unchanged-head answer cannot hide a revocation (6.2.3)"
+  },
+  {
+   "step": 4,
+   "what": "ZR-10: B-25 deliverable adds: lease test seams honoured only in a test estate, refused elsewhere (built main_lease.rs honours them in production, QR-1)"
+  }
+ ],
+ "decisions_needed": [
+  "None for this step (decides: false). The ZR-2..ZR-10 clarifications to the approved architecture are proposals; whether they are folded into step 4 is the orchestrator's reopen and, where they touch a ruled text, the operator's call"
+ ],
+ "render_check": ".context/working/t3355/render/r1.out"
+}

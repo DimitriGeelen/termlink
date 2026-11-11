@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:55Z
-last_update: 2026-11-11T16:51:19Z
+last_update: 2026-11-11T17:27:31Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -123,9 +123,9 @@ with step 5 where needed, ready for step 7 (review panel; the next operator appr
 
 ### Agent
 - [x] Step 5 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3) (evidence: step 5 does not decide (`decides: false`), so README 3.6 asks no operator approval of it; its independent review is green and applied (V-20261109-454c9bbb, 2026-11-11). Operator 2026-11-11, asked to tick step 5's review: "Why do I need to do the review?", and "Proceed as you see fit and suggested" with step 6 suggested. Flagged to him in chat; the wording of this criterion is template text for deciding steps)
-- [ ] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned
-- [ ] `docs/design/interactive-agent-communication-06-pseudo-code.md` exists with a version table and an inputs-of-record section citing the input hashes
-- [ ] Pseudo-code for each component in the step-4 architecture, reconciled with step 5's evidence
+- [x] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evidence: inputs read in that order and hashed, 06 section 1 tables 1.1-1.3; record `docs/design/interactive-agent-communication/role-handback-step-06.json`, validated against `role-handback-1.schema.json`)
+- [x] `docs/design/interactive-agent-communication-06-pseudo-code.md` exists with a version table and an inputs-of-record section citing the input hashes (evidence: sections 0 and 1, full sha256 per input; sub-documents 06a and 06b refer to the same inputs)
+- [x] Pseudo-code for each component in the step-4 architecture, reconciled with step 5's evidence (evidence: 06 10.5 maps K-9a..K-34 to AL-1..AL-53; step 5's questions (a)-(i) answered in 06 section 4; every FCW names its E-n or ZR-1, register 06 section 6)
 - [x] Role-chain yaml step 6 `task:` set to this task id (evidence: yaml step 6 `task: T-3355`, already present)
 
 ### Human
