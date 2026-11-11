@@ -703,13 +703,15 @@ watchdog_tick(sess):                                # its own loop, once per tic
         sess.wd = UNAVAILABLE(reason); status "watchdog: unavailable (<reason>)"; return        # FCW-39
  3  since = max(sess.last_activity, sess.last_typed_mono, sess.wd_last_fire)                    # FCW-38
     if mono() - since < 300 s: sess.wd = COUNTING; return                                        # V-18
- 4  res = type_ring(sess, first 4 ids of P by priority and age, len(P), snap = none, via = watchdog)  # AL-6: steps
-       # 1 kill switch, 3 foreground, 4 veto (Unmeasurable holds), 6..11; READY, typing, conversation not checked
- 5  row = {kind: "doorbell-watchdog", session, at: (mono, wall), silent_for_s, ready_flag: busy|ready|absent,
-           ready_age_s, last_activity: {s1, s2, s3}, checks, outcome: typed | held:<check>, message_ids}
-    if res is held: if (sess, check) not already rowed in this silence: admin_row(row)      # FCW-40; one row per hold kind
-                    return                                                                  # per silence episode
-    admin_row(row) BEFORE step 4's keystrokes                                                # FCW-42 (see note)
+ 4  row = {kind: "doorbell-watchdog", session, at: (mono, wall), silent_for_s, ready_flag: busy|ready|absent,
+           ready_age_s, last_activity: {s1, s2, s3}, checks: [], outcome: pending, message_ids}
+    res = type_ring(sess, first 4 ids of P by priority and age, len(P), snap = none, via = watchdog, intent = row)
+       # AL-6 runs steps 1 kill switch, 3 foreground, 4 veto (Unmeasurable holds), then 6..11; it does not check
+       # READY, typing or the conversation. Its step 7 writes `row` (checks filled) to the ADMIN CHAIN as the
+       # intent, before any keystroke (FCW-42); its step 10 appends the outcome typed | failed | unknown to that row.
+ 5  if res is held(check):
+        if (sess, check) not already rowed in this silence episode: admin_row(row with outcome = held:<check>)  # FCW-40
+        return
  6  sess.wd_last_fire = mono(); sess.wd = FIRED
     if row.ready_flag == busy: attention("ready-busy-while-silent", "READY flag busy for N s while nothing happened",
                                          coalesce = (sess, day))
@@ -845,4 +847,368 @@ flip during AL-6 between step 1 and step 9: at most the one line already past st
 5.10.g **EXECUTION SEMANTICS:** a flip is idempotent; read-back verifies it **[B]**.
 5.10.h **CRYPTOGRAPHY:** none; the admin credential is separate from the agent's (SI-14) **[B]**.
 **OBS:** OBS-19 admin rows of flips; ring log `held:kill-switch`; pull refusals `delivery-off`.
+
+### 5.11 AL-11 — Main lease claim with prompt origin: provisional, fast takeover, `last_human_at` (K-22; ARC4 6.13.0..6.13.4; B-25)
+
+5.11.a **SERVES:** R-67, R-68; SI-20 (interim, DR-9), SI-24; TH-33, TH-41; AFC-16, AFC-17; answers 4.5.
+5.11.b **PROBLEM:** a forgotten session must not keep main through automated prompts, the session the operator uses
+must get main fast, and projects whose hooks send no origin must keep working (NID). **APPROACH:** keep the built
+lease (a hub claim on offset 0 of `main:<project>`, signed `main.lease.v1` records, generation, operator pin, the
+claimer computing over hub primitives **[B]**) and change only the claim decision for projects that report origin.
+Human activity is stamped on a separate topic so that a flood of records can never push lease records out of the
+newest-1000 retention.
+5.11.c **ALGORITHM:**
+```text
+hooks (Δ, TermLink's own hooks; AEF's adapter T-5054 does the same through `termlink main`):
+  SessionStart      -> claim(kind = session-start, origin from the adapter, basis)
+  UserPromptSubmit  -> claim(kind = prompt, origin, basis)            # the adapter's report, AL-1 rules
+  PostToolUse       -> no lease call (Δ: was claim/renew)             # 6.13.1
+  SessionEnd        -> release [B]
+
+records: on main:<p>         Acquire{generation, holder, claim_id, at_ms, reason, from, lapsed_at_ms, obligations,
+                                     origin, basis, provisional: bool, holder_human_age_s?}   [B fields + Δ fields]
+                             Promote{generation, holder, claim_id, at_ms, origin, basis}               Δ
+                             OriginReporting{at_ms, by}   (once per project)                            Δ
+                             Release, Lapse, Pin [B]
+         on main-touch:<p>   Touch{generation, session, claim_id, at_ms, basis}  (one per human-counted renewal) Δ
+         on main-ignored:<p> Ignored{session, origin, basis, hook, at_ms}                                Δ
+
+claim(p, me, origin, basis, kind):
+ 1  if seam_gate(TERMLINK_MAIN_TEST_*) == refuse: return unknown("test seam set outside a test estate")   # FCW-60
+ 2  (f, row, v) = snapshot(p); Err -> return unknown(exit 2)                                   # FCW-51 [B]
+ 3  rep = f.origin_reporting                     # any OriginReporting record, or any retained record with origin field
+    if origin is absent and not rep: return built_claim(p, me) with every record marked origin: absent;
+                                     outcome adds "this project's hooks do not report prompt origin"   # NID [B]
+    if origin is absent and rep: origin = unknown                                              # FCW-53
+    if origin is present and not rep: post OriginReporting (failure: continue; the next claim posts it)
+ 4  s = lease_state(v, f)        # VACANT | PROVISIONAL(h) | HELD(h) | LAPSED(prev) | ELIGIBLE(prev)
+                                 # VACANT: no live claim and (never held, or clean release, or a provisional that ran out)
+ 5  pl = plan(s, me, origin, kind, v.pinned, now = wall())                    # table below
+ 6  execute pl with the built primitives: claim (compare-and-set on offset 0), renew, force_release, post;
+    on Conflict re-snapshot and re-plan, at most 3 times, then "contended" [B]
+ 7  return outcome(am_i(view after), action)                                  # exit 0 main, 1 not-main, 2 unknown [B]
+
+last_human(h, g):                                # the holder's last human-counted prompt at generation g, wall ms
+ 1  xs = {a.at_ms : a in Acquire|Promote of h at g with origin == human}
+       U {t.at_ms : t in Touch on main-touch:<p> with t.session == h.session and t.generation == g}
+ 2  return max(xs) if xs else unknown            # read error of main-touch -> unknown                  (FCW-55)
+```
+
+| State | kind / origin | Guard | Plan | Generation | Record |
+|---|---|---|---|---|---|
+| any | prompt, origin ≠ human | — | Ignored | same | Ignored on `main-ignored` (FCW-52) |
+| any | session-start | pinned == me | Take "pin" **[B]** | +1 | Acquire |
+| VACANT | session-start | — | TakeProvisional (claim TTL 5 min) | +1 | Acquire `provisional: true`, `last_human` none |
+| VACANT | prompt, human | pinned ∈ {none, me} | Take "first" or "after-release" | +1 | Acquire `origin: human` |
+| PROVISIONAL(me) | prompt, human | — | Promote (renew TTL 15 min) | same | Promote |
+| PROVISIONAL(other) | prompt, human | — | force_release, Take "over-provisional" | +1 | Acquire `from` |
+| HELD(me) | prompt, human | — | Touch, then renew **[B renew]** | same | Touch |
+| HELD(other) | prompt, human | pinned == me | PinOverride **[B]** | +1 | Acquire `reason: pin-override` |
+| HELD(other) | prompt, human | pinned == other | Held | same | none |
+| HELD(other) | prompt, human | `wall() − last_human(other) > 300 s` (+30 s if `other.host ≠ me.host`) | FastTakeover | +1 | Acquire `reason: fast-takeover, from, holder_human_age_s` |
+| HELD(other) | prompt, human | otherwise, or `last_human` unknown | Held | same | none (FCW-54, FCW-55, FCW-56) |
+| LAPSED / ELIGIBLE (prev = me) | prompt, human | — | Resume **[B]** | same | Acquire `reason: resume` |
+| LAPSED / ELIGIBLE (prev ≠ me) | prompt, human | — | Take "takeover-after-lapse" (no quiet, no cooldown, 6.13.4) | +1 | Acquire |
+| PROVISIONAL, HELD, LAPSED, ELIGIBLE | session-start | pinned ≠ me | Answer only | same | none (FCW-57) |
+
+```text
+execute Renew (HELD(me)):                       # order matters: stamp first, then extend
+ 1  post Touch{generation, me.session, claim_id, at_ms = wall(), basis}; Err -> return unknown              # FCW-58
+ 2  channel_renew(claim_id, ttl = 15 min) [B]; Expired|NotFound -> re-snapshot (3 tries) [B]
+execute FastTakeover:
+ 1  re-read last_human(other) on a fresh snapshot; if now within threshold -> Held                         # race narrowing
+ 2  force_release(other.claim_id, "fast-takeover by " + me.session) [B primitive]
+ 3  claim offset 0 (CAS); Conflict -> re-plan [B]
+ 4  post Acquire; Err -> release the claim, return unknown [B "never hold an unrecorded lease"]
+execute Ignored:
+ 1  post Ignored; Err -> outcome "ignored-unrecorded" (the lease is unchanged either way)                   # FCW-59
+```
+5.11.d **INVARIANTS:** (1) in an origin-reporting project, a claim with origin other than `human` never changes the
+holder, the generation or the claim's expiry; (2) at most one live claim on offset 0 **[B]**; (3) the generation never
+decreases and rises on every holder change, including a provisional take **[B]**; (4) a pinned holder is displaced only
+by the pinned session's claim **[B]**; (5) every holder change has an Acquire record **[B]**; (6) a project that has never
+sent an origin field behaves exactly as built (NID); (7) a renewal of a reporting project's lease is always preceded by a
+Touch record (so `last_human` is never older than the holder's last counted renewal).
+5.11.e **FAILS CLOSED WHEN:**
+5.11.e.1 **FCW-51** [AFC-16; E-20] the lease cannot be read, or a record cannot be posted after a claim → unknown
+(exit 2), never main **[B]**.
+5.11.e.2 **FCW-52** [AFC-16; E-20, E-21, E-27] origin `automated` or `unknown` in a reporting project → no renewal, no
+acquire, no takeover; recorded `ignored: origin`.
+5.11.e.3 **FCW-53** [AFC-17; E-22] a claim without an origin field in a project that has reported origin → treated as
+`unknown` (ignored).
+5.11.e.4 **FCW-54** [AFC-16; E-24] the holder is the pinned session → never fast-taken.
+5.11.e.5 **FCW-55** [new; ZR-1] the holder's `last_human` cannot be determined (records unreadable or gone) → no fast
+takeover; the claim waits for lapse.
+5.11.e.6 **FCW-56** [AFC-16; E-24, ZR-1 for the cross-host margin] the holder's last human prompt is at most 5 min old
+(same host), or at most 5 min 30 s old (holder on another host, skew margin V-5) → no fast takeover.
+5.11.e.7 **FCW-57** [AFC-16; E-21, E-23] SessionStart on a lease that is not VACANT → no provisional take.
+5.11.e.8 **FCW-58** [new; ZR-1] the Touch record cannot be posted → the renewal is not made; unknown (exit 2).
+5.11.e.9 **FCW-59** [new; ZR-1] the Ignored record cannot be posted → the lease is unchanged; the outcome says
+`ignored-unrecorded`.
+5.11.e.10 **FCW-60** [new; ZR-1] a `TERMLINK_MAIN_TEST_*` seam is set outside a test estate → unknown (exit 2) (AL-16).
+5.11.f **EDGE CASES:**
+5.11.f.1 Forged origin: a same-user process can call `termlink main claim --origin human` (RR-2, AR-6); the receiver
+side of AL-1 downgrades a doorbell line (FCW-5), but a hook-independent call is outside its view; recorded in QR-3.
+5.11.f.2 Replayed or old records: the fold reads records by offset **[B]**; a Touch of an earlier generation is never
+counted for the current one (`last_human` filters by generation).
+5.11.f.3 Clock: timestamps are the claimer's `wall()` **[B]**; on one host exact; across hosts the 30 s margin makes a
+skew under 30 s unable to cause an early takeover; a larger skew can, and V-5 flags skew over 2 s in status.
+5.11.f.4 Concurrency: (a) two sessions claim a vacant lease at once: the claim CAS lets one win, the other re-plans and
+reads HELD **[B]**; (b) the holder's human prompt and another session's fast takeover race: if the taker's fresh
+re-read (FastTakeover step 1) misses the holder's Touch, the taker wins; the holder's renew then fails, it re-plans and
+reads HELD(taker) with a fresh `last_human`, and is told it lost main; the record names the takeover. Bounded by one
+RPC round trip; QR-4. (c) a provisional holder and a human prompt elsewhere: the human claim force-releases and takes;
+the provisional holder's own later prompt reads HELD(other).
+5.11.f.5 Crash table:
+
+| Crash between | State after restart | Recovery |
+|---|---|---|
+| Touch and renew | Touch recorded, claim not extended | the claim may lapse at its expiry; the session's next human prompt resumes it (same generation) |
+| force_release and claim (fast takeover, pin override) | no live claim, current = old holder | a lapse-like vacancy **[B]**: the next human prompt anywhere takes (or the old holder resumes); the hub's claim log shows the force-release |
+| claim and Acquire post | live claim, no record | built self-heal: the holder's next renew posts `record-repair` **[B]**; until then `consistent: false` in status |
+| OriginReporting post fails | project still non-reporting | the next claim with an origin posts it; absent claims count until then (NID direction) |
+
+5.11.g **EXECUTION SEMANTICS:** each plan is a hub claim operation followed by a record; "never hold an unrecorded
+lease" **[B]** is the target-side rule; the claim CAS is the idempotency for concurrent takers. A fast takeover's
+effect (S1 loses main) is visible to S1 at its next claim and in `termlink main status`.
+5.11.h **CRYPTOGRAPHY:** `main.lease.v1` records are signed **[B]** (the claimer's identity key as built); Touch,
+Ignored, Promote and OriginReporting use the same signing as the built records (Δ: same message type family,
+`main.lease.v1` with a `kind` field). No new algorithm.
+**OBS:** OBS-20 `termlink main status --json` (holder, generation, provisional, `last_human_at`, `origin_reporting`,
+recent records including Ignored with basis); OBS-21 the outcome JSON of every claim (action, verdict, reason).
+
+### 5.12 AL-12 — The sidecar's lease read and the non-main withhold (K-22; LEASE; as built plus Δ)
+
+5.12.a **SERVES:** R-67.a1 (minimum), R-62; SI-20 interim; AFC-16, AFC-19.
+5.12.b **PROBLEM:** the sidecar must know who main is without writing the lease. **APPROACH:** as built: read every
+15 s on its own thread, trust a read for 4 periods, withhold mail from a non-main session of the same agent, fail open
+on anything unknown **[B]**; Δ: a provisional holder is a holder, and the view exposes `last_human_at` and the state
+for AL-13 and AL-14.
+5.12.c **ALGORITHM:**
+```text
+reader thread [B]: every 15 s: r = LeaseClient.status(project); shared.set(mono(), r)       # Ok(view) | Err(why)
+view(now): last = shared.last
+   if last is none or Err or now - last.at > 4 x 15 s: return UNKNOWN(why)                  # FCW-61 [B]
+   return last.view      # Δ: with state, provisional, last_human_at of the holder (AL-11 last_human)
+withhold(agent, session, now) [B]:
+   v = view(now); if UNKNOWN or no holder: return none                  # fail open: deliver as before
+   if v.holder.session == session or v.holder.agent != agent: return none
+   return line("this session is not main of P; peer mail is left unread for main S (generation N)"), once per (session, generation)
+would_hand_over(m, sess) = (withhold(MY_AGENT, sess, now) is none)
+```
+5.12.d **INVARIANTS:** (1) the sidecar never writes the lease **[B]**; (2) an unknown lease never stops delivery **[B]**.
+5.12.e **FAILS CLOSED WHEN:** 5.12.e.1 **FCW-61** [AFC-16, AFC-19; E-34 (f)] the last read failed or is older than
+4 periods (60 s) → unknown: no withhold (delivery as before), no forward (AL-14), status `main.lease.state: unknown`
+**[B]**. (This is "fail open" for delivery and "fail closed" for every lease-based decision.)
+5.12.f **EDGE CASES:** (1) the withhold trusts a 60 s read while forward-once needs 15 s (4.6): the two directions
+differ on purpose (withholding keeps mail where it is; forwarding moves it); (2) crash: the view is in memory; a
+restart reads within 15 s; until then unknown.
+5.12.g **EXECUTION SEMANTICS:** read-only. 5.12.h **CRYPTOGRAPHY:** the records' signatures are checked by the fold
+**[B]**.
+**OBS:** OBS-22 status `main.lease` with `checked_at_ms`.
+
+### 5.13 AL-13 — "Mail waiting, main not reading" (K-34; ARC4 6.13.5, 17.7; B-25, B-28)
+
+5.13.a **SERVES:** R-67, R-53, R-29, R-37; FX-8; AFC-18.
+5.13.b **PROBLEM:** role mail can sit unread because nobody is a reading main; the operator must learn it, and an
+unavailable channel must never read as "sent". **APPROACH:** one definition, computed per tick by whichever receiver
+holds the role mail (TermLink sidecar here, AEF's receiver for its inboxes, the same function by contract 17.7);
+landing places escalate with age; the out-of-band notice is rate-limited per project through a hub claim.
+5.13.c **ALGORITHM:**
+```text
+mail_waiting_tick():                                       # once per tick
+ 1  W = [m in store: m.to is a role (main or the project), not an exact instance; STORED; not HANDED_OVER;
+         not FORWARDED; not REFUSED]                                                              # FCW-64
+ 2  old10 = [m in W : mono() - m.stored_mono >= 10 min]                                            # V-21
+ 3  L = lease view (AL-12)
+    reading = L.state == HELD and not L.provisional and L.last_human_at known
+              and wall() - L.last_human_at <= 10 min
+    # vacant, lapsed, provisional, unknown, or a holder silent for 10 min -> not reading       # FCW-65
+ 4  if old10 nonempty and not reading and not active:
+        active = true; since = mono(); attention("main-mail-waiting", coalesce = episode)
+ 5  if active and old10 empty: active = false                     # clears only when the old mail is handed over
+ 6  status.main.mail_waiting = active ? {count: len(W), oldest_age_s, holder, holder_human_age_s, since, oob} : null
+ 7  oob step: if active and oldest_age >= 30 min:
+        if no out-of-band channel is configured (GP-11 not live): oob = "not available"                      # FCW-62
+        elif hub.claim("oob:" + project, offset 0, ttl = 60 min) == Conflict: oob = "sent-by-other within 1 h"  # FCW-63
+        else: r = channel.send(project, "MAIL WAITING ...");
+              oob = (r has the channel's own delivery receipt) ? "sent at T" : "not confirmed"
+session-start line: scripts/session-start-alerts.sh reads status.main.mail_waiting and prints one line [B-script, Δ field]
+non-main line: AL-9 withhold path, when active and the prompt's origin is human: one line per (session, generation)
+```
+5.13.d **INVARIANTS:** (1) the status never says "sent" without the channel's receipt; (2) at most one out-of-band
+notice per project per hour, across every receiver of the project; (3) the weekly count of episodes is reported, never
+capped (RNU).
+5.13.e **FAILS CLOSED WHEN:**
+5.13.e.1 **FCW-62** [AFC-18; E-28] no out-of-band channel exists, or it gives no delivery receipt → status `oob: not
+available` or `not confirmed`; never "sent".
+5.13.e.2 **FCW-63** [AFC-18; E-28, ZR-1] another receiver of the project holds the per-project out-of-band claim (a
+notice within 60 min) → no second notice.
+5.13.e.3 **FCW-64** [AFC-18; E-28 control] mail to an exact instance → never counted.
+5.13.e.4 **FCW-65** [AFC-18; E-28] the lease is unknown, vacant, lapsed or provisional, or the holder's last human
+prompt is unknown or older than 10 min → "no reading main" (the signal can rise).
+5.13.f **EDGE CASES:** (1) a reading main that does not take the mail is not this signal's case; R-44.e's
+OVERDUE-HANDOVER and V-8 cover it; (2) clock: mail ages on `mono()`, the holder's age on the lease's `wall()` (AL-11);
+(3) concurrency: two receivers of one project raise the signal independently; the OOB claim makes the notice single;
+(4) crash: `active` and `since` are recomputed from durable mail ages at the next tick; a restart may re-raise the
+needs-attention entry once (coalesced per episode by key `(project, oldest message id)`).
+5.13.g **EXECUTION SEMANTICS:** the OOB notice is at-most-once per hour per project by the claim; the claim taken and
+the send failing gives `not confirmed` and no retry within the hour (the status shows it, the next hour retries).
+5.13.h **CRYPTOGRAPHY:** none beyond the hub claim's authentication **[B]**.
+**OBS:** OBS-23 status `main.mail_waiting`; OBS-24 needs-attention `main-mail-waiting`; OBS-25 the `oob:<project>`
+claim history and the channel receipt.
+
+### 5.14 AL-14 — Forward-once of role mail at the receiving copy Y (K-23; ARC4 7.1, 7.2, 7.4; B-20; DR-10)
+
+5.14.a **SERVES:** R-67.a1 (4), R-51, R-62, R-56; SI-3, SI-4, SI-30; TH-33; AFC-19, AFC-26.
+5.14.b **PROBLEM:** role mail that reaches agent Y while main is a session of agent X of the same project must reach X
+once, keep its original signature and tell the sender. **APPROACH:** Y stores it (its promise), records a durable
+forward intent, posts a FORWARD envelope signed by Y that carries the original bytes, marks its copy final, and sends a
+VIA notice; every step is idempotent by the envelope identity `(Y, "forward", m.id)`.
+5.14.c **ALGORITHM:**
+```text
+after_stored(m) at Y:                                      # called after AL-23 makes m STORED
+ 1  if m.to is an exact instance, or m is a FORWARD envelope, or m.to is not a role of Y's project: return   # FCW-66
+ 2  if m.hop >= 3: return                                   # hop limit (V-4); deliver as before             (FCW-69)
+ 3  L = lease view; if not (L.ok and L.read_rx_mono >= m.stored_mono and mono() - L.read_rx_mono <= 15000):
+        L = LeaseClient.status(project) synchronously, timeout 10 s; Err -> status_note(m, "no forward: lease unknown"); return  # FCW-67
+ 4  if L.holder is none (vacant, lapsed): return            # deliver as before, status says why                 (FCW-68)
+    X = L.holder.agent
+    if X == MY_AGENT: return                                # same agent: the withhold of AL-12 applies
+    if X not in roster(project): attention("main outside roster"); return                                     (FCW-68)
+ 5  with store.lock: if forward_intent(m) exists: return
+                    chain_append(FORWARD_INTENT m.id, generation = L.generation, to = X)                       # FCW-70
+ 6  env = {schema: "termlink.forward/1", project, generation: L.generation, hop: m.hop + 1,
+           via: Y.instance, inner_topic: m.posted_topic, inner_sha256: sha256(m.raw), inner_b64: base64(m.raw)}
+    sig = sign(Y.key, "termlink.forward/1\n" + sha256_hex(jcs(env)))
+ 7  post(inbox:X on the home hub, {env, sig}, idempotency id = (Y, "forward", m.id)); Err -> retry next tick
+    if not posted within the R-44.e "not accepted" bound (1 min): chain_append(FORWARD_ABANDONED m.id);
+        attention("forward failed"); return                # m is offered at Y again, as before            (FCW-71)
+ 8  chain_append(FORWARDED m.id, to X, generation); hub.stage(m, FORWARDED, {via: Y, main: X, generation})
+ 9  notice(m.sender, VIA, {msg: m.id, via: Y, main: X, generation})     # "delivered via Y; main is X (generation N)"
+while FORWARD_INTENT(m) without FORWARD_ABANDONED: m is not offerable at Y (pull, ring, watchdog)          # FCW-71
+```
+5.14.d **INVARIANTS:** (1) the inner bytes posted equal the bytes Y received; (2) a message is forwarded at most once by
+Y (one intent per message); (3) a forwarded message is never handed over at Y; (4) never forwarded: exact-instance mail,
+a FORWARD, mail with hop ≥ 3, mail on an unknown, stale or vacant lease.
+5.14.e **FAILS CLOSED WHEN:**
+5.14.e.1 **FCW-66** [AFC-19; E-34 (d), (e)] the mail is to an exact instance, is itself a FORWARD, or is not role mail
+of Y's project → no forward.
+5.14.e.2 **FCW-67** [AFC-19; E-34 (f)] no lease read completed after STORED within 15 s, and the synchronous read fails
+→ no forward; delivered at Y as before; status says why.
+5.14.e.3 **FCW-68** [AFC-19; E-34 (f)] the lease is vacant or lapsed, names this agent, or names an agent outside the
+project's roster → no forward.
+5.14.e.4 **FCW-69** [AFC-26; E-53, E-34] the message's hop is already 3 → no forward.
+5.14.e.5 **FCW-70** [new; ZR-1] the forward intent cannot be written durably → no forward; delivered at Y as before.
+5.14.e.6 **FCW-71** [new; E-35, ZR-1] while a forward intent is open, the message is never offered at Y; if the
+envelope cannot be posted within 1 min the forward is abandoned (recorded, needs-attention) and the message is offered
+at Y as before.
+5.14.f **EDGE CASES:**
+5.14.f.1 Forged or altered: X verifies both signatures (AL-15); Y cannot change the inner bytes without breaking the
+inner signature.
+5.14.f.2 Replayed: a re-posted envelope (retry, crash) has the same idempotency id; X dedupes the inner message by its
+identity triple (R-51) **[B]**.
+5.14.f.3 Clock: the 15 s bound on Y's `mono()` (4.6).
+5.14.f.4 Canonical form: the envelope is canonicalised by RFC 8785 under 3.3's integer rule; test vector V-FWD-1 in
+06a 2.4.
+5.14.f.5 Concurrency: the lease moves between Y's read and X's pull: X answers FORWARD-STALE (AL-15); two forwards of
+one message cannot happen (one intent under the store lock).
+5.14.f.6 Crash table:
+
+| Crash between | State after restart | Recovery |
+|---|---|---|
+| STORED and intent | STORED, no intent | `after_stored` runs again for stored role mail without intent or hand-over (start-up scan) |
+| intent and post | intent, nothing posted | re-post (same idempotency id) at the next tick |
+| post and FORWARDED | posted, intent open | re-post; X dedupes by the inner identity triple; then FORWARDED |
+| FORWARDED and VIA | final at Y, no VIA | start-up scan: FORWARDED without a VIA line sends VIA (notices idempotent by (message, kind)) |
+
+5.14.g **EXECUTION SEMANTICS:** at-least-once posting with receiver-side idempotency (the identity triple) gives one
+hand-over (H-24 forward half). The target can commit (X stores) while Y's record says intent only: the start-up scan
+re-posts and X dedupes. Target binding before dispatch: X is the holder of a lease read within 15 s, in the roster.
+5.14.h **CRYPTOGRAPHY:** the forwarder signs with its ed25519 agent key **[B key]** over the domain-separated digest
+`termlink.forward/1\n<sha256(jcs(envelope))>` (ARC4 6.2.1's form, applied to the envelope; DR-10). No new key or
+algorithm.
+**OBS:** OBS-26 chain lines FORWARD_INTENT, FORWARDED, FORWARD_ABANDONED; OBS-27 hub stage FORWARDED; OBS-28 the VIA
+notice in the sender's record.
+
+### 5.15 AL-15 — Accepting a FORWARD at X (K-23; ARC4 7.3; B-20)
+
+5.15.a **SERVES:** R-67.a1 (4), R-67.e, R-51; SI-3, SI-4, SI-11, SI-19; TH-33; AFC-19, AFC-22, AFC-25, AFC-26.
+5.15.b **PROBLEM:** X must accept only a genuine forward of genuine role mail of its own project, and only while X is
+still main at the forward's generation. **APPROACH:** verify outer, then inner, then the generation against X's own
+lease read; on mismatch store, do not forward, tell the sender to re-resolve.
+5.15.c **ALGORITHM:**
+```text
+on_forward(env, sig, poster) at X:
+ 1  strict_json(env); env.schema == "termlink.forward/1"; size(env) <= inline cap + 16 MiB? no: inner must itself be
+    within the inline cap (PN-7, 8 KiB) -> else refuse                                                     # FCW-72
+ 2  Ykey = key card / roster entry of poster; require poster in roster(X.project) and env.project == X.project
+    require verify(Ykey, "termlink.forward/1\n" + sha256_hex(jcs(env)), sig)                               # FCW-72
+ 3  inner = base64_decode(env.inner_b64); require sha256(inner) == env.inner_sha256
+    m = parse(inner); require verify_message(m, topic = env.inner_topic)            # the original signature, SI-3
+    require env.inner_topic is the inbox of an agent of X.project, and m.to is a role of X.project          # FCW-73
+ 4  require m is not a FORWARD and env.hop == m.hop + 1 and env.hop <= 3                                   # FCW-74
+ 5  run AL-23 checks on m as if received directly: revocation of m's key, sequence window, quota of m's sender  # FCW-76
+ 6  L = lease view at X with the 15 s rule of AL-14 step 3 (sync read on miss)
+    if L unknown: store env (STALE); notice(m.sender, FORWARD-STALE, {msg: m.id, reason: lease-unknown}); return   # FCW-75
+    if L.holder.agent != MY_AGENT or L.generation != env.generation:
+        store env (STALE); notice(m.sender, FORWARD-STALE, {msg: m.id, generation_seen: L.generation}); return     # FCW-75
+ 7  process m as received (identity triple dedupe R-51 [B]); mark env consumed
+```
+5.15.d **INVARIANTS:** (1) X hands over only messages whose inner signature verifies against the original topic;
+(2) a FORWARD whose generation is not X's current one is never handed over at X; (3) X never forwards a FORWARD.
+5.15.e **FAILS CLOSED WHEN:**
+5.15.e.1 **FCW-72** [AFC-19; E-34 (a)] the envelope is malformed, too large, signed by a key that is not a roster member
+of X's project, or its outer signature fails → refused, recorded, signed refusal notice to the poster.
+5.15.e.2 **FCW-73** [AFC-19; E-34 (b), (c)] the inner bytes do not match their digest, the inner signature fails
+against the inner topic, or the inner topic or address is not a role of X's project → refused.
+5.15.e.3 **FCW-74** [AFC-19, AFC-26; E-34 (d)] the inner message is itself a FORWARD, or the hop does not add up, or
+exceeds 3 → refused.
+5.15.e.4 **FCW-75** [AFC-19; E-33] X's lease is unknown, names another agent, or has another generation → stored as
+stale, not handed over, FORWARD-STALE to the original sender.
+5.15.e.5 **FCW-76** [AFC-22, AFC-25; E-39, E-50] the original sender's key is revoked, its sequence number is refused, or
+its quota at X is full → refused or held exactly as a direct message would be.
+5.15.f **EDGE CASES:** (1) replay of an old envelope at a later generation: generation mismatch, FORWARD-STALE; the
+sender's ladder re-resolves and re-sends the same id, which the new main dedupes; (2) a FORWARD-STALE loop is bounded:
+Y forwards only on a fresh lease and the sender re-resolves through the hub; each loop step is a visible notice;
+(3) clock: X's 15 s rule on its own `mono()`; (4) concurrency: two copies of the envelope (Y retried): the second dedupes
+by identity triple; (5) crash: between store and the STALE notice: start-up scan of STALE envelopes without a notice sends
+it.
+5.15.g **EXECUTION SEMANTICS:** acceptance is idempotent by the identity triple; FORWARD-STALE is idempotent by (message,
+generation).
+5.15.h **CRYPTOGRAPHY:** two ed25519 verifications (outer, inner) with keys from the roster / key card (AL-33); the
+domain prefix `termlink.forward/1` separates envelope signatures from message signatures.
+**OBS:** OBS-29 refusal records with the failed check; OBS-30 FORWARD-STALE notices; OBS-31 hand-over of the inner
+message (AL-9).
+
+### 5.16 AL-16 — The test-seam gate (EV5 14.3.g; answer 4.8)
+
+5.16.a **SERVES:** R-6, R-39; SI-27, SI-25; FP 3.1.b (floor probes stay honest); EV5 3.2.b.
+5.16.b **PROBLEM:** test seams (shortened timers, frozen components, simulated clocks, shrunk ceilings) must never be
+on in an installed system. **APPROACH:** one gate function; production refuses loudly instead of ignoring silently, so
+a seam left in a unit file is found at start, not by a later surprise.
+5.16.c **ALGORITHM:**
+```text
+SEAMS = the table of 4.8 (names and prefixes TERMLINK_SIDECAR_TEST_, TERMLINK_MAIN_TEST_, TERMLINK_HUB_TEST_)
+seam(name, mode):                         # the only way any routine reads a seam
+ 1  if mode is Estate(root): return env(name)           # honoured
+ 2  return none                                         # production: never honoured
+startup_check(mode, process):             # sidecar start, hub start, every `termlink main` verb
+ 1  if mode is Estate: return ok
+ 2  set = [v in environ if v starts with any SEAMS prefix]
+ 3  if set nonempty:
+       sidecar, hub: refuse to start, exit 2, reason "test seam <v> set outside a test estate"          # FCW-77
+       termlink main: answer unknown (exit 2) with that reason                                        # FCW-60
+mode for `termlink main` (Δ): Estate when HOME and the runtime directory lie in a marked estate (estate::guard_any) [B guard]
+```
+5.16.d **INVARIANTS:** (1) no seam value reaches any decision in production; (2) a production process with a seam
+variable set does not run its function.
+5.16.e **FAILS CLOSED WHEN:** 5.16.e.1 **FCW-77** [new; ZR-1] a seam variable is set in a production-mode sidecar or
+hub → it refuses to start. (`termlink main`: FCW-60.) 5.16.e.2 **FCW-78** [new; ZR-1] a hub started with
+`TERMLINK_HUB_TEST_CEILINGS` outside an estate runtime directory → refuses to start.
+5.16.f **EDGE CASES:** (1) NID: refusing to start is a change for a host that has a seam set today; the production
+scan (4.8.b) is run once before B-25 ships, and any hit is fixed first, so the change switches off nothing that works;
+(2) crash: none (stateless).
+5.16.g **EXECUTION SEMANTICS:** decided at start. 5.16.h **CRYPTOGRAPHY:** none.
+**OBS:** OBS-32 the refusal reason in the unit journal and status `mode`; OBS-33 the production scan's result.
 
