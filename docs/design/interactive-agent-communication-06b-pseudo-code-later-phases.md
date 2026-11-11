@@ -401,8 +401,7 @@ stateDiagram-v2
   [*] --> MINTED: hub checks pass
   MINTED --> LIVE: first presentation within the set-up window, proof binds this connection
   MINTED --> DEAD: set-up window passed
-  LIVE --> LIVE: circuit operation for its conversation
-  LIVE --> LIVE: reconnect, original expiry kept
+  LIVE --> LIVE: circuit operation for its conversation, or reconnect keeping the original expiry
   LIVE --> DEAD: expiry on the verifier clock
   LIVE --> DEAD: restart of either sidecar
   LIVE --> DEAD: key revoked, seen at next tick

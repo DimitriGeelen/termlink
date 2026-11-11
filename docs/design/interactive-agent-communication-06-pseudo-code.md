@@ -281,7 +281,7 @@ on_report(raw, peer):                                   # one JSON object per co
          sess.last_prompt = {origin, basis, rx, doorbell_ids: valid_ids(obj.doorbell_ids)}
          ring_log.on_submit(sess, sess.last_prompt)                       # AL-7
        tool_start, tool_end: sess.tool = {name: obj.tool (<= 128 bytes), rx}
-                              if obj.event == tool_start and obj.tool in VENDOR_TOOLS: vendor_log(sess, obj.tool)  # AL-38
+                              if obj.event == tool_start and obj.tool in VENDOR_TOOLS: vendor_log(sess, obj.tool)  # AL-39
        turn_stop:   sess.turn_stopped = rx
        session_end: sess.ready = {state: NOT_RUNNING, at_ms: obj.at_ms, rx, seq: +1}; persist
        evidence:    deliver.evidence(obj.nonce, obj.record_ref, sess)     # AL-9; never sets READY or origin
@@ -1212,3 +1212,720 @@ scan (4.8.b) is run once before B-25 ships, and any hit is fixed first, so the c
 5.16.g **EXECUTION SEMANTICS:** decided at start. 5.16.h **CRYPTOGRAPHY:** none.
 **OBS:** OBS-32 the refusal reason in the unit journal and status `mode`; OBS-33 the production scan's result.
 
+## 6 The FAILS CLOSED WHEN register (all three files; EV5 14.2)
+
+6.1 **Totals.** 190 conditions FCW-1 to FCW-190: 96 refine one or more of the architecture's AFC-1 to AFC-34 (every
+AFC is refined at least once, table 6.3), 94 are new. 146 already have at least one spec of EV5 that exercises them;
+**44 have none yet** and are handed to step 5 as change request ZR-1: FCW-3, 6, 8, 10, 11, 17, 18, 26, 35, 36, 37, 41,
+42, 48, 49, 55, 58, 59, 60, 70, 77, 78, 81, 84, 87, 91, 92, 108, 110, 113, 125, 127, 128, 132, 135, 138, 146, 149, 150,
+157, 163, 164, 165, 172. Where an FCW names both an E-n and ZR-1, the E-n covers part of it and ZR-1 asks for the rest
+(named in the condition).
+6.2 **How the table is made.** `.context/working/t3355/fcw_register.py` reads every `**FCW-n** [refines; specs]`
+definition in the three files and builds the table below; it exits 1 on a duplicate id, a gap in the numbering, or an
+FCW without a spec or change request. The table is therefore the files' own list, not a second copy kept by hand.
+Column "Refines" lists AFC-n, or `new` for a condition the architecture does not state.
+
+| FCW | File | Routine | Refines | Spec (E-n) or change request | Fails closed when |
+|---|---|---|---|---|---|
+| FCW-1 | 06 | AL-1 | new | E-96 | the reporting peer is not the socket's owner → the connection is closed, nothing is read. |
+| FCW-2 | 06 | AL-1 | AFC-14 | E-16, E-84 | the report is larger than 64 KiB, not strict JSON, not schema `termlink.adapter/2` exactly, has an unknown event, a wrong type, or another agent's id → ignored and counted; it never reads as READY, human or evidence. |
+| FCW-3 | 06 | AL-1 | new | ZR-1 | a `ready` report carries an `at_ms` older than the applied one → dropped and counted; a tie between BUSY and READY keeps BUSY. |
+| FCW-4 | 06 | AL-1 | AFC-15 | E-16, ZR-1 | origin and basis do not match the contract's table → the prompt is recorded as `unknown` (not human for the lease, human for the conversation signal). |
+| FCW-5 | 06 | AL-1 | AFC-16 | E-27, E-85, ZR-1 | a prompt reported `human` carries ids of a line the receiver typed in the last tick, or the session's input counters show the last input before it came from `notify` or `inject` → recorded `automated`. |
+| FCW-6 | 06 | AL-1 | AFC-14 | ZR-1 | the READY record was received by another sidecar process (`sidecar_epoch`) or on another boot → absent for the doorbell gate (AL-5) until the next report. |
+| FCW-7 | 06 | AL-1 | new | E-16 allocation cap | 64 live sessions of the agent already exist → a report for a new session is refused with a coalesced needs-attention entry. |
+| FCW-8 | 06 | AL-1 | new | ZR-1 | the transcript path is absent, a symlink, not a regular file or outside the harness's project directory → S2 (b) is not used for that session (turn events only). |
+| FCW-9 | 06 | AL-2 | AFC-13 | E-15 | the caller's token has only `observe` → `session.input_activity` is refused. |
+| FCW-10 | 06 | AL-2 | new | ZR-1 | a write's source cannot be classified → it counts as `client` (someone may be typing). |
+| FCW-11 | 06 | AL-2 | AFC-13 | ZR-1 | the sidecar's `boot_id` differs from the session's → the sidecar treats S1 as unknown (AL-3). |
+| FCW-12 | 06 | AL-3 | AFC-13 | E-15, ZR-1 | the input-activity RPC fails, times out (2 s) or answers from another boot → S1 is unknown: no normal ring (AL-5) and no watchdog (AL-8) for that session. |
+| FCW-13 | 06 | AL-3 | AFC-10 | E-10 | the session has no valid adapter report since boot and no transcript path → S2 is unknown: status `watchdog: unavailable`, no fire. |
+| FCW-14 | 06 | AL-3 | AFC-9 | E-9, E-17 | arrivals, receipts, notices, automatic content, keep-alives, `notify`, `inject` and `client_auto` input → never activity. |
+| FCW-15 | 06 | AL-3 | AFC-27 | E-19 | a status `activity` field older than 2 ticks → reads `unknown`, never its last value. |
+| FCW-16 | 06 | AL-4 | AFC-15 | E-18 | the last prompt's origin is `unknown` or `absent` → `operator` (no ring). |
+| FCW-17 | 06 | AL-4 | new | ZR-1 | no turn stop follows the prompt → `operator` lasts until 120 s after the last S2 event after the prompt, not 120 s after the prompt. |
+| FCW-18 | 06 | AL-4 | new | ZR-1 | the owed-answer ledger cannot be read → `unknown`: AL-5 treats it like `operator` (no normal ring); the watchdog is unaffected. |
+| FCW-19 | 06 | AL-5 | AFC-1 | E-1 | no message is STORED, not handed over, without an open claim, not held, not being forwarded and not withheld from this session by the lease → no ring. |
+| FCW-20 | 06 | AL-5 | AFC-1 | E-1 | every pending message was stored, or touched by a hook pull, less than 1 tick ago → no ring (the hook path goes first). |
+| FCW-21 | 06 | AL-5 | AFC-1, AFC-14 | E-1 | READY is not READY, is absent, was received by another sidecar process or is older than 24 h → no ring. |
+| FCW-22 | 06 | AL-5 | AFC-1, AFC-13 | E-1, E-15 | client input in the last 30 s, or S1 unknown → no ring. |
+| FCW-23 | 06 | AL-5 | AFC-1 | E-1, E-18 | conversation `operator` or `unknown` → no ring; `agent(C)` → only mail of C. |
+| FCW-24 | 06 | AL-5 | AFC-13 | E-15 | the session is not a TermLink PTY session started by the reachable launcher, or its harness executable is not registered → no ring (and no watchdog, AL-8). |
+| FCW-25 | 06 | AL-5 | AFC-5 | E-5 | the schedule (AL-7) does not allow a ring yet, or a typed line is unsubmitted → no ring. |
+| FCW-26 | 06 | AL-5 | new | ZR-1 | more than one session of the agent could be rung → only one is. |
+| FCW-27 | 06 | AL-6 | AFC-12 | E-2, E-12 | delivery is switched off → nothing typed. |
+| FCW-28 | 06 | AL-6 | AFC-2 | E-2, ZR-1 | the READY record re-read is not READY, has another `seq` or `sidecar_epoch`, or the checks were made more than 1 tick before the keystrokes → nothing typed. |
+| FCW-29 | 06 | AL-6 | AFC-2 | E-2, E-8 | the foreground process is not the registered harness, or cannot be read → nothing typed. |
+| FCW-30 | 06 | AL-6 | AFC-2 | E-2 | the process-tree veto reports activity → nothing typed. |
+| FCW-31 | 06 | AL-6 | AFC-2 | E-2 | the re-read shows client input in the last 30 s, or the re-read fails → nothing typed. |
+| FCW-32 | 06 | AL-6 | AFC-2 | E-2 | the conversation signal changed to `operator`, `unknown`, or `agent` of another conversation → nothing typed. |
+| FCW-33 | 06 | AL-6 | AFC-3 | E-3 | an id is not 32 lowercase hex, more than 4 ids, duplicate ids, or a count that is not a decimal integer in [number of ids, 10^6] → no line; the message is flagged. |
+| FCW-34 | 06 | AL-6 | AFC-3 | E-3 | the session's `command.notify` receives such parameters → it types nothing and answers INVALID_PARAMS. |
+| FCW-35 | 06 | AL-6 | new | ZR-1 | the ring intent cannot be written durably → nothing typed. |
+| FCW-36 | 06 | AL-6 | AFC-5 | ZR-1 | the notify RPC times out → the outcome is `unknown`, treated as typed for the schedule (no re-ring until a submit or the watchdog) and never as handed over. |
+| FCW-37 | 06 | AL-7 | AFC-5 | ZR-1 | after a restart a ring intent has no outcome, or a typed line has no recorded submit → the session is UNSUBMITTED (no normal ring until a submit or the watchdog). |
+| FCW-38 | 06 | AL-8 | AFC-7, AFC-11 | E-7, E-11 | less than 300 s since the latest of: the last activity, the last line typed into the session (doorbell or watchdog), the last fire → no fire. |
+| FCW-39 | 06 | AL-8 | AFC-10, AFC-13 | E-10 | the session is not a TermLink PTY session, or S1 or S2 is unknown → no fire; status says `watchdog: unavailable` with the reason. |
+| FCW-40 | 06 | AL-8 | AFC-8 | E-8 | the switch is off, the foreground is not the harness, or the veto reports activity → held, with one audit row per hold kind per silence episode. |
+| FCW-41 | 06 | AL-8 | AFC-8 | ZR-1, ZR-4 | the veto cannot measure (no `/proc`, no `ss`) → held (the watchdog never types blind; the normal ring keeps OQ-16 D 3). |
+| FCW-42 | 06 | AL-8 | new | ZR-1 | the audit row cannot be written → nothing typed. |
+| FCW-43 | 06 | AL-9 | AFC-6 | E-98, E-6 | the claim for `(message, attempt)` already exists → that message is not handed out again. |
+| FCW-44 | 06 | AL-9 | AFC-4 | E-4, E-97 | the nonce appears only in an assistant record, a tool result, or nowhere → never HANDED_OVER. |
+| FCW-45 | 06 | AL-9 | AFC-4 | E-4 | no evidence 90 s after the claim → the sender is told HANDOVER_UNCONFIRMED; the message stays ATTEMPTED and owed. |
+| FCW-46 | 06 | AL-9 | AFC-4 | E-98 | the transcript cannot be read, or the final check passes with no evidence-complete point → UNCERTAIN, needs-attention, no redelivery until the operator decides. |
+| FCW-47 | 06 | AL-9 | AFC-6 | E-6 | a submitted prompt names doorbell ids that are already handed over or were never rung → nothing is pulled for them; a stray ring is counted. |
+| FCW-48 | 06 | AL-9 | AFC-16 | ZR-1 | a fresh lease names another session of this agent as main → the pull hands out nothing and prints the one line once per generation **[B]**. |
+| FCW-49 | 06 | AL-10 | AFC-12 | ZR-1 | the switch cannot be read → off. |
+| FCW-50 | 06 | AL-10 | AFC-12 | E-12 | the switch is off → no keystrokes on either typed path and no hand-over by the hook (`delivery-off`); urgent mail downgraded, not dropped. |
+| FCW-51 | 06 | AL-11 | AFC-16 | E-20 | the lease cannot be read, or a record cannot be posted after a claim → unknown (exit 2), never main **[B]**. |
+| FCW-52 | 06 | AL-11 | AFC-16 | E-20, E-21, E-27 | origin `automated` or `unknown` in a reporting project → no renewal, no acquire, no takeover; recorded `ignored: origin`. |
+| FCW-53 | 06 | AL-11 | AFC-17 | E-22 | a claim without an origin field in a project that has reported origin → treated as `unknown` (ignored). |
+| FCW-54 | 06 | AL-11 | AFC-16 | E-24 | the holder is the pinned session → never fast-taken. |
+| FCW-55 | 06 | AL-11 | new | ZR-1 | the holder's `last_human` cannot be determined (records unreadable or gone) → no fast takeover; the claim waits for lapse. |
+| FCW-56 | 06 | AL-11 | AFC-16 | E-24, ZR-1 for the cross-host margin | the holder's last human prompt is at most 5 min old (same host), or at most 5 min 30 s old (holder on another host, skew margin V-5) → no fast takeover. |
+| FCW-57 | 06 | AL-11 | AFC-16 | E-21, E-23 | SessionStart on a lease that is not VACANT → no provisional take. |
+| FCW-58 | 06 | AL-11 | new | ZR-1 | the Touch record cannot be posted → the renewal is not made; unknown (exit 2). |
+| FCW-59 | 06 | AL-11 | new | ZR-1 | the Ignored record cannot be posted → the lease is unchanged; the outcome says `ignored-unrecorded`. |
+| FCW-60 | 06 | AL-11 | new | ZR-1 | a `TERMLINK_MAIN_TEST_*` seam is set outside a test estate → unknown (exit 2) (AL-16). |
+| FCW-61 | 06 | AL-12 | AFC-16, AFC-19 | E-34 (f) | the last read failed or is older than 4 periods (60 s) → unknown: no withhold (delivery as before), no forward (AL-14), status `main.lease.state: unknown` **[B]**. (This is "fail open" for delivery and "fail closed" for every lease-based decision.) |
+| FCW-62 | 06 | AL-13 | AFC-18 | E-28 | no out-of-band channel exists, or it gives no delivery receipt → status `oob: not available` or `not confirmed`; never "sent". |
+| FCW-63 | 06 | AL-13 | AFC-18 | E-28, ZR-1 | another receiver of the project holds the per-project out-of-band claim (a notice within 60 min) → no second notice. |
+| FCW-64 | 06 | AL-13 | AFC-18 | E-28 control | mail to an exact instance → never counted. |
+| FCW-65 | 06 | AL-13 | AFC-18 | E-28 | the lease is unknown, vacant, lapsed or provisional, or the holder's last human prompt is unknown or older than 10 min → "no reading main" (the signal can rise). |
+| FCW-66 | 06 | AL-14 | AFC-19 | E-34 (d) | the mail is to an exact instance, is itself a FORWARD, or is not role mail of Y's project → no forward. |
+| FCW-67 | 06 | AL-14 | AFC-19 | E-34 (f) | no lease read completed after STORED within 15 s, and the synchronous read fails → no forward; delivered at Y as before; status says why. |
+| FCW-68 | 06 | AL-14 | AFC-19 | E-34 (f) | the lease is vacant or lapsed, names this agent, or names an agent outside the project's roster → no forward. |
+| FCW-69 | 06 | AL-14 | AFC-26 | E-53, E-34 | the message's hop is already 3 → no forward. |
+| FCW-70 | 06 | AL-14 | new | ZR-1 | the forward intent cannot be written durably → no forward; delivered at Y as before. |
+| FCW-71 | 06 | AL-14 | new | E-35, ZR-1 | while a forward intent is open, the message is never offered at Y; if the envelope cannot be posted within 1 min the forward is abandoned (recorded, needs-attention) and the message is offered at Y as before. |
+| FCW-72 | 06 | AL-15 | AFC-19 | E-34 (a) | the envelope is malformed, too large, signed by a key that is not a roster member of X's project, or its outer signature fails → refused, recorded, signed refusal notice to the poster. |
+| FCW-73 | 06 | AL-15 | AFC-19 | E-34 (b) | the inner bytes do not match their digest, the inner signature fails against the inner topic, or the inner topic or address is not a role of X's project → refused. |
+| FCW-74 | 06 | AL-15 | AFC-19, AFC-26 | E-34 (d) | the inner message is itself a FORWARD, or the hop does not add up, or exceeds 3 → refused. |
+| FCW-75 | 06 | AL-15 | AFC-19 | E-33 | X's lease is unknown, names another agent, or has another generation → stored as stale, not handed over, FORWARD-STALE to the original sender. |
+| FCW-76 | 06 | AL-15 | AFC-22, AFC-25 | E-39, E-50 | the original sender's key is revoked, its sequence number is refused, or its quota at X is full → refused or held exactly as a direct message would be. |
+| FCW-77 | 06 | AL-16 | new | ZR-1 | a seam variable is set in a production-mode sidecar or hub → it refuses to start. (`termlink main`: FCW-60.) |
+| FCW-78 | 06 | AL-16 | new | ZR-1 | a hub started with `TERMLINK_HUB_TEST_CEILINGS` outside an estate runtime directory → refuses to start. |
+| FCW-79 | 06a | AL-17 | AFC-20 | E-36 | `hub.id` is missing while the runtime directory holds prior hub state → the hub refuses to start with the stated message. |
+| FCW-80 | 06a | AL-17 | AFC-20 | E-36 | `hub.id` is unreadable or not 16 lowercase hex → refuse to start. |
+| FCW-81 | 06a | AL-17 | new | ZR-1 | the mint cannot be written atomically → refuse to start, no partial file left. |
+| FCW-82 | 06a | AL-18 | AFC-20 | E-37 | the key file is unreadable, has another mode or owner, or is malformed → the hub refuses to start. |
+| FCW-83 | 06a | AL-18 | AFC-20 | E-37 | the offered fingerprint differs from the pin → every hub-signed object is refused; needs-attention names both. |
+| FCW-84 | 06a | AL-18 | new | ZR-1 | first contact is neither the local socket nor TLS under the pinned certificate → no pin; hub-signed data stays unverified. |
+| FCW-85 | 06a | AL-19 | AFC-21 | E-38 | the declaration is missing in either place, or the two differ → refuse to start. |
+| FCW-86 | 06a | AL-19 | AFC-21 | E-38 | the hub at the declared address answers another `hub_id` → refuse (start) or stop (tick). |
+| FCW-87 | 06a | AL-19 | AFC-21 | ZR-1 | the hub cannot be reached at start → the sidecar runs without posting or pulling until the id is verified. |
+| FCW-88 | 06a | AL-20 | AFC-22 | E-42 | a number that is not an integer in range, a duplicate key, invalid UTF-8, depth over 8 or size over 1 MiB → refused before hashing. |
+| FCW-89 | 06a | AL-20 | AFC-22 | E-42 | the digest does not recompute, or the signature is not over `<schema>\n<digest>` with the expected key → refused. |
+| FCW-90 | 06a | AL-21 | new | E-43 | a self-revocation request is not signed by the key it revokes → refused and logged. |
+| FCW-91 | 06a | AL-21 | new | ZR-1 | the admin-log row cannot be written → no revocation. |
+| FCW-92 | 06a | AL-21 | new | ZR-1 | the new list cannot be persisted → the previous list stays, the call fails. |
+| FCW-93 | 06a | AL-22 | AFC-22 | E-41 | any failed-pull class of 06 4.7 → not verified; `unverified_since` stays at the last verified pull. |
+| FCW-94 | 06a | AL-22 | AFC-22 | E-40 | the head or list has a lower `seq`, or the same `seq` with another digest → refused, previous kept, tamper entry. |
+| FCW-95 | 06a | AL-22 | AFC-22 | E-41 | PN-13 (1 h) without a verified pull → allow-list narrowed to the own project, urgent mail from others downgraded, needs-attention. |
+| FCW-96 | 06a | AL-22 | new | E-40 (b), ZR-1 | a started or restored sidecar has had no verified contact yet → the same narrowing until its first verified pull (SI-11 "unreconciled until its first verified hub contact"). |
+| FCW-97 | 06a | AL-23 | new | E-80, E-100 | unknown wire version → refused with a reason. |
+| FCW-98 | 06a | AL-23 | AFC-33 | E-69, E-93 | signature fails or the signer has no card → refused. |
+| FCW-99 | 06a | AL-23 | AFC-22 | E-39 | the key is on the verified list → refused, signed notice. |
+| FCW-100 | 06a | AL-23 | AFC-3 | E-3, ZR-1 | the message id is not 32 lowercase hex → refused at the receiver, so a bad id can never reach a doorbell. |
+| FCW-101 | 06a | AL-23 | AFC-26 | E-53 | hop over 3 → refused with a notice. |
+| FCW-102 | 06a | AL-23 | AFC-25 | E-50 | inline over 8 KiB → not STORED, QUOTA notice. |
+| FCW-103 | 06a | AL-23 | AFC-25 | E-50, E-51 | 32 open from one sender, or the general budget of 256 messages or 64 MiB is full → not STORED, QUOTA notice, coalesced entry. |
+| FCW-104 | 06a | AL-23 | AFC-25 | E-51 | a reserved share (receipts 10%, own project 20%) is full → the same, for that class only. |
+| FCW-105 | 06a | AL-23 | new | E-122 | the store write or a fsync fails → not STORED. |
+| FCW-106 | 06a | AL-24 | AFC-5 | E-52 | the window is full → the message waits in the outbox. |
+| FCW-107 | 06a | AL-24 | new | E-54 | a re-send earlier than 0.8 of its rung → refused by the sender's own ledger. |
+| FCW-108 | 06a | AL-24 | new | ZR-1 | a QUOTA notice that does not verify → ignored (a forged notice cannot throttle a sender). |
+| FCW-109 | 06a | AL-25 | AFC-24 | E-48 | the private key does not match the register → refuse to start. |
+| FCW-110 | 06a | AL-25 | new | ZR-1 | the register entry is missing, not root-owned, or group- or world-writable → refuse to start. |
+| FCW-111 | 06a | AL-26 | AFC-25 | E-44 | the file is over 16 MiB (or not a regular file) → refused before upload. |
+| FCW-112 | 06a | AL-26 | AFC-23, AFC-29 | E-49 | the recipient has no registered encryption key → refused, never sent in plaintext. |
+| FCW-113 | 06a | AL-26 | new | ZR-1 | the upload fails or the hub's digest differs → the message is not sent. |
+| FCW-114 | 06a | AL-27 | AFC-23 | E-45 | the ciphertext digest, the header, the key unwrap, the authenticated decryption, the size or the plaintext digest fails → not STORED, refusal to the sender, needs-attention, temp removed. |
+| FCW-115 | 06a | AL-27 | AFC-23 | E-46 | whatever `name_hint` holds → the file is named by its digest only. |
+| FCW-116 | 06a | AL-27 | AFC-25 | E-44 | the declared size is over 16 MiB, or more bytes arrive than declared → the fetch stops; not STORED. |
+| FCW-117 | 06a | AL-28 | AFC-23 | E-47 | a non-baseline writer stores an object without the wrapper header → refused. |
+| FCW-118 | 06a | AL-28 | AFC-29 | E-49 | `--hub` without `--encrypt-to` → refused with the rule and the form. |
+| FCW-119 | 06a | AL-28 | AFC-29 | E-49 | the named agent has no encryption key → refused, never downgraded. |
+| FCW-120 | 06a | AL-29 | AFC-27 | E-55, E-19 | a field is older than its bound → `unknown`. |
+| FCW-121 | 06a | AL-29 | new | E-56 | any field bad or unknown, or pending mail without a real surfacing after it → NOT CLEAR. |
+| FCW-122 | 06a | AL-29 | new | E-57, E-61 | a peer's card or back channel is silent → UNKNOWN, never DEAD. |
+| FCW-123 | 06a | AL-29 | new | E-58 | a strength flag cannot be determined → it reads as absent. |
+| FCW-124 | 06a | AL-30 | new | E-66 | an inbox is bound and another identity acks, claims or subscribes → refused and logged. |
+| FCW-125 | 06a | AL-30 | new | ZR-1 | the consumer list cannot be read → status `consumers: unknown` (never "one"). |
+| FCW-126 | 06a | AL-31 | AFC-32 | E-67 | a sweep, retention change or trim would remove an open message → refused and logged. |
+| FCW-127 | 06a | AL-31 | new | ZR-1 | finality cannot be read → refused. |
+| FCW-128 | 06a | AL-31 | new | ZR-1 | the admin-log row cannot be written → the RPC is refused. |
+| FCW-129 | 06a | AL-31 | new | E-67 | past a ceiling → final first; open only as a last resort, loudly. |
+| FCW-130 | 06a | AL-32 | new | E-68 | the token lacks `control` (inject) or `execute` (exec) → refused **[B]**. |
+| FCW-131 | 06a | AL-32 | new | E-68 | an owner-only session is called by another identity → refused. |
+| FCW-132 | 06a | AL-32 | new | ZR-1 | the use-log row cannot be written → the verb is refused. |
+| FCW-133 | 06a | AL-33 | AFC-33 | E-69 | the signature does not verify against the card → refused. |
+| FCW-134 | 06a | AL-33 | new | E-69 | a replacement not signed by the current key and not a runme act → refused. |
+| FCW-135 | 06a | AL-33 | new | ZR-1 | no card for the poster → refused (arc-011 message types only). |
+| FCW-136 | 06a | AL-34 | AFC-34 | E-70 | the DEAD is unsigned, signed by another key, from another hub, or its sequence does not rise → refused and flagged; polling continues. |
+| FCW-137 | 06a | AL-35 | AFC-28 | E-90 | a different digest or chain link → kept on both sides, "unreconciled", operator decides. |
+| FCW-138 | 06a | AL-35 | new | ZR-1 | the hub is unreachable at start → the sidecar stays UNRECONCILED and never CLEAR until a pass completes. |
+| FCW-139 | 06a | AL-35 | new | E-90 | a message the hub says is STORED is missing locally → lost-after-STORED, needs-attention, RESEND-REQUEST. |
+| FCW-140 | 06a | AL-35 | new | E-91 | the daily head compare finds a fork → unreconciled, needs-attention. |
+| FCW-141 | 06a | AL-36 | new | E-87 | a message beyond a gap → not offered for hand-over until the gap is filled or 10 ticks pass (then marked). |
+| FCW-142 | 06a | AL-36 | new | E-86 | the same number with another digest → refused, first kept. |
+| FCW-143 | 06a | AL-37 | new | E-89 | a local queue file's priority → ignored. |
+| FCW-144 | 06a | AL-37 | new | E-89, E-124 | a sender off the allow-list asks for a raised priority → downgraded and recorded, never dropped. |
+| FCW-145 | 06a | AL-38 | new | E-62 | the negative control was not run or did not fail → the run is TOOLING (exit 2). |
+| FCW-146 | 06a | AL-39 | new | ZR-1 | the row cannot be written → the use is recorded in the hook error log and status shows `vendor_log: degraded` (the call itself is not blocked: ruled, ARC4 6.10.1). |
+| FCW-147 | 06a | AL-40 | AFC-31 | E-72 | the deny is attempted before B-26's prover has passed on the TermLink rail → refused, settings unchanged. |
+| FCW-148 | 06a | AL-40 | new | E-72 | the re-read after the act does not show the change → FAILED. |
+| FCW-149 | 06a | AL-40 | new | ZR-1 | W2's gate is not met → refused. |
+| FCW-150 | 06a | AL-40 | new | ZR-1 | W3's gate is not met → refused. |
+| FCW-151 | 06a | AL-40 | AFC-30 | E-82 | W4 without the operator's approval in the W4 task's Decisions → refused, nothing changed. |
+| FCW-152 | 06a | AL-40 | new | E-81 | the drain's count compare does not match → the switch is refused **[B]**. |
+| FCW-153 | 06b | AL-41 | new | E-104, ZR-1 | the class is not registered, or executor, target, operation or expiry is missing → no event is created. |
+| FCW-154 | 06b | AL-41 | new | E-104 | the action is not canonicalisable (06a FCW-88 rules) → no event. |
+| FCW-155 | 06b | AL-42 | new | E-104 | a decision arrives at or after expiry → refused, EXPIRED. |
+| FCW-156 | 06b | AL-42 | new | E-104 | the decision's digest differs from the event's → refused, needs-attention. |
+| FCW-157 | 06b | AL-42 | new | ZR-1 | a decision not written through the root-only admin path → refused. |
+| FCW-158 | 06b | AL-42 | new | E-104 | a decision for an event that is already final or consumed (including after a cancel or revoke) → refused, recorded. |
+| FCW-159 | 06b | AL-42 | new | E-105 | a high-impact approval without the out-of-band confirmation → no APPROVED. |
+| FCW-160 | 06b | AL-43 | new | E-104 | the recomputed digest differs → refused. |
+| FCW-161 | 06b | AL-43 | new | E-104 | the executor or the target differs → refused. |
+| FCW-162 | 06b | AL-43 | new | E-104 | the approval id is already consumed → refused. |
+| FCW-163 | 06b | AL-43 | new | ZR-1 | the consumed-set insert fails → refused, nothing done. |
+| FCW-164 | 06b | AL-44 | new | ZR-1 | the post-condition does not hold → FAILED, needs-attention, no automatic retry. |
+| FCW-165 | 06b | AL-44 | new | ZR-1 | after a crash the post-condition cannot be read → OUTCOME_UNKNOWN for the operator; never re-applied automatically. |
+| FCW-166 | 06b | AL-45 | new | E-106, E-107 | a failed fetch → not verified (never "no policy"). |
+| FCW-167 | 06b | AL-45 | new | E-106 | a lower counter or a fork → refused, previous kept. |
+| FCW-168 | 06b | AL-45 | new | E-106, E-115 | from the cut-over epoch, a record not signed by the operator key → refused. |
+| FCW-169 | 06b | AL-45 | new | E-106 | PN-13 without a verified head → no grant starts, allow-list narrowed. |
+| FCW-170 | 06b | AL-46 | new | E-106 | no grant, or an unsigned, expired, wrong-epoch or out-of-scope one → no start. |
+| FCW-171 | 06b | AL-46 | new | E-106 | budget or restarts exhausted → no start. |
+| FCW-172 | 06b | AL-46 | new | ZR-1 | the use log cannot be written → no start. |
+| FCW-173 | 06b | AL-47 | new | E-108 | a card unsigned, from an unadmitted hub, from a hub that is not the project's home, expired or with a non-rising sequence → ignored and flagged. |
+| FCW-174 | 06b | AL-47 | new | E-108, E-116 | a second hub claims a bound project → flagged, the binding stays. |
+| FCW-175 | 06b | AL-47 | new | E-108 | a roster with a lower sequence → refused. |
+| FCW-176 | 06b | AL-48 | new | E-110 | revoked key, dead instance, an instance not the sender's, or the cap reached → no mint. |
+| FCW-177 | 06b | AL-48 | new | E-110 | the proof does not bind this connection's exporter value → refused. |
+| FCW-178 | 06b | AL-48 | new | E-110 | first use after the set-up window, expired, or after a restart → dead. |
+| FCW-179 | 06b | AL-48 | new | E-110 | another conversation, a topic operation, or a non-roster signer → refused. |
+| FCW-180 | 06b | AL-49 | new | E-111 | a join not countersigned, a leave not signed by the leaver, a removal outside the rule → refused. |
+| FCW-181 | 06b | AL-49 | new | E-111 | a message from a non-participant or a fenced lower epoch → refused, needs-attention. |
+| FCW-182 | 06b | AL-50 | new | E-113 | not operator-initiated → refused. |
+| FCW-183 | 06b | AL-50 | new | E-113 | the log row or the entry cannot be written → refused. |
+| FCW-184 | 06b | AL-51 | new | E-119 | a condition or the approval is missing → no release. |
+| FCW-185 | 06b | AL-51 | new | E-119 | the custody log cannot be written → no release. |
+| FCW-186 | 06b | AL-52 | new | E-114 | no decided, unconsumed C-15 receipt for the digest → refused. |
+| FCW-187 | 06b | AL-52 | new | E-114 | a name collision or any template deviation → refused. |
+| FCW-188 | 06b | AL-53 | new | E-115 | lowering without a C-17 approval and its confirmation → refused. |
+| FCW-189 | 06b | AL-53 | new | E-115 | raising without a C-18 approval → refused. |
+| FCW-190 | 06b | AL-53 | new | E-115 | a level configuration that would switch a floor item off → refused at load. |
+
+6.3 **AFC-n → FCW-n** (for step 5's 05a table "FCW-n → E-n", EV5 14.2).
+
+| AFC | FCW-n that refine it |
+|---|---|
+| AFC-1 | FCW-19, FCW-20, FCW-21, FCW-22, FCW-23 |
+| AFC-2 | FCW-28, FCW-29, FCW-30, FCW-31, FCW-32 |
+| AFC-3 | FCW-33, FCW-34, FCW-100 |
+| AFC-4 | FCW-44, FCW-45, FCW-46 |
+| AFC-5 | FCW-25, FCW-36, FCW-37, FCW-106 |
+| AFC-6 | FCW-43, FCW-47 |
+| AFC-7 | FCW-38 |
+| AFC-8 | FCW-40, FCW-41 |
+| AFC-9 | FCW-14 |
+| AFC-10 | FCW-13, FCW-39 |
+| AFC-11 | FCW-38 |
+| AFC-12 | FCW-27, FCW-49, FCW-50 |
+| AFC-13 | FCW-9, FCW-11, FCW-12, FCW-22, FCW-24, FCW-39 |
+| AFC-14 | FCW-2, FCW-6, FCW-21 |
+| AFC-15 | FCW-4, FCW-16 |
+| AFC-16 | FCW-5, FCW-48, FCW-51, FCW-52, FCW-54, FCW-56, FCW-57, FCW-61 |
+| AFC-17 | FCW-53 |
+| AFC-18 | FCW-62, FCW-63, FCW-64, FCW-65 |
+| AFC-19 | FCW-61, FCW-66, FCW-67, FCW-68, FCW-72, FCW-73, FCW-74, FCW-75 |
+| AFC-20 | FCW-79, FCW-80, FCW-82, FCW-83 |
+| AFC-21 | FCW-85, FCW-86, FCW-87 |
+| AFC-22 | FCW-76, FCW-88, FCW-89, FCW-93, FCW-94, FCW-95, FCW-99 |
+| AFC-23 | FCW-112, FCW-114, FCW-115, FCW-117 |
+| AFC-24 | FCW-109 |
+| AFC-25 | FCW-76, FCW-102, FCW-103, FCW-104, FCW-111, FCW-116 |
+| AFC-26 | FCW-69, FCW-74, FCW-101 |
+| AFC-27 | FCW-15, FCW-120 |
+| AFC-28 | FCW-137 |
+| AFC-29 | FCW-112, FCW-118, FCW-119 |
+| AFC-30 | FCW-151 |
+| AFC-31 | FCW-147 |
+| AFC-32 | FCW-126 |
+| AFC-33 | FCW-98, FCW-133 |
+| AFC-34 | FCW-136 |
+
+## 7 Drawings (card 5.D; common rules 3.6)
+
+7.0 **Index.** Drawing **D-1** (state machines, behaviour) has one part per stateful algorithm, with its failure and
+crash states: D-1.1 READY flag (AL-1), D-1.2 ring schedule (AL-7), D-1.3 watchdog (AL-8), D-1.4 a delivery attempt
+(AL-9), D-1.5 the lease in an origin-reporting project (AL-11), D-1.6 waiting-mail signal (AL-13), D-1.7 forward-once
+at Y and X (AL-14, AL-15) in this file; D-1.8 revocation list at a sidecar, D-1.9 hub id at start, D-1.10 blob at the
+receiver, D-1.11 inbox consumers in 06a section 3; D-1.12 Tier 0 event, D-1.13 circuit credential in 06b section 3.
+Drawing **D-2** (interaction sequences, behaviour) has one part per algorithm that crosses components, with its
+fails-closed paths: D-2.1 doorbell ring and hand-over, D-2.2 watchdog fire, D-2.3 lease claims with origin, D-2.4
+forward-once in this file; D-2.5 revocation, D-2.6 blob in 06a; D-2.7 approval, D-2.8 circuit set-up in 06b.
+7.0.1 Stateless or single-component algorithms (AL-2, AL-3, AL-4, AL-5, AL-6, AL-10, AL-12, AL-16, AL-20, AL-23..AL-25,
+AL-28, AL-29, AL-31..AL-33, AL-36..AL-41, AL-45..AL-47, AL-49..AL-53) have no part of their own: their states are fields
+of a drawn machine (AL-5 and AL-6 decide the edges of D-1.2 and D-1.4) or they are pure functions.
+
+**Drawing D-1.1 — the READY flag of one session at the receiver (state machine, AL-1)**
+
+```mermaid
+stateDiagram-v2
+  [*] --> ABSENT: session first seen or new sidecar epoch
+  ABSENT --> READY: ready READY report
+  ABSENT --> BUSY: ready BUSY report
+  READY --> BUSY: BUSY report with newer at_ms
+  BUSY --> READY: READY report with newer at_ms
+  READY --> READY: older report dropped and counted
+  BUSY --> BUSY: tie with READY keeps BUSY
+  READY --> NOT_RUNNING: session_end or NOT_RUNNING report
+  BUSY --> NOT_RUNNING: session_end or NOT_RUNNING report
+  NOT_RUNNING --> READY: new turn reports READY
+  READY --> STALE_FOR_DOORBELL: older than 24 h
+  STALE_FOR_DOORBELL --> READY: new READY report
+  READY --> ABSENT: sidecar restart, other epoch
+  BUSY --> ABSENT: sidecar restart, other epoch
+```
+
+7.1 Text equivalent of D-1.1. 7.1.1 A session starts ABSENT for the doorbell, also after every sidecar restart (new
+epoch) and every reboot. 7.1.2 Valid `ready` reports move it between READY and BUSY in the order of the adapter's
+`at_ms`; an older report is dropped and counted; a tie between BUSY and READY keeps BUSY. 7.1.3 A session end or a
+NOT_RUNNING report makes it NOT_RUNNING until a new turn reports READY. 7.1.4 A READY older than 24 h is stale for the
+doorbell until a new report. 7.1.5 Only READY with the current epoch opens AL-5's condition (b).
+
+**Drawing D-1.2 — the ring schedule of one session (state machine, AL-7)**
+
+```mermaid
+stateDiagram-v2
+  [*] --> IDLE
+  IDLE --> AWAIT_SUBMIT: ring typed, k is 0
+  AWAIT_SUBMIT --> BACKOFF: prompt submitted within 1 tick
+  AWAIT_SUBMIT --> UNSUBMITTED: no submit within 1 tick, counted
+  UNSUBMITTED --> BACKOFF: any prompt submitted
+  UNSUBMITTED --> AWAIT_SUBMIT: watchdog typed
+  BACKOFF --> AWAIT_SUBMIT: next ring at T0 plus O of k, k plus 1
+  AWAIT_SUBMIT --> IDLE: hand-over or nothing pending
+  BACKOFF --> IDLE: hand-over or nothing pending
+  UNSUBMITTED --> IDLE: hand-over, nothing pending, or session restart
+  AWAIT_SUBMIT --> UNSUBMITTED: sidecar crash, intent without submit
+```
+
+7.2 Text equivalent of D-1.2. 7.2.1 IDLE rings when AL-5 allows and moves to AWAIT_SUBMIT with k = 0. 7.2.2 A submit
+within one tick moves to BACKOFF; none moves to UNSUBMITTED and is counted (H-11 (e)). 7.2.3 In UNSUBMITTED no normal
+ring happens; any submit moves to BACKOFF; a watchdog line moves back to AWAIT_SUBMIT. 7.2.4 From BACKOFF the next ring
+waits until tick T0 + O(k) (0, 4, 12, then every 20 ticks). 7.2.5 A hand-over or an empty pending set returns to IDLE
+from any state; a session restart clears UNSUBMITTED. 7.2.6 After a sidecar crash an intent without a recorded submit is
+UNSUBMITTED.
+
+**Drawing D-1.3 — the watchdog of one session (state machine, AL-8)**
+
+```mermaid
+stateDiagram-v2
+  [*] --> QUIET: nothing pending
+  QUIET --> COUNTING: mail pending, all sources known
+  QUIET --> UNAVAILABLE: mail pending, S1 or S2 unknown or no TermLink PTY
+  UNAVAILABLE --> COUNTING: sources become known
+  COUNTING --> COUNTING: activity or a typed line restarts the silence
+  COUNTING --> CHECKING: 300 s of silence
+  CHECKING --> HELD: kill switch, foreground, veto active or unmeasurable
+  CHECKING --> REFUSED_NO_ROW: audit row cannot be written
+  CHECKING --> FIRED: row written, line typed
+  HELD --> CHECKING: next tick, still silent
+  REFUSED_NO_ROW --> CHECKING: next tick
+  FIRED --> COUNTING: silence restarts at the fire
+  COUNTING --> QUIET: hand-over or nothing pending
+  FIRED --> QUIET: hand-over
+  FIRED --> COUNTING: crash, rebuilt from admin chain and ring log
+```
+
+7.3 Text equivalent of D-1.3. 7.3.1 With nothing pending the watchdog is QUIET. 7.3.2 With mail pending it is COUNTING
+when every source is known, UNAVAILABLE otherwise (status says so; it never fires blind). 7.3.3 Activity or any typed
+line restarts the silence. 7.3.4 After 300 s of silence it CHECKS the kill switch, the foreground and the veto (which
+must be measurable); a failing check HOLDS with one audit row per kind; an audit row that cannot be written refuses the
+fire. 7.3.5 Otherwise the row is written and the line typed (FIRED); silence restarts at the fire. 7.3.6 A hand-over
+returns it to QUIET; after a crash the fire and typed-line times are rebuilt from durable logs, so a restart never
+shortens the 300 s.
+
+**Drawing D-1.4 — one delivery attempt of a message at the receiver (state machine, AL-6, AL-9)**
+
+```mermaid
+stateDiagram-v2
+  [*] --> QUEUED: STORED, offerable
+  QUEUED --> RUNG: doorbell or watchdog typed, ATTEMPTED via ring
+  RUNG --> CLAIMED: hook pull wins the claim, nonce
+  QUEUED --> CLAIMED: hook pull wins the claim, nonce
+  CLAIMED --> HANDED_OVER: nonce in a harness user or hook-context record
+  CLAIMED --> LABELLED: 90 s without evidence, HANDOVER_UNCONFIRMED sent
+  LABELLED --> HANDED_OVER: evidence found later
+  LABELLED --> QUEUED: proof of absence at the complete point
+  CLAIMED --> QUEUED: proof of absence at the complete point
+  LABELLED --> UNCERTAIN: final check, no complete point
+  CLAIMED --> UNCERTAIN: transcript unreadable
+  UNCERTAIN --> HANDED_OVER: operator decides delivered
+  UNCERTAIN --> QUEUED: operator decides redeliver
+  CLAIMED --> CLAIMED: crash, claim blocks a second hand-out, search resumes
+  HANDED_OVER --> [*]
+```
+
+7.4 Text equivalent of D-1.4. 7.4.1 A STORED message is QUEUED. 7.4.2 A typed ring makes it RUNG (ATTEMPTED via the
+ring) without handing anything over. 7.4.3 A hook pull that wins the atomic claim makes it CLAIMED with a nonce, from
+QUEUED or RUNG. 7.4.4 The nonce in a harness-written user or hook-context record makes it HANDED_OVER. 7.4.5 After
+90 s without evidence the sender is told HANDOVER_UNCONFIRMED (LABELLED, still ATTEMPTED); later evidence still makes it
+HANDED_OVER. 7.4.6 Proof of absence at the evidence-complete point returns it to QUEUED for a new attempt; no point, or
+an unreadable transcript, makes it UNCERTAIN for the operator. 7.4.7 A crash keeps the claim, which blocks a second
+hand-out; the evidence search resumes at start.
+
+**Drawing D-1.5 — the main lease in an origin-reporting project (state machine, AL-11)**
+
+```mermaid
+stateDiagram-v2
+  [*] --> VACANT
+  VACANT --> PROVISIONAL: session start, generation plus 1, 5 min
+  VACANT --> HELD: human prompt, generation plus 1
+  PROVISIONAL --> HELD: human prompt in the same session, promotion, same generation
+  PROVISIONAL --> HELD: human prompt in another session, generation plus 1
+  PROVISIONAL --> VACANT: 5 min without a human prompt
+  HELD --> HELD: holder human prompt renews after Touch, or fast takeover when the holder is human silent over 5 min and not pinned, or pinned session override recorded, generation plus 1 on each holder change
+  HELD --> LAPSED: 15 min without a human renewal
+  LAPSED --> HELD: human prompt, holder resumes or another takes at once
+  LAPSED --> ELIGIBLE: quiet and cooldown passed, label only
+  ELIGIBLE --> HELD: human prompt
+  HELD --> VACANT: clean release
+  HELD --> UNKNOWN_TO_CLAIMER: lease unreadable or record post fails
+  UNKNOWN_TO_CLAIMER --> HELD: next readable claim
+```
+
+7.5 Text equivalent of D-1.5. 7.5.1 From VACANT a session start takes a 5-minute PROVISIONAL lease (new generation,
+no human stamp); a human prompt takes it HELD. 7.5.2 A provisional holder's own human prompt promotes it at the same
+generation; another session's human prompt takes it with a new generation; 5 minutes without a human prompt return it
+to VACANT. 7.5.3 A HELD lease is renewed only by the holder's human prompts (Touch first, then renew); another session's
+human prompt takes it at once when the holder has had no human prompt for over 5 minutes and is not pinned; the pinned
+session's claim overrides and is recorded. 7.5.4 15 minutes without a human renewal make it LAPSED; a human prompt then
+resumes it (holder) or takes it (another session); ELIGIBLE is only a label for "quiet and cooldown passed". 7.5.5 A
+clean release makes it VACANT. 7.5.6 Prompts of origin automated or unknown change nothing (recorded apart). 7.5.7 A
+claimer that cannot read the lease or post its record answers unknown and holds nothing.
+
+**Drawing D-1.6 — the waiting-mail signal of one receiver (state machine, AL-13)**
+
+```mermaid
+stateDiagram-v2
+  [*] --> CLEAR
+  CLEAR --> WAITING: role mail older than 10 min and no reading main
+  WAITING --> WAITING: status, session-start line and non-main line shown, or recomputed after a crash
+  WAITING --> OOB_DUE: oldest older than 30 min
+  OOB_DUE --> OOB_SENT: claim on oob topic won, channel receipt
+  OOB_DUE --> OOB_NOT_AVAILABLE: no channel configured
+  OOB_DUE --> OOB_BY_OTHER: claim held by another receiver
+  OOB_DUE --> OOB_NOT_CONFIRMED: send without a receipt
+  OOB_SENT --> CLEAR: old mail handed over
+  OOB_NOT_AVAILABLE --> CLEAR: old mail handed over
+  OOB_BY_OTHER --> CLEAR: old mail handed over
+  OOB_NOT_CONFIRMED --> CLEAR: old mail handed over
+  WAITING --> CLEAR: old mail handed over
+```
+
+7.6 Text equivalent of D-1.6. 7.6.1 CLEAR becomes WAITING when role mail is older than 10 minutes and there is no
+reading main; WAITING shows in status, in the session-start line and once per generation in a non-main session.
+7.6.2 When the oldest is over 30 minutes the out-of-band step is due: with the per-project claim won and a channel
+receipt it is OOB_SENT; without a channel, OOB_NOT_AVAILABLE; with the claim held by another receiver, OOB_BY_OTHER;
+sent without a receipt, OOB_NOT_CONFIRMED; never "sent" without the receipt. 7.6.3 Every state returns to CLEAR only
+when the old mail is handed over. 7.6.4 A crash recomputes the state from durable mail ages.
+
+**Drawing D-1.7 — forward-once at the receiving copy Y and at the main X (state machine, AL-14, AL-15)**
+
+```mermaid
+stateDiagram-v2
+  state "At Y" as Y {
+    [*] --> STORED_AT_Y
+    STORED_AT_Y --> LOCAL: not role mail, hop 3, lease unknown, vacant, own agent, outside roster
+    STORED_AT_Y --> INTENT: fresh lease names X, intent recorded
+    STORED_AT_Y --> LOCAL: intent cannot be recorded
+    INTENT --> POSTED: FORWARD posted
+    INTENT --> INTENT: post failed, retry next tick, or crash
+    INTENT --> ABANDONED: not posted within 1 min
+    ABANDONED --> LOCAL: offered at Y again
+    POSTED --> FORWARDED: final at Y, stage written
+    FORWARDED --> VIA_SENT: VIA notice to the sender
+  }
+  state "At X" as X {
+    [*] --> ENVELOPE
+    ENVELOPE --> REFUSED_AT_X: outer or inner signature, roster, topic, hop
+    ENVELOPE --> STALE_AT_X: lease unknown, other agent or other generation
+    ENVELOPE --> ACCEPTED: generation matches, checks as direct mail
+    STALE_AT_X --> STALE_NOTICE: FORWARD-STALE to the sender
+    ACCEPTED --> HANDED_OVER_AT_X: normal delivery, identity triple dedupe
+  }
+```
+
+7.7 Text equivalent of D-1.7. 7.7.1 At Y a STORED message stays LOCAL (delivered as before) unless it is role mail of
+Y's project, under the hop limit, and a lease read within 15 s names a holder X of another agent in the roster; then Y
+records a durable INTENT (if it cannot, the message stays LOCAL). 7.7.2 The FORWARD is POSTED (retried each tick and
+after a crash); if it cannot be posted within one minute the forward is ABANDONED and the message is offered at Y again.
+7.7.3 After posting, Y marks it FORWARDED (final at Y) and sends the VIA notice. 7.7.4 At X an envelope with a bad outer
+or inner signature, a signer outside the roster, a foreign topic or a bad hop is REFUSED; with X's lease unknown, naming
+another agent or another generation it is STALE and the sender gets FORWARD-STALE; otherwise it is ACCEPTED, checked as
+direct mail and handed over once.
+
+**Drawing D-2.1 — a doorbell ring and the hand-over (interaction sequence, AL-5, AL-6, AL-9), with the fails-closed paths**
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant RS as Receiver sidecar
+  participant S as TermLink session PTY
+  participant A as Adapter hooks
+  participant H as Home hub
+  RS->>RS: tick gate - pending, READY epoch ok, no typing 30 s, conversation none, schedule
+  RS->>RS: re-check kill switch, READY seq unchanged
+  RS->>S: session.input_activity
+  S-->>RS: foreground, client input times
+  RS->>RS: veto 1.5 s, typing re-read, conversation re-read
+  alt any re-check fails
+    RS->>RS: held with reason, decision record, retry next tick
+  else all pass
+    RS->>RS: compose fixed line, durable intent
+    RS->>S: command.notify ids and count
+    S->>S: validate, type line and Enter as source notify
+    S-->>RS: typed, or timeout counted as maybe typed
+    RS->>H: stage ATTEMPTED via doorbell
+  end
+  A->>RS: prompt_submit automated doorbell with ids
+  A->>RS: pull from UserPromptSubmit
+  RS->>RS: claim per message, nonce
+  RS-->>A: framed content with nonce
+  A->>RS: evidence report, nonce in a user record
+  RS->>RS: finalize checks the transcript itself
+  alt nonce found in a harness record
+    RS->>H: stage HANDED_OVER
+  else 90 s without evidence
+    RS->>H: label HANDOVER_UNCONFIRMED, still owed
+  end
+```
+
+7.8 Text equivalent of D-2.1. 7.8.1 At a tick the receiver sidecar evaluates the gate (pending mail, READY with the
+current epoch, no typing for 30 s, no conversation, the schedule). 7.8.2 Immediately before typing it re-checks the kill
+switch and the READY sequence, reads the session's foreground and input times, runs the 1.5 s veto and re-reads typing
+and the conversation; any failure holds the ring with a recorded reason. 7.8.3 Otherwise it composes the fixed line,
+writes the intent and calls `command.notify`; the session validates and types the line and Enter (counted as `notify`
+input); a timeout counts as maybe typed; the stage ATTEMPTED is written. 7.8.4 The adapter reports the submitted line as
+automated with its ids, and its UserPromptSubmit hook pulls; the sidecar claims each message with a nonce and returns
+the frame. 7.8.5 HANDED_OVER is written only when the finalizer finds the nonce in a harness-written record; after 90 s
+without evidence the sender gets the HANDOVER_UNCONFIRMED label and the message stays owed.
+
+**Drawing D-2.2 — a watchdog fire (interaction sequence, AL-8), with the fails-closed paths**
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant WD as Watchdog loop in the sidecar
+  participant AC as Admin chain
+  participant S as TermLink session PTY
+  participant H as Home hub
+  WD->>WD: mail pending, S1 S2 S3 known, 300 s silence since activity, typed line or fire
+  WD->>WD: kill switch
+  WD->>S: session.input_activity for the foreground
+  WD->>WD: veto, measurable and quiet
+  alt a check fails
+    WD->>AC: one hold row per kind per silence
+  else checks pass
+    WD->>AC: watchdog row with ready flag, ages and checks
+    alt row cannot be written
+      WD->>WD: no keystroke
+    else row written
+      WD->>S: command.notify ids and count
+      WD->>AC: outcome appended
+      WD->>H: stage ATTEMPTED via watchdog
+      WD->>WD: needs-attention if READY said busy, once per day
+    end
+  end
+```
+
+7.9 Text equivalent of D-2.2. 7.9.1 The watchdog loop sees pending mail, all three sources known, and 300 s of silence
+since the last activity, typed line or fire. 7.9.2 It checks the kill switch, reads the foreground, and runs the veto,
+which must be measurable and quiet; a failure writes one hold row per kind per silence and types nothing. 7.9.3 Otherwise
+it writes the watchdog row (READY flag, ages, checks) to the admin chain first; if that fails nothing is typed. 7.9.4 With
+the row written it types through `command.notify`, appends the outcome, writes ATTEMPTED with `via: watchdog`, and raises
+a needs-attention entry (once per session per day) when READY said busy.
+
+**Drawing D-2.3 — lease claims with prompt origin (interaction sequence, AL-11), with the fails-closed paths**
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant S1 as Session S1 hooks
+  participant S2 as Session S2 hooks
+  participant LT as main topic
+  participant TT as main-touch topic
+  participant IT as main-ignored topic
+  S1->>LT: session start claim, lease vacant
+  LT-->>S1: provisional, generation N plus 1, 5 min
+  S1->>LT: human prompt claim
+  LT-->>S1: promoted, same generation
+  S1->>TT: Touch on each human prompt, then renew
+  S2->>IT: automated or unknown prompt claim
+  IT-->>S2: ignored origin, lease unchanged
+  S2->>LT: human prompt claim
+  S2->>TT: read last human of S1
+  alt S1 pinned, or S1 human within 5 min, or last human unknown
+    LT-->>S2: not main, held by S1
+  else S1 human silent over 5 min
+    S2->>LT: force release S1 claim, claim offset 0
+    S2->>LT: Acquire fast-takeover from S1 with age
+    LT-->>S2: main, generation plus 1
+  end
+  S1->>TT: next human prompt Touch
+  S1->>LT: renew fails, re-plan, lost main told
+```
+
+7.10 Text equivalent of D-2.3. 7.10.1 S1's session start takes a vacant lease provisionally (new generation, 5 minutes);
+its first human prompt promotes it at the same generation; every later human prompt posts a Touch on the touch topic and
+then renews. 7.10.2 An automated or unknown prompt from S2 is recorded on the ignored topic and changes nothing. 7.10.3 A
+human prompt from S2 reads S1's last human time: if S1 is pinned, prompted within 5 minutes, or its time is unknown, S2
+is told it is not main. 7.10.4 Otherwise S2 force-releases S1's claim, claims offset 0, records the fast takeover with
+S1's human age and becomes main at a new generation. 7.10.5 S1's next human prompt posts its Touch, its renew fails, it
+re-plans and is told it lost main.
+
+**Drawing D-2.4 — forward-once (interaction sequence, AL-14, AL-15), with the stale and fails-closed paths**
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant SS as Sender sidecar
+  participant H as Home hub
+  participant Y as Sidecar of agent Y
+  participant X as Sidecar of agent X
+  SS->>H: post role mail for main of P to Y inbox
+  Y->>H: pull, admit, STORED
+  Y->>H: lease read, completed after STORED, at most 15 s old
+  alt lease unknown, vacant, own agent, outside roster, hop 3
+    Y->>Y: deliver as before, status says why
+  else holder is X
+    Y->>Y: durable forward intent
+    Y->>H: post FORWARD to X inbox, original bytes, generation, hop
+    Y->>Y: FORWARDED, final at Y
+    Y->>H: VIA notice to the sender
+  end
+  X->>H: pull FORWARD
+  X->>X: outer signature, roster, inner signature on the original topic, hop
+  alt a signature or check fails
+    X->>H: signed refusal to Y
+  else X lease unknown or generation differs
+    X->>H: FORWARD-STALE to the sender
+    SS->>H: re-resolve through the home hub, re-send same id
+  else generation matches
+    X->>X: admit as direct mail, identity triple dedupe, hand over once
+  end
+```
+
+7.11 Text equivalent of D-2.4. 7.11.1 The sender posts role mail to Y's inbox; Y stores it and uses a lease read that
+completed after STORED and is at most 15 s old. 7.11.2 If the lease is unknown or vacant, names Y's own agent or an agent
+outside the roster, or the hop limit is reached, Y delivers as before and says why. 7.11.3 Otherwise Y records the
+intent, posts a FORWARD with the original bytes, generation and hop to X's inbox, marks its copy final and sends the VIA
+notice. 7.11.4 X verifies the outer signature, the roster, the inner signature against the original topic and the hop;
+a failure is a signed refusal. 7.11.5 With X's lease unknown or at another generation, X sends FORWARD-STALE and the
+sender re-resolves and re-sends the same id. 7.11.6 With the generation matching, X admits the inner message as direct
+mail and hands it over once.
+
+## 8 Residual risks for the operator (QR-n)
+
+8.1 Nothing accepted earlier is reopened (RR-1..RR-20, RA-1..RA-9, AR-1..AR-6). New or sharpened by the pseudo-code:
+8.2 **QR-1** The built lease honours its test seams `TERMLINK_MAIN_TEST_LEASE_MS`, `_QUIET_MS`, `_COOLDOWN_MS` in
+production (`main_lease.rs` `Timing::from_env`, no mode gate). A stray variable in a project's hook environment would
+shorten main's lease to as little as 1 s. AL-16 closes it in B-25; until then the production scan of 4.8.b can be run
+once to show whether any host has one set.
+8.3 **QR-2** After a sidecar restart the conversation signal has lost the last prompt; a person mid-conversation is
+protected only by the 30 s typing veto until their next prompt (AL-4 crash case).
+8.4 **QR-3** The prompt origin can be forged by a same-user process calling `termlink main claim --origin human`
+directly, outside the hooks (RR-2, AR-6 class). AL-1's override sees only lines the receiver typed and input that came
+through `notify` or `inject`. Measured by the share of renewals by basis (E-31), not closed.
+8.5 **QR-4** A fast takeover racing the holder's own human prompt is decided in favour of the taker within one RPC round
+trip (AL-11 edge 5.11.f.4 (b)); recorded each time; the operator pins to choose.
+8.6 **QR-5** On a host where the activity veto cannot measure (no `/proc`, e.g. macOS), the watchdog never fires
+(FCW-41): mail held by a stuck READY flag there waits for the R-44.e notice and the operator. Visible, not silent.
+8.7 **QR-6** If the touch topic cannot be read, no fast takeover happens (FCW-55); main then moves only by lapse (worst
+case 20 min, as built).
+8.8 **QR-7** The later-phase algorithms (06b) fix decision logic only; formats and transports wait for gated
+sub-designs, and their FCWs must be re-confirmed when those land (marked **[open: gate]**).
+
+## 9 Change requests to earlier steps (requests, not edits)
+
+9.1 **ZR-1 (step 5).** (a) Add specs for the 44 FCWs listed in 6.1 that have none, and the 05a table "FCW-n → E-n"
+(EV5 14.2), using 6.3 for the AFC mapping. (b) Add a spec for the production seam scan of 4.8.b (an E-101-style L7
+check: any `TERMLINK_*TEST*` variable in a production unit environment, the hooks' environment or a running sidecar's
+environment fires). (c) E-5's expected table: use 4.2 (one ring then none with a non-submitting adapter; 0, 4, 12, 32,
+52, 72, 92, 112 with a submitting adapter that gives proof of absence). (d) E-23 and E-24 stand as written under 4.5.
+(e) E-34 (f) "stale (> 15 s read period)": use 4.6 (inclusive 15 000 ms on Y's `mono()`, read completed after STORED,
+else a synchronous read).
+9.2 **ZR-2 (step 4, ARC4 6.9.2).** Reword "READY re-read and its age ≤ 1 tick" as: "the READY record re-read is still
+READY with the same sequence number and the current sidecar process, and the re-checks were made at most 1 tick
+before the keystrokes" (4.3). The literal reading would never ring an agent idle for more than 30 s.
+9.3 **ZR-3 (step 4, ARC4 6.13, D-4 (b)).** (a) A provisional take raises the generation (it is a holder change); a
+promotion in the same session keeps it (4.5). (b) `last_human_at` is not a field of the claim row (renewals cannot change
+the claimer string, `main_lease.rs`): it is the newest human-counted Acquire, Promote or Touch record, with Touch and
+Ignored records on their own topics `main-touch:<project>` and `main-ignored:<project>` so they can never push lease
+records out of the newest-1000 retention. (c) "The hub counts a claim" means the claimer's logic over the hub's claim
+primitives, as built; no hub code changes.
+9.4 **ZR-4 (step 4, ARC4 6.9.7.b).** The watchdog holds when the activity veto cannot measure (FCW-41, QR-5); OQ-16 D 3
+(no veto when unmeasurable) stays for the normal ring only. The watchdog types without READY, so the veto is its only
+evidence that the agent is not working.
+9.5 **ZR-5 (step 4, ARC4 6.1.4).** Fix the signing-key fingerprint form as `ed25519:` + lower-case hex SHA-256 of the
+32-byte public key (06a AL-18).
+9.6 **ZR-6 (step 4, ARC4 6.4.3, 6.4.5).** Record the wrapper header `TLBLOB`, format version 1, algorithm id 1
+(XChaCha20-Poly1305 with an X25519 sealed box), and the associated data `termlink.blob/1\n<recipient>\n<plain_sha256>`
+(06a AL-26) as the decision behind "the wrapper's magic and version".
+9.7 **ZR-7 (step 4, ARC4 17.2, 17.5.a).** (a) A `prompt_submit` with basis `doorbell` SHOULD carry `doorbell_ids`, the
+ids parsed from the submitted line; AL-7 (unsubmitted-line tracking), AL-9 (stray count) and AL-1 (origin override) use
+them. (b) The receiver orders `ready` reports by `at_ms` and drops an older one; a BUSY/READY tie keeps BUSY (FCW-3).
+9.8 **ZR-8 (step 4, ARC4 7.2, 7.3).** (a) Forward-once's lease freshness as 4.6. (b) At X, an unknown lease is answered
+with FORWARD-STALE like a generation mismatch (FCW-75); 7.3 names only the mismatch.
+9.9 **ZR-9 (step 4, ARC4 6.2.3).** `revocation.head` returns a **signed** head (schema `termlink.revocation-head/1`,
+06a V-HEAD-1). An unsigned head would let a party able to answer for the hub say "unchanged" and hide a new revocation
+behind it; with the signature the head costs about 250 bytes instead of 100.
+9.10 **ZR-10 (step 4, ARC4 22 B-25).** Add to B-25's deliverable: the lease's test seams honoured only in a test estate,
+refused (unknown, exit 2) elsewhere (AL-16, QR-1).
+9.11 YR-4 of step 5 lapses (4.10).
+
+## 10 Completion conditions (card 7) and the T-3355 criteria
+
+10.1 **Card 7.1, every algorithm in scope in the full form 4.a to 4.h.** AL-1 to AL-16 here, AL-17 to AL-40 in 06a,
+AL-41 to AL-53 in 06b: each has SERVES, PROBLEM and APPROACH, ALGORITHM, INVARIANTS, FAILS CLOSED WHEN, EDGE CASES,
+EXECUTION SEMANTICS and CRYPTOGRAPHY, plus OBS. Where a part is empty for a stateless algorithm it says so ("none",
+"pure"). The card's approval-broker minimum (canonicalise and hash, verify an approval, check a grant, the ticket state
+machine with timeout, cancel and revoke, execute once and record, post-condition, revocation, break-glass) is AL-41 to
+AL-44, AL-46, AL-50, and AL-21, AL-22, AL-45 for revocation. Canonicalisation has test vectors (06a 2.4.c.1, 06b
+2.1.c.1, and the SI-1 line vector 5.6.c.1).
+10.2 **Card 7.2, every FAILS CLOSED WHEN handed to the evidence specialist.** Section 6: 190 FCWs, each with the AFC it
+refines or `new`, and an E-n or ZR-1; the 44 without a spec are ZR-1 (a).
+10.3 **Card 7.3, concurrency and crash cases for every state-changing step.** Every algorithm that changes state has a
+concurrency item and a crash table or crash item in its part f (AL-1, AL-6, AL-7, AL-8, AL-9, AL-11, AL-13, AL-14,
+AL-15, AL-17, AL-21, AL-22, AL-23, AL-26, AL-27, AL-30, AL-31, AL-33, AL-35, AL-40, AL-42, AL-43, AL-44 and the rest
+with a one-line crash statement).
+10.4 **Card 7.4, drawings D-1 and D-2 with ids, captions and text equivalents, rendering without error.** Section 7
+(index 7.0), 06a section 3, 06b section 3; render check section 11.
+10.5 **T-3355 agent criteria.** Version table and inputs of record with hashes: sections 0 and 1. Pseudo-code for each
+component of the step-4 architecture, reconciled with step 5: K-9a AL-17/18, K-9b AL-21/22, K-10 AL-36, K-11 AL-23/24,
+K-12 AL-37, K-13 AL-26..28, K-14 AL-35, K-15 AL-30..34, K-16 AL-29, K-17 AL-38, K-18 AL-6 (veto) and AL-9, K-19 AL-5..7,
+K-20 AL-39, K-21 (the canary is a scheduled run of E-78 with no decision logic of its own beyond AL-40's gate data),
+K-22 AL-11/12, K-23 AL-14/15, K-24 AL-25, K-25 AL-19, K-26 AL-45, K-27 AL-41..44, K-28 AL-47, K-29 AL-48, K-30 AL-52,
+K-31 AL-51, K-32 AL-1..4, K-33 AL-8, K-34 AL-13; K-1..K-8 are built and appear where an algorithm uses them (kill switch
+AL-10, drain AL-40, supervisor through the heartbeat field of AL-29). Reconciliation with step 5: every algorithm names
+the E-n that test it (in its FCWs) and the step-5 questions are answered in section 4.
+
+## 11 Render check of the drawings
+
+11.1 Method as steps 2 to 5: each Mermaid block of the three files is extracted under its `Drawing D-n` caption and
+rendered with `mmdc -p <puppeteer config> -i <block>.mmd -o <block>.svg`, config
+`{"executablePath":"/usr/bin/chromium","args":["--no-sandbox"]}`; the script also refuses a `;` in any sequence
+block and asserts that every Mermaid block has a caption. Script `.context/working/t3355/render/r1.sh`, result
+`.context/working/t3355/render/r1.out`. No `render_check` record (the checker is not adopted, profile P4.5).
+11.2 Result, 2026-11-11, on v0.1: 21 blocks (06: D-1.1..D-1.7, D-2.1..D-2.4; 06a: D-1.8..D-1.11, D-2.5, D-2.6; 06b:
+D-1.12, D-1.13, D-2.7, D-2.8), every one exit code 0, a non-empty SVG, no "syntax error" or "parse error" in any log or
+SVG. Script exit code 0.
+11.3 Read as PNG: D-1.5 and D-2.1. In the first render of D-1.5 the three HELD self-loops collapsed into one visible
+label (the behaviour step 4 met in its D-4); they were merged into one labelled loop, as were the two self-loops of
+D-1.6 (WAITING) and D-1.13 (LIVE); a check now refuses any state with more than one self-loop. The re-render shows every
+transition of D-1.5 labelled, and D-2.1 shows the four participants, the hold path and both evidence outcomes legibly.
