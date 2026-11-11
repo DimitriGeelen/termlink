@@ -6,10 +6,10 @@ description: >
   output docs/design/interactive-agent-communication-07-review.md. Starts only after
   step 6 is approved by the operator.
 
-status: captured
+status: started-work
 workflow_type: specification
 owner: agent
-horizon: later
+horizon: now
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:09Z
-last_update: '2026-10-18T22:32:50Z'
+last_update: 2026-11-11T22:16:16Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,6 +77,25 @@ bvp_scores_proposed:
       D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted);
       F-ORCH=0 (no-signal)'
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-11T22:15:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 0
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=0 (L0: no signal); D1=0 (no-signal); D2=0 (no-signal);
+      D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0:
+      no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3356: arc-011 role chain step 7: review panel and disposition
@@ -87,10 +106,23 @@ Step 7 of the arc-011 role chain (docs/design/interactive-agent-communication-ro
 
 Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 
+**Background / trigger:** Steps 5 and 6 are done with green independent reviews (V-20261109-454c9bbb,
+V-20261111-7120be32). Operator 2026-11-11 chose A for the panel (Claude Code, Codex, opencode, Antigravity).
+
+**Problem / hypothesis:** No reviewer outside the authoring sessions has attacked the design as a whole; a build plan
+(step 8) on an unattacked design builds in its holes. Build of B-27 has already started in parallel (T-3426 ruling A).
+
+**Goal:** Per the review-panel card: one brief from the approved outputs (secrets, credentials, internal addresses
+stripped), four independent seats, answers stored unedited, a synthesis with agreement and dissent, and a proposed
+disposition per finding; the operator decides rejections and deferrals of security findings and approves the step.
+
+**Expected outcome:** `docs/design/interactive-agent-communication-07-review.md` with manifest, synthesis and
+disposition table; accepted findings become change requests to their steps (or to running build items).
+
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Step 6 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3)
+- [x] Step 6 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3) (evidence: step 6 does not decide (`decides: false`), README 3.6; its review is green (round 2, V-20261111-7120be32, applied 2026-11-11); operator 2026-11-11 chose the step 7 panel, which presupposes step 6 as its input)
 - [ ] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned
 - [ ] `docs/design/interactive-agent-communication-07-review.md` exists with a version table and an inputs-of-record section citing the input hashes
 - [ ] External review panel run on steps 1, 4, 6; every finding dispositioned (accepted / rejected with reason / deferred)
@@ -181,6 +213,12 @@ grep -q 'task: T-3356' docs/design/interactive-agent-communication-role-chain.ya
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-11 — who reviews, and may the material leave the project (operator: "A")
+- **Chose:** A, a mixed panel from the operator's subscriptions: Claude Code (Anthropic), Codex (OpenAI), opencode
+  (Z.ai GLM), Antigravity (Google). The brief goes to those four vendors, with secrets, credentials and internal
+  addresses stripped (card 3.1-3.2). Scored A +35, C +28, B +7.
+- **Rejected:** B Claude Code only (same vendor as the authors); C A plus a paid OpenRouter seat (cost, small gain).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -197,3 +235,10 @@ grep -q 'task: T-3356' docs/design/interactive-agent-communication-role-chain.ya
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3356-arc-011-role-chain-step-7-review-panel-a.md
 - **Context:** Initial task creation
+
+### 2026-11-11T22:15:06Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-11T22:15:30Z — status-update [task-update-agent]
+- **Change:** horizon: now → now
