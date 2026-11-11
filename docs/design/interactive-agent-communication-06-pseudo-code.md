@@ -1140,8 +1140,8 @@ lease read; on mismatch store, do not forward, tell the sender to re-resolve.
 5.15.c **ALGORITHM:**
 ```text
 on_forward(env, sig, poster) at X:
- 1  strict_json(env); env.schema == "termlink.forward/1"; size(env) <= inline cap + 16 MiB? no: inner must itself be
-    within the inline cap (PN-7, 8 KiB) -> else refuse                                                     # FCW-72
+ 1  strict_json(env); require env.schema == "termlink.forward/1"; require the decoded inner message within the
+    inline cap (PN-7, 8 KiB; a blob travels as its reference, AL-26) and the envelope within 16 KiB -> else refuse  # FCW-72
  2  Ykey = key card / roster entry of poster; require poster in roster(X.project) and env.project == X.project
     require verify(Ykey, "termlink.forward/1\n" + sha256_hex(jcs(env)), sig)                               # FCW-72
  3  inner = base64_decode(env.inner_b64); require sha256(inner) == env.inner_sha256
