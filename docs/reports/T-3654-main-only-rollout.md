@@ -14,7 +14,7 @@ operator runme 2026-11-02 17:22Z) + AEF v1.8.16-be.26 or later (T-5014 hook). No
 | 003-Vailliant-diagnosis | .107 | LIVE | be.26 via operator runme; main 9f4bca5c gen 1; am-i 0/1 correct (msg c47917e3) |
 | 0235-voice-features | .107 | DORMANT | 2026-11-11: no agent running; main vacant gen 0; status ask sent (msg 51eeea4e), seen at its next session |
 | 050-email-archive | .107 | LIVE | be.26 (35abca011); main aaeda7d0 gen 1; am-i 1 for x (msg 07c5b1ff) |
-| 0506-Voxtype-extention | .107 | GO SENT, WAITS UPGRADE | 2026-11-11: on be.5; operator go "A" (2026-11-11) relayed; agent-run upgrade, no runme (msg 05f33f3f) |
+| 0506-Voxtype-extention | .107 | LIVE | operator go "A" 2026-11-11; be.26 (fa8c651); main 5c1fdb9a gen 1; am-i 0/1 without a pipe (msg dda2a73f); confirmed from .107 by `termlink main status` |
 | 055-agentic-fleet-cockpit | .107 | LIVE | be.26 on operator go ~21:50; main 0fdf569a gen 1; am-i 1 for another id (msg a3173e5c) |
 | 0909-aef-greenfield-v22 | .107 | DORMANT | 2026-11-11: no agent running; main vacant gen 0; status ask sent (msg b6212859) |
 | 0909-boot-into-timeshift-snapshots | .107 | DORMANT | 2026-11-11: no agent running; main vacant gen 0; status ask sent (msg 9880a895) |
