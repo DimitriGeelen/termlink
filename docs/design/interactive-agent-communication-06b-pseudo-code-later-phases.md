@@ -1,7 +1,7 @@
 # Interactive agent communication: step 6, pseudo-code, part B: later phases (PH-3 to PH-6)
 
 **Task:** T-3355 · **Arc:** arc-011 · **Chain:** arc-011-design, step 6 · **Role:** pseudo-coder
-**Status:** DRAFT v0.1, sub-document of `docs/design/interactive-agent-communication-06-pseudo-code.md` ("06"). Read
+**Status:** DRAFT v0.2, sub-document of `docs/design/interactive-agent-communication-06-pseudo-code.md` ("06"). Read
 06 sections 2 and 3 first. The FAILS CLOSED WHEN register for this file is 06 section 6.
 **Level of detail.** ARC4 sets PH-3 to PH-6 at architecture level and leaves their detailed sub-designs open behind
 gates (T-2470 charter, T-3385 confirmation provider, AEF's GP-11 channel standard, H-1 and H-27 for the circuit, Track
@@ -15,6 +15,7 @@ fails closed, and what happens on a crash. Field names and transports that a gat
 | Version | Date | Change | Task |
 |---|---|---|---|
 | 0.1 | 2026-11-11 | First draft: AL-41..AL-53 (approval broker scope of the card; policy, grants, roster and cards, circuit, membership, break-glass, custody, account helper, security levels); test vector V-T0-1; drawings D-1.12, D-1.13, D-2.7, D-2.8. | T-3355 |
+| 0.2 | 2026-11-11 | Remediation of review r1: F-1 AL-43 consume as one conditional hub step under event.lock with the AL-42 lock rule, FCW-191, D-1.12 and D-2.7 relabelled; F-2 AL-46 check and use as one hub reserve under grant.lock, AL-45 hub write under the same lock, FCW-192, FCW-193; F-3 AL-44 recover() matches its crash table, FCW-194; F-4 concurrency items for AL-45, AL-47..AL-53. Nothing else changed. | T-3355 |
 
 ## 1 Scope and inputs
 

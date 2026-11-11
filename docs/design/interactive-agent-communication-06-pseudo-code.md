@@ -1,7 +1,7 @@
 # Interactive agent communication: step 6, pseudo-code
 
 **Task:** T-3355 · **Arc:** arc-011 · **Chain:** arc-011-design, step 6 · **Role:** pseudo-coder
-**Status:** DRAFT v0.1, batch mode (no human present, `_common.md` 5.2). This step does not decide (`decides: false`);
+**Status:** DRAFT v0.2, batch mode (no human present, `_common.md` 5.2). This step does not decide (`decides: false`);
 it iterates with step 5 (evidence specialist). Nothing here is approved. Values that are not ruled numbers are tagged
 **[P]**; ruled numbers carry their source; **[B]** marks logic written as built (read from the code at `24d15fba3`).
 **Standing rules applied throughout (CLAUDE.md):** nothing working is switched off as a side effect (**NID**);
@@ -25,6 +25,7 @@ the reviewers read the files in the repository.
 | Version | Date | Change | Task |
 |---|---|---|---|
 | 0.1 | 2026-11-11 | First complete draft, batch mode. 53 algorithms AL-1..AL-53 in the card's form 4.a..4.h across three files; answers to step 5's questions 14.3 (a)..(i); FAILS CLOSED WHEN register FCW-1..FCW-190 with the AFC each refines and its spec or a change request; drawings D-1 (state machines) and D-2 (interaction sequences); canonicalisation test vectors; residual risks QR-n; change requests ZR-n. | T-3355 |
+| 0.2 | 2026-11-11 | Remediation of independent review r1 (amber, F-1..F-6), nothing else changed: F-1 06b AL-43 consume is one conditional step at the hub under event.lock (compare-and-set APPROVED → CONSUMED with the consumed-set insert in one transaction), AL-42 lock rule for cancel, revoke and the expiry sweeper, FCW-191; F-2 06b AL-46 check and use are one reserve at the hub under grant.lock (counter insert with a limit), revoke or expiry between check and use, FCW-192, FCW-193; F-3 06b AL-44 recover() follows the crash table (no-dispatch-row case, `already_done` before the post-condition, at most one re-apply), FCW-194; F-4 concurrency item or explicit single writer for every state-changing algorithm, 10.3 rewritten; F-5 AL-35 and AL-36 drawn (06a D-1.14, D-1.15), 7.0 and 7.0.1 corrected; F-6 the SI-1 line of 5.6.c.1 is 150 bytes (measured). Register now FCW-1..FCW-194; ZR-1 (f) added; render check 11.4. | T-3355 |
 
 ## 1 Inputs of record
 
@@ -1473,13 +1474,17 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 crash states: D-1.1 READY flag (AL-1), D-1.2 ring schedule (AL-7), D-1.3 watchdog (AL-8), D-1.4 a delivery attempt
 (AL-9), D-1.5 the lease in an origin-reporting project (AL-11), D-1.6 waiting-mail signal (AL-13), D-1.7 forward-once
 at Y and X (AL-14, AL-15) in this file; D-1.8 revocation list at a sidecar, D-1.9 hub id at start, D-1.10 blob at the
-receiver, D-1.11 inbox consumers in 06a section 3; D-1.12 Tier 0 event, D-1.13 circuit credential in 06b section 3.
+receiver, D-1.11 inbox consumers, D-1.14 reconciliation of a conversation (AL-35), D-1.15 a number beyond a gap (AL-36)
+in 06a section 3; D-1.12 Tier 0 event, D-1.13 circuit credential in 06b section 3.
 Drawing **D-2** (interaction sequences, behaviour) has one part per algorithm that crosses components, with its
 fails-closed paths: D-2.1 doorbell ring and hand-over, D-2.2 watchdog fire, D-2.3 lease claims with origin, D-2.4
 forward-once in this file; D-2.5 revocation, D-2.6 blob in 06a; D-2.7 approval, D-2.8 circuit set-up in 06b.
 7.0.1 Stateless or single-component algorithms (AL-2, AL-3, AL-4, AL-5, AL-6, AL-10, AL-12, AL-16, AL-20, AL-23..AL-25,
-AL-28, AL-29, AL-31..AL-33, AL-36..AL-41, AL-45..AL-47, AL-49..AL-53) have no part of their own: their states are fields
-of a drawn machine (AL-5 and AL-6 decide the edges of D-1.2 and D-1.4) or they are pure functions.
+AL-28, AL-29, AL-31..AL-33, AL-37..AL-41, AL-45..AL-47, AL-49..AL-53) have no part of their own: their states are fields
+of a drawn machine (AL-5 and AL-6 decide the edges of D-1.2 and D-1.4) or they are pure functions. v0.2 (review r1
+F-5): AL-35 (per-conversation UNRECONCILED, RECONCILED, CONFLICT and LOST_AFTER_STORED) and AL-36 (a number HELD,
+REQUESTED, OFFERED or RELEASED_MARKED) each keep a lifecycle across ticks and restarts, so they are stateful and are now
+drawn as D-1.14 and D-1.15; v0.1 omitted AL-35 and listed AL-36 here in error.
 
 **Drawing D-1.1 — the READY flag of one session at the receiver (state machine, AL-1)**
 
@@ -1917,8 +1922,9 @@ EXECUTION SEMANTICS and CRYPTOGRAPHY, plus OBS. Where a part is empty for a stat
 machine with timeout, cancel and revoke, execute once and record, post-condition, revocation, break-glass) is AL-41 to
 AL-44, AL-46, AL-50, and AL-21, AL-22, AL-45 for revocation. Canonicalisation has test vectors (06a 2.4.c.1, 06b
 2.1.c.1, and the SI-1 line vector 5.6.c.1).
-10.2 **Card 7.2, every FAILS CLOSED WHEN handed to the evidence specialist.** Section 6: 190 FCWs, each with the AFC it
-refines or `new`, and an E-n or ZR-1; the 44 without a spec are ZR-1 (a).
+10.2 **Card 7.2, every FAILS CLOSED WHEN handed to the evidence specialist.** Section 6: 194 FCWs (v0.2: FCW-191..FCW-194 added
+by the r1 remediation), each with the AFC it refines or `new`, and an E-n or ZR-1; the 46 without a spec are ZR-1 (a),
+and the cases of the four new ones that step 5 lacks are ZR-1 (f).
 10.3 **Card 7.3, concurrency and crash cases for every state-changing step.** Every algorithm has, in its part f, a
 crash table or crash item, and every algorithm that changes state also has a concurrency item that names what orders
 or serialises its writers (v0.2, review r1 F-4; v0.1 left AL-36, AL-37, AL-45, AL-49..AL-52 and others with a crash
@@ -1954,3 +1960,11 @@ SVG. Script exit code 0.
 label (the behaviour step 4 met in its D-4); they were merged into one labelled loop, as were the two self-loops of
 D-1.6 (WAITING) and D-1.13 (LIVE); a check now refuses any state with more than one self-loop. The re-render shows every
 transition of D-1.5 labelled, and D-2.1 shows the four participants, the hold path and both evidence outcomes legibly.
+
+11.4 **v0.2 re-render (review r1 remediation).** Script `.context/working/t3355/render/r2.sh` (the r1 method, output in
+`.context/working/t3355/render/r2/`, result `.context/working/t3355/render/r2.out`), which adds the self-loop check of
+11.3 as code (it refuses a state with more than one self-loop). 23 blocks: the 21 of 11.2 plus 06a D-1.14 (AL-35) and
+D-1.15 (AL-36); the changed D-1.12 and D-2.7 labels (AL-43) are among them. Every one exit code 0, a non-empty SVG, no
+syntax or parse error; script exit code 0. Read as PNG: D-1.14 and D-1.15. D-1.14's first two layouts overlapped two
+labels near LOST_AFTER_STORED; it is now drawn left to right with short labels (the text equivalent 06a 3.7 carries the
+full conditions), and every label reads clearly.

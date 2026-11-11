@@ -1,7 +1,7 @@
 # Interactive agent communication: step 6, pseudo-code, part A: PH-2 hardening
 
 **Task:** T-3355 · **Arc:** arc-011 · **Chain:** arc-011-design, step 6 · **Role:** pseudo-coder
-**Status:** DRAFT v0.1, sub-document of `docs/design/interactive-agent-communication-06-pseudo-code.md` ("06"). Read
+**Status:** DRAFT v0.2, sub-document of `docs/design/interactive-agent-communication-06-pseudo-code.md` ("06"). Read
 06 sections 2 and 3 first: identifiers, the algorithm form a..h, clocks, primitives, strict JSON and the seam gate
 are defined there and not repeated. The FAILS CLOSED WHEN register for this file is 06 section 6.
 **Review link:** none (profile P2.1).
@@ -11,6 +11,7 @@ are defined there and not repeated. The FAILS CLOSED WHEN register for this file
 | Version | Date | Change | Task |
 |---|---|---|---|
 | 0.1 | 2026-11-11 | First draft: AL-17..AL-40 (B-1..B-15, B-18, B-21..B-23, B-26 and the task rows P12, P14); test vectors V-REV-1, V-REV-2, V-HEAD-1, V-FWD-1; drawings D-1.8..D-1.11, D-2.5, D-2.6. | T-3355 |
+| 0.2 | 2026-11-11 | Remediation of review r1: F-4 concurrency item or explicit single writer added to part f of AL-18, AL-27, AL-29..AL-39; F-5 AL-35 and AL-36 drawn as state machines D-1.14 and D-1.15 (section 3.7, 3.8). Nothing else changed. | T-3355 |
 
 ## 1 Scope and inputs
 
@@ -798,7 +799,7 @@ seams (CLAUDE.md).
 2.24.g at-least-once act, verified on disk. 2.24.h none. **OBS:** OBS-67 the runme log lines `OK`, `skip`, `FAILED`
 with `finished rc=`.
 
-## 3 Drawings for this part (D-1.8 to D-1.11, D-2.5, D-2.6; index in 06 section 7)
+## 3 Drawings for this part (D-1.8 to D-1.11, D-1.14, D-1.15, D-2.5, D-2.6; index in 06 section 7)
 
 **Drawing D-1.8 — revocation list at a sidecar (state machine, AL-22), including failure and crash states**
 
@@ -966,3 +967,54 @@ chunks; a failed put or a digest mismatch keeps the message in the outbox, unsen
 carrying both digests and the wrapped key. 3.6.4 The recipient's sidecar pulls the message, fetches the ciphertext,
 checks its digest, unwraps, decrypts and checks the plaintext digest; any failure is a signed refusal with nothing stored;
 success renames the file to its digest, records STORED and writes the stage.
+
+**Drawing D-1.14 — reconciliation state of one conversation at a sidecar (state machine, AL-35), including failure and crash states**
+
+```mermaid
+stateDiagram-v2
+  direction LR
+  [*] --> UNRECONCILED: sidecar start, after the checksum pass
+  UNRECONCILED --> UNRECONCILED: hub unreachable or crash, pass restarts
+  UNRECONCILED --> RECONCILED: clean pass
+  UNRECONCILED --> CONFLICT: digest or link differs, both kept
+  CONFLICT --> UNRECONCILED: operator decision
+  RECONCILED --> CONFLICT: daily compare finds a fork
+  RECONCILED --> UNRECONCILED: restart
+  UNRECONCILED --> LOST_AFTER_STORED: missing locally
+  LOST_AFTER_STORED --> UNRECONCILED: re-stored or loss shown
+```
+
+3.7 Text equivalent of D-1.14. 3.7.1 After every sidecar start (after the checksum pass) each conversation with a
+non-final message is UNRECONCILED, and the sidecar is not CLEAR; it stays so while the hub is unreachable, and a crash
+during the pass restarts the pass from the top (FCW-138). 3.7.2 A clean pass for the conversation makes it RECONCILED;
+only a clean pass clears the label. 3.7.3 A different digest or chain link makes it CONFLICT: both records are kept and
+labelled "unreconciled" until the operator's decision is recorded, after which the next pass runs (FCW-137). 3.7.4 A
+message the hub says is STORED but the store lacks makes it LOST_AFTER_STORED with a RESEND-REQUEST; when the message is
+stored again, or the sender's "payload gone" makes the loss visible on both sides, it returns to UNRECONCILED for the
+next pass (FCW-139). 3.7.5 From RECONCILED, a fork found by the daily head compare makes it CONFLICT (FCW-140), and a
+sidecar restart makes it UNRECONCILED again.
+
+**Drawing D-1.15 — one stored number beyond a gap at the receiver (state machine, AL-36), including failure and crash states**
+
+```mermaid
+stateDiagram-v2
+  [*] --> REFUSED: same number with another digest, or out of window
+  [*] --> OFFERED: stored with no gap below
+  [*] --> HELD: stored beyond a gap, held_since recorded
+  HELD --> HELD: crash and restart, held_since and requested durable
+  HELD --> OFFERED: every lower number stored
+  HELD --> REQUESTED: 2 ticks held, RESEND-REQUEST sent once
+  REQUESTED --> OFFERED: every lower number stored
+  REQUESTED --> RELEASED_MARKED: 10 ticks held, released marked gap before n, needs-attention
+  REFUSED --> [*]
+  OFFERED --> [*]
+  RELEASED_MARKED --> [*]
+```
+
+3.8 Text equivalent of D-1.15. 3.8.1 On admission a number already seen with another digest, or outside the window, is
+REFUSED and the first copy kept (FCW-142). 3.8.2 A number with no gap below it is stored and OFFERED for hand-over at
+once. 3.8.3 A number beyond a gap is stored and HELD, with `held_since` recorded; a crash keeps `held_since` and
+`requested`, so a restart resumes the same wait. 3.8.4 When every lower number is stored, a HELD or REQUESTED number is
+OFFERED. 3.8.5 After 2 ticks held, one RESEND-REQUEST is sent (REQUESTED). 3.8.6 After 10 ticks held it is released
+marked "gap before n" with a needs-attention entry naming the gap (RELEASED_MARKED, FCW-141). 3.8.7 Admission and the
+release run under `store.lock`, so a gap filler and a release never interleave (2.20.f).
