@@ -1,0 +1,119 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3354: arc-011 role chain step 5: evidence specialist
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-11T16:49:36Z
+# ============================================================================
+
+task_id: T-3354
+task_name: "arc-011 role chain step 5: evidence specialist"
+workflow_type: specification
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-06T10:13:40Z
+completed: 2026-11-11T16:49:23Z
+duration_days: 36
+updates_count: 4
+first_commit: 2026-11-09T17:47:23+01:00
+last_commit: 2026-11-11T17:49:22+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  record step 4 approval in the role chain; step 5 context and ACs. step 5 evidence spec v0.1 skeleton: inputs of record, test estate per CAND-3 tier, levels, result format. evidence specs E-1..E-31 (doorbell D+, watchdog, activity meter, lease tightening, waiting-mail signal). evidence specs E-32..E-65 (forward-once, hub id, revocation, blobs, caps, status, fault injectors). evidence specs E-66..E-85 (hub changes, vendor channels, W3 acceptance and PH-2 exit, adapter parity). evidence specs E-86..E-120 (PH-2 task rows, baseline re-assertion, later phases). production invariant checks E-121..E-148 (ARC4 15 and 15.2). evidence spec v0.1 complete: E-121..E-124 adversarial complements, coverage summary, D-1/D-2 rendered, AFC-1..34, FCW open for step 6, residual risks, YR-1..YR-4; 05a coverage generated (0 undeclared gaps). step 5 hand-back (role-handback/1 record, orchestrator summary); agent ACs met by the output ticked. add the independent-review criterion README section 5 requires. reviewer verdict. green independent-review verdict V-20261109-454c9bbb applied (reviewer-judged criterion)
+
+# Key outcomes
+outcomes:
+  - 'Step 4 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3) (evidence: T-3353 both [REVIEW] boxes ticked and closed in Watchtower 2026-11-08T17:53Z, recorded c77e01404; yaml step 4 `approval:` added 2026-11-09)'
+  - 'Role session dispatched with the yaml''s order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evidence: inputs read and hashed in that order, 05 section 1.3; record `docs/design/interactive-agent-communication/role-handback-step-05.json`, validated against role-handback-1.schema.json)'
+  - '`docs/design/interactive-agent-communication-05-evidence.md` exists with a version table and an inputs-of-record section citing the input hashes (evidence: sections 0 and 1, full sha256 per input)'
+  - 'Test estate and agent pairs named for each CAND-3 tier (fixture, live hub, one real agent + scripted peer, real agents) (evidence: 05 section 3, EP-1..EP-12; tier 3 pair EP-5 needs T-3361)'
+  - 'Role-chain yaml step 5 `task:` set to this task id (evidence: yaml step 5 `task: T-3354`, already present)'
+  - '[REVIEW] Independent review: step 5 output meets the evidence-specialist card''s completion conditions and is fit'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-09 — production checks of ARC4 15 under the guard cap (operator: "yes, why not")'
+    chose: 'the ~28 always-on production checks (E-121..E-148, handback item 9b) are built as one combined check plus status fields, so the DP-3 guard cap (99 checks / 34 canary crons) holds without retiring other guards.'
+    rationale: 'recommended by the evidence specialist and the orchestrator; one check, one cron, the figures visible in the status call.'
+    alternatives_rejected: ['retiring other guards one-for-one to make room for ~28 separate checks.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/applied.jsonl'
+  - '.context/reviews/evidence/T-3354/AC1-judge-t-3354-r1-19b0c989db55.md'
+  - '.context/reviews/human-ac-ticks.jsonl'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.context/working/t3354/gen_coverage.py'
+  - '.context/working/t3354/handback.md'
+  - '.context/working/t3354/render/r1.sh'
+  - '.tasks/active/T-3354-arc-011-role-chain-step-5-evidence-speci.md'
+  - 'docs/design/interactive-agent-communication-05-evidence.md'
+  - 'docs/design/interactive-agent-communication-05a-coverage.md'
+  - 'docs/design/interactive-agent-communication-role-chain.yaml'
+  - 'docs/design/interactive-agent-communication/role-handback-step-05.json'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-09T17:47:23'
+    action: 'T-3354: record step 4 approval in the role chain; step 5 context and ACs'
+  - time: '2026-11-09T17:56:42'
+    action: 'T-3354: step 5 evidence spec v0.1 skeleton: inputs of record, test estate per CAND-3 tier, levels, result format'
+  - time: '2026-11-09T17:58:51'
+    action: 'T-3354: evidence specs E-1..E-31 (doorbell D+, watchdog, activity meter, lease tightening, waiting-mail signal)'
+  - time: '2026-11-09T18:00:57'
+    action: 'T-3354: evidence specs E-32..E-65 (forward-once, hub id, revocation, blobs, caps, status, fault injectors)'
+  - time: '2026-11-09T18:03:08'
+    action: 'T-3354: evidence specs E-66..E-85 (hub changes, vendor channels, W3 acceptance and PH-2 exit, adapter parity)'
+  - time: '2026-11-09T18:04:06'
+    action: 'T-3354: evidence specs E-86..E-120 (PH-2 task rows, baseline re-assertion, later phases)'
+  - time: '2026-11-09T18:05:20'
+    action: 'T-3354: production invariant checks E-121..E-148 (ARC4 15 and 15.2)'
+  - time: '2026-11-09T18:09:21'
+    action: 'T-3354: evidence spec v0.1 complete: E-121..E-124 adversarial complements, coverage summary, D-1/D-2 rendered, AFC-1..34, FCW open for step 6, residual risks, YR-1..YR-4; 05a coverage generated (0 undeclared gaps)'
+  - time: '2026-11-09T18:10:22'
+    action: 'T-3354: step 5 hand-back (role-handback/1 record, orchestrator summary); agent ACs met by the output ticked'
+  - time: '2026-11-09T18:12:06'
+    action: 'T-3354: add the independent-review criterion README section 5 requires'
+  - time: '2026-11-09T18:15:42'
+    action: 'T-3354: reviewer verdict'
+  - time: '2026-11-11T17:49:22'
+    action: 'T-3354: green independent-review verdict V-20261109-454c9bbb applied (reviewer-judged criterion)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 12 commit(s), 52235 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 52235
+  commits: 12
+  files_changed: 16
+  lines_added: 2190
+  lines_removed: 46
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3354-arc-011-role-chain-step-5-evidence-speci.md
+generated_by: context-agent-hybrid

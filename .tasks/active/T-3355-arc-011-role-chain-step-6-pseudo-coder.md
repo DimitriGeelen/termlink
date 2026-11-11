@@ -6,10 +6,10 @@ description: >
   output docs/design/interactive-agent-communication-06-pseudo-code.md. Starts only
   after step 5 is approved by the operator.
 
-status: captured
+status: started-work
 workflow_type: specification
 owner: agent
-horizon: later
+horizon: now
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:55Z
-last_update: '2026-10-18T22:32:49Z'
+last_update: 2026-11-11T16:51:19Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,6 +77,25 @@ bvp_scores_proposed:
       D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted);
       F-ORCH=0 (no-signal)'
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-11T16:50:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 0
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=0 (L0: no signal); D1=0 (no-signal); D2=0 (no-signal);
+      D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0:
+      no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3355: arc-011 role chain step 6: pseudo-coder
@@ -87,14 +106,37 @@ Step 6 of the arc-011 role chain (docs/design/interactive-agent-communication-ro
 
 Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 
+**Background / trigger:** Step 5 (evidence spec, T-3354) is done and its independent review is green (V-20261109-454c9bbb,
+applied 2026-11-11). Operator 2026-11-11: "Proceed as you see fit and suggested" (suggestion: step 6 next).
+
+**Problem / hypothesis:** The architecture says WHAT each component does; the evidence spec says how it will be proven,
+but leaves the FAILS CLOSED WHEN conditions and nine boundary questions open for step 6 (T-3354 hand-back item 11).
+Without pseudo-code the PH-2 build items (B-27 activity meter, B-16 doorbell D+, and the rest) have no agreed logic.
+
+**Goal:** A role session (pseudo-coder card) writes the pseudo-code per component, answers step 5's questions, hands
+each FAILS CLOSED WHEN back to evidence, and covers concurrency and crash cases.
+
+**Expected outcome:** `docs/design/interactive-agent-communication-06-pseudo-code.md` reviewed independently, iterated
+with step 5 where needed, ready for step 7 (review panel; the next operator approval).
+
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Step 5 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3)
+- [x] Step 5 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3) (evidence: step 5 does not decide (`decides: false`), so README 3.6 asks no operator approval of it; its independent review is green and applied (V-20261109-454c9bbb, 2026-11-11). Operator 2026-11-11, asked to tick step 5's review: "Why do I need to do the review?", and "Proceed as you see fit and suggested" with step 6 suggested. Flagged to him in chat; the wording of this criterion is template text for deciding steps)
 - [ ] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned
 - [ ] `docs/design/interactive-agent-communication-06-pseudo-code.md` exists with a version table and an inputs-of-record section citing the input hashes
 - [ ] Pseudo-code for each component in the step-4 architecture, reconciled with step 5's evidence
-- [ ] Role-chain yaml step 6 `task:` set to this task id
+- [x] Role-chain yaml step 6 `task:` set to this task id (evidence: yaml step 6 `task: T-3355`, already present)
+
+### Human
+- [ ] [REVIEW] Independent review: step 6 output meets the pseudo-coder card's completion conditions and is fit as input
+      for step 7
+  **Steps:**
+  1. The ORCHESTRATOR (never a reviewer seat) runs `fw reviewer judge T-3355 --criterion 1` against
+     `docs/design/interactive-agent-communication-06-pseudo-code.md` and its hand-back
+     `docs/design/interactive-agent-communication/role-handback-step-06.json`.
+  **Expected:** a green verdict bound to the reviewed revision, applied with `fw reviewer verdict apply T-3355`.
+  **If not:** findings go back to the pseudo-coder role (max 2-3 rounds), then each is dispositioned.
 
 ## Verification
 
@@ -197,3 +239,10 @@ grep -q 'task: T-3355' docs/design/interactive-agent-communication-role-chain.ya
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3355-arc-011-role-chain-step-6-pseudo-coder.md
 - **Context:** Initial task creation
+
+### 2026-11-11T16:50:46Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-11-11T16:51:03Z — status-update [task-update-agent]
+- **Change:** horizon: now → now
