@@ -301,3 +301,50 @@ fn api_attention_lists_every_entry_numbered_with_urgent_counted_apart() {
     let x = call(&r, Scope::Send, json!({"op": "attention"}));
     assert!(x.get("code").is_some(), "{x}");
 }
+
+// ---- B-27: adapter reports on the send socket, status `activity` ---------------------------------
+
+fn metered() -> (Rig, Arc<termlink_sidecar::meter::Meter>) {
+    use termlink_sidecar::meter::{Meter, NoLedger, Unbound};
+    let m = Arc::new(Meter::new("agent-b", Box::new(Unbound), Box::new(NoLedger)));
+    let mm = m.clone();
+    (rig_with(move |c| c.meter = Some(mm.clone())), m)
+}
+
+/// A line with no `op` is an adapter report: applied, or ignored and counted;
+/// `op` requests are unchanged; status gains `activity`.
+#[test]
+fn b27_send_socket_takes_adapter_reports_and_status_shows_activity() {
+    let (r, m) = metered();
+    let rep = json!({"schema": "termlink.adapter/2", "harness": "fake", "agent_id": "agent-b", "session_id": "s-1", "event": "turn_stop", "at_ms": 3});
+    assert_eq!(call(&r, Scope::Send, rep), json!({"ok": true}));
+    let bad = call(&r, Scope::Send, json!({"schema": "termlink.adapter/2", "agent_id": "agent-x", "session_id": "s-1", "event": "turn_stop", "at_ms": 3}));
+    assert_eq!(bad["ok"], false);
+    assert_eq!(m.counters().unparseable, 1);
+    // Reports are taken on the send socket only.
+    let wrong = call(&r, Scope::Status, json!({"schema": "termlink.adapter/2"}));
+    assert_eq!(wrong["code"], "bad-request");
+    // A built hook call moves S2 too (D-2).
+    let ready = call(&r, Scope::Send, json!({"op": "ready", "session": "s-2", "hook": "stop"}));
+    assert_eq!(ready["code"], "not-configured", "the op itself is unchanged: {ready}");
+    m.tick();
+    let st = call(&r, Scope::Status, json!({"op": "status"}));
+    let act = &st["activity"]["sessions"];
+    assert!(act["s-1"]["s2_at"].is_u64(), "{st}");
+    assert!(act["s-2"]["s2_at"].is_u64(), "{st}");
+    assert_eq!(act["s-1"]["conversation"], "none");
+    assert_eq!(st["activity"]["counters"]["adapter_reports_unparseable"], 1);
+}
+
+/// NID: without a meter a line with no op is refused as before and status has
+/// no `activity` field.
+#[test]
+fn b27_without_a_meter_nothing_changes() {
+    let r = rig();
+    let v = call(&r, Scope::Send, json!({"schema": "termlink.adapter/2", "event": "turn_stop"}));
+    assert_eq!(v["code"], "bad-request");
+    assert!(v["error"].as_str().unwrap().contains("missing op"), "{v}");
+    let st = call(&r, Scope::Status, json!({"op": "status"}));
+    assert_eq!(st["ok"], true);
+    assert!(st.get("activity").is_none(), "{st}");
+}

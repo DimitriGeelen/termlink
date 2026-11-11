@@ -25,3 +25,4 @@ pub mod tools;
 pub mod activity;
 pub mod liveness;
 pub mod lease;
+pub mod meter;

@@ -185,6 +185,8 @@ pub struct Deliverer {
     /// (`$HOME/.claude/projects`). The sidecar finds a session's transcript
     /// there itself; no caller ever hands it a path.
     projects_root: Option<PathBuf>,
+    /// B-27: hand-overs move the session's S3.
+    meter: Option<Arc<crate::meter::Meter>>,
 }
 
 /// Longest a ready flag counts (FC-5): older reads not ready.
@@ -210,7 +212,7 @@ fn own(l: &ChainLine) -> bool {
 
 impl Deliverer {
     pub fn new(agent: &str, store: Arc<Store>, policy: Box<dyn Policy>, sender: Option<Arc<Sender>>) -> Self {
-        let d = Deliverer { agent: agent.to_owned(), store, policy, sender, projects_root: None };
+        let d = Deliverer { agent: agent.to_owned(), store, policy, sender, projects_root: None, meter: None };
         if let Err(e) = d.recover() {
             let _ = d.store.attention("deliver-recovery", &e);
         }
@@ -307,6 +309,12 @@ impl Deliverer {
         self
     }
 
+    /// B-27: report each hand-over to the activity meter (S3).
+    pub fn with_meter(mut self, meter: Arc<crate::meter::Meter>) -> Self {
+        self.meter = Some(meter);
+        self
+    }
+
     /// Record that `session` is live and can take mail (SessionStart, Stop).
     /// PH-1 only records it; the PH-2 doorbell reads it.
     pub fn mark_ready(&self, session: &str, now_ms: u64) -> Result<(), String> {
@@ -331,7 +339,7 @@ impl Deliverer {
         self.store.write_state(&format!("session-{session}"), p).map_err(|e| e.to_string())
     }
 
-    fn transcript_of(&self, session: &str) -> Option<PathBuf> {
+    pub fn transcript_of(&self, session: &str) -> Option<PathBuf> {
         if let Some(p) = self.store.read_state(&format!("session-{session}")).ok().flatten() {
             return Some(PathBuf::from(p.trim_end()));
         }
@@ -681,6 +689,9 @@ impl Deliverer {
                 for it in &rec.items {
                     self.line_once(it, HANDED_OVER, &attempt_reason(it.attempt, nonce))?;
                     self.report_handed_over(it);
+                    if let Some(m) = &self.meter {
+                        m.on_handed_over(&rec.session, &it.conv);
+                    }
                 }
                 Ok(Verdict::HandedOver)
             }

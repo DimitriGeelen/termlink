@@ -85,8 +85,8 @@ impl Scope {
 /// Scope an op belongs to, and the fields it may carry.
 fn op_spec(op: &str) -> Option<(Scope, &'static [&'static str])> {
     Some(match op {
-        "send" => (Scope::Send, &["to", "to_instance", "conv", "body", "priority"]),
-        "reply" => (Scope::Send, &["conv", "in_reply_to", "body"]),
+        "send" => (Scope::Send, &["to", "to_instance", "conv", "body", "priority", "session"]),
+        "reply" => (Scope::Send, &["conv", "in_reply_to", "body", "session"]),
         "pull" => (Scope::Send, &["session", "hook", "tool_use_id"]),
         "claim" => (Scope::Send, &["msg_id"]),
         "handed-over" => (Scope::Send, &["msg_id", "nonce", "final"]),
@@ -122,6 +122,10 @@ pub struct ApiConfig {
     pub liveness: Option<(Arc<crate::liveness::Shared>, u64)>,
     /// T-3654: the project's main lease as last read from the hub; `status` shows it, `pull` gates on it.
     pub lease: Option<Arc<crate::lease::Shared>>,
+    /// B-27: the activity meter. With it the send socket also takes
+    /// `termlink.adapter/2` reports (a line with no `op`), sends and hook calls
+    /// feed it, and `status` shows `activity`. Without it nothing changes.
+    pub meter: Option<Arc<crate::meter::Meter>>,
 }
 
 impl ApiConfig {
@@ -137,6 +141,7 @@ impl ApiConfig {
             book: None,
             liveness: None,
             lease: None,
+            meter: None,
         }
     }
 }
@@ -297,6 +302,11 @@ fn serve(s: UnixStream, scope: Scope, sh: &Shared) -> io::Result<()> {
         }
         let resp = if line.len() as u64 > MAX_REQUEST || line.last() != Some(&b'\n') {
             err("bad-request", "request line too long or unterminated", "one JSON object per line, under 64 KiB")
+        } else if let (Scope::Send, Some(m)) = (scope, sh.cfg.meter.as_deref())
+            && is_report(&line)
+        {
+            // B-27 AL-1: an adapter report, parsed strictly by the meter.
+            report_reply(m.intake(line.strip_suffix(b"\n").unwrap_or(&line)))
         } else {
             match serde_json::from_slice::<Value>(&line) {
                 Ok(v) => handle(&v, scope, sh),
@@ -310,10 +320,24 @@ fn serve(s: UnixStream, scope: Scope, sh: &Shared) -> io::Result<()> {
     }
 }
 
+/// A send-socket line that is not an `op` request is an adapter report (or an
+/// unparseable one, which the meter counts).
+fn is_report(line: &[u8]) -> bool {
+    !matches!(serde_json::from_slice::<Value>(line), Ok(Value::Object(o)) if o.contains_key("op"))
+}
+
+fn report_reply(i: crate::meter::Intake) -> Value {
+    match i {
+        crate::meter::Intake::Applied => json!({"ok": true}),
+        crate::meter::Intake::Dropped(why) => json!({"ok": true, "dropped": why}),
+        crate::meter::Intake::Ignored(why) => json!({"ok": false, "ignored": why}),
+    }
+}
+
 fn handle(req: &Value, scope: Scope, sh: &Shared) -> Value {
     // The peer passed the owner check, so its uid is the owner's.
     let who = format!("admin-uid-{}", sh.cfg.owner_uid);
-    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref(), liveness: sh.cfg.liveness.as_ref().map(|(l, e)| (&**l, *e)), lease: sh.cfg.lease.as_deref() };
+    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref(), liveness: sh.cfg.liveness.as_ref().map(|(l, e)| (&**l, *e)), lease: sh.cfg.lease.as_deref(), meter: sh.cfg.meter.as_deref() };
     dispatch_inner(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref(), ctx)
 }
 
@@ -331,7 +355,7 @@ pub fn dispatch_with(
     hub_id: Option<&str>,
     sender: Option<&Sender>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None, liveness: None, lease: None })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None, liveness: None, lease: None, meter: None })
 }
 
 /// [`dispatch_with`] with the deliver path attached as well.
@@ -344,7 +368,7 @@ pub fn dispatch_full(
     sender: Option<&Sender>,
     deliverer: Option<&Deliverer>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease: None })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease: None, meter: None })
 }
 
 #[derive(Clone, Copy)]
@@ -355,6 +379,7 @@ struct Ctx<'a> {
     book: Option<&'a crate::book::Book>,
     liveness: Option<(&'a crate::liveness::Shared, u64)>,
     lease: Option<&'a crate::lease::Shared>,
+    meter: Option<&'a crate::meter::Meter>,
 }
 
 fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id: Option<&str>, ctx: Ctx<'_>) -> Value {
@@ -408,10 +433,14 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                     Some(l) => l.status_view(crate::store::now_ms()),
                     None => serde_json::json!({"state": "unknown", "why": "this sidecar reads no main lease"}),
                 };
+                // B-27 (6.14.5): per-session activity and conversation, fresh or unknown.
+                if let Some(m) = ctx.meter {
+                    v["activity"] = m.status_view();
+                }
             }
             v
         }
-        "send" => send(obj, sender, book, agent),
+        "send" => metered_send(send(obj, sender, book, agent), obj, ctx.meter),
         "delivery" => delivery(obj, store, who),
         "held" => held(obj, store),
         "allow" => decide(obj, store, agent, sender, who, true),
@@ -420,17 +449,41 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         "attention" => attention(obj, store),
         "note" => note(obj, store),
         "undrain" => undrain(obj, store, who),
-        "pull" => pull(obj, ctx.deliverer, ctx.lease, agent),
+        "pull" => {
+            if let (Some(m), Some(sess)) = (ctx.meter, obj.get("session").and_then(Value::as_str)) {
+                m.legacy_hook(sess, "post-tool-use", None);
+            }
+            pull(obj, ctx.deliverer, ctx.lease, agent)
+        }
         "claim" => claim(obj, ctx.deliverer),
         "handed-over" => handed_over(obj, ctx.deliverer),
-        "ready" => ready(obj, ctx.deliverer),
-        "reply" => reply(obj, sender),
+        "ready" => {
+            if let (Some(m), Some(sess), Some(hook)) =
+                (ctx.meter, obj.get("session").and_then(Value::as_str), obj.get("hook").and_then(Value::as_str))
+            {
+                let tr = (hook == "session-start").then(|| ctx.deliverer.and_then(|d| d.transcript_of(sess))).flatten();
+                m.legacy_hook(sess, hook, tr.as_deref());
+            }
+            ready(obj, ctx.deliverer)
+        }
+        "reply" => metered_send(reply(obj, sender), obj, ctx.meter),
         _ => err(
             "not-implemented",
             &format!("op {op:?} is not served yet"),
             "arrives with the reply path (B11)",
         ),
     }
+}
+
+/// B-27 S3: a message the session's agent sent moves that session's S3. Only a
+/// send that succeeded and names its session counts (D-3 in T-3687).
+fn metered_send(resp: Value, obj: &serde_json::Map<String, Value>, meter: Option<&crate::meter::Meter>) -> Value {
+    if let (Some(m), Some(conv)) = (meter, resp.get("conv").and_then(Value::as_str))
+        && resp.get("stage").and_then(Value::as_str) == Some("SENT")
+    {
+        m.on_sent(obj.get("session").and_then(Value::as_str), conv);
+    }
+    resp
 }
 
 fn no_deliverer() -> Value {

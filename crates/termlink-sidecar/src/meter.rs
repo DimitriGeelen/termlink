@@ -1,0 +1,944 @@
+//! Per-session activity meter and conversation signal (arc-011 B-27; ARC4 6.14, 17.2..17.5; AL-1..AL-4).
+//!
+//! The doorbell (B-16), its watchdog and the lease need a measured answer to "is
+//! anything happening in this session, and is a conversation under way". Three
+//! sources, each with its own last time on this host's monotonic clock
+//! ([`termlink_session::input_meter::mono_ms`]), kept per session:
+//!
+//! | signal | moves on | never moves on (6.14.2, FCW-14) |
+//! |---|---|---|
+//! | S1 | `client` PTY input the TermLink session counted (`session.input_activity`, notify scope) | `notify`, `inject`, `client_auto` input |
+//! | S2 | (a) a valid `termlink.adapter/2` report (or a built W1 hook call); (b) growth of the session's transcript | an unparseable report |
+//! | S3 | a message this session's agent sent, or one handed over to it | arrivals (STORED), receipts, notices |
+//!
+//! A source that cannot be read is `unknown`, never "silent" (FCW-12, FCW-13).
+//! The conversation signal (AL-4) is computed from S1, S2 (a), S3, the prompt
+//! origin and the owed-answer ledger, never from the READY flag. Status shows a
+//! snapshot taken each tick; a snapshot older than two ticks reads `unknown`
+//! (FCW-15). Nothing here types or rings: that is B-16.
+
+use serde_json::{Value, json};
+use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+
+/// The adapter contract this intake reads (ARC4 17.2), exactly.
+pub const SCHEMA: &str = "termlink.adapter/2";
+/// Largest report (FCW-2).
+pub const MAX_REPORT: usize = 64 * 1024;
+/// Live sessions per agent (FCW-7).
+pub const MAX_SESSIONS: usize = 64;
+/// Conversation window V-19.
+pub const V19_MS: u64 = 120_000;
+/// A status snapshot older than this reads unknown (FCW-15: 2 ticks).
+pub const STALE_MS: u64 = 2 * crate::deadline::TICK_MS;
+/// Bound on one S1 read (FCW-12).
+pub const S1_TIMEOUT_MS: u64 = 2_000;
+/// Strict JSON nesting limit (06 3.3).
+pub const MAX_DEPTH: u32 = 8;
+/// Largest integer a report may carry (06 3.3).
+pub const MAX_INT: i64 = (1 << 53) - 1;
+/// Answer events that end an owed message (answer 4.4).
+const ANSWERS: [&str; 2] = ["REPLIED", "ACKNOWLEDGED_NO_ACTION"];
+/// Ends of a message (answer 4.4).
+const ENDS: [&str; 2] = ["REFUSED", "DEAD"];
+const EVENTS: [&str; 9] = ["ready", "session_start", "prompt_submit", "tool_start", "tool_end", "turn_stop", "session_end", "evidence", "complete"];
+
+// ---------------------------------------------------------------- strict JSON
+
+/// Strict JSON (06 3.3): UTF-8, duplicate keys refused, depth <= 8, integers
+/// only in +-(2^53-1) (no fractions, exponents or `-0`). Refusal is a value.
+pub fn strict_json(raw: &[u8]) -> Result<Value, String> {
+    use serde::de::DeserializeSeed;
+    let mut de = serde_json::Deserializer::from_slice(raw);
+    let v = Seed(0).deserialize(&mut de).map_err(|e| e.to_string())?;
+    de.end().map_err(|e| e.to_string())?;
+    if has_negative_zero(raw) {
+        return Err("-0 is not a canonical integer".into());
+    }
+    Ok(v)
+}
+
+/// `-0` outside strings (serde reads it as the integer 0).
+fn has_negative_zero(raw: &[u8]) -> bool {
+    let (mut in_str, mut esc) = (false, false);
+    for (i, b) in raw.iter().enumerate() {
+        if in_str {
+            match (esc, b) {
+                (true, _) => esc = false,
+                (false, b'\\') => esc = true,
+                (false, b'"') => in_str = false,
+                _ => {}
+            }
+        } else if *b == b'"' {
+            in_str = true;
+        } else if *b == b'-' && raw.get(i + 1) == Some(&b'0') && !raw.get(i + 2).is_some_and(u8::is_ascii_digit) {
+            return true;
+        }
+    }
+    false
+}
+
+struct Seed(u32);
+
+impl<'de> serde::de::DeserializeSeed<'de> for Seed {
+    type Value = Value;
+    fn deserialize<D: serde::Deserializer<'de>>(self, d: D) -> Result<Value, D::Error> {
+        d.deserialize_any(Vis(self.0))
+    }
+}
+
+struct Vis(u32);
+
+impl<'de> serde::de::Visitor<'de> for Vis {
+    type Value = Value;
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("strict JSON")
+    }
+    fn visit_unit<E>(self) -> Result<Value, E> {
+        Ok(Value::Null)
+    }
+    fn visit_bool<E>(self, v: bool) -> Result<Value, E> {
+        Ok(Value::Bool(v))
+    }
+    fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<Value, E> {
+        if !(-MAX_INT..=MAX_INT).contains(&v) {
+            return Err(E::custom("integer out of range"));
+        }
+        Ok(json!(v))
+    }
+    fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<Value, E> {
+        if v > MAX_INT as u64 {
+            return Err(E::custom("integer out of range"));
+        }
+        Ok(json!(v))
+    }
+    fn visit_f64<E: serde::de::Error>(self, _: f64) -> Result<Value, E> {
+        Err(E::custom("fractions and exponents are refused"))
+    }
+    fn visit_str<E>(self, v: &str) -> Result<Value, E> {
+        Ok(Value::String(v.to_owned()))
+    }
+    fn visit_string<E>(self, v: String) -> Result<Value, E> {
+        Ok(Value::String(v))
+    }
+    fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut a: A) -> Result<Value, A::Error> {
+        if self.0 >= MAX_DEPTH {
+            return Err(serde::de::Error::custom("nested too deep"));
+        }
+        let mut v = vec![];
+        while let Some(x) = a.next_element_seed(Seed(self.0 + 1))? {
+            v.push(x);
+        }
+        Ok(Value::Array(v))
+    }
+    fn visit_map<A: serde::de::MapAccess<'de>>(self, mut a: A) -> Result<Value, A::Error> {
+        if self.0 >= MAX_DEPTH {
+            return Err(serde::de::Error::custom("nested too deep"));
+        }
+        let mut m = serde_json::Map::new();
+        while let Some(k) = a.next_key::<String>()? {
+            if m.contains_key(&k) {
+                return Err(serde::de::Error::custom(format!("duplicate key {k:?}")));
+            }
+            let v = a.next_value_seed(Seed(self.0 + 1))?;
+            m.insert(k, v);
+        }
+        Ok(Value::Object(m))
+    }
+}
+
+// ---------------------------------------------------------------- types
+
+/// Prompt origin as the receiver records it (ARC4 17.5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Origin {
+    Human,
+    Automated,
+    Unknown,
+}
+
+impl Origin {
+    pub fn name(self) -> &'static str {
+        match self {
+            Origin::Human => "human",
+            Origin::Automated => "automated",
+            Origin::Unknown => "unknown",
+        }
+    }
+}
+
+/// The READY record of a session (AL-1, OBS-2). `epoch` is the sidecar process
+/// that received it: another process's record reads absent for the doorbell (FCW-6).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReadyRec {
+    pub state: String,
+    pub at_ms: u64,
+    pub rx_mono: u64,
+    pub seq: u64,
+    pub epoch: u64,
+}
+
+/// The last prompt of a session (OBS-3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Prompt {
+    pub origin: Origin,
+    pub basis: String,
+    pub at_ms: u64,
+    pub rx_mono: u64,
+    pub doorbell_ids: Vec<String>,
+}
+
+/// One read of the session's PTY input counters (AL-2 reply).
+#[derive(Debug, Clone, PartialEq)]
+pub struct S1Reply {
+    pub boot_id: Option<String>,
+    /// `last_mono` per source: `client`, `client_auto`, `notify`, `inject`.
+    pub last: BTreeMap<String, Option<u64>>,
+    pub foreground: Value,
+}
+
+impl S1Reply {
+    /// Parse a `session.input_activity` result. A session without a PTY has no
+    /// sources: that is an error here, so S1 reads unknown.
+    pub fn from_result(v: &Value) -> Result<S1Reply, String> {
+        let src = v.get("sources").and_then(Value::as_object).ok_or("the session has no PTY input counters")?;
+        let mut last = BTreeMap::new();
+        for s in ["client", "client_auto", "notify", "inject"] {
+            let e = src.get(s).ok_or(format!("no {s} counter"))?;
+            last.insert(s.to_string(), e.get("last_mono").and_then(Value::as_u64));
+        }
+        Ok(S1Reply { boot_id: v.get("boot_id").and_then(Value::as_str).map(str::to_owned), last, foreground: v.get("foreground").cloned().unwrap_or(Value::Null) })
+    }
+    pub fn at(&self, src: &str) -> Option<u64> {
+        self.last.get(src).copied().flatten()
+    }
+}
+
+/// Where S1 comes from: the TermLink session serving a harness session.
+pub trait S1Source: Send + Sync {
+    fn read(&self, session: &str) -> Result<S1Reply, String>;
+}
+
+/// No TermLink session is bound to any harness session: S1 is unknown everywhere.
+pub struct Unbound;
+
+impl S1Source for Unbound {
+    fn read(&self, _: &str) -> Result<S1Reply, String> {
+        Err("no TermLink PTY session is bound to this session".into())
+    }
+}
+
+/// S1 read through `session.input_activity` on a bound TermLink session socket
+/// with a notify-scope token (AL-2, FCW-9). B-16 binds sessions when it learns
+/// them; until then every read fails and S1 is unknown.
+pub struct SessionRpc {
+    bound: Mutex<HashMap<String, (PathBuf, Option<String>)>>,
+}
+
+impl SessionRpc {
+    pub fn new() -> std::io::Result<Self> {
+        Ok(SessionRpc { bound: Mutex::new(HashMap::new()) })
+    }
+    pub fn bind(&self, session: &str, socket: &Path, token: Option<String>) {
+        lock(&self.bound).insert(session.to_owned(), (socket.to_path_buf(), token));
+    }
+}
+
+impl S1Source for SessionRpc {
+    fn read(&self, session: &str) -> Result<S1Reply, String> {
+        let (sock, token) = lock(&self.bound).get(session).cloned().ok_or("no TermLink PTY session is bound to this session")?;
+        let call = termlink_session::client::rpc_call_with_token_timeout(
+            &sock,
+            token.as_deref(),
+            termlink_protocol::control::method::SESSION_INPUT_ACTIVITY,
+            json!({}),
+            std::time::Duration::from_millis(S1_TIMEOUT_MS),
+        );
+        // A runtime per read, built and dropped on the calling (plain) thread:
+        // a stored one could be dropped inside an async context and panic.
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| e.to_string())?;
+        let resp = rt.block_on(async { tokio::time::timeout(std::time::Duration::from_millis(S1_TIMEOUT_MS), call).await });
+        let resp = resp.map_err(|_| "input_activity timed out".to_string())?.map_err(|e| e.to_string())?;
+        S1Reply::from_result(&termlink_session::client::unwrap_result(resp)?)
+    }
+}
+
+/// The owed-answer ledger (answer 4.4): one function, so P14's owed list can reuse it.
+pub trait Ledger: Send + Sync {
+    /// Does conversation `conv` hold a message with an owed answer at wall time `now_ms`?
+    fn owed(&self, conv: &str, now_ms: u64) -> Result<bool, String>;
+}
+
+/// [`Ledger`] over this agent's stage records.
+pub struct StoreLedger {
+    pub store: Arc<crate::store::Store>,
+    pub deadlines: crate::deadline::Deadlines,
+}
+
+impl Ledger for StoreLedger {
+    fn owed(&self, conv: &str, now_ms: u64) -> Result<bool, String> {
+        let lines = self.store.chain_lines(conv).map_err(|e| e.to_string())?;
+        Ok(owed_in(&lines, now_ms, self.deadlines.answer(false)))
+    }
+}
+
+/// Answer 4.4 over one conversation's chain lines. A message `m` is owed when
+/// (i) it was handed over here (own HANDED_OVER) and this side recorded no
+/// answer, or (ii) this side sent it (own SENT) and the peer reported no answer;
+/// and in both cases it is not ended (REFUSED, DEAD, or older than the R-44.e
+/// "not answered" deadline). Receipts and notices are other events: never `m`.
+pub fn owed_in(lines: &[crate::store::ChainLine], now_ms: u64, answer_ms: u64) -> bool {
+    let own = |l: &crate::store::ChainLine| l.peer_ts_ms.is_none();
+    let ended = |m: &str, since: Option<u64>| {
+        lines.iter().any(|l| l.msg_id == m && ENDS.contains(&l.event.as_str())) || since.is_some_and(|t| now_ms.saturating_sub(t) > answer_ms)
+    };
+    let handed = lines.iter().filter(|l| l.event == crate::deliver::HANDED_OVER && own(l)).any(|h| {
+        !lines.iter().any(|l| own(l) && l.msg_id == h.msg_id && ANSWERS.contains(&l.event.as_str())) && !ended(&h.msg_id, h.ts_ms)
+    });
+    handed
+        || lines.iter().filter(|l| l.event == "SENT" && own(l)).any(|s| {
+            !lines.iter().any(|l| !own(l) && l.msg_id == s.msg_id && ANSWERS.contains(&l.event.as_str())) && !ended(&s.msg_id, s.ts_ms)
+        })
+}
+
+/// A ledger that cannot be read (tests, and a sidecar without a store).
+pub struct NoLedger;
+
+impl Ledger for NoLedger {
+    fn owed(&self, _: &str, _: u64) -> Result<bool, String> {
+        Err("no owed-answer ledger".into())
+    }
+}
+
+/// S1 of one session as last read.
+#[derive(Debug, Clone, PartialEq)]
+pub enum S1 {
+    /// Never read, or the last read failed (FCW-12).
+    Unknown(String),
+    /// Read at `read_at`; `client` is the last client input (None: none yet).
+    Known { client: Option<u64>, read_at: u64 },
+}
+
+#[derive(Debug, Clone, Default)]
+struct Session {
+    ready: Option<ReadyRec>,
+    interactive: Option<bool>,
+    transcript: Option<PathBuf>,
+    tr_last: Option<(u64, i64, i64)>,
+    last_prompt: Option<Prompt>,
+    /// rx of the first turn_stop or READY report after the last prompt.
+    stopped: Option<u64>,
+    tool: Option<(String, u64)>,
+    reports: u64,
+    s1: Option<S1>,
+    /// Every source of the last good S1 read (for the origin check, AL-1 3).
+    s1_sources: Option<S1Reply>,
+    s2_at: Option<u64>,
+    /// Last S2 (a) event (turn events only, not transcript growth).
+    s2_event_at: Option<u64>,
+    s3_at: Option<u64>,
+    s3_by_conv: BTreeMap<String, u64>,
+    evidence: Vec<(String, u64)>,
+    complete_at: Option<u64>,
+    ended: bool,
+    snapshot: Option<(Value, u64)>,
+}
+
+/// Counters the evidence runner reads (OBS-1).
+#[derive(Debug, Clone, Default)]
+pub struct Counters {
+    pub unparseable: u64,
+    pub ready_reordered: u64,
+    pub origin_inconsistent: u64,
+    pub origin_overridden: u64,
+    pub transcript_refused: u64,
+    pub session_table_full: u64,
+    pub s3_unattributed: u64,
+    pub reasons: VecDeque<String>,
+}
+
+#[derive(Default)]
+struct Inner {
+    sessions: BTreeMap<String, Session>,
+    counters: Counters,
+    /// Doorbell lines typed per session, `(mono, ids)` (B-16 writes it; FCW-5).
+    typed: HashMap<String, VecDeque<(u64, Vec<String>)>>,
+}
+
+pub type Clock = Arc<dyn Fn() -> u64 + Send + Sync>;
+
+/// The meter of one agent's sessions.
+pub struct Meter {
+    agent: String,
+    epoch: u64,
+    clock: Clock,
+    wall: Clock,
+    transcript_root: Option<PathBuf>,
+    s1: Box<dyn S1Source>,
+    ledger: Box<dyn Ledger>,
+    inner: Mutex<Inner>,
+}
+
+fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|p| p.into_inner())
+}
+
+fn valid_session(s: &str) -> bool {
+    (1..=128).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_alphanumeric() || b"._:-".contains(&b))
+}
+
+/// What an intake call did, for the reply and the tests.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Intake {
+    Applied,
+    /// Valid but not applied (an older `ready`, FCW-3).
+    Dropped(&'static str),
+    Ignored(String),
+}
+
+impl Meter {
+    pub fn new(agent: &str, s1: Box<dyn S1Source>, ledger: Box<dyn Ledger>) -> Self {
+        Meter {
+            agent: agent.to_owned(),
+            epoch: rand_epoch(),
+            clock: Arc::new(termlink_session::input_meter::mono_ms),
+            wall: Arc::new(crate::store::now_ms),
+            transcript_root: None,
+            s1,
+            ledger,
+            inner: Mutex::new(Inner::default()),
+        }
+    }
+
+    /// Test seam: simulated clocks (mono and wall).
+    pub fn with_clocks(mut self, mono: Clock, wall: Clock) -> Self {
+        self.clock = mono;
+        self.wall = wall;
+        self
+    }
+
+    /// Transcripts are accepted only under this directory (FCW-8).
+    pub fn with_transcript_root(mut self, root: PathBuf) -> Self {
+        self.transcript_root = Some(root);
+        self
+    }
+
+    pub fn epoch(&self) -> u64 {
+        self.epoch
+    }
+
+    pub fn counters(&self) -> Counters {
+        lock(&self.inner).counters.clone()
+    }
+
+    fn ignore(&self, c: &mut Counters, reason: String) -> Intake {
+        c.unparseable += 1;
+        c.reasons.push_back(reason.clone());
+        while c.reasons.len() > 16 {
+            c.reasons.pop_front();
+        }
+        Intake::Ignored(reason)
+    }
+
+    /// AL-1: one adapter report, as received on the owner-only socket (the
+    /// peer check is the socket's, FCW-1). Never fails; refusal is counted.
+    pub fn intake(&self, raw: &[u8]) -> Intake {
+        if raw.len() > MAX_REPORT {
+            return self.ignore(&mut lock(&self.inner).counters, "too-large".into());
+        }
+        let obj = match strict_json(raw) {
+            Ok(Value::Object(o)) => o,
+            Ok(_) => return self.ignore(&mut lock(&self.inner).counters, "not an object".into()),
+            Err(e) => return self.ignore(&mut lock(&self.inner).counters, format!("not strict JSON: {e}")),
+        };
+        let s = |k: &str| obj.get(k).and_then(Value::as_str);
+        let bad = |why: &str| self.ignore(&mut lock(&self.inner).counters, why.to_owned());
+        if s("schema") != Some(SCHEMA) {
+            return bad("schema is not termlink.adapter/2");
+        }
+        let Some(event) = s("event").filter(|e| EVENTS.contains(e)) else { return bad("unknown event") };
+        if s("agent_id") != Some(self.agent.as_str()) {
+            return bad("another agent's id");
+        }
+        let Some(session) = s("session_id").filter(|x| valid_session(x)) else { return bad("bad session_id") };
+        let Some(at_ms) = obj.get("at_ms").and_then(Value::as_u64) else { return bad("at_ms is not an integer >= 0") };
+        // Event-specific shape, checked before anything is applied.
+        match event {
+            "ready" if !matches!(s("state"), Some("READY" | "BUSY" | "NOT_RUNNING")) => return bad("ready needs state READY|BUSY|NOT_RUNNING"),
+            "session_start" if !obj.get("interactive").is_some_and(Value::is_boolean) => return bad("session_start needs interactive (bool)"),
+            "session_start" if obj.get("transcript_path").is_some_and(|v| !v.is_string() && !v.is_null()) => return bad("transcript_path must be a string"),
+            "prompt_submit" if !obj.get("origin").is_some_and(Value::is_string) => return bad("prompt_submit needs origin"),
+            "tool_start" | "tool_end" if s("tool").is_none_or(|t| t.len() > 128) => return bad("tool needs a name of at most 128 bytes"),
+            "evidence" if s("nonce").is_none() => return bad("evidence needs nonce"),
+            _ => {}
+        }
+        let rx = (self.clock)();
+        // AL-1 check_origin 3 needs the session's input counters as of now.
+        let origin_s1 = (event == "prompt_submit" && s("origin") == Some("human") && s("basis") == Some("pty-input")).then(|| self.s1.read(session));
+        let transcript = if event == "session_start" { s("transcript_path").map(|p| self.validate_transcript(p)) } else { None };
+
+        let mut g = lock(&self.inner);
+        let inner = &mut *g;
+        if !inner.sessions.contains_key(session) {
+            let live = inner.sessions.values().filter(|x| !x.ended).count();
+            if live >= MAX_SESSIONS {
+                inner.counters.session_table_full += 1;
+                return Intake::Ignored("session-table-full".into());
+            }
+            // Bound the table: ended sessions go first.
+            if inner.sessions.len() >= 2 * MAX_SESSIONS
+                && let Some(k) = inner.sessions.iter().filter(|(_, x)| x.ended).min_by_key(|(_, x)| x.s2_at).map(|(k, _)| k.clone())
+            {
+                inner.sessions.remove(&k);
+            }
+        }
+        let typed_ids: Vec<String> = inner
+            .typed
+            .get(session)
+            .map(|q| q.iter().filter(|(t, _)| rx.saturating_sub(*t) <= crate::deadline::TICK_MS).flat_map(|(_, ids)| ids.clone()).collect())
+            .unwrap_or_default();
+        let counters = &mut inner.counters;
+        let sess = inner.sessions.entry(session.to_owned()).or_default();
+        let mut out = Intake::Applied;
+        match event {
+            "ready" => {
+                let state = s("state").unwrap_or_default().to_owned();
+                match &sess.ready {
+                    Some(r) if at_ms < r.at_ms => {
+                        counters.ready_reordered += 1;
+                        out = Intake::Dropped("ready-reordered");
+                    }
+                    Some(r) if at_ms == r.at_ms && r.state == "BUSY" && state != "BUSY" => out = Intake::Dropped("tie keeps BUSY"),
+                    _ => {
+                        let seq = sess.ready.as_ref().map_or(1, |r| r.seq + 1);
+                        if state == "READY" {
+                            mark_stopped(sess, at_ms, rx);
+                        }
+                        sess.ended = state == "NOT_RUNNING";
+                        sess.ready = Some(ReadyRec { state, at_ms, rx_mono: rx, seq, epoch: self.epoch });
+                    }
+                }
+            }
+            "session_start" => {
+                sess.interactive = obj.get("interactive").and_then(Value::as_bool);
+                sess.ended = false;
+                match transcript {
+                    Some(Ok(p)) => {
+                        sess.transcript = Some(p);
+                        sess.tr_last = None;
+                    }
+                    Some(Err(why)) => {
+                        counters.transcript_refused += 1;
+                        counters.reasons.push_back(format!("transcript: {why}"));
+                        sess.transcript = None;
+                    }
+                    None => sess.transcript = None,
+                }
+            }
+            "prompt_submit" => {
+                let ids = valid_ids(obj.get("doorbell_ids"));
+                let (origin, basis) = check_origin(counters, s("origin").unwrap_or(""), s("basis").unwrap_or(""), &ids, &typed_ids, origin_s1, rx);
+                sess.last_prompt = Some(Prompt { origin, basis, at_ms, rx_mono: rx, doorbell_ids: ids });
+                sess.stopped = None;
+            }
+            "tool_start" | "tool_end" => sess.tool = Some((s("tool").unwrap_or_default().to_owned(), rx)),
+            "turn_stop" => mark_stopped(sess, at_ms, rx),
+            "session_end" => {
+                let seq = sess.ready.as_ref().map_or(1, |r| r.seq + 1);
+                sess.ready = Some(ReadyRec { state: "NOT_RUNNING".into(), at_ms, rx_mono: rx, seq, epoch: self.epoch });
+                sess.ended = true;
+            }
+            // AL-9 (B-16/B-20) decides hand-over from these; here they are recorded only.
+            "evidence" => {
+                sess.evidence.push((s("nonce").unwrap_or_default().to_owned(), rx));
+                if sess.evidence.len() > 16 {
+                    sess.evidence.remove(0);
+                }
+            }
+            "complete" => sess.complete_at = Some(rx),
+            _ => {}
+        }
+        while counters.reasons.len() > 16 {
+            counters.reasons.pop_front();
+        }
+        // S2 (a): every valid report (AL-1 step 7, invariant 4).
+        sess.reports += 1;
+        sess.s2_at = Some(sess.s2_at.map_or(rx, |t| t.max(rx)));
+        sess.s2_event_at = sess.s2_at;
+        out
+    }
+
+    /// The built W1 hooks (`ready`/`pull` ops: session-start, stop, session-end,
+    /// post-tool-use) are turn events too: they move S2 (a) for the session.
+    /// `transcript` is the path the deliverer resolved for it, checked like
+    /// an adapter's (FCW-8). Deviation D-2 in T-3687.
+    pub fn legacy_hook(&self, session: &str, hook: &str, transcript: Option<&Path>) {
+        if !valid_session(session) {
+            return;
+        }
+        let rx = (self.clock)();
+        let tr = transcript.map(|p| self.validate_transcript(&p.to_string_lossy()));
+        let mut g = lock(&self.inner);
+        let inner = &mut *g;
+        if !inner.sessions.contains_key(session) && inner.sessions.values().filter(|x| !x.ended).count() >= MAX_SESSIONS {
+            inner.counters.session_table_full += 1;
+            return;
+        }
+        let sess = inner.sessions.entry(session.to_owned()).or_default();
+        match hook {
+            "session-start" => {
+                sess.ended = false;
+                if let Some(Ok(p)) = tr
+                    && sess.transcript.is_none()
+                {
+                    sess.transcript = Some(p);
+                }
+            }
+            "stop" => mark_stopped(sess, u64::MAX, rx),
+            "session-end" => sess.ended = true,
+            _ => {}
+        }
+        sess.reports += 1;
+        sess.s2_at = Some(sess.s2_at.map_or(rx, |t| t.max(rx)));
+        sess.s2_event_at = sess.s2_at;
+    }
+
+    /// S3: this session's agent sent a message in `conv` (the send API).
+    pub fn on_sent(&self, session: Option<&str>, conv: &str) {
+        self.s3(session, conv);
+    }
+
+    /// S3: a message of `conv` was handed over to `session` (HANDED_OVER).
+    pub fn on_handed_over(&self, session: &str, conv: &str) {
+        self.s3(Some(session), conv);
+    }
+
+    fn s3(&self, session: Option<&str>, conv: &str) {
+        let now = (self.clock)();
+        let mut g = lock(&self.inner);
+        let inner = &mut *g;
+        // Only a session this meter knows: an unnamed sender, or a pseudo
+        // session such as the `claim` op's, attributes to nobody.
+        let Some(sess) = session.and_then(|s| inner.sessions.get_mut(s)) else {
+            inner.counters.s3_unattributed += 1;
+            return;
+        };
+        sess.s3_at = Some(now);
+        sess.s3_by_conv.insert(conv.to_owned(), now);
+        sess.s3_by_conv.retain(|_, t| now.saturating_sub(*t) <= V19_MS);
+    }
+
+    /// B-16 records each doorbell line it types (FCW-5: a `human` prompt that
+    /// names those ids within a tick is recorded `automated`).
+    pub fn note_typed(&self, session: &str, ids: &[String]) {
+        let now = (self.clock)();
+        let mut g = lock(&self.inner);
+        let q = g.typed.entry(session.to_owned()).or_default();
+        q.push_back((now, ids.to_vec()));
+        q.retain(|(t, _)| now.saturating_sub(*t) <= crate::deadline::TICK_MS);
+        while q.len() > 16 {
+            q.pop_front();
+        }
+    }
+
+    fn validate_transcript(&self, p: &str) -> Result<PathBuf, String> {
+        let root = self.transcript_root.as_ref().ok_or("no harness project directory configured")?;
+        let path = Path::new(p);
+        if !path.is_absolute() {
+            return Err("not absolute".into());
+        }
+        let md = std::fs::symlink_metadata(path).map_err(|e| format!("cannot stat: {e}"))?;
+        if md.file_type().is_symlink() {
+            return Err("a symlink".into());
+        }
+        if !md.is_file() {
+            return Err("not a regular file".into());
+        }
+        let real = path.canonicalize().map_err(|e| e.to_string())?;
+        let root = root.canonicalize().map_err(|e| format!("project directory: {e}"))?;
+        if !real.starts_with(&root) {
+            return Err("outside the harness's project directory".into());
+        }
+        Ok(real)
+    }
+
+    /// AL-3 meter_tick for every session, then the status snapshot.
+    pub fn tick(&self) {
+        let names: Vec<String> = lock(&self.inner).sessions.iter().filter(|(_, s)| !s.ended).map(|(k, _)| k.clone()).collect();
+        // Reads happen outside the lock: an RPC must not hold up intake.
+        let reads: Vec<(String, Result<S1Reply, String>)> = names.iter().map(|n| (n.clone(), self.s1.read(n))).collect();
+        let my_boot = termlink_session::input_meter::boot_id();
+        let now = (self.clock)();
+        let mut g = lock(&self.inner);
+        for (name, r) in reads {
+            let Some(sess) = g.sessions.get_mut(&name) else { continue };
+            match r {
+                Ok(r) if my_boot.is_some() && r.boot_id == my_boot => {
+                    sess.s1 = Some(S1::Known { client: r.at("client"), read_at: now });
+                    sess.s1_sources = Some(r);
+                }
+                Ok(_) => {
+                    sess.s1 = Some(S1::Unknown("the session answered from another boot".into()));
+                    sess.s1_sources = None;
+                }
+                Err(e) => {
+                    sess.s1 = Some(S1::Unknown(e));
+                    sess.s1_sources = None;
+                }
+            }
+            if let Some(t) = &sess.transcript
+                && let Ok(md) = std::fs::symlink_metadata(t)
+            {
+                use std::os::unix::fs::MetadataExt;
+                let cur = (md.size(), md.mtime(), md.mtime_nsec());
+                if sess.tr_last.is_some_and(|l| l != cur) {
+                    sess.s2_at = Some(now);
+                }
+                sess.tr_last = Some(cur);
+            }
+        }
+        let names: Vec<String> = g.sessions.keys().cloned().collect();
+        drop(g);
+        for n in names {
+            let v = self.view(&n, now);
+            if let Some(s) = lock(&self.inner).sessions.get_mut(&n) {
+                s.snapshot = Some((v, now));
+            }
+        }
+    }
+
+    /// AL-4: the conversation signal of `session` at `now` (mono).
+    pub fn conversation(&self, session: &str, now: u64) -> Conversation {
+        let (prompt, stopped, s2_ev, s1, convs) = {
+            let g = lock(&self.inner);
+            let Some(s) = g.sessions.get(session) else { return Conversation::None };
+            (s.last_prompt.clone(), s.stopped, s.s2_event_at, s.s1.clone(), s.s3_by_conv.clone())
+        };
+        if let Some(p) = prompt
+            && p.origin != Origin::Automated
+        {
+            // FCW-17: no stop yet -> 120 s after the last S2 event after the prompt.
+            let base = stopped.unwrap_or_else(|| p.rx_mono.max(s2_ev.unwrap_or(0)));
+            let mut end = base + V19_MS;
+            if let Some(S1::Known { client: Some(c), .. }) = s1
+                && c > p.rx_mono
+            {
+                end = end.max(c + V19_MS);
+            }
+            if now <= end {
+                return Conversation::Operator;
+            }
+        }
+        let wall = (self.wall)();
+        let mut owed = vec![];
+        for (c, t) in convs {
+            if now.saturating_sub(t) > V19_MS {
+                continue;
+            }
+            match self.ledger.owed(&c, wall) {
+                Ok(true) => owed.push(c),
+                Ok(false) => {}
+                Err(e) => return Conversation::Unknown(e), // FCW-18
+            }
+        }
+        if owed.is_empty() { Conversation::None } else { Conversation::Agent(owed) }
+    }
+
+    /// The READY record as the doorbell may read it: absent if received by
+    /// another sidecar process (FCW-6).
+    pub fn ready(&self, session: &str) -> Option<ReadyRec> {
+        lock(&self.inner).sessions.get(session)?.ready.clone().filter(|r| r.epoch == self.epoch)
+    }
+
+    pub fn last_prompt(&self, session: &str) -> Option<Prompt> {
+        lock(&self.inner).sessions.get(session)?.last_prompt.clone()
+    }
+
+    /// The live view of one session (AL-3 step 5..6).
+    fn view(&self, session: &str, now: u64) -> Value {
+        let conv = self.conversation(session, now);
+        let g = lock(&self.inner);
+        let Some(s) = g.sessions.get(session) else { return Value::Null };
+        let age = |t: Option<u64>| t.map(|t| now.saturating_sub(t));
+        let (s1_at, s1_state) = match &s.s1 {
+            Some(S1::Known { client, .. }) => (json!(client), json!("known")),
+            Some(S1::Unknown(why)) => (json!("unknown"), json!(format!("unknown: {why}"))),
+            None => (json!("unknown"), json!("unknown: not read yet")),
+        };
+        let s1_known = matches!(s.s1, Some(S1::Known { .. }));
+        let s2_known = s.reports > 0 || s.transcript.is_some(); // FCW-13
+        // last = max of the KNOWN sources; an unknown source never reads as silence.
+        let mut cands: Vec<(u64, &str)> = vec![];
+        if let Some(S1::Known { client: Some(c), .. }) = s.s1 {
+            cands.push((c, "s1"));
+        }
+        if s2_known && let Some(t) = s.s2_at {
+            cands.push((t, "s2"));
+        }
+        if let Some(t) = s.s3_at {
+            cands.push((t, "s3"));
+        }
+        let last = cands.iter().max_by_key(|(t, _)| *t);
+        let watchdog = match (s1_known, s2_known) {
+            (true, true) => "available".to_string(),
+            (false, _) => "unavailable: S1 unknown".into(),
+            (true, false) => "unavailable: S2 unknown (no adapter report and no transcript)".into(),
+        };
+        json!({
+            "s1_at": s1_at, "s1_age_ms": if s1_known { json!(age(match s.s1 { Some(S1::Known { client, .. }) => client, _ => None })) } else { json!("unknown") },
+            "s1": s1_state,
+            "s2_at": if s2_known { json!(s.s2_at) } else { json!("unknown") },
+            "s2_age_ms": if s2_known { json!(age(s.s2_at)) } else { json!("unknown") },
+            "s3_at": s.s3_at, "s3_age_ms": age(s.s3_at),
+            "last": last.map(|(t, _)| *t), "last_age_ms": last.map(|(t, _)| now.saturating_sub(*t)),
+            "source": last.map(|(_, s)| *s),
+            "conversation": conv.view(),
+            "watchdog": watchdog,
+            "ready": s.ready.as_ref().map(|r| json!({"state": r.state, "at_ms": r.at_ms, "rx_mono": r.rx_mono, "seq": r.seq, "sidecar_epoch": r.epoch, "current_epoch": r.epoch == self.epoch})),
+            "last_prompt": s.last_prompt.as_ref().map(|p| json!({"origin": p.origin.name(), "basis": p.basis, "at_ms": p.at_ms, "rx_mono": p.rx_mono, "doorbell_ids": p.doorbell_ids})),
+            "interactive": s.interactive,
+            "transcript": s.transcript.is_some(),
+            "foreground": s.s1_sources.as_ref().map(|r| r.foreground.clone()),
+            "ended": s.ended,
+        })
+    }
+
+    /// Status `activity` (6.14.5, OBS-5): per session the tick's snapshot with
+    /// its stamp; one older than [`STALE_MS`] reads `unknown` in every field,
+    /// never its last value (FCW-15).
+    pub fn status_view(&self) -> Value {
+        let now = (self.clock)();
+        let g = lock(&self.inner);
+        let mut sessions = serde_json::Map::new();
+        for (k, s) in &g.sessions {
+            let v = match &s.snapshot {
+                Some((v, at)) if now.saturating_sub(*at) <= STALE_MS => {
+                    let mut v = v.clone();
+                    v["stamped_at"] = json!(at);
+                    v["stamp_age_ms"] = json!(now.saturating_sub(*at));
+                    v
+                }
+                Some((v, at)) => {
+                    let mut u = serde_json::Map::new();
+                    for key in v.as_object().map(|o| o.keys().cloned().collect::<Vec<_>>()).unwrap_or_default() {
+                        u.insert(key, json!("unknown"));
+                    }
+                    u.insert("stamped_at".into(), json!(at));
+                    u.insert("stamp_age_ms".into(), json!(now.saturating_sub(*at)));
+                    u.insert("stale".into(), json!(true));
+                    Value::Object(u)
+                }
+                None => json!({"state": "unknown", "why": "no meter tick since this session was seen"}),
+            };
+            sessions.insert(k.clone(), v);
+        }
+        let c = &g.counters;
+        json!({
+            "sessions": sessions,
+            "mono_now": now,
+            "sidecar_epoch": self.epoch,
+            "counters": {
+                "adapter_reports_unparseable": c.unparseable, "ready_reordered": c.ready_reordered,
+                "origin_inconsistent": c.origin_inconsistent, "origin_overridden": c.origin_overridden,
+                "transcript_refused": c.transcript_refused, "session_table_full": c.session_table_full,
+                "s3_unattributed": c.s3_unattributed, "last_reasons": c.reasons,
+            },
+        })
+    }
+}
+
+/// The conversation signal (AL-4).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Conversation {
+    None,
+    Operator,
+    /// The conversations under way (their mail is rung as normal; others held).
+    Agent(Vec<String>),
+    /// The ledger could not be read (FCW-18): the doorbell treats it as `operator`.
+    Unknown(String),
+}
+
+impl Conversation {
+    pub fn view(&self) -> Value {
+        match self {
+            Conversation::None => json!("none"),
+            Conversation::Operator => json!("operator"),
+            Conversation::Agent(c) => json!({"agent": c}),
+            Conversation::Unknown(why) => json!({"unknown": why}),
+        }
+    }
+}
+
+fn mark_stopped(sess: &mut Session, at_ms: u64, rx: u64) {
+    if let Some(p) = &sess.last_prompt
+        && sess.stopped.is_none()
+        && at_ms > p.at_ms
+    {
+        sess.stopped = Some(rx);
+    }
+}
+
+fn valid_ids(v: Option<&Value>) -> Vec<String> {
+    v.and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter_map(Value::as_str)
+                .filter(|s| (1..=128).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'))
+                .take(256)
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// AL-1 check_origin: the receiver only ever downgrades an origin.
+fn check_origin(c: &mut Counters, o: &str, b: &str, ids: &[String], typed: &[String], s1: Option<Result<S1Reply, String>>, rx: u64) -> (Origin, String) {
+    let ok = match o {
+        "human" => ["pty-input", "inferred"].contains(&b),
+        "automated" => ["doorbell", "non-interactive", "harness-mark", "pty-input"].contains(&b),
+        "unknown" => b == "absent",
+        _ => false,
+    };
+    if !ok {
+        c.origin_inconsistent += 1; // FCW-4 (case-sensitive: "Human" lands here)
+        return (Origin::Unknown, "absent".into());
+    }
+    let origin = match o {
+        "human" => Origin::Human,
+        "automated" => Origin::Automated,
+        _ => Origin::Unknown,
+    };
+    if origin == Origin::Human && ids.iter().any(|i| typed.contains(i)) {
+        c.origin_overridden += 1; // FCW-5
+        return (Origin::Automated, "doorbell".into());
+    }
+    if origin == Origin::Human && b == "pty-input" {
+        let my_boot = termlink_session::input_meter::boot_id();
+        let src = match s1 {
+            Some(Ok(r)) if my_boot.is_some() && r.boot_id == my_boot => ["client", "notify", "inject"]
+                .iter()
+                .filter_map(|s| r.at(s).filter(|t| *t <= rx).map(|t| (t, *s)))
+                .max_by_key(|(t, _)| *t)
+                .map(|(_, s)| s),
+            _ => None,
+        };
+        match src {
+            Some("notify" | "inject") => {
+                c.origin_overridden += 1; // FCW-5
+                return (Origin::Automated, "pty-input".into());
+            }
+            Some(_) => {}
+            None => return (Origin::Human, "inferred".into()), // cannot confirm pty-input
+        }
+    }
+    (origin, b.to_owned())
+}
+
+fn rand_epoch() -> u64 {
+    use std::hash::{BuildHasher, Hasher};
+    let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+    h.write_u64(crate::store::now_ms());
+    h.write_u32(std::process::id());
+    h.finish()
+}

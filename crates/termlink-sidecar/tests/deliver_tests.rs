@@ -590,3 +590,32 @@ fn deliver_sweep_leaves_an_attempt_without_its_claimed_line_alone() {
     assert_eq!(names(&lines(&r.store, "s", "mid-pull")), ["RECEIVED", "STORED", "ABSENT"]);
     assert_eq!(d2.pending(), ["mid-pull"]);
 }
+
+// ---- B-27 E-17 / E-9: S3 moves on HANDED_OVER, never on the arrival -----------------------------
+
+/// A STORED arrival leaves the session's S3 alone; the HANDED_OVER the
+/// finalizer writes moves it. Control: delete the meter call after the
+/// HANDED_OVER line in `finalize` and the second assert goes red.
+#[test]
+fn b27_handed_over_moves_s3_and_arrival_does_not() {
+    use termlink_sidecar::meter::{Meter, NoLedger, Unbound};
+    let e = Estate::create_without_hub().unwrap();
+    let ka = e.identity("a").unwrap();
+    let store = Arc::new(Store::open(&e.store_root(), B).unwrap());
+    let meter = Arc::new(Meter::new(B, Box::new(Unbound), Box::new(NoLedger)));
+    let d = Deliverer::new(B, store.clone(), Box::new(BuiltIn::new(roster_of(&[&ka]))), None).with_meter(meter.clone());
+    meter.legacy_hook("sess-1", "session-start", None);
+    let s3 = |m: &Meter| {
+        m.tick();
+        m.status_view()["sessions"]["sess-1"]["s3_at"].clone()
+    };
+    put(&store, &msg(&ka, "h", "m1", "0", "the body"));
+    assert_eq!(s3(&meter), Value::Null, "an arrival is not S3");
+    let (f, _) = frame_of(&d, Some("toolu_B"));
+    let dir = e.root().join("transcripts");
+    std::fs::create_dir_all(&dir).unwrap();
+    let good = write_transcript(&dir, "good.jsonl", &[rec_tool_use("toolu_B"), rec_tool_result("toolu_B", "ok"), rec_context("toolu_B", &f.text), rec_assistant("ok")]);
+    d.register_session("sess-1", &good).unwrap();
+    assert_eq!(d.finalize(&f.nonce, false).unwrap(), Verdict::HandedOver);
+    assert!(s3(&meter).is_u64(), "the hand-over moves S3");
+}

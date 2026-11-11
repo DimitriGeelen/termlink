@@ -195,9 +195,25 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
         Box::new(BuiltIn::new(roster.clone()).with_operator_lists(store.clone())),
     )
     .map_err(|e| e.to_string())?;
+    let projects_root = cfg.claude_projects.clone().unwrap_or_else(|| home.join(".claude").join("projects"));
+    // B-27: the activity meter. S1 reads go to the TermLink session bound to a
+    // harness session (B-16 binds them; unbound reads unknown).
+    let s1: Box<dyn crate::meter::S1Source> = match crate::meter::SessionRpc::new() {
+        Ok(r) => Box::new(r),
+        Err(_) => Box::new(crate::meter::Unbound),
+    };
+    let meter = Arc::new(
+        crate::meter::Meter::new(
+            &cfg.agent,
+            s1,
+            Box::new(crate::meter::StoreLedger { store: store.clone(), deadlines: crate::deadline::Deadlines::R44E }),
+        )
+        .with_transcript_root(projects_root.clone()),
+    );
     let deliverer = Arc::new(
         Deliverer::new(&cfg.agent, store.clone(), Box::new(BuiltIn::new(roster).with_operator_lists(store.clone())), Some(sender.clone()))
-            .with_projects_root(cfg.claude_projects.clone().unwrap_or_else(|| home.join(".claude").join("projects"))),
+            .with_projects_root(projects_root)
+            .with_meter(meter.clone()),
     );
     // T-3646: the pinned main's liveness note (posted when this agent is the main) and check.
     let sweep_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -221,6 +237,7 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     api_cfg.hub_id = Some(cfg.hub_id.clone());
     api_cfg.sender = Some(sender.clone());
     api_cfg.deliverer = Some(deliverer.clone());
+    api_cfg.meter = Some(meter.clone());
     api_cfg.book = (!cfg.book.is_empty()).then(|| cfg.book.clone());
     // T-3654: read-only view of the project's main lease.
     let main_project = cfg
@@ -249,6 +266,10 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     let tick_beat = Arc::new(std::sync::atomic::AtomicU64::new(crate::store::now_ms()));
     let sweeper = {
         let (d, stop, beat) = (deliverer.clone(), sweep_stop.clone(), tick_beat.clone());
+        let meter = meter.clone();
+        // Test estates may freeze the meter (E-19): status must then go stale, not lie.
+        let meter_frozen = matches!(store.mode(), crate::estate::Mode::Estate(_))
+            && std::env::var("TERMLINK_SIDECAR_TEST_FREEZE").is_ok_and(|v| v.split(',').any(|c| c == "meter"));
         std::thread::spawn(move || {
             let mut waited = Duration::ZERO;
             let mut since_tick = Duration::ZERO;
@@ -267,6 +288,10 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
                 if since_tick >= tick {
                     since_tick = Duration::ZERO;
                     d.check_overdue(crate::store::now_ms(), &deadlines);
+                    // B-27 AL-3: the meter, once per tick.
+                    if !meter_frozen {
+                        meter.tick();
+                    }
                 }
             }
         })
