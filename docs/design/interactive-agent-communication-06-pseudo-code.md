@@ -846,7 +846,9 @@ admin delivery off|on --why [--all]: [B] each flip read back and logged where it
 (`delivery-off`); urgent mail downgraded, not dropped.
 5.10.f **EDGE CASES:** (1) partitioned host: the switch is local (store), so it works without the hub (SI-23); (2) a
 flip during AL-6 between step 1 and step 9: at most the one line already past step 1 is typed; the next tick reads off
-(the "within one tick" bound); (3) crash: the flag is durable; a restart reads it.
+(the "within one tick" bound); (3) crash: the flag is durable; a restart reads it; (4) concurrency: the flag has one writer at a time,
+the switch command, which writes it under `store.lock` and reads it back; every typed path reads it at its step 1, so
+a concurrent flip is seen by the next check, as (2) bounds.
 5.10.g **EXECUTION SEMANTICS:** a flip is idempotent; read-back verifies it **[B]**.
 5.10.h **CRYPTOGRAPHY:** none; the admin credential is separate from the agent's (SI-14) **[B]**.
 **OBS:** OBS-19 admin rows of flips; ring log `held:kill-switch`; pull refusals `delivery-off`.
@@ -1005,7 +1007,8 @@ would_hand_over(m, sess) = (withhold(MY_AGENT, sess, now) is none)
 **[B]**. (This is "fail open" for delivery and "fail closed" for every lease-based decision.)
 5.12.f **EDGE CASES:** (1) the withhold trusts a 60 s read while forward-once needs 15 s (4.6): the two directions
 differ on purpose (withholding keeps mail where it is; forwarding moves it); (2) crash: the view is in memory; a
-restart reads within 15 s; until then unknown.
+restart reads within 15 s; until then unknown; (3) concurrency: read-only for the decision; the view has one
+writer, the lease read, which replaces it whole, so the withhold reads the old view or the new one, never a mix.
 5.12.g **EXECUTION SEMANTICS:** read-only. 5.12.h **CRYPTOGRAPHY:** the records' signatures are checked by the fold
 **[B]**.
 **OBS:** OBS-22 status `main.lease` with `checked_at_ms`.
@@ -1916,10 +1919,16 @@ AL-44, AL-46, AL-50, and AL-21, AL-22, AL-45 for revocation. Canonicalisation ha
 2.1.c.1, and the SI-1 line vector 5.6.c.1).
 10.2 **Card 7.2, every FAILS CLOSED WHEN handed to the evidence specialist.** Section 6: 190 FCWs, each with the AFC it
 refines or `new`, and an E-n or ZR-1; the 44 without a spec are ZR-1 (a).
-10.3 **Card 7.3, concurrency and crash cases for every state-changing step.** Every algorithm that changes state has a
-concurrency item and a crash table or crash item in its part f (AL-1, AL-6, AL-7, AL-8, AL-9, AL-11, AL-13, AL-14,
-AL-15, AL-17, AL-21, AL-22, AL-23, AL-26, AL-27, AL-30, AL-31, AL-33, AL-35, AL-40, AL-42, AL-43, AL-44 and the rest
-with a one-line crash statement).
+10.3 **Card 7.3, concurrency and crash cases for every state-changing step.** Every algorithm has, in its part f, a
+crash table or crash item, and every algorithm that changes state also has a concurrency item that names what orders
+or serialises its writers (v0.2, review r1 F-4; v0.1 left AL-36, AL-37, AL-45, AL-49..AL-52 and others with a crash
+statement only). 10.3.a **Concurrency item with the lock or ordering named:** AL-1..AL-11, AL-13..AL-17, AL-21..AL-24,
+AL-26, AL-27, AL-30, AL-31, AL-33, AL-35..AL-37, AL-40, AL-42..AL-53 (AL-43 and AL-46 decide in one conditional step at
+the hub; AL-44 recovery runs before new work). 10.3.b **Explicit single writer, with what serialises it:** AL-18 (hub
+start, sidecar start, `store.lock`), AL-32 (the session process, append-only log), AL-34 (runme, per-project lock),
+AL-38 (the driver's run lock), AL-39 (the sidecar process, append-only admin log); read-only views with one producer
+that replaces them whole: AL-12, AL-29. 10.3.c **No state-changing step** (pure or stateless checks): AL-19, AL-20,
+AL-25, AL-28, AL-41.
 10.4 **Card 7.4, drawings D-1 and D-2 with ids, captions and text equivalents, rendering without error.** Section 7
 (index 7.0), 06a section 3, 06b section 3; render check section 11.
 10.5 **T-3355 agent criteria.** Version table and inputs of record with hashes: sections 0 and 1. Pseudo-code for each

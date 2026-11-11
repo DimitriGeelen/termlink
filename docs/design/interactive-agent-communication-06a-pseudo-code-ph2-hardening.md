@@ -94,7 +94,9 @@ pin → every hub-signed object is refused; needs-attention names both. 2.2.e.3 
 neither the local socket nor TLS under the pinned certificate → no pin; hub-signed data stays unverified.
 2.2.f **EDGE CASES:** (1) a rogue key at first contact is pinned (AR-1, limit probe E-37); (2) a certificate rotation
 does not touch the key; (3) crash: generation and write are one atomic write; a crash leaves no key and the next start
-generates (first start only).
+generates (first start only); (4) concurrency: single writer per object: the key is generated only by the hub
+process at its start, before it accepts connections; the pin is written only by the sidecar's start, before its tick
+loop runs; a second sidecar on the same store is refused by `store.lock` (06 3.2.a) **[B]**, so no two writers meet.
 2.2.g **EXECUTION SEMANTICS:** none beyond the pin write (idempotent). 2.2.h **CRYPTOGRAPHY:** ed25519 (RFC 8032), the
 fingerprint is `ed25519:` + hex SHA-256 of the 32-byte public key **[P]** (ARC4 6.1.4 says `ed25519:<fingerprint>`
 without fixing the hash; SHA-256 matches the TLS pin's form; ZR-5).
@@ -428,7 +430,10 @@ its digest only. 2.11.e.3 **FCW-116** [AFC-25; E-44] the declared size is over 1
 more bytes arrive than declared → the fetch stops; not STORED.
 2.11.f **EDGE CASES:** (1) the same blob in two messages: one file (content-addressed), written once; (2) a blob wrapped
 to another agent: unwrap fails (E-45 wrong key case); (3) crash: temp files are removed at start; a crash after the
-rename leaves the blob without STORED: the message is pulled again and the rename is idempotent.
+rename leaves the blob without STORED: the message is pulled again and the rename is idempotent; (4) concurrency: two
+fetches of the same digest (two messages, or a re-pull) each write their own temp file and rename it onto the digest
+name; the rename is atomic and both contents are the same verified bytes, so the last rename wins harmlessly; STORED
+is written by AL-23 under its own per-conversation order.
 2.11.g **EXECUTION SEMANTICS:** idempotent by digest. 2.11.h **CRYPTOGRAPHY:** as AL-26.
 **OBS:** OBS-52 refusal reasons per step; stage STORED after the rename (order in the stage log).
 
@@ -491,7 +496,9 @@ CLEAR. 2.13.e.3 **FCW-122** [new; E-57, E-61] a peer's card or back channel is s
 2.13.e.4 **FCW-123** [new; E-58] a strength flag cannot be determined → it reads as absent.
 2.13.f **EDGE CASES:** (1) a status call under an injected fault: the view reads in-memory fields only (no blocking
 RPC in the status path) so p95 ≤ 5 s holds (E-55); (2) clock: freshness on `mono()`; (3) crash: after a restart every
-field is absent until produced → `unknown`, so a restarted sidecar is never CLEAR until it has re-measured.
+field is absent until produced → `unknown`, so a restarted sidecar is never CLEAR until it has re-measured; (4) concurrency: the view is read-only; each field
+has one producer (the algorithm that measures it) that replaces it whole, so a reader sees an old or a new value, never
+a mix.
 2.13.g none. 2.13.h none. **OBS:** OBS-54 the status JSON (schema checked by E-55); OBS-55 the reachability card.
 
 ### 2.14 AL-30 — Inbox consumer list, flag and bind (K-15; ARC4 6.6.1, 6.6.2; V-11, V-12; B-2; DR-11)
@@ -515,7 +522,10 @@ sidecar tick: r = inbox.consumers(MY_INBOX, 24 h); Err -> status consumers: unkn
 2.14.e.2 **FCW-125** [new; ZR-1] the consumer list cannot be read → status `consumers: unknown` (never "one").
 2.14.f **EDGE CASES:** (1) a legitimate switch during W1..W3 shows two identities for minutes: flagged, not refused
 (DR-11); (2) a second live copy of a project on the same hub is seen within one tick (V-12); (3) crash: the consumer
-table is durable hub state written with the RPC; a crash loses at most the last update, which the next RPC repeats.
+table is durable hub state written with the RPC; a crash loses at most the last update, which the next RPC repeats; (4) concurrency: the consumer table and the bind of
+one topic are written only under the hub's per-topic lock; an ack or claim checks `bound` and updates the table in the
+same locked step, so a bind ordered first refuses a later ack by another identity (FCW-124) and one ordered after it
+finds that ack already recorded (visible in `inbox.consumers`); the 16-entry eviction runs in the same step.
 2.14.g none. 2.14.h the identity is the authenticated caller of the RPC **[B]**. **OBS:** OBS-56 `inbox.consumers`;
 status `consumers`; admin rows `bind`, `evicted`.
 
@@ -546,7 +556,10 @@ or trim would remove an open message → refused and logged. 2.15.e.2 **FCW-127*
 refused. 2.15.e.3 **FCW-128** [new; ZR-1] the admin-log row cannot be written → the RPC is refused. 2.15.e.4
 **FCW-129** [new; E-67] past a ceiling → final first; open only as a last resort, loudly.
 2.15.f **EDGE CASES:** root on the hub host can edit the log (RR-2, ARC4 15 K-15); crash: the row before the act means a
-crash shows an intent without a result, which is visible. 2.15.g none. 2.15.h none.
+crash shows an intent without a result, which is visible. Concurrency: the finality check and the removal of an
+offset are one step under the hub's per-topic lock, which posts and stage writes to that topic also take; a removal
+covers only offsets read final under the lock, and a final stage never becomes open again; the ceiling job takes the
+same lock, so a sweep and the ceiling job cannot remove the same offset twice or interleave their checks. 2.15.g none. 2.15.h none.
 **OBS:** OBS-57 `rpc-audit.jsonl` rows with `admin: true`; ceiling removal rows.
 
 ### 2.16 AL-32 — Founding verbs: scope, use log, owner-only sessions (K-15; ARC4 6.6.4; B-4)
@@ -569,7 +582,9 @@ spawn --owner-only: default on for sessions launched by the reachable launcher
 refused **[B]**. 2.16.e.2 **FCW-131** [new; E-68] an owner-only session is called by another identity → refused.
 2.16.e.3 **FCW-132** [new; ZR-1] the use-log row cannot be written → the verb is refused.
 2.16.f **EDGE CASES:** R-4 (the owner can still inject and read back) is kept; cross-project use is logged only until
-PH-4 (RA-2). Crash: row before effect. 2.16.g none. 2.16.h token scopes **[B]**. **OBS:** OBS-58 session and hub use logs.
+PH-4 (RA-2). Crash: row before effect. Concurrency: no shared decision state; each call appends its own row (the use
+log is append-only, one row per write, single writer: the session process) before it acts; the owner-only flag is set
+at spawn and never changed afterwards. 2.16.g none. 2.16.h token scopes **[B]**. **OBS:** OBS-58 session and hub use logs.
 
 ### 2.17 AL-33 — Agent key card: post-time check and replacement (K-15; ARC4 6.6.5; B-6; P7-2)
 
@@ -592,7 +607,11 @@ runme provisioning: writes or replaces a card (root-only socket), logged
 card → refused. 2.17.e.2 **FCW-134** [new; E-69] a replacement not signed by the current key and not a runme act →
 refused. 2.17.e.3 **FCW-135** [new; ZR-1] no card for the poster → refused (arc-011 message types only).
 2.17.f **EDGE CASES:** (1) a stolen old key can replace the card (RR-2 class; revocation AL-21 is the answer); (2) crash
-between persist and log: start-up compares card `seq` with the last logged `seq`. 2.17.g none. 2.17.h ed25519 via AL-20
+between persist and log: start-up compares card `seq` with the last logged `seq`; (3) concurrency: card writes
+(replacement and runme provisioning) are compare-and-set on `seq` under the hub's per-agent card lock; of two
+replacements signed by the same old key, the first moves the card and the second no longer verifies against the
+current key (FCW-134); a post is verified against the card it reads under that lock, so it meets either the old or the
+new card, never a half-written one. 2.17.g none. 2.17.h ed25519 via AL-20
 (schema domain). **OBS:** OBS-59 hub refusals; card `seq`.
 
 ### 2.18 AL-34 — Signed dead letter for a retired instance (K-15; ARC4 6.6.6; R-44, R-60, R-62; B-6)
@@ -612,7 +631,9 @@ sender, polling a conversation to instance i:
 2.18.d **INVARIANTS:** only a hub-signed DEAD ends a conversation (R-60: only the home hub may say DEAD).
 2.18.e **FAILS CLOSED WHEN:** 2.18.e.1 **FCW-136** [AFC-34; E-70] the DEAD is unsigned, signed by another key, from
 another hub, or its sequence does not rise → refused and flagged; polling continues.
-2.18.f **EDGE CASES:** DEAD from liveness alone is PH-3 (R-60.a); crash: the record is atomic. 2.18.g none. 2.18.h AL-20.
+2.18.f **EDGE CASES:** DEAD from liveness alone is PH-3 (R-60.a); crash: the record is atomic; concurrency: single
+writer, runme (one process), and `seq = project_seq + 1` is taken under the hub's per-project lock; a sender only reads
+DEAD records. 2.18.g none. 2.18.h AL-20.
 **OBS:** OBS-60 the sender's state with the DEAD seq.
 
 ### 2.19 AL-35 — Reconciliation on start and the daily head compare (K-14; ARC4 6.5; B-10)
@@ -641,7 +662,12 @@ sidecar stays UNRECONCILED and never CLEAR until a pass completes. 2.19.e.3 **FC
 says is STORED is missing locally → lost-after-STORED, needs-attention, RESEND-REQUEST. 2.19.e.4 **FCW-140** [new;
 E-91] the daily head compare finds a fork → unreconciled, needs-attention.
 2.19.f **EDGE CASES:** unanchored-suffix truncation and a coordinated rewrite are RR-15 (E-91 limit); crash during the
-pass: it restarts from the top and is idempotent (E-90 second start adds nothing). 2.19.g idempotent writes.
+pass: it restarts from the top and is idempotent (E-90 second start adds nothing). Concurrency: (1) one reconciliation
+task per sidecar: the start pass and the daily compare never run at once (the daily compare waits for the pass); (2)
+live traffic during the pass: each conversation is reconciled under `store.lock` (06 3.2.a), which admission
+(AL-23) and stage writes also take, so the pass compares a consistent snapshot of that conversation; a stage written
+after it is written to the hub by its own path and checked by the next pass; (3) a label clears only from a clean pass
+for that conversation taken under that lock. 2.19.g idempotent writes.
 2.19.h signatures of receipts and stage records **[B]**. **OBS:** OBS-61 status `reconciled` per conversation;
 OBS-62 attention entries; daily compare count.
 
@@ -663,7 +689,11 @@ up_to = highest contiguous stored number (signed receipt) [SI-6]
 2.20.d **INVARIANTS:** a held message is never handed over before the gap fills or 10 ticks pass. 2.20.e **FAILS CLOSED
 WHEN:** 2.20.e.1 **FCW-141** [new; E-87] a message beyond a gap → not offered for hand-over until the gap is filled or
 10 ticks pass (then marked). 2.20.e.2 **FCW-142** [new; E-86] the same number with another digest → refused, first kept.
-2.20.f crash: `held_since` is durable with the store line. 2.20.g none. 2.20.h signed receipts **[B]**. **OBS:** OBS-63
+2.20.f crash: `held_since` and `requested` are durable with the store line. Concurrency: admission (step 1..3) and
+the per-tick release are both under `store.lock` (06 3.2.a) (single writer of `up_to`, `held_since` and the
+stored numbers): two copies of number n are ordered by it, so `seen` and `store` are one step (FCW-142); a gap filler
+admitted during a release is seen by the release that runs after it; the RESEND-REQUEST is sent once per gap, marked
+`requested` in the same locked step. 2.20.g none. 2.20.h signed receipts **[B]**. **OBS:** OBS-63
 `max_held`; resend requests.
 
 ### 2.21 AL-37 — Re-send ladders and the owed list (K-12; ARC4 15 K-12; B-9, task T-3358)
@@ -683,7 +713,10 @@ sender ladder: re-send at each rung of its class until REPLIED, ACK_NO_ACTION, D
 2.21.d **INVARIANTS:** a message leaves the owed list only by an answer or a visible end. 2.21.e **FAILS CLOSED WHEN:**
 2.21.e.1 **FCW-143** [new; E-89] a local queue file's priority → ignored. 2.21.e.2 **FCW-144** [new; E-89, E-124] a
 sender off the allow-list asks for a raised priority → downgraded and recorded, never dropped.
-2.21.f crash: the ledger is durable (AL-24). 2.21.g re-sends carry the same id; the receiver dedupes **[B]**.
+2.21.f crash: the ledger is durable (AL-24). Concurrency: the owed list is derived, recomputed each tick, never
+written; the sender ladder is one task per sender sidecar, and before each rung it re-reads the message's stage under
+`store.lock` (06 3.2.a), so an answer stored first stops the rung; a rung already sent races only with the
+receiver's dedupe by message id **[B]**; the priority downgrade is a pure function at receive. 2.21.g re-sends carry the same id; the receiver dedupes **[B]**.
 2.21.h none. **OBS:** OBS-64 owed list vs hub record (E-130).
 
 ### 2.22 AL-38 — Fault injectors and the drill driver (K-17; ARC4 6.8; B-15)
@@ -703,7 +736,8 @@ run(f): 20 injections; then the same with the build that removes f's diagnosis: 
 2.22.d **INVARIANTS:** no injector result counts without its control. 2.22.e **FAILS CLOSED WHEN:** 2.22.e.1 **FCW-145**
 [new; E-62] the negative control was not run or did not fail → the run is TOOLING (exit 2).
 2.22.f tier 3 in production mode cannot stop one loop (seams refused, AL-16); crash of the driver: it removes the fault
-in a trap. 2.22.g none. 2.22.h none. **OBS:** OBS-65 per-injection records (the runner writes `termlink.evidence/1`).
+in a trap. Concurrency: one drill run per host at a time: the driver holds an exclusive run lock for the whole run; a
+second driver waits for it, so two faults are never injected at once and a baseline is never taken during another run. 2.22.g none. 2.22.h none. **OBS:** OBS-65 per-injection records (the runner writes `termlink.evidence/1`).
 
 ### 2.23 AL-39 — Vendor-channel use log (K-20; ARC4 6.10.1; B-18 log half)
 
@@ -718,7 +752,9 @@ hook cannot reach the sidecar: append to the hook error log; count; status vendo
 ```
 2.23.d **INVARIANTS:** every reported use has a row. 2.23.e **FAILS CLOSED WHEN:** 2.23.e.1 **FCW-146** [new; ZR-1] the
 row cannot be written → the use is recorded in the hook error log and status shows `vendor_log: degraded` (the call
-itself is not blocked: ruled, ARC4 6.10.1). 2.23.f uses in sessions without the hook are not seen. 2.23.g none.
+itself is not blocked: ruled, ARC4 6.10.1). 2.23.f uses in sessions without the hook are not seen. Concurrency: each report appends its own admin row (the
+admin log is append-only, single writer: the sidecar process); the attention entry coalesces by (session, day) in the
+sidecar's attention writer, so concurrent reports give one entry and every row. 2.23.g none.
 2.23.h none. **OBS:** OBS-66 admin rows; E-140.
 
 ### 2.24 AL-40 — Operator runme actions: the SendMessage deny and the wave gates W2, W3, W4 (ARC4 6.10.2, 6.11; B-17, B-18, B-21, B-23, B-26)

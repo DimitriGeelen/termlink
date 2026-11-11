@@ -255,7 +255,12 @@ WHEN:** 2.5.e.1 **FCW-166** [new; E-106, E-107] a failed fetch → not verified 
 [new; E-106] a lower counter or a fork → refused, previous kept. 2.5.e.3 **FCW-168** [new; E-106, E-115] from the
 cut-over epoch, a record not signed by the operator key → refused. 2.5.e.4 **FCW-169** [new; E-106] PN-13 without a
 verified head → no grant starts, allow-list narrowed.
-2.5.f **EDGE CASES:** restore from backup as AL-22 (RR-20); crash as AL-22. 2.5.g read-only. 2.5.h AL-20; operator key
+2.5.f **EDGE CASES:** restore from backup as AL-22 (RR-20); crash as AL-22. Concurrency: (1) single writer of the
+held policy at a sidecar: `policy_tick`, one tick at a time; it builds the new set aside and installs it by one atomic
+swap, so a grant check (AL-46 steps 1..2) reads the old set or the new one, never a mix; (2) a policy install racing a
+grant check: the local check is only a pre-filter, and the hub's reserve (AL-46 step 3) and the hub's policy write
+(above) take the same grant.lock, so validity and use are decided in one order at the hub; (3) at the hub, policy
+writes for one (scope, kind) are serialised by that lock and its counter, so the counter never decreases. 2.5.g read-only. 2.5.h AL-20; operator key
 **[open: Track K]**. **OBS:** OBS-72 status `policy_records {head, epoch, verified_at}`.
 
 ### 2.6 AL-46 — Check a grant before a start or resume (K-26; V-2; SI-21; H-25)
@@ -323,7 +328,10 @@ expired or with a non-rising sequence → ignored and flagged. 2.7.e.2 **FCW-174
 claims a bound project → flagged, the binding stays. 2.7.e.3 **FCW-175** [new; E-108] a roster with a lower sequence →
 refused.
 2.7.f clock: TTL on wall clocks across hosts; skew over 30 s marks figures unusable (V-5) **[open: 04b]**; crash: held
-state durable, idempotent. 2.7.g read-only. 2.7.h AL-20 under the hub keys. **OBS:** status roster seq, card ages.
+state durable, idempotent. Concurrency: the held roster, the cards and the project bindings at a receiver have one
+writer (its exchange handler), and each roster or card is checked and installed in one step under that writer's lock,
+so of two cards claiming one project the first binds and the second is flagged (FCW-174), and the sequence compare and
+the store of `last_seq` cannot interleave. 2.7.g read-only. 2.7.h AL-20 under the hub keys. **OBS:** status roster seq, card ages.
 
 ### 2.8 AL-48 — Circuit credential: mint and verify (K-29; ARC4 12.5; SI-9, SI-10) [PH-5, gates H-1, H-27]
 
@@ -350,7 +358,12 @@ sender's, or the cap reached → no mint. 2.8.e.2 **FCW-177** [new; E-110] the p
 exporter value → refused. 2.8.e.3 **FCW-178** [new; E-110] first use after the set-up window, expired, or after a
 restart → dead. 2.8.e.4 **FCW-179** [new; E-110] another conversation, a topic operation, or a non-roster signer →
 refused.
-2.8.f a thief with the key and a live credential is RR-5 (limit); clock as stated. 2.8.g RC-1..RC-9 reconcile after an
+2.8.f a thief with the key and a live credential is RR-5 (limit); clock as stated. Concurrency: (1) at the hub, the
+open-message cap check and the mint are one step under the hub's per-conversation lock, so two mint requests cannot
+both pass a cap with one place left; (2) at the verifier, first sight is an insert-if-absent of (credential, exporter
+value, first-seen `mono()`) under the sidecar's credential lock: a second connection presenting the same credential
+finds it bound to another exporter value and is refused (FCW-177); (3) revocation (AL-22) replaces the list by one
+swap, and the next check after it reads the new list. 2.8.g RC-1..RC-9 reconcile after an
 outage (E-117). 2.8.h TLS exporter (RFC 5705/8446), ed25519; format **[open: H-27]**. **OBS:** hub minting log; outage log.
 
 ### 2.9 AL-49 — Membership change and the membership epoch (SI-29) [PH-4]
@@ -370,6 +383,11 @@ on message or receipt: require sender is a current participant and m.epoch == cu
 leaver, a removal outside the rule → refused. 2.9.e.2 **FCW-181** [new; E-111] a message from a non-participant or a
 fenced lower epoch → refused, needs-attention.
 2.9.f hub unreachable: a removed participant's circuit works until expiry (RR-5); crash: chained record, idempotent.
+Concurrency: (1) two membership events racing for the same epoch + 1: `apply` runs under the hub's per-conversation
+lock and appends by compare-and-set on the chain head; the first takes epoch + 1, the second is re-verified against the
+new membership and applied at the next epoch, or refused if it is no longer valid there (for example a leave by a
+participant the first removed; FCW-180); (2) a message or receipt is admitted against the epoch read under the same lock,
+so it is never checked against an epoch that a concurrent change has half-applied.
 2.9.g none. 2.9.h signatures as AL-20. **OBS:** the membership chain.
 
 ### 2.10 AL-50 — Break-glass and the Tier 0 override (SI-24; ARC4 8.4.4)
@@ -387,7 +405,11 @@ break_glass(action, why):
 ```
 2.10.d **INVARIANT:** no break-glass action without its log row and entry. 2.10.e **FAILS CLOSED WHEN:** 2.10.e.1
 **FCW-182** [new; E-113] not operator-initiated → refused. 2.10.e.2 **FCW-183** [new; E-113] the log row or the entry
-cannot be written → refused. 2.10.f root on the host can act outside the path (RR-2); crash: log before act.
+cannot be written → refused. 2.10.f root on the host can act outside the path (RR-2); crash: log before act. Concurrency: the admin path handles
+break-glass requests for one target object one at a time (admin lock per object, for example per project for a
+re-home, per hub for the kill switch); a second request for the same object waits and then runs steps 1..4 on the state
+the first left (each action is idempotent, so a repeat changes nothing); requests for different objects are
+independent; both log rows stay visible.
 2.10.g idempotent. 2.10.h none. **OBS:** admin rows, needs-attention.
 
 ### 2.11 AL-51 — Custody release (K-31; ARC4 12.7; C-10; R-80.a (5)) [PH-6]
@@ -403,7 +425,10 @@ release(content, reader): require every C-10 condition [open: PH-6 sub-design, a
 2.11.b, d **APPROACH/INVARIANT:** no content key leaves custody without its approval and its log row.
 2.11.e **FAILS CLOSED WHEN:** 2.11.e.1 **FCW-184** [new; E-119] a condition or the approval is missing → no release.
 2.11.e.2 **FCW-185** [new; E-119] the custody log cannot be written → no release. 2.11.f crash: log first; re-wrap
-idempotent. 2.11.g at most one release per approval. 2.11.h sealed box re-wrap as AL-26 **[open]**. **OBS:** custody log.
+idempotent. Concurrency: the release consumes its Tier 0 approval through AL-43, whose conditional hub step admits one
+consume per approval; a second release presenting the same approval is refused there (FCW-162), so the custody log
+append and the re-wrap run at most once per approval; two releases under two approvals for the same content and reader
+are two logged releases, which is allowed. 2.11.g at most one release per approval. 2.11.h sealed box re-wrap as AL-26 **[open]**. **OBS:** custody log.
 
 ### 2.12 AL-52 — Account helper (K-30; ARC4 12.6; Track A) [PH-3 A0]
 
@@ -418,7 +443,10 @@ termlink-account-helper create <agent> --event <digest>     # the only command i
 ```
 2.12.e **FAILS CLOSED WHEN:** 2.12.e.1 **FCW-186** [new; E-114] no decided, unconsumed C-15 receipt for the digest →
 refused. 2.12.e.2 **FCW-187** [new; E-114] a name collision or any template deviation → refused.
-2.12.b, d, f, g, h: as AL-43 and AL-44 (one approval, one account; post-condition read from the host). **OBS:** the
+2.12.b, d, f, g, h: as AL-43 and AL-44 (one approval, one account; post-condition read from the host).
+2.12.f.1 Concurrency: two helper runs for the same digest: AL-43's conditional step admits one (FCW-162); two runs for
+the same agent name under two digests: the name check and the create are one step under the host's account-database
+lock (the system's own), so the second finds the name taken and is refused (FCW-187). **OBS:** the
 helper log and the hub admin log.
 
 ### 2.13 AL-53 — Security level change (ARC4 8.4; DR-13; XR-6)
@@ -437,7 +465,10 @@ set_level(project, L):
 refused. 2.13.e.2 **FCW-189** [new; E-115] raising without a C-18 approval → refused. 2.13.e.3 **FCW-190** [new; E-115]
 a level configuration that would switch a floor item off → refused at load.
 2.13.b, d, f, g, h: the Tier 0 override stays available as logged break-glass at every level (AL-50); the level is a
-policy record (AL-45). **OBS:** status `strength` and the profile record.
+policy record (AL-45). 2.13.f.1 Concurrency: two level changes for one project race at the hub's policy write (AL-45),
+which raises the profile record's counter under one lock; the second, prepared against the old counter, is refused, its
+approval stays consumed, and AL-44 records it FAILED with needs-attention, so the operator decides again on the current
+level. **OBS:** status `strength` and the profile record.
 
 ## 3 Drawings for this part (D-1.12, D-1.13, D-2.7, D-2.8; index in 06 section 7)
 
