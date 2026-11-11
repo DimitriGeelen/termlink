@@ -328,6 +328,17 @@ date_finished: null
 
 ## Decisions
 
+### 2026-11-11 — build PH-2 items now, in parallel with design steps 7 and 8 (operator: "a", then "And while we're building and waiting, we can do further B, right?")
+- **Chose:** A. Start building the architecture's no-dependency items the operator already ruled, serialised in the
+  main checkout (no worktrees): B-27 activity meter → B-25 lease tightening (O-3) → B-11 per-agent encryption keys
+  (O-1) → B-16 doorbell D+ with the 300 s watchdog (O-2, after B-27). The design chain continues alongside: step 6
+  repair and review, step 7 review panel, step 8 build plan.
+- **Why:** the operator wants the designed features built; these four are ruled, reviewed in step 4 and specified in
+  step 6 (06 AL-1..AL-8, AL-11..AL-13; 06a AL-25).
+- **Rejected:** B design first, build after step 8 (no new function for days); C only B-27 now (the agent's recommendation).
+- **Risk accepted by the choice:** step 7's panel may change an item already built; any such change comes back as a
+  change request to that item's task.
+
 ### 2026-10-18 — W1 join: how the fleet-managed main session gets TERMLINK_SIDECAR_SOCKET (operator ruling)
 - **Context:** the operator works through the 055 fleet window and cannot relaunch the session himself; /opt/termlink is a fleet agent (claude-fw --termlink, autorestart, resume) whose launcher passes no per-agent env (env -i boundary). Conversation agent-relaunch-in-fleet-window with 055.
 - **Chose:** C (operator: "3") — 055 adds a per-agent env field to the cockpit fleet config, with an allow-list of env names, so ONLY the fleet's /opt/termlink session starts with TERMLINK_SIDECAR_SOCKET=/var/lib/termlink/sidecar/claude-termlink.send.sock. Joining stays keyed to the launch (P7-1 A); the fleet keeps autorestart/resume; no declaration, no T-477 two-agents risk.
