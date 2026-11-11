@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-10T21:13:08Z
-last_update: 2026-11-11T10:46:56Z
+last_update: 2026-11-11T15:00:00Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -368,6 +368,22 @@ by testdev's login shells; the operator's own login is untouched.
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-10 — how testdev gets a Claude login (operator: "A")
+- **Chose:** testdev gets its own long-lived token (`claude setup-token`), not a copy of the operator's login.
+
+### 2026-11-11 — how the token reaches .107 (operator: "B is the royal way ... for long term ... transferable to other machines")
+- **Chose:** B, Infisical (ring20's estate secret store). Folder /010-termlink in prod, key TESTDEV_CLAUDE_TOKEN; one
+  machine identity per host (010-termlink@107), read-only on that folder; fetch per use at testdev launch, value only
+  to that process, no file at rest; whitespace stripped on fetch. ring20 writes the identity bootstrap runme and the
+  `infisical-get` helper; we wire it into the testdev launch and switch action 28 to it (ring20 msgs 29814fd4,
+  2f0ccc09, 9b23e8ff).
+- **Why:** one place for operator-held secrets, per-host identities revocable one by one, carries over to new hosts;
+  the token can be created on any machine and pasted into the Infisical web form, so terminal wrapping no longer matters.
+- **Rejected:** A, automatic capture at the .107 terminal (built and tested, 279 fixtures; kept as code, not the
+  route); C, AEF Watchtower Settings (fixed key names, plain http on the LAN).
+- **Asked around first** (operator 2026-11-11): 16 agents on conversation operator-secret-paste-2026-11-11; answers
+  from 050 (Infisical), ring20 (Infisical), AEF (Watchtower Settings, limits), 1409 (same as AEF).
 
 ## Decision
 
