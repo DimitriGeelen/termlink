@@ -93,7 +93,8 @@ steps:
     role: Review panel and disposition
     task: T-3356
     prompt: docs/design/roles/cards/review-panel.md
-    inputs: [docs/design/interactive-agent-communication-01-requirements.md, docs/design/interactive-agent-communication-04-architecture.md, docs/design/interactive-agent-communication-06-pseudo-code.md]
+    # 06 is split into 06 + 06a (PH-2 hardening) + 06b (later phases); the panel reads all three (T-3355 review r1).
+    inputs: [docs/design/interactive-agent-communication-01-requirements.md, docs/design/interactive-agent-communication-04-architecture.md, docs/design/interactive-agent-communication-06-pseudo-code.md, docs/design/interactive-agent-communication-06a-pseudo-code-ph2-hardening.md, docs/design/interactive-agent-communication-06b-pseudo-code-later-phases.md]
     output: docs/design/interactive-agent-communication-07-review.md
     decides: true
   - step: 8
