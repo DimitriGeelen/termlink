@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-03T16:12:13Z
-last_update: 2026-11-11T17:05:08Z
+last_update: 2026-11-11T17:10:37Z
 date_finished:
 revisit_at: 2026-11-10          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 revisit_evidence_needed: operator back from travel; then decide A (encrypted 
@@ -88,7 +88,7 @@ removed from the WireGuard peer list; the plain-HTTP endpoint no longer serves k
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The ruling is relayed to ring20 with the scope (encrypted route + key rotation, executed once .132 is back online) and ring20's task id recorded here
+- [x] The ruling is relayed to ring20 with the scope (encrypted route + key rotation, executed once .132 is back online) and ring20's task id recorded here (evidence: sent 2026-11-11 msg 95428760 on file-routes-2026-11-03; ring20 task **T-2595** (same finding, 2026-11-03), msg 8019fdba. Blocker on their side: their operator froze vpn-api and every WireGuard key under T-2595 until he tells ring20 directly to go; ring20 asks him in its own session)
 - [ ] After ring20's runme: evidence recorded that the conf is served only over TLS/SSH and that the old key is gone from the peer list (ring20's report, checked where we can)
 
 ### Human
