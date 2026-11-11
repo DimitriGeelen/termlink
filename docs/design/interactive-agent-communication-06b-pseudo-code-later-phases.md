@@ -186,19 +186,46 @@ execute(event):                                     # after AL-43 step 5
  4  ok = op.postcondition(target, params)                       # reads the target, never the journal
     journal.append({approval_id, phase: outcome, result: ok})
     event.state = DONE if ok else FAILED; if not ok: attention("tier0 post-condition failed"); no retry without a new approval  # FCW-164
-recover() at executor start: for each consumed approval with dispatch and no outcome:
-    if op.postcondition readable: complete step 4 (DONE or FAILED)
-    else: event.state = OUTCOME_UNKNOWN; attention; the operator reconciles                                    # FCW-165
+recover() at executor start, before it accepts any new work (so execute and recover never run for the same approval
+at once): for each consumed-set row naming me whose event is CONSUMED and has no outcome row:
+    k = the number of dispatch rows for it in my journal (0, 1 or more)
+    s = op.already_done(approval_id, target): yes | no | unreadable   # reads the target's committed state
+    if s == unreadable: event.state = OUTCOME_UNKNOWN; attention; the operator reconciles                       # FCW-165
+    elif s == yes: complete step 4 (the post-condition decides DONE or FAILED)
+    elif k == 0: continue execute() at step 2                  # crash between the commit and the dispatch row (row a)
+    elif k == 1: continue execute() at step 2 (a second dispatch row) # crash between the dispatch row and the apply, or
+                                                               # an apply that did not take effect (row b)
+    else: event.state = OUTCOME_UNKNOWN; attention "applied twice without effect"; no third apply             # FCW-194
+an operation whose apply can still be in flight after the executor restarts (an asynchronous target) MUST answer
+already_done = unreadable until the target has settled, so that `no` always means "not applied" 
 per-operation pairs (examples; the PH-3 sub-design lists each class) [open: 04b]:
     C-7 TOFU re-pin: already_done = pinned fingerprint == new; postcondition = the same
     C-15 account create (K-30): already_done = the account exists with the template; postcondition = template check
 ```
-2.4.d **INVARIANTS:** (1) an approval leads to at most one application of its operation's effect; (2) DONE only on a
-post-condition read from the target. 2.4.e **FAILS CLOSED WHEN:** 2.4.e.1 **FCW-164** [new; ZR-1] the post-condition
+2.4.d **INVARIANTS:** (1) an approval leads to at most one application of its operation's effect (an apply is
+repeated only when the target reads `already_done = no`, that is when no effect exists, and at most once); (2) DONE or
+FAILED only on a post-condition read from the target, and never for an effect that recovery has not applied or found
+applied; (3) recovery re-applies under the same approval id and tag; it never consumes again. 2.4.e **FAILS CLOSED WHEN:** 2.4.e.1 **FCW-164** [new; ZR-1] the post-condition
 does not hold → FAILED, needs-attention, no automatic retry. 2.4.e.2 **FCW-165** [new; ZR-1] after a crash the
-post-condition cannot be read → OUTCOME_UNKNOWN for the operator; never re-applied automatically.
-2.4.f **EDGE CASES:** crash table: (a) insert and dispatch row: recovery checks `already_done`, applies if not; (b)
-dispatch row and apply: as (a); (c) apply and outcome row: the post-condition decides. 2.4.g as described: at-most-once
+post-condition cannot be read → OUTCOME_UNKNOWN for the operator; never re-applied automatically. 2.4.e.3
+**FCW-194** [new; ZR-1] recovery finds two dispatch rows, no outcome and `already_done = no` (two applies without effect)
+→ OUTCOME_UNKNOWN for the operator, needs-attention; no third apply.
+2.4.f **EDGE CASES:** (1) crash table (recover() above implements each row):
+
+| Crash between | Journal after restart | Recovery |
+|---|---|---|
+| (a) AL-43's commit and the dispatch row | consumed row, no dispatch row | `already_done`: yes → step 4; no → dispatch and apply (step 2); unreadable → OUTCOME_UNKNOWN (FCW-165) |
+| (b) the dispatch row and the apply | one dispatch row, no outcome | as (a): yes → step 4; no → a second dispatch row and apply; unreadable → OUTCOME_UNKNOWN |
+| (c) the apply and the outcome row | one dispatch row, effect present | `already_done` reads yes → step 4, the post-condition decides DONE or FAILED |
+| (d) a recovery apply and its outcome | two dispatch rows | yes → step 4; no → OUTCOME_UNKNOWN, no third apply (FCW-194); unreadable → OUTCOME_UNKNOWN |
+| (e) the outcome row and the event write | outcome row, event CONSUMED | the event is set from the outcome row (idempotent) |
+
+(2) concurrency: one executor per approval (AL-43 admits one consumed row, which names it); recover() runs before the
+executor accepts work, so a recovery and a live execute of the same approval never overlap; two executor processes on
+one host MUST NOT share an executor identity (the journal has one writer, the executor named in the row); a cancel or
+revoke after CONSUMED is refused (AL-42, FCW-158), so nothing else writes the event while AL-44 runs. v0.1 recovered
+only rows with a dispatch row and went straight to the post-condition, which would report FAILED for an effect never
+applied; review r1 F-3. 2.4.g as described: at-most-once
 dispatch under the consumed set, idempotent effect, reconciliation. 2.4.h none beyond AL-43.
 **OBS:** OBS-71 the executor journal; outcome records.
 

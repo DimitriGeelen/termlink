@@ -1217,12 +1217,12 @@ scan (4.8.b) is run once before B-25 ships, and any hit is fixed first, so the c
 
 ## 6 The FAILS CLOSED WHEN register (all three files; EV5 14.2)
 
-6.1 **Totals.** 193 conditions FCW-1 to FCW-193: 96 refine one or more of the architecture's AFC-1 to AFC-34 (every
-AFC is refined at least once, table 6.3), 97 are new. 148 already have at least one spec of EV5 that exercises them;
-**45 have none yet** and are handed to step 5 as change request ZR-1: FCW-3, 6, 8, 10, 11, 17, 18, 26, 35, 36, 37, 41,
+6.1 **Totals.** 194 conditions FCW-1 to FCW-194: 96 refine one or more of the architecture's AFC-1 to AFC-34 (every
+AFC is refined at least once, table 6.3), 98 are new. 148 already have at least one spec of EV5 that exercises them;
+**46 have none yet** and are handed to step 5 as change request ZR-1: FCW-3, 6, 8, 10, 11, 17, 18, 26, 35, 36, 37, 41,
 42, 48, 49, 55, 58, 59, 60, 70, 77, 78, 81, 84, 87, 91, 92, 108, 110, 113, 125, 127, 128, 132, 135, 138, 146, 149,
-150, 157, 163, 164, 165, 172, 193. Where an FCW names both an E-n and ZR-1, the E-n covers part of it and ZR-1 asks
-for the rest (named in the condition); these are FCW-4, 5, 12, 28, 56, 63, 71, 96, 100, 153, 191, 192.
+150, 157, 163, 164, 165, 172, 193, 194. Where an FCW names both an E-n and ZR-1, the E-n covers part of it and ZR-1
+asks for the rest (named in the condition); these are FCW-4, 5, 12, 28, 56, 63, 71, 96, 100, 153, 191, 192.
 6.2 **How the table is made.** `.context/working/t3355/fcw_register.py` reads every `**FCW-n** [refines; specs]`
 definition in the three files and builds the table below; it exits 1 on a duplicate id, a gap in the numbering, or an
 FCW without a spec or change request. The table is therefore the files' own list, not a second copy kept by hand.
@@ -1423,6 +1423,7 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | FCW-191 | 06b | AL-43 | new | E-104, ZR-1 | at the hub's conditional step the event is no longer APPROVED (a cancel, revoke or expiry took event.lock first, between the executor's read and the insert) → refused, nothing inserted, nothing applied, the attempt recorded; E-104 (i) covers approve against cancel and revoke, ZR-1 asks for cancel, revoke and expiry racing the consume. |
 | FCW-192 | 06b | AL-46 | new | E-106, ZR-1 | concurrent starts or resumes under one grant would together exceed its budget or restarts → the hub's conditional reserve admits at most the limit, each admitted one with its use row; the rest are refused. |
 | FCW-193 | 06b | AL-46 | new | ZR-1 | the grant passed the local check but at the hub's reserve step it is revoked, expired, of a superseded epoch or no longer covers the agent or the kind → refused, no use row, no start. |
+| FCW-194 | 06b | AL-44 | new | ZR-1 | recovery finds two dispatch rows, no outcome and `already_done = no` (two applies without effect) → OUTCOME_UNKNOWN for the operator, needs-attention; no third apply. |
 
 6.3 **AFC-n → FCW-n** (for step 5's 05a table "FCW-n → E-n", EV5 14.2).
 
@@ -1872,7 +1873,9 @@ final state, never CONSUMED after a final state, and no effect applied after a f
 outside the event lock turns it red). (f2) FCW-192: N concurrent starts under a grant with budget B < N; assert exactly B
 use rows and B starts (mutant: check and append as two steps). (f3) FCW-193: revoke and expire a grant between the
 local check and the hub's reserve; assert no use row and no start. (f4) FCW-172: the hub unreachable at the reserve;
-assert no start.
+assert no start. (f5) FCW-194 and AL-44 crash rows (a)..(e): kill the executor at each point (after the consume commit
+with no dispatch row included); assert one effect, DONE or FAILED only from a post-condition read, no FAILED for an
+effect never applied, and OUTCOME_UNKNOWN with no third apply when two applies left no effect.
 9.2 **ZR-2 (step 4, ARC4 6.9.2).** Reword "READY re-read and its age ≤ 1 tick" as: "the READY record re-read is still
 READY with the same sequence number and the current sidecar process, and the re-checks were made at most 1 tick
 before the keystrokes" (4.3). The literal reading would never ring an agent idle for more than 30 s.
