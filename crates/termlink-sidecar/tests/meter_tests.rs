@@ -474,6 +474,45 @@ fn fcw8_transcript_growth_and_refusals() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// F-28 (CR-6.25 / CR-B27.6): a transcript whose lstat fails is not a silent S2.
+/// With no fresh report S2 is unknown and there is no watchdog; a fresh report
+/// keeps it known; the transcript readable again makes it known.
+/// Control: keep `s2_known = reports > 0 || transcript` and the watchdog reads
+/// available on an unreadable transcript.
+#[test]
+fn f28_unreadable_transcript_is_s2_unknown_without_a_fresh_report() {
+    let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("t3687-f28-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let root = dir.join("projects");
+    std::fs::create_dir_all(root.join("p")).unwrap();
+    let tr = root.join("p").join("s.jsonl");
+    std::fs::write(&tr, "{}\n").unwrap();
+    let mut r = rig();
+    r.m = r.m.with_transcript_root(root.clone());
+    r.ev("s", "session_start", 1, json!({"interactive": true, "transcript_path": tr.to_string_lossy()}));
+    r.set_s1("s", None, None, None);
+    assert_eq!(r.act("s")["watchdog"], "available");
+    std::fs::remove_file(&tr).unwrap();
+    // The session_start report is fresh: S2 stays known.
+    r.adv(T);
+    let a = r.act("s");
+    assert_eq!(a["watchdog"], "available", "a fresh report keeps S2 known: {a}");
+    // No report for longer than the watchdog window: unknown, never silence.
+    r.adv(S2_FRESH_MS);
+    let a = r.act("s");
+    assert_eq!(a["s2_at"], "unknown", "{a}");
+    assert_eq!(a["watchdog"], "unavailable: S2 unknown (transcript unreadable and no fresh report)");
+    assert_ne!(a["source"], "s2");
+    // A new report makes S2 known again (an `evidence` report: fresh, though it does not move S2).
+    r.ev("s", "evidence", 2, json!({"nonce": "n1"}));
+    assert_eq!(r.act("s")["watchdog"], "available");
+    // The transcript back: known without a fresh report.
+    std::fs::write(&tr, "{}\n").unwrap();
+    r.adv(S2_FRESH_MS + 1);
+    assert_eq!(r.act("s")["watchdog"], "available");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 // ---- E-17 / E-9: S3 ----------------------------------------------------------------------------
 
 /// S3 moves on an own send from the session and a hand-over to it, not on

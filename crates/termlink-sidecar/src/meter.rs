@@ -722,15 +722,20 @@ impl Meter {
                     sess.s1_sources = None;
                 }
             }
-            if let Some(t) = &sess.transcript
-                && let Ok(md) = std::fs::symlink_metadata(t)
-            {
-                use std::os::unix::fs::MetadataExt;
-                let cur = (md.size(), md.mtime(), md.mtime_nsec());
-                if sess.tr_last.is_some_and(|l| l != cur) {
-                    sess.s2_at = Some(now);
+            if let Some(t) = &sess.transcript {
+                match std::fs::symlink_metadata(t) {
+                    Ok(md) => {
+                        use std::os::unix::fs::MetadataExt;
+                        let cur = (md.size(), md.mtime(), md.mtime_nsec());
+                        if sess.tr_last.is_some_and(|l| l != cur) {
+                            sess.s2_at = Some(now);
+                        }
+                        sess.tr_last = Some(cur);
+                        sess.tr_unreadable = false;
+                    }
+                    // A failed lstat is not "no growth" (F-28).
+                    Err(_) => sess.tr_unreadable = true,
                 }
-                sess.tr_last = Some(cur);
             }
         }
         let names: Vec<String> = g.sessions.keys().cloned().collect();
@@ -851,7 +856,11 @@ impl Meter {
             None => (json!("unknown"), json!("unknown: not read yet")),
         };
         let s1_known = matches!(s.s1, Some(S1::Known { .. }));
-        let s2_known = s.reports > 0 || s.transcript.is_some(); // FCW-13
+        // FCW-13; F-28 (CR-6.25): a transcript whose lstat failed is not a
+        // known S2 source, so S2 is known then only on a fresh report.
+        let report_fresh = s.last_report.is_some_and(|t| now.saturating_sub(t) <= S2_FRESH_MS);
+        let tr_unreadable = s.transcript.is_some() && s.tr_unreadable;
+        let s2_known = if tr_unreadable { report_fresh } else { s.reports > 0 || s.transcript.is_some() };
         // last = max of the KNOWN sources; an unknown source never reads as silence.
         let mut cands: Vec<(u64, &str)> = vec![];
         if let Some(S1::Known { client: Some(c), .. }) = s.s1 {
@@ -867,6 +876,7 @@ impl Meter {
         let watchdog = match (s1_known, s2_known) {
             (true, true) => "available".to_string(),
             (false, _) => "unavailable: S1 unknown".into(),
+            (true, false) if tr_unreadable => "unavailable: S2 unknown (transcript unreadable and no fresh report)".into(),
             (true, false) => "unavailable: S2 unknown (no adapter report and no transcript)".into(),
         };
         json!({
