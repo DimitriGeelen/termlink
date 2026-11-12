@@ -1054,7 +1054,7 @@ maps to exactly one id, or is a request; no `plan_unit` appears twice) and `mkit
 | P-43 | PH-2 | T-3688 | existing, updated | next |
 | P-44 | PH-2 | — | request, not sent; send when P-2 and P-4 built (parity fixtures published) | — |
 | P-45 | PH-2 | — | request, not sent; send when P-4 built (waiting-mail signal exists) | — |
-| P-46 | PH-2 | — | request, not sent; send when the operator releases it (its only edge, G-0, is met and plan order #3 says send at once; the mapping brief sends nothing) | — |
+| P-46 | PH-2 | — | request SENT 2026-11-12 after the operator's release ("send P-46"): to 999-Agentic-Engineering-Framework, conversation termlink-arc011-p46-mail-hub, client_msg_id 3cc6ba9b-f461-4fd9-9d7b-8cd2a33320ed, RECEIVED; consumer P-11 = T-3363 | — |
 | P-47 | PH-3 | — | request, not sent; send when P-44 built on AEF side (first adapter proved the fixtures) | — |
 | P-48 | PH-3 | T-3722 | new | later |
 | P-49 | PH-3 | T-3723 | new | later |
