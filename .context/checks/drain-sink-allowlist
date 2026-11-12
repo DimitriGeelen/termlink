@@ -62,3 +62,11 @@ crates/termlink-session/src/child_env.rs::a_real_child_sees_none_of_the_callers_
 # output is the test harness's own lines, never peer data, and it is not in the long-lived daemon.
 # INTERNAL by the T-2529 threat model.
 crates/termlink-session/src/invocation_audit.rs::nonroot_caller_writes_its_user_sink_for_real::output
+# T-3629: #[cfg(test)] only (tofu.rs tests module). Drains a TLS stream from an in-process
+# 127.0.0.1 test acceptor that writes the fixed 2 bytes "ok" and closes; reading to EOF only proves
+# every handshake message was processed. Never peer data, never the long-lived daemon. INTERNAL.
+crates/termlink-session/src/tofu.rs::tofu_handshake::read_to_end
+# T-3666: #[cfg(test)] only (client.rs tests module). The fake server task drains the remainder of
+# the test's own client stream after replying, so the client can close cleanly; the bytes are the
+# test's own request, never peer data, and it is not in the long-lived daemon. INTERNAL.
+crates/termlink-session/src/client.rs::t3666_large_call_over_narrow_tls_path_gets_reply::read_to_end
