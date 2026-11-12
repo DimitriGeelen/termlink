@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:23Z
-last_update: 2026-11-12T16:42:42Z
+last_update: 2026-11-12T16:50:33Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -222,6 +222,18 @@ grep -q 'task: T-3357' docs/design/interactive-agent-communication-role-chain.ya
 -->
 
 ## Decisions
+
+### 2026-11-12 — G-0: approve the step 8 build plan (operator ruling)
+- **Chose:** A — approve docs/design/interactive-agent-communication-08-plan.md v0.3 (71 units, 7 explorations,
+  9 gates) with PD-1 (B-16 before the full B-14 status), PD-2 (step-1 task proposals of 7.1: T-3359 superseded;
+  T-3360, T-3363, T-3366 split; T-3358, T-3362, T-3364, T-3361 confirmed) and PD-3 (P-1..P-3 before B-25) as recommended.
+- **Why:** independent review green after three rounds (V-20261112-ef81628a); PD-1..PD-3 keep ruling A's order; every
+  decommission, release cut, phase move and exploration keeps its own later gate.
+- **Rejected:** B (ask PD-1..PD-3 separately: more rounds for choices that keep the ruled order), C (no change named),
+  D (defer: build queue idle).
+- Operator words in chat: "A" (after a plain-language explanation of the options). Authorises: work items per plan
+  section 12; section 7 proposals applied to each task with a Decisions entry. Left open: G-1..G-8, X-1..X-7, FP-4 values.
+- The operator ticks "[REVIEW] Step 8 plan approved" in Watchtower himself (/review/T-3357); the agent does not.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
