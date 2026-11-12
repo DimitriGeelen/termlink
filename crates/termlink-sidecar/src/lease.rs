@@ -71,6 +71,12 @@ impl Shared {
         }
     }
 
+    /// The fresh lease as the waiting-mail signal reads it (K-34, AL-12); `None` = unknown
+    /// (not read, unreadable or stale).
+    pub fn facts(&self, now: u64) -> Option<crate::mail_waiting::LeaseFacts> {
+        self.fresh(now).map(|v| crate::mail_waiting::LeaseFacts::from_view(&v))
+    }
+
     /// `main.lease` for `status`.
     pub fn status_view(&self, now: u64) -> Value {
         let Some(project) = &self.project else {

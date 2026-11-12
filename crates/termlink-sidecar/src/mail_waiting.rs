@@ -307,6 +307,84 @@ impl Signal {
     }
 }
 
+/// The signal as one sidecar runs it (T-3694 wiring): the daemon tick calls [`Runner::tick`]
+/// once per tick with the deliverer's waiting mail and the fresh lease view; each raised entry
+/// lands through `land` (the store's coalesced needs-attention list, which
+/// `scripts/session-start-alerts.sh` prints at session start), and `status` reads
+/// [`Runner::status_view`] as `main.mail_waiting`.
+pub struct Runner {
+    pub project: String,
+    me: String,
+    agent: String,
+    inner: std::sync::Mutex<RunnerInner>,
+}
+
+struct RunnerInner {
+    signal: Signal,
+    sink: Box<dyn OobSink + Send>,
+    status: Value,
+    ticked_at_ms: Option<u64>,
+    /// The last needs-attention entry that could not be written (never silent).
+    land_error: Option<String>,
+}
+
+impl Runner {
+    /// `me` names this receiver for the per-project out-of-band claim (its instance id).
+    pub fn new(project: &str, me: &str, agent: &str, sink: Box<dyn OobSink + Send>) -> std::sync::Arc<Runner> {
+        std::sync::Arc::new(Runner {
+            project: project.to_string(),
+            me: me.to_string(),
+            agent: agent.to_string(),
+            inner: std::sync::Mutex::new(RunnerInner { signal: Signal::new(), sink, status: Value::Null, ticked_at_ms: None, land_error: None }),
+        })
+    }
+
+    /// One tick: compute, land every entry (coalesced by its key), keep the status.
+    pub fn tick(
+        &self,
+        now_ms: u64,
+        mail: &[Waiting],
+        lease: Option<&LeaseFacts>,
+        land: &mut dyn FnMut(&Attention) -> Result<bool, String>,
+    ) -> Tick {
+        let Ok(mut g) = self.inner.lock() else {
+            return Tick { status: json!({"state": "unknown", "why": "mail_waiting lock poisoned"}), attention: vec![] };
+        };
+        let g = &mut *g;
+        let t = g.signal.tick(&self.project, &self.me, &self.agent, now_ms, mail, lease, g.sink.as_mut());
+        for a in &t.attention {
+            match land(a) {
+                Ok(_) => {}
+                Err(e) => g.land_error = Some(format!("{}: {e}", a.key)),
+            }
+        }
+        g.status = t.status.clone();
+        g.ticked_at_ms = Some(now_ms);
+        t
+    }
+
+    /// `main.mail_waiting`: the signal's object while an episode is active, `null` while none
+    /// is, and `unknown` before the first tick (never `null` for "not looked").
+    pub fn status_view(&self) -> Value {
+        let Ok(g) = self.inner.lock() else {
+            return json!({"state": "unknown", "why": "mail_waiting lock poisoned"});
+        };
+        if g.ticked_at_ms.is_none() {
+            return json!({"state": "unknown", "why": "not computed yet"});
+        }
+        let mut v = g.status.clone();
+        if let (Some(e), Value::Object(m)) = (&g.land_error, &mut v) {
+            m.insert("attention_error".into(), Value::from(e.clone()));
+        }
+        v
+    }
+
+    /// The non-main line for `session` (AL-9 path), while an episode is active.
+    pub fn non_main_line(&self, session: &str, generation: u64, origin_human: bool) -> Option<String> {
+        self.inner.lock().ok()?.signal.non_main_line(&self.project, session, generation, origin_human)
+    }
+}
+
 fn describe(lease: Option<&LeaseFacts>) -> String {
     match lease {
         None => "lease unknown".into(),
@@ -503,5 +581,33 @@ mod tests {
         assert!(s.non_main_line("p", "S2", 1, true).is_some());
         assert!(s.non_main_line("p", "S2", 1, true).is_none());
         assert!(s.non_main_line("p", "S2", 2, true).is_some());
+    }
+
+    // K-34 wiring (T-3694): the runner is unknown before its first tick, null while nothing
+    // waits, lands each raised entry once (the land function coalesces by key), and a land
+    // failure is shown in the status, never dropped.
+    #[test]
+    fn e28_runner_lands_each_entry_once_and_never_hides_a_failed_land() {
+        let r = Runner::new("p", "rx", "a", Box::new(NoSink));
+        assert_eq!(r.status_view()["state"], "unknown", "not computed yet is never null");
+        let mut landed: Vec<String> = vec![];
+        let mut land = |a: &Attention| -> Result<bool, String> {
+            if landed.contains(&a.key) {
+                return Ok(false);
+            }
+            landed.push(a.key.clone());
+            Ok(true)
+        };
+        r.tick(WAIT_MS - 1, &[role("m1", 0)], None, &mut land);
+        assert!(r.status_view().is_null(), "nothing at 9:59");
+        r.tick(WAIT_MS, &[role("m1", 0)], None, &mut land);
+        r.tick(WAIT_MS + 1, &[role("m1", 0)], None, &mut land);
+        let v = r.status_view();
+        assert_eq!(v["count"], 1, "{v}");
+        assert_eq!(v["lease_state"], "unknown");
+        assert_eq!(landed.len(), 1, "one entry per episode: {landed:?}");
+        let r2 = Runner::new("p", "rx", "a", Box::new(NoSink));
+        r2.tick(WAIT_MS, &[role("m1", 0)], None, &mut |_| Err("disk full".into()));
+        assert!(r2.status_view()["attention_error"].as_str().is_some_and(|e| e.contains("disk full")), "{}", r2.status_view());
     }
 }

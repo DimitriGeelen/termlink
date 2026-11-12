@@ -125,6 +125,8 @@ pub struct ApiConfig {
     pub liveness: Option<(Arc<crate::liveness::Shared>, u64)>,
     /// T-3654: the project's main lease as last read from the hub; `status` shows it, `pull` gates on it.
     pub lease: Option<Arc<crate::lease::Shared>>,
+    /// K-34 (T-3694): the waiting-mail signal; `status` shows it as `main.mail_waiting`.
+    pub mail_waiting: Option<Arc<crate::mail_waiting::Runner>>,
     /// B-27: the activity meter. With it the send socket also takes
     /// `termlink.adapter/2` reports (a line with no `op`), sends and hook calls
     /// feed it, and `status` shows `activity`. Without it nothing changes.
@@ -148,6 +150,7 @@ impl ApiConfig {
             book: None,
             liveness: None,
             lease: None,
+            mail_waiting: None,
             meter: None,
             hook_errlog: crate::hook::errlog_path(Some(&socket_path(runtime, agent, Scope::Send))),
         }
@@ -345,7 +348,7 @@ fn report_reply(i: crate::meter::Intake) -> Value {
 fn handle(req: &Value, scope: Scope, sh: &Shared) -> Value {
     // The peer passed the owner check, so its uid is the owner's.
     let who = format!("admin-uid-{}", sh.cfg.owner_uid);
-    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref(), liveness: sh.cfg.liveness.as_ref().map(|(l, e)| (&**l, *e)), lease: sh.cfg.lease.as_deref(), meter: sh.cfg.meter.as_deref(), hook_errlog: sh.cfg.hook_errlog.as_deref() };
+    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref(), liveness: sh.cfg.liveness.as_ref().map(|(l, e)| (&**l, *e)), lease: sh.cfg.lease.as_deref(), mail_waiting: sh.cfg.mail_waiting.as_deref(), meter: sh.cfg.meter.as_deref(), hook_errlog: sh.cfg.hook_errlog.as_deref() };
     dispatch_inner(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref(), ctx)
 }
 
@@ -363,7 +366,7 @@ pub fn dispatch_with(
     hub_id: Option<&str>,
     sender: Option<&Sender>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None, liveness: None, lease: None, meter: None, hook_errlog: None })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None, liveness: None, lease: None, mail_waiting: None, meter: None, hook_errlog: None })
 }
 
 /// [`dispatch_with`] with the deliver path attached as well.
@@ -376,7 +379,7 @@ pub fn dispatch_full(
     sender: Option<&Sender>,
     deliverer: Option<&Deliverer>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease: None, meter: None, hook_errlog: None })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease: None, mail_waiting: None, meter: None, hook_errlog: None })
 }
 
 #[derive(Clone, Copy)]
@@ -387,6 +390,7 @@ struct Ctx<'a> {
     book: Option<&'a crate::book::Book>,
     liveness: Option<(&'a crate::liveness::Shared, u64)>,
     lease: Option<&'a crate::lease::Shared>,
+    mail_waiting: Option<&'a crate::mail_waiting::Runner>,
     meter: Option<&'a crate::meter::Meter>,
     hook_errlog: Option<&'a Path>,
 }
@@ -440,6 +444,11 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 // T-3654 (R-67): the lease holder (session, generation, since) next to pin and liveness.
                 v["main"]["lease"] = match ctx.lease {
                     Some(l) => l.status_view(crate::store::now_ms()),
+                    None => serde_json::json!({"state": "unknown", "why": "this sidecar reads no main lease"}),
+                };
+                // K-34 (T-3694, E-28): role mail waiting with no reading main; null while none waits.
+                v["main"]["mail_waiting"] = match ctx.mail_waiting {
+                    Some(m) => m.status_view(),
                     None => serde_json::json!({"state": "unknown", "why": "this sidecar reads no main lease"}),
                 };
                 // B-27 (6.14.5): per-session activity and conversation, fresh or unknown.

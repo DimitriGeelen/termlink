@@ -407,6 +407,28 @@ impl Deliverer {
         out
     }
 
+    /// K-34 (T-3694, AL-13 step 1): every stored message not yet handed over, refused or
+    /// withheld, with its STORED time and urgency, for the waiting-mail signal. Every message
+    /// this sidecar stores was verified as addressed to this agent's instance and is read by
+    /// whichever session of the agent holds main (the T-3654 withhold path), so here every one
+    /// is role mail; the sidecar has no per-session address (FCW-64 has nothing to exclude).
+    /// A message whose STORED line has no time counts from `now_ms` (never older than it is).
+    pub fn waiting_mail(&self, now_ms: u64) -> Vec<crate::mail_waiting::Waiting> {
+        self.candidates()
+            .into_iter()
+            .map(|c| {
+                let stored_ms = self
+                    .store
+                    .chain_lines(&c.conv)
+                    .ok()
+                    .and_then(|ls| ls.into_iter().find(|l| l.event == "STORED" && own(l) && l.msg_id == c.msg_id))
+                    .and_then(|l| l.ts_ms)
+                    .unwrap_or(now_ms);
+                crate::mail_waiting::Waiting { id: format!("{}/{}", c.conv, c.msg_id), stored_ms, role: true, urgent: c.assessment.urgent }
+            })
+            .collect()
+    }
+
     /// The latest time any session of this agent marked itself ready, if a flag
     /// is still fresh (FC-5). A session that ended cleared its flag (`unready`).
     pub fn ready_since(&self, now_ms: u64) -> Option<u64> {

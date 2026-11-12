@@ -72,6 +72,9 @@ pub struct Running {
     pub deliverer: Arc<Deliverer>,
     _receiver: Arc<Receiver>,
     pub api: Api,
+    /// K-34 (T-3694): the waiting-mail signal, ticked with the meter; `None` without a main project.
+    pub mail_waiting: Option<Arc<crate::mail_waiting::Runner>>,
+    pub lease_view: Arc<crate::lease::Shared>,
     receiver_beat: Box<dyn Fn() -> u64 + Send + Sync>,
     tick_beat: Arc<std::sync::atomic::AtomicU64>,
     sweep_stop: Arc<std::sync::atomic::AtomicBool>,
@@ -249,6 +252,11 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
         .filter(|p| !p.trim().is_empty());
     let lease_shared = crate::lease::Shared::new(main_project.clone(), crate::lease::every_ms(store.mode()));
     api_cfg.lease = Some(lease_shared.clone());
+    // K-34 (T-3694, AL-13): no out-of-band channel exists yet (GP-11), so `oob: not available`.
+    let mail_waiting = main_project
+        .as_deref()
+        .map(|p| crate::mail_waiting::Runner::new(p, &cfg.instance, &cfg.agent, Box::new(crate::mail_waiting::NoSink)));
+    api_cfg.mail_waiting = mail_waiting.clone();
     let api = Api::start(api_cfg, store.clone()).map_err(|e| format!("api: {e}"))?;
     let liveness = match liveness_monitor {
         None => None,
@@ -260,7 +268,7 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     let lease = match main_project {
         None => None,
         Some(_) => Some(
-            crate::lease::spawn(crate::lease::client(cfg.hub.clone()), lease_shared, sweep_stop.clone())
+            crate::lease::spawn(crate::lease::client(cfg.hub.clone()), lease_shared.clone(), sweep_stop.clone())
                 .map_err(|e| format!("lease runtime: {e}"))?,
         ),
     };
@@ -269,9 +277,13 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     let sweeper = {
         let (d, stop, beat) = (deliverer.clone(), sweep_stop.clone(), tick_beat.clone());
         let meter = meter.clone();
+        let (mw, lv, st) = (mail_waiting.clone(), lease_shared.clone(), store.clone());
         // Test estates may freeze the meter (E-19): status must then go stale, not lie.
         let meter_frozen = matches!(store.mode(), crate::estate::Mode::Estate(_))
             && std::env::var("TERMLINK_SIDECAR_TEST_FREEZE").is_ok_and(|v| v.split(',').any(|c| c == "meter"));
+        // The same seam freezes the waiting-mail tick, so a test can drive it with its own clock.
+        let mw_frozen = matches!(store.mode(), crate::estate::Mode::Estate(_))
+            && std::env::var("TERMLINK_SIDECAR_TEST_FREEZE").is_ok_and(|v| v.split(',').any(|c| c == "mail_waiting"));
         std::thread::spawn(move || {
             let mut waited = Duration::ZERO;
             let mut since_tick = Duration::ZERO;
@@ -294,6 +306,10 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
                     if !meter_frozen {
                         meter.tick();
                     }
+                    // K-34: the waiting-mail signal, once per tick.
+                    if let Some(mw) = mw.as_ref().filter(|_| !mw_frozen) {
+                        mail_waiting_tick(mw, &d, &lv, &st, crate::store::now_ms());
+                    }
                 }
             }
         })
@@ -303,7 +319,23 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
         let r = receiver.clone();
         Box::new(move || r.last_beat_ms())
     };
-    Ok(Running { store, sender, deliverer, _receiver: receiver, api, receiver_beat, tick_beat, sweep_stop, sweeper: Some(sweeper), liveness, lease })
+    Ok(Running { store, sender, deliverer, _receiver: receiver, api, mail_waiting, lease_view: lease_shared, receiver_beat, tick_beat, sweep_stop, sweeper: Some(sweeper), liveness, lease })
+}
+
+/// K-34 (T-3694): one waiting-mail tick: the deliverer's waiting mail and the fresh lease
+/// view in, each raised entry into the store's needs-attention list once per key.
+pub fn mail_waiting_tick(
+    mw: &crate::mail_waiting::Runner,
+    d: &Deliverer,
+    lease: &crate::lease::Shared,
+    store: &Store,
+    now_ms: u64,
+) -> crate::mail_waiting::Tick {
+    let mail = d.waiting_mail(now_ms);
+    let facts = lease.facts(now_ms);
+    mw.tick(now_ms, &mail, facts.as_ref(), &mut |a| {
+        store.attention_coalesced(crate::mail_waiting::ATTENTION_KIND, &a.key, &a.detail).map_err(|e| e.to_string())
+    })
 }
 
 impl Running {
