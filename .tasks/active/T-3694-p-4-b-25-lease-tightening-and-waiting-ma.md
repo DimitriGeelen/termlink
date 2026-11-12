@@ -45,7 +45,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:27Z
-last_update: 2026-11-12T19:23:16Z
+last_update: 2026-11-12T19:25:36Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -109,7 +109,7 @@ Unblocks: P-5 (T-3695), P-6 (T-3696), P-32 (T-3360), P-35 (T-3654), P-38 (T-3717
 
 ### Agent
 - [ ] The B-25 specs pass (origin counting, `ignored: origin`, PostToolUse no longer renews, provisional SessionStart claim, fast takeover V-20, waiting-mail signal K-34 / V-21)
-- [ ] Projects whose origin is `absent` behave as before until they report origin (NID)
+- [x] Projects whose origin is `absent` behave as before until they report origin (NID)
 - [ ] The unit's fixture suite exits 0 with a PASS line per B-25 E-n and its mutant list is all killed (FP 3.1.b)
 - [ ] `termlink main status` shows `origin` and `last_human_at` on the W1 pair
 
@@ -163,9 +163,11 @@ Unblocks: P-5 (T-3695), P-6 (T-3696), P-32 (T-3360), P-35 (T-3654), P-38 (T-3717
 
 ## Verification
 
-# Plan P-4 check (08-plan section 4): fixture suite exits 0 with a PASS line per B-25 E-n and its mutant list all
-# killed (FP 3.1.b); `termlink main status` shows `origin` and `last_human_at` on the W1 pair. The suite is written by
-# this task: replace these comment lines with its command before closing (redirect-then-grep form, L-387).
+# Plan P-4 check (08-plan section 4): the fixture suite prints a PASS line per in-scope E-n (DEFERRED lines name what
+# this unit could not serve), and every mutant (FP 3.1.b) is KILLED on a clean export of HEAD.
+bash tests/b25-lease-fixtures.sh > .context/working/.t3694-fix.out 2>&1 && grep -q "ALL IN-SCOPE PASS" .context/working/.t3694-fix.out
+grep -q "^PASS E-24 " .context/working/.t3694-fix.out && grep -q "^PASS E-22 " .context/working/.t3694-fix.out && ! grep -q "^FAIL " .context/working/.t3694-fix.out
+bash tests/b25-lease-fixtures.sh --mutants > .context/working/.t3694-mut.out 2>&1 && grep -q "ALL MUTANTS KILLED" .context/working/.t3694-mut.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -338,6 +340,20 @@ Unblocks: P-5 (T-3695), P-6 (T-3696), P-32 (T-3360), P-35 (T-3654), P-38 (T-3717
 
 ## Evolution
 
+### 2026-11-12 — B-25 built in main_lease.rs; K-34 definition built, its wiring blocked
+- **What changed:** The hub has no receive stamp of its own (`channel.post` stores the client's `ts`), so CR-6.21's
+  `hub_rx_ms` needs a hub change, and `crates/termlink-hub` is barred to this dispatch (T-3701). The fast-takeover age
+  therefore uses the record time, with the v0.2 30 s cross-host margin (FCW-56 v0.2) when holder and taker are on
+  different hosts. The waiting-mail signal (AL-13) needs the sidecar's per-tick loop in `daemon.rs` and the store's
+  role-mail view; `daemon.rs` is barred (T-3693), so the definition, the episode state and the OOB step are built and
+  tested as `termlink-sidecar::mail_waiting`, and the tick is not wired yet. E-153's receiver-side origin check needs
+  the meter's input counters (`meter.rs`/`hook.rs`, barred).
+- **Plan impact:** P-4 cannot close in this dispatch: E-28's landing places (status `main.mail_waiting`, the
+  needs-attention entry, the non-main line) and E-153 wait on the barred files; `hub_rx_ms` waits on a hub unit.
+  The session-start line needs no script change: `scripts/session-start-alerts.sh` section 1d prints every sidecar
+  needs-attention entry, and the signal raises kind `main-mail-waiting`.
+- **Triggered:** follow-ups named in the hand-back (wire `mail_waiting` into the daemon tick; hub receive stamp).
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -390,6 +406,20 @@ Unblocks: P-5 (T-3695), P-6 (T-3696), P-32 (T-3360), P-35 (T-3654), P-38 (T-3717
 -->
 
 ## Decisions
+
+### 2026-11-12 — origin reporting is decided per harness at the hub, by an operator record only
+- **Chose:** a `main-config:<project>` topic (forever retention, owner and reason named) holding `OriginReporting`
+  records written only by `termlink main origin-reporting --harness H [--off]` (the operator act, to be run from a
+  runme action at rollout P-35). Claims from a harness not switched on are decided exactly as built and tagged
+  `origin: absent|<given>` (NID); a switched harness gets the AL-11 table.
+- **Why:** CR-6.6: never switched by a claim, never reverted by retention; unreadable switch = unknown (FCW-201).
+- **Rejected:** switching on the first claim that carries an origin (the v0.1 rule; mutant M4 pins that it is gone).
+
+### 2026-11-12 — vacancy with an operator pin naming another session
+- **Chose:** for a reporting harness a human prompt does not take a VACANT lease pinned to another session (AL-11
+  guard `pinned in {none, me}`); the built path keeps its behaviour (takes after quiet and cooldown).
+- **Why:** the table states the guard; the built path is unchanged for NID.
+- **Rejected:** applying the built behaviour to reporting harnesses too.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

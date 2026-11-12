@@ -6,12 +6,12 @@ description: >
   approved G-0 2026-11-12): B-3: admin RPC log flag, sweep and trim refused on open
   mail, retention ceilings V-3
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/retention_sweeper.rs, crates/termlink-hub/src/rpc_audit.rs, crates/termlink-hub/src/server.rs]
 related_tasks: [T-3357, T-3382]
 plan_unit: P-13
 arc_id: arc-011
@@ -44,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:37Z
-last_update: 2026-11-12T19:20:46Z
-date_finished:
+last_update: 2026-11-12T19:20:50Z
+date_finished: 2026-11-12T19:20:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -449,3 +449,16 @@ bash tests/t3701-b3-fixtures.sh mutants > .context/working/t3701/v-mut.out 2>&1 
 ### 2026-11-12T18:46:35Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-12T19:20:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-28ce0331
+- **Timestamp:** 2026-11-12T19:24:58Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

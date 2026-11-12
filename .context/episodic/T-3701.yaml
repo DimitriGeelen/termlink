@@ -1,0 +1,106 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3701: P-13: B-3 admin RPC log, sweep refusal, retention ceilings V-3
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T19:25:33Z
+# ============================================================================
+
+task_id: T-3701
+task_name: "P-13: B-3 admin RPC log, sweep refusal, retention ceilings V-3"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T16:56:37Z
+completed: 2026-11-12T19:20:50Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-12T19:56:49+01:00
+last_commit: 2026-11-12T20:20:47+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bus removal guard (B-3/V-3) — sweep, trim, set_retention, per-key compaction refuse an open message (FCW-126) or unreadable finality (FCW-127) on guarded topics; V-3 per-topic and per-hub ceilings remove final first, open only as last resort reported for needs-attention (FCW-129); forever inboxes bounded (T-3382). hub mail guard + admin log (B-3) — finality from sidecar stage records; sweep/trim/set_retention refused with reason on open mail (FCW-126, -32040) or unreadable finality (FCW-127); admin RPCs get an intent row before acting and a result row after in rpc-admin.jsonl (admin:true, kept >= 30 days, mirrored to rpc-audit.jsonl), unwritable row refuses the RPC (FCW-128, -32041); V-3 ceiling removals logged, forced open removal raises needs-attention; periodic sweeper keeps open mail; daily V-3 pass. P-13 fixture suite (PASS per E-67, E-169, T-3382 bound) and 11-mutant runner on a HEAD export (FP 3.1.b); admin-method list pinned in the E-67 test. Agent ACs ticked (fixtures ALL PASS, 11/11 mutants killed); Verification, Decisions, Evolution recorded
+
+# Key outcomes
+outcomes:
+  - 'The B-3 specs pass (admin RPC log flag, sweep and trim refused on open mail, retention ceilings V-3)'
+  - 'The forever-topic growth of T-3382 is bounded by V-3'
+  - 'The unit''s fixture suite exits 0 with a PASS line per B-3 E-n and its mutant list is all killed (FP 3.1.b)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'Agent ACs ticked (fixtures ALL PASS, 11/11 mutants killed); Verification, Decisions, Evolution recorded'
+    source: git-mined
+  - description: 'P-13 fixture suite (PASS per E-67, E-169, T-3382 bound) and 11-mutant runner on a HEAD export (FP 3.1.b); admin-method list pinned in the E-67 test'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — where the open-mail check lives'
+    chose: 'a `RemovalGuard` trait in termlink-bus, installed by the hub; every bus removal path on a guarded topic previews its exact offsets, asks the guard, and deletes exactly those offsets.'
+    rationale: 'three removal paths existed (RPC handlers, the periodic sweeper, post-time ceilings); a check in the handlers alone would leave two open. Deleting by explicit offset makes the AL-31 concurrency rule hold without a lock across the check: a post that lands after the check is never among the removed offsets, and a final stage never becomes open again.'
+    alternatives_rejected: ['checks in the RPC handlers only (bypassed by the sweeper and the ceilings); teaching the bus the sidecar wire format (the bus stays mail-agnostic).']
+  - decision: '2026-11-12 — admin log kept 30 days'
+    chose: 'a separate `rpc-admin.jsonl`, written synchronously (FCW-128 needs a write that can fail the RPC), pruned only of rows older than 30 days once past 16 MiB; rows also mirrored with `admin:true` into `rpc-audit.jsonl` for existing readers. `channel.create` is not an admin RPC: every sidecar re-creates its inbox on each note.'
+    rationale: '`rpc-audit.jsonl` is size-rotated with one backup (T-2251) and written by a queued thread (T-3475), so it can neither keep rows 30 days nor refuse an RPC.'
+    alternatives_rejected: ['changing the shared rotation in termlink-session (outside the write set; it also serves the session daemon).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3701-p-13-b-3-admin-rpc-log-sweep-refusal-ret.md'
+  - 'crates/termlink-bus/src/error.rs'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-bus/src/removal_guard.rs'
+  - 'crates/termlink-bus/tests/t3701_removal_guard.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/lib.rs'
+  - 'crates/termlink-hub/src/mail_guard.rs'
+  - 'crates/termlink-hub/src/retention_sweeper.rs'
+  - 'crates/termlink-hub/src/rpc_audit.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - 'tests/t3701-b3-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T19:56:49'
+    action: 'T-3701: bus removal guard (B-3/V-3) — sweep, trim, set_retention, per-key compaction refuse an open message (FCW-126) or unreadable finality (FCW-127) on guarded topics; V-3 per-topic and per-hub ceilings remove final first, open only as last resort reported for needs-attention (FCW-129); forever inboxes bounded (T-3382)'
+  - time: '2026-11-12T20:10:23'
+    action: 'T-3701: hub mail guard + admin log (B-3) — finality from sidecar stage records; sweep/trim/set_retention refused with reason on open mail (FCW-126, -32040) or unreadable finality (FCW-127); admin RPCs get an intent row before acting and a result row after in rpc-admin.jsonl (admin:true, kept >= 30 days, mirrored to rpc-audit.jsonl), unwritable row refuses the RPC (FCW-128, -32041); V-3 ceiling removals logged, forced open removal raises needs-attention; periodic sweeper keeps open mail; daily V-3 pass'
+  - time: '2026-11-12T20:13:45'
+    action: 'T-3701: P-13 fixture suite (PASS per E-67, E-169, T-3382 bound) and 11-mutant runner on a HEAD export (FP 3.1.b); admin-method list pinned in the E-67 test'
+  - time: '2026-11-12T20:20:47'
+    action: 'T-3701: Agent ACs ticked (fixtures ALL PASS, 11/11 mutants killed); Verification, Decisions, Evolution recorded'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 144 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 144
+  commits: 5
+  files_changed: 17
+  lines_added: 2051
+  lines_removed: 58
+  footprint_refreshed_at: '2026-11-12T19:25:38Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3701-p-13-b-3-admin-rpc-log-sweep-refusal-ret.md
+generated_by: context-agent-hybrid

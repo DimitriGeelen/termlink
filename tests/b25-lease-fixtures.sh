@@ -40,6 +40,10 @@ open(p,"w").write(s.replace(o,os.environ["NEW"],1))'; then
         if grep -q "^error\[E\|^error: could not compile" "$log"; then
             echo "TOOLING $id: the mutant does not compile ($log)"; return 2
         fi
+        # No test summary and no panic = the tests never ran: tooling, never a survival or a kill.
+        if ! grep -q "^test result:" "$log" && ! grep -q "panicked" "$log"; then
+            echo "TOOLING $id: the tests did not run ($log)"; return 2
+        fi
         if [ "$trc" -ne 0 ] && grep -q "FAILED\|panicked" "$log"; then
             echo "KILLED $id"; return 0
         fi
@@ -47,16 +51,17 @@ open(p,"w").write(s.replace(o,os.environ["NEW"],1))'; then
     }
     S=crates/termlink-session/src/main_lease.rs
     W=crates/termlink-sidecar/src/mail_waiting.rs
-    UNIT="cargo test -p termlink-session --lib main_lease"
-    INTEG="cargo test -p termlink --test main_lease_integration b25_"
-    MW="cargo test -p termlink-sidecar --lib mail_waiting"
+    # cargo takes ONE test-name filter: pass it after `--`, as a single word.
+    UNIT="cargo test -p termlink-session --lib -- main_lease::tests::"
+    INTEG="cargo test -p termlink --test main_lease_integration -- b25_"
+    MW="cargo test -p termlink-sidecar --lib -- mail_waiting::tests::"
     run() { mutant "$@"; local r=$?; [ $r -gt $rc ] && rc=$r; return 0; }
-    run M1-unknown-counts-as-human "$S" "$UNIT e20" \
+    run M1-unknown-counts-as-human "$S" "${UNIT}e20" \
         '    if origin != Origin::Human {
         return Plan::Ignored; // FCW-52' \
         '    if origin == Origin::Automated {
         return Plan::Ignored; // FCW-52'
-    run M2-tool-activity-renews "$S" "$UNIT e2" \
+    run M2-tool-activity-renews "$S" "${UNIT}e2" \
         'ClaimKind::Tool => return Plan::AnswerOnly { why: "tool activity never renews main" },' \
         'ClaimKind::Tool => {}'
     run M3-absent-ignored-everywhere "$S" "$INTEG" \
@@ -67,38 +72,38 @@ open(p,"w").write(s.replace(o,os.environ["NEW"],1))'; then
     run M4-first-origin-field-switches-the-harness "$S" "$INTEG" \
         'let rep = reporting.contains(&req.harness);' \
         'let rep = reporting.contains(&req.harness) || req.origin.is_some();'
-    run M5-quiet-period-on-a-provisional-holder "$S" "$UNIT e23" \
+    run M5-quiet-period-on-a-provisional-holder "$S" "${UNIT}e23" \
         '        if v.provisional {
             return Plan::OverProvisional' \
         '        if false {
             return Plan::OverProvisional'
-    run M6-no-interactive-guard "$S" "$UNIT e23" \
+    run M6-no-interactive-guard "$S" "${UNIT}e23" \
         'if req.interactive != Some(true) {' \
         'if false {'
-    run M7-no-five-minute-check "$S" "$UNIT e24" \
+    run M7-no-five-minute-check "$S" "${UNIT}e24" \
         'if age > v.timing.quiet_ms + margin {' \
         'if true {'
-    run M8-any-touch-counts "$S" "$UNIT e24_touch" \
+    run M8-any-touch-counts "$S" "${UNIT}e24_touch" \
         '                    && l.sender.is_some()
                     && l.sender == c.sender =>' \
         ' =>'
-    run M9-unreadable-touch-log-read-as-empty "$S" "$UNIT e162" \
+    run M9-unreadable-touch-log-read-as-empty "$S" "${UNIT}e162" \
         '    let touches = touches?;' \
         '    let touches = touches.unwrap_or(&[]);'
     run M10-renew-without-the-touch "$S" "$INTEG" \
         'if let Err(e) = self.post_side(&touch_topic(project), &ev).await {' \
         'if let Err(e) = self.post_side(&touch_topic(project), &ev).await.or(Ok::<u64, LeaseError>(0)) {'
-    run M11-automated-claim-takes-a-vacancy "$S" "$UNIT e25_model" \
+    run M11-automated-claim-takes-a-vacancy "$S" "${UNIT}e25_model" \
         '        return Plan::Ignored; // FCW-52' \
         '        if v.holder.is_none() { return Plan::Take { reason: "mutant" }; }
         return Plan::Ignored;'
-    run M12-oob-sent-without-a-sink "$W" "$MW e28_oob" \
+    run M12-oob-sent-without-a-sink "$W" "${MW}e28_oob" \
         '                    Oob::NotAvailable // FCW-62' \
         '                    Oob::SentAt(now_ms)'
-    run M13-exact-instance-mail-counts "$W" "$MW e28_exact" \
+    run M13-exact-instance-mail-counts "$W" "${MW}e28_exact" \
         'let w: Vec<&Waiting> = mail.iter().filter(|m| m.role).collect();' \
         'let w: Vec<&Waiting> = mail.iter().collect();'
-    run M14-oob-step-every-tick "$W" "$MW e28_oob_sent" \
+    run M14-oob-step-every-tick "$W" "${MW}e28_oob_sent" \
         'if self.active && oldest_age >= OOB_MS && self.oob_set_by_me.is_none() {' \
         'if self.active && oldest_age >= OOB_MS {'
     [ "$rc" = 0 ] && echo "ALL MUTANTS KILLED"
