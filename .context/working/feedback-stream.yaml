@@ -23109,3 +23109,21 @@ scan_id: R-9210c591
 task_id: T-3689
 payload:
   task_file: .tasks/active/T-3689-arc-011-fold-step-7-change-requests-cr-1.md
+---
+kind: scan_emitted
+timestamp: '2026-11-12T16:21:15Z'
+scan_id: R-f58252a6
+task_id: T-3686
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-12T16:21:15Z'
+scan_id: R-f58252a6
+task_id: T-3686
+payload:
+  task_file: .tasks/active/T-3686-main-lease-test-seams-termlinkmaintest-a.md

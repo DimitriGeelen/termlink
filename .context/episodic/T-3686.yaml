@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3686: main lease test seams (TERMLINK_MAIN_TEST_*) are obeyed on live hosts: a leftover variable can shrink main's lease to 1 s
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T16:21:25Z
+# ============================================================================
+
+task_id: T-3686
+task_name: "main lease test seams (TERMLINK_MAIN_TEST_*) are obeyed on live hosts: a leftover variable can shrink main's lease to 1 s"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-11T18:31:28Z
+completed: 2026-11-12T16:21:07Z
+duration_days: 1
+updates_count: 4
+first_commit: 2026-11-12T16:17:09+01:00
+last_commit: 2026-11-12T16:33:10+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  context, criteria and worker brief (step 8 plan unit P-3). main-lease test seams honoured only inside a marked test estate (AL-16, FCW-60)
+
+# Key outcomes
+outcomes:
+  - 'Seams behave as 05 E-163.1 states for `TERMLINK_MAIN_TEST_*` (outside a test estate `termlink main` answers unknown, exit 2, naming the variable) and as 06 FCW-60/77/78; scope limited to the main-lease seams (sidecar/hub seams of E-163 belong to their own units unless trivially shared)'
+  - 'Existing main-lease tests still drive the timings (green); new test: seam set without the gate is ignored; mutant (gate removed) is killed'
+  - '`cargo test -p termlink-session` and workspace tests green; clippy clean'
+  - 'E-164 seam scan of live termlink processes on .107 reports no `TERMLINK_MAIN_TEST_*` set (result recorded in Updates)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — what counts as a test estate for the main lease'
+    chose: 'the 06 5.16.c rule, as stated: HOME and the runtime dir (`discovery::runtime_dir()`, i.e. `TERMLINK_RUNTIME_DIR` first) both lie in ONE tree whose ancestor holds a genuine `.termlink-estate` marker (first line `termlink-sidecar-estate v1`, the C-1 marker the testkit writes). If any `TERMLINK_MAIN_TEST_*` variable (by prefix, names only) is set outside such a tree, `Timing::from_env()` returns `SeamRefused`. The CLI turns that into unknown (exit 2) before any hub contact, and so does the MCP `termlink_main_status`. The sidecar''s read-only lease view keeps the defaults and logs the refusal once on stderr, because its own start refusal is FCW-77 and belongs to a later unit.'
+    rationale: 'the design states the mechanism, so nothing new was invented. The existing test needs only a marker file in its temp dir, and production never has a marker above both HOME and the runtime dir.'
+    alternatives_rejected: ['a `cfg(test)`/feature flag (the CLI integration test runs the real binary, so it could not drive the seams); a new env var such as `TERMLINK_TEST_ESTATE=1` (a leftover variable is the bug class itself); `estate::guard_any` from the sidecar (needs `TERMLINK_SIDECAR_STORE`, and the MCP crate does not depend on the sidecar).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/t3686/handback.md'
+  - '.context/working/t3686/mutants.py'
+  - '.tasks/active/T-3686-main-lease-test-seams-termlinkmaintest-a.md'
+  - 'crates/termlink-cli/src/commands/main_lease.rs'
+  - 'crates/termlink-cli/tests/main_lease_integration.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - 'crates/termlink-session/src/main_lease.rs'
+  - 'crates/termlink-session/src/test_seam.rs'
+  - 'crates/termlink-sidecar/src/estate.rs'
+  - 'crates/termlink-sidecar/src/lease.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T16:17:09'
+    action: 'T-3686: context, criteria and worker brief (step 8 plan unit P-3)'
+  - time: '2026-11-12T16:33:10'
+    action: 'T-3686: main-lease test seams honoured only inside a marked test estate (AL-16, FCW-60)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1309 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1309
+  commits: 3
+  files_changed: 17
+  lines_added: 934
+  lines_removed: 39
+  footprint_refreshed_at: '2026-11-12T16:21:28Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3686-main-lease-test-seams-termlinkmaintest-a.md
+generated_by: context-agent-hybrid
