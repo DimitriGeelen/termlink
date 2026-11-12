@@ -41,7 +41,7 @@ cat > "$TMP/fake-termlink" <<'F'
 #!/usr/bin/env bash
 echo "$*" >> "$FAKE_TL_ARGS"
 [ "${FAKE_TL_POST_RC:-0}" != 0 ] && [ "$2" = post ] && { echo "hub said no" >&2; exit 1; }
-[ "${FAKE_TL_QUEUED:-0}" = 1 ] && [ "$2" = post ] && { echo "Queued to x — queue_id=7 (hub unreachable; will flush on next reconnect)"; exit 0; }
+[ "${FAKE_TL_QUEUED:-0}" = 1 ] && [ "$2" = post ] && { echo "Queued to x — queue_id=7 (hub unreachable; will flush on next reconnect)"; exit 3; }  # T-3749: queued = exit 3
 echo "Posted to x — offset=0"
 F
 chmod +x "$TMP/fake-termlink"

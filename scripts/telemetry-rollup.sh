@@ -707,7 +707,9 @@ timeout 20 "$TL" channel create "$TOPIC" --retention days:400 \
 
 DAY_OUT="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["day"])' "$AGG")"
 if OUT="$(timeout 30 "$TL" channel post "$TOPIC" --msg-type telemetry-rollup --payload "$AGG" \
-        --metadata "host=$HOST" --metadata "day=$DAY_OUT" "${HUB_ARGS[@]}" 2>&1)"; then
+        --metadata "host=$HOST" --metadata "day=$DAY_OUT" "${HUB_ARGS[@]}" 2>&1)" \
+   || [ $? -eq 3 ]; then
+    # T-3749: exit 3 = queued locally, not delivered; the grep below leaves the day for catch-up.
     # Only a post the hub accepted ("Posted to <topic> — offset=N") marks the day posted
     # (review item 11/39). A "Queued to" post sits in the offline queue and may yet be
     # dead-lettered, so the day stays a gap and the next --catch-up posts it again; the

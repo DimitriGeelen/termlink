@@ -247,35 +247,69 @@ fn parse_retention(spec: &str) -> Result<Value> {
 /// the profile's `address`. Falls back to unix-path interpretation if no
 /// profile matches. This lets `--hub ring20-management` work the same as
 /// `--hub 192.168.10.122:9100` for `channel post` / `agent contact`.
-fn parse_hub_addr(s: &str) -> TransportAddr {
-    if !s.contains('/')
-        && let Some((host, port_str)) = s.rsplit_once(':')
-        && let Ok(port) = port_str.parse::<u16>()
-    {
-        return TransportAddr::tcp(host, port);
+///
+/// T-3749: STRICT. A `--hub` value that is neither `host:port`, a known
+/// hubs.toml profile name, nor a path (contains `/`) is an error that names
+/// the reason. Before this, `tcp://host:port`, a typo'd profile name or a
+/// bad port all fell through to a relative unix path that never exists, and
+/// `channel post` then queued the message locally and exited 0: the sender
+/// saw success while nothing left the machine (ring20 T-2657, the Mac).
+fn parse_hub_addr(s: &str) -> Result<TransportAddr> {
+    let cfg = crate::config::load_hubs_config();
+    classify_hub_arg(s, &|name| cfg.hubs.get(name).map(|e| e.address.clone()), 0)
+        .map_err(|e| anyhow!(e))
+}
+
+/// T-3749: pure core of [`parse_hub_addr`] with an injectable profile lookup,
+/// so the rules are testable without a hubs.toml. `depth` bounds profile
+/// recursion (a profile whose address names another profile).
+fn classify_hub_arg(
+    s: &str,
+    profile_addr: &dyn Fn(&str) -> Option<String>,
+    depth: u8,
+) -> std::result::Result<TransportAddr, String> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Err("--hub is empty: give host:port (e.g. 192.168.10.122:9100), a hubs.toml \
+                    profile name, or a unix socket path"
+            .to_string());
     }
-    // Profile-name fallback: try to resolve via hubs.toml before treating
-    // the string as a unix-socket path. Profile names in practice never
-    // contain '/' or ':', so this only kicks in for the bare-name case.
-    if !s.contains('/') && !s.contains(':') {
-        let cfg = crate::config::load_hubs_config();
-        if let Some(entry) = cfg.hubs.get(s) {
-            // Recurse on the profile's address. Guard against accidental
-            // self-reference (profile.address == profile-name) by checking
-            // the address doesn't equal `s`.
-            if entry.address != s {
-                return parse_hub_addr(&entry.address);
-            }
-        }
+    if let Some((scheme, _)) = s.split_once("://") {
+        return Err(format!(
+            "--hub '{s}': URL scheme '{scheme}://' is not supported (wrong scheme). Use plain \
+             host:port, e.g. --hub {}",
+            s.split_once("://").map(|(_, r)| r.trim_end_matches('/')).unwrap_or(s)
+        ));
     }
-    TransportAddr::unix(PathBuf::from(s))
+    if s.contains('/') {
+        return Ok(TransportAddr::unix(PathBuf::from(s)));
+    }
+    if let Some((host, port_str)) = s.rsplit_once(':') {
+        return match port_str.parse::<u16>() {
+            Ok(port) if !host.is_empty() && port != 0 => Ok(TransportAddr::tcp(host, port)),
+            _ => Err(format!(
+                "--hub '{s}': '{port_str}' is not a valid port (expected host:port with a port \
+                 1-65535, e.g. 192.168.10.122:9100)"
+            )),
+        };
+    }
+    // Bare name: must be a hubs.toml profile.
+    match profile_addr(s) {
+        Some(addr) if addr != s && depth < 4 => classify_hub_arg(&addr, profile_addr, depth + 1)
+            .map_err(|e| format!("hubs.toml profile '{s}' has an unusable address: {e}")),
+        Some(_) => Err(format!("hubs.toml profile '{s}' refers to itself")),
+        None => Err(format!(
+            "--hub '{s}': no hubs.toml profile has that name (no profile). Run `termlink remote \
+             profile list`, pass host:port, or join the hub with `termlink fleet join`"
+        )),
+    }
 }
 
 /// T-1385: returns a TransportAddr (Unix or TCP). Variable name `sock` is
 /// preserved across the file for call-site stability — it holds an addr now.
 pub(crate) fn hub_socket(hub: Option<&str>) -> Result<TransportAddr> {
     if let Some(h) = hub {
-        return Ok(parse_hub_addr(h));
+        return parse_hub_addr(h);
     }
     let (_, sock) = resolve_hub_paths();
     if !sock.exists() {
@@ -311,12 +345,33 @@ fn hub_socket_or_json_exit(hub: Option<&str>, json_output: bool) -> Result<Trans
 /// `channel post` tolerates a missing socket (offline-queue fallback), so
 /// resolve the path without asserting it exists. T-1174. T-1385: returns
 /// TransportAddr for TCP-capable parsing.
-fn hub_socket_soft(hub: Option<&str>) -> TransportAddr {
+/// T-3749: an explicit `--hub` that cannot be parsed is an error, never a
+/// silent fall-through to the offline queue.
+fn hub_socket_soft(hub: Option<&str>) -> Result<TransportAddr> {
     if let Some(h) = hub {
         return parse_hub_addr(h);
     }
     let (_, sock) = resolve_hub_paths();
-    TransportAddr::unix(sock)
+    Ok(TransportAddr::unix(sock))
+}
+
+/// T-3749: exit code for "the message is in the LOCAL offline queue and has
+/// NOT reached any hub". Distinct from 1 (failed) so a caller that wants
+/// store-and-forward can tell the two apart, and never 0: a queued message is
+/// not a delivered one (vendored-arc-heartbeat.sh already maps it to 3).
+pub(crate) const EXIT_QUEUED_NOT_DELIVERED: i32 = 3;
+
+/// T-3749: the stderr line printed with every queued (undelivered) post.
+fn queued_not_delivered_msg(topic: &str, queue_id: i64, hub: &TransportAddr) -> String {
+    let target = match hub.as_unix_path() {
+        Some(p) => format!("local hub socket {}", p.display()),
+        None => format!("{hub:?}"),
+    };
+    format!(
+        "NOT DELIVERED: {target} is unreachable; the post to {topic} is held in this machine's \
+         offline queue (queue_id={queue_id}) and leaves only when that hub is up again. If the \
+         recipient is on another hub, pass --hub <host:port|profile>. Exit {EXIT_QUEUED_NOT_DELIVERED}."
+    )
 }
 
 /// T-1385: For TCP `--hub host:port`, look up the hub secret from
@@ -1267,7 +1322,15 @@ pub(crate) async fn cmd_channel_post(
         metadata,
         client_msg_id: Some(resolved_client_msg_id.clone()),
     };
-    let sock = hub_socket_soft(hub);
+    let sock = match hub_socket_soft(hub) {
+        Ok(s) => s,
+        Err(e) => {
+            if json_output {
+                super::json_error_exit(json!({"ok": false, "delivered": false, "error": format!("{e}")}));
+            }
+            return Err(e);
+        }
+    };
     let queue_path = default_queue_path();
     // T-1443: opt-in topic auto-creation. Idempotent — re-creates known
     // topics safely; pre-creates missing ones (heals G-050 post-hub-restart
@@ -1329,7 +1392,7 @@ pub(crate) async fn cmd_channel_post(
         let offset = r.get("offset").and_then(|v| v.as_i64()).unwrap_or(0);
         PostOutcome::Delivered { offset }
     } else {
-        let (bus, _flush_task) = BusClient::connect(sock, &queue_path)
+        let (bus, _flush_task) = BusClient::connect(sock.clone(), &queue_path)
             .context("open bus client / offline queue")?;
         if bus.queue_size() > 0 {
             let report = bus.flush().await;
@@ -1367,10 +1430,13 @@ pub(crate) async fn cmd_channel_post(
                 println!(
                     "{}",
                     serde_json::to_string_pretty(&json!({
+                        "ok": false,
+                        "delivered": false,
                         "queued": {
                             "queue_id": queue_id,
                             "queue_path": queue_path.display().to_string(),
-                        }
+                        },
+                        "exit_code": EXIT_QUEUED_NOT_DELIVERED,
                     }))?
                 );
             } else {
@@ -1378,6 +1444,9 @@ pub(crate) async fn cmd_channel_post(
                     "Queued to {topic} — queue_id={queue_id} (hub unreachable; will flush on next reconnect)"
                 );
             }
+            // T-3749: queued is not delivered — say so on stderr and exit non-zero.
+            eprintln!("{}", queued_not_delivered_msg(topic, queue_id, &sock));
+            std::process::exit(EXIT_QUEUED_NOT_DELIVERED);
         }
     }
     Ok(())
@@ -1562,7 +1631,9 @@ async fn run_await_ack(
                          reconnect). Ack not awaited: no live connection while offline."
                     );
                 }
-                return Ok(());
+                // T-3749: queued is not delivered.
+                eprintln!("{}", queued_not_delivered_msg(&topic, queue_id, &sock));
+                std::process::exit(EXIT_QUEUED_NOT_DELIVERED);
             }
             PostOutcome::Delivered { .. } => {
                 // Hub is reachable — proceed to the ack-await retry loop below.
@@ -13607,7 +13678,7 @@ mod tests {
     fn claim_auth_none_on_unix_and_never_silent_none_on_tcp() {
         let unix = TransportAddr::unix(std::path::PathBuf::from("/nonexistent/hub.sock"));
         assert!(matches!(claim_auth(&unix), Ok(None)));
-        let tcp = parse_hub_addr("127.0.0.1:1");
+        let tcp = parse_hub_addr("127.0.0.1:1").unwrap();
         assert!(!tcp.is_unix());
         assert!(!matches!(claim_auth(&tcp), Ok(None)), "TCP must never resolve to no-auth");
     }
@@ -15218,23 +15289,27 @@ mod tests {
 
     // ---- existing tests --------------------------------------------------
 
+    fn no_profiles(_: &str) -> Option<String> {
+        None
+    }
+
     #[test]
     fn parse_hub_addr_recognizes_tcp_host_port() {
-        let a = parse_hub_addr("192.168.10.122:9100");
+        let a = classify_hub_arg("192.168.10.122:9100", &no_profiles, 0).unwrap();
         assert!(a.is_tcp());
         assert_eq!(a.as_tcp(), Some(("192.168.10.122", 9100)));
     }
 
     #[test]
     fn parse_hub_addr_recognizes_localhost_tcp() {
-        let a = parse_hub_addr("localhost:8080");
+        let a = classify_hub_arg("localhost:8080", &no_profiles, 0).unwrap();
         assert!(a.is_tcp());
         assert_eq!(a.as_tcp(), Some(("localhost", 8080)));
     }
 
     #[test]
     fn parse_hub_addr_falls_back_to_unix_path() {
-        let a = parse_hub_addr("/tmp/termlink-0/hub.sock");
+        let a = classify_hub_arg("/tmp/termlink-0/hub.sock", &no_profiles, 0).unwrap();
         assert!(a.is_unix());
         assert_eq!(
             a.as_unix_path(),
@@ -15245,14 +15320,54 @@ mod tests {
     #[test]
     fn parse_hub_addr_path_with_colon_treated_as_unix() {
         // Has /, so even with `:port-like` suffix it's a path.
-        let a = parse_hub_addr("/tmp/foo:9100/hub.sock");
+        let a = classify_hub_arg("/tmp/foo:9100/hub.sock", &no_profiles, 0).unwrap();
         assert!(a.is_unix());
     }
 
+    /// T-3749: these four used to become a nonexistent relative unix path,
+    /// so `channel post` queued locally and exited 0 (the Mac -> ring20 loss).
     #[test]
-    fn parse_hub_addr_invalid_port_falls_back_to_unix() {
-        let a = parse_hub_addr("notahost:notaport");
-        assert!(a.is_unix());
+    fn t3749_unusable_hub_args_are_named_errors_not_unix_paths() {
+        let e = classify_hub_arg("notahost:notaport", &no_profiles, 0).unwrap_err();
+        assert!(e.contains("not a valid port"), "{e}");
+        let e = classify_hub_arg("tcp://192.168.10.122:9100", &no_profiles, 0).unwrap_err();
+        assert!(e.contains("wrong scheme") && e.contains("--hub 192.168.10.122:9100"), "{e}");
+        let e = classify_hub_arg("ring20-managment", &no_profiles, 0).unwrap_err();
+        assert!(e.contains("no profile"), "{e}");
+        let e = classify_hub_arg("  ", &no_profiles, 0).unwrap_err();
+        assert!(e.contains("empty"), "{e}");
+        let e = classify_hub_arg("host:0", &no_profiles, 0).unwrap_err();
+        assert!(e.contains("not a valid port"), "{e}");
+    }
+
+    /// T-3749 positive control: a known profile name still resolves (and a
+    /// profile whose address is broken names the profile).
+    #[test]
+    fn t3749_profile_name_resolves_and_bad_profile_address_is_named() {
+        let lookup = |n: &str| match n {
+            "ring20-management" => Some("192.168.10.122:9100".to_string()),
+            "loop" => Some("loop".to_string()),
+            "broken" => Some("https://x:1".to_string()),
+            _ => None,
+        };
+        let a = classify_hub_arg("ring20-management", &lookup, 0).unwrap();
+        assert_eq!(a.as_tcp(), Some(("192.168.10.122", 9100)));
+        assert!(classify_hub_arg("loop", &lookup, 0).unwrap_err().contains("itself"));
+        let e = classify_hub_arg("broken", &lookup, 0).unwrap_err();
+        assert!(e.contains("profile 'broken'") && e.contains("wrong scheme"), "{e}");
+    }
+
+    #[test]
+    fn t3749_queued_message_says_not_delivered_and_names_exit_code() {
+        let m = queued_not_delivered_msg(
+            "inbox:x",
+            7,
+            &TransportAddr::unix(std::path::PathBuf::from("/var/lib/termlink/hub.sock")),
+        );
+        assert!(m.starts_with("NOT DELIVERED"), "{m}");
+        assert!(m.contains("/var/lib/termlink/hub.sock") && m.contains("queue_id=7"), "{m}");
+        assert!(m.contains(&format!("Exit {EXIT_QUEUED_NOT_DELIVERED}")), "{m}");
+        assert_ne!(EXIT_QUEUED_NOT_DELIVERED, 0);
     }
 
     #[test]
