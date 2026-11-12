@@ -45,7 +45,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T17:18:16Z
-last_update: 2026-11-12T18:07:25Z
+last_update: 2026-11-12T18:34:57Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -333,7 +333,41 @@ cargo test -p termlink --test t3749_loud_send > .context/working/t3749/loud.out 
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** the operator's Mac sent a message to the ring20 agent. The .122 hub logged a TCP accept and then `tls handshake eof`
+0.1 ms later. Nothing arrived anywhere, and the sender showed no error.
+
+**Root cause (likeliest; the Mac's command and version are not yet known):** two separate things happened.
+(1) The hub log line is a TCP connect that closed with ZERO bytes. No ClientHello was sent. It is not a TOFU mismatch: that
+sends a ClientHello and then a TLS alert, and it needs at least one WireGuard round trip, far more than 0.1 ms.
+Reproduced on .107 against a byte-logging listener: `termlink net test` (CLI, and MCP `termlink_net_test`) opens a bare TCP
+"L1" probe and drops it, which shows on the hub as accept + `tls handshake eof`. A client killed in the 50-80 ms between TCP
+connect and its ClientHello looks the same. The .122 path is healthy: from .107 the wire fp matches the reported
+sha256:22c19fed... and our pin.
+(2) The message itself almost certainly never targeted .122. With no usable .122 profile, `channel post` / `channel dm` /
+`agent contact` falls through to the LOCAL hub socket. The Mac has no hub, so the post went into the Mac's offline queue,
+printed "Queued to ...", and **exited 0**. `--hub tcp://...`, a misspelled profile name or a bad port did the same
+(measured with 0.12.1610: `--hub tcp://127.0.0.2:19100` printed `Queued`, rc=0). MCP `send_auto_discover` also accepted a
+`hub` and silently ignored it.
+
+**Why structurally allowed:** "queued locally" and "delivered" shared exit code 0. The `--hub` parser's last resort was
+"treat it as a unix path", so every typo became a valid-looking local target. No test asserted a non-zero exit for an
+undelivered send.
+
+**Prevention:** exit 3 + `NOT DELIVERED:` on every queued post. Strict `--hub` parsing with named reasons. The refusal in
+`send_auto_discover`. `register` refuses a runtime-dir mismatch. `termlink fleet join` makes the correct setup a single
+proven command. All are pinned by hermetic tests in `crates/termlink-cli/tests/t3749_loud_send.rs` plus unit tests; the
+pre-fix binary is the negative control and the refusal mutant was killed.
+
+**Mac test to confirm (no secrets):** `termlink --version`; `termlink remote profile list`; `termlink hub probe
+192.168.10.122:9100` (expect sha256:22c19fed...); `termlink tofu verify 192.168.10.122:9100`; `termlink channel
+queue-status` (a pending count > 0 is the lost message); and the exact command used for the send.
+
 ## Evolution
+
+### 2026-11-12 — the hub log was not the send
+- **What changed:** the 0.1 ms EOF is a probe-shaped zero-byte connection; the real loss was the local offline queue answering exit 0.
+- **Plan impact:** (b) became the main fix; (a) is answered by the Mac test rather than a code path on .122.
+- **Triggered:** none filed. The `net test` L1 bare connect still leaves a misleading WARN on hubs (left as is, noted in the hand-back).
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at

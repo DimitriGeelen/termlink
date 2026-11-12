@@ -361,6 +361,19 @@ fn hub_socket_soft(hub: Option<&str>) -> Result<TransportAddr> {
 /// not a delivered one (vendored-arc-heartbeat.sh already maps it to 3).
 pub(crate) const EXIT_QUEUED_NOT_DELIVERED: i32 = 3;
 
+/// T-3749: the error a queued (undelivered) post returns. `main` maps it,
+/// anywhere in the error chain, to [`EXIT_QUEUED_NOT_DELIVERED`].
+#[derive(Debug)]
+pub(crate) struct QueuedNotDelivered(pub String);
+
+impl std::fmt::Display for QueuedNotDelivered {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for QueuedNotDelivered {}
+
 /// T-3749: the stderr line printed with every queued (undelivered) post.
 fn queued_not_delivered_msg(topic: &str, queue_id: i64, hub: &TransportAddr) -> String {
     let target = match hub.as_unix_path() {
@@ -1444,9 +1457,10 @@ pub(crate) async fn cmd_channel_post(
                     "Queued to {topic} — queue_id={queue_id} (hub unreachable; will flush on next reconnect)"
                 );
             }
-            // T-3749: queued is not delivered — say so on stderr and exit non-zero.
-            eprintln!("{}", queued_not_delivered_msg(topic, queue_id, &sock));
-            std::process::exit(EXIT_QUEUED_NOT_DELIVERED);
+            // T-3749: queued is not delivered — main prints this and exits 3.
+            return Err(anyhow::Error::new(QueuedNotDelivered(queued_not_delivered_msg(
+                topic, queue_id, &sock,
+            ))));
         }
     }
     Ok(())
@@ -1631,9 +1645,10 @@ async fn run_await_ack(
                          reconnect). Ack not awaited: no live connection while offline."
                     );
                 }
-                // T-3749: queued is not delivered.
-                eprintln!("{}", queued_not_delivered_msg(&topic, queue_id, &sock));
-                std::process::exit(EXIT_QUEUED_NOT_DELIVERED);
+                // T-3749: queued is not delivered — main prints this and exits 3.
+                return Err(anyhow::Error::new(QueuedNotDelivered(queued_not_delivered_msg(
+                    &topic, queue_id, &sock,
+                ))));
             }
             PostOutcome::Delivered { .. } => {
                 // Hub is reachable — proceed to the ack-await retry loop below.
@@ -13643,9 +13658,12 @@ mod tests {
         };
 
         let result = run_await_ack(sock, pending, /* json_output */ true, opts).await;
+        // T-3749: queued is reported as the typed not-delivered outcome (exit 3
+        // in main), never as success, and never as a hard failure that drops it.
+        let err = result.expect_err("hub-down --await-ack must report not-delivered, not success");
         assert!(
-            result.is_ok(),
-            "hub-down --await-ack must NOT hard-fail (it used to drop the message): {result:?}"
+            err.chain().any(|c| c.is::<QueuedNotDelivered>()),
+            "hub-down --await-ack must be the queued-not-delivered outcome, got: {err:#}"
         );
 
         // The message must be durable: a row is present in the offline queue.

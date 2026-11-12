@@ -39,6 +39,22 @@ fn cli_verb_path(matches: &ArgMatches) -> String {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // T-3749: a post that only reached the local offline queue surfaces as a
+    // typed error from any verb built on `channel post` (dm, agent contact,
+    // ...). It exits 3, distinct from 1 (failed) and never 0 (delivered). It is
+    // mapped HERE rather than with process::exit at the call site, so an
+    // in-process caller (unit tests) still gets a Result.
+    let r = real_main().await;
+    if let Err(e) = &r
+        && e.chain().any(|c| c.is::<commands::channel::QueuedNotDelivered>())
+    {
+        eprintln!("{e:#}");
+        std::process::exit(commands::channel::EXIT_QUEUED_NOT_DELIVERED);
+    }
+    r
+}
+
+async fn real_main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
         .with_env_filter(
