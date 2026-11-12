@@ -37,6 +37,7 @@ export TERMLINK_NOTIFY_DIR="$TMP/notify"; mkdir -p "$TERMLINK_NOTIFY_DIR" "$TMP/
 export TERMLINK_JOURNAL_PATH="$TMP/journal.sqlite"
 export SIDECAR_API_TEST_HUB_RC=0 SIDECAR_API_TEST_FQDN=host-a.example SIDECAR_API_TEST_IP=10.0.0.5
 export TERMLINK_BIN=/nonexistent/termlink   # nothing here may reach a real binary
+export NOTIFY_SUPERVISOR_REMOTE_RELAY=off   # T-3750: hermetic, the relay never reads real hubs here
 A=agentx
 api() { bash "$API" "$@" 2>&1; }
 

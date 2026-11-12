@@ -36,6 +36,7 @@ trap cleanup EXIT
 
 export TERMLINK_NOTIFY_DIR="$TMP/notify"
 export NOTIFY_SUPERVISOR_LOG_DIR="$TMP/logs"
+export NOTIFY_SUPERVISOR_REMOTE_RELAY=off   # T-3750: hermetic, the relay never reads real hubs here
 mkdir -p "$TERMLINK_NOTIFY_DIR" "$TMP/bin" "$TMP/logs"
 
 FAKE="$TMP/bin/fake-sidecar.sh"
@@ -170,6 +171,21 @@ if [ "$rc" = "1" ] && grep -q "FLAG-DRIFT fxb" <<< "$out"; then ok "a flag added
 else bad "flag drift detected" "rc=$rc: $out"; fi
 if [ "$pidc" = "$pidb" ]; then ok "flag drift does NOT kill the running sidecar"
 else bad "drift must not kill" "pidb=$pidb pidc='$pidc'"; fi
+
+# ---------------------------------------------------------------------------
+# T-3750: each sweep runs the remote-inbox relay, failure-isolated.
+# ---------------------------------------------------------------------------
+printf '#!/usr/bin/env bash\necho "relay ran PROJECT_ROOT=$PROJECT_ROOT"\nexit "${FAKE_RELAY_RC:-0}"\n' > "$TMP/fake-relay.sh"
+out=$(NOTIFY_SUPERVISOR_REMOTE_RELAY="bash $TMP/fake-relay.sh" sup --quiet); rc0=$?
+if grep -q "relay ran PROJECT_ROOT=/" "$TMP/logs/.remote-inbox-relay.log" 2>/dev/null; then ok "T-3750: a sweep runs the remote-inbox relay, its output in its own log"
+else bad "T-3750 relay ran" "log: $(cat "$TMP/logs/.remote-inbox-relay.log" 2>&1)"; fi
+out=$(FAKE_RELAY_RC=2 NOTIFY_SUPERVISOR_REMOTE_RELAY="bash $TMP/fake-relay.sh" sup --quiet); rc2=$?
+if [ "$rc2" = "$rc0" ]; then ok "T-3750: a failing relay does not change the supervisor's exit code ($rc0)"
+else bad "T-3750 relay isolated" "rc0=$rc0 rc2=$rc2"; fi
+: > "$TMP/logs/.remote-inbox-relay.log"
+out=$(NOTIFY_SUPERVISOR_REMOTE_RELAY="bash $TMP/fake-relay.sh" sup --dry-run)
+if grep -q "would run remote-inbox relay" <<< "$out" && [ ! -s "$TMP/logs/.remote-inbox-relay.log" ]; then ok "T-3750: --dry-run does not run the relay"
+else bad "T-3750 dry-run" "$out"; fi
 
 echo ""
 echo "----------------------------------------"

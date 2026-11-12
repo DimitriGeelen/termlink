@@ -25,6 +25,9 @@ hubs are read in parallel, so a down hub cannot hang session start.
 Exit: 0 nothing found and every hub read; 1 mail found; 2 nothing found but a hub (or a
 topic) could not be read, or the hubs file could not be read.
 
+--full-body (T-3750) adds "body" to each mail row: scripts/lib/remote-inbox-relay.py stores it in the
+sidecar receiver so the running session sees the message, not a 120-character preview.
+
 Seams (fixtures): --tl / REMOTE_INBOX_TL, --hubs-toml / REMOTE_INBOX_HUBS_TOML,
 REMOTE_INBOX_LOCAL_HOSTS (hosts that are this hub; default loopback + `hostname -I`),
 REMOTE_INBOX_TIMEOUT (default 10), REMOTE_INBOX_ALIAS_PREFIXES (default claude-termlink).
@@ -177,7 +180,9 @@ def read_hub(addr, profiles, a, names, prefixes):
                          "from": meta.get("from_project") or meta.get("from_agent") or m.get("sender_id") or "?",
                          "conversation_id": meta.get("conversation_id") or "",
                          "age_min": int((now - ts) / 60000), "age_hours": int(age_h),
-                         "preview": " ".join(body.split())[:120]})
+                         "preview": " ".join(body.split())[:120],
+                         "msg_type": str(m.get("msg_type") or ""),
+                         **({"body": body} if a.full_body else {})})
         if last is not None:
             marks.append({"key": key, "offset": last})
     if errs:
@@ -197,6 +202,8 @@ def main():
     p.add_argument("--threshold-hours", type=float, default=24)
     p.add_argument("--window-days", type=float, default=14)
     p.add_argument("--handled", default="")
+    p.add_argument("--full-body", action="store_true",
+                   help="T-3750: add each message's full body (the live relay stores it)")
     a = p.parse_args()
     if a.mode == "unseen" and not a.state_dir:
         p.error("--mode unseen needs --state-dir")

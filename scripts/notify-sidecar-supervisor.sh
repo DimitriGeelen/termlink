@@ -276,6 +276,29 @@ echo "notify-supervisor: $already ok, $started started"
 return 0
 }
 
+# ---- T-3750: relay mail on our inboxes on REMOTE hubs into the sidecar receiver --------
+# A peer replying from its own hub writes to our inbox on THAT hub; only session start read
+# it, so ring20's escalated report sat ~1 h unseen in a running session. Each sweep runs
+# scripts/lib/remote-inbox-relay.py, which stores new remote-inbox mail in the AEF sidecar
+# receiver; the receiver's own tick injects it into the running session. Rides this 5-min
+# sweep rather than a cron of its own (DP-3). Failure-isolated: own log, own lock, bounded,
+# and the supervisor's exit code is unchanged by it. Seam NOTIFY_SUPERVISOR_REMOTE_RELAY:
+# "off", or a command to run instead (fixtures).
+relay_remote_inbox() {
+    local cmd="${NOTIFY_SUPERVISOR_REMOTE_RELAY:-python3 $PROJECT_ROOT/scripts/lib/remote-inbox-relay.py --quiet}"
+    [ "$cmd" = "off" ] && return 0
+    [ "$DRY_RUN" = "1" ] && { echo "notify-supervisor: [DRY-RUN] would run remote-inbox relay"; return 0; }
+    # shellcheck disable=SC2086
+    # No flock (macOS): run unlocked rather than skip; the relay is idempotent by message id.
+    ( if command -v flock >/dev/null 2>&1; then flock -n 9 || exit 0; fi
+      PROJECT_ROOT="$PROJECT_ROOT" timeout "${NOTIFY_SUPERVISOR_RELAY_TIMEOUT:-240}" $cmd \
+          >> "$LOG_DIR/.remote-inbox-relay.log" 2>> "$LOG_DIR/.remote-inbox-relay.log.stderr"
+      rc=$?
+      case "$rc" in 0|1|2) : ;; *) echo "$(date -u +%FT%TZ) remote-inbox-relay: exited $rc (timeout or crash)" >> "$LOG_DIR/.remote-inbox-relay.log" ;; esac
+    ) 9> "$LOG_DIR/.remote-inbox-relay.lock"
+    return 0
+}
+
 # ---- T-3135 loop mode: the portable respawn core ------------------------------------
 # One sweep per --loop-interval, forever. Its pidfile + per-cycle heartbeat make the
 # supervisor's OWN liveness a readable fact (notify-sidecar-api.sh status reads them),
@@ -318,10 +341,13 @@ if [ "$LOOP" = "1" ]; then
     trap 'rm -f "$SUP_PID"; exit 0' INT TERM
     while :; do
         sweep_once || true
+        relay_remote_inbox
         echo "$(now_ms)" > "$SUP_HB.tmp" && mv -f "$SUP_HB.tmp" "$SUP_HB"
         sleep "$LOOP_INTERVAL" & wait $!
     done
 fi
 
 sweep_once
-exit $?
+sweep_rc=$?
+relay_remote_inbox
+exit "$sweep_rc"
