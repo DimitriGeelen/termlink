@@ -1677,7 +1677,7 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | FCW-207 | 06a | AL-23 | AFC-25 | E-50 | (changed in v0.3 by CR-6.16) a message whose identity triple is already stored → handled as a duplicate before the quota check (06 AL-14 `on_duplicate`), never charged to a quota and never refused for one. |
 | FCW-208 | 06a | AL-23 | AFC-25 | E-51 | (changed in v0.3 by CR-6.17) a class's integer limit (receipts 26 / 6 MiB, own project 51 / 13 MiB, general 179 / 45 MiB; together exactly 256 / 64 MiB) is reached → QUOTA for that class only; no class can use another's share. |
 | FCW-209 | 06a | AL-30 | new | E-66 | (changed in v0.3 by CR-6.33) an identity reads (polls) an inbox without ever acking → it is recorded as a consumer and flagged like any other second consumer (the BP-15 shape). |
-| FCW-210 | 06a | AL-40 | new | E-72 | (changed in v0.3 by CR-6.26) the W2 report lacks H-11 (e) or (f), or either is over its bound → W3's gate is not met; refused. |
+| FCW-210 | 06a | AL-40 | new | E-171 | (changed in v0.3 by CR-6.26) the W2 report lacks H-11 (e) or (f), or either is over its bound → W3's gate is not met; refused. |
 | FCW-211 | 06b | AL-42 | new | E-104 | (changed in v0.3 by CR-6.32) a CONSUMED event has no outcome 30 min [P] after the consume (the executor never returned) → OUTCOME_UNKNOWN with a needs-attention entry; it is never left CONSUMED without an age bound. |
 
 6.3 **AFC-n → FCW-n** (for step 5's 05a table "FCW-n → E-n", EV5 14.2).
