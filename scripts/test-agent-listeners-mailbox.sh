@@ -25,6 +25,8 @@ command -v jq >/dev/null 2>&1 || { echo "jq not in PATH" >&2; exit 2; }
 work="$(mktemp -d "${TMPDIR:-/var/tmp}/t3751-mbx.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 export TERMLINK_CACHE_DIR="$work/cache"
+# agent-send.sh's give-up path appends to the woken-but-silent canary log; keep it out of the real one (T-3753).
+export TERMLINK_WOKEN_SILENT_LOG="$work/woken-silent-canary.log"
 
 now="$(date +%s%3N)"
 h45=$((now - 45 * 3600 * 1000))
