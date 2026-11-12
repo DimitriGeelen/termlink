@@ -932,9 +932,15 @@ mod tests {
 
         assert!(session.child_pid() > 0);
 
-        session.signal(libc::SIGTERM).unwrap();
-        let status = session.wait().await.unwrap();
-        assert!(status > 0);
+        // T-3753: SIGKILL, not SIGTERM — an interactive sh on a tty ignores SIGTERM
+        // once it has set up, so the unbounded wait hung while holding PTY_LOCK and
+        // every other PTY test queued behind it (intermittent full-suite hang).
+        session.signal(libc::SIGKILL).unwrap();
+        let status = tokio::time::timeout(std::time::Duration::from_secs(10), session.wait())
+            .await
+            .expect("child did not exit after SIGKILL")
+            .unwrap();
+        assert_eq!(status, 128 + libc::SIGKILL);
     }
 
     #[tokio::test]
