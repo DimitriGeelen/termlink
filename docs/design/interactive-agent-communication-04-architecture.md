@@ -1,7 +1,9 @@
 # Interactive agent communication: step 4, architecture
 
 **Task:** T-3353 · **Arc:** arc-011 · **Chain:** arc-011-design, step 4 · **Role:** architect
-**Status:** DRAFT v0.3.1, the operator's rulings O-1 to O-7 of 2026-11-03 applied (T-3353 `## Decisions`); the
+**Status:** v0.4 (2026-11-12): the step 7 change requests CR-4.1..CR-4.16 and the operator's ruling D on F-20 folded in
+after the operator approved step 7 (T-3356, 2026-11-12; T-3689); marked "(changed in v0.4 by CR-4.n)" where they apply.
+Below, the v0.3.1 status as it stood: DRAFT v0.3.1, the operator's rulings O-1 to O-7 of 2026-11-03 applied (T-3353 `## Decisions`); the
 one finding of review round 3 (V-20261103-de612e86) fixed and accepted with change per the round cap. The
 independent review of v0.2 was accepted (operator ruling A, 2026-11-03). The step output as a whole is not yet
 approved. The decision records the operator ruled carry **accepted** with the ruling date (section 18); the others
@@ -23,6 +25,7 @@ this file in the repository.
 
 | Version | Date | Change | Task |
 |---|---|---|---|
+| 0.4 | 2026-11-12 | Step 7 change requests folded (07-review section 6.4, approved 2026-11-12, T-3356): CR-4.1 typing re-check in the watchdog's ruled checks (6.9.7.b, operator ruling A on F-1); CR-4.2 a repeated `ready` is not activity (6.14.1, 17.3); CR-4.3 receiver-checked origin for every `human` claim (17.5.e, AR-6); CR-4.4 origin reporting per harness (6.13.1.a, 17.10.a); CR-4.5 one watchdog line per unsubmitted episode, STALLED (6.9.7.d); CR-4.6 watchdog and back-off (6.9.7.e); CR-4.7 ambiguous forward post (7.2.e); CR-4.8 re-sent copy of a FORWARDED id (7.3.a); CR-4.9 per-tick re-evaluation of unforwarded role mail (6.13.5, 7.2.f); CR-4.10 blob keys and associated data for role-addressed and forwarded mail (6.4.3-6.4.4, 7.2.b); CR-4.11 non-main sessions are withheld role mail only (7.1.a); CR-4.12 with ruling D: interim `ps` veto on macOS, status `watchdog: degraded (macOS, ps veto)`, full veto T-3688 (6.9.7.f, AR-7); CR-4.13 harness identity (17.4.a); CR-4.14 AR-6 wording and detector; CR-4.15 READY ordering on boot id and host-monotonic value (17.2.a); CR-4.16 every inbox read records the consumer (6.6.1-6.6.2). Drawing D-4 changed (FORWARDED re-admit, ambiguous forward to UNCERTAIN). | T-3689 |
 | 0.3.2 | 2026-11-11 | Redaction only, no content change: the operator LAN subnet in drawing D-1 replaced by "private subnet", so the document can go to the step 7 panel's outside vendors (operator ruling A, T-3356). | T-3356 |
 | 0.3.1 | 2026-11-03 | Round 3 finding of review V-20261103-de612e86 (amber), accepted with change per the round cap (no further review round): every remaining "approve verb" wording reworded to the 12.2 placement (Watchtower and the operator's out-of-band channels, decision written back through the existing admin path, no new hub verb) in D-5 node T4, 11.2.5, 11.5 row T4 (TB-10) and 12.1 (enrolment C-1). Minor: the section 18 heading no longer says "all proposed". D-5 re-rendered (24.5). | T-3353 |
 | 0.3 | 2026-11-03 | Operator rulings O-1..O-7 applied, and only what follows from them. O-1 A: 6.4.6, DR-5, BP-21 decided; other file routes out of scope (T-3663). O-2 D+ supersedes DR-6: 6.9 rewritten (READY + no typing + no conversation; external 300 s watchdog), new 6.14 activity and conversation signals (CR-O2a, CR-O2c), watchdog with audit row (CR-O2b), DR-15. O-3 A + tightening: new 6.13 (human-initiated renewal, fast takeover with its bound, waiting-mail signal; CR-O3), DR-9 accepted, DR-16. O-4 A: 6.10.2, BP-14, B-18 (operator runme act) and B-26 (T-2876 prover re-based on TermLink). O-5 A: section 8 package accepted (DR-3, DR-12, DR-14). O-6: approvals via Watchtower and the operator's out-of-band channels, no new hub verb (12.2, K-27, XR-8); H-21 dropped, thresholds by reliability (15.2, XR-7); section 16 corrected to OD-7/OD-9; NID stated at every retirement (11, 12.8, 14). O-7 A: 8.4, DR-13 accepted. Section 17 is now the adapter contract AEF implements from. Build table: B-13, B-16, B-18, B-23, B-24 changed; B-25..B-29 new. 04a traceability v0.3. Drawings D-1, D-3, D-4, D-5 updated and re-rendered (24.4). | T-3353 |
@@ -438,8 +441,17 @@ random content key (XChaCha20-Poly1305), wraps the content key to the recipient'
 `sha256(cipher)`, and uploads the ciphertext with `artifact put` to the **recipient's home hub** (the hub the
 recipient pulls from, so cross-hub needs no relay). The message carries `blob: {cipher_sha256, plain_sha256, size,
 wrapped_key, name_hint}` inside the signed payload; `name_hint` is display text only.
+6.4.3.a (changed in v0.4 by CR-4.10) **Which key, and what the cipher binds.** The content key is wrapped to the agent
+whose inbox the message is posted to (for a role address, the agent the sender resolved the role to; for an exact
+instance, that instance's agent). The associated data of the encryption is a digest over the immutable fields of the
+signed envelope (`id`, `from`, `to` verbatim as sent, `conv`, `cipher_sha256`, `plain_sha256`, `size`), never over the
+receiving agent's own name, so a role address (`to: main` or the project) opens at whichever agent legitimately holds
+the content key. A forwarder never forwards a key it cannot open: Y unwraps the content key with its own X25519 key
+and re-wraps it to X inside the FORWARD envelope it signs (7.2.b); the original message bytes, and with them the
+original `wrapped_key` and associated data, stay unchanged.
 6.4.4 **Receive.** The receiver fetches by `cipher_sha256` (chunked `artifact get`, 256 KiB chunks), checks the
-digest, unwraps, decrypts, checks `plain_sha256`, and writes `<store>/blobs/<plain_sha256>` (0600) through temp,
+digest, unwraps (with its own key, or for a forwarded message with the key re-wrapped to it in the FORWARD envelope;
+changed in v0.4 by CR-4.10), decrypts with the associated data of 6.4.3.a, checks `plain_sha256`, and writes `<store>/blobs/<plain_sha256>` (0600) through temp,
 fsync, rename. Only then does it report STORED (R-11.e [P] adopted). A peer name or path is never a file name
 (SI-28). Failure (digest mismatch, missing chunk, cannot decrypt): not STORED, signed refusal to the sender,
 needs-attention. A partial transfer never reads as success (the T-3661 lesson).
@@ -481,13 +493,14 @@ is missing and no record fails its checksum unflagged.
 
 ### 6.6 P17 — hub changes (K-15; SI-16, FX-6, FX-4, PR-1a rest, R-44 DEAD)
 
-6.6.1 **Consumer list per inbox [P].** The hub records, per inbox topic, every identity that subscribed, acked or
+6.6.1 **Consumer list per inbox [P].** The hub records, per inbox topic, every identity that read it (poll, read,
+subscribe; changed in v0.4 by CR-4.16: a reader that never acks is a consumer too, the BP-15 incident shape), acked or
 claimed it, with first and last time (bounded: 16 identities per inbox, oldest evicted, eviction logged). RPC
 `inbox.consumers <topic> [--window S]`. The sidecar checks it each tick: any identity but its own within the window
 (V-11, 24 h) is "inbox consumed by two identities: A, B" in status and needs-attention (FP-1 failure 2, 60 s).
 6.6.2 **Refuse later, flag now.** During W1 to W3 a second receiver can be legitimate for minutes in a switch, so the
-hub flags. After W4 for an inbox, `runme.sh` binds it (`admin inbox bind <topic> <identity>`) and the hub refuses ack
-and claim from any other identity (R-49.e "refused or flagged"). DR-11.
+hub flags. After W4 for an inbox, `runme.sh` binds it (`admin inbox bind <topic> <identity>`) and the hub refuses every read (poll, read,
+subscribe), ack and claim from any other identity (changed in v0.4 by CR-4.16) (R-49.e "refused or flagged"). DR-11.
 6.6.3 **Admin log and sweep refusal (FX-6).** Every admin-scope RPC is appended to the hub's audit log with caller,
 method, params digest and result (the existing `rpc-audit.jsonl` gains an `admin: true` field and is never rotated
 away under 30 days). `channel.sweep`, `set-retention` and trim on an `inbox:` or conversation topic are refused when
@@ -598,8 +611,11 @@ either direction and no hook surfacing event (S3), all as measured by 6.14. The 
 activity (it is typed through `notify`, counted apart from client input, 6.14.2).
 6.9.7.b **Types anyway**, even when READY says busy, the same SI-1 line, after these checks only: the kill switch;
 the foreground process is the registered harness (never type into a shell); the built process-tree activity veto at
-that moment (a long silent tool run that still uses CPU, network or disk in the agent's tree holds it). It does not
-check READY or the conversation signal (that is the point: they may be what is stuck).
+that moment (a long silent tool run that still uses CPU, network or disk in the agent's tree holds it; on macOS the
+interim veto of 6.9.7.f); (changed in v0.4 by CR-4.1, operator ruling A on F-1, 2026-11-12) no client input in the last
+30 s, re-read immediately before typing (S1 is measured by the TermLink session from the bytes a client writes, so it
+cannot be stuck the way a flag can). It does not check READY or the conversation signal (that is the point: they may be
+what is stuck).
 6.9.7.c **Its own audit row (CR-O2b).** Every fire, and every hold by one of 6.9.7.b's checks, appends a row to the
 sidecar's admin chain: `{kind: "doorbell-watchdog", session, at, silent_for_s, ready_flag: busy|ready|absent,
 ready_age_s, last_activity: {s1, s2, s3}, checks, outcome: typed|held:<check>, message_ids}`, and the hub stage write
@@ -608,6 +624,29 @@ busy for N s while nothing happened in the session" (evidence of a stuck or fals
 6.9.7.d **Bound.** At most one watchdog fire per session per 300 s of silence; after a fire without hand-over it waits
 another full 300 s of silence. Delivery rules of 6.9.4 apply unchanged (ATTEMPTED only; HANDED_OVER only from
 evidence). The watchdog is measured by H-11 (f) and its audit rows; its interval is a starting value under FP-4.
+(changed in v0.4 by CR-4.5) **One line per unsubmitted episode.** An unsubmitted episode starts when a typed line (ring
+or watchdog) is not followed by a submit carrying its ids within 1 tick (6.9.5) and ends at the next submit in that
+session or a session restart. Within one episode the watchdog types at most one line. If that line is not submitted
+either, the session enters **STALLED**: no typing of any kind (normal ring or watchdog) until a submit or a session
+restart, one needs-attention entry per episode ("session S stalled: N lines typed and not submitted, mail waiting"),
+and status shows `doorbell: stalled since T`. The mail stays owed and its R-44.e deadline runs unchanged, so the sender
+still sees STUCK in time. The bound on lines per episode is therefore 2 (the ring's line and the watchdog's line).
+6.9.7.e (changed in v0.4 by CR-4.6) **Watchdog and the ring schedule.** The watchdog's conditions (6.9.7.a) do not read
+the ring's back-off, so it may fire while the normal ring is in back-off, including with a fresh READY: back-off means
+rings did not lead to a hand-over, which is the case the watchdog exists for. It may not fire inside an unsubmitted
+episode except for the one line of 6.9.7.d. A watchdog line counts as a ring for the schedule: the back-off steps on
+(the next normal ring waits the next back-off step after the watchdog line), and the at-most-one-ring-per-session-per-
+tick rule of 6.9.4 covers both kinds.
+6.9.7.f (changed in v0.4 by CR-4.12 and the operator's ruling D on F-20, 2026-11-12) **Where the built veto cannot
+measure.** The built veto (T-3387) reads `/proc`. On macOS, the interim veto, built with B-16, is `ps`-based: the
+watchdog holds (`held:veto`) when the harness's process tree has a running child process, or the tree uses noticeable
+CPU over the 1.5 s window. With the 300 s silence (6.9.7.a) and the 30 s typing re-check (6.9.7.b) it may then type.
+Stated blind spot: a job that waits only on network or disk, with no child process and no CPU, is not seen; the line
+then arrives mid-turn and waits as the next prompt (AR-7). Status shows `watchdog: degraded (macOS, ps veto)` for each
+such session. The full macOS veto from the OS process information (CPU, disk and network per process, libproc /
+`proc_pidinfo`), equivalent to the Linux veto, is build task T-3688; it replaces the interim veto only once proven in
+the field (NID). On a host where neither `/proc` nor `ps` can measure, the watchdog does not fire and status shows
+`watchdog: unavailable (veto unmeasurable)`, raised as a needs-attention entry, not a routine row (CR-4.12).
 
 ### 6.10 P22 — vendor-channel use logged and shown (K-20; FX-1, R-79, RA-5)
 
@@ -672,6 +711,14 @@ their own hooks, which send no origin today. A claim with **no origin field** is
 tightening applies to a project from the first claim that carries an origin field; from then on the hub records the
 project as origin-reporting and an `absent` claim from it is ignored like `unknown`. So the lease never stops renewing
 in a project merely because TermLink shipped first.
+(changed in v0.4 by CR-4.4) **Per harness, by an operator act.** The previous two sentences are replaced as follows:
+origin reporting is decided per harness (the adapter's `harness` field, 17.2), not per project, because one project
+can run harnesses whose adapters report origin beside harnesses whose hooks do not. A harness is switched to
+origin-reporting only by a recorded operator act (a runme action, written to the hub's admin log) after its adapter
+has passed the 17.9 fixtures; from then on an `absent` claim from that harness is ignored like `unknown`, and claims
+from other harnesses of the same project are unaffected. The switch is never set by a claim (not by a non-human claim,
+not by a failed claim, not by the first claim that carries an origin field) and never reverts because a lease record
+aged out of retention: it is a configuration record, not a lease record.
 6.13.2 **Provisional first claim.** "First claim wins" stays: at SessionStart of an interactive session, a vacant lease
 is taken `provisional`, valid 5 min, renewable only by a human-initiated prompt in that session. A provisional holder
 never blocks anyone: a human-prompt claim from any session takes it at once (no quiet period, no cooldown), and it
@@ -698,7 +745,9 @@ gated receivers) and raises the signal of 6.13.5.
 TermLink sidecar for its inboxes; AEF's receiver for the inboxes it serves, by the same definition in the adapter
 contract, 17.7) raises the signal when role mail (addressed to main or the project, not an exact instance) has been
 STORED and not HANDED_OVER for 10 min (V-21) **and** the lease is vacant, lapsed, provisional or unknown, or its
-holder has had no human-initiated prompt for 10 min. Where it lands, in order of escalation:
+holder has had no human-initiated prompt for 10 min, **or** (changed in v0.4 by CR-4.9) this receiver is not the
+holder's agent and still holds the mail unforwarded: role mail held by a receiver that is not the holder's agent
+counts as "not reading" for that receiver, however active the holder is, because the holder cannot see it. Where it lands, in order of escalation:
 6.13.5.a at once: a needs-attention entry, and the status field `main.mail_waiting {count, oldest_age_s, holder,
 holder_human_age_s, since}`;
 6.13.5.b at the start of every session of the project: one line from `scripts/session-start-alerts.sh` ("MAIL WAITING:
@@ -728,7 +777,7 @@ kept per session by the sidecar; none is the agent's own busy flag.
 | Signal | What is measured | Source | Where it cannot be measured |
 |---|---|---|---|
 | S1 terminal input | bytes written to the session's PTY by an attached client (keystrokes) | the TermLink session counts PTY input **per source**: `client`, `notify` (doorbell), `inject` (inject RPCs); the sidecar reads `last_at` per source each tick through a session RPC in the `notify` scope | sessions not under a TermLink PTY: `unknown` (the doorbell and watchdog do not ring those sessions at all, 6.9.1) |
-| S2 agent output and turn events | (a) turn events the adapter reports: prompt submitted (with origin), tool start, tool end, turn stop, session start and end (17.4); (b) growth of the session's transcript (size and mtime each tick) | hooks → sidecar `hook event`; transcript path from the adapter's session-start report | a harness without an adapter: (b) only, if a transcript path is known; else `unknown` |
+| S2 agent output and turn events | (a) turn events the adapter reports: prompt submitted (with origin), tool start, tool end, turn stop, session start and end (17.4), and a READY state change (changed in v0.4 by CR-4.2: a repeated `ready` report with an unchanged state, an `evidence` or a `complete` report is not activity, so an adapter repeating `ready {BUSY}` cannot keep the watchdog from firing); (b) growth of the session's transcript (size and mtime each tick) | hooks → sidecar `hook event`; transcript path from the adapter's session-start report | a harness without an adapter: (b) only, if a transcript path is known; else `unknown` |
 | S3 communication | messages the session's agent **sent** from that session, and messages **handed over** to it (hook surfacing events, HANDED_OVER); the operator's prompts counted by S2 (a) | the sidecar's own send API and stage records, per session | none (the sidecar is on both paths) |
 
 6.14.2 **What does not count.** Doorbell and watchdog keystrokes (`notify` source) are not S1. Mail merely arriving
@@ -762,22 +811,47 @@ H-11 harness reports, per session over 7 days: the distribution of gaps between 
 session of its own agent (`lease.rs`). When main is a session of another agent, the sidecar delivers as before (fail
 open). AEF-received projects share one project inbox and are gated per session by AEF T-5014 (`am-i`), so forwarding
 is needed only where agents have their own inboxes: TermLink sidecars.
+7.1.a (changed in v0.4 by CR-4.11) **Decided [P]: a non-main session is withheld role mail only.** The text above
+("withholds role mail") is the rule; the built pull (T-3654), which withholds **all** mail from a non-main session, is
+to change to match it. Mail addressed to an exact instance (R-62.a) is that instance's whatever the lease says, so
+withholding it from that session would hold it with no route to anyone. What is withheld (role mail) is exactly what
+the waiting-mail signal (6.13.5) and the per-tick re-evaluation (7.2.f) cover. Until the pull is changed, the
+waiting-mail signal also counts exact-instance mail withheld from a non-main session, so nothing withheld is silent.
+The pull change is a build item after this approval (not B-27, which does not touch the pull).
 7.2 **Rule [P].** A sidecar Y that receives a message addressed to a role (`to: main` or the project, not an exact
 instance) while the lease, read within its 15 s period, names a valid holder X of another agent of the same project:
 7.2.a stores it (STORED is Y's promise and stays true);
 7.2.b forwards once: posts to X's inbox on the project's home hub a `FORWARD` envelope signed by Y, carrying the
 original signed message bytes unchanged (with the topic they were signed for), `generation`, `hop` +1, `via: Y
-instance`. The original signature binds the original topic (ARCH2 6.4.4), so the original cannot be re-posted
+instance`, and for a message with a blob the content key re-wrapped to X (changed in v0.4 by CR-4.10, 6.4.3.a). The original signature binds the original topic (ARCH2 6.4.4), so the original cannot be re-posted
 bare; the envelope keeps it intact and verifiable (XR-2);
 7.2.c tells the sender with a signed `VIA` notice: "delivered via Y; main is X (generation N); resolve via the home hub",
 and marks its own copy `forwarded` (final at Y, never handed over at Y);
 7.2.d never forwards conversation mail bound to an exact instance (R-62.a), never forwards a `FORWARD` (hop rule), and
 never forwards on an unknown, stale or vacant lease (it delivers as before and says so in status).
+7.2.e (changed in v0.4 by CR-4.7) **An ambiguous forward post.** If the post of the FORWARD fails ambiguously (a
+timeout, a lost reply: the hub may have stored it), Y does not abandon the forward and does not offer the message
+locally until it has a definite "not present" for the forward's idempotency id at `inbox:X` (a read of X's inbox by
+that id). Definite "not present": Y may retry the forward or, if the lease no longer names X, re-evaluate (7.2.f).
+Present: the forward stands (FORWARDED). Neither answer obtainable within the forward deadline: the message becomes
+UNCERTAIN at Y, shown to the operator, who decides; it is never handed over at Y and at X both by the system's own
+choice (H-24).
+7.2.f (changed in v0.4 by CR-4.9) **Re-evaluated each tick.** The forward decision is not taken once. Every tick, each
+role message at Y that is STORED, not forwarded and not handed over is re-evaluated by the start-up predicate (the
+rule of 7.2 against the lease read in that tick): a lease that was unknown, stale or vacant when the message arrived
+and now names a valid holder of another agent leads to the forward then.
 7.3 **At X.** X verifies the outer signature (Y is in the same project's roster), the inner signature against the
 original topic (a role address of X's project), and `generation` against the lease it reads. Match: process the
 inner message as its own (identity triple, R-51: a second copy is the same message). Mismatch (X is no longer main):
 X stores it, does not forward it, and posts `FORWARD-STALE` to the sender, whose ladder re-resolves through the home
 hub and re-sends the same message id (normal resolution, no bounce, R-67.e).
+7.3.a (changed in v0.4 by CR-4.8) **A re-sent copy at a receiver whose copy is FORWARDED.** FORWARDED is final for that
+copy's route, not for the message id. When a receiver whose own copy of an id is FORWARDED receives the same id again
+(the sender re-sent it after FORWARD-STALE and resolution landed on this receiver again), it does not dedupe it
+silently by the identity triple: it re-admits the message (FORWARDED → STORED, recorded with the reason) and runs the
+rule of 7.2 again against the current lease, so the message is forwarded to the current holder or delivered here. A
+message id re-admitted more than the hop limit (PN-17) is refused with a notice that tells the sender to send it under
+a new id, and is listed to the operator; it is never left with no offerable copy anywhere.
 7.4 **Cross-host.** All agents of a project use the declared home hub (R-54), so the forward is always a post to that
 hub; X may be on another host. A forwarder on a host that cannot reach the home hub has no lease (unknown) and does
 not forward.
@@ -938,6 +1012,8 @@ stateDiagram-v2
     RECEIVED --> REFUSED: bad signature, revoked key, quota, hop, blob fails
     RECEIVED --> STORED: verified, durable, checksum
     STORED --> FORWARDED: role mail, lease names another agent
+    FORWARDED --> STORED: re-admit
+    STORED --> UNCERTAIN: forward post ambiguous, presence unknown
     STORED --> QUEUED: flag raised
     QUEUED --> ATTEMPTED: doorbell or watchdog rang, or hook pulled with claim
     ATTEMPTED --> ATTEMPTED: no evidence in 90 s, labelled HANDOVER_UNCONFIRMED
@@ -980,7 +1056,9 @@ stateDiagram-v2
 10.2 Text equivalent of D-4.
 10.2.1 (a) A message at the receiver starts RECEIVED. It is REFUSED (final) for a bad signature, a revoked key, a quota,
 the hop limit or a failed blob; otherwise STORED once verified and durable. Role mail whose lease names another
-agent becomes FORWARDED (final at this receiver). Otherwise the flag makes it QUEUED; a doorbell ring or a hook pull
+agent becomes FORWARDED (final for that route at this receiver; changed in v0.4 by CR-4.8, a re-send of the same id
+re-admits it to STORED and the forward rule runs again; by CR-4.7, a forward whose post failed ambiguously and whose
+presence at X cannot be established becomes UNCERTAIN for the operator). Otherwise the flag makes it QUEUED; a doorbell ring or a hook pull
 with the claim makes it ATTEMPTED; the nonce in the transcript makes it HANDED_OVER; a crash without an evidence point
 makes it UNCERTAIN, which only the operator resolves (to HANDED_OVER or back to QUEUED); proof of absence returns it
 to QUEUED. A watchdog ring also makes it ATTEMPTED; with no evidence within 90 s it stays ATTEMPTED and is labelled
@@ -1239,15 +1317,35 @@ socket, or AEF's receiver for the inboxes it serves) as one JSON object per even
 `{schema: "termlink.adapter/2", harness, harness_version, session_id, agent_id, event, at_ms, ...fields}`. `at_ms` is the
 adapter's monotonic-anchored wall time; the receiver stamps its own receive time and uses that for deadlines (V-5). A
 report the receiver cannot parse is ignored and counted; it never counts as READY, human or evidence.
+17.2.a (changed in v0.4 by CR-4.15) **Ordering of reports.** Hook processes are short-lived and a wall clock can step
+backwards, so `at_ms` does not order reports. Every report also carries `boot_id` (the host's boot identifier) and
+`mono_ns`, a host-monotonic value (Linux `CLOCK_BOOTTIME`, macOS `mach_continuous_time` converted to ns). The receiver
+orders reports of one session by `(boot_id, mono_ns)`: within one `boot_id` the higher `mono_ns` is later; a report
+with a `boot_id` different from the last one seen is later than every report of the previous boot (the receiver
+records the change). A report older than the newest one already applied for the same key (READY, `last_prompt`) is
+ignored and counted. A report without these fields (adapters before this change) is ordered by the receiver's own
+receive stamp, never by `at_ms`. `at_ms` stays for display and audit.
 17.3 **R1 readiness (R-21.a, R-47.a) — MUST.** `event: "ready"` with `state: READY | BUSY | NOT_RUNNING`. READY at the
 end of a turn (Claude Code: Stop); BUSY before a turn or tool (Claude Code: UserPromptSubmit, PreToolUse); NOT_RUNNING at
 session end. The receiver keeps it as the session's READY flag with its age. A missing, unreadable or stale flag reads
 as not ready. The flag gates the normal doorbell (6.9.1) and nothing else: the watchdog (6.9.7), the conversation
-signal (6.14.4) and the lease (6.13) never read it.
+signal (6.14.4) and the lease (6.13) never read it. (changed in v0.4 by CR-4.2) A `ready` report whose state equals the
+flag's current state refreshes the flag's age only; it is not activity for S2 (6.14.1). S2 (a) moves only on the turn
+events of 17.4 and on a READY state change.
 17.4 **R2 turn events (CR-O2a) — MUST.** `event` one of `session_start {transcript_path, interactive: bool}`,
 `prompt_submit {origin}` (17.5), `tool_start {tool}`, `tool_end {tool}`, `turn_stop`, `session_end`. They feed S2 of
 6.14 and the vendor-channel log (`tool_start` with a vendor tool, 6.10). `transcript_path` MAY be absent; then S2 uses
 turn events only.
+17.4.a (changed in v0.4 by CR-4.13) **Which process is the harness.** `session_start` MUST carry `harness_pid`, the pid
+of the harness process that runs the hooks' session. The TermLink session records the process it launched
+(`pty_launched`, its pid and executable) and, each tick, the process-group leader in the foreground of the PTY, so a
+harness restarted inside the PTY (a new process group leader) is seen as a new harness instance and must report a new
+`session_start` before it is rung. The registry of harnesses matches on `(exe_realpath, script_path)`: for a native
+binary the resolved executable path; for a harness run by an interpreter (for example `node`) the interpreter's path
+together with the resolved path of the script it runs (the first non-option argument). The foreground check of 6.9.2
+and 6.9.7.b compares the PTY's foreground process-group leader against the recorded `harness_pid` and this registry
+entry, never a process name (`comm`). On Linux the paths come from `/proc/<pid>/exe` and `/proc/<pid>/cmdline`; on
+macOS from `proc_pidpath` and `ps -o args=` (or `sysctl KERN_PROCARGS2`) for the arguments.
 17.5 **R3 prompt origin (CR-O3 (a)) — MUST.** Every `prompt_submit` carries `origin: human | automated | unknown` and
 `basis`:
 17.5.a `automated` MUST be reported when the adapter can tell the prompt did not come from a person: the prompt text is
@@ -1259,6 +1357,14 @@ as generated (scheduled wake-up, loop, timer, sub-agent; basis `harness-mark`); 
 input came from the attached client (the session's per-source input counters, 6.14.1 S1); or with basis `inferred`
 when the session is interactive, none of 17.5.a applies, and the harness gives no origin mark. `inferred` is accepted
 and its share is measured (6.13.6); it is the weak point (AR-6).
+17.5.e (changed in v0.4 by CR-4.3) **The receiver checks every `human` claim it can.** For a session under a TermLink
+PTY, the receiver applies its own per-source input counters (6.14.1 S1) to every prompt reported `human`, whatever the
+basis (`pty-input` and `inferred` alike): a prompt with no client bytes since the previous submit is downgraded to
+`automated`, and so is a prompt whose submit follows a line the receiver typed (`notify`) with no client bytes after
+it; terminal replies the session classifies as `client_auto` are not client bytes. The doorbell override needs no
+`doorbell_ids` from the adapter: the receiver's own record of what it typed in the window is enough. The lease claim
+carries the **receiver-checked** origin, the lower of the hook's report and the receiver's check (order `automated` <
+`unknown` < `human`); when the receiver cannot be reached the hook sends `unknown`, never its own `human`.
 17.5.c `unknown` when the adapter cannot decide. Receivers treat `unknown` as **not human** for the lease (no renewal,
 6.13.1) and as **human** for the conversation signal (do not interrupt, 6.14.4.a): each fails toward the safer side.
 17.5.d Whether Claude Code's hook input or transcript marks generated prompts is an **[A]** that AEF verifies in T-5054;
@@ -1283,6 +1389,10 @@ harness-independent; the adapter is the only harness-specific part and this sect
 doorbell is a session RPC with ids only. Forwarding, revocation, blobs and the lease use hub RPCs over the existing
 transport (Unix socket or TLS); the circuit (PH-5) is a second transport under the same delivery contract (R-46.a (3)).
 Nothing depends on a vendor channel (R-79).
+17.10.a (changed in v0.4 by CR-4.4) **Origin reporting is per harness.** Whether a receiver ignores claims with no
+origin field is decided per harness (`harness` of 17.2), switched on by a recorded operator act after the harness's
+adapter passes the 17.9 fixtures (6.13.1.a), never per project and never by a claim, so a harness without origin
+reporting keeps renewing as before beside one that has it.
 
 ## 18 Decision records (status per record: accepted with ruling date, superseded, or proposed)
 
@@ -1355,6 +1465,25 @@ entry.
 `inferred`, a harness-generated prompt the adapter cannot recognise counts as human and renews main. Measured (share of
 renewals by basis, 6.13.6); closes when the harness exposes an origin mark (17.5.d) or the session runs under a
 TermLink PTY (basis `pty-input`).
+19.7.a (changed in v0.4 by CR-4.3) **What the receiver check closes and what it does not.** Closed for sessions under a
+TermLink PTY: a doorbell or watchdog line, an injected line, and a harness-generated prompt (`/loop`, timer, wake-up)
+with no client bytes behind it can no longer renew or take main, whatever the adapter reports (17.5.e). Not closed:
+(1) sessions not under a TermLink PTY, where `inferred` stays unchecked; (2) a harness-generated prompt that happens to
+follow genuine client keystrokes in the same window; (3) a process that writes client bytes itself, which is the
+same-user case of 19.7.b.
+19.7.b (changed in v0.4 by CR-4.14, operator ruling A on F-25 / RQ-3, 2026-11-12) **Same-user adversary.** Until an
+operator key exists (flag K, R-76), the O-3 tightening does not bind a same-user adversary: a process running as the
+agents' user can forge human prompt origins and Touch records, keep `last_human_at` fresh and hold main
+indefinitely, defeating lapse and fast takeover. Accepted by the operator as a residual that widens QR-3 and closes
+with Track K. It is made visible, never gated (RNU): the **human-claim detector** (evidence 05, CR-5.11) compares the
+rate of Touch records and human-counted renewals per session against the prompt origins the adapter reported through
+the hooks, and reports human claims that have no matching hook report (for example from outside the hooks) or that
+exceed the session's adapter-reported human prompts, as a needs-attention entry and a status field.
+19.8 **AR-7** (changed in v0.4 by ruling D on F-20) On macOS the watchdog uses the interim `ps` veto (6.9.7.f): a job
+that waits only on network or disk with no child process and no CPU is not seen, and the watchdog line then arrives
+mid-turn as the next prompt (as AR-5, but without the network and disk part of the veto). Accepted by the operator as
+ruling D, 2026-11-12; status `watchdog: degraded (macOS, ps veto)`; closes when the full macOS veto (T-3688) is proven
+in the field.
 
 ## 20 Change requests to earlier steps (requests, not edits)
 
@@ -1484,3 +1613,8 @@ transition labelled.
 24.5 Result, 2026-11-03, on v0.3.1 (script `.context/working/t3353/render/r3.sh`, same method). Only D-5 changed
 (node T4 label). Every block exit code 0; SVG sizes 50690, 26237, 43920, 81624 and 24886 bytes; no "syntax error" or
 "parse error" in any log or SVG.
+24.6 Result, 2026-11-12, on v0.4 (script `.context/working/t3689/render.sh`, same method). Only D-4 changed (FORWARDED
+re-admit to STORED, an ambiguous forward post to UNCERTAIN; CR-4.7, CR-4.8). Every block exit code 0; SVG sizes 50690,
+26238, 43920, 84621 and 24886 bytes; no "syntax error" or "parse error" in any log or SVG. D-4 was rendered to PNG and
+read: both new edges are drawn and labelled; the two labels between STORED and FORWARDED sit close together but both
+read.
