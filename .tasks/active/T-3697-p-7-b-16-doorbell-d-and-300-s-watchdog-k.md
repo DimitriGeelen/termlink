@@ -46,7 +46,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:31Z
-last_update: 2026-11-12T23:26:09Z
+last_update: 2026-11-12T23:32:18Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -117,8 +117,8 @@ Unblocks: P-9 (T-3699), P-38 (T-3717), P-43 (T-3688).
 - [x] The 300 s watchdog K-33 passes its specs, including the F-1 typing re-check and STALLED
 - [ ] On macOS the interim `ps` veto is active and status reads `watchdog: degraded (macOS, ps veto)` — built (`LivePorts::veto` uses `measure_ps` where there is no `/proc` on macOS; the engine shows `degraded (macOS, ps veto)`), proven here only on Linux `ps` against a real tree and in fixtures; not yet run on a macOS host (CI macOS job T-3271 or the M1)
 - [x] Session binding for S1 and `command.notify` passes its specs
-- [ ] The unit's fixture suite exits 0 with a PASS line per B-16 E-n and its mutant list is all killed (FP 3.1.b)
-- [ ] The H-11 (a)..(f) collectors write rows on the canary pair
+- [x] The unit's fixture suite exits 0 with a PASS line per B-16 E-n and its mutant list is all killed (FP 3.1.b)
+- [ ] The H-11 (a)..(f) collectors write rows on the canary pair — collectors built (rows in `<store>/ring-log.jsonl`, counters in status `doorbell.h11`) and tested in fixtures; the canary pair needs adapter/2 hooks (B-29, P-44) and a release installed on the W1 pair (P-8), so this cannot be checked here
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
