@@ -1,7 +1,10 @@
 # Interactive agent communication: step 6, pseudo-code, part B: later phases (PH-3 to PH-6)
 
 **Task:** T-3355 · **Arc:** arc-011 · **Chain:** arc-011-design, step 6 · **Role:** pseudo-coder
-**Status:** DRAFT v0.2, sub-document of `docs/design/interactive-agent-communication-06-pseudo-code.md` ("06"). Read
+**Status:** v0.3 (2026-11-12): the step 7 change requests for this file (CR-6.31, CR-6.32) folded in after the
+operator approved step 7 (T-3356; T-3689); marked "(changed in v0.3 by CR-6.n)". CR-6.36 (F-43, RC-7..RC-9) is
+deferred to PH-5's detailed pseudo-code by the approved disposition and changes nothing here yet. Below, the v0.2
+status as it stood: DRAFT v0.2, sub-document of `docs/design/interactive-agent-communication-06-pseudo-code.md` ("06"). Read
 06 sections 2 and 3 first. The FAILS CLOSED WHEN register for this file is 06 section 6.
 **Level of detail.** ARC4 sets PH-3 to PH-6 at architecture level and leaves their detailed sub-designs open behind
 gates (T-2470 charter, T-3385 confirmation provider, AEF's GP-11 channel standard, H-1 and H-27 for the circuit, Track
@@ -17,6 +20,7 @@ fails closed, and what happens on a crash. Field names and transports that a gat
 | 0.1 | 2026-11-11 | First draft: AL-41..AL-53 (approval broker scope of the card; policy, grants, roster and cards, circuit, membership, break-glass, custody, account helper, security levels); test vector V-T0-1; drawings D-1.12, D-1.13, D-2.7, D-2.8. | T-3355 |
 | 0.2 | 2026-11-11 | Remediation of review r1: F-1 AL-43 consume as one conditional hub step under event.lock with the AL-42 lock rule, FCW-191, D-1.12 and D-2.7 relabelled; F-2 AL-46 check and use as one hub reserve under grant.lock, AL-45 hub write under the same lock, FCW-192, FCW-193; F-3 AL-44 recover() matches its crash table, FCW-194; F-4 concurrency items for AL-45, AL-47..AL-53. Nothing else changed. | T-3355 |
 | 0.2.1 | 2026-11-11 | Redaction only: test vector V-T0-1's target uses the documentation address 198.51.100.122 instead of a LAN hub address; digest and signature recomputed with the step-6 generator (`.context/working/t3355/vectors.py`, which reproduced the old values exactly before the change). For the step 7 panel's outside vendors (T-3356). | T-3356 |
+| 0.3 | 2026-11-12 | Step 7 change requests folded (07-review 6.6, approved 2026-11-12, T-3356): CR-6.31 the hub sets `requested_by` and bounds `expires_at` (AL-41, FCW-153); CR-6.32 a CONSUMED age bound to OUTCOME_UNKNOWN (AL-42, FCW-211, D-1.12). CR-6.36 deferred to PH-5. | T-3689 |
 
 ## 1 Scope and inputs
 
@@ -39,6 +43,8 @@ action = {schema: "termlink.tier0-action/1", class: C-n, executor, target, actio
           requested_by, event_id: 128 random bits as 32 hex, expires_at: wall() + PN-15 (10 min)}
 create_action(a):
  1  require class in the registry (C-1..C-18 as ruled and XR-6); require executor, target, op, expires_at present  # FCW-153
+ 1a at the hub (CR-6.31): requested_by := the authenticated caller of the create RPC (a supplied value that differs
+    is refused); require expires_at <= wall_hub() + PN-15 + 30 s (skew allowance [P]) else refuse        # FCW-153
  2  c = canonical(a) (06a AL-20 rules); Err -> refuse                                                             # FCW-154
  3  digest = sha256_hex(c); display text = render(a) from the canonical object only (never from free text)
 ```
@@ -51,7 +57,9 @@ target `known_hubs:198.51.100.122:9100` (an RFC 5737 documentation address), op 
 Changing only `executor` or `target` changes the digest (the binding SI-13 needs).
 2.1.d **INVARIANTS:** two actions that differ in executor, target, operation, parameters or expiry have different
 digests. 2.1.e **FAILS CLOSED WHEN:** 2.1.e.1 **FCW-153** [new; E-104, ZR-1] the class is not registered, or executor,
-target, operation or expiry is missing → no event is created. 2.1.e.2 **FCW-154** [new; E-104] the action is not
+target, operation or expiry is missing, or (changed in v0.3 by CR-6.31) `requested_by` differs from the authenticated
+caller, or `expires_at` is later than the hub's clock plus PN-15 (10 min) and a 30 s skew allowance → no event is
+created. 2.1.e.2 **FCW-154** [new; E-104] the action is not
 canonicalisable (06a FCW-88 rules) → no event.
 2.1.f **EDGE CASES:** display drift (the shown text differs from what executes) is removed by rendering the display
 from the canonical object; stateless. 2.1.g pure. 2.1.h SHA-256; the signature, where an operator key exists (Track K),
@@ -79,6 +87,7 @@ socket runme uses; no new hub verb, O-6 OP-5), and expiry on the hub's clock.
 | CONSUMED | effect done, post-condition holds (AL-44) | — | DONE (final) | outcome record |
 | CONSUMED | effect done, post-condition fails | — | FAILED (final) | outcome, needs-attention |
 | CONSUMED | crash, outcome not determinable | — | OUTCOME_UNKNOWN | needs-attention; operator reconciles (AL-44) |
+| CONSUMED | no outcome recorded within EXEC_BOUND (30 min [P]) of the consume (changed in v0.3 by CR-6.32) | checked by the expiry sweeper under event.lock | OUTCOME_UNKNOWN | needs-attention ("executor never returned"); operator reconciles (AL-44); a late outcome is recorded beside it, never overwrites the operator's finding (FCW-211) |
 | OUTCOME_UNKNOWN | reconcile | operator's recorded finding | DONE or FAILED | record |
 
 ```text
@@ -91,6 +100,7 @@ decide(event_id, decision, digest, via):
  6  if decision == approve and e.class is high-impact and not confirmation_ok(e) (AL-43): refuse    # FCW-159
  7  append decision record (admin log first, then the event); e.state = APPROVED | DENIED
 expiry sweeper (each tick on the hub): with event.lock: re-load; PENDING or APPROVED past expires_at -> EXPIRED with a record
+                                        CONSUMED longer than EXEC_BOUND with no outcome -> OUTCOME_UNKNOWN (CR-6.32)
 cancel(event_id, who) and revoke(event_id, why): with event.lock: e = load(event_id)
     if e.state in {PENDING, APPROVED}: e.state = CANCELLED | REVOKED, record
     else: refuse "already <state>" (record the attempt); a CONSUMED event is not cancelled: its effect may be under
@@ -105,6 +115,9 @@ transition has a record in the one audit trail and a needs-attention row; (4) an
 2.2.e.3 **FCW-157** [new; ZR-1] a decision not written through the root-only admin path → refused. 2.2.e.4 **FCW-158**
 [new; E-104] a decision for an event that is already final or consumed (including after a cancel or revoke) → refused,
 recorded. 2.2.e.5 **FCW-159** [new; E-105] a high-impact approval without the out-of-band confirmation → no APPROVED.
+2.2.e.6 **FCW-211** [new; E-104] (changed in v0.3 by CR-6.32) a CONSUMED event has no outcome 30 min [P] after the
+consume (the executor never returned) → OUTCOME_UNKNOWN with a needs-attention entry; it is never left CONSUMED
+without an age bound.
 2.2.f **EDGE CASES:** (1) clock: expiry on the hub's wall clock, the single place it is decided; a surface showing a
 countdown uses it for display only; (2) concurrency: approve and cancel race: the event lock orders them; the later one
 is refused by FCW-158; cancel, revoke or expiry racing the executor's consume are ordered by the same lock (AL-43 step
@@ -491,7 +504,7 @@ stateDiagram-v2
   APPROVED --> REVOKED: revoke
   CONSUMED --> DONE: effect applied, post-condition holds
   CONSUMED --> FAILED: post-condition fails
-  CONSUMED --> OUTCOME_UNKNOWN: crash, effect not readable
+  CONSUMED --> OUTCOME_UNKNOWN: crash, effect not readable, or no outcome in 30 min
   OUTCOME_UNKNOWN --> DONE: operator reconciles
   OUTCOME_UNKNOWN --> FAILED: operator reconciles
   DENIED --> [*]
@@ -509,7 +522,8 @@ hub's one conditional step under the event lock (still APPROVED and unexpired, t
 state set CONSUMED in one transaction) makes it CONSUMED; an expiry, cancel or revoke that takes the lock first ends it,
 and the consume is then refused. 3.1.4 From CONSUMED
 a post-condition that holds gives DONE, one that fails gives FAILED, and a crash whose effect cannot be read gives
-OUTCOME_UNKNOWN, which only the operator reconciles to DONE or FAILED. 3.1.5 DENIED, EXPIRED, CANCELLED, REVOKED, DONE
+OUTCOME_UNKNOWN, which only the operator reconciles to DONE or FAILED; (changed in v0.3 by CR-6.32) a CONSUMED event
+with no outcome 30 minutes after the consume also becomes OUTCOME_UNKNOWN, with a needs-attention entry. 3.1.5 DENIED, EXPIRED, CANCELLED, REVOKED, DONE
 and FAILED are final.
 
 **Drawing D-1.13 — a circuit credential at its verifier (state machine, AL-48)**
