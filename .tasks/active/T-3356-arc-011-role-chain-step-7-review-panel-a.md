@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:09Z
-last_update: 2026-11-12T00:26:29Z
+last_update: 2026-11-12T04:41:41Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -123,10 +123,10 @@ disposition table; accepted findings become change requests to their steps (or t
 
 ### Agent
 - [x] Step 6 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3) (evidence: step 6 does not decide (`decides: false`), README 3.6; its review is green (round 2, V-20261111-7120be32, applied 2026-11-11); operator 2026-11-11 chose the step 7 panel, which presupposes step 6 as its input)
-- [ ] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned
-- [ ] `docs/design/interactive-agent-communication-07-review.md` exists with a version table and an inputs-of-record section citing the input hashes
-- [ ] External review panel run on steps 1, 4, 6; every finding dispositioned (accepted / rejected with reason / deferred)
-- [ ] Role-chain yaml step 7 `task:` set to this task id
+- [x] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evidence: docs/design/interactive-agent-communication/role-handback-step-07.json, schema-valid, bus T-3356 R-001)
+- [x] `docs/design/interactive-agent-communication-07-review.md` exists with a version table and an inputs-of-record section citing the input hashes (evidence: sections 0 and 1, including the four answer files)
+- [x] External review panel run on steps 1, 4, 6; every finding dispositioned (accepted / rejected with reason / deferred) (evidence: 07-review section 4: 71 raw findings -> F-1..F-51, 42 accepted / 6 rejected / 3 deferred; Codex unavailable three times, recorded as RQ-1)
+- [x] Role-chain yaml step 7 `task:` set to this task id (evidence: role-chain yaml line 94 `task: T-3356`)
 
 ## Verification
 
