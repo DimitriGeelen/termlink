@@ -1,0 +1,166 @@
+{
+ "schema": "role-handback/1",
+ "chain": "arc-011-design",
+ "step": 7,
+ "role": "review-panel",
+ "task": "T-3356",
+ "status": "ready-for-review",
+ "output": {
+  "path": "docs/design/interactive-agent-communication-07-review.md",
+  "sha256": "edcc283aced8940d9628239a0c3b41f13de2ba9dcb129f3a8d161d0340669090"
+ },
+ "inputs": [
+  {
+   "path": "CLAUDE.md",
+   "sha256": "a9b38fd1aeed0145289c6a8c89c491c2ae077d06e1847110209827f33e172aa3"
+  },
+  {
+   "path": "docs/design/roles/README.md",
+   "sha256": "3881d5302313a0d0ca4c9ef1b4688dae101b6d693df823be962e9b70946368e0"
+  },
+  {
+   "path": "docs/design/roles/cards/_common.md",
+   "sha256": "cca38806358d7a6c09e64289164977a825f2cf57e914f672076ff77a2bdb5563"
+  },
+  {
+   "path": "docs/design/roles/cards/review-panel.md",
+   "sha256": "9addac6bb48ab8cd57d473f4b37c4b38591bf6c79c27af70922c0dad578d88b8"
+  },
+  {
+   "path": "docs/design/roles/adapters/aef.md",
+   "sha256": "d840a77649888cdbfd37d1166c15eecd6cd3c8399d497fb6b1b2c52455c6c4a4"
+  },
+  {
+   "path": "docs/design/roles/profiles/termlink.md",
+   "sha256": "b6bc160242d96ca9a8fc167c6845e292529c162fa23faa2945d4742b676e7b21"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-role-chain.yaml",
+   "sha256": "4cea381100cd19fbfb06194c12c6a45fa5a81b471904d23b8c3cdecbcaab8020"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-01-requirements.md",
+   "sha256": "f6ce42a2984bd18e049f1f4dda05e6eaab2cc3508396fe373060c6fc527193c9"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-02-threat-model.md",
+   "sha256": "88961693384966502f4ca4eb515ed4b0590a29c3d61ac0c619e17ea4562693f3"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-03-floor-and-phasing.md",
+   "sha256": "e4de2e3e102ee59f6434db584e099e5bb180c6b33dfd823ae217e6ebb4e5a8c4"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-04-architecture.md",
+   "sha256": "a5cc08eba8f72ddaabc09e31939db9072155066313e7bced4b437b4eda24927a"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-04a-traceability.md",
+   "sha256": "c516a290997e0c75957c0be95af4d611e58155cd818d2fbae961c0f4ad6d4667"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-05-evidence.md",
+   "sha256": "29be80ae3ad8d32b71ef53caa00f9fdc6d03426c901215eaed85c019f889526e"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-05a-coverage.md",
+   "sha256": "16a4aa77b23cad191cf1b9153e60016a266ffc763c54674cb2d6e1f6341824fc"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-06-pseudo-code.md",
+   "sha256": "7d469813239e991304ddad04b35fe2dc713c1d0e2ed8142ee7c05b5ff4dbffcc"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-06a-pseudo-code-ph2-hardening.md",
+   "sha256": "1db1532a8d1d4c1002326a4b4e948be959b7a52c5bd33b8fba0ee2f405b69ebf"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-06b-pseudo-code-later-phases.md",
+   "sha256": "8878cf38acb328b5aee89ef43be71685f4cbd044bb63006b6d3189e268c9f8c2"
+  },
+  {
+   "path": "docs/reports/T-3356-panel/brief.md",
+   "sha256": "1f829a93e8956d003df5e61ddc4f93b994bedca9cfc448669603f99c3ea780be"
+  },
+  {
+   "path": "docs/reports/T-3356-panel/manifest.md",
+   "sha256": "c12aee41286991abc9e8c369583acf3c22c08846075f649edc0e7db1e0f30329"
+  },
+  {
+   "path": "docs/reports/T-3356-panel/claude-code.md",
+   "sha256": "e7dfbbe605b553ac13f42327d94acecc56ec43c9ddd1803f6fdb2aed61fdd2b9"
+  },
+  {
+   "path": "docs/reports/T-3356-panel/opencode.md",
+   "sha256": "20c66671208a561720f73045a50bc763e9b1119e34a65e71e78b8c3458281146"
+  },
+  {
+   "path": "docs/reports/T-3356-panel/antigravity.md",
+   "sha256": "2700ccd1684d49c82a5407c41cfd757d6f0a6b712cd8e8aa64bdf7b0b8258afb"
+  },
+  {
+   "path": "docs/reports/T-3356-panel/antigravity-run1-summary.md",
+   "sha256": "f3b3e1476995cf1224bfcb009dc89fff1fd1d0b7a19f4329bea301031acef6ac"
+  }
+ ],
+ "summary": "Panel of three vendors answered (claude-code, opencode, antigravity in two runs); Codex unavailable x3 (RQ-1). 71 raw findings merged into 51 items F-1..F-51, each verified against the text; antigravity run 2 quotes identifiers absent from the material, so its findings were checked on substance. Disposition: 42 accepted, 6 rejected (5 security, operator decides), 3 deferred (RQ-2 macOS watchdog, RQ-3 same-user lease forging, F-43 to PH-5). 1 critical (F-1 watchdog types without a typing re-read), 9 high (F-3,4,5,6,8,11,12,15,16). Change requests to steps 1..6 (CR-1..CR-6) and to the running B-27 build (CR-B27: F-3, F-4, F-22, F-26, F-27, F-28). Steps 1..6 are reopened before step 8.",
+ "completion": [
+  {
+   "condition": "6.1 Manifest complete; every answer stored unedited",
+   "met": true,
+   "evidence": "docs/reports/T-3356-panel/manifest.md v2; answer hashes in 07-review 1.2"
+  },
+  {
+   "condition": "6.2 Every finding dispositioned; every accepted finding has a change request to its step",
+   "met": true,
+   "evidence": "07-review section 4 (F-1..F-51, all 71 raw findings mapped) and section 6"
+  },
+  {
+   "condition": "6.3 No step is considered final while it has an open change request",
+   "met": true,
+   "evidence": "07-review 5.1.g and section 6: steps 1..6 reopened"
+  },
+  {
+   "condition": "6.4 Every required drawing (D-1) present with id, caption and textual equivalent, renders without error",
+   "met": true,
+   "evidence": "07-review section 5 and 10; .context/working/t3356/render/r1.out exit 0"
+  }
+ ],
+ "open_questions": [
+  "07-review 7.1 OQ-7.1: re-run Codex as a late fourth seat or close at three vendors"
+ ],
+ "change_requests": [
+  {
+   "step": 1,
+   "what": "CR-1: R-23.a wording (F-51); optional R-57 exception for the lease clock (F-23)"
+  },
+  {
+   "step": 2,
+   "what": "CR-2: SI-2 still requires READY before any typing; the ruled watchdog types without it (F-50)"
+  },
+  {
+   "step": 3,
+   "what": "CR-3: YR-1 bounds for H-11 (e),(f) (F-29); max delivery attempts value (F-45)"
+  },
+  {
+   "step": 4,
+   "what": "CR-4.1..4.16: watchdog typing re-check in ruled 6.9.7.b (F-1, operator approves wording), S2 definition, origin per harness and receiver-checked origin into the lease, unsubmitted bound, forward ambiguity and wedge, blobs on role mail, withhold scope, foreground binding, clock, consumer reads, residuals"
+  },
+  {
+   "step": 5,
+   "what": "CR-5.1..5.12: negative controls and cases for F-1..F-25; apply ZR-1 (46 FCWs) in EV/COV v0.2"
+  },
+  {
+   "step": 6,
+   "what": "CR-6.1..6.42: algorithm fixes per 07-review section 6.6"
+  }
+ ],
+ "decisions_needed": [
+  "Security rejections F-7, F-36, F-37, F-38, F-39 (proposed: reject; each finding misreads the text)",
+  "Security deferral F-25 / RQ-3: accept same-user lease forging as a residual until an operator key exists",
+  "Deferral F-20 / RQ-2: accept the watchdog's macOS limit as a residual with a needs-attention status",
+  "F-1 / CR-4.1: approve adding a typing re-check to the ruled watchdog check list (O-2 item 2)",
+  "RQ-1 / OQ-7.1: close the panel at three vendors or re-run Codex",
+  "Approve step 7 (decides: true)"
+ ]
+}
