@@ -1,7 +1,9 @@
 # Interactive agent communication: step 6, pseudo-code, part A: PH-2 hardening
 
 **Task:** T-3355 · **Arc:** arc-011 · **Chain:** arc-011-design, step 6 · **Role:** pseudo-coder
-**Status:** DRAFT v0.2, sub-document of `docs/design/interactive-agent-communication-06-pseudo-code.md` ("06"). Read
+**Status:** v0.3 (2026-11-12): the step 7 change requests for this file (CR-6.14..CR-6.17, CR-6.26, CR-6.33, CR-6.42)
+folded in after the operator approved step 7 (T-3356; T-3689); marked "(changed in v0.3 by CR-6.n)". Below, the v0.2
+status as it stood: DRAFT v0.2, sub-document of `docs/design/interactive-agent-communication-06-pseudo-code.md` ("06"). Read
 06 sections 2 and 3 first: identifiers, the algorithm form a..h, clocks, primitives, strict JSON and the seam gate
 are defined there and not repeated. The FAILS CLOSED WHEN register for this file is 06 section 6.
 **Review link:** none (profile P2.1).
@@ -11,6 +13,7 @@ are defined there and not repeated. The FAILS CLOSED WHEN register for this file
 | Version | Date | Change | Task |
 |---|---|---|---|
 | 0.1 | 2026-11-11 | First draft: AL-17..AL-40 (B-1..B-15, B-18, B-21..B-23, B-26 and the task rows P12, P14); test vectors V-REV-1, V-REV-2, V-HEAD-1, V-FWD-1; drawings D-1.8..D-1.11, D-2.5, D-2.6. | T-3355 |
+| 0.3 | 2026-11-12 | Step 7 change requests folded (07-review 6.6, approved 2026-11-12, T-3356): CR-6.14 blob associated data over the immutable envelope fields with `to` verbatim, key re-wrapped in a forward (AL-26, AL-27); CR-6.15 blob fetch before `store.lock`, `after_stored` after it (AL-23); CR-6.16 the window commits with STORED, dedupe before quota (AL-23, AL-36); CR-6.17 integer per-class limits that partition the aggregate (AL-23); CR-6.26 `gate(w3)` reads H-11 (a)..(f) (AL-40); CR-6.33 every inbox read records the consumer and is refused after a bind (AL-30); CR-6.42 mint from the certificate only if present, legacy migration falls back to random (AL-17). FCW-207..FCW-210 added. | T-3689 |
 | 0.2 | 2026-11-11 | Remediation of review r1: F-4 concurrency item or explicit single writer added to part f of AL-18, AL-27, AL-29..AL-39; F-5 AL-35 and AL-36 drawn as state machines D-1.14 and D-1.15 (section 3.7, 3.8). Nothing else changed. | T-3355 |
 
 ## 1 Scope and inputs
@@ -39,11 +42,15 @@ hub_start(runtime_dir):
     elif prior and not exists(hub.id):
         refuse("hub.id missing beside existing state; restore it or re-home (runme)")                      # FCW-79
     else:                                   # an empty runtime directory: first start
-        HUB_ID = first16(sha256 fingerprint of hub.cert.pem) if a certificate will exist, else hex(random 64 bits)
+        HUB_ID = first16(sha256 fingerprint of hub.cert.pem) if hub.cert.pem is present now, else hex(random 64 bits)
+                                                     # CR-6.42: decided on what exists at first start, never on a
+                                                     # certificate that "will exist"
         atomic_write(hub.id, HUB_ID + "\n", mode 0644); Err -> refuse, remove the temp file                   # FCW-81
  3  hub.version returns hub_id = HUB_ID (never recomputed), signing_key = "ed25519:" + fpr(signing pub)    # AL-18
 legacy migration (one runme action per hub, Δ): a hub with prior state and no hub.id writes
     hub.id = first16(current TLS fingerprint) once, logged, then restarts       # the only path past FCW-79
+    CR-6.42: a hub with prior state and no certificate (socket-only) writes hub.id = hex(random 64 bits) instead,
+    logged with "minted at random: no certificate"; peers see a new id and refuse it loudly (FX-2) until re-pinned
 ```
 2.1.d **INVARIANTS:** (1) `hub_id` is constant for the life of a runtime directory; (2) a certificate rotation
 changes neither `hub_id` nor the signing key; (3) a hub never answers with an id it did not read from `hub.id`.
@@ -51,7 +58,9 @@ changes neither `hub_id` nor the signing key; (3) a hub never answers with an id
 prior hub state → the hub refuses to start with the stated message. 2.1.e.2 **FCW-80** [AFC-20; E-36] `hub.id` is
 unreadable or not 16 lowercase hex → refuse to start. 2.1.e.3 **FCW-81** [new; ZR-1] the mint cannot be written
 atomically → refuse to start, no partial file left.
-2.1.f **EDGE CASES:** (1) volatile `/tmp` (PL-021): the whole directory is gone, so the hub mints a new id; senders
+2.1.f **EDGE CASES:** (0) (changed in v0.3 by CR-6.42) the mint at first start uses the certificate only if it is
+present at that moment; a socket-only hub, or a legacy hub without a certificate, gets a random id, so no step depends
+on a file that may never exist; (1) volatile `/tmp` (PL-021): the whole directory is gone, so the hub mints a new id; senders
 refuse it (FX-2) and status names both ids: loud, not silent (E-80 control); (2) altered `hub.id` (edited by root):
 accepted as the hub's id; clients pinned to the old id refuse it (FX-2), which is the detection; (3) concurrency: two
 hubs started on one runtime directory: the built PID/socket lock refuses the second **[B]**; (4) crash table:
@@ -286,19 +295,28 @@ admit(raw, topic) at the receiver:                     # the pull loop [B]; ever
  4  key = key card / roster entry for m.sender (AL-33); verify(m, topic) [B SI-3] else refuse                  # FCW-98
  5  if revocation.check(m.key): refuse "revoked", signed notice to the sender (AL-22)                          # FCW-99
  6  if m.hop > 3: refuse "hop limit" with a notice (V-4)                                                       # FCW-101
- 7  sequence window and equivocation [B T-3362 / AL-36]
- 8  budget = receipts (10% of the aggregate) if m is a receipt
-             own_project (20%) if m.sender.project == MY_PROJECT
-             general otherwise
+ 7  w = window.check(m) [B T-3362 / AL-36]: a CHECK only, no state written (CR-6.16); refuse or hold as AL-36
+ 7a if a copy with m's identity triple (R-51) is in the store: on_duplicate(m, copy) (06 AL-14, CR-6.11); return
+                                     # CR-6.16: dedupe before quota, so a duplicate never takes a quota slot  (FCW-207)
+ 8  class = receipts if m is a receipt; own_project if m.sender.project == MY_PROJECT; general otherwise
+    LIMITS (CR-6.17, integers that partition the aggregate of 256 messages and 64 MiB):
+        receipts 26 messages, 6 MiB; own_project 51 messages, 13 MiB; general 179 messages, 45 MiB     # FCW-208
     if m is not a receipt and open(m.sender) >= 32: QUOTA(per-sender)                                          # FCW-103
-    if budget.count >= its share of 256 or budget.bytes >= its share of 64 MiB: QUOTA(aggregate or reserved)  # FCW-103, FCW-104
- 9  if m.blob: fetch and check (AL-27); Err -> refuse                                                          # FCW-114..116
-10  store.write(m) with checksum, fsync file and directory; Err (disk full, I/O) -> not STORED                 # FCW-105 [B]
-11  chain_append(STORED); hub.stage(m, STORED) [B]; after_stored(m) (06 AL-14)
+    if class.count >= LIMITS[class].count or class.bytes + size(m) > LIMITS[class].bytes:
+        QUOTA(aggregate or reserved)                                                                           # FCW-103, FCW-104
+ 9  if m.blob: fetch and check (AL-27), WITHOUT store.lock (CR-6.15, 06 3.2.a); Err -> refuse              # FCW-114..116
+10  with store.lock:                                               # one locked step (CR-6.16)
+        re-run 7a and 8 against the current store (a concurrent pull may have stored the copy or taken the slot)
+        store.write(m) with checksum, fsync file and directory; Err (disk full, I/O) -> not STORED,
+            nothing below committed                                                                            # FCW-105 [B]
+        commit w (seen, held_since, up_to of AL-36) and the class counters; chain_append(STORED)
+11  after releasing store.lock: hub.stage(m, STORED) [B]; after_stored(m) (06 AL-14)       # CR-6.15: no RPC under the lock
 QUOTA(limit): not STORED; notice(m.sender, QUOTA, {limit}); attention("quota", coalesce = (sender, tick)); the
               hub copy stays unacked, so the sender's ladder keeps it                                           # nothing dropped
 ```
-2.7.d **INVARIANTS:** (1) STORED only after step 10's fsyncs; (2) receipts never count against a sender quota and
+2.7.d **INVARIANTS:** (0) (changed in v0.3 by CR-6.15, CR-6.16) `store.lock` is held only for step 10's local write
+and commit, never across the blob fetch or a hub call; the sequence window, the quota counters and STORED are
+committed together or not at all; (1) STORED only after step 10's fsyncs; (2) receipts never count against a sender quota and
 general traffic never uses the reserved shares; (3) every refused message has a reason the sender can read; (4) no
 message is deleted at the receiver because of a limit.
 2.7.e **FAILS CLOSED WHEN:** 2.7.e.1 **FCW-97** [new; E-80, E-100] unknown wire version → refused with a reason.
@@ -309,11 +327,18 @@ message id is not 32 lowercase hex → refused at the receiver, so a bad id can 
 not STORED, QUOTA notice. 2.7.e.7 **FCW-103** [AFC-25; E-50, E-51] 32 open from one sender, or the general budget of
 256 messages or 64 MiB is full → not STORED, QUOTA notice, coalesced entry. 2.7.e.8 **FCW-104** [AFC-25; E-51] a
 reserved share (receipts 10%, own project 20%) is full → the same, for that class only. 2.7.e.9 **FCW-105** [new; E-122]
-the store write or a fsync fails → not STORED.
+the store write or a fsync fails → not STORED (changed in v0.3 by CR-6.16: and neither the window nor the quota
+counters move). 2.7.e.10 **FCW-207** [AFC-25; E-50] (changed in v0.3 by CR-6.16) a message whose identity triple is
+already stored → handled as a duplicate before the quota check (06 AL-14 `on_duplicate`), never charged to a quota and
+never refused for one. 2.7.e.11 **FCW-208** [AFC-25; E-51] (changed in v0.3 by CR-6.17) a class's integer limit
+(receipts 26 / 6 MiB, own project 51 / 13 MiB, general 179 / 45 MiB; together exactly 256 / 64 MiB) is reached → QUOTA
+for that class only; no class can use another's share.
 2.7.f **EDGE CASES:** (1) forged sender: step 4; replayed message: identity triple **[B]** and step 7; altered: the
 signature covers `hop` and every field (E-53); (2) a dishonest sender ignoring QUOTA: its messages stay on the hub
-unacked; the receiver's budget is unaffected; (3) concurrency: steps 8..11 under the store lock, so two pulls cannot
-both take the last quota slot; (4) crash table: step 10 is the built store write sequence with its kill points **[B]**;
+unacked; the receiver's budget is unaffected; (3) concurrency: (changed in v0.3 by CR-6.15, CR-6.16) steps 7..9 are
+checks without the lock; step 10 re-runs the duplicate and quota checks under `store.lock` and commits, so two pulls
+cannot both take the last quota slot or both store one message, and no lock is held across the blob fetch (up to
+16 MiB) or `after_stored` (a 10 s lease read and a hub post), which removes the deadlock with 06 AL-14 step 5; (4) crash table: step 10 is the built store write sequence with its kill points **[B]**;
 a crash before the STORED line leaves no STORED claim and the hub copy unacked, so the message is pulled again.
 2.7.g **EXECUTION SEMANTICS:** at-most-once STORED per identity triple; at-least-once pull from the hub.
 2.7.h **CRYPTOGRAPHY:** the built message signature (ed25519, ARCH) **[B]**.
@@ -376,10 +401,15 @@ key, ciphertext uploaded to the hub the recipient pulls from.
 ```text
 send_blob(path, to):
  1  st = lstat(path); require regular file; size = st.size; if size > 16 MiB: refuse before reading (PN-11)      # FCW-111
- 2  rpub = encryption key of `to` from the register (same host) or the hub key card (AL-33); none -> refuse     # FCW-112
+ 2  rcpt = the agent whose inbox m is posted to (a role address: the agent the sender resolved it to)   # CR-6.14
+    rpub = encryption key of rcpt from the register (same host) or the hub key card (AL-33); none -> refuse     # FCW-112
  3  plain = read(path) (exactly size bytes; a file that changes while read -> refuse); ps = sha256(plain)
- 4  k = random 32 bytes; n = random 24 bytes; aad = utf8("termlink.blob/1\n" + to + "\n" + hex(ps))
-    obj = "TLBLOB" || 0x01 (format version) || 0x01 (alg: XChaCha20-Poly1305, X25519 sealed box) || n
+ 4  k = random 32 bytes; n = random 24 bytes
+    aad = utf8("termlink.blob/2\n") || sha256(jcs({id: m.id, from: m.from, to: m.to (verbatim as sent),
+                                                   conv: m.conv, plain_sha256: hex(ps), size}))
+          # CR-6.14 (ARC4 6.4.3.a): immutable envelope fields, never the receiving agent's name, so a role
+          # address and a forwarded message open at the agent that holds the content key
+    obj = "TLBLOB" || 0x02 (format version 2, CR-6.14; v1 never shipped) || 0x01 (alg: XChaCha20-Poly1305, X25519 sealed box) || n
           || xchacha20poly1305_encrypt(k, n, plain, aad)
     cs = sha256(obj); wk = crypto_box_seal(rpub, k)            # 80 bytes
  5  artifact.put(obj) to the recipient's home hub in 256 KiB chunks; require the hub reports digest == cs;
@@ -397,7 +427,10 @@ message is not sent.
 and post: an orphan ciphertext object on the hub; it has no message, so blob retention (V-3) treats it as final 24 h
 after upload **[P]** and removes it; (3) concurrency: none (per call).
 2.10.g **EXECUTION SEMANTICS:** upload is idempotent by content digest (the store is content-addressed **[B]**).
-2.10.h **CRYPTOGRAPHY:** XChaCha20-Poly1305 and the X25519 sealed box as ARC4 6.4.3 chose; the object header (magic,
+2.10.h **CRYPTOGRAPHY:** (changed in v0.3 by CR-6.14) format version 2: the associated data is the domain string
+`termlink.blob/2` and the SHA-256 of the canonical (RFC 8785) object of the immutable envelope fields `id`, `from`,
+`to` (verbatim), `conv`, `plain_sha256`, `size`; ZR-6's v1 form bound `to` as the recipient name, which a role address
+or a forward cannot satisfy. XChaCha20-Poly1305 and the X25519 sealed box as ARC4 6.4.3 chose; the object header (magic,
 format version, algorithm id) and the associated data are this step's proposal **[P]** (ZR-6); a new algorithm needs a
 new algorithm id, never a silent change.
 **OBS:** OBS-50 the outbox record with the blob fields; OBS-51 the hub's put reply.
@@ -415,8 +448,9 @@ fetch_blob(m) (AL-23 step 9):
     for each 256 KiB chunk of artifact.get(cs): append; if bytes > cap: abort                                 # FCW-116
  3  require sha256(tmp) == m.blob.cipher_sha256                                                                # FCW-114
  4  parse header: magic "TLBLOB", version 1, alg 1, else refuse                                               # FCW-114
-    k = crypto_box_seal_open(my_x25519, base64(m.blob.wrapped_key)); Err -> refuse                             # FCW-114
-    plain = xchacha20poly1305_decrypt(k, n, ct, aad(MY_AGENT, m.blob.plain_sha256)); Err -> refuse            # FCW-114
+    wk = m.blob_key_source if m came in a FORWARD (06 AL-15, the key re-wrapped to this agent) else m.blob.wrapped_key
+    k = crypto_box_seal_open(my_x25519, base64(wk)); Err -> refuse                                            # FCW-114
+    plain = xchacha20poly1305_decrypt(k, n, ct, aad(m)); Err -> refuse     # CR-6.14: aad of AL-26 step 4      # FCW-114
     require len(plain) == m.blob.size and sha256(plain) == m.blob.plain_sha256                                 # FCW-114
  5  atomic_write(<store>/blobs/<plain_sha256>, plain, mode 0600)          # never a path from the message      (FCW-115)
  6  remove tmp; return ok
@@ -430,7 +464,9 @@ needs-attention, temp removed. 2.11.e.2 **FCW-115** [AFC-23; E-46] whatever `nam
 its digest only. 2.11.e.3 **FCW-116** [AFC-25; E-44] the declared size is over 16 MiB, or
 more bytes arrive than declared → the fetch stops; not STORED.
 2.11.f **EDGE CASES:** (1) the same blob in two messages: one file (content-addressed), written once; (2) a blob wrapped
-to another agent: unwrap fails (E-45 wrong key case); (3) crash: temp files are removed at start; a crash after the
+to another agent: unwrap fails (E-45 wrong key case); (2a) (changed in v0.3 by CR-6.14) a role-addressed blob opens at
+the agent it was wrapped to, and a forwarded blob opens at X with the key Y re-wrapped inside the signed FORWARD
+envelope; the associated data is the same at every hop because it covers only immutable envelope fields; (3) crash: temp files are removed at start; a crash after the
 rename leaves the blob without STORED: the message is pulled again and the rename is idempotent; (4) concurrency: two
 fetches of the same digest (two messages, or a re-pull) each write their own temp file and rename it onto the digest
 name; the rename is atomic and both contents are the same verified bytes, so the last rename wins harmlessly; STORED
@@ -509,7 +545,8 @@ a mix.
 per inbox; sidecars flag a second one each tick; after W4 the operator binds the inbox and the hub refuses others.
 2.14.c **ALGORITHM:**
 ```text
-hub, on channel.subscribe | ack | claim of an inbox: or conversation topic by identity I:
+hub, on channel.subscribe | poll | read | ack | claim of an inbox: or conversation topic by identity I:
+                                                    # CR-6.33 (ARC4 6.6.1): every read records, not only ack/claim
  1  if bound(topic) and I != bound(topic): refuse "inbox bound to <identity>", admin_log row                          # FCW-124
  2  consumers[topic][I] = {first: first or now, last: now}; if len > 16: evict the oldest by last, admin_log "evicted I"
 hub inbox.consumers(topic, window) -> [{identity, first, last}] with last >= now - window
@@ -518,8 +555,11 @@ sidecar tick: r = inbox.consumers(MY_INBOX, 24 h); Err -> status consumers: unkn
               others = [c in r if c.identity != MY_IDENTITY]
               if others: status consumers = "inbox consumed by two identities: A, B"; attention(coalesce = (topic, identity, day))
 ```
-2.14.d **INVARIANTS:** after a bind, only the bound identity acks or claims. 2.14.e **FAILS CLOSED WHEN:** 2.14.e.1
-**FCW-124** [new; E-66] an inbox is bound and another identity acks, claims or subscribes → refused and logged.
+2.14.d **INVARIANTS:** after a bind, only the bound identity reads, acks or claims (changed in v0.3 by CR-6.33). 2.14.e
+**FAILS CLOSED WHEN:** 2.14.e.1 **FCW-124** [new; E-66] an inbox is bound and another identity acks, claims or
+subscribes, or (changed in v0.3 by CR-6.33) polls or reads it → refused and logged. 2.14.e.3 **FCW-209** [new; E-66]
+(changed in v0.3 by CR-6.33) an identity reads (polls) an inbox without ever acking → it is recorded as a consumer and
+flagged like any other second consumer (the BP-15 shape).
 2.14.e.2 **FCW-125** [new; ZR-1] the consumer list cannot be read → status `consumers: unknown` (never "one").
 2.14.f **EDGE CASES:** (1) a legitimate switch during W1..W3 shows two identities for minutes: flagged, not refused
 (DR-11); (2) a second live copy of a project on the same hub is seen within one tick (V-12); (3) crash: the consumer
@@ -681,7 +721,8 @@ OBS-62 attention entries; daily compare count.
 on admit (AL-23 step 7) of (sender, conversation, number n, digest d):
  1  if seen(sender, conv, n) with another digest: refuse "equivocation", keep the first, attention                 # FCW-142
  2  if n > up_to + 256 or n < 1: refuse "out of window"
- 3  store; if n > up_to + 1: held_since[n] = mono()                     # beyond a gap
+ 3  return the update {seen n = d; held_since[n] = mono() if n > up_to + 1}   # CR-6.16: committed by AL-23 step 10
+                                                                        # with STORED, under store.lock
 release (per tick): for held n: if all numbers below n are stored: release
                     elif mono() - held_since >= 2 ticks and no request sent: notice(sender, RESEND-REQUEST, gap)
                     elif mono() - held_since >= 10 ticks: release marked "gap before n"; attention naming the gap    # FCW-141
@@ -690,7 +731,9 @@ up_to = highest contiguous stored number (signed receipt) [SI-6]
 2.20.d **INVARIANTS:** a held message is never handed over before the gap fills or 10 ticks pass. 2.20.e **FAILS CLOSED
 WHEN:** 2.20.e.1 **FCW-141** [new; E-87] a message beyond a gap → not offered for hand-over until the gap is filled or
 10 ticks pass (then marked). 2.20.e.2 **FCW-142** [new; E-86] the same number with another digest → refused, first kept.
-2.20.f crash: `held_since` and `requested` are durable with the store line. Concurrency: admission (step 1..3) and
+2.20.f crash: `held_since` and `requested` are durable with the store line (changed in v0.3 by CR-6.16: `seen`,
+`held_since` and `up_to` are written only in AL-23 step 10's locked step with STORED, so a later refusal at quota, blob
+or fsync leaves the window unchanged). Concurrency: admission (step 1..3) and
 the per-tick release are both under `store.lock` (06 3.2.a) (single writer of `up_to`, `held_since` and the
 stored numbers): two copies of number n are ordered by it, so `seen` and `store` are one step (FCW-142); a gap filler
 admitted during a release is seen by the release that runs after it; the RESEND-REQUEST is sent once per gap, marked
@@ -776,8 +819,9 @@ gate(sendmessage-deny): a prover result file from B-26 on the TermLink rail with
 done_on_disk(sendmessage-deny): .claude/settings.json parses and permissions.deny contains "SendMessage"
 gate(w2): W1 started >= 7 days ago; no unresolved urgent needs-attention for the pair in those 7 days; B-16 merged and
           installed (binary checksum verified); the typed-path kill-switch drill record passed                     # FCW-149
-gate(w3): the W2 H-11 report exists with (a)..(d) within bounds over >= 7 days; the canary (B-19) completed a run in
-          each of the last 7 days and is not stale (V-13)                                                          # FCW-150
+gate(w3): the W2 H-11 report exists with (a)..(f) within bounds over >= 7 days (CR-6.26: (e) unsubmitted lines and
+          (f) watchdog fires and the false-busy share, per ring, with the starting bounds of floor-and-phasing 9.2
+          H-11 set by CR-3.1); the canary (B-19) completed a run in each of the last 7 days and is not stale (V-13)  # FCW-150, FCW-210
 gate(w4): the W4 task's ## Decisions holds an entry with the operator's approval in the operator's words (a quoted line
           and a date), and the P24 report exists; the task status field is never read for this                     # FCW-151
 act(w4): drain each old receiver's count compare first [B K-4]; mismatch -> refuse ("do not start/stop")           # FCW-152
@@ -791,7 +835,8 @@ on the TermLink rail → refused, settings unchanged. 2.24.e.2 **FCW-148** [new;
 not show the change → FAILED. 2.24.e.3 **FCW-149** [new; ZR-1] W2's gate is not met → refused. 2.24.e.4 **FCW-150**
 [new; ZR-1] W3's gate is not met → refused. 2.24.e.5 **FCW-151** [AFC-30; E-82] W4 without the operator's approval in
 the W4 task's Decisions → refused, nothing changed. 2.24.e.6 **FCW-152** [new; E-81] the drain's count compare does not
-match → the switch is refused **[B]**.
+match → the switch is refused **[B]**. 2.24.e.7 **FCW-210** [new; E-72] (changed in v0.3 by CR-6.26) the W2 report lacks
+H-11 (e) or (f), or either is over its bound → W3's gate is not met; refused.
 2.24.f **EDGE CASES:** (1) the settings file edited by hand between the act and the re-read: the re-read is what counts;
 (2) concurrency: runme is one process; (3) crash during act: the next run re-checks `done_on_disk` and completes or
 repeats (each act is idempotent). Every action has a hermetic case in `tests/runme-fixtures.sh` through the `RUNME_*`
