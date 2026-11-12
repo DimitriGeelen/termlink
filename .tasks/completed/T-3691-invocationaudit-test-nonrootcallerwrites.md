@@ -9,12 +9,12 @@ description: >
   base or skip with a message when an ancestor is not traversable (like the existing
   exec probe). Found closing T-3686.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, test]
-components: []
+components: [crates/termlink-session/src/invocation_audit.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -43,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:20:59Z
-last_update: 2026-11-12T16:39:38Z
-date_finished:
+last_update: 2026-11-12T16:40:00Z
+date_finished: 2026-11-12T16:40:00Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -297,6 +297,14 @@ cargo test -p termlink-session -q --lib nonroot_caller_writes_its_user_sink_for_
 
 ## RCA
 
+**Symptom:** the test failed (0 rows) in the P-011 completion gate and passed in an interactive shell.
+**Root cause:** the test assumed `std::env::temp_dir()` is traversable by every uid; it built the non-root child's
+HOME under it, and the gate's TMPDIR is a 0700 root-owned directory, so uid 65534 could not reach HOME.
+**Why structurally allowed:** the test's own exec probe checks only that the child can run the binary, not that it
+can reach its tree; developers and CI never run with a private TMPDIR, only the gate does.
+**Prevention:** the test now checks every ancestor and falls back to /tmp; a negative control (old code under a 0700
+TMPDIR fails) was run. Learning: tests that drop privileges must not build under TMPDIR without checking traversal.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -395,3 +403,16 @@ cargo test -p termlink-session -q --lib nonroot_caller_writes_its_user_sink_for_
 ### 2026-11-12T16:38:10Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-12T16:40:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-deec6f67
+- **Timestamp:** 2026-11-12T16:40:02Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3691: invocation_audit test nonroot_caller_writes_its_user_sink_for_real fails when TMPDIR is a root-only dir (P-011 gate)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T16:40:12Z
+# ============================================================================
+
+task_id: T-3691
+task_name: "invocation_audit test nonroot_caller_writes_its_user_sink_for_real fails when TMPDIR is a root-only dir (P-011 gate)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-12T16:20:59Z
+completed: 2026-11-12T16:40:00Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-12T17:39:38+01:00
+last_commit: 2026-11-12T17:39:38+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  invocation_audit non-root test builds its tree under a base every uid can traverse
+
+# Key outcomes
+outcomes:
+  - 'The test picks `std::env::temp_dir()` only when every ancestor is traversable by others, else `/tmp`'
+  - 'Test passes with TMPDIR set to a fresh 0700 root-owned dir (gate shape) and with TMPDIR unset'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3691-invocationaudit-test-nonrootcallerwrites.md'
+  - 'crates/termlink-session/src/invocation_audit.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T17:39:38'
+    action: 'T-3691: invocation_audit non-root test builds its tree under a base every uid can traverse'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 19 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, test]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 19
+  commits: 2
+  files_changed: 5
+  lines_added: 174
+  lines_removed: 16
+  footprint_refreshed_at: '2026-11-12T16:40:14Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3691-invocationaudit-test-nonrootcallerwrites.md
+generated_by: context-agent-hybrid
