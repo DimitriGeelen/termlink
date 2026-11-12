@@ -18,6 +18,7 @@ mod limits;
 mod log;
 mod meta;
 mod reclaim;
+mod removal_guard;
 mod retention;
 pub mod worker_contract;
 
@@ -34,6 +35,10 @@ pub use log::Offset;
 pub use meta::{BareForeverSender, BareForeverSummary, TopicOwners};
 pub use reclaim::{
     DEFAULT_RECLAIM_MIN_DEAD_PCT, DEFAULT_RECLAIM_MIN_FILE_BYTES, ReclaimOutcome, should_reclaim,
+};
+pub use removal_guard::{
+    CeilingRemoval, IndexRow, MailCeilings, RemovalGuard, RemovalOp, V3_HUB_MAX_BYTES, V3_TOPIC_MAX_BYTES,
+    V3_TOPIC_MAX_RECORDS, plan_ceiling, preview as removal_preview_of,
 };
 pub use retention::Retention;
 
@@ -154,6 +159,10 @@ pub struct Bus {
     forever_warnings_total: AtomicU64,
     reclaims_total: AtomicU64,
     reclaimed_bytes_total: AtomicU64,
+    /// T-3701 (B-3): the hub's mail guard; `None` = no topic guarded.
+    removal_guard: StdMutex<Option<Arc<dyn RemovalGuard>>>,
+    /// T-3701 (V-3): ceilings for guarded topics.
+    mail_ceilings: StdMutex<MailCeilings>,
 }
 
 /// T-3310: counters for the post-time ceilings, for `hub.governor_status`.
@@ -198,6 +207,8 @@ impl Bus {
             forever_warnings_total: AtomicU64::new(0),
             reclaims_total: AtomicU64::new(0),
             reclaimed_bytes_total: AtomicU64::new(0),
+            removal_guard: StdMutex::new(None),
+            mail_ceilings: StdMutex::new(MailCeilings::default()),
         })
     }
 
@@ -382,6 +393,12 @@ impl Bus {
     /// T-3310 D3: check `topic` against its ceiling after a post and trim (or,
     /// for a forever topic, warn). Returns the number of records trimmed.
     pub fn apply_ceiling(&self, topic: &str, now_ms: i64) -> Result<u64> {
+        // T-3701 (V-3): a guarded mail topic is never trimmed blind by the
+        // retention ceilings below; it gets the V-3 ceilings (final first,
+        // open only as a last resort), whatever its retention, forever included.
+        if self.is_guarded(topic) {
+            return self.apply_mail_ceiling(topic);
+        }
         let Some(retention) = self.meta.topic_retention(topic)? else {
             return Ok(0);
         };
@@ -479,6 +496,14 @@ impl Bus {
     /// policy against the backlog (e.g. drop `agent-presence` history older
     /// than the newly-set `Days(2)` window).
     pub fn set_topic_retention(&self, topic: &str, retention: Retention) -> Result<bool> {
+        // T-3701 (B-3, FCW-126/127): on a guarded topic, refuse a policy that a
+        // sweep would apply by removing an open message.
+        if let Some(g) = self.guard_for(topic)
+            && self.meta.topic_exists(topic)?
+        {
+            let offsets = self.removal_preview(topic, RemovalOp::Retention(retention), now_unix_ms())?;
+            self.check_all_final(g.as_ref(), topic, &offsets)?;
+        }
         self.meta.set_topic_retention(topic, retention)
     }
 
@@ -535,6 +560,14 @@ impl Bus {
     /// `inbox.clear` semantics (T-1234 / T-1230a). For per-subscriber
     /// "mark as read" semantics use `advance_cursor` instead.
     pub fn trim_topic(&self, topic: &str, before_offset: Option<u64>) -> Result<u64> {
+        // T-3701 (B-3): a guarded topic removes exactly the checked offsets, or nothing.
+        if let Some(g) = self.guard_for(topic) {
+            if !self.meta.topic_exists(topic)? {
+                return Ok(0);
+            }
+            let offsets = self.removal_preview(topic, RemovalOp::Trim(before_offset), 0)?;
+            return self.remove_checked(g.as_ref(), topic, &offsets);
+        }
         let n = self.meta.trim_records(topic, before_offset)?;
         if n > 0 {
             self.maybe_reclaim(topic);
@@ -1209,6 +1242,11 @@ impl Bus {
             Retention::Messages(n) => (None, Some(n)),
             Retention::Latest => (None, Some(1)),
         };
+        // T-3701 (B-3): a guarded topic removes exactly the checked offsets, or nothing.
+        if let Some(g) = self.guard_for(topic) {
+            let offsets = self.removal_preview(topic, RemovalOp::Retention(retention), now_unix_ms)?;
+            return self.remove_checked(g.as_ref(), topic, &offsets);
+        }
         let n = self.meta.sweep_records(topic, keep_after, keep_last)?;
         if n > 0 {
             self.maybe_reclaim(topic);
@@ -1234,6 +1272,21 @@ impl Bus {
     /// R2b / T-2245 — the only retention mode that closes the T-1991
     /// agent-*count* scaling problem for `agent-presence`-style topics.
     pub fn compact_per_cv_key(&self, topic: &str) -> Result<u64> {
+        let to_delete = self.per_cv_key_stale(topic)?;
+        // T-3701 (B-3): a guarded topic removes exactly the checked offsets, or nothing.
+        if let Some(g) = self.guard_for(topic) {
+            return self.remove_checked(g.as_ref(), topic, &to_delete);
+        }
+        let n = self.meta.delete_records_at(topic, &to_delete)?;
+        if n > 0 {
+            self.maybe_reclaim(topic);
+        }
+        Ok(n)
+    }
+
+    /// The keyed records that are not their key's latest: what per-key
+    /// compaction removes (T-2245), computed without removing anything.
+    pub(crate) fn per_cv_key_stale(&self, topic: &str) -> Result<Vec<Offset>> {
         let locs = self.meta.records_from(topic, 0)?;
         // cv_key -> highest offset seen for that key.
         let mut latest: HashMap<String, Offset> = HashMap::new();
@@ -1269,11 +1322,7 @@ impl Bus {
             .filter(|(off, cv)| latest.get(cv).is_some_and(|latest_off| off != latest_off))
             .map(|(off, _)| *off)
             .collect();
-        let n = self.meta.delete_records_at(topic, &to_delete)?;
-        if n > 0 {
-            self.maybe_reclaim(topic);
-        }
-        Ok(n)
+        Ok(to_delete)
     }
 
     /// T-3509: the reclaim lock for `topic`'s name (created on first use).

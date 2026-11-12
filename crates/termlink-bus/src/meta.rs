@@ -1641,6 +1641,23 @@ impl Meta {
         })
     }
 
+    /// T-3701: the records index of `topic` (offset, ts, length), ascending offset.
+    pub(crate) fn record_index(&self, topic: &str) -> Result<Vec<crate::removal_guard::IndexRow>> {
+        self.with_read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT offset, ts_unix_ms, length FROM records WHERE topic = ?1 ORDER BY offset",
+            )?;
+            let rows = stmt.query_map(params![topic], |r| {
+                Ok(crate::removal_guard::IndexRow {
+                    offset: r.get::<_, i64>(0)? as u64,
+                    ts_ms: r.get::<_, i64>(1)?,
+                    len: r.get::<_, i64>(2)? as u64,
+                })
+            })?;
+            rows.collect::<std::result::Result<Vec<_>, _>>().map_err(BusError::Sqlite)
+        })
+    }
+
     /// Records, live bytes and oldest timestamp currently indexed for `topic`.
     pub(crate) fn topic_stats(&self, topic: &str) -> Result<crate::limits::TopicStats> {
         self.with_read(|conn| {

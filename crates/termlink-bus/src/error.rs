@@ -81,4 +81,13 @@ pub enum BusError {
         offset: u64,
         frontier: u64,
     },
+
+    // T-3701 (B-3, FCW-126): a sweep, trim, retention change or compaction of a
+    // guarded mail topic would remove a record whose message is not final.
+    #[error("refused: would remove an open message at offset {offset} of topic {topic:?} (FCW-126; only final mail may be removed)")]
+    OpenMail { topic: String, offset: u64 },
+
+    // T-3701 (B-3, FCW-127): finality of a record to be removed cannot be read.
+    #[error("refused: cannot read finality on topic {topic:?}: {reason} (FCW-127)")]
+    FinalityUnreadable { topic: String, reason: String },
 }
