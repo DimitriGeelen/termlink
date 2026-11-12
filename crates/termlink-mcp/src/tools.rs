@@ -30851,7 +30851,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_send_auto_discover",
-        description = "Send a turn to a listener by `agent_id` — auto-discovers the destination PTY session + dm:* topic from agent-presence heartbeat metadata. Required: `to_agent_id`, `message`. Optional: `dry_run` (prints `RESOLVED:` line and exits 0 without posting — preview), `hub` (refused: the recipient's hub is resolved from fleet presence; T-3749), `conversation_id` (default auto-generated thread id), `timeout_secs` (default 60 — higher because non-dry-run includes up to 3 doorbell rings). Returns `{ok, exit_code, stdout, stderr}`. Exit codes: 0 delivered (or dry-run RESOLVED), 2 usage/resolution-failure, 3 not acked, 4 delivered-but-no-reply. Resolution failures (no listener / OFFLINE / no pty_session / no dm:* topic) surface in stderr with a hint. WRITES state."
+        description = "Send a turn to a listener by `agent_id` — auto-discovers the destination PTY session + dm:* topic from agent-presence heartbeat metadata. Required: `to_agent_id`, `message`. Optional: `dry_run` (prints `RESOLVED:` line and exits 0 without posting — preview), `hub` (refused: hub comes from fleet presence), `conversation_id` (default auto-generated), `timeout_secs` (default 60; covers up to 3 doorbell rings). Returns `{ok, exit_code, stdout, stderr}`. Exit codes: 0 delivered (or dry-run RESOLVED), 2 usage/resolution-failure, 3 not acked, 4 delivered-but-no-reply. Resolution failures (no listener / OFFLINE / no pty_session / no dm:* topic) surface in stderr with a hint. WRITES state."
     )]
     async fn termlink_agent_send_auto_discover(
         &self,
