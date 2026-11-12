@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T17:18:18Z
-last_update: 2026-11-12T17:38:28Z
+last_update: 2026-11-12T17:43:58Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -355,6 +355,14 @@ receiver store, with a negative control for the start-only path.
 -->
 
 ## Evolution
+
+### 2026-11-12 — remote mail joins the receiver's own path instead of a new channel
+- **What changed:** the AEF sidecar receiver already surfaces any envelope placed in its store, so remote-hub mail
+  needed no new surfacing channel; a relay inside the existing 5-minute supervisor sweep is enough (DP-3 unchanged).
+- **Plan impact:** arc-011's later units that read remote inboxes (one receiver per project, forward-once) can reuse
+  this relay instead of building their own reader.
+- **Triggered:** an AEF follow-up request (native remote-hub topics in the receiver), text in Decisions, not sent;
+  open operator choice on outage-notice volume for laptop hubs (.141).
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
