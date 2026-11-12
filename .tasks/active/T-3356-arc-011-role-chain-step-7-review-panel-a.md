@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:09Z
-last_update: 2026-11-12T10:45:49Z
+last_update: 2026-11-12T11:36:24Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -276,7 +276,14 @@ grep -q 'task: T-3356' docs/design/interactive-agent-communication-role-chain.ya
      rule: nothing working is switched off before its replacement is proven).
 - **Rejected:** A accept "the watchdog never fires on macOS" as a residual; B type on macOS without any veto; C full
   macOS veto before PH-2 counts as done.
-- **Follow-up:** change request to step 4 6.9.7 / step 6 AL-8 for the interim veto; build task for the full veto.
+- **Follow-up:** change request to step 4 6.9.7 / step 6 AL-8 for the interim veto; build task for the full veto
+  (T-3688).
+
+### 2026-11-12 — RQ-1: close the panel at three vendors (operator: "a")
+- **Chose:** A, close step 7's panel with Claude Code, opencode and Antigravity; Codex recorded as unavailable (run 1
+  wrote into its read-only export on an orchestrator instruction error, run 2 usage limit, run 3 model at capacity).
+  If Codex works later, its answer is stored as an addendum and new findings go through the normal disposition.
+- **Rejected:** B wait for Codex (days, the build waits on these dispositions); C a paid OpenRouter seat.
 
 ## Decision
 
