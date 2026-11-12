@@ -82,9 +82,19 @@ another session takes over after the quiet period.
 
 Configure `main_project` in the sidecar config (or `$TERMLINK_MAIN_PROJECT`). The sidecar reads
 the lease every 15 s (it never writes it). When the lease names another session **of this
-agent** as main, `pull` from a non-main session hands out nothing: the mail stays stored for
+agent** as main, `pull` from a non-main session hands out no **role** mail: it stays stored for
 main, and the session gets one line, once per generation:
-`TermLink: this session is not main of P; peer mail is left unread for main S (generation N).`
+`TermLink: this session is not main of P; role mail is left unread for main S (generation N).`
+
+Mail of a conversation bound to that exact session is still handed to it (P-5, T-3695; ARC4
+7.1.a). A conversation is bound to the first session that sends or replies in it, or that has
+one of its messages handed over; the binding never moves. Main still reads every message, so
+mail bound to a session that has ended is not stranded.
+
+Rollback to the earlier all-mail withhold (T-3654) is one step: create the flag file
+`withhold-all` in the sidecar's store directory (next to `delivery-off`); delete it to undo. It is
+read at every pull, needs no restart, and anything at that path that cannot be read counts as set.
+While it is set, bound mail held back from a non-main session counts toward "mail waiting".
 
 Fail direction: an unknown, stale or vacant lease, or a main that is another agent's session,
 leaves delivery as before, so a lease problem can never stop all delivery.

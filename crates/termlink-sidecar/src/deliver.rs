@@ -102,6 +102,13 @@ pub const ABSENT: &str = "ABSENT";
 /// Conversations that hold no messages (switch log, unparseable refusals).
 const NOT_MAIL: [&str; 2] = [crate::api::ADMIN_CONV, crate::pull::UNPARSED_CONV];
 
+/// The pseudo session of the `claim` op's attempts: it binds no conversation (P-5).
+const CLAIM_OP_SESSION: &str = "claim-op";
+/// State-name prefix of a conversation's exact-session binding (P-5, T-3695).
+pub const BOUND_PREFIX: &str = "bound-";
+/// Flag file in the store directory: present = the built all-mail withhold (P-5 rollback).
+pub const WITHHOLD_ALL_FLAG: &str = "withhold-all";
+
 /// One claimed message inside an attempt record.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Claimed {
@@ -408,12 +415,14 @@ impl Deliverer {
     }
 
     /// K-34 (T-3694, AL-13 step 1): every stored message not yet handed over, refused or
-    /// withheld, with its STORED time and urgency, for the waiting-mail signal. Every message
-    /// this sidecar stores was verified as addressed to this agent's instance and is read by
-    /// whichever session of the agent holds main (the T-3654 withhold path), so here every one
-    /// is role mail; the sidecar has no per-session address (FCW-64 has nothing to exclude).
+    /// withheld, with its STORED time and urgency, for the waiting-mail signal. P-5 (T-3695):
+    /// mail of a conversation bound to an exact session is that session's (FCW-64: never
+    /// counted); everything else is role mail, read by whichever session holds main. Under
+    /// the `withhold-all` rollback the bound mail is withheld again, so it counts again
+    /// (nothing withheld is silent, ARC4 7.1.a).
     /// A message whose STORED line has no time counts from `now_ms` (never older than it is).
     pub fn waiting_mail(&self, now_ms: u64) -> Vec<crate::mail_waiting::Waiting> {
+        let all = self.withhold_all();
         self.candidates()
             .into_iter()
             .map(|c| {
@@ -424,7 +433,8 @@ impl Deliverer {
                     .and_then(|ls| ls.into_iter().find(|l| l.event == "STORED" && own(l) && l.msg_id == c.msg_id))
                     .and_then(|l| l.ts_ms)
                     .unwrap_or(now_ms);
-                crate::mail_waiting::Waiting { id: format!("{}/{}", c.conv, c.msg_id), stored_ms, role: true, urgent: c.assessment.urgent }
+                let role = all || self.bound_session(&c.conv).is_none();
+                crate::mail_waiting::Waiting { id: format!("{}/{}", c.conv, c.msg_id), stored_ms, role, urgent: c.assessment.urgent }
             })
             .collect()
     }
@@ -570,8 +580,53 @@ impl Deliverer {
         self.candidates().into_iter().map(|c| c.msg_id).collect()
     }
 
+    /// P-5 (T-3695, ARC4 7.1.a, R-62): bind conversation `conv` to the exact session `session`.
+    /// A conversation is bound at creation and never re-bound here: the first binding wins
+    /// (`Ok(false)` when one exists). Called when a session sends or replies in a conversation
+    /// and when a message of it is handed over to a session. A pseudo session (the `claim` op's)
+    /// or a name the store cannot hold binds nothing.
+    pub fn bind(&self, conv: &str, session: &str) -> Result<bool, String> {
+        if session == CLAIM_OP_SESSION || NOT_MAIL.contains(&conv) {
+            return Ok(false);
+        }
+        let name = format!("{BOUND_PREFIX}{conv}");
+        if self.store.read_state(&name).map_err(|e| e.to_string())?.is_some() {
+            return Ok(false);
+        }
+        self.store.write_state(&name, session).map_err(|e| e.to_string())?;
+        Ok(true)
+    }
+
+    /// The exact session conversation `conv` is bound to, if any (P-5). Mail of a bound
+    /// conversation is exact-instance (conversation) mail; any other mail is role mail.
+    pub fn bound_session(&self, conv: &str) -> Option<String> {
+        let s = self.store.read_state(&format!("{BOUND_PREFIX}{conv}")).ok()??;
+        let s = s.trim();
+        (!s.is_empty()).then(|| s.to_owned())
+    }
+
+    /// Rollback of P-5 (T-3695) in one step: the flag file `<store>/withhold-all` restores the
+    /// built T-3654 pull, which withholds all mail from a non-main session. A flag that cannot
+    /// be read counts as set: the rollback fails toward holding, never toward a wrong copy.
+    pub fn withhold_all(&self) -> bool {
+        match std::fs::symlink_metadata(self.store.dir().join(WITHHOLD_ALL_FLAG)) {
+            Ok(_) => true,
+            Err(e) => e.kind() != std::io::ErrorKind::NotFound,
+        }
+    }
+
     /// The hook's call at a tool call: claim and frame what is deliverable.
     pub fn pull(&self, session: &str, hook: &str, tool_use_id: Option<&str>) -> Result<Pulled, String> {
+        self.pull_scoped(session, hook, tool_use_id, false)
+    }
+
+    /// P-5 (T-3695): the pull of a session that is not main. Only mail of conversations bound
+    /// to `session` is offered; role mail stays stored for main.
+    pub fn pull_bound(&self, session: &str, hook: &str, tool_use_id: Option<&str>) -> Result<Pulled, String> {
+        self.pull_scoped(session, hook, tool_use_id, true)
+    }
+
+    fn pull_scoped(&self, session: &str, hook: &str, tool_use_id: Option<&str>, only_bound: bool) -> Result<Pulled, String> {
         // Read now, never cached (SI-23).
         if !policy::delivery_enabled(&self.store) {
             return Ok(Pulled::Nothing { why: "delivery-off" });
@@ -580,7 +635,10 @@ impl Deliverer {
         if !policy::receiving_enabled(&self.store) {
             return Ok(Pulled::Nothing { why: "drained" });
         }
-        let cands = self.candidates();
+        let mut cands = self.candidates();
+        if only_bound {
+            cands.retain(|c| self.bound_session(&c.conv).as_deref() == Some(session));
+        }
         if cands.is_empty() {
             return Ok(Pulled::Nothing { why: "none-pending" });
         }
@@ -670,7 +728,7 @@ impl Deliverer {
         }
         let rec = AttemptRecord {
             nonce: nonce.clone(),
-            session: "claim-op".into(),
+            session: CLAIM_OP_SESSION.into(),
             hook: "claim".into(),
             tool_use_id: None,
             ts_ms: now_ms,
@@ -713,6 +771,10 @@ impl Deliverer {
                     self.report_handed_over(it);
                     if let Some(m) = &self.meter {
                         m.on_handed_over(&rec.session, &it.conv);
+                    }
+                    // P-5: the conversation is now this session's (first binding wins).
+                    if let Err(e) = self.bind(&it.conv, &rec.session) {
+                        let _ = self.store.attention("bind-failed", &format!("{}: not bound to {}: {e}", it.conv, rec.session));
                     }
                 }
                 Ok(Verdict::HandedOver)

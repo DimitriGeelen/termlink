@@ -10,6 +10,9 @@
 //! * `pull` withholds role mail from a session that is not main when the lease names another
 //!   session OF THIS AGENT as holder: the message stays stored (unread) for the main session,
 //!   and the non-main session gets one line, once per holder generation: "held by main ...".
+//!   P-5 (T-3695, ARC4 7.1.a / CR-4.11): only role mail. Mail of a conversation bound to that
+//!   exact session (`Deliverer::bound_session`) is still handed to it; the flag file
+//!   `<store>/withhold-all` rolls back to the T-3654 all-mail withhold in one step.
 //!   Fail direction: when the lease is unknown (hub down, no project, stale read), vacant, or
 //!   held by another agent's session, delivery is unchanged (pre-lease behaviour), so a lease
 //!   problem can never stop all delivery. `am-i` stays fail-closed for hooks.
@@ -119,19 +122,31 @@ impl Shared {
     /// Should a pull by `session` of agent `agent` be withheld? `Some((line, notify_now))` when
     /// the fresh lease names another session of this agent as main.
     pub fn withhold(&self, agent: &str, session: &str, now: u64) -> Option<(String, bool)> {
+        let (line, generation) = self.not_main(agent, session, now)?;
+        Some((line, self.tell_once(session, generation)))
+    }
+
+    /// `Some((line, generation))` when the fresh lease names another session of this agent as
+    /// main; tells nobody (P-5, T-3695: a pull that hands out this session's own conversation
+    /// mail does not spend the once-per-generation line).
+    pub fn not_main(&self, agent: &str, session: &str, now: u64) -> Option<(String, u64)> {
         let v = self.fresh(now)?;
         let h = v.holder.as_ref()?;
         if h.session == session || (!h.agent.is_empty() && h.agent != agent) {
             return None;
         }
         let line = format!(
-            "TermLink: this session is not main of {}; peer mail is left unread for main {} (generation {}). Ask with `termlink main am-i`.",
+            "TermLink: this session is not main of {}; role mail is left unread for main {} (generation {}). Ask with `termlink main am-i`.",
             v.project,
             h.display(),
             v.generation
         );
-        let first = self.inner.lock().map(|mut g| g.told.insert((session.to_string(), v.generation))).unwrap_or(false);
-        Some((line, first))
+        Some((line, v.generation))
+    }
+
+    /// True the first time `session` is told about `generation`.
+    pub fn tell_once(&self, session: &str, generation: u64) -> bool {
+        self.inner.lock().map(|mut g| g.told.insert((session.to_string(), generation))).unwrap_or(false)
     }
 }
 

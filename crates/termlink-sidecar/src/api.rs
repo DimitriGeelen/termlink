@@ -391,6 +391,19 @@ pub fn dispatch_full(
     dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease: None, mail_waiting: None, meter: None, hook_errlog: None })
 }
 
+/// [`dispatch_full`] with the main lease view attached (P-5 tests: the non-main pull).
+pub fn dispatch_leased(
+    req: &Value,
+    scope: Scope,
+    store: &Store,
+    agent: &str,
+    sender: Option<&Sender>,
+    deliverer: Option<&Deliverer>,
+    lease: Option<&crate::lease::Shared>,
+) -> Value {
+    dispatch_inner(req, scope, store, agent, None, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease, mail_waiting: None, meter: None, hook_errlog: None })
+}
+
 #[derive(Clone, Copy)]
 struct Ctx<'a> {
     sender: Option<&'a Sender>,
@@ -464,6 +477,8 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 if let Some(m) = ctx.meter {
                     v["activity"] = m.status_view();
                 }
+                // B-11 (T-3696, AL-25 OBS): the encryption key start-up check, as recorded by this start.
+                v["keys"] = serde_json::json!({"encryption": crate::enckey::recorded_status(store.dir())});
                 // P-26 (FCW-146, E-170): whether every vendor-channel use reached the log.
                 let vl = vendor_log_view(ctx.hook_errlog, store);
                 v["vendor_log"] = vl["state"].clone();
@@ -471,7 +486,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
             }
             v
         }
-        "send" => metered_send(send(obj, sender, book, agent), obj, ctx.meter),
+        "send" => bound_send(metered_send(send(obj, sender, book, agent), obj, ctx.meter), obj, ctx.deliverer, store),
         "delivery" => delivery(obj, store, who),
         "held" => held(obj, store),
         "allow" => decide(obj, store, agent, sender, who, true),
@@ -498,7 +513,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
             }
             ready(obj, ctx.deliverer)
         }
-        "reply" => metered_send(reply(obj, sender), obj, ctx.meter),
+        "reply" => bound_send(metered_send(reply(obj, sender), obj, ctx.meter), obj, ctx.deliverer, store),
         _ => err(
             "not-implemented",
             &format!("op {op:?} is not served yet"),
@@ -531,21 +546,50 @@ fn pull(obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>, lease: Opti
     if !matches!(hook, "post-tool-use" | "stop") {
         return err("bad-request", "hook must be post-tool-use or stop", "the hook that is calling");
     }
-    // T-3654 (R-67.a1 (4), minimum): a session that is not main leaves the mail unread for main.
-    if let Some((line, notice)) = lease.and_then(|l| l.withhold(agent, session, crate::store::now_ms())) {
+    // T-3654 (R-67.a1 (4), minimum): a session that is not main leaves role mail unread for main.
+    // P-5 (T-3695, ARC4 7.1.a, CR-4.11): only role mail. Mail of a conversation bound to this
+    // exact session is still handed to it; `<store>/withhold-all` restores the all-mail withhold.
+    if let Some((l, (line, generation))) = lease.and_then(|l| l.not_main(agent, session, crate::store::now_ms()).map(|n| (l, n))) {
+        if !d.withhold_all() {
+            match d.pull_bound(session, hook, text("tool_use_id")) {
+                Ok(Pulled::Nothing { why: "none-pending" }) => {}
+                Ok(Pulled::Nothing { why }) => return json!({"none": true, "why": why}),
+                Ok(Pulled::Frame { frame, waiting }) => return framed(frame, waiting),
+                Err(e) => return err("deliver", &e, "nothing was handed out; the claims taken stay open and are named in needs-attention"),
+            }
+        }
+        let notice = l.tell_once(session, generation);
         return json!({"none": true, "why": "not-main", "not_main": line, "notice": notice});
     }
     match d.pull(session, hook, text("tool_use_id")) {
         Ok(Pulled::Nothing { why }) => json!({"none": true, "why": why}),
-        Ok(Pulled::Frame { frame, waiting }) => json!({
-            "frame": frame.text,
-            "nonce": frame.nonce,
-            "msg_ids": frame.msg_ids,
-            "waiting": waiting,
-            "stage": "CLAIMED",
-        }),
+        Ok(Pulled::Frame { frame, waiting }) => framed(frame, waiting),
         Err(e) => err("deliver", &e, "nothing was handed out; the claims taken stay open and are named in needs-attention"),
     }
+}
+
+fn framed(frame: crate::frame::Frame, waiting: usize) -> Value {
+    json!({
+        "frame": frame.text,
+        "nonce": frame.nonce,
+        "msg_ids": frame.msg_ids,
+        "waiting": waiting,
+        "stage": "CLAIMED",
+    })
+}
+
+/// P-5 (T-3695, R-62): a session that sent or replied in a conversation is bound to it
+/// (first binding wins), so the conversation's mail reaches that session whether or not it is
+/// main. A binding that cannot be written is named in needs-attention, never fails the send.
+fn bound_send(resp: Value, obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>, store: &Store) -> Value {
+    if let (Some(d), Some(sess), Some(conv)) =
+        (d, obj.get("session").and_then(Value::as_str), resp.get("conv").and_then(Value::as_str))
+        && resp.get("stage").and_then(Value::as_str) == Some("SENT")
+        && let Err(e) = d.bind(conv, sess)
+    {
+        let _ = store.attention("bind-failed", &format!("{conv}: not bound to {sess}: {e}"));
+    }
+    resp
 }
 
 fn claim(obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>) -> Value {
