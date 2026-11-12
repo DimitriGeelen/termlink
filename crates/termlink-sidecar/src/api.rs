@@ -87,10 +87,11 @@ fn op_spec(op: &str) -> Option<(Scope, &'static [&'static str])> {
     Some(match op {
         "send" => (Scope::Send, &["to", "to_instance", "conv", "body", "priority", "session"]),
         "reply" => (Scope::Send, &["conv", "in_reply_to", "body", "session"]),
-        "pull" => (Scope::Send, &["session", "hook", "tool_use_id"]),
+        // P-2 (CR-6.24): the hooks' `boot_id` and `mono_ns` order the call in the meter.
+        "pull" => (Scope::Send, &["session", "hook", "tool_use_id", "boot_id", "mono_ns"]),
         "claim" => (Scope::Send, &["msg_id"]),
         "handed-over" => (Scope::Send, &["msg_id", "nonce", "final"]),
-        "ready" => (Scope::Send, &["session", "hook"]),
+        "ready" => (Scope::Send, &["session", "hook", "boot_id", "mono_ns"]),
         "status" => (Scope::Status, &["msg_id", "conv"]),
         "delivery" => (Scope::Admin, &["state", "why"]),
         "held" => (Scope::Admin, &["body"]),
@@ -451,7 +452,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         "undrain" => undrain(obj, store, who),
         "pull" => {
             if let (Some(m), Some(sess)) = (ctx.meter, obj.get("session").and_then(Value::as_str)) {
-                m.legacy_hook(sess, "post-tool-use", None);
+                m.legacy_hook(sess, "post-tool-use", None, crate::meter::adapter_ord(obj));
             }
             pull(obj, ctx.deliverer, ctx.lease, agent)
         }
@@ -462,7 +463,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 (ctx.meter, obj.get("session").and_then(Value::as_str), obj.get("hook").and_then(Value::as_str))
             {
                 let tr = (hook == "session-start").then(|| ctx.deliverer.and_then(|d| d.transcript_of(sess))).flatten();
-                m.legacy_hook(sess, hook, tr.as_deref());
+                m.legacy_hook(sess, hook, tr.as_deref(), crate::meter::adapter_ord(obj));
             }
             ready(obj, ctx.deliverer)
         }

@@ -349,3 +349,23 @@ fn b27_without_a_meter_nothing_changes() {
     assert_eq!(st["ok"], true);
     assert!(st.get("activity").is_none(), "{st}");
 }
+
+/// P-2 (T-3693): a built hook's `boot_id` and `mono_ns` reach the meter through
+/// the `ready` op: a stop ordered before the prompt does not end it, a later
+/// one does. Control: drop the fields in the op (receive stamp) and the first
+/// stop already ends the prompt.
+#[test]
+fn p2_ready_op_passes_the_hook_order_to_the_meter() {
+    let (r, m) = metered();
+    let prompt = json!({"schema": "termlink.adapter/2", "harness": "fake", "agent_id": "agent-b", "session_id": "s-3", "event": "prompt_submit",
+        "at_ms": 9, "origin": "human", "basis": "inferred", "boot_id": "b1", "mono_ns": "2000"});
+    assert_eq!(call(&r, Scope::Send, prompt), json!({"ok": true}));
+    call(&r, Scope::Send, json!({"op": "ready", "session": "s-3", "hook": "stop", "boot_id": "b1", "mono_ns": "1999"}));
+    m.tick();
+    let st = call(&r, Scope::Status, json!({"op": "status"}));
+    assert!(st["activity"]["sessions"]["s-3"]["turn_stopped"].is_null(), "{st}");
+    call(&r, Scope::Send, json!({"op": "ready", "session": "s-3", "hook": "stop", "boot_id": "b1", "mono_ns": "2001"}));
+    m.tick();
+    let st = call(&r, Scope::Status, json!({"op": "status"}));
+    assert!(st["activity"]["sessions"]["s-3"]["turn_stopped"].is_u64(), "{st}");
+}

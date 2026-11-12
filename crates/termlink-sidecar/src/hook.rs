@@ -63,6 +63,42 @@ fn log_error(log: Option<&Path>, event: &str, why: &str) {
     }
 }
 
+/// The sidecar request for one hook event. Every request carries this host's
+/// `boot_id` and `mono_ns` (CLOCK_BOOTTIME on Linux, as a decimal string) so the
+/// meter orders hook calls on them, not on a wall clock (04 17.2.a, CR-6.24, P-2);
+/// where there is no boot id neither is sent and the receive stamp orders them.
+pub fn request(event: &str, session: &str, input: &Value) -> Result<Value, String> {
+    let mut r = match event {
+        "post-tool-use" => {
+            let mut r = json!({"op": "pull", "session": session, "hook": "post-tool-use"});
+            if let Some(t) = input.get("tool_use_id").and_then(Value::as_str) {
+                r["tool_use_id"] = json!(t);
+            }
+            r
+        }
+        "session-start" | "stop" | "session-end" => json!({"op": "ready", "session": session, "hook": event}),
+        other => return Err(format!("unknown hook event {other:?}")),
+    };
+    if let (Some(boot), Some(ns)) = (termlink_session::input_meter::boot_id(), mono_ns()) {
+        r["boot_id"] = json!(boot);
+        r["mono_ns"] = json!(ns.to_string());
+    }
+    Ok(r)
+}
+
+/// A host-monotonic value in ns that keeps counting through suspend (04 17.2.a):
+/// CLOCK_BOOTTIME on Linux, CLOCK_MONOTONIC (which counts through sleep) on macOS.
+pub fn mono_ns() -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    let clock = libc::CLOCK_BOOTTIME;
+    #[cfg(not(target_os = "linux"))]
+    let clock = libc::CLOCK_MONOTONIC;
+    let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    // SAFETY: clock_gettime writes one timespec through a valid pointer.
+    let rc = unsafe { libc::clock_gettime(clock, &mut ts) };
+    (rc == 0).then(|| (ts.tv_sec as u64).saturating_mul(1_000_000_000).saturating_add(ts.tv_nsec as u64))
+}
+
 /// What a hook run produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HookOutcome {
@@ -91,18 +127,24 @@ pub fn run(event: &str, input: &str, socket: Option<&Path>, log: Option<&Path>) 
     let Some(session) = v.get("session_id").and_then(Value::as_str) else {
         return none("hook input has no session_id".into());
     };
-    let req = match event {
-        "post-tool-use" => {
-            let mut r = json!({"op": "pull", "session": session, "hook": "post-tool-use"});
-            if let Some(t) = v.get("tool_use_id").and_then(Value::as_str) {
-                r["tool_use_id"] = json!(t);
-            }
-            r
-        }
-        "session-start" | "stop" | "session-end" => json!({"op": "ready", "session": session, "hook": event}),
-        other => return none(format!("unknown hook event {other:?}")),
+    let req = match request(event, session, &v) {
+        Ok(r) => r,
+        Err(why) => return none(why),
     };
     let resp = match call(socket, &req, HOOK_TIMEOUT) {
+        // A sidecar started before P-2 refuses the order fields: ask again without
+        // them (it then orders the call by its receive stamp) rather than lose the call.
+        Ok(r) if r.get("code").and_then(Value::as_str) == Some("unknown-field") && req.get("mono_ns").is_some() => {
+            let mut plain = req.clone();
+            if let Some(o) = plain.as_object_mut() {
+                o.remove("boot_id");
+                o.remove("mono_ns");
+            }
+            match call(socket, &plain, HOOK_TIMEOUT) {
+                Ok(r) => r,
+                Err(e) => return none(e),
+            }
+        }
         Ok(r) => r,
         Err(e) => return none(e),
     };

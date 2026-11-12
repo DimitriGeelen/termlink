@@ -224,10 +224,10 @@ fn e16_f3_s2_moves_on_turn_events_and_ready_changes_only() {
     assert_eq!(a["watchdog"], "available");
     // The built hooks: the four turn hooks move S2, any other hook name does not.
     let r = rig();
-    r.m.legacy_hook("s", "post-tool-use", None);
+    r.m.legacy_hook("s", "post-tool-use", None, None);
     let t = r.at();
     r.adv(1000);
-    r.m.legacy_hook("s", "notification", None);
+    r.m.legacy_hook("s", "notification", None, None);
     assert_eq!(r.act("s")["s2_at"], json!(t));
 }
 
@@ -236,7 +236,7 @@ fn e16_f3_s2_moves_on_turn_events_and_ready_changes_only() {
 fn fcw13_s2_unknown_without_reports() {
     let r = rig();
     r.m.on_handed_over("s", "c"); // unknown session: not even created
-    r.m.legacy_hook("s", "post-tool-use", None);
+    r.m.legacy_hook("s", "post-tool-use", None, None);
     r.set_s1("s", None, None, None);
     // A built hook call is a report (D-2): S2 known.
     assert_eq!(r.act("s")["watchdog"], "available");
@@ -346,51 +346,130 @@ fn e16_fuzz_one_hundred_thousand_reports() {
     }
 }
 
-/// FCW-3: an older `ready` is dropped; a tie keeps BUSY. Control: drop the
-/// at_ms comparison and the stale READY wins.
+/// The adapter's order fields (04 17.2.a): `boot_id` and `mono_ns` (here as an integer).
+fn o(boot: &str, ns: u64) -> Value {
+    json!({"boot_id": boot, "mono_ns": ns})
+}
+
+fn with(mut a: Value, b: Value) -> Value {
+    for (k, x) in b.as_object().unwrap() {
+        a[k] = x.clone();
+    }
+    a
+}
+
+/// FCW-3 (CR-6.24): an older `ready` by `(boot_id, mono_ns)` is dropped and
+/// counted; a tie keeps BUSY; a new boot is later than every report of the
+/// previous one. `at_ms` plays no part (here it runs the other way). Controls:
+/// drop the order comparison and the stale READY wins; order by `at_ms` and the
+/// later reports are dropped.
 #[test]
 fn fcw3_ready_ordering() {
     let r = rig();
-    assert_eq!(r.ev("s", "ready", 100, json!({"state": "BUSY"})), Intake::Applied);
-    assert_eq!(r.ev("s", "ready", 99, json!({"state": "READY"})), Intake::Dropped("ready-reordered"));
+    let st = |x: &str| json!({"state": x});
+    assert_eq!(r.ev("s", "ready", 500, with(st("BUSY"), o("b1", 100))), Intake::Applied);
+    assert_eq!(r.ev("s", "ready", 900, with(st("READY"), o("b1", 99))), Intake::Dropped("ready-reordered"));
     assert_eq!(r.m.ready("s").unwrap().state, "BUSY");
-    assert_eq!(r.ev("s", "ready", 100, json!({"state": "READY"})), Intake::Dropped("tie keeps BUSY"));
+    assert_eq!(r.ev("s", "ready", 900, with(st("READY"), o("b1", 100))), Intake::Dropped("tie keeps BUSY"));
     assert_eq!(r.m.ready("s").unwrap().state, "BUSY");
-    assert_eq!(r.ev("s", "ready", 101, json!({"state": "READY"})), Intake::Applied);
+    assert_eq!(r.ev("s", "ready", 1, with(st("READY"), o("b1", 101))), Intake::Applied);
     let rd = r.m.ready("s").unwrap();
-    assert_eq!((rd.state.as_str(), rd.seq, rd.epoch), ("READY", 2, r.m.epoch()));
-    assert_eq!(r.m.counters().ready_reordered, 1);
+    assert_eq!((rd.state.as_str(), rd.seq, rd.epoch, rd.at_ms), ("READY", 2, r.m.epoch(), 1));
+    assert_eq!(rd.ord, ReportOrd { boot: "b1".into(), ns: 101 });
+    // A new boot orders after every report of the previous boot, whatever its mono_ns.
+    assert_eq!(r.ev("s", "ready", 2, with(st("BUSY"), o("b2", 5))), Intake::Applied);
+    assert_eq!(r.ev("s", "ready", 3, with(st("READY"), o("b2", 4))), Intake::Dropped("ready-reordered"));
+    assert_eq!(r.m.counters().ready_reordered, 2);
 }
 
-/// F-27 (CR-4.15 / CR-B27.5), OPEN: documents the CURRENT rule, not the target.
-/// READY reports are ordered by the adapter's `at_ms` (wall clock). After a
-/// backward wall step of D ms every READY/BUSY report is dropped as reordered
-/// until `at_ms` passes the last applied one, so READY is frozen for D. 04 v0.4
-/// 17.2.a (T-3689) orders by `(boot_id, mono_ns)` with the receive stamp as the
-/// fallback; the build follows once 06 AL-1 is revised (CR-6.24) and adapters
-/// send those fields. When that lands this test is replaced, not loosened.
-/// `last_prompt` keeps the report's `at_ms` (AL-4 compares it).
-/// Control: drop the `at_ms` comparison and the post-step BUSY is applied.
+/// P-2 (T-3693, F-27, CR-6.24, E-156): a backward wall-clock step of 10 min
+/// does not freeze READY: `at_ms` steps back, `mono_ns` keeps counting, and
+/// every report applies. Replaces T-3687's test that documented the freeze.
+/// Control (mutant): order by `at_ms` and the BUSY after the step is dropped.
 #[test]
-fn f27_ready_ordering_is_at_ms_and_a_backward_step_freezes_it() {
+fn p2_backward_wall_step_does_not_freeze_ready() {
     let r = rig();
     let wall = 1_700_000_000_000u64;
-    assert_eq!(r.ev("s", "ready", wall, json!({"state": "READY"})), Intake::Applied);
-    // The host's wall clock steps back 60 s; the next turn begins.
-    let stepped = wall - 60_000;
-    r.adv(1000);
-    assert_eq!(r.ev("s", "ready", stepped + 1000, json!({"state": "BUSY"})), Intake::Dropped("ready-reordered"));
-    assert_eq!(r.m.ready("s").unwrap().state, "READY", "frozen: the BUSY after the step is lost");
-    r.adv(30_000);
-    assert_eq!(r.ev("s", "ready", stepped + 31_000, json!({"state": "BUSY"})), Intake::Dropped("ready-reordered"));
-    // Only once at_ms passes the last applied value does a report apply again.
-    r.adv(30_000);
-    assert_eq!(r.ev("s", "ready", wall + 1, json!({"state": "BUSY"})), Intake::Applied);
-    assert_eq!(r.m.ready("s").unwrap().state, "BUSY");
-    assert_eq!(r.m.counters().ready_reordered, 2);
-    // last_prompt carries the report's at_ms.
-    r.ev("s", "prompt_submit", wall + 2, json!({"origin": "human", "basis": "inferred"}));
-    assert_eq!(r.m.last_prompt("s").unwrap().at_ms, wall + 2);
+    let boot = "3f0c-boot";
+    let mut ns = 7_000_000_000_000u64;
+    assert_eq!(r.ev("s", "ready", wall, with(json!({"state": "READY"}), o(boot, ns))), Intake::Applied);
+    let stepped = wall - 600_000; // the wall clock steps back 10 min
+    for (i, state) in ["BUSY", "READY", "BUSY", "READY"].iter().enumerate() {
+        r.adv(1000);
+        ns += 1_000_000_000;
+        let at = stepped + 1000 * (i as u64 + 1);
+        assert_eq!(r.ev("s", "ready", at, with(json!({"state": state}), o(boot, ns))), Intake::Applied, "{state} after the step");
+        assert_eq!(r.m.ready("s").unwrap().state, *state);
+    }
+    assert_eq!(r.m.counters().ready_reordered, 0, "nothing dropped across the step");
+    // The prompt and its turn stop are ordered the same way (AL-4 line 510):
+    // a stop after the step still ends the prompt's window.
+    ns += 1;
+    r.ev("s", "prompt_submit", stepped + 9000, with(json!({"origin": "human", "basis": "inferred"}), o(boot, ns)));
+    ns += 1;
+    r.ev("s", "turn_stop", stepped + 8000, o(boot, ns));
+    let a = r.act("s");
+    assert!(a["turn_stopped"].is_u64(), "the stop after the prompt is recorded: {a}");
+    assert_eq!(a["ready"]["ord"]["ns"], (ns - 2).to_string(), "{a}");
+    // mono_ns as a decimal string (above 2^53, ~104 days of uptime) is accepted.
+    let big = (1u64 << 60) + 5;
+    assert_eq!(r.ev("s", "ready", 1, json!({"state": "BUSY", "boot_id": boot, "mono_ns": big.to_string()})), Intake::Applied);
+    assert_eq!(r.m.ready("s").unwrap().ord, ReportOrd { boot: boot.into(), ns: big });
+    assert_eq!(r.ev("s", "ready", 2, json!({"state": "READY", "boot_id": boot, "mono_ns": (big - 1).to_string()})), Intake::Dropped("ready-reordered"));
+}
+
+/// P-2 (E-156): reports without `(boot_id, mono_ns)`, or with an invalid pair,
+/// are ordered by the receive stamp, never `at_ms`: an `at_ms` that runs
+/// backwards still applies; two reports in the same receive tick tie (BUSY
+/// kept). Controls: order by `at_ms` and the second report is dropped; take
+/// a half pair as valid and the receive-stamp order is lost.
+#[test]
+fn p2_reports_without_the_fields_are_ordered_by_receive_stamp() {
+    let r = rig();
+    assert_eq!(r.ev("s", "ready", 5000, json!({"state": "BUSY"})), Intake::Applied);
+    assert_eq!(r.m.ready("s").unwrap().ord, ReportOrd::rx(r.at()));
+    r.adv(10);
+    assert_eq!(r.ev("s", "ready", 10, json!({"state": "READY"})), Intake::Applied, "at_ms backwards, received later");
+    assert_eq!(r.ev("s", "ready", 9, json!({"state": "BUSY"})), Intake::Applied, "same tick, BUSY over READY");
+    assert_eq!(r.ev("s", "ready", 99_999, json!({"state": "READY"})), Intake::Dropped("tie keeps BUSY"));
+    for bad in [json!({"boot_id": "b1"}), json!({"mono_ns": 5}), json!({"boot_id": "b:1", "mono_ns": 5}), json!({"boot_id": "b1", "mono_ns": -1}), json!({"boot_id": "b1", "mono_ns": "12x"}), json!({"boot_id": "", "mono_ns": 5})] {
+        r.adv(10);
+        assert_eq!(r.ev("s", "ready", 1, with(json!({"state": "BUSY"}), bad.clone())), Intake::Applied, "{bad}");
+        assert_eq!(r.m.ready("s").unwrap().ord, ReportOrd::rx(r.at()), "{bad}: receive stamp");
+    }
+    assert_eq!(r.m.counters().ready_reordered, 0);
+    // A prompt older than the applied one is ignored and counted (04 17.2.a).
+    r.ev("s", "prompt_submit", 1, with(json!({"origin": "automated", "basis": "doorbell"}), o("b1", 50)));
+    assert_eq!(r.ev("s", "prompt_submit", 2, with(json!({"origin": "human", "basis": "inferred"}), o("b1", 49))), Intake::Dropped("prompt-reordered"));
+    assert_eq!(r.m.last_prompt("s").unwrap().origin, Origin::Automated);
+    assert_eq!(r.m.counters().prompt_reordered, 1);
+}
+
+/// P-2: the built hooks send `boot_id` and `mono_ns` (a decimal string of
+/// CLOCK_BOOTTIME) on every request, and the meter orders a hook's turn stop
+/// on them: a stop older than the prompt does not end it, a later one does.
+/// Controls: drop the fields from the request; order the hook stop always-after.
+#[test]
+fn p2_hooks_send_boot_id_and_mono_ns() {
+    let boot = termlink_session::input_meter::boot_id().expect("this host has a boot id");
+    let mut last = 0u64;
+    for ev in ["session-start", "post-tool-use", "stop", "session-end"] {
+        let req = termlink_sidecar::hook::request(ev, "s", &json!({"session_id": "s"})).unwrap();
+        assert_eq!(req["boot_id"], boot.as_str(), "{ev}: {req}");
+        let ns: u64 = req["mono_ns"].as_str().expect("mono_ns is a decimal string").parse().unwrap();
+        assert!(ns >= last && ns > 0, "{ev}: mono_ns counts up");
+        last = ns;
+        let ord = adapter_ord(req.as_object().unwrap()).expect("the meter reads the hook's order");
+        assert_eq!(ord, ReportOrd { boot: boot.clone(), ns });
+    }
+    assert!(termlink_sidecar::hook::request("bogus", "s", &json!({})).is_err());
+
+    let r = rig();
+    r.ev("s", "prompt_submit", 1, with(json!({"origin": "human", "basis": "inferred"}), o(&boot, 1000)));
+    r.m.legacy_hook("s", "stop", None, Some(ReportOrd { boot: boot.clone(), ns: 999 }));
+    assert!(r.act("s")["turn_stopped"].is_null(), "a stop ordered before the prompt does not end it");
+    r.m.legacy_hook("s", "stop", None, Some(ReportOrd { boot: boot.clone(), ns: 1001 }));
+    assert!(r.act("s")["turn_stopped"].is_u64(), "a stop after the prompt ends it");
 }
 
 /// FCW-4/FCW-5: the receiver only downgrades an origin. Controls: accept
@@ -852,4 +931,75 @@ fn p1_other_boot_or_damaged_state_is_not_used() {
     st.write_state(STATE_NAME, &raw).unwrap();
     let m = Meter::new(A, Box::new(Unbound), Box::new(NoLedger)).with_state(st);
     assert_eq!(m.last_prompt("s").unwrap().origin, Origin::Human);
+}
+
+/// P-2 rollout: a sidecar started before P-2 answers `unknown-field` to the
+/// order fields; the hook asks once more without them, so the call is not lost.
+/// The fake sidecar here behaves like the old op table. Control: drop the
+/// retry and the hook logs a refusal and the second request never comes.
+#[test]
+fn p2_hook_falls_back_for_a_sidecar_without_the_fields() {
+    use std::io::{BufRead, BufReader, Write};
+    let e = Estate::create_without_hub().unwrap();
+    let sock = e.runtime_dir().join("p2-old-sidecar.sock");
+    let lis = std::os::unix::net::UnixListener::bind(&sock).unwrap();
+    let seen = Arc::new(Mutex::new(vec![]));
+    let seen2 = seen.clone();
+    // Non-blocking accept with a deadline: without the retry the second request
+    // never comes, and the test must fail rather than hang.
+    lis.set_nonblocking(true).unwrap();
+    let srv = std::thread::spawn(move || {
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        for _ in 0..2 {
+            let s = loop {
+                match lis.accept() {
+                    Ok((s, _)) => break s,
+                    Err(_) if std::time::Instant::now() < end => std::thread::sleep(std::time::Duration::from_millis(10)),
+                    Err(_) => return,
+                }
+            };
+            s.set_nonblocking(false).unwrap();
+            let mut line = String::new();
+            BufReader::new(&s).read_line(&mut line).unwrap();
+            let v: Value = serde_json::from_str(&line).unwrap();
+            let ans = if v.get("mono_ns").is_some() { json!({"ok": false, "code": "unknown-field", "error": "field \"boot_id\" is not accepted by ready"}) } else { json!({"ok": true, "ready": true}) };
+            seen2.lock().unwrap().push(v);
+            writeln!(&s, "{ans}").unwrap();
+        }
+    });
+    let log = e.runtime_dir().join("p2-hook-errors.log");
+    let out = termlink_sidecar::hook::run("stop", &json!({"session_id": "s"}).to_string(), Some(&sock), Some(&log));
+    srv.join().unwrap();
+    assert_eq!(out.error, None, "{out:?}");
+    let seen = seen.lock().unwrap();
+    assert_eq!(seen.len(), 2);
+    assert!(seen[0]["mono_ns"].is_string() && seen[1].get("mono_ns").is_none() && seen[1]["hook"] == "stop", "{seen:?}");
+}
+
+/// P-2 with P-1: the order is persisted with the record, so after a restart an
+/// older report is still dropped; a file written before P-2 (no `ord`) is read
+/// back with the receive stamp as its order. Controls: do not persist `ord`
+/// (the stale BUSY applies after the restart); refuse files without `ord`.
+#[test]
+fn p2_order_survives_a_restart() {
+    let e = Estate::create_without_hub().unwrap();
+    let now = Arc::new(AtomicU64::new(5_000_000));
+    let old = rig_on(now.clone(), Some(open_store(&e)));
+    old.ev("s", "ready", 1, with(json!({"state": "READY"}), o("b1", 500)));
+    drop(old);
+    let r = rig_on(now.clone(), Some(open_store(&e)));
+    assert_eq!(r.ev("s", "ready", 2, with(json!({"state": "BUSY"}), o("b1", 400))), Intake::Dropped("ready-reordered"));
+    assert_eq!(r.ev("s", "ready", 3, with(json!({"state": "BUSY"}), o("b1", 600))), Intake::Applied);
+    drop(r);
+    // A P-1 file (no ord): ordered by its receive stamp.
+    let st = open_store(&e);
+    let raw = st.read_state(STATE_NAME).unwrap().unwrap();
+    let mut v: Value = serde_json::from_str(&raw).unwrap();
+    v["sessions"]["s"]["ready"].as_object_mut().unwrap().remove("ord");
+    let rx = v["sessions"]["s"]["ready"]["rx_mono"].as_u64().unwrap();
+    st.write_state(STATE_NAME, &v.to_string()).unwrap();
+    let m = Meter::new(A, Box::new(Unbound), Box::new(NoLedger)).with_state(st);
+    assert_eq!(m.counters().restored, 1, "{:?}", m.counters().reasons);
+    let a = { m.tick(); m.status_view()["sessions"]["s"].clone() };
+    assert_eq!(a["ready"]["ord"], json!({"boot": RX_DOMAIN, "ns": (rx * 1_000_000).to_string()}), "{a}");
 }

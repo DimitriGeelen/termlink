@@ -39,6 +39,15 @@ if [ "$unit" = p1 ] || [ "$unit" = all ]; then
     check "QR-2 restart (persisted last_prompt read back, other boot / damaged state not used)" \
         p1_restart_reads_the_persisted_last_prompt p1_turn_stop_and_later_reports_survive_restarts p1_other_boot_or_damaged_state_is_not_used
 fi
+if [ "$unit" = p2 ] || [ "$unit" = all ]; then
+    echo "== P-2 (T-3693): READY ordered on (boot_id, mono_ns), receive stamp as fallback"
+    check "E-156 (P-2: FCW-3 on (boot_id, mono_ns), receive-stamp fallback, order kept across a restart, FCW-8 paths)" \
+        fcw3_ready_ordering p2_reports_without_the_fields_are_ordered_by_receive_stamp p2_order_survives_a_restart fcw8_transcript_growth_and_refusals
+    check "clock-step (a backward wall step of 10 min does not freeze READY)" \
+        p2_backward_wall_step_does_not_freeze_ready
+    check "hooks send boot_id and mono_ns (and fall back for an older sidecar)" \
+        p2_hooks_send_boot_id_and_mono_ns p2_hook_falls_back_for_a_sidecar_without_the_fields
+fi
 rm -f "$out.list"
 [ "$rc" = 0 ] && echo "ALL PASS ($unit)"
 exit "$rc"

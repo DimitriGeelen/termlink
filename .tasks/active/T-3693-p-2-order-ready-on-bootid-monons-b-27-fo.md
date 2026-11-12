@@ -2,9 +2,11 @@
 id: T-3693
 name: "P-2: order READY on (boot_id, mono_ns) (B-27 follow-up F-27)"
 description: >
-  arc-011 plan unit P-2 (docs/design/interactive-agent-communication-08-plan.md v0.3, approved G-0 2026-11-12): B-27 follow-up F-27: order READY on `(boot_id, mono_ns)`, receive stamp as fallback; TermLink hooks send both (04 17.2.a, 06 AL-1 CR-6.24)
+  arc-011 plan unit P-2 (docs/design/interactive-agent-communication-08-plan.md v0.3,
+  approved G-0 2026-11-12): B-27 follow-up F-27: order READY on `(boot_id, mono_ns)`,
+  receive stamp as fallback; TermLink hooks send both (04 17.2.a, 06 AL-1 CR-6.24)
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -42,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:26Z
-last_update: 2026-11-12T16:56:26Z
-date_finished: null
+last_update: 2026-11-12T19:34:53Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -54,6 +56,26 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-12T18:31:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 3
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=3 (L3:keyword=rollback); D1=2 (body:learning-ref);
+      D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0 (L0: no signal);
+      F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3693: P-2: order READY on (boot_id, mono_ns) (B-27 follow-up F-27)
@@ -83,11 +105,11 @@ Unblocks: P-7 (T-3697, built); request P-44 to AEF (fixtures published).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A backward wall-clock step does not freeze READY
-- [ ] Reports without `(boot_id, mono_ns)` are ordered by receive stamp
-- [ ] The TermLink hooks send `boot_id` and `mono_ns`
-- [ ] The unit's fixture suite exits 0 with a PASS line for E-156 and its mutant list is all killed (FP 3.1.b)
-- [ ] Clock-step fixture: a mutant ordering by `at_ms` goes red
+- [x] A backward wall-clock step does not freeze READY
+- [x] Reports without `(boot_id, mono_ns)` are ordered by receive stamp
+- [x] The TermLink hooks send `boot_id` and `mono_ns`
+- [x] The unit's fixture suite exits 0 with a PASS line for E-156 and its mutant list is all killed (FP 3.1.b)
+- [x] Clock-step fixture: a mutant ordering by `at_ms` goes red
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -139,9 +161,12 @@ Unblocks: P-7 (T-3697, built); request P-44 to AEF (fixtures published).
 
 ## Verification
 
-# Plan P-2 check (08-plan section 4): fixture suite exits 0 with a PASS line per listed E-n (E-156) and its mutant
-# list all killed (FP 3.1.b); clock-step fixture, mutant ordering by `at_ms` red. The suite is written by this task:
-# replace these comment lines with its command before closing (redirect-then-grep form, L-387).
+# Fixture suite: E-156, the clock-step fixture, the hooks' fields (and the fallback for an older sidecar).
+bash tests/b27-followups-fixtures.sh p2 > .context/working/.t3693-fx.out 2>&1 && grep -q "^PASS E-156" .context/working/.t3693-fx.out && grep -q "^PASS clock-step" .context/working/.t3693-fx.out && grep -q "^PASS hooks send" .context/working/.t3693-fx.out && grep -q "^ALL PASS (p2)" .context/working/.t3693-fx.out
+# The sidecar API passes the hooks' order to the meter.
+cargo test -p termlink-sidecar --test api_tests p2_ > .context/working/.t3693-api.out 2>&1 && grep -q "test result: ok. 1 passed" .context/working/.t3693-api.out
+# Mutant list all killed, P2-a (order by at_ms) among them (FP 3.1.b), when the local list is present (.context/working is not committed; run log .context/working/t3693/mutants.out).
+test ! -f .context/working/t3693/mutants.py || (timeout 3000 python3 -u .context/working/t3693/mutants.py > .context/working/.t3693-mut.out 2>&1 && grep -q "^KILLED P2-a" .context/working/.t3693-mut.out && ! grep -q "^SURVIVED" .context/working/.t3693-mut.out)
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -314,6 +339,11 @@ Unblocks: P-7 (T-3697, built); request P-44 to AEF (fixtures published).
 
 ## Evolution
 
+### 2026-11-12 — two things the plan row did not name
+- **What changed:** (1) `mono_ns` in ns does not fit strict JSON's integers on a host up more than ~104 days; (2) the API's per-op field list means "the hooks send both" would have broken every hook call against a sidecar daemon still running the old binary.
+- **Plan impact:** P-44's parity fixtures should include `mono_ns` as a string; nothing else in the plan moves.
+- **Triggered:** decisions above; no new task.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -367,6 +397,21 @@ Unblocks: P-7 (T-3697, built); request P-44 to AEF (fixtures published).
 
 ## Decisions
 
+### 2026-11-12 — How reports are ordered (P-2)
+- **Chose:** `ReportOrd {boot, ns}`: the adapter's `(boot_id, mono_ns)` when both are present and valid, else the receive stamp in its own domain `rx:` (`:` cannot occur in a `boot_id`). Same domain: higher `ns` is later; another domain (a new boot, or a switch between adapter and receive stamps) is later than every report of the previous one (04 17.2.a). Used for READY (FCW-3, tie keeps BUSY), for `last_prompt` (an older prompt is dropped, counted `prompt_reordered`, as 17.2.a names both keys) and for "the stop ordered after the prompt" (AL-4 line 510). `at_ms` is kept for display only. The order is persisted with P-1's record; a P-1 file without it is read back with its receive stamp.
+- **Why:** 06 v0.3 AL-1 CR-6.24, 04 v0.4 17.2.a. The receive-stamp fallback applies now, before any adapter sends the fields, so the clock-step freeze is gone for every report today.
+- **Rejected:** comparing adapter `mono_ns` (CLOCK_BOOTTIME) with the receiver's CLOCK_MONOTONIC receive stamp in one domain (different clocks; they drift apart over suspend).
+
+### 2026-11-12 — `mono_ns` may be a decimal string; the hooks send a string
+- **Chose:** accept `mono_ns` as a JSON integer or a decimal string (1..=20 digits); the built hooks send the string form.
+- **Why:** a u64 in ns passes 2^53 after about 104 days of uptime, and strict JSON (06 3.3) refuses larger integers, which would make every report on a long-running host unparseable. The design does not fix the field's type. **For P-44 (AEF's adapter):** send the string form, or the integer only while it fits; the parity fixtures should carry both.
+- **Rejected:** integer only (breaks after ~104 days of uptime); ms resolution (loses the ordering of reports less than 1 ms apart).
+
+### 2026-11-12 — Hooks stay compatible with a sidecar started before P-2
+- **Chose:** the `ready` and `pull` ops accept `boot_id` and `mono_ns`; a hook that gets `unknown-field` asks once more without them.
+- **Why:** the API refuses unknown fields per op, so after an upgrade a still-running old sidecar daemon would refuse every hook call, including `pull` (mail hand-over), until it restarts. The retry costs one extra local call only in that window.
+- **Rejected:** requiring a sidecar restart with the upgrade (the operator's rule: a working route is not switched off as a side effect of an upgrade).
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -392,3 +437,6 @@ Unblocks: P-7 (T-3697, built); request P-44 to AEF (fixtures published).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3693-p-2-order-ready-on-bootid-monons-b-27-fo.md
 - **Context:** Initial task creation
+
+### 2026-11-12T18:31:44Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

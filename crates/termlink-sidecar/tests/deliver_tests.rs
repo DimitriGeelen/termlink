@@ -604,7 +604,7 @@ fn b27_handed_over_moves_s3_and_arrival_does_not() {
     let store = Arc::new(Store::open(&e.store_root(), B).unwrap());
     let meter = Arc::new(Meter::new(B, Box::new(Unbound), Box::new(NoLedger)));
     let d = Deliverer::new(B, store.clone(), Box::new(BuiltIn::new(roster_of(&[&ka]))), None).with_meter(meter.clone());
-    meter.legacy_hook("sess-1", "session-start", None);
+    meter.legacy_hook("sess-1", "session-start", None, None);
     let s3 = |m: &Meter| {
         m.tick();
         m.status_view()["sessions"]["sess-1"]["s3_at"].clone()

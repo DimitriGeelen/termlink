@@ -181,12 +181,65 @@ impl Origin {
     }
 }
 
+/// The order of a report (04 17.2.a, 06 AL-1 CR-6.24): the adapter's
+/// `(boot_id, mono_ns)` when it sends both, else the receiver's own receive
+/// stamp (domain [`RX_DOMAIN`]); never `at_ms`, which a wall-clock step moves.
+/// Within one domain the higher `ns` is later; a report of another domain (a new
+/// boot, or a switch between adapter stamps and receive stamps) is later than
+/// every report of the previous one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReportOrd {
+    pub boot: String,
+    pub ns: u64,
+}
+
+/// The domain of receive-stamp orders (`:` cannot occur in an adapter's `boot_id`).
+pub const RX_DOMAIN: &str = "rx:";
+
+impl ReportOrd {
+    /// The receive-stamp order of a report received at `rx_ms` (mono).
+    pub fn rx(rx_ms: u64) -> Self {
+        ReportOrd { boot: RX_DOMAIN.into(), ns: rx_ms.saturating_mul(1_000_000) }
+    }
+    /// Strictly before `o` (same domain, lower `ns`).
+    pub fn before(&self, o: &ReportOrd) -> bool {
+        self.boot == o.boot && self.ns < o.ns
+    }
+    /// Strictly after `o` (another domain, or same domain and higher `ns`).
+    pub fn after(&self, o: &ReportOrd) -> bool {
+        self.boot != o.boot || self.ns > o.ns
+    }
+    fn view(&self) -> Value {
+        json!({"boot": self.boot, "ns": self.ns.to_string()})
+    }
+    fn from_view(v: &Value) -> Option<ReportOrd> {
+        Some(ReportOrd { boot: v.get("boot")?.as_str()?.to_owned(), ns: v.get("ns")?.as_str()?.parse().ok()? })
+    }
+}
+
+/// The adapter's `(boot_id, mono_ns)` of a report or hook request, when both are
+/// present and valid. `boot_id`: 1..=64 of `[A-Za-z0-9-]`; `mono_ns`: an integer
+/// of at least 0, or a decimal string of one (a u64 in ns passes 2^53 after ~104 days of
+/// uptime, beyond strict JSON's integers, so the string form is accepted).
+pub fn adapter_ord(obj: &serde_json::Map<String, Value>) -> Option<ReportOrd> {
+    let boot = obj.get("boot_id")?.as_str().filter(|b| (1..=64).contains(&b.len()) && b.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-'))?;
+    let ns = match obj.get("mono_ns")? {
+        Value::Number(n) => n.as_u64()?,
+        Value::String(t) if (1..=20).contains(&t.len()) && t.bytes().all(|c| c.is_ascii_digit()) => t.parse().ok()?,
+        _ => return None,
+    };
+    Some(ReportOrd { boot: boot.to_owned(), ns })
+}
+
 /// The READY record of a session (AL-1, OBS-2). `epoch` is the sidecar process
 /// that received it: another process's record reads absent for the doorbell (FCW-6).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReadyRec {
     pub state: String,
+    /// The adapter's wall time: display and audit only (CR-6.24).
     pub at_ms: u64,
+    /// The order the record was applied under (CR-6.24).
+    pub ord: ReportOrd,
     pub rx_mono: u64,
     pub seq: u64,
     pub epoch: u64,
@@ -198,6 +251,7 @@ pub struct Prompt {
     pub origin: Origin,
     pub basis: String,
     pub at_ms: u64,
+    pub ord: ReportOrd,
     pub rx_mono: u64,
     pub doorbell_ids: Vec<String>,
 }
@@ -367,6 +421,8 @@ struct Session {
 pub struct Counters {
     pub unparseable: u64,
     pub ready_reordered: u64,
+    /// `prompt_submit` reports older than the applied `last_prompt` (04 17.2.a).
+    pub prompt_reordered: u64,
     pub origin_inconsistent: u64,
     pub origin_overridden: u64,
     pub transcript_refused: u64,
@@ -488,8 +544,8 @@ impl Meter {
             sessions.insert(
                 k.clone(),
                 json!({
-                    "ready": s.ready.as_ref().map(|r| json!({"state": r.state, "at_ms": r.at_ms, "rx_mono": r.rx_mono, "seq": r.seq, "epoch": r.epoch.to_string()})),
-                    "last_prompt": s.last_prompt.as_ref().map(|p| json!({"origin": p.origin.name(), "basis": p.basis, "at_ms": p.at_ms, "rx_mono": p.rx_mono, "doorbell_ids": p.doorbell_ids})),
+                    "ready": s.ready.as_ref().map(|r| json!({"state": r.state, "at_ms": r.at_ms, "ord": r.ord.view(), "rx_mono": r.rx_mono, "seq": r.seq, "epoch": r.epoch.to_string()})),
+                    "last_prompt": s.last_prompt.as_ref().map(|p| json!({"origin": p.origin.name(), "basis": p.basis, "at_ms": p.at_ms, "ord": p.ord.view(), "rx_mono": p.rx_mono, "doorbell_ids": p.doorbell_ids})),
                     "stopped": s.stopped,
                     "ended": s.ended,
                 }),
@@ -575,6 +631,8 @@ impl Meter {
             _ => {}
         }
         let rx = (self.clock)();
+        // CR-6.24: (boot_id, mono_ns), or the receive stamp; never at_ms.
+        let ord = adapter_ord(&obj).unwrap_or_else(|| ReportOrd::rx(rx));
         // AL-1 check_origin 3 needs the session's input counters as of now, for
         // every `human` prompt, whatever its basis (F-4, CR-6.4).
         let origin_s1 = (event == "prompt_submit" && s("origin") == Some("human")).then(|| self.s1.read(session));
@@ -609,19 +667,19 @@ impl Meter {
             "ready" => {
                 let state = s("state").unwrap_or_default().to_owned();
                 match &sess.ready {
-                    Some(r) if at_ms < r.at_ms => {
+                    Some(r) if ord.before(&r.ord) => {
                         counters.ready_reordered += 1;
                         out = Intake::Dropped("ready-reordered");
                     }
-                    Some(r) if at_ms == r.at_ms && r.state == "BUSY" && state != "BUSY" => out = Intake::Dropped("tie keeps BUSY"),
+                    Some(r) if ord == r.ord && r.state == "BUSY" && state != "BUSY" => out = Intake::Dropped("tie keeps BUSY"),
                     _ => {
                         let seq = sess.ready.as_ref().map_or(1, |r| r.seq + 1);
                         moves_s2 = sess.ready.as_ref().map(|r| r.state.as_str()) != Some(state.as_str());
                         if state == "READY" {
-                            mark_stopped(sess, at_ms, rx);
+                            mark_stopped(sess, &ord, rx);
                         }
                         sess.ended = state == "NOT_RUNNING";
-                        sess.ready = Some(ReadyRec { state, at_ms, rx_mono: rx, seq, epoch: self.epoch });
+                        sess.ready = Some(ReadyRec { state, at_ms, ord: ord.clone(), rx_mono: rx, seq, epoch: self.epoch });
                     }
                 }
             }
@@ -641,17 +699,22 @@ impl Meter {
                     None => sess.transcript = None,
                 }
             }
+            // 04 17.2.a: a prompt older than the applied one is ignored and counted.
+            "prompt_submit" if sess.last_prompt.as_ref().is_some_and(|p| ord.before(&p.ord)) => {
+                counters.prompt_reordered += 1;
+                out = Intake::Dropped("prompt-reordered");
+            }
             "prompt_submit" => {
                 let ids = valid_ids(obj.get("doorbell_ids"));
                 let (origin, basis) = check_origin(counters, s("origin").unwrap_or(""), s("basis").unwrap_or(""), &ids, &typed_ids, origin_s1, rx);
-                sess.last_prompt = Some(Prompt { origin, basis, at_ms, rx_mono: rx, doorbell_ids: ids });
+                sess.last_prompt = Some(Prompt { origin, basis, at_ms, ord: ord.clone(), rx_mono: rx, doorbell_ids: ids });
                 sess.stopped = None;
             }
             "tool_start" | "tool_end" => sess.tool = Some((s("tool").unwrap_or_default().to_owned(), rx)),
-            "turn_stop" => mark_stopped(sess, at_ms, rx),
+            "turn_stop" => mark_stopped(sess, &ord, rx),
             "session_end" => {
                 let seq = sess.ready.as_ref().map_or(1, |r| r.seq + 1);
-                sess.ready = Some(ReadyRec { state: "NOT_RUNNING".into(), at_ms, rx_mono: rx, seq, epoch: self.epoch });
+                sess.ready = Some(ReadyRec { state: "NOT_RUNNING".into(), at_ms, ord: ord.clone(), rx_mono: rx, seq, epoch: self.epoch });
                 sess.ended = true;
             }
             // AL-9 (B-16/B-20) decides hand-over from these; here they are recorded only.
@@ -685,12 +748,14 @@ impl Meter {
     /// The built W1 hooks (`ready`/`pull` ops: session-start, stop, session-end,
     /// post-tool-use) are turn events too: they move S2 (a) for the session.
     /// `transcript` is the path the deliverer resolved for it, checked like
-    /// an adapter's (FCW-8). Deviation D-2 in T-3687.
-    pub fn legacy_hook(&self, session: &str, hook: &str, transcript: Option<&Path>) {
+    /// an adapter's (FCW-8). Deviation D-2 in T-3687. `ord` is the hook's
+    /// `(boot_id, mono_ns)` when it sent both (P-2, CR-6.24), else the receive stamp.
+    pub fn legacy_hook(&self, session: &str, hook: &str, transcript: Option<&Path>, ord: Option<ReportOrd>) {
         if !valid_session(session) {
             return;
         }
         let rx = (self.clock)();
+        let ord = ord.unwrap_or_else(|| ReportOrd::rx(rx));
         let tr = transcript.map(|p| self.validate_transcript(&p.to_string_lossy()));
         let mut g = lock(&self.inner);
         let inner = &mut *g;
@@ -708,7 +773,7 @@ impl Meter {
                     sess.transcript = Some(p);
                 }
             }
-            "stop" => mark_stopped(sess, u64::MAX, rx),
+            "stop" => mark_stopped(sess, &ord, rx),
             "session-end" => sess.ended = true,
             _ => {}
         }
@@ -974,8 +1039,9 @@ impl Meter {
             "source": last.map(|(_, s)| *s),
             "conversation": conv.view(),
             "watchdog": watchdog,
-            "ready": s.ready.as_ref().map(|r| json!({"state": r.state, "at_ms": r.at_ms, "rx_mono": r.rx_mono, "seq": r.seq, "sidecar_epoch": r.epoch, "current_epoch": r.epoch == self.epoch})),
-            "last_prompt": s.last_prompt.as_ref().map(|p| json!({"origin": p.origin.name(), "basis": p.basis, "at_ms": p.at_ms, "rx_mono": p.rx_mono, "doorbell_ids": p.doorbell_ids})),
+            "ready": s.ready.as_ref().map(|r| json!({"state": r.state, "at_ms": r.at_ms, "ord": r.ord.view(), "rx_mono": r.rx_mono, "seq": r.seq, "sidecar_epoch": r.epoch, "current_epoch": r.epoch == self.epoch})),
+            "last_prompt": s.last_prompt.as_ref().map(|p| json!({"origin": p.origin.name(), "basis": p.basis, "at_ms": p.at_ms, "ord": p.ord.view(), "rx_mono": p.rx_mono, "doorbell_ids": p.doorbell_ids})),
+            "turn_stopped": s.stopped,
             "interactive": s.interactive,
             "transcript": s.transcript.is_some(),
             "foreground": s.s1_sources.as_ref().map(|r| r.foreground.clone()),
@@ -1018,7 +1084,7 @@ impl Meter {
             "mono_now": now,
             "sidecar_epoch": self.epoch,
             "counters": {
-                "adapter_reports_unparseable": c.unparseable, "ready_reordered": c.ready_reordered,
+                "adapter_reports_unparseable": c.unparseable, "ready_reordered": c.ready_reordered, "prompt_reordered": c.prompt_reordered,
                 "origin_inconsistent": c.origin_inconsistent, "origin_overridden": c.origin_overridden,
                 "transcript_refused": c.transcript_refused, "session_table_full": c.session_table_full,
                 "s3_unattributed": c.s3_unattributed, "persist_failed": c.persist_failed,
@@ -1056,10 +1122,11 @@ fn stamp_s2(sess: &mut Session, rx: u64) {
     sess.s2_event_at = Some(sess.s2_event_at.map_or(rx, |t| t.max(rx)));
 }
 
-fn mark_stopped(sess: &mut Session, at_ms: u64, rx: u64) {
+/// The first turn stop (or READY) ordered after the last prompt (AL-4 line 510, CR-6.24).
+fn mark_stopped(sess: &mut Session, ord: &ReportOrd, rx: u64) {
     if let Some(p) = &sess.last_prompt
         && sess.stopped.is_none()
-        && at_ms > p.at_ms
+        && ord.after(&p.ord)
     {
         sess.stopped = Some(rx);
     }
@@ -1145,7 +1212,10 @@ fn restore(raw: &str, boot: Option<&str>) -> Result<Vec<(String, Session)>, Stri
             None | Some(Value::Null) => None,
             Some(r) => {
                 let state = r.get("state").and_then(Value::as_str).filter(|x| ["READY", "BUSY", "NOT_RUNNING"].contains(x)).ok_or(format!("{k}: bad ready state"))?;
-                Some(ReadyRec { state: state.into(), at_ms: u(r, "at_ms")?, rx_mono: u(r, "rx_mono")?, seq: u(r, "seq")?, epoch: r.get("epoch").and_then(Value::as_str).and_then(|x| x.parse().ok()).ok_or(format!("{k}: bad epoch"))? })
+                let rx_mono = u(r, "rx_mono")?;
+                // A record written before P-2 has no `ord`: its receive stamp orders it.
+                let ord = r.get("ord").map_or(Some(ReportOrd::rx(rx_mono)), ReportOrd::from_view).ok_or(format!("{k}: bad ord"))?;
+                Some(ReadyRec { state: state.into(), at_ms: u(r, "at_ms")?, ord, rx_mono, seq: u(r, "seq")?, epoch: r.get("epoch").and_then(Value::as_str).and_then(|x| x.parse().ok()).ok_or(format!("{k}: bad epoch"))? })
             }
         };
         let last_prompt = match e.get("last_prompt") {
@@ -1158,7 +1228,9 @@ fn restore(raw: &str, boot: Option<&str>) -> Result<Vec<(String, Session)>, Stri
                     _ => return Err(format!("{k}: bad origin")),
                 };
                 let basis = p.get("basis").and_then(Value::as_str).ok_or(format!("{k}: no basis"))?.to_owned();
-                Some(Prompt { origin, basis, at_ms: u(p, "at_ms")?, rx_mono: u(p, "rx_mono")?, doorbell_ids: valid_ids(p.get("doorbell_ids")) })
+                let rx_mono = u(p, "rx_mono")?;
+                let ord = p.get("ord").map_or(Some(ReportOrd::rx(rx_mono)), ReportOrd::from_view).ok_or(format!("{k}: bad ord"))?;
+                Some(Prompt { origin, basis, at_ms: u(p, "at_ms")?, ord, rx_mono, doorbell_ids: valid_ids(p.get("doorbell_ids")) })
             }
         };
         let sess = Session {
