@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:23Z
-last_update: 2026-11-12T14:53:09Z
+last_update: 2026-11-12T15:14:38Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -128,6 +128,23 @@ idempotently from it and the build queue (B-25 -> B-11 -> B-16) runs against it.
 - [x] Build plan with tasks on arc-011; the build tasks captured from the step-1 rulings (priority, main lease, sequence numbers, mail-hub check, standing tests, NTP check, canary, sidecar, hub canonical id) re-scoped or confirmed against the plan
 - [x] R-41 typed work-message slice placed (OD-13)
 - [x] Role-chain yaml step 8 `task:` set to this task id
+
+### Human
+- [ ] [REVIEW] Independent review: step 8 plan meets the planner card's completion conditions (coverage complete,
+      no cycle, every unit has acceptance and a verification check, no rubber-stamp criteria, rulings honoured)
+  **Steps:**
+  1. The ORCHESTRATOR (never a reviewer seat) runs `fw reviewer judge T-3357 --criterion 1` against
+     `docs/design/interactive-agent-communication-08-plan.md` and its hand-back
+     `docs/design/interactive-agent-communication/role-handback-step-08.json`.
+  **Expected:** a green verdict bound to the reviewed revision, applied with `fw reviewer verdict apply T-3357`.
+  **If not:** findings go back to the planner role (max 2-3 rounds), then each is dispositioned.
+- [ ] [REVIEW] Step 8 plan approved (gate G-0, the last design approval; no work item exists before it)
+  **Steps:**
+  1. Open http://192.168.10.107:3003/review/T-3357 and read docs/design/interactive-agent-communication-08-plan.md
+     (units P-n by phase, order table, D-2 order view with your decision points, explorations X-1..X-7).
+  2. Check the first units match ruling A: P-1..P-5 small fixes and B-25, then B-11, then B-16.
+  **Expected:** you approve; the agent then creates one task per P-n idempotently (card 3.2, 6.3).
+  **If not:** say which unit, order or exploration to change; the planner revises the plan.
 
 ## Verification
 
