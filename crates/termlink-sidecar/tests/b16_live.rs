@@ -191,9 +191,21 @@ fn live_binding_reads_s1_and_types_the_si1_line() {
     assert!(f.s1.is_some(), "S1 read through the bound session with a minted notify token");
 
     std::thread::sleep(std::time::Duration::from_secs(31));
-    meter.tick();
-    let rep = runner.tick().unwrap();
-    assert!(matches!(rep.rung, Some((_, doorbell::RingOut::Done { notified: doorbell::Notified::Typed, .. }))), "{rep:?}");
+    // As the daemon's loop: a tick whose S1 read missed its budget on a loaded host
+    // holds (S1 unknown is typing, FCW-22) and the next tick decides again.
+    let mut reps = vec![];
+    for _ in 0..5 {
+        meter.tick();
+        let rep = runner.tick().unwrap();
+        let done = rep.rung.is_some();
+        reps.push(rep);
+        if done {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+    let rep = reps.last().unwrap();
+    assert!(matches!(rep.rung, Some((_, doorbell::RingOut::Done { notified: doorbell::Notified::Typed, .. }))), "{reps:?}");
     // The shell received the SI-1 line.
     let want = doorbell::compose(&[id(7)], 1).unwrap();
     let mut seen = String::new();
