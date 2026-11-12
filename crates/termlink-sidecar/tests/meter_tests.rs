@@ -330,7 +330,9 @@ fn fcw7_session_table_is_capped() {
 /// Control: count every tick as growth and the "no growth" assert goes red.
 #[test]
 fn fcw8_transcript_growth_and_refusals() {
-    let dir = std::env::current_dir().unwrap().join("target").join(format!("t3687-meter-{}", std::process::id()));
+    // Cargo's per-build scratch dir for integration tests: inside the build's own target dir, never the
+    // source tree (which is read-only on node1, T-3677) and never /tmp.
+    let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("t3687-meter-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     let root = dir.join("projects");
     std::fs::create_dir_all(root.join("p")).unwrap();
