@@ -10,11 +10,13 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
-related_tasks: [T-3344]
+related_tasks: [T-3344, T-3357, T-3366, T-3724]
+plan_unit: P-11
+depends_on: [T-3366]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -88,12 +90,36 @@ CAND-8 ruling (log OD-17 item 7, 14e-14h). The 2026-10-04 stray hub split 32 ses
 
 Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 
+**Background / trigger:** The step-8 plan `docs/design/interactive-agent-communication-08-plan.md` v0.3 was approved
+by the operator on 2026-11-12 (G-0, T-3357 `## Decisions`). PD-2 splits this task in two: this task keeps the PH-2
+part, plan unit **P-11** (build, PH-2): the mail-hub declaration reader and check (V-7, DR-7 A), the sidecar reads
+`mail_hub` and refuses to run on a mismatch. Serves K-25. The PH-3 part (every client verifies the hub id, cross-hub
+mail) is plan unit P-50, task T-3724.
+
+**Problem / hypothesis:** A project's mail can land on a stray hub (2026-10-04: 32 sessions split); the sidecar does
+not know which hub the project declared, so it cannot refuse the wrong one.
+
+**Goal:** The sidecar reads the project's `mail_hub` declaration and refuses to run when the declaration or the
+answering hub differs, with a named reason.
+
+**Expected outcome:** The spec tagged "B-1; AEF owns the key" passes; a differing declaration or answering hub stops
+the sidecar with a named reason. Activation needs AEF to accept the `mail_hub` key in `.framework.yaml` (request P-46).
+
+**Rollback:** reader off by config; sidecar runs as before.
+
+Depends on: T-3366 (P-10 built: the minted id exists)
+Depends on: request P-46 to AEF, not sent yet (external, activation only: AEF ships the mail_hub key)
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
+Unblocks: P-50 (T-3724).
+
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Mail clients read the declaration and verify hub_id before sending or receiving
-- [ ] Mismatch is refused loudly with a re-home hint; no silent local fallback
+- [ ] The sidecar reads the `mail_hub` declaration and verifies the answering hub's id before it runs
+- [ ] Mismatch is refused loudly with a re-home hint and a named reason; no silent local fallback
 - [ ] Restart or cert rotation keeps the id and passes; a new hub id is refused
+- [ ] The spec tagged "B-1; AEF owns the key" passes
+- [ ] The unit's fixture suite exits 0 with a PASS line per listed E-n and its mutant list is all killed (FP 3.1.b)
 
 ## Verification
 
@@ -169,6 +195,11 @@ bash tests/mail-hub-declaration-fixtures.sh
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** split as proposed in plan 08 v0.3 section 7.1 (approved by the operator 2026-11-12, ruling A with PD-2, recorded in T-3357): this task keeps the PH-2 reader and refusal by the sidecar (unit P-11); every client verifying the hub id and cross-hub mail moved to the new task T-3724 (unit P-50, PH-3).
+- **Why:** the sidecar check is useful in PH-2 on one hub; verification by every client needs the PH-3 roster (P-48).
+- **Rejected:** one task across two phases (it could not close until PH-3).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

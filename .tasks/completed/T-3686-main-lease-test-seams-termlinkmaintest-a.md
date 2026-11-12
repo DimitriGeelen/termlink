@@ -428,6 +428,12 @@ env -u TMPDIR cargo test -p termlink-session -q > .context/working/.t3686-test 2
 ### 2026-11-12T16:21:07Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 
+### 2026-11-12 — plan G-0 mapping [T-3357]
+- **Action:** the step-8 plan `docs/design/interactive-agent-communication-08-plan.md` v0.3 (approved by the operator 2026-11-12, ruling A with PD-3, recorded in T-3357 Decisions) maps its unit P-3 to this closed task, reused as is (plan section 7.2). Its `serial` edge into P-4 (B-25, T-3694) is satisfied (merged, closed).
+- plan_unit: P-3
+- arc_id: arc-011
+- **Note:** recorded here because the closed-record gate (T-4285) allows only an appended Updates entry; the frontmatter is unchanged.
+
 ## Reviewer Verdict (v1.5)
 
 - **Scan ID:** R-f58252a6

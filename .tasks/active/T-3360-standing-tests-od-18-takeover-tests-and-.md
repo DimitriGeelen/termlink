@@ -8,11 +8,13 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
-related_tasks: [T-3344]
+related_tasks: [T-3344, T-3357, T-3694, T-3709, T-3730]
+plan_unit: P-32
+depends_on: [T-3694, T-3709]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -86,6 +88,28 @@ OD-18 point 3: lapse during an open obligation, and a stuck holder with a live s
 
 Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 
+**Background / trigger:** The step-8 plan `docs/design/interactive-agent-communication-08-plan.md` v0.3 was approved
+by the operator on 2026-11-12 (G-0, T-3357 `## Decisions`). PD-2 splits this task in two: this task keeps the PH-2
+part, plan unit **P-32** (test, PH-2): OD-18 takeover tests on the built lease and the three CAND-3 real-failure
+controls, kill-checked continuously. Serves E-79, E-151, R-68. The R-68 standing tests of PH-4 (main eligibility from
+signed profiles) moved to plan unit P-57, task T-3730.
+
+**Problem / hypothesis:** The lease (T-3654, tightened by P-4) and the three real failures of CAND-3 have no standing
+controls, so a regression in takeover or in their diagnosis would pass unseen. The injectors come from P-25.
+
+**Goal:** Takeover tests on the built, tightened lease and the three CAND-3 real-failure controls, each kill-checked,
+running in the guard layer within the cap (DP-3).
+
+**Expected outcome:** Each control is red on its mutant and green on the system; `scripts/run-guard-layer.sh` lists
+the controls green.
+
+**Rollback:** controls removed (a gap the PH-2 exit report must name).
+
+Depends on: T-3694 (P-4 built: tightened lease under test)
+Depends on: T-3709 (P-25 built: injectors)
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
+Unblocks: P-40 (T-3719), P-57 (T-3730).
+
 ## Acceptance Criteria
 
 ### Agent
@@ -93,6 +117,7 @@ Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 - [ ] Test 2 (stuck holder, live sidecar) ends in a visible takeover
 - [ ] Each of the three real failures is injected and produces its specific diagnosis within the declared time
 - [ ] Each control is kill-checked: disabling the detection turns the test red
+- [ ] The controls run in the guard layer within the cap (DP-3): `scripts/run-guard-layer.sh` lists them green, and a mutant run turns each red
 
 ## Verification
 
@@ -168,6 +193,11 @@ bash tests/arc011-standing-controls-fixtures.sh
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** split as proposed in plan 08 v0.3 section 7.1 (approved by the operator 2026-11-12, ruling A with PD-2, recorded in T-3357): this task keeps the PH-2 controls on the built lease and the CAND-3 real failures (unit P-32); the R-68 standing tests of PH-4 moved to the new task T-3730 (unit P-57).
+- **Why:** the PH-2 controls can run now on the built lease; the R-68 tests need signed profiles (P-55), which only exist in PH-4.
+- **Rejected:** one task across two phases (it could not close until PH-4).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

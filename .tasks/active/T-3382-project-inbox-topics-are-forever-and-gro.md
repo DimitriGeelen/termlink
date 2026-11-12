@@ -10,7 +10,7 @@ owner: agent
 horizon: later
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-3357, T-3701]
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -320,6 +320,11 @@ date_finished: null
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** extend under B-3, as proposed in plan 08 v0.3 section 7.2 (approved by the operator 2026-11-12, ruling A, recorded in T-3357): the retention ceilings V-3 that bound these topics are built in plan unit P-13, new task T-3701 (the plan's work-item column says "new (extends T-3382)"). This task is not itself a plan unit; it stays open as the record of the growth and closes when P-13's criterion "the forever-topic growth of T-3382 is bounded by V-3" passes.
+- **Why:** the bound is one part of B-3 (admin log flag, sweep refusal, ceilings); B-3 is one build item.
+- **Rejected:** a count cap (conflicts with OD-16, as this task already notes).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

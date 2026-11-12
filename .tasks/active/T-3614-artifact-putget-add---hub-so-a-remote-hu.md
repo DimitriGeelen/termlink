@@ -10,7 +10,10 @@ owner: agent
 horizon: next
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-3357, T-3696, T-3433]
+plan_unit: P-22
+arc_id: arc-011
+depends_on: [T-3696]
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -56,14 +59,36 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** ring20 (kommunal-pool msg 67dfe8cb, 2026-10-27) needs .107 to upload 1-2 MB judge bundles to
+the node1 hub's artifact store; the CLI only targets the local hub. The step-8 plan
+`docs/design/interactive-agent-communication-08-plan.md` v0.3, approved by the operator on 2026-11-12 (G-0, T-3357
+`## Decisions`), re-scopes this task as plan unit **P-22** (build, PH-2, T1 hardening): B-13, `artifact put --hub`
+with `--encrypt-to` only; plaintext refused with a reason (DR-5 A, O-1 A). Serves B-13.
+
+**Problem / hypothesis:** A remote put as first described would place plaintext on another host's hub, which the
+operator's O-1 A ruling forbids; the encryption wrapper and keys come from P-6 (security edge: encryption before any
+remote put).
+
+**Goal:** `termlink artifact put --hub <addr>` (and get) that only accepts `--encrypt-to`, refusing plaintext with a
+reason; local put unchanged.
+
+**Expected outcome:** The B-13 spec passes; the ring20 node1 pool transfer works encrypted; the FX-5 inventory (P-34,
+T-3433) shows the remote put row.
+
+**Rollback:** `--hub` removed; local put unchanged.
+
+Depends on: T-3696 (P-6 security: encryption before any remote put: never plaintext (O-1 A))
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
+Unblocks: P-34 (T-3433); part of gate G-2.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `artifact put --hub` (and get) works against a second hub with `--encrypt-to`
+- [ ] A remote put without `--encrypt-to` is refused with a stated reason (DR-5 A); local put is unchanged
+- [ ] The B-13 spec passes
+- [ ] The ring20 node1 pool transfer works encrypted
+- [ ] The unit's fixture suite exits 0 with a PASS line per listed E-n and its mutant list is all killed (FP 3.1.b)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +139,9 @@ date_finished: null
 -->
 
 ## Verification
+
+# Plan P-22 check (08-plan section 4): fixture suite exits 0 with a PASS line per E-n, mutant list all killed
+# (FP 3.1.b). Replace with the suite's command before closing (redirect-then-grep form, L-387).
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -338,6 +366,11 @@ date_finished: null
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** re-scope as proposed in plan 08 v0.3 section 7.2 (approved by the operator 2026-11-12, ruling A, recorded in T-3357): this task is unit P-22, B-13, remote put with `--encrypt-to` only, plaintext refused (O-1 A).
+- **Why:** a plaintext remote put would break the never-plaintext rule; the keys come from P-6.
+- **Rejected:** shipping `--hub` with plaintext first (contradicts O-1 A).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

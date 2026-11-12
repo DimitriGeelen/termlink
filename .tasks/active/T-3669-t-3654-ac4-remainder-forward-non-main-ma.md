@@ -7,10 +7,13 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: [arc:arc-011]
 components: []
-related_tasks: []
+related_tasks: [T-3357, T-3654, T-3704, T-3696, T-3695]
+plan_unit: P-30
+arc_id: arc-011
+depends_on: [T-3704, T-3696, T-3695]
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -56,14 +59,35 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Split out of T-3654 AC4: forward-once of non-main mail across sidecars and telling the sender
+which main received it were not built. The step-8 plan `docs/design/interactive-agent-communication-08-plan.md` v0.3,
+approved by the operator on 2026-11-12 (G-0, T-3357 `## Decisions`), extends this task to plan unit **P-30** (build,
+PH-2): B-20, forward-once of role mail, VIA and FORWARD-STALE notices, re-admit of a FORWARDED id, ambiguous post to
+UNCERTAIN, H-24 (04 section 7). Serves B-20, K-23.
+
+**Problem / hypothesis:** Once the pull withholds only role mail (P-5), role mail that reaches a non-main copy must be
+forwarded to the main exactly once, or it is lost or doubled; it must be live before W3 (04 T2).
+
+**Goal:** Forward-once of role mail with VIA and FORWARD-STALE notices, re-admit of a FORWARDED id, and ambiguous
+posts marked UNCERTAIN.
+
+**Expected outcome:** The B-20 specs pass; no role mail is lost or doubled across copies (H-24).
+
+**Rollback:** forward off: role mail waits at the non-main copy, and the K-34 signal shows it.
+
+Depends on: T-3704 (P-16 built: 04 B-20 <- B-6)
+Depends on: T-3696 (P-6 built: CR-4.10 blob keys for forwarded mail)
+Depends on: T-3695 (P-5 built: withhold semantics forward-once relies on)
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
+Unblocks: P-36 (T-3715, live), P-57 (T-3730).
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] A non-main sidecar forwards role mail to the main's sidecar exactly once; the sender gets the VIA notice (which main received it)
+- [ ] FORWARD-STALE notice, re-admit of a FORWARDED id and an ambiguous post to UNCERTAIN pass their B-20 specs
+- [ ] No role mail lost or doubled across copies (H-24)
+- [ ] The unit's fixture suite exits 0 with a PASS line per B-20 E-n and its mutant list is all killed (FP 3.1.b)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +138,9 @@ date_finished: null
 -->
 
 ## Verification
+
+# Plan P-30 check (08-plan section 4): fixture suite exits 0 with a PASS line per B-20 E-n, mutant list all killed
+# (FP 3.1.b). Replace with the suite's command before closing (redirect-then-grep form, L-387).
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -338,6 +365,11 @@ date_finished: null
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** extend as proposed in plan 08 v0.3 section 7.2 (approved by the operator 2026-11-12, ruling A, recorded in T-3357): this task is unit P-30, all of B-20 (VIA, FORWARD-STALE, re-admit, UNCERTAIN, H-24), needed live before W3.
+- **Why:** forward-once is one build item with its notices; the trigger is no longer a second host but W3 and the role-mail withhold (P-5).
+- **Rejected:** keeping the narrow forward-once scope with a second task for the notices.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

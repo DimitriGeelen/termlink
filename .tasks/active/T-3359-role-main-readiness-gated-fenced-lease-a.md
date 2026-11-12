@@ -13,7 +13,7 @@ horizon: later
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
-related_tasks: [T-3344]
+related_tasks: [T-3344, T-3357, T-3654, T-3694, T-3730]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -171,6 +171,12 @@ bash tests/main-role-lease-fixtures.sh
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** mark superseded as proposed in plan 08 v0.3 section 7.1 (approved by the operator 2026-11-12, ruling A with PD-2, recorded in T-3357). The lease was built by T-3654 (generation, quiet, cooldown, pin, vacancy, visible holder, audited takeover); what remains is B-25 (plan unit P-4, task T-3694) and the PH-4 eligibility from signed profiles (plan unit P-57, task T-3730). This task is not a plan unit and no work is planned under it; horizon stays `later`.
+- **Why:** building it would duplicate T-3654 and the two units above.
+- **Closing is the operator's:** this task is NOT closed here. The operator closes it (or reopens the question) in his own words.
+- **Rejected:** closing it as part of the mapping (closing is not delegated).
 
 ### 2026-10-28 — build "main" now? C: visibility now, the lease stays in PH-4 (operator ruling)
 - **Chose:** C. Keep the ruled phasing (step 3 OP-10 A: PH-2 pinned main, built in crates/termlink-sidecar/src/book.rs

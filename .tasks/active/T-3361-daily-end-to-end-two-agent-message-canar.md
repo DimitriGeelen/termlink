@@ -9,11 +9,13 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
-related_tasks: [T-3344]
+related_tasks: [T-3344, T-3357, T-3685]
+plan_unit: P-29
+depends_on: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -87,12 +89,34 @@ OD-14 ruling (log OD-14 point 3, amended by OD-18 point 4). Existing provers: sc
 
 Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 
+**Background / trigger:** The step-8 plan `docs/design/interactive-agent-communication-08-plan.md` v0.3 was approved
+by the operator on 2026-11-12 (G-0, T-3357 `## Decisions`; PD-2 confirms this task) as plan unit **P-29** (monitoring,
+PH-2): B-19, daily two-agent canary on the installed artifact, staleness 26 h (V-13), needs-attention landing. Serves
+B-19, K-21. Held by the testdev token T-3685 (runme action 28; PL-2).
+
+**Problem / hypothesis:** Nothing proves daily that two agents can still exchange a message on the installed
+artifact; the PH-2 exit needs 14 canary days with no silent failure (H-14), so the clock should start early.
+
+**Goal:** A daily two-agent canary on the testdev pair, with a 26 h staleness alarm and a needs-attention landing.
+
+**Expected outcome:** The B-19 spec passes; the canary runs daily on the testdev pair; its staleness alarm fires when
+the log stops.
+
+**Rollback:** cron entry removed (by the guard-cap rule, a canary out frees its slot).
+
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
+Estate condition (not a task edge): the testdev token, T-3685.
+Unblocks: P-33 (T-3714), P-36 (T-3715, live), P-40 (T-3719, field: 14 days, H-14).
+
 ## Acceptance Criteria
 
 ### Agent
 - [ ] Canary script with exit 0/1/2 contract, crontab under .context/cron/, stderr split (T-2685), completion heartbeat (T-2843)
 - [ ] A failure lands in the main agent's session-start needs-attention list, and to the operator when main is unassigned or failing
 - [ ] Negative control: stop the injector, the entry appears by the next session
+- [ ] The B-19 spec passes; the canary runs daily on the testdev pair against the installed artifact
+- [ ] The canary log shows a daily run with its control; the staleness alarm fixture (26 h, V-13) is red when the log stops
+- [ ] The new cron fits the guard cap (DP-3: one in, one out in the same commit)
 
 ## Verification
 
@@ -168,6 +192,11 @@ bash tests/message-canary-fixtures.sh
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** confirm as proposed in plan 08 v0.3 section 7.1 (approved by the operator 2026-11-12, ruling A with PD-2, recorded in T-3357): this task is unit P-29 (B-19), held by the testdev token T-3685.
+- **Why:** scope matches B-19; starting early begins the 14-day clock of the PH-2 exit.
+- **Rejected:** none.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

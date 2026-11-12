@@ -11,10 +11,13 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: [arc:arc-011]
 components: []
-related_tasks: []
+related_tasks: [T-3357, T-3426, T-3707, T-3614]
+plan_unit: P-34
+arc_id: arc-011
+depends_on: [T-3707, T-3614]
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -74,14 +77,34 @@ bvp_scores_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Operator ruling FX-5 C′ (T-3426, 2026-10-13) left open replacing the field count as the
+primary FX-5 check by a diffable disclosure inventory. The step-8 plan
+`docs/design/interactive-agent-communication-08-plan.md` v0.3, approved by the operator on 2026-11-12 (G-0, T-3357
+`## Decisions`), reuses this task as plan unit **P-34** (monitoring, PH-2). Serves R-11.
+
+**Problem / hypothesis:** A field count cannot tell whether a new store holds plaintext or whether a reader set
+widened; PH-2 adds two stores (blobs P-21, remote put P-22), so the check must see them.
+
+**Goal:** A mechanically diffable inventory of hub stores (form, reader classes, retention) as the primary FX-5 check;
+the field count kept as a tripwire.
+
+**Expected outcome:** The inventory diff shows no new plaintext row after P-21 and P-22; an injected plaintext store
+row fires.
+
+**Rollback:** back to the field count.
+
+Depends on: T-3707 (P-21 built: new store row)
+Depends on: T-3614 (P-22 built: remote put row)
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
+Unblocks: P-40 (T-3719, inventory green).
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] An inventory of hub stores (store x form x readers x retention) exists and is diffable
+- [ ] Check: no new row, no row downgraded to plaintext, no reader set widened; the field count stays as a tripwire
+- [ ] The inventory diff shows no new plaintext row after P-21 and P-22
+- [ ] Inventory check fixture with a firing control: an injected plaintext store row fires
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -117,6 +140,9 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+# Plan P-34 check (08-plan section 4): inventory check fixture with a firing control. Replace with the fixture's
+# command before closing (redirect-then-grep form, L-387).
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -341,6 +367,11 @@ bvp_scores_proposed:
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** reuse as proposed in plan 08 v0.3 section 7.2 (approved by the operator 2026-11-12, ruling A, recorded in T-3357): this task is unit P-34, after the new stores of P-21 and P-22 exist.
+- **Why:** scope matches; it needs the new store rows to be meaningful.
+- **Rejected:** none.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

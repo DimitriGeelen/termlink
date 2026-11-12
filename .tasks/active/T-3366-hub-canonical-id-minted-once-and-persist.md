@@ -10,11 +10,13 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
-related_tasks: [T-3344]
+related_tasks: [T-3344, T-3357, T-3726]
+plan_unit: P-10
+depends_on: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -88,12 +90,33 @@ OD-12 ruling (log OD-12 point 3). T-3345 already exposes hub_id in hub.version. 
 
 Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 
+**Background / trigger:** The step-8 plan `docs/design/interactive-agent-communication-08-plan.md` v0.3 was approved
+by the operator on 2026-11-12 (G-0, T-3357 `## Decisions`) and confirms this task's scope as plan unit **P-10** (build,
+PH-2, T1 hardening): B-1, minted hub id + hub signing key + `hub.version` fields (DR-1 A, DR-2 A). Serves B-1, K-9a.
+Re-scoped by PD-2: ending the `sidecar:` alias moves to the T4 decommission P-53 (T-3726, NID).
+
+**Problem / hypothesis:** The hub's identity is its TLS fingerprint, which changes when the certificate is regenerated;
+signed state (revocation list P-15, signed dead letters P-16, cards P-48) needs a stable id and a hub signing key first.
+
+**Goal:** A canonical hub id minted once and persisted, a hub signing key, and the `hub.version` fields.
+
+**Expected outcome:** The B-1 specs pass; existing hubs adopt the fingerprint-derived id; a re-mint beside existing
+state is refused.
+
+**Rollback:** the id file stays; clients ignore the new fields.
+
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
+Unblocks: P-11 (T-3363), P-15 (T-3703, security), P-16 (T-3704, security), P-31 (T-3713), P-48 (T-3722); part of gate G-2.
+
 ## Acceptance Criteria
 
 ### Agent
 - [ ] Canonical id persisted in the runtime dir and survives cert regeneration
 - [ ] Existing hubs migrate to their current fingerprint-derived id (no inbox renamed)
-- [ ] Mail to sidecar: topics forwarded with a sender warning until the alias end release
+- [ ] Mail to sidecar: topics forwarded with a sender warning until the alias end release (the alias end itself is P-53, T-3726)
+- [ ] The B-1 specs pass, including the hub signing key and the `hub.version` fields (DR-1 A, DR-2 A)
+- [ ] A re-mint beside existing state is refused
+- [ ] The unit's fixture suite exits 0 with a PASS line per B-1 E-n and its mutant list is all killed (FP 3.1.b)
 
 ## Verification
 
@@ -169,6 +192,11 @@ cargo test -p termlink-hub hub_id
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** re-scope as proposed in plan 08 v0.3 section 7.1 (approved by the operator 2026-11-12, ruling A with PD-2, recorded in T-3357): this task is unit P-10 (minting, B-1); ending the `sidecar:` alias moves to the T4 decommission P-53 (T-3726), which needs the operator's own approval (NID, G-8).
+- **Why:** minting is T1 hardening that signed state depends on; ending an alias switches a working route off, so it cannot ride along in a build task.
+- **Rejected:** keeping the alias end here (would decommission implicitly, against the NID rule).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

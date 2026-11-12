@@ -12,7 +12,10 @@ owner: human
 horizon: now
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-3357, T-3694, T-3695, T-3669]
+plan_unit: P-35
+arc_id: arc-011
+depends_on: [T-3694, T-3695]
 created: 2026-11-02T12:11:07Z
 last_update: 2026-11-11T21:40:53Z
 date_finished:
@@ -63,6 +66,16 @@ and our sidecar use: only main surfaces, claims or answers; others leave mail un
 **Expected outcome:** in a project with two live sessions, only the lease holder sees and handles peer mail; the
 other shows one line "held by main <session>"; when main dies, the next session takes over after lapse + quiet
 period + cooldown, visibly; an operator pin wins and is logged.
+
+**Plan unit P-35 (added 2026-11-12, plan G-0):** the step-8 plan
+`docs/design/interactive-agent-communication-08-plan.md` v0.3, approved by the operator on 2026-11-12 (T-3357
+`## Decisions`), maps its unit **P-35** (deployment, PH-2) to this task: the lease tightening and the role-mail withhold
+rolled out to the projects of the main-only rollout tracker (`docs/reports/T-3654-main-only-rollout.md`), one project
+at a time, LIVE only on the project's own report. Serves R-67. P-5 (T-3695) changes this task's built pull (withhold
+only role mail). Rollback per project: previous release; lease records kept.
+Depends on: T-3694 (P-4 live: released)
+Depends on: T-3695 (P-5 live: released)
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
 
 ## Problem Statement
 
@@ -139,6 +152,7 @@ period + cooldown, visibly; an operator pin wins and is logged.
       is Y (generation N)", are NOT built (needs a new stage notice kind + AEF T-5014). 2026-11-03: that remainder is
       split out as T-3669 (horizon later; no trigger while every project runs on one host). AC6 left unticked: the interface
       is in docs/operations/main-lease.md and .context/working/t3654/handback.md, not yet sent to AEF / ring20.
+- [ ] Plan unit P-35 (08-plan v0.3, G-0 2026-11-12): the lease tightening (P-4, T-3694) and the role-mail withhold (P-5, T-3695) rolled out to each project of docs/reports/T-3654-main-only-rollout.md one at a time; per project main status held, `am-i` 0/1, origin reported or `absent` kept; a tracker row is LIVE only when it links the project's own report and its `termlink main status` output (a row marked LIVE without the linked report, or with `am-i` other than 0/1, fails the unit)
 
 ### Human
 <!-- @auto-tick-on-decide -->
@@ -191,6 +205,12 @@ Shaping in progress. ring20 escalation (msg f873982f): Pen's fax-password reques
      can be revised before fw inception decide. -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** reuse as proposed in plan 08 v0.3 section 7.2 (approved by the operator 2026-11-12, ruling A, recorded in T-3357): this task's rollout tracker carries plan unit P-35 (one added Agent criterion); P-5 (T-3695) changes its built pull; its AC4 remainder is T-3669 (P-30).
+- **Why:** the tracker already records per-project rollout and LIVE-on-own-report; a second tracker would split it.
+- **Horizon left at `now`:** this task has open work of its own (AC4 remainder, AC6 hand-over); only the new P-35 criterion waits on P-4 and P-5.
+- **Rejected:** a new task for P-35 (duplicates the tracker).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

@@ -9,11 +9,13 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
-related_tasks: [T-3344]
+related_tasks: [T-3344, T-3357, T-3706]
+plan_unit: P-18
+depends_on: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -87,12 +89,30 @@ CAND-18 ruling (log OD-17 item 13). Order per conversation only; non-conversatio
 
 Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 
+**Background / trigger:** The step-8 plan `docs/design/interactive-agent-communication-08-plan.md` v0.3 was approved
+by the operator on 2026-11-12 (G-0, T-3357 `## Decisions`; PD-2 confirms this task) as plan unit **P-18** (build, PH-2,
+T1 hardening): B-8, sequence window, `up_to`, gap wait (DR-12 A). Serves B-8, K-10.
+
+**Problem / hypothesis:** Without a sender-assigned number per conversation a receiver cannot tell a gap, a duplicate
+or a reused number from normal traffic; reconciliation (P-20) needs the window first.
+
+**Goal:** The sequence window, `up_to` receipts and the gap wait per DR-12 A.
+
+**Expected outcome:** The B-8 specs pass.
+
+**Rollback:** window off; numbers still written.
+
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
+Unblocks: P-20 (T-3706); part of gate G-2.
+
 ## Acceptance Criteria
 
 ### Agent
 - [ ] Sender number persisted and survives a sender restart without reuse
 - [ ] Receipts carry `up_to`; receiver flags gap, duplicate, reused-number cases
 - [ ] Hub record maps (conversation, sender number) to hub offset
+- [ ] The B-8 specs pass (sequence window, `up_to`, gap wait per DR-12 A)
+- [ ] The unit's fixture suite exits 0 with a PASS line per B-8 E-n and its mutant list is all killed (FP 3.1.b)
 
 ## Verification
 
@@ -168,6 +188,11 @@ bash tests/conversation-seq-fixtures.sh
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** confirm as proposed in plan 08 v0.3 section 7.1 (approved by the operator 2026-11-12, ruling A with PD-2, recorded in T-3357): this task is unit P-18 (B-8), scope unchanged, with the B-8 specs added to its criteria.
+- **Why:** the step-1 scope matches B-8.
+- **Rejected:** none.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

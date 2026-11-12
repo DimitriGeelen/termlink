@@ -8,11 +8,13 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
-related_tasks: [T-3344]
+related_tasks: [T-3344, T-3357, T-3705]
+plan_unit: P-19
+depends_on: [T-3705]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -86,12 +88,32 @@ CAND-4 ruling (log OD-17 item 5): sender sets metadata priority, default 0; rece
 
 Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 
+**Background / trigger:** The step-8 plan `docs/design/interactive-agent-communication-08-plan.md` v0.3 was approved
+by the operator on 2026-11-12 (G-0, T-3357 `## Decisions`; PD-2 confirms this task and extends it) as plan unit
+**P-19** (build, PH-2, T1 hardening): B-9, `--priority`, ladders as sidecar code, owed list, answer deadline. Serves
+B-9, K-12.
+
+**Problem / hypothesis:** A sender cannot mark urgency, and nothing tracks which messages are owed an answer or by
+when; priority ladders need the receiver quotas of B-7 (P-17) first.
+
+**Goal:** `--priority` on send, the priority ladders as sidecar code, the owed list and the answer deadline.
+
+**Expected outcome:** The B-9 specs pass.
+
+**Rollback:** ladders off; the field stays.
+
+Depends on: T-3705 (P-17 built: 04 B-9 <- B-7)
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
+Unblocks: part of gate G-2 (the T1 release).
+
 ## Acceptance Criteria
 
 ### Agent
 - [ ] `termlink channel post` and scripts/agent-send.sh accept `--priority N` and write `metadata.priority`
 - [ ] Out-of-range values refused at the sender with a clear error (receiver clamp stays as defence)
 - [ ] Fixture tests cover default 0, 5 (urgent), -9/9 bounds and a refused 10
+- [ ] The B-9 specs pass: ladders as sidecar code, owed list, answer deadline
+- [ ] The unit's fixture suite exits 0 with a PASS line per B-9 E-n and its mutant list is all killed (FP 3.1.b)
 
 ## Verification
 
@@ -167,6 +189,11 @@ bash tests/send-priority-fixtures.sh
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** confirm and extend as proposed in plan 08 v0.3 section 7.1 (approved by the operator 2026-11-12, ruling A with PD-2, recorded in T-3357): this task is unit P-19 and grows from `--priority` to all of B-9 (ladders as sidecar code, owed list, answer deadline).
+- **Why:** the priority field is useful only with the ladders and the owed list that act on it.
+- **Rejected:** a separate task for the rest of B-9 (two tasks for one build item).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

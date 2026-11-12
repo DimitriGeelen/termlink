@@ -8,11 +8,13 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
+horizon: next
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
-related_tasks: [T-3344]
+related_tasks: [T-3344, T-3357, T-3708]
+plan_unit: P-23
+depends_on: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -86,11 +88,30 @@ CAND-13 ruling (log OD-17 item 10): P2 NTP required and checked. Only .107 is kn
 
 Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 
+**Background / trigger:** The step-8 plan `docs/design/interactive-agent-communication-08-plan.md` v0.3 was approved
+by the operator on 2026-11-12 (G-0, T-3357 `## Decisions`; PD-2 confirms this task) as plan unit **P-23** (build,
+PH-2): the NTP-synchronised clock check in substrate preflight (CAND-13), read by the status skew line. Serves R-57.
+
+**Problem / hypothesis:** Urgent deadlines (15 s) and cross-host telemetry assume synchronised clocks, but only .107 is
+known synchronised and nothing checks it.
+
+**Goal:** The check inside the existing preflight script (so no new guard, DP-3), with its state read by the status
+skew line (P-24).
+
+**Expected outcome:** An unsynchronised clock is reported by preflight and by status.
+
+**Rollback:** revert the check.
+
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
+Unblocks: P-24 (T-3708, serial: skew line reads the NTP state).
+
 ## Acceptance Criteria
 
 ### Agent
 - [ ] scripts/substrate-preflight.sh gains a check that WARNs when the clock is not NTP-synchronised (timedatectl / chrony / ntpq, portable fallbacks, skip on unsupported)
 - [ ] Test seam plus fixtures cover synced, unsynced and unknown
+- [ ] The check lives inside the existing preflight script (no new guard, DP-3) and exposes its state for the status skew line
+- [ ] Preflight fixture: the unsynchronised-clock fixture is red, the synchronised one green
 
 ## Verification
 
@@ -166,6 +187,11 @@ bash tests/substrate-preflight-ntp-fixtures.sh
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** confirm as proposed in plan 08 v0.3 section 7.1 (approved by the operator 2026-11-12, ruling A with PD-2, recorded in T-3357): this task is unit P-23; it also feeds the status skew line (P-24, T-3708).
+- **Why:** scope matches; placing it inside the existing preflight keeps the guard cap (DP-3).
+- **Rejected:** a separate canary (would need a slot under the cap).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

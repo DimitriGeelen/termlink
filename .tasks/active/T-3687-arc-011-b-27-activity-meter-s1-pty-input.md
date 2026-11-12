@@ -13,7 +13,7 @@ owner: agent
 horizon: now
 tags: [arc:arc-011]
 components: []
-related_tasks: []
+related_tasks: [T-3357, T-3692, T-3693]
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -384,6 +384,11 @@ TMPDIR=/var/tmp cargo test -p termlink-sidecar --test api_tests --test deliver_t
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** reuse as proposed in plan 08 v0.3 section 7.2 (approved by the operator 2026-11-12, ruling A with PD-3, recorded in T-3357): this task stays open for its own criteria; its two follow-ups are new tasks that cite it, F-26 persist `last_prompt` = plan unit P-1 (T-3692, revises D-4) and F-27 READY order on `(boot_id, mono_ns)` = plan unit P-2 (T-3693). This task is not itself a plan unit.
+- **Why:** the follow-ups are separate deliverables that B-16 (P-7) depends on.
+- **Rejected:** folding the follow-ups into this task (it would stay open across ruling A's sequence).
 
 ### 2026-11-11 — Deviations from 06 AL-1..AL-4 (the brief asks each to be listed with its reason)
 - **D-1 (AL-1 transport):** a report is one line with no `op` on the existing owner-only **send** socket (its peer-uid check is FCW-1); lines with `op` are unchanged. The reply is `{ok:true}`, `{ok:true,dropped}` or `{ok:false,ignored}` rather than always `{ok:true}`, so an adapter author can see a refusal. Why: an owner-only socket already exists, and a second one adds nothing.

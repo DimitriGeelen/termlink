@@ -10,7 +10,10 @@ owner: agent
 horizon: next
 tags: [arc:arc-011]
 components: []
-related_tasks: []
+related_tasks: [T-3357, T-3356, T-3697, T-3271]
+plan_unit: P-43
+arc_id: arc-011
+depends_on: [T-3697]
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -56,14 +59,37 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Operator 2026-11-12 ruling D on step 7 F-20/RQ-2 (T-3356): an M1 joins the fleet soon; the
+interim `ps`-based veto ships with B-16 (P-7, T-3697). The step-8 plan
+`docs/design/interactive-agent-communication-08-plan.md` v0.3, approved by the operator on 2026-11-12 (G-0, T-3357
+`## Decisions`), reuses this task as plan unit **P-43** (build, PH-2). No E-n covers it yet (CR-8.6 a); until one
+exists the acceptance clauses and the negative control below stand as the spec.
+
+**Problem / hypothesis:** On macOS the watchdog cannot see network or disk waits with `ps`, so it reports
+`degraded` and may judge a busy session idle.
+
+**Goal:** The equivalent of the Linux `/proc` veto for macOS (libproc CPU, disk, network per process). Replacing the
+interim veto is a switch-off: under the standing rule (NID) the interim veto stays installed until the full veto has
+been proven in the field and the operator has approved the replacement in his own words (gate G-8).
+
+**Expected outcome:** (a) on the M1 the veto sees a network wait and (b) a disk wait as activity; (c) status leaves
+`degraded`; (d) the replacement happens only with the recorded approval.
+
+**Rollback:** the interim `ps` veto stays installed until approval.
+
+Depends on: T-3697 (P-7 live: interim veto shipped; estate: an M1 joined the fleet)
+Depends on: gate G-8, an operator decision point with no task (decision: replacement approval)
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] (a) On the M1 the veto sees a network wait as activity
+- [ ] (b) On the M1 the veto sees a disk wait as activity
+- [ ] (c) Status leaves `degraded`
+- [ ] (d) The interim veto is replaced only with the G-8 approval recorded in this task's Decisions
+- [ ] macOS veto fixture suite (CI macOS job, T-3271) with a PASS line per clause (a)..(c)
+- [ ] Negative control: with the libproc probe stubbed to zero the session is judged idle and status says `degraded` again (red if not); then one field run on the M1 with the same control
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +140,10 @@ date_finished: null
 -->
 
 ## Verification
+
+# Plan P-43 check (08-plan section 4): macOS veto fixture suite (CI macOS job, T-3271) with a PASS line per clause
+# (a)..(c) and the stubbed-libproc negative control; one field run on the M1; (d) the G-8 approval recorded in
+# Decisions. Add the CI result check here before closing.
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -338,6 +368,11 @@ date_finished: null
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** reuse as proposed in plan 08 v0.3 section 7.2 (approved by the operator 2026-11-12, ruling A, recorded in T-3357): this task is unit P-43; replacing the interim veto is approval-gated (G-8).
+- **Why:** NID: the interim veto keeps working until its replacement is proven in the field and approved.
+- **Rejected:** replacing the interim veto as part of the build (implicit decommission).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
