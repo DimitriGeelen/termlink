@@ -208,7 +208,9 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
             s1,
             Box::new(crate::meter::StoreLedger { store: store.clone(), deadlines: crate::deadline::Deadlines::R44E }),
         )
-        .with_transcript_root(projects_root.clone()),
+        .with_transcript_root(projects_root.clone())
+        // CR-6.23 (P-1): READY and last_prompt survive a sidecar restart.
+        .with_state(store.clone()),
     );
     let deliverer = Arc::new(
         Deliverer::new(&cfg.agent, store.clone(), Box::new(BuiltIn::new(roster).with_operator_lists(store.clone())), Some(sender.clone()))

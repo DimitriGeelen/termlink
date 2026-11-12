@@ -2,9 +2,11 @@
 id: T-3692
 name: "P-1: persist last_prompt with READY (B-27 follow-up F-26)"
 description: >
-  arc-011 plan unit P-1 (docs/design/interactive-agent-communication-08-plan.md v0.3, approved G-0 2026-11-12): B-27 follow-up F-26: persist `last_prompt` with READY (06 v0.3 AL-1, 8.3; revises T-3687 D-4)
+  arc-011 plan unit P-1 (docs/design/interactive-agent-communication-08-plan.md v0.3,
+  approved G-0 2026-11-12): B-27 follow-up F-26: persist `last_prompt` with READY
+  (06 v0.3 AL-1, 8.3; revises T-3687 D-4)
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -42,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:24Z
-last_update: 2026-11-12T16:56:24Z
-date_finished: null
+last_update: 2026-11-12T18:28:25Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -54,6 +56,26 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-12T18:06:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 3
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=3 (L3:keyword=rollback); D1=2 (body:learning-ref);
+      D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0 (L0: no signal);
+      F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3692: P-1: persist last_prompt with READY (B-27 follow-up F-26)
@@ -82,10 +104,10 @@ Unblocks: P-7 (T-3697, built: the ring gate reads a persisted last_prompt after 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The built B-27 specs (E-156, E-158) re-run green after the meter.rs change
-- [ ] After a sidecar restart, a session with a prompt before the restart reads its persisted `last_prompt`, never `none` (QR-2 closed)
-- [ ] The unit's fixture suite exits 0 with a PASS line per listed E-n (E-156, E-158) and its mutant list is all killed (FP 3.1.b)
-- [ ] Restart fixture with a negative control: with persistence removed the fixture goes red
+- [x] The built B-27 specs (E-156, E-158) re-run green after the meter.rs change
+- [x] After a sidecar restart, a session with a prompt before the restart reads its persisted `last_prompt`, never `none` (QR-2 closed)
+- [x] The unit's fixture suite exits 0 with a PASS line per listed E-n (E-156, E-158) and its mutant list is all killed (FP 3.1.b)
+- [x] Restart fixture with a negative control: with persistence removed the fixture goes red
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -137,10 +159,12 @@ Unblocks: P-7 (T-3697, built: the ring gate reads a persisted last_prompt after 
 
 ## Verification
 
-# Plan P-1 check (08-plan section 4): fixture suite for the unit exits 0 with a PASS line per listed E-n, and its
-# mutant list is all killed (FP 3.1.b); restart fixture with a negative control (persistence removed: red).
-# The suite is written by this task: replace these comment lines with its command before closing, in the
-# redirect-then-grep form (L-387), e.g. `bash tests/<suite>.sh > .context/working/.out 2>&1 && grep -q PASS .context/working/.out`.
+# Fixture suite (E-156, E-158, QR-2 restart with its in-test negative control: same restart without persistence reads `none`).
+bash tests/b27-followups-fixtures.sh p1 > .context/working/.t3692-fx.out 2>&1 && grep -q "^PASS E-156" .context/working/.t3692-fx.out && grep -q "^PASS E-158" .context/working/.t3692-fx.out && grep -q "^PASS QR-2" .context/working/.t3692-fx.out && grep -q "^ALL PASS (p1)" .context/working/.t3692-fx.out
+# The whole meter suite (built B-27 specs) still green.
+cargo test -p termlink-sidecar --test meter_tests > .context/working/.t3692-mt.out 2>&1 && grep -q "test result: ok" .context/working/.t3692-mt.out
+# Mutant list all killed (FP 3.1.b), when the local list is present (.context/working is not committed; run log .context/working/t3692/mutants.out).
+test ! -f .context/working/t3692/mutants.py || (timeout 1500 python3 .context/working/t3692/mutants.py > .context/working/.t3692-mut.out 2>&1 && grep -q "^KILLED P1-a" .context/working/.t3692-mut.out && ! grep -q "^SURVIVED" .context/working/.t3692-mut.out)
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -313,6 +337,11 @@ Unblocks: P-7 (T-3697, built: the ring gate reads a persisted last_prompt after 
 
 ## Evolution
 
+### 2026-11-12 — the epoch does not fit strict JSON
+- **What changed:** the sidecar epoch is a random full u64; the strict JSON reader refuses integers above 2^53, so the first read-back refused the file (caught by the restart test). The epoch is written as a decimal string.
+- **Plan impact:** none.
+- **Triggered:** nothing new.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -366,6 +395,16 @@ Unblocks: P-7 (T-3697, built: the ring gate reads a persisted last_prompt after 
 
 ## Decisions
 
+### 2026-11-12 — How READY and last_prompt are persisted (P-1)
+- **Chose:** one store state file per agent, `state.meter.ready` (Store::write_state: tmp, fsync, rename, fsync dir), holding per session the READY record, `last_prompt`, the turn stop that ends the prompt's window, and `ended`, plus the host `boot_id`. Written under the meter lock after every applied `ready`, `prompt_submit`, `turn_stop`, `session_end` and after the built `stop` / `session-end` hooks; read back by `Meter::with_state` at sidecar start (daemon.rs). Records of another boot, an unknown version or a damaged file are not used, and the reason is kept in `last_reasons`; a failed write is counted (`persist_failed`); sessions read back are counted (`restored`).
+- **Why:** 06 v0.3 AL-1 line 294 and 8.3 (CR-6.23): persist `last_prompt` with `sess.ready`, read back on the same boot (5.4.f (5)); `rx_mono` is CLOCK_MONOTONIC, only comparable on the same boot. A restored READY record keeps its old `sidecar_epoch`, so the gate still reads it absent (FCW-6, crash table 5.1.f.5); the turn stop is kept so the restored window ends where it would have.
+- **Rejected:** one file per session (more files and fsyncs, a cleanup problem); persisting on every report (S2 stays in memory by design).
+
+### 2026-11-12 — The CR-6.23 restart rule is narrowed, not removed
+- **Chose:** keep the rule "no prompt on record and S2 within 120 s reads `operator`", which now means a session that never reported a prompt (a persisted prompt counts), instead of deleting it.
+- **Why:** until B-29 (P-44, AEF's adapter) ships, the built hooks send no `prompt_submit`, so every field session has no prompt on record. Deleting the rule would turn those sessions from `operator` to `none` while active, and B-16 (P-7) could then ring a person mid-work once built. Unknown fails toward a person (FCW-16), and the operator's standing rule is not to switch off a working protection before its replacement is proven.
+- **Rejected:** deleting the rule to match 06 AL-4 to the letter (the field regression above). The plan's rollback line still holds: reverting restores T-3687's behaviour exactly.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -391,3 +430,6 @@ Unblocks: P-7 (T-3697, built: the ring gate reads a persisted last_prompt after 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3692-p-1-persist-lastprompt-with-ready-b-27-f.md
 - **Context:** Initial task creation
+
+### 2026-11-12T18:06:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

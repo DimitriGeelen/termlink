@@ -8,6 +8,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use termlink_sidecar::meter::*;
+use termlink_sidecar::store::Store;
+use termlink_sidecar::testkit::Estate;
 
 const A: &str = "agent-b";
 const T: u64 = 30_000;
@@ -36,12 +38,19 @@ struct Rig {
 }
 
 fn rig() -> Rig {
-    let now = Arc::new(AtomicU64::new(1_000_000));
+    rig_on(Arc::new(AtomicU64::new(1_000_000)), None)
+}
+
+/// A meter on the clock `now`; with `state`, persisting to (and restored from) that store.
+fn rig_on(now: Arc<AtomicU64>, state: Option<Arc<Store>>) -> Rig {
     let s1 = Arc::new(FakeS1::default());
     let owed = Arc::new(Mutex::new(Ok(HashSet::new())));
     let (n1, n2) = (now.clone(), now.clone());
-    let m = Meter::new(A, Box::new(S1Box(s1.clone())), Box::new(FakeLedger(owed.clone())))
+    let mut m = Meter::new(A, Box::new(S1Box(s1.clone())), Box::new(FakeLedger(owed.clone())))
         .with_clocks(Arc::new(move || n1.load(Ordering::SeqCst)), Arc::new(move || n2.load(Ordering::SeqCst)));
+    if let Some(st) = state {
+        m = m.with_state(st);
+    }
     Rig { m, now, s1, owed }
 }
 
@@ -669,11 +678,12 @@ fn e18_agent_conversation_and_fcw18() {
     assert!(matches!(cv(&r, "s"), Conversation::Unknown(_)));
 }
 
-/// F-26 (CR-6.23 / CR-B27.4): `last_prompt` is lost on a sidecar restart, so a
-/// session with no prompt this epoch and S2 within 120 s reads `operator`
-/// (unknown fails toward a person); without S2 in 120 s it reads none.
-/// Control: drop the restart rule and the new meter reads `none` while the
-/// person's session is still active.
+/// A session that never reported a prompt (the built hooks send none until
+/// B-29) and has S2 within 120 s reads `operator` (unknown fails toward a
+/// person); without S2 in 120 s it reads none. Since P-1 (T-3692) a restart no
+/// longer loses the prompt (see `p1_*`); this rule now covers only sessions with
+/// no prompt on record. Control: drop the rule and the fresh meter reads `none`
+/// while the session is active.
 #[test]
 fn f26_no_prompt_this_epoch_with_recent_s2_is_operator() {
     // Before the restart: a human prompt, a running turn.
@@ -730,4 +740,116 @@ fn e84_negative_controls_at_the_receiver() {
     r.ev("s", "prompt_submit", 1, json!({"origin": "human", "basis": "inferred", "doorbell_ids": ["abc"]}));
     assert_eq!(r.m.last_prompt("s").unwrap().origin, Origin::Automated);
     assert!(r.m.ready("s").is_none(), "no ready report: no READY record");
+}
+
+// ---- P-1 (T-3692, F-26, CR-6.23, QR-2): last_prompt persisted with READY ------------------------
+
+/// The store of agent `A` in `e` (the lock is released when the last Arc drops).
+fn open_store(e: &Estate) -> Arc<Store> {
+    Arc::new(Store::open(&e.store_root(), A).unwrap())
+}
+
+/// QR-2 closed: after a sidecar restart a session with a human prompt before
+/// the restart reads its persisted `last_prompt` (never `none`), the person is
+/// still protected, and the READY record reads absent to the gate (FCW-6)
+/// while status shows it from the old epoch. Negative control in the test: the
+/// same restart without the persisted state reads no prompt and `none`.
+/// Mutant control: drop the persist call (or the read-back) and it goes red.
+#[test]
+fn p1_restart_reads_the_persisted_last_prompt() {
+    let e = Estate::create_without_hub().unwrap();
+    let now = Arc::new(AtomicU64::new(5_000_000));
+    let old = rig_on(now.clone(), Some(open_store(&e)));
+    old.ev("s", "ready", 10, json!({"state": "BUSY"}));
+    old.ev("s", "prompt_submit", 11, json!({"origin": "human", "basis": "inferred", "doorbell_ids": ["d-1"]}));
+    let before = old.m.last_prompt("s").unwrap();
+    let old_epoch = old.m.epoch();
+    assert_eq!(cv(&old, "s"), Conversation::Operator);
+    drop(old); // the sidecar process ends (store lock released)
+
+    now.fetch_add(30_000, Ordering::SeqCst);
+    let r = rig_on(now.clone(), Some(open_store(&e)));
+    assert_ne!(r.m.epoch(), old_epoch, "a new sidecar epoch");
+    assert_eq!(r.m.last_prompt("s"), Some(before.clone()), "the persisted last_prompt is read back: {:?}", r.m.counters());
+    assert_eq!(r.m.counters().restored, 1);
+    assert_eq!(cv(&r, "s"), Conversation::Operator, "a person mid-conversation stays protected");
+    assert!(r.m.ready("s").is_none(), "FCW-6: another epoch's READY reads absent to the gate");
+    let a = r.act("s");
+    assert_eq!(a["ready"]["state"], "BUSY", "{a}");
+    assert_eq!(a["ready"]["current_epoch"], false, "{a}");
+    assert_eq!(a["last_prompt"]["origin"], "human", "{a}");
+    assert_eq!(a["conversation"], "operator", "{a}");
+    // The window still ends 120 s after the prompt (no S2 since): same rule as before the restart.
+    now.store(before.rx_mono + V19_MS + 1, Ordering::SeqCst);
+    assert_eq!(cv(&r, "s"), Conversation::None);
+    drop(r);
+
+    // Negative control: the same restart without the persisted state.
+    now.store(before.rx_mono + 30_000, Ordering::SeqCst);
+    let bare = rig_on(now.clone(), None);
+    assert!(bare.m.last_prompt("s").is_none());
+    assert_eq!(cv(&bare, "s"), Conversation::None, "without persistence the person is unprotected");
+}
+
+/// The turn stop is persisted with the prompt, so the window after a restart
+/// ends 120 s after the stop; a later report after the restart is persisted
+/// again; ordering against the restored READY record still applies (FCW-3).
+#[test]
+fn p1_turn_stop_and_later_reports_survive_restarts() {
+    let e = Estate::create_without_hub().unwrap();
+    let now = Arc::new(AtomicU64::new(5_000_000));
+    let old = rig_on(now.clone(), Some(open_store(&e)));
+    old.ev("s", "prompt_submit", 20, json!({"origin": "unknown", "basis": "absent"}));
+    now.fetch_add(200_000, Ordering::SeqCst);
+    old.ev("s", "ready", 21, json!({"state": "READY"}));
+    let stop = now.load(Ordering::SeqCst);
+    drop(old);
+
+    let r = rig_on(now.clone(), Some(open_store(&e)));
+    now.store(stop + V19_MS, Ordering::SeqCst);
+    assert_eq!(cv(&r, "s"), Conversation::Operator, "120 s after the restored stop");
+    now.store(stop + V19_MS + 1, Ordering::SeqCst);
+    assert_eq!(cv(&r, "s"), Conversation::None);
+    assert_eq!(r.ev("s", "ready", 22, json!({"state": "BUSY"})), Intake::Applied);
+    assert_eq!(r.m.ready("s").unwrap().seq, 2, "seq continues from the restored record");
+    r.ev("s", "prompt_submit", 23, json!({"origin": "automated", "basis": "doorbell"}));
+    let epoch2 = r.m.epoch();
+    drop(r);
+
+    let r = rig_on(now.clone(), Some(open_store(&e)));
+    assert_eq!(r.m.last_prompt("s").unwrap().origin, Origin::Automated);
+    let a = r.act("s");
+    assert_eq!(a["ready"]["sidecar_epoch"], epoch2, "{a}");
+    assert_eq!(a["ready"]["seq"], 2, "{a}");
+}
+
+/// Persisted records of another boot, or a damaged file, are not used, and
+/// why is recorded; the meter starts empty and still works. Control: skip the
+/// boot check and the other boot's prompt is read back.
+#[test]
+fn p1_other_boot_or_damaged_state_is_not_used() {
+    let e = Estate::create_without_hub().unwrap();
+    let now = Arc::new(AtomicU64::new(5_000_000));
+    let old = rig_on(now.clone(), Some(open_store(&e)));
+    old.ev("s", "prompt_submit", 1, json!({"origin": "human", "basis": "inferred"}));
+    drop(old);
+    let st = open_store(&e);
+    let raw = st.read_state(STATE_NAME).unwrap().unwrap();
+    let mut m = Meter::new(A, Box::new(Unbound), Box::new(NoLedger)).with_boot(Some("another-boot".into())).with_state(st.clone());
+    assert!(m.last_prompt("s").is_none(), "another boot's record is not read back");
+    assert!(m.counters().reasons.iter().any(|x| x.contains("another boot")), "{:?}", m.counters().reasons);
+    drop(m);
+    // A valid file of version 2 (unknown) and damaged files.
+    assert!(raw.starts_with("{\"boot_id\"") || raw.contains("\"v\":1"), "{raw}");
+    let v2 = raw.replace("\"v\":1", "\"v\":2");
+    for bad in ["{", v2.as_str(), "{\"v\":1,\"boot_id\":null,\"sessions\":{}}", "[]"] {
+        st.write_state(STATE_NAME, bad).unwrap();
+        m = Meter::new(A, Box::new(Unbound), Box::new(NoLedger)).with_state(st.clone());
+        assert!(m.last_prompt("s").is_none() && m.counters().restored == 0, "{bad}");
+        assert!(m.counters().reasons.iter().any(|x| x.contains("not used")), "{bad}: {:?}", m.counters().reasons);
+    }
+    // The original file, same boot: read back.
+    st.write_state(STATE_NAME, &raw).unwrap();
+    let m = Meter::new(A, Box::new(Unbound), Box::new(NoLedger)).with_state(st);
+    assert_eq!(m.last_prompt("s").unwrap().origin, Origin::Human);
 }

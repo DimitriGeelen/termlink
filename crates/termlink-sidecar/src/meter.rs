@@ -52,6 +52,9 @@ const ENDS: [&str; 2] = ["REFUSED", "DEAD"];
 const TURN_EVENTS: [&str; 6] = ["session_start", "prompt_submit", "tool_start", "tool_end", "turn_stop", "session_end"];
 /// The built W1 hooks that are turn events (D-2).
 const TURN_HOOKS: [&str; 4] = ["session-start", "stop", "session-end", "post-tool-use"];
+/// The store state file holding every session's READY record and `last_prompt`
+/// (AL-1 CR-6.23; P-1, T-3692).
+pub const STATE_NAME: &str = "meter.ready";
 const EVENTS: [&str; 9] = ["ready", "session_start", "prompt_submit", "tool_start", "tool_end", "turn_stop", "session_end", "evidence", "complete"];
 
 // ---------------------------------------------------------------- strict JSON
@@ -369,6 +372,10 @@ pub struct Counters {
     pub transcript_refused: u64,
     pub session_table_full: u64,
     pub s3_unattributed: u64,
+    /// Writes of [`STATE_NAME`] that failed (the record stays in memory).
+    pub persist_failed: u64,
+    /// Sessions read back from [`STATE_NAME`] at start.
+    pub restored: u64,
     pub reasons: VecDeque<String>,
 }
 
@@ -394,6 +401,10 @@ pub struct Meter {
     s1_inflight: Arc<Mutex<std::collections::HashSet<String>>>,
     tick_budget_ms: u64,
     ledger: Box<dyn Ledger>,
+    /// Where READY and `last_prompt` are persisted (CR-6.23); none: memory only.
+    state: Option<Arc<crate::store::Store>>,
+    /// This host's boot id: persisted records are read back on the same boot only.
+    boot: Option<String>,
     inner: Mutex<Inner>,
 }
 
@@ -426,7 +437,72 @@ impl Meter {
             s1_inflight: Arc::new(Mutex::new(std::collections::HashSet::new())),
             tick_budget_ms: TICK_BUDGET_MS,
             ledger,
+            state: None,
+            boot: termlink_session::input_meter::boot_id(),
             inner: Mutex::new(Inner::default()),
+        }
+    }
+
+    /// Test seam: the boot id the persisted records are checked against.
+    pub fn with_boot(mut self, boot: Option<String>) -> Self {
+        self.boot = boot;
+        self
+    }
+
+    /// Persist each session's READY record and `last_prompt` in `store`, and read
+    /// back what an earlier sidecar process of this boot left there (AL-1, AL-4,
+    /// CR-6.23: QR-2 closed). A restored READY record keeps its old epoch, so the
+    /// doorbell still reads it absent (FCW-6); a restored `last_prompt` keeps a
+    /// person mid-conversation protected. Records of another boot are not used.
+    pub fn with_state(mut self, store: Arc<crate::store::Store>) -> Self {
+        let read = store.read_state(STATE_NAME);
+        self.state = Some(store);
+        let mut guard = lock(&self.inner);
+        let g = &mut *guard;
+        match read {
+            Ok(None) => {}
+            Ok(Some(raw)) => match restore(&raw, self.boot.as_deref()) {
+                Ok(list) => {
+                    for (k, sess) in list.into_iter().take(2 * MAX_SESSIONS) {
+                        g.sessions.insert(k, sess);
+                        g.counters.restored += 1;
+                    }
+                }
+                Err(why) => g.counters.reasons.push_back(format!("persisted meter state not used: {why}")),
+            },
+            Err(e) => g.counters.reasons.push_back(format!("persisted meter state unreadable: {e}")),
+        }
+        drop(guard);
+        self
+    }
+
+    /// Write every session's READY record and `last_prompt` (under the inner
+    /// lock, so writes land in intake order). A failed write is counted.
+    fn persist(&self, inner: &mut Inner) {
+        let Some(store) = &self.state else { return };
+        let mut sessions = serde_json::Map::new();
+        for (k, s) in &inner.sessions {
+            if s.ready.is_none() && s.last_prompt.is_none() {
+                continue;
+            }
+            sessions.insert(
+                k.clone(),
+                json!({
+                    "ready": s.ready.as_ref().map(|r| json!({"state": r.state, "at_ms": r.at_ms, "rx_mono": r.rx_mono, "seq": r.seq, "epoch": r.epoch.to_string()})),
+                    "last_prompt": s.last_prompt.as_ref().map(|p| json!({"origin": p.origin.name(), "basis": p.basis, "at_ms": p.at_ms, "rx_mono": p.rx_mono, "doorbell_ids": p.doorbell_ids})),
+                    "stopped": s.stopped,
+                    "ended": s.ended,
+                }),
+            );
+        }
+        // The epoch is a full u64 (above strict JSON's 2^53): written as a string.
+        let doc = json!({"v": 1, "boot_id": self.boot, "sessions": sessions});
+        if let Err(e) = store.write_state(STATE_NAME, &doc.to_string()) {
+            inner.counters.persist_failed += 1;
+            inner.counters.reasons.push_back(format!("persist {STATE_NAME}: {e}"));
+            while inner.counters.reasons.len() > 16 {
+                inner.counters.reasons.pop_front();
+            }
         }
     }
 
@@ -598,6 +674,11 @@ impl Meter {
         if moves_s2 {
             stamp_s2(sess, rx);
         }
+        // CR-6.23: READY and last_prompt (and the turn stop that ends the prompt's
+        // window) are persisted together, so a restart does not lose them.
+        if out == Intake::Applied && matches!(event, "ready" | "prompt_submit" | "turn_stop" | "session_end") {
+            self.persist(inner);
+        }
         out
     }
 
@@ -635,6 +716,9 @@ impl Meter {
         sess.last_report = Some(rx);
         if TURN_HOOKS.contains(&hook) {
             stamp_s2(sess, rx);
+        }
+        if matches!(hook, "stop" | "session-end") {
+            self.persist(inner);
         }
     }
 
@@ -798,9 +882,10 @@ impl Meter {
             let Some(s) = g.sessions.get(session) else { return Conversation::None };
             (s.last_prompt.clone(), s.stopped, s.s2_event_at, s.s2_at, s.s1.clone(), s.s3_by_conv.clone())
         };
-        // `last_prompt` lives in this sidecar's memory: after a restart a person
-        // mid-conversation has no prompt here. No prompt this epoch and S2 within
-        // 120 s reads as a person (F-26, CR-6.23: unknown fails toward a person).
+        // `last_prompt` is persisted (CR-6.23, P-1), so after a restart on the
+        // same boot it is read back. A session that never reported a prompt
+        // (the built hooks send none until B-29) with S2 within 120 s still reads
+        // as a person: unknown fails toward a person (T-3692 decision).
         if prompt.is_none() && s2_any.is_some_and(|t| now.saturating_sub(t) <= V19_MS) {
             return Conversation::Operator;
         }
@@ -936,7 +1021,8 @@ impl Meter {
                 "adapter_reports_unparseable": c.unparseable, "ready_reordered": c.ready_reordered,
                 "origin_inconsistent": c.origin_inconsistent, "origin_overridden": c.origin_overridden,
                 "transcript_refused": c.transcript_refused, "session_table_full": c.session_table_full,
-                "s3_unattributed": c.s3_unattributed, "last_reasons": c.reasons,
+                "s3_unattributed": c.s3_unattributed, "persist_failed": c.persist_failed,
+                "restored": c.restored, "last_reasons": c.reasons,
             },
         })
     }
@@ -1036,6 +1122,55 @@ fn check_origin(c: &mut Counters, o: &str, b: &str, ids: &[String], typed: &[Str
         }
     }
     (origin, b.to_owned())
+}
+
+/// Read back [`STATE_NAME`]: the sessions of this boot, or why none are used.
+fn restore(raw: &str, boot: Option<&str>) -> Result<Vec<(String, Session)>, String> {
+    let v = strict_json(raw.as_bytes())?;
+    if v.get("v").and_then(Value::as_u64) != Some(1) {
+        return Err("unknown version".into());
+    }
+    let Some(boot) = boot else { return Err("this host has no boot id".into()) };
+    if v.get("boot_id").and_then(Value::as_str) != Some(boot) {
+        return Err("written on another boot".into());
+    }
+    let sessions = v.get("sessions").and_then(Value::as_object).ok_or("no sessions")?;
+    let mut out = vec![];
+    for (k, e) in sessions {
+        if !valid_session(k) {
+            return Err(format!("bad session id {k:?}"));
+        }
+        let u = |o: &Value, f: &str| o.get(f).and_then(Value::as_u64).ok_or(format!("{k}: {f} is not an integer"));
+        let ready = match e.get("ready") {
+            None | Some(Value::Null) => None,
+            Some(r) => {
+                let state = r.get("state").and_then(Value::as_str).filter(|x| ["READY", "BUSY", "NOT_RUNNING"].contains(x)).ok_or(format!("{k}: bad ready state"))?;
+                Some(ReadyRec { state: state.into(), at_ms: u(r, "at_ms")?, rx_mono: u(r, "rx_mono")?, seq: u(r, "seq")?, epoch: r.get("epoch").and_then(Value::as_str).and_then(|x| x.parse().ok()).ok_or(format!("{k}: bad epoch"))? })
+            }
+        };
+        let last_prompt = match e.get("last_prompt") {
+            None | Some(Value::Null) => None,
+            Some(p) => {
+                let origin = match p.get("origin").and_then(Value::as_str) {
+                    Some("human") => Origin::Human,
+                    Some("automated") => Origin::Automated,
+                    Some("unknown") => Origin::Unknown,
+                    _ => return Err(format!("{k}: bad origin")),
+                };
+                let basis = p.get("basis").and_then(Value::as_str).ok_or(format!("{k}: no basis"))?.to_owned();
+                Some(Prompt { origin, basis, at_ms: u(p, "at_ms")?, rx_mono: u(p, "rx_mono")?, doorbell_ids: valid_ids(p.get("doorbell_ids")) })
+            }
+        };
+        let sess = Session {
+            ready,
+            last_prompt,
+            stopped: e.get("stopped").and_then(Value::as_u64),
+            ended: e.get("ended").and_then(Value::as_bool).unwrap_or(false),
+            ..Session::default()
+        };
+        out.push((k.clone(), sess));
+    }
+    Ok(out)
 }
 
 fn rand_epoch() -> u64 {
