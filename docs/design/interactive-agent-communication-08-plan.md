@@ -1,9 +1,9 @@
 # Interactive agent communication: step 8, build plan
 
 **Task:** T-3357 · **Arc:** arc-011 · **Chain:** arc-011-design, step 8 · **Role:** planner
-**Status:** DRAFT v0.3 (2026-11-12), batch mode (no human present, `_common.md` 5.2). This step **decides**
-(`decides: true`): the operator approves the plan, and the operator alone decides every exploration (card 5). Until
-then this is a **draft**: no work item has been created from it (card 3.2). Everything below is a proposal.
+**Status:** APPROVED v0.3 (operator ruling A, 2026-11-12, G-0, recorded in T-3357 `## Decisions` with PD-1..PD-3);
+this is v0.4 (2026-11-12), which adds the work-item map (section 12.4..12.7) and changes nothing else. The operator
+alone decides every exploration (card 5) and every later gate G-1..G-8.
 **Review link:** none. This project's Watchtower has no inline design-review page (profile P2.1); read the file in the
 repository.
 **Standing rules applied (CLAUDE.md):** nothing working is switched off as a side effect, only by a decommission unit
@@ -16,6 +16,7 @@ with the operator's explicit, documented approval (**NID**); thresholds measure 
 | 0.1 | 2026-11-12 | First complete draft: 71 units P-1..P-71 (46 PH-2, 8 PH-3, 7 PH-4, 2 PH-5, 8 PH-6; 5 of them requests to other projects), 7 explorations X-1..X-7, 9 gates G-0..G-8, 150 typed edges checked for cycles, the order with reasons, coverage of R-1..R-82 and E-1..E-173 and card 3.6, the step-1 build tasks re-scoped or confirmed, R-41 placed, drawings D-1 (two parts) and D-2 | T-3357 |
 | 0.2 | 2026-11-12 | Repair after the independent review r1 (amber; `.context/reviews/evidence/T-3357/AC1-judge-t-3357-r1-2d20aefb82f3.md`). F-1: P-43, P-51, P-55, P-60, P-67, P-68 get unit-specific checks (a PASS line per acceptance clause plus a named negative control; P-55 names the FP 6.2.5.c (4) cases; P-67, P-68 name the coverage check on the specs the PH-6 entry and X-1 produce); the generator now refuses a unit with no E-n and the generic check. F-2: P-69 gets R-55.e cases and what fails the AEF report; the same sweep tightened P-45, P-47, the exit reports P-54, P-61, P-63, and P-66, P-70. F-3: the "see CR-8.3" pointer replaced by a reason per unit; P-43 and P-51 added to the new CR-8.6. F-4: PL-3 says three. Sweep also found E-106 and E-173 (tagged K-26) not mapped to P-55; now mapped. Edges, order and drawings unchanged | T-3357 |
 | 0.3 | 2026-11-12 | Repair after the independent review r2 (amber; `.context/reviews/evidence/T-3357/AC1-judge-t-3357-r1-6126e8d19de0.md`). F-5: the PH-2 exit P-40 now covers FP 6.2.3.d (1)..(8), each named, plus H-26 (FP 6.1.b (v)); its check lists every item and H-n with PASS and evidence and fails on any item missing or without evidence. F-6: the arc closing P-71 lists FP 6.2.7.a (6) (a)..(d), H-29 (e) and the A-6 register (f), each with PASS and evidence, failing on any item without. Sweep: P-54 and P-63 add H-26 (FP 6.1.b (v)) and P-63 names what fails it; the report checks of P-25, P-35, P-37 and P-52 now name their failing condition. Edges, order and drawings unchanged | T-3357 |
+| 0.4 | 2026-11-12 | After G-0 (operator ruling A, PD-1..PD-3): the work-item map (12.4..12.7). 66 P-n and 7 X-n mapped to exactly one task each (57 new tasks T-3692..T-3748; 16 existing tasks updated, one of them closed); the 5 requests (P-44..P-47, P-69) recorded as not sent; the 9 gates noted. Section 7 proposals applied to their tasks with a "2026-11-12 — plan G-0" Decisions entry (T-3359 marked superseded, not closed). Units, edges, order, coverage and drawings unchanged | T-3357 |
 
 ## 1 Inputs of record
 
@@ -998,6 +999,115 @@ duplicated. The map is added to this document as a later version, after G-0 (a c
 12.3 Dependencies go into each task as `depends_on:` (frontmatter, not enforced by the framework), a `Depends on: T-XXXX
 (type: condition)` line in Context, and the ids in `related_tasks:` (adapter A4.4). Horizon follows readiness: units
 whose edges are all satisfied get `now`, the rest `next` or `later`.
+12.4 **The map (v0.4, 2026-11-12, after G-0).** Created by `.context/working/t3357/mkitems.py create` (idempotent: a
+unit with `plan_unit: <id>` in `.tasks/` is never created again) and checked by `mkitems.py verify` (every P-n and X-n
+maps to exactly one id, or is a request; no `plan_unit` appears twice) and `mkitems.py check` (each task has
+`plan_unit`, `arc_id`, `depends_on`, the four-part Context, real Agent criteria, a Verification entry and its
+"Depends on" lines). Both exited 0 on 2026-11-12. Each new task carries `plan_unit`, `arc_id: arc-011`, `depends_on`
+(task ids of its unit's edges; edges to gates and requests are named in Context, not in `depends_on`), the ids in
+`related_tasks`, and its Acceptance and Verification check as Agent criteria (one per clause).
+
+| Unit | Phase | Work item id | Kind | Horizon |
+|---|---|---|---|---|
+| P-1 | PH-2 | T-3692 | new | now |
+| P-2 | PH-2 | T-3693 | new | now |
+| P-3 | PH-2 | T-3686 | existing, closed (mapping in its Updates) | — (closed) |
+| P-4 | PH-2 | T-3694 | new | next |
+| P-5 | PH-2 | T-3695 | new | next |
+| P-6 | PH-2 | T-3696 | new | next |
+| P-7 | PH-2 | T-3697 | new | next |
+| P-8 | PH-2 | T-3698 | new | next |
+| P-9 | PH-2 | T-3699 | new | next |
+| P-10 | PH-2 | T-3366 | existing, updated | next |
+| P-11 | PH-2 | T-3363 | existing, updated | next |
+| P-12 | PH-2 | T-3700 | new | next |
+| P-13 | PH-2 | T-3701 | new | next |
+| P-14 | PH-2 | T-3702 | new | next |
+| P-15 | PH-2 | T-3703 | new | next |
+| P-16 | PH-2 | T-3704 | new | next |
+| P-17 | PH-2 | T-3705 | new | next |
+| P-18 | PH-2 | T-3362 | existing, updated | next |
+| P-19 | PH-2 | T-3358 | existing, updated | next |
+| P-20 | PH-2 | T-3706 | new | next |
+| P-21 | PH-2 | T-3707 | new | next |
+| P-22 | PH-2 | T-3614 | existing, updated | next |
+| P-23 | PH-2 | T-3364 | existing, updated | next |
+| P-24 | PH-2 | T-3708 | new | next |
+| P-25 | PH-2 | T-3709 | new | next |
+| P-26 | PH-2 | T-3710 | new | next |
+| P-27 | PH-2 | T-3711 | new | next |
+| P-28 | PH-2 | T-3712 | new | next |
+| P-29 | PH-2 | T-3361 | existing, updated | next |
+| P-30 | PH-2 | T-3669 | existing, updated | next |
+| P-31 | PH-2 | T-3713 | new | next |
+| P-32 | PH-2 | T-3360 | existing, updated | next |
+| P-33 | PH-2 | T-3714 | new | next |
+| P-34 | PH-2 | T-3433 | existing, updated | next |
+| P-35 | PH-2 | T-3654 | existing, updated | now (kept; see 12.6) |
+| P-36 | PH-2 | T-3715 | new | next |
+| P-37 | PH-2 | T-3716 | new | next |
+| P-38 | PH-2 | T-3717 | new | next |
+| P-39 | PH-2 | T-3718 | new | next |
+| P-40 | PH-2 | T-3719 | new | next |
+| P-41 | PH-2 | T-3720 | new | next |
+| P-42 | PH-2 | T-3721 | new | next |
+| P-43 | PH-2 | T-3688 | existing, updated | next |
+| P-44 | PH-2 | — | request, not sent; send when P-2 and P-4 built (parity fixtures published) | — |
+| P-45 | PH-2 | — | request, not sent; send when P-4 built (waiting-mail signal exists) | — |
+| P-46 | PH-2 | — | request, not sent; send when the operator releases it (its only edge, G-0, is met and plan order #3 says send at once; the mapping brief sends nothing) | — |
+| P-47 | PH-3 | — | request, not sent; send when P-44 built on AEF side (first adapter proved the fixtures) | — |
+| P-48 | PH-3 | T-3722 | new | later |
+| P-49 | PH-3 | T-3723 | new | later |
+| P-50 | PH-3 | T-3724 | new (split from T-3363) | later |
+| P-51 | PH-3 | T-3347 | existing, updated | later |
+| P-52 | PH-3 | T-3725 | new | later |
+| P-53 | PH-3 | T-3726 | new (split from T-3366) | later |
+| P-54 | PH-3 | T-3727 | new | later |
+| P-55 | PH-4 | T-3728 | new | later |
+| P-56 | PH-4 | T-3729 | new | later |
+| P-57 | PH-4 | T-3730 | new (split from T-3360) | later |
+| P-58 | PH-4 | T-3731 | new | later |
+| P-59 | PH-4 | T-3732 | new | later |
+| P-60 | PH-4 | T-3733 | new | later |
+| P-61 | PH-4 | T-3734 | new | later |
+| P-62 | PH-5 | T-3735 | new | later |
+| P-63 | PH-5 | T-3736 | new | later |
+| P-64 | PH-6 | T-3737 | new | later |
+| P-65 | PH-6 | T-3738 | new | later |
+| P-66 | PH-6 | T-3739 | new | later |
+| P-67 | PH-6 | T-3740 | new | later |
+| P-68 | PH-6 | T-3741 | new | later |
+| P-69 | PH-6 | — | request, not sent; send when P-51 built (cross-hub primitive) | — |
+| P-70 | PH-6 | T-3742 | new | later |
+| P-71 | PH-6 | T-3743 | new | later |
+| X-1 | exploration | T-3744 | new inception (recommendation GO, per 9) | later |
+| X-2 | exploration | T-3745 | new inception | later |
+| X-3 | exploration | T-3385 | existing, updated | now (kept; see 12.6) |
+| X-4 | exploration | T-3746 | new inception | later |
+| X-5 | exploration | T-3747 | new inception | later |
+| X-6 | exploration | T-3748 | new inception | later |
+| X-7 | exploration | T-3663 | existing, updated | now (kept; see 12.6) |
+
+12.5 **Gates G-0..G-8: no work item.** Each is an operator decision point (or, for G-2, an aggregation the operator
+cuts). Tasks name them in a "Depends on: gate G-n" line in Context. G-0 is passed (ruling A, 2026-11-12). G-1 release
+cut for a wave; G-2 T1 release installed on .107; G-3 W4 decommission approval; G-4..G-7 the phase moves; G-8 each
+other decommission approval (P-28 already ruled O-4 A in T-3353; P-42, P-43, P-53, P-70 each at their time).
+12.6 **Horizon exceptions and other reconciliations.**
+12.6.a Today only P-1 (T-3692) and P-2 (T-3693) are `now` among the new tasks. Several PH-2 units (P-8, P-10, P-12,
+P-13, P-14, P-17, P-18, P-23, P-26, P-27, P-29, P-39) have no unmet edge either; they are `next` because the order of
+section 6 serialises them behind ruling A's spine in one main checkout (PL-5), not because of an edge.
+12.6.b T-3654 (P-35) stays `now`: it has open work of its own (AC4 remainder, AC6 hand-over); only its added P-35
+criterion waits on P-4 and P-5. T-3385 (X-3) and T-3663 (X-7) have no edge and keep their `now`.
+12.6.c T-3686 (P-3) is closed; the closed-record gate allows only an appended Updates entry, so its mapping
+(`plan_unit: P-3`) is recorded there, not in its frontmatter.
+12.6.d P-13's column said "new (extends T-3382)": the new task T-3701 carries B-3; T-3382 is not a plan unit, stays open
+as the record of the growth, and has a Decisions entry pointing at T-3701.
+12.6.e The 7.1 and 7.2 proposals are applied: T-3359 marked superseded in its Decisions (horizon `later`, not closed;
+closing is the operator's); T-3360, T-3363 and T-3366 split (the existing task keeps the PH-2 part, the new task holds
+the other); T-3358 and T-3669 extended; T-3614 re-scoped; T-3362, T-3364, T-3361, T-3433, T-3347, T-3688, T-3654,
+T-3385, T-3663 confirmed or reused; T-3687 stays open, its follow-ups are T-3692 and T-3693.
+12.7 **Requests to other projects (P-44..P-47, P-69; 055 is P-47) are not sent by this mapping.** Each is sent when its
+condition in the table holds, and its message id is then added here.
 
 ## 13 Residual risks for the operator
 
@@ -1050,7 +1160,7 @@ decommission; the phase moves G-4..G-7; X-1..X-7; the FP-4 values of section 10.
 |---|---|---|---|
 | 6.1 | Coverage table complete; no dependency cycle | yes | 11.1, 11.2 (every R-n and E-n served or explained), 11.3 (every card 3.6 item); 5.3 (Kahn, 0 cycles, 0 order violations) |
 | 6.2 | Every unit has acceptance criteria and a verification check; no rubber-stamp criteria | yes | section 4 tables (Acceptance and Verification check columns); 4.2; 4.3; the one Human criterion (P-38) says what to look at and what fails; every request unit's check says what the report must show and what fails it (P-44..P-47, P-69) |
-| 6.3 | After approval: every plan item mapped to exactly one work item | not yet (after approval) | section 12 gives the rule; the map comes in the version after G-0 |
+| 6.3 | After approval: every plan item mapped to exactly one work item | yes (v0.4) | 12.4 map: 66 P-n and 7 X-n each to one task, 5 requests not sent, 9 gates; `mkitems.py verify` and `check` exit 0 (2026-11-12) |
 | 6.4 | Every required drawing (D-1, D-2) present with id, caption and text equivalent, renders without error | yes | 5.4..5.7 (D-1 in two parts), 6.3..6.4 (D-2); section 17 |
 
 16.1 T-3357 agent criteria met by this output: inputs of record with hashes (section 1); build plan with the step-1
