@@ -835,7 +835,7 @@ on the TermLink rail → refused, settings unchanged. 2.24.e.2 **FCW-148** [new;
 not show the change → FAILED. 2.24.e.3 **FCW-149** [new; ZR-1] W2's gate is not met → refused. 2.24.e.4 **FCW-150**
 [new; ZR-1] W3's gate is not met → refused. 2.24.e.5 **FCW-151** [AFC-30; E-82] W4 without the operator's approval in
 the W4 task's Decisions → refused, nothing changed. 2.24.e.6 **FCW-152** [new; E-81] the drain's count compare does not
-match → the switch is refused **[B]**. 2.24.e.7 **FCW-210** [new; E-72] (changed in v0.3 by CR-6.26) the W2 report lacks
+match → the switch is refused **[B]**. 2.24.e.7 **FCW-210** [new; E-171] (changed in v0.3 by CR-6.26) the W2 report lacks
 H-11 (e) or (f), or either is over its bound → W3's gate is not met; refused.
 2.24.f **EDGE CASES:** (1) the settings file edited by hand between the act and the re-read: the re-read is what counts;
 (2) concurrency: runme is one process; (3) crash during act: the next run re-checks `done_on_disk` and completes or
