@@ -1309,6 +1309,22 @@ pub(crate) struct MainCommon {
     /// (repeatable; also $TERMLINK_MAIN_OBLIGATION_TOPICS, comma-separated)
     #[arg(long = "obligation-topic")]
     pub obligation_topics: Vec<String>,
+    /// B-25 (T-3694): prompt origin as the adapter reports it (human, automated, unknown).
+    /// Omitted = `absent`: counts as built until the operator switches the harness to origin reporting
+    #[arg(long)]
+    pub origin: Option<String>,
+    /// B-25: what the origin rests on (pty-input, inferred, doorbell, watchdog, ...); recorded only
+    #[arg(long)]
+    pub basis: Option<String>,
+    /// B-25: which hook claims: prompt (UserPromptSubmit, default), session-start, tool (PostToolUse)
+    #[arg(long, default_value = "prompt")]
+    pub kind: String,
+    /// B-25: SessionStart of an interactive session (print mode, background and dispatched workers are not)
+    #[arg(long)]
+    pub interactive: bool,
+    /// B-25: the harness whose hooks claim (default: $TERMLINK_MAIN_HARNESS, else claude-code)
+    #[arg(long)]
+    pub harness: Option<String>,
     /// Output JSON
     #[arg(long)]
     pub json: bool,
@@ -1356,6 +1372,18 @@ pub(crate) enum MainAction {
         #[arg(long, default_value = "operator pin")]
         reason: String,
         /// Who pins (default: $USER)
+        #[arg(long)]
+        by: Option<String>,
+    },
+    /// Operator act (B-25, CR-6.6): switch the harness named by --harness to origin reporting
+    /// (or off). Run from a runme action only, after its adapter passes the parity fixtures
+    OriginReporting {
+        #[command(flatten)]
+        common: MainCommon,
+        /// Switch it off again (claims without origin count as built)
+        #[arg(long)]
+        off: bool,
+        /// Who switches (default: $USER)
         #[arg(long)]
         by: Option<String>,
     },

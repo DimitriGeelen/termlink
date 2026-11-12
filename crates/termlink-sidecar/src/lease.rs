@@ -87,7 +87,13 @@ impl Shared {
                 json!({"state": "unknown", "project": project, "checked_at_ms": at, "why": "last read is stale"})
             }
             Some((at, Ok(v))) => json!({
-                "state": if v.holder.is_some() { "held" } else { "vacant" },
+                // B-25 (T-3694): held | provisional | vacant | lapsed, and the holder's origin
+                // and last human prompt (AL-12 Δ, for the waiting-mail signal AL-13).
+                "state": v.state,
+                "provisional": v.provisional,
+                "origin": v.origin,
+                "last_human_at_ms": v.last_human_at_ms,
+                "holder_human_age_s": v.holder_human_age_s,
                 "project": project,
                 "topic": v.topic,
                 "holder": v.holder,

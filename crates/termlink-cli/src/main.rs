@@ -312,6 +312,7 @@ async fn real_main() -> Result<()> {
                 MainAction::Pin { common, to, clear, reason, by } => {
                     (MainVerb::Pin { session: to, clear, reason, by }, common)
                 }
+                MainAction::OriginReporting { common, off, by } => (MainVerb::OriginReporting { off, by }, common),
             };
             let a = MainArgs {
                 project: c.project,
@@ -322,6 +323,11 @@ async fn real_main() -> Result<()> {
                 pid: c.pid,
                 obligation_topics: c.obligation_topics,
                 json: c.json,
+                origin: c.origin,
+                basis: c.basis,
+                kind: c.kind,
+                interactive: c.interactive,
+                harness: c.harness,
             };
             std::process::exit(cmd_main(verb, a).await);
         }

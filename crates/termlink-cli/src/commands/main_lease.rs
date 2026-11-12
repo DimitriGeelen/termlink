@@ -6,7 +6,7 @@
 use std::io::Read as _;
 
 use serde_json::Value;
-use termlink_session::main_lease::{Holder, LeaseClient, Outcome, Timing};
+use termlink_session::main_lease::{ClaimKind, ClaimRequest, DEFAULT_HARNESS, Holder, LeaseClient, Origin, Outcome, Timing};
 
 /// Where a verb gets its session/project/hub from.
 pub(crate) struct MainArgs {
@@ -19,6 +19,12 @@ pub(crate) struct MainArgs {
     pub pid: Option<u32>,
     pub obligation_topics: Vec<String>,
     pub json: bool,
+    /// B-25 (T-3694): the claim's origin, basis, hook kind, interactivity and harness.
+    pub origin: Option<String>,
+    pub basis: Option<String>,
+    pub kind: String,
+    pub interactive: bool,
+    pub harness: Option<String>,
 }
 
 pub(crate) enum MainVerb {
@@ -28,6 +34,19 @@ pub(crate) enum MainVerb {
     Status,
     AmI,
     Pin { session: Option<String>, clear: bool, reason: String, by: Option<String> },
+    OriginReporting { off: bool, by: Option<String> },
+}
+
+/// B-25: the claim request from the flags. An origin or kind that does not parse is an error
+/// (unknown, exit 2), never a guess.
+fn claim_request(a: &MainArgs) -> Result<ClaimRequest, String> {
+    let kind = ClaimKind::parse(&a.kind).ok_or_else(|| format!("--kind {:?}: expected prompt, session-start or tool", a.kind))?;
+    let origin = match a.origin.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        None => None,
+        Some(o) => Some(Origin::parse(o).ok_or_else(|| format!("--origin {o:?}: expected human, automated or unknown"))?),
+    };
+    let harness = a.harness.clone().or_else(|| env("TERMLINK_MAIN_HARNESS")).unwrap_or_else(|| DEFAULT_HARNESS.to_string());
+    Ok(ClaimRequest { kind, origin, basis: a.basis.clone().filter(|b| !b.trim().is_empty()), interactive: Some(a.interactive), harness })
 }
 
 fn env(k: &str) -> Option<String> {
@@ -100,6 +119,17 @@ fn print(o: &Outcome, json: bool) -> i32 {
         if let Some(p) = o.view.as_ref().and_then(|v| v.pinned.as_ref()) {
             println!("pinned by operator: {p}");
         }
+        if let Some(v) = o.view.as_ref() {
+            println!(
+                "origin: {} | last_human_at: {} | state: {}",
+                v.origin.as_deref().unwrap_or("-"),
+                v.last_human_at_ms.map_or("-".to_string(), |t| format!("{t} ({}s ago)", v.now_ms.saturating_sub(t) / 1000)),
+                v.state
+            );
+        }
+        if let Some(n) = &o.note {
+            println!("note: {n}");
+        }
     }
     o.verdict.exit_code()
 }
@@ -128,7 +158,11 @@ pub(crate) async fn cmd_main(verb: MainVerb, a: MainArgs) -> i32 {
         Ok(x) => x,
         Err(e) => return unknown(session.as_deref(), format!("no hub credential: {e}"), json),
     };
-    let writes = matches!(verb, MainVerb::Claim | MainVerb::Renew | MainVerb::Release | MainVerb::Pin { .. });
+    let req = match claim_request(&a) {
+        Ok(r) => r,
+        Err(e) => return unknown(session.as_deref(), e, json),
+    };
+    let writes = matches!(verb, MainVerb::Claim | MainVerb::Renew | MainVerb::Release | MainVerb::Pin { .. } | MainVerb::OriginReporting { .. });
     let identity = if writes {
         match super::channel::load_identity_or_create() {
             Ok(i) => Some(i),
@@ -159,10 +193,23 @@ pub(crate) async fn cmd_main(verb: MainVerb, a: MainArgs) -> i32 {
             let Some(s) = &session else { return unknown(None, need_session(), json) };
             let h = me(s);
             match verb {
-                MainVerb::Claim => client.claim(&project, &h).await,
+                MainVerb::Claim => client.claim_with(&project, &h, &req).await,
                 MainVerb::Renew => client.renew(&project, &h).await,
                 _ => client.release(&project, &h).await,
             }
+        }
+        MainVerb::OriginReporting { off, by } => {
+            let by = by.or_else(|| env("USER")).unwrap_or_else(|| "operator".into());
+            let o = client.set_origin_reporting(&project, &req.harness, !off, &by).await;
+            if o.verdict != termlink_session::main_lease::Verdict::Unknown {
+                if json {
+                    println!("{}", o.to_json());
+                } else {
+                    println!("origin reporting for harness {}: {}", req.harness, if off { "off" } else { "on" });
+                }
+                return 0;
+            }
+            o
         }
         MainVerb::Pin { session: target, clear, reason, by } => {
             if target.is_none() && !clear {

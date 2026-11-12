@@ -171,6 +171,112 @@ impl Holder {
     }
 }
 
+// ------------------------------------------------- B-25 (T-3694): prompt origin (AL-11, 6.13)
+
+/// Per-session human-activity stamps (`Touch`), one per human-counted renewal. A separate
+/// topic so that a flood of them can never push lease records out of `main:<p>`'s retention.
+pub fn touch_topic(project: &str) -> String {
+    format!("main-touch:{project}")
+}
+/// Claims that changed nothing because their origin was not `human` (`Ignored`).
+pub fn ignored_topic(project: &str) -> String {
+    format!("main-ignored:{project}")
+}
+/// Operator-set lease configuration: which harnesses report prompt origin (`OriginReporting`).
+/// Created with explicit forever retention, so the switch never reverts by retention (CR-6.6).
+pub fn config_topic(project: &str) -> String {
+    format!("main-config:{project}")
+}
+
+/// The harness a claim comes from when the caller does not name one.
+pub const DEFAULT_HARNESS: &str = "claude-code";
+/// Records older than this on the touch/ignored topics are dropped by count (newest 1000).
+pub const SIDE_KEEP: u64 = 1000;
+/// Cross-host margin on the fast-takeover age (v0.2 FCW-56). Applied while the hub carries no
+/// receive stamp of its own (CR-6.21 needs a hub change): when the holder's host differs from
+/// the taker's, the two ages come from two wall clocks, so 30 s more silence is required.
+pub const CROSS_HOST_MARGIN_MS: u64 = 30_000;
+
+/// Where a prompt came from, as the adapter (checked by the receiver, AL-1) reports it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Origin {
+    Human,
+    Automated,
+    Unknown,
+}
+
+impl Origin {
+    pub fn parse(s: &str) -> Option<Origin> {
+        match s.trim() {
+            "human" => Some(Origin::Human),
+            "automated" => Some(Origin::Automated),
+            "unknown" => Some(Origin::Unknown),
+            _ => None,
+        }
+    }
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Origin::Human => "human",
+            Origin::Automated => "automated",
+            Origin::Unknown => "unknown",
+        }
+    }
+}
+
+/// Which hook a claim comes from (6.13.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ClaimKind {
+    /// UserPromptSubmit: the only kind that renews, for an origin-reporting harness.
+    Prompt,
+    /// SessionStart: a provisional take of a VACANT lease, nothing else.
+    SessionStart,
+    /// PostToolUse (tool activity): never renews for an origin-reporting harness.
+    Tool,
+}
+
+impl ClaimKind {
+    pub fn parse(s: &str) -> Option<ClaimKind> {
+        match s.trim() {
+            "prompt" => Some(ClaimKind::Prompt),
+            "session-start" => Some(ClaimKind::SessionStart),
+            "tool" | "post-tool-use" => Some(ClaimKind::Tool),
+            _ => None,
+        }
+    }
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ClaimKind::Prompt => "prompt",
+            ClaimKind::SessionStart => "session-start",
+            ClaimKind::Tool => "tool",
+        }
+    }
+}
+
+/// What a claim reports about itself. `ClaimRequest::default()` is the built claim (no origin).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClaimRequest {
+    pub kind: ClaimKind,
+    /// `None` = the hooks sent no origin field (`absent`).
+    pub origin: Option<Origin>,
+    /// `pty-input`, `inferred`, `doorbell`, `watchdog`, ... (recorded, never decides).
+    pub basis: Option<String>,
+    /// SessionStart only: an interactive session (CR-6.5). `None` is not interactive.
+    pub interactive: Option<bool>,
+    pub harness: String,
+}
+
+impl Default for ClaimRequest {
+    fn default() -> Self {
+        ClaimRequest { kind: ClaimKind::Prompt, origin: None, basis: None, interactive: None, harness: DEFAULT_HARNESS.to_string() }
+    }
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
+}
+
 /// One record on the lease topic.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -184,7 +290,8 @@ pub enum Event {
         holder: Holder,
         claim_id: String,
         at_ms: u64,
-        /// `first`, `takeover-after-lapse`, `after-release`, `resume`, `pin-override`, `pin`.
+        /// `first`, `takeover-after-lapse`, `after-release`, `resume`, `pin-override`, `pin`,
+        /// and (B-25) `provisional`, `over-provisional`, `after-provisional`, `fast-takeover`.
         reason: String,
         #[serde(default)]
         from: Option<Holder>,
@@ -193,6 +300,54 @@ pub enum Event {
         /// Open claims the previous holder left on the obligation topics: uncertain, for the operator.
         #[serde(default)]
         obligations: Vec<Value>,
+        /// B-25: `human`, `automated`, `unknown`, or `absent` (no origin field). Omitted on
+        /// records written before B-25.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        origin: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        basis: Option<String>,
+        /// B-25: a SessionStart take (valid for the quiet period, never blocks a human claim).
+        #[serde(default, skip_serializing_if = "is_false")]
+        provisional: bool,
+        /// B-25 fast takeover: how long the previous holder had been without a human prompt.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        holder_human_age_s: Option<u64>,
+    },
+    /// B-25: a provisional holder's first human prompt makes it a full holder (same generation).
+    Promote {
+        generation: u64,
+        holder: Holder,
+        claim_id: String,
+        at_ms: u64,
+        origin: String,
+        #[serde(default)]
+        basis: Option<String>,
+    },
+    /// B-25, on `main-touch:<p>`: one human-counted renewal by the holder.
+    Touch {
+        generation: u64,
+        session: String,
+        claim_id: String,
+        at_ms: u64,
+        #[serde(default)]
+        basis: Option<String>,
+    },
+    /// B-25, on `main-ignored:<p>`: a claim whose origin was not `human` changed nothing.
+    Ignored {
+        session: String,
+        origin: String,
+        #[serde(default)]
+        basis: Option<String>,
+        hook: String,
+        harness: String,
+        at_ms: u64,
+    },
+    /// B-25, on `main-config:<p>`: the operator switched a harness to (or off) origin reporting.
+    OriginReporting {
+        harness: String,
+        on: bool,
+        by: String,
+        at_ms: u64,
     },
     Release {
         generation: u64,
@@ -219,6 +374,9 @@ pub enum Event {
 pub struct Logged {
     pub offset: u64,
     pub event: Event,
+    /// The posting identity's fingerprint (`sender_id`; the hub checks the signature against
+    /// the posted key). B-25 counts a Touch only from the key that posted the holder's acquire.
+    pub sender: Option<String>,
 }
 
 /// The newest acquire that counts.
@@ -230,6 +388,14 @@ pub struct Current {
     /// Start of the holder's uninterrupted holding (a resume after a lapse restarts it).
     pub since_ms: u64,
     pub at_ms: u64,
+    /// B-25: a SessionStart take not yet promoted by a human prompt.
+    pub provisional: bool,
+    /// B-25: the acquire's origin (`None` on records written before B-25).
+    pub origin: Option<String>,
+    /// The identity that posted the acquire (the holder's key).
+    pub sender: Option<String>,
+    /// B-25: newest human-origin acquire or promote of this holding (claimer wall clock).
+    pub human_at_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -288,8 +454,10 @@ pub fn fold(log: &[Logged]) -> Folded {
         }
         match &l.event {
             Event::Genesis { .. } => {}
-            Event::Acquire { generation, holder, claim_id, at_ms, from, .. } => {
+            Event::Acquire { generation, holder, claim_id, at_ms, from, origin, provisional, .. } => {
                 let resume = f.current.as_ref().is_some_and(|c| c.generation == *generation && c.holder.session == holder.session);
+                // A SessionStart (provisional) take is not a human prompt, whatever it reports.
+                let human = (origin.as_deref() == Some("human") && !*provisional).then_some(*at_ms);
                 if *generation > f.generation || f.current.is_none() {
                     if let Some(prev) = from.as_ref().or(f.current.as_ref().map(|c| &c.holder))
                         && prev.session != holder.session
@@ -297,7 +465,17 @@ pub fn fold(log: &[Logged]) -> Folded {
                         f.losses.insert(prev.session.clone(), (*generation, holder.clone(), *at_ms));
                     }
                     f.generation = (*generation).max(f.generation);
-                    f.current = Some(Current { generation: *generation, holder: holder.clone(), claim_id: claim_id.clone(), since_ms: *at_ms, at_ms: *at_ms });
+                    f.current = Some(Current {
+                        generation: *generation,
+                        holder: holder.clone(),
+                        claim_id: claim_id.clone(),
+                        since_ms: *at_ms,
+                        at_ms: *at_ms,
+                        provisional: *provisional,
+                        origin: origin.clone(),
+                        sender: l.sender.clone(),
+                        human_at_ms: human,
+                    });
                     f.ended = None;
                     f.last_change_ms = Some(*at_ms);
                     same_gen = vec![Candidate { holder: holder.clone(), since_ms: *at_ms }];
@@ -308,6 +486,10 @@ pub fn fold(log: &[Logged]) -> Folded {
                     }
                     c.claim_id = claim_id.clone();
                     c.at_ms = *at_ms;
+                    c.provisional = *provisional;
+                    c.origin = origin.clone();
+                    c.sender = l.sender.clone();
+                    c.human_at_ms = human.max(c.human_at_ms);
                     f.ended = None;
                 } else if *generation == f.generation {
                     // Two holders at one generation: a restored or partitioned log.
@@ -320,7 +502,17 @@ pub fn fold(log: &[Logged]) -> Folded {
                         "order": "operator pin, else longest uninterrupted holder, else stable id",
                     }));
                     if f.current.as_ref().map(|c| &c.holder.session) != Some(&win.holder.session) {
-                        f.current = Some(Current { generation: *generation, holder: win.holder.clone(), claim_id: claim_id.clone(), since_ms: win.since_ms, at_ms: *at_ms });
+                        f.current = Some(Current {
+                            generation: *generation,
+                            holder: win.holder.clone(),
+                            claim_id: claim_id.clone(),
+                            since_ms: win.since_ms,
+                            at_ms: *at_ms,
+                            provisional: *provisional,
+                            origin: origin.clone(),
+                            sender: l.sender.clone(),
+                            human_at_ms: human,
+                        });
                         f.ended = None;
                     }
                 }
@@ -340,9 +532,63 @@ pub fn fold(log: &[Logged]) -> Folded {
                 f.pin = session.clone();
                 f.pin_record = Some(json!({"session": session, "by": by, "reason": reason, "at_ms": at_ms, "offset": l.offset}));
             }
+            Event::Promote { generation, holder, claim_id, at_ms, origin, .. } => {
+                // Only the live provisional holding of this session, by the key that took it.
+                if let Some(c) = f.current.as_mut()
+                    && c.generation == *generation
+                    && c.holder.session == holder.session
+                    && c.claim_id == *claim_id
+                    && (c.sender.is_none() || c.sender == l.sender)
+                {
+                    c.provisional = false;
+                    if origin == "human" {
+                        c.human_at_ms = Some(*at_ms).max(c.human_at_ms);
+                    }
+                }
+            }
+            // Side-topic records never change the holding (folded by their own readers).
+            Event::Touch { .. } | Event::Ignored { .. } | Event::OriginReporting { .. } => {}
         }
     }
     f
+}
+
+/// B-25 (AL-11 `last_human`): the holder's newest human-counted prompt at its generation —
+/// the human acquire/promote of the holding, or a Touch on `main-touch:<p>` for the same
+/// session, generation and claim id, posted by the key that posted the acquire (FCW-202).
+/// `None` when there is none, or when the touch log could not be read (`touches = None`,
+/// FCW-55): an undeterminable `last_human` never allows a fast takeover.
+pub fn last_human(f: &Folded, touches: Option<&[Logged]>) -> Option<u64> {
+    let c = f.current.as_ref()?;
+    let touches = touches?;
+    let from_touch = touches
+        .iter()
+        .filter_map(|l| match &l.event {
+            Event::Touch { generation, session, claim_id, at_ms, .. }
+                if *generation == c.generation
+                    && *session == c.holder.session
+                    && *claim_id == c.claim_id
+                    && l.sender.is_some()
+                    && l.sender == c.sender =>
+            {
+                Some(*at_ms)
+            }
+            _ => None,
+        })
+        .max();
+    from_touch.max(c.human_at_ms)
+}
+
+/// B-25 (CR-6.6): the harnesses the operator has switched to origin reporting. The newest
+/// record per harness wins; no record means not reporting.
+pub fn reporting_harnesses(config: &[Logged]) -> Vec<String> {
+    let mut on: BTreeMap<String, bool> = BTreeMap::new();
+    for l in config {
+        if let Event::OriginReporting { harness, on: o, .. } = &l.event {
+            on.insert(harness.clone(), *o);
+        }
+    }
+    on.into_iter().filter(|(_, o)| *o).map(|(h, _)| h).collect()
 }
 
 /// The hub's claim row on offset 0 (the newest one, active or lapsed).
@@ -402,11 +648,29 @@ pub struct View {
     pub ever_held: bool,
     pub previous: Option<Holder>,
     pub timing: Timing,
+    /// B-25: `held`, `provisional`, `vacant` (never held, released, or a provisional that ran
+    /// out), `lapsed`.
+    pub state: &'static str,
+    /// B-25: the live holder took main by SessionStart and has had no human prompt since.
+    pub provisional: bool,
+    /// B-25: origin of the live holding's acquire (`absent` for a non-reporting harness).
+    pub origin: Option<String>,
+    /// B-25: the holder's newest human-counted prompt (`None` = none or undeterminable).
+    pub last_human_at_ms: Option<u64>,
+    pub holder_human_age_s: Option<u64>,
+    /// B-25: harnesses the operator switched to origin reporting (`None` = not read).
+    pub origin_reporting: Option<Vec<String>>,
 }
 
 pub fn view(project: &str, f: &Folded, row: Option<&Row>, now: u64, t: Timing) -> View {
     let active = row.filter(|r| r.claimed_until > now as i64);
     let mut v = View {
+        state: "vacant",
+        provisional: false,
+        origin: None,
+        last_human_at_ms: None,
+        holder_human_age_s: None,
+        origin_reporting: None,
         project: project.to_string(),
         topic: topic(project),
         now_ms: now,
@@ -429,6 +693,11 @@ pub fn view(project: &str, f: &Folded, row: Option<&Row>, now: u64, t: Timing) -
         v.since_ms = f.current.as_ref().filter(|c| c.holder.session == h.session).map(|c| c.since_ms).or(Some(r.claimed_at as u64));
         v.claim_id = Some(r.claim_id.clone());
         v.claimed_until_ms = Some(r.claimed_until as u64);
+        if let Some(c) = f.current.as_ref().filter(|c| c.holder.session == h.session && c.claim_id == r.claim_id) {
+            v.provisional = c.provisional;
+            v.origin = c.origin.clone();
+        }
+        v.state = if v.provisional { "provisional" } else { "held" };
         v.holder = Some(h);
         v.previous = None;
         return v;
@@ -443,11 +712,140 @@ pub fn view(project: &str, f: &Folded, row: Option<&Row>, now: u64, t: Timing) -
     let ended = f.ended.or(lapsed_row);
     if let Some(e) = ended {
         v.vacant_since_ms = Some(e.at_ms);
-        let after_end = e.at_ms + if e.clean { 0 } else { t.quiet_ms };
-        let after_change = f.last_change_ms.unwrap_or(0) + t.cooldown_ms;
-        v.eligible_at_ms = Some(after_end.max(after_change));
+        if cur.provisional {
+            // B-25 (E-23): a provisional holding that ran out leaves the lease VACANT at once:
+            // no quiet period, no cooldown (it never blocked anyone).
+            v.eligible_at_ms = Some(e.at_ms);
+        } else {
+            let after_end = e.at_ms + if e.clean { 0 } else { t.quiet_ms };
+            let after_change = f.last_change_ms.unwrap_or(0) + t.cooldown_ms;
+            v.eligible_at_ms = Some(after_end.max(after_change));
+        }
+        v.state = if e.clean || cur.provisional { "vacant" } else { "lapsed" };
+    } else if cur.provisional {
+        // A provisional row already evicted: it ran out; nothing to wait for.
+        v.eligible_at_ms = Some(now);
+        v.state = "vacant";
+    } else {
+        v.state = "lapsed";
     }
     v
+}
+
+/// B-25: fill the origin fields of a view from the side topics.
+pub fn with_origin(mut v: View, f: &Folded, touches: Option<&[Logged]>, reporting: Option<Vec<String>>) -> View {
+    if v.holder.is_some() {
+        v.last_human_at_ms = last_human(f, touches);
+        v.holder_human_age_s = v.last_human_at_ms.map(|t| v.now_ms.saturating_sub(t) / 1000);
+    }
+    v.origin_reporting = reporting;
+    v
+}
+
+/// E-31 (W2 measurement, AR-6): counted renewals by basis, ignored claims by origin and basis,
+/// and any holder change by a non-human acquire (a FAIL). A measurement, never a threshold.
+pub fn renewal_report(log: &[Logged], touches: &[Logged], ignored: &[Logged]) -> Value {
+    let mut by_basis: BTreeMap<String, u64> = BTreeMap::new();
+    let mut counted = 0u64;
+    for l in touches {
+        if let Event::Touch { basis, .. } = &l.event {
+            counted += 1;
+            *by_basis.entry(basis.clone().unwrap_or_else(|| "none".into())).or_default() += 1;
+        }
+    }
+    let mut ign: BTreeMap<String, u64> = BTreeMap::new();
+    let mut ignored_total = 0u64;
+    for l in ignored {
+        if let Event::Ignored { origin, basis, .. } = &l.event {
+            ignored_total += 1;
+            *ign.entry(format!("{origin}/{}", basis.as_deref().unwrap_or("none"))).or_default() += 1;
+        }
+    }
+    let fails: Vec<Value> = log
+        .iter()
+        .filter_map(|l| match &l.event {
+            Event::Acquire { origin: Some(o), holder, generation, reason, .. } if o == "automated" || o == "unknown" => {
+                Some(json!({"offset": l.offset, "generation": generation, "holder": holder.session, "origin": o, "reason": reason}))
+            }
+            _ => None,
+        })
+        .collect();
+    let share: BTreeMap<String, Value> = by_basis
+        .iter()
+        .map(|(b, n)| (b.clone(), json!({"numerator": n, "denominator": counted})))
+        .collect();
+    json!({
+        "counted_renewals": counted,
+        "by_basis": share,
+        "ignored_total": ignored_total,
+        "ignored": ign,
+        "non_human_holder_changes": fails,
+        "verdict": if fails.is_empty() { "PASS" } else { "FAIL" },
+    })
+}
+
+/// B-25 tightened plan (AL-11 table), for a harness the operator switched to origin reporting.
+/// `last_human` is the holder's (see [`last_human`]); `my_host` decides the cross-host margin.
+pub fn plan_reporting(v: &View, f: &Folded, me: &Holder, req: &ClaimRequest, last_human: Option<u64>) -> Plan {
+    let session = me.session.as_str();
+    let origin = req.origin.unwrap_or(Origin::Unknown); // FCW-53: absent in a reporting harness is unknown
+    match req.kind {
+        // 6.13.1: tool activity never touches the lease.
+        ClaimKind::Tool => return Plan::AnswerOnly { why: "tool activity never renews main" },
+        ClaimKind::SessionStart => {
+            if v.pinned.as_deref() == Some(session) {
+                return plan_claim(v, f, session);
+            }
+            let vacant = v.holder.is_none() && v.state == "vacant";
+            if !vacant {
+                return Plan::AnswerOnly { why: "SessionStart takes only a vacant lease" }; // FCW-57
+            }
+            if req.interactive != Some(true) {
+                return Plan::AnswerOnly { why: "a non-interactive session never takes main" }; // FCW-203
+            }
+            return Plan::TakeProvisional;
+        }
+        ClaimKind::Prompt => {}
+    }
+    if origin != Origin::Human {
+        return Plan::Ignored; // FCW-52
+    }
+    if let Some(h) = &v.holder {
+        let claim_id = v.claim_id.clone().unwrap_or_default();
+        if h.session == session {
+            return if v.provisional { Plan::Promote { claim_id } } else { Plan::TouchRenew { claim_id } };
+        }
+        if v.pinned.as_deref() == Some(session) {
+            return Plan::PinOverride { claim_id, from: h.clone() };
+        }
+        if v.pinned.as_deref() == Some(h.session.as_str()) {
+            return Plan::Held; // FCW-54
+        }
+        if v.provisional {
+            return Plan::OverProvisional { claim_id, from: h.clone() };
+        }
+        let Some(lh) = last_human else { return Plan::Held }; // FCW-55
+        let margin = if !h.host.is_empty() && h.host != me.host { CROSS_HOST_MARGIN_MS } else { 0 };
+        let age = v.now_ms.saturating_sub(lh);
+        if age > v.timing.quiet_ms + margin {
+            return Plan::FastTakeover { claim_id, from: h.clone(), age_s: age / 1000 };
+        }
+        return Plan::Held; // FCW-56
+    }
+    if v.pinned.as_deref() == Some(session) {
+        return Plan::Take { reason: "pin" };
+    }
+    if v.pinned.is_some() {
+        return Plan::Held; // AL-11 table: VACANT takes only with pinned in {none, me}
+    }
+    match &f.current {
+        None => Plan::Take { reason: "first" },
+        Some(c) if c.holder.session == session => Plan::Resume,
+        // 6.13.4: a human prompt takes a vacated lease at once: no quiet, no cooldown.
+        Some(c) if c.provisional => Plan::Take { reason: "after-provisional" },
+        Some(_) if f.ended.is_some_and(|e| e.clean) => Plan::Take { reason: "after-release" },
+        Some(_) => Plan::Take { reason: "takeover-after-lapse" },
+    }
 }
 
 /// What `claim` does next.
@@ -461,6 +859,22 @@ pub enum Plan {
     RecordLapse,
     Wait { eligible_at_ms: u64 },
     Held,
+    // B-25 (reporting harnesses only):
+    /// Answer the question, change nothing, record nothing (tool activity, SessionStart on a
+    /// lease that is not vacant, a non-interactive SessionStart).
+    AnswerOnly { why: &'static str },
+    /// Origin not `human`: change nothing, record `ignored: origin` on `main-ignored:<p>`.
+    Ignored,
+    /// Interactive SessionStart on a VACANT lease: take it for the quiet period only.
+    TakeProvisional,
+    /// The provisional holder's first human prompt: renew to the full lease.
+    Promote { claim_id: String },
+    /// The holder's human prompt: stamp a Touch, then renew (in that order, invariant 7).
+    TouchRenew { claim_id: String },
+    /// A human prompt elsewhere takes a provisional holding at once.
+    OverProvisional { claim_id: String, from: Holder },
+    /// The holder has had no human prompt for longer than the quiet period (V-20).
+    FastTakeover { claim_id: String, from: Holder, age_s: u64 },
 }
 
 pub fn plan_claim(v: &View, f: &Folded, session: &str) -> Plan {
@@ -501,6 +915,10 @@ pub struct Outcome {
     pub pin_record: Option<Value>,
     pub duplicate: Option<Value>,
     pub recent: Vec<Value>,
+    /// B-25: e.g. "this harness's hooks do not report prompt origin" (NID, E-22).
+    pub note: Option<String>,
+    /// B-25: the newest `ignored: origin` records (status only).
+    pub ignored_recent: Vec<Value>,
 }
 
 impl Outcome {
@@ -515,6 +933,8 @@ impl Outcome {
             pin_record: None,
             duplicate: None,
             recent: vec![],
+            note: None,
+            ignored_recent: vec![],
         }
     }
 
@@ -537,6 +957,14 @@ impl Outcome {
             "previous": v.and_then(|v| v.previous.as_ref()),
             "consistent": v.map(|v| v.consistent),
             "timing": v.map(|v| v.timing),
+            "state": v.map(|v| v.state),
+            "provisional": v.map(|v| v.provisional),
+            "origin": v.and_then(|v| v.origin.as_ref()),
+            "last_human_at_ms": v.and_then(|v| v.last_human_at_ms),
+            "holder_human_age_s": v.and_then(|v| v.holder_human_age_s),
+            "origin_reporting": v.and_then(|v| v.origin_reporting.as_ref()),
+            "note": self.note,
+            "ignored_recent": self.ignored_recent,
             "lost": self.lost,
             "pin_record": self.pin_record,
             "duplicate": self.duplicate,
@@ -565,6 +993,8 @@ fn outcome(verdict: Verdict, session: Option<&str>, action: &str, f: &Folded, v:
         pin_record: f.pin_record.clone(),
         duplicate: f.duplicate.clone(),
         recent: f.recent.clone(),
+        note: None,
+        ignored_recent: vec![],
     }
 }
 
@@ -632,6 +1062,15 @@ impl From<ClaimError> for LeaseError {
     }
 }
 
+/// B-25 fields an acquire carries.
+#[derive(Debug, Clone, Default)]
+struct AcqTag {
+    origin: Option<String>,
+    basis: Option<String>,
+    provisional: bool,
+    age_s: Option<u64>,
+}
+
 /// A connection target plus what is needed to write records.
 pub struct LeaseClient {
     pub addr: TransportAddr,
@@ -667,7 +1106,12 @@ impl LeaseClient {
 
     /// The log, in offset order. An unknown topic is an empty log.
     pub async fn read_log(&self, project: &str) -> Result<(bool, Vec<Logged>), LeaseError> {
-        let t = topic(project);
+        self.read_topic(&topic(project)).await
+    }
+
+    /// Any lease-family topic (`main:`, `main-touch:`, `main-ignored:`, `main-config:`), in
+    /// offset order, with each record's sender. An unknown topic is `(false, [])`.
+    pub async fn read_topic(&self, t: &str) -> Result<(bool, Vec<Logged>), LeaseError> {
         let mut out = vec![];
         let mut cursor = 0u64;
         for _ in 0..64 {
@@ -685,7 +1129,8 @@ impl LeaseClient {
                 let Some(b64) = m.get("payload_b64").and_then(Value::as_str) else { continue };
                 let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(b64) else { continue };
                 if let Ok(event) = serde_json::from_slice::<Event>(&bytes) {
-                    out.push(Logged { offset: off, event });
+                    let sender = m.get("sender_id").and_then(Value::as_str).map(str::to_string);
+                    out.push(Logged { offset: off, event, sender });
                 }
             }
             let next = r.get("next_cursor").and_then(Value::as_u64).unwrap_or(cursor);
@@ -719,12 +1164,31 @@ impl LeaseClient {
         Ok((f, row, v))
     }
 
+    /// B-25: the harnesses switched to origin reporting. A read error is an error (FCW-201:
+    /// never a guess either way); an unknown topic is "none".
+    pub async fn origin_reporting(&self, project: &str) -> Result<Vec<String>, LeaseError> {
+        let (_, log) = self.read_topic(&config_topic(project)).await?;
+        Ok(reporting_harnesses(&log))
+    }
+
+    /// B-25: the snapshot plus the holder's `last_human` (a touch log that cannot be read
+    /// leaves it `None`, FCW-55) and the reporting harnesses.
+    pub async fn snapshot_full(&self, project: &str, reporting: Option<Vec<String>>) -> Result<(Folded, Option<Row>, View), LeaseError> {
+        let (f, row, v) = self.snapshot(project).await?;
+        let touches = if v.holder.is_some() { self.read_topic(&touch_topic(project)).await.ok().map(|(_, l)| l) } else { Some(vec![]) };
+        let v = with_origin(v, &f, touches.as_deref(), reporting);
+        Ok((f, row, v))
+    }
+
     async fn post(&self, project: &str, ev: &Event) -> Result<u64, LeaseError> {
+        self.post_to(&topic(project), ev).await
+    }
+
+    async fn post_to(&self, t: &str, ev: &Event) -> Result<u64, LeaseError> {
         let id = self.identity.as_ref().ok_or_else(|| LeaseError::Other("no signing identity to write the lease record".into()))?;
-        let t = topic(project);
         let payload = serde_json::to_vec(ev).map_err(|e| LeaseError::Other(e.to_string()))?;
         let ts = now_ms() as i64;
-        let bytes = termlink_protocol::control::channel::canonical_sign_bytes(&t, MSG_TYPE, &payload, None, ts);
+        let bytes = termlink_protocol::control::channel::canonical_sign_bytes(t, MSG_TYPE, &payload, None, ts);
         let r = self
             .call(
                 method::CHANNEL_POST,
@@ -740,6 +1204,22 @@ impl LeaseClient {
             )
             .await?;
         Ok(r.get("offset").and_then(Value::as_u64).unwrap_or(0))
+    }
+
+    /// B-25: post to a side topic, creating it on first use (`main-touch:`/`main-ignored:`
+    /// newest 1000; `main-config:` forever, named owner and reason, so it never reverts).
+    async fn post_side(&self, t: &str, ev: &Event) -> Result<u64, LeaseError> {
+        match self.post_to(t, ev).await {
+            Err(LeaseError::Hub { code, .. }) if code == error_code::CHANNEL_TOPIC_UNKNOWN => {}
+            other => return other,
+        }
+        let retention = if t.starts_with("main-config:") { json!({"kind": "forever"}) } else { json!({"kind": "messages", "value": SIDE_KEEP}) };
+        self.call(
+            method::CHANNEL_CREATE,
+            json!({"name": t, "retention": retention, "owner": "operator", "reason": "T-3694 main lease B-25 (OD-18 / R-67)"}),
+        )
+        .await?;
+        self.post_to(t, ev).await
     }
 
     /// Create the topic (newest-1000 retention) and its genesis record at offset 0, once.
@@ -782,72 +1262,103 @@ impl LeaseClient {
         out
     }
 
-    /// Acquire or renew main for `me`, by the R-67 rules.
+    /// Acquire or renew main for `me`, by the R-67 rules (the built claim: no origin field).
     pub async fn claim(&self, project: &str, me: &Holder) -> Outcome {
-        match self.claim_inner(project, me).await {
+        self.claim_with(project, me, &ClaimRequest::default()).await
+    }
+
+    /// B-25 (AL-11): a claim that says which hook it comes from and the prompt's origin.
+    /// A harness the operator has not switched to origin reporting is decided exactly as built
+    /// (NID), with the origin recorded; a reporting harness gets the tightened plan.
+    pub async fn claim_with(&self, project: &str, me: &Holder, req: &ClaimRequest) -> Outcome {
+        match self.claim_inner(project, me, req).await {
             Ok(o) => o,
             Err(e) => Outcome::unknown(Some(&me.session), format!("could not read or write the lease: {e}")),
         }
     }
 
-    async fn claim_inner(&self, project: &str, me: &Holder) -> Result<Outcome, LeaseError> {
+    /// Claim offset 0 and record the acquire. `Ok(None)` on a CAS conflict (re-plan).
+    #[allow(clippy::too_many_arguments)]
+    async fn take(
+        &self,
+        project: &str,
+        me: &Holder,
+        reason: &str,
+        from: Option<Holder>,
+        generation: u64,
+        lapsed: Option<u64>,
+        ttl: u32,
+        tag: &AcqTag,
+    ) -> Result<Option<()>, LeaseError> {
+        let claimer = me.claimer();
+        let c = match claim_client::channel_claim_authed(&self.addr, self.auth.as_deref(), &topic(project), 0, &claimer, ttl).await {
+            Ok(c) => c,
+            Err(ClaimError::Conflict { .. }) => return Ok(None),
+            Err(e) => return Err(LeaseError::from(e)),
+        };
+        let obligations = match &from {
+            Some(p) if reason != "resume" => self.obligations_of(p).await,
+            _ => vec![],
+        };
+        let ev = Event::Acquire {
+            generation,
+            holder: me.clone(),
+            claim_id: c.claim_id.clone(),
+            at_ms: now_ms(),
+            reason: reason.to_string(),
+            from,
+            lapsed_at_ms: lapsed,
+            obligations,
+            origin: tag.origin.clone(),
+            basis: tag.basis.clone(),
+            provisional: tag.provisional,
+            holder_human_age_s: tag.age_s,
+        };
+        if let Err(e) = self.post(project, &ev).await {
+            // Never hold an unrecorded lease: give it back and report unknown.
+            let _ = claim_client::channel_release_authed(&self.addr, self.auth.as_deref(), &c.claim_id, &claimer, false).await;
+            return Err(e);
+        }
+        Ok(Some(()))
+    }
+
+    async fn force_release(&self, claim_id: &str, why: &str) -> Result<(), LeaseError> {
+        match claim_client::channel_force_release_authed(&self.addr, self.auth.as_deref(), claim_id, Some(why)).await {
+            Ok(_) | Err(ClaimError::NotFound { .. }) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    async fn claim_inner(&self, project: &str, me: &Holder, req: &ClaimRequest) -> Result<Outcome, LeaseError> {
+        // CR-6.6 / FCW-201: the operator's switch decides; unreadable is unknown, never a guess.
+        let reporting = self.origin_reporting(project).await?;
+        let rep = reporting.contains(&req.harness);
         self.ensure_topic(project).await?;
-        let t = topic(project);
+        if !rep {
+            let tag = AcqTag { origin: Some(req.origin.map_or("absent", Origin::as_str).to_string()), basis: req.basis.clone(), ..AcqTag::default() };
+            let mut o = self.claim_built(project, me, &tag, Some(reporting)).await?;
+            if req.origin.is_none() {
+                o.note = Some(format!("this harness ({}) does not report prompt origin; the claim counts as built", req.harness));
+            } else {
+                o.note = Some(format!("harness {} is not switched to origin reporting; origin recorded, claim decided as built", req.harness));
+            }
+            return Ok(o);
+        }
+        self.claim_reporting(project, me, req, reporting).await
+    }
+
+    /// The built claim (T-3654), with the acquire records tagged by origin.
+    async fn claim_built(&self, project: &str, me: &Holder, tag: &AcqTag, reporting: Option<Vec<String>>) -> Result<Outcome, LeaseError> {
         let claimer = me.claimer();
         let ttl = self.timing.lease_ms as u32;
         for _ in 0..3 {
             let (f, row, v) = self.snapshot(project).await?;
-            let take = |reason: &'static str, from: Option<Holder>, generation: u64, lapsed: Option<u64>| {
-                let me = me.clone();
-                let t = t.clone();
-                let claimer = claimer.clone();
-                async move {
-                    let c = match claim_client::channel_claim_authed(&self.addr, self.auth.as_deref(), &t, 0, &claimer, ttl).await {
-                        Ok(c) => c,
-                        Err(ClaimError::Conflict { .. }) => return Ok(None),
-                        Err(e) => return Err(LeaseError::from(e)),
-                    };
-                    let obligations = match &from {
-                        Some(p) if reason != "resume" => self.obligations_of(p).await,
-                        _ => vec![],
-                    };
-                    let ev = Event::Acquire {
-                        generation,
-                        holder: me.clone(),
-                        claim_id: c.claim_id.clone(),
-                        at_ms: now_ms(),
-                        reason: reason.to_string(),
-                        from,
-                        lapsed_at_ms: lapsed,
-                        obligations,
-                    };
-                    if let Err(e) = self.post(project, &ev).await {
-                        // Never hold an unrecorded lease: give it back and report unknown.
-                        let _ = claim_client::channel_release_authed(&self.addr, self.auth.as_deref(), &c.claim_id, &claimer, false).await;
-                        return Err(e);
-                    }
-                    Ok(Some(()))
-                }
-            };
             let action = match plan_claim(&v, &f, &me.session) {
                 Plan::Renew { claim_id } => {
                     let held_as = session_claimer(row.as_ref(), &me.session).unwrap_or_else(|| claimer.clone());
                     match claim_client::channel_renew_authed(&self.addr, self.auth.as_deref(), &claim_id, &held_as, ttl).await {
                         Ok(_) => {
-                            // Self-heal a claim whose acquire record is missing (crash between claim and post).
-                            if !v.consistent {
-                                let ev = Event::Acquire {
-                                    generation: f.generation + 1,
-                                    holder: me.clone(),
-                                    claim_id: claim_id.clone(),
-                                    at_ms: now_ms(),
-                                    reason: "record-repair".into(),
-                                    from: f.current.as_ref().map(|c| c.holder.clone()).filter(|h| h.session != me.session),
-                                    lapsed_at_ms: None,
-                                    obligations: vec![],
-                                };
-                                self.post(project, &ev).await?;
-                            }
+                            self.repair(project, me, &f, &v, &claim_id, tag).await?;
                             "renewed"
                         }
                         Err(ClaimError::Expired { .. }) | Err(ClaimError::NotFound { .. }) => continue,
@@ -855,30 +1366,20 @@ impl LeaseClient {
                     }
                 }
                 Plan::PinOverride { claim_id, from } => {
-                    match claim_client::channel_force_release_authed(
-                        &self.addr,
-                        self.auth.as_deref(),
-                        &claim_id,
-                        Some(&format!("T-3654 operator pin names {}", me.session)),
-                    )
-                    .await
-                    {
-                        Ok(_) | Err(ClaimError::NotFound { .. }) => {}
-                        Err(e) => return Err(e.into()),
-                    }
-                    match take("pin-override", Some(from), f.generation + 1, None).await? {
+                    self.force_release(&claim_id, &format!("T-3654 operator pin names {}", me.session)).await?;
+                    match self.take(project, me, "pin-override", Some(from), f.generation + 1, None, ttl, tag).await? {
                         Some(()) => "acquired",
                         None => continue,
                     }
                 }
                 Plan::Take { reason } => {
                     let from = f.current.as_ref().map(|c| c.holder.clone());
-                    match take(reason, from, f.generation + 1, v.vacant_since_ms).await? {
+                    match self.take(project, me, reason, from, f.generation + 1, v.vacant_since_ms, ttl, tag).await? {
                         Some(()) => "acquired",
                         None => continue,
                     }
                 }
-                Plan::Resume => match take("resume", None, f.generation.max(1), v.vacant_since_ms).await? {
+                Plan::Resume => match self.take(project, me, "resume", None, f.generation.max(1), v.vacant_since_ms, ttl, tag).await? {
                     Some(()) => "resumed",
                     None => continue,
                 },
@@ -891,19 +1392,188 @@ impl LeaseClient {
                     )
                     .await?;
                     let (f, _, v) = self.snapshot(project).await?;
-                    return Ok(outcome(Verdict::NotMain, Some(&me.session), "lapse-recorded", &f, v));
+                    return Ok(outcome(Verdict::NotMain, Some(&me.session), "lapse-recorded", &f, with_origin(v, &f, None, reporting)));
                 }
-                Plan::Wait { .. } | Plan::Held => {
-                    return Ok(outcome(Verdict::NotMain, Some(&me.session), "none", &f, v));
+                _ => {
+                    return Ok(outcome(Verdict::NotMain, Some(&me.session), "none", &f, with_origin(v, &f, None, reporting)));
                 }
             };
-            let (f, _, v) = self.snapshot(project).await?;
+            let (f, _, v) = self.snapshot_full(project, reporting.clone()).await?;
             let verdict = am_i(&v, &me.session);
             return Ok(outcome(verdict, Some(&me.session), action, &f, v));
         }
-        let (f, _, v) = self.snapshot(project).await?;
+        let (f, _, v) = self.snapshot_full(project, reporting).await?;
         let verdict = am_i(&v, &me.session);
         Ok(outcome(verdict, Some(&me.session), "contended", &f, v))
+    }
+
+    /// Self-heal a claim whose acquire record is missing (crash between claim and post).
+    async fn repair(&self, project: &str, me: &Holder, f: &Folded, v: &View, claim_id: &str, tag: &AcqTag) -> Result<(), LeaseError> {
+        if v.consistent {
+            return Ok(());
+        }
+        let ev = Event::Acquire {
+            generation: f.generation + 1,
+            holder: me.clone(),
+            claim_id: claim_id.to_string(),
+            at_ms: now_ms(),
+            reason: "record-repair".into(),
+            from: f.current.as_ref().map(|c| c.holder.clone()).filter(|h| h.session != me.session),
+            lapsed_at_ms: None,
+            obligations: vec![],
+            origin: tag.origin.clone(),
+            basis: tag.basis.clone(),
+            provisional: false,
+            holder_human_age_s: None,
+        };
+        self.post(project, &ev).await.map(|_| ())
+    }
+
+    /// B-25: the tightened claim for an origin-reporting harness (AL-11 table).
+    async fn claim_reporting(&self, project: &str, me: &Holder, req: &ClaimRequest, reporting: Vec<String>) -> Result<Outcome, LeaseError> {
+        let claimer = me.claimer();
+        let ttl = self.timing.lease_ms as u32;
+        let prov_ttl = self.timing.quiet_ms.max(1_000) as u32; // V-20: provisional valid for the quiet period
+        let origin = req.origin.unwrap_or(Origin::Unknown);
+        let human = AcqTag { origin: Some(origin.as_str().to_string()), basis: req.basis.clone(), ..AcqTag::default() };
+        let rep = Some(reporting.clone());
+        for _ in 0..3 {
+            let (f, row, v) = self.snapshot_full(project, rep.clone()).await?;
+            let plan = plan_reporting(&v, &f, me, req, v.last_human_at_ms);
+            let action: String = match plan {
+                Plan::AnswerOnly { why } => {
+                    let verdict = am_i(&v, &me.session);
+                    let mut o = outcome(verdict, Some(&me.session), "none", &f, v);
+                    o.note = Some(why.to_string());
+                    return Ok(o);
+                }
+                Plan::Ignored => {
+                    let ev = Event::Ignored {
+                        session: me.session.clone(),
+                        origin: req.origin.map_or("absent", Origin::as_str).to_string(),
+                        basis: req.basis.clone(),
+                        hook: req.kind.as_str().to_string(),
+                        harness: req.harness.clone(),
+                        at_ms: now_ms(),
+                    };
+                    let action = match self.post_side(&ignored_topic(project), &ev).await {
+                        Ok(_) => "ignored: origin",
+                        Err(_) => "ignored-unrecorded", // FCW-59: the lease is unchanged either way
+                    };
+                    let verdict = am_i(&v, &me.session);
+                    let mut o = outcome(verdict, Some(&me.session), action, &f, v);
+                    o.note = Some(format!("origin {} does not count for main (only human prompts renew, take or take over)", origin.as_str()));
+                    return Ok(o);
+                }
+                Plan::TakeProvisional => {
+                    let tag = AcqTag { provisional: true, ..human.clone() };
+                    let from = f.current.as_ref().map(|c| c.holder.clone());
+                    match self.take(project, me, "provisional", from, f.generation + 1, v.vacant_since_ms, prov_ttl, &tag).await? {
+                        Some(()) => "acquired-provisional".into(),
+                        None => continue,
+                    }
+                }
+                Plan::Promote { claim_id } => {
+                    let held_as = session_claimer(row.as_ref(), &me.session).unwrap_or_else(|| claimer.clone());
+                    let ev = Event::Promote {
+                        generation: v.generation,
+                        holder: me.clone(),
+                        claim_id: claim_id.clone(),
+                        at_ms: now_ms(),
+                        origin: origin.as_str().into(),
+                        basis: req.basis.clone(),
+                    };
+                    self.post(project, &ev).await?;
+                    match claim_client::channel_renew_authed(&self.addr, self.auth.as_deref(), &claim_id, &held_as, ttl).await {
+                        Ok(_) => "promoted".into(),
+                        Err(ClaimError::Expired { .. }) | Err(ClaimError::NotFound { .. }) => continue,
+                        Err(e) => return Err(e.into()),
+                    }
+                }
+                Plan::TouchRenew { claim_id } => {
+                    let held_as = session_claimer(row.as_ref(), &me.session).unwrap_or_else(|| claimer.clone());
+                    // Invariant 7: stamp first, then extend. No stamp, no renewal (FCW-58).
+                    let ev = Event::Touch { generation: v.generation, session: me.session.clone(), claim_id: claim_id.clone(), at_ms: now_ms(), basis: req.basis.clone() };
+                    if let Err(e) = self.post_side(&touch_topic(project), &ev).await {
+                        return Ok(Outcome::unknown(Some(&me.session), format!("could not record the human prompt (Touch), so main was not renewed: {e}")));
+                    }
+                    match claim_client::channel_renew_authed(&self.addr, self.auth.as_deref(), &claim_id, &held_as, ttl).await {
+                        Ok(_) => {
+                            self.repair(project, me, &f, &v, &claim_id, &human).await?;
+                            "renewed".into()
+                        }
+                        Err(ClaimError::Expired { .. }) | Err(ClaimError::NotFound { .. }) => continue,
+                        Err(e) => return Err(e.into()),
+                    }
+                }
+                Plan::PinOverride { claim_id, from } => {
+                    self.force_release(&claim_id, &format!("T-3654 operator pin names {}", me.session)).await?;
+                    match self.take(project, me, "pin-override", Some(from), f.generation + 1, None, ttl, &human).await? {
+                        Some(()) => "acquired".into(),
+                        None => continue,
+                    }
+                }
+                Plan::OverProvisional { claim_id, from } => {
+                    self.force_release(&claim_id, &format!("T-3694 human prompt in {} over a provisional holder", me.session)).await?;
+                    match self.take(project, me, "over-provisional", Some(from), f.generation + 1, None, ttl, &human).await? {
+                        Some(()) => "acquired".into(),
+                        None => continue,
+                    }
+                }
+                Plan::FastTakeover { claim_id, from, .. } => {
+                    // Race narrowing: re-read the holder's last human prompt on a fresh snapshot.
+                    let (f2, _, v2) = self.snapshot_full(project, rep.clone()).await?;
+                    let still = plan_reporting(&v2, &f2, me, req, v2.last_human_at_ms);
+                    let Plan::FastTakeover { age_s, .. } = still else { continue };
+                    if v2.claim_id.as_deref() != Some(claim_id.as_str()) {
+                        continue;
+                    }
+                    self.force_release(&claim_id, &format!("T-3694 fast-takeover by {}", me.session)).await?;
+                    let tag = AcqTag { age_s: Some(age_s), ..human.clone() };
+                    match self.take(project, me, "fast-takeover", Some(from), f2.generation + 1, None, ttl, &tag).await? {
+                        Some(()) => "acquired".into(),
+                        None => continue,
+                    }
+                }
+                Plan::Take { reason } => {
+                    let from = f.current.as_ref().map(|c| c.holder.clone());
+                    match self.take(project, me, reason, from, f.generation + 1, v.vacant_since_ms, ttl, &human).await? {
+                        Some(()) => "acquired".into(),
+                        None => continue,
+                    }
+                }
+                Plan::Resume => match self.take(project, me, "resume", None, f.generation.max(1), v.vacant_since_ms, ttl, &human).await? {
+                    Some(()) => "resumed".into(),
+                    None => continue,
+                },
+                Plan::Renew { .. } | Plan::RecordLapse | Plan::Wait { .. } | Plan::Held => {
+                    let verdict = am_i(&v, &me.session);
+                    return Ok(outcome(verdict, Some(&me.session), "none", &f, v));
+                }
+            };
+            let (f, _, v) = self.snapshot_full(project, rep.clone()).await?;
+            let verdict = am_i(&v, &me.session);
+            return Ok(outcome(verdict, Some(&me.session), &action, &f, v));
+        }
+        let (f, _, v) = self.snapshot_full(project, rep).await?;
+        let verdict = am_i(&v, &me.session);
+        Ok(outcome(verdict, Some(&me.session), "contended", &f, v))
+    }
+
+    /// B-25 operator act (CR-6.6): switch a harness to (or off) origin reporting. Only a runme
+    /// operator action calls this, after the harness's adapter passes the parity fixtures.
+    pub async fn set_origin_reporting(&self, project: &str, harness: &str, on: bool, by: &str) -> Outcome {
+        let r = async {
+            self.post_side(&config_topic(project), &Event::OriginReporting { harness: harness.into(), on, by: by.into(), at_ms: now_ms() }).await?;
+            let reporting = self.origin_reporting(project).await?;
+            if reporting.iter().any(|h| h == harness) != on {
+                return Err(LeaseError::Other("the origin-reporting record did not read back".into()));
+            }
+            let (f, _, v) = self.snapshot_full(project, Some(reporting)).await?;
+            Ok::<_, LeaseError>(outcome(Verdict::NotMain, None, if on { "origin-reporting-on" } else { "origin-reporting-off" }, &f, v))
+        }
+        .await;
+        r.unwrap_or_else(|e| Outcome::unknown(None, format!("could not record origin reporting: {e}")))
     }
 
     /// Renew only: never acquires a lease this session did not hold (a lapsed own lease resumes).
@@ -953,11 +1623,21 @@ impl LeaseClient {
 
     /// Read-only: who holds main, and (with a session) whether it is this session.
     pub async fn status(&self, project: &str, session: Option<&str>) -> Outcome {
-        match self.snapshot(project).await {
+        // B-25: origin reporting and the ignored records are shown when readable; a status
+        // read never fails on them (only a claim must know the switch, FCW-201).
+        let reporting = self.origin_reporting(project).await.ok();
+        match self.snapshot_full(project, reporting).await {
             Ok((f, _, v)) => {
                 // Without a session the question "am I main" has no subject: not-main.
                 let verdict = session.map_or(Verdict::NotMain, |s| am_i(&v, s));
-                outcome(verdict, session, "none", &f, v)
+                let mut o = outcome(verdict, session, "none", &f, v);
+                if let Ok((_, log)) = self.read_topic(&ignored_topic(project)).await {
+                    o.ignored_recent = log.iter().rev().take(RECENT).rev().map(|l| json!({"offset": l.offset, "event": l.event})).collect();
+                }
+                if o.view.as_ref().is_some_and(|v| v.origin.as_deref() == Some("absent")) {
+                    o.note = Some("this harness's hooks do not report prompt origin; its claims count as built".into());
+                }
+                o
             }
             Err(e) => Outcome::unknown(session, format!("could not read the lease: {e}")),
         }
@@ -972,7 +1652,7 @@ mod tests {
         Holder { session: s.into(), agent: "agent-x".into(), host: "host".into(), pid: 7 }
     }
     fn acq(off: u64, generation: u64, s: &str, at: u64) -> Logged {
-        Logged { offset: off, event: Event::Acquire { generation, holder: h(s), claim_id: format!("c-{s}-{at}"), at_ms: at, reason: "first".into(), from: None, lapsed_at_ms: None, obligations: vec![] } }
+        Logged { offset: off, event: Event::Acquire { generation, holder: h(s), claim_id: format!("c-{s}-{at}"), at_ms: at, reason: "first".into(), from: None, lapsed_at_ms: None, obligations: vec![], origin: None, basis: None, provisional: false, holder_human_age_s: None }, sender: Some(format!("key-{s}")) }
     }
     fn row(s: &str, at: i64, until: i64) -> Row {
         Row { claim_id: format!("c-{s}-{at}"), claimer: h(s).claimer(), claimed_at: at, claimed_until: until }
@@ -1061,7 +1741,7 @@ mod tests {
     #[test]
     fn cooldown_binds_after_a_quick_clean_release() {
         let mut log = vec![acq(1, 1, "s1", 1000)];
-        log.push(Logged { offset: 2, event: Event::Release { generation: 1, holder: h("s1"), at_ms: 1100 } });
+        log.push(Logged { offset: 2, event: Event::Release { generation: 1, holder: h("s1"), at_ms: 1100 }, sender: None });
         let f = fold(&log);
         let v = view("p", &f, None, 1200, T);
         // Clean release skips quiet; cooldown from 1000 -> 1500.
@@ -1078,7 +1758,7 @@ mod tests {
         assert_eq!(v.eligible_at_ms, None);
         assert_eq!(plan_claim(&v, &f, "s2"), Plan::RecordLapse);
         let mut log = vec![acq(1, 1, "s1", 1000)];
-        log.push(Logged { offset: 2, event: Event::Lapse { generation: 1, holder: h("s1"), lapsed_at_ms: 9000, observed_at_ms: 9000, observed_by: "s2".into() } });
+        log.push(Logged { offset: 2, event: Event::Lapse { generation: 1, holder: h("s1"), lapsed_at_ms: 9000, observed_at_ms: 9000, observed_by: "s2".into() }, sender: None });
         let f = fold(&log);
         let v = view("p", &f, None, 9100, T);
         assert_eq!(v.eligible_at_ms, Some(9300));
@@ -1087,7 +1767,7 @@ mod tests {
     #[test]
     fn pin_overrides_a_live_holder_and_takes_a_vacancy_at_once() {
         let mut log = vec![acq(1, 1, "s1", 1000)];
-        log.push(Logged { offset: 2, event: Event::Pin { session: Some("s2".into()), by: "operator".into(), reason: "r".into(), at_ms: 1100 } });
+        log.push(Logged { offset: 2, event: Event::Pin { session: Some("s2".into()), by: "operator".into(), reason: "r".into(), at_ms: 1100 }, sender: None });
         let f = fold(&log);
         let v = view("p", &f, Some(&row("s1", 1000, 5000)), 1200, T);
         assert_eq!(v.pinned.as_deref(), Some("s2"));
@@ -1100,7 +1780,7 @@ mod tests {
     #[test]
     fn generation_rises_on_every_change_and_the_loser_is_told() {
         let mut log = vec![acq(1, 1, "s1", 1000)];
-        log.push(Logged { offset: 2, event: Event::Acquire { generation: 2, holder: h("s2"), claim_id: "c2".into(), at_ms: 3000, reason: "takeover-after-lapse".into(), from: Some(h("s1")), lapsed_at_ms: Some(2000), obligations: vec![] } });
+        log.push(Logged { offset: 2, event: Event::Acquire { generation: 2, holder: h("s2"), claim_id: "c2".into(), at_ms: 3000, reason: "takeover-after-lapse".into(), from: Some(h("s1")), lapsed_at_ms: Some(2000), obligations: vec![], origin: None, basis: None, provisional: false, holder_human_age_s: None }, sender: None });
         let f = fold(&log);
         assert_eq!(f.generation, 2);
         assert_eq!(f.current.as_ref().unwrap().holder.session, "s2");
@@ -1140,6 +1820,471 @@ mod tests {
         assert_eq!(session_claimer(None, "S-A"), None);
         let raw = Row { claimer: "worker-7".into(), ..r.clone() };
         assert_eq!(session_claimer(Some(&raw), "S-A"), None);
+    }
+
+    // ---------------------------------------------------------------- B-25 (T-3694)
+
+    const MIN: u64 = 60_000;
+    /// Production timings: quiet 5 min (V-20), lease 15 min (V-9).
+    const P: Timing = Timing { lease_ms: LEASE_MS, quiet_ms: QUIET_MS, cooldown_ms: COOLDOWN_MS };
+
+    fn acq_full(off: u64, generation: u64, s: &str, at: u64, origin: &str, provisional: bool, claim: &str) -> Logged {
+        Logged {
+            offset: off,
+            event: Event::Acquire {
+                generation,
+                holder: h(s),
+                claim_id: claim.into(),
+                at_ms: at,
+                reason: if provisional { "provisional".into() } else { "first".into() },
+                from: None,
+                lapsed_at_ms: None,
+                obligations: vec![],
+                origin: Some(origin.into()),
+                basis: None,
+                provisional,
+                holder_human_age_s: None,
+            },
+            sender: Some(format!("key-{s}")),
+        }
+    }
+    fn live(s: &str, claim: &str, at: i64, until: i64) -> Row {
+        Row { claim_id: claim.into(), claimer: h(s).claimer(), claimed_at: at, claimed_until: until }
+    }
+    fn touch(off: u64, generation: u64, s: &str, claim: &str, at: u64, key: &str) -> Logged {
+        Logged { offset: off, event: Event::Touch { generation, session: s.into(), claim_id: claim.into(), at_ms: at, basis: Some("pty-input".into()) }, sender: Some(key.into()) }
+    }
+    fn req(kind: ClaimKind, origin: Option<Origin>) -> ClaimRequest {
+        ClaimRequest { kind, origin, basis: None, interactive: Some(true), harness: DEFAULT_HARNESS.into() }
+    }
+    fn human() -> ClaimRequest {
+        req(ClaimKind::Prompt, Some(Origin::Human))
+    }
+    /// S1 holds (human acquire at t0 = 0) on a live 15 min claim, seen at `now`.
+    fn held_s1(now: u64) -> (Folded, View) {
+        let f = fold(&[acq_full(1, 1, "s1", 0, "human", false, "c1")]);
+        let v = with_origin(view("p", &f, Some(&live("s1", "c1", 0, LEASE_MS as i64)), now, P), &f, Some(&[]), Some(vec![DEFAULT_HARNESS.into()]));
+        (f, v)
+    }
+
+    // E-20: only human-origin prompts renew, acquire or take over; others are Ignored in every state.
+    #[test]
+    fn e20_only_human_origin_counts_in_every_state() {
+        let states: Vec<(&str, Folded, View)> = {
+            let (f1, v1) = held_s1(MIN);
+            let f2 = fold(&[]);
+            let v2 = view("p", &f2, None, 0, P);
+            let f3 = fold(&[acq_full(1, 1, "s1", 0, "human", false, "c1")]);
+            let v3 = view("p", &f3, Some(&live("s1", "c1", 0, LEASE_MS as i64)), LEASE_MS + 1, P);
+            let f4 = fold(&[acq_full(1, 1, "s1", 0, "human", true, "c1")]);
+            let v4 = view("p", &f4, Some(&live("s1", "c1", 0, QUIET_MS as i64)), MIN, P);
+            vec![("held", f1, v1), ("vacant", f2, v2), ("lapsed", f3, v3), ("provisional", f4, v4)]
+        };
+        for (name, f, v) in &states {
+            for who in ["s1", "s2"] {
+                for o in [Some(Origin::Automated), Some(Origin::Unknown), None] {
+                    let p = plan_reporting(v, f, &h(who), &req(ClaimKind::Prompt, o), Some(0));
+                    assert_eq!(p, Plan::Ignored, "{name}/{who}/{o:?} must change nothing");
+                }
+                let p = plan_reporting(v, f, &h(who), &human(), Some(0));
+                assert_ne!(p, Plan::Ignored, "{name}/{who}: a human prompt counts");
+            }
+        }
+    }
+
+    // E-21: tool activity never renews (any state); SessionStart takes only a VACANT lease, provisionally.
+    #[test]
+    fn e21_tool_never_renews_and_session_start_is_provisional() {
+        let (f, v) = held_s1(MIN);
+        assert!(matches!(plan_reporting(&v, &f, &h("s1"), &req(ClaimKind::Tool, Some(Origin::Human)), Some(0)), Plan::AnswerOnly { .. }));
+        let f0 = fold(&[]);
+        let v0 = view("p", &f0, None, 0, P);
+        assert!(matches!(plan_reporting(&v0, &f0, &h("s1"), &req(ClaimKind::Tool, Some(Origin::Human)), None), Plan::AnswerOnly { .. }));
+        assert_eq!(plan_reporting(&v0, &f0, &h("s1"), &req(ClaimKind::SessionStart, None), None), Plan::TakeProvisional);
+        // SessionStart on a held lease, its own or another's: answer only (FCW-57).
+        assert!(matches!(plan_reporting(&v, &f, &h("s2"), &req(ClaimKind::SessionStart, None), Some(0)), Plan::AnswerOnly { .. }));
+        assert!(matches!(plan_reporting(&v, &f, &h("s1"), &req(ClaimKind::SessionStart, None), Some(0)), Plan::AnswerOnly { .. }));
+        // The provisional take reads back as `provisional`, never `held`.
+        let fp = fold(&[acq_full(1, 1, "s1", 0, "human", true, "c1")]);
+        let vp = view("p", &fp, Some(&live("s1", "c1", 0, QUIET_MS as i64)), 1_000, P);
+        assert_eq!((vp.state, vp.provisional), ("provisional", true));
+        // 100 tool events over 20 simulated minutes: none renews, so the lease lapses at 15 min.
+        let mut renewals = 0;
+        for i in 0..100u64 {
+            let now = i * 12_000;
+            let vv = view("p", &f, Some(&live("s1", "c1", 0, LEASE_MS as i64)), now, P);
+            if !matches!(plan_reporting(&vv, &f, &h("s1"), &req(ClaimKind::Tool, Some(Origin::Human)), Some(0)), Plan::AnswerOnly { .. }) {
+                renewals += 1;
+            }
+        }
+        assert_eq!(renewals, 0);
+        assert_eq!(view("p", &f, Some(&live("s1", "c1", 0, LEASE_MS as i64)), 20 * MIN, P).state, "lapsed");
+    }
+
+    // E-22: the switch is per harness, set only by an operator record; claims never set it.
+    #[test]
+    fn e22_origin_reporting_is_per_harness_and_only_an_operator_record_sets_it() {
+        let claims_only = vec![acq_full(1, 1, "s1", 0, "human", false, "c1")];
+        assert!(reporting_harnesses(&claims_only).is_empty(), "a claim with an origin never switches a harness");
+        let mut cfg = vec![Logged { offset: 0, event: Event::OriginReporting { harness: "h2".into(), on: true, by: "op".into(), at_ms: 1 }, sender: None }];
+        assert_eq!(reporting_harnesses(&cfg), vec!["h2".to_string()]);
+        cfg.push(Logged { offset: 1, event: Event::OriginReporting { harness: "h2".into(), on: false, by: "op".into(), at_ms: 2 }, sender: None });
+        assert!(reporting_harnesses(&cfg).is_empty(), "newest record per harness wins");
+        // In a reporting harness an absent origin is unknown: ignored (FCW-53).
+        let (f, v) = held_s1(MIN);
+        assert_eq!(plan_reporting(&v, &f, &h("s1"), &req(ClaimKind::Prompt, None), Some(0)), Plan::Ignored);
+        // Old records (no origin fields) still parse.
+        let old = r#"{"kind":"acquire","generation":1,"holder":{"session":"s","agent":"","host":"","pid":0},"claim_id":"c","at_ms":1,"reason":"first"}"#;
+        let e: Event = serde_json::from_str(old).expect("pre-B-25 record parses");
+        assert!(matches!(e, Event::Acquire { origin: None, provisional: false, .. }));
+        // ...and a built record serialises without the new fields (old readers see the same bytes).
+        let built = serde_json::to_string(&e).unwrap();
+        assert!(!built.contains("provisional") && !built.contains("origin"), "{built}");
+    }
+
+    // E-23: provisional: taken at once by a human claim, lapses straight to VACANT, is main while it holds.
+    #[test]
+    fn e23_provisional_holder_never_blocks_and_lapses_to_vacant() {
+        let f = fold(&[acq_full(1, 1, "s1", 0, "human", true, "c1")]);
+        let r = live("s1", "c1", 0, QUIET_MS as i64);
+        // (a) S2 human claim at 1 min: taken at once (no quiet, no cooldown).
+        let v = view("p", &f, Some(&r), MIN, P);
+        assert!(matches!(plan_reporting(&v, &f, &h("s2"), &human(), None), Plan::OverProvisional { .. }));
+        // (c) am-i from S1 at 2 min: main.
+        assert_eq!(am_i(&view("p", &f, Some(&r), 2 * MIN, P), "s1"), Verdict::Main);
+        // (b) provisional at 4:59, VACANT (eligible at once) at 5:01.
+        assert_eq!(view("p", &f, Some(&r), QUIET_MS - 1_000, P).state, "provisional");
+        let v = view("p", &f, Some(&r), QUIET_MS + 1_000, P);
+        assert_eq!(v.state, "vacant");
+        assert_eq!(v.eligible_at_ms, Some(QUIET_MS));
+        assert_eq!(plan_reporting(&v, &f, &h("s2"), &human(), None), Plan::Take { reason: "after-provisional" });
+        assert_eq!(plan_reporting(&v, &f, &h("s3"), &req(ClaimKind::SessionStart, None), None), Plan::TakeProvisional);
+        // The holder's own first human prompt promotes it.
+        let v = view("p", &f, Some(&r), MIN, P);
+        assert!(matches!(plan_reporting(&v, &f, &h("s1"), &human(), None), Plan::Promote { .. }));
+        // E-23.6 / FCW-203: a non-interactive SessionStart on a vacant lease takes nothing.
+        let f0 = fold(&[]);
+        let v0 = view("p", &f0, None, 0, P);
+        let mut ss = req(ClaimKind::SessionStart, None);
+        ss.interactive = Some(false);
+        assert!(matches!(plan_reporting(&v0, &f0, &h("w"), &ss, None), Plan::AnswerOnly { .. }));
+        ss.interactive = None;
+        assert!(matches!(plan_reporting(&v0, &f0, &h("w"), &ss, None), Plan::AnswerOnly { .. }));
+        // A provisional take never counts as a human prompt, even tagged human.
+        assert_eq!(last_human(&f, Some(&[])), None);
+        // A promote clears `provisional` in the fold.
+        let mut log = vec![acq_full(1, 1, "s1", 0, "human", true, "c1")];
+        log.push(Logged { offset: 2, event: Event::Promote { generation: 1, holder: h("s1"), claim_id: "c1".into(), at_ms: 100, origin: "human".into(), basis: None }, sender: Some("key-s1".into()) });
+        let f = fold(&log);
+        assert!(!f.current.as_ref().unwrap().provisional);
+        assert_eq!(f.current.unwrap().human_at_ms, Some(100));
+    }
+
+    // E-24: fast takeover after 5 min of holder human silence, never at 4:59, never of a pinned holder.
+    #[test]
+    fn e24_fast_takeover_at_five_minutes_not_before_never_pinned() {
+        let (f, v) = held_s1(QUIET_MS - 1_000);
+        assert_eq!(plan_reporting(&v, &f, &h("s2"), &human(), v.last_human_at_ms), Plan::Held, "4:59 refused");
+        let (f, v) = held_s1(QUIET_MS + 1_000);
+        assert_eq!(v.last_human_at_ms, Some(0));
+        match plan_reporting(&v, &f, &h("s2"), &human(), v.last_human_at_ms) {
+            Plan::FastTakeover { from, age_s, .. } => assert_eq!((from.session.as_str(), age_s), ("s1", (QUIET_MS + 1_000) / 1000)),
+            p => panic!("5:01 must be taken, got {p:?}"),
+        }
+        // Pinned S1 is never fast-taken (FCW-54).
+        let mut log = vec![acq_full(1, 1, "s1", 0, "human", false, "c1")];
+        log.push(Logged { offset: 2, event: Event::Pin { session: Some("s1".into()), by: "op".into(), reason: "r".into(), at_ms: 1 }, sender: None });
+        let fp = fold(&log);
+        let vp = view("p", &fp, Some(&live("s1", "c1", 0, LEASE_MS as i64)), 10 * MIN, P);
+        assert_eq!(plan_reporting(&vp, &fp, &h("s2"), &human(), Some(0)), Plan::Held);
+        // An automated claim at 30 min changes nothing.
+        let (f, v) = held_s1(30 * MIN);
+        assert_eq!(plan_reporting(&v, &f, &h("s2"), &req(ClaimKind::Prompt, Some(Origin::Automated)), Some(0)), Plan::Ignored);
+    }
+
+    // E-24.6 (b) / FCW-202: a Touch signed by another key, or with a stale claim id, never counts.
+    #[test]
+    fn e24_touch_counts_only_from_the_holders_key_and_claim() {
+        let f = fold(&[acq_full(1, 1, "s1", 0, "human", false, "c1")]);
+        let good = [touch(1, 1, "s1", "c1", 200_000, "key-s1")];
+        assert_eq!(last_human(&f, Some(&good)), Some(200_000));
+        let forged = [touch(1, 1, "s1", "c1", 200_000, "key-mallory")];
+        assert_eq!(last_human(&f, Some(&forged)), Some(0), "another agent's key does not count");
+        let stale = [touch(1, 1, "s1", "c-old", 200_000, "key-s1")];
+        assert_eq!(last_human(&f, Some(&stale)), Some(0), "a stale claim id does not count");
+        let old_gen = [touch(1, 0, "s1", "c1", 200_000, "key-s1")];
+        assert_eq!(last_human(&f, Some(&old_gen)), Some(0), "an earlier generation does not count");
+        // A Touch keeps the holder fresh against a fast takeover.
+        let v = with_origin(view("p", &f, Some(&live("s1", "c1", 0, LEASE_MS as i64)), 200_000 + QUIET_MS - 1_000, P), &f, Some(&good), None);
+        assert_eq!(plan_reporting(&v, &f, &h("s2"), &human(), v.last_human_at_ms), Plan::Held);
+    }
+
+    // FCW-56 (v0.2 margin while the hub has no receive stamp): another host needs 30 s more.
+    #[test]
+    fn e24_cross_host_margin_until_the_hub_stamps_receive_time() {
+        let (f, v) = held_s1(QUIET_MS + 1_000);
+        let mut far = h("s2");
+        far.host = "other-host".into();
+        assert_eq!(plan_reporting(&v, &f, &far, &human(), Some(0)), Plan::Held);
+        let (f, v) = held_s1(QUIET_MS + CROSS_HOST_MARGIN_MS + 1_000);
+        assert!(matches!(plan_reporting(&v, &f, &far, &human(), Some(0)), Plan::FastTakeover { .. }));
+    }
+
+    // E-26: lapse at 15 min whatever the agent does; human prompt resumes (S1) or takes at once (S2).
+    #[test]
+    fn e26_lapse_without_human_renewal_then_resume_or_take_at_once() {
+        let f = fold(&[acq_full(1, 1, "s1", 0, "human", false, "c1")]);
+        let r = live("s1", "c1", 0, LEASE_MS as i64);
+        // Busy agent: tool events and automated prompts every 30 s never renew.
+        for i in 0..30u64 {
+            let v = view("p", &f, Some(&r), i * 30_000, P);
+            let t = plan_reporting(&v, &f, &h("s1"), &req(ClaimKind::Tool, Some(Origin::Human)), Some(0));
+            let a = plan_reporting(&v, &f, &h("s1"), &req(ClaimKind::Prompt, Some(Origin::Automated)), Some(0));
+            assert!(matches!(t, Plan::AnswerOnly { .. }) && a == Plan::Ignored);
+        }
+        let v = view("p", &f, Some(&r), LEASE_MS + 1_000, P);
+        assert_eq!(v.state, "lapsed");
+        assert_eq!(plan_reporting(&v, &f, &h("s1"), &human(), None), Plan::Resume);
+        assert_eq!(plan_reporting(&v, &f, &h("s2"), &human(), None), Plan::Take { reason: "takeover-after-lapse" }, "no quiet period");
+        // The built plan for the same state still waits for the quiet period (NID for absent harnesses).
+        assert!(matches!(plan_claim(&v, &f, "s2"), Plan::Wait { .. }));
+    }
+
+    // E-27: a doorbell line reported automated basis doorbell never renews or takes.
+    #[test]
+    fn e27_doorbell_line_never_renews_or_takes() {
+        let mut r = req(ClaimKind::Prompt, Some(Origin::Automated));
+        r.basis = Some("doorbell".into());
+        let (f, v) = held_s1(30 * MIN);
+        assert_eq!(plan_reporting(&v, &f, &h("s1"), &r, Some(0)), Plan::Ignored);
+        assert_eq!(plan_reporting(&v, &f, &h("s2"), &r, Some(0)), Plan::Ignored);
+    }
+
+    // E-162 / FCW-55: an unreadable touch log means no fast takeover.
+    #[test]
+    fn e162_unreadable_touch_log_never_allows_fast_takeover() {
+        let f = fold(&[acq_full(1, 1, "s1", 0, "human", false, "c1")]);
+        assert_eq!(last_human(&f, None), None);
+        let v = with_origin(view("p", &f, Some(&live("s1", "c1", 0, LEASE_MS as i64)), 14 * MIN, P), &f, None, None);
+        assert_eq!(v.last_human_at_ms, None);
+        assert_eq!(plan_reporting(&v, &f, &h("s2"), &human(), v.last_human_at_ms), Plan::Held);
+        // A holder whose harness never reported origin has no human record: never fast-taken (NID).
+        let fa = fold(&[acq_full(1, 1, "s1", 0, "absent", false, "c1")]);
+        assert_eq!(last_human(&fa, Some(&[])), None);
+    }
+
+    // E-25: bounded model check of the lease state machine (D-4 (b), 6.13) over the plan
+    // functions, executed against a simulated hub claim row.
+    #[test]
+    fn e25_model_check_lease_invariants() {
+        let (states, violations) = model_check(40, 10_000, false);
+        assert!(violations.is_empty(), "violations: {violations:?}");
+        assert!(states > 100, "explored {states} abstract states (state, holder, generation, pin)");
+    }
+
+    // E-25.5 control: a mutant that lets an automated claim take a vacant/lapsed lease breaks
+    // the non-human invariant (the checker can see it).
+    #[test]
+    fn e25_control_the_checker_catches_a_non_human_take() {
+        let (_, violations) = model_check(40, 5_000, true);
+        assert!(violations.iter().any(|v| v.contains("non-human")), "the mutant went unseen: {violations:?}");
+    }
+
+    /// A tiny simulated hub: log, offset-0 row, touch log; drives `plan_reporting` / `plan_claim`
+    /// and checks the 5.11.d invariants after every step. Returns (distinct states, violations).
+    fn model_check(steps: usize, walks: usize, mutant_automated_takes: bool) -> (usize, Vec<String>) {
+        let sessions = ["s1", "s2", "s3"];
+        let mut seen = std::collections::BTreeSet::new();
+        let mut bad = vec![];
+        let mut seed: u64 = 0x05ee_db25;
+        let mut rnd = |n: u64| {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            (seed >> 33) % n
+        };
+        for _ in 0..walks {
+            let mut log: Vec<Logged> = vec![];
+            let mut touches: Vec<Logged> = vec![];
+            let mut row: Option<Row> = None;
+            let mut now: u64 = 0;
+            let mut next_claim = 0u64;
+            let mut last_gen = 0u64;
+            for _ in 0..steps {
+                let f = fold(&log);
+                let v0 = view("p", &f, row.as_ref(), now, P);
+                let v = with_origin(v0, &f, Some(&touches), Some(vec![DEFAULT_HARNESS.into()]));
+                seen.insert(format!("{}|{:?}|{}|{:?}", v.state, v.holder.as_ref().map(|h| h.session.clone()), v.generation, v.pinned));
+                let before = (v.holder.as_ref().map(|h| h.session.clone()), v.generation, row.as_ref().map(|r| r.claimed_until));
+                let who = sessions[rnd(3) as usize];
+                let me = Holder { session: who.into(), agent: if who == "s3" { "agent-y".into() } else { "agent-x".into() }, host: "host".into(), pid: 7 };
+                let action = rnd(10);
+                let (origin, kind) = match action {
+                    0..=3 => (Some(Origin::Human), ClaimKind::Prompt),
+                    4 => (Some(Origin::Automated), ClaimKind::Prompt),
+                    5 => (Some(Origin::Unknown), ClaimKind::Prompt),
+                    6 => (Some(Origin::Human), ClaimKind::Tool),
+                    7 => (None, ClaimKind::SessionStart),
+                    8 => {
+                        now += [30_000, 4 * MIN, 6 * MIN, 16 * MIN][rnd(4) as usize];
+                        continue;
+                    }
+                    _ => {
+                        if rnd(4) == 0 {
+                            let pin = if rnd(2) == 0 { Some(who.to_string()) } else { None };
+                            log.push(Logged { offset: log.len() as u64 + 1, event: Event::Pin { session: pin, by: "op".into(), reason: "m".into(), at_ms: now }, sender: None });
+                        } else if am_i(&v, who) == Verdict::Main {
+                            row = None;
+                            log.push(Logged { offset: log.len() as u64 + 1, event: Event::Release { generation: v.generation, holder: me.clone(), at_ms: now }, sender: None });
+                        }
+                        continue;
+                    }
+                };
+                let r = ClaimRequest { kind, origin, basis: None, interactive: Some(true), harness: DEFAULT_HARNESS.into() };
+                let mut plan = plan_reporting(&v, &f, &me, &r, v.last_human_at_ms);
+                if mutant_automated_takes && plan == Plan::Ignored && v.holder.is_none() {
+                    plan = Plan::Take { reason: "mutant" };
+                }
+                let key = Some(format!("key-{who}"));
+                let mut acquire = |log: &mut Vec<Logged>, row: &mut Option<Row>, reason: &str, generation: u64, prov: bool, ttl: u64| {
+                    next_claim += 1;
+                    let cid = format!("c{next_claim}");
+                    *row = Some(Row { claim_id: cid.clone(), claimer: me.claimer(), claimed_at: now as i64, claimed_until: (now + ttl) as i64 });
+                    let o = if plan_is_human(origin) { "human" } else { "automated" };
+                    log.push(Logged {
+                        offset: log.len() as u64 + 1,
+                        event: Event::Acquire { generation, holder: me.clone(), claim_id: cid, at_ms: now, reason: reason.into(), from: None, lapsed_at_ms: None, obligations: vec![], origin: Some(o.into()), basis: None, provisional: prov, holder_human_age_s: None },
+                        sender: key.clone(),
+                    });
+                };
+                match plan {
+                    Plan::Take { reason } => acquire(&mut log, &mut row, reason, f.generation + 1, false, LEASE_MS),
+                    Plan::TakeProvisional => acquire(&mut log, &mut row, "provisional", f.generation + 1, true, QUIET_MS),
+                    Plan::Resume => acquire(&mut log, &mut row, "resume", f.generation.max(1), false, LEASE_MS),
+                    Plan::PinOverride { .. } | Plan::OverProvisional { .. } | Plan::FastTakeover { .. } => {
+                        acquire(&mut log, &mut row, "override", f.generation + 1, false, LEASE_MS)
+                    }
+                    Plan::Promote { claim_id } => {
+                        log.push(Logged { offset: log.len() as u64 + 1, event: Event::Promote { generation: v.generation, holder: me.clone(), claim_id, at_ms: now, origin: "human".into(), basis: None }, sender: key.clone() });
+                        if let Some(r) = row.as_mut() {
+                            r.claimed_until = (now + LEASE_MS) as i64;
+                        }
+                    }
+                    Plan::TouchRenew { claim_id } => {
+                        touches.push(touch(touches.len() as u64, v.generation, who, &claim_id, now, &format!("key-{who}")));
+                        if let Some(r) = row.as_mut() {
+                            r.claimed_until = (now + LEASE_MS) as i64;
+                        }
+                    }
+                    _ => {}
+                }
+                let f2 = fold(&log);
+                let v2 = view("p", &f2, row.as_ref(), now, P);
+                let after = (v2.holder.as_ref().map(|h| h.session.clone()), v2.generation, row.as_ref().map(|r| r.claimed_until));
+                if v2.generation < last_gen {
+                    bad.push(format!("generation decreased {last_gen} -> {}", v2.generation));
+                }
+                last_gen = v2.generation;
+                if !plan_is_human(origin) && kind == ClaimKind::Prompt && before != after {
+                    bad.push(format!("non-human claim by {who} changed {before:?} -> {after:?}"));
+                }
+                if kind == ClaimKind::Tool && before != after {
+                    bad.push(format!("tool activity changed {before:?} -> {after:?}"));
+                }
+                if before.0 != after.0 && after.0.is_some() && f2.current.as_ref().map(|c| &c.holder.session) != after.0.as_ref() {
+                    bad.push("holder change without an acquire record".into());
+                }
+                if let (Some(old), Some(new)) = (&before.0, &after.0)
+                    && old != new
+                    && v.pinned.as_deref() == Some(old.as_str())
+                    && v.pinned.as_deref() != Some(who)
+                {
+                    bad.push(format!("pinned holder {old} displaced by {who}"));
+                }
+                // 6.13.3 bound: a human prompt by another session, more than quiet (+0 margin,
+                // same host) after the holder's last human prompt, gets main at that prompt.
+                if plan_is_human(origin)
+                    && kind == ClaimKind::Prompt
+                    && v.holder.as_ref().is_some_and(|h| h.session != who)
+                    && !v.provisional
+                    && v.pinned.is_none()
+                    && v.last_human_at_ms.is_some_and(|t| now.saturating_sub(t) > QUIET_MS)
+                    && after.0.as_deref() != Some(who)
+                {
+                    bad.push(format!("6.13.3 bound: {who} not main after holder silence"));
+                }
+                if bad.len() > 20 {
+                    return (seen.len(), bad);
+                }
+            }
+        }
+        (seen.len(), bad)
+    }
+
+    fn plan_is_human(o: Option<Origin>) -> bool {
+        o == Some(Origin::Human)
+    }
+
+    // E-31.5 control: the report generator on a seeded record set.
+    #[test]
+    fn e31_report_counts_renewals_by_basis_and_flags_non_human_holder_changes() {
+        let touches = [touch(1, 1, "s1", "c1", 1, "k"), touch(2, 1, "s1", "c1", 2, "k"), {
+            let mut t = touch(3, 1, "s1", "c1", 3, "k");
+            if let Event::Touch { basis, .. } = &mut t.event {
+                *basis = Some("inferred".into());
+            }
+            t
+        }];
+        let ignored = [Logged { offset: 1, event: Event::Ignored { session: "s2".into(), origin: "automated".into(), basis: Some("doorbell".into()), hook: "prompt".into(), harness: "h".into(), at_ms: 1 }, sender: None }];
+        let clean = [acq_full(1, 1, "s1", 0, "human", false, "c1")];
+        let r = renewal_report(&clean, &touches, &ignored);
+        assert_eq!(r["counted_renewals"], 3);
+        assert_eq!(r["by_basis"]["pty-input"]["numerator"], 2);
+        assert_eq!(r["by_basis"]["inferred"]["denominator"], 3);
+        assert_eq!(r["ignored"]["automated/doorbell"], 1);
+        assert_eq!(r["verdict"], "PASS");
+        let bad = [acq_full(1, 1, "s1", 0, "automated", false, "c1")];
+        assert_eq!(renewal_report(&bad, &touches, &ignored)["verdict"], "FAIL");
+    }
+
+    // E-84 (R3 prompt origin): the published parity scenario, decided by TermLink's lease.
+    // AEF's adapter (P-44, B-29) runs the same file; a doorbell line reported `human` must
+    // fail the parity run (the negative control is marked in the file).
+    #[test]
+    fn e84_prompt_origin_parity_scenario_matches_the_lease() {
+        let doc: Value = serde_json::from_str(include_str!("../../../tests/fixtures/b25-parity/r3-prompt-origin.json")).expect("scenario parses");
+        let cases = doc["cases"].as_array().expect("cases");
+        assert!(cases.len() >= 8);
+        for c in cases {
+            let name = c["name"].as_str().unwrap();
+            let (f, v) = match c["state"].as_str().unwrap() {
+                "held-by-other-fresh" => held_s1(MIN),
+                "held-by-other-silent" => held_s1(QUIET_MS + 1_000),
+                "vacant" => {
+                    let f = fold(&[]);
+                    let v = view("p", &f, None, 0, P);
+                    (f, v)
+                }
+                "held-by-me" => held_s1(MIN),
+                s => panic!("unknown state {s}"),
+            };
+            let who = if c["state"] == "held-by-me" { "s1" } else { "s2" };
+            let r = ClaimRequest {
+                kind: ClaimKind::parse(c["hook"].as_str().unwrap()).unwrap(),
+                origin: c["origin"].as_str().and_then(Origin::parse),
+                basis: c["basis"].as_str().map(str::to_string),
+                interactive: c["interactive"].as_bool(),
+                harness: DEFAULT_HARNESS.into(),
+            };
+            let got = match plan_reporting(&v, &f, &h(who), &r, v.last_human_at_ms) {
+                Plan::Ignored => "ignored",
+                Plan::AnswerOnly { .. } | Plan::Held => "unchanged",
+                Plan::TakeProvisional => "provisional",
+                Plan::TouchRenew { .. } | Plan::Promote { .. } => "renewed",
+                Plan::FastTakeover { .. } => "fast-takeover",
+                Plan::Take { .. } | Plan::Resume | Plan::OverProvisional { .. } | Plan::PinOverride { .. } => "acquired",
+                p => panic!("{name}: unexpected plan {p:?}"),
+            };
+            assert_eq!(got, c["expect"].as_str().unwrap(), "{name}");
+        }
     }
 
     #[test]

@@ -17,6 +17,7 @@ use termlink_test_utils::{ProcessGuard, TestDir};
 const LEASE_MS: u64 = 1_500;
 const QUIET_MS: u64 = 800;
 const COOLDOWN_MS: u64 = 400;
+const SLOW_QUIET_MS: u64 = 4_000;
 
 struct Hub {
     dir: TestDir,
@@ -69,6 +70,20 @@ impl Hub {
     /// Run `termlink main <verb> ... --json`; returns (exit code, parsed JSON).
     fn main(&self, args: &[&str]) -> (i32, Value) {
         let mut c = base_cmd(&self.dir.path);
+        c.arg("main").args(args).args(["--hub", &self.sock, "--json"]);
+        let out = c.output().expect("run termlink main");
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let v: Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+            panic!("not JSON ({e}): stdout={stdout} stderr={}", String::from_utf8_lossy(&out.stderr))
+        });
+        (out.status.code().unwrap_or(-1), v)
+    }
+
+    /// `main` with the B-25 test timings: quiet (= provisional validity, = fast-takeover
+    /// threshold, V-20) long enough for several CLI calls.
+    fn main_slow(&self, args: &[&str]) -> (i32, Value) {
+        let mut c = base_cmd(&self.dir.path);
+        c.env("TERMLINK_MAIN_TEST_QUIET_MS", SLOW_QUIET_MS.to_string()).env("TERMLINK_MAIN_TEST_LEASE_MS", "8000");
         c.arg("main").args(args).args(["--hub", &self.sock, "--json"]);
         let out = c.output().expect("run termlink main");
         let stdout = String::from_utf8_lossy(&out.stdout);
@@ -328,4 +343,122 @@ fn same_session_from_another_process_renews_and_releases_other_sessions_refused(
     assert_eq!(release["generation"].as_u64(), Some(generation));
     assert_eq!(release["holder"]["session"], "S-A");
     assert_eq!(hub.main(&["am-i", "--session", "S-A"]).0, 1);
+}
+
+// ------------------------------------------------------------------ B-25 (T-3694)
+
+fn acquires_reason(v: &Value) -> Vec<String> {
+    recent_acquires(v).iter().map(|a| a["reason"].as_str().unwrap_or("").to_string()).collect()
+}
+
+/// E-22 (NID): a harness the operator has not switched keeps the built lease; the switch is per
+/// harness, set only by the operator act; after it, that harness's absent claims are ignored
+/// while another harness's still renew. Status shows `origin` and `last_human_at_ms`.
+#[test]
+fn b25_e22_absent_origin_counts_as_built_until_the_operator_switches_the_harness() {
+    let hub = start_hub("t3694-nid");
+    let (rc, a) = hub.main(&["claim", "--session", "S-A"]);
+    assert_eq!((rc, a["action"].as_str()), (0, Some("acquired")), "{a}");
+    assert_eq!(a["origin"], "absent");
+    assert!(a["note"].as_str().unwrap().contains("does not report prompt origin"), "{a}");
+    // A claim carrying an origin never switches the harness (CR-6.6).
+    let (rc, a) = hub.main(&["claim", "--session", "S-A", "--origin", "human", "--harness", "h2"]);
+    assert_eq!((rc, a["action"].as_str()), (0, Some("renewed")), "{a}");
+    // ...and a non-human origin from a harness not switched is recorded but decided as built.
+    let (rc, a) = hub.main(&["claim", "--session", "S-A", "--origin", "automated", "--harness", "h2"]);
+    assert_eq!((rc, a["action"].as_str()), (0, Some("renewed")), "{a}");
+    let (_, s) = hub.main(&["status"]);
+    assert_eq!(s["origin_reporting"], serde_json::json!([]), "{s}");
+    assert!(s.get("last_human_at_ms").is_some() && s.get("origin").is_some(), "status carries the fields: {s}");
+    // The operator act switches h2 only.
+    let (rc, o) = hub.main(&["origin-reporting", "--harness", "h2"]);
+    assert_eq!((rc, o["action"].as_str()), (0, Some("origin-reporting-on")), "{o}");
+    let g = o["generation"].as_u64().unwrap();
+    // h1 (old hooks, no origin) still renews: the control against "ignore absent everywhere".
+    let (rc, a) = hub.main(&["claim", "--session", "S-A", "--harness", "h1"]);
+    assert_eq!((rc, a["action"].as_str()), (0, Some("renewed")), "{a}");
+    // h2's absent claim is now unknown: ignored, recorded, lease unchanged.
+    let (rc, a) = hub.main(&["claim", "--session", "S-A", "--harness", "h2"]);
+    assert_eq!((rc, a["action"].as_str()), (0, Some("ignored: origin")), "{a}");
+    assert_eq!(a["generation"].as_u64(), Some(g));
+    let (_, s) = hub.main(&["status"]);
+    assert_eq!(s["origin_reporting"], serde_json::json!(["h2"]));
+    let ig = s["ignored_recent"].as_array().unwrap();
+    assert!(ig.iter().any(|r| r["event"]["harness"] == "h2" && r["event"]["origin"] == "absent"), "{s}");
+}
+
+/// E-20, E-21, E-23, E-24 on a real hub for a reporting harness: provisional SessionStart,
+/// non-human claims ignored, tool activity never renews, Touch + renew, fast takeover after
+/// the quiet period of holder human silence (and not before), with the record fields.
+#[test]
+fn b25_reporting_harness_provisional_ignored_touch_and_fast_takeover() {
+    let hub = start_hub("t3694-tight");
+    assert_eq!(hub.main_slow(&["origin-reporting"]).0, 0);
+    // E-21/E-23: SessionStart on a vacant lease: provisional, main while it holds.
+    let (rc, a) = hub.main_slow(&["claim", "--session", "S-A", "--kind", "session-start", "--interactive"]);
+    assert_eq!((rc, a["action"].as_str(), a["state"].as_str()), (0, Some("acquired-provisional"), Some("provisional")), "{a}");
+    assert_eq!(hub.main_slow(&["am-i", "--session", "S-A"]).0, 0);
+    // A second SessionStart (not vacant) and a non-interactive one take nothing.
+    let (rc, b) = hub.main_slow(&["claim", "--session", "S-B", "--kind", "session-start", "--interactive"]);
+    assert_eq!((rc, b["action"].as_str()), (1, Some("none")), "{b}");
+    // E-20: automated and unknown from S-B change nothing, recorded.
+    for o in ["automated", "unknown"] {
+        let (rc, b) = hub.main_slow(&["claim", "--session", "S-B", "--origin", o, "--basis", "doorbell"]);
+        assert_eq!((rc, b["action"].as_str(), b["generation"].as_u64()), (1, Some("ignored: origin"), Some(1)), "{b}");
+    }
+    // E-23 (a): a human claim takes a provisional holding at once.
+    let (rc, b) = hub.main_slow(&["claim", "--session", "S-B", "--origin", "human", "--basis", "pty-input"]);
+    assert_eq!((rc, b["generation"].as_u64()), (0, Some(2)), "{b}");
+    assert!(acquires_reason(&b).contains(&"over-provisional".to_string()), "{b}");
+    // E-21: tool activity never renews or takes.
+    let (rc, a) = hub.main_slow(&["claim", "--session", "S-A", "--kind", "tool", "--origin", "human"]);
+    assert_eq!((rc, a["action"].as_str()), (1, Some("none")), "{a}");
+    // Touch, then renew; last_human_at is shown.
+    let (rc, b) = hub.main_slow(&["claim", "--session", "S-B", "--origin", "human"]);
+    assert_eq!((rc, b["action"].as_str()), (0, Some("renewed")), "{b}");
+    let lh = b["last_human_at_ms"].as_u64().expect("last_human_at_ms after a human renewal");
+    // E-24: inside the quiet period S-A is held off.
+    let (rc, a) = hub.main_slow(&["claim", "--session", "S-A", "--origin", "human"]);
+    assert_eq!(rc, 1, "fast takeover before the quiet period: {a}");
+    // After it (holder silent > quiet): taken at once, generation +1, record names it.
+    wait_until(lh + SLOW_QUIET_MS + 150);
+    let (rc, a) = hub.main_slow(&["claim", "--session", "S-A", "--origin", "human"]);
+    assert_eq!((rc, a["generation"].as_u64()), (0, Some(3)), "{a}");
+    let fast = recent_acquires(&a).into_iter().find(|r| r["reason"] == "fast-takeover").expect("fast-takeover record");
+    assert_eq!(fast["from"]["session"], "S-B");
+    assert!(fast["holder_human_age_s"].is_u64(), "{fast}");
+    assert_eq!(fast["origin"], "human");
+    // The old holder is told.
+    let (rc, b) = hub.main_slow(&["claim", "--session", "S-B", "--origin", "automated"]);
+    assert_eq!(rc, 1, "{b}");
+    assert_eq!(b["lost"]["to"]["session"], "S-A");
+}
+
+/// E-162: a Touch that cannot be posted is no renewal and unknown (exit 2); an Ignored record
+/// that cannot be posted leaves the lease unchanged and says `ignored-unrecorded`.
+#[test]
+fn b25_e162_unpostable_touch_is_unknown_and_unpostable_ignored_is_unrecorded() {
+    use termlink_session::main_lease::{ClaimKind, ClaimRequest, Holder, LeaseClient, Origin, Timing, Verdict};
+    let hub = start_hub("t3694-e162");
+    assert_eq!(hub.main(&["origin-reporting"]).0, 0);
+    assert_eq!(hub.main(&["claim", "--session", "S-A", "--origin", "human"]).0, 0);
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    // No signing identity: every post fails, reads work.
+    let c = LeaseClient {
+        addr: termlink_protocol::TransportAddr::Unix { path: hub.sock.clone().into() },
+        auth: None,
+        identity: None,
+        timing: Timing { lease_ms: LEASE_MS, quiet_ms: QUIET_MS, cooldown_ms: COOLDOWN_MS },
+        obligation_topics: vec![],
+    };
+    let me = Holder { session: "S-A".into(), agent: "agent-t3654".into(), host: String::new(), pid: 1 };
+    let human = ClaimRequest { kind: ClaimKind::Prompt, origin: Some(Origin::Human), ..ClaimRequest::default() };
+    let before = hub.main(&["status"]).1["claimed_until_ms"].as_u64().unwrap();
+    let o = rt.block_on(c.claim_with("t3654-proj", &me, &human));
+    assert_eq!(o.verdict, Verdict::Unknown, "{}", o.to_json());
+    assert!(o.message.contains("Touch"), "{}", o.message);
+    assert_eq!(hub.main(&["status"]).1["claimed_until_ms"].as_u64().unwrap(), before, "no renewal without the Touch");
+    let auto = ClaimRequest { origin: Some(Origin::Automated), ..human.clone() };
+    let o = rt.block_on(c.claim_with("t3654-proj", &me, &auto));
+    assert_eq!((o.verdict, o.action.as_str()), (Verdict::Main, "ignored-unrecorded"), "{}", o.to_json());
 }

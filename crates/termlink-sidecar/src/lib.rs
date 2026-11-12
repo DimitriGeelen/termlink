@@ -26,3 +26,4 @@ pub mod activity;
 pub mod liveness;
 pub mod lease;
 pub mod meter;
+pub mod mail_waiting;
