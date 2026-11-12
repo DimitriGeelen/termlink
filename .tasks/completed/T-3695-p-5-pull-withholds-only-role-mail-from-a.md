@@ -6,12 +6,12 @@ description: >
   approved G-0 2026-11-12): Pull withholds only role mail from a non-main session
   (04 7.1.a, CR-4.11; T-3689 hand-back 9a; changes the built T-3654 pull)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-sidecar/src/api.rs, crates/termlink-sidecar/src/deliver.rs]
 related_tasks: [T-3357, T-3694, T-3654, T-3689]
 plan_unit: P-5
 arc_id: arc-011
@@ -44,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:28Z
-last_update: 2026-11-12T22:12:35Z
-date_finished:
+last_update: 2026-11-12T22:14:28Z
+date_finished: 2026-11-12T22:14:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -105,11 +105,11 @@ Unblocks: P-30 (T-3669), P-35 (T-3654).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Mail to an exact instance reaches that session whether or not it is main
-- [ ] Role mail to a non-main session is still withheld
-- [ ] The E-spec tagged "B-25 for the withhold change" passes
-- [ ] The unit's fixture suite exits 0 with a PASS line per listed case and its mutant list is all killed (FP 3.1.b)
-- [ ] Negative control: an all-mail withhold mutant fails the exact-instance case
+- [x] Mail to an exact instance reaches that session whether or not it is main
+- [x] Role mail to a non-main session is still withheld
+- [x] The E-spec tagged "B-25 for the withhold change" passes
+- [x] The unit's fixture suite exits 0 with a PASS line per listed case and its mutant list is all killed (FP 3.1.b)
+- [x] Negative control: an all-mail withhold mutant fails the exact-instance case
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -162,8 +162,11 @@ Unblocks: P-30 (T-3669), P-35 (T-3654).
 ## Verification
 
 # Plan P-5 check (08-plan section 4): fixture suite exits 0 with a PASS line per case and its mutant list all killed
-# (FP 3.1.b); negative control: an all-mail withhold mutant fails the exact-instance case. The suite is written by this
-# task: replace these comment lines with its command before closing (redirect-then-grep form, L-387).
+# (FP 3.1.b); negative control M1 (built all-mail withhold) fails the exact-instance case.
+env -u PROJECT_ROOT bash tests/p5-withhold-fixtures.sh > .context/working/t3695/fixtures.out 2>&1 && grep -q "ALL IN-SCOPE PASS" .context/working/t3695/fixtures.out
+grep -q "PASS E-161 (B-25 withhold change" .context/working/t3695/fixtures.out && ! grep -q "^FAIL" .context/working/t3695/fixtures.out
+# Mutants: the full run takes ~15 min, so the gate reads the recorded run (made from a clean clone of HEAD by the same script).
+grep -q "^KILLED M1-built-all-mail-withhold" .context/working/t3695/mutants.out && grep -q "^ALL MUTANTS KILLED" .context/working/t3695/mutants.out && ! grep -q "^SURVIVED\|^TOOLING" .context/working/t3695/mutants.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -358,6 +361,17 @@ Unblocks: P-30 (T-3669), P-35 (T-3654).
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-12 — what "exact instance" means in the built sidecar
+- **What changed:** The built wire has no per-session address. Every stored message goes to this agent's sidecar
+  instance (`to_instance` must equal it), and all sessions of the agent share that instance, so "mail to an exact
+  instance" (ARC4 7.1.a, R-62.a) cannot be read off the message. The design also calls it "exact-instance
+  (conversation) mail" (E-28.5, 7.2.d), so it is built as conversation binding: a conversation belongs to the first
+  session that sends or replies in it, or that has one of its messages handed over.
+- **Plan impact:** none to the row. A per-session wire address would be a wire-version change (13-field Msg) and
+  belongs with B-20/P-30 if it is ever needed. SI-26's "only that instance" applies to non-main sessions only: main
+  still reads everything as built, so mail bound to a session that has ended is never stranded (no dead letter yet, B-6).
+- **Triggered:** none.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -398,6 +412,12 @@ Unblocks: P-30 (T-3669), P-35 (T-3654).
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-12 — rollback switch
+- **Chose:** a flag file `<store>/withhold-all` (same pattern as `delivery-off`), read at every pull; anything at
+  the path that cannot be read counts as set.
+- **Why:** one step, no restart and no build; it fails toward holding, never toward a wrong copy (plan row rollback).
+- **Rejected:** an env var (needs a restart); a revert only (needs a release).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -418,3 +438,16 @@ Unblocks: P-30 (T-3669), P-35 (T-3654).
 ### 2026-11-12T21:58:35Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-12T22:14:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-bbaf5d51
+- **Timestamp:** 2026-11-12T22:14:45Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

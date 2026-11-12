@@ -23307,3 +23307,21 @@ scan_id: R-166844b2
 task_id: T-3756
 payload:
   task_file: .tasks/active/T-3756-non-root-dimitri-mint-dev-reaches-the-10.md
+---
+kind: scan_emitted
+timestamp: '2026-11-12T22:14:45Z'
+scan_id: R-bbaf5d51
+task_id: T-3695
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-12T22:14:45Z'
+scan_id: R-bbaf5d51
+task_id: T-3695
+payload:
+  task_file: .tasks/active/T-3695-p-5-pull-withholds-only-role-mail-from-a.md

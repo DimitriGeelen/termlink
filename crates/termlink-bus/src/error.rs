@@ -54,6 +54,11 @@ pub enum BusError {
     #[error("artifact too large: staged {got} bytes exceeds limit {limit} (raise TERMLINK_MAX_ARTIFACT_BYTES for legitimate large transfers)")]
     ArtifactTooLarge { limit: u64, got: u64 },
 
+    // T-3696 (B-11, AL-28, FCW-117): a non-baseline writer's object failed the
+    // writer check (no TLBLOB wrapper header). Nothing was promoted.
+    #[error("artifact refused: {0}")]
+    ArtifactRefused(String),
+
     // T-2029 (arc-parallel-substrate Slice 1): claim semantics errors.
     #[error("offset {offset} of topic {topic:?} is already claimed by another worker")]
     ClaimConflict { topic: String, offset: u64 },

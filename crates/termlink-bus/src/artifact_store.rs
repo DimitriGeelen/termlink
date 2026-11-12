@@ -41,6 +41,9 @@ fn max_artifact_bytes() -> u64 {
     parse_artifact_cap(std::env::var("TERMLINK_MAX_ARTIFACT_BYTES").ok())
 }
 
+/// T-3696 (B-11, AL-28): a writer check run over the whole object before it is promoted.
+pub type Validator<'a> = &'a dyn Fn(&[u8]) -> std::result::Result<(), String>;
+
 /// Would appending `chunk_len` more bytes onto a staging file of `current_len`
 /// exceed `cap`? Saturating add so a hostile near-`u64::MAX` accumulation can
 /// never wrap to a small value and slip past the guard.
@@ -140,6 +143,30 @@ impl ArtifactStore {
         )
     }
 
+    /// T-3696 (B-11, AL-28): `put_streaming` with a writer check. On the final
+    /// chunk `validate` sees the whole staged object before it is promoted; an
+    /// `Err` removes the staging file and returns `ArtifactRefused`, so a refused
+    /// object never becomes readable through `exists` / `get`.
+    pub fn put_streaming_validated(
+        &self,
+        staging_id: &str,
+        offset: u64,
+        chunk: &[u8],
+        is_final: bool,
+        expected_sha256: Option<&str>,
+        validate: Validator<'_>,
+    ) -> Result<StreamingPutOutcome> {
+        self.put_streaming_inner(
+            staging_id,
+            offset,
+            chunk,
+            is_final,
+            expected_sha256,
+            max_artifact_bytes(),
+            Some(validate),
+        )
+    }
+
     /// Cap-parameterized body of `put_streaming` (T-2525). Split out so the
     /// size-guard can be exercised with a low cap in tests without touching the
     /// process-global `TERMLINK_MAX_ARTIFACT_BYTES` env (which would race
@@ -152,6 +179,20 @@ impl ArtifactStore {
         is_final: bool,
         expected_sha256: Option<&str>,
         cap: u64,
+    ) -> Result<StreamingPutOutcome> {
+        self.put_streaming_inner(staging_id, offset, chunk, is_final, expected_sha256, cap, None)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn put_streaming_inner(
+        &self,
+        staging_id: &str,
+        offset: u64,
+        chunk: &[u8],
+        is_final: bool,
+        expected_sha256: Option<&str>,
+        cap: u64,
+        validate: Option<Validator<'_>>,
     ) -> Result<StreamingPutOutcome> {
         let staging_path = self.staging_path(staging_id);
         if let Some(parent) = staging_path.parent() {
@@ -206,6 +247,12 @@ impl ArtifactStore {
                 expected: expected.to_string(),
                 got: sha,
             });
+        }
+        if let Some(check) = validate
+            && let Err(reason) = check(&bytes)
+        {
+            let _ = fs::remove_file(&staging_path);
+            return Err(BusError::ArtifactRefused(reason));
         }
         let dst = self.path_for(&sha);
         if let Some(parent) = dst.parent() {

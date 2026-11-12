@@ -5,6 +5,7 @@ pub mod events;
 pub mod governance;
 pub mod jsonrpc;
 pub mod retention_defaults;
+pub mod tlblob;
 pub mod transport;
 
 pub use error::ProtocolError;

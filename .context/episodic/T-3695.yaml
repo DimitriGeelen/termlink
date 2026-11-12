@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3695: P-5: pull withholds only role mail from a non-main session
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T22:14:57Z
+# ============================================================================
+
+task_id: T-3695
+task_name: "P-5: pull withholds only role mail from a non-main session"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T16:56:28Z
+completed: 2026-11-12T22:14:28Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-12T23:11:59+01:00
+last_commit: 2026-11-12T23:12:35+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  P-5 pull withholds only role mail from a non-main session (ARC4 7.1.a, CR-4.11, E-161) — a conversation is bound to the first session that sends/replies in it or is handed a message of it (first binding wins, claim-op binds nothing); a non-main pull hands out that session's bound mail and withholds role mail, the not-main line still once per generation and not spent by a frame; main reads everything as built; <store>/withhold-all restores the T-3654 all-mail withhold in one step (unreadable = set) and makes the held mail count as waiting; fixture suite tests/p5-withhold-fixtures.sh with 12 mutants. take back two T-3696 (B-11) lines swept into the P-5 commit — api.rs status v["keys"] calls crate::enckey, which is not committed yet, so HEAD did not compile; the lines stay in the working tree for T-3696 to commit with its module
+
+# Key outcomes
+outcomes:
+  - 'Mail to an exact instance reaches that session whether or not it is main'
+  - 'Role mail to a non-main session is still withheld'
+  - 'The E-spec tagged "B-25 for the withhold change" passes'
+  - 'The unit''s fixture suite exits 0 with a PASS line per listed case and its mutant list is all killed (FP 3.1.b)'
+  - 'Negative control: an all-mail withhold mutant fails the exact-instance case'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'P-5 pull withholds only role mail from a non-main session (ARC4 7.1.a, CR-4.11, E-161) — a conversation is bound to the first session that sends/replies in it or is handed a message of it (first binding wins, claim-op binds nothing); a non-main pull hands out that session''s bound mail and withholds role mail, the not-main line still once per generation and not spent by a frame; main reads everything as built; <store>/withhold-all restores the T-3654 all-mail withhold in one step (unreadable = set) and makes the held mail count as waiting; fixture suite tests/p5-withhold-fixtures.sh with 12 mutants'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — rollback switch'
+    chose: 'a flag file `<store>/withhold-all` (same pattern as `delivery-off`), read at every pull; anything at the path that cannot be read counts as set.'
+    rationale: 'one step, no restart and no build; it fails toward holding, never toward a wrong copy (plan row rollback).'
+    alternatives_rejected: ['an env var (needs a restart); a revert only (needs a release).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3695-p-5-pull-withholds-only-role-mail-from-a.md'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/deliver.rs'
+  - 'crates/termlink-sidecar/src/lease.rs'
+  - 'crates/termlink-sidecar/tests/p5_withhold.rs'
+  - 'docs/operations/main-lease.md'
+  - 'tests/p5-withhold-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T23:11:59'
+    action: 'T-3695: P-5 pull withholds only role mail from a non-main session (ARC4 7.1.a, CR-4.11, E-161) — a conversation is bound to the first session that sends/replies in it or is handed a message of it (first binding wins, claim-op binds nothing); a non-main pull hands out that session''s bound mail and withholds role mail, the not-main line still once per generation and not spent by a frame; main reads everything as built; <store>/withhold-all restores the T-3654 all-mail withhold in one step (unreadable = set) and makes the held mail count as waiting; fixture suite tests/p5-withhold-fixtures.sh with 12 mutants'
+  - time: '2026-11-12T23:12:35'
+    action: 'T-3695: take back two T-3696 (B-11) lines swept into the P-5 commit — api.rs status v["keys"] calls crate::enckey, which is not committed yet, so HEAD did not compile; the lines stay in the working tree for T-3696 to commit with its module'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 318 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 318
+  commits: 3
+  files_changed: 31
+  lines_added: 1932
+  lines_removed: 51
+  footprint_refreshed_at: '2026-11-12T22:15:05Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3695-p-5-pull-withholds-only-role-mail-from-a.md
+generated_by: context-agent-hybrid

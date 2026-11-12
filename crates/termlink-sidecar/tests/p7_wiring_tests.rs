@@ -58,6 +58,7 @@ fn cfg(root: &Path, key_file: PathBuf, key_register: Option<PathBuf>, book: Book
         key_register,
         book,
         main_project: None,
+        enc_key_register: None,
     }
 }
 

@@ -19,6 +19,7 @@ use serde_json::{json, Value};
 use termlink_bus::ArtifactStore;
 use termlink_bus::{BusError, StreamingPutOutcome};
 use termlink_protocol::control::error_code;
+use termlink_protocol::tlblob;
 use termlink_protocol::jsonrpc::{ErrorResponse, Response, RpcResponse};
 
 use crate::channel::artifact_store;
@@ -60,7 +61,7 @@ pub async fn handle_artifact_put(id: Value, params: &Value) -> RpcResponse {
         }
     };
 
-    let outcome = match store.put_streaming(staging_id, offset, &chunk, is_final, expected_sha256)
+    let outcome = match put_checked(store, params, staging_id, offset, &chunk, is_final, expected_sha256)
     {
         Ok(o) => o,
         Err(e) => return artifact_error(id, &e),
@@ -149,9 +150,30 @@ pub async fn handle_artifact_get(id: Value, params: &Value) -> RpcResponse {
     .into()
 }
 
+/// T-3696 (B-11, AL-28, FCW-117): the writer check. A put without the `writer`
+/// parameter is one of the baseline writers and is stored as today (NID). A put
+/// that names a writer class must carry the TLBLOB wrapper header; otherwise the
+/// object is refused at finalize and never promoted into the store.
+fn put_checked(
+    store: &termlink_bus::ArtifactStore,
+    params: &Value,
+    staging_id: &str,
+    offset: u64,
+    chunk: &[u8],
+    is_final: bool,
+    expected_sha256: Option<&str>,
+) -> Result<StreamingPutOutcome, BusError> {
+    match params.get(tlblob::WRITER_PARAM) {
+        None | Some(Value::Null) => store.put_streaming(staging_id, offset, chunk, is_final, expected_sha256),
+        Some(_) => store.put_streaming_validated(staging_id, offset, chunk, is_final, expected_sha256, &tlblob::check_header),
+    }
+}
+
 fn artifact_error(id: Value, e: &BusError) -> RpcResponse {
     let code = match e {
-        BusError::ArtifactOffsetMismatch { .. } | BusError::ArtifactHashMismatch { .. } => -32602,
+        BusError::ArtifactOffsetMismatch { .. }
+        | BusError::ArtifactHashMismatch { .. }
+        | BusError::ArtifactRefused(_) => -32602,
         // T-2699: was -32004 (MESSAGE_EXPIRED in the named taxonomy).
         BusError::UnknownArtifact(_) => error_code::ARTIFACT_NOT_FOUND,
         _ => -32603,
@@ -193,7 +215,7 @@ pub(crate) async fn handle_artifact_put_with(
         Ok(b) => b,
         Err(e) => return ErrorResponse::new(id, -32602, &format!("bad b64: {e}")).into(),
     };
-    let outcome = match store.put_streaming(staging_id, offset, &chunk, is_final, expected_sha256)
+    let outcome = match put_checked(store, params, staging_id, offset, &chunk, is_final, expected_sha256)
     {
         Ok(o) => o,
         Err(e) => return artifact_error(id, &e),
@@ -382,5 +404,94 @@ mod tests {
         let rsp = handle_artifact_put_with(&store, json!(1), &params).await;
         let v = body_of(&rsp);
         assert!(v.get("error").is_some());
+    }
+    // ── T-3696 (B-11, AL-28, FCW-117; E-47 writer check) ─────────────────────
+
+    const CANARY: &[u8] = b"T3696-CANARY-0123456789abcdefXYZ"; // 32 bytes
+
+    fn store_holds(dir: &std::path::Path, needle: &[u8]) -> bool {
+        fn walk(d: &std::path::Path, needle: &[u8]) -> bool {
+            for e in std::fs::read_dir(d).unwrap().flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    if walk(&p, needle) {
+                        return true;
+                    }
+                } else if let Ok(b) = std::fs::read(&p)
+                    && b.windows(needle.len()).any(|w| w == needle)
+                {
+                    return true;
+                }
+            }
+            false
+        }
+        walk(dir, needle)
+    }
+
+    fn wrapped(body: &[u8]) -> Vec<u8> {
+        let mut v = tlblob::MAGIC.to_vec();
+        v.push(tlblob::VERSION);
+        v.push(tlblob::ALG_XCHACHA20POLY1305_SEALEDBOX);
+        v.extend_from_slice(&[7u8; tlblob::NONCE_LEN]);
+        v.extend_from_slice(body);
+        v.extend_from_slice(&[9u8; tlblob::TAG_LEN]);
+        v
+    }
+
+    #[tokio::test]
+    async fn t3696_wrapper_writer_plaintext_refused_and_never_stored() {
+        let dir = TempDir::new().unwrap();
+        let store = ArtifactStore::open(dir.path()).unwrap();
+        let params = json!({
+            "staging_id": "plain1", "offset": 0, "chunk_b64": b64(CANARY), "is_final": true,
+            "writer": tlblob::WRITER_ARC011,
+        });
+        let v = body_of(&handle_artifact_put_with(&store, json!(1), &params).await);
+        let msg = v["error"]["message"].as_str().unwrap_or_default().to_string();
+        assert!(msg.contains("unwrapped object"), "refusal names the rule: {v}");
+        assert_eq!(v["error"]["code"], json!(-32602));
+        assert!(!store_holds(dir.path(), CANARY), "refused plaintext left no copy (staging removed)");
+    }
+
+    #[tokio::test]
+    async fn t3696_wrapper_writer_chunked_plaintext_refused_at_finalize() {
+        let dir = TempDir::new().unwrap();
+        let store = ArtifactStore::open(dir.path()).unwrap();
+        let mut blob = wrapped(b"");
+        blob[0] = b'X'; // header broken: magic
+        blob.extend_from_slice(CANARY);
+        let (a, b) = blob.split_at(10);
+        let p1 = json!({"staging_id": "c1", "offset": 0, "chunk_b64": b64(a), "is_final": false, "writer": tlblob::WRITER_ARC011});
+        let v1 = body_of(&handle_artifact_put_with(&store, json!(1), &p1).await);
+        assert_eq!(v1["result"]["in_progress"], json!(true));
+        let p2 = json!({"staging_id": "c1", "offset": 10, "chunk_b64": b64(b), "is_final": true, "writer": tlblob::WRITER_ARC011});
+        let v2 = body_of(&handle_artifact_put_with(&store, json!(2), &p2).await);
+        assert!(v2.get("error").is_some(), "{v2}");
+        assert!(!store_holds(dir.path(), CANARY));
+    }
+
+    #[tokio::test]
+    async fn t3696_wrapper_writer_wrapped_object_accepted() {
+        let dir = TempDir::new().unwrap();
+        let store = ArtifactStore::open(dir.path()).unwrap();
+        let obj = wrapped(&[0x5au8; 100]);
+        let params = json!({
+            "staging_id": "w1", "offset": 0, "chunk_b64": b64(&obj), "is_final": true,
+            "writer": tlblob::WRITER_ARC011,
+        });
+        let v = body_of(&handle_artifact_put_with(&store, json!(1), &params).await);
+        let sha = v["result"]["sha256"].as_str().expect("stored").to_string();
+        assert_eq!(store.get(&sha).unwrap(), obj);
+    }
+
+    #[tokio::test]
+    async fn t3696_baseline_writer_unchanged_nid() {
+        // NID control: a put without `writer` (the baseline writers) is stored as before.
+        let dir = TempDir::new().unwrap();
+        let store = ArtifactStore::open(dir.path()).unwrap();
+        let params = json!({"staging_id": "b1", "offset": 0, "chunk_b64": b64(CANARY), "is_final": true});
+        let v = body_of(&handle_artifact_put_with(&store, json!(1), &params).await);
+        assert!(v["result"]["sha256"].is_string(), "{v}");
+        assert!(store_holds(dir.path(), CANARY));
     }
 }

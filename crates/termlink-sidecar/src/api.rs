@@ -477,6 +477,8 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 if let Some(m) = ctx.meter {
                     v["activity"] = m.status_view();
                 }
+                // B-11 (T-3696, AL-25 OBS): the encryption key start-up check, as recorded by this start.
+                v["keys"] = serde_json::json!({"encryption": crate::enckey::recorded_status(store.dir())});
                 // P-26 (FCW-146, E-170): whether every vendor-channel use reached the log.
                 let vl = vendor_log_view(ctx.hook_errlog, store);
                 v["vendor_log"] = vl["state"].clone();

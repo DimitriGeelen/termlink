@@ -50,6 +50,7 @@ fn e28_wired_status_shows_mail_waiting_and_one_attention_entry_per_episode() {
         key_register: None,
         book: Default::default(),
         main_project: project.map(str::to_string),
+        enc_key_register: None,
     };
     let running = daemon::start(&cfg(Some("p-mw")), &e.store_root(), &e.runtime_dir(), &e.home()).unwrap();
     let mw = running.mail_waiting.clone().expect("a main project gives a waiting-mail runner");

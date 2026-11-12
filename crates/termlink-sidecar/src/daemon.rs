@@ -56,6 +56,11 @@ pub struct Config {
     /// sessions; default `$TERMLINK_MAIN_PROJECT`. Unset: no gate, status says so.
     #[serde(default)]
     pub main_project: Option<String>,
+    /// B-11 (T-3696, AL-25): the root-owned register entry holding this agent's X25519 public key, normally
+    /// `/etc/termlink-sidecar/keys/<agent>.x25519.pub`. Set: the private key in the store must match it or the
+    /// start is refused (FCW-109, FCW-110). Unset: no encryption key; blobs are refused (rollback state).
+    #[serde(default)]
+    pub enc_key_register: Option<PathBuf>,
 }
 
 fn default_poll_ms() -> u64 {
@@ -160,6 +165,12 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     // SI-27: hash the running binary in the background; status says "verifying" until it lands.
     crate::tools::start_binary_hash();
     let identity = load_identity(cfg, production)?;
+    // B-11 (AL-25): in production the register must be root-owned; a test estate's register is owned by its user.
+    // SAFETY: geteuid has no preconditions.
+    let reg_owner = if production { 0 } else { unsafe { libc::geteuid() } };
+    let enc_key = crate::enckey::startup(store.dir(), cfg.enc_key_register.as_deref(), production, reg_owner)?;
+    crate::enckey::record_status(store.dir(), &crate::enckey::status_view(enc_key.as_ref()))
+        .map_err(|e| format!("encryption key status: {e}"))?;
     if production && cfg.book.is_empty() {
         return Err("production needs an address book (book.peers) naming this project's agents".into());
     }

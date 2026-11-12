@@ -52,6 +52,7 @@ fn start(e: &Estate, env: &[(&str, &str)]) -> (Proc, PathBuf) {
         key_register: None,
         book: Default::default(),
         main_project: None,
+        enc_key_register: None,
     };
     let path = e.root().join("sidecar-a.json");
     std::fs::write(&path, serde_json::to_string(&cfg).unwrap()).unwrap();
