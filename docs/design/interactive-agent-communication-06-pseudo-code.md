@@ -1,7 +1,9 @@
 # Interactive agent communication: step 6, pseudo-code
 
 **Task:** T-3355 · **Arc:** arc-011 · **Chain:** arc-011-design, step 6 · **Role:** pseudo-coder
-**Status:** DRAFT v0.2, batch mode (no human present, `_common.md` 5.2). This step does not decide (`decides: false`);
+**Status:** v0.3 (2026-11-12): the step 7 change requests CR-6.1..CR-6.42 (06 part) and the operator's ruling D on
+F-20 folded in after the operator approved step 7 (T-3356; T-3689); marked "(changed in v0.3 by CR-6.n)" in the
+text and `# CR-6.n` in the pseudo-code. Below, the v0.2 status as it stood: DRAFT v0.2, batch mode (no human present, `_common.md` 5.2). This step does not decide (`decides: false`);
 it iterates with step 5 (evidence specialist). Nothing here is approved. Values that are not ruled numbers are tagged
 **[P]**; ruled numbers carry their source; **[B]** marks logic written as built (read from the code at `24d15fba3`).
 **Standing rules applied throughout (CLAUDE.md):** nothing working is switched off as a side effect (**NID**);
@@ -25,6 +27,7 @@ the reviewers read the files in the repository.
 | Version | Date | Change | Task |
 |---|---|---|---|
 | 0.1 | 2026-11-11 | First complete draft, batch mode. 53 algorithms AL-1..AL-53 in the card's form 4.a..4.h across three files; answers to step 5's questions 14.3 (a)..(i); FAILS CLOSED WHEN register FCW-1..FCW-190 with the AFC each refines and its spec or a change request; drawings D-1 (state machines) and D-2 (interaction sequences); canonicalisation test vectors; residual risks QR-n; change requests ZR-n. | T-3355 |
+| 0.3 | 2026-11-12 | Step 7 change requests folded (07-review 6.6, approved 2026-11-12, T-3356), in this file: CR-6.1 typing re-check for both `via` values (AL-6, AL-8 inv. 1); CR-6.2 READY and foreground re-read after the veto (AL-6); CR-6.3 S2 only on turn events and READY changes (AL-1, AL-3); CR-6.4 receiver-checked origin and the claim carries it (AL-1, AL-11); CR-6.5 provisional take only for interactive sessions (AL-11); CR-6.6 origin reporting per harness by operator act (AL-11); CR-6.7 STALLED (AL-7, AL-8); CR-6.8 watchdog typed from every state (AL-7); CR-6.9 stale-checks before the intent (AL-6); CR-6.10..CR-6.14 forward-once (AL-14, AL-15); CR-6.15 `store.lock` not re-entrant (3.2.a); CR-6.18 non-main withhold is role mail only (AL-12, AL-9); CR-6.19 harness identity (AL-1, AL-2, AL-5, AL-6); CR-6.20 tick budget (AL-3, AL-8); CR-6.21 hub receive stamp for `last_human_at` (AL-11, AL-13); CR-6.22 Touch signer (AL-11); CR-6.23 `last_prompt` persisted, QR-2 closed (AL-1, AL-4); CR-6.24 READY ordering and the turn end (AL-1, AL-4); CR-6.25 S2 unknown on a failed `lstat` (AL-3); CR-6.27 one watchdog fire per agent per tick (AL-8); CR-6.28, CR-6.29 waiting-mail OOB outcome and re-raise (AL-13); CR-6.30 inner topic is the poster's inbox (AL-15); CR-6.34 `VENDOR_TOOLS` (AL-1); CR-6.35 `offerable` (AL-9); CR-6.37 ZR-1 count 46 (9.1); CR-6.38 attempt bound (AL-9); CR-6.39 one nonce per pull (AL-9); CR-6.40 failed re-check refuses (AL-9); CR-6.41 terminal replies (AL-2); ruling D: interim `ps` veto on macOS (AL-6, AL-8, QR-5). 06a and 06b carry their own rows. New FCW-195..FCW-210; register regenerated. Drawings D-1.2, D-1.3, D-1.7 changed. | T-3689 |
 | 0.2 | 2026-11-11 | Remediation of independent review r1 (amber, F-1..F-6), nothing else changed: F-1 06b AL-43 consume is one conditional step at the hub under event.lock (compare-and-set APPROVED → CONSUMED with the consumed-set insert in one transaction), AL-42 lock rule for cancel, revoke and the expiry sweeper, FCW-191; F-2 06b AL-46 check and use are one reserve at the hub under grant.lock (counter insert with a limit), revoke or expiry between check and use, FCW-192, FCW-193; F-3 06b AL-44 recover() follows the crash table (no-dispatch-row case, `already_done` before the post-condition, at most one re-apply), FCW-194; F-4 concurrency item or explicit single writer for every state-changing algorithm, 10.3 rewritten; F-5 AL-35 and AL-36 drawn (06a D-1.14, D-1.15), 7.0 and 7.0.1 corrected; F-6 the SI-1 line of 5.6.c.1 is 150 bytes (measured). Register now FCW-1..FCW-194; ZR-1 (f) added; render check 11.4. | T-3355 |
 
 ## 1 Inputs of record
@@ -107,7 +110,9 @@ tick thread evaluates every per-tick routine once per tick; the 500 ms loop keep
 may trust (the READY flag for the doorbell, AL-1) carry it.
 
 3.2 **Primitives** (each built unless marked Δ).
-3.2.a `store.lock` the per-agent store lock (SI-16) **[B]**; `store.chain_append(line)` appends a hash-chained line
+3.2.a `store.lock` the per-agent store lock (SI-16) **[B]**; (changed in v0.3 by CR-6.15) it is **not re-entrant** and
+is **never held across an RPC**, a network read or a blob fetch: a routine that needs one takes it, releases it, and
+takes it again for the next local step; `store.chain_append(line)` appends a hash-chained line
 under the lock and fsyncs it **[B]**; `atomic_write(path, bytes)` = write temp, fsync, rename, fsync directory **[B]**.
 3.2.b `attention(kind, why, coalesce_key)` writes a needs-attention entry; with a `coalesce_key` at most one entry
 per key per coalescing period (stated where used) **[B]** (kinds and R-37T A′ rules as built).
@@ -261,6 +266,7 @@ on_report(raw, peer):                                   # one JSON object per co
                           session_end, evidence, complete}
     require obj.agent_id == MY_AGENT; obj.session_id matches ^[A-Za-z0-9._:-]{1,128}$; obj.at_ms integer >= 0
     any failure -> count("unparseable", reason); keep last 16 reasons; return               # FCW-2
+    ord = (obj.boot_id, obj.mono_ns) if both present and valid else ("rx", rx.mono)  # CR-6.24 (ARC4 17.2.a): never at_ms
  5  rx = (mono(), wall(), boot_id, sidecar_epoch)
  6  sess = sessions.get(obj.session_id)
     if none: if count(live sessions of MY_AGENT) >= 64: attention("session-table-full", coalesce=hour); return  # FCW-7
@@ -269,50 +275,67 @@ on_report(raw, peer):                                   # one JSON object per co
       case obj.event:
        ready:
          require obj.state in {READY, BUSY, NOT_RUNNING} else count unparseable; return
-         if obj.at_ms < sess.ready.at_ms: count("ready-reordered"); goto 8                  # FCW-3
-         if obj.at_ms == sess.ready.at_ms and sess.ready.state == BUSY and obj.state != BUSY: goto 8   # tie keeps BUSY
-         sess.ready = {state: obj.state, at_ms: obj.at_ms, rx, seq: sess.ready.seq + 1}
+         if older(ord, sess.ready.ord): count("ready-reordered"); goto 8                  # FCW-3; CR-6.24
+         if ord == sess.ready.ord and sess.ready.state == BUSY and obj.state != BUSY: goto 8   # tie keeps BUSY
+         changed = (obj.state != sess.ready.state)                                         # CR-6.3
+         sess.ready = {state: obj.state, at_ms: obj.at_ms, ord, rx, seq: sess.ready.seq + 1}
          persist sess.ready (atomic_write)          # read back by the built R-44.e notice logic [B]
+         if changed: sess.s2_at = sess.s2_report_at = rx.mono   # CR-6.3: a repeated ready, same state, is not activity
        session_start:
          sess.interactive = obj.interactive (bool, required)
+         sess.harness_pid = obj.harness_pid (integer, required)                          # CR-6.19 (ARC4 17.4.a)
+         sess.harness = registry_entry(proc_identity(obj.harness_pid))   # (exe_realpath, script_path); none -> FCW-24
+         sess.harness_pgid = pgid(obj.harness_pid)
          sess.transcript = validate_transcript_path(obj.transcript_path)  # absent, or regular file, no symlink,
                                                     # under the harness's project directory; else none + count  (FCW-8)
        prompt_submit:
          (origin, basis) = check_origin(sess, obj)                        # below
-         sess.last_prompt = {origin, basis, rx, doorbell_ids: valid_ids(obj.doorbell_ids)}
+         sess.last_prompt = {origin, basis, at_ms: obj.at_ms, ord, rx, doorbell_ids: valid_ids(obj.doorbell_ids)}  # CR-6.24
+         persist sess.last_prompt with sess.ready (atomic_write)          # CR-6.23: survives a sidecar restart
+         reply_extra = {origin_checked: origin}                           # CR-6.4: the hook claims with this (AL-11)
          ring_log.on_submit(sess, sess.last_prompt)                       # AL-7
        tool_start, tool_end: sess.tool = {name: obj.tool (<= 128 bytes), rx}
                               if obj.event == tool_start and obj.tool in VENDOR_TOOLS: vendor_log(sess, obj.tool)  # AL-39
+                              # CR-6.34: VENDOR_TOOLS is exactly AL-39's matcher set (06a), one list
        turn_stop:   sess.turn_stopped = rx
        session_end: sess.ready = {state: NOT_RUNNING, at_ms: obj.at_ms, rx, seq: +1}; persist
        evidence:    deliver.evidence(obj.nonce, obj.record_ref, sess)     # AL-9; never sets READY or origin
        complete:    deliver.complete(obj.turn_boundary | obj.exited, sess) # AL-9
-      sess.s2_at = rx.mono                                                # S2 (a), every valid event
- 8  reply {ok: true}
+      if obj.event in {prompt_submit, tool_start, tool_end, turn_stop, session_start, session_end}:
+          sess.s2_at = sess.s2_report_at = rx.mono                        # S2 (a): turn events only (CR-6.3);
+                                                                          # ready only on a state change (above);
+                                                                          # evidence and complete never
+ 8  reply {ok: true} + reply_extra
 
-check_origin(sess, obj):
+check_origin(sess, obj):                                   # CR-6.4 (ARC4 17.5.e): every human claim of a PTY session
  1  o = obj.origin; b = obj.basis
     valid = {human: {pty-input, inferred}, automated: {doorbell, non-interactive, harness-mark, pty-input},
              unknown: {absent}}
     if o not in valid or b not in valid[o]: count("origin-inconsistent"); return (unknown, absent)   # FCW-4
- 2  if o == human and ring_log.typed_within(sess, TICK) and obj.doorbell_ids intersects ring_log.ids(sess, TICK):
-       count("origin-overridden"); return (automated, doorbell)                          # FCW-5
- 3  if o == human and b == pty-input:
-       src = pty_last_source_before(sess, rx.mono)          # AL-2 counters
+ 2  if o == human and ring_log.typed_within(sess, TICK)
+       and (obj.doorbell_ids intersects ring_log.ids(sess, TICK)
+            or no client byte since the last line the receiver typed (AL-2; client_auto not counted)):
+       count("origin-overridden"); return (automated, doorbell)                          # FCW-5; doorbell_ids not needed
+ 3  if o == human and sess.pty_launched:                    # basis pty-input AND inferred (CR-6.4)
+       src = pty_last_source_before(sess, rx.mono)          # AL-2 counters; client_auto is ignored, never a source
        if src in {notify, inject}: count("origin-overridden"); return (automated, pty-input)    # FCW-5
+       if no client byte since the previous submit of sess: count("origin-overridden"); return (automated, pty-input)  # FCW-195
        if src == unknown: return (human, inferred)          # the receiver cannot confirm pty-input
  4  return (o, b)
 ```
 5.1.d **INVARIANTS:** (1) a report never makes a session READY, human or handed-over unless it parses, names this
 agent and arrives on the owner-only socket; (2) per session the applied READY records have non-decreasing `at_ms` and a
 strictly increasing `seq`; (3) the receiver never upgrades an origin (unknown never becomes human; automated never
-becomes human); it only downgrades; (4) S2 moves only on valid reports.
+becomes human); it only downgrades; (4) S2 moves only on valid reports, and among them only on turn events and on a
+READY state change (changed in v0.3 by CR-6.3); a repeated `ready` with the same state, `evidence` and `complete`
+never move it.
 5.1.e **FAILS CLOSED WHEN:**
 5.1.e.1 **FCW-1** [new; E-96] the reporting peer is not the socket's owner → the connection is closed, nothing is read.
 5.1.e.2 **FCW-2** [AFC-14; E-16, E-84] the report is larger than 64 KiB, not strict JSON, not schema
 `termlink.adapter/2` exactly, has an unknown event, a wrong type, or another agent's id → ignored and counted; it never
 reads as READY, human or evidence.
-5.1.e.3 **FCW-3** [new; ZR-1] a `ready` report carries an `at_ms` older than the applied one → dropped and counted; a
+5.1.e.3 **FCW-3** [new; ZR-1] a `ready` report is older than the applied one (changed in v0.3 by CR-6.24: ordered by
+`(boot_id, mono_ns)`, or by the receive stamp when the adapter sends neither, never by `at_ms`) → dropped and counted; a
 tie between BUSY and READY keeps BUSY.
 5.1.e.4 **FCW-4** [AFC-15; E-16, ZR-1] origin and basis do not match the contract's table → the prompt is recorded as
 `unknown` (not human for the lease, human for the conversation signal).
@@ -325,15 +348,20 @@ another boot → absent for the doorbell gate (AL-5) until the next report.
 is refused with a coalesced needs-attention entry.
 5.1.e.8 **FCW-8** [new; ZR-1] the transcript path is absent, a symlink, not a regular file or outside the harness's
 project directory → S2 (b) is not used for that session (turn events only).
+5.1.e.9 **FCW-195** [AFC-16; E-153] (changed in v0.3 by CR-6.4) a prompt reported `human` from a session under a
+TermLink PTY, with any basis, has no client byte (`client_auto` excluded) since the previous submit, or follows a
+line the receiver typed with no client byte after it → recorded `automated`, and the hook's lease claim carries
+`automated`.
 5.1.f **EDGE CASES:**
 5.1.f.1 Forged: another local user cannot reach the socket (SI-14); a same-user process can (RR-2, BP-5) and can
 forge READY or `human`; the doorbell's re-checks (AL-6) and the PTY-counter override are the remaining defence; the
 residue is RR-7 and AR-6.
 5.1.f.2 Replayed: a replayed old `ready` report is dropped by `at_ms`; a replayed `evidence` report is harmless (AL-9
 writes HANDED_OVER once per attempt and checks the nonce against the transcript itself).
-5.1.f.3 Clock: `at_ms` comes from the same host (adapter and receiver share it); a wall step on the host can reorder two
-reports across the step; the tie and older-than rules then keep the earlier state, and the next report repairs it.
-Ages use `rx.mono` only (4.3).
+5.1.f.3 Clock: (changed in v0.3 by CR-6.24) reports are ordered by `(boot_id, mono_ns)` from the adapter (ARC4
+17.2.a), which a wall-clock step does not move; an adapter that sends neither is ordered by the receive stamp. A new
+`boot_id` orders after every report of the previous boot. `at_ms` is kept for display only. Ages use `rx.mono` only
+(4.3).
 5.1.f.4 Concurrency: two hook processes report at once (Stop and UserPromptSubmit in quick succession); `sess.lock`
 serialises them; the `at_ms` rule makes the result independent of arrival order.
 5.1.f.5 Crash table:
@@ -366,14 +394,25 @@ session side, every write w to the PTY master input:
           notify   if w came from command.notify                           (AL-6)
           inject   if w came from command.inject, pty inject, interact or batch input
           client   otherwise                         # cannot classify -> counts as typing (FCW-10)
- 2  if src == client and w is one complete terminal reply (cursor-position report ESC[<r>;<c>R, focus ESC[I / ESC[O,
-       device-attribute reply ESC[?...c): src = client_auto      # the terminal answering, not a person
+ 2  if src == client: split w into terminal replies and the rest      # CR-6.41: coalesced replies are split
+       replies recognised (TERMINAL_REPLIES): cursor-position ESC[<r>;<c>R, focus ESC[I / ESC[O, device attributes
+         ESC[?...c and ESC[>...c, OSC colour and palette replies ESC]4;..|ESC]10;..|ESC]11;..|ESC]12;.. ending BEL or
+         ESC\, mode reports ESC[?..$y, window and cell size reports ESC[4;..t ESC[6;..t ESC[8;..t, keyboard-protocol
+         reply ESC[?..u, bracketed-paste guards alone (ESC[200~ESC[201~ with nothing between)
+       each recognised reply counts as client_auto; if nothing else remains, src = client_auto     # not a person
+       an ESC-introduced sequence that is neither a recognised reply nor a key sequence: counted as client (the safe
+         side) and as unrecognised_reply += 1, last_unrecognised_mono = mono()            # CR-6.41 measure
  3  ctr[src].bytes += len(w); ctr[src].last_mono = mono(); ctr[src].writes += 1
 
 RPC session.input_activity (scope: notify or above):              # FCW-9: observe scope refused
  reply {boot_id, mono_now: mono(),
         sources: {client, client_auto, notify, inject}: {last_mono | null, bytes, writes},
-        foreground: {pgid, leader_pid, exe_realpath | null, comm}}     # tcgetpgrp on the PTY master
+        unrecognised_reply: {count, last_mono | null},                             # CR-6.41
+        launched: {pid, exe_realpath, script_path | null, launched_mono},          # CR-6.19: what the session started
+        foreground: {pgid, leader_pid, exe_realpath | null, script_path | null, comm}}   # tcgetpgrp on the PTY master
+ # CR-6.19 identity: exe_realpath from /proc/<pid>/exe (macOS proc_pidpath); script_path = resolved first
+ # non-option argument when exe is a registered interpreter (/proc/<pid>/cmdline; macOS KERN_PROCARGS2), else null.
+ # A foreground leader_pid that differs from the last one seen is a new harness instance (ARC4 17.4.a).
 ```
 5.2.d **INVARIANTS:** (1) a `command.notify` write is never counted as `client`; (2) every byte written to the PTY input
 is counted under exactly one source; (3) the counters only grow.
@@ -384,7 +423,9 @@ is counted under exactly one source; (3) the counters only grow.
 unknown (AL-3).
 5.2.f **EDGE CASES:** (1) a person pasting: one large client write, counted as typing (correct); (2) a terminal that
 sends periodic focus events counts as `client_auto`, never holds the doorbell; anything else unrecognised holds it
-(the safe side); (3) concurrency: writes are serialised by the PTY writer; counter updates are atomic per write;
+(the safe side); (changed in v0.3 by CR-6.41) the list of recognised replies is wider and coalesced replies are split,
+and every ring held by `typing` whose last client write was an unrecognised reply is counted (`held_by_unrecognised`,
+OBS-4), so the list can be extended from evidence; (3) concurrency: writes are serialised by the PTY writer; counter updates are atomic per write;
 (4) crash of the session: the session ends, the harness is gone, the foreground check (AL-6) fails; counters are in
 memory and need no recovery.
 5.2.g **EXECUTION SEMANTICS:** read-only for the caller; the counters describe writes that already happened.
@@ -399,13 +440,24 @@ silent. **APPROACH:** three sources, each with its own time and a known/unknown 
 and the watchdog refuses to run when a source it needs is unknown.
 5.3.c **ALGORITHM:**
 ```text
-meter_tick(sess):                                   # once per tick, before AL-5 and AL-8
- 1  r = session_rpc(sess, session.input_activity, timeout 2 s)
-    if Err or r.boot_id != boot_id: sess.s1 = UNKNOWN(since = sess.s1.known_until or now)    # FCW-12
-    else: sess.s1 = KNOWN(at = r.sources.client.last_mono); sess.fg = r.foreground; sess.s1_read = mono()
- 2  if sess.transcript: st = lstat(sess.transcript)
-        if st ok and (st.size, st.mtime) != sess.tr_last: sess.tr_last = (st.size, st.mtime); sess.s2_at = mono()
- 3  sess.s2_known = (sess has had >= 1 valid report since boot) or (sess.transcript != none)    # FCW-13
+meter_all():                                        # CR-6.20: once per tick, before AL-5 and AL-8
+ 1  start the input-activity RPC of every session in parallel (at most 16 in flight), each with timeout 2 s
+ 2  wait until all answered or TICK_BUDGET = 5 s [P] has passed since the tick began
+ 3  for each sess: meter_tick(sess, reply or MISSING)   # a reply not in by the budget is MISSING this tick (FCW-196)
+
+meter_tick(sess, r):
+ 1  if r is MISSING or Err or r.boot_id != boot_id: sess.s1 = UNKNOWN(since = sess.s1.known_until or now)    # FCW-12
+    else: sess.s1 = KNOWN(at = r.sources.client.last_mono or r.launched.launched_mono)   # CR-6.25: no client input
+                                                         # yet counts from the launch, never "none"
+          sess.fg = r.foreground; sess.launched = r.launched; sess.s1_read = mono()
+          sess.pty_launched = (r.launched is present)                                         # CR-6.19
+ 2  sess.tr_ok = true
+    if sess.transcript: st = lstat(sess.transcript)
+        if st fails: sess.tr_ok = false                                                       # CR-6.25
+        elif (st.size, st.mtime) != sess.tr_last: sess.tr_last = (st.size, st.mtime); sess.s2_at = mono()
+ 3  report_fresh = sess.s2_report_at and mono() - sess.s2_report_at <= 300 s      # last S2 (a) event
+    sess.s2_known = (sess has had >= 1 valid report since boot or sess.transcript != none)
+                    and (sess.tr_ok or report_fresh)                                          # FCW-13, CR-6.25
  4  # S3 is written synchronously, not here: send API on each own send from sess, AL-9 on each HANDED_OVER to sess
  5  known = [s for s in (s1, s2, s3) if known]
     sess.last_activity = max(at of known); sess.last_source = argmax
@@ -414,17 +466,25 @@ meter_tick(sess):                                   # once per tick, before AL-5
 never counted (6.14.2): arrivals (STORED), receipts, notices, marked automatic content, keep-alive traffic,
                         notify and inject keystrokes, client_auto bytes                       # FCW-14
 ```
-5.3.d **INVARIANTS:** (1) `last_activity` moves only on S1 client input, a valid adapter report, transcript growth, an
-own send from the session, or a hand-over to it; (2) a source that is unknown is never read as "no activity".
+5.3.d **INVARIANTS:** (1) `last_activity` moves only on S1 client input, a turn event or a READY state change from a
+valid adapter report (changed in v0.3 by CR-6.3), transcript growth, an own send from the session, or a hand-over to
+it; (1a) (changed in v0.3 by CR-6.20) the meter of every session is done within TICK_BUDGET of the tick's start, so
+AL-5 and AL-8 run at most TICK_BUDGET late; (2) a source that is unknown is never read as "no activity".
 5.3.e **FAILS CLOSED WHEN:**
 5.3.e.1 **FCW-12** [AFC-13; E-15, ZR-1] the input-activity RPC fails, times out (2 s) or answers from another boot →
 S1 is unknown: no normal ring (AL-5) and no watchdog (AL-8) for that session.
-5.3.e.2 **FCW-13** [AFC-10; E-10] the session has no valid adapter report since boot and no transcript path → S2 is
-unknown: status `watchdog: unavailable`, no fire.
+5.3.e.2 **FCW-13** [AFC-10; E-10] the session has no valid adapter report since boot and no transcript path, or
+(changed in v0.3 by CR-6.25) its transcript cannot be read (`lstat` fails) and no S2 (a) event is fresh (within 300
+s) → S2 is unknown: status `watchdog: unavailable`, no fire.
 5.3.e.3 **FCW-14** [AFC-9; E-9, E-17] arrivals, receipts, notices, automatic content, keep-alives, `notify`, `inject`
 and `client_auto` input → never activity.
 5.3.e.4 **FCW-15** [AFC-27; E-19] a status `activity` field older than 2 ticks → reads `unknown`, never its last value.
-5.3.f **EDGE CASES:** (1) a transcript rotated or truncated: size changes, counts as S2 activity once (harmless, it
+5.3.e.5 **FCW-196** [AFC-13; E-154] (changed in v0.3 by CR-6.20) a session's input-activity reply is not in by the
+tick budget (5 s from the start of the tick) → S1 is unknown for that session this tick (no ring, no watchdog), and
+the other sessions are decided on time.
+5.3.f **EDGE CASES:** (0) (changed in v0.3 by CR-6.20) 64 sessions with slow sessions: at most 16 RPCs in flight, each
+2 s, so all 64 answer within 8 s in the worst case; with the 5 s budget the slowest are MISSING this tick and read
+again next tick; (1) a transcript rotated or truncated: size changes, counts as S2 activity once (harmless, it
 delays a fire by at most 300 s); (2) the mtime is wall-clock but only compared for change, never subtracted; (3) a
 session whose PTY ended: RPC fails, S1 unknown, no typing at all; (4) concurrency: S3 writes come from the send API and
 AL-9 under `sess.lock`; the tick reads under the same lock; (5) crash: the meter is in memory; after a sidecar restart
@@ -447,7 +507,8 @@ prompt origin and the owed-answer ledger, never from READY.
 conversation(sess, now):
  1  p = sess.last_prompt
     if p and p.origin in {human, unknown, absent}:                     # FCW-16: unknown fails toward "a person"
-        stopped = the first turn_stop or READY report of sess with at_ms > p.at_ms, else none
+        stopped = the first turn_stop, or ready report with state READY, of sess ordered after p.ord, else none
+                                                            # CR-6.24: p carries at_ms and ord (AL-1)
         end = (stopped.rx.mono if stopped else max(p.rx.mono, last S2 event of sess after p)) + 120 s  # FCW-17
         if sess.s1 is KNOWN and sess.s1.at > p.rx.mono: end = max(end, sess.s1.at + 120 s)
         if now <= end: return operator
@@ -474,9 +535,10 @@ after the prompt, not 120 s after the prompt.
 prove"); (2) many short conversations: `agent(C)` holds only other conversations' mail; with 20 parallel owed
 conversations everything outside C still rings; (3) the stage memory ages out after 14 days (SI-4): an owed answer
 older than that is ended by its deadline long before; (4) concurrency: computed under `sess.lock` from records that are
-themselves written under it; (5) crash: recomputed from durable records (stage chain) and in-memory reports; after a
-restart `last_prompt` is lost, so a person mid-conversation is protected only by the typing veto (30 s) until their
-next prompt; QR-2 records this.
+themselves written under it; (5) crash: recomputed from durable records (stage chain) and in-memory reports;
+(changed in v0.3 by CR-6.23) `last_prompt` is persisted with `sess.ready` (AL-1), so after a sidecar restart on the
+same boot it is read back and a person mid-conversation stays protected; on a new boot the session itself has
+restarted. QR-2 is closed.
 5.4.g **EXECUTION SEMANTICS:** pure function of recorded facts; no effect.
 5.4.h **CRYPTOGRAPHY:** none.
 **OBS:** OBS-7 `conversation` in status `activity` and in every ring decision record.
@@ -498,10 +560,12 @@ ring_tick():                                                       # once per ti
 decide(sess):
  1  P = [m for m in store.pending(MY_AGENT)
          if m.stage == STORED and no HANDED_OVER and no open claim (AL-9) and not held (gap wait AL-36, OQ-2 held,
-            drained) and not forward_intent (AL-14) and lease.would_hand_over(m, sess) (AL-12)]       # FCW-19
+            drained) and not forward_intent (AL-14) and lease.would_hand_over(m, sess) (AL-12)
+            and m.attempts < MAX_ATTEMPTS (AL-9, CR-6.38)]                                           # FCW-19
  2  P = [m in P if now - m.stored_mono >= TICK and now - m.last_pull_mono >= TICK]                   # FCW-20
  3  if P empty: return hold("nothing")
- 4  if not sess.pty_launched or sess.harness_exe is none: return hold("not-a-termlink-pty")          # FCW-24
+ 4  if not sess.pty_launched or sess.harness is none: return hold("not-a-termlink-pty")              # FCW-24
+                                    # CR-6.19: sess.harness from session_start (AL-1), pty_launched from AL-2/AL-3
  5  r = sess.ready
     if r.state != READY or r.sidecar_epoch != sidecar_epoch or now - r.rx.mono > 24 h:
         return hold("not-ready")                                                                     # FCW-21
@@ -527,7 +591,9 @@ older than 24 h → no ring.
 5.5.e.4 **FCW-22** [AFC-1, AFC-13; E-1, E-15] client input in the last 30 s, or S1 unknown → no ring.
 5.5.e.5 **FCW-23** [AFC-1; E-1, E-18] conversation `operator` or `unknown` → no ring; `agent(C)` → only mail of C.
 5.5.e.6 **FCW-24** [AFC-13; E-15] the session is not a TermLink PTY session started by the reachable launcher, or its
-harness executable is not registered → no ring (and no watchdog, AL-8).
+harness executable is not registered → no ring (and no watchdog, AL-8). (changed in v0.3 by CR-6.19) "Registered"
+means: the session reported `session_start` with a `harness_pid`, and that process's `(exe_realpath, script_path)` is a
+registry entry (ARC4 17.4.a); a harness restarted inside the PTY is unregistered until its own `session_start`.
 5.5.e.7 **FCW-25** [AFC-5; E-5] the schedule (AL-7) does not allow a ring yet, or a typed line is unsubmitted → no ring.
 5.5.e.8 **FCW-26** [new; ZR-1] more than one session of the agent could be rung → only one is.
 5.5.f **EDGE CASES:** (1) a message arriving for a session that is withheld by the lease (another session of this agent
@@ -558,24 +624,36 @@ type_ring(sess, ids, count, snap, via = doorbell, intent = none):   # via = watc
       if r.state != READY or r.seq != snap.ready_seq or r.sidecar_epoch != sidecar_epoch:
           return held("ready")                                                         # FCW-28
  3  fg = session_rpc(sess, session.input_activity, 2 s)
-    if Err or fg.foreground.exe_realpath not in sess.harness_exes or fg.foreground.leader_pid != sess.harness_pid:
-        return held("foreground")                                                      # FCW-29
- 4  v = activity.measure(sess.pty)                    # built process-tree veto, 1.5 s window [B]
+    if Err or not is_harness(sess, fg.foreground): return held("foreground")          # FCW-29
+       # is_harness (CR-6.19): leader_pid == sess.harness_pid and (exe_realpath, script_path) == sess.harness
+    if fg.client.last_mono and mono() - fg.client.last_mono < 30 s: return held("typing")   # FCW-31; CR-6.1, both via
+ 4  v = activity.measure(sess.harness_pid tree)       # built process-tree veto over /proc, 1.5 s window [B]
+    if v == Unmeasurable and host is macOS:                        # ruling D on F-20 (ARC4 6.9.7.f), built with B-16
+        v = activity.measure_ps(sess.harness_pid tree)   # Δ interim: `ps` twice, 1.5 s apart: Active("child") if the
+                     # tree has a running child process (state R or D, or any child not the harness's own idle
+                     # helpers in the registry entry); Active("cpu") if the tree's CPU time grew by >= 30 ms [P]
+                     # over the window (2 % of one core); else Quiet; ps unusable -> Unmeasurable
+        status.watchdog[sess] = "degraded (macOS, ps veto)"
     if v == Active(sig): return held("veto:" + sig)                                    # FCW-30
     if v == Unmeasurable and via == watchdog: return held("veto-unmeasurable")         # FCW-41 (AL-8)
     # via == doorbell and Unmeasurable: no veto, readiness decides (OQ-16 D 3, ruled) [B]
- 5  if via == doorbell:
-      s1 = session_rpc(sess, session.input_activity, 2 s)       # re-read after the veto window
-      if Err or (s1.client.last_mono and mono() - s1.client.last_mono < 30 s): return held("typing")   # FCW-31
+ 5  # after the veto window, immediately before the keystrokes (CR-6.1, CR-6.2):
+    s1 = session_rpc(sess, session.input_activity, 2 s)          # re-read, both via values
+    if Err or not is_harness(sess, s1.foreground): return held("foreground")           # FCW-29, CR-6.2
+    if s1.client.last_mono and mono() - s1.client.last_mono < 30 s: return held("typing")   # FCW-31, CR-6.1
+    if via == doorbell:
+      r = reread(sess.ready)                                                           # CR-6.2: after the veto
+      if r.state != READY or r.seq != snap.ready_seq or r.sidecar_epoch != sidecar_epoch: return held("ready")  # FCW-28
       if conversation(sess, mono()) not compatible with snap.conversation and ids: return held("conversation")  # FCW-32
  6  line = compose(ids, count)                        # Err -> refuse; flag every id that failed     (FCW-33)
- 7  t_last = mono()                               # end of the last re-check
+ 7  if mono() - t0 > TICK: return held("stale-checks")                # CR-6.9: tested BEFORE the intent (FCW-28)
+ 8  t_last = mono()                               # end of the last re-check (step 5's re-reads are the last)
     rec = intent or ring_log record; rec += {ring_id: new_id(), sess, ids, count, via, checks: [1..5 results],
-                                           t_last_check: t_last}
+                                           t_first_check: t0, t_last_check: t_last}           # CR-6.2: both logged
     if Err(durable append of rec (ring log; for via = watchdog the admin chain)): return held("intent-unrecorded")  # FCW-35, FCW-42
- 8  if mono() - t0 > TICK: return held("stale-checks")                                # checks began over 1 tick ago (FCW-28)
  9  res = session_rpc(sess, command.notify, {ids, count}, timeout 5 s)
-10  ring_log.append_outcome(ring_id, typed | failed(<error>) | unknown(timeout), check_to_keystroke_ms = mono() - t_last)
+10  ring_log.append_outcome(ring_id, typed | failed(<error>) | unknown(timeout), check_to_keystroke_ms = mono() - t_last,
+                         first_check_to_keystroke_ms = mono() - t0)                                       # CR-6.2
 11  if res is typed or unknown:                                                         # FCW-36: unknown = maybe typed
         for m in ids: hub.stage(m, ATTEMPTED, {via, ring_id}); store.chain_append(ATTEMPTED m via ring_id)
         schedule.on_typed(sess, ring_id, ids, via)                                      # AL-7
@@ -600,15 +678,21 @@ id, five ids, two equal ids, `count = 1` with two ids, `count = "5"` (a string),
 its first word `sidecar:` is not an installed command (E-125).
 5.6.d **INVARIANTS:** (1) no byte of a message other than its validated id reaches the line; (2) every keystroke has an
 intent record written before it; (3) a typed line never produces HANDED_OVER (only AL-9 does); (4) the interval from
-the last re-check to the keystrokes is recorded for every ring (H-11 (a)).
+the last re-check to the keystrokes is recorded for every ring (H-11 (a)), and (changed in v0.3 by CR-6.2) the interval
+from the first check too; (5) (changed in v0.3 by CR-6.1) no line, doorbell or watchdog, is typed when a client wrote
+to the session in the 30 s before the re-read made after the veto window; (6) (changed in v0.3 by CR-6.9) a held
+ring writes no intent.
 5.6.e **FAILS CLOSED WHEN:**
 5.6.e.1 **FCW-27** [AFC-12; E-2, E-12] delivery is switched off → nothing typed.
-5.6.e.2 **FCW-28** [AFC-2; E-2, ZR-1] the READY record re-read is not READY, has another `seq` or `sidecar_epoch`, or
-the checks were made more than 1 tick before the keystrokes → nothing typed.
-5.6.e.3 **FCW-29** [AFC-2; E-2, E-8] the foreground process is not the registered harness, or cannot be read → nothing
-typed.
-5.6.e.4 **FCW-30** [AFC-2; E-2] the process-tree veto reports activity → nothing typed.
-5.6.e.5 **FCW-31** [AFC-2; E-2] the re-read shows client input in the last 30 s, or the re-read fails → nothing typed.
+5.6.e.2 **FCW-28** [AFC-2; E-2, ZR-1] the READY record re-read (changed in v0.3 by CR-6.2: after the veto window) is
+not READY, has another `seq` or `sidecar_epoch`, or the checks began more than 1 tick before the intent would be
+written (changed in v0.3 by CR-6.9: tested before the intent, so a held ring leaves no intent) → nothing typed.
+5.6.e.3 **FCW-29** [AFC-2; E-2, E-8] the foreground process is not the registered harness, or cannot be read, before
+the veto or (changed in v0.3 by CR-6.2) at the re-read after it → nothing typed.
+5.6.e.4 **FCW-30** [AFC-2; E-2] the process-tree veto reports activity (on macOS, changed in v0.3 by ruling D: the
+interim `ps` veto reports a running child or CPU growth) → nothing typed.
+5.6.e.5 **FCW-31** [AFC-2; E-2, E-7] the step 3 reply or the re-read after the veto shows client input in the last
+30 s, or the re-read fails → nothing typed (changed in v0.3 by CR-6.1: for `via = watchdog` too, ARC4 6.9.7.b).
 5.6.e.6 **FCW-32** [AFC-2; E-2] the conversation signal changed to `operator`, `unknown`, or `agent` of another
 conversation → nothing typed.
 5.6.e.7 **FCW-33** [AFC-3; E-3] an id is not 32 lowercase hex, more than 4 ids, duplicate ids, or a count that is not
@@ -622,7 +706,8 @@ schedule (no re-ring until a submit or the watchdog) and never as handed over.
 5.6.f.1 Forged ids: a peer chooses its message id; ids are validated at STORED (AL-23) and again here and at the
 session; an id that fails is never typed. Altered: the line has no peer text to alter.
 5.6.f.2 Race (RR-19, AR-2): a turn that starts after step 5 and before step 9 receives the line in a busy prompt; the
-race is narrowed (each check re-read, the interval logged), not closed; E-14 is its limit probe.
+race is narrowed (each check re-read after the veto window, changed in v0.3 by CR-6.2; the interval from the first and
+from the last check logged), not closed; E-14 is its limit probe.
 5.6.f.3 Concurrency: AL-8 and AL-6 for the same session are serialised by `sess.ring_lock` (one typed line per session
 at a time); the hook pull may hand the mail over during the checks; the line then names handed-over ids and the
 resulting pull is a stray ring (AL-9).
@@ -630,8 +715,8 @@ resulting pull is a stray ring (AL-9).
 
 | Crash between | State after restart | Recovery |
 |---|---|---|
-| 1..6 and 7 | nothing recorded | none; the next tick decides again |
-| 7 and 9 (intent, no keystrokes) | intent without outcome | treated as `unknown` (typed, unsubmitted) by AL-7 (FCW-37); at worst one ring is skipped until the watchdog interval |
+| 1..7 and 8 | nothing recorded | none; the next tick decides again (changed in v0.3 by CR-6.9: a stale-checks hold is here, before any intent) |
+| 8 and 9 (intent, no keystrokes) | intent without outcome | treated as `unknown` (typed, unsubmitted) by AL-7 (FCW-37); at worst one ring is skipped until the watchdog interval |
 | 9 and 10 (keystrokes, no outcome) | intent without outcome | same; the H-11 (e) counter counts it if no submit follows |
 | 10 and 11 (outcome, no ATTEMPTED stage) | outcome recorded | on start, every intent with outcome `typed` or `unknown` and no ATTEMPTED line is completed (stage writes are idempotent) |
 
@@ -652,18 +737,20 @@ in the input must not be typed over. **APPROACH:** a per-session state machine w
 
 | State | Event | Guard | Next | Action |
 |---|---|---|---|---|
-| IDLE | typed (AL-6) | — | AWAIT_SUBMIT | `k = 0`, `T0 = tick`, `last = tick`, `pending_ring = ring_id` |
-| BACKOFF | typed | — | AWAIT_SUBMIT | `k = k + 1`, `last = tick`, `pending_ring = ring_id` |
+| IDLE | typed (AL-6, `via = doorbell`) | — | AWAIT_SUBMIT | `k = 0`, `T0 = tick`, `last = tick`, `pending_ring = ring_id` |
+| BACKOFF | typed (`via = doorbell`) | — | AWAIT_SUBMIT | `k = k + 1`, `last = tick`, `pending_ring = ring_id` |
+| any but STALLED | watchdog typed (AL-8) (changed in v0.3 by CR-6.8: from every state) | — | AWAIT_SUBMIT | `pending_ring = ring_id`, `last = tick`; k unchanged; from IDLE also `k = 0`, `T0 = tick` |
 | AWAIT_SUBMIT | prompt_submit (any origin) | within 1 tick of the ring | BACKOFF | `pending_ring = none`; if its `doorbell_ids` are all handed over or unknown: stray + 1 (H-11 (b)) |
-| AWAIT_SUBMIT | tick | more than 1 tick since the ring, no submit | UNSUBMITTED | H-11 (e) + 1 |
+| AWAIT_SUBMIT | tick | more than 1 tick since the ring, no submit, `pending_ring.via = doorbell` | UNSUBMITTED | H-11 (e) + 1 |
+| AWAIT_SUBMIT | tick | more than 1 tick since the ring, no submit, `pending_ring.via = watchdog` (changed in v0.3 by CR-6.7) | STALLED | H-11 (e) + 1; `attention("session-stalled", coalesce = episode)`; status `doorbell: stalled since T` |
 | UNSUBMITTED | prompt_submit (any origin) | — | BACKOFF | the input buffer was submitted, whatever it held |
-| UNSUBMITTED | watchdog typed (AL-8) | — | AWAIT_SUBMIT | `pending_ring = ring_id` (k unchanged) |
-| any | HANDED_OVER to sess, or pending set empty | — | IDLE | progress: `k = 0` |
+| STALLED | prompt_submit (any origin) | — | BACKOFF | the episode ends (CR-6.7) |
+| any but STALLED | HANDED_OVER to sess, or pending set empty | — | IDLE | progress: `k = 0` |
 | any | session_start or NOT_RUNNING | — | IDLE | a new session has a new input buffer |
 
 ```text
 may_ring(sess, now):                            # used by AL-5 step 8
- 1  if sess.ring_state in {AWAIT_SUBMIT, UNSUBMITTED}: return no("unsubmitted")                   # FCW-25
+ 1  if sess.ring_state in {AWAIT_SUBMIT, UNSUBMITTED, STALLED}: return no("unsubmitted")          # FCW-25
  2  if sess.ring_state == IDLE: return yes
  3  O(k) = 0 if k = 0;  4 if k = 1;  12 if k = 2;  12 + 20 (k - 2) if k >= 3     # ticks after T0 for ring k
     if tick(now) < T0 + O(k + 1): return no("backoff")                                              # FCW-25
@@ -675,11 +762,19 @@ on_start():                                     # after a sidecar restart
         set its session UNSUBMITTED (pending_ring = that ring)                                     # FCW-37
 ```
 5.7.d **INVARIANTS:** (1) normal ring `k` of an episode is no earlier than `T0 + O(k)`; (2) while a typed line has no
-submit, no normal ring; (3) at most one ring per session per tick; (4) progress resets the episode.
+submit, no normal ring; (3) at most one ring per session per tick; (4) progress resets the episode; (5) (changed in v0.3
+by CR-6.7) within one unsubmitted episode at most one watchdog line is typed: when it is not submitted either the
+session is STALLED and nothing more is typed until a submit or a session restart, so an unsubmitted episode holds at
+most two typed lines; (6) (changed in v0.3 by CR-6.8) a watchdog line is defined from every state and never moves
+`k`.
 5.7.e **FAILS CLOSED WHEN:**
 5.7.e.1 **FCW-25** (defined in AL-5) the schedule or an unsubmitted line forbids a ring.
 5.7.e.2 **FCW-37** [AFC-5; ZR-1] after a restart a ring intent has no outcome, or a typed line has no recorded submit →
-the session is UNSUBMITTED (no normal ring until a submit or the watchdog).
+the session is UNSUBMITTED (no normal ring until a submit or the watchdog), or STALLED when that line was the
+watchdog's (changed in v0.3 by CR-6.7).
+5.7.e.3 **FCW-197** [AFC-5; E-5, E-7] (changed in v0.3 by CR-6.7) a watchdog line was not followed by a submit within 1
+tick → STALLED: no typed line of any kind into the session until a submit or a session restart; one needs-attention
+entry per episode.
 5.7.f **EDGE CASES:** (1) a restored stale line (T-3591): a submit whose `doorbell_ids` are all handed over pulls
 nothing and counts as stray; it moves AWAIT_SUBMIT or UNSUBMITTED to BACKOFF, which is correct (the buffer was
 submitted); (2) a person types their own text on top of an unsent line and submits: one submit, state BACKOFF; the
@@ -705,14 +800,26 @@ watchdog_tick(sess):                                # its own loop, once per tic
     if P empty: sess.wd = QUIET; return
  2  if not sess.pty_launched or sess.s1 is UNKNOWN or not sess.s2_known:
         sess.wd = UNAVAILABLE(reason); status "watchdog: unavailable (<reason>)"; return        # FCW-39
+ 2a if sess.ring_state == STALLED: sess.wd = HELD("stalled"); row once per episode; return    # FCW-197, CR-6.7
  3  since = max(sess.last_activity, sess.last_typed_mono, sess.wd_last_fire)                    # FCW-38
     if mono() - since < 300 s: sess.wd = COUNTING; return                                        # V-18
+    return DUE(P)                                                   # CR-6.27: fired by watchdog_agent_tick, below
+
+watchdog_agent_tick():                                              # CR-6.27: once per tick per agent
+ 1  due = [sess of MY_AGENT with watchdog_tick(sess) == DUE]
+ 2  if len(due) > 1: keep the one with the largest last_activity; ties: lowest session id; others stay COUNTING
+                                                                                                     # FCW-198
+ 3  for the chosen sess with its P: fire(sess, P)
+
+fire(sess, P):
  4  row = {kind: "doorbell-watchdog", session, at: (mono, wall), silent_for_s, ready_flag: busy|ready|absent,
            ready_age_s, last_activity: {s1, s2, s3}, checks: [], outcome: pending, message_ids}
     res = type_ring(sess, first 4 ids of P by priority and age, len(P), snap = none, via = watchdog, intent = row)
-       # AL-6 runs steps 1 kill switch, 3 foreground, 4 veto (Unmeasurable holds), then 6..11; it does not check
-       # READY, typing or the conversation. Its step 7 writes `row` (checks filled) to the ADMIN CHAIN as the
-       # intent, before any keystroke (FCW-42); its step 10 appends the outcome typed | failed | unknown to that row.
+       # AL-6 runs steps 1 kill switch, 3 foreground and typing, 4 veto (Unmeasurable holds; on macOS the interim
+       # ps veto, ruling D), 5 the re-reads after the veto (foreground, typing), then 6..11; it does not check READY
+       # or the conversation (changed in v0.3 by CR-6.1: it does check typing, ARC4 6.9.7.b). Its step 8 writes `row`
+       # (checks filled) to the ADMIN CHAIN as the intent, before any keystroke (FCW-42); its step 10 appends the
+       # outcome typed | failed | unknown to that row.
  5  if res is held(check):
         if (sess, check) not already rowed in this silence episode: admin_row(row with outcome = held:<check>)  # FCW-40
         return
@@ -723,9 +830,12 @@ watchdog_tick(sess):                                # its own loop, once per tic
 5.8.c.1 Note on order: the audit row is part of AL-6's intent (step 7 of AL-6 writes the intent; for `via =
 watchdog` the intent record **is** the admin row, written to the admin chain before the keystrokes, and its outcome
 is appended after). So a fire without a row is impossible, and a row with outcome `unknown` means "may have typed".
-5.8.d **INVARIANTS:** (1) every fire is preceded by at least 300 s in which no S1, S2 or S3 event happened and no line
-was typed into the session; (2) if mail stays pending, the session stays silent and unvetoed, all sources are known and
-the switch is on, a fire happens within 300 s + 1 tick; (3) every fire and every hold kind has an admin row; (4) READY
+5.8.d **INVARIANTS:** (1) (changed in v0.3 by CR-6.1) every fire is preceded by at least 300 s, up to the tick's meter
+read, in which no S1, S2 or S3 event happened and no line was typed into the session, and by no client input in the
+30 s before the re-read made after the veto window, immediately before the keystrokes; (2) if mail stays pending, the
+session stays silent and unvetoed, all sources are known, the session is not STALLED, no other session of the agent is
+chosen in its place and the switch is on, a fire happens within 300 s + 1 tick + TICK_BUDGET (changed in v0.3 by
+CR-6.20); (2a) (changed in v0.3 by CR-6.27) at most one watchdog fire per agent per tick; (3) every fire and every hold kind has an admin row; (4) READY
 and the conversation signal are never inputs.
 5.8.e **FAILS CLOSED WHEN:**
 5.8.e.1 **FCW-38** [AFC-7, AFC-11; E-7, E-11] less than 300 s since the latest of: the last activity, the last line
@@ -734,10 +844,18 @@ typed into the session (doorbell or watchdog), the last fire → no fire.
 status says `watchdog: unavailable` with the reason.
 5.8.e.3 **FCW-40** [AFC-8; E-8] the switch is off, the foreground is not the harness, or the veto reports activity →
 held, with one audit row per hold kind per silence episode.
-5.8.e.4 **FCW-41** [AFC-8; ZR-1, ZR-4] the veto cannot measure (no `/proc`, no `ss`) → held (the watchdog never types
-blind; the normal ring keeps OQ-16 D 3).
+5.8.e.4 **FCW-41** [AFC-8; ZR-1, ZR-4] the veto cannot measure → held (the watchdog never types blind; the normal ring
+keeps OQ-16 D 3). (changed in v0.3 by ruling D on F-20 and CR-4.12) On macOS the interim `ps` veto measures instead
+(status `watchdog: degraded (macOS, ps veto)`), so this holds only where neither `/proc` nor `ps` can measure; then
+status says `watchdog: unavailable (veto unmeasurable)` and a needs-attention entry is raised once per session per day,
+not a routine row.
 5.8.e.5 **FCW-42** [new; ZR-1] the audit row cannot be written → nothing typed.
-5.8.f **EDGE CASES:** (1) a long, silent tool run with CPU, network or disk in the agent's tree: the veto holds (AR-5's
+5.8.e.6 **FCW-198** [new; E-7] (changed in v0.3 by CR-6.27) more than one session of the agent is due in the same tick
+→ only one fires (largest last activity, then lowest session id); the others are reconsidered next tick.
+5.8.f **EDGE CASES:** (0) (changed in v0.3 by ruling D on F-20) macOS: the interim `ps` veto sees a running child or CPU
+growth but not network or disk, so a job that waits only on network or disk with no child and no CPU is not seen and
+the line arrives as the next prompt (ARC4 AR-7); the full veto is T-3688 and replaces the interim one only once proven
+(NID); (1) a long, silent tool run with CPU, network or disk in the agent's tree: the veto holds (AR-5's
 case narrows to an idle wait); (2) an idle wait inside a turn (no CPU, no output): the watchdog types; the line waits in
 the harness's input as the next prompt (AR-5, ruled acceptable by O-2); (3) a normal ring that was not submitted
 restarts the silence count, so the watchdog never types over it within 300 s (ARC4 6.9.5 "after its full silence
@@ -748,7 +866,9 @@ the 300 s.
 Delivery stays strict: a fire is ATTEMPTED with `via: watchdog`; HANDED_OVER only from evidence (AL-9).
 5.8.h **CRYPTOGRAPHY:** none.
 **OBS:** OBS-12 the admin-chain rows `kind: doorbell-watchdog`; OBS-13 hub stage `via: watchdog`; OBS-14 the
-needs-attention entry `ready-busy-while-silent`; OBS-15 status `watchdog` per session.
+needs-attention entry `ready-busy-while-silent`; OBS-15 status `watchdog` per session (`available`, `degraded (macOS,
+ps veto)`, `unavailable (<reason>)`; changed in v0.3 by ruling D); OBS-15a the needs-attention entry `session-stalled`
+(CR-6.7).
 
 ### 5.9 AL-9 — Pull, claim, hand-over evidence and HANDOVER_UNCONFIRMED (K-18 path; ARC4 6.9.4, 17.6; as built plus Δ)
 
@@ -762,11 +882,16 @@ in a submitted prompt are matched for the stray count.
 ```text
 pull(sess, hook):                                            # [B] deliver.rs, from a hook (post-tool-use, Δ user-prompt-submit)
  1  if not delivery_on(): refuse "delivery-off"                                             # FCW-50 (AL-10)
- 2  if lease.withhold(MY_AGENT, sess): reply the one line, once per generation; hand out nothing    # FCW-48 [B]
+ 2  W = {m : lease.withhold(MY_AGENT, sess, m)}       # CR-6.18 (ARC4 7.1.a): role mail only; Δ the built pull
+    if W nonempty: reply the one line, once per generation                     # withholds all mail (T-3654) [B]
  3  items = []
-    for m in store.offerable(MY_AGENT) ordered by priority, age:     # STORED, allow-listed, not handed over, no open claim
-        rerun receiver checks (policy, revocation AL-22, switch)    # [B] the second run of ARCH 7.1
-        n = new nonce (32 hex)
+    n = new nonce (32 hex)                                          # CR-6.39: one nonce per pull, before the loop, as built
+    for m in store.offerable(MY_AGENT) ordered by priority, age:     # STORED, allow-listed, not handed over, no open
+                                                                    # claim, not held (gap wait AL-36) (CR-6.35)
+        if m in W: continue                                                                  # FCW-48
+        if Err(rerun receiver checks (policy, revocation AL-22, switch)):   # [B] the second run of ARCH 7.1
+            refuse(m, reason); continue                     # CR-6.40: REFUSED, signed refusal notice to the sender,
+                                                            # removed from the pending set of AL-5 and AL-8    (FCW-200)
         if store.claim(m.id, m.next_attempt, n, now) == AlreadyClaimed: continue           # FCW-43 [B] O_CREAT|O_EXCL
         atomic_write(delivery-<n>, {msg, attempt, nonce, ts, session}); chain_append(CLAIMED m)
         items += m
@@ -786,8 +911,15 @@ finalize(n, final_check):                                    # [B], every few se
 
 on_submit doorbell ids (from AL-1 prompt_submit):            # Δ stray count, H-11 (b)
  1  for id in doorbell_ids: if id is HANDED_OVER, or not in the ring log of the last 24 h: stray += 1   # FCW-47
+
+on ATTEMPTED written for m (AL-6 step 11, or a claim here):  # CR-6.38: attempt bound
+ 1  m.attempts += 1
+    if m.attempts >= MAX_ATTEMPTS (8 [P], FP-4; floor-and-phasing CR-3.2):
+        m leaves the ring pipeline: AL-5 and AL-8 no longer ring for it (a hook pull still offers it)
+        attention("delivery-attempts-exhausted", m.id, coalesce = m.id); status per message     # FCW-199
 ```
-5.9.d **INVARIANTS:** (1) the only writer of HANDED_OVER is `finalize` step 2 **[B]**; (2) at most one open attempt per
+5.9.d **INVARIANTS:** (0) (changed in v0.3 by CR-6.39) one nonce per pull, minted before the loop, frames every item
+of that pull **[B]**; (1) the only writer of HANDED_OVER is `finalize` step 2 **[B]**; (2) at most one open attempt per
 message **[B]**; (3) every attempt ends HANDED_OVER, ABSENT (then a new attempt) or UNCERTAIN (operator), never by a
 timeout alone **[B]**; (4) HANDOVER_UNCONFIRMED is a label on ATTEMPTED, posted at most once per attempt, never a state.
 5.9.e **FAILS CLOSED WHEN:**
@@ -802,7 +934,14 @@ point → UNCERTAIN, needs-attention, no redelivery until the operator decides.
 5.9.e.5 **FCW-47** [AFC-6; E-6] a submitted prompt names doorbell ids that are already handed over or were never rung
 → nothing is pulled for them; a stray ring is counted.
 5.9.e.6 **FCW-48** [AFC-16; ZR-1] a fresh lease names another session of this agent as main → the pull hands out
-nothing and prints the one line once per generation **[B]**.
+no role mail and prints the one line once per generation (changed in v0.3 by CR-6.18, ARC4 7.1.a: role mail only;
+mail to an exact instance is handed out; the built pull withholds all mail and changes to this).
+5.9.e.7 **FCW-199** [AFC-5; E-5] (changed in v0.3 by CR-6.38) a message has reached MAX_ATTEMPTS (8 [P]) delivery
+attempts → no further ring or watchdog line for it; a per-message needs-attention entry; a hook pull may still hand
+it over.
+5.9.e.8 **FCW-200** [AFC-22; E-39] (changed in v0.3 by CR-6.40) the second run of the receiver checks fails at pull
+time (key revoked since STORED, a policy that no longer admits it; the switch is step 1, never a refusal) → the message is REFUSED with a signed notice to the sender and leaves
+the pending set of AL-5 and AL-8; it is never left STORED and rung for.
 5.9.f **EDGE CASES:** (1) replay of a frame's nonce by the agent's own output: assistant record, not evidence; a
 same-user process writing a well-formed user record is RR-7 (limit probe E-97); (2) two hooks pulling at once: one
 claim wins **[B]**; (3) clock: the 90 s window on `mono()` of the finalizer; (4) crash table **[B]** (`KillPoint`):
@@ -866,27 +1005,36 @@ newest-1000 retention.
 5.11.c **ALGORITHM:**
 ```text
 hooks (Δ, TermLink's own hooks; AEF's adapter T-5054 does the same through `termlink main`):
-  SessionStart      -> claim(kind = session-start, origin from the adapter, basis)
-  UserPromptSubmit  -> claim(kind = prompt, origin, basis)            # the adapter's report, AL-1 rules
+  SessionStart      -> claim(kind = session-start, origin from the adapter, basis, interactive)   # CR-6.5
+  UserPromptSubmit  -> claim(kind = prompt, origin = origin_checked, basis)
+                       # CR-6.4: origin_checked is the receiver's reply to the hook's AL-1 report (the lower of the
+                       # hook's and the receiver's view); no reply from the sidecar -> origin = unknown, never human
   PostToolUse       -> no lease call (Δ: was claim/renew)             # 6.13.1
   SessionEnd        -> release [B]
 
 records: on main:<p>         Acquire{generation, holder, claim_id, at_ms, reason, from, lapsed_at_ms, obligations,
                                      origin, basis, provisional: bool, holder_human_age_s?}   [B fields + Δ fields]
                              Promote{generation, holder, claim_id, at_ms, origin, basis}               Δ
-                             OriginReporting{at_ms, by}   (once per project)                            Δ
+                             (OriginReporting moved to main-config, CR-6.6)
                              Release, Lapse, Pin [B]
          on main-touch:<p>   Touch{generation, session, claim_id, at_ms, basis}  (one per human-counted renewal) Δ
          on main-ignored:<p> Ignored{session, origin, basis, hook, at_ms}                                Δ
+         on main-config:<p>  OriginReporting{harness, at_ms, by: operator act}   (CR-6.6, ARC4 6.13.1.a: posted only
+                             by a runme operator action after the harness's adapter passes the fixtures; never by
+                             a claim; the topic is exempt from count retention, FX-6 sweep refusal)           Δ
+         every record carries hub_rx_ms, the hub's own receive time (CR-6.21)                         Δ [A: B-25
+                             checks whether the built envelope time is the hub's; if not, the hub adds the field]
 
 claim(p, me, origin, basis, kind):
  1  if seam_gate(TERMLINK_MAIN_TEST_*) == refuse: return unknown("test seam set outside a test estate")   # FCW-60
  2  (f, row, v) = snapshot(p); Err -> return unknown(exit 2)                                   # FCW-51 [B]
- 3  rep = f.origin_reporting                     # any OriginReporting record, or any retained record with origin field
+ 3  rep = harness_reporting(p, me.harness)        # CR-6.6: an OriginReporting record for this harness on
+                                                  # main-config:<p>; read error -> return unknown(exit 2)  (FCW-201)
     if origin is absent and not rep: return built_claim(p, me) with every record marked origin: absent;
-                                     outcome adds "this project's hooks do not report prompt origin"   # NID [B]
+                                     outcome adds "this harness's hooks do not report prompt origin"   # NID [B]
     if origin is absent and rep: origin = unknown                                              # FCW-53
-    if origin is present and not rep: post OriginReporting (failure: continue; the next claim posts it)
+    # CR-6.6: a claim never posts OriginReporting (not a non-human claim, not a failed one, not the first with an
+    # origin field); an origin field from a non-reporting harness is recorded but the claim is decided as built
  4  s = lease_state(v, f)        # VACANT | PROVISIONAL(h) | HELD(h) | LAPSED(prev) | ELIGIBLE(prev)
                                  # VACANT: no live claim and (never held, or clean release, or a provisional that ran out)
  5  pl = plan(s, me, origin, kind, v.pinned, now = wall())                    # table below
@@ -894,24 +1042,27 @@ claim(p, me, origin, basis, kind):
     on Conflict re-snapshot and re-plan, at most 3 times, then "contended" [B]
  7  return outcome(am_i(view after), action)                                  # exit 0 main, 1 not-main, 2 unknown [B]
 
-last_human(h, g):                                # the holder's last human-counted prompt at generation g, wall ms
- 1  xs = {a.at_ms : a in Acquire|Promote of h at g with origin == human}
-       U {t.at_ms : t in Touch on main-touch:<p> with t.session == h.session and t.generation == g}
+last_human(h, g):                                # the holder's last human-counted prompt at generation g, hub ms
+ 1  xs = {a.hub_rx_ms : a in Acquire|Promote of h at g with origin == human}                  # CR-6.21: hub clock
+       U {t.hub_rx_ms : t in Touch on main-touch:<p> with t.session == h.session and t.generation == g
+                        and t.claim_id == h.claim_id and verify(key(h.agent), t)}             # CR-6.22  (FCW-202)
  2  return max(xs) if xs else unknown            # read error of main-touch -> unknown                  (FCW-55)
+hub_now(f): the hub_rx_ms of the newest record the snapshot f read, or the hub's time in the snapshot reply (CR-6.21)
 ```
 
 | State | kind / origin | Guard | Plan | Generation | Record |
 |---|---|---|---|---|---|
 | any | prompt, origin ≠ human | — | Ignored | same | Ignored on `main-ignored` (FCW-52) |
 | any | session-start | pinned == me | Take "pin" **[B]** | +1 | Acquire |
-| VACANT | session-start | — | TakeProvisional (claim TTL 5 min) | +1 | Acquire `provisional: true`, `last_human` none |
+| VACANT | session-start | `interactive == true` (changed in v0.3 by CR-6.5) | TakeProvisional (claim TTL 5 min) | +1 | Acquire `provisional: true`, `last_human` none |
+| VACANT | session-start | `interactive` false or absent (CR-6.5) | Answer only | same | none (FCW-203) |
 | VACANT | prompt, human | pinned ∈ {none, me} | Take "first" or "after-release" | +1 | Acquire `origin: human` |
 | PROVISIONAL(me) | prompt, human | — | Promote (renew TTL 15 min) | same | Promote |
 | PROVISIONAL(other) | prompt, human | — | force_release, Take "over-provisional" | +1 | Acquire `from` |
 | HELD(me) | prompt, human | — | Touch, then renew **[B renew]** | same | Touch |
 | HELD(other) | prompt, human | pinned == me | PinOverride **[B]** | +1 | Acquire `reason: pin-override` |
 | HELD(other) | prompt, human | pinned == other | Held | same | none |
-| HELD(other) | prompt, human | `wall() − last_human(other) > 300 s` (+30 s if `other.host ≠ me.host`) | FastTakeover | +1 | Acquire `reason: fast-takeover, from, holder_human_age_s` |
+| HELD(other) | prompt, human | `hub_now(f) − last_human(other) > 300 s` (changed in v0.3 by CR-6.21: both times are the hub's, so no cross-host margin) | FastTakeover | +1 | Acquire `reason: fast-takeover, from, holder_human_age_s` |
 | HELD(other) | prompt, human | otherwise, or `last_human` unknown | Held | same | none (FCW-54, FCW-55, FCW-56) |
 | LAPSED / ELIGIBLE (prev = me) | prompt, human | — | Resume **[B]** | same | Acquire `reason: resume` |
 | LAPSED / ELIGIBLE (prev ≠ me) | prompt, human | — | Take "takeover-after-lapse" (no quiet, no cooldown, 6.13.4) | +1 | Acquire |
@@ -929,7 +1080,8 @@ execute FastTakeover:
 execute Ignored:
  1  post Ignored; Err -> outcome "ignored-unrecorded" (the lease is unchanged either way)                   # FCW-59
 ```
-5.11.d **INVARIANTS:** (1) in an origin-reporting project, a claim with origin other than `human` never changes the
+5.11.d **INVARIANTS:** (0) (changed in v0.3 by CR-6.6) origin reporting is per harness and set only by an operator act;
+(1) for an origin-reporting harness (v0.2: project), a claim with origin other than `human` never changes the
 holder, the generation or the claim's expiry; (2) at most one live claim on offset 0 **[B]**; (3) the generation never
 decreases and rises on every holder change, including a provisional take **[B]**; (4) a pinned holder is displaced only
 by the pinned session's claim **[B]**; (5) every holder change has an Acquire record **[B]**; (6) a project that has never
@@ -946,19 +1098,29 @@ acquire, no takeover; recorded `ignored: origin`.
 5.11.e.5 **FCW-55** [new; ZR-1] the holder's `last_human` cannot be determined (records unreadable or gone) → no fast
 takeover; the claim waits for lapse.
 5.11.e.6 **FCW-56** [AFC-16; E-24, ZR-1 for the cross-host margin] the holder's last human prompt is at most 5 min old
-(same host), or at most 5 min 30 s old (holder on another host, skew margin V-5) → no fast takeover.
+→ no fast takeover. (changed in v0.3 by CR-6.21) Both the prompt's time and "now" are the hub's receive stamps, one
+clock (R-57.a), so the 30 s cross-host margin of v0.2 is gone.
 5.11.e.7 **FCW-57** [AFC-16; E-21, E-23] SessionStart on a lease that is not VACANT → no provisional take.
 5.11.e.8 **FCW-58** [new; ZR-1] the Touch record cannot be posted → the renewal is not made; unknown (exit 2).
 5.11.e.9 **FCW-59** [new; ZR-1] the Ignored record cannot be posted → the lease is unchanged; the outcome says
 `ignored-unrecorded`.
 5.11.e.10 **FCW-60** [new; ZR-1] a `TERMLINK_MAIN_TEST_*` seam is set outside a test estate → unknown (exit 2) (AL-16).
+5.11.e.11 **FCW-201** [AFC-17; E-22] (changed in v0.3 by CR-6.6) the harness's origin-reporting record cannot be read
+→ unknown (exit 2), never a guess either way; the record is set only by an operator act and never reverts by
+retention.
+5.11.e.12 **FCW-202** [AFC-16; E-24] (changed in v0.3 by CR-6.22) a Touch record not signed by the holder's agent key, or
+with another `claim_id` than the live claim → not counted for `last_human`.
+5.11.e.13 **FCW-203** [AFC-16; E-23] (changed in v0.3 by CR-6.5) a SessionStart of a non-interactive session (print
+mode, background or dispatched worker) on a vacant lease → no provisional take; answered only.
 5.11.f **EDGE CASES:**
 5.11.f.1 Forged origin: a same-user process can call `termlink main claim --origin human` (RR-2, AR-6); the receiver
 side of AL-1 downgrades a doorbell line (FCW-5), but a hook-independent call is outside its view; recorded in QR-3.
 5.11.f.2 Replayed or old records: the fold reads records by offset **[B]**; a Touch of an earlier generation is never
 counted for the current one (`last_human` filters by generation).
-5.11.f.3 Clock: timestamps are the claimer's `wall()` **[B]**; on one host exact; across hosts the 30 s margin makes a
-skew under 30 s unable to cause an early takeover; a larger skew can, and V-5 flags skew over 2 s in status.
+5.11.f.3 Clock: (changed in v0.3 by CR-6.21) record timestamps stay the claimer's `wall()` **[B]** for display; every
+age the lease decides on (`last_human`, fast takeover, the waiting-mail "reading" test of AL-13) uses the hub's
+receive stamp `hub_rx_ms` on both sides, so host skew cannot cause an early takeover (R-57.a "one clock, never across
+hosts").
 5.11.f.4 Concurrency: (a) two sessions claim a vacant lease at once: the claim CAS lets one win, the other re-plans and
 reads HELD **[B]**; (b) the holder's human prompt and another session's fast takeover race: if the taker's fresh
 re-read (FastTakeover step 1) misses the holder's Touch, the taker wins; the holder's renew then fails, it re-plans and
@@ -972,7 +1134,7 @@ the provisional holder's own later prompt reads HELD(other).
 | Touch and renew | Touch recorded, claim not extended | the claim may lapse at its expiry; the session's next human prompt resumes it (same generation) |
 | force_release and claim (fast takeover, pin override) | no live claim, current = old holder | a lapse-like vacancy **[B]**: the next human prompt anywhere takes (or the old holder resumes); the hub's claim log shows the force-release |
 | claim and Acquire post | live claim, no record | built self-heal: the holder's next renew posts `record-repair` **[B]**; until then `consistent: false` in status |
-| OriginReporting post fails | project still non-reporting | the next claim with an origin posts it; absent claims count until then (NID direction) |
+| OriginReporting post fails (runme operator act, CR-6.6) | harness still non-reporting | the runme action reads it back and reports FAILED; absent claims count until then (NID direction) |
 
 5.11.g **EXECUTION SEMANTICS:** each plan is a hub claim operation followed by a record; "never hold an unrecorded
 lease" **[B]** is the target-side rule; the claim CAS is the idempotency for concurrent takers. A fast takeover's
@@ -996,13 +1158,17 @@ reader thread [B]: every 15 s: r = LeaseClient.status(project); shared.set(mono(
 view(now): last = shared.last
    if last is none or Err or now - last.at > 4 x 15 s: return UNKNOWN(why)                  # FCW-61 [B]
    return last.view      # Δ: with state, provisional, last_human_at of the holder (AL-11 last_human)
-withhold(agent, session, now) [B]:
+withhold(agent, session, m, now):     # CR-6.18 (ARC4 7.1.a): per message; [B] withholds every message, Δ role only
+   if m.to is an exact instance: return none                            # exact-instance mail is never withheld
    v = view(now); if UNKNOWN or no holder: return none                  # fail open: deliver as before
    if v.holder.session == session or v.holder.agent != agent: return none
    return line("this session is not main of P; peer mail is left unread for main S (generation N)"), once per (session, generation)
-would_hand_over(m, sess) = (withhold(MY_AGENT, sess, now) is none)
+would_hand_over(m, sess) = (withhold(MY_AGENT, sess, m, now) is none)
 ```
-5.12.d **INVARIANTS:** (1) the sidecar never writes the lease **[B]**; (2) an unknown lease never stops delivery **[B]**.
+5.12.d **INVARIANTS:** (1) the sidecar never writes the lease **[B]**; (2) an unknown lease never stops delivery **[B]**;
+(3) (changed in v0.3 by CR-6.18) only role mail is withheld from a non-main session; the built pull (T-3654), which
+withholds all mail, changes to this in a build item after the step 7 fold (the **[B]** note above records today's
+behaviour, not the target).
 5.12.e **FAILS CLOSED WHEN:** 5.12.e.1 **FCW-61** [AFC-16, AFC-19; E-34 (f)] the last read failed or is older than
 4 periods (60 s) → unknown: no withhold (delivery as before), no forward (AL-14), status `main.lease.state: unknown`
 **[B]**. (This is "fail open" for delivery and "fail closed" for every lease-based decision.)
@@ -1026,24 +1192,41 @@ landing places escalate with age; the out-of-band notice is rate-limited per pro
 mail_waiting_tick():                                       # once per tick
  1  W = [m in store: m.to is a role (main or the project), not an exact instance; STORED; not HANDED_OVER;
          not FORWARDED; not REFUSED]                                                              # FCW-64
+    # CR-6.18 transition: while the built pull still withholds all mail (T-3654), exact-instance mail withheld from a
+    # non-main session of this agent is counted in W as well, so nothing withheld is silent
  2  old10 = [m in W : mono() - m.stored_mono >= 10 min]                                            # V-21
  3  L = lease view (AL-12)
     reading = L.state == HELD and not L.provisional and L.last_human_at known
-              and wall() - L.last_human_at <= 10 min
-    # vacant, lapsed, provisional, unknown, or a holder silent for 10 min -> not reading       # FCW-65
+              and L.hub_now - L.last_human_at <= 10 min                          # CR-6.21: both the hub's clock
+              and L.holder.agent == MY_AGENT          # CR-6.12 (ARC4 6.13.5): role mail held here, unforwarded, for a
+                                                      # holder of another agent is "not reading" for this receiver
+    # vacant, lapsed, provisional, unknown, a holder silent for 10 min, or a holder of another agent -> not reading
+    #                                                                                            FCW-65, FCW-204
  4  if old10 nonempty and not reading and not active:
-        active = true; since = mono(); attention("main-mail-waiting", coalesce = episode)
+        active = true; since = mono(); episode = new id; gen0 = L.generation
+        attention("main-mail-waiting", coalesce = episode)
+ 4a if active:                                                                    # CR-6.29: re-raise within an episode
+        for m in W with m.priority == urgent and mono() - m.stored_mono >= 10 min and m not yet re-raised:
+            attention("main-mail-waiting", "urgent message " + m.id, coalesce = (episode, m.id))
+        if L.generation != gen0: gen0 = L.generation
+            attention("main-mail-waiting", "lease moved to generation N, mail still waiting", coalesce = (episode, N))
  5  if active and old10 empty: active = false                     # clears only when the old mail is handed over
  6  status.main.mail_waiting = active ? {count: len(W), oldest_age_s, holder, holder_human_age_s, since, oob} : null
- 7  oob step: if active and oldest_age >= 30 min:
+ 7  oob step: if active and oldest_age >= 30 min and episode.oob_set_by_me is none:      # CR-6.28: once per episode
         if no out-of-band channel is configured (GP-11 not live): oob = "not available"                      # FCW-62
-        elif hub.claim("oob:" + project, offset 0, ttl = 60 min) == Conflict: oob = "sent-by-other within 1 h"  # FCW-63
+        elif hub.claim("oob:" + project, offset 0, ttl = 60 min) == Conflict:
+              oob = outcome recorded by the claim holder on oob:<project>, shown with its author and time,
+                    or "pending at <holder>" until it is recorded                                          # FCW-63
         else: r = channel.send(project, "MAIL WAITING ...");
               oob = (r has the channel's own delivery receipt) ? "sent at T" : "not confirmed"
+              post {episode, by: me, outcome: oob, at} on oob:<project>      # CR-6.28: others show this outcome
+              episode.oob_set_by_me = oob                                    # never overwritten in this episode
 session-start line: scripts/session-start-alerts.sh reads status.main.mail_waiting and prints one line [B-script, Δ field]
 non-main line: AL-9 withhold path, when active and the prompt's origin is human: one line per (session, generation)
 ```
-5.13.d **INVARIANTS:** (1) the status never says "sent" without the channel's receipt; (2) at most one out-of-band
+5.13.d **INVARIANTS:** (1) the status never says "sent" without the channel's receipt, and (changed in v0.3 by CR-6.28)
+an outcome this receiver set is not overwritten within the episode; another receiver shows the claim holder's recorded
+outcome; (2) at most one out-of-band
 notice per project per hour, across every receiver of the project; (3) the weekly count of episodes is reported, never
 capped (RNU).
 5.13.e **FAILS CLOSED WHEN:**
@@ -1053,10 +1236,15 @@ available` or `not confirmed`; never "sent".
 notice within 60 min) → no second notice.
 5.13.e.3 **FCW-64** [AFC-18; E-28 control] mail to an exact instance → never counted.
 5.13.e.4 **FCW-65** [AFC-18; E-28] the lease is unknown, vacant, lapsed or provisional, or the holder's last human
-prompt is unknown or older than 10 min → "no reading main" (the signal can rise).
+prompt is unknown or older than 10 min (changed in v0.3 by CR-6.21: on the hub's clock) → "no reading main" (the
+signal can rise).
+5.13.e.5 **FCW-204** [AFC-18; E-28] (changed in v0.3 by CR-6.12) role mail is held here, not forwarded, while the
+holder is a session of another agent → "not reading" for this receiver, however active the holder is.
 5.13.f **EDGE CASES:** (1) a reading main that does not take the mail is not this signal's case; R-44.e's
 OVERDUE-HANDOVER and V-8 cover it; (2) clock: mail ages on `mono()`, the holder's age on the lease's `wall()` (AL-11);
 (3) concurrency: two receivers of one project raise the signal independently; the OOB claim makes the notice single;
+(3a) (changed in v0.3 by CR-6.29) an episode already active re-raises the needs-attention entry once for each urgent
+message that crosses 10 min and once for each new lease generation, coalesced per (episode, message or generation);
 (4) crash: `active` and `since` are recomputed from durable mail ages at the next tick; a restart may re-raise the
 needs-attention entry once (coalesced per episode by key `(project, oldest message id)`).
 5.13.g **EXECUTION SEMANTICS:** the OOB notice is at-most-once per hour per project by the claim; the claim taken and
@@ -1074,7 +1262,11 @@ forward intent, posts a FORWARD envelope signed by Y that carries the original b
 VIA notice; every step is idempotent by the envelope identity `(Y, "forward", m.id)`.
 5.14.c **ALGORITHM:**
 ```text
-after_stored(m) at Y:                                      # called after AL-23 makes m STORED
+forward_tick() at Y:                                       # CR-6.12 (ARC4 7.2.f): once per tick
+ 1  for m in store: role mail, STORED, no forward intent open, not handed over, no open claim, not FORWARDED:
+        after_stored(m)                                    # the start-up predicate, every tick (FCW-205)
+
+after_stored(m) at Y:                                      # called after AL-23 makes m STORED, and by forward_tick
  1  if m.to is an exact instance, or m is a FORWARD envelope, or m.to is not a role of Y's project: return   # FCW-66
  2  if m.hop >= 3: return                                   # hop limit (V-4); deliver as before             (FCW-69)
  3  L = lease view; if not (L.ok and L.read_rx_mono >= m.stored_mono and mono() - L.read_rx_mono <= 15000):
@@ -1083,20 +1275,39 @@ after_stored(m) at Y:                                      # called after AL-23 
     X = L.holder.agent
     if X == MY_AGENT: return                                # same agent: the withhold of AL-12 applies
     if X not in roster(project): attention("main outside roster"); return                                     (FCW-68)
- 5  with store.lock: if forward_intent(m) exists: return
-                    chain_append(FORWARD_INTENT m.id, generation = L.generation, to = X)                       # FCW-70
+ 5  with store.lock: if forward_intent(m, m.admission) exists: return     # CR-6.11: one intent per admission
+                    chain_append(FORWARD_INTENT m.id, admission = m.admission, generation = L.generation, to = X)  # FCW-70
+                                                            # store.lock released here (3.2.a, CR-6.15)
  6  env = {schema: "termlink.forward/1", project, generation: L.generation, hop: m.hop + 1,
            via: Y.instance, inner_topic: m.posted_topic, inner_sha256: sha256(m.raw), inner_b64: base64(m.raw)}
+    if m.blob: k = unwrap(Y.x25519, m.blob.wrapped_key)          # CR-6.14 (ARC4 6.4.3.a): Y opens the content key
+               env.wrapped_key_to_x = seal(xkey(X), k)            # re-wrapped to X inside the signed envelope
+               Err (cannot unwrap, no key card for X) -> chain_append(FORWARD_ABANDONED m.id); attention; return
     sig = sign(Y.key, "termlink.forward/1\n" + sha256_hex(jcs(env)))
- 7  post(inbox:X on the home hub, {env, sig}, idempotency id = (Y, "forward", m.id)); Err -> retry next tick
-    if not posted within the R-44.e "not accepted" bound (1 min): chain_append(FORWARD_ABANDONED m.id);
-        attention("forward failed"); return                # m is offered at Y again, as before            (FCW-71)
+ 7  r = post(inbox:X on the home hub, {env, sig}, idempotency id = (Y, "forward", m.id, m.admission))
+    if r is Ok: goto 8
+    if r is a definite refusal by the hub (not stored): retry next tick; after 1 min (R-44.e "not accepted"):
+        chain_append(FORWARD_ABANDONED m.id); attention("forward failed"); return  # offered at Y again    (FCW-71)
+    # CR-6.10 (ARC4 7.2.e): ambiguous (timeout, lost reply) -- the hub may hold it
+    q = hub.read(inbox:X, idempotency id)                       # a definite "present" or "not present", or Err
+    if q == present: goto 8
+    if q == not present: retry next tick (or re-run after_stored if the lease no longer names X)
+    if no definite answer within 1 min of the first post:
+        chain_append(UNCERTAIN m.id, "forward presence unknown"); attention; m is never offered at Y and never
+        re-posted until the operator decides (delivered at X, or redeliver at Y)                            # FCW-71
  8  chain_append(FORWARDED m.id, to X, generation); hub.stage(m, FORWARDED, {via: Y, main: X, generation})
  9  notice(m.sender, VIA, {msg: m.id, via: Y, main: X, generation})     # "delivered via Y; main is X (generation N)"
 while FORWARD_INTENT(m) without FORWARD_ABANDONED: m is not offerable at Y (pull, ring, watchdog)          # FCW-71
+
+on_duplicate(m_new, m_local) at any receiver:   # CR-6.11 (ARC4 7.3.a): called by AL-23's identity-triple dedupe
+ 1  if m_local.state != FORWARDED: return dedupe as built [B]
+ 2  if m_local.admission >= 3 (hop limit PN-17): deliver locally: m_local -> STORED, offered here, never forwarded
+        again; attention("re-sent message delivered here after 3 forwards", m.id)                          # FCW-206
+ 3  else: with store.lock: m_local -> STORED, m_local.admission += 1, chain_append(READMITTED m.id, reason)
+    after_stored(m_local)                         # forwarded to the current holder, or delivered here
 ```
 5.14.d **INVARIANTS:** (1) the inner bytes posted equal the bytes Y received; (2) a message is forwarded at most once by
-Y (one intent per message); (3) a forwarded message is never handed over at Y; (4) never forwarded: exact-instance mail,
+Y per admission (one intent per message and admission; changed in v0.3 by CR-6.11, at most 3 re-admissions); (3) a forwarded message is never handed over at Y; (4) never forwarded: exact-instance mail,
 a FORWARD, mail with hop ≥ 3, mail on an unknown, stale or vacant lease.
 5.14.e **FAILS CLOSED WHEN:**
 5.14.e.1 **FCW-66** [AFC-19; E-34 (d), (e)] the mail is to an exact instance, is itself a FORWARD, or is not role mail
@@ -1107,9 +1318,17 @@ of Y's project → no forward.
 project's roster → no forward.
 5.14.e.4 **FCW-69** [AFC-26; E-53, E-34] the message's hop is already 3 → no forward.
 5.14.e.5 **FCW-70** [new; ZR-1] the forward intent cannot be written durably → no forward; delivered at Y as before.
-5.14.e.6 **FCW-71** [new; E-35, ZR-1] while a forward intent is open, the message is never offered at Y; if the
-envelope cannot be posted within 1 min the forward is abandoned (recorded, needs-attention) and the message is offered
-at Y as before.
+5.14.e.6 **FCW-71** [new; E-35, ZR-1] while a forward intent is open, the message is never offered at Y; if the hub
+definitely refused the envelope for 1 min the forward is abandoned (recorded, needs-attention) and the message is
+offered at Y as before. (changed in v0.3 by CR-6.10) A post that failed ambiguously is never abandoned on time alone:
+Y reads `inbox:X` for the forward's idempotency id; "present" makes it FORWARDED, "not present" lets it retry, and no
+definite answer within 1 min makes it UNCERTAIN for the operator, never offered at Y meanwhile.
+5.14.e.7 **FCW-205** [AFC-19; E-33] (changed in v0.3 by CR-6.12) role mail stored while the lease was unknown, stale or
+vacant stays in the forward decision: it is re-evaluated every tick and forwarded once a fresh lease names a holder of
+another agent; it is never left to the start-up scan alone.
+5.14.e.8 **FCW-206** [AFC-26; E-35] (changed in v0.3 by CR-6.11) a re-sent copy arrives for an id whose local copy is
+FORWARDED → it is re-admitted (FORWARDED → STORED) and the forward rule runs again; after 3 re-admissions it is
+delivered here; it is never deduped into a state with no offerable copy anywhere.
 5.14.f **EDGE CASES:**
 5.14.f.1 Forged or altered: X verifies both signatures (AL-15); Y cannot change the inner bytes without breaking the
 inner signature.
@@ -1128,6 +1347,8 @@ one message cannot happen (one intent under the store lock).
 | intent and post | intent, nothing posted | re-post (same idempotency id) at the next tick |
 | post and FORWARDED | posted, intent open | re-post; X dedupes by the inner identity triple; then FORWARDED |
 | FORWARDED and VIA | final at Y, no VIA | start-up scan: FORWARDED without a VIA line sends VIA (notices idempotent by (message, kind)) |
+| ambiguous post and the presence read (CR-6.10) | intent open, presence unknown | the presence read repeats; the 1 min bound runs from the first post, recorded in the intent |
+| READMITTED and its intent (CR-6.11) | STORED, admission n, no intent | forward_tick runs after_stored for it |
 
 5.14.g **EXECUTION SEMANTICS:** at-least-once posting with receiver-side idempotency (the identity triple) gives one
 hand-over (H-24 forward half). The target can commit (X stores) while Y's record says intent only: the start-up scan
@@ -1153,26 +1374,34 @@ on_forward(env, sig, poster) at X:
     require verify(Ykey, "termlink.forward/1\n" + sha256_hex(jcs(env)), sig)                               # FCW-72
  3  inner = base64_decode(env.inner_b64); require sha256(inner) == env.inner_sha256
     m = parse(inner); require verify_message(m, topic = env.inner_topic)            # the original signature, SI-3
-    require env.inner_topic is the inbox of an agent of X.project, and m.to is a role of X.project          # FCW-73
+    require env.inner_topic == inbox(poster) and poster is an agent of X.project, and m.to is a role of X.project
+                                                       # CR-6.30: the poster's own inbox, not any inbox    # FCW-73
  4  require m is not a FORWARD and env.hop == m.hop + 1 and env.hop <= 3                                   # FCW-74
  5  run AL-23 checks on m as if received directly: revocation of m's key, sequence window, quota of m's sender  # FCW-76
  6  L = lease view at X with the 15 s rule of AL-14 step 3 (sync read on miss)
     if L unknown: store env (STALE); notice(m.sender, FORWARD-STALE, {msg: m.id, reason: lease-unknown}); return   # FCW-75
-    if L.holder.agent != MY_AGENT or L.generation != env.generation:
+    if L.holder.agent != MY_AGENT:                       # CR-6.13: X is no longer main (ARC4 7.3)
         store env (STALE); notice(m.sender, FORWARD-STALE, {msg: m.id, generation_seen: L.generation}); return     # FCW-75
- 7  process m as received (identity triple dedupe R-51 [B]); mark env consumed
+    audit(env.generation, L.generation)                  # CR-6.13: a generation change between two sessions of X
+                                                         # is recorded, not refused
+ 7  if m.blob: m.blob_key_source = env.wrapped_key_to_x  # CR-6.14: AL-27 opens with the key re-wrapped to X
+    process m as received (identity triple dedupe R-51 [B]; a STALE envelope at X is never a copy for that dedupe,
+    CR-6.11); mark env consumed
 ```
 5.15.d **INVARIANTS:** (1) X hands over only messages whose inner signature verifies against the original topic;
-(2) a FORWARD whose generation is not X's current one is never handed over at X; (3) X never forwards a FORWARD.
+(2) a FORWARD that reaches X while X's agent is no longer main is never handed over at X (changed in v0.3 by CR-6.13:
+the holder agent decides, the generation is audit); (3) X never forwards a FORWARD.
 5.15.e **FAILS CLOSED WHEN:**
 5.15.e.1 **FCW-72** [AFC-19; E-34 (a)] the envelope is malformed, too large, signed by a key that is not a roster member
 of X's project, or its outer signature fails → refused, recorded, signed refusal notice to the poster.
 5.15.e.2 **FCW-73** [AFC-19; E-34 (b), (c)] the inner bytes do not match their digest, the inner signature fails
-against the inner topic, or the inner topic or address is not a role of X's project → refused.
+against the inner topic, the inner topic is not the poster's own inbox (changed in v0.3 by CR-6.30), or the address
+is not a role of X's project → refused.
 5.15.e.3 **FCW-74** [AFC-19, AFC-26; E-34 (d)] the inner message is itself a FORWARD, or the hop does not add up, or
 exceeds 3 → refused.
-5.15.e.4 **FCW-75** [AFC-19; E-33] X's lease is unknown, names another agent, or has another generation → stored as
-stale, not handed over, FORWARD-STALE to the original sender.
+5.15.e.4 **FCW-75** [AFC-19; E-33] X's lease is unknown or names another agent → stored as stale, not handed over,
+FORWARD-STALE to the original sender. (changed in v0.3 by CR-6.13) Another generation with the holder still an
+agent-X session is accepted and the generation difference recorded.
 5.15.e.5 **FCW-76** [AFC-22, AFC-25; E-39, E-50] the original sender's key is revoked, its sequence number is refused, or
 its quota at X is full → refused or held exactly as a direct message would be.
 5.15.f **EDGE CASES:** (1) replay of an old envelope at a later generation: generation mismatch, FORWARD-STALE; the
@@ -1221,7 +1450,11 @@ scan (4.8.b) is run once before B-25 ships, and any hit is fixed first, so the c
 
 ## 6 The FAILS CLOSED WHEN register (all three files; EV5 14.2)
 
-6.1 **Totals.** 194 conditions FCW-1 to FCW-194: 96 refine one or more of the architecture's AFC-1 to AFC-34 (every
+6.1 **Totals.** (changed in v0.3, after the step 7 fold, T-3689) **211 conditions FCW-1 to FCW-211**: 109 refine one
+or more AFC (every AFC at least once), 102 are new; 165 name at least one spec of EV5; the same 46 as below are ZR-1
+only (ZR-1 is applied in EV v0.2, whose coverage table 05a maps each of them to its spec). FCW-195 to FCW-211 come
+from CR-6 (step 7) and each names its E-n (E-153 and E-154 are new in EV v0.2). The v0.2 totals as they stood: 194
+conditions FCW-1 to FCW-194: 96 refine one or more of the architecture's AFC-1 to AFC-34 (every
 AFC is refined at least once, table 6.3), 98 are new. 148 already have at least one spec of EV5 that exercises them;
 **46 have none yet** and are handed to step 5 as change request ZR-1: FCW-3, 6, 8, 10, 11, 17, 18, 26, 35, 36, 37, 41,
 42, 48, 49, 55, 58, 59, 60, 70, 77, 78, 81, 84, 87, 91, 92, 108, 110, 113, 125, 127, 128, 132, 135, 138, 146, 149,
@@ -1229,14 +1462,15 @@ AFC is refined at least once, table 6.3), 98 are new. 148 already have at least 
 asks for the rest (named in the condition); these are FCW-4, 5, 12, 28, 56, 63, 71, 96, 100, 153, 191, 192.
 6.2 **How the table is made.** `.context/working/t3355/fcw_register.py` reads every `**FCW-n** [refines; specs]`
 definition in the three files and builds the table below; it exits 1 on a duplicate id, a gap in the numbering, or an
-FCW without a spec or change request. The table is therefore the files' own list, not a second copy kept by hand.
+FCW without a spec or change request. (v0.3: the same script, writing to `.context/working/t3689/`, run by
+`.context/working/t3689/apply_register.py`, exit 0, 211 rows, no gap, no duplicate.) The table is therefore the files' own list, not a second copy kept by hand.
 Column "Refines" lists AFC-n, or `new` for a condition the architecture does not state.
 
 | FCW | File | Routine | Refines | Spec (E-n) or change request | Fails closed when |
 |---|---|---|---|---|---|
 | FCW-1 | 06 | AL-1 | new | E-96 | the reporting peer is not the socket's owner → the connection is closed, nothing is read. |
 | FCW-2 | 06 | AL-1 | AFC-14 | E-16, E-84 | the report is larger than 64 KiB, not strict JSON, not schema `termlink.adapter/2` exactly, has an unknown event, a wrong type, or another agent's id → ignored and counted; it never reads as READY, human or evidence. |
-| FCW-3 | 06 | AL-1 | new | ZR-1 | a `ready` report carries an `at_ms` older than the applied one → dropped and counted; a tie between BUSY and READY keeps BUSY. |
+| FCW-3 | 06 | AL-1 | new | ZR-1 | a `ready` report is older than the applied one (changed in v0.3 by CR-6.24: ordered by `(boot_id, mono_ns)`, or by the receive stamp when the adapter sends neither, never by `at_ms`) → dropped and counted; a tie between BUSY and READY keeps BUSY. |
 | FCW-4 | 06 | AL-1 | AFC-15 | E-16, ZR-1 | origin and basis do not match the contract's table → the prompt is recorded as `unknown` (not human for the lease, human for the conversation signal). |
 | FCW-5 | 06 | AL-1 | AFC-16 | E-27, E-85, ZR-1 | a prompt reported `human` carries ids of a line the receiver typed in the last tick, or the session's input counters show the last input before it came from `notify` or `inject` → recorded `automated`. |
 | FCW-6 | 06 | AL-1 | AFC-14 | ZR-1 | the READY record was received by another sidecar process (`sidecar_epoch`) or on another boot → absent for the doorbell gate (AL-5) until the next report. |
@@ -1246,7 +1480,7 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | FCW-10 | 06 | AL-2 | new | ZR-1 | a write's source cannot be classified → it counts as `client` (someone may be typing). |
 | FCW-11 | 06 | AL-2 | AFC-13 | ZR-1 | the sidecar's `boot_id` differs from the session's → the sidecar treats S1 as unknown (AL-3). |
 | FCW-12 | 06 | AL-3 | AFC-13 | E-15, ZR-1 | the input-activity RPC fails, times out (2 s) or answers from another boot → S1 is unknown: no normal ring (AL-5) and no watchdog (AL-8) for that session. |
-| FCW-13 | 06 | AL-3 | AFC-10 | E-10 | the session has no valid adapter report since boot and no transcript path → S2 is unknown: status `watchdog: unavailable`, no fire. |
+| FCW-13 | 06 | AL-3 | AFC-10 | E-10 | the session has no valid adapter report since boot and no transcript path, or (changed in v0.3 by CR-6.25) its transcript cannot be read (`lstat` fails) and no S2 (a) event is fresh (within 300 s) → S2 is unknown: status `watchdog: unavailable`, no fire. |
 | FCW-14 | 06 | AL-3 | AFC-9 | E-9, E-17 | arrivals, receipts, notices, automatic content, keep-alives, `notify`, `inject` and `client_auto` input → never activity. |
 | FCW-15 | 06 | AL-3 | AFC-27 | E-19 | a status `activity` field older than 2 ticks → reads `unknown`, never its last value. |
 | FCW-16 | 06 | AL-4 | AFC-15 | E-18 | the last prompt's origin is `unknown` or `absent` → `operator` (no ring). |
@@ -1257,31 +1491,31 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | FCW-21 | 06 | AL-5 | AFC-1, AFC-14 | E-1 | READY is not READY, is absent, was received by another sidecar process or is older than 24 h → no ring. |
 | FCW-22 | 06 | AL-5 | AFC-1, AFC-13 | E-1, E-15 | client input in the last 30 s, or S1 unknown → no ring. |
 | FCW-23 | 06 | AL-5 | AFC-1 | E-1, E-18 | conversation `operator` or `unknown` → no ring; `agent(C)` → only mail of C. |
-| FCW-24 | 06 | AL-5 | AFC-13 | E-15 | the session is not a TermLink PTY session started by the reachable launcher, or its harness executable is not registered → no ring (and no watchdog, AL-8). |
+| FCW-24 | 06 | AL-5 | AFC-13 | E-15 | the session is not a TermLink PTY session started by the reachable launcher, or its harness executable is not registered → no ring (and no watchdog, AL-8). (changed in v0.3 by CR-6.19) "Registered" means: the session reported `session_start` with a `harness_pid`, and that process's `(exe_realpath, script_path)` is a registry entry (ARC4 17.4.a); a harness restarted inside the PTY is unregistered until its own `session_start`. |
 | FCW-25 | 06 | AL-5 | AFC-5 | E-5 | the schedule (AL-7) does not allow a ring yet, or a typed line is unsubmitted → no ring. |
 | FCW-26 | 06 | AL-5 | new | ZR-1 | more than one session of the agent could be rung → only one is. |
 | FCW-27 | 06 | AL-6 | AFC-12 | E-2, E-12 | delivery is switched off → nothing typed. |
-| FCW-28 | 06 | AL-6 | AFC-2 | E-2, ZR-1 | the READY record re-read is not READY, has another `seq` or `sidecar_epoch`, or the checks were made more than 1 tick before the keystrokes → nothing typed. |
-| FCW-29 | 06 | AL-6 | AFC-2 | E-2, E-8 | the foreground process is not the registered harness, or cannot be read → nothing typed. |
-| FCW-30 | 06 | AL-6 | AFC-2 | E-2 | the process-tree veto reports activity → nothing typed. |
-| FCW-31 | 06 | AL-6 | AFC-2 | E-2 | the re-read shows client input in the last 30 s, or the re-read fails → nothing typed. |
+| FCW-28 | 06 | AL-6 | AFC-2 | E-2, ZR-1 | the READY record re-read (changed in v0.3 by CR-6.2: after the veto window) is not READY, has another `seq` or `sidecar_epoch`, or the checks began more than 1 tick before the intent would be written (changed in v0.3 by CR-6.9: tested before the intent, so a held ring leaves no intent) → nothing typed. |
+| FCW-29 | 06 | AL-6 | AFC-2 | E-2, E-8 | the foreground process is not the registered harness, or cannot be read, before the veto or (changed in v0.3 by CR-6.2) at the re-read after it → nothing typed. |
+| FCW-30 | 06 | AL-6 | AFC-2 | E-2 | the process-tree veto reports activity (on macOS, changed in v0.3 by ruling D: the interim `ps` veto reports a running child or CPU growth) → nothing typed. |
+| FCW-31 | 06 | AL-6 | AFC-2 | E-2, E-7 | the step 3 reply or the re-read after the veto shows client input in the last 30 s, or the re-read fails → nothing typed (changed in v0.3 by CR-6.1: for `via = watchdog` too, ARC4 6.9.7.b). |
 | FCW-32 | 06 | AL-6 | AFC-2 | E-2 | the conversation signal changed to `operator`, `unknown`, or `agent` of another conversation → nothing typed. |
 | FCW-33 | 06 | AL-6 | AFC-3 | E-3 | an id is not 32 lowercase hex, more than 4 ids, duplicate ids, or a count that is not a decimal integer in [number of ids, 10^6] → no line; the message is flagged. |
 | FCW-34 | 06 | AL-6 | AFC-3 | E-3 | the session's `command.notify` receives such parameters → it types nothing and answers INVALID_PARAMS. |
 | FCW-35 | 06 | AL-6 | new | ZR-1 | the ring intent cannot be written durably → nothing typed. |
 | FCW-36 | 06 | AL-6 | AFC-5 | ZR-1 | the notify RPC times out → the outcome is `unknown`, treated as typed for the schedule (no re-ring until a submit or the watchdog) and never as handed over. |
-| FCW-37 | 06 | AL-7 | AFC-5 | ZR-1 | after a restart a ring intent has no outcome, or a typed line has no recorded submit → the session is UNSUBMITTED (no normal ring until a submit or the watchdog). |
+| FCW-37 | 06 | AL-7 | AFC-5 | ZR-1 | after a restart a ring intent has no outcome, or a typed line has no recorded submit → the session is UNSUBMITTED (no normal ring until a submit or the watchdog), or STALLED when that line was the watchdog's (changed in v0.3 by CR-6.7). |
 | FCW-38 | 06 | AL-8 | AFC-7, AFC-11 | E-7, E-11 | less than 300 s since the latest of: the last activity, the last line typed into the session (doorbell or watchdog), the last fire → no fire. |
 | FCW-39 | 06 | AL-8 | AFC-10, AFC-13 | E-10 | the session is not a TermLink PTY session, or S1 or S2 is unknown → no fire; status says `watchdog: unavailable` with the reason. |
 | FCW-40 | 06 | AL-8 | AFC-8 | E-8 | the switch is off, the foreground is not the harness, or the veto reports activity → held, with one audit row per hold kind per silence episode. |
-| FCW-41 | 06 | AL-8 | AFC-8 | ZR-1, ZR-4 | the veto cannot measure (no `/proc`, no `ss`) → held (the watchdog never types blind; the normal ring keeps OQ-16 D 3). |
+| FCW-41 | 06 | AL-8 | AFC-8 | ZR-1, ZR-4 | the veto cannot measure → held (the watchdog never types blind; the normal ring keeps OQ-16 D 3). (changed in v0.3 by ruling D on F-20 and CR-4.12) On macOS the interim `ps` veto measures instead (status `watchdog: degraded (macOS, ps veto)`), so this holds only where neither `/proc` nor `ps` can measure; then status says `watchdog: unavailable (veto unmeasurable)` and a needs-attention entry is raised once per session per day, not a routine row. |
 | FCW-42 | 06 | AL-8 | new | ZR-1 | the audit row cannot be written → nothing typed. |
 | FCW-43 | 06 | AL-9 | AFC-6 | E-98, E-6 | the claim for `(message, attempt)` already exists → that message is not handed out again. |
 | FCW-44 | 06 | AL-9 | AFC-4 | E-4, E-97 | the nonce appears only in an assistant record, a tool result, or nowhere → never HANDED_OVER. |
 | FCW-45 | 06 | AL-9 | AFC-4 | E-4 | no evidence 90 s after the claim → the sender is told HANDOVER_UNCONFIRMED; the message stays ATTEMPTED and owed. |
 | FCW-46 | 06 | AL-9 | AFC-4 | E-98 | the transcript cannot be read, or the final check passes with no evidence-complete point → UNCERTAIN, needs-attention, no redelivery until the operator decides. |
 | FCW-47 | 06 | AL-9 | AFC-6 | E-6 | a submitted prompt names doorbell ids that are already handed over or were never rung → nothing is pulled for them; a stray ring is counted. |
-| FCW-48 | 06 | AL-9 | AFC-16 | ZR-1 | a fresh lease names another session of this agent as main → the pull hands out nothing and prints the one line once per generation **[B]**. |
+| FCW-48 | 06 | AL-9 | AFC-16 | ZR-1 | a fresh lease names another session of this agent as main → the pull hands out no role mail and prints the one line once per generation (changed in v0.3 by CR-6.18, ARC4 |
 | FCW-49 | 06 | AL-10 | AFC-12 | ZR-1 | the switch cannot be read → off. |
 | FCW-50 | 06 | AL-10 | AFC-12 | E-12 | the switch is off → no keystrokes on either typed path and no hand-over by the hook (`delivery-off`); urgent mail downgraded, not dropped. |
 | FCW-51 | 06 | AL-11 | AFC-16 | E-20 | the lease cannot be read, or a record cannot be posted after a claim → unknown (exit 2), never main **[B]**. |
@@ -1289,7 +1523,7 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | FCW-53 | 06 | AL-11 | AFC-17 | E-22 | a claim without an origin field in a project that has reported origin → treated as `unknown` (ignored). |
 | FCW-54 | 06 | AL-11 | AFC-16 | E-24 | the holder is the pinned session → never fast-taken. |
 | FCW-55 | 06 | AL-11 | new | ZR-1 | the holder's `last_human` cannot be determined (records unreadable or gone) → no fast takeover; the claim waits for lapse. |
-| FCW-56 | 06 | AL-11 | AFC-16 | E-24, ZR-1 for the cross-host margin | the holder's last human prompt is at most 5 min old (same host), or at most 5 min 30 s old (holder on another host, skew margin V-5) → no fast takeover. |
+| FCW-56 | 06 | AL-11 | AFC-16 | E-24, ZR-1 for the cross-host margin | the holder's last human prompt is at most 5 min old → no fast takeover. (changed in v0.3 by CR-6.21) Both the prompt's time and "now" are the hub's receive stamps, one clock (R-57.a), so the 30 s cross-host margin of v0.2 is gone. |
 | FCW-57 | 06 | AL-11 | AFC-16 | E-21, E-23 | SessionStart on a lease that is not VACANT → no provisional take. |
 | FCW-58 | 06 | AL-11 | new | ZR-1 | the Touch record cannot be posted → the renewal is not made; unknown (exit 2). |
 | FCW-59 | 06 | AL-11 | new | ZR-1 | the Ignored record cannot be posted → the lease is unchanged; the outcome says `ignored-unrecorded`. |
@@ -1298,17 +1532,17 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | FCW-62 | 06 | AL-13 | AFC-18 | E-28 | no out-of-band channel exists, or it gives no delivery receipt → status `oob: not available` or `not confirmed`; never "sent". |
 | FCW-63 | 06 | AL-13 | AFC-18 | E-28, ZR-1 | another receiver of the project holds the per-project out-of-band claim (a notice within 60 min) → no second notice. |
 | FCW-64 | 06 | AL-13 | AFC-18 | E-28 control | mail to an exact instance → never counted. |
-| FCW-65 | 06 | AL-13 | AFC-18 | E-28 | the lease is unknown, vacant, lapsed or provisional, or the holder's last human prompt is unknown or older than 10 min → "no reading main" (the signal can rise). |
+| FCW-65 | 06 | AL-13 | AFC-18 | E-28 | the lease is unknown, vacant, lapsed or provisional, or the holder's last human prompt is unknown or older than 10 min (changed in v0.3 by CR-6.21: on the hub's clock) → "no reading main" (the signal can rise). |
 | FCW-66 | 06 | AL-14 | AFC-19 | E-34 (d) | the mail is to an exact instance, is itself a FORWARD, or is not role mail of Y's project → no forward. |
 | FCW-67 | 06 | AL-14 | AFC-19 | E-34 (f) | no lease read completed after STORED within 15 s, and the synchronous read fails → no forward; delivered at Y as before; status says why. |
 | FCW-68 | 06 | AL-14 | AFC-19 | E-34 (f) | the lease is vacant or lapsed, names this agent, or names an agent outside the project's roster → no forward. |
 | FCW-69 | 06 | AL-14 | AFC-26 | E-53, E-34 | the message's hop is already 3 → no forward. |
 | FCW-70 | 06 | AL-14 | new | ZR-1 | the forward intent cannot be written durably → no forward; delivered at Y as before. |
-| FCW-71 | 06 | AL-14 | new | E-35, ZR-1 | while a forward intent is open, the message is never offered at Y; if the envelope cannot be posted within 1 min the forward is abandoned (recorded, needs-attention) and the message is offered at Y as before. |
+| FCW-71 | 06 | AL-14 | new | E-35, ZR-1 | while a forward intent is open, the message is never offered at Y; if the hub definitely refused the envelope for 1 min the forward is abandoned (recorded, needs-attention) and the message is offered at Y as before. (changed in v0.3 by CR-6.10) A post that failed ambiguously is never abandoned on time alone: Y reads `inbox:X` for the forward's idempotency id; "present" makes it FORWARDED, "not present" lets it retry, and no definite answer within 1 min makes it UNCERTAIN for the operator, never offered at Y meanwhile. |
 | FCW-72 | 06 | AL-15 | AFC-19 | E-34 (a) | the envelope is malformed, too large, signed by a key that is not a roster member of X's project, or its outer signature fails → refused, recorded, signed refusal notice to the poster. |
-| FCW-73 | 06 | AL-15 | AFC-19 | E-34 (b) | the inner bytes do not match their digest, the inner signature fails against the inner topic, or the inner topic or address is not a role of X's project → refused. |
+| FCW-73 | 06 | AL-15 | AFC-19 | E-34 (b) | the inner bytes do not match their digest, the inner signature fails against the inner topic, the inner topic is not the poster's own inbox (changed in v0.3 by CR-6.30), or the address is not a role of X's project → refused. |
 | FCW-74 | 06 | AL-15 | AFC-19, AFC-26 | E-34 (d) | the inner message is itself a FORWARD, or the hop does not add up, or exceeds 3 → refused. |
-| FCW-75 | 06 | AL-15 | AFC-19 | E-33 | X's lease is unknown, names another agent, or has another generation → stored as stale, not handed over, FORWARD-STALE to the original sender. |
+| FCW-75 | 06 | AL-15 | AFC-19 | E-33 | X's lease is unknown or names another agent → stored as stale, not handed over, FORWARD-STALE to the original sender. (changed in v0.3 by CR-6.13) Another generation with the holder still an agent-X session is accepted and the generation difference recorded. |
 | FCW-76 | 06 | AL-15 | AFC-22, AFC-25 | E-39, E-50 | the original sender's key is revoked, its sequence number is refused, or its quota at X is full → refused or held exactly as a direct message would be. |
 | FCW-77 | 06 | AL-16 | new | ZR-1 | a seam variable is set in a production-mode sidecar or hub → it refuses to start. (`termlink main`: FCW-60.) |
 | FCW-78 | 06 | AL-16 | new | ZR-1 | a hub started with `TERMLINK_HUB_TEST_CEILINGS` outside an estate runtime directory → refuses to start. |
@@ -1338,7 +1572,7 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | FCW-102 | 06a | AL-23 | AFC-25 | E-50 | inline over 8 KiB → not STORED, QUOTA notice. |
 | FCW-103 | 06a | AL-23 | AFC-25 | E-50, E-51 | 32 open from one sender, or the general budget of 256 messages or 64 MiB is full → not STORED, QUOTA notice, coalesced entry. |
 | FCW-104 | 06a | AL-23 | AFC-25 | E-51 | a reserved share (receipts 10%, own project 20%) is full → the same, for that class only. |
-| FCW-105 | 06a | AL-23 | new | E-122 | the store write or a fsync fails → not STORED. |
+| FCW-105 | 06a | AL-23 | new | E-122 | the store write or a fsync fails → not STORED (changed in v0.3 by CR-6.16: and neither the window nor the quota counters move). |
 | FCW-106 | 06a | AL-24 | AFC-5 | E-52 | the window is full → the message waits in the outbox. |
 | FCW-107 | 06a | AL-24 | new | E-54 | a re-send earlier than 0.8 of its rung → refused by the sender's own ledger. |
 | FCW-108 | 06a | AL-24 | new | ZR-1 | a QUOTA notice that does not verify → ignored (a forged notice cannot throttle a sender). |
@@ -1357,7 +1591,7 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | FCW-121 | 06a | AL-29 | new | E-56 | any field bad or unknown, or pending mail without a real surfacing after it → NOT CLEAR. |
 | FCW-122 | 06a | AL-29 | new | E-57, E-61 | a peer's card or back channel is silent → UNKNOWN, never DEAD. |
 | FCW-123 | 06a | AL-29 | new | E-58 | a strength flag cannot be determined → it reads as absent. |
-| FCW-124 | 06a | AL-30 | new | E-66 | an inbox is bound and another identity acks, claims or subscribes → refused and logged. |
+| FCW-124 | 06a | AL-30 | new | E-66 | an inbox is bound and another identity acks, claims or subscribes, or (changed in v0.3 by CR-6.33) polls or reads it → refused and logged. |
 | FCW-125 | 06a | AL-30 | new | ZR-1 | the consumer list cannot be read → status `consumers: unknown` (never "one"). |
 | FCW-126 | 06a | AL-31 | AFC-32 | E-67 | a sweep, retention change or trim would remove an open message → refused and logged. |
 | FCW-127 | 06a | AL-31 | new | ZR-1 | finality cannot be read → refused. |
@@ -1386,7 +1620,7 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | FCW-150 | 06a | AL-40 | new | ZR-1 | W3's gate is not met → refused. |
 | FCW-151 | 06a | AL-40 | AFC-30 | E-82 | W4 without the operator's approval in the W4 task's Decisions → refused, nothing changed. |
 | FCW-152 | 06a | AL-40 | new | E-81 | the drain's count compare does not match → the switch is refused **[B]**. |
-| FCW-153 | 06b | AL-41 | new | E-104, ZR-1 | the class is not registered, or executor, target, operation or expiry is missing → no event is created. |
+| FCW-153 | 06b | AL-41 | new | E-104, ZR-1 | the class is not registered, or executor, target, operation or expiry is missing, or (changed in v0.3 by CR-6.31) `requested_by` differs from the authenticated caller, or `expires_at` is later than the hub's clock plus PN-15 (10 min) and a 30 s skew allowance → no event is created. |
 | FCW-154 | 06b | AL-41 | new | E-104 | the action is not canonicalisable (06a FCW-88 rules) → no event. |
 | FCW-155 | 06b | AL-42 | new | E-104 | a decision arrives at or after expiry → refused, EXPIRED. |
 | FCW-156 | 06b | AL-42 | new | E-104 | the decision's digest differs from the event's → refused, needs-attention. |
@@ -1428,6 +1662,23 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | FCW-192 | 06b | AL-46 | new | E-106, ZR-1 | concurrent starts or resumes under one grant would together exceed its budget or restarts → the hub's conditional reserve admits at most the limit, each admitted one with its use row; the rest are refused. |
 | FCW-193 | 06b | AL-46 | new | ZR-1 | the grant passed the local check but at the hub's reserve step it is revoked, expired, of a superseded epoch or no longer covers the agent or the kind → refused, no use row, no start. |
 | FCW-194 | 06b | AL-44 | new | ZR-1 | recovery finds two dispatch rows, no outcome and `already_done = no` (two applies without effect) → OUTCOME_UNKNOWN for the operator, needs-attention; no third apply. |
+| FCW-195 | 06 | AL-1 | AFC-16 | E-153 | (changed in v0.3 by CR-6.4) a prompt reported `human` from a session under a TermLink PTY, with any basis, has no client byte (`client_auto` excluded) since the previous submit, or follows a line the receiver typed with no client byte after it → recorded `automated`, and the hook's lease claim carries `automated`. |
+| FCW-196 | 06 | AL-3 | AFC-13 | E-154 | (changed in v0.3 by CR-6.20) a session's input-activity reply is not in by the tick budget (5 s from the start of the tick) → S1 is unknown for that session this tick (no ring, no watchdog), and the other sessions are decided on time. |
+| FCW-197 | 06 | AL-7 | AFC-5 | E-5, E-7 | (changed in v0.3 by CR-6.7) a watchdog line was not followed by a submit within 1 tick → STALLED: no typed line of any kind into the session until a submit or a session restart; one needs-attention entry per episode. |
+| FCW-198 | 06 | AL-8 | new | E-7 | (changed in v0.3 by CR-6.27) more than one session of the agent is due in the same tick → only one fires (largest last activity, then lowest session id); the others are reconsidered next tick. |
+| FCW-199 | 06 | AL-9 | AFC-5 | E-5 | (changed in v0.3 by CR-6.38) a message has reached MAX_ATTEMPTS (8 [P]) delivery attempts → no further ring or watchdog line for it; a per-message needs-attention entry; a hook pull may still hand it over. |
+| FCW-200 | 06 | AL-9 | AFC-22 | E-39 | (changed in v0.3 by CR-6.40) the second run of the receiver checks fails at pull time (key revoked since STORED, a policy that no longer admits it; the switch is step 1, never a refusal) → the message is REFUSED with a signed notice to the sender and leaves the pending set of AL-5 and AL-8; it is never left STORED and rung for. |
+| FCW-201 | 06 | AL-11 | AFC-17 | E-22 | (changed in v0.3 by CR-6.6) the harness's origin-reporting record cannot be read → unknown (exit 2), never a guess either way; the record is set only by an operator act and never reverts by retention. |
+| FCW-202 | 06 | AL-11 | AFC-16 | E-24 | (changed in v0.3 by CR-6.22) a Touch record not signed by the holder's agent key, or with another `claim_id` than the live claim → not counted for `last_human`. |
+| FCW-203 | 06 | AL-11 | AFC-16 | E-23 | (changed in v0.3 by CR-6.5) a SessionStart of a non-interactive session (print mode, background or dispatched worker) on a vacant lease → no provisional take; answered only. |
+| FCW-204 | 06 | AL-13 | AFC-18 | E-28 | (changed in v0.3 by CR-6.12) role mail is held here, not forwarded, while the holder is a session of another agent → "not reading" for this receiver, however active the holder is. |
+| FCW-205 | 06 | AL-14 | AFC-19 | E-33 | (changed in v0.3 by CR-6.12) role mail stored while the lease was unknown, stale or vacant stays in the forward decision: it is re-evaluated every tick and forwarded once a fresh lease names a holder of another agent; it is never left to the start-up scan alone. |
+| FCW-206 | 06 | AL-14 | AFC-26 | E-35 | (changed in v0.3 by CR-6.11) a re-sent copy arrives for an id whose local copy is FORWARDED → it is re-admitted (FORWARDED → STORED) and the forward rule runs again; after 3 re-admissions it is delivered here; it is never deduped into a state with no offerable copy anywhere. |
+| FCW-207 | 06a | AL-23 | AFC-25 | E-50 | (changed in v0.3 by CR-6.16) a message whose identity triple is already stored → handled as a duplicate before the quota check (06 AL-14 `on_duplicate`), never charged to a quota and never refused for one. |
+| FCW-208 | 06a | AL-23 | AFC-25 | E-51 | (changed in v0.3 by CR-6.17) a class's integer limit (receipts 26 / 6 MiB, own project 51 / 13 MiB, general 179 / 45 MiB; together exactly 256 / 64 MiB) is reached → QUOTA for that class only; no class can use another's share. |
+| FCW-209 | 06a | AL-30 | new | E-66 | (changed in v0.3 by CR-6.33) an identity reads (polls) an inbox without ever acking → it is recorded as a consumer and flagged like any other second consumer (the BP-15 shape). |
+| FCW-210 | 06a | AL-40 | new | E-72 | (changed in v0.3 by CR-6.26) the W2 report lacks H-11 (e) or (f), or either is over its bound → W3's gate is not met; refused. |
+| FCW-211 | 06b | AL-42 | new | E-104 | (changed in v0.3 by CR-6.32) a CONSUMED event has no outcome 30 min [P] after the consume (the executor never returned) → OUTCOME_UNKNOWN with a needs-attention entry; it is never left CONSUMED without an age bound. |
 
 6.3 **AFC-n → FCW-n** (for step 5's 05a table "FCW-n → E-n", EV5 14.2).
 
@@ -1437,7 +1688,7 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | AFC-2 | FCW-28, FCW-29, FCW-30, FCW-31, FCW-32 |
 | AFC-3 | FCW-33, FCW-34, FCW-100 |
 | AFC-4 | FCW-44, FCW-45, FCW-46 |
-| AFC-5 | FCW-25, FCW-36, FCW-37, FCW-106 |
+| AFC-5 | FCW-25, FCW-36, FCW-37, FCW-106, FCW-197, FCW-199 |
 | AFC-6 | FCW-43, FCW-47 |
 | AFC-7 | FCW-38 |
 | AFC-8 | FCW-40, FCW-41 |
@@ -1445,20 +1696,20 @@ Column "Refines" lists AFC-n, or `new` for a condition the architecture does not
 | AFC-10 | FCW-13, FCW-39 |
 | AFC-11 | FCW-38 |
 | AFC-12 | FCW-27, FCW-49, FCW-50 |
-| AFC-13 | FCW-9, FCW-11, FCW-12, FCW-22, FCW-24, FCW-39 |
+| AFC-13 | FCW-9, FCW-11, FCW-12, FCW-22, FCW-24, FCW-39, FCW-196 |
 | AFC-14 | FCW-2, FCW-6, FCW-21 |
 | AFC-15 | FCW-4, FCW-16 |
-| AFC-16 | FCW-5, FCW-48, FCW-51, FCW-52, FCW-54, FCW-56, FCW-57, FCW-61 |
-| AFC-17 | FCW-53 |
-| AFC-18 | FCW-62, FCW-63, FCW-64, FCW-65 |
-| AFC-19 | FCW-61, FCW-66, FCW-67, FCW-68, FCW-72, FCW-73, FCW-74, FCW-75 |
+| AFC-16 | FCW-5, FCW-48, FCW-51, FCW-52, FCW-54, FCW-56, FCW-57, FCW-61, FCW-195, FCW-202, FCW-203 |
+| AFC-17 | FCW-53, FCW-201 |
+| AFC-18 | FCW-62, FCW-63, FCW-64, FCW-65, FCW-204 |
+| AFC-19 | FCW-61, FCW-66, FCW-67, FCW-68, FCW-72, FCW-73, FCW-74, FCW-75, FCW-205 |
 | AFC-20 | FCW-79, FCW-80, FCW-82, FCW-83 |
 | AFC-21 | FCW-85, FCW-86, FCW-87 |
-| AFC-22 | FCW-76, FCW-88, FCW-89, FCW-93, FCW-94, FCW-95, FCW-99 |
+| AFC-22 | FCW-76, FCW-88, FCW-89, FCW-93, FCW-94, FCW-95, FCW-99, FCW-200 |
 | AFC-23 | FCW-112, FCW-114, FCW-115, FCW-117 |
 | AFC-24 | FCW-109 |
-| AFC-25 | FCW-76, FCW-102, FCW-103, FCW-104, FCW-111, FCW-116 |
-| AFC-26 | FCW-69, FCW-74, FCW-101 |
+| AFC-25 | FCW-76, FCW-102, FCW-103, FCW-104, FCW-111, FCW-116, FCW-207, FCW-208 |
+| AFC-26 | FCW-69, FCW-74, FCW-101, FCW-206 |
 | AFC-27 | FCW-15, FCW-120 |
 | AFC-28 | FCW-137 |
 | AFC-29 | FCW-112, FCW-118, FCW-119 |
@@ -1521,8 +1772,11 @@ stateDiagram-v2
   AWAIT_SUBMIT --> BACKOFF: prompt submitted within 1 tick
   AWAIT_SUBMIT --> UNSUBMITTED: no submit within 1 tick, counted
   UNSUBMITTED --> BACKOFF: any prompt submitted
-  UNSUBMITTED --> AWAIT_SUBMIT: watchdog typed
+  UNSUBMITTED --> AWAIT_SUBMIT: watchdog typed, k unchanged
   BACKOFF --> AWAIT_SUBMIT: next ring at T0 plus O of k, k plus 1
+  AWAIT_SUBMIT --> STALLED: watchdog line not submitted, attention once
+  STALLED --> BACKOFF: any prompt submitted
+  STALLED --> IDLE: session restart
   AWAIT_SUBMIT --> IDLE: hand-over or nothing pending
   BACKOFF --> IDLE: hand-over or nothing pending
   UNSUBMITTED --> IDLE: hand-over, nothing pending, or session restart
@@ -1534,7 +1788,11 @@ within one tick moves to BACKOFF; none moves to UNSUBMITTED and is counted (H-11
 ring happens; any submit moves to BACKOFF; a watchdog line moves back to AWAIT_SUBMIT. 7.2.4 From BACKOFF the next ring
 waits until tick T0 + O(k) (0, 4, 12, then every 20 ticks). 7.2.5 A hand-over or an empty pending set returns to IDLE
 from any state; a session restart clears UNSUBMITTED. 7.2.6 After a sidecar crash an intent without a recorded submit is
-UNSUBMITTED.
+UNSUBMITTED. 7.2.7 (changed in v0.3 by CR-6.7, CR-6.8) A watchdog line may be typed from any state but STALLED and
+leaves k unchanged; if a watchdog line is not submitted within one tick the session is STALLED: nothing more is typed
+until a prompt is submitted (then BACKOFF) or the session restarts (then IDLE), and one needs-attention entry is
+raised. (The drawing shows the watchdog edge from UNSUBMITTED, the case that matters; from IDLE and BACKOFF it is the
+same edge.)
 
 **Drawing D-1.3 — the watchdog of one session (state machine, AL-8)**
 
@@ -1546,10 +1804,12 @@ stateDiagram-v2
   UNAVAILABLE --> COUNTING: sources become known
   COUNTING --> COUNTING: activity or a typed line restarts the silence
   COUNTING --> CHECKING: 300 s of silence
-  CHECKING --> HELD: kill switch, foreground, veto active or unmeasurable
+  CHECKING --> HELD: check fails
+  COUNTING --> STALLED_HOLD: stalled
+  STALLED_HOLD --> COUNTING: submit or restart
   CHECKING --> REFUSED_NO_ROW: audit row cannot be written
   CHECKING --> FIRED: row written, line typed
-  HELD --> CHECKING: next tick, still silent
+  HELD --> CHECKING: retry
   REFUSED_NO_ROW --> CHECKING: next tick
   FIRED --> COUNTING: silence restarts at the fire
   COUNTING --> QUIET: hand-over or nothing pending
@@ -1559,9 +1819,11 @@ stateDiagram-v2
 
 7.3 Text equivalent of D-1.3. 7.3.1 With nothing pending the watchdog is QUIET. 7.3.2 With mail pending it is COUNTING
 when every source is known, UNAVAILABLE otherwise (status says so; it never fires blind). 7.3.3 Activity or any typed
-line restarts the silence. 7.3.4 After 300 s of silence it CHECKS the kill switch, the foreground and the veto (which
-must be measurable); a failing check HOLDS with one audit row per kind; an audit row that cannot be written refuses the
-fire. 7.3.5 Otherwise the row is written and the line typed (FIRED); silence restarts at the fire. 7.3.6 A hand-over
+line restarts the silence. 7.3.4 After 300 s of silence it CHECKS the kill switch, the foreground, the client input and the veto (which
+must be measurable); the drawing labels all of them "a check fails"; a failing check HOLDS with one audit row per kind; an audit row that cannot be written refuses the
+fire. (changed in v0.3) It also holds for client input in the last 30 s, read before and after the veto (CR-6.1); on
+macOS the veto is the interim `ps` veto (ruling D); only one session of an agent fires per tick (CR-6.27); a STALLED
+session is not fired into until a prompt is submitted or it restarts (CR-6.7). 7.3.5 Otherwise the row is written and the line typed (FIRED); silence restarts at the fire. 7.3.6 A hand-over
 returns it to QUIET; after a crash the fire and typed-line times are rebuilt from durable logs, so a restart never
 shortens the 300 s.
 
@@ -1657,20 +1919,22 @@ stateDiagram-v2
   state "At Y" as Y {
     [*] --> STORED_AT_Y
     STORED_AT_Y --> LOCAL: not role mail, hop 3, lease unknown, vacant, own agent, outside roster
-    STORED_AT_Y --> INTENT: fresh lease names X, intent recorded
+    STORED_AT_Y --> INTENT: fresh lease names X, intent recorded, rechecked every tick
     STORED_AT_Y --> LOCAL: intent cannot be recorded
     INTENT --> POSTED: FORWARD posted
     INTENT --> INTENT: post failed, retry next tick, or crash
-    INTENT --> ABANDONED: not posted within 1 min
+    INTENT --> ABANDONED: hub refused for 1 min
+    INTENT --> UNCERTAIN_AT_Y: ambiguous post, presence unknown for 1 min
     ABANDONED --> LOCAL: offered at Y again
     POSTED --> FORWARDED: final at Y, stage written
     FORWARDED --> VIA_SENT: VIA notice to the sender
+    VIA_SENT --> STORED_AT_Y: same id re-sent, re-admitted, at most 3
   }
   state "At X" as X {
     [*] --> ENVELOPE
     ENVELOPE --> REFUSED_AT_X: outer or inner signature, roster, topic, hop
-    ENVELOPE --> STALE_AT_X: lease unknown, other agent or other generation
-    ENVELOPE --> ACCEPTED: generation matches, checks as direct mail
+    ENVELOPE --> STALE_AT_X: lease unknown or holder of another agent
+    ENVELOPE --> ACCEPTED: holder is an X session, checks as direct mail
     STALE_AT_X --> STALE_NOTICE: FORWARD-STALE to the sender
     ACCEPTED --> HANDED_OVER_AT_X: normal delivery, identity triple dedupe
   }
@@ -1680,9 +1944,14 @@ stateDiagram-v2
 Y's project, under the hop limit, and a lease read within 15 s names a holder X of another agent in the roster; then Y
 records a durable INTENT (if it cannot, the message stays LOCAL). 7.7.2 The FORWARD is POSTED (retried each tick and
 after a crash); if it cannot be posted within one minute the forward is ABANDONED and the message is offered at Y again.
-7.7.3 After posting, Y marks it FORWARDED (final at Y) and sends the VIA notice. 7.7.4 At X an envelope with a bad outer
-or inner signature, a signer outside the roster, a foreign topic or a bad hop is REFUSED; with X's lease unknown, naming
-another agent or another generation it is STALE and the sender gets FORWARD-STALE; otherwise it is ACCEPTED, checked as
+7.7.3 After posting, Y marks it FORWARDED (final at Y) and sends the VIA notice. 7.7.3.a (changed in v0.3) A message
+that stays LOCAL because the lease was unknown, stale or vacant is re-checked every tick (CR-6.12); a post that failed
+ambiguously is FORWARDED only when X's inbox shows it, retried when it shows it absent, and UNCERTAIN for the operator
+when neither is known within one minute (CR-6.10); the same id re-sent to Y after FORWARD-STALE is re-admitted to
+STORED and decided again, at most three times, then delivered at Y (CR-6.11). At X, a change of generation between two
+sessions of X is accepted and recorded; only a holder of another agent makes it STALE (CR-6.13). 7.7.4 At X an envelope with a bad outer
+or inner signature, a signer outside the roster, a foreign topic or a bad hop is REFUSED; with X's lease unknown or naming
+a holder of another agent (changed in v0.3 by CR-6.13: another generation alone is accepted) it is STALE and the sender gets FORWARD-STALE; otherwise it is ACCEPTED, checked as
 direct mail and handed over once.
 
 **Drawing D-2.1 — a doorbell ring and the hand-over (interaction sequence, AL-5, AL-6, AL-9), with the fails-closed paths**
@@ -1742,8 +2011,10 @@ sequenceDiagram
   participant H as Home hub
   WD->>WD: mail pending, S1 S2 S3 known, 300 s silence since activity, typed line or fire
   WD->>WD: kill switch
-  WD->>S: session.input_activity for the foreground
-  WD->>WD: veto, measurable and quiet
+  WD->>WD: one due session per agent this tick
+  WD->>S: session.input_activity for the foreground and typing
+  WD->>WD: veto, measurable and quiet, ps veto on macOS
+  WD->>S: re-read foreground and typing after the veto
   alt a check fails
     WD->>AC: one hold row per kind per silence
   else checks pass
@@ -1760,8 +2031,10 @@ sequenceDiagram
 ```
 
 7.9 Text equivalent of D-2.2. 7.9.1 The watchdog loop sees pending mail, all three sources known, and 300 s of silence
-since the last activity, typed line or fire. 7.9.2 It checks the kill switch, reads the foreground, and runs the veto,
-which must be measurable and quiet; a failure writes one hold row per kind per silence and types nothing. 7.9.3 Otherwise
+since the last activity, typed line or fire. 7.9.2 It checks the kill switch, reads the foreground and the client
+input (changed in v0.3 by CR-6.1: no client input in the last 30 s), and runs the veto, which must be measurable and
+quiet (on macOS the interim `ps` veto, ruling D), then re-reads the foreground and the client input after the veto
+window (CR-6.2); only one due session of an agent is fired per tick (CR-6.27); a failure writes one hold row per kind per silence and types nothing. 7.9.3 Otherwise
 it writes the watchdog row (READY flag, ages, checks) to the admin chain first; if that fails nothing is typed. 7.9.4 With
 the row written it types through `command.notify`, appends the outcome, writes ATTEMPTED with `via: watchdog`, and raises
 a needs-attention entry (once per session per day) when READY said busy.
@@ -1776,7 +2049,7 @@ sequenceDiagram
   participant LT as main topic
   participant TT as main-touch topic
   participant IT as main-ignored topic
-  S1->>LT: session start claim, lease vacant
+  S1->>LT: interactive session start claim, lease vacant
   LT-->>S1: provisional, generation N plus 1, 5 min
   S1->>LT: human prompt claim
   LT-->>S1: promoted, same generation
@@ -1796,7 +2069,7 @@ sequenceDiagram
   S1->>LT: renew fails, re-plan, lost main told
 ```
 
-7.10 Text equivalent of D-2.3. 7.10.1 S1's session start takes a vacant lease provisionally (new generation, 5 minutes);
+7.10 Text equivalent of D-2.3. 7.10.1 S1's session start (changed in v0.3 by CR-6.5: an interactive session only) takes a vacant lease provisionally (new generation, 5 minutes);
 its first human prompt promotes it at the same generation; every later human prompt posts a Touch on the touch topic and
 then renews. 7.10.2 An automated or unknown prompt from S2 is recorded on the ignored topic and changes nothing. 7.10.3 A
 human prompt from S2 reads S1's last human time: if S1 is pinned, prompted within 5 minutes, or its time is unknown, S2
@@ -1852,15 +2125,24 @@ mail and hands it over once.
 production (`main_lease.rs` `Timing::from_env`, no mode gate). A stray variable in a project's hook environment would
 shorten main's lease to as little as 1 s. AL-16 closes it in B-25; until then the production scan of 4.8.b can be run
 once to show whether any host has one set.
-8.3 **QR-2** After a sidecar restart the conversation signal has lost the last prompt; a person mid-conversation is
-protected only by the 30 s typing veto until their next prompt (AL-4 crash case).
+8.3 **QR-2** (closed in v0.3 by CR-6.23: `last_prompt` is persisted with the READY record, AL-1, AL-4) After a
+sidecar restart the conversation signal had lost the last prompt; a person mid-conversation was protected only by the
+30 s typing veto until their next prompt.
 8.4 **QR-3** The prompt origin can be forged by a same-user process calling `termlink main claim --origin human`
 directly, outside the hooks (RR-2, AR-6 class). AL-1's override sees only lines the receiver typed and input that came
-through `notify` or `inject`. Measured by the share of renewals by basis (E-31), not closed.
+through `notify` or `inject`. Measured by the share of renewals by basis (E-31), not closed. (changed in v0.3 by
+CR-6.4 and the operator's ruling A on F-25 / RQ-3) The receiver now checks every `human` prompt of a PTY session against
+its input counters (FCW-195), which closes harness-generated prompts with no client bytes; a same-user process acting
+outside the hooks is accepted as a residual until an operator key exists, made visible by the human-claim detector of
+evidence CR-5.11 (ARC4 19.7.b), never gated.
 8.5 **QR-4** A fast takeover racing the holder's own human prompt is decided in favour of the taker within one RPC round
 trip (AL-11 edge 5.11.f.4 (b)); recorded each time; the operator pins to choose.
-8.6 **QR-5** On a host where the activity veto cannot measure (no `/proc`, e.g. macOS), the watchdog never fires
-(FCW-41): mail held by a stuck READY flag there waits for the R-44.e notice and the operator. Visible, not silent.
+8.6 **QR-5** (changed in v0.3 by the operator's ruling D on F-20, 2026-11-12) On macOS the watchdog uses the interim
+`ps` veto (AL-6 step 4): it fires after 300 s of silence and the 30 s typing re-check unless the harness's tree has a
+running child or CPU growth. Blind spot: a job waiting only on network or disk with no child and no CPU is not seen,
+and the line arrives as the next prompt (ARC4 AR-7). Status `watchdog: degraded (macOS, ps veto)`. The full veto is
+T-3688 and replaces the interim one only once proven. Where neither `/proc` nor `ps` measures, the watchdog never fires
+(FCW-41) and a needs-attention entry says so.
 8.7 **QR-6** If the touch topic cannot be read, no fast takeover happens (FCW-55); main then moves only by lapse (worst
 case 20 min, as built).
 8.8 **QR-7** The later-phase algorithms (06b) fix decision logic only; formats and transports wait for gated
@@ -1868,7 +2150,7 @@ sub-designs, and their FCWs must be re-confirmed when those land (marked **[open
 
 ## 9 Change requests to earlier steps (requests, not edits)
 
-9.1 **ZR-1 (step 5).** (a) Add specs for the 44 FCWs listed in 6.1 that have none, and the 05a table "FCW-n → E-n"
+9.1 **ZR-1 (step 5).** (a) Add specs for the 46 FCWs (changed in v0.3 by CR-6.37: v0.2 said 44) listed in 6.1 that have none, and the 05a table "FCW-n → E-n"
 (EV5 14.2), using 6.3 for the AFC mapping. (b) Add a spec for the production seam scan of 4.8.b (an E-101-style L7
 check: any `TERMLINK_*TEST*` variable in a production unit environment, the hooks' environment or a running sidecar's
 environment fires). (c) E-5's expected table: use 4.2 (one ring then none with a non-submitting adapter; 0, 4, 12, 32,
@@ -1900,7 +2182,8 @@ evidence that the agent is not working.
 32-byte public key (06a AL-18).
 9.6 **ZR-6 (step 4, ARC4 6.4.3, 6.4.5).** Record the wrapper header `TLBLOB`, format version 1, algorithm id 1
 (XChaCha20-Poly1305 with an X25519 sealed box), and the associated data `termlink.blob/1\n<recipient>\n<plain_sha256>`
-(06a AL-26) as the decision behind "the wrapper's magic and version".
+(06a AL-26) as the decision behind "the wrapper's magic and version". (Superseded in v0.3 by CR-6.14: format version 2, associated data over the immutable
+envelope fields with `to` verbatim, 06a AL-26 and ARC4 6.4.3.a.)
 9.7 **ZR-7 (step 4, ARC4 17.2, 17.5.a).** (a) A `prompt_submit` with basis `doorbell` SHOULD carry `doorbell_ids`, the
 ids parsed from the submitted line; AL-7 (unsubmitted-line tracking), AL-9 (stray count) and AL-1 (origin override) use
 them. (b) The receiver orders `ready` reports by `at_ms` and drops an older one; a BUSY/READY tie keeps BUSY (FCW-3).
@@ -1922,7 +2205,7 @@ EXECUTION SEMANTICS and CRYPTOGRAPHY, plus OBS. Where a part is empty for a stat
 machine with timeout, cancel and revoke, execute once and record, post-condition, revocation, break-glass) is AL-41 to
 AL-44, AL-46, AL-50, and AL-21, AL-22, AL-45 for revocation. Canonicalisation has test vectors (06a 2.4.c.1, 06b
 2.1.c.1, and the SI-1 line vector 5.6.c.1).
-10.2 **Card 7.2, every FAILS CLOSED WHEN handed to the evidence specialist.** Section 6: 194 FCWs (v0.2: FCW-191..FCW-194 added
+10.2 **Card 7.2, every FAILS CLOSED WHEN handed to the evidence specialist.** Section 6: 211 FCWs since v0.3 (194 in v0.2) (v0.2: FCW-191..FCW-194 added
 by the r1 remediation), each with the AFC it refines or `new`, and an E-n or ZR-1; the 46 without a spec are ZR-1 (a),
 and the cases of the four new ones that step 5 lacks are ZR-1 (f).
 10.3 **Card 7.3, concurrency and crash cases for every state-changing step.** Every algorithm has, in its part f, a
@@ -1968,3 +2251,11 @@ D-1.15 (AL-36); the changed D-1.12 and D-2.7 labels (AL-43) are among them. Ever
 syntax or parse error; script exit code 0. Read as PNG: D-1.14 and D-1.15. D-1.14's first two layouts overlapped two
 labels near LOST_AFTER_STORED; it is now drawn left to right with short labels (the text equivalent 06a 3.7 carries the
 full conditions), and every label reads clearly.
+
+11.5 **v0.3 re-render (step 7 fold, T-3689).** Script `.context/working/t3689/render.sh` (same mmdc method), output in
+`.context/working/t3689/render06/`, `render06a/`, `render06b/`. Changed blocks: 06 D-1.2 (STALLED), D-1.3 (STALLED_HOLD,
+typing check, labels shortened), D-1.7 (ambiguous post to UNCERTAIN_AT_Y, re-admit, holder-agent check at X), D-2.2
+(typing check and re-reads, `ps` veto), D-2.3 (interactive session start); 06b D-1.12 (CONSUMED age bound). All 23
+blocks exit code 0, a non-empty SVG, no syntax or parse error; no `;` in any sequence block and no state with more than
+one self-loop. Read as PNG: D-1.2, D-1.3, D-1.7 and D-1.12. D-1.3's first two layouts overlapped the HELD labels; the
+labels were shortened ("check fails", "retry"; the text equivalent 7.3 names every check) and now read clearly.
