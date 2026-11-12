@@ -23163,3 +23163,21 @@ scan_id: R-693a8977
 task_id: T-3692
 payload:
   task_file: .tasks/active/T-3692-p-1-persist-lastprompt-with-ready-b-27-f.md
+---
+kind: scan_emitted
+timestamp: '2026-11-12T18:31:44Z'
+scan_id: R-f3aec83d
+task_id: T-3364
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-12T18:31:44Z'
+scan_id: R-f3aec83d
+task_id: T-3364
+payload:
+  task_file: .tasks/active/T-3364-preflight-ntp-synchronised-clock-check-c.md

@@ -5,13 +5,13 @@ description: >
   Add a substrate-preflight check that the host clock is NTP-synchronised, since urgent
   deadlines (15 s) and cross-host telemetry depend on it.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 arc_id: arc-011
-components: []
+components: [scripts/substrate-preflight.sh]
 related_tasks: [T-3344, T-3357, T-3708]
 plan_unit: P-23
 depends_on: []
@@ -26,8 +26,8 @@ depends_on: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:16:21Z
-last_update: 2026-11-12T18:31:30Z
-date_finished:
+last_update: 2026-11-12T18:31:34Z
+date_finished: 2026-11-12T18:31:34Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -249,3 +249,16 @@ bash scripts/check-guard-severity-markers.sh > .context/working/.t3364-cap.out 2
 ### 2026-11-12T18:28:05Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-12T18:31:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f3aec83d
+- **Timestamp:** 2026-11-12T18:31:44Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

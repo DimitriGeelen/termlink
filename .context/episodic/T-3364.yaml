@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3364: Preflight: NTP-synchronised clock check (CAND-13)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T18:31:55Z
+# ============================================================================
+
+task_id: T-3364
+task_name: "Preflight: NTP-synchronised clock check (CAND-13)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-06T10:16:21Z
+completed: 2026-11-12T18:31:34Z
+duration_days: 37
+updates_count: 3
+first_commit: 2026-11-12T19:31:30+01:00
+last_commit: 2026-11-12T19:31:30+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate-preflight Check 9 clock-sync (CAND-13, P-23) — WARN when not NTP-synchronised (timedatectl/chronyc/ntpq fall-through), SKIP not PASS when unchecked, --clock-state for the P-24 skew line; 13 hermetic fixtures
+
+# Key outcomes
+outcomes:
+  - 'scripts/substrate-preflight.sh gains a check that WARNs when the clock is not NTP-synchronised (timedatectl / chrony / ntpq, portable fallbacks, skip on unsupported)'
+  - 'Test seam plus fixtures cover synced, unsynced and unknown'
+  - 'The check lives inside the existing preflight script (no new guard, DP-3) and exposes its state for the status skew line'
+  - 'Preflight fixture: the unsynchronised-clock fixture is red, the synchronised one green'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'substrate-preflight Check 9 clock-sync (CAND-13, P-23) — WARN when not NTP-synchronised (timedatectl/chronyc/ntpq fall-through), SKIP not PASS when unchecked, --clock-state for the P-24 skew line; 13 hermetic fixtures'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — plan G-0'
+    chose: 'confirm as proposed in plan 08 v0.3 section 7.1 (approved by the operator 2026-11-12, ruling A with PD-2, recorded in T-3357): this task is unit P-23; it also feeds the status skew line (P-24, T-3708).'
+    rationale: 'scope matches; placing it inside the existing preflight keeps the guard cap (DP-3).'
+    alternatives_rejected: ['a separate canary (would need a slot under the cap).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3364-preflight-ntp-synchronised-clock-check-c.md'
+  - 'scripts/substrate-preflight.sh'
+  - 'tests/substrate-preflight-ntp-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T19:31:30'
+    action: 'T-3364: substrate-preflight Check 9 clock-sync (CAND-13, P-23) — WARN when not NTP-synchronised (timedatectl/chronyc/ntpq fall-through), SKIP not PASS when unchecked, --clock-state for the P-24 skew line; 13 hermetic fixtures'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 53775 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 53775
+  commits: 2
+  files_changed: 6
+  lines_added: 343
+  lines_removed: 15
+  footprint_refreshed_at: '2026-11-12T18:32:11Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3364-preflight-ntp-synchronised-clock-check-c.md
+generated_by: context-agent-hybrid
