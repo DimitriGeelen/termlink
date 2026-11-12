@@ -1,0 +1,14 @@
+# T-3750 handback (remote-hub inbox mail now reaches the running session)
+
+1. Design: new `scripts/lib/remote-inbox-relay.py` reads our inboxes on every remote hub, reusing remote-inbox-mail.py with a new `--full-body` flag. It stores each new peer post in the AEF sidecar receiver store as a `via: hub-topic` envelope, the same shape the watcher uses for local mail. The receiver's own tick then injects it and the prompt hook surfaces it. No AEF edit; the AEF follow-up request text is in T-3750 Decisions (not sent).
+2. Schedule: the relay runs inside the existing 5-minute `scripts/notify-sidecar-supervisor.sh` sweep. There is no new cron, and the DP-3 cap is unchanged at 99/34. It has its own log `.context/working/.remote-inbox-relay.log`, a lock and a 240 s bound, and the supervisor's exit code is unaffected.
+3. Safety: the relay has its own cursor, seeded from the session-start markers so history is not replayed. The cursor advances only after every message on a topic is stored. The session-start seen-markers are never touched.
+4. Unreachable hubs: a hub that cannot be read is NOT CHECKED (rc 2) and its cursor does not move. After 2 failed runs the session gets one notice per outage.
+5. Files: scripts/lib/remote-inbox-relay.py (new), scripts/lib/remote-inbox-mail.py, scripts/notify-sidecar-supervisor.sh, tests/remote-inbox-relay-fixtures.sh (new), tests/notify-sidecar-supervisor-fixtures.sh, tests/notify-sidecar-api-fixtures.sh (relay off there, so those tests never touch real hubs).
+6. Tests: relay fixtures 17/17, supervisor 20/0, notify-sidecar-api 93/0, session-start-alerts 39/0. Negative control (case 9): with the relay off, the start-only behaviour fails the live-surfacing check.
+7. Live proof: the 17:30 sweep delivered ring20's offsets 23-25 into the main session (tl-zez4b23c, transcript 10c2f139) and they were HANDED_OVER 19 s later. My "T-3750 live test, ignore" post (.122 offset 26) was relayed at 17:35:13 and HANDED_OVER at 17:35:36. Evidence: receiver events.jsonl plus the transcript attachment, no restart.
+8. ring20 19-22: answered 2026-11-02 under T-3652. 23-25 (today's Mac-delivery bug report; 25 re-sends 23) are not yet answered by this project, but the main session now has them.
+9. Operator: nothing to install or run. The live cron already runs the new code.
+10. Decision for the operator: hubs .132 (greenfield) and .141 (laptop-141) are unreachable now, so the main session got one notice each. If .141 often goes offline, expect one notice per outage. Say whether laptop hubs should be quieter, for example a higher `--notice-after`.
+11. Small leftover: the test post's HANDED_OVER receipt created a stray local topic `inbox:cacc73ea32b121dd/010-termlink/t3750-live-test`. It is harmless and can be left alone.
+12. T-3750 is not closed. All 9 Agent ACs are ticked; commits are pushed to origin only.

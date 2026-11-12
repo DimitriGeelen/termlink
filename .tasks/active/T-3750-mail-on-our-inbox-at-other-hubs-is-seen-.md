@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T17:18:18Z
-last_update: 2026-11-12T17:32:31Z
+last_update: 2026-11-12T17:38:28Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -105,15 +105,22 @@ control shows the old start-only behaviour fails them.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/lib/remote-inbox-mail.py --full-body` adds the full message body to each mail row (existing output unchanged without it)
-- [ ] `scripts/lib/remote-inbox-relay.py` stores each unseen remote-inbox peer post into the receiver store with a deterministic id (`remote-<hash(hub|topic|offset)>`), idempotently, and advances its own per-topic cursor only after every mail on that topic was stored
-- [ ] First run seeds the relay cursor from the session-start seen-markers (no flood of already-shown history); with no marker it relays only posts younger than the window
-- [ ] An unreachable hub or unreadable topic: relay exits 2, writes `NOT CHECKED` to its log and status file, advances no cursor for it, and stores ONE notice into the receiver per outage (not per run)
-- [ ] `scripts/notify-sidecar-supervisor.sh` runs the relay each sweep (flock, bounded timeout, failure isolated: the supervisor's own exit semantics unchanged); seam `NOTIFY_SUPERVISOR_REMOTE_RELAY` (`off` or a command)
-- [ ] Hermetic fixtures `tests/remote-inbox-relay-fixtures.sh` (fake termlink, temp receiver dir, no real hub) pass, including a negative control: the start-only path (relay disabled) leaves the receiver empty and the test detecting live surfacing fails
-- [ ] Existing fixtures still pass: session-start-alerts, notify-sidecar-supervisor
-- [ ] Live proof: a "T-3750 live test, ignore" notice posted to our inbox on .122 is stored by the relay and surfaced into a running session without restart (observation method recorded in Updates)
-- [ ] ring20 offsets 19-23 on .122 listed with their answered/unanswered status in this task
+- [x] `scripts/lib/remote-inbox-mail.py --full-body` adds the full message body to each mail row (existing output unchanged without it)
+- [x] `scripts/lib/remote-inbox-relay.py` stores each unseen remote-inbox peer post into the receiver store with a deterministic id (`remote-<hash(hub|topic|offset)>`), idempotently, and advances its own per-topic cursor only after every mail on that topic was stored
+- [x] First run seeds the relay cursor from the session-start seen-markers (no flood of already-shown history); with no marker it relays only posts younger than the window
+- [x] An unreachable hub or unreadable topic: relay exits 2, writes `NOT CHECKED` to its log and status file, advances no cursor for it, and stores ONE notice into the receiver per outage (not per run)
+- [x] `scripts/notify-sidecar-supervisor.sh` runs the relay each sweep (flock, bounded timeout, failure isolated: the supervisor's own exit semantics unchanged); seam `NOTIFY_SUPERVISOR_REMOTE_RELAY` (`off` or a command)
+- [x] Hermetic fixtures `tests/remote-inbox-relay-fixtures.sh` (fake termlink, temp receiver dir, no real hub) pass, including a negative control: the start-only path (relay disabled) leaves the receiver empty and the test detecting live surfacing fails
+- [x] Existing fixtures still pass: session-start-alerts, notify-sidecar-supervisor
+- [x] Live proof: a "T-3750 live test, ignore" notice posted to our inbox on .122 is stored by the relay and surfaced into a running session without restart (observation method recorded in Updates)
+- [x] ring20 offsets 19-23 on .122 listed with their answered/unanswered status in this task
+
+**ring20 on .122 `inbox:22c19fedafd73da2/010-termlink` (read 2026-11-12):**
+- 19-22 (2026-10-27/28, kommunal-pool follow-ups, claim-over-TCP bug, 512 KiB cap): ANSWERED 2026-11-02 under T-3652
+  (reply .122 offset 2829 + sidecar send), recorded in `.context/project/unacted-mail-handled.txt` lines 10-13.
+- 23 (17:14Z), 24 (17:21Z, follow-up with "part ours, part yours"), 25 (17:23Z, a re-send of 23), all conversation
+  `mac-delivery-2026-11-12`: NOT yet answered from this project as far as the repo shows. The relay's first
+  live run delivered all three into the main session at 17:30:31Z (HANDED_OVER, transcript evidence).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -318,7 +325,8 @@ control shows the old start-only behaviour fails them.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 bash tests/remote-inbox-relay-fixtures.sh > .context/working/.t3750-relay.out 2>&1 && grep -q "ALL PASS" .context/working/.t3750-relay.out
-bash tests/notify-sidecar-supervisor-fixtures.sh > .context/working/.t3750-sup.out 2>&1 && ! grep -q "FAIL" .context/working/.t3750-sup.out
+bash tests/notify-sidecar-supervisor-fixtures.sh > .context/working/.t3750-sup.out 2>&1 && grep -q " 0 failed" .context/working/.t3750-sup.out
+bash tests/session-start-alerts-fixtures.sh > .context/working/.t3750-ssa.out 2>&1 && grep -q "failed: 0" .context/working/.t3750-ssa.out
 python3 -m py_compile scripts/lib/remote-inbox-relay.py scripts/lib/remote-inbox-mail.py
 bash scripts/check-guard-severity-markers.sh > .context/working/.t3750-cap.out 2>&1
 
@@ -410,6 +418,29 @@ receiver store, with a negative control for the start-only path.
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-12 — how remote-inbox mail reaches the running session
+- **Chose:** a relay (`scripts/lib/remote-inbox-relay.py`) that stores new remote-inbox peer posts in the AEF
+  sidecar receiver store (`receiver.store_message`, envelope `via: hub-topic`, id `remote-<sha16(hub|topic|offset)>`),
+  run each sweep of the existing 5-minute `scripts/notify-sidecar-supervisor.sh` cron. The receiver's own watcher
+  (30 s tick) injects and the prompt hook surfaces and records HANDED_OVER, exactly as for local-hub mail.
+- **Why:** reuses the one path that already reaches a running session (inject when ready, transcript-evidenced
+  hand-over, receipts) and the existing reader (remote-inbox-mail.py + its seen-marker scheme). No AEF edit, no new
+  cron (DP-3: within an existing operational job, guard cap unchanged at 99/34), live without operator action because
+  cron re-reads the script each run. Latency ≤ 5 min + one watcher tick.
+- **Rejected:**
+  1. Extend the AEF watcher's `ingest_hub` to read remote hubs — the right long-term home, but vendored (lost at
+     re-vendor). Request text for AEF below.
+  2. A project UserPromptSubmit/Stop hook running the reader — fires only when the operator types or a turn ends;
+     an idle session (the ring20 case) would still not see the mail, and it adds hub latency to every prompt.
+  3. Re-posting remote mail onto our local inbox topic — duplicates the message on a second hub, forges the sender's
+     position in another topic, and the watcher would then RECEIVED-receipt it on the wrong rail.
+  4. A new cron of its own — breaks DP-3 without retiring a guard, and needs an operator install.
+  5. Sharing the session-start seen-markers — the relay has its own cursor ("stored in the receiver" is not "seen");
+     it only SEEDS from them so history already shown at session start is not replayed.
+- **AEF request (not sent):** "lib/sidecar/watcher.py ingest_hub: also drain the agent's inbox topics on every
+  remote hub in hubs.toml (bounded per hub, NOT CHECKED per hub when unreachable), so consumer projects do not need
+  a relay. 010-termlink T-3750 runs one meanwhile."
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -429,3 +460,19 @@ receiver store, with a negative control for the start-only path.
 
 ### 2026-11-12T17:23:13Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-12T17:36Z — live proof [T-3750 worker]
+- **How observed:** from the receiver's own ledger `.context/sidecar/receiver/events.jsonl` and the receiving
+  session's transcript. No restart; the cron re-reads the supervisor script each run, so the change was live from commit.
+- **Real mail first:** the 17:30:12Z cron sweep relayed ring20 offsets 23-25 (STORED, INGESTED_FROM_REMOTE_HUB). At
+  17:30:18Z the watcher injected them into session tl-zez4b23c (the main session, generation 3, Claude transcript
+  10c2f139). At 17:30:31Z they were HANDED_OVER with `transcript:10c2f139…` evidence. The transcript holds the
+  `hook_additional_context` attachment "Sidecar receiver: 3 message(s)" with the "relayed from our inbox on remote hub
+  192.168.10.122" origin line (line 143386).
+- **Test post:** at 17:32:40Z a "T-3750 live test, ignore" post went to `inbox:22c19fedafd73da2/010-termlink` on .122
+  (offset 26). The 17:35:13Z sweep relayed it as remote-9ac1f89aae32852f, it was injected at 17:35:22Z and was
+  HANDED_OVER at 17:35:36Z (same transcript evidence). A HANDED_OVER receipt was posted to the local-hub topic
+  `inbox:cacc73ea32b121dd/010-termlink/t3750-live-test`; that is a stray topic left by the fake sender name.
+- **Outage path live:** .132 (greenfield, no answer in 10 s) and .141 (laptop-141, no route) were NOT CHECKED on runs
+  1 and 2. On run 2 the relay stored one notice per hub, and both were HANDED_OVER at 17:35:36Z. CONFIRM_FAILED for
+  the notices is expected: no receiver exists for the relay's own sender name.
