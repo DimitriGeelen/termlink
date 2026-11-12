@@ -98,8 +98,8 @@ open(p,"w").write(s.replace(o,os.environ["NEW"],1))'; then
         '        if v.holder.is_none() { return Plan::Take { reason: "mutant" }; }
         return Plan::Ignored;'
     run M12-oob-sent-without-a-sink "$W" "${MW}e28_oob" \
-        '                    Oob::NotAvailable // FCW-62' \
-        '                    Oob::SentAt(now_ms)'
+        '                Oob::NotAvailable // FCW-62' \
+        '                Oob::SentAt(now_ms)'
     run M13-exact-instance-mail-counts "$W" "${MW}e28_exact" \
         'let w: Vec<&Waiting> = mail.iter().filter(|m| m.role).collect();' \
         'let w: Vec<&Waiting> = mail.iter().collect();'
