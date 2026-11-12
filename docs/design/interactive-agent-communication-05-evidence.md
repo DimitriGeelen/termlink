@@ -311,7 +311,7 @@ E-12.5 CONTROL: drill with the switch read removed from the watchdog path types 
 E-13.1 EVIDENCE: on EP-7 for 7 days, (a) check-to-keystroke p99 ≤ 100 ms [P]; (b) stray lines ≤ 1 per 1000 rings; (c) vetoes while idle and ready ≤ 10% of ticks; (d) rings within 2 s of a turn start ≤ 1 per 1000; (e) typed lines not followed by a submit within 1 tick, counted; (f) watchdog fires per 1000 rings and the share that found READY false-busy, reported.
 E-13.2 ARRANGE: W2 runme action run by the operator; ring log and audit rows on.
 E-13.3 ACT: normal work for 7 days.
-E-13.4 ASSERT: the H-11 report computes (a)..(f) from the ring log and the transcripts; (a)..(d) against their bounds; (e) and (f) reported with numerator and denominator per attempt (RNU: failures per ring, never rings per day). Result: `docs/reports/<B-17 task>-h11.md` with the JSONL.
+E-13.4 ASSERT: the H-11 report computes (a)..(f) from the ring log and the transcripts; (a)..(d) against their bounds; (e) and (f) reported with numerator and denominator per attempt (RNU: failures per ring, never rings per day), and (changed in v0.2, follows CR-3.1) against their starting bounds of FP 9.2. Result: `docs/reports/<B-17 task>-h11.md` with the JSONL.
 E-13.5 CONTROL: the report generator is checked on a seeded log with known counts (tier 1) and goes red when a stray line is dropped from its input.
 
 **E-14 — Limit probe: the check-to-keystroke race (RR-19, AR-2).** Links: SI-2, TH-62, RR-19, AR-2. Category: adversarial. Level: L2 (limit). Tier: 1. Phase: PH-2 (B-16).
@@ -1534,7 +1534,7 @@ code; fuzzing (L3) covers the corpus and the time it ran; live runs (L5, L7) cov
 15.3 **One host.** PH-2's tiers 2 to 4 all run on .107, where agents run as root and the hub shares the host (AR-4,
 RR-2). Specs about separation (E-58, E-96) show what status says and what a non-root user cannot do, not separation
 from root.
-15.4 **Measured, not closed:** AR-6 (`inferred` prompt origin, E-31, E-85); H-11 (e) and (f) have no bound (YR-1).
+15.4 **Measured, not closed:** AR-6 (`inferred` prompt origin, E-31, E-85). (changed in v0.2, follows CR-3.1) H-11 (e) and (f) now have starting bounds in FP 9.2 (YR-1 answered): (e) at most 10 per 1000 rings, (f) watchdog fires at most 20 and false-busy fires at most 5 per 1000 rings, all [P]; E-13 and E-171 assert them.
 15.5 **Volume dependence:** H-14 (E-77) needs at least 500 messages in 14 days on EP-9; with less traffic it is "not
 concluded", never passed.
 15.6 Open items for the operator (plain language), none blocking this step:
