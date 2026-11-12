@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:09Z
-last_update: 2026-11-12T11:36:24Z
+last_update: 2026-11-12T11:38:18Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -284,6 +284,14 @@ grep -q 'task: T-3356' docs/design/interactive-agent-communication-role-chain.ya
   wrote into its read-only export on an orchestrator instruction error, run 2 usage limit, run 3 model at capacity).
   If Codex works later, its answer is stored as an addendum and new findings go through the normal disposition.
 - **Rejected:** B wait for Codex (days, the build waits on these dispositions); C a paid OpenRouter seat.
+
+### 2026-11-12 — step 7 approved (operator: "A", in chat)
+- **Chose:** A, approve step 7: 07-review v0.1 with the operator's rulings above (F-7, F-36..F-39 rejected; F-25
+  accepted with detector; F-1 approved; F-20 ruling D; panel closed at three vendors) and the 42 accepted findings as
+  change requests to steps 1, 4, 5, 6 and to B-27 (T-3687).
+- **Left:** the operator ticks the "[REVIEW] Step 7 output approved" box himself in Watchtower (/review/T-3356); the
+  agent does not tick Human criteria. Next: fold the change requests into their steps (README 3: no step final with an
+  open change request), the B-27 repair round, then step 8 (T-3357).
 
 ## Decision
 
