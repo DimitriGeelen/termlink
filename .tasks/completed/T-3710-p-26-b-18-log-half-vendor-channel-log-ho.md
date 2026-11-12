@@ -5,12 +5,12 @@ description: >
   arc-011 plan unit P-26 (docs/design/interactive-agent-communication-08-plan.md v0.3,
   approved G-0 2026-11-12): B-18 log half: vendor-channel log hook (K-20)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-sidecar/src/api.rs, crates/termlink-sidecar/src/cli.rs, crates/termlink-sidecar/src/hook.rs, crates/termlink-sidecar/src/store.rs]
 related_tasks: [T-3357]
 plan_unit: P-26
 arc_id: arc-011
@@ -43,8 +43,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:48Z
-last_update: 2026-11-12T20:01:29Z
-date_finished:
+last_update: 2026-11-12T20:01:31Z
+date_finished: 2026-11-12T20:01:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -427,3 +427,16 @@ python3 -c "import json;json.load(open('.claude/settings.json'))"
 
 ### 2026-11-12 — worker stop [t3710-unit]
 - **Blocked:** the unit needs termlink-sidecar crate changes: a hook event `vendor-channel`, an op that writes an admin row plus a needs-attention entry coalesced per (session, day), and a `vendor_log` status field. The worker brief barred edits to crates/ while T-3692/T-3693/T-3749 run. See .context/working/t3710/handback.md.
+
+### 2026-11-12T20:01:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-0212f225
+- **Timestamp:** 2026-11-12T20:02:44Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

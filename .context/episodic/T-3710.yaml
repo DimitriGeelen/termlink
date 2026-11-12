@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3710: P-26: B-18 log half: vendor-channel log hook K-20
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T20:02:52Z
+# ============================================================================
+
+task_id: T-3710
+task_name: "P-26: B-18 log half: vendor-channel log hook K-20"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T16:56:48Z
+completed: 2026-11-12T20:01:31Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-11-12T19:42:18+01:00
+last_commit: 2026-11-12T21:01:30+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  worker stop — P-26 needs termlink-sidecar crate changes (barred this dispatch); handback recorded. P-26 vendor-channel log hook (K-20, AL-39): vendor-use op writes an _admin row per use and a needs-attention entry coalesced per (session, day, tool); hook vendor-channel [--tool]; status vendor_log ok|degraded|unknown from the hook error log (FCW-146); PreToolUse SendMessage|Agent|Task via fw hook-enable, always exit 0; fixtures + mutants. verification, ACs, decision and evolution. mutant suite prints the first compiler error on a TOOLING line
+
+# Key outcomes
+outcomes:
+  - 'The spec tagged "B-18 log half" passes (vendor-channel log hook K-20)'
+  - 'The unit''s fixture suite exits 0 with a PASS line per listed E-n and its mutant list is all killed (FP 3.1.b)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'mutant suite prints the first compiler error on a TOOLING line'
+    source: git-mined
+  - description: 'P-26 vendor-channel log hook (K-20, AL-39): vendor-use op writes an _admin row per use and a needs-attention entry coalesced per (session, day, tool); hook vendor-channel [--tool]; status vendor_log ok|degraded|unknown from the hook error log (FCW-146); PreToolUse SendMessage|Agent|Task via fw hook-enable, always exit 0; fixtures + mutants'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — where vendor_log reads from, and when it is degraded'
+    chose: '`status` reads the hook error log (default beside the sockets, or `$TERMLINK_SIDECAR_HOOK_ERRORS`) and shows `vendor_log: degraded` while a vendor-channel error line is newer than the last vendor-channel row; `unknown` when the log exists but cannot be read; the error count stays in `vendor_log_detail`.'
+    rationale: 'an unreachable sidecar can only be seen through the hook''s own log (FCW-146); clearing on the next written row keeps the state meaning "uses are being lost now" instead of latching forever.'
+    alternatives_rejected: ['a latched flag inside the sidecar (cannot see the unreachable case); a script-only `note` per call (no admin row, no coalescing; see the first hand-back).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/settings.json'
+  - '.context/project/enforcement-baseline.sha256'
+  - '.tasks/active/T-3710-p-26-b-18-log-half-vendor-channel-log-ho.md'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/cli.rs'
+  - 'crates/termlink-sidecar/src/hook.rs'
+  - 'crates/termlink-sidecar/src/store.rs'
+  - 'crates/termlink-sidecar/tests/vendor_log_tests.rs'
+  - 'scripts/hooks/vendor-channel-log.sh'
+  - 'tests/b18-vendor-log-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T19:42:18'
+    action: 'T-3710: worker stop — P-26 needs termlink-sidecar crate changes (barred this dispatch); handback recorded'
+  - time: '2026-11-12T20:52:47'
+    action: 'T-3710: P-26 vendor-channel log hook (K-20, AL-39): vendor-use op writes an _admin row per use and a needs-attention entry coalesced per (session, day, tool); hook vendor-channel [--tool]; status vendor_log ok|degraded|unknown from the hook error log (FCW-146); PreToolUse SendMessage|Agent|Task via fw hook-enable, always exit 0; fixtures + mutants'
+  - time: '2026-11-12T20:55:31'
+    action: 'T-3710: verification, ACs, decision and evolution'
+  - time: '2026-11-12T21:01:30'
+    action: 'T-3710: mutant suite prints the first compiler error on a TOOLING line'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 184 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 184
+  commits: 5
+  files_changed: 12
+  lines_added: 744
+  lines_removed: 23
+  footprint_refreshed_at: '2026-11-12T20:03:15Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3710-p-26-b-18-log-half-vendor-channel-log-ho.md
+generated_by: context-agent-hybrid
