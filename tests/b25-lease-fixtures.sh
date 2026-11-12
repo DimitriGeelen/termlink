@@ -8,8 +8,9 @@
 #   bash tests/b25-lease-fixtures.sh            # the E-n
 #   bash tests/b25-lease-fixtures.sh --mutants  # FP 3.1.b: every mutant must be KILLED
 #
-# The mutant run works on a clean export of HEAD (git archive, never a worktree) under
-# $B25_MUT_DIR (default /var/tmp/b25-mutants), applies one source mutation at a time, runs the
+# The mutant run works on a clean clone of HEAD (`git clone --shared`, never a worktree, never
+# cd'd into: cargo runs with --manifest-path) at $B25_MUT_DIR/src (default
+# .context/working/t3694/src, gitignored), applies one source mutation at a time, runs the
 # tests that must catch it, and requires them to FAIL. A mutation that no longer applies to the
 # source is a tooling error (2), never a pass.
 set -uo pipefail
@@ -17,16 +18,17 @@ cd "$(dirname "$0")/.." || exit 2
 export TMPDIR="${TMPDIR:-/var/tmp}" CARGO_TARGET_TMPDIR="${CARGO_TARGET_TMPDIR:-/var/tmp}"
 
 if [ "${1:-}" = "--mutants" ]; then
-    root="${B25_MUT_DIR:-/var/tmp/b25-mutants}"
+    root="${B25_MUT_DIR:-$PWD/.context/working/t3694}"
     src="$root/src"
-    export CARGO_TARGET_DIR="$root/target"
+    export CARGO_TARGET_DIR="${B25_MUT_TARGET:-/var/tmp/b25-mutants/target}"
     mkdir -p "$root" || exit 2
+    rm -rf "$src" && git clone -q --shared --no-checkout . "$src" && git -C "$src" checkout -q --detach "$(git rev-parse HEAD)" \
+        || { echo "TOOLING: clone of HEAD failed"; exit 2; }
     rc=0
     # mutant <id> <file> <test-cmd> <python-literal-old> <python-literal-new>
     mutant() {
         local id="$1" file="$2" cmd="$3" old="$4" new="$5"
-        rm -rf "$src" && mkdir -p "$src" || return 2
-        git archive HEAD | tar -x -C "$src" || { echo "TOOLING $id: export failed"; return 2; }
+        git -C "$src" checkout -q -- . && git -C "$src" clean -qfd || { echo "TOOLING $id: reset of the clone failed"; return 2; }
         if ! OLD="$old" NEW="$new" F="$src/$file" python3 -I -c '
 import os,sys
 p=os.environ["F"]; s=open(p).read(); o=os.environ["OLD"]
@@ -35,7 +37,7 @@ open(p,"w").write(s.replace(o,os.environ["NEW"],1))'; then
             echo "TOOLING $id: the mutation no longer applies to $file"; return 2
         fi
         local log="$root/$id.log"
-        ( cd "$src" && eval "$cmd" ) >"$log" 2>&1
+        eval "$cmd" >"$log" 2>&1
         local trc=$?
         if grep -q "^error\[E\|^error: could not compile" "$log"; then
             echo "TOOLING $id: the mutant does not compile ($log)"; return 2
@@ -52,9 +54,13 @@ open(p,"w").write(s.replace(o,os.environ["NEW"],1))'; then
     S=crates/termlink-session/src/main_lease.rs
     W=crates/termlink-sidecar/src/mail_waiting.rs
     # cargo takes ONE test-name filter: pass it after `--`, as a single word.
-    UNIT="cargo test -p termlink-session --lib -- main_lease::tests::"
-    INTEG="cargo test -p termlink --test main_lease_integration -- b25_"
-    MW="cargo test -p termlink-sidecar --lib -- mail_waiting::tests::"
+    MP="--manifest-path $src/Cargo.toml"
+    UNIT="cargo test $MP -p termlink-session --lib -- main_lease::tests::"
+    INTEG="cargo test $MP -p termlink --test main_lease_integration -- b25_"
+    MW="cargo test $MP -p termlink-sidecar --lib -- mail_waiting::tests::"
+    WIRE="cargo test $MP -p termlink-sidecar --test b25_mail_waiting_wiring"
+    E153="cargo test $MP -p termlink-sidecar --test e153_origin_check"
+    HUB="cargo test $MP -p termlink-hub --lib -- channel::tests::e24_hub"
     run() { mutant "$@"; local r=$?; [ $r -gt $rc ] && rc=$r; return 0; }
     run M1-unknown-counts-as-human "$S" "${UNIT}e20" \
         '    if origin != Origin::Human {
@@ -106,6 +112,56 @@ open(p,"w").write(s.replace(o,os.environ["NEW"],1))'; then
     run M14-oob-step-every-tick "$W" "${MW}e28_oob_sent" \
         'if self.active && oldest_age >= OOB_MS && self.oob_set_by_me.is_none() {' \
         'if self.active && oldest_age >= OOB_MS {'
+    # T-3694 continued: K-34 wiring, the hub receive stamp (CR-6.21), E-153.
+    D=crates/termlink-sidecar/src/daemon.rs
+    A=crates/termlink-sidecar/src/api.rs
+    DL=crates/termlink-sidecar/src/deliver.rs
+    H=crates/termlink-hub/src/channel.rs
+    M=crates/termlink-sidecar/src/meter.rs
+    K=crates/termlink-sidecar/src/hook.rs
+    run M15-tick-lands-no-attention "$D" "$WIRE" \
+        'store.attention_coalesced(crate::mail_waiting::ATTENTION_KIND, &a.key, &a.detail).map_err(|e| e.to_string())' \
+        'Ok::<bool, String>(true)'
+    run M16-status-not-wired "$A" "$WIRE" \
+        '                    Some(m) => m.status_view(),' \
+        '                    Some(_) => serde_json::Value::Null,'
+    run M17-waiting-mail-not-role "$DL" "$WIRE" \
+        'stored_ms, role: true, urgent' \
+        'stored_ms, role: false, urgent'
+    run M18-failed-land-hidden "$W" "${MW}e28_runner" \
+        'Err(e) => g.land_error = Some(format!("{}: {e}", a.key)),' \
+        'Err(_) => {}'
+    run M19-forged-stamp-kept "$H" "$HUB" \
+        '            metadata.remove(HUB_RX_KEY);' \
+        '            let _ = &metadata;'
+    run M20-stamp-is-the-client-clock "$H" "$HUB" \
+        '.unwrap_or(false).then(hub_now_ms));' \
+        '.unwrap_or(false).then(|| ts_unix_ms as u64));'
+    run M21-takeover-on-claimer-wall-clock "$S" "${UNIT}e24_hub" \
+        '            (Some(n), Some(rx)) => (n.saturating_sub(rx), 0),' \
+        '            (Some(_), Some(_)) => (v.now_ms.saturating_sub(lh), 0),'
+    run M22-mixed-clocks "$S" "${UNIT}e24_unstamped" \
+        '            newest = newest.max(Some(l.hub_rx_ms?));' \
+        '            newest = newest.max(l.hub_rx_ms);'
+    run M23-any-touch-on-the-hub-clock "$S" "${UNIT}e24_hub_clock" \
+        '            && l.sender == c.sender
+        {' \
+        '        {'
+    run M24-no-fcw195 "$M" "$E153" \
+        'if client.is_none() || none_since(prev) {' \
+        'if false {'
+    run M25-check-only-pty-input-basis "$M" "$E153" \
+        '        if let Some(r) = counted {' \
+        '        if let Some(r) = counted.filter(|_| b == "pty-input") {'
+    run M26-trust-the-hook-when-unreachable "$K" "$E153" \
+        'let Ok(r) = call(socket, report, timeout) else { return unknown() };' \
+        'let Ok(r) = call(socket, report, timeout) else { return ("human".to_string(), "inferred".to_string()) };'
+    run M27-client-auto-counts "$M" "$E153" \
+        'let client = r.at("client").filter(|t| *t <= rx);' \
+        'let client = r.at("client").max(r.at("client_auto")).filter(|t| *t <= rx);'
+    run M28-no-typed-line-rule "$M" "$E153" \
+        '            if none_since(last_typed) {' \
+        '            if false {'
     [ "$rc" = 0 ] && echo "ALL MUTANTS KILLED"
     exit "$rc"
 fi
@@ -115,17 +171,21 @@ trap 'rm -f "$out" "$out".*' EXIT
 cargo test -p termlink-session --lib main_lease >"$out.unit" 2>&1
 cargo test -p termlink --test main_lease_integration >"$out.integ" 2>&1
 cargo test -p termlink-sidecar --lib mail_waiting >"$out.mw" 2>&1
-for f in unit integ mw; do
+cargo test -p termlink-sidecar --test b25_mail_waiting_wiring >"$out.wire" 2>&1
+cargo test -p termlink-sidecar --test e153_origin_check >"$out.e153" 2>&1
+cargo test -p termlink-sidecar --test meter_tests >"$out.meter" 2>&1
+cargo test -p termlink-hub --lib e24_hub >"$out.hub" 2>&1
+for f in unit integ mw wire e153 meter hub; do
     grep -q "^test result:" "$out.$f" || { echo "TOOLING: the $f tests did not run"; tail -20 "$out.$f"; exit 2; }
 done
-cat "$out.unit" "$out.integ" "$out.mw" >"$out"
+cat "$out.unit" "$out.integ" "$out.mw" "$out.wire" "$out.e153" "$out.meter" "$out.hub" >"$out"
 rc=0
 # check <label> <test-name>...: every named test ran and passed (a name absent from the run is a FAIL).
 check() {
     local label="$1"; shift
     local ok=1 t
     for t in "$@"; do
-        if ! grep -q "^test \(main_lease::tests::\|mail_waiting::tests::\)\?${t} \.\.\. ok" "$out"; then
+        if ! grep -q "^test \(main_lease::tests::\|mail_waiting::tests::\|channel::tests::\)\?${t} \.\.\. ok" "$out"; then
             echo "  missing or failed: $t"; ok=0
         fi
     done
@@ -141,7 +201,9 @@ check "E-22 (absent origin counts as built until the operator switches the harne
 check "E-23 (provisional: taken at once, lapses to VACANT, main while it holds; headless takes nothing)" \
     e23_provisional_holder_never_blocks_and_lapses_to_vacant
 check "E-24 (fast takeover after 5 min of holder human silence, never at 4:59, never pinned; Touch by key and claim)" \
-    e24_fast_takeover_at_five_minutes_not_before_never_pinned e24_touch_counts_only_from_the_holders_key_and_claim e24_cross_host_margin_until_the_hub_stamps_receive_time
+    e24_fast_takeover_at_five_minutes_not_before_never_pinned e24_touch_counts_only_from_the_holders_key_and_claim e24_cross_host_margin_until_the_hub_stamps_receive_time \
+    e24_hub_receive_stamp_decides_across_hosts_with_no_margin e24_hub_clock_counts_only_the_holders_touches \
+    e24_unstamped_record_or_no_hub_now_falls_back_to_the_margin e24_hub_stamps_its_own_receive_time_only_when_asked_and_never_keeps_a_forged_one
 check "E-25 (bounded model check of the lease invariants; the checker sees a non-human take)" \
     e25_model_check_lease_invariants e25_control_the_checker_catches_a_non_human_take
 check "E-26 (lapse at 15 min whatever the agent does; resume or take at once)" \
@@ -152,7 +214,9 @@ check "E-28 (waiting-mail definition: 10 min, not-reading conditions, OOB honest
     e28_rises_at_ten_minutes_for_every_not_reading_condition e28_a_reading_main_of_this_agent_raises_nothing \
     e28_exact_instance_mail_never_counts e28_oob_not_available_without_a_sink_and_never_sent \
     e28_oob_sent_once_per_episode_and_hour_and_never_without_a_receipt e28_second_receiver_shows_the_holders_outcome \
-    e28_reraise_once_per_urgent_message_and_per_generation e28_clears_on_hand_over_and_counts_episodes e28_one_non_main_line_per_generation
+    e28_reraise_once_per_urgent_message_and_per_generation e28_clears_on_hand_over_and_counts_episodes e28_one_non_main_line_per_generation \
+    e28_runner_lands_each_entry_once_and_never_hides_a_failed_land e28_wired_status_shows_mail_waiting_and_one_attention_entry_per_episode \
+    e28_reading_uses_the_hub_clock_when_stamped
 check "E-30 (R-68 standing tests re-run with B-25: both end in a visible takeover)" \
     r68_lapse_during_an_open_obligation_ends_in_a_visible_takeover r68_stuck_holder_with_live_reader_ends_in_a_visible_takeover
 check "E-31 (W2 report generator on a seeded record set)" \
@@ -163,6 +227,8 @@ check "E-139 (monitor: waiting > 10 min raises; no OOB 'sent' without the channe
     e28_rises_at_ten_minutes_for_every_not_reading_condition e28_oob_not_available_without_a_sink_and_never_sent
 check "E-142 (monitor: one main, takeovers recorded, no counted renewal with origin automated)" \
     e25_model_check_lease_invariants e31_report_counts_renewals_by_basis_and_flags_non_human_holder_changes
+check "E-153 (receiver-side origin check: a human claim with no client bytes behind it never renews main)" \
+    e153_receiver_checked_origin_decides_the_claim fcw4_fcw5_prompt_origin_checks f4_counter_check_for_every_human_origin
 check "E-162 (unreadable touch log: no fast takeover; unpostable Touch: unknown; unpostable Ignored: ignored-unrecorded)" \
     e162_unreadable_touch_log_never_allows_fast_takeover b25_e162_unpostable_touch_is_unknown_and_unpostable_ignored_is_unrecorded
 check "E-163 (main-lease test seams refused outside a test estate)" \
@@ -170,9 +236,9 @@ check "E-163 (main-lease test seams refused outside a test estate)" \
 check "NID (the built lease tests still pass unchanged)" \
     two_sessions_one_main_and_takeover_after_lapse_quiet_and_cooldown operator_pin_overrides_a_live_holder_and_is_audited \
     hub_down_is_unknown_never_main same_session_from_another_process_renews_and_releases_other_sessions_refused
-echo "DEFERRED E-28 wiring (status main.mail_waiting, needs-attention entry, non-main line): the sidecar tick lives in daemon.rs, barred to this unit (T-3693)"
+echo "DEFERRED E-28 non-main line at a human prompt: the definition is built and tested (non_main_line); the sidecar sees no prompt on its withhold path (pull runs at tool calls), so it lands with P-5's role-mail withhold (T-3695, E-161) or AEF's prompt hook (P-44/P-45)"
+echo "DEFERRED E-28 out-of-band notice at 30 min: no channel exists yet (GP-11); status says 'not available', never 'sent' (P-45)"
 echo "DEFERRED E-31 live part (7 days on EP-7b, L7): needs the rollout P-35"
-echo "DEFERRED E-153 (receiver-side origin check feeding the claim): the receiver's input counters are in meter.rs/hook.rs, barred to this unit (T-3692/T-3693)"
 echo "DEFERRED E-161 (role-mail-only withhold): plan unit P-5 (T-3695) by the plan row"
 [ "$rc" = 0 ] && echo "ALL IN-SCOPE PASS"
 exit "$rc"
