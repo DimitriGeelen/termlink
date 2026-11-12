@@ -353,6 +353,37 @@ fn fcw3_ready_ordering() {
     assert_eq!(r.m.counters().ready_reordered, 1);
 }
 
+/// F-27 (CR-4.15 / CR-B27.5), OPEN: documents the CURRENT rule, not the target.
+/// READY reports are ordered by the adapter's `at_ms` (wall clock). After a
+/// backward wall step of D ms every READY/BUSY report is dropped as reordered
+/// until `at_ms` passes the last applied one, so READY is frozen for D. 04 v0.4
+/// 17.2.a (T-3689) orders by `(boot_id, mono_ns)` with the receive stamp as the
+/// fallback; the build follows once 06 AL-1 is revised (CR-6.24) and adapters
+/// send those fields. When that lands this test is replaced, not loosened.
+/// `last_prompt` keeps the report's `at_ms` (AL-4 compares it).
+/// Control: drop the `at_ms` comparison and the post-step BUSY is applied.
+#[test]
+fn f27_ready_ordering_is_at_ms_and_a_backward_step_freezes_it() {
+    let r = rig();
+    let wall = 1_700_000_000_000u64;
+    assert_eq!(r.ev("s", "ready", wall, json!({"state": "READY"})), Intake::Applied);
+    // The host's wall clock steps back 60 s; the next turn begins.
+    let stepped = wall - 60_000;
+    r.adv(1000);
+    assert_eq!(r.ev("s", "ready", stepped + 1000, json!({"state": "BUSY"})), Intake::Dropped("ready-reordered"));
+    assert_eq!(r.m.ready("s").unwrap().state, "READY", "frozen: the BUSY after the step is lost");
+    r.adv(30_000);
+    assert_eq!(r.ev("s", "ready", stepped + 31_000, json!({"state": "BUSY"})), Intake::Dropped("ready-reordered"));
+    // Only once at_ms passes the last applied value does a report apply again.
+    r.adv(30_000);
+    assert_eq!(r.ev("s", "ready", wall + 1, json!({"state": "BUSY"})), Intake::Applied);
+    assert_eq!(r.m.ready("s").unwrap().state, "BUSY");
+    assert_eq!(r.m.counters().ready_reordered, 2);
+    // last_prompt carries the report's at_ms.
+    r.ev("s", "prompt_submit", wall + 2, json!({"origin": "human", "basis": "inferred"}));
+    assert_eq!(r.m.last_prompt("s").unwrap().at_ms, wall + 2);
+}
+
 /// FCW-4/FCW-5: the receiver only downgrades an origin. Controls: accept
 /// "Human" case-insensitively; skip the PTY-counter override.
 #[test]
