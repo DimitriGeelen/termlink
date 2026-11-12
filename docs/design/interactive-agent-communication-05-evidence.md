@@ -1,7 +1,9 @@
 # Interactive agent communication: step 5, evidence specification
 
 **Task:** T-3354 · **Arc:** arc-011 · **Chain:** arc-011-design, step 5 · **Role:** evidence specialist
-**Status:** DRAFT v0.1, batch mode (no human present, `_common.md` 5.2). This step does not decide (`decides: false`);
+**Status:** v0.2 (2026-11-12): the step 7 change requests CR-5.1..CR-5.12 folded in after the operator approved step 7
+(T-3356; T-3689), including ZR-1 of step 6 (CR-5.12); marked "(changed in v0.2 by CR-5.n)". Below, the v0.1 status as
+it stood: DRAFT v0.1, batch mode (no human present, `_common.md` 5.2). This step does not decide (`decides: false`);
 it iterates with step 6 (pseudo-coder). Nothing here is approved. Every threshold that is not a ruled number is
 tagged **[P]**; ruled numbers carry their source.
 **Standing rules applied throughout (CLAUDE.md):** thresholds measure reliability, never usage (**RNU**: reach per
@@ -21,6 +23,7 @@ the reviewers read this file in the repository.
 
 | Version | Date | Change | Task |
 |---|---|---|---|
+| 0.2 | 2026-11-12 | Step 7 change requests folded (07-review 6.5, approved 2026-11-12, T-3356): CR-5.1 E-7.6 typing after the meter tick; CR-5.2 E-2.6 flips during the veto window; CR-5.3 E-9.6 repeated BUSY; CR-5.4 new E-153 receiver-side origin check; CR-5.5 E-23.6 print-mode SessionStart; CR-5.6 E-5.6, E-7.7 one watchdog line per unsubmitted episode; CR-5.7 E-35.6 lost reply; CR-5.8 E-35.4 per-id outcome, E-33.6 re-admit at Y; CR-5.9 E-45.6 role-addressed and forwarded blobs; CR-5.10 E-2.7 harness identity; CR-5.11 new E-155 human-claim detector (reported, not gated); CR-5.12 ZR-1 applied: E-156..E-173 (E-164 the production seam scan) give a spec to each of the 46 FCWs that had none, E-5's table per 06 4.2, E-34 (f) per 06 4.6, the ZR-1 (f) cases in E-104 and E-106, 1.4.d and 14.1 rewritten. Also cases for the step 6 v0.3 FCW-195..FCW-211 (E-154 new), and E-22, E-33, E-34 aligned with CR-6.6 and CR-6.13. | T-3689 |
 | 0.1 | 2026-11-09 | First complete draft, batch mode. Test estate and agent pairs per CAND-3 tier; evidence levels; result format; specs E-1 to E-152 (PH-2 first, then baseline re-assertion, later phases, production invariant checks); architecture fail-closed conditions AFC-1 to AFC-34 with specs; pseudo-code FAILS CLOSED WHEN coverage open for step 6; drawings D-1 and D-2; residual risks; change requests. | T-3354 |
 
 ## 1 Inputs of record
@@ -68,9 +71,11 @@ E-28 use the corrected session identity.
 Chromium, the method of steps 2 to 4 (section 18).
 1.4.c I changed no earlier output and no code. The hand-back is
 `docs/design/interactive-agent-communication/role-handback-step-05.json`, next to the step-1 and step-4 records.
-1.4.d The pseudo-code (step 6) does not exist yet. Its FAILS CLOSED WHEN conditions are therefore open; section 13
-lists the fail-closed conditions the architecture itself states (AFC-n), each with a spec, and leaves the
-pseudo-code's own list for the step-6 iteration.
+1.4.d (changed in v0.2 by CR-5.12) The pseudo-code (step 6, T-3355) exists: `docs/design/interactive-agent-communication-06-pseudo-code.md`
+v0.3 with 06a and 06b, whose FAILS CLOSED WHEN register (06 section 6) lists FCW-1 to FCW-211. Every FCW has a spec
+here: the specs it names in the register, or the ZR-1 specs E-156 to E-173 added in v0.2 for the 46 that named none.
+05a section 2.9 maps each FCW to its specs (generated). Section 13 still lists the architecture's own AFC-n. (v0.1
+said: "The pseudo-code (step 6) does not exist yet.")
 
 ## 2 How to read this document
 
@@ -217,12 +222,14 @@ E-1.3 ACT: run one tick for each of the 16 combinations of (a)..(d).
 E-1.4 ASSERT: `rings` equals 1 in the all-true row and 0 in the other 15; at most one ring per session per tick; every decision record lists the four inputs with their ages. Result: a 16-row table compared with the expected table, exit 0 on equality.
 E-1.5 CONTROL: mutant that drops condition (d) rings in the `conversation: operator` row; mutant that reads a missing READY flag as ready (ARCH FC-5 pattern) rings in the `READY absent` row.
 
-**E-2 — Pre-typing re-checks run in order, each failing closed.** Links: SI-2, SI-23, R-20, R-22, R-81, TH-16, AFC-2. Category: error handling. Level: L2. Tier: 1. Phase: PH-2 (B-16).
+**E-2 — Pre-typing re-checks run in order, each failing closed.** Links: SI-2, SI-23, R-20, R-22, R-81, TH-16, AFC-2, FCW-28, FCW-29. Category: error handling. Level: L2. Tier: 1. Phase: PH-2 (B-16).
 E-2.1 EVIDENCE: after the gate passes, the six re-checks of ARC4 6.9.2 (kill switch; READY re-read with age ≤ 1 tick; foreground process is the registered harness; process-tree veto; no client input in 30 s re-read; conversation still `none`) each stop the keystrokes when they fail, and the interval from the last check to the keystrokes is logged (H-11 (a)).
 E-2.2 ARRANGE: as E-1, gate true; a hook in the fake session that flips exactly one re-check input between the gate and the keystrokes.
 E-2.3 ACT: six runs, one per re-check; a seventh with none flipped.
 E-2.4 ASSERT: runs 1..6: zero bytes written to the PTY by source `notify`, decision record `held:<check>` naming the flipped check; run 7: one `command.notify` call and a logged `check_to_keystroke_ms`. No run reads the PTY output buffer (R-22: the screen is never read; asserted by the fake session counting output reads, expected 0).
 E-2.5 CONTROL: removing any one re-check makes its run write keystrokes (six mutants, one per check).
+E-2.6 (changed in v0.2 by CR-5.2) CASE: flip READY to BUSY, and in a second run move the foreground to a shell, while the 1.5 s veto window runs. ASSERT: no keystrokes in either run, `held:ready` and `held:foreground` (FCW-28, FCW-29 at the re-read after the veto); in the clean run the ring log carries `t_first_check` and `first_check_to_keystroke_ms` measured from the earliest check, not from the last. CONTROL: mutant that reads READY and the foreground only before the veto types in both runs.
+E-2.7 (changed in v0.2 by CR-5.10) CASE: the foreground check uses the step 6 binding (06 AL-6 `is_harness`: the PTY's foreground process-group leader equals the `harness_pid` the session reported in `session_start`, and its `(exe_realpath, script_path)` is a registry entry), never a process name (`comm`). Runs: (a) a harness run by an interpreter (`node /path/cli.js`): rings; (b) the same interpreter running another script: held; (c) the harness restarted inside the PTY (a new leader pid) before its own `session_start`: held, rung only after it; (d) a process renamed to the harness's `comm`: held. CONTROL: mutant matching on `comm` rings in (b) and (d).
 
 **E-3 — The typed line is inert and carries no peer byte (SI-1).** Links: SI-1, R-23, TH-6, TH-16, AFC-3. Category: adversarial. Level: L3 + L2. Tier: 1 and 2. Phase: PH-2 (B-16).
 E-3.1 EVIDENCE: every line the doorbell can produce matches `^sidecar: [0-9]+ peer messages waiting, ids( [0-9a-f]{32}){1,4}\. The prompt hook shows them as untrusted data\.$`; no byte chosen by a peer reaches it; typed into a shell it starts nothing.
@@ -238,12 +245,14 @@ E-4.3 ACT: ring, let the hook pull, write the transcript case; advance 90 s.
 E-4.4 ASSERT: (i) HANDED_OVER with `record_ref`; (ii), (iii), (iv) no HANDED_OVER, stage ATTEMPTED with label HANDOVER_UNCONFIRMED at 90 s, sender state not "delivered" (FX-7 wording "accepted"/"stored" only). Tier 3: for 20 rings, HANDED_OVER count equals the count of nonces found in user-type records of the real transcript, exactly.
 E-4.5 CONTROL: the built mutants `fc-06-ready-flag-taken-as-evidence`, `fc-07-storage-counted-as-delivery`, `fc-11-any-record-is-evidence` (ARCH FC) re-run against the doorbell path; a new mutant "ring counted as delivered" MUST turn E-4 red.
 
-**E-5 — Back-off, one ring per tick, and no re-type of an unsubmitted line.** Links: R-25, R-44, R-20, AFC-5. Category: edge case. Level: L2. Tier: 1. Phase: PH-2 (B-16).
+**E-5 — Back-off, one ring per tick, and no re-type of an unsubmitted line.** Links: R-25, R-44, R-20, AFC-5, FCW-197, FCW-199. Category: edge case. Level: L2. Tier: 1. Phase: PH-2 (B-16).
 E-5.1 EVIDENCE: without hand-over the session is rung at 0, then after 4 and 8 ticks, then at most every 10 minutes; at the R-44.e deadline the message becomes STUCK with a notice; while a typed line has had no UserPromptSubmit carrying its ids, the doorbell does not ring that session again (ARC4 6.9.4, 6.9.5 (b)).
 E-5.2 ARRANGE: simulated clock; a session that stays READY and idle; a fake adapter that never submits.
 E-5.3 ACT: run 60 simulated minutes.
 E-5.4 ASSERT: ring times equal the expected schedule; no two rings in one tick; the H-11 (e) counter equals the number of rings not followed by a submit within 1 tick; after the first unsubmitted ring no further normal ring occurs (only the watchdog may, E-7); STUCK appears at the R-44.e deadline with a notice to the sender.
 E-5.5 CONTROL: mutant that re-rings every tick fails the schedule; mutant that re-types on top of an unsubmitted line rings twice.
+E-5.6 (changed in v0.2 by CR-5.6 and CR-5.12 ZR-1 (c)) CASE: expected tables per 06 4.2: with a non-submitting adapter, one ring then none (the session is UNSUBMITTED); with a submitting adapter that gives proof of absence each time, rings at ticks 0, 4, 12, 32, 52, 72, 92, 112. Over 60 simulated minutes with no submit there is exactly one watchdog line after the first unsubmitted ring, then the session is STALLED (no further line of any kind) with one needs-attention entry `session-stalled` (FCW-197). CONTROL: mutant without STALLED types a watchdog line every 300 s (12 in 60 min).
+E-5.7 (changed in v0.2, follows CR-6.38) CASE: a message whose attempts reach 8 (MAX_ATTEMPTS [P]) gets no further ring or watchdog line and one per-message needs-attention entry; a hook pull still hands it over (FCW-199). CONTROL: mutant without the bound keeps ringing.
 
 **E-6 — A restored stale doorbell line pulls nothing and is counted (T-3591).** Links: SI-30, R-51, R-24, AFC-6. Category: edge case. Level: L4. Tier: 3. Phase: PH-2 (B-16).
 E-6.1 EVIDENCE: a doorbell line replayed from the harness's prompt history for mail already handed over delivers nothing twice and is recorded as a stray ring (H-11 (b)).
@@ -252,12 +261,15 @@ E-6.3 ACT: submit the same doorbell line again in `testdev-real` (as the history
 E-6.4 ASSERT: the hook pulls zero messages; the transcript holds exactly one delivery frame for that id; the stray counter rises by 1.
 E-6.5 CONTROL: with the atomic claim removed (ARCH `fc-04-no-claim-file`) the replay delivers a second frame.
 
-**E-7 — The watchdog fires after 300 s of silence even when READY says busy.** Links: R-19, R-44, R-24, AFC-7. Category: core function. Level: L2. Tier: 1. Phase: PH-2 (B-16).
+**E-7 — The watchdog fires after 300 s of silence even when READY says busy.** Links: R-19, R-44, R-24, AFC-7, FCW-31, FCW-197, FCW-198. Category: core function. Level: L2. Tier: 1. Phase: PH-2 (B-16).
 E-7.1 EVIDENCE: for a session with mail STORED and not handed over, when S1, S2 and S3 show no activity for 300 s (V-18), the watchdog types the SI-1 line once, independent of READY and of the conversation signal, writes its audit row and marks the stage `via: watchdog` (ARC4 6.9.7).
 E-7.2 ARRANGE: simulated clock; READY forced `busy`; conversation forced `agent` for another conversation; S1, S2, S3 frozen; veto clear; foreground `claude`; one STORED message.
 E-7.3 ACT: advance to 299 s, then to 300 s + 1 tick.
 E-7.4 ASSERT: at 299 s no keystroke; at 300 s + 1 tick exactly one `command.notify`; one admin-chain row with every field of ARC4 6.9.7.c (`kind`, `session`, `at`, `silent_for_s`, `ready_flag`, `ready_age_s`, `last_activity {s1,s2,s3}`, `checks`, `outcome: typed`, `message_ids`); hub stage ATTEMPTED with `via: watchdog`; one needs-attention entry "READY flag busy for N s while nothing happened" (coalesced: a second fire the same day adds none).
 E-7.5 CONTROL: mutant that makes the watchdog check READY never fires; mutant without the audit row fails the row assertion.
+E-7.6 (changed in v0.2 by CR-5.1, operator ruling A on F-1) CASE: a client write lands after the meter tick that found 300 s of silence and before the fire. ASSERT: no keystroke, admin row `outcome: held:typing` (FCW-31 for `via = watchdog`). CONTROL: mutant that drops the re-read after the veto types into the half-written prompt.
+E-7.7 (changed in v0.2 by CR-5.6) CASE: E-5.6's 60-minute run seen from the watchdog: exactly one watchdog fire after the first unsubmitted ring, then `held:stalled` (FCW-197).
+E-7.8 (changed in v0.2, follows CR-6.27) CASE: two silent sessions of one agent with the same pending ids become due in the same tick. ASSERT: exactly one fire that tick (the session with the larger last activity, ties the lower id), the other COUNTING (FCW-198). CONTROL: mutant firing per session types the same ids twice.
 
 **E-8 — The watchdog's own checks hold it, and it never types into a shell.** Links: SI-2, SI-23, R-22, AFC-8. Category: error handling. Level: L2 + L4. Tier: 1 and 2. Phase: PH-2 (B-16).
 E-8.1 EVIDENCE: the watchdog types only after the kill switch, the foreground-is-harness check and the process-tree veto pass; each hold writes `outcome: held:<check>`.
@@ -272,6 +284,7 @@ E-9.2 ARRANGE: as E-7, plus a peer that posts a message every 10 s, receipts eve
 E-9.3 ACT: advance 300 s + 1 tick.
 E-9.4 ASSERT: the watchdog fires once at 300 s + 1 tick; `last_activity` is unchanged by the inflow.
 E-9.5 CONTROL: mutant that counts STORED arrivals as S3 never fires within 30 simulated minutes.
+E-9.6 (changed in v0.2 by CR-5.3) CASE: the adapter repeats `ready {BUSY}` every 10 s and nothing else happens. ASSERT: the watchdog still fires at 300 s + 1 tick; S2 does not move on a repeated `ready` with an unchanged state, nor on `evidence` or `complete` (06 AL-1, CR-6.3). CONTROL: mutant moving S2 on every valid report never fires.
 
 **E-10 — No blind watchdog: S2 unknown means "watchdog unavailable".** Links: R-29, FX-8, AFC-10. Category: error handling. Level: L2. Tier: 1. Phase: PH-2 (B-16).
 E-10.1 EVIDENCE: a session whose S2 source is `unknown` (no adapter report, no transcript path) has no watchdog and says so (ARC4 6.14.3).
@@ -345,6 +358,13 @@ E-19.3 ACT: read status before and after the staleness bound.
 E-19.4 ASSERT: fields present with stamps; after the bound every frozen field reads `unknown`, never its last value.
 E-19.5 CONTROL: mutant that serves cached values without a stamp fails.
 
+**E-154 — The meter keeps a tick budget; a slow session reads unknown, the others are decided on time.** Links: R-19, R-44, AFC-13, FCW-196. Category: error handling. Level: L2. Tier: 1. Phase: PH-2 (B-27; CR-5.12, follows CR-6.20)
+E-154.1 EVIDENCE: (changed in v0.2) the input-activity reads of all sessions run in parallel within a 5 s tick budget [P]; a session whose reply is not in by then reads S1 unknown that tick (no ring, no watchdog for it) and every other session is decided on time; the watchdog bound is 300 s + 1 tick + the budget (06 AL-3, AL-8).
+E-154.2 ARRANGE: simulated clock; 64 sessions of one agent; 5 of them answer the RPC after 3 s, one never answers.
+E-154.3 ACT: run 20 ticks with mail pending and silence beyond 300 s for a fast session.
+E-154.4 ASSERT: each tick's meter completes within 5 s of the tick start; the never-answering session reads `unknown` and is neither rung nor fired into; the fast silent session fires within 300 s + 1 tick + 5 s.
+E-154.5 CONTROL: mutant that reads the sessions serially delays the fast session's fire past the bound.
+
 ### 6.3 Main lease tightening and the waiting-mail signal (K-22, K-34; ARC4 6.13; B-25)
 
 **E-20 — Only human-origin claims renew, acquire or take over.** Links: R-67, R-68, SI-20, TH-33, TH-41, AFC-16. Category: adversarial. Level: L2 + L4. Tier: 1 and 2. Phase: PH-2 (B-25).
@@ -361,26 +381,29 @@ E-21.3 ACT: run PostToolUse 100 times over 20 simulated minutes with no human pr
 E-21.4 ASSERT: no renewal call carries a counted claim from PostToolUse; the lease lapses at 15 min (V-9); SessionStart yields `state: provisional, valid_s: 300`.
 E-21.5 CONTROL: the built hook (renew on PostToolUse) keeps the lease held for 20 min and fails.
 
-**E-22 — Projects whose hooks send no origin keep working (NID).** Links: R-67, AFC-17. Category: edge case. Level: L2. Tier: 1. Phase: PH-2 (B-25).
+**E-22 — Projects whose hooks send no origin keep working (NID).** Links: R-67, AFC-17, FCW-201. Category: edge case. Level: L2. Tier: 1. Phase: PH-2 (B-25).
 E-22.1 EVIDENCE: a claim with no origin field is counted as before and recorded `origin: absent`, status says "this project's hooks do not report prompt origin"; from the first claim of a project that carries an origin field, `absent` claims from it are ignored like `unknown` (ARC4 6.13.1.a).
 E-22.2 ARRANGE: hub with two projects P (old hooks) and Q.
 E-22.3 ACT: P claims without origin for 30 minutes; Q claims once with origin `human`, then without origin.
 E-22.4 ASSERT: P's lease stays held and renewed, with the status line; Q's later `absent` claim is `ignored: origin`; P is never marked origin-reporting by Q's claim.
 E-22.5 CONTROL: mutant that ignores `absent` everywhere lets P's lease lapse (an implicit switch-off, NID).
+E-22.6 (changed in v0.2, follows CR-4.4 and CR-6.6: origin reporting is per harness and set only by an operator act) The v0.1 ACT/ASSERT, in which Q's first claim with an origin made Q reporting, no longer holds. CASE: project P runs harness h1 (old hooks, no origin) and h2 (adapter that reports origin); the operator's runme act switches h2 to reporting. ASSERT: claims carrying an origin field never set the switch; before the act, h2's `absent` claims count as before; after it, h2's `absent` claims are `ignored: origin` while h1's still renew; a switch record that ages out of lease retention does not revert it; an unreadable switch record gives unknown (exit 2) (FCW-201). CONTROL: mutant that sets the switch on the first claim with an origin field stops h1's renewals.
 
-**E-23 — Provisional claim: taken at once by a human claim, lapses in 5 min, is main while it holds.** Links: R-67, SI-20, AFC-16. Category: core function. Level: L2. Tier: 1. Phase: PH-2 (B-25).
+**E-23 — Provisional claim: taken at once by a human claim, lapses in 5 min, is main while it holds.** Links: R-67, SI-20, AFC-16, FCW-203. Category: core function. Level: L2. Tier: 1. Phase: PH-2 (B-25).
 E-23.1 EVIDENCE: a provisional holder never blocks anyone, lapses straight to VACANT after 5 min without a human prompt (V-20), and answers `am-i` as main while it holds (ARC4 6.13.2).
 E-23.2 ARRANGE: simulated clock; S1 provisional.
 E-23.3 ACT: (a) S2 human claim at 1 min; (b) no claim, 4:59 and 5:01; (c) `am-i` from S1 at 2 min.
 E-23.4 ASSERT: (a) S2 held, generation +1, no quiet period, no cooldown; (b) provisional at 4:59, VACANT at 5:01; (c) exit 0.
 E-23.5 CONTROL: mutant that applies the quiet period to a provisional holder refuses (a).
+E-23.6 (changed in v0.2 by CR-5.5) CASE: a print-mode (non-interactive) SessionStart on a VACANT lease. ASSERT: no take; the lease stays VACANT; the claim is answered only (FCW-203). CONTROL: mutant without the `interactive` guard takes a provisional lease for the headless worker.
 
-**E-24 — Fast takeover at 5 min of holder human silence, never at 4:59, never of a pinned holder.** Links: R-67, R-68, SI-20, TH-33, AFC-16. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-25).
+**E-24 — Fast takeover at 5 min of holder human silence, never at 4:59, never of a pinned holder.** Links: R-67, R-68, SI-20, TH-33, AFC-16, FCW-202. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-25).
 E-24.1 EVIDENCE: a human claim from S2 takes main at once (generation +1, record `reason: fast-takeover, from: S1, holder_human_age_s`) when S1's `last_human_at` is older than 5 min and S1 is not pinned (ARC4 6.13.3).
 E-24.2 ARRANGE: simulated clock; S1 held with a human renewal at t0; variant with S1 pinned by the operator.
 E-24.3 ACT: S2 human claim at t0 + 4:59 and at t0 + 5:01; same against the pinned S1; an `automated` claim from S2 at t0 + 30 min.
 E-24.4 ASSERT: 4:59 refused (S1 keeps main); 5:01 taken with the record fields; pinned S1 never taken; the `automated` claim changes nothing.
 E-24.5 CONTROL: mutant without the 5 min check takes at 4:59 (ARC4 6.13.6).
+E-24.6 (changed in v0.2, follows CR-6.21 and CR-6.22) CASE: (a) holder S1 on a host whose wall clock runs 10 min fast; S2 human claim 4:59 after S1's last human prompt by the hub's receive stamps: refused; 5:01: taken (the ages are the hub's clock on both sides, no cross-host margin). (b) a Touch for S1 signed by another agent's key, and one with a stale `claim_id`: neither counts for `last_human` (FCW-202). CONTROL: mutant using the claimer's wall clock takes at once in (a); mutant counting any Touch keeps S1 fresh in (b).
 
 **E-25 — Lease state machine: model check of D-4 (b).** Links: R-67, R-68, SI-20, TH-33, TH-41, AFC-16. Category: core function. Level: L1. Tier: 1. Phase: PH-2 (B-25).
 E-25.1 EVIDENCE: over every sequence of claims (each origin), renewals, releases, pins, lapses and clock steps in a bounded model (3 sessions, 2 agents, 40 steps): at most one holder per generation; the generation never decreases; a non-human claim never changes holder or generation; a pinned holder is displaced only by an operator pin; every holder change has a record; the 6.13.3 bound holds (main reaches a session prompted at least 5 min after the holder's last human prompt at that prompt).
@@ -403,12 +426,13 @@ E-27.3 ACT: a ring is typed and submitted in `testdev-real`.
 E-27.4 ASSERT: lease records show `ignored: origin, basis: doorbell` for that claim; holder unchanged.
 E-27.5 CONTROL: adapter fixture reporting the doorbell line as `human` fails the parity scenario (E-84).
 
-**E-28 — Waiting-mail signal: 10 min, its four landing places, and honest OOB status.** Links: R-67, R-53, R-29, FX-8, AFC-18. Category: core function. Level: L2. Tier: 1. Phase: PH-2 (B-25; B-28 for Watchtower and OOB).
+**E-28 — Waiting-mail signal: 10 min, its four landing places, and honest OOB status.** Links: R-67, R-53, R-29, FX-8, AFC-18, FCW-204. Category: core function. Level: L2. Tier: 1. Phase: PH-2 (B-25; B-28 for Watchtower and OOB).
 E-28.1 EVIDENCE: role mail STORED and not handed over for 10 min (V-21) while the lease is vacant, lapsed, provisional or unknown, or its holder has had no human prompt for 10 min, raises: a needs-attention entry and status `main.mail_waiting {count, oldest_age_s, holder, holder_human_age_s, since}` at once; one session-start line; one line per generation in a non-main session at its next human prompt; an out-of-band notice at 30 min, at most one per project per hour; before GP-11 exists status shows `oob: not available` and never "sent"; it clears on hand-over (ARC4 6.13.5). The session identity is `CLAUDE_CODE_SESSION_ID` (LEASE, T-3668).
 E-28.2 ARRANGE: simulated clock; role mail for project P; each of the five lease conditions; a fake OOB sink, absent and present.
 E-28.3 ACT: advance 9:59, 10:00, 29:59, 30:00, 90:00; start a session; prompt a non-main session twice in one generation; hand the mail over.
 E-28.4 ASSERT: nothing at 9:59; all fields at 10:00; the session-start line from `scripts/session-start-alerts.sh`; exactly one non-main line per generation; OOB at 30:00 then not again before 90:00 (two in 90 min at most); with the sink absent `oob: not available` and zero "sent" records; the field clears at hand-over. The weekly count is reported, never capped (RNU).
 E-28.5 CONTROL: mutant that reports OOB "sent" without a sink fails; mutant keyed on exact-instance mail raises the signal for conversation mail and fails.
+E-28.6 (changed in v0.2, follows CR-6.12, CR-6.28, CR-6.29) CASE: (a) role mail held unforwarded at Y while main is an active, human-prompting session of agent X: Y raises the signal at 10 min (FCW-204); (b) two receivers of the project: the claim holder sends the OOB notice and records its outcome; on later ticks neither receiver overwrites it, and the other receiver shows the holder's outcome with its author; (c) within an active episode an urgent message crosses 10 min, then the lease moves to a new generation: one re-raised entry each. CONTROL: mutant that re-runs the OOB step every tick overwrites "sent at T" with "sent-by-other".
 
 **E-29 — Same signal definition at AEF's receiver (parity).** Links: R-47, R-67, R-49, AFC-18. Category: integration. Level: L2. Tier: 1. Phase: PH-2 (B-29, B-28; AEF T-5054).
 E-29.1 EVIDENCE: for the same facts, the TermLink sidecar and AEF's receiver raise the same waiting-mail signal (ARC4 17.7).
@@ -431,6 +455,13 @@ E-31.3 ACT: normal work.
 E-31.4 ASSERT: report with numerator and denominator per basis; no threshold (a measurement for AR-6); any `automated` claim that changed the holder is a FAIL.
 E-31.5 CONTROL: report generator checked on a seeded record set.
 
+**E-153 — Receiver-side origin check: a `human` claim with no client bytes behind it never renews main.** Links: R-67, SI-20, TH-33, AFC-16, FCW-195, FCW-5. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-27, B-25; CR-5.4)
+E-153.1 EVIDENCE: (changed in v0.2 by CR-5.4) for a session under a TermLink PTY the receiver checks every prompt reported `human`, with basis `pty-input` or `inferred`, against its own input counters, and the lease claim carries the receiver-checked origin (ARC4 17.5.e; 06 AL-1 `check_origin`, AL-11).
+E-153.2 ARRANGE: simulated session under a TermLink PTY with per-source counters; an adapter fixture that reports `human/inferred` for every prompt; the lease held by this session with `last_human` 6 min old.
+E-153.3 ACT: (a) the doorbell types a line and the adapter reports its submit as `human/inferred` with no `doorbell_ids`; (b) a `/loop` prompt submitted with no client bytes since the previous submit; (c) the sidecar unreachable when the hook asks for the checked origin; (d) a negative control: a person types a prompt (client bytes) and submits.
+E-153.4 ASSERT: (a) and (b) recorded `automated` (`origin-overridden` counted), no Touch, no renewal of main; (c) the claim carries `unknown`, no renewal; (d) `human`, Touch, renewal. Terminal replies classified `client_auto` never count as client bytes.
+E-153.5 CONTROL: mutant that checks counters only for basis `pty-input` renews main in (a) and (b) (the F-4 bypass); mutant that trusts the hook's origin when the sidecar is unreachable renews in (c).
+
 ### 6.4 Forward-once of role mail (K-23; ARC4 7; B-20)
 
 **E-32 — Forward-once happy path across two sidecars.** Links: R-67.a1, R-51, R-62, TH-33, AFC-19. Category: core function. Level: L4. Tier: 2. Phase: PH-2 (B-20).
@@ -440,26 +471,28 @@ E-32.3 ACT: `fx-s` sends to `main` of P at Y's inbox.
 E-32.4 ASSERT: Y's copy STORED then `forwarded` (final at Y, never handed over at Y); X's inbox holds one FORWARD whose inner bytes equal the original byte for byte and whose inner signature verifies against the original topic; X hands over once; the sender's record shows the VIA line "delivered via Y; main is X (generation N)".
 E-32.5 CONTROL: mutant that re-signs the content as Y (DR-10 option B) fails the byte-equality and inner-signature assertions.
 
-**E-33 — FORWARD-STALE when the lease moves in flight.** Links: R-67.a1, R-67.e, R-51, AFC-19. Category: edge case. Level: L4. Tier: 2. Phase: PH-2 (B-20).
+**E-33 — FORWARD-STALE when the lease moves in flight.** Links: R-67.a1, R-67.e, R-51, AFC-19, FCW-205, FCW-206. Category: edge case. Level: L4. Tier: 2. Phase: PH-2 (B-20).
 E-33.1 EVIDENCE: if X is no longer main when the FORWARD arrives, X stores it, does not forward it, posts `FORWARD-STALE`; the sender re-resolves through the home hub and re-sends the same message id; exactly one hand-over happens, at the new main (ARC4 7.3).
 E-33.2 ARRANGE: as E-32, plus a third agent `fx-z`; a test hook that moves the lease to `fx-z` between Y's forward and X's pull.
 E-33.3 ACT: send; move the lease; let all pull.
 E-33.4 ASSERT: one FORWARD-STALE notice; one re-send with the same id; exactly one HANDED_OVER across X, Y, Z (at Z); identity-triple dedupe holds (R-51).
-E-33.5 CONTROL: mutant without the generation check at X hands over at X and again at Z (two hand-overs).
+E-33.5 CONTROL: mutant without the holder check at X (changed in v0.2, follows CR-6.13: X compares the holder agent; a generation change between two sessions of X is accepted and recorded) hands over at X and again at Z (two hand-overs).
+E-33.6 (changed in v0.2 by CR-5.8) CASE: re-resolution lands on Y again, which holds the FORWARDED final copy. ASSERT: Y re-admits the re-sent copy (FORWARDED → STORED, recorded) and forwards it to the current holder or delivers it locally; exactly one HANDED_OVER; after three re-admissions it is delivered at Y (FCW-206). (b) role mail stored at Y while the lease was vacant is forwarded on the first tick after a fresh lease names X (FCW-205). CONTROL: mutant that dedupes the re-sent copy by the identity triple leaves no offerable copy anywhere (the E-35 wedge).
 
 **E-34 — Forward refusals: what is never forwarded or accepted.** Links: R-67.a1, R-62, SI-3, SI-26, TH-33, AFC-19. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-20).
-E-34.1 EVIDENCE: a FORWARD is accepted only with an outer signature by a roster member of the same project, an intact inner signature for a role address of that project and a matching generation; Y never forwards conversation mail bound to an exact instance, never forwards a FORWARD, and never forwards on an unknown, stale or vacant lease (ARC4 7.2.d, 7.3).
+E-34.1 EVIDENCE: a FORWARD is accepted only with an outer signature by a roster member of the same project, an intact inner signature for a role address of that project, an inner topic that is the poster's own inbox (changed in v0.2, follows CR-6.30) and X's agent still the holder (changed in v0.2, follows CR-6.13; v0.1: a matching generation); Y never forwards conversation mail bound to an exact instance, never forwards a FORWARD, and never forwards on an unknown, stale or vacant lease (ARC4 7.2.d, 7.3).
 E-34.2 ARRANGE: estate EP-2 with a project-foreign signer `fx-c`.
-E-34.3 ACT: deliver (a) a FORWARD signed by `fx-c`; (b) one with one inner byte flipped; (c) one whose inner topic is another project's role address; (d) a FORWARD of a FORWARD; (e) exact-instance mail to Y with the lease on X; (f) role mail to Y with the lease unknown, stale (> 15 s read period), vacant.
+E-34.3 ACT: deliver (a) a FORWARD signed by `fx-c`; (b) one with one inner byte flipped; (c) one whose inner topic is another project's role address; (d) a FORWARD of a FORWARD; (e) exact-instance mail to Y with the lease on X; (f) role mail to Y with the lease unknown, stale, vacant (changed in v0.2 by CR-5.12 ZR-1 (e): stale per 06 4.6, a read not completed after STORED or older than 15 000 ms inclusive on Y's `mono()`, in which case Y makes a synchronous read first).
 E-34.4 ASSERT: (a)..(d) refused, recorded, no hand-over, signed refusal notice to the outer signer; (e) delivered at Y as addressed, not forwarded; (f) delivered at Y as before, status says why no forward; `hop` never exceeds 1 for a forward.
 E-34.5 CONTROL: one mutant per check (outer roster check, inner signature, generation, hop rule, exact-instance rule, lease freshness), each turning its case red.
 
-**E-35 — H-24, forward part: 1000 forwards, none processed twice.** Links: R-67.a1, R-51, H-24, SI-30. Category: integration. Level: L6. Tier: 2. Phase: PH-2 (B-20); duplicate-main part PH-4.
+**E-35 — H-24, forward part: 1000 forwards, none processed twice.** Links: R-67.a1, R-51, H-24, SI-30, FCW-71, FCW-206. Category: integration. Level: L6. Tier: 2. Phase: PH-2 (B-20); duplicate-main part PH-4.
 E-35.1 EVIDENCE: across 1000 forwarded role messages with lease moves and sidecar kills at random points, zero messages are handed over twice and none is lost after STORED.
 E-35.2 ARRANGE: EP-2 on a throwaway hub; a seeded schedule of lease moves (one per 50 messages) and kills of X or Y (one per 100).
 E-35.3 ACT: send 1000 role messages.
-E-35.4 ASSERT: per message id exactly one HANDED_OVER or a visible non-final state by its deadline; 0 doubles; 0 lost after STORED. Result: counts in the evidence record.
+E-35.4 ASSERT: (changed in v0.2 by CR-5.8) per message id exactly one of: HANDED_OVER, or an enumerated operator-visible outcome (UNCERTAIN, REFUSED) by its deadline; any other end state, including FORWARDED at every copy with none offerable, is FAIL; 0 doubles; 0 lost after STORED. Result: counts per outcome in the evidence record.
 E-35.5 CONTROL: the E-33 mutant produces doubles in this run.
+E-35.6 (changed in v0.2 by CR-5.7) CASE: the lost-reply fault: the hub stores Y's FORWARD and the reply is lost (a proxy drops it), for 50 of the 1000 messages. ASSERT: exactly one hand-over per message; Y reads X's inbox by the idempotency id and marks FORWARDED; a message whose presence cannot be established within 1 min is UNCERTAIN, never offered at Y (FCW-71). CONTROL: mutant that abandons after 1 min and offers at Y hands over twice.
 
 ### 6.5 Hub identity, signing key and the revocation list (K-9a, K-9b, K-25; ARC4 6.1, 6.2; B-1, B-5)
 
@@ -484,12 +517,13 @@ E-38.3 ACT: start the sidecar in each case; then point the declared address at t
 E-38.4 ASSERT: matching runs; differing and missing refuse at start (exit non-zero, reason); wrong hub at the address: refusal, status `hub {declared, match: false}` with both ids; no message posted to the wrong hub.
 E-38.5 CONTROL: the built mutant `fc-14-no-hub-id-check` fails the wrong-hub case.
 
-**E-39 — A revoked key is refused within one tick.** Links: SI-11, R-46, RK-1, TH-26, TH-56, AFC-22. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-5).
+**E-39 — A revoked key is refused within one tick.** Links: SI-11, R-46, RK-1, TH-26, TH-56, AFC-22, FCW-200. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-5).
 E-39.1 EVIDENCE: after `admin revoke --key F`, a message signed with F is refused at the receiver from the next tick with the hub reachable, recorded, and the sender sees a signed refusal notice; mail to the revoked agent waits (ARC4 6.2.5).
 E-39.2 ARRANGE: throwaway hub; sidecars `fx-a` (sender, key F) and `fx-b`.
 E-39.3 ACT: revoke F through the root-only admin socket; `fx-a` sends immediately and again after one tick; `fx-b` sends to `fx-a`.
 E-39.4 ASSERT: time from revoke to the first refusal ≤ one tick + one pull; nothing STORED from F after that; the sender's record shows "refused-revoked"; `fx-b`'s message to `fx-a` waits (not dropped); admin-log row and needs-attention entry for the revocation (SI-24).
 E-39.5 CONTROL: mutant that skips the revocation check stores the message.
+E-39.6 (changed in v0.2, follows CR-6.40) CASE: key F revoked after a message from F is STORED and before the hook pulls it. ASSERT: the pull's second receiver check refuses it: REFUSED with a signed notice, removed from the pending set; no ring or watchdog line names it afterwards (FCW-200). CONTROL: mutant that skips a failing message but leaves it STORED keeps ringing for it.
 
 **E-40 — Rollback of the list and restore from backup.** Links: SI-11, TH-58, RR-20, AFC-22. Category: adversarial. Level: L4 + L6. Tier: 2. Phase: PH-2 (B-5).
 E-40.1 EVIDENCE: a list with a lower `seq` is refused and the previous kept and flagged; a sidecar restored from backup with an older list and its older stored `seq` detects the higher head on first contact and refuses the revoked key; with the hub unreachable after such a restore, normal delivery from the revoked key is the stated limit RR-20 (TM SI-11 probe).
@@ -534,6 +568,7 @@ E-45.2 ARRANGE: a test proxy in front of `artifact get` that flips a byte, drops
 E-45.3 ACT: deliver each case.
 E-45.4 ASSERT: no file in `blobs/`, no temp file left, no STORED stage; refusal notice and entry present per case.
 E-45.5 CONTROL: mutant that skips `cipher_sha256` verification stores the flipped-byte case.
+E-45.6 (changed in v0.2 by CR-5.9) CASE: (a) a role-addressed blob (`to: main`) delivered to the agent the sender resolved; (b) a forwarded blob: Y re-wraps the content key to X inside the signed FORWARD. ASSERT: both open at the main (decrypt with the associated data over the immutable envelope fields, `to` verbatim), digests verified, STORED; a FORWARD whose re-wrapped key is replaced fails the outer signature. CONTROL: mutant binding the receiving agent's name in the associated data refuses (a) and (b) (the v0.1 form).
 
 **E-46 — A peer-supplied name is never a file name (SI-28, fuzz).** Links: SI-28, TH-57, R-11, AFC-23. Category: adversarial. Level: L3. Tier: 1. Phase: PH-2 (B-12).
 E-46.1 EVIDENCE: whatever `name_hint` holds, the blob is stored only under its digest in the private directory.
@@ -565,19 +600,21 @@ E-49.5 CONTROL: mutant that downgrades to plaintext on a missing key fails the c
 
 ### 6.7 Caps, quotas, hop limit, adaptive window (K-11; ARC4 6.3; B-7)
 
-**E-50 — Receiver limits, in order, with nothing dropped.** Links: SI-19, R-56, TH-28, TH-30, TH-36. Category: core function. Level: L2. Tier: 1. Phase: PH-2 (B-7).
+**E-50 — Receiver limits, in order, with nothing dropped.** Links: SI-19, R-56, TH-28, TH-30, TH-36, FCW-207. Category: core function. Level: L2. Tier: 1. Phase: PH-2 (B-7).
 E-50.1 EVIDENCE: at STORED time the receiver checks inline ≤ 8 KiB, blob ≤ 16 MiB, per-sender open ≤ 32, aggregate ≤ 256 and ≤ 64 MiB, reserved shares 10% receipts and 20% own project; over a limit the message is not STORED, a signed `QUOTA` notice names the limit, one coalesced needs-attention entry per sender per tick appears, and nothing is dropped (ARC4 6.3.1, 6.3.2).
 E-50.2 ARRANGE: estate EP-2; a sender that does not stop at `QUOTA`.
 E-50.3 ACT: send 8 KiB and 8 KiB + 1 inline; 33 open messages from one sender; fill the aggregate to 256.
 E-50.4 ASSERT: refusals at exactly the stated limits with the limit named; each refused message is still in the sender's outbox; entries coalesced (one per sender per tick).
 E-50.5 CONTROL: mutant that drops over-limit messages at the sender loses them from the outbox.
+E-50.6 (changed in v0.2, follows CR-6.15, CR-6.16) CASE: (a) a duplicate of a stored message (same identity triple) arrives when the budget is full: handled as a duplicate before the quota, no QUOTA notice (FCW-207); (b) a message refused at the blob step or the fsync leaves the sequence window and the quota counters unchanged; (c) a 16 MiB blob is fetched while another pull stores small messages: the store lock is never held across the fetch (the other pull's STORED is not delayed by it). CONTROL: mutant committing the window at step 7 fails (b); mutant holding the lock across the fetch fails (c).
 
-**E-51 — Many honest senders cannot starve receipts or the own project (SI-19).** Links: SI-19, R-56, TH-28, TH-30. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-7).
+**E-51 — Many honest senders cannot starve receipts or the own project (SI-19).** Links: SI-19, R-56, TH-28, TH-30, FCW-208. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-7).
 E-51.1 EVIDENCE: a dishonest sender ignoring its own cap, and many admitted senders each within quota up to the aggregate ceiling, still leave room for receipts and own-project mail (TM SI-19 probe).
 E-51.2 ARRANGE: 20 foreign senders each with 31 open messages; one dishonest sender; own-project sender; receipts flowing.
 E-51.3 ACT: fill to the ceiling; then send an own-project message and receipts.
 E-51.4 ASSERT: own-project message STORED; every receipt processed; receipts never counted against a sender quota.
 E-51.5 CONTROL: mutant counting receipts against the quota stops the receipts (ARC4 6.3.6).
+E-51.6 (changed in v0.2, follows CR-6.17) CASE: fill each class to its integer limit (receipts 26 messages / 6 MiB, own project 51 / 13 MiB, general 179 / 45 MiB). ASSERT: QUOTA for that class only at exactly its limit; the three limits sum to 256 messages and 64 MiB (FCW-208). CONTROL: mutant with fractional shares rounds a class over its share.
 
 **E-52 — Sender window AIMD and the 101st message.** Links: R-56, AFC-5. Category: core function. Level: L1. Tier: 1. Phase: PH-2 (B-7).
 E-52.1 EVIDENCE: the window starts at 100, rises +5 per tick with receipts advancing and no `QUOTA`, to 400; halves on `QUOTA`, floor 10; overflow waits with a needs-attention entry (V-4).
@@ -683,12 +720,13 @@ E-65.5 CONTROL: with the backstop disabled and the unit's restart off, kills pro
 
 ### 6.10 Hub changes (K-15; ARC4 6.6; B-2, B-3, B-4, B-6)
 
-**E-66 — A second inbox consumer is flagged within 60 s, refused after bind.** Links: SI-16, R-49, BP-15, DR-11, R-60. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-2).
+**E-66 — A second inbox consumer is flagged within 60 s, refused after bind.** Links: SI-16, R-49, BP-15, DR-11, R-60, FCW-209. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-2).
 E-66.1 EVIDENCE: the hub records per inbox every identity that subscribed, acked or claimed (16 kept, eviction logged); a second identity within 24 h (V-11) shows in status as "inbox consumed by two identities: A, B" and needs-attention within 60 s; after `admin inbox bind`, ack and claim from any other identity are refused; a second live copy of a project on the same hub is seen within one tick (V-12) (ARC4 6.6.1, 6.6.2).
 E-66.2 ARRANGE: throwaway hub; sidecar `fx-a` consuming its inbox; a raw client with identity `fx-z`.
 E-66.3 ACT: `fx-z` subscribes and acks `fx-a`'s inbox; then bind to `fx-a` and repeat; register 17 identities; register a second copy of `fx-a`'s project.
 E-66.4 ASSERT: flag within 60 s naming both; after bind `fx-z` refused with a reason and an admin-log row; eviction of the oldest logged; second copy flagged within one tick.
 E-66.5 CONTROL: mutant that records only subscribers (not ackers) misses `fx-z` (the BP-15 route).
+E-66.6 (changed in v0.2, follows CR-4.16 and CR-6.33) CASE: `fx-z` only polls `fx-a`'s inbox, never acks. ASSERT: `fx-z` is listed as a consumer and flagged within 60 s (FCW-209); after the bind, its polls and reads are refused. CONTROL: mutant recording only acks and claims misses the read-only consumer (the BP-15 shape).
 
 **E-67 — Admin RPCs are logged; a sweep of open mail is refused; retention ceilings.** Links: FX-6, BP-7, R-35, TH-30, SI-24. Category: adversarial. Level: L4. Tier: 2. Phase: PH-2 (B-3).
 E-67.1 EVIDENCE: every admin-scope RPC appends caller, method, params digest, result with `admin: true`, kept ≥ 30 days; `channel.sweep`, `set-retention` and trim on an `inbox:` or conversation topic are refused when they would remove an offset whose message is not final; past a V-3 ceiling the oldest final records go first, loudly, and open ones only as a last resort with needs-attention (ARC4 6.6.3, V-3).
@@ -828,6 +866,117 @@ E-85.2 ARRANGE: EP-5 under a TermLink PTY; a print-mode session; an injected pro
 E-85.3 ACT: submit a prompt by each route.
 E-85.4 ASSERT: origin and basis per route as stated; the `inferred` share is reported (AR-6 measured, not closed).
 E-85.5 CONTROL: an adapter variant that reports every prompt `human` MUST fail the doorbell and inject routes.
+
+### 6.14 ZR-1: specs for the FAILS CLOSED WHEN conditions that had none (changed in v0.2 by CR-5.12)
+
+6.14.0 Step 6 handed back 46 FCWs with no spec (06 section 6.1, ZR-1 (a)); this section gives each a spec, grouped by
+routine. The PH-3+ ones are E-172 and E-173 in section 9.12; the production seam scan of ZR-1 (b) is E-164 in section
+10. Each spec's Links name the FCWs it covers; 05a section 2.9 is generated from them.
+
+**E-156 — Adapter intake edges: reordered READY, another sidecar epoch, an unusable transcript path.** Links: R-21, R-47, AFC-14, FCW-3, FCW-6, FCW-8. Category: edge case. Level: L2. Tier: 1. Phase: PH-2 (B-27)
+E-156.1 EVIDENCE: a `ready` report ordered before the applied one is dropped and counted (order `(boot_id, mono_ns)`, never `at_ms`; a BUSY/READY tie keeps BUSY); a READY record from another sidecar process or boot reads absent for the gate; a transcript path that is absent, a symlink, not a regular file or outside the project directory is not used for S2 (b).
+E-156.2 ARRANGE: intake with a fake hook socket; adapter fixtures with `boot_id`/`mono_ns`, without them, and with a wall clock stepped back 10 min; transcript paths of each bad kind.
+E-156.3 ACT: send READY then an older BUSY; a tie; restart the sidecar and ring; register each bad path.
+E-156.4 ASSERT: the older report dropped and `ready_reordered` counted; the tie keeps BUSY; the wall step does not freeze READY; after the restart the gate holds `not-ready` until a new report; S2 (b) unused for every bad path, turn events still count.
+E-156.5 CONTROL: mutant ordering on `at_ms` freezes READY across the clock step; mutant following symlinks reads the target.
+
+**E-157 — PTY input sources: an unclassifiable write counts as typing, another boot makes S1 unknown, terminal replies are not typing.** Links: R-20, R-81, SI-2, AFC-13, FCW-10, FCW-11. Category: edge case. Level: L2. Tier: 1. Phase: PH-2 (B-27)
+E-157.1 EVIDENCE: a write whose source cannot be classified counts as `client`; a session answering from another boot makes S1 unknown; recognised terminal replies (06 AL-2 list, coalesced replies split) count as `client_auto`; unrecognised escape replies count as `client` and are measured (F-48, CR-6.41).
+E-157.2 ARRANGE: fake PTY writer with sources client, notify, inject and an unclassified one; terminal reply fixtures (CPR, focus, DA1, DA2, OSC 10/11 colour replies, a coalesced pair, an unknown ESC sequence); a session with another `boot_id`.
+E-157.3 ACT: write each; read `session.input_activity`; run the gate.
+E-157.4 ASSERT: unclassified → `client`; each recognised reply → `client_auto` and no hold; the unknown sequence → `client`, `unrecognised_reply` +1 and `held_by_unrecognised` +1 when it held a ring; another boot → S1 unknown.
+E-157.5 CONTROL: mutant counting OSC replies as client holds the ring for every colour query.
+
+**E-158 — Conversation signal without a turn stop, and with an unreadable ledger.** Links: R-20, SI-2, TH-62, FCW-17, FCW-18. Category: edge case. Level: L2. Tier: 1. Phase: PH-2 (B-27)
+E-158.1 EVIDENCE: with no turn stop after a human prompt, `operator` lasts until 120 s after the last S2 event after it; an unreadable owed-answer ledger reads `unknown`, which holds the normal ring and leaves the watchdog unaffected.
+E-158.2 ARRANGE: simulated clock; a human prompt with S2 events at +30 s and +200 s and no turn stop; a ledger that fails to open.
+E-158.3 ACT: evaluate at +149 s, +319 s, +321 s; then with the ledger failing.
+E-158.4 ASSERT: `operator` at +149 s and +319 s, `none` at +321 s; with the ledger failing `unknown`, `hold:conversation`, the watchdog still fires after 300 s of silence.
+E-158.5 CONTROL: mutant ending at prompt + 120 s returns `none` at +149 s.
+
+**E-159 — Ring durability: one session per agent, no intent no keystroke, a notify timeout, a restart.** Links: R-20, R-25, SI-2, AFC-5, FCW-26, FCW-35, FCW-36, FCW-37. Category: error handling. Level: L2. Tier: 1. Phase: PH-2 (B-16)
+E-159.1 EVIDENCE: only one session of an agent is rung per tick; an intent that cannot be written durably types nothing; a notify that times out is `unknown`, treated as typed for the schedule and never as handed over; after a restart an intent without outcome, or a typed line without a recorded submit, makes the session UNSUBMITTED (STALLED if the line was the watchdog's).
+E-159.2 ARRANGE: two eligible sessions of one agent; a ring log on a full disk; a session whose `command.notify` hangs; a sidecar killed at each crash row of 06 AL-6.
+E-159.3 ACT: one tick each; restart after each kill.
+E-159.4 ASSERT: one ring per tick per agent; with the full disk zero `notify` bytes and `held:intent-unrecorded`; the timeout gives outcome `unknown`, ATTEMPTED, no HANDED_OVER, no re-ring until a submit; after each kill the session state equals 06 AL-6's crash table.
+E-159.5 CONTROL: mutant writing the intent after the keystrokes types with the full disk.
+
+**E-160 — The watchdog never types blind: an unmeasurable veto holds, the macOS `ps` veto, an unwritable audit row.** Links: R-19, SI-2, SI-23, AFC-8, FCW-41, FCW-42. Category: error handling. Level: L2 + L4. Tier: 1 and 2. Phase: PH-2 (B-16; ruling D on F-20)
+E-160.1 EVIDENCE: where neither `/proc` nor `ps` can measure, the watchdog holds and a needs-attention entry says `watchdog: unavailable (veto unmeasurable)`; on macOS the interim `ps` veto holds for a running child process or CPU growth in the harness's tree, otherwise the watchdog may type after 300 s of silence and the 30 s typing re-check, with status `watchdog: degraded (macOS, ps veto)`; an audit row that cannot be written types nothing.
+E-160.2 ARRANGE: tier 1 with a veto stub returning Unmeasurable; tier 2 on a macOS runner (CI job of T-3271, later the M1) with a fake harness tree: (a) a child `sleep 600`, (b) a CPU loop, (c) an idle tree waiting on a socket read; an admin chain on a read-only file.
+E-160.3 ACT: let 300 s of silence pass in each case.
+E-160.4 ASSERT: stub: no keystroke, entry raised once per session per day; macOS (a) and (b) `held:veto:child` / `held:veto:cpu`; (c) one line typed (the stated blind spot, recorded as `LIMIT` for the network/disk wait, never PASS); status shows `degraded (macOS, ps veto)`; read-only chain: no keystroke.
+E-160.5 CONTROL: mutant treating Unmeasurable as quiet types in the stub case; on macOS a mutant without the child check types in (a).
+
+**E-161 — A non-main session is withheld role mail only, and an unreadable kill switch reads off.** Links: R-67.a1, R-62, SI-23, AFC-12, AFC-16, FCW-48, FCW-49. Category: edge case. Level: L2. Tier: 1. Phase: PH-2 (B-25 for the withhold change; B-16)
+E-161.1 EVIDENCE: with a fresh lease naming another session of this agent as main, the pull hands out no role mail and prints the one line once per generation, but hands out mail to an exact instance (ARC4 7.1.a); a kill-switch flag that cannot be read is off for every typed path and the hook path.
+E-161.2 ARRANGE: two sessions of one agent, lease on S1; in S2's pending set one role message and one exact-instance message; the switch file made unreadable.
+E-161.3 ACT: S2's hook pulls twice in one generation; the doorbell tick with the switch unreadable.
+E-161.4 ASSERT: S2 receives the exact-instance message only; one line once; with the switch unreadable `held:kill-switch` and the pull refuses `delivery-off`.
+E-161.5 CONTROL: the built pull (withhold all) fails the exact-instance assertion until changed; mutant reading an unreadable switch as on types.
+
+**E-162 — Lease records that cannot be read or posted fail toward no change.** Links: R-67, R-68, SI-20, AFC-16, FCW-55, FCW-58, FCW-59. Category: error handling. Level: L2. Tier: 1. Phase: PH-2 (B-25)
+E-162.1 EVIDENCE: an unreadable `main-touch` topic means no fast takeover; a Touch that cannot be posted means no renewal and exit 2; an Ignored record that cannot be posted leaves the lease unchanged and says `ignored-unrecorded`.
+E-162.2 ARRANGE: hub fake that fails reads of `main-touch:<p>`, posts of Touch, posts of Ignored, one at a time.
+E-162.3 ACT: a human claim from S2 against an idle S1; S1's human renewal; an automated claim.
+E-162.4 ASSERT: S1 keeps main (no fast takeover); S1's renewal answers unknown (exit 2) and its expiry is not extended; the automated claim's outcome says `ignored-unrecorded`, lease unchanged.
+E-162.5 CONTROL: mutant renewing before the Touch extends the claim without a Touch record.
+
+**E-163 — Test seams are refused outside a test estate.** Links: R-6, R-39, SI-27, FCW-60, FCW-77, FCW-78. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-25, B-1)
+E-163.1 EVIDENCE: a `TERMLINK_MAIN_TEST_*` variable outside an estate makes `termlink main` answer unknown (exit 2); a `TERMLINK_SIDECAR_TEST_*` or `TERMLINK_HUB_TEST_*` variable makes a production sidecar or hub refuse to start; `TERMLINK_HUB_TEST_CEILINGS` outside an estate runtime directory refuses the hub.
+E-163.2 ARRANGE: a production-mode environment and a marked estate.
+E-163.3 ACT: set each seam in each mode and start or call the component.
+E-163.4 ASSERT: production: refusals with the reason naming the variable; estate: the seam is honoured.
+E-163.5 CONTROL: mutant ignoring seams silently in production starts the hub with shrunk ceilings.
+
+**E-165 — A forward intent that cannot be written means no forward.** Links: R-67.a1, R-51, AFC-19, FCW-70. Category: error handling. Level: L2. Tier: 1. Phase: PH-2 (B-20)
+E-165.1 EVIDENCE: if Y cannot write the forward intent durably, nothing is posted and the message is delivered at Y as before.
+E-165.2 ARRANGE: Y's chain on a full disk; role mail with the lease on X.
+E-165.3 ACT: let Y store and decide.
+E-165.4 ASSERT: no FORWARD posted, the message offerable at Y, status says why.
+E-165.5 CONTROL: mutant posting before the intent posts a FORWARD with no record at Y.
+
+**E-166 — Hub identity and pin at start: the mint is atomic, a first contact off the trusted paths pins nothing, an unreachable hub blocks posting.** Links: R-61, R-54, FX-2, AFC-21, FCW-81, FCW-84, FCW-87. Category: error handling. Level: L2. Tier: 1. Phase: PH-2 (B-1)
+E-166.1 EVIDENCE: a mint that cannot be written atomically refuses start and leaves no partial file (a socket-only first start mints at random, CR-6.42); a first contact that is neither the local socket nor TLS under the pinned certificate pins nothing; a sidecar that cannot reach its hub at start neither posts nor pulls until the id is verified.
+E-166.2 ARRANGE: runtime directory on a full disk; a first contact over an unpinned TLS endpoint; a hub that is down at sidecar start.
+E-166.3 ACT: start the hub; start the sidecar against each.
+E-166.4 ASSERT: hub refuses, no `hub.id` and no temp left; no pin written, hub-signed data unverified; the sidecar posts nothing and pulls nothing until verification succeeds.
+E-166.5 CONTROL: mutant writing `hub.id` in place leaves a truncated id after a kill.
+
+**E-167 — Revocation issue is durable or does not happen.** Links: SI-11, SI-24, RK-1, FCW-91, FCW-92. Category: error handling. Level: L2. Tier: 1. Phase: PH-2 (B-5)
+E-167.1 EVIDENCE: a revocation whose admin-log row cannot be written is not issued; a new list that cannot be persisted leaves the previous list and the call fails.
+E-167.2 ARRANGE: hub with the admin log read-only, then the list file's directory read-only.
+E-167.3 ACT: `admin revoke --key F` in each state.
+E-167.4 ASSERT: no new sequence number, previous list served, the call exits non-zero with the reason.
+E-167.5 CONTROL: mutant persisting the list before the admin row serves a revocation with no audit row.
+
+**E-168 — Sender-side checks: a forged QUOTA notice is ignored, a bad key register refuses start, a failed upload sends nothing.** Links: SI-19, SI-28, R-11, FCW-108, FCW-110, FCW-113. Category: adversarial. Level: L2. Tier: 1. Phase: PH-2 (B-7, B-11, B-12)
+E-168.1 EVIDENCE: a QUOTA notice that does not verify does not throttle the sender; a register entry missing, not root-owned or group/world-writable refuses start; a blob upload that fails or whose hub digest differs leaves the message unsent in the outbox with the reason.
+E-168.2 ARRANGE: a forged QUOTA notice; register entries of each bad kind; an upload proxy that drops a chunk and one that returns a wrong digest.
+E-168.3 ACT: send after the forged notice; start the sidecar; send a blob through each proxy.
+E-168.4 ASSERT: the window unchanged by the forged notice; start refused naming the entry; the message not posted, in the outbox with the reason.
+E-168.5 CONTROL: mutant honouring unsigned notices throttles the sender.
+
+**E-169 — Hub admin and log durability: unreadable consumers, finality, admin-log and use-log rows, a poster without a card.** Links: SI-16, FX-4, FX-6, AFC-33, FCW-125, FCW-127, FCW-128, FCW-132, FCW-135. Category: error handling. Level: L2. Tier: 1. Phase: PH-2 (B-2, B-3, B-4, B-6)
+E-169.1 EVIDENCE: an unreadable consumer list shows `consumers: unknown`, never "one"; a sweep whose finality cannot be read is refused; an admin RPC whose log row cannot be written is refused; a founding verb whose use-log row cannot be written is refused; an arc-011 message from a poster with no key card is refused.
+E-169.2 ARRANGE: a hub fake failing each read or write in turn; a poster without a card.
+E-169.3 ACT: tick; sweep; an admin RPC; `command.inject`; a post.
+E-169.4 ASSERT: each refused or shown unknown as stated, with the reason.
+E-169.5 CONTROL: mutant defaulting an unreadable consumer list to empty reports one consumer.
+
+**E-170 — Reconciliation and the vendor log degrade visibly.** Links: SI-15, SI-22, FX-1, FCW-138, FCW-146. Category: error handling. Level: L2. Tier: 1. Phase: PH-2 (B-10, B-18)
+E-170.1 EVIDENCE: a sidecar that cannot reach its hub at start stays UNRECONCILED and never shows CLEAR until a pass completes; a vendor-channel row that cannot be written goes to the hook error log and status shows `vendor_log: degraded`, the call itself not blocked.
+E-170.2 ARRANGE: hub down at start; the admin chain read-only for the vendor hook.
+E-170.3 ACT: tick for 5 minutes; a `SendMessage` tool start.
+E-170.4 ASSERT: status UNRECONCILED, never CLEAR, until the hub returns and a pass completes; the hook exits 0, the error log has the line, status `vendor_log: degraded`.
+E-170.5 CONTROL: mutant reporting CLEAR without a pass passes a status check it must fail.
+
+**E-171 — Wave gates W2 and W3 refuse until their evidence exists.** Links: R-49, NID, BP-16, FCW-149, FCW-150, FCW-210. Category: user workflow. Level: L2. Tier: 1. Phase: PH-2 (B-17, B-21)
+E-171.1 EVIDENCE: the W2 runme action refuses until W1 has run 7 days with no unresolved urgent entry, B-16 is installed and the typed-path kill-switch drill passed; the W3 action refuses until the W2 H-11 report has (a)..(f) within bounds over 7 days (including (e) unsubmitted lines and (f) watchdog fires and the false-busy share, CR-3.1) and the canary ran daily.
+E-171.2 ARRANGE: `tests/runme-fixtures.sh` with `RUNME_*` seams; fixture reports missing each item in turn, and one complete.
+E-171.3 ACT: run each action per fixture.
+E-171.4 ASSERT: FAILED with the missing item named, nothing changed, until the complete fixture, then OK, then `skip`.
+E-171.5 CONTROL: mutant reading only H-11 (a)..(d) passes W3 with (e) over its bound.
 
 ## 7 PH-2 rows that already have tasks (P12, P14, P16; B-8, B-9, B-10)
 
@@ -999,12 +1148,15 @@ E-103.3 ACT: send the approval-shaped messages; submit an authenticated admissio
 E-103.4 ASSERT: no registry, allow-list, pin, grant or lease change from messages; the request changes state only after the decision record.
 E-103.5 CONTROL: mutant that parses `approved:` lines in content changes state.
 
-**E-104 — Approval adversarial set (SI-13, card 3.3).** Links: SI-13, R-72, R-76, TH-20, TH-48, TH-51, TH-56, RR-20. Category: adversarial. Level: L2 + L4. Tier: 1 and 2. Phase: PH-3 (K-27, 12.2).
+**E-104 — Approval adversarial set (SI-13, card 3.3).** Links: SI-13, R-72, R-76, TH-20, TH-48, TH-51, TH-56, RR-20, FCW-153, FCW-191, FCW-211. Category: adversarial. Level: L2 + L4. Tier: 1 and 2. Phase: PH-3 (K-27, 12.2).
 E-104.1 EVIDENCE: a decision written back from Watchtower or an out-of-band channel through the existing admin path takes effect only if it is bound to the digest of the full action as displayed, including executor and target, is unexpired (PN-15, 10 min) and is consumed once atomically.
 E-104.2 ARRANGE: throwaway hub with the registry; a fake Watchtower writer and a fake OOB channel writer; two executors.
 E-104.3 ACT: (a) forged approval (no valid decision record, or signed by an agent key); (b) replayed approval after use; (c) arguments changed after approval (stored action edited between display and execute); (d) expired approval (10 min + 1 s); (e) a response naming a different target or executor; (f) an agent without a grant requesting the action; (g) an approval for another request presented here; (h) restart of the executor between consumption and effect; (i) concurrent approve, cancel and revoke of the same event; (j) the same approval to two executors at once and twice concurrently to one.
 E-104.4 ASSERT: (a), (b), (c), (d), (e), (f), (g) refused with a reason and a needs-attention row; (h) completes without a second use; (i) exactly one terminal outcome, recorded, with cancel or revoke winning over a later approve; (j) exactly one effect. Limit: restoring the consumed-set from before the approval and replaying within expiry is `LIMIT` RR-20.
 E-104.5 CONTROL: one mutant per check (digest binding without executor, no expiry, non-atomic consumption, no target check), each turning its case red.
+E-104.6 (changed in v0.2, follows CR-6.31 and CR-6.32) CASE: (a) an event created with `requested_by` naming another identity than the authenticated caller: refused; (b) `expires_at` one hour ahead: refused; within PN-15 plus 30 s: accepted (FCW-153); (c) a CONSUMED event whose executor never returns: OUTCOME_UNKNOWN with a needs-attention entry 30 min after the consume; a late outcome is recorded beside it (FCW-211). CONTROL: mutant without the age bound leaves (c) CONSUMED indefinitely.
+E-104.7 (changed in v0.2 by CR-5.12 ZR-1 (f1)) CASE: a cancel, a revoke and an expiry each race a consume of the same APPROVED event, in both orders. ASSERT: exactly one of CONSUMED or the final state; never CONSUMED after a final state; no effect applied after a final state (FCW-191). CONTROL: mutant checking the state outside the event lock turns it red.
+E-104.8 (changed in v0.2 by CR-5.12 ZR-1 (f5)) CASE: kill the executor at each crash point of 06b AL-44 (a)..(e), including after the consume commit with no dispatch row. ASSERT: one effect; DONE or FAILED only from a post-condition read; no FAILED for an effect never applied; OUTCOME_UNKNOWN and no third apply when two applies left no effect (FCW-194, FCW-164, FCW-165).
 
 **E-105 — Out-of-band confirmation for high-impact approvals (SI-31).** Links: SI-31, R-76, TH-49, TH-64. Category: adversarial. Level: L4 + L5. Tier: 2 and 4. Phase: PH-3 contract, PH-6 real provider.
 E-105.1 EVIDENCE: a high-impact approval without the active out-of-band confirmation has no effect and expires visibly within PN-15; with the confirmation it takes effect once; approvals signed with a revoked operator key are refused; enrolment uses the typed-back fingerprint (PR-14).
@@ -1013,12 +1165,13 @@ E-105.3 ACT: approve without, then with, confirmation; revoke the operator key a
 E-105.4 ASSERT: as stated; the wrong fingerprint refused.
 E-105.5 CONTROL: mutant skipping the confirmation check takes effect.
 
-**E-106 — Grants: an agent cannot create or widen authority (SI-21, H-25).** Links: SI-21, R-63, R-64, R-73, R-78, TH-18, TH-42, TH-47, H-25. Category: adversarial. Level: L2 + L4. Tier: 1 and 2. Phase: PH-4 (K-26).
+**E-106 — Grants: an agent cannot create or widen authority (SI-21, H-25).** Links: SI-21, R-63, R-64, R-73, R-78, TH-18, TH-42, TH-47, H-25, FCW-192. Category: adversarial. Level: L2 + L4. Tier: 1 and 2. Phase: PH-4 (K-26).
 E-106.1 EVIDENCE: a grant written as a file by the agent and presented unsigned is ignored; one signed with an agent key is refused; a start beyond budget and a replayed expired grant are refused; 30 of 30 API attempts refused; 30 of 30 direct file writes detected and shown within a tick at base strength.
 E-106.2 ARRANGE: policy store K-26 on a throwaway hub; an agent with write access to its own files.
 E-106.3 ACT: the TM SI-21 probe set; H-25's 30 + 30 attempts.
 E-106.4 ASSERT: as stated; every refusal and detection has an entry.
 E-106.5 CONTROL: mutant verifying grants against any known key accepts the agent-signed grant.
+E-106.6 (changed in v0.2 by CR-5.12 ZR-1 (f2)..(f4)) CASE: (f2) N concurrent starts under a grant with budget B < N: exactly B use rows and B starts (FCW-192; mutant: check and append as two steps); (f3) the grant revoked, and in a second run expired, between the local check and the hub's reserve: no use row, no start (FCW-193); (f4) the hub unreachable at the reserve: no start (FCW-172).
 
 **E-107 — Eligibility and priority only from signed configuration (SI-20).** Links: SI-20, R-67, R-78, TH-41, TH-33, H-24. Category: adversarial. Level: L4. Tier: 2. Phase: PH-4 (V-10); PH-2 part is E-20..E-26.
 E-107.1 EVIDENCE: a self-attested higher priority or eligibility has no effect; a second copy is resolved within one tick plus one pull (20 of 20); main's stopped renewals end in a visible takeover; the hub reads `main_priority` only at vacancy.
@@ -1118,6 +1271,22 @@ E-120.3 ACT: exchange messages; read every topic with a hub token.
 E-120.4 ASSERT: zero canary hits; envelope fields present.
 E-120.5 CONTROL: a project at L0 without DM encryption MUST show the canary (today's disclosure, unchanged).
 
+### 9.12 ZR-1 specs for later-phase FAILS CLOSED WHEN conditions (changed in v0.2 by CR-5.12)
+
+**E-172 — Tier 0 decision path and execution recovery.** Links: SI-13, SI-31, R-72, FCW-157, FCW-163, FCW-164, FCW-165, FCW-194. Category: error handling. Level: L2. Tier: 1. Phase: PH-3 (K-27)
+E-172.1 EVIDENCE: a decision not written through the root-only admin path is refused; a consumed-set insert that fails refuses the consume with nothing done; a post-condition that does not hold gives FAILED with needs-attention and no automatic retry; after a crash a post-condition that cannot be read gives OUTCOME_UNKNOWN; two dispatch rows with no outcome and no effect give OUTCOME_UNKNOWN and no third apply.
+E-172.2 ARRANGE: throwaway hub; decisions over a non-admin socket; a consumed set on a read-only file; an effect stub whose post-condition fails, cannot be read, or never applies.
+E-172.3 ACT: decide; consume; execute; kill and recover per 06b AL-44.
+E-172.4 ASSERT: each outcome as stated, recorded in the one audit trail (E-104.8 runs the full crash matrix).
+E-172.5 CONTROL: mutant retrying a FAILED effect applies it twice.
+
+**E-173 — Grant reserve at the hub: a log that cannot be written or a reserve that cannot complete starts nothing.** Links: SI-21, R-63, R-64, FCW-172, FCW-193. Category: adversarial. Level: L2. Tier: 1. Phase: PH-4 (K-26)
+E-173.1 EVIDENCE: if the use log cannot be written or the hub's reserve step cannot complete, nothing starts; a grant that passed the local check but is revoked, expired, of a superseded epoch or no longer covers the agent or the kind at the reserve step is refused with no use row.
+E-173.2 ARRANGE: hub with the use log read-only; the reserve RPC failing; the grant changed between the local check and the reserve (E-106.6 (f3) runs the race).
+E-173.3 ACT: request a start in each case.
+E-173.4 ASSERT: no start, no use row, the reason recorded.
+E-173.5 CONTROL: mutant starting on the local check alone starts under the revoked grant.
+
 ## 10 Production invariant checks: one per measured property (ARC4 section 15 and 15.2)
 
 10.1 Every row is a spec E-n at level **L7**, tier 4 (in operation), category **core function**, written as one
@@ -1158,6 +1327,8 @@ the period observed**, the specs show it **in the cases tried**.
 | E-150 | R-70, GP-12 | Inventories of components, stores, identities, keys, operations and states are current; every addition is justified | `scripts/check-arc011-inventory.sh` | per push | inventory drift | the script's own fixtures (`tests/arc011-inventory-check-fixtures.sh`) | quality of the justification |
 | E-151 | R-69, T-13, T-10 | Every floor probe stays kill-checked | E-93 report and the PH-2 mutants of this document | per push for invariants | a surviving mutant | the mutants themselves | equivalent mutants nobody wrote |
 | E-152 | H-26, TM 17 | Bypass routes do not grow | bypass inventory | each phase exit | a newly open route | E-83 control | routes not in the inventory |
+| E-155 | R-67, SI-20, TH-33, AR-6, QR-3 | (changed in v0.2 by CR-5.11, operator ruling A on F-25 / RQ-3) Human-claim detector: human-counted renewals and Touch records per session match the prompt origins the adapter reported through the hooks; reported, never gated (RNU) | lease topics `main:<p>`, `main-touch:<p>`; the receiver's AL-1 record of `prompt_submit` reports per session | per day: count Touch records and human-counted claims per session; count adapter-reported `human` prompts (receiver-checked) for the same session and window | a human claim or Touch with no matching hook report (for example from outside the hooks), or human claims exceeding the session's adapter-reported human prompts by more than 2 [P] in a day: needs-attention and status field `main.suspicious_human_claims` (exit 1 means reported, never a block) | a fixture that calls `termlink main claim --origin human` directly, outside the hooks, fires | a same-user process that also forges the hook reports stays invisible until an operator key exists (Track K) |
+| E-164 | R-6, R-39, SI-27, FCW-60, FCW-77 | (changed in v0.2 by CR-5.12 ZR-1 (b)) No test seam is set in production | production unit environments, the hooks' environment, each running sidecar's and hub's environment (`/proc/<pid>/environ`) | scan for any `TERMLINK_*TEST*` variable, daily and before B-25 ships (06 4.8.b) | any hit | a fixture unit with `TERMLINK_MAIN_TEST_LEASE_MS` set fires | variables set by a process after its start in a child it spawns |
 
 ## 11 Coverage (card 4.2): summary; the tables are in 05a
 
@@ -1167,8 +1338,8 @@ category and level) are in `docs/design/interactive-agent-communication-05a-cove
 11.2 Declared gaps, each with its reason: R-36 (daily digest, deferred to PH-6), R-38 (deferred by ruling), R-40
 (merged into R-28, evidenced through E-76), R-41 (deferred to the planner), R-43 (dropped). No other R-n, SI-n or FX-n
 is without a spec; every SI-n and every "impossible" requirement has at least one adversarial spec (05a 2.4, 2.5).
-11.3 **Open by construction:** the pseudo-code's FAILS CLOSED WHEN conditions (section 14) do not exist yet. They are
-the main coverage gap of this version and the reason this step iterates with step 6.
+11.3 (changed in v0.2 by CR-5.12) **Closed:** the pseudo-code's FAILS CLOSED WHEN conditions FCW-1 to FCW-211 each
+have at least one spec (05a table 2.9, generated, no undeclared gap; section 14). v0.1 said they did not exist yet.
 11.4 **Not run until their estate exists** (not gaps in the specification, gaps in what can be shown today): every
 tier-3 spec until EP-5 (`testdev`, T-3361) exists; EP-8 canary specs until B-19; EP-11 cross-host until PH-3; EP-12 host
 crash until the VM is provisioned. Each phase report lists them as "not run" (5.5), never as passed.
@@ -1331,10 +1502,12 @@ FAILS CLOSED WHEN list (section 14), which will be finer and will be mapped onto
 | AFC-33 | a post whose signature does not verify against the key card: refused | 6.6.5 | E-69 |
 | AFC-34 | an unsigned or wrongly signed DEAD: refused | 6.6.6 | E-70 |
 
-## 14 FAILS CLOSED WHEN of the pseudo-code: open for the step-6 iteration
+## 14 FAILS CLOSED WHEN of the pseudo-code (closed in v0.2 by CR-5.12)
 
-14.1 Status: **open**. The pseudo-code (step 6, T-3355) does not exist. Card 3.5 requires a spec for every FAILS CLOSED
-WHEN condition; that coverage cannot be claimed in this version.
+14.1 Status: **closed** (changed in v0.2 by CR-5.12). Step 6 (T-3355) handed back FCW-1 to FCW-194, and its v0.3 adds
+FCW-195 to FCW-211 from step 7's CR-6. Each FCW names its spec in 06 section 6; the 46 that named only ZR-1 now have
+E-156 to E-173 (section 6.14 and 9.12, E-164 in section 10), whose Links name them. 05a section 2.9, generated, lists
+every FCW with its specs and shows no undeclared gap. (v0.1: "Status: open. The pseudo-code does not exist.")
 14.2 What step 6 MUST hand back for this step to close the gap: every FAILS CLOSED WHEN condition with an id `FCW-n`,
 the AFC-n it refines (or "new"), and the routine it sits in. This step then adds or extends one spec per FCW-n and a
 05a table "FCW-n → E-n" in the next iteration.
