@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:38Z
-last_update: 2026-11-12T19:55:41Z
+last_update: 2026-11-12T19:59:44Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -101,8 +101,8 @@ Unblocks: part of gate G-2 (the T1 release).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The B-4 specs pass (founding-verb use log at session and hub; owner-only sessions)
-- [ ] The unit's fixture suite exits 0 with a PASS line per B-4 E-n and its mutant list is all killed (FP 3.1.b)
+- [x] The B-4 specs pass (founding-verb use log at session and hub; owner-only sessions)
+- [x] The unit's fixture suite exits 0 with a PASS line per B-4 E-n and its mutant list is all killed (FP 3.1.b)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
