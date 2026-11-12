@@ -9,6 +9,7 @@
 //! |---|---|
 //! | `post-tool-use` | `pull`; prints the frame as `additionalContext` when one came back, then spawns a detached finalizer |
 //! | `session-start` | `ready` (records the session; the transcript is found by the sidecar under its own HOME) |
+//! | `vendor-channel` | PreToolUse for `SendMessage`, `Agent`, `Task` (P-26, AL-39, K-20): `vendor-use`, one admin row per call; prints nothing, never blocks |
 //! | `stop` | `ready` only: a Stop hook cannot hand text to the agent without blocking the turn, which PH-1 does not do, so mail waits for the next tool call |
 //!
 //! Fail directions (6.3): the **turn** fails open: any error (no socket,
@@ -63,6 +64,21 @@ fn log_error(log: Option<&Path>, event: &str, why: &str) {
     }
 }
 
+/// The tools whose use goes over the vendor's own channel and is logged (P-26,
+/// AL-39, E-71). The settings matcher is these names joined by `|`.
+pub const VENDOR_TOOLS: [&str; 3] = ["SendMessage", "Agent", "Task"];
+/// The PreToolUse matcher the settings entry must carry.
+pub fn vendor_matcher() -> String {
+    VENDOR_TOOLS.join("|")
+}
+
+/// The tool a `vendor-channel` hook reports: `--tool` when given, else the hook
+/// input's `tool_name`. `None` for a tool outside [`VENDOR_TOOLS`] (not logged).
+pub fn vendor_tool<'a>(explicit: Option<&'a str>, input: &'a Value) -> Option<&'a str> {
+    let t = explicit.or_else(|| input.get("tool_name").and_then(Value::as_str))?;
+    VENDOR_TOOLS.contains(&t).then_some(t)
+}
+
 /// The sidecar request for one hook event. Every request carries this host's
 /// `boot_id` and `mono_ns` (CLOCK_BOOTTIME on Linux, as a decimal string) so the
 /// meter orders hook calls on them, not on a wall clock (04 17.2.a, CR-6.24, P-2);
@@ -77,6 +93,10 @@ pub fn request(event: &str, session: &str, input: &Value) -> Result<Value, Strin
             r
         }
         "session-start" | "stop" | "session-end" => json!({"op": "ready", "session": session, "hook": event}),
+        "vendor-channel" => match vendor_tool(input.get(TOOL_ARG_KEY).and_then(Value::as_str), input) {
+            Some(t) => json!({"op": "vendor-use", "session": session, "tool": t}),
+            None => return Err(NOT_VENDOR.into()),
+        },
         other => return Err(format!("unknown hook event {other:?}")),
     };
     if let (Some(boot), Some(ns)) = (termlink_session::input_meter::boot_id(), mono_ns()) {
@@ -98,6 +118,11 @@ pub fn mono_ns() -> Option<u64> {
     let rc = unsafe { libc::clock_gettime(clock, &mut ts) };
     (rc == 0).then(|| (ts.tv_sec as u64).saturating_mul(1_000_000_000).saturating_add(ts.tv_nsec as u64))
 }
+
+/// Key under which `main_hook` passes a `--tool` argument into the hook input.
+const TOOL_ARG_KEY: &str = "__termlink_tool_arg";
+/// `request` answer for a tool that is not a vendor channel: nothing to log.
+const NOT_VENDOR: &str = "not a vendor-channel tool";
 
 /// What a hook run produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,6 +154,8 @@ pub fn run(event: &str, input: &str, socket: Option<&Path>, log: Option<&Path>) 
     };
     let req = match request(event, session, &v) {
         Ok(r) => r,
+        // A tool the matcher let through that is not a vendor channel: no row, no error.
+        Err(why) if why == NOT_VENDOR => return HookOutcome { stdout: None, finalize: None, error: None },
         Err(why) => return none(why),
     };
     let resp = match call(socket, &req, HOOK_TIMEOUT) {
@@ -215,6 +242,11 @@ fn nested_claude() -> Option<bool> {
 /// Read stdin (bounded), run the hook, print, spawn the finalizer. Exit code is
 /// always 0: the turn fails open.
 pub fn main_hook(event: &str) -> i32 {
+    main_hook_with(event, None)
+}
+
+/// [`main_hook`] with the `vendor-channel` event's `--tool <name>` (AL-39).
+pub fn main_hook_with(event: &str, tool: Option<&str>) -> i32 {
     let socket = std::env::var_os(SOCKET_ENV).map(PathBuf::from);
     let log = errlog_path(socket.as_deref());
     // T-3463: a Claude started by an agent inherited that agent's socket; it never
@@ -229,6 +261,13 @@ pub fn main_hook(event: &str) -> i32 {
     if let Err(e) = std::io::stdin().take(MAX_INPUT).read_to_string(&mut input) {
         log_error(log.as_deref(), event, &format!("cannot read stdin: {e}"));
         return 0;
+    }
+    if let Some(t) = tool {
+        // The explicit tool rides in the input, so `run` stays one pure entry point.
+        if let Ok(Value::Object(mut o)) = serde_json::from_str::<Value>(&input) {
+            o.insert(TOOL_ARG_KEY.into(), json!(t));
+            input = Value::Object(o).to_string();
+        }
     }
     let out = run(event, &input, socket.as_deref(), log.as_deref());
     if let Some(s) = &out.stdout {

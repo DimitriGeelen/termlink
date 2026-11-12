@@ -92,6 +92,8 @@ fn op_spec(op: &str) -> Option<(Scope, &'static [&'static str])> {
         "claim" => (Scope::Send, &["msg_id"]),
         "handed-over" => (Scope::Send, &["msg_id", "nonce", "final"]),
         "ready" => (Scope::Send, &["session", "hook", "boot_id", "mono_ns"]),
+        // P-26 (AL-39, K-20): the PreToolUse hook reports one vendor-channel use.
+        "vendor-use" => (Scope::Send, &["session", "tool", "boot_id", "mono_ns"]),
         "status" => (Scope::Status, &["msg_id", "conv"]),
         "delivery" => (Scope::Admin, &["state", "why"]),
         "held" => (Scope::Admin, &["body"]),
@@ -127,6 +129,10 @@ pub struct ApiConfig {
     /// `termlink.adapter/2` reports (a line with no `op`), sends and hook calls
     /// feed it, and `status` shows `activity`. Without it nothing changes.
     pub meter: Option<Arc<crate::meter::Meter>>,
+    /// P-26 (FCW-146): the hooks' error log, read by `status` for `vendor_log`.
+    /// Defaults to `$TERMLINK_SIDECAR_HOOK_ERRORS`, else `hook-errors.log` beside
+    /// the sockets (where a hook writes it by default).
+    pub hook_errlog: Option<PathBuf>,
 }
 
 impl ApiConfig {
@@ -143,6 +149,7 @@ impl ApiConfig {
             liveness: None,
             lease: None,
             meter: None,
+            hook_errlog: crate::hook::errlog_path(Some(&socket_path(runtime, agent, Scope::Send))),
         }
     }
 }
@@ -338,7 +345,7 @@ fn report_reply(i: crate::meter::Intake) -> Value {
 fn handle(req: &Value, scope: Scope, sh: &Shared) -> Value {
     // The peer passed the owner check, so its uid is the owner's.
     let who = format!("admin-uid-{}", sh.cfg.owner_uid);
-    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref(), liveness: sh.cfg.liveness.as_ref().map(|(l, e)| (&**l, *e)), lease: sh.cfg.lease.as_deref(), meter: sh.cfg.meter.as_deref() };
+    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref(), liveness: sh.cfg.liveness.as_ref().map(|(l, e)| (&**l, *e)), lease: sh.cfg.lease.as_deref(), meter: sh.cfg.meter.as_deref(), hook_errlog: sh.cfg.hook_errlog.as_deref() };
     dispatch_inner(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref(), ctx)
 }
 
@@ -356,7 +363,7 @@ pub fn dispatch_with(
     hub_id: Option<&str>,
     sender: Option<&Sender>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None, liveness: None, lease: None, meter: None })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None, liveness: None, lease: None, meter: None, hook_errlog: None })
 }
 
 /// [`dispatch_with`] with the deliver path attached as well.
@@ -369,7 +376,7 @@ pub fn dispatch_full(
     sender: Option<&Sender>,
     deliverer: Option<&Deliverer>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease: None, meter: None })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease: None, meter: None, hook_errlog: None })
 }
 
 #[derive(Clone, Copy)]
@@ -381,6 +388,7 @@ struct Ctx<'a> {
     liveness: Option<(&'a crate::liveness::Shared, u64)>,
     lease: Option<&'a crate::lease::Shared>,
     meter: Option<&'a crate::meter::Meter>,
+    hook_errlog: Option<&'a Path>,
 }
 
 fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id: Option<&str>, ctx: Ctx<'_>) -> Value {
@@ -411,7 +419,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         if let Some(s) = v.as_str()
             && matches!(
                 k.as_str(),
-                "msg_id" | "conv" | "to" | "to_instance" | "in_reply_to" | "session" | "nonce" | "tool_use_id" | "hook" | "key" | "kind"
+                "msg_id" | "conv" | "to" | "to_instance" | "in_reply_to" | "session" | "nonce" | "tool_use_id" | "hook" | "key" | "kind" | "tool"
             )
             && !valid_name(s)
         {
@@ -438,6 +446,10 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 if let Some(m) = ctx.meter {
                     v["activity"] = m.status_view();
                 }
+                // P-26 (FCW-146, E-170): whether every vendor-channel use reached the log.
+                let vl = vendor_log_view(ctx.hook_errlog, store);
+                v["vendor_log"] = vl["state"].clone();
+                v["vendor_log_detail"] = vl;
             }
             v
         }
@@ -449,6 +461,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         "drain" => drain(obj, store, ctx.deliverer, who),
         "attention" => attention(obj, store),
         "note" => note(obj, store),
+        "vendor-use" => vendor_use(obj, store, crate::store::now_ms()),
         "undrain" => undrain(obj, store, who),
         "pull" => {
             if let (Some(m), Some(sess)) = (ctx.meter, obj.get("session").and_then(Value::as_str)) {
@@ -690,6 +703,76 @@ fn note(obj: &serde_json::Map<String, Value>, store: &Store) -> Value {
         Ok(()) => json!({"ok": true, "noted": kind}),
         Err(e) => err("store", &e.to_string(), "check the store directory"),
     }
+}
+
+/// Event of the admin-chain row one vendor-channel use leaves (P-26, AL-39).
+pub const VENDOR_USE_EVENT: &str = "vendor-channel-use";
+/// Needs-attention kind for vendor-channel use: routine, one per (session, day).
+pub const VENDOR_USE_KIND: &str = "vendor-channel-use";
+const DAY_MS: u64 = 86_400_000;
+static VENDOR_SEQ: AtomicU64 = AtomicU64::new(0);
+
+/// One vendor-channel use (P-26, AL-39, K-20, E-71): an `_admin` chain row for
+/// every report, and a routine needs-attention entry coalesced per (session, UTC
+/// day) for each tool. The row comes first and is the invariant (every reported use has a row);
+/// when it cannot be written the answer is an error, which the hook appends to its
+/// error log, and `status` then shows `vendor_log: degraded` (FCW-146). The tool
+/// call itself is never blocked: the hook exits 0 whatever this answers.
+pub fn vendor_use(obj: &serde_json::Map<String, Value>, store: &Store, now_ms: u64) -> Value {
+    use sha2::{Digest, Sha256};
+    let text = |k: &str| obj.get(k).and_then(Value::as_str);
+    let (Some(session), Some(tool)) = (text("session"), text("tool")) else {
+        return err("bad-request", "vendor-use needs session and tool", "{\"op\":\"vendor-use\",\"session\":...,\"tool\":\"SendMessage\"}");
+    };
+    let n = VENDOR_SEQ.fetch_add(1, Ordering::Relaxed);
+    let id = format!("vendor-{now_ms}-{}-{n}", std::process::id());
+    let digest: String = Sha256::digest(format!("{session}|{tool}|{now_ms}").as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+    let extra = crate::store::LineExtra { reason: Some(format!("tool={tool} at_ms={now_ms}")), ..Default::default() };
+    let seq = match store.append_event_unless(ADMIN_CONV, VENDOR_USE_EVENT, &id, session, &digest, extra, |_| false) {
+        Ok(Some(seq)) => seq,
+        Ok(None) => return err("vendor-log", "the vendor-channel row was not written", "FCW-146: the use is in the hook error log"),
+        Err(e) => return err("vendor-log", &format!("cannot write the vendor-channel row: {e}"), "FCW-146: the use is in the hook error log; status shows vendor_log: degraded"),
+    };
+    let day = now_ms / DAY_MS;
+    // E-71.4: each tool twice in one session gives three entries, so the entry is
+    // coalesced per (session, day) for each tool.
+    let key = format!("{session}:{day}:{tool}");
+    let detail = format!("session {session} used the vendor channel ({tool}) today; every use is a vendor-channel-use row in {ADMIN_CONV}");
+    match store.attention_coalesced(VENDOR_USE_KIND, &key, &detail) {
+        Ok(entry) => json!({"ok": true, "row": seq, "entry": entry}),
+        Err(e) => err("vendor-log", &format!("row {seq} written, the needs-attention entry not: {e}"), "FCW-146: the use is in the hook error log"),
+    }
+}
+
+/// `vendor_log` for `status` (FCW-146, E-170): `degraded` when the hook error log
+/// holds a vendor-channel line newer than the last vendor-channel row (a use that
+/// left no row), else `ok`. The error count stays visible either way. An error log
+/// that exists but cannot be read is `unknown`, never `ok`.
+pub fn vendor_log_view(errlog: Option<&Path>, store: &Store) -> Value {
+    let rows: Vec<u64> = store
+        .chain_lines(ADMIN_CONV)
+        .map(|ls| ls.iter().filter(|l| l.event == VENDOR_USE_EVENT).map(|l| l.ts_ms.unwrap_or(0)).collect())
+        .unwrap_or_default();
+    let last_row = rows.iter().copied().max();
+    let (errors, last_error, readable) = match errlog.map(std::fs::read_to_string) {
+        None => (0u64, None, true),
+        Some(Err(e)) if e.kind() == std::io::ErrorKind::NotFound => (0, None, true),
+        Some(Err(_)) => (0, None, false),
+        Some(Ok(s)) => {
+            let lines: Vec<&str> = s.lines().filter(|l| l.contains(" hook vendor-channel: ")).collect();
+            let last = lines.iter().filter_map(|l| l.split_whitespace().next()?.parse::<u64>().ok()).max();
+            (lines.len() as u64, last, true)
+        }
+    };
+    let state = if !readable {
+        "unknown"
+    } else if errors > 0 && last_error.unwrap_or(u64::MAX) >= last_row.unwrap_or(0) {
+        "degraded"
+    } else {
+        "ok"
+    };
+    json!({"state": state, "rows": rows.len(), "errors": errors, "last_error_ms": last_error, "last_row_ms": last_row,
+           "error_log": errlog.map(|p| p.display().to_string())})
 }
 
 /// State file holding the last drain's inventory (PH-2 row P4).

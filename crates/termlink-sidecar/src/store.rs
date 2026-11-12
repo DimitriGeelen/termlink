@@ -359,6 +359,31 @@ impl Store {
         Ok(())
     }
 
+    /// Append a needs-attention entry once per `key` of this `kind` (P-26, AL-39:
+    /// coalesce = (session, day)). The check and the append run under the store's
+    /// write lock, so concurrent reports give one entry. `Ok(true)` when written,
+    /// `Ok(false)` when an entry with this kind and key already exists.
+    pub fn attention_coalesced(&self, kind: &str, key: &str, detail: &str) -> Result<bool> {
+        let _g = self.guard();
+        let seen = self.attention_entries().iter().any(|l| {
+            serde_json::from_str::<serde_json::Value>(l)
+                .is_ok_and(|v| v["kind"].as_str() == Some(kind) && v["key"].as_str() == Some(key))
+        });
+        if seen {
+            return Ok(false);
+        }
+        let line = serde_json::json!({ "kind": kind, "key": key, "detail": detail, "ts_ms": now_ms() });
+        let p = self.dir.join("attention.jsonl");
+        let new = !p.exists();
+        let mut f = OpenOptions::new().create(true).append(true).mode(0o600).open(&p)?;
+        writeln!(f, "{line}")?;
+        f.sync_all()?;
+        if new {
+            fsync_dir(&self.dir)?;
+        }
+        Ok(true)
+    }
+
     pub fn attention_entries(&self) -> Vec<String> {
         fs::read_to_string(self.dir.join("attention.jsonl"))
             .map(|s| s.lines().map(str::to_string).collect())

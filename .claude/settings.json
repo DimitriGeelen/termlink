@@ -176,6 +176,15 @@
             "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-rail-mcp-label"
           }
         ]
+      },
+      {
+        "matcher": "SendMessage|Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/opt/termlink/scripts/hooks/vendor-channel-log.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
