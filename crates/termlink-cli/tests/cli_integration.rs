@@ -115,6 +115,9 @@ fn cli_register_shell_exits_when_its_shell_exits() {
         .unwrap()
         .flatten()
         .map(|e| e.file_name().to_string_lossy().into_owned())
+        // T-3702: the inject above writes a founding-verb audit row under
+        // `use-log/`; that log is meant to outlive the session, so it is not a leak.
+        .filter(|n| n != "use-log")
         .collect();
     assert!(left.is_empty(), "shell exit left files behind: {left:?}");
 }
