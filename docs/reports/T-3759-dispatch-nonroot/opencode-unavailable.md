@@ -1,0 +1,1 @@
+Seat: opencode; unavailable 2026-11-12. Run 1 (t3759-opencode-ef02b638acc9) exit 1, empty result; run 2 (t3759-opencode-r2-4cc27bf694b8, answer written to own working dir) exit 1, empty result.md, no answer.md; stderr shows only the binary and isolation lines. No answer to record.
