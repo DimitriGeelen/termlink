@@ -12,7 +12,10 @@ owner: agent
 horizon: now
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-3357, T-3614]
+plan_unit: X-7
+arc_id: arc-011
+depends_on: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
 #                                 # at CAPTURE, unlike components: which the framework
@@ -84,6 +87,11 @@ plan (role sequence: it spans hosts and sets a security boundary).
 **Expected outcome:** `docs/reports/T-3663-file-routes-inventory.md`: one row per route with who uses it, what goes
 over it, transport protection, who can read the bytes at rest or in transit (hub, NAS, intermediate), and a candidate
 way to bring it under the rule; then the operator decides the plan.
+
+**Plan exploration X-7 (added 2026-11-12, plan G-0, T-3357):** arc-011 step-8 plan
+`docs/design/interactive-agent-communication-08-plan.md` v0.3 maps its exploration X-7 to this task; the operator may
+decide it at any time and it blocks no unit.
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied). No other edge (plan section 5).
 
 ## Acceptance Criteria
 
@@ -369,6 +377,11 @@ way to bring it under the rule; then the operator decides the plan.
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** reuse as exploration X-7, as proposed in plan 08 v0.3 section 7.2 (approved by the operator 2026-11-12, ruling A, recorded in T-3357): bring today's cross-machine file routes under the "encrypted only" rule (O-1). The plan places it first in its order (#2): the operator may decide it at any time; it blocks no unit.
+- **Why:** this task already holds the X-7 question.
+- **Rejected:** a new inception (would duplicate this one).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

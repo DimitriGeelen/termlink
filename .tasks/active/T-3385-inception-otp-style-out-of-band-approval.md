@@ -17,7 +17,10 @@ owner: human
 horizon: now
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-3357, T-3737]
+plan_unit: X-3
+arc_id: arc-011
+depends_on: []
 created: 2026-10-09T23:47:58Z
 last_update: 2026-10-10T18:17:33Z
 date_finished:
@@ -150,6 +153,10 @@ questions for ring20-manager and the operator, dialogue log).
 
 ## Verification
 
+# Plan X-3 check (08-plan, added 2026-11-12, T-3357): the decision is recorded with `fw inception decide T-3385
+# go|no-go` in the operator's words; its GO unblocks P-64 (T-3737).
+# Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied). No other edge (plan section 5).
+
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # For inception tasks, verification is often not needed (decisions, not code).
@@ -166,6 +173,11 @@ questions for ring20-manager and the operator, dialogue log).
 **Rationale:** Operator ruled OQ-14 D‴ on 2026-10-10 (T-3351 Decisions): high-impact approvals need an active second out-of-band confirmation and never proceed on silence; the operator wants OTP-style confirmation at high priority, with TermLink owning a pluggable confirmation-provider contract and its configuration (different framework users run different OTP engines) and ring20-manager building the facility for the Cloudron estate in close cooperation. Until it exists the interim is double approval at the terminal, which keeps the terminal (BP-13) as the weak point; this inception closes that and feeds GP-11 and CR-14.
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** reuse as exploration X-3, as proposed in plan 08 v0.3 section 7.2 (approved by the operator 2026-11-12, ruling A, recorded in T-3357): which out-of-band confirmation provider confirms high-impact approvals. Its GO is a `decision` edge into P-64 (Track K, T-3737); the plan asks it "before P-64", one question at a time.
+- **Why:** this inception already asks exactly the X-3 question.
+- **Rejected:** a new inception (would duplicate this one).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
