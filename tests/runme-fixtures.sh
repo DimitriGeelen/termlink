@@ -471,6 +471,10 @@ export RUNME_W1_REPIN_MAIN="" RUNME_W1_CONF_DIR="$W1R/conf" RUNME_W1_SOCK_DIR="$
        RUNME_W1_STATUS_TL="$W1R/status-tl" RUNME_W1_PIN_AUDIT="$W1R/repins.jsonl"
 # T-3654 (action 4d): the project the W1 sidecars are given; scratch env files live in $W1R/conf.
 export RUNME_W1_MAIN_PROJECT="010-termlink"
+# T-3698 (action 4e): no release named by default (list-only); scratch release root and state;
+# the REAL install.sh, fed from a local file:// "release" built in the 4e cases below.
+export RUNME_REL_TAG="" RUNME_REL_ROOT="$TMP/rel-root" RUNME_REL_INSTALLER="$REPO_ROOT/install.sh" \
+       RUNME_REL_BASE_URL="file://$TMP/rel-pub" RUNME_REL_STATE="$TMP/rel-state"
 # T-3290: the hub-restart action must NEVER reach the real systemctl, /proc or
 # /var/lib/termlink. A fake systemctl keeps MainPID in a state file; `restart`
 # bumps the pid and points its fake /proc exe at the installed binary (or, with
@@ -773,7 +777,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 43 ))   # +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 44 ))   # +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -2419,6 +2423,181 @@ out=$(RUNME_W1_UNITS="u-alt" run); x=$(s4d "$out")
 if echo "$x" | grep_all 'skip    u-alt: no settings at' && [ ! -e "$W1R/restarts" ]; then ok "T-3654: no env file => skip, nothing restarted"
 else bad "T-3654 absent" "$x"; fi
 rm -f "$W1R"/pid.* "$W1R"/live.* "$W1R"/lease.* "$W1R/restarts" "$W1R"/conf/*
+
+# ---- T-3698: action 4e installs a named release, switches the W1 units, rolls back ----
+echo "T-3698: 4e release install / upgrade / rollback / restart (arc-011 P-8)"
+s4e() { echo "$1" | sed -n '/^.*4e\. termlink release on \.107/,/^.*5a\. /p'; }
+REL="$RUNME_REL_ROOT"; RST="$RUNME_REL_STATE"
+# A local "release" per tag, shaped like release.yml's: artifacts + checksums.txt (sha256sum *).
+rel_publish() {  # <tag>
+    local d="$TMP/rel-pub/$1" a
+    mkdir -p "$d"
+    for a in termlink-linux-x86_64 termlink-linux-x86_64-static termlink-linux-aarch64; do
+        printf '#!/usr/bin/env bash\n# %s\n[ "$1" = --version ] && { echo "termlink %s"; exit 0; }\nexit 1\n' "$a" "${1#v}" > "$d/$a"
+    done
+    ( cd "$d" && sha256sum termlink-* > checksums.txt )
+}
+rel_publish v9.9.1; rel_publish v9.9.2
+# Fake systemctl: restart re-reads SIDECAR_BIN from the unit's env file (as systemd does) and
+# the new process runs what it resolves to (or old code with FAKE_REL_STALE_AFTER=1).
+# FAKE_REL_LOSE=1 drops one STORED message on restart, so the after-count is short.
+mv "$W1R/systemctl" "$W1R/systemctl.4d"
+cat > "$W1R/systemctl" <<'EOS'
+#!/usr/bin/env bash
+D="${FAKE_W1_DIR:?}"; u="${@: -1}"; f="$D/pid.$u"
+case "$1" in
+  show) cat "$f" 2>/dev/null || echo 0 ;;
+  is-active) echo active ;;
+  restart) echo "$u" >> "$D/restarts"; n=$(( $(cat "$f") + 100 )); echo "$n" > "$f"; mkdir -p "$D/proc/$n"
+           b=$(sed -n 's/^SIDECAR_BIN=//p' "$D/conf/$u.env")
+           if [ "${FAKE_REL_STALE_AFTER:-0}" = 1 ]; then ln -sf "$D/termlink-old" "$D/proc/$n/exe"; else ln -sf "$(readlink -f "$b")" "$D/proc/$n/exe"; fi
+           [ "${FAKE_REL_LOSE:-0}" = 1 ] && [ -s "$D/kept.$u" ] && sed -i '$d' "$D/kept.$u" ;;
+esac
+exit 0
+EOS
+chmod +x "$W1R/systemctl"
+# Fake sidecar client: status computes `binary` like tools.rs binary_check (sha of the running exe
+# against <exe>/../../share/termlink/checksums.txt); admin drain/undrain keep kept.<agent> and write
+# the manifest into the store. FAKE_REL_DRAIN=nocount|mismatch, FAKE_REL_STATUS=<verdict> are controls.
+cat > "$W1R/status-tl" <<'EOS'
+#!/usr/bin/env bash
+D="${FAKE_W1_DIR:?}"
+if [ "$1 $2" = "sidecar status" ]; then
+    a=$(basename "${TERMLINK_SIDECAR_STATUS_SOCKET:?}" .status.sock)
+    pid=$(cat "$D/pid.$a" 2>/dev/null) || { echo '{"ok":false,"error":"no socket"}'; exit 1; }
+    exe=$(readlink -f "$D/proc/$pid/exe"); sha=$(sha256sum "$exe" | cut -d' ' -f1)
+    rec="$(dirname "$(dirname "$exe")")/share/termlink/checksums.txt"
+    if [ ! -r "$rec" ]; then v=no-record; elif awk -v s="$sha" '$1==s{f=1} END{exit !f}' "$rec"; then v=yes; else v=no; fi
+    v="${FAKE_REL_STATUS:-$v}"
+    printf '{"ok":true,"main":{"pinned":"","lease":{"state":"vacant","project":"010-termlink"}},"binary":{"path":"%s","sha256":"%s","record":"%s","verified":"%s"}}\n' "$exe" "$sha" "$rec" "$v"
+    exit 0
+fi
+sub="$3"; shift 3; sock=""
+while [ $# -gt 0 ]; do [ "$1" = --socket ] && sock="$2"; shift; done
+a=$(basename "$sock" .admin.sock); st="$D/store/$a"; mkdir -p "$st"
+echo "$sub" >> "$D/drains.$a"
+case "$sub" in
+  drain)
+    touch "$st/receive.drained"; n=$(grep -c . "$D/kept.$a" 2>/dev/null); n=${n:-0}
+    case "${FAKE_REL_DRAIN:-}" in
+      nocount)  echo '{"ok":true,"drained":true}'; exit 0 ;;
+      mismatch) printf '{"ok":false,"drained":true,"listed":%d,"kept":%d,"unreadable":["c1/x: digest"],"code":"count-mismatch"}\n' $((n+1)) "$n"; exit 1 ;;
+    esac
+    python3 -c 'import json,sys
+k=[dict(zip(("conv","msg_id","from","seq"),l.split())) for l in open(sys.argv[1]) if l.strip()] if len(sys.argv)>2 and sys.argv[2]=="1" else []
+json.dump({"at_ms":1,"why":"x","by":"admin","listed":len(k),"kept":k,"unreadable":[]},open(sys.argv[3],"w"))' "$D/kept.$a" "$([ -s "$D/kept.$a" ] && echo 1 || echo 0)" "$st/state.drain-manifest"
+    printf '{"ok":true,"drained":true,"listed":%d,"kept":%d,"unreadable":[],"manifest":"state.drain-manifest"}\n' "$n" "$n" ;;
+  undrain) rm -f "$st/receive.drained"; echo '{"ok":true,"drained":false}' ;;
+esac
+EOS
+chmod +x "$W1R/status-tl"
+rel_env() {  # <unit>: a provisioned env file on the dev binary
+    printf 'AGENT=%s\nSIDECAR_CONFIG=/x/%s.json\nSIDECAR_BIN=%s\nTERMLINK_SIDECAR_STORE=%s\nTERMLINK_MAIN_PROJECT=010-termlink\n' \
+        "$1" "$1" "$W1R/termlink-new" "$W1R/store/$1" > "$W1R/conf/$1.env"
+    chmod 0640 "$W1R/conf/$1.env"; mkdir -p "$W1R/store/$1"
+}
+rel_reset() { rm -rf "$REL" "$RST" "$W1R"/restarts "$W1R"/drains.* "$W1R"/store "$W1R"/kept.* "$W1R"/conf/*
+    w1_unit u-main 51 termlink-new; w1_unit u-alt 52 termlink-new; rel_env u-main; rel_env u-alt
+    printf 'c1 m-0001 peer-a 3\nc2 m-0002 peer-b 7\n' > "$W1R/kept.u-main"; : > "$W1R/kept.u-alt"; }
+rel_drained() { ls "$W1R"/store/*/receive.drained 2>/dev/null | grep -c .; }
+rel_ok_dir() {  # <tag>: installed binary's sha256 is in that tag's checksums.txt
+    awk -v s="$(sha256sum "$REL/$1/bin/termlink" | cut -d' ' -f1)" '$1==s{f=1} END{exit !f}' "$REL/$1/share/termlink/checksums.txt"; }
+U2="u-main u-alt"
+rel_reset
+
+out=$(RUNME_W1_UNITS="$U2" run); rc=$?; x=$(s4e "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'list    no release named (REL_TAG is empty' && [ ! -e "$REL" ] && [ ! -e "$W1R/restarts" ]; then
+    ok "T-3698: no release named => list-only, nothing installed or restarted"
+else bad "T-3698 list-only" "rc=$rc: $x"; fi
+
+out=$(RUNME_REL_TAG=v9.9.1 RUNME_W1_UNITS="$U2" run --dry-run); x=$(s4e "$out")
+if echo "$x" | grep_all '\[DRY\]   would install release v9.9.1' && [ ! -e "$REL/v9.9.1" ] && [ ! -e "$W1R/restarts" ] && [ "$(rel_drained)" = 0 ]; then
+    ok "T-3698: dry-run names the install, writes, drains and restarts nothing"
+else bad "T-3698 dry" "$x"; fi
+
+out=$(RUNME_REL_TAG=v9.9.1 RUNME_W1_UNITS="$U2" run); rc=$?; x=$(s4e "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'OK      installed release v9.9.1 into .*/v9.9.1 and verified' \
+   && echo "$x" | grep_all 'OK      current -> v9.9.1 (previous: none)' \
+   && echo "$x" | grep_all 'OK      u-main: runs v9.9.1 (pid 151), status binary verified against .*/v9.9.1/share/termlink/checksums.txt; 2 STORED kept and listed' \
+   && echo "$x" | grep_all 'kept    c1/m-0001 from peer-a (seq 3)' && echo "$x" | grep_all 'kept    c2/m-0002 from peer-b (seq 7)' \
+   && echo "$x" | grep_all 'OK      u-alt: runs v9.9.1 (pid 152)' && rel_ok_dir v9.9.1 \
+   && [ "$(readlink "$REL/current")" = v9.9.1 ] && grep -qx "SIDECAR_BIN=$REL/current/bin/termlink" "$W1R/conf/u-main.env" \
+   && [ "$(stat -c %a "$W1R/conf/u-main.env")" = 640 ] && [ "$(ls "$W1R/conf" | grep -c '^u-main.env.bak-')" = 1 ] \
+   && [ "$(wc -l < "$W1R/restarts")" = 2 ] && [ "$(rel_drained)" = 0 ] && ! ls "$RST"/pending.* >/dev/null 2>&1 \
+   && ls "$RST"/*-u-main-before.json "$RST"/*-u-main-after.json >/dev/null 2>&1; then
+    ok "T-3698: install => real install.sh verifies checksums, current set, units drained, moved, verified in status, recounted, undrained"
+else bad "T-3698 install" "rc=$rc: $x"; fi
+
+out=$(RUNME_REL_TAG=v9.9.1 RUNME_W1_UNITS="$U2" run); rc=$?; x=$(s4e "$out"); y=$(s4b "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'skip    v9.9.1 already installed and verified' && echo "$x" | grep_all 'skip    current already -> v9.9.1' \
+   && echo "$x" | grep_all 'skip    u-main already runs v9.9.1 (pid 151); status binary verified against' \
+   && echo "$y" | grep_all 'skip    u-main already runs the installed binary' && [ "$(wc -l < "$W1R/restarts")" = 2 ] && [ "$(rel_drained)" = 0 ]; then
+    ok "T-3698: second run skips (idempotent: no download, drain or restart; 4b sees the release as the installed binary)"
+else bad "T-3698 idempotent" "rc=$rc: $x"; fi
+
+out=$(RUNME_REL_TAG=v9.9.2 RUNME_W1_UNITS="$U2" run); rc=$?; x=$(s4e "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'OK      current -> v9.9.2 (previous: v9.9.1)' \
+   && echo "$x" | grep_all 'OK      u-main: runs v9.9.2 (pid 251), status binary verified against .*/v9.9.2/share/termlink/checksums.txt; 2 STORED kept' \
+   && echo "$x" | grep_all 'note    rollback = set REL_TAG to v9.9.1' && [ "$(readlink "$REL/previous")" = v9.9.1 ] \
+   && [ "$(wc -l < "$W1R/restarts")" = 4 ] && [ "$(rel_drained)" = 0 ]; then
+    ok "T-3698: upgrade => v9.9.2 current, v9.9.1 kept as previous, units moved and verified"
+else bad "T-3698 upgrade" "rc=$rc: $x"; fi
+
+out=$(RUNME_REL_BASE_URL="file://$TMP/no-such-release" RUNME_REL_TAG=v9.9.1 RUNME_W1_UNITS="$U2" run); rc=$?; x=$(s4e "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'skip    v9.9.1 already installed' && echo "$x" | grep_all 'OK      current -> v9.9.1 (previous: v9.9.2)' \
+   && echo "$x" | grep_all 'OK      u-main: runs v9.9.1 (pid 351), .*2 STORED kept and listed before and after' \
+   && echo "$x" | grep_all 'kept    c1/m-0001 from peer-a' && [ "$(readlink "$REL/previous")" = v9.9.2 ] && [ "$(rel_drained)" = 0 ]; then
+    ok "T-3698: rollback => previous release, no download, STORED messages kept, counted and listed"
+else bad "T-3698 rollback" "rc=$rc: $x"; fi
+
+# E-81.5 control: a drain without the count compare (and one with a mismatch) is refused.
+for mode in nocount mismatch; do
+    n0=$(wc -l < "$W1R/restarts")
+    out=$(FAKE_REL_DRAIN=$mode RUNME_REL_TAG=v9.9.2 RUNME_W1_UNITS="$U2" run); rc=$?; x=$(s4e "$out")
+    case $mode in nocount) why='the drain reply has no count compare (listed/kept missing)' ;; mismatch) why='3 listed, 2 kept intact, 1 unreadable' ;; esac
+    if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  refused: u-main drain: $why. Nothing switched" \
+       && [ "$(readlink "$REL/current")" = v9.9.1 ] && [ "$(wc -l < "$W1R/restarts")" = "$n0" ] \
+       && [ "$(rel_drained)" = 0 ] && ! ls "$RST"/pending.* >/dev/null 2>&1; then
+        ok "T-3698: drain $mode => refused, undrained, nothing switched or restarted (E-81.5 control)"
+    else bad "T-3698 drain $mode" "rc=$rc: $x"; fi
+done
+
+# E-100 control: status `binary` not "yes" fails even with nothing to change.
+out=$(FAKE_REL_STATUS=no RUNME_REL_TAG=v9.9.1 RUNME_W1_UNITS="$U2" run); rc=$?; x=$(s4e "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  u-main runs v9.9.1 but status binary verified=no'; then
+    ok "T-3698: status binary not verified => FAILED, rc 1 (checked every run)"
+else bad "T-3698 status no" "rc=$rc: $x"; fi
+
+# Restart: a unit found on old code is put back on the release (4b does it, 4e then verifies).
+w1_unit u-alt 77 termlink-old
+out=$(RUNME_REL_TAG=v9.9.1 RUNME_W1_UNITS="$U2" run); rc=$?; x=$(s4e "$out"); y=$(s4b "$out")
+if [ "$rc" = 0 ] && echo "$y" | grep_all 'OK      u-alt restarted and verified: active, pid 177 runs the installed binary' \
+   && echo "$x" | grep_all 'skip    u-alt already runs v9.9.1 (pid 177); status binary verified'; then
+    ok "T-3698: restart => a unit on old code goes back onto the selected release and is verified"
+else bad "T-3698 restart" "rc=$rc: $x $y"; fi
+
+# Tamper: the installed copy no longer matches checksums.txt => flagged, reinstalled, FAILED once.
+printf '# modified\n' >> "$REL/v9.9.1/bin/termlink"
+out=$(RUNME_REL_TAG=v9.9.1 RUNME_W1_UNITS="$U2" run); rc=$?; x=$(s4e "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FLAGGED v9.9.1 at .* does not verify: the sha256 of' \
+   && echo "$x" | grep_all 'FAILED  v9.9.1 had been modified on disk; reinstalled and verified now' && rel_ok_dir v9.9.1; then
+    ok "T-3698: modified release binary => flagged, reinstalled from the artifact, rc 1"
+else bad "T-3698 tamper" "rc=$rc: $x"; fi
+out=$(RUNME_REL_TAG=v9.9.1 RUNME_W1_UNITS="$U2" run); rc=$?
+if [ "$rc" = 0 ]; then ok "T-3698: run after the reinstall is clean"; else bad "T-3698 after tamper" "rc=$rc: $(s4e "$out")"; fi
+
+# A message lost across the move: the count compare fails, the unit stays drained (mail on the hub).
+out=$(FAKE_REL_LOSE=1 RUNME_REL_TAG=v9.9.2 RUNME_W1_UNITS="$U2" run); rc=$?; x=$(s4e "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  u-main: count compare: 2 STORED kept before, 1 after on v9.9.2; left drained' \
+   && [ -e "$W1R/store/u-main/receive.drained" ] && [ -e "$RST/pending.u-main" ] && echo "$x" | grep_all 'OK      u-alt: runs v9.9.2'; then
+    ok "T-3698: count short after the move => FAILED, left drained with its pending record"
+else bad "T-3698 lost" "rc=$rc: $x"; fi
+# Release unknown to the publisher: FAILED, nothing switched.
+out=$(RUNME_REL_TAG=v9.9.9 RUNME_W1_UNITS="$U2" run); rc=$?; x=$(s4e "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  release v9.9.9 did not install' && [ "$(readlink "$REL/current")" = v9.9.2 ]; then
+    ok "T-3698: a release that cannot be fetched => FAILED, current unchanged"
+else bad "T-3698 missing release" "rc=$rc: $x"; fi
+rel_reset; rm -rf "$REL" "$RST" "$W1R"/pid.* "$W1R"/conf/* "$W1R"/kept.* "$W1R/restarts"
 
 echo ""
 echo "----------------------------------------"

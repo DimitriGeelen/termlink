@@ -695,6 +695,24 @@ head2 "4. termlink binary — every copy on this host (T-3287, T-3289)"
 install_termlink
 
 # ---------------------------------------------------------------------------
+# ACTION 4e settings — a named termlink RELEASE on .107 (T-3698, arc-011 plan P-8).
+# Defined here, before 4b, because once a release is selected 4b must restart the W1
+# units onto the release, not onto the dev build of action 4. The action runs as 4e,
+# after 4d; its comment block there says what it does.
+# REL_TAG names the release to run. Empty = list-only (nothing installed, nothing restarted).
+#   install or upgrade: set it to the new tag once G-1 cuts the release.
+#   rollback:           set it back to the tag every run prints as `previous`.
+# Seams (fixtures only): RUNME_REL_TAG, RUNME_REL_ROOT, RUNME_REL_INSTALLER,
+#   RUNME_REL_BASE_URL, RUNME_REL_STATE.
+# ---------------------------------------------------------------------------
+REL_TAG="${RUNME_REL_TAG-}"
+seam REL_ROOT RUNME_REL_ROOT "/usr/local/lib/termlink/releases"
+seam REL_INSTALLER RUNME_REL_INSTALLER "$PROJECT_ROOT/install.sh"
+seam REL_BASE_URL RUNME_REL_BASE_URL ""
+seam REL_STATE RUNME_REL_STATE "$PROJECT_ROOT/.context/working/release-install"
+REL_CUR_BIN="$REL_ROOT/current/bin/termlink"
+
+# ---------------------------------------------------------------------------
 # ACTION 4b — restart the W1 pair's sidecars onto the installed binary (T-3647)
 #
 # Installing a binary does not change a process already running it (action 4 says so).
@@ -709,6 +727,8 @@ seam W1_UNITS RUNME_W1_UNITS "termlink-sidecar@010-termlink--claude-termlink.ser
 seam W1_SYSTEMCTL RUNME_W1_SYSTEMCTL "systemctl"
 seam W1_PROC RUNME_W1_PROC "/proc"
 seam W1_BIN RUNME_W1_BIN "${HOME:-/root}/.cargo/bin/termlink"
+# T-3698: once 4e has selected a release, the W1 units run it (their SIDECAR_BIN is current/bin/termlink).
+[ -n "$REL_TAG" ] && [ -x "$REL_CUR_BIN" ] && W1_BIN="$REL_CUR_BIN"
 w1_restart_onto_binary() {
     local unit pid i
     for unit in $W1_UNITS; do
@@ -913,6 +933,235 @@ w1_set_main_project() {
 }
 head2 "4d. W1 sidecars know their project, so main.lease is read (T-3654)"
 w1_set_main_project
+
+# ---------------------------------------------------------------------------
+# ACTION 4e — install a named termlink release on .107 and run the W1 sidecars on it
+# (T-3698, arc-011 plan P-8; serves E-80, E-81, E-100). Settings: REL_TAG etc. above 4b.
+#
+# The waves (W2, W3) and every `live` edge of the plan need .107 on a published release,
+# installed and checked the same way each time. Each release goes into its own directory,
+# $REL_ROOT/<tag>/, by the repo's install.sh: it refuses an artifact whose sha256 is not
+# in the release's checksums.txt and keeps checksums.txt beside the binary, where
+# `sidecar status` re-checks the running binary against it (SI-27). $REL_ROOT/current
+# and $REL_ROOT/previous are symlinks; the W1 units' SIDECAR_BIN is current/bin/termlink.
+#
+# One run, in order:
+#  1. install REL_TAG unless $REL_ROOT/<tag> already verifies (binary's sha256 listed in its
+#     checksums.txt, --version names the tag). A copy that no longer verifies is FLAGGED,
+#     reinstalled from the artifact, and the run counts FAILED so it is seen.
+#  2. drain every running W1 unit that is not yet on the tag (`sidecar admin drain`: mail
+#     stays on the hub, every STORED message not yet handed over is kept and listed). The
+#     drain must report listed == kept; a reply without that count compare, or with a
+#     mismatch, is REFUSED: every unit drained by this run is undrained, nothing switches.
+#  3. point current at the tag (the old target becomes previous).
+#  4. per unit: SIDECAR_BIN set (env file backed up), restart (4b's verified path), status
+#     `binary` verified "yes" against <tag>/share/termlink/checksums.txt, the new receiver
+#     counts again and must keep the same number, the kept list is written to
+#     $REL_STATE/<UTC>-<agent>-{before,after}.json and printed, then undrain.
+# A unit already on the tag is only re-checked: status `binary` must still read "yes".
+# Interrupted after a drain: $REL_STATE/pending.<agent> holds the count; the next run finishes
+# (restart, recount, undrain). A unit left drained keeps its mail on the hub, never loses it.
+# ---------------------------------------------------------------------------
+rel_sha() { sha256sum "$1" 2>/dev/null | cut -d' ' -f1; }
+rel_dir_ok() {  # <dir> <tag>: 0 when the binary's sha256 is in the dir's checksums.txt and --version names the tag
+    local d="$1" t="$2" s v
+    if [ ! -x "$d/bin/termlink" ] || [ ! -r "$d/share/termlink/checksums.txt" ]; then REL_WHY="no binary or no checksums.txt in $d"; return 1; fi
+    s="$(rel_sha "$d/bin/termlink")"
+    if ! awk -v s="$s" '$1==s{f=1} END{exit !f}' "$d/share/termlink/checksums.txt"; then
+        REL_WHY="the sha256 of $d/bin/termlink (${s:0:16}…) is not in its checksums.txt"; return 1
+    fi
+    v="$("$d/bin/termlink" --version 2>/dev/null)"
+    case " $v " in *" ${t#v} "*) return 0 ;; esac
+    REL_WHY="$d/bin/termlink reports '${v:-nothing}', not ${t#v}"; return 1
+}
+rel_install_tag() {  # <tag>: 0 installed and verified; 1 FAILED (counted); 2 dry run, not installed
+    local t="$1" d="$REL_ROOT/$1" out rc=0 flagged=0
+    if [ -e "$d" ]; then
+        if rel_dir_ok "$d" "$t"; then
+            say "  skip    $t already installed and verified: $d (sha256 in its checksums.txt)"; SKIPPED=$((SKIPPED+1)); return 0
+        fi
+        say "  FLAGGED $t at $d does not verify: $REL_WHY — reinstalling from the release artifact"; flagged=1
+    fi
+    if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would install release $t into $d (install.sh, checksum-verified)"; DONE=$((DONE+1)); return 2; fi
+    if [ -n "$REL_BASE_URL" ]; then
+        out="$(TERMLINK_INSTALL_BASE_URL="$REL_BASE_URL/$t" sh "$REL_INSTALLER" --version="$t" --prefix="$d" 2>&1)" || rc=$?
+    else
+        out="$(sh "$REL_INSTALLER" --version="$t" --prefix="$d" 2>&1)" || rc=$?
+    fi
+    if [ "$rc" = 0 ] && rel_dir_ok "$d" "$t"; then
+        if [ "$flagged" = 1 ]; then
+            say "  FAILED  $t had been modified on disk; reinstalled and verified now. Find out what changed it (status flags it as SI-27)"; FAILED=$((FAILED+1))
+        else
+            say "  OK      installed release $t into $d and verified (sha256 in its checksums.txt, --version names it)"; DONE=$((DONE+1))
+        fi
+        return 0
+    fi
+    [ "$rc" = 0 ] || REL_WHY="install.sh rc=$rc"
+    say "  FAILED  release $t did not install: $REL_WHY"; printf '%s\n' "$out" | tail -4 | sed 's/^/          /'
+    FAILED=$((FAILED+1)); return 1
+}
+rel_env_of() { echo "$W1_CONF_DIR/$(w1_instance_of "$1").env"; }
+rel_env_ok() { grep -qx "SIDECAR_BIN=$REL_CUR_BIN" "$1" && [ "$(grep -c '^SIDECAR_BIN=' "$1")" = 1 ]; }
+rel_env_write() {  # <env file>: SIDECAR_BIN=current/bin/termlink, same mode, atomic, backed up first
+    local f="$1" t="$1.tmp.$$"
+    cp -p "$f" "$f.bak-$(date -u +%Y%m%dT%H%M%SZ)" || return 1
+    { grep -v '^SIDECAR_BIN=' "$f"; echo "SIDECAR_BIN=$REL_CUR_BIN"; } > "$t" && chmod "$(stat -c %a "$f")" "$t" && mv -f "$t" "$f"
+}
+rel_status_binary() {  # <agent>: "<verified>|<record>" from the running sidecar's status
+    local out
+    out="$(TERMLINK_SIDECAR_STATUS_SOCKET="$W1_SOCK_DIR/$1.status.sock" $W1_STATUS_TL sidecar status --json 2>/dev/null)"
+    python3 -c 'import json,sys
+try: v=json.loads(sys.argv[1])
+except Exception: print("unreadable|"); sys.exit()
+b=(v.get("binary") or {}) if v.get("ok") else {}
+print("%s|%s" % (b.get("verified") or "unreadable", b.get("record") or ""))' "$out" 2>/dev/null || echo "unreadable|"
+}
+rel_check_binary() {  # <agent> <tag>: 0 when status `binary` is "yes" against that tag's checksums.txt
+    local r i want
+    want="$(readlink -m "$REL_ROOT/$2/share/termlink/checksums.txt")"
+    for i in $(seq 1 60); do
+        r="$(rel_status_binary "$1")"
+        [ "${r%%|*}" = verifying ] || break
+        nap 1
+    done
+    if [ "${r%%|*}" = yes ] && [ "$(readlink -m "${r#*|}")" = "$want" ]; then REL_REC="$want"; return 0; fi
+    local rec="${r#*|}"
+    REL_WHY="status binary verified=${r%%|*} record=${rec:-none} (want yes against $want)"; return 1
+}
+rel_drain() {  # <agent> <why>: REL_KEPT set; 0 only when the reply carries the count compare and it matches
+    local out
+    out="$($W1_STATUS_TL sidecar admin drain --socket "$W1_SOCK_DIR/$1.admin.sock" --why "$2" 2>&1)"
+    if REL_KEPT="$(python3 -c 'import json,sys
+try: v=json.loads(sys.argv[1].strip().splitlines()[-1])
+except Exception: print("the drain reply is not JSON: %r" % sys.argv[1][:120]); sys.exit(1)
+l,k,u=v.get("listed"),v.get("kept"),v.get("unreadable") or []
+if v.get("drained") is not True: print("not drained: %s" % (v.get("error") or v)); sys.exit(1)
+if type(l) is not int or type(k) is not int: print("the drain reply has no count compare (listed/kept missing)"); sys.exit(1)
+if l!=k or u: print("%d listed, %d kept intact, %d unreadable" % (l,k,len(u))); sys.exit(1)
+print(k)' "$out" 2>&1)"; then return 0; fi
+    REL_WHY="$REL_KEPT"; REL_KEPT=""; return 1
+}
+rel_undrain() {  # <agent> <why>: 0 when the sidecar confirms it receives again
+    local out
+    out="$($W1_STATUS_TL sidecar admin undrain --socket "$W1_SOCK_DIR/$1.admin.sock" --why "$2" 2>&1)"
+    python3 -c 'import json,sys; v=json.loads(sys.argv[1].strip().splitlines()[-1]); sys.exit(0 if v.get("ok") and v.get("drained") is False else 1)' "$out" 2>/dev/null
+}
+rel_keep_manifest() {  # <agent> <env> <want count> <dest>: copy the drain manifest; 1 if missing or its list != count
+    local m
+    m="$(sed -n 's/^TERMLINK_SIDECAR_STORE=//p' "$2" | tail -1)/state.drain-manifest"
+    python3 -c 'import json,sys
+m=json.load(open(sys.argv[1])); k=m.get("kept") or []
+if len(k)!=int(sys.argv[2]): print("the manifest lists %d, the drain said %s" % (len(k),sys.argv[2])); sys.exit(1)' "$m" "$3" > /tmp/.runme-rel-why 2>&1 \
+        && mkdir -p "$REL_STATE" && cp "$m" "$4" && return 0
+    REL_WHY="drain manifest $m: $(tail -1 /tmp/.runme-rel-why 2>/dev/null)"; return 1
+}
+rel_list_kept() {  # <manifest copy>: print the kept STORED messages, one per line
+    python3 -c 'import json,sys
+for i in (json.load(open(sys.argv[1])).get("kept") or []):
+    print("          kept    %s/%s from %s (seq %s)" % (i.get("conv"), i.get("msg_id"), i.get("from"), i.get("seq")))' "$1" 2>/dev/null
+}
+rel_unit_pid() { local p; p="$($W1_SYSTEMCTL show -p MainPID --value "$1" 2>/dev/null)"; [ -n "$p" ] && [ "$p" != 0 ] && echo "$p"; }
+rel_needs_move() {  # <unit> <tag>: 0 when the running unit is not yet on the tag, or an earlier run left it drained
+    local pid a; a="$(w1_agent_of "$1")"
+    pid="$(rel_unit_pid "$1")" || return 1
+    [ -e "$REL_STATE/pending.$a" ] && return 0
+    ! { [ "$W1_PROC/$pid/exe" -ef "$REL_ROOT/$2/bin/termlink" ] && rel_env_ok "$(rel_env_of "$1")"; }
+}
+rel_finish_unit() {  # <unit> <tag>: steps 4 for one drained unit
+    local unit="$1" t="$2" a env mk pre stamp pid saved="$W1_BIN"
+    a="$(w1_agent_of "$unit")"; env="$(rel_env_of "$unit")"; mk="$REL_STATE/pending.$a"
+    read -r pre stamp < "$mk"
+    if ! rel_env_ok "$env" && ! rel_env_write "$env"; then
+        say "  FAILED  $a: could not set SIDECAR_BIN in $env (still drained: mail waits on the hub; re-run)"; FAILED=$((FAILED+1)); return
+    fi
+    pid="$(rel_unit_pid "$unit")"
+    if ! [ "$W1_PROC/${pid:-0}/exe" -ef "$REL_ROOT/$t/bin/termlink" ]; then
+        W1_BIN="$REL_CUR_BIN"
+        if ! w1_restart_unit "$unit"; then
+            W1_BIN="$saved"; say "  FAILED  $W1_WHY (still drained: mail waits on the hub; re-run)"; FAILED=$((FAILED+1)); return
+        fi
+        W1_BIN="$saved"; pid="$W1_PID"
+    fi
+    if ! rel_check_binary "$a" "$t"; then
+        say "  FAILED  $a on $t (pid $pid): $REL_WHY (still drained; re-run)"; FAILED=$((FAILED+1)); return
+    fi
+    if ! rel_drain "$a" "recount after moving to release $t (T-3698)"; then
+        say "  FAILED  $a: recount on the new receiver refused: $REL_WHY (still drained; nothing lost, mail waits on the hub)"; FAILED=$((FAILED+1)); return
+    fi
+    if [ "$REL_KEPT" != "$pre" ]; then
+        say "  FAILED  $a: count compare: $pre STORED kept before, $REL_KEPT after on $t; left drained (list: $REL_STATE/$stamp-$a-before.json)"; FAILED=$((FAILED+1)); return
+    fi
+    if ! rel_keep_manifest "$a" "$env" "$REL_KEPT" "$REL_STATE/$stamp-$a-after.json"; then
+        say "  FAILED  $a: $REL_WHY (still drained; re-run)"; FAILED=$((FAILED+1)); return
+    fi
+    if ! rel_undrain "$a" "on release $t (T-3698)"; then
+        say "  FAILED  $a: on $t and verified, but undrain was not confirmed (still drained; re-run)"; FAILED=$((FAILED+1)); return
+    fi
+    rm -f "$mk"
+    say "  OK      $a: runs $t (pid $pid), status binary verified against $REL_REC; $pre STORED kept and listed before and after ($REL_STATE/$stamp-$a-after.json); receiving again"
+    rel_list_kept "$REL_STATE/$stamp-$a-after.json"
+    DONE=$((DONE+1))
+}
+rel_release() {
+    local t="$REL_TAG" cur prev unit a env pid moving="" drained="" stamp
+    cur="$(readlink "$REL_ROOT/current" 2>/dev/null)"; prev="$(readlink "$REL_ROOT/previous" 2>/dev/null)"
+    if [ -z "$t" ]; then
+        say "  list    no release named (REL_TAG is empty until G-1 cuts one); current=${cur:-none} previous=${prev:-none}; nothing installed or restarted"
+        SKIPPED=$((SKIPPED+1)); return
+    fi
+    say "  release $t  (root $REL_ROOT; current=${cur:-none} previous=${prev:-none})"
+    rel_install_tag "$t" || return
+    for unit in $W1_UNITS; do
+        a="$(w1_agent_of "$unit")"; env="$(rel_env_of "$unit")"
+        if [ ! -f "$env" ]; then say "  skip    $a: no settings at $env (W1 not provisioned here)"; SKIPPED=$((SKIPPED+1)); continue; fi
+        if ! pid="$(rel_unit_pid "$unit")"; then say "  skip    $unit not running (W1 not provisioned here, or stopped on purpose)"; SKIPPED=$((SKIPPED+1)); continue; fi
+        if rel_needs_move "$unit" "$t"; then moving="$moving $unit"; continue; fi
+        if rel_check_binary "$a" "$t"; then
+            say "  skip    $a already runs $t (pid $pid); status binary verified against $REL_REC"; SKIPPED=$((SKIPPED+1))
+        else
+            say "  FAILED  $a runs $t but $REL_WHY"; FAILED=$((FAILED+1))
+        fi
+    done
+    if [ "$DRY_RUN" = "1" ]; then
+        [ "$cur" = "$t" ] || say "  [DRY]   would point current at $t (previous: ${cur:-none})"
+        for unit in $moving; do say "  [DRY]   would drain $(w1_agent_of "$unit") (kept and listed), move it to $t, recount, undrain"; DONE=$((DONE+1)); done
+        return
+    fi
+    # Step 2: drain every unit that moves; one refusal undoes this run's drains and stops.
+    stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    for unit in $moving; do
+        a="$(w1_agent_of "$unit")"
+        [ -e "$REL_STATE/pending.$a" ] && continue
+        if rel_drain "$a" "moving to release $t (T-3698)" \
+           && rel_keep_manifest "$a" "$(rel_env_of "$unit")" "$REL_KEPT" "$REL_STATE/$stamp-$a-before.json"; then
+            printf '%s %s\n' "$REL_KEPT" "$stamp" > "$REL_STATE/pending.$a"; drained="$drained $a"
+            continue
+        fi
+        say "  FAILED  refused: $a drain: $REL_WHY. Nothing switched; undraining$drained $a"; FAILED=$((FAILED+1))
+        for a in $drained $a; do
+            rel_undrain "$a" "release $t refused (T-3698)" || say "  FAILED  $a: undrain not confirmed; it stays drained (mail waits on the hub)"
+            rm -f "$REL_STATE/pending.$a"
+        done
+        return
+    done
+    # Step 3: current -> tag (old target kept as previous).
+    if [ "$cur" != "$t" ]; then
+        if [ -n "$cur" ]; then ln -sfn "$cur" "$REL_ROOT/.previous.$$" && mv -Tf "$REL_ROOT/.previous.$$" "$REL_ROOT/previous"; fi
+        ln -sfn "$t" "$REL_ROOT/.current.$$" && mv -Tf "$REL_ROOT/.current.$$" "$REL_ROOT/current"
+        if [ "$(readlink "$REL_ROOT/current")" = "$t" ] && { [ -z "$cur" ] || [ "$(readlink "$REL_ROOT/previous")" = "$cur" ]; }; then
+            say "  OK      current -> $t (previous: ${cur:-none})"; DONE=$((DONE+1))
+        else
+            say "  FAILED  could not point $REL_ROOT/current at $t (units stay drained on their old binary; re-run)"; FAILED=$((FAILED+1)); return
+        fi
+    else
+        say "  skip    current already -> $t"; SKIPPED=$((SKIPPED+1))
+    fi
+    # Step 4: per drained unit.
+    for unit in $moving; do rel_finish_unit "$unit" "$t"; done
+    say "  note    rollback = set REL_TAG to $(readlink "$REL_ROOT/previous" 2>/dev/null || echo '<none yet>') (installed, no download) and run $PROJECT_ROOT/runme.sh"
+}
+head2 "4e. termlink release on .107: install, switch, restart, checksum in status (T-3698, arc-011 P-8)"
+rel_release
 
 # ---------------------------------------------------------------------------
 # ACTION 5 — restart the local hub onto the installed binary (T-3290)

@@ -2,12 +2,15 @@
 id: T-3698
 name: "P-8: release install action for .107 in runme.sh"
 description: >
-  arc-011 plan unit P-8 (docs/design/interactive-agent-communication-08-plan.md v0.3, approved G-0 2026-11-12): Release install action: one idempotent `runme.sh` action that installs a named release on .107, checks `checksums.txt` in status, and rolls back to the previous release
+  arc-011 plan unit P-8 (docs/design/interactive-agent-communication-08-plan.md v0.3,
+  approved G-0 2026-11-12): Release install action: one idempotent `runme.sh` action
+  that installs a named release on .107, checks `checksums.txt` in status, and rolls
+  back to the previous release
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: [T-3357]
@@ -42,8 +45,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:32Z
-last_update: 2026-11-12T16:56:32Z
-date_finished: null
+last_update: 2026-11-12T19:46:47Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -54,6 +57,26 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-12T18:29:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 3
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=3 (L3:keyword=rollback); D1=0 (no-signal); D2=0
+      (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0 (L0: no signal);
+      F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3698: P-8: release install action for .107 in runme.sh
@@ -86,7 +109,7 @@ Unblocks: P-9 (T-3699), gate G-2 (T1 release installed).
 - [ ] Install, upgrade, rollback and restart work on .107 from the release artifact
 - [ ] STORED messages are kept and listed on rollback
 - [ ] Status `binary` matches the release `checksums.txt` entry
-- [ ] The action has a hermetic case in `tests/runme-fixtures.sh` through the `RUNME_*` seams
+- [x] The action has a hermetic case in `tests/runme-fixtures.sh` through the `RUNME_*` seams
 - [ ] The latest runme log shows the action OK and `finished rc=0`
 
 ### Human
@@ -141,6 +164,11 @@ Unblocks: P-9 (T-3699), gate G-2 (T1 release installed).
 
 # Plan P-8 check (08-plan section 4): `.context/working/runme-logs/latest.log` shows the action OK and `finished rc=0`;
 # status `binary` matches the release checksum; hermetic case in tests/runme-fixtures.sh passes. Add the fixture command here.
+bash -n runme.sh && bash -n tests/runme-fixtures.sh
+grep -q '^head2 "4e. termlink release on .107' runme.sh && grep -q 'rel_check_binary' runme.sh
+TMPDIR=/var/tmp timeout 3000 bash tests/runme-fixtures.sh > .context/working/.t3698-fx 2>&1 && grep -q "T-3698: drain nocount => refused" .context/working/.t3698-fx && grep -q "T-3698: rollback => previous release" .context/working/.t3698-fx
+# The operator run (needs G-1: a release cut and REL_TAG set) — the 4e section must be OK/skip and the run rc=0:
+grep -q "^=== runme.sh finished rc=0" .context/working/runme-logs/latest.log && grep -q "4e. termlink release on .107" .context/working/runme-logs/latest.log && ! grep -q "FAILED  .*v[0-9]" .context/working/runme-logs/latest.log
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -335,6 +363,18 @@ Unblocks: P-9 (T-3699), gate G-2 (T1 release installed).
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-12 — the release must not fight action 4
+- **What changed:** action 4 reinstalls the dev build into ~/.cargo/bin on every run, and 4b restarts the W1
+  units onto it. A release installed over that path would be overwritten on the next run, and 4b would pull the
+  units back off it. So each release gets its own directory (`/usr/local/lib/termlink/releases/<tag>/`, via the
+  repo's own `install.sh`, which keeps `checksums.txt` beside the binary where `sidecar status` reads it), the
+  units' `SIDECAR_BIN` points at `current/bin/termlink`, and one line in 4b makes `current` the installed binary
+  once a release is selected. Scope is the W1 sidecars; the hub and the CLI stay on the dev build.
+- **Plan impact:** rollback is "set REL_TAG to the tag printed as `previous`": idempotent, no download. The
+  STORED-messages rule (E-81) is met with the sidecar's own `admin drain` (P4): listed == kept before the move,
+  recount on the new receiver after, both manifests kept in `.context/working/release-install/`.
+- **Triggered:** none. The live AC waits on G-1 (a release cut) and the operator's run.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -375,6 +415,13 @@ Unblocks: P-9 (T-3699), gate G-2 (T1 release installed).
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-12 — where the release lives
+- **Chose:** per-tag directories plus `current`/`previous` symlinks under /usr/local/lib/termlink/releases;
+  the W1 units' SIDECAR_BIN = current/bin/termlink.
+- **Why:** rollback is a symlink flip with no download, and action 4's dev install cannot overwrite it.
+- **Rejected:** installing into /usr/local/bin (action 4 refreshes that path every run); `install.sh --rollback`
+  (only one level back, and not idempotent: a second run would flip again).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -391,3 +438,7 @@ Unblocks: P-9 (T-3699), gate G-2 (T1 release installed).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3698-p-8-release-install-action-for-107-in-ru.md
 - **Context:** Initial task creation
+
+### 2026-11-12T18:29:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
