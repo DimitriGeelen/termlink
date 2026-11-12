@@ -244,6 +244,17 @@ if [ -n "$to_agent_id" ]; then
     [ -n "$listener" ] || die "no listener with agent_id=$to_agent_id on the local hub or any fleet hub (run scripts/agent-listeners-fleet.sh to see who is live)"
 
     status="$(printf '%s' "$listener" | jq -r '.status')"
+    # T-3751: the peer is reachable because its project mailbox has a live
+    # receiver (agent-listeners source=mailbox-reader, e.g. the AEF sidecar
+    # watcher), not because of a /be-reachable heartbeat. This script rings a PTY
+    # doorbell, which needs that heartbeat's pty_session; say where the peer CAN
+    # be reached instead of calling it OFFLINE (ring20, 2026-11-12).
+    if [ "$(printf '%s' "$listener" | jq -r '.source // "heartbeat"')" = "mailbox-reader" ]; then
+        m_topic="$(printf '%s' "$listener" | jq -r '.mailbox_topic // .listen_topics // "?"')"
+        m_age="$(printf '%s' "$listener" | jq -r '.age_secs // "?"')"
+        m_hb="$(printf '%s' "$listener" | jq -r 'if .heartbeat_age_secs then " (its last heartbeat is \(.heartbeat_age_secs)s old)" else "" end')"
+        die "agent $to_agent_id is REACHABLE through its project mailbox $m_topic${peer_hub:+ on hub $peer_hub} — a receiver polled it ${m_age}s ago (status $status, source mailbox-reader)$m_hb. agent-send rings a PTY doorbell, which needs a /be-reachable heartbeat with pty_session; send through the mailbox instead: fw sidecar send --to $to_agent_id --body '<message>'"
+    fi
     if [ "$status" = "OFFLINE" ]; then
         age="$(printf '%s' "$listener" | jq -r '.age_secs')"
         die "agent $to_agent_id is OFFLINE (last heartbeat ${age}s ago)"

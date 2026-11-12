@@ -15,6 +15,26 @@
 #   2*interval < age <= 5*x  => STALE
 #   age > 5*interval         => OFFLINE
 #
+# T-3751 — mailbox receivers. A heartbeat is only one kind of evidence. The AEF
+# sidecar watcher drains its project mailbox (`inbox:<hub_id>/<project>`) every
+# tick and never posts a heartbeat, so a project whose only receiver is that
+# watcher used to read OFFLINE off a days-old /be-reachable heartbeat (ring20,
+# 2026-11-12). On the default topic we therefore also read the hub's per-topic
+# fetch activity (T-3309, `channel list --json` → `.activity`) for every
+# `inbox:` topic. A fetch that is recent AND returned no data (last_fetch_ms >
+# last_data_fetch_ms) is a consumer holding a cursor at the tail of the mailbox:
+# a live receiver. (A one-off scan from cursor 0 returns data and is not
+# counted; a never-written empty mailbox cannot tell the two apart and is not
+# counted either — fail-closed.) Such a mailbox becomes a row with
+# `source: "mailbox-reader"` and `mailbox_topic`; heartbeat rows carry
+# `source: "heartbeat"`. When both exist for one name the better status wins,
+# and an upgraded heartbeat row keeps `heartbeat_age_secs`. The envelope says
+# whether the scan ran (`mailbox_scan`: ok | skipped | failed: <why>), so a
+# failed scan is never mistaken for "no mailbox receivers".
+#   tail-poll age <= MAILBOX_LIVE_SECS (120)    => LIVE
+#   tail-poll age <= MAILBOX_STALE_SECS (600)   => STALE
+#   older                                        => no row (heartbeat verdict stands)
+#
 # Exit codes:
 #   0  — ok (including zero listeners — not an error)
 #   2  — usage error
@@ -55,7 +75,9 @@ Options:
                              Default: 30. Range: 0..=3600. 0 disables cache for
                              this call. Cache key includes hub+topic+limit+filters.
   --no-cache                 Alias for --cache-ttl 0; force a fresh hub query.
-  -h, --help                 Print this help and exit 0.
+  --no-mailbox               Do not count mailbox receivers (T-3751); heartbeats only.
+                             Mailboxes are only read on the default agent-presence topic.
+  -h, --help                Print this help and exit 0.
 
 Exit codes:
   0  ok (including zero listeners)
@@ -88,6 +110,9 @@ filter_capability=""
 json=0
 with_capabilities=0
 cache_ttl=30
+no_mailbox=0
+MAILBOX_LIVE_SECS=120    # 4 ticks of the AEF watcher's default 30 s
+MAILBOX_STALE_SECS=600
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -103,7 +128,8 @@ while [ $# -gt 0 ]; do
         --with-capabilities)     with_capabilities=1; shift ;;
         --cache-ttl)             cache_ttl="${2:-}"; shift 2 ;;
         --no-cache)              cache_ttl=0; shift ;;
-        -h|--help)               usage; exit 0 ;;
+        --no-mailbox)            no_mailbox=1; shift ;;
+        -h|--help)              usage; exit 0 ;;
         *)                       die_usage "unknown arg: $1" ;;
     esac
 done
@@ -133,7 +159,7 @@ if [ "$cache_ttl" -gt 0 ]; then
     # Cache key includes filters but NOT --json — the cached rollup is
     # always JSON; --json just controls the OUTPUT rendering. This lets
     # a `--json` and a non-`--json` caller share a single cache entry.
-    cache_key_input="topic=$topic|hub=${hub:-LOCAL}|limit=$limit|include_offline=$include_offline|filter_role=$filter_role|filter_listen_topic=$filter_listen_topic|filter_agent_id=$filter_agent_id|filter_capability=$filter_capability"
+    cache_key_input="topic=$topic|hub=${hub:-LOCAL}|limit=$limit|no_mailbox=$no_mailbox|include_offline=$include_offline|filter_role=$filter_role|filter_listen_topic=$filter_listen_topic|filter_agent_id=$filter_agent_id|filter_capability=$filter_capability"
     cache_key="$(printf '%s' "$cache_key_input" | sha256sum | awk '{print $1}')"
     cache_file="$cache_root/$cache_key.json"
     if [ -f "$cache_file" ]; then
@@ -269,8 +295,83 @@ fi  # T-2270/T-2390: close TEST_JSON / CV-test / live-probe branch
 # 6. Emit either fixed-width text or JSON envelope.
 now_ms="$(date +%s%3N)"
 
+# T-3751: mailbox receivers (see header). Only on the default topic: a custom
+# heartbeat topic is its own namespace and must not pick up the hub's mailboxes.
+# Test seam TERMLINK_LISTENERS_MAILBOX_TEST_JSON feeds canned `channel list
+# --json`; under the heartbeat test seams without it the scan is skipped, so
+# fixtures never touch the live hub.
+mailbox_rows='[]'
+mailbox_scan="skipped"
+if [ "$no_mailbox" -eq 0 ] && [ "$topic" = "agent-presence" ]; then
+    mbx_raw=""; mbx_rc=0; mbx_run=1
+    if [ -n "${TERMLINK_LISTENERS_MAILBOX_TEST_JSON:-}" ]; then
+        mbx_raw="$(cat "$TERMLINK_LISTENERS_MAILBOX_TEST_JSON" 2>"$stderr_file")"; mbx_rc=$?
+    elif [ -n "${TERMLINK_LISTENERS_TEST_JSON:-}" ] || [ -n "${TERMLINK_LISTENERS_CV_TEST_JSON:-}" ]; then
+        mbx_run=0
+    else
+        mbx_args=(channel list --prefix "inbox:" --json)
+        [ -n "$hub" ] && mbx_args+=(--hub "$hub")
+        : > "$stderr_file"
+        if command -v timeout >/dev/null 2>&1; then
+            mbx_raw="$(timeout 8 "$TERMLINK" "${mbx_args[@]}" 2>"$stderr_file")"; mbx_rc=$?
+        else
+            mbx_raw="$("$TERMLINK" "${mbx_args[@]}" 2>"$stderr_file")"; mbx_rc=$?
+        fi
+    fi
+    if [ "$mbx_run" -eq 1 ]; then
+        if [ "$mbx_rc" -ne 0 ]; then
+            mailbox_scan="failed: channel list rc=$mbx_rc $(head -c 160 "$stderr_file" | tr '\n' ' ')"
+        elif rows="$(printf '%s' "$mbx_raw" | jq -c \
+                --argjson now_ms "$now_ms" \
+                --argjson live_max "$MAILBOX_LIVE_SECS" \
+                --argjson stale_max "$MAILBOX_STALE_SECS" '
+            [ (.topics // [])[]
+              | select((.name // "") | startswith("inbox:"))
+              | . as $t
+              | ($t.activity // null) as $a
+              | select($a != null and ($a.last_fetch_ms | type) == "number")
+              # tail poll: the newest fetch returned no data
+              | select(($a.last_data_fetch_ms // 0) < $a.last_fetch_ms)
+              # a never-written empty mailbox cannot separate a poll from a scan
+              | select((($t.count // 0) > 0) or (($a.writes_total // 0) > 0))
+              | ((($now_ms - $a.last_fetch_ms) / 1000) | floor) as $age0
+              | select($age0 >= -30)            # tolerate small hub/host clock skew
+              | ([$age0, 0] | max) as $age
+              | select($age <= $stale_max)
+              | ($t.name | ltrimstr("inbox:")) as $rest
+              | ($rest | if test("^[0-9a-f]{16}/") then sub("^[0-9a-f]{16}/"; "") else . end) as $name
+              | select($name != "")
+              | {
+                  agent_id: $name,
+                  role: "",
+                  status: (if $age <= $live_max then "LIVE" else "STALE" end),
+                  age_secs: $age,
+                  last_seen_ts: $a.last_fetch_ms,
+                  listen_topics: $t.name,
+                  host: "",
+                  interval_secs: ($live_max / 2 | floor),
+                  pty_session: null,
+                  capabilities: "",
+                  identity_fingerprint: "",
+                  source: "mailbox-reader",
+                  mailbox_topic: $t.name,
+                  receiver_evidence: "tail-poll"
+                }
+            ]
+            | group_by(.agent_id) | map(max_by(.last_seen_ts))
+            ' 2>"$stderr_file")"; then
+            mailbox_rows="$rows"
+            mailbox_scan="ok"
+        else
+            mailbox_scan="failed: unparseable channel list output"
+        fi
+    fi
+fi
+
 rollup="$(printf '%s' "$raw" | jq -s \
     --argjson now_ms "$now_ms" \
+    --argjson mbx "$mailbox_rows" \
+    --arg mailbox_scan "$mailbox_scan" \
     --arg filter_role "$filter_role" \
     --arg filter_listen_topic "$filter_listen_topic" \
     --arg filter_agent_id "$filter_agent_id" \
@@ -319,9 +420,27 @@ rollup="$(printf '%s' "$raw" | jq -s \
             # resolve agent_id to (hub, fp) for cross-hub contact-by-name without
             # parsing dm:* out of listen_topics (which fails for peers with no
             # prior DM). Always included (backward-compat, mirror of capabilities).
-            identity_fingerprint: (.sender_id // "")
+            identity_fingerprint: (.sender_id // ""),
+            source: "heartbeat"
           }
       )
+    # T-3751: join mailbox receivers. A new name is appended; for a name that
+    # already has a heartbeat row the better status wins (equal keeps the
+    # heartbeat row, which carries pty_session), and an upgraded row keeps the
+    # heartbeat age so the old heartbeat is still visible.
+    | def rank: if . == "LIVE" then 3 elif . == "STALE" then 2 else 1 end;
+      reduce $mbx[] as $m (.;
+        (map(.agent_id) | index($m.agent_id)) as $i
+        | if $i == null then . + [$m]
+          elif (.[$i].status | rank) >= ($m.status | rank) then
+            .[$i] += {mailbox_topic: $m.mailbox_topic}
+          else
+            .[$i] = (.[$i] + {
+              status: $m.status, age_secs: $m.age_secs, last_seen_ts: $m.last_seen_ts,
+              source: "mailbox-reader", mailbox_topic: $m.mailbox_topic,
+              receiver_evidence: $m.receiver_evidence, heartbeat_age_secs: .[$i].age_secs
+            })
+          end)
     | map(select(
         ($filter_role == "" or .role == $filter_role)
         and ($filter_agent_id == "" or .agent_id == $filter_agent_id)
@@ -340,6 +459,7 @@ rollup="$(printf '%s' "$raw" | jq -s \
         live: (map(select(.status == "LIVE")) | length),
         stale: (map(select(.status == "STALE")) | length),
         offline: (map(select(.status == "OFFLINE")) | length),
+        mailbox_scan: $mailbox_scan,
         listeners: .
       }
     '
@@ -367,20 +487,20 @@ else
     live="$(printf '%s' "$rollup" | jq -r '.live')"
     stale="$(printf '%s' "$rollup" | jq -r '.stale')"
     offline="$(printf '%s' "$rollup" | jq -r '.offline')"
-    echo "agent-presence (topic=$topic hub=${hub:-local}): total=$total live=$live stale=$stale offline=$offline"
+    echo "agent-presence (topic=$topic hub=${hub:-local}): total=$total live=$live stale=$stale offline=$offline mailbox_scan=$(printf '%s' "$rollup" | jq -r '.mailbox_scan // "skipped"')"
     if [ "$total" = "0" ]; then
         echo "  (no listeners matched current filters)"
     elif [ "$with_capabilities" -eq 1 ]; then
         # T-2091: extended text mode includes CAPABILITIES column. Off by
         # default to keep the legacy row width — opt in when you need to
         # see who advertises which capability without leaving the rail.
-        printf '%-32s %-12s %-8s %-7s %-32s %-24s %s\n' "AGENT_ID" "ROLE" "STATUS" "AGE_S" "LISTEN_TOPICS" "HOST" "CAPABILITIES"
-        printf '%s' "$rollup" | jq -r '.listeners[] | [.agent_id, .role, .status, (.age_secs|tostring), .listen_topics, .host, .capabilities] | @tsv' \
-            | awk -F'\t' '{printf "%-32s %-12s %-8s %-7s %-32s %-24s %s\n", $1, $2, $3, $4, $5, $6, $7}'
+        printf '%-32s %-12s %-8s %-7s %-32s %-24s %-24s %s\n' "AGENT_ID" "ROLE" "STATUS" "AGE_S" "LISTEN_TOPICS" "HOST" "CAPABILITIES" "SOURCE"
+        printf '%s' "$rollup" | jq -r '.listeners[] | [.agent_id, .role, .status, (.age_secs|tostring), .listen_topics, .host, .capabilities, (.source // "heartbeat")] | @tsv' \
+            | awk -F'\t' '{printf "%-32s %-12s %-8s %-7s %-32s %-24s %-24s %s\n", $1, $2, $3, $4, $5, $6, $7, $8}'
     else
-        printf '%-32s %-12s %-8s %-7s %-32s %s\n' "AGENT_ID" "ROLE" "STATUS" "AGE_S" "LISTEN_TOPICS" "HOST"
-        printf '%s' "$rollup" | jq -r '.listeners[] | [.agent_id, .role, .status, (.age_secs|tostring), .listen_topics, .host] | @tsv' \
-            | awk -F'\t' '{printf "%-32s %-12s %-8s %-7s %-32s %s\n", $1, $2, $3, $4, $5, $6}'
+        printf '%-32s %-12s %-8s %-7s %-32s %-24s %s\n' "AGENT_ID" "ROLE" "STATUS" "AGE_S" "LISTEN_TOPICS" "HOST" "SOURCE"
+        printf '%s' "$rollup" | jq -r '.listeners[] | [.agent_id, .role, .status, (.age_secs|tostring), .listen_topics, .host, (.source // "heartbeat")] | @tsv' \
+            | awk -F'\t' '{printf "%-32s %-12s %-8s %-7s %-32s %-24s %s\n", $1, $2, $3, $4, $5, $6, $7}'
     fi
 fi
 
