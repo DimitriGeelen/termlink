@@ -27,7 +27,7 @@ before anyone notices (PL-021 / G-058 class).
 
 | Form | Action |
 |------|--------|
-| `/preflight` | Run all eight checks (human-format render) |
+| `/preflight` | Run all nine checks (human-format render) |
 | `/preflight --json` | Machine-readable envelope (passes through) |
 
 ## What it checks
@@ -42,6 +42,7 @@ before anyone notices (PL-021 / G-058 class).
 | 6 | systemd `termlink-hub` unit healthy + no detached-ghost hub | MEDIUM | T-2358 / G-070: unit crash-looped every 5s for 2178 restarts ("Hub is already running") while a DETACHED hub (PPID 1) held the pidfile — hub worked so Checks 1-5 stayed green, but supervision was silently lost (no crash-restart, reboot-race, unit-driven upgrades absorbed by the flap). WARNs on: crash-looping/failed unit; pidfile PID alive but != unit MainPID (ghost); hub running with unit inactive (unsupervised); NRestarts > `TERMLINK_PREFLIGHT_NRESTARTS_MAX` (default 5, flap residue — acknowledge with `systemctl reset-failed termlink-hub`). Skips silently on non-systemd / watchdog-launched hosts. |
 | 7 | one live hub per user | MEDIUM | T-3340: WARNs when more than one live termlink hub runs for this uid, naming each runtime dir, pid and session count. Two hubs split sessions from inboxes silently (2026-10-04: a stray hub at `/tmp/termlink-0` beside the real one at `/var/lib/termlink`). |
 | 8 | the running hub answers on its unix socket | HIGH | T-3495: FAILs when `hub status --json` reports `socket_ok:false`. A hub kept serving TCP while its `hub.sock` had been replaced, so local clients got ECONNREFUSED and every pidfile-based check stayed green. Skips when no hub runs (Check 6) or the binary predates the field (Check 4). |
+| 9 | host clock NTP-synchronised | MEDIUM | T-3364 (CAND-13): urgent deadlines (15 s) and cross-host telemetry assume a synchronised clock. Probes `timedatectl show -p NTPSynchronized`, `chronyc tracking`, `ntpq -pn`; first definitive answer wins. WARNs when unsynchronised; SKIP (never PASS) when no probe answers. `--clock-state` prints only this state (`clock_sync=<synced\|unsynced\|unknown> source=<tool>`). |
 
 Exit codes:
 - `0` — all PASS, substrate-ready
@@ -151,7 +152,7 @@ it into `/preflight`" — and until then nothing ran it at all. It is deliberate
 cron canary: a canary that detects uninstalled canaries would itself need installing, and
 the recursion has to stop somewhere. That stop is here.
 
-**It answers a different question from the eight checks above, and the distinction matters.**
+**It answers a different question from the nine checks above, and the distinction matters.**
 `substrate-preflight.sh` asks *is this environment able to host a substrate*.
 This asks *are the canaries I committed to `.context/cron/` actually scheduled in
 `/etc/cron.d`* — the shipped≠live class (G-069). A canary committed to git but never
@@ -159,7 +160,7 @@ installed is dark: it never fires, and the heartbeat-based aliveness check (T-17
 structurally cannot see it, because there is no heartbeat to be stale.
 
 Render it as its **own** labelled section with its own exit code. Do not merge its result
-into the eight-check table or the `--json` envelope — those come from `substrate-preflight.sh`
+into the nine-check table or the `--json` envelope — those come from `substrate-preflight.sh`
 and callers parse that schema.
 
 Reading its exit code (they are not the same as this skill's):
