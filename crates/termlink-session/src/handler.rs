@@ -37,6 +37,10 @@ pub struct SessionContext {
     pub kv_max_keys: usize,
     /// Hard cap on the serialized byte size of a single `kv` value. Always `>= 1`.
     pub kv_max_value_bytes: usize,
+    /// T-3702 (B-4): founding-verb use log and owner-only policy. Read from the
+    /// environment once at session start (`TERMLINK_OWNER_ONLY`,
+    /// `TERMLINK_OWNER_ONLY_CHECK`, `TERMLINK_USE_LOG`) and never changed.
+    pub founding: crate::founding_log::Policy,
 }
 
 /// Default `kv` key cap: 1000 distinct keys per session. `kv` is session
@@ -77,6 +81,7 @@ impl SessionContext {
             kv: HashMap::new(),
             kv_max_keys: kv_max_keys_from_env(),
             kv_max_value_bytes: kv_max_value_bytes_from_env(),
+            founding: crate::founding_log::Policy::from_env(),
         }
     }
 
@@ -95,12 +100,20 @@ impl SessionContext {
             kv: HashMap::new(),
             kv_max_keys: kv_max_keys_from_env(),
             kv_max_value_bytes: kv_max_value_bytes_from_env(),
+            founding: crate::founding_log::Policy::from_env(),
         }
     }
 
     /// Set the path to the on-disk registration JSON file for persistence.
     pub fn with_registration_path(mut self, path: std::path::PathBuf) -> Self {
         self.registration_path = Some(path);
+        self
+    }
+
+    /// Override the founding-verb policy (T-3702). Tests use this instead of the
+    /// process-global environment.
+    pub fn with_founding_policy(mut self, policy: crate::founding_log::Policy) -> Self {
+        self.founding = policy;
         self
     }
 
@@ -1537,6 +1550,7 @@ mod tests {
             kv: HashMap::new(),
             kv_max_keys: DEFAULT_KV_MAX_KEYS,
             kv_max_value_bytes: DEFAULT_KV_MAX_VALUE_BYTES,
+            founding: Default::default(),
         }
     }
 
@@ -2368,6 +2382,7 @@ mod tests {
             kv: HashMap::new(),
             kv_max_keys: DEFAULT_KV_MAX_KEYS,
             kv_max_value_bytes: DEFAULT_KV_MAX_VALUE_BYTES,
+            founding: Default::default(),
         };
 
         // Emit 5 events (buffer capacity 3 → seqs 0,1 evicted, buffer holds 2,3,4)

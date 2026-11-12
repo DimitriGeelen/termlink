@@ -558,6 +558,11 @@ pub mod error_code {
     /// T-3501 `dispatch.allocate`: the caller-chosen `dispatch_id` is already used.
     /// The backend never substitutes another id. `data` carries `{dispatch_id}`.
     pub const DISPATCH_ID_TAKEN: i64 = -32028;
+    /// T-3702 (arc-011 B-4, FCW-132): a founding verb (`command.inject`,
+    /// `command.execute`) was refused because its use-log row could not be
+    /// written, at the session or at the hub. Nothing was done. `data` carries
+    /// `{fcw: "FCW-132"}`. (-32040/-32041 are the hub's mail-guard codes.)
+    pub const USE_LOG_UNWRITABLE: i64 = -32042;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.

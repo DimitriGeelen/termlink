@@ -1815,6 +1815,37 @@ fn maybe_handle_ws_subscribe(
     }
 }
 
+/// T-3702 (arc-011 B-4, 06a AL-32): the hub's row for a founding verb
+/// (`command.inject`, `command.execute`), allowed or refused, written before the
+/// scope check answers and before the relay. `Some(resp)` only when the row
+/// could not be written (FCW-132); a scope refusal is still answered by the
+/// ordinary scope check after its row is on disk. Owner-only is the session's
+/// check: the hub relays `params.from` unchanged.
+pub(crate) fn founding_hub_gate(
+    req: &Request,
+    granted: PermissionScope,
+    required: PermissionScope,
+    caller: &crate::rpc_audit::AdminCaller<'_>,
+) -> Option<RpcResponse> {
+    use termlink_session::founding_log::{self, Decision};
+    if !founding_log::is_founding_verb(&req.method) {
+        return None;
+    }
+    let decision = if granted.satisfies(required) {
+        Decision::Allowed
+    } else {
+        Decision::RefusedScope { required, granted }
+    };
+    match crate::rpc_audit::founding_row(&req.method, caller, &req.params, granted, &decision) {
+        Ok(()) => None,
+        Err(e) => {
+            tracing::error!(method = %req.method, error = %e, "T-3702: founding verb refused at the hub, use-log row not written (FCW-132)");
+            let id = req.id.clone().unwrap_or(serde_json::Value::Null);
+            Some(founding_log::log_unwritable(id, &req.method, &e))
+        }
+    }
+}
+
 /// T-3701 (arc-011 B-3, 06a AL-31): run an admin RPC between its two admin-log
 /// rows. The intent row is written first; if it cannot be written the RPC is
 /// refused and nothing acts (FCW-128). The result row follows the act.
@@ -1982,7 +2013,16 @@ async fn process_request_message(
                         Some(scope) => {
                             // Check permission scope
                             let required = hub_method_scope(&req.method);
-                            if !scope.satisfies(required) {
+                            let founding_caller = crate::rpc_audit::AdminCaller {
+                                from,
+                                sender_id,
+                                peer_addr: peer_addr_ref,
+                                peer_pid,
+                            };
+                            if let Some(refused) = founding_hub_gate(&req, scope, required, &founding_caller) {
+                                // T-3702 (B-4, FCW-132): no hub row, no relay.
+                                Some(refused)
+                            } else if !scope.satisfies(required) {
                                 let id = req.id.clone().unwrap_or(serde_json::Value::Null);
                                 tracing::warn!(
                                     method = %req.method,
@@ -4332,5 +4372,97 @@ mod tests {
             assert!(probe_hub_socket(&sock, t).await.is_ok(), "live socket must pass");
         })
         .await;
+    }
+
+    // ── T-3702 (arc-011 B-4, E-68 / E-169 hub side) ──
+
+    fn founding_rows(path: &std::path::Path) -> Vec<serde_json::Value> {
+        std::fs::read_to_string(path)
+            .unwrap_or_default()
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap())
+            .collect()
+    }
+
+    /// E-68 at the hub: observe and notify are refused for both verbs through
+    /// the real request path, and each refused attempt has a hub row with the
+    /// caller; a non-founding method leaves none.
+    #[tokio::test]
+    async fn e68_hub_logs_refused_founding_verbs_with_caller() {
+        let dir = tempfile::tempdir().unwrap();
+        let log = dir.path().join("rpc-founding.jsonl");
+        crate::rpc_audit::FOUNDING_TEST_PATH.with(|c| *c.borrow_mut() = Some(log.clone()));
+        let peer = Some("10.0.0.9:4711".to_string());
+        let mut n = 0;
+        for scope in [PermissionScope::Observe, PermissionScope::Notify] {
+            for method in ["command.inject", "command.execute"] {
+                n += 1;
+                let line = serde_json::json!({"jsonrpc": "2.0", "id": n, "method": method,
+                    "params": {"target": "t3702-target", "from": "agent-b"}}).to_string();
+                let mut granted = Some(scope);
+                let out = process_request_message(&line, &None, &mut granted, None, &peer).await.unwrap();
+                let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+                assert_eq!(v["error"]["code"], termlink_protocol::control::error_code::AUTH_DENIED, "{method} with {scope}: {v}");
+            }
+        }
+        let line = serde_json::json!({"jsonrpc": "2.0", "id": 99, "method": "termlink.ping", "params": {}}).to_string();
+        let mut granted = Some(PermissionScope::Observe);
+        let _ = process_request_message(&line, &None, &mut granted, None, &peer).await;
+        crate::rpc_audit::FOUNDING_TEST_PATH.with(|c| *c.borrow_mut() = None);
+
+        let rows = founding_rows(&log);
+        assert_eq!(rows.len(), 4, "one hub row per founding attempt, none for ping: {rows:?}");
+        for r in &rows {
+            assert_eq!(r["at"], "hub");
+            assert_eq!(r["decision"], "refused-scope");
+            assert_eq!(r["fcw"], "FCW-130");
+            assert_eq!(r["caller"]["from"], "agent-b");
+            assert_eq!(r["caller"]["peer_addr"], "10.0.0.9:4711");
+            assert_eq!(r["target"], "t3702-target");
+        }
+    }
+
+    /// E-68 at the hub: an allowed call (control → inject, execute → exec) gets
+    /// an `allowed` row before the relay, and the gate lets it through.
+    #[test]
+    fn e68_hub_logs_allowed_founding_verbs() {
+        let dir = tempfile::tempdir().unwrap();
+        let log = dir.path().join("rpc-founding.jsonl");
+        crate::rpc_audit::FOUNDING_TEST_PATH.with(|c| *c.borrow_mut() = Some(log.clone()));
+        let caller = crate::rpc_audit::AdminCaller { from: Some("agent-a"), sender_id: None, peer_addr: None, peer_pid: Some(77) };
+        for (method, scope) in [("command.inject", PermissionScope::Control), ("command.execute", PermissionScope::Execute)] {
+            let req = Request::new(method, serde_json::json!(1), serde_json::json!({"target": "s1"}));
+            assert!(founding_hub_gate(&req, scope, hub_method_scope(method), &caller).is_none(), "{method} passes the gate");
+        }
+        let req = Request::new("channel.post", serde_json::json!(1), serde_json::json!({}));
+        assert!(founding_hub_gate(&req, PermissionScope::Execute, PermissionScope::Interact, &caller).is_none());
+        crate::rpc_audit::FOUNDING_TEST_PATH.with(|c| *c.borrow_mut() = None);
+        let rows = founding_rows(&log);
+        assert_eq!(rows.len(), 2, "{rows:?}");
+        assert!(rows.iter().all(|r| r["decision"] == "allowed" && r["caller"]["peer_pid"] == 77 && r["caller"]["from"] == "agent-a"));
+        assert_eq!(rows[0]["verb"], "command.inject");
+        assert_eq!(rows[1]["verb"], "command.execute");
+        assert_eq!(rows[1]["scope"], "execute");
+    }
+
+    /// E-169 / FCW-132 at the hub: the row cannot be written → the founding
+    /// verb is refused with the reason, before any relay; a non-founding
+    /// method is unaffected by the failing log.
+    #[tokio::test]
+    async fn e169_hub_refuses_founding_verb_when_row_unwritable() {
+        crate::rpc_audit::FOUNDING_TEST_FAIL.with(|c| c.set(true));
+        let line = serde_json::json!({"jsonrpc": "2.0", "id": 1, "method": "command.inject",
+            "params": {"target": "t3702-target", "keys": []}}).to_string();
+        let mut granted = Some(PermissionScope::Execute);
+        let out = process_request_message(&line, &None, &mut granted, None, &None).await.unwrap();
+        let caller = crate::rpc_audit::AdminCaller::default();
+        let ping = Request::new("termlink.ping", serde_json::json!(2), serde_json::json!({}));
+        let unaffected = founding_hub_gate(&ping, PermissionScope::Execute, PermissionScope::Observe, &caller);
+        crate::rpc_audit::FOUNDING_TEST_FAIL.with(|c| c.set(false));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["error"]["code"], termlink_protocol::control::error_code::USE_LOG_UNWRITABLE, "{v}");
+        assert_eq!(v["error"]["data"]["fcw"], "FCW-132");
+        assert!(v["error"]["message"].as_str().unwrap().contains("nothing was done"));
+        assert!(unaffected.is_none());
     }
 }

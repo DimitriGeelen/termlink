@@ -26,6 +26,10 @@ pub async fn handle_connection(
     session: SharedSession,
     initial_scope: PermissionScope,
 ) {
+    // T-3702 (B-4): the caller's uid/pid go into every founding-verb row.
+    let peer = PeerCredentials::from_tokio_stream(&stream)
+        .map(|c| (Some(c.uid), c.pid))
+        .unwrap_or((None, None));
     let (reader, mut writer) = stream.into_split();
     let mut lines = BufReader::new(reader).lines();
     let mut granted_scope = initial_scope;
@@ -49,6 +53,12 @@ pub async fn handle_connection(
                 if req.method == control::method::AUTH_TOKEN {
                     let id = req.id.clone().unwrap_or(serde_json::Value::Null);
                     handle_auth_token(&req, &token_secret, &mut granted_scope, id)
+                } else if crate::founding_log::is_founding_verb(&req.method)
+                    && let Some(refused) = founding_gate(&session, &req, granted_scope, peer).await
+                {
+                    // T-3702 (B-4, AL-32): row written first; refused on scope
+                    // (FCW-130), owner-only (FCW-131) or an unwritable row (FCW-132).
+                    Some(refused)
                 } else {
                     // Check permission scope before dispatching
                     let required = auth::method_scope(&req.method);
@@ -104,6 +114,32 @@ pub async fn handle_connection(
             }
         }
     }
+}
+
+/// T-3702 (B-4): write the founding-verb row and decide. `None` → let the verb act.
+async fn founding_gate(
+    session: &SharedSession,
+    req: &Request,
+    granted: PermissionScope,
+    peer: (Option<u32>, Option<u32>),
+) -> Option<RpcResponse> {
+    let (session_id, socket_dir, policy) = {
+        let ctx = session.read().await;
+        let reg = &ctx.registration;
+        let dir = reg.addr.as_unix_path().and_then(|p| p.parent()).map(|p| p.to_path_buf());
+        (reg.id.as_str().to_string(), dir, ctx.founding.clone())
+    };
+    let id = req.id.clone().unwrap_or(serde_json::Value::Null);
+    crate::founding_log::gate_session(
+        id,
+        &req.method,
+        &req.params,
+        granted,
+        peer,
+        &session_id,
+        socket_dir.as_deref(),
+        &policy,
+    )
 }
 
 /// Handle an `auth.token` request — validate the token and upgrade connection scope.
@@ -300,7 +336,19 @@ mod tests {
             socket,
         );
         reg.state = SessionState::Ready;
-        SessionContext::new(reg)
+        SessionContext::new(reg).with_founding_policy(test_founding_policy(None))
+    }
+
+    /// T-3702: founding-verb rows of these tests go to a temp dir, never the
+    /// default beside the /tmp test socket.
+    fn test_founding_policy(owner: Option<&str>) -> crate::founding_log::Policy {
+        let n = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("tl-srv-use-log-{}", std::process::id()));
+        crate::founding_log::Policy {
+            owner_only: owner.map(str::to_string),
+            check_owner: true,
+            log_path: Some(dir.join(format!("{n}.jsonl"))),
+        }
     }
 
     #[tokio::test]
@@ -585,7 +633,7 @@ mod tests {
         );
         reg.state = SessionState::Ready;
         reg.token_secret = Some(secret_hex);
-        (SessionContext::new(reg), secret)
+        (SessionContext::new(reg).with_founding_policy(test_founding_policy(None)), secret)
     }
 
     #[tokio::test]
@@ -942,5 +990,64 @@ mod tests {
 
         handle.abort();
         let _ = std::fs::remove_file(&socket_path);
+    }
+
+    /// T-3702 (E-68, session side): over a real socket, an owner-only session
+    /// refuses another identity and an undeclared caller, the owner runs and
+    /// reads output back, an observe connection is refused, and every attempt
+    /// leaves a row with the caller. FCW-132: an unwritable log refuses.
+    #[tokio::test]
+    async fn e68_founding_verbs_logged_and_owner_only_over_socket() {
+        async fn call(socket: &std::path::Path, ctx_scope: PermissionScope, shared: SharedSession, req: serde_json::Value) -> serde_json::Value {
+            let listener = UnixListener::bind(socket).unwrap();
+            let h = tokio::spawn(async move {
+                let (stream, _) = listener.accept().await.unwrap();
+                handle_connection(stream, shared, ctx_scope).await;
+            });
+            let stream = tokio::net::UnixStream::connect(socket).await.unwrap();
+            let (reader, mut writer) = stream.into_split();
+            let mut lines = BufReader::new(reader).lines();
+            writer.write_all(format!("{req}\n").as_bytes()).await.unwrap();
+            let v = serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            h.abort();
+            let _ = std::fs::remove_file(socket);
+            v
+        }
+        let socket = test_socket_path();
+        let _ = std::fs::remove_file(&socket);
+        let policy = test_founding_policy(Some("agent-a"));
+        let log = policy.log_path.clone().unwrap();
+        let ctx = test_session(socket.clone()).with_founding_policy(policy);
+        let shared = Arc::new(RwLock::new(ctx));
+        let exec = |id: &str, from: Option<&str>| {
+            let mut p = json!({"command": "echo owner-readback"});
+            if let Some(f) = from { p["from"] = json!(f); }
+            json!({"jsonrpc": "2.0", "method": "command.execute", "id": id, "params": p})
+        };
+
+        let r = call(&socket, PermissionScope::Execute, shared.clone(), exec("o", Some("agent-a"))).await;
+        assert!(r["result"]["stdout"].as_str().unwrap_or("").contains("owner-readback"), "owner runs and reads back: {r}");
+        let r = call(&socket, PermissionScope::Execute, shared.clone(), exec("x", Some("agent-b"))).await;
+        assert_eq!(r["error"]["data"]["fcw"], "FCW-131", "{r}");
+        let r = call(&socket, PermissionScope::Execute, shared.clone(), exec("u", None)).await;
+        assert_eq!(r["error"]["data"]["fcw"], "FCW-131", "undeclared caller refused: {r}");
+        let inj = json!({"jsonrpc": "2.0", "method": "command.inject", "id": "i", "params": {"from": "agent-a", "text": "ls"}});
+        let r = call(&socket, PermissionScope::Observe, shared.clone(), inj).await;
+        assert_eq!(r["error"]["data"]["fcw"], "FCW-130", "observe cannot inject: {r}");
+
+        let rows: Vec<serde_json::Value> = std::fs::read_to_string(&log).unwrap().lines().map(|l| serde_json::from_str(l).unwrap()).collect();
+        let decisions: Vec<&str> = rows.iter().map(|r| r["decision"].as_str().unwrap()).collect();
+        assert_eq!(decisions, ["allowed", "refused-owner", "refused-owner", "refused-scope"]);
+        assert!(rows.iter().all(|r| r["at"] == "session" && r["caller"]["pid"].is_u64()), "caller pid on every row: {rows:?}");
+        assert_eq!(rows[1]["caller"]["from"], "agent-b");
+
+        // FCW-132: the log's parent is a regular file → refused, nothing runs.
+        let blocker = log.with_extension("blocker");
+        std::fs::write(&blocker, b"x").unwrap();
+        let bad = crate::founding_log::Policy { owner_only: None, check_owner: true, log_path: Some(blocker.join("rows.jsonl")) };
+        shared.write().await.founding = bad;
+        let r = call(&socket, PermissionScope::Execute, shared.clone(), exec("f", Some("agent-a"))).await;
+        assert_eq!(r["error"]["code"], termlink_protocol::control::error_code::USE_LOG_UNWRITABLE, "{r}");
+        assert!(r.get("result").is_none(), "nothing ran: {r}");
     }
 }

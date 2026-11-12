@@ -2,12 +2,14 @@
 id: T-3702
 name: "P-14: B-4 founding-verb use log and owner-only sessions"
 description: >
-  arc-011 plan unit P-14 (docs/design/interactive-agent-communication-08-plan.md v0.3, approved G-0 2026-11-12): B-4: founding-verb use log at session and hub; owner-only sessions
+  arc-011 plan unit P-14 (docs/design/interactive-agent-communication-08-plan.md v0.3,
+  approved G-0 2026-11-12): B-4: founding-verb use log at session and hub; owner-only
+  sessions
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: [T-3357]
@@ -42,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:38Z
-last_update: 2026-11-12T16:56:38Z
-date_finished: null
+last_update: 2026-11-12T19:55:41Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -54,6 +56,26 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-12T19:37:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 3
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=3 (L3:keyword=rollback); D1=2 (body:learning-ref);
+      D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0 (L0: no signal);
+      F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3702: P-14: B-4 founding-verb use log and owner-only sessions
@@ -133,7 +155,11 @@ Unblocks: part of gate G-2 (the T1 release).
 ## Verification
 
 # Plan P-14 check (08-plan section 4): fixture suite exits 0 with a PASS line per B-4 E-n, mutant list all killed
-# (FP 3.1.b). Replace with the suite's command before closing (redirect-then-grep form, L-387).
+# (FP 3.1.b). The suite unsets PROJECT_ROOT itself (T-3755).
+bash tests/t3702-b4-fixtures.sh > .context/working/t3702/verify-fx.out 2>&1 && grep -q "^PASS E-68 " .context/working/t3702/verify-fx.out && grep -q "^PASS E-169 " .context/working/t3702/verify-fx.out && grep -q "^ALL PASS (P-14)" .context/working/t3702/verify-fx.out
+bash tests/t3702-b4-fixtures.sh mutants > .context/working/t3702/verify-mut.out 2>&1 && grep -q "^ALL MUTANTS KILLED (P-14)" .context/working/t3702/verify-mut.out && ! grep -q "^SURVIVED" .context/working/t3702/verify-mut.out
+env -u PROJECT_ROOT TMPDIR=/var/tmp cargo clippy -p termlink-hub -p termlink-session -p termlink-protocol --tests > .context/working/t3702/verify-clippy.out 2>&1 && ! grep -q "^error" .context/working/t3702/verify-clippy.out
+bash scripts/check-error-code-emission.sh > .context/working/t3702/verify-ecode.out 2>&1 && grep -q "clean" .context/working/t3702/verify-ecode.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -328,6 +354,16 @@ Unblocks: part of gate G-2 (the T1 release).
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-12 — caller identity is declared, and no client declares it yet
+- **What changed:** Tokens carry no caller identity (TokenPayload = scope, session_id, times, nonce) and no
+  inject/exec client sends `params.from` today; the hub relays with a raw connection. So "caller identity" at the
+  session is `params.from` (declared) plus the socket peer uid/pid, and at the hub `from`/`sender_id`/peer address/pid.
+- **Plan impact:** owner-only compares the declared `from` with the owner. It stops accidental and naive cross-agent
+  use and every attempt is on record; proof of identity is B-6 (key card) and PH-4 (RA-2).
+- **Triggered:** the 06a line "spawn --owner-only: default on for sessions launched by the reachable launcher" is NOT
+  switched on here: with no client sending `from`, every waker inject into a reachable session would be refused
+  (NID / operator rule 2026-11-03). Needs an operator decision (see handback).
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -368,6 +404,21 @@ Unblocks: part of gate G-2 (the T1 release).
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-12 — owner-only opt-in by env, not default-on in the launcher
+- **Chose:** `TERMLINK_OWNER_ONLY=<owner>` read once at session start (reaches the session daemon through
+  `termlink spawn --env`); `TERMLINK_OWNER_ONLY_CHECK=0` is the rollback; the use log is always on.
+- **Why:** no Registration field (its struct literals live in termlink-cli tests, edited concurrently by T-3749) and no
+  CLI flag churn; the launcher default would switch off working waker injects (NID).
+- **Rejected:** default-on in `scripts/tl-claude.sh` now (breaks wakers); a Registration `owner_only` field (cross-crate
+  literal churn under concurrency).
+
+### 2026-11-12 — where the rows go
+- **Chose:** session rows at `<session socket dir>/use-log/<session-id>.jsonl` (`TERMLINK_USE_LOG` overrides), hub rows
+  at `<runtime_dir>/rpc-founding.jsonl`; one O_APPEND write per row through the shared capped writer (16 MiB, one
+  rotated generation). A row that cannot be written refuses the verb (FCW-132, new code -32042 USE_LOG_UNWRITABLE).
+- **Why:** beside the socket keeps test sessions' rows in their temp dirs; the hub file mirrors T-3701's rpc-admin.jsonl.
+- **Rejected:** `invocation_audit` (best-effort by contract, swallows failures; FCW-132 needs fail-closed).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -384,3 +435,7 @@ Unblocks: part of gate G-2 (the T1 release).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3702-p-14-b-4-founding-verb-use-log-and-owner.md
 - **Context:** Initial task creation
+
+### 2026-11-12T19:37:13Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

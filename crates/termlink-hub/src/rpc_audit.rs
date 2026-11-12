@@ -135,6 +135,8 @@ pub fn init(runtime_dir: &Path) {
     let _ = AUDIT_PATH.set(Some(path));
     // T-3701 (B-3): the admin log beside it.
     let _ = ADMIN_PATH.set(Some(runtime_dir.join(ADMIN_FILE_NAME)));
+    // T-3702 (B-4): the founding-verb use log beside it.
+    let _ = FOUNDING_PATH.set(Some(runtime_dir.join(FOUNDING_FILE_NAME)));
     let _ = AUDIT_MAX_BYTES.set(read_max_bytes_env());
 }
 
@@ -747,6 +749,61 @@ pub fn admin_event(mut fields: serde_json::Value) {
     if let Err(e) = admin_append(&fields) {
         tracing::error!(error = %e, "T-3701: admin log event row could not be written");
     }
+}
+
+// ── T-3702 (arc-011 B-4, 06a AL-32): founding-verb use log at the hub ──
+
+/// The hub's founding-verb use log: one row per `command.inject` /
+/// `command.execute` the hub is asked to relay, allowed or refused, written
+/// before the relay (FCW-132: an unwritable row refuses the call).
+pub const FOUNDING_FILE_NAME: &str = "rpc-founding.jsonl";
+
+static FOUNDING_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
+#[cfg(test)]
+thread_local! {
+    /// Test seams (E-68, E-169), per thread like the admin seams.
+    pub(crate) static FOUNDING_TEST_PATH: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
+    pub(crate) static FOUNDING_TEST_FAIL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Write the hub's row for one founding-verb call. `Err` → refuse the call.
+pub fn founding_row(
+    method: &str,
+    caller: &AdminCaller<'_>,
+    params: &serde_json::Value,
+    granted: termlink_session::auth::PermissionScope,
+    decision: &termlink_session::founding_log::Decision,
+) -> std::io::Result<()> {
+    let caller_json = serde_json::json!({
+        "from": caller.from,
+        "sender_id": caller.sender_id,
+        "peer_addr": caller.peer_addr,
+        "peer_pid": caller.peer_pid,
+    });
+    let target = params.get("target").and_then(|v| v.as_str());
+    let row = termlink_session::founding_log::build_row(
+        now_ms() as u64,
+        "hub",
+        method,
+        target,
+        caller_json,
+        Some(granted),
+        decision,
+    );
+    #[cfg(test)]
+    {
+        if FOUNDING_TEST_FAIL.with(|c| c.get()) {
+            return Err(std::io::Error::other("founding use-log write failed (test seam)"));
+        }
+        if let Some(p) = FOUNDING_TEST_PATH.with(|c| c.borrow().clone()) {
+            return termlink_session::founding_log::append_row(&p, &row);
+        }
+    }
+    let Some(path) = FOUNDING_PATH.get().and_then(|p| p.as_deref()) else {
+        // Not initialised (unit tests of unrelated handlers): nothing to write to.
+        return Ok(());
+    };
+    termlink_session::founding_log::append_row(path, &row)
 }
 
 fn json_escape(s: &str) -> String {
