@@ -788,11 +788,17 @@ impl Meter {
 
     /// AL-4: the conversation signal of `session` at `now` (mono).
     pub fn conversation(&self, session: &str, now: u64) -> Conversation {
-        let (prompt, stopped, s2_ev, s1, convs) = {
+        let (prompt, stopped, s2_ev, s2_any, s1, convs) = {
             let g = lock(&self.inner);
             let Some(s) = g.sessions.get(session) else { return Conversation::None };
-            (s.last_prompt.clone(), s.stopped, s.s2_event_at, s.s1.clone(), s.s3_by_conv.clone())
+            (s.last_prompt.clone(), s.stopped, s.s2_event_at, s.s2_at, s.s1.clone(), s.s3_by_conv.clone())
         };
+        // `last_prompt` lives in this sidecar's memory: after a restart a person
+        // mid-conversation has no prompt here. No prompt this epoch and S2 within
+        // 120 s reads as a person (F-26, CR-6.23: unknown fails toward a person).
+        if prompt.is_none() && s2_any.is_some_and(|t| now.saturating_sub(t) <= V19_MS) {
+            return Conversation::Operator;
+        }
         if let Some(p) = prompt
             && p.origin != Origin::Automated
         {

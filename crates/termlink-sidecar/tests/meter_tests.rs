@@ -583,6 +583,8 @@ fn e18_client_input_extends_and_fcw17_no_stop() {
 fn e18_agent_conversation_and_fcw18() {
     let r = rig();
     r.ev("s", "session_start", 1, json!({"interactive": true}));
+    // A prompt this epoch (automated), so the F-26 restart rule does not apply.
+    r.ev("s", "prompt_submit", 2, json!({"origin": "automated", "basis": "doorbell"}));
     r.m.on_sent(Some("s"), "c1");
     assert_eq!(cv(&r, "s"), Conversation::None, "nothing owed in c1");
     r.owed.lock().unwrap().as_mut().unwrap().insert("c1".into());
@@ -597,6 +599,34 @@ fn e18_agent_conversation_and_fcw18() {
     assert!(matches!(cv(&r, "s"), Conversation::Unknown(_)));
 }
 
+/// F-26 (CR-6.23 / CR-B27.4): `last_prompt` is lost on a sidecar restart, so a
+/// session with no prompt this epoch and S2 within 120 s reads `operator`
+/// (unknown fails toward a person); without S2 in 120 s it reads none.
+/// Control: drop the restart rule and the new meter reads `none` while the
+/// person's session is still active.
+#[test]
+fn f26_no_prompt_this_epoch_with_recent_s2_is_operator() {
+    // Before the restart: a human prompt, a running turn.
+    let old = rig();
+    old.ev("s", "prompt_submit", 1, json!({"origin": "human", "basis": "inferred"}));
+    assert_eq!(cv(&old, "s"), Conversation::Operator);
+    // After the restart: a new meter (new epoch) sees only the next turn event.
+    let r = rig();
+    r.ev("s", "tool_end", 2, json!({"tool": "Bash"}));
+    assert!(r.m.last_prompt("s").is_none());
+    let t = r.at();
+    assert_eq!(cv(&r, "s"), Conversation::Operator, "no prompt this epoch, S2 now");
+    r.now.store(t + V19_MS, Ordering::SeqCst);
+    assert_eq!(cv(&r, "s"), Conversation::Operator, "at 120 s");
+    r.now.store(t + V19_MS + 1, Ordering::SeqCst);
+    assert_eq!(cv(&r, "s"), Conversation::None, "S2 older than 120 s");
+    // Transcript growth or a later turn event renews it; a prompt this epoch ends the rule.
+    r.ev("s", "tool_start", 3, json!({"tool": "Bash"}));
+    assert_eq!(cv(&r, "s"), Conversation::Operator);
+    r.ev("s", "prompt_submit", 4, json!({"origin": "automated", "basis": "doorbell"}));
+    assert_eq!(cv(&r, "s"), Conversation::None, "an automated prompt this epoch is not a person");
+}
+
 // ---- E-19: status activity is fresh or unknown ---------------------------------------------------
 
 /// After two ticks without a meter tick every field reads unknown. Control:
@@ -605,6 +635,7 @@ fn e18_agent_conversation_and_fcw18() {
 fn e19_stale_status_reads_unknown() {
     let r = rig();
     r.ev("s", "session_start", 1, json!({"interactive": true}));
+    r.ev("s", "prompt_submit", 2, json!({"origin": "automated", "basis": "doorbell"}));
     r.set_s1("s", Some(r.at()), None, None);
     let a = r.act("s");
     assert!(a["stamped_at"].is_u64() && a["s1_at"].is_u64() && a["s2_at"].is_u64(), "{a}");
