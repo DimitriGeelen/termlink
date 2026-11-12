@@ -117,6 +117,54 @@ fn fcw12_s1_unreadable_or_other_boot_is_unknown() {
     assert_eq!(r.act("s")["watchdog"], "available");
 }
 
+/// F-22 (CR-6.20 / CR-B27.3): the tick's S1 reads share one deadline. Six slow
+/// sessions (each read 600 ms) under a 200 ms budget: the tick returns well
+/// within one serial read set, the slow ones read unknown this tick, the fast
+/// one is known, and a slow read still in flight is not started again.
+/// Control: read serially without a budget and the tick takes >= 3.6 s and every
+/// slow session reads known.
+#[test]
+fn f22_s1_reads_share_a_tick_deadline() {
+    struct Slow(Arc<FakeS1>);
+    impl S1Source for Slow {
+        fn read(&self, s: &str) -> Result<S1Reply, String> {
+            if s.starts_with("slow") {
+                std::thread::sleep(std::time::Duration::from_millis(600));
+            }
+            self.0.0.lock().unwrap().get(s).cloned().unwrap_or(Err("unbound".into()))
+        }
+    }
+    let now = Arc::new(AtomicU64::new(1_000_000));
+    let s1 = Arc::new(FakeS1::default());
+    let (n1, n2) = (now.clone(), now.clone());
+    let m = Meter::new(A, Box::new(Slow(s1.clone())), Box::new(FakeLedger(Arc::new(Mutex::new(Ok(HashSet::new()))))))
+        .with_clocks(Arc::new(move || n1.load(Ordering::SeqCst)), Arc::new(move || n2.load(Ordering::SeqCst)))
+        .with_tick_budget(200);
+    let r = Rig { m, now, s1, owed: Arc::new(Mutex::new(Ok(HashSet::new()))) };
+    let mut names: Vec<String> = (0..6).map(|i| format!("slow{i}")).collect();
+    names.push("fast".into());
+    for n in &names {
+        r.ev(n, "session_start", 1, json!({"interactive": true}));
+        r.set_s1(n, Some(r.at()), None, None);
+    }
+    let t0 = std::time::Instant::now();
+    r.m.tick();
+    let took = t0.elapsed();
+    assert!(took < std::time::Duration::from_millis(1500), "the tick took {took:?}");
+    let v = r.m.status_view();
+    assert_eq!(v["sessions"]["fast"]["s1"], "known", "{v}");
+    for n in &names[..6] {
+        let s = v["sessions"][n]["s1"].as_str().unwrap();
+        assert!(s.contains("tick budget"), "{n}: {s}");
+        assert_eq!(v["sessions"][n]["watchdog"], "unavailable: S1 unknown");
+    }
+    // The slow reads are still running: the next tick does not start them again.
+    r.m.tick();
+    let v = r.m.status_view();
+    assert!(v["sessions"]["slow0"]["s1"].as_str().unwrap().contains("has not returned"), "{v}");
+    assert_eq!(v["sessions"]["fast"]["s1"], "known");
+}
+
 // ---- E-16: S2 and the strict intake -----------------------------------------------------------
 
 /// S2 (a) moves on turn events and READY state changes only (F-3, CR-6.3 / CR-B27.1).

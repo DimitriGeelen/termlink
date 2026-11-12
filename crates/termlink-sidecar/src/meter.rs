@@ -700,8 +700,9 @@ impl Meter {
     /// AL-3 meter_tick for every session, then the status snapshot.
     pub fn tick(&self) {
         let names: Vec<String> = lock(&self.inner).sessions.iter().filter(|(_, s)| !s.ended).map(|(k, _)| k.clone()).collect();
-        // Reads happen outside the lock: an RPC must not hold up intake.
-        let reads: Vec<(String, Result<S1Reply, String>)> = names.iter().map(|n| (n.clone(), self.s1.read(n))).collect();
+        // Reads happen outside the lock (an RPC must not hold up intake), in
+        // parallel, under one per-tick budget (F-22, CR-6.20).
+        let reads = self.read_s1_all(&names);
         let my_boot = termlink_session::input_meter::boot_id();
         let now = (self.clock)();
         let mut g = lock(&self.inner);
@@ -740,6 +741,49 @@ impl Meter {
                 s.snapshot = Some((v, now));
             }
         }
+    }
+
+    /// One tick's S1 reads: one thread per session, all bounded together by
+    /// `tick_budget_ms`. A read still running at the budget reads unknown this
+    /// tick; a session whose previous read has not returned is not read again
+    /// (at most one read in flight per session, so threads stay bounded by the
+    /// session table).
+    fn read_s1_all(&self, names: &[String]) -> Vec<(String, Result<S1Reply, String>)> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut got: HashMap<String, Result<S1Reply, String>> = HashMap::new();
+        let mut waiting = 0usize;
+        for n in names {
+            if !lock(&self.s1_inflight).insert(n.clone()) {
+                got.insert(n.clone(), Err("the previous S1 read has not returned".into()));
+                continue;
+            }
+            let (src, inflight, tx, name) = (self.s1.clone(), self.s1_inflight.clone(), tx.clone(), n.clone());
+            let spawned = std::thread::Builder::new().name("meter-s1".into()).spawn(move || {
+                let r = src.read(&name);
+                lock(&inflight).remove(&name);
+                let _ = tx.send((name, r));
+            });
+            match spawned {
+                Ok(_) => waiting += 1,
+                Err(e) => {
+                    lock(&self.s1_inflight).remove(n);
+                    got.insert(n.clone(), Err(format!("cannot start the S1 read: {e}")));
+                }
+            }
+        }
+        drop(tx);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(self.tick_budget_ms);
+        while waiting > 0 {
+            match rx.recv_timeout(deadline.saturating_duration_since(std::time::Instant::now())) {
+                Ok((n, r)) => {
+                    waiting -= 1;
+                    got.insert(n, r);
+                }
+                Err(_) => break,
+            }
+        }
+        let budget = self.tick_budget_ms;
+        names.iter().map(|n| (n.clone(), got.remove(n).unwrap_or_else(|| Err(format!("the S1 read missed the tick budget ({budget} ms)"))))).collect()
     }
 
     /// AL-4: the conversation signal of `session` at `now` (mono).
