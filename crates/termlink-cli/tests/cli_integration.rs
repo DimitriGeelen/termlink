@@ -273,13 +273,18 @@ fn cli_wait_receives_emitted_event() {
     // Give wait time to connect and start polling
     std::thread::sleep(Duration::from_secs(1));
 
-    // Emit the event (will be at seq=1, visible to since=1 polling)
-    let emit_output = termlink_cmd(&dir.path)
-        .args(["emit", "waitable", "hello", "--payload", r#"{"msg":"world"}"#])
-        .output()
-        .expect("Failed to run termlink emit");
-    assert!(emit_output.status.success(), "emit failed: {}",
-        String::from_utf8_lossy(&emit_output.stderr));
+    // Emit until the wait returns (T-3753): under a loaded `cargo test --workspace`
+    // the wait can start polling after a single emit and miss it. The wait's own
+    // --timeout 10 still bounds the test.
+    while !wait_handle.is_finished() {
+        let emit_output = termlink_cmd(&dir.path)
+            .args(["emit", "waitable", "hello", "--payload", r#"{"msg":"world"}"#])
+            .output()
+            .expect("Failed to run termlink emit");
+        assert!(emit_output.status.success(), "emit failed: {}",
+            String::from_utf8_lossy(&emit_output.stderr));
+        std::thread::sleep(Duration::from_millis(500));
+    }
 
     // Wait should complete successfully
     let wait_output = wait_handle.join().expect("Wait thread panicked");
