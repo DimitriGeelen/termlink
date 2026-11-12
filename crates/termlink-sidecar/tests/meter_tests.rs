@@ -341,6 +341,39 @@ fn fcw4_fcw5_prompt_origin_checks() {
     assert_eq!(origin(&r), Some((Origin::Automated, "harness-mark".into())));
 }
 
+/// F-4 (CR-6.4 / CR-B27.2): the counter check runs for every `human` origin of a
+/// PTY session, basis `inferred` included (the Claude Code default), and
+/// `client_auto` bytes after the doorbell line do not make it human.
+/// Control: run the check for basis `pty-input` only and the `inferred` rows stay human.
+#[test]
+fn f4_counter_check_for_every_human_origin() {
+    let r = rig();
+    let origin = |r: &Rig| r.m.last_prompt("s").map(|p| (p.origin, p.basis));
+    let t = r.at();
+    // The last PTY input before the prompt came from notify: the doorbell typed it.
+    r.set_s1("s", Some(t - 50), Some(t - 10), None);
+    r.ev("s", "prompt_submit", 1, json!({"origin": "human", "basis": "inferred"}));
+    assert_eq!(origin(&r), Some((Origin::Automated, "pty-input".into())));
+    r.set_s1("s", Some(t - 50), None, Some(t - 5));
+    r.ev("s", "prompt_submit", 2, json!({"origin": "human", "basis": "inferred"}));
+    assert_eq!(origin(&r), Some((Origin::Automated, "pty-input".into())));
+    // A terminal reply (client_auto) after the doorbell line is not a person typing.
+    r.set_s1("s", Some(t - 50), Some(t - 10), None);
+    r.s1.0.lock().unwrap().get_mut("s").unwrap().as_mut().unwrap().last.insert("client_auto".into(), Some(t - 1));
+    r.ev("s", "prompt_submit", 3, json!({"origin": "human", "basis": "inferred"}));
+    assert_eq!(origin(&r), Some((Origin::Automated, "pty-input".into())), "client_auto is ignored");
+    assert_eq!(r.m.counters().origin_overridden, 3);
+    // Client input last: human stays human with its basis.
+    r.set_s1("s", Some(t - 1), Some(t - 10), None);
+    r.ev("s", "prompt_submit", 4, json!({"origin": "human", "basis": "inferred"}));
+    assert_eq!(origin(&r), Some((Origin::Human, "inferred".into())));
+    // No PTY counters (an unbound or non-PTY session): `inferred` stays as reported.
+    r.s1.0.lock().unwrap().clear();
+    r.ev("s", "prompt_submit", 5, json!({"origin": "human", "basis": "inferred"}));
+    assert_eq!(origin(&r), Some((Origin::Human, "inferred".into())));
+    assert_eq!(r.m.counters().origin_overridden, 3);
+}
+
 /// FCW-7: 64 live sessions; the 65th is refused.
 #[test]
 fn fcw7_session_table_is_capped() {

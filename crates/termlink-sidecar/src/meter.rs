@@ -499,8 +499,9 @@ impl Meter {
             _ => {}
         }
         let rx = (self.clock)();
-        // AL-1 check_origin 3 needs the session's input counters as of now.
-        let origin_s1 = (event == "prompt_submit" && s("origin") == Some("human") && s("basis") == Some("pty-input")).then(|| self.s1.read(session));
+        // AL-1 check_origin 3 needs the session's input counters as of now, for
+        // every `human` prompt, whatever its basis (F-4, CR-6.4).
+        let origin_s1 = (event == "prompt_submit" && s("origin") == Some("human")).then(|| self.s1.read(session));
         let transcript = if event == "session_start" { s("transcript_path").map(|p| self.validate_transcript(p)) } else { None };
 
         let mut g = lock(&self.inner);
@@ -952,7 +953,9 @@ fn check_origin(c: &mut Counters, o: &str, b: &str, ids: &[String], typed: &[Str
         c.origin_overridden += 1; // FCW-5
         return (Origin::Automated, "doorbell".into());
     }
-    if origin == Origin::Human && b == "pty-input" {
+    // Every `human` origin of a PTY session is checked against the counters,
+    // basis `inferred` included (F-4, CR-6.4); `client_auto` is not input.
+    if origin == Origin::Human {
         let my_boot = termlink_session::input_meter::boot_id();
         let src = match s1 {
             Some(Ok(r)) if my_boot.is_some() && r.boot_id == my_boot => ["client", "notify", "inject"]
@@ -968,7 +971,8 @@ fn check_origin(c: &mut Counters, o: &str, b: &str, ids: &[String], typed: &[Str
                 return (Origin::Automated, "pty-input".into());
             }
             Some(_) => {}
-            None => return (Origin::Human, "inferred".into()), // cannot confirm pty-input
+            None if b == "pty-input" => return (Origin::Human, "inferred".into()), // cannot confirm pty-input
+            None => {} // no PTY counters (or no input yet): `inferred` stays as reported
         }
     }
     (origin, b.to_owned())
