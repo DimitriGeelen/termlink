@@ -332,7 +332,8 @@ fn b27_send_socket_takes_adapter_reports_and_status_shows_activity() {
     let act = &st["activity"]["sessions"];
     assert!(act["s-1"]["s2_at"].is_u64(), "{st}");
     assert!(act["s-2"]["s2_at"].is_u64(), "{st}");
-    assert_eq!(act["s-1"]["conversation"], "none");
+    // No prompt this epoch and S2 just now: a person may be mid-conversation (F-26, CR-6.23).
+    assert_eq!(act["s-1"]["conversation"], "operator");
     assert_eq!(st["activity"]["counters"]["adapter_reports_unparseable"], 1);
 }
 
