@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:09Z
-last_update: 2026-11-12T08:42:41Z
+last_update: 2026-11-12T09:54:56Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -255,6 +255,15 @@ grep -q 'task: T-3356' docs/design/interactive-agent-communication-role-chain.ya
   on .107) attacker has worse options than holding main; the detector makes abuse visible; closes with Track K.
 - **Rejected:** B block B-25 until the operator key (O-3 unbuilt for months); C accept without a detector.
 - **Scored:** A +21, C +5, B −21.
+
+### 2026-11-12 — F-1 (critical): the 300 s watchdog's ruled checks gain a typing re-check (operator: "A")
+- **Chose:** A, approve CR-4.1: architecture 6.9.7.b (ruled O-2 item 2 text) adds "no client input in the last 30 s,
+  re-read immediately before typing" to the watchdog's checks (kill switch, foreground harness, activity veto). The
+  reasons READY and the conversation signal stay excluded are unchanged. With it: CR-6.1 (AL-6 step 5 S1 re-read for
+  both `via` values, AL-8 invariant (1) corrected) and CR-5.1 (E-7 case with a mutant that drops the re-read).
+- **Why:** without it a person typing at the 300 s mark gets the line plus Enter inside a half-written prompt, which
+  O-2 set out to prevent; the watchdog's purpose (a stuck flag never holds mail forever) is not weakened.
+- **Rejected:** B keep the ruled text (accept typing into the operator's prompt); C another wording.
 
 ## Decision
 
