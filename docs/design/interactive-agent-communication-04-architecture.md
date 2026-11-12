@@ -444,7 +444,8 @@ wrapped_key, name_hint}` inside the signed payload; `name_hint` is display text 
 6.4.3.a (changed in v0.4 by CR-4.10) **Which key, and what the cipher binds.** The content key is wrapped to the agent
 whose inbox the message is posted to (for a role address, the agent the sender resolved the role to; for an exact
 instance, that instance's agent). The associated data of the encryption is a digest over the immutable fields of the
-signed envelope (`id`, `from`, `to` verbatim as sent, `conv`, `cipher_sha256`, `plain_sha256`, `size`), never over the
+signed envelope (`id`, `from`, `to` verbatim as sent, `conv`, `plain_sha256`, `size`; the ciphertext digest cannot be
+in it, and the AEAD tag already covers the ciphertext), never over the
 receiving agent's own name, so a role address (`to: main` or the project) opens at whichever agent legitimately holds
 the content key. A forwarder never forwards a key it cannot open: Y unwraps the content key with its own X25519 key
 and re-wraps it to X inside the FORWARD envelope it signs (7.2.b); the original message bytes, and with them the
@@ -634,9 +635,9 @@ still sees STUCK in time. The bound on lines per episode is therefore 2 (the rin
 6.9.7.e (changed in v0.4 by CR-4.6) **Watchdog and the ring schedule.** The watchdog's conditions (6.9.7.a) do not read
 the ring's back-off, so it may fire while the normal ring is in back-off, including with a fresh READY: back-off means
 rings did not lead to a hand-over, which is the case the watchdog exists for. It may not fire inside an unsubmitted
-episode except for the one line of 6.9.7.d. A watchdog line counts as a ring for the schedule: the back-off steps on
-(the next normal ring waits the next back-off step after the watchdog line), and the at-most-one-ring-per-session-per-
-tick rule of 6.9.4 covers both kinds.
+episode except for the one line of 6.9.7.d. A watchdog line puts the session into the awaiting-submit state like a ring
+but leaves the back-off step unchanged (the next normal ring after a submit waits the step it was already due), and the
+at-most-one-ring-per-session-per-tick rule of 6.9.4 covers both kinds.
 6.9.7.f (changed in v0.4 by CR-4.12 and the operator's ruling D on F-20, 2026-11-12) **Where the built veto cannot
 measure.** The built veto (T-3387) reads `/proc`. On macOS, the interim veto, built with B-16, is `ps`-based: the
 watchdog holds (`held:veto`) when the harness's process tree has a running child process, or the tree uses noticeable
@@ -850,8 +851,9 @@ copy's route, not for the message id. When a receiver whose own copy of an id is
 (the sender re-sent it after FORWARD-STALE and resolution landed on this receiver again), it does not dedupe it
 silently by the identity triple: it re-admits the message (FORWARDED → STORED, recorded with the reason) and runs the
 rule of 7.2 again against the current lease, so the message is forwarded to the current holder or delivered here. A
-message id re-admitted more than the hop limit (PN-17) is refused with a notice that tells the sender to send it under
-a new id, and is listed to the operator; it is never left with no offerable copy anywhere.
+message id re-admitted more than three times (the hop limit, PN-17) is delivered at this receiver and not forwarded
+again, with a needs-attention entry; no new notice kind is needed (FP-2), and it is never left with no offerable copy
+anywhere.
 7.4 **Cross-host.** All agents of a project use the declared home hub (R-54), so the forward is always a post to that
 hub; X may be on another host. A forwarder on a host that cannot reach the home hub has no lease (unknown) and does
 not forward.
