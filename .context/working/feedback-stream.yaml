@@ -23181,3 +23181,21 @@ scan_id: R-f3aec83d
 task_id: T-3364
 payload:
   task_file: .tasks/active/T-3364-preflight-ntp-synchronised-clock-check-c.md
+---
+kind: scan_emitted
+timestamp: '2026-11-12T18:57:09Z'
+scan_id: R-37f20245
+task_id: T-3711
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-12T18:57:09Z'
+scan_id: R-37f20245
+task_id: T-3711
+payload:
+  task_file: .tasks/active/T-3711-p-27-b-26-session-message-prover-on-the-.md

@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3711: P-27: B-26 session message prover on the TermLink rail
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T18:57:18Z
+# ============================================================================
+
+task_id: T-3711
+task_name: "P-27: B-26 session message prover on the TermLink rail"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T16:56:49Z
+completed: 2026-11-12T18:55:22Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-11-12T19:55:17+01:00
+last_commit: 2026-11-12T19:55:17+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  P-27 B-26 session message prover re-based on the TermLink rail — hook_additional_context evidence, receiver-inbox ENQUEUED, prove (live pass + never-sent control) and verify-record (P-28 gate, sha256-bound); SendMessage kept as --rail sendmessage; 118 fixtures + 9/9 mutants killed; live pass run-20261112T185138Z-3417203
+
+# Key outcomes
+outcomes:
+  - 'The B-26 spec passes; assert-on-the-receiver and the prover''s mutants are kept'
+  - 'On the TermLink rail DELIVERED gives rc 0 and a never-sent control gives UNDELIVERED rc 1'
+  - 'The unit''s fixture suite exits 0 with a PASS line per listed E-n and its mutant list is all killed (FP 3.1.b)'
+  - 'One live pass with a negative control, recorded in this task'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'P-27 B-26 session message prover re-based on the TermLink rail — hook_additional_context evidence, receiver-inbox ENQUEUED, prove (live pass + never-sent control) and verify-record (P-28 gate, sha256-bound); SendMessage kept as --rail sendmessage; 118 fixtures + 9/9 mutants killed; live pass run-20261112T185138Z-3417203'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — re-base in place, keep SendMessage as a rail flag'
+    chose: 'extend `scripts/session-message-selftest.sh` with `--rail termlink` (default) and keep `--rail sendmessage` (T-2876 behaviour); same fixture file; the mutants run inside the suite.'
+    rationale: '04 B-26 and 05 E-74.1 name this script; the rollback ("T-2876 prover kept until this one is proven") is a flag, not a second copy that drifts.'
+    alternatives_rejected: ['a new script beside the old one (two provers to keep in step; P-28''s gate would have to pick).']
+  - decision: '2026-11-12 — record bound to the script''s sha256'
+    chose: 'each assert can append a JSON line (rail, role, run_id, verdict, rc, script_sha256) to `.context/project/session-message-prover.jsonl` (committed, so it survives a fresh clone).'
+    rationale: 'AL-40 requires the evidence to be newer than the prover''s last change; a content hash cannot be fooled by a touch or by a checkout resetting mtimes.'
+    alternatives_rejected: ['an mtime comparison; `.context/working/` (gitignored, lost on clone).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/session-message-prover.jsonl'
+  - '.tasks/active/T-3711-p-27-b-26-session-message-prover-on-the-.md'
+  - 'CLAUDE.md'
+  - 'scripts/session-message-selftest.sh'
+  - 'tests/session-message-selftest-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T19:55:17'
+    action: 'T-3711: P-27 B-26 session message prover re-based on the TermLink rail — hook_additional_context evidence, receiver-inbox ENQUEUED, prove (live pass + never-sent control) and verify-record (P-28 gate, sha256-bound); SendMessage kept as --rail sendmessage; 118 fixtures + 9/9 mutants killed; live pass run-20261112T185138Z-3417203'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 118 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 118
+  commits: 2
+  files_changed: 8
+  lines_added: 750
+  lines_removed: 111
+  footprint_refreshed_at: '2026-11-12T18:57:34Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3711-p-27-b-26-session-message-prover-on-the-.md
+generated_by: context-agent-hybrid

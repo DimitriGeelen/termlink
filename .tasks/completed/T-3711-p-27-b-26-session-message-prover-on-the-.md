@@ -6,12 +6,12 @@ description: >
   approved G-0 2026-11-12): B-26: session message prover re-based on the TermLink
   rail (successor of T-2876), keeping assert-on-the-receiver and its mutants
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [scripts/session-message-selftest.sh, tests/session-message-selftest-fixtures.sh]
 related_tasks: [T-3357, T-2876]
 plan_unit: P-27
 arc_id: arc-011
@@ -44,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:49Z
-last_update: 2026-11-12T18:55:17Z
-date_finished:
+last_update: 2026-11-12T18:55:22Z
+date_finished: 2026-11-12T18:55:22Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -452,3 +452,16 @@ grep -q '"rail": "termlink", "role": "probe", "run_id": "run-20261112T185138Z-34
 - Probe `SMS-PROBE-20261112T185138Z-3417203`: DELIVERED rc 0 (found in a `hook_additional_context` attachment).
 - Control `SMS-CONTROL-20261112T185138Z-3417203` (never sent), same transcript: UNDELIVERED rc 1.
 - Unobservable receiver (no transcript): TOOLING rc 2. `verify-record` → VERIFY=PASS.
+
+### 2026-11-12T18:55:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-37f20245
+- **Timestamp:** 2026-11-12T18:57:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
