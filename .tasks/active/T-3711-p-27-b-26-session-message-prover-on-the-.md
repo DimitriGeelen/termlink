@@ -2,12 +2,14 @@
 id: T-3711
 name: "P-27: B-26 session message prover on the TermLink rail"
 description: >
-  arc-011 plan unit P-27 (docs/design/interactive-agent-communication-08-plan.md v0.3, approved G-0 2026-11-12): B-26: session message prover re-based on the TermLink rail (successor of T-2876), keeping assert-on-the-receiver and its mutants
+  arc-011 plan unit P-27 (docs/design/interactive-agent-communication-08-plan.md v0.3,
+  approved G-0 2026-11-12): B-26: session message prover re-based on the TermLink
+  rail (successor of T-2876), keeping assert-on-the-receiver and its mutants
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: [T-3357, T-2876]
@@ -42,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:49Z
-last_update: 2026-11-12T16:56:49Z
-date_finished: null
+last_update: 2026-11-12T18:55:17Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -54,6 +56,26 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-12T18:35:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 3
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=3 (L3:keyword=rollback); D1=2 (body:learning-ref);
+      D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0 (L0: no signal);
+      F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3711: P-27: B-26 session message prover on the TermLink rail
@@ -82,10 +104,10 @@ Unblocks: P-28 (T-3712, field: passed live with its negative control).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The B-26 spec passes; assert-on-the-receiver and the prover's mutants are kept
-- [ ] On the TermLink rail DELIVERED gives rc 0 and a never-sent control gives UNDELIVERED rc 1
-- [ ] The unit's fixture suite exits 0 with a PASS line per listed E-n and its mutant list is all killed (FP 3.1.b)
-- [ ] One live pass with a negative control, recorded in this task
+- [x] The B-26 spec passes; assert-on-the-receiver and the prover's mutants are kept
+- [x] On the TermLink rail DELIVERED gives rc 0 and a never-sent control gives UNDELIVERED rc 1
+- [x] The unit's fixture suite exits 0 with a PASS line per listed E-n and its mutant list is all killed (FP 3.1.b)
+- [x] One live pass with a negative control, recorded in this task
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -138,7 +160,10 @@ Unblocks: P-28 (T-3712, field: passed live with its negative control).
 ## Verification
 
 # Plan P-27 check (08-plan section 4): fixture suite exits 0 with a PASS line per E-n, mutant list all killed
-# (FP 3.1.b); one live pass with a negative control. Replace with the fixture command before closing (L-387 form).
+# (FP 3.1.b); one live pass with a negative control (recorded in .context/project/session-message-prover.jsonl).
+bash -n scripts/session-message-selftest.sh
+TMPDIR=/var/tmp bash tests/session-message-selftest-fixtures.sh > .context/working/.t3711-fx.out 2>&1 && grep -q "^PASS E-74 " .context/working/.t3711-fx.out && grep -q "^MUTANTS: 9/9 killed" .context/working/.t3711-fx.out
+grep -q '"rail": "termlink", "role": "probe", "run_id": "run-20261112T185138Z-3417203", "verdict": "DELIVERED", "rc": 0' .context/project/session-message-prover.jsonl && grep -q '"rail": "termlink", "role": "control", "run_id": "run-20261112T185138Z-3417203", "verdict": "UNDELIVERED", "rc": 1' .context/project/session-message-prover.jsonl
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -333,6 +358,19 @@ Unblocks: P-28 (T-3712, field: passed live with its negative control).
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-12 — what the TermLink rail's receiver evidence actually is
+- **What changed:** Measured live: `fw sidecar send` answers `delivered: true, state: HUB_ACCEPTED` with
+  `receiver: none-registered`, the same sender-side lie as SendMessage's `success:true`. On the receiver the
+  mail appears as a harness-written `attachment` of type `hook_additional_context` (UserPromptSubmit
+  `fw hook sidecar-inbox`), not as a `user` turn; the sentinel also appears in an `api-request-blob`, which
+  must not count. "Queued" on this rail is the receiver's own inbox topic, not a transcript record.
+- **Plan impact:** no SendMessage-style `prepare --existing` target is needed on TermLink: `prove` makes a
+  throwaway agent id, sends, and wakes a headless probe (`claude -p --session-id`) that owns that inbox, so
+  the live pass touches no operator or worker session. The probe needs `FW_FOCUS_SESSION_KEY` equal to its
+  agent id (and no `TERMLINK_SESSION`), or its inbox circuit nests under the caller's and it never sees the mail.
+- **Triggered:** `verify-record` for P-28 (T-3712): its gate (06a AL-40, FCW-147) can call it instead of
+  re-parsing the record; it binds the evidence to the script's sha256 rather than mtime.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -373,6 +411,20 @@ Unblocks: P-28 (T-3712, field: passed live with its negative control).
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-12 — re-base in place, keep SendMessage as a rail flag
+- **Chose:** extend `scripts/session-message-selftest.sh` with `--rail termlink` (default) and keep
+  `--rail sendmessage` (T-2876 behaviour); same fixture file; the mutants run inside the suite.
+- **Why:** 04 B-26 and 05 E-74.1 name this script; the rollback ("T-2876 prover kept until this one is
+  proven") is a flag, not a second copy that drifts.
+- **Rejected:** a new script beside the old one (two provers to keep in step; P-28's gate would have to pick).
+
+### 2026-11-12 — record bound to the script's sha256
+- **Chose:** each assert can append a JSON line (rail, role, run_id, verdict, rc, script_sha256) to
+  `.context/project/session-message-prover.jsonl` (committed, so it survives a fresh clone).
+- **Why:** AL-40 requires the evidence to be newer than the prover's last change; a content hash cannot be
+  fooled by a touch or by a checkout resetting mtimes.
+- **Rejected:** an mtime comparison; `.context/working/` (gitignored, lost on clone).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -389,3 +441,14 @@ Unblocks: P-28 (T-3712, field: passed live with its negative control).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3711-p-27-b-26-session-message-prover-on-the-.md
 - **Context:** Initial task creation
+
+### 2026-11-12T18:35:55Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-12T18:52Z — live pass with negative control [t3711-unit]
+- `bash scripts/session-message-selftest.sh prove` → rc 0, run `run-20261112T185138Z-3417203`, probe session
+  `47ff3259-3181-4d41-a3b0-530916b94eec`, receiver agent `sms-probe-20261112T185138Z-3417203`.
+- Probe `SMS-PROBE-20261112T185138Z-3417203`: DELIVERED rc 0 (found in a `hook_additional_context` attachment).
+- Control `SMS-CONTROL-20261112T185138Z-3417203` (never sent), same transcript: UNDELIVERED rc 1.
+- Unobservable receiver (no transcript): TOOLING rc 2. `verify-record` → VERIFY=PASS.

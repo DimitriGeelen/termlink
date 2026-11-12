@@ -613,6 +613,19 @@ reachability gate, and collapsing ENQUEUED into UNDELIVERED).
 **Live-proven** 2026-09-01 against a real peer: DELIVERED rc 0; a control sentinel that was
 never sent, UNDELIVERED rc 1; an unobservable receiver, TOOLING rc 2.
 
+**Re-based on the TermLink rail (T-3711, arc-011 P-27 / B-26 / E-74).** `--rail termlink` is now
+the default; `--rail sendmessage` keeps the T-2876 behaviour for rollback until P-28's deny.
+On TermLink, delivery evidence is a harness-written `attachment` of type `hook_additional_context`
+carrying the sentinel (or a `user` turn); a `hook_success` echo or `api-request-blob` is not.
+"Queued" is the sentinel still waiting on the receiver's own inbox (`fw sidecar inbox --peek` as
+its agent id); an unreadable inbox is TOOLING, so ENQUEUED and UNDELIVERED never collapse.
+`bash scripts/session-message-selftest.sh prove` runs the whole live pass: it sends to a throwaway
+agent id, wakes a headless probe session that owns that inbox, and asserts the probe (DELIVERED rc 0)
+and a never-sent control (UNDELIVERED rc 1) on the probe's transcript. Both lines go to
+`.context/project/session-message-prover.jsonl`. `verify-record` (the P-28 gate) passes only on such
+a pair made by the current script's sha256. Live-proven 2026-11-12 (run-20261112T185138Z-3417203).
+Fixtures: 118 assertions + 9 mutants all killed.
+
 
 ### Shipped == Live gate (T-2480, G-069 prevention)
 
