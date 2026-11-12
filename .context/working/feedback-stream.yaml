@@ -23325,3 +23325,21 @@ scan_id: R-bbaf5d51
 task_id: T-3695
 payload:
   task_file: .tasks/active/T-3695-p-5-pull-withholds-only-role-mail-from-a.md
+---
+kind: scan_emitted
+timestamp: '2026-11-12T22:22:13Z'
+scan_id: R-389090f9
+task_id: T-3696
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-12T22:22:13Z'
+scan_id: R-389090f9
+task_id: T-3696
+payload:
+  task_file: .tasks/active/T-3696-p-6-b-11-per-agent-encryption-keys-and-t.md

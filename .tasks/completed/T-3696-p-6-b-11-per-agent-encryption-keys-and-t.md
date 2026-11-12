@@ -6,12 +6,12 @@ description: >
   approved G-0 2026-11-12): B-11: per-agent encryption keys in the register, encryption
   wrapper (TLBLOB v1), artifact writer check
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-bus/src/artifact_store.rs, crates/termlink-bus/src/error.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-protocol/src/lib.rs, crates/termlink-sidecar/src/api.rs, crates/termlink-sidecar/src/daemon.rs, crates/termlink-sidecar/src/lib.rs, crates/termlink-sidecar/tests/acceptance.rs, crates/termlink-sidecar/tests/fc_matrix.rs, crates/termlink-sidecar/tests/hooks_live.rs, crates/termlink-sidecar/tests/hooks_tests.rs, crates/termlink-sidecar/tests/p7_wiring_tests.rs, crates/termlink-sidecar/tests/supervision_tests.rs]
 related_tasks: [T-3357, T-3694, T-3426]
 plan_unit: P-6
 arc_id: arc-011
@@ -44,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:30Z
-last_update: 2026-11-12T22:15:01Z
-date_finished:
+last_update: 2026-11-12T22:19:31Z
+date_finished: 2026-11-12T22:19:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -104,11 +104,11 @@ Unblocks: P-7 (T-3697), P-21 (T-3707), P-22 (T-3614), P-30 (T-3669), P-31 (T-371
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The B-11 specs pass (per-agent keys in the register, TLBLOB v1 wrapper, artifact writer check)
-- [ ] The unit's fixture suite exits 0 with a PASS line per B-11 E-n and its mutant list is all killed (FP 3.1.b)
+- [x] The B-11 specs pass (per-agent keys in the register, TLBLOB v1 wrapper, artifact writer check)
+- [x] The unit's fixture suite exits 0 with a PASS line per B-11 E-n and its mutant list is all killed (FP 3.1.b)
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
+<!-- No Human criteria: every criterion of this unit is agent-verifiable.
+     Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
 
@@ -158,8 +158,10 @@ Unblocks: P-7 (T-3697), P-21 (T-3707), P-22 (T-3614), P-30 (T-3669), P-31 (T-371
 ## Verification
 
 # Plan P-6 check (08-plan section 4): fixture suite exits 0 with a PASS line per B-11 E-n and its mutant list all
-# killed (FP 3.1.b). The suite is written by this task: replace these comment lines with its command before closing
-# (redirect-then-grep form, L-387).
+# killed (FP 3.1.b). Redirect-then-grep (L-387); each line keeps the producer's exit code.
+bash tests/b11-enckey-fixtures.sh > .context/working/t3696/v-fixtures.out 2>&1 && grep -q "ALL IN-SCOPE PASS" .context/working/t3696/v-fixtures.out && ! grep -q "^FAIL" .context/working/t3696/v-fixtures.out
+grep -q "^PASS E-47 " .context/working/t3696/v-fixtures.out && grep -q "^PASS E-48 " .context/working/t3696/v-fixtures.out && grep -q "^PASS E-144 " .context/working/t3696/v-fixtures.out && grep -q "^PASS E-168 " .context/working/t3696/v-fixtures.out
+bash tests/b11-enckey-fixtures.sh --mutants > .context/working/t3696/v-mutants.out 2>&1 && grep -q "ALL MUTANTS KILLED" .context/working/t3696/v-mutants.out && ! grep -q "^SURVIVED\|^TOOLING" .context/working/t3696/v-mutants.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -354,6 +356,11 @@ Unblocks: P-7 (T-3697), P-21 (T-3707), P-22 (T-3614), P-30 (T-3669), P-31 (T-371
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-12 — wrapper format version, writer class, deferred parts
+- **What changed:** the plan row names "TLBLOB v1", but 06a 2.10.c (CR-6.14) moved the format to version 2 ("v1 never shipped"), because v1's associated data bound the recipient's name, which a role address or a forward cannot satisfy. 06a AL-27/AL-28 still say version 1 in their header checks; that is a leftover of the same change. Built: version 2 only, and version 1 is refused.
+- **Plan impact:** the hub cannot tell a baseline writer from a new one by itself, so `artifact.put` gained an optional `writer` parameter. Absent: a baseline writer, stored as today (NID). Present: the wrapper header is required at finalize. A writer that omits the parameter is the E-150 inventory concern (06a 2.12.f (1)); the hub cannot detect it.
+- **Triggered:** E-47's L4 part (send through a hub, the over-cap inline field) needs the blob send path and is left to P-21 (T-3707), which also lists E-47. E-168's QUOTA and failed-upload parts belong to B-7 and B-12. The live E-144 check is P-31 (T-3713). A mint verb for provisioning key pairs through runme is not built here; P-31 needs it.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -394,6 +401,16 @@ Unblocks: P-7 (T-3697), P-21 (T-3707), P-22 (T-3614), P-30 (T-3669), P-31 (T-371
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-12 — production without a configured register
+- **Chose:** the register check is opt-in per agent through `enc_key_register` in the sidecar config. Configured: every defect refuses start (FCW-109, FCW-110). Not configured: the sidecar starts with `keys.encryption: not provisioned`, and blob paths must refuse.
+- **Why:** the W1 sidecars run in production today without an encryption key. Refusing their start after an upgrade would switch off a working route before its replacement is provisioned (operator rule, T-3353 OP-23). The plan row's rollback ("writers fall back to refusing blobs, never plaintext") is this state.
+- **Rejected:** requiring the register in production at once (the running W1 pair would refuse its next restart until P-31 provisions keys).
+
+### 2026-11-12 — status wiring
+- **Chose:** the start-up check writes its view to `<store>/keys/encryption.json`, and `status` reads it with one line.
+- **Why:** T-3695 had uncommitted `Ctx` constructors in `api.rs`; a new `Ctx` field would have broken its build.
+- **Rejected:** a `Ctx`/`ApiConfig` field (collision with the parallel unit).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -414,3 +431,16 @@ Unblocks: P-7 (T-3697), P-21 (T-3707), P-22 (T-3614), P-30 (T-3669), P-31 (T-371
 ### 2026-11-12T22:00:14Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-12T22:19:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-389090f9
+- **Timestamp:** 2026-11-12T22:22:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

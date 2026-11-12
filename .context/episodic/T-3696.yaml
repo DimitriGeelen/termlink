@@ -1,0 +1,109 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3696: P-6: B-11 per-agent encryption keys and TLBLOB v1 wrapper
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T22:22:52Z
+# ============================================================================
+
+task_id: T-3696
+task_name: "P-6: B-11 per-agent encryption keys and TLBLOB v1 wrapper"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T16:56:30Z
+completed: 2026-11-12T22:19:31Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-12T23:15:01+01:00
+last_commit: 2026-11-12T23:15:01+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  P-6 B-11 per-agent X25519 encryption keys and the TLBLOB wrapper (06a AL-25, AL-26 step 4, AL-28) — sidecar start-up check against the root-owned register (mismatch refuses with both fingerprints FCW-109; missing, not root-owned, group/world-writable, link or non-key refuses naming the entry FCW-110; production never mints); status keys.encryption; no register configured = rollback state (not provisioned, blobs refused, NID); TLBLOB format v2 (CR-6.14) XChaCha20-Poly1305 + sealed-box content key, associated data over the immutable envelope fields with to verbatim; hub artifact.put writer check: a put naming a writer class must carry the wrapper header or is refused at finalize and never promoted, puts without one (the baseline writers) unchanged; fixture suite tests/b11-enckey-fixtures.sh with 13 mutants
+
+# Key outcomes
+outcomes:
+  - 'The B-11 specs pass (per-agent keys in the register, TLBLOB v1 wrapper, artifact writer check)'
+  - 'The unit''s fixture suite exits 0 with a PASS line per B-11 E-n and its mutant list is all killed (FP 3.1.b)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'P-6 B-11 per-agent X25519 encryption keys and the TLBLOB wrapper (06a AL-25, AL-26 step 4, AL-28) — sidecar start-up check against the root-owned register (mismatch refuses with both fingerprints FCW-109; missing, not root-owned, group/world-writable, link or non-key refuses naming the entry FCW-110; production never mints); status keys.encryption; no register configured = rollback state (not provisioned, blobs refused, NID); TLBLOB format v2 (CR-6.14) XChaCha20-Poly1305 + sealed-box content key, associated data over the immutable envelope fields with to verbatim; hub artifact.put writer check: a put naming a writer class must carry the wrapper header or is refused at finalize and never promoted, puts without one (the baseline writers) unchanged; fixture suite tests/b11-enckey-fixtures.sh with 13 mutants'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — production without a configured register'
+    chose: 'the register check is opt-in per agent through `enc_key_register` in the sidecar config. Configured: every defect refuses start (FCW-109, FCW-110). Not configured: the sidecar starts with `keys.encryption: not provisioned`, and blob paths must refuse.'
+    rationale: 'the W1 sidecars run in production today without an encryption key. Refusing their start after an upgrade would switch off a working route before its replacement is provisioned (operator rule, T-3353 OP-23). The plan row''s rollback ("writers fall back to refusing blobs, never plaintext") is this state.'
+    alternatives_rejected: ['requiring the register in production at once (the running W1 pair would refuse its next restart until P-31 provisions keys).']
+  - decision: '2026-11-12 — status wiring'
+    chose: 'the start-up check writes its view to `<store>/keys/encryption.json`, and `status` reads it with one line.'
+    rationale: 'T-3695 had uncommitted `Ctx` constructors in `api.rs`; a new `Ctx` field would have broken its build.'
+    alternatives_rejected: ['a `Ctx`/`ApiConfig` field (collision with the parallel unit).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3695.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.tasks/active/T-3696-p-6-b-11-per-agent-encryption-keys-and-t.md'
+  - '.tasks/completed/T-3695-p-5-pull-withholds-only-role-mail-from-a.md'
+  - 'Cargo.lock'
+  - 'crates/termlink-bus/src/artifact_store.rs'
+  - 'crates/termlink-bus/src/error.rs'
+  - 'crates/termlink-hub/src/artifact.rs'
+  - 'crates/termlink-protocol/src/lib.rs'
+  - 'crates/termlink-protocol/src/tlblob.rs'
+  - 'crates/termlink-sidecar/Cargo.toml'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/enckey.rs'
+  - 'crates/termlink-sidecar/src/enckey_tests.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/tests/acceptance.rs'
+  - 'crates/termlink-sidecar/tests/b11_enckey_wiring.rs'
+  - 'crates/termlink-sidecar/tests/b25_mail_waiting_wiring.rs'
+  - 'crates/termlink-sidecar/tests/fc_matrix.rs'
+  - 'crates/termlink-sidecar/tests/hooks_live.rs'
+  - 'crates/termlink-sidecar/tests/hooks_tests.rs'
+  - 'crates/termlink-sidecar/tests/p7_wiring_tests.rs'
+  - 'crates/termlink-sidecar/tests/supervision_tests.rs'
+  - 'tests/b11-enckey-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T23:15:01'
+    action: 'T-3696: P-6 B-11 per-agent X25519 encryption keys and the TLBLOB wrapper (06a AL-25, AL-26 step 4, AL-28) — sidecar start-up check against the root-owned register (mismatch refuses with both fingerprints FCW-109; missing, not root-owned, group/world-writable, link or non-key refuses naming the entry FCW-110; production never mints); status keys.encryption; no register configured = rollback state (not provisioned, blobs refused, NID); TLBLOB format v2 (CR-6.14) XChaCha20-Poly1305 + sealed-box content key, associated data over the immutable envelope fields with to verbatim; hub artifact.put writer check: a put naming a writer class must carry the wrapper header or is refused at finalize and never promoted, puts without one (the baseline writers) unchanged; fixture suite tests/b11-enckey-fixtures.sh with 13 mutants'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 323 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 323
+  commits: 2
+  files_changed: 27
+  lines_added: 1504
+  lines_removed: 31
+  footprint_refreshed_at: '2026-11-12T22:23:34Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3696-p-6-b-11-per-agent-encryption-keys-and-t.md
+generated_by: context-agent-hybrid
