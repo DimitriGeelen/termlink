@@ -694,6 +694,28 @@ lt_reset() {  # the user's own hubs.toml: two profiles and its old secret copy; 
 lt_reset
 export RUNME_LOCALTOK_USER="$LTU" RUNME_LOCALTOK_HOME="$LH" RUNME_LOCALTOK_RUN="$F/lt-run" \
        RUNME_LOCALTOK_TL="$F/rr-tl" RUNME_LOCALTOK_PATHTL="$F/lt-pathtl"
+# T-3758 action 22d: the user's scratch home holds the old 0.11.931 copy in ~/.local/bin (mode 750).
+# The fake "runuser" logs its argv and runs the stdin script with HOME = that home and a login-like
+# PATH: ~/bin, ~/.local/bin, then the "system" dir with the current fake termlink (0.12.77), whose
+# `channel list` logs who called it and exits FAKE_STL_AUTH_RC. FAKE_STL_DOWN=1 answers nothing.
+SH="$F/stl-home"; SSYS="$F/stl-sys"; mkdir -p "$SSYS"
+cat > "$F/stl-run" <<'EOS'
+#!/usr/bin/env bash
+echo "argv: $*" >> "$FAKE_FLEET_DIR/stl-argv"
+[ "${FAKE_STL_DOWN:-0}" = 1 ] && { cat >/dev/null; exit 3; }
+HOME="$2" PATH="$2/bin:$2/.local/bin:$FAKE_STL_SYS:/usr/bin:/bin" bash -s
+EOS
+cat > "$SSYS/termlink" <<'EOS'
+#!/usr/bin/env bash
+[ "${1:-}" = --version ] && { echo "termlink 0.12.77"; exit 0; }
+[ "${1:-} ${2:-}" = "channel list" ] && { echo "list $HOME $*" >> "$FAKE_FLEET_DIR/stl-auth"; exit "${FAKE_STL_AUTH_RC:-0}"; }
+exit 0
+EOS
+chmod +x "$F/stl-run" "$SSYS/termlink"
+stl_old() { printf '#!/usr/bin/env bash\necho "termlink %s"\n' "$1" > "$2"; chmod 750 "$2"; }   # <version> <path>
+stl_reset() { rm -rf "$SH" "$F/stl-argv" "$F/stl-auth"; mkdir -p "$SH/.local/bin"; stl_old 0.11.931 "$SH/.local/bin/termlink"; }
+stl_reset
+export FAKE_STL_SYS="$SSYS" RUNME_STALETL_RUN="$F/stl-run" RUNME_STALETL_HOME="$SH" RUNME_STALETL_CUR="$SSYS/termlink"
 # The install cases run with the recorded ruling (Q3 = A); the held default has its own case
 # (RUNME_ROLLUP_CREDENTIAL_DECISION set but empty).
 export RUNME_ROLLUP_CREDENTIAL_DECISION="fixture: decided"
@@ -804,7 +826,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 45 ))   # +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 46 ))   # +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1884,7 +1906,7 @@ if [ "$rc" = "0" ] && [ -e "$TOKSTATE" ]; then ok "22b: restored to the installe
 # ---------------------------------------------------------------------------
 # T-3756 action 22c — the non-root design user's own .107 token, through fakes.
 # ---------------------------------------------------------------------------
-s22c() { echo "$1" | sed -n '/^.*22c\. /,/^.*23\. Daily telemetry rollup/p'; }
+s22c() { echo "$1" | sed -n '/^.*22c\. /,/^.*22d\. /p'; }
 LTOK="$LH/.termlink/secrets/107-local.token"; LSTATE="$F/tok-state/local-$LTU.state"; LT="local:$LTU"
 lt_reset; cp "$LH/.termlink/hubs.toml" "$TMP/lt-hubs.before"; cp "$LH/.termlink/secrets/hub.secret" "$TMP/lt-secret.before"
 n=$(mints); out=$(run --dry-run); x=$(s22c "$out")
@@ -1998,6 +2020,68 @@ if grep -q '2>> .context/working/.fleet-token-remint-canary.log.stderr$' "$REPO_
    && grep -q -- '--cron >> .context/working/.fleet-token-remint-canary.log ' "$REPO_ROOT/.context/cron/fleet-token-remint.crontab"; then
     ok "remint cron: findings and stderr go to separate sinks (T-2685), named for /canaries discovery"
 else bad "remint crontab sinks"; fi
+
+# ---------------------------------------------------------------------------
+# T-3758 action 22d — the design user's stale ~/.local/bin/termlink moved aside, through fakes.
+# ---------------------------------------------------------------------------
+s22d() { echo "$1" | sed -n '/^.*22d\. /,/^.*23\. Daily telemetry rollup/p'; }
+SOLD="$SH/.local/bin/termlink"; SBAK="$SOLD.bak-0.11.931"
+stl_reset; orig_sha=$(sha256sum < "$SOLD"); out=$(run --dry-run); x=$(s22d "$out")
+if echo "$x" | grep_all -F "[DRY]   would move $SOLD (0.11.931, 750:$LTU:" && [ -f "$SOLD" ] && [ ! -e "$SBAK" ] && [ ! -e "$F/stl-auth" ]; then
+    ok "22d: --dry-run names the move, moves nothing, runs no round trip"
+else bad "22d dry-run" "$x"; fi
+out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all -F "OK      moved $SOLD to $SBAK (750:$LTU:" && echo "$x" | grep_all -F "PATH runs $SSYS/termlink 0.12.77" \
+   && [ ! -e "$SOLD" ] && [ -f "$SBAK" ] && [ "$(sha256sum < "$SBAK")" = "$orig_sha" ] && [ "$(stat -c %a:%U "$SBAK")" = "750:$LTU" ]; then
+    ok "22d: moves the 0.11.931 copy to termlink.bak-0.11.931 (same sha256, mode 750 and owner kept); the user's PATH runs the current one"
+else bad "22d move" "rc=$rc: $x"; fi
+if grep -qx "list $SH channel list --hub 127.0.0.1:9100" "$F/stl-auth" && [ -s "$F/stl-argv" ] && ! grep -vqx "argv: $LTU $SH" "$F/stl-argv"; then
+    ok "22d: every step runs as the user (runuser argv = user + home only), and the bare termlink round trip used 127.0.0.1:9100"
+else bad "22d as user" "$(cat "$F/stl-auth" "$F/stl-argv" 2>/dev/null)"; fi
+bak_before=$(sha256sum < "$SBAK"); out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all -F "skip    already moved to $SBAK" && [ "$(sha256sum < "$SBAK")" = "$bak_before" ] && [ ! -e "$SOLD" ]; then
+    ok "22d: second run skips (idempotent), backup unchanged"
+else bad "22d idempotent" "rc=$rc: $x"; fi
+# An identical backup left by an earlier attempt may be replaced: same bytes, nothing lost.
+stl_reset; cp -p "$SOLD" "$SBAK"; out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all -F "OK      moved $SOLD to $SBAK" && [ ! -e "$SOLD" ] && [ "$(sha256sum < "$SBAK")" = "$orig_sha" ]; then
+    ok "22d: an existing byte-identical backup => moved, still one copy of the same bytes"
+else bad "22d identical backup" "rc=$rc: $x"; fi
+# Negative controls: each FAILED with rc 1, never OK or skip.
+stl_reset; echo "someone else's file" > "$SBAK"; cp "$SBAK" "$TMP/stl-bak.before"; out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $SBAK already exists with different content; refusing to overwrite it" \
+   && cmp -s "$SBAK" "$TMP/stl-bak.before" && [ "$(sha256sum < "$SOLD")" = "$orig_sha" ] && ! echo "$x" | grep_all -E '^  (OK|skip) '; then
+    ok "22d control: backup already exists with different content => FAILED rc 1, both files byte-identical"
+else bad "22d backup differs" "rc=$rc: $x"; fi
+stl_reset; mkdir -p "$SH/bin"; stl_old 0.11.931 "$SH/bin/termlink"; out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $LTU's PATH still resolves termlink to $SH/bin/termlink 0.11.931, not the current 0.12.77" \
+   && echo "$x" | grep_all -F "undo: rename $SBAK back to termlink" && [ -f "$SBAK" ] && ! echo "$x" | grep_all -E '^  (OK|skip) '; then
+    ok "22d control: resolution still stale after the move (another old copy earlier on PATH) => FAILED rc 1, names the undo"
+else bad "22d still stale" "rc=$rc: $x"; fi
+out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $LTU's PATH still resolves termlink to $SH/bin/termlink"; then
+    ok "22d control: re-run with the stale copy still first on PATH => still FAILED (never skip)"
+else bad "22d still stale rerun" "rc=$rc: $x"; fi
+stl_reset; out=$(FAKE_STL_AUTH_RC=1 run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $LTU's termlink is the current 0.12.77 ($SSYS/termlink), but 'termlink channel list --hub 127.0.0.1:9100' as $LTU failed (rc 1)" \
+   && ! echo "$x" | grep_all -E '^  (OK|skip) '; then
+    ok "22d control: the round trip as the user fails => FAILED rc 1"
+else bad "22d round trip" "rc=$rc: $x"; fi
+stl_reset; stl_old 0.11.900 "$SOLD"; s_before=$(sha256sum < "$SOLD"); out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $SOLD is version 0.11.900, not 0.11.931" && [ "$(sha256sum < "$SOLD")" = "$s_before" ] && [ ! -e "$SBAK" ]; then
+    ok "22d control: the old copy is not 0.11.931 => FAILED rc 1, left untouched, no backup"
+else bad "22d other version" "rc=$rc: $x"; fi
+stl_reset; out=$(FAKE_STL_DOWN=1 run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $LTU: no answer over runuser as $LTU; nothing changed" && [ -f "$SOLD" ] && [ ! -e "$SBAK" ]; then
+    ok "22d control: runuser gives no answer => FAILED rc 1, nothing moved"
+else bad "22d down" "rc=$rc: $x"; fi
+stl_reset; out=$(RUNME_STALETL_HOME="" RUNME_LOCALTOK_USER=no-such-user-t3758 run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  no-such-user-t3758: no such user on this host"; then
+    ok "22d control: an unknown user => FAILED"
+else bad "22d no user" "rc=$rc: $x"; fi
+# Restore the installed state for later cases (moved and verified).
+stl_reset; out=$(run); rc=$?
+if [ "$rc" = 0 ] && [ -f "$SBAK" ] && [ ! -e "$SOLD" ]; then ok "22d: restored to the moved state for later cases"; else bad "22d restore" "rc=$rc: $(s22d "$out")"; fi
 
 # ---------------------------------------------------------------------------
 # T-3615 action 23 — the daily telemetry rollup on the fleet hubs, through fakes.

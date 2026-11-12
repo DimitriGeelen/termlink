@@ -2575,6 +2575,116 @@ head2 "22c. $LOCALTOK_USER reaches the .107 hub over TCP with its own Interact t
 install_local_user_token
 
 # ---------------------------------------------------------------------------
+# ACTION 22d — retire the design user's stale ~/.local/bin/termlink 0.11.931, backup kept
+# (T-3758, operator ruling A on 2026-11-12: "A")
+#
+# 22c's note: the user's PATH runs ~/.local/bin/termlink 0.11.931, which predates token_file
+# (T-3543), so a bare `termlink` in that shell ignores the token 22c installed. This MOVES that
+# file to termlink.bak-0.11.931 in the same folder (never deletes; mv in one directory keeps
+# mode and owner), so the user's PATH falls through to /usr/local/bin/termlink.
+# Everything runs AS the user (runuser, fresh login shell, script on stdin). It moves only a
+# regular file whose --version is 0.11.931, and refuses (FAILED, nothing touched) when a
+# backup with different content already exists. Verified on disk: the old path is gone and
+# the backup's sha256 and mode:owner:group equal the original. Then, as the user in a NEW
+# login shell: `command -v termlink` is not the old path, `termlink --version` equals
+# /usr/local/bin/termlink's, and `termlink channel list --hub 127.0.0.1:9100` (the local-hub
+# profile with 22c's token) succeeds. Any miss is FAILED.
+# Idempotent: already moved and verified -> skip. Undo: rename the backup back to termlink.
+# Seams (fixtures only): RUNME_STALETL_RUN (command: <user> <home>, script on stdin),
+# RUNME_STALETL_HOME, RUNME_STALETL_CUR; the user is 22c's RUNME_LOCALTOK_USER.
+# ---------------------------------------------------------------------------
+seam STALETL_RUN RUNME_STALETL_RUN ""
+seam STALETL_HOME RUNME_STALETL_HOME ""
+seam STALETL_CUR RUNME_STALETL_CUR "/usr/local/bin/termlink"
+STALETL_VER="0.11.931"
+
+staletl_as_user() {  # <user> <home>, script on stdin
+    if [ -n "$STALETL_RUN" ]; then $STALETL_RUN "$1" "$2"; return; fi
+    runuser -l "$1" -c 'exec bash -s'
+}
+staletl_get() { printf '%s\n' "$1" | sed -n "s/^$2=//p" | tail -1; }
+
+retire_stale_user_termlink() {
+    local u="$LOCALTOK_USER" h="$STALETL_HOME" old bak q p moved=0
+    [ -n "$h" ] || h="$(getent passwd "$u" | cut -d: -f6)"
+    if [ -z "$h" ]; then say "  FAILED  $u: no such user on this host (no home directory)"; FAILED=$((FAILED+1)); return; fi
+    old="$h/.local/bin/termlink"; bak="$old.bak-$STALETL_VER"
+    q="old=$(printf '%q' "$old"); bak=$(printf '%q' "$bak")"
+    # shellcheck disable=SC2016
+    local probe='f() { if [ -L "$1" ]; then echo "$2=link"; elif [ -f "$1" ]; then echo "$2=file"
+      echo "${2}_stat=$(stat -c %a:%U:%G -- "$1")"; echo "${2}_sha=$(sha256sum < "$1" | cut -d" " -f1)"
+      echo "${2}_ver=$("$1" --version </dev/null 2>/dev/null | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1)"
+      elif [ -e "$1" ]; then echo "$2=other"; else echo "$2=absent"; fi; }
+    f "$old" old; f "$bak" bak; echo END'
+    p="$(printf '%s\n%s\n' "$q" "$probe" | staletl_as_user "$u" "$h" 2>/dev/null)"
+    if ! printf '%s\n' "$p" | grep_all -x END; then
+        say "  FAILED  $u: no answer over runuser as $u; nothing changed"; FAILED=$((FAILED+1)); return
+    fi
+    local o_kind o_stat o_sha o_ver b_kind b_sha
+    o_kind="$(staletl_get "$p" old)"; o_stat="$(staletl_get "$p" old_stat)"; o_sha="$(staletl_get "$p" old_sha)"
+    o_ver="$(staletl_get "$p" old_ver)"; b_kind="$(staletl_get "$p" bak)"; b_sha="$(staletl_get "$p" bak_sha)"
+    case "$o_kind" in
+        absent) ;;
+        file)
+            if [ "$o_ver" != "$STALETL_VER" ]; then
+                say "  FAILED  $old is version ${o_ver:-unknown}, not $STALETL_VER (the ruling covers $STALETL_VER only); left untouched"
+                FAILED=$((FAILED+1)); return
+            fi
+            if [ "$b_kind" != absent ] && { [ "$b_kind" != file ] || [ "$b_sha" != "$o_sha" ]; }; then
+                say "  FAILED  $bak already exists with different content; refusing to overwrite it, $old left in place"
+                FAILED=$((FAILED+1)); return
+            fi
+            if [ "$DRY_RUN" = "1" ]; then
+                say "  [DRY]   would move $old ($STALETL_VER, $o_stat) to $bak as $u, then verify $u's PATH runs the current termlink and the 127.0.0.1:9100 round trip"
+                DONE=$((DONE+1)); return
+            fi
+            local mvflag=-n; [ "$b_kind" = file ] && mvflag=-f   # only an identical backup may be replaced
+            printf '%s\nmv %s -- "$old" "$bak"\n' "$q" "$mvflag" | staletl_as_user "$u" "$h" >/dev/null 2>&1
+            p="$(printf '%s\n%s\n' "$q" "$probe" | staletl_as_user "$u" "$h" 2>/dev/null)"
+            if ! printf '%s\n' "$p" | grep_all -x END || [ "$(staletl_get "$p" old)" != absent ] || [ "$(staletl_get "$p" bak)" != file ] \
+               || [ "$(staletl_get "$p" bak_sha)" != "$o_sha" ] || [ "$(staletl_get "$p" bak_stat)" != "$o_stat" ]; then
+                say "  FAILED  the move of $old to $bak did not verify on disk (old=$(staletl_get "$p" old), backup=$(staletl_get "$p" bak) $(staletl_get "$p" bak_stat), want $o_stat and the same sha256)"
+                FAILED=$((FAILED+1)); return
+            fi
+            moved=1 ;;
+        *)
+            say "  FAILED  $old is a ${o_kind:-unreadable entry}, not a regular file; left untouched"; FAILED=$((FAILED+1)); return ;;
+    esac
+    # Proof, as the user in a NEW login shell: the bare `termlink` is the current one and authenticates.
+    local cur_ver r r_path r_ver r_rc
+    cur_ver="$("$STALETL_CUR" --version </dev/null 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    if [ -z "$cur_ver" ]; then say "  FAILED  $STALETL_CUR --version gave no version; cannot verify"; FAILED=$((FAILED+1)); return; fi
+    # shellcheck disable=SC2016
+    r="$(printf '%s\n' 'echo "resolved=$(command -v termlink)"
+echo "resolved_ver=$(termlink --version </dev/null 2>/dev/null | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1)"
+termlink channel list --hub 127.0.0.1:9100 </dev/null >/dev/null 2>&1; echo "list_rc=$?"; echo END' | staletl_as_user "$u" "$h" 2>/dev/null)"
+    r_path="$(staletl_get "$r" resolved)"; r_ver="$(staletl_get "$r" resolved_ver)"; r_rc="$(staletl_get "$r" list_rc)"
+    local undo=""; [ "$moved" = 1 ] && undo=" (moved; undo: rename $bak back to termlink)"
+    if ! printf '%s\n' "$r" | grep_all -x END; then
+        say "  FAILED  $u: no answer over runuser for the proof$undo"; FAILED=$((FAILED+1)); return
+    fi
+    if [ -z "$r_path" ] || [ "$r_path" = "$old" ] || [ "$r_ver" != "$cur_ver" ]; then
+        say "  FAILED  $u's PATH still resolves termlink to ${r_path:-nothing} ${r_ver:-?}, not the current $cur_ver ($STALETL_CUR)$undo"
+        FAILED=$((FAILED+1)); return
+    fi
+    if [ "$r_rc" != 0 ]; then
+        say "  FAILED  $u's termlink is the current $cur_ver ($r_path), but 'termlink channel list --hub 127.0.0.1:9100' as $u failed (rc ${r_rc:-?}); is 22c's token installed?$undo"
+        FAILED=$((FAILED+1)); return
+    fi
+    if [ "$moved" = 1 ]; then
+        say "  OK      moved $old to $bak ($o_stat, same sha256); $u's PATH runs $r_path $cur_ver and 'channel list --hub 127.0.0.1:9100' works as $u"
+        DONE=$((DONE+1))
+    else
+        local why="already moved to $bak"; [ "$b_kind" = absent ] && why="nothing at $old"
+        say "  skip    $why; $u's PATH runs $r_path $cur_ver and 'channel list --hub 127.0.0.1:9100' works as $u"
+        SKIPPED=$((SKIPPED+1))
+    fi
+}
+
+head2 "22d. $LOCALTOK_USER's shell runs the current termlink: its old ~/.local/bin copy $STALETL_VER moved aside, backup kept (T-3758, ruling A)"
+retire_stale_user_termlink
+
+# ---------------------------------------------------------------------------
 # ACTION 23 — the daily telemetry rollup on the fleet hubs (T-3615)
 #
 # Only .107 reported to telemetry:daily, so the fleet view saw one host. This
