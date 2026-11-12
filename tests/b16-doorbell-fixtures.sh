@@ -230,7 +230,7 @@ check "E-7 (watchdog at 300 s independent of READY, admin row, F-1 typing re-che
 check "E-8 (tier 1: kill switch, foreground, veto hold the watchdog with one row each)" e8_watchdog_checks_hold_with_rows
 check "E-9 (inflow is not activity; a repeated ready BUSY does not move S2 on the meter)" e9_inflow_is_not_activity e9_6_repeated_ready_busy_does_not_move_s2_on_the_meter
 check "E-10 (S2 unknown: no watchdog, status 'watchdog: unavailable')" e10_s2_unknown_watchdog_unavailable
-check "E-11 (safety and liveness over 10^4 seeded 2 h traces)" e11_watchdog_bound_and_liveness_property
+check "E-11 (safety and liveness over 10^4 seeded 2 h traces)" e11_watchdog_bound_and_liveness_property e11_boundary_299_5_s_is_not_silence
 check "E-12 (tier 1: the switch stops both typed paths within the tick; switch on resumes)" e12_kill_switch_stops_doorbell_and_watchdog e161_kill_switch_reads
 check "E-98 (B-16 re-run: an open claim is never rung; the doorbell has no claim or hand-over path)" e98_open_claim_is_not_rung
 check "E-121 (tier 1: READY BUSY never rings; the ring path reads no output)" e121_screen_is_never_an_input

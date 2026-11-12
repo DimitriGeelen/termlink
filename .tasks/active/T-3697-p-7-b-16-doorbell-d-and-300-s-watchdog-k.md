@@ -46,7 +46,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:31Z
-last_update: 2026-11-12T23:15:22Z
+last_update: 2026-11-12T23:26:09Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -113,10 +113,10 @@ Unblocks: P-9 (T-3699), P-38 (T-3717), P-43 (T-3688).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The B-16 specs pass: doorbell D+ (READY, no typing 30 s, no conversation, re-check after the veto), bracket-free SI-1 line, strict delivery, back-off
-- [ ] The 300 s watchdog K-33 passes its specs, including the F-1 typing re-check and STALLED
-- [ ] On macOS the interim `ps` veto is active and status reads `watchdog: degraded (macOS, ps veto)`
-- [ ] Session binding for S1 and `command.notify` passes its specs
+- [x] The B-16 specs pass: doorbell D+ (READY, no typing 30 s, no conversation, re-check after the veto), bracket-free SI-1 line, strict delivery, back-off
+- [x] The 300 s watchdog K-33 passes its specs, including the F-1 typing re-check and STALLED
+- [ ] On macOS the interim `ps` veto is active and status reads `watchdog: degraded (macOS, ps veto)` — built (`LivePorts::veto` uses `measure_ps` where there is no `/proc` on macOS; the engine shows `degraded (macOS, ps veto)`), proven here only on Linux `ps` against a real tree and in fixtures; not yet run on a macOS host (CI macOS job T-3271 or the M1)
+- [x] Session binding for S1 and `command.notify` passes its specs
 - [ ] The unit's fixture suite exits 0 with a PASS line per B-16 E-n and its mutant list is all killed (FP 3.1.b)
 - [ ] The H-11 (a)..(f) collectors write rows on the canary pair
 
@@ -171,7 +171,9 @@ Unblocks: P-9 (T-3699), P-38 (T-3717), P-43 (T-3688).
 ## Verification
 
 # Plan P-7 check (08-plan section 4): fixture suite exits 0 with a PASS line per B-16 E-n, mutant list all killed
-# (FP 3.1.b); H-11 (a)..(f) collectors write rows on the canary pair. Replace with the suite's command before closing.
+# (FP 3.1.b). The canary-pair H-11 rows (AC 6) need a release installed on the W1 pair and adapter/2 hooks: not checkable here.
+bash tests/b16-doorbell-fixtures.sh > .context/working/t3697/v-fixtures.out 2>&1 && grep -q "ALL IN-SCOPE PASS" .context/working/t3697/v-fixtures.out
+bash tests/b16-doorbell-fixtures.sh --mutants > .context/working/t3697/v-mutants.out 2>&1 && grep -q "ALL MUTANTS KILLED" .context/working/t3697/v-mutants.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -366,6 +368,19 @@ Unblocks: P-9 (T-3699), P-38 (T-3717), P-43 (T-3688).
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-13 — what the build found
+- **What changed:** (1) The built hooks send no `ready` record and no `prompt_submit` (only `termlink.adapter/2` reports
+  do, AEF B-29), and `session_start` must carry `harness_pid` (04 17.4.a). So with today's hooks the gate never passes
+  (READY absent, FCW-21) and the watchdog is `unavailable` (no harness, FCW-39): fail-closed, as specified. (2) The hub
+  stage record (`wire::Stage`) has no `via`/`ring_id` and no ATTEMPTED stage; the sender's status knows only five
+  stages. ATTEMPTED is therefore written on the receiver's own chain (reason `via=… ring_id=…`), not posted to the hub.
+  (3) Store chain reasons are capped at 200 bytes, so the full 6.9.7.c watchdog row lives in `ring-log.jsonl` and the
+  `_admin` chain line carries its sha256 as digest, the ring id, phase and outcome. (4) Per ARC4 6.9.7.e the watchdog
+  may fire during back-off; the E-5.6 schedule table holds for normal rings with the adapter submitting every line.
+- **Plan impact:** AC 6 (H-11 rows on the canary pair) needs the adapter/2 hooks (P-44/B-29) and a release on the W1
+  pair (P-8); it moves with P-9. The hub-side `via: watchdog` stage needs a wire change (B-14/P-24 or B-2..B-6).
+- **Triggered:** nothing new filed; the deferred parts are named in the fixture suite's DEFERRED lines and the hand-back.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -405,6 +420,25 @@ Unblocks: P-9 (T-3699), P-38 (T-3717), P-43 (T-3688).
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-13 — keep the built `command.notify` form
+- **Chose:** `command.notify {ids, count}` types the SI-1 line; a call without `count` keeps the T-3533 line.
+- **Why:** the T-3533 doorbell (`lib/sidecar/inject.py`) still calls the ids-only form; nothing working is switched off
+  (operator rule 2026-11-03). Retiring it is a decommission with the operator's approval.
+- **Rejected:** replacing the handler outright (breaks the built doorbell on the next release).
+
+### 2026-11-13 — how a harness session is bound to its TermLink session
+- **Chose:** the sidecar walks `/proc` ancestry from `harness_pid` to the TermLink session server that hosts it, and mints
+  a notify-scope token per call from that session's registered secret.
+- **Why:** no hook hands the sidecar a socket or token, so a hook cannot point the doorbell elsewhere; a wrong binding
+  can only hold, because every keystroke re-checks the foreground leader against the harness pid and executable.
+- **Rejected:** a hook-reported socket (trusts the hook); a stored long-lived token (outlives its use).
+
+### 2026-11-13 — the kill switch
+- **Chose:** the doorbell and its watchdog run only while `<store>/doorbell-on` is a regular file and delivery is on;
+  anything unreadable is off. Off by default until the W2 go (P-9).
+- **Why:** plan rollback "doorbell off per agent; watchdog off with it"; NID.
+- **Rejected:** a config field (needs a restart to flip).
 
 ## Decision
 

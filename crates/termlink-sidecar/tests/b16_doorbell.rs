@@ -697,6 +697,24 @@ fn e10_s2_unknown_watchdog_unavailable() {
 
 // ------------------------------------------------------------------ E-11
 
+/// E-11.5 boundary: activity 299.5 s before a tick is not 300 s of silence.
+#[test]
+fn e11_boundary_299_5_s_is_not_silence() {
+    let f = Fake::new();
+    let mut db = Doorbell::new();
+    let mut fa = silent_busy();
+    db.tick(&f, std::slice::from_ref(&fa), &[msg(1)], &no_hand);
+    fa.acts.1 = Some(f.now() + 500); // half a second after this tick
+    for _ in 0..10 {
+        f.advance(30_000);
+        db.tick(&f, std::slice::from_ref(&fa), &[msg(1)], &no_hand);
+    }
+    assert_eq!(f.notifies(), 0, "299.5 s of silence at the 10th tick: no fire");
+    f.advance(30_000);
+    db.tick(&f, std::slice::from_ref(&fa), &[msg(1)], &no_hand);
+    assert_eq!(f.notifies(), 1);
+}
+
 /// E-11: safety and liveness of the watchdog over 10^4 seeded traces of 2 simulated hours.
 #[test]
 fn e11_watchdog_bound_and_liveness_property() {
@@ -721,7 +739,8 @@ fn e11_watchdog_bound_and_liveness_property() {
             // random events strictly between ticks
             let now = f.now();
             if rnd(10) == 0 {
-                let at = now - rnd(29_000);
+                // anywhere in the tick interval, so a silence of 299..300 s at a tick can occur
+                let at = now - 1 - rnd(29_999);
                 fa.acts.1 = Some(at.max(fa.acts.1.unwrap_or(0)));
                 last_event = last_event.max(at);
             }
