@@ -6,10 +6,10 @@ description: >
   output docs/design/interactive-agent-communication-08-plan.md. Starts only after
   step 7 is approved by the operator.
 
-status: captured
+status: started-work
 workflow_type: specification
 owner: agent
-horizon: later
+horizon: now
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:23Z
-last_update: '2026-10-18T22:32:50Z'
+last_update: 2026-11-12T14:39:54Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,6 +77,25 @@ bvp_scores_proposed:
       D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted);
       F-ORCH=0 (no-signal)'
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-12T14:33:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 0
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=0 (L0: no signal); D1=0 (no-signal); D2=0 (no-signal);
+      D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0:
+      no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3357: arc-011 role chain step 8: planner
@@ -86,6 +105,19 @@ bvp_scores_proposed:
 Step 8 of the arc-011 role chain (docs/design/interactive-agent-communication-role-chain.yaml), card per the yaml. Inputs listed in the yaml for step 8. Items handed to this step by the step-1 interview: docs/reports/T-3344-step1-rulings-summary.md section 11. 
 
 Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
+
+**Background / trigger:** Step 7 (review panel, T-3356) was approved by the operator in chat on 2026-11-12 ("A");
+T-3689 folded its change requests into documents 01-06 (04 v0.4, 06 v0.3, 05 v0.2). The operator said "next" to
+start step 8 on 2026-11-12.
+
+**Problem / hypothesis:** The design is complete but there is no committed build plan: build items exist ad hoc
+(B-25, B-11, B-16, B-27 follow-ups, T-3688, T-3686) without typed dependencies, coverage of every R-n/E-n, or
+deployment/rollback/decommission units.
+
+**Goal:** A planner role session writes docs/design/interactive-agent-communication-08-plan.md per the planner card.
+
+**Expected outcome:** The operator approves the plan (the last design approval); then work items are created
+idempotently from it and the build queue (B-25 -> B-11 -> B-16) runs against it.
 
 ## Acceptance Criteria
 
@@ -198,3 +230,7 @@ grep -q 'task: T-3357' docs/design/interactive-agent-communication-role-chain.ya
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3357-arc-011-role-chain-step-8-planner.md
 - **Context:** Initial task creation
+
+### 2026-11-12T14:33:13Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)

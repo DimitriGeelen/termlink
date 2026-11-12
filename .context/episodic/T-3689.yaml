@@ -1,0 +1,121 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3689: arc-011: fold step 7 change requests CR-1..CR-6 (and operator ruling D for macOS) into the step 1-6 documents
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T14:39:38Z
+# ============================================================================
+
+task_id: T-3689
+task_name: "arc-011: fold step 7 change requests CR-1..CR-6 (and operator ruling D for macOS) into the step 1-6 documents"
+workflow_type: specification
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T11:38:55Z
+completed: 2026-11-12T14:38:56Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-12T12:39:51+01:00
+last_commit: 2026-11-12T13:39:42+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  task to fold step 7 CR-1..CR-6 and ruling D into steps 1-6. fold step 7 CR-4.1..CR-4.16 and ruling D (F-20) into architecture v0.4. architecture v0.4 aligned with step 6 choices (watchdog leaves k unchanged, re-admit limit delivers locally, blob AAD fields). fold step 7 CR-6 items and ruling D into pseudo-code v0.3 (AL-1..AL-15, register FCW-1..FCW-211, drawings). fold CR-6.14..6.17, 6.26, 6.33, 6.42 into pseudo-code part A v0.3. fold CR-6.31, CR-6.32 into pseudo-code part B v0.3. 06a FCW-210 names its spec E-171 (W3 gate) instead of E-72. 06 register regenerated (FCW-210 spec E-171). fold step 7 CR-5.1..CR-5.12 into evidence v0.2 (ZR-1 applied: E-153..E-173, detector E-155, seam scan E-164). coverage v0.2 regenerated with table 2.9 FCW-n to E-n (211 FCWs, 0 undeclared gaps). fold CR-1.1 into requirements v0.5.4 (R-23.a types through command.notify; CR-1.2 not applied). fold CR-2.1 into threat model v0.3.8 (SI-2 reworded for the ruled watchdog). fold CR-3.1, CR-3.2 into floor and phasing v0.3.1 (H-11 (e)/(f) bounds, 8 delivery attempts). evidence follows CR-3.1 bounds for H-11 (e)/(f); coverage hashes refreshed. CR table, decisions, verification and agent ACs recorded. resume note before compaction (workers running, open items)
+
+# Key outcomes
+outcomes:
+  - 'Every CR-1..CR-6 item of 07 section 6 applied to its document or listed with a reason it needs a ruling, and a per-item table (CR id → document section → commit) recorded in this task'
+  - 'Operator ruling D (F-20) reflected in 04 6.9.7 and 06 AL-8 (interim `ps` veto on macOS, status `watchdog: degraded (macOS, ps veto)`, full veto T-3688)'
+  - 'Version rows added; changed drawings re-render; 06''s FCW register and 05a coverage regenerated without undeclared gaps'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — fold of step 7''s change requests (T-3689 worker)'
+    chose: 'apply every CR-1..CR-6 item as its owning role, marked "(changed in vX by CR-n.m)"; the "or" items decided as follows: CR-4.11 / CR-6.18 role mail only is withheld from a non-main session (the text; the built pull, T-3654, withholds all mail and is to change in a later build item, not B-27); CR-4.8 / CR-6.11 re-admit a re-sent copy of a FORWARDED id, and after 3 re-admissions deliver it locally (no new notice kind, so FP-2 is untouched); CR-4.15 order reports on `(boot_id, mono_ns)`; CR-6.2 re-read READY and the foreground after the veto; CR-6.21 the hub''s receive stamp (so CR-1.2 is not applied); CR-6.23 persist `last_prompt`; CR-6.13 in 06 (holder agent decides).'
+    rationale: 'each is the option the step 7 disposition preferred or the one that keeps an already-approved rule intact (FP-2 cap, R-57.a one clock, NID).'
+    alternatives_rejected: ['a refuse-with-new-id notice for CR-4.8 (a new notice that changes the path counts as a state value under FP-2 7.3.h and would need the cap review); the cross-host margin for the lease (CR-1.2). - **Ruling D (F-20):** reflected in 04 6.9.7.b/f and AR-7, 06 AL-6 step 4 and AL-8 (status `watchdog: degraded (macOS, ps veto)`, blind spot stated, full veto T-3688 replaces it only once proven). - **Operator questions:** none needed a new ruling. For awareness (plain language): (1) the main-lease gate built in T-3654 currently holds back all mail from a non-main session; the documents now say it should hold back only mail sent to "main" or the project, so mail addressed to a specific session still reaches that session; changing the built code is a later build item. (2) Several new starting numbers are proposals under FP-4 (8 delivery attempts, H-11 (e) 10 and (f) 20/5 per 1000 rings, 5 s tick budget, 30 min executor bound, the `ps` CPU threshold).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/resume-note-2026-11-12.md'
+  - '.tasks/active/T-3689-arc-011-fold-step-7-change-requests-cr-1.md'
+  - 'docs/design/interactive-agent-communication-01-requirements.md'
+  - 'docs/design/interactive-agent-communication-02-threat-model.md'
+  - 'docs/design/interactive-agent-communication-03-floor-and-phasing.md'
+  - 'docs/design/interactive-agent-communication-04-architecture.md'
+  - 'docs/design/interactive-agent-communication-05-evidence.md'
+  - 'docs/design/interactive-agent-communication-05a-coverage.md'
+  - 'docs/design/interactive-agent-communication-06-pseudo-code.md'
+  - 'docs/design/interactive-agent-communication-06a-pseudo-code-ph2-hardening.md'
+  - 'docs/design/interactive-agent-communication-06b-pseudo-code-later-phases.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T12:39:51'
+    action: 'T-3689: task to fold step 7 CR-1..CR-6 and ruling D into steps 1-6'
+  - time: '2026-11-12T12:45:41'
+    action: 'T-3689: fold step 7 CR-4.1..CR-4.16 and ruling D (F-20) into architecture v0.4'
+  - time: '2026-11-12T12:59:35'
+    action: 'T-3689: architecture v0.4 aligned with step 6 choices (watchdog leaves k unchanged, re-admit limit delivers locally, blob AAD fields)'
+  - time: '2026-11-12T12:59:37'
+    action: 'T-3689: fold step 7 CR-6 items and ruling D into pseudo-code v0.3 (AL-1..AL-15, register FCW-1..FCW-211, drawings)'
+  - time: '2026-11-12T12:59:38'
+    action: 'T-3689: fold CR-6.14..6.17, 6.26, 6.33, 6.42 into pseudo-code part A v0.3'
+  - time: '2026-11-12T12:59:39'
+    action: 'T-3689: fold CR-6.31, CR-6.32 into pseudo-code part B v0.3'
+  - time: '2026-11-12T13:04:44'
+    action: 'T-3689: 06a FCW-210 names its spec E-171 (W3 gate) instead of E-72'
+  - time: '2026-11-12T13:04:45'
+    action: 'T-3689: 06 register regenerated (FCW-210 spec E-171)'
+  - time: '2026-11-12T13:04:46'
+    action: 'T-3689: fold step 7 CR-5.1..CR-5.12 into evidence v0.2 (ZR-1 applied: E-153..E-173, detector E-155, seam scan E-164)'
+  - time: '2026-11-12T13:04:48'
+    action: 'T-3689: coverage v0.2 regenerated with table 2.9 FCW-n to E-n (211 FCWs, 0 undeclared gaps)'
+  - time: '2026-11-12T13:06:06'
+    action: 'T-3689: fold CR-1.1 into requirements v0.5.4 (R-23.a types through command.notify; CR-1.2 not applied)'
+  - time: '2026-11-12T13:06:08'
+    action: 'T-3689: fold CR-2.1 into threat model v0.3.8 (SI-2 reworded for the ruled watchdog)'
+  - time: '2026-11-12T13:06:09'
+    action: 'T-3689: fold CR-3.1, CR-3.2 into floor and phasing v0.3.1 (H-11 (e)/(f) bounds, 8 delivery attempts)'
+  - time: '2026-11-12T13:06:10'
+    action: 'T-3689: evidence follows CR-3.1 bounds for H-11 (e)/(f); coverage hashes refreshed'
+  - time: '2026-11-12T13:08:21'
+    action: 'T-3689: CR table, decisions, verification and agent ACs recorded'
+  - time: '2026-11-12T13:39:42'
+    action: 'T-3689: resume note before compaction (workers running, open items)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 16 commit(s), 180 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 180
+  commits: 17
+  files_changed: 15
+  lines_added: 1977
+  lines_removed: 368
+  footprint_refreshed_at: '2026-11-12T14:39:56Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3689-arc-011-fold-step-7-change-requests-cr-1.md
+generated_by: context-agent-hybrid
