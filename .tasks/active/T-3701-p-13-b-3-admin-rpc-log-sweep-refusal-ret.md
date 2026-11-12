@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:37Z
-last_update: 2026-11-12T19:13:45Z
+last_update: 2026-11-12T19:20:46Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -102,12 +102,11 @@ Unblocks: part of gate G-2 (the T1 release).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The B-3 specs pass (admin RPC log flag, sweep and trim refused on open mail, retention ceilings V-3)
-- [ ] The forever-topic growth of T-3382 is bounded by V-3
-- [ ] The unit's fixture suite exits 0 with a PASS line per B-3 E-n and its mutant list is all killed (FP 3.1.b)
+- [x] The B-3 specs pass (admin RPC log flag, sweep and trim refused on open mail, retention ceilings V-3)
+- [x] The forever-topic growth of T-3382 is bounded by V-3
+- [x] The unit's fixture suite exits 0 with a PASS line per B-3 E-n and its mutant list is all killed (FP 3.1.b)
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
+<!-- (No Human criteria: every criterion of this unit is agent-verifiable.)
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
 
@@ -156,8 +155,10 @@ Unblocks: part of gate G-2 (the T1 release).
 
 ## Verification
 
-# Plan P-13 check (08-plan section 4): fixture suite exits 0 with a PASS line per B-3 E-n, mutant list all killed
-# (FP 3.1.b). Replace with the suite's command before closing (redirect-then-grep form, L-387).
+# Plan P-13 check (08-plan section 4): fixture suite exits 0 with a PASS line per B-3 E-n, mutant list all killed (FP 3.1.b).
+bash tests/t3701-b3-fixtures.sh > .context/working/t3701/v-fx.out 2>&1 && grep -q "^ALL PASS (P-13)" .context/working/t3701/v-fx.out
+grep -q "^PASS E-67 " .context/working/t3701/v-fx.out && grep -q "^PASS E-169 " .context/working/t3701/v-fx.out && grep -q "^PASS T-3382 " .context/working/t3701/v-fx.out
+bash tests/t3701-b3-fixtures.sh mutants > .context/working/t3701/v-mut.out 2>&1 && grep -q "^ALL MUTANTS KILLED (P-13)" .context/working/t3701/v-mut.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -352,6 +353,22 @@ Unblocks: part of gate G-2 (the T1 release).
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-12 — what building B-3 showed
+- **What changed:** there is no hub-side "hub record" of message state yet (R-45 is P-18/P-20). Finality is
+  therefore read from the signed stage records the receiver's sidecar posts to the sender's inbox
+  (`sidecar.stage.v1`; final stages REPLIED / ACKNOWLEDGED_NO_ACTION / REFUSED / FORWARDED / DEAD / DENIED),
+  cached monotonically. The existing T-3310 post-time ceilings trimmed bounded inbox topics blind (oldest first,
+  open mail included) and only warned on forever ones; guarded topics now skip them and get V-3 instead.
+  The periodic sweeper (T-2427) called `bus.sweep` directly, a second path around any RPC-level check, which is
+  why the guard sits in the bus, under every removal path, and not in the RPC handlers.
+- **Plan impact:** the per-topic and per-hub V-3 ceilings are built; the artifact-store ceiling (4 GiB) and the
+  blob 14-day rule belong to B-12 (the V-3 row names "B-3 (hub trim refusal), B-12"). `TERMLINK_HUB_TEST_CEILINGS`
+  (06 seam table) is not built: tests shrink ceilings in-process through `Bus::set_mail_ceilings`. A restarted
+  hub forgets finality whose final stage record was already trimmed; such a message then reads open, which only
+  makes removals refuse (the safe direction). P-18/P-20's hub record removes this limit.
+- **Triggered:** follow-up for termlink-protocol (outside this dispatch's write set): add
+  `MAIL_REMOVAL_REFUSED (-32040)` and `ADMIN_LOG_UNWRITABLE (-32041)` to `control::error_code` (hub-local today).
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -391,6 +408,26 @@ Unblocks: part of gate G-2 (the T1 release).
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-12 — where the open-mail check lives
+- **Chose:** a `RemovalGuard` trait in termlink-bus, installed by the hub; every bus removal path on a guarded
+  topic previews its exact offsets, asks the guard, and deletes exactly those offsets.
+- **Why:** three removal paths existed (RPC handlers, the periodic sweeper, post-time ceilings); a check in the
+  handlers alone would leave two open. Deleting by explicit offset makes the AL-31 concurrency rule hold without
+  a lock across the check: a post that lands after the check is never among the removed offsets, and a final
+  stage never becomes open again.
+- **Rejected:** checks in the RPC handlers only (bypassed by the sweeper and the ceilings); teaching the bus the
+  sidecar wire format (the bus stays mail-agnostic).
+
+### 2026-11-12 — admin log kept 30 days
+- **Chose:** a separate `rpc-admin.jsonl`, written synchronously (FCW-128 needs a write that can fail the RPC),
+  pruned only of rows older than 30 days once past 16 MiB; rows also mirrored with `admin:true` into
+  `rpc-audit.jsonl` for existing readers. `channel.create` is not an admin RPC: every sidecar re-creates its
+  inbox on each note.
+- **Why:** `rpc-audit.jsonl` is size-rotated with one backup (T-2251) and written by a queued thread (T-3475),
+  so it can neither keep rows 30 days nor refuse an RPC.
+- **Rejected:** changing the shared rotation in termlink-session (outside the write set; it also serves the
+  session daemon).
 
 ## Decision
 
