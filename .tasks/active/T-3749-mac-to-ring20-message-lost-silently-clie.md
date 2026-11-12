@@ -45,7 +45,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T17:18:16Z
-last_update: 2026-11-12T18:34:57Z
+last_update: 2026-11-12T18:47:41Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -104,12 +104,12 @@ named. Hand-back at `.context/working/t3749/handback.md`.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] (a) Likeliest cause of the 0.1 ms handshake EOF written in ## RCA, with the exact Mac test to confirm it
-- [ ] (b) Every audited send path that does not reach the intended hub/session exits non-zero with a named reason; hermetic tests with a negative control
-- [ ] (c) A one-command device join exists, verifies with a real round trip, never sends the secret over the bus, documented in docs/operations/
-- [ ] (d) `termlink register` fails loudly naming both dirs when its runtime dir differs from the one the reachable hub serves; test with a negative control
-- [ ] Workspace tests and clippy green
-- [ ] Hand-back written at .context/working/t3749/handback.md
+- [x] (a) Likeliest cause of the 0.1 ms handshake EOF written in ## RCA, with the exact Mac test to confirm it
+- [x] (b) Every audited send path that does not reach the intended hub/session exits non-zero with a named reason; hermetic tests with a negative control
+- [x] (c) A one-command device join exists, verifies with a real round trip, never sends the secret over the bus, documented in docs/operations/
+- [x] (d) `termlink register` fails loudly naming both dirs when its runtime dir differs from the one the reachable hub serves; test with a negative control
+- [x] Workspace tests and clippy green
+- [x] Hand-back written at .context/working/t3749/handback.md
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
