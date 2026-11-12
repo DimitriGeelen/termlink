@@ -12,11 +12,13 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: next
+horizon: later
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
-related_tasks: []
+related_tasks: [T-3357, T-3724, T-3727]
+plan_unit: P-51
+depends_on: [T-3724]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -87,14 +89,36 @@ bvp_scores_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** AEF owns the send-and-wait tool (operator 2026-10-06; pickup offset 318); TermLink supplies
+the primitive. The step-8 plan `docs/design/interactive-agent-communication-08-plan.md` v0.3, approved by the operator
+on 2026-11-12 (G-0, T-3357 `## Decisions`), reuses this task as plan unit **P-51** (build, PH-3): cross-hub read of a
+message's stage and reply by message id (R-55 first part; FP 6.2.4.a (6)). No E-n covers the read by id yet (CR-8.6 b);
+until one exists the acceptance clauses and negative control below stand as the spec.
+
+**Problem / hypothesis:** A sender on hub B cannot ask what happened to a message it posted on hub A or read its reply
+by id, so AEF's send-and-wait (request P-69) has nothing to wait on.
+
+**Goal:** Read a message's stage (RECEIVED/STORED/HANDED_OVER/REPLIED/NO_ACTION) and its reply by message id across
+hubs via the recipient's verified home hub, with CLI and MCP parity.
+
+**Expected outcome:** (a) a message posted on hub A is read by its id from hub B with its current stage; (b) its reply
+is read by the same id from hub B; (c) an unknown id is answered `unknown`, never an empty record or a generic error.
+
+**Rollback:** verb removed.
+
+Depends on: T-3724 (P-50 built: cross-hub path)
+Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
+Unblocks: P-54 (T-3727); request P-69 to AEF (send-and-wait on this primitive).
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] (a) A message posted on hub A is read by its id from hub B with its current stage
+- [ ] (b) Its reply is read by the same id from hub B
+- [ ] (c) An unknown id is answered `unknown`, never an empty record or a generic error
+- [ ] CLI and MCP parity for the read
+- [ ] Two-hub fixture suite with a PASS line per clause (a)..(c); negative control: a mutant answering an unknown id with an empty record fails (c)
+- [ ] One two-hub live run (.107 and a second hub) with the message ids in the log
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -288,6 +312,11 @@ bvp_scores_proposed:
 -->
 
 ## Decisions
+
+### 2026-11-12 — plan G-0
+- **Chose:** reuse in PH-3 as proposed in plan 08 v0.3 section 7.2 (approved by the operator 2026-11-12, ruling A, recorded in T-3357): this task is unit P-51, after cross-hub mail (P-50, T-3724); horizon moved from `next` to `later` because that edge is not yet satisfied.
+- **Why:** the read across hubs needs the verified cross-hub path first.
+- **Rejected:** building a single-hub read in PH-2 (does not serve R-55 across hubs).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
