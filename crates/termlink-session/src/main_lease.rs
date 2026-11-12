@@ -377,6 +377,9 @@ pub struct Logged {
     /// The posting identity's fingerprint (`sender_id`; the hub checks the signature against
     /// the posted key). B-25 counts a Touch only from the key that posted the holder's acquire.
     pub sender: Option<String>,
+    /// T-3694 (CR-6.21): the hub's own receive time (`metadata.hub_rx_ms`), when the hub
+    /// stamped it. `None` on records from a hub without the stamp.
+    pub hub_rx_ms: Option<u64>,
 }
 
 /// The newest acquire that counts.
@@ -396,6 +399,9 @@ pub struct Current {
     pub sender: Option<String>,
     /// B-25: newest human-origin acquire or promote of this holding (claimer wall clock).
     pub human_at_ms: Option<u64>,
+    /// T-3694 (CR-6.21): the hub receive stamp of that same human record; `None` when the
+    /// record carries none (then ages fall back to the claimer clocks plus the margin).
+    pub human_rx_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -458,6 +464,7 @@ pub fn fold(log: &[Logged]) -> Folded {
                 let resume = f.current.as_ref().is_some_and(|c| c.generation == *generation && c.holder.session == holder.session);
                 // A SessionStart (provisional) take is not a human prompt, whatever it reports.
                 let human = (origin.as_deref() == Some("human") && !*provisional).then_some(*at_ms);
+                let human_rx = human.and(l.hub_rx_ms);
                 if *generation > f.generation || f.current.is_none() {
                     if let Some(prev) = from.as_ref().or(f.current.as_ref().map(|c| &c.holder))
                         && prev.session != holder.session
@@ -475,6 +482,7 @@ pub fn fold(log: &[Logged]) -> Folded {
                         origin: origin.clone(),
                         sender: l.sender.clone(),
                         human_at_ms: human,
+                        human_rx_ms: human_rx,
                     });
                     f.ended = None;
                     f.last_change_ms = Some(*at_ms);
@@ -489,6 +497,11 @@ pub fn fold(log: &[Logged]) -> Folded {
                     c.provisional = *provisional;
                     c.origin = origin.clone();
                     c.sender = l.sender.clone();
+                    // The rx stamp follows the newest human record (wall-clock order); a newer
+                    // unstamped one clears it, so a stale stamp never ages a fresh prompt.
+                    if human.is_some() && human >= c.human_at_ms {
+                        c.human_rx_ms = human_rx;
+                    }
                     c.human_at_ms = human.max(c.human_at_ms);
                     f.ended = None;
                 } else if *generation == f.generation {
@@ -512,6 +525,7 @@ pub fn fold(log: &[Logged]) -> Folded {
                             origin: origin.clone(),
                             sender: l.sender.clone(),
                             human_at_ms: human,
+                            human_rx_ms: human_rx,
                         });
                         f.ended = None;
                     }
@@ -542,6 +556,9 @@ pub fn fold(log: &[Logged]) -> Folded {
                 {
                     c.provisional = false;
                     if origin == "human" {
+                        if Some(*at_ms) >= c.human_at_ms {
+                            c.human_rx_ms = l.hub_rx_ms;
+                        }
                         c.human_at_ms = Some(*at_ms).max(c.human_at_ms);
                     }
                 }
@@ -577,6 +594,32 @@ pub fn last_human(f: &Folded, touches: Option<&[Logged]>) -> Option<u64> {
         })
         .max();
     from_touch.max(c.human_at_ms)
+}
+
+/// T-3694 (CR-6.21, AL-11): the holder's newest human-counted prompt on the HUB's clock: the
+/// greatest `hub_rx_ms` over the same records [`last_human`] counts. `None` unless every counted
+/// record carries the hub's stamp (a record from an unstamping hub, or a touch log that cannot
+/// be read, leaves only the claimer-clock rule with its cross-host margin). Never a mix of
+/// clocks: one unstamped record could be the newest prompt.
+pub fn last_human_rx(f: &Folded, touches: Option<&[Logged]>) -> Option<u64> {
+    let c = f.current.as_ref()?;
+    let touches = touches?;
+    let mut newest: Option<u64> = None;
+    for l in touches {
+        if let Event::Touch { generation, session, claim_id, .. } = &l.event
+            && *generation == c.generation
+            && *session == c.holder.session
+            && *claim_id == c.claim_id
+            && l.sender.is_some()
+            && l.sender == c.sender
+        {
+            newest = newest.max(Some(l.hub_rx_ms?));
+        }
+    }
+    if c.human_at_ms.is_some() {
+        newest = newest.max(Some(c.human_rx_ms?));
+    }
+    newest
 }
 
 /// B-25 (CR-6.6): the harnesses the operator has switched to origin reporting. The newest
@@ -658,6 +701,11 @@ pub struct View {
     /// B-25: the holder's newest human-counted prompt (`None` = none or undeterminable).
     pub last_human_at_ms: Option<u64>,
     pub holder_human_age_s: Option<u64>,
+    /// T-3694 (CR-6.21): `last_human` on the hub's clock (see [`last_human_rx`]).
+    pub last_human_rx_ms: Option<u64>,
+    /// T-3694 (CR-6.21): the hub's "now" from the read (`hub_now_ms` of the subscribe reply);
+    /// `None` from a hub that does not send it.
+    pub hub_now_ms: Option<u64>,
     /// B-25: harnesses the operator switched to origin reporting (`None` = not read).
     pub origin_reporting: Option<Vec<String>>,
 }
@@ -670,6 +718,8 @@ pub fn view(project: &str, f: &Folded, row: Option<&Row>, now: u64, t: Timing) -
         origin: None,
         last_human_at_ms: None,
         holder_human_age_s: None,
+        last_human_rx_ms: None,
+        hub_now_ms: None,
         origin_reporting: None,
         project: project.to_string(),
         topic: topic(project),
@@ -736,10 +786,25 @@ pub fn view(project: &str, f: &Folded, row: Option<&Row>, now: u64, t: Timing) -
 pub fn with_origin(mut v: View, f: &Folded, touches: Option<&[Logged]>, reporting: Option<Vec<String>>) -> View {
     if v.holder.is_some() {
         v.last_human_at_ms = last_human(f, touches);
-        v.holder_human_age_s = v.last_human_at_ms.map(|t| v.now_ms.saturating_sub(t) / 1000);
+        v.last_human_rx_ms = last_human_rx(f, touches);
+        v.holder_human_age_s = holder_human_age_ms(&v).map(|a| a / 1000);
     }
     v.origin_reporting = reporting;
     v
+}
+
+/// T-3694 (CR-6.21): the holder's human silence. On the hub's clock (no cross-host skew) when
+/// the read carried the hub's now and every counted record its stamp; otherwise the claimer
+/// clocks (`now_ms - last_human_at_ms`). The second item says which: `true` = hub clock.
+pub fn holder_human_age(v: &View) -> Option<(u64, bool)> {
+    match (v.hub_now_ms, v.last_human_rx_ms) {
+        (Some(n), Some(lh)) => Some((n.saturating_sub(lh), true)),
+        _ => v.last_human_at_ms.map(|lh| (v.now_ms.saturating_sub(lh), false)),
+    }
+}
+
+fn holder_human_age_ms(v: &View) -> Option<u64> {
+    holder_human_age(v).map(|(a, _)| a)
 }
 
 /// E-31 (W2 measurement, AR-6): counted renewals by basis, ignored claims by origin and basis,
@@ -825,8 +890,12 @@ pub fn plan_reporting(v: &View, f: &Folded, me: &Holder, req: &ClaimRequest, las
             return Plan::OverProvisional { claim_id, from: h.clone() };
         }
         let Some(lh) = last_human else { return Plan::Held }; // FCW-55
-        let margin = if !h.host.is_empty() && h.host != me.host { CROSS_HOST_MARGIN_MS } else { 0 };
-        let age = v.now_ms.saturating_sub(lh);
+        // CR-6.21: both ages on the hub's clock when it stamped every counted record and sent
+        // its now: no margin. Otherwise the v0.2 rule: claimer clocks, 30 s more across hosts.
+        let (age, margin) = match (v.hub_now_ms, v.last_human_rx_ms) {
+            (Some(n), Some(rx)) => (n.saturating_sub(rx), 0),
+            _ => (v.now_ms.saturating_sub(lh), if !h.host.is_empty() && h.host != me.host { CROSS_HOST_MARGIN_MS } else { 0 }),
+        };
         if age > v.timing.quiet_ms + margin {
             return Plan::FastTakeover { claim_id, from: h.clone(), age_s: age / 1000 };
         }
@@ -962,6 +1031,11 @@ impl Outcome {
             "origin": v.and_then(|v| v.origin.as_ref()),
             "last_human_at_ms": v.and_then(|v| v.last_human_at_ms),
             "holder_human_age_s": v.and_then(|v| v.holder_human_age_s),
+            // T-3694 (CR-6.21): the hub-clock last human prompt and the hub's now; `age_clock`
+            // says which clock the age above is on (`hub`, or `claimer` with the margin).
+            "last_human_rx_ms": v.and_then(|v| v.last_human_rx_ms),
+            "hub_now_ms": v.and_then(|v| v.hub_now_ms),
+            "age_clock": v.and_then(holder_human_age).map(|(_, hub)| if hub { "hub" } else { "claimer" }),
             "origin_reporting": v.and_then(|v| v.origin_reporting.as_ref()),
             "note": self.note,
             "ignored_recent": self.ignored_recent,
@@ -1112,15 +1186,23 @@ impl LeaseClient {
     /// Any lease-family topic (`main:`, `main-touch:`, `main-ignored:`, `main-config:`), in
     /// offset order, with each record's sender. An unknown topic is `(false, [])`.
     pub async fn read_topic(&self, t: &str) -> Result<(bool, Vec<Logged>), LeaseError> {
+        self.read_topic_at(t).await.map(|(e, l, _)| (e, l))
+    }
+
+    /// As [`LeaseClient::read_topic`], plus the hub's `hub_now_ms` from the last reply (CR-6.21;
+    /// `None` from a hub that does not send it).
+    pub async fn read_topic_at(&self, t: &str) -> Result<(bool, Vec<Logged>, Option<u64>), LeaseError> {
         let mut out = vec![];
+        let mut hub_now = None;
         let mut cursor = 0u64;
         for _ in 0..64 {
             let r = match self.call(method::CHANNEL_SUBSCRIBE, json!({"topic": t, "cursor": cursor, "limit": 1000})).await {
                 Ok(r) => r,
-                Err(LeaseError::Hub { code, .. }) if code == error_code::CHANNEL_TOPIC_UNKNOWN => return Ok((false, vec![])),
+                Err(LeaseError::Hub { code, .. }) if code == error_code::CHANNEL_TOPIC_UNKNOWN => return Ok((false, vec![], None)),
                 Err(e) => return Err(e),
             };
             let msgs = r.get("messages").and_then(Value::as_array).cloned().unwrap_or_default();
+            hub_now = r.get("hub_now_ms").and_then(Value::as_u64);
             for m in &msgs {
                 if m.get("msg_type").and_then(Value::as_str) != Some(MSG_TYPE) {
                     continue;
@@ -1130,7 +1212,8 @@ impl LeaseClient {
                 let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(b64) else { continue };
                 if let Ok(event) = serde_json::from_slice::<Event>(&bytes) {
                     let sender = m.get("sender_id").and_then(Value::as_str).map(str::to_string);
-                    out.push(Logged { offset: off, event, sender });
+                    let hub_rx_ms = m.pointer("/metadata/hub_rx_ms").and_then(Value::as_str).and_then(|s| s.parse().ok());
+                    out.push(Logged { offset: off, event, sender, hub_rx_ms });
                 }
             }
             let next = r.get("next_cursor").and_then(Value::as_u64).unwrap_or(cursor);
@@ -1139,7 +1222,7 @@ impl LeaseClient {
             }
             cursor = next;
         }
-        Ok((true, out))
+        Ok((true, out, hub_now))
     }
 
     /// The newest claim row on offset 0, active or lapsed.
@@ -1175,7 +1258,18 @@ impl LeaseClient {
     /// leaves it `None`, FCW-55) and the reporting harnesses.
     pub async fn snapshot_full(&self, project: &str, reporting: Option<Vec<String>>) -> Result<(Folded, Option<Row>, View), LeaseError> {
         let (f, row, v) = self.snapshot(project).await?;
-        let touches = if v.holder.is_some() { self.read_topic(&touch_topic(project)).await.ok().map(|(_, l)| l) } else { Some(vec![]) };
+        // CR-6.21: the touch read also brings the hub's now, read after the log, so no record
+        // the snapshot holds is newer than it.
+        let (touches, hub_now) = if v.holder.is_some() {
+            match self.read_topic_at(&touch_topic(project)).await {
+                Ok((_, l, n)) => (Some(l), n),
+                Err(_) => (None, None),
+            }
+        } else {
+            (Some(vec![]), None)
+        };
+        let mut v = v;
+        v.hub_now_ms = hub_now;
         let v = with_origin(v, &f, touches.as_deref(), reporting);
         Ok((f, row, v))
     }
@@ -1197,6 +1291,8 @@ impl LeaseClient {
                     "msg_type": MSG_TYPE,
                     "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload),
                     "ts": ts,
+                    // CR-6.21: ask the hub to stamp its own receive time on every lease record.
+                    "stamp_rx": true,
                     "sender_id": id.fingerprint(),
                     "sender_pubkey_hex": id.public_key_hex(),
                     "signature_hex": id.sign_hex(&bytes),
@@ -1652,7 +1748,7 @@ mod tests {
         Holder { session: s.into(), agent: "agent-x".into(), host: "host".into(), pid: 7 }
     }
     fn acq(off: u64, generation: u64, s: &str, at: u64) -> Logged {
-        Logged { offset: off, event: Event::Acquire { generation, holder: h(s), claim_id: format!("c-{s}-{at}"), at_ms: at, reason: "first".into(), from: None, lapsed_at_ms: None, obligations: vec![], origin: None, basis: None, provisional: false, holder_human_age_s: None }, sender: Some(format!("key-{s}")) }
+        Logged { offset: off, event: Event::Acquire { generation, holder: h(s), claim_id: format!("c-{s}-{at}"), at_ms: at, reason: "first".into(), from: None, lapsed_at_ms: None, obligations: vec![], origin: None, basis: None, provisional: false, holder_human_age_s: None }, sender: Some(format!("key-{s}")), hub_rx_ms: None }
     }
     fn row(s: &str, at: i64, until: i64) -> Row {
         Row { claim_id: format!("c-{s}-{at}"), claimer: h(s).claimer(), claimed_at: at, claimed_until: until }
@@ -1741,7 +1837,7 @@ mod tests {
     #[test]
     fn cooldown_binds_after_a_quick_clean_release() {
         let mut log = vec![acq(1, 1, "s1", 1000)];
-        log.push(Logged { offset: 2, event: Event::Release { generation: 1, holder: h("s1"), at_ms: 1100 }, sender: None });
+        log.push(Logged { offset: 2, event: Event::Release { generation: 1, holder: h("s1"), at_ms: 1100 }, sender: None, hub_rx_ms: None });
         let f = fold(&log);
         let v = view("p", &f, None, 1200, T);
         // Clean release skips quiet; cooldown from 1000 -> 1500.
@@ -1758,7 +1854,7 @@ mod tests {
         assert_eq!(v.eligible_at_ms, None);
         assert_eq!(plan_claim(&v, &f, "s2"), Plan::RecordLapse);
         let mut log = vec![acq(1, 1, "s1", 1000)];
-        log.push(Logged { offset: 2, event: Event::Lapse { generation: 1, holder: h("s1"), lapsed_at_ms: 9000, observed_at_ms: 9000, observed_by: "s2".into() }, sender: None });
+        log.push(Logged { offset: 2, event: Event::Lapse { generation: 1, holder: h("s1"), lapsed_at_ms: 9000, observed_at_ms: 9000, observed_by: "s2".into() }, sender: None, hub_rx_ms: None });
         let f = fold(&log);
         let v = view("p", &f, None, 9100, T);
         assert_eq!(v.eligible_at_ms, Some(9300));
@@ -1767,7 +1863,7 @@ mod tests {
     #[test]
     fn pin_overrides_a_live_holder_and_takes_a_vacancy_at_once() {
         let mut log = vec![acq(1, 1, "s1", 1000)];
-        log.push(Logged { offset: 2, event: Event::Pin { session: Some("s2".into()), by: "operator".into(), reason: "r".into(), at_ms: 1100 }, sender: None });
+        log.push(Logged { offset: 2, event: Event::Pin { session: Some("s2".into()), by: "operator".into(), reason: "r".into(), at_ms: 1100 }, sender: None, hub_rx_ms: None });
         let f = fold(&log);
         let v = view("p", &f, Some(&row("s1", 1000, 5000)), 1200, T);
         assert_eq!(v.pinned.as_deref(), Some("s2"));
@@ -1780,7 +1876,7 @@ mod tests {
     #[test]
     fn generation_rises_on_every_change_and_the_loser_is_told() {
         let mut log = vec![acq(1, 1, "s1", 1000)];
-        log.push(Logged { offset: 2, event: Event::Acquire { generation: 2, holder: h("s2"), claim_id: "c2".into(), at_ms: 3000, reason: "takeover-after-lapse".into(), from: Some(h("s1")), lapsed_at_ms: Some(2000), obligations: vec![], origin: None, basis: None, provisional: false, holder_human_age_s: None }, sender: None });
+        log.push(Logged { offset: 2, event: Event::Acquire { generation: 2, holder: h("s2"), claim_id: "c2".into(), at_ms: 3000, reason: "takeover-after-lapse".into(), from: Some(h("s1")), lapsed_at_ms: Some(2000), obligations: vec![], origin: None, basis: None, provisional: false, holder_human_age_s: None }, sender: None, hub_rx_ms: None });
         let f = fold(&log);
         assert_eq!(f.generation, 2);
         assert_eq!(f.current.as_ref().unwrap().holder.session, "s2");
@@ -1846,13 +1942,14 @@ mod tests {
                 holder_human_age_s: None,
             },
             sender: Some(format!("key-{s}")),
+            hub_rx_ms: None,
         }
     }
     fn live(s: &str, claim: &str, at: i64, until: i64) -> Row {
         Row { claim_id: claim.into(), claimer: h(s).claimer(), claimed_at: at, claimed_until: until }
     }
     fn touch(off: u64, generation: u64, s: &str, claim: &str, at: u64, key: &str) -> Logged {
-        Logged { offset: off, event: Event::Touch { generation, session: s.into(), claim_id: claim.into(), at_ms: at, basis: Some("pty-input".into()) }, sender: Some(key.into()) }
+        Logged { offset: off, event: Event::Touch { generation, session: s.into(), claim_id: claim.into(), at_ms: at, basis: Some("pty-input".into()) }, sender: Some(key.into()), hub_rx_ms: None }
     }
     fn req(kind: ClaimKind, origin: Option<Origin>) -> ClaimRequest {
         ClaimRequest { kind, origin, basis: None, interactive: Some(true), harness: DEFAULT_HARNESS.into() }
@@ -1926,9 +2023,9 @@ mod tests {
     fn e22_origin_reporting_is_per_harness_and_only_an_operator_record_sets_it() {
         let claims_only = vec![acq_full(1, 1, "s1", 0, "human", false, "c1")];
         assert!(reporting_harnesses(&claims_only).is_empty(), "a claim with an origin never switches a harness");
-        let mut cfg = vec![Logged { offset: 0, event: Event::OriginReporting { harness: "h2".into(), on: true, by: "op".into(), at_ms: 1 }, sender: None }];
+        let mut cfg = vec![Logged { offset: 0, event: Event::OriginReporting { harness: "h2".into(), on: true, by: "op".into(), at_ms: 1 }, sender: None, hub_rx_ms: None }];
         assert_eq!(reporting_harnesses(&cfg), vec!["h2".to_string()]);
-        cfg.push(Logged { offset: 1, event: Event::OriginReporting { harness: "h2".into(), on: false, by: "op".into(), at_ms: 2 }, sender: None });
+        cfg.push(Logged { offset: 1, event: Event::OriginReporting { harness: "h2".into(), on: false, by: "op".into(), at_ms: 2 }, sender: None, hub_rx_ms: None });
         assert!(reporting_harnesses(&cfg).is_empty(), "newest record per harness wins");
         // In a reporting harness an absent origin is unknown: ignored (FCW-53).
         let (f, v) = held_s1(MIN);
@@ -1974,7 +2071,7 @@ mod tests {
         assert_eq!(last_human(&f, Some(&[])), None);
         // A promote clears `provisional` in the fold.
         let mut log = vec![acq_full(1, 1, "s1", 0, "human", true, "c1")];
-        log.push(Logged { offset: 2, event: Event::Promote { generation: 1, holder: h("s1"), claim_id: "c1".into(), at_ms: 100, origin: "human".into(), basis: None }, sender: Some("key-s1".into()) });
+        log.push(Logged { offset: 2, event: Event::Promote { generation: 1, holder: h("s1"), claim_id: "c1".into(), at_ms: 100, origin: "human".into(), basis: None }, sender: Some("key-s1".into()), hub_rx_ms: None });
         let f = fold(&log);
         assert!(!f.current.as_ref().unwrap().provisional);
         assert_eq!(f.current.unwrap().human_at_ms, Some(100));
@@ -1993,7 +2090,7 @@ mod tests {
         }
         // Pinned S1 is never fast-taken (FCW-54).
         let mut log = vec![acq_full(1, 1, "s1", 0, "human", false, "c1")];
-        log.push(Logged { offset: 2, event: Event::Pin { session: Some("s1".into()), by: "op".into(), reason: "r".into(), at_ms: 1 }, sender: None });
+        log.push(Logged { offset: 2, event: Event::Pin { session: Some("s1".into()), by: "op".into(), reason: "r".into(), at_ms: 1 }, sender: None, hub_rx_ms: None });
         let fp = fold(&log);
         let vp = view("p", &fp, Some(&live("s1", "c1", 0, LEASE_MS as i64)), 10 * MIN, P);
         assert_eq!(plan_reporting(&vp, &fp, &h("s2"), &human(), Some(0)), Plan::Held);
@@ -2028,6 +2125,69 @@ mod tests {
         assert_eq!(plan_reporting(&v, &f, &far, &human(), Some(0)), Plan::Held);
         let (f, v) = held_s1(QUIET_MS + CROSS_HOST_MARGIN_MS + 1_000);
         assert!(matches!(plan_reporting(&v, &f, &far, &human(), Some(0)), Plan::FastTakeover { .. }));
+    }
+
+    fn rx(mut l: Logged, at: u64) -> Logged {
+        l.hub_rx_ms = Some(at);
+        l
+    }
+    /// S1 holds from a human acquire whose wall time is `wall` and hub stamp `stamp`; S2 (on
+    /// another host, wall clock `s2_now`) reads it with the hub's now `hub_now`.
+    fn hub_view(wall: u64, stamp: u64, touches: &[Logged], s2_now: u64, hub_now: Option<u64>) -> (Folded, View) {
+        let f = fold(&[rx(acq_full(1, 1, "s1", wall, "human", false, "c1"), stamp)]);
+        let mut v = view("p", &f, Some(&live("s1", "c1", 0, i64::MAX)), s2_now, P);
+        v.hub_now_ms = hub_now;
+        let v = with_origin(v, &f, Some(touches), Some(vec![DEFAULT_HARNESS.into()]));
+        (f, v)
+    }
+
+    // E-24.6 (a) (CR-6.21): with hub stamps both ages are the hub's: 4:59 refused, 5:01 taken,
+    // no cross-host margin, whichever way the holder's wall clock is off (10 min slow or fast).
+    #[test]
+    fn e24_hub_receive_stamp_decides_across_hosts_with_no_margin() {
+        let mut far = h("s2");
+        far.host = "other-host".into();
+        let t = 100 * MIN; // S1's prompt, true time = hub time
+        for skew in [-(10 * MIN as i64), 10 * MIN as i64] {
+            let wall = (t as i64 + skew) as u64; // S1's wall clock
+            for (after, want_take) in [(QUIET_MS - 1_000, false), (QUIET_MS + 1_000, true)] {
+                let (f, v) = hub_view(wall, t, &[], t + after, Some(t + after));
+                let p = plan_reporting(&v, &f, &far, &human(), v.last_human_at_ms);
+                assert_eq!(matches!(p, Plan::FastTakeover { .. }), want_take, "skew {skew} after {after}: {p:?}");
+                assert_eq!(v.holder_human_age_s, Some(after / 1000), "status age on the hub clock");
+            }
+        }
+        // A touch on the hub clock renews: S1 prompted again at t + 3 min (wall skewed).
+        let tch = rx(touch(2, 1, "s1", "c1", t - 10 * MIN + 3 * MIN, "key-s1"), t + 3 * MIN);
+        let (f, v) = hub_view(t - 10 * MIN, t, &[tch], t + QUIET_MS + 1_000, Some(t + QUIET_MS + 1_000));
+        assert_eq!(plan_reporting(&v, &f, &far, &human(), v.last_human_at_ms), Plan::Held, "the touch is 3:01 old on the hub clock");
+    }
+
+    // E-24.6 (b) on the hub clock: a touch by another key or with a stale claim id is not counted,
+    // however new its stamp.
+    #[test]
+    fn e24_hub_clock_counts_only_the_holders_touches() {
+        let t = 100 * MIN;
+        let forged = rx(touch(2, 1, "s1", "c1", t, "key-other"), t + 4 * MIN);
+        let stale = rx(touch(3, 1, "s1", "c0", t, "key-s1"), t + 4 * MIN);
+        let (_, v) = hub_view(t, t, &[forged, stale], t + QUIET_MS + 1_000, Some(t + QUIET_MS + 1_000));
+        assert_eq!(v.last_human_rx_ms, Some(t));
+    }
+
+    // CR-6.21 fallback: one counted record without the hub's stamp (or no hub now) and the
+    // claimer-clock rule with its cross-host margin decides; clocks are never mixed.
+    #[test]
+    fn e24_unstamped_record_or_no_hub_now_falls_back_to_the_margin() {
+        let mut far = h("s2");
+        far.host = "other-host".into();
+        let t = 100 * MIN;
+        let unstamped = touch(2, 1, "s1", "c1", t + MIN, "key-s1");
+        let (_, v) = hub_view(t, t, &[unstamped], t + QUIET_MS + 2 * MIN, Some(t + QUIET_MS + 2 * MIN));
+        assert_eq!(v.last_human_rx_ms, None, "an unstamped counted touch: no hub-clock age");
+        let (f, v) = hub_view(t, t, &[], t + QUIET_MS + 1_000, None);
+        assert_eq!(plan_reporting(&v, &f, &far, &human(), v.last_human_at_ms), Plan::Held, "no hub now: margin applies at 5:01");
+        let (f, v) = hub_view(t, t, &[], t + QUIET_MS + CROSS_HOST_MARGIN_MS + 1_000, None);
+        assert!(matches!(plan_reporting(&v, &f, &far, &human(), v.last_human_at_ms), Plan::FastTakeover { .. }));
     }
 
     // E-26: lapse at 15 min whatever the agent does; human prompt resumes (S1) or takes at once (S2).
@@ -2130,10 +2290,10 @@ mod tests {
                     _ => {
                         if rnd(4) == 0 {
                             let pin = if rnd(2) == 0 { Some(who.to_string()) } else { None };
-                            log.push(Logged { offset: log.len() as u64 + 1, event: Event::Pin { session: pin, by: "op".into(), reason: "m".into(), at_ms: now }, sender: None });
+                            log.push(Logged { offset: log.len() as u64 + 1, event: Event::Pin { session: pin, by: "op".into(), reason: "m".into(), at_ms: now }, sender: None, hub_rx_ms: None });
                         } else if am_i(&v, who) == Verdict::Main {
                             row = None;
-                            log.push(Logged { offset: log.len() as u64 + 1, event: Event::Release { generation: v.generation, holder: me.clone(), at_ms: now }, sender: None });
+                            log.push(Logged { offset: log.len() as u64 + 1, event: Event::Release { generation: v.generation, holder: me.clone(), at_ms: now }, sender: None, hub_rx_ms: None });
                         }
                         continue;
                     }
@@ -2153,6 +2313,7 @@ mod tests {
                         offset: log.len() as u64 + 1,
                         event: Event::Acquire { generation, holder: me.clone(), claim_id: cid, at_ms: now, reason: reason.into(), from: None, lapsed_at_ms: None, obligations: vec![], origin: Some(o.into()), basis: None, provisional: prov, holder_human_age_s: None },
                         sender: key.clone(),
+                        hub_rx_ms: None,
                     });
                 };
                 match plan {
@@ -2163,7 +2324,7 @@ mod tests {
                         acquire(&mut log, &mut row, "override", f.generation + 1, false, LEASE_MS)
                     }
                     Plan::Promote { claim_id } => {
-                        log.push(Logged { offset: log.len() as u64 + 1, event: Event::Promote { generation: v.generation, holder: me.clone(), claim_id, at_ms: now, origin: "human".into(), basis: None }, sender: key.clone() });
+                        log.push(Logged { offset: log.len() as u64 + 1, event: Event::Promote { generation: v.generation, holder: me.clone(), claim_id, at_ms: now, origin: "human".into(), basis: None }, sender: key.clone(), hub_rx_ms: None });
                         if let Some(r) = row.as_mut() {
                             r.claimed_until = (now + LEASE_MS) as i64;
                         }
@@ -2233,7 +2394,7 @@ mod tests {
             }
             t
         }];
-        let ignored = [Logged { offset: 1, event: Event::Ignored { session: "s2".into(), origin: "automated".into(), basis: Some("doorbell".into()), hook: "prompt".into(), harness: "h".into(), at_ms: 1 }, sender: None }];
+        let ignored = [Logged { offset: 1, event: Event::Ignored { session: "s2".into(), origin: "automated".into(), basis: Some("doorbell".into()), hook: "prompt".into(), harness: "h".into(), at_ms: 1 }, sender: None, hub_rx_ms: None }];
         let clean = [acq_full(1, 1, "s1", 0, "human", false, "c1")];
         let r = renewal_report(&clean, &touches, &ignored);
         assert_eq!(r["counted_renewals"], 3);

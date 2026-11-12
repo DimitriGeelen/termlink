@@ -100,6 +100,9 @@ impl Shared {
                 "origin": v.origin,
                 "last_human_at_ms": v.last_human_at_ms,
                 "holder_human_age_s": v.holder_human_age_s,
+                // CR-6.21 (T-3694): the hub-clock last human prompt and the hub's now.
+                "last_human_rx_ms": v.last_human_rx_ms,
+                "hub_now_ms": v.hub_now_ms,
                 "project": project,
                 "topic": v.topic,
                 "holder": v.holder,

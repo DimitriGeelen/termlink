@@ -777,6 +777,28 @@ pub(crate) fn apply_observed_addr(
     }
 }
 
+/// T-3694 (CR-6.21): metadata key holding the hub's receive time (ms since the epoch).
+pub const HUB_RX_KEY: &str = "hub_rx_ms";
+
+/// The hub's wall clock in ms since the epoch.
+pub(crate) fn hub_now_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+/// Stamp the hub's receive time (`Some`) on a posted envelope's metadata, or remove the key
+/// (`None`): whatever the client put under it is never kept (only the hub may say when it
+/// received a record).
+pub(crate) fn apply_hub_rx(metadata: &mut std::collections::BTreeMap<String, String>, now_ms: Option<u64>) {
+    match now_ms {
+        Some(t) => {
+            metadata.insert(HUB_RX_KEY.to_string(), t.to_string());
+        }
+        None => {
+            metadata.remove(HUB_RX_KEY);
+        }
+    }
+}
+
 /// T-3432 (arc-011 FX-5 ruling C′, part c): the largest plaintext field `channel.post` accepts,
 /// the decoded payload or any one metadata value. A backstop against a whole file landing in a
 /// counted field in one message, set above every field measured on .107 (largest 296 KB,
@@ -967,6 +989,10 @@ pub(crate) async fn handle_channel_post_with_peer(
     // metadata (or strip any client-supplied value when not attestable). MUST run
     // after the client metadata is parsed so the attested value wins.
     apply_observed_addr(&mut metadata, peer_addr);
+    // T-3694 (CR-6.21): the hub's own receive time when the poster asks (`stamp_rx: true`), so
+    // a reader can compare two records' ages on one clock (the main lease's fast takeover).
+    // A client-supplied value is always removed; posts that do not ask stay byte-identical.
+    apply_hub_rx(&mut metadata, params.get("stamp_rx").and_then(|v| v.as_bool()).unwrap_or(false).then(hub_now_ms));
 
     // T-2049 Gap A — idempotency via optional client_msg_id. Verified
     // sender_id (T-1427) namespaces the dedupe so the cache cannot be
@@ -1689,6 +1715,8 @@ pub(crate) async fn handle_channel_subscribe_with(
     let mut body = json!({"messages": messages, "next_cursor": next_cursor});
     {
         let obj = body.as_object_mut().expect("subscribe response body is an object");
+        // T-3694 (CR-6.21): the hub's "now" on the clock of every record's hub_rx_ms.
+        obj.insert("hub_now_ms".to_string(), json!(hub_now_ms()));
         obj.insert("oldest_offset".to_string(), json!(oldest_offset));
         obj.insert("end_reason".to_string(), json!(end_reason));
         if let Some(gap) = retention_gap_json(cursor, oldest_offset) {
@@ -4668,6 +4696,32 @@ mod tests {
             RpcResponse::Error(e) => assert_eq!(e.error.code, -32602),
             _ => panic!("expected error"),
         }
+    }
+
+    // T-3694 (CR-6.21, E-24.6): a post that asks is stamped with the HUB's receive time, never
+    // the client's `ts`; a client-supplied hub_rx_ms is removed (no ask) or overwritten (ask);
+    // subscribe carries hub_now_ms on the same clock.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn e24_hub_stamps_its_own_receive_time_only_when_asked_and_never_keeps_a_forged_one() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("main-touch:p", Retention::Forever).unwrap();
+        let key = signing_key();
+        let before = hub_now_ms();
+        // 1: asked, with a client clock 10 min fast and a forged stamp.
+        let mut p = post_params_with_meta(&key, "main-touch:p", "note", b"a", (before + 600_000) as i64, Some(json!({"hub_rx_ms": "1"})));
+        p["stamp_rx"] = json!(true);
+        let _ = unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+        // 2: not asked, forged stamp.
+        let p = post_params_with_meta(&key, "main-touch:p", "note", b"b", before as i64, Some(json!({"hub_rx_ms": "2"})));
+        let _ = unwrap_success(handle_channel_post_with(&bus, json!(2), &p).await);
+        let after = hub_now_ms();
+        let v = unwrap_success(handle_channel_subscribe_with(&bus, json!(3), &json!({"topic": "main-touch:p", "cursor": 0})).await);
+        let msgs = v["messages"].as_array().unwrap();
+        let rx: u64 = msgs[0]["metadata"]["hub_rx_ms"].as_str().expect("stamped").parse().unwrap();
+        assert!(rx >= before && rx <= after, "the hub's clock, not the client's ts nor the forged value: {rx}");
+        assert!(msgs[1].get("metadata").is_none_or(|m| m.get("hub_rx_ms").is_none()), "a forged stamp is never kept: {}", msgs[1]);
+        let now = v["hub_now_ms"].as_u64().expect("hub_now_ms");
+        assert!(now >= rx && now >= after, "hub_now_ms is the hub's clock at the read: {now}");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

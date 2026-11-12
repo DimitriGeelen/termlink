@@ -417,6 +417,10 @@ fn b25_reporting_harness_provisional_ignored_touch_and_fast_takeover() {
     let (rc, b) = hub.main_slow(&["claim", "--session", "S-B", "--origin", "human"]);
     assert_eq!((rc, b["action"].as_str()), (0, Some("renewed")), "{b}");
     let lh = b["last_human_at_ms"].as_u64().expect("last_human_at_ms after a human renewal");
+    // CR-6.21 (T-3694): this hub stamps every lease record, so the age is on the hub's clock.
+    let (_, st) = hub.main_slow(&["status"]);
+    assert!(st["last_human_rx_ms"].is_u64() && st["hub_now_ms"].is_u64(), "hub receive stamps in status: {st}");
+    assert_eq!(st["age_clock"], "hub", "{st}");
     // E-24: inside the quiet period S-A is held off.
     let (rc, a) = hub.main_slow(&["claim", "--session", "S-A", "--origin", "human"]);
     assert_eq!(rc, 1, "fast takeover before the quiet period: {a}");

@@ -61,6 +61,18 @@ pub struct LeaseFacts {
 impl LeaseFacts {
     /// From the lease view the sidecar holds (`termlink_session::main_lease::View`).
     pub fn from_view(v: &termlink_session::main_lease::View) -> LeaseFacts {
+        // CR-6.21: on the hub's clock when the read carried its stamps (no host skew).
+        if let (Some(n), Some(rx)) = (v.hub_now_ms, v.last_human_rx_ms) {
+            return LeaseFacts {
+                state: v.state.to_string(),
+                provisional: v.provisional,
+                holder_session: v.holder.as_ref().map(|h| h.session.clone()),
+                holder_agent: v.holder.as_ref().map(|h| h.agent.clone()),
+                generation: v.generation,
+                last_human_at_ms: Some(rx),
+                now_ms: n,
+            };
+        }
         LeaseFacts {
             state: v.state.to_string(),
             provisional: v.provisional,
@@ -609,5 +621,21 @@ mod tests {
         let r2 = Runner::new("p", "rx", "a", Box::new(NoSink));
         r2.tick(WAIT_MS, &[role("m1", 0)], None, &mut |_| Err("disk full".into()));
         assert!(r2.status_view()["attention_error"].as_str().is_some_and(|e| e.contains("disk full")), "{}", r2.status_view());
+    }
+
+    // CR-6.21: "reading" is judged on the hub's clock when the lease read carried its stamps:
+    // a holder whose wall clock is 20 min behind but who prompted 2 min ago (hub) is reading.
+    #[test]
+    fn e28_reading_uses_the_hub_clock_when_stamped() {
+        use termlink_session::main_lease::{Folded, Holder, Row, Timing, fold, view};
+        let h = Holder { session: "S-main".into(), agent: "a".into(), host: "h".into(), pid: 1 };
+        let f: Folded = fold(&[]);
+        let row = Row { claim_id: "c".into(), claimer: h.claimer(), claimed_at: 0, claimed_until: i64::MAX };
+        let mut v = view("p", &f, Some(&row), 100 * MIN, Timing::default());
+        v.last_human_at_ms = Some(80 * MIN); // wall: 20 min ago
+        assert!(!reading(Some(&LeaseFacts::from_view(&v)), "a"), "claimer clocks: not reading");
+        v.last_human_rx_ms = Some(1_000 * MIN);
+        v.hub_now_ms = Some(1_002 * MIN); // hub: 2 min ago
+        assert!(reading(Some(&LeaseFacts::from_view(&v)), "a"), "hub clock: reading");
     }
 }
