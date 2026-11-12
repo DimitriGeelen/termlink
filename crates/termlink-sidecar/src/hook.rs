@@ -48,6 +48,20 @@ pub fn call(socket: &Path, req: &Value, timeout: Duration) -> Result<Value, Stri
     serde_json::from_str(&line).map_err(|e| format!("bad answer: {e}"))
 }
 
+/// CR-6.4 / AL-11 (T-3694, E-153): send one `prompt_submit` adapter report and return the
+/// origin and basis the lease claim must carry: the receiver-checked ones from the reply. Any
+/// failure (no sidecar, refused, a reply without `origin_checked`) is `(unknown, absent)`, so
+/// a prompt the receiver could not check never renews main (FCW-195; never the hook's own
+/// `human`).
+pub fn checked_origin(socket: &Path, report: &Value, timeout: Duration) -> (String, String) {
+    let unknown = || ("unknown".to_string(), "absent".to_string());
+    let Ok(r) = call(socket, report, timeout) else { return unknown() };
+    match (r.get("origin_checked").and_then(Value::as_str), r.get("basis_checked").and_then(Value::as_str)) {
+        (Some(o), Some(b)) if matches!(o, "human" | "automated" | "unknown") => (o.to_string(), b.to_string()),
+        _ => unknown(),
+    }
+}
+
 /// Where hook errors go: `$TERMLINK_SIDECAR_HOOK_ERRORS`, else beside the socket.
 pub fn errlog_path(socket: Option<&Path>) -> Option<PathBuf> {
     if let Some(p) = std::env::var_os(ERRLOG_ENV) {

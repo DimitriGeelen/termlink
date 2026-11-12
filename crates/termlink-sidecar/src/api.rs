@@ -317,7 +317,16 @@ fn serve(s: UnixStream, scope: Scope, sh: &Shared) -> io::Result<()> {
             && is_report(&line)
         {
             // B-27 AL-1: an adapter report, parsed strictly by the meter.
-            report_reply(m.intake(line.strip_suffix(b"\n").unwrap_or(&line)))
+            let raw = line.strip_suffix(b"\n").unwrap_or(&line);
+            let applied = m.intake(raw);
+            let ok = matches!(applied, crate::meter::Intake::Applied);
+            let mut v = report_reply(applied);
+            // CR-6.4 (T-3694, E-153): the hook claims the lease with the receiver-checked origin.
+            if ok && let Some((o, b)) = m.checked_origin_of(raw) {
+                v["origin_checked"] = Value::from(o);
+                v["basis_checked"] = Value::from(b);
+            }
+            v
         } else {
             match serde_json::from_slice::<Value>(&line) {
                 Ok(v) => handle(&v, scope, sh),

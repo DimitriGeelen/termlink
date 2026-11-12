@@ -658,6 +658,11 @@ impl Meter {
             .get(session)
             .map(|q| q.iter().filter(|(t, _)| rx.saturating_sub(*t) <= crate::deadline::TICK_MS).flat_map(|(_, ids)| ids.clone()).collect())
             .unwrap_or_default();
+        // FCW-195: the newest line the receiver typed into this session within a tick.
+        let last_typed: Option<u64> = inner
+            .typed
+            .get(session)
+            .and_then(|q| q.iter().map(|(t, _)| *t).filter(|t| *t <= rx && rx.saturating_sub(*t) <= crate::deadline::TICK_MS).max());
         let counters = &mut inner.counters;
         let sess = inner.sessions.entry(session.to_owned()).or_default();
         let mut out = Intake::Applied;
@@ -706,7 +711,8 @@ impl Meter {
             }
             "prompt_submit" => {
                 let ids = valid_ids(obj.get("doorbell_ids"));
-                let (origin, basis) = check_origin(counters, s("origin").unwrap_or(""), s("basis").unwrap_or(""), &ids, &typed_ids, origin_s1, rx);
+                let prev = sess.last_prompt.as_ref().map(|p| p.rx_mono);
+                let (origin, basis) = check_origin(counters, s("origin").unwrap_or(""), s("basis").unwrap_or(""), &ids, &typed_ids, origin_s1, rx, prev, last_typed);
                 sess.last_prompt = Some(Prompt { origin, basis, at_ms, ord: ord.clone(), rx_mono: rx, doorbell_ids: ids });
                 sess.stopped = None;
             }
@@ -990,6 +996,17 @@ impl Meter {
         lock(&self.inner).sessions.get(session)?.ready.clone().filter(|r| r.epoch == self.epoch)
     }
 
+    /// CR-6.4 (T-3694, E-153): the receiver-checked origin of an applied `prompt_submit`
+    /// report, for the reply the hook claims with (AL-11). `None` for any other report.
+    pub fn checked_origin_of(&self, raw: &[u8]) -> Option<(&'static str, String)> {
+        let v: Value = serde_json::from_slice(raw).ok()?;
+        if v.get("event").and_then(Value::as_str) != Some("prompt_submit") {
+            return None;
+        }
+        let p = self.last_prompt(v.get("session_id").and_then(Value::as_str)?)?;
+        Some((p.origin.name(), p.basis))
+    }
+
     pub fn last_prompt(&self, session: &str) -> Option<Prompt> {
         lock(&self.inner).sessions.get(session)?.last_prompt.clone()
     }
@@ -1146,7 +1163,23 @@ fn valid_ids(v: Option<&Value>) -> Vec<String> {
 }
 
 /// AL-1 check_origin: the receiver only ever downgrades an origin.
-fn check_origin(c: &mut Counters, o: &str, b: &str, ids: &[String], typed: &[String], s1: Option<Result<S1Reply, String>>, rx: u64) -> (Origin, String) {
+///
+/// T-3694 (E-153, FCW-195, CR-6.4): for a session whose PTY counters read (same boot), a
+/// `human` prompt with no `client` byte since the previous submit of the session (`prev`), or
+/// none since the last line the receiver typed into it (`last_typed`), is `automated`;
+/// `client_auto` (terminal replies) is never a client byte.
+#[allow(clippy::too_many_arguments)]
+fn check_origin(
+    c: &mut Counters,
+    o: &str,
+    b: &str,
+    ids: &[String],
+    typed: &[String],
+    s1: Option<Result<S1Reply, String>>,
+    rx: u64,
+    prev: Option<u64>,
+    last_typed: Option<u64>,
+) -> (Origin, String) {
     let ok = match o {
         "human" => ["pty-input", "inferred"].contains(&b),
         "automated" => ["doorbell", "non-interactive", "harness-mark", "pty-input"].contains(&b),
@@ -1170,14 +1203,29 @@ fn check_origin(c: &mut Counters, o: &str, b: &str, ids: &[String], typed: &[Str
     // basis `inferred` included (F-4, CR-6.4); `client_auto` is not input.
     if origin == Origin::Human {
         let my_boot = termlink_session::input_meter::boot_id();
-        let src = match s1 {
-            Some(Ok(r)) if my_boot.is_some() && r.boot_id == my_boot => ["client", "notify", "inject"]
+        let counted = match &s1 {
+            Some(Ok(r)) if my_boot.is_some() && r.boot_id == my_boot => Some(r),
+            _ => None,
+        };
+        let src = counted.and_then(|r| {
+            ["client", "notify", "inject"]
                 .iter()
                 .filter_map(|s| r.at(s).filter(|t| *t <= rx).map(|t| (t, *s)))
                 .max_by_key(|(t, _)| *t)
-                .map(|(_, s)| s),
-            _ => None,
-        };
+                .map(|(_, s)| s)
+        });
+        if let Some(r) = counted {
+            let client = r.at("client").filter(|t| *t <= rx);
+            let none_since = |mark: Option<u64>| mark.is_some_and(|m| client.is_none_or(|t| t <= m));
+            if none_since(last_typed) {
+                c.origin_overridden += 1; // FCW-195: follows a line the receiver typed, no client byte after it
+                return (Origin::Automated, "doorbell".into());
+            }
+            if client.is_none() || none_since(prev) {
+                c.origin_overridden += 1; // FCW-195: no client byte since the previous submit
+                return (Origin::Automated, "pty-input".into());
+            }
+        }
         match src {
             Some("notify" | "inject") => {
                 c.origin_overridden += 1; // FCW-5

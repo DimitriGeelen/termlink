@@ -359,7 +359,9 @@ fn p2_ready_op_passes_the_hook_order_to_the_meter() {
     let (r, m) = metered();
     let prompt = json!({"schema": "termlink.adapter/2", "harness": "fake", "agent_id": "agent-b", "session_id": "s-3", "event": "prompt_submit",
         "at_ms": 9, "origin": "human", "basis": "inferred", "boot_id": "b1", "mono_ns": "2000"});
-    assert_eq!(call(&r, Scope::Send, prompt), json!({"ok": true}));
+    // Applied; since T-3694 the reply also carries the receiver-checked origin (CR-6.4).
+    let reply = call(&r, Scope::Send, prompt);
+    assert_eq!((reply["ok"].as_bool(), reply["origin_checked"].as_str()), (Some(true), Some("human")), "{reply}");
     call(&r, Scope::Send, json!({"op": "ready", "session": "s-3", "hook": "stop", "boot_id": "b1", "mono_ns": "1999"}));
     m.tick();
     let st = call(&r, Scope::Status, json!({"op": "status"}));

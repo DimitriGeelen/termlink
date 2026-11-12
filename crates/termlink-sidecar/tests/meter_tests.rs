@@ -488,6 +488,9 @@ fn fcw4_fcw5_prompt_origin_checks() {
     r.ev("s", "prompt_submit", 3, json!({"origin": "human", "basis": "inferred", "doorbell_ids": ["m-1"]}));
     assert_eq!(origin(&r), Some((Origin::Automated, "doorbell".into())));
     // human/pty-input with the last PTY input from notify or inject: automated.
+    // (T-3694: the typed line is older than a tick by now, so FCW-195's "follows a typed
+    // line" rule does not decide these rows; the clock moves on between prompts.)
+    r.adv(termlink_sidecar::deadline::TICK_MS + 1);
     let t = r.at();
     r.set_s1("s", Some(t - 50), Some(t - 10), None);
     r.ev("s", "prompt_submit", 4, json!({"origin": "human", "basis": "pty-input"}));
@@ -496,8 +499,9 @@ fn fcw4_fcw5_prompt_origin_checks() {
     r.ev("s", "prompt_submit", 5, json!({"origin": "human", "basis": "pty-input"}));
     assert_eq!(origin(&r), Some((Origin::Automated, "pty-input".into())));
     assert_eq!(r.m.counters().origin_overridden, 3);
-    // Last input from the client: human stays human.
-    r.set_s1("s", Some(t - 1), Some(t - 10), None);
+    // Last input from the client (typed after the previous submit, FCW-195): human stays human.
+    r.adv(100);
+    r.set_s1("s", Some(r.at() - 1), Some(t - 10), None);
     r.ev("s", "prompt_submit", 6, json!({"origin": "human", "basis": "pty-input"}));
     assert_eq!(origin(&r), Some((Origin::Human, "pty-input".into())));
     // Counters unreadable: cannot confirm pty-input -> inferred, never upgraded.
@@ -530,8 +534,9 @@ fn f4_counter_check_for_every_human_origin() {
     r.ev("s", "prompt_submit", 3, json!({"origin": "human", "basis": "inferred"}));
     assert_eq!(origin(&r), Some((Origin::Automated, "pty-input".into())), "client_auto is ignored");
     assert_eq!(r.m.counters().origin_overridden, 3);
-    // Client input last: human stays human with its basis.
-    r.set_s1("s", Some(t - 1), Some(t - 10), None);
+    // Client input last (after the previous submit, FCW-195): human stays human with its basis.
+    r.adv(100);
+    r.set_s1("s", Some(r.at() - 1), Some(t - 10), None);
     r.ev("s", "prompt_submit", 4, json!({"origin": "human", "basis": "inferred"}));
     assert_eq!(origin(&r), Some((Origin::Human, "inferred".into())));
     // No PTY counters (an unbound or non-PTY session): `inferred` stays as reported.
