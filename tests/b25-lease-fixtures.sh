@@ -94,8 +94,10 @@ open(p,"w").write(s.replace(o,os.environ["NEW"],1))'; then
                     && l.sender == c.sender =>' \
         ' =>'
     run M9-unreadable-touch-log-read-as-empty "$S" "${UNIT}e162" \
-        '    let touches = touches?;' \
-        '    let touches = touches.unwrap_or(&[]);'
+        '    let touches = touches?;
+    let from_touch' \
+        '    let touches = touches.unwrap_or(&[]);
+    let from_touch'
     run M10-renew-without-the-touch "$S" "$INTEG" \
         'if let Err(e) = self.post_side(&touch_topic(project), &ev).await {' \
         'if let Err(e) = self.post_side(&touch_topic(project), &ev).await.or(Ok::<u64, LeaseError>(0)) {'
