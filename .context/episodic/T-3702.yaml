@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3702: P-14: B-4 founding-verb use log and owner-only sessions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T20:02:44Z
+# ============================================================================
+
+task_id: T-3702
+task_name: "P-14: B-4 founding-verb use log and owner-only sessions"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T16:56:38Z
+completed: 2026-11-12T20:00:40Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-12T20:55:41+01:00
+last_commit: 2026-11-12T20:59:44+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  founding-verb use log at session and hub, owner-only sessions (B-4) — every command.inject/command.execute gets a row (verb, caller from+uid/pid at the session, from/sender_id/peer at the hub, scope, decision) before it acts, allowed or refused; unwritable row refuses (FCW-132, -32042 USE_LOG_UNWRITABLE); observe/notify refused as built (FCW-130); TERMLINK_OWNER_ONLY=<owner> makes a session refuse other declared callers (FCW-131), TERMLINK_OWNER_ONLY_CHECK=0 is the rollback; fixture suite tests/t3702-b4-fixtures.sh. tick Agent ACs (fixture suite ALL PASS, 9/9 mutants killed)
+
+# Key outcomes
+outcomes:
+  - 'The B-4 specs pass (founding-verb use log at session and hub; owner-only sessions)'
+  - 'The unit''s fixture suite exits 0 with a PASS line per B-4 E-n and its mutant list is all killed (FP 3.1.b)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'tick Agent ACs (fixture suite ALL PASS, 9/9 mutants killed)'
+    source: git-mined
+  - description: 'founding-verb use log at session and hub, owner-only sessions (B-4) — every command.inject/command.execute gets a row (verb, caller from+uid/pid at the session, from/sender_id/peer at the hub, scope, decision) before it acts, allowed or refused; unwritable row refuses (FCW-132, -32042 USE_LOG_UNWRITABLE); observe/notify refused as built (FCW-130); TERMLINK_OWNER_ONLY=<owner> makes a session refuse other declared callers (FCW-131), TERMLINK_OWNER_ONLY_CHECK=0 is the rollback; fixture suite tests/t3702-b4-fixtures.sh'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — owner-only opt-in by env, not default-on in the launcher'
+    chose: '`TERMLINK_OWNER_ONLY=<owner>` read once at session start (reaches the session daemon through `termlink spawn --env`); `TERMLINK_OWNER_ONLY_CHECK=0` is the rollback; the use log is always on.'
+    rationale: 'no Registration field (its struct literals live in termlink-cli tests, edited concurrently by T-3749) and no CLI flag churn; the launcher default would switch off working waker injects (NID).'
+    alternatives_rejected: ['default-on in `scripts/tl-claude.sh` now (breaks wakers); a Registration `owner_only` field (cross-crate literal churn under concurrency).']
+  - decision: '2026-11-12 — where the rows go'
+    chose: 'session rows at `<session socket dir>/use-log/<session-id>.jsonl` (`TERMLINK_USE_LOG` overrides), hub rows at `<runtime_dir>/rpc-founding.jsonl`; one O_APPEND write per row through the shared capped writer (16 MiB, one rotated generation). A row that cannot be written refuses the verb (FCW-132, new code -32042 USE_LOG_UNWRITABLE).'
+    rationale: 'beside the socket keeps test sessions'' rows in their temp dirs; the hub file mirrors T-3701''s rpc-admin.jsonl.'
+    alternatives_rejected: ['`invocation_audit` (best-effort by contract, swallows failures; FCW-132 needs fail-closed).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3702-p-14-b-4-founding-verb-use-log-and-owner.md'
+  - 'crates/termlink-hub/src/rpc_audit.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - 'crates/termlink-session/src/founding_log.rs'
+  - 'crates/termlink-session/src/handler.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - 'crates/termlink-session/src/server.rs'
+  - 'tests/t3702-b4-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T20:55:41'
+    action: 'T-3702: founding-verb use log at session and hub, owner-only sessions (B-4) — every command.inject/command.execute gets a row (verb, caller from+uid/pid at the session, from/sender_id/peer at the hub, scope, decision) before it acts, allowed or refused; unwritable row refuses (FCW-132, -32042 USE_LOG_UNWRITABLE); observe/notify refused as built (FCW-130); TERMLINK_OWNER_ONLY=<owner> makes a session refuse other declared callers (FCW-131), TERMLINK_OWNER_ONLY_CHECK=0 is the rollback; fixture suite tests/t3702-b4-fixtures.sh'
+  - time: '2026-11-12T20:59:44'
+    action: 'T-3702: tick Agent ACs (fixture suite ALL PASS, 9/9 mutants killed)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 184 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 184
+  commits: 3
+  files_changed: 12
+  lines_added: 1078
+  lines_removed: 17
+  footprint_refreshed_at: '2026-11-12T20:02:53Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3702-p-14-b-4-founding-verb-use-log-and-owner.md
+generated_by: context-agent-hybrid
