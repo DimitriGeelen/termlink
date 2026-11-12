@@ -575,6 +575,60 @@ impl Deliverer {
         inv
     }
 
+    /// B-16 (06 AL-5 step 1): what the doorbell may ring for — every candidate (STORED,
+    /// not handed over, no open claim, not withheld), with its STORED and last pull
+    /// time moved onto `now_mono` (`now_ms` is the wall clock the chain lines carry),
+    /// its attempts and the session its conversation is bound to.
+    pub fn doorbell_pending(&self, now_ms: u64, now_mono: u64) -> Vec<crate::doorbell::Msg> {
+        let to_mono = |t: u64| now_mono.saturating_sub(now_ms.saturating_sub(t));
+        self.candidates()
+            .into_iter()
+            .map(|c| {
+                let lines = self.store.chain_lines(&c.conv).unwrap_or_default();
+                let mine = |ev: &str| lines.iter().filter(|l| l.event == ev && own(l) && l.msg_id == c.msg_id).filter_map(|l| l.ts_ms).collect::<Vec<_>>();
+                let stored = mine("STORED").first().copied().unwrap_or(now_ms);
+                let last_pull = mine(CLAIMED).into_iter().max();
+                let typed = mine(crate::doorbell::ATTEMPTED).len() as u32;
+                crate::doorbell::Msg {
+                    id: c.msg_id.clone(),
+                    conv: c.conv.clone(),
+                    urgent: c.assessment.urgent,
+                    stored_mono: to_mono(stored),
+                    last_pull_mono: last_pull.map(to_mono),
+                    attempts: (c.next_attempt - 1) + typed,
+                    bound: self.bound_session(&c.conv),
+                }
+            })
+            .collect()
+    }
+
+    /// B-16: was `msg_id` handed over (own HANDED_OVER line in any conversation)?
+    pub fn is_handed(&self, msg_id: &str) -> bool {
+        self.store.conversations().iter().filter(|c| !NOT_MAIL.contains(&c.as_str())).any(|c| {
+            self.store.chain_lines(c).map(|ls| ls.iter().any(|l| l.event == HANDED_OVER && own(l) && l.msg_id == msg_id)).unwrap_or(false)
+        })
+    }
+
+    /// B-16 (06 AL-6 step 11, OBS-10): the local ATTEMPTED stage of a typed line, with
+    /// `via` and the ring id. Never HANDED_OVER: only the evidence check writes that (E-4).
+    pub fn mark_stage(&self, msg_id: &str, stage: &str, reason: &str) -> Result<bool, String> {
+        for conv in self.store.conversations() {
+            if NOT_MAIL.contains(&conv.as_str()) {
+                continue;
+            }
+            let Ok(lines) = self.store.chain_lines(&conv) else { continue };
+            let Some(st) = lines.iter().find(|l| l.event == "STORED" && own(l) && l.msg_id == msg_id) else { continue };
+            let extra = LineExtra { reason: Some(reason.to_owned()), ..Default::default() };
+            let once = stage == crate::doorbell::HANDOVER_UNCONFIRMED;
+            return self
+                .store
+                .append_event_unless(&conv, stage, msg_id, &st.sender, &st.digest, extra, |ls| once && ls.iter().any(|l| l.event == stage && l.msg_id == msg_id))
+                .map(|s| s.is_some())
+                .map_err(|e| e.to_string());
+        }
+        Err(format!("{msg_id}: no STORED line"))
+    }
+
     /// Messages that would be offered now (for status and tests).
     pub fn pending(&self) -> Vec<String> {
         self.candidates().into_iter().map(|c| c.msg_id).collect()

@@ -135,6 +135,8 @@ pub struct ApiConfig {
     /// Defaults to `$TERMLINK_SIDECAR_HOOK_ERRORS`, else `hook-errors.log` beside
     /// the sockets (where a hook writes it by default).
     pub hook_errlog: Option<PathBuf>,
+    /// B-16 (T-3697): the doorbell; `status` shows it as `doorbell`.
+    pub doorbell: Option<Arc<crate::doorbell::Runner>>,
 }
 
 impl ApiConfig {
@@ -153,6 +155,7 @@ impl ApiConfig {
             mail_waiting: None,
             meter: None,
             hook_errlog: crate::hook::errlog_path(Some(&socket_path(runtime, agent, Scope::Send))),
+            doorbell: None,
         }
     }
 }
@@ -357,7 +360,7 @@ fn report_reply(i: crate::meter::Intake) -> Value {
 fn handle(req: &Value, scope: Scope, sh: &Shared) -> Value {
     // The peer passed the owner check, so its uid is the owner's.
     let who = format!("admin-uid-{}", sh.cfg.owner_uid);
-    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref(), liveness: sh.cfg.liveness.as_ref().map(|(l, e)| (&**l, *e)), lease: sh.cfg.lease.as_deref(), mail_waiting: sh.cfg.mail_waiting.as_deref(), meter: sh.cfg.meter.as_deref(), hook_errlog: sh.cfg.hook_errlog.as_deref() };
+    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref(), liveness: sh.cfg.liveness.as_ref().map(|(l, e)| (&**l, *e)), lease: sh.cfg.lease.as_deref(), mail_waiting: sh.cfg.mail_waiting.as_deref(), meter: sh.cfg.meter.as_deref(), hook_errlog: sh.cfg.hook_errlog.as_deref(), doorbell: sh.cfg.doorbell.as_deref() };
     dispatch_inner(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref(), ctx)
 }
 
@@ -375,7 +378,7 @@ pub fn dispatch_with(
     hub_id: Option<&str>,
     sender: Option<&Sender>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None, liveness: None, lease: None, mail_waiting: None, meter: None, hook_errlog: None })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None, liveness: None, lease: None, mail_waiting: None, meter: None, hook_errlog: None, doorbell: None })
 }
 
 /// [`dispatch_with`] with the deliver path attached as well.
@@ -388,7 +391,7 @@ pub fn dispatch_full(
     sender: Option<&Sender>,
     deliverer: Option<&Deliverer>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease: None, mail_waiting: None, meter: None, hook_errlog: None })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease: None, mail_waiting: None, meter: None, hook_errlog: None, doorbell: None })
 }
 
 /// [`dispatch_full`] with the main lease view attached (P-5 tests: the non-main pull).
@@ -401,7 +404,7 @@ pub fn dispatch_leased(
     deliverer: Option<&Deliverer>,
     lease: Option<&crate::lease::Shared>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, None, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease, mail_waiting: None, meter: None, hook_errlog: None })
+    dispatch_inner(req, scope, store, agent, None, Ctx { sender, deliverer, who: "admin-direct", book: None, liveness: None, lease, mail_waiting: None, meter: None, hook_errlog: None, doorbell: None })
 }
 
 #[derive(Clone, Copy)]
@@ -414,6 +417,7 @@ struct Ctx<'a> {
     lease: Option<&'a crate::lease::Shared>,
     mail_waiting: Option<&'a crate::mail_waiting::Runner>,
     meter: Option<&'a crate::meter::Meter>,
+    doorbell: Option<&'a crate::doorbell::Runner>,
     hook_errlog: Option<&'a Path>,
 }
 
@@ -476,6 +480,10 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
                 // B-27 (6.14.5): per-session activity and conversation, fresh or unknown.
                 if let Some(m) = ctx.meter {
                     v["activity"] = m.status_view();
+                }
+                // B-16 (T-3697, OBS-11, OBS-15): the doorbell switch, ring state, watchdog line, H-11.
+                if let Some(d) = ctx.doorbell {
+                    v["doorbell"] = d.status_view();
                 }
                 // B-11 (T-3696, AL-25 OBS): the encryption key start-up check, as recorded by this start.
                 v["keys"] = serde_json::json!({"encryption": crate::enckey::recorded_status(store.dir())});

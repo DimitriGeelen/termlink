@@ -297,37 +297,74 @@ impl S1Source for Unbound {
 }
 
 /// S1 read through `session.input_activity` on a bound TermLink session socket
-/// with a notify-scope token (AL-2, FCW-9). B-16 binds sessions when it learns
-/// them; until then every read fails and S1 is unknown.
+/// with a notify-scope token (AL-2, FCW-9). B-16 binds a harness session to the
+/// TermLink session that hosts it ([`crate::doorbell::find_binding`]); an unbound
+/// session reads unknown.
 pub struct SessionRpc {
     bound: Mutex<HashMap<String, (PathBuf, Option<String>)>>,
+    /// B-16: (TermLink session id, its token secret hex): a notify-scope token is
+    /// minted per call, so no token outlives its use.
+    secrets: Mutex<HashMap<String, (String, String)>>,
 }
 
 impl SessionRpc {
     pub fn new() -> std::io::Result<Self> {
-        Ok(SessionRpc { bound: Mutex::new(HashMap::new()) })
+        Ok(SessionRpc { bound: Mutex::new(HashMap::new()), secrets: Mutex::new(HashMap::new()) })
     }
     pub fn bind(&self, session: &str, socket: &Path, token: Option<String>) {
         lock(&self.bound).insert(session.to_owned(), (socket.to_path_buf(), token));
+        lock(&self.secrets).remove(session);
+    }
+    /// B-16: bind with the TermLink session's token secret (notify scope minted per call).
+    pub fn bind_secret(&self, session: &str, socket: &Path, tl_session: &str, secret_hex: Option<String>) {
+        lock(&self.bound).insert(session.to_owned(), (socket.to_path_buf(), None));
+        match secret_hex {
+            Some(s) => lock(&self.secrets).insert(session.to_owned(), (tl_session.to_owned(), s)),
+            None => lock(&self.secrets).remove(session),
+        };
+    }
+    pub fn is_bound(&self, session: &str) -> bool {
+        lock(&self.bound).contains_key(session)
+    }
+    pub fn unbind(&self, session: &str) {
+        lock(&self.bound).remove(session);
+        lock(&self.secrets).remove(session);
+    }
+    fn target(&self, session: &str) -> Result<(PathBuf, Option<String>), String> {
+        let (sock, token) = lock(&self.bound).get(session).cloned().ok_or("no TermLink PTY session is bound to this session")?;
+        if let Some((tl, hex)) = lock(&self.secrets).get(session).cloned() {
+            let bytes: Vec<u8> = (0..hex.len() / 2).filter_map(|i| u8::from_str_radix(hex.get(2 * i..2 * i + 2)?, 16).ok()).collect();
+            let secret: termlink_session::auth::TokenSecret = bytes.try_into().map_err(|_| "the session's token secret is not 32 bytes of hex".to_string())?;
+            let t = termlink_session::auth::create_token(&secret, termlink_session::auth::PermissionScope::Notify, &tl, 60);
+            return Ok((sock, Some(t.raw)));
+        }
+        Ok((sock, token))
+    }
+    /// One RPC with a timeout; `Err(None)` is a timeout, `Err(Some(e))` a failure.
+    pub fn call(&self, session: &str, method: &str, params: Value, timeout_ms: u64) -> Result<Value, Option<String>> {
+        let (sock, token) = self.target(session).map_err(Some)?;
+        let call = termlink_session::client::rpc_call_with_token_timeout(&sock, token.as_deref(), method, params, std::time::Duration::from_millis(timeout_ms));
+        // A runtime per call, built and dropped on the calling (plain) thread:
+        // a stored one could be dropped inside an async context and panic.
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| Some(e.to_string()))?;
+        let resp = rt.block_on(async { tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), call).await });
+        let resp = resp.map_err(|_| None)?.map_err(|e| Some(e.to_string()))?;
+        termlink_session::client::unwrap_result(resp).map_err(Some)
     }
 }
 
 impl S1Source for SessionRpc {
     fn read(&self, session: &str) -> Result<S1Reply, String> {
-        let (sock, token) = lock(&self.bound).get(session).cloned().ok_or("no TermLink PTY session is bound to this session")?;
-        let call = termlink_session::client::rpc_call_with_token_timeout(
-            &sock,
-            token.as_deref(),
-            termlink_protocol::control::method::SESSION_INPUT_ACTIVITY,
-            json!({}),
-            std::time::Duration::from_millis(S1_TIMEOUT_MS),
-        );
-        // A runtime per read, built and dropped on the calling (plain) thread:
-        // a stored one could be dropped inside an async context and panic.
-        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| e.to_string())?;
-        let resp = rt.block_on(async { tokio::time::timeout(std::time::Duration::from_millis(S1_TIMEOUT_MS), call).await });
-        let resp = resp.map_err(|_| "input_activity timed out".to_string())?.map_err(|e| e.to_string())?;
-        S1Reply::from_result(&termlink_session::client::unwrap_result(resp)?)
+        let v = self
+            .call(session, termlink_protocol::control::method::SESSION_INPUT_ACTIVITY, json!({}), S1_TIMEOUT_MS)
+            .map_err(|e| e.unwrap_or_else(|| "input_activity timed out".to_string()))?;
+        S1Reply::from_result(&v)
+    }
+}
+
+impl<T: S1Source + ?Sized> S1Source for Arc<T> {
+    fn read(&self, session: &str) -> Result<S1Reply, String> {
+        (**self).read(session)
     }
 }
 
@@ -414,6 +451,8 @@ struct Session {
     complete_at: Option<u64>,
     ended: bool,
     snapshot: Option<(Value, u64)>,
+    /// B-16 (CR-6.19, 04 17.4.a): the harness pid `session_start` reported.
+    harness_pid: Option<u32>,
 }
 
 /// Counters the evidence runner reads (OBS-1).
@@ -691,6 +730,8 @@ impl Meter {
             "session_start" => {
                 sess.interactive = obj.get("interactive").and_then(Value::as_bool);
                 sess.ended = false;
+                // B-16: a new harness instance is unregistered until it says which pid it is.
+                sess.harness_pid = obj.get("harness_pid").and_then(Value::as_u64).and_then(|p| u32::try_from(p).ok()).filter(|p| *p > 1);
                 match transcript {
                     Some(Ok(p)) => {
                         sess.transcript = Some(p);
@@ -1023,11 +1064,8 @@ impl Meter {
             None => (json!("unknown"), json!("unknown: not read yet")),
         };
         let s1_known = matches!(s.s1, Some(S1::Known { .. }));
-        // FCW-13; F-28 (CR-6.25): a transcript whose lstat failed is not a
-        // known S2 source, so S2 is known then only on a fresh report.
-        let report_fresh = s.last_report.is_some_and(|t| now.saturating_sub(t) <= S2_FRESH_MS);
         let tr_unreadable = s.transcript.is_some() && s.tr_unreadable;
-        let s2_known = if tr_unreadable { report_fresh } else { s.reports > 0 || s.transcript.is_some() };
+        let s2_known = s2_known(s, now);
         // last = max of the KNOWN sources; an unknown source never reads as silence.
         let mut cands: Vec<(u64, &str)> = vec![];
         if let Some(S1::Known { client: Some(c), .. }) = s.s1 {
@@ -1108,6 +1146,69 @@ impl Meter {
                 "restored": c.restored, "last_reasons": c.reasons,
             },
         })
+    }
+}
+
+/// FCW-13; F-28 (CR-6.25): a transcript whose lstat failed is not a known S2
+/// source, so S2 is known then only on a fresh report.
+fn s2_known(s: &Session, now: u64) -> bool {
+    let report_fresh = s.last_report.is_some_and(|t| now.saturating_sub(t) <= S2_FRESH_MS);
+    if s.transcript.is_some() && s.tr_unreadable { report_fresh } else { s.reports > 0 || s.transcript.is_some() }
+}
+
+/// What the doorbell reads of one session on a tick (B-16).
+#[derive(Debug, Clone, PartialEq)]
+pub struct DoorbellFacts {
+    pub name: String,
+    pub ended: bool,
+    pub harness_pid: Option<u32>,
+    /// `None`: S1 unknown; `Some(last client input)` otherwise.
+    pub s1: Option<Option<u64>>,
+    pub s2_known: bool,
+    /// (s1, s2, s3) last event, mono.
+    pub acts: (Option<u64>, Option<u64>, Option<u64>),
+    /// The READY record with "received by this process" (FCW-6).
+    pub ready: Option<(ReadyRec, bool)>,
+    /// The last prompt submit: (rx mono, the doorbell ids it named).
+    pub last_submit: Option<(u64, Vec<String>)>,
+    pub conversation: Conversation,
+}
+
+impl Meter {
+    /// B-16: every session's facts for the doorbell tick, read under one lock
+    /// each (the conversation signal outside it, AL-4).
+    pub fn doorbell_facts(&self, now: u64) -> Vec<DoorbellFacts> {
+        let names: Vec<String> = lock(&self.inner).sessions.keys().cloned().collect();
+        let mut out = vec![];
+        for n in names {
+            let conversation = self.conversation(&n, now);
+            let g = lock(&self.inner);
+            let Some(s) = g.sessions.get(&n) else { continue };
+            let s1 = match &s.s1 {
+                Some(S1::Known { client, .. }) => Some(*client),
+                _ => None,
+            };
+            out.push(DoorbellFacts {
+                name: n.clone(),
+                ended: s.ended,
+                harness_pid: s.harness_pid,
+                s1,
+                s2_known: s2_known(s, now),
+                acts: (s1.flatten(), s.s2_at, s.s3_at),
+                ready: s.ready.clone().map(|r| {
+                    let cur = r.epoch == self.epoch;
+                    (r, cur)
+                }),
+                last_submit: s.last_prompt.as_ref().map(|p| (p.rx_mono, p.doorbell_ids.clone())),
+                conversation,
+            });
+        }
+        out
+    }
+
+    /// B-16: the monotonic clock the meter stamps with.
+    pub fn now(&self) -> u64 {
+        (self.clock)()
     }
 }
 

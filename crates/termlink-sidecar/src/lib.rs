@@ -28,3 +28,4 @@ pub mod lease;
 pub mod meter;
 pub mod mail_waiting;
 pub mod enckey;
+pub mod doorbell;

@@ -246,6 +246,29 @@ pub fn measure_at(proc_root: &Path, pty: &Path, window_ms: u64, clk_tck: u64, ss
     judge(&a, &b, clk_tck)
 }
 
+/// B-16 (06 AL-6 step 4): the veto over `root` (the registered harness pid) and
+/// its descendants, rather than the tree on a PTY.
+pub fn measure_tree(root: u32) -> Verdict {
+    let proc_root = Path::new("/proc");
+    if !proc_root.join("self").exists() {
+        return Verdict::Unmeasurable("no /proc".into());
+    }
+    if !proc_root.join(root.to_string()).exists() {
+        return Verdict::Unmeasurable(format!("harness pid {root} is gone"));
+    }
+    // SAFETY: sysconf takes no pointers.
+    let tck = unsafe { libc::sysconf(libc::_SC_CLK_TCK) }.max(1) as u64;
+    let ss = || {
+        let o = std::process::Command::new("ss").arg("-tienH").stdin(std::process::Stdio::null()).output().ok()?;
+        o.status.success().then(|| String::from_utf8_lossy(&o.stdout).into_owned())
+    };
+    let pids = tree(proc_root, root);
+    let a = sample(proc_root, &pids, ss().as_deref(), crate::store::now_ms());
+    std::thread::sleep(std::time::Duration::from_millis(WINDOW_MS));
+    let b = sample(proc_root, &pids, ss().as_deref(), crate::store::now_ms());
+    judge(&a, &b, tck)
+}
+
 /// [`measure_at`] on this host over [`WINDOW_MS`].
 pub fn measure(pty: &Path) -> Verdict {
     // SAFETY: sysconf takes no pointers.

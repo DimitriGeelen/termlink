@@ -212,10 +212,9 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     let projects_root = cfg.claude_projects.clone().unwrap_or_else(|| home.join(".claude").join("projects"));
     // B-27: the activity meter. S1 reads go to the TermLink session bound to a
     // harness session (B-16 binds them; unbound reads unknown).
-    let s1: Box<dyn crate::meter::S1Source> = match crate::meter::SessionRpc::new() {
-        Ok(r) => Box::new(r),
-        Err(_) => Box::new(crate::meter::Unbound),
-    };
+    // B-16 (T-3697): one SessionRpc shared by the meter's S1 reads and the doorbell's binding.
+    let rpc = Arc::new(crate::meter::SessionRpc::new().map_err(|e| format!("session rpc: {e}"))?);
+    let s1: Box<dyn crate::meter::S1Source> = Box::new(rpc.clone());
     let meter = Arc::new(
         crate::meter::Meter::new(
             &cfg.agent,
@@ -268,6 +267,9 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
         .as_deref()
         .map(|p| crate::mail_waiting::Runner::new(p, &cfg.instance, &cfg.agent, Box::new(crate::mail_waiting::NoSink)));
     api_cfg.mail_waiting = mail_waiting.clone();
+    // B-16 (T-3697): the doorbell and its watchdog, OFF until `<store>/doorbell-on` exists.
+    let doorbell = Arc::new(crate::doorbell::Runner::new(&cfg.agent, store.clone(), deliverer.clone(), meter.clone(), rpc.clone(), Some(lease_shared.clone())));
+    api_cfg.doorbell = Some(doorbell.clone());
     let api = Api::start(api_cfg, store.clone()).map_err(|e| format!("api: {e}"))?;
     let liveness = match liveness_monitor {
         None => None,
@@ -288,6 +290,7 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     let sweeper = {
         let (d, stop, beat) = (deliverer.clone(), sweep_stop.clone(), tick_beat.clone());
         let meter = meter.clone();
+        let doorbell = doorbell.clone();
         let (mw, lv, st) = (mail_waiting.clone(), lease_shared.clone(), store.clone());
         // Test estates may freeze the meter (E-19): status must then go stale, not lie.
         let meter_frozen = matches!(store.mode(), crate::estate::Mode::Estate(_))
@@ -316,6 +319,8 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
                     // B-27 AL-3: the meter, once per tick.
                     if !meter_frozen {
                         meter.tick();
+                        // B-16: the doorbell and the watchdog, after the meter (06 AL-5, AL-8).
+                        doorbell.tick();
                     }
                     // K-34: the waiting-mail signal, once per tick.
                     if let Some(mw) = mw.as_ref().filter(|_| !mw_frozen) {
