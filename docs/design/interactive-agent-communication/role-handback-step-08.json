@@ -7,7 +7,7 @@
  "status": "ready-for-review",
  "output": {
   "path": "docs/design/interactive-agent-communication-08-plan.md",
-  "sha256": "08ff15bcf28f793610c82ce50b9cf12d05c230426c6656897235dcfc800acff4"
+  "sha256": "714b0ea52c6af43f707f5c715366c2912c2dd5034c0852849e15ee02040cb10b"
  },
  "inputs": [
   {
@@ -97,9 +97,13 @@
   {
    "path": ".context/reviews/evidence/T-3357/AC1-judge-t-3357-r1-2d20aefb82f3.md",
    "sha256": "a1e8faa75bc37e9f2225cd374adb1c5bd52b159cbb5bc53156c1e3d408c15631"
+  },
+  {
+   "path": ".context/reviews/evidence/T-3357/AC1-judge-t-3357-r1-6126e8d19de0.md",
+   "sha256": "664b7b73f5162c9ea157dec72afbda3ec42863948c02971aea6363475929c9a3"
   }
  ],
- "summary": "Draft build plan, no work items created (card 3.2). 71 units P-1..P-71 (PH-2 46, PH-3 8, PH-4 7, PH-5 2, PH-6 8; 5 are requests to AEF/055), 7 explorations X-1..X-7, 9 gates G-0..G-8, 150 typed edges (built/live/field/security/serial/decision/external).\nKahn cycle check: 0 cycles; proposed order checked against every edge: 0 violations (.context/working/t3357/plan.py, exit 0).\nRuling A kept (B-25 -> B-11 -> B-16) with P-1/P-2 (B-27 follow-ups F-26, F-27) and P-3 (T-3686 seams) in front.\nP-5 role-mail-only withhold (T-3689 9a); B-16 carries F-1 and the macOS interim veto; T-3688 is P-43, approval-gated.\nEvery decommission is its own unit behind an operator decision gate (NID).\nStep-1 build tasks re-scoped or confirmed (section 7.1); T-3359 proposed superseded.\nR-41 placed: P-68 in PH-6 after grants, behind exploration X-1 (section 8).\nCoverage: every R-n served or explained (R-38 deferred, R-40 merged, R-43 dropped); every E-1..E-173 served; card 3.6 items in 11.3.\nv0.2 repairs review r1 (amber): F-1..F-4 fixed; every unit without an E-n has a unit-specific check and a stated reason; P-55 now serves E-106, E-173.",
+ "summary": "Draft build plan, no work items created (card 3.2). 71 units P-1..P-71 (PH-2 46, PH-3 8, PH-4 7, PH-5 2, PH-6 8; 5 are requests to AEF/055), 7 explorations X-1..X-7, 9 gates G-0..G-8, 150 typed edges (built/live/field/security/serial/decision/external).\nKahn cycle check: 0 cycles; proposed order checked against every edge: 0 violations (.context/working/t3357/plan.py, exit 0).\nRuling A kept (B-25 -> B-11 -> B-16) with P-1/P-2 (B-27 follow-ups F-26, F-27) and P-3 (T-3686 seams) in front.\nP-5 role-mail-only withhold (T-3689 9a); B-16 carries F-1 and the macOS interim veto; T-3688 is P-43, approval-gated.\nEvery decommission is its own unit behind an operator decision gate (NID).\nStep-1 build tasks re-scoped or confirmed (section 7.1); T-3359 proposed superseded.\nR-41 placed: P-68 in PH-6 after grants, behind exploration X-1 (section 8).\nCoverage: every R-n served or explained (R-38 deferred, R-40 merged, R-43 dropped); every E-1..E-173 served; card 3.6 items in 11.3.\nv0.2 repairs review r1 (amber): F-1..F-4 fixed; every unit without an E-n has a unit-specific check and a stated reason; P-55 now serves E-106, E-173.\nv0.3 repairs review r2 (amber): F-5 P-40 covers FP 6.2.3.d (1)..(8) plus H-26 with a failing check; F-6 P-71 lists 6.2.7.a (6), H-29 and the A-6 register, each with PASS and evidence; sweep added H-26 to P-54/P-63 and failing conditions to P-25, P-35, P-37, P-52.",
  "completion": [
   {
    "condition": "6.1 Coverage table complete; no dependency cycle",
@@ -109,7 +113,7 @@
   {
    "condition": "6.2 Every unit has acceptance criteria and a verification check; no rubber-stamp criteria",
    "met": true,
-   "evidence": "08 section 4 tables, 4.2; v0.2: 4.3 rule enforced by plan.py (exit 2 on a unit with no E-n and the generic check); request checks say what fails them"
+   "evidence": "08 section 4 tables, 4.2; v0.2: 4.3 rule enforced by plan.py (exit 2 on a unit with no E-n and the generic check); request checks say what fails them; v0.3: every exit/close/report unit names its full FP list and what fails it (P-40, P-54, P-63, P-71, P-25, P-35, P-37, P-52)"
   },
   {
    "condition": "6.3 After approval: every plan item mapped to exactly one work item",
