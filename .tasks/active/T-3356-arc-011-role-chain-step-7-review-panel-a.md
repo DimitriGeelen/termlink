@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:09Z
-last_update: 2026-11-12T09:54:56Z
+last_update: 2026-11-12T10:45:49Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -264,6 +264,19 @@ grep -q 'task: T-3356' docs/design/interactive-agent-communication-role-chain.ya
 - **Why:** without it a person typing at the 300 s mark gets the line plus Enter inside a half-written prompt, which
   O-2 set out to prevent; the watchdog's purpose (a stuck flag never holds mail forever) is not weakened.
 - **Rejected:** B keep the ruled text (accept typing into the operator's prompt); C another wording.
+
+### 2026-11-12 — F-20 / RQ-2: the 300 s watchdog on macOS (operator: D, after "can we do a simple setup that makes sure it doesn't get stuck with a longer-term solution in parallel?"; an M1 joins the fleet soon)
+- **Chose:** D (proposed by the agent from the operator's words, confirmed "yes"):
+  1. Interim, built with B-16: on macOS a `ps`-based veto (the harness process tree has a running child process, or
+     uses noticeable CPU → hold). With the 300 s silence and the 30 s typing re-check (F-1), the watchdog may then type.
+     Blind spot stated: a job waiting only on network or disk with no child process and no CPU is not seen; the line
+     then arrives as the next prompt. Status `watchdog: degraded (macOS, ps veto)`.
+  2. Long-term, its own build task: a full macOS veto from the OS process information (CPU, disk, network per
+     process, libproc/proc_pidinfo), equivalent to the Linux veto; it replaces the interim only when proven (standing
+     rule: nothing working is switched off before its replacement is proven).
+- **Rejected:** A accept "the watchdog never fires on macOS" as a residual; B type on macOS without any veto; C full
+  macOS veto before PH-2 counts as done.
+- **Follow-up:** change request to step 4 6.9.7 / step 6 AL-8 for the interim veto; build task for the full veto.
 
 ## Decision
 
