@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3692: P-1: persist last_prompt with READY (B-27 follow-up F-26)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T18:29:58Z
+# ============================================================================
+
+task_id: T-3692
+task_name: "P-1: persist last_prompt with READY (B-27 follow-up F-26)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T16:56:24Z
+completed: 2026-11-12T18:28:32Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-12T19:28:25+01:00
+last_commit: 2026-11-12T19:28:25+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  P-1 persist last_prompt with READY (state.meter.ready, same boot only); QR-2 closed; restart fixtures + negative control
+
+# Key outcomes
+outcomes:
+  - 'The built B-27 specs (E-156, E-158) re-run green after the meter.rs change'
+  - 'After a sidecar restart, a session with a prompt before the restart reads its persisted `last_prompt`, never `none` (QR-2 closed)'
+  - 'The unit''s fixture suite exits 0 with a PASS line per listed E-n (E-156, E-158) and its mutant list is all killed (FP 3.1.b)'
+  - 'Restart fixture with a negative control: with persistence removed the fixture goes red'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'P-1 persist last_prompt with READY (state.meter.ready, same boot only); QR-2 closed; restart fixtures + negative control'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — How READY and last_prompt are persisted (P-1)'
+    chose: 'one store state file per agent, `state.meter.ready` (Store::write_state: tmp, fsync, rename, fsync dir), holding per session the READY record, `last_prompt`, the turn stop that ends the prompt''s window, and `ended`, plus the host `boot_id`. Written under the meter lock after every applied `ready`, `prompt_submit`, `turn_stop`, `session_end` and after the built `stop` / `session-end` hooks; read back by `Meter::with_state` at sidecar start (daemon.rs). Records of another boot, an unknown version or a damaged file are not used, and the reason is kept in `last_reasons`; a failed write is counted (`persist_failed`); sessions read back are counted (`restored`).'
+    rationale: '06 v0.3 AL-1 line 294 and 8.3 (CR-6.23): persist `last_prompt` with `sess.ready`, read back on the same boot (5.4.f (5)); `rx_mono` is CLOCK_MONOTONIC, only comparable on the same boot. A restored READY record keeps its old `sidecar_epoch`, so the gate still reads it absent (FCW-6, crash table 5.1.f.5); the turn stop is kept so the restored window ends where it would have.'
+    alternatives_rejected: ['one file per session (more files and fsyncs, a cleanup problem); persisting on every report (S2 stays in memory by design).']
+  - decision: '2026-11-12 — The CR-6.23 restart rule is narrowed, not removed'
+    chose: 'keep the rule "no prompt on record and S2 within 120 s reads `operator`", which now means a session that never reported a prompt (a persisted prompt counts), instead of deleting it.'
+    rationale: 'until B-29 (P-44, AEF''s adapter) ships, the built hooks send no `prompt_submit`, so every field session has no prompt on record. Deleting the rule would turn those sessions from `operator` to `none` while active, and B-16 (P-7) could then ring a person mid-work once built. Unknown fails toward a person (FCW-16), and the operator''s standing rule is not to switch off a working protection before its replacement is proven.'
+    alternatives_rejected: ['deleting the rule to match 06 AL-4 to the letter (the field regression above). The plan''s rollback line still holds: reverting restores T-3687''s behaviour exactly.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3692-p-1-persist-lastprompt-with-ready-b-27-f.md'
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/meter.rs'
+  - 'crates/termlink-sidecar/tests/meter_tests.rs'
+  - 'tests/b27-followups-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T19:28:25'
+    action: 'T-3692: P-1 persist last_prompt with READY (state.meter.ready, same boot only); QR-2 closed; restart fixtures + negative control'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 92 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 92
+  commits: 2
+  files_changed: 8
+  lines_added: 496
+  lines_removed: 29
+  footprint_refreshed_at: '2026-11-12T18:30:06Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3692-p-1-persist-lastprompt-with-ready-b-27-f.md
+generated_by: context-agent-hybrid
