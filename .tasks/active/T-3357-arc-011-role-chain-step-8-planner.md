@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:23Z
-last_update: 2026-11-12T16:27:16Z
+last_update: 2026-11-12T16:42:42Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -130,7 +130,7 @@ idempotently from it and the build queue (B-25 -> B-11 -> B-16) runs against it.
 - [x] Role-chain yaml step 8 `task:` set to this task id
 
 ### Human
-- [ ] [REVIEW] Independent review: step 8 plan meets the planner card's completion conditions (coverage complete,
+- [x] [REVIEW] Independent review: step 8 plan meets the planner card's completion conditions (coverage complete,
       no cycle, every unit has acceptance and a verification check, no rubber-stamp criteria, rulings honoured)
   **Steps:**
   1. The ORCHESTRATOR (never a reviewer seat) runs `fw reviewer judge T-3357 --criterion 1` against
@@ -138,6 +138,7 @@ idempotently from it and the build queue (B-25 -> B-11 -> B-16) runs against it.
      `docs/design/interactive-agent-communication/role-handback-step-08.json`.
   **Expected:** a green verdict bound to the reviewed revision, applied with `fw reviewer verdict apply T-3357`.
   **If not:** findings go back to the planner role (max 2-3 rounds), then each is dispositioned.
+  **Reviewer verdict:** green V-20261112-ef81628a — reviewer-judge-t-3357-r1-7d6b2dfb08fc:reviewer (rung rung-1-same-vendor-independent), digest b6908d3b8c09; dispatch judge-t-3357-r1-7d6b2dfb08fc; evidence: .context/reviews/evidence/T-3357/AC1-judge-t-3357-r1-7d6b2dfb08fc.md; ledger .context/reviews/verdicts.jsonl
 - [ ] [REVIEW] Step 8 plan approved (gate G-0, the last design approval; no work item exists before it)
   **Steps:**
   1. Open http://192.168.10.107:3003/review/T-3357 and read docs/design/interactive-agent-communication-08-plan.md
