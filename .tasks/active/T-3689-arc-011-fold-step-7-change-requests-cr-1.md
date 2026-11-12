@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T11:38:55Z
-last_update: 2026-11-12T12:06:10Z
+last_update: 2026-11-12T12:08:20Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -93,9 +93,9 @@ it folded; drawings that change are re-rendered; step 6's FCW register and step 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Every CR-1..CR-6 item of 07 section 6 applied to its document or listed with a reason it needs a ruling, and a per-item table (CR id → document section → commit) recorded in this task
-- [ ] Operator ruling D (F-20) reflected in 04 6.9.7 and 06 AL-8 (interim `ps` veto on macOS, status `watchdog: degraded (macOS, ps veto)`, full veto T-3688)
-- [ ] Version rows added; changed drawings re-render; 06's FCW register and 05a coverage regenerated without undeclared gaps
+- [x] Every CR-1..CR-6 item of 07 section 6 applied to its document or listed with a reason it needs a ruling, and a per-item table (CR id → document section → commit) recorded in this task
+- [x] Operator ruling D (F-20) reflected in 04 6.9.7 and 06 AL-8 (interim `ps` veto on macOS, status `watchdog: degraded (macOS, ps veto)`, full veto T-3688)
+- [x] Version rows added; changed drawings re-render; 06's FCW register and 05a coverage regenerated without undeclared gaps
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -299,6 +299,10 @@ it folded; drawings that change are re-rendered; step 6's FCW register and step 
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+python3 .context/working/t3689/fcw_register.py > .context/working/t3689/.reg.out 2>&1 && grep -q "total 211" .context/working/t3689/.reg.out
+python3 .context/working/t3689/gen_coverage.py > .context/working/t3689/.cov.out 2>&1 && grep -q "Undeclared gaps: 0\." .context/working/t3689/.cov.out
+grep -q "watchdog: degraded (macOS, ps veto)" docs/design/interactive-agent-communication-04-architecture.md && grep -q "degraded (macOS, ps veto)" docs/design/interactive-agent-communication-06-pseudo-code.md
+grep -q "^| 0.4 | 2026-11-12 " docs/design/interactive-agent-communication-04-architecture.md && grep -q "^| 0.3 | 2026-11-12 " docs/design/interactive-agent-communication-06-pseudo-code.md && grep -q "^| 0.2 | 2026-11-12 " docs/design/interactive-agent-communication-05-evidence.md
 
 ## RCA
 
@@ -340,6 +344,13 @@ it folded; drawings that change are re-rendered; step 6's FCW register and step 
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-12 — step 7 fold
+- **What changed:** ZR-1 (open since step 6) was applied in EV v0.2 with 18 grouped specs; the coverage generator now
+  includes the FCW table (2.9), so FCW coverage is mechanically checked, not claimed.
+- **Plan impact:** the built pull (T-3654) and B-27's meter differ from the corrected text (CR-B27 covers B-27; the
+  pull change needs its own build item).
+- **Triggered:** none filed here (the brief forbids touching crates/); listed in the hand-back.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -379,6 +390,106 @@ it folded; drawings that change are re-rendered; step 6's FCW register and step 
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-12 — fold of step 7's change requests (T-3689 worker)
+- **Chose:** apply every CR-1..CR-6 item as its owning role, marked "(changed in vX by CR-n.m)"; the "or" items
+  decided as follows: CR-4.11 / CR-6.18 role mail only is withheld from a non-main session (the text; the built pull,
+  T-3654, withholds all mail and is to change in a later build item, not B-27); CR-4.8 / CR-6.11 re-admit a re-sent
+  copy of a FORWARDED id, and after 3 re-admissions deliver it locally (no new notice kind, so FP-2 is untouched);
+  CR-4.15 order reports on `(boot_id, mono_ns)`; CR-6.2 re-read READY and the foreground after the veto; CR-6.21 the
+  hub's receive stamp (so CR-1.2 is not applied); CR-6.23 persist `last_prompt`; CR-6.13 in 06 (holder agent decides).
+- **Why:** each is the option the step 7 disposition preferred or the one that keeps an already-approved rule intact
+  (FP-2 cap, R-57.a one clock, NID).
+- **Rejected:** a refuse-with-new-id notice for CR-4.8 (a new notice that changes the path counts as a state value
+  under FP-2 7.3.h and would need the cap review); the cross-host margin for the lease (CR-1.2).
+- **Ruling D (F-20):** reflected in 04 6.9.7.b/f and AR-7, 06 AL-6 step 4 and AL-8 (status `watchdog: degraded (macOS,
+  ps veto)`, blind spot stated, full veto T-3688 replaces it only once proven).
+- **Operator questions:** none needed a new ruling. For awareness (plain language): (1) the main-lease gate built in
+  T-3654 currently holds back all mail from a non-main session; the documents now say it should hold back only mail
+  sent to "main" or the project, so mail addressed to a specific session still reaches that session; changing the
+  built code is a later build item. (2) Several new starting numbers are proposals under FP-4 (8 delivery attempts,
+  H-11 (e) 10 and (f) 20/5 per 1000 rings, 5 s tick budget, 30 min executor bound, the `ps` CPU threshold).
+
+#### CR → document → commit
+
+| CR | Document and section | Commit |
+|---|---|---|
+| CR-1.1 | 01 R-23.a (v0.5.4) | dcf0c5ae4 |
+| CR-1.2 | not applied: conditional alternative to CR-6.21, which was applied (06 AL-11) | dcf0c5ae4 (status line says so) |
+| CR-2.1 | 02 9.2.b and section 18 row SI-2 (v0.3.8) | f5b3901d7 |
+| CR-3.1 | 03 9.2 row H-11 (e), (f) | 6f14abd78 |
+| CR-3.2 | 03 7.5.g (8 attempts [P]) | 6f14abd78 |
+| CR-4.1 | 04 6.9.7.b | afc410bc9 |
+| CR-4.2 | 04 6.14.1 S2 row, 17.3 | afc410bc9 |
+| CR-4.3 | 04 17.5.e, 19.7.a | afc410bc9 |
+| CR-4.4 | 04 6.13.1.a, 17.10.a | afc410bc9 |
+| CR-4.5 | 04 6.9.7.d (STALLED) | afc410bc9 |
+| CR-4.6 | 04 6.9.7.e | afc410bc9, 598c56224 |
+| CR-4.7 | 04 7.2.e, D-4 | afc410bc9 |
+| CR-4.8 | 04 7.3.a, D-4, 10.2.1 | afc410bc9, 598c56224 |
+| CR-4.9 | 04 6.13.5, 7.2.f | afc410bc9 |
+| CR-4.10 | 04 6.4.3.a, 6.4.4, 7.2.b | afc410bc9, 598c56224 |
+| CR-4.11 | 04 7.1.a (role mail only, [P]) | afc410bc9 |
+| CR-4.12 | 04 6.9.7.f with ruling D, 19.8 AR-7 | afc410bc9 |
+| CR-4.13 | 04 17.4.a | afc410bc9 |
+| CR-4.14 | 04 19.7.b | afc410bc9 |
+| CR-4.15 | 04 17.2.a | afc410bc9 |
+| CR-4.16 | 04 6.6.1, 6.6.2 | afc410bc9 |
+| CR-6.1 | 06 AL-6 step 3/5, AL-8 inv. (1), FCW-31 | 6e18e820c, f8b90f59e |
+| CR-6.2 | 06 AL-6 step 5, FCW-28/29 | 6e18e820c, f8b90f59e |
+| CR-6.3 | 06 AL-1, AL-3 inv. (1) | 6e18e820c, f8b90f59e |
+| CR-6.4 | 06 AL-1 check_origin, AL-11 hooks, FCW-195 | 6e18e820c, f8b90f59e |
+| CR-6.5 | 06 AL-11 table, FCW-203 | 6e18e820c, f8b90f59e |
+| CR-6.6 | 06 AL-11 step 3, main-config, FCW-201 | 6e18e820c, f8b90f59e |
+| CR-6.7 | 06 AL-7, AL-8 step 2a, FCW-197, D-1.2 | 6e18e820c, f8b90f59e |
+| CR-6.8 | 06 AL-7 table | 6e18e820c, f8b90f59e |
+| CR-6.9 | 06 AL-6 step 7, crash table | 6e18e820c, f8b90f59e |
+| CR-6.10 | 06 AL-14 step 7, FCW-71 | 6e18e820c, f8b90f59e |
+| CR-6.11 | 06 AL-14 on_duplicate, AL-15 step 7, FCW-206 | 6e18e820c, f8b90f59e |
+| CR-6.12 | 06 AL-14 forward_tick, AL-13 step 3, FCW-204, FCW-205 | 6e18e820c, f8b90f59e |
+| CR-6.13 | 06 AL-15 step 6, FCW-75 | 6e18e820c, f8b90f59e |
+| CR-6.14 | 06a AL-26, AL-27; 06 AL-14 step 6, AL-15 step 7 | 6e18e820c, f8b90f59e, 59ec5922b, 132c78dc8 |
+| CR-6.15 | 06 3.2.a; 06a AL-23 steps 9-11 | 6e18e820c, f8b90f59e, 59ec5922b, 132c78dc8 |
+| CR-6.16 | 06a AL-23 steps 7, 7a, 10; AL-36; FCW-207 | 59ec5922b, 132c78dc8 |
+| CR-6.17 | 06a AL-23 step 8, FCW-208 | 59ec5922b, 132c78dc8 |
+| CR-6.18 | 06 AL-12, AL-9 step 2, AL-13 step 1, FCW-48 | 6e18e820c, f8b90f59e |
+| CR-6.19 | 06 AL-1, AL-2, AL-5, AL-6 (is_harness), FCW-24 | 6e18e820c, f8b90f59e |
+| CR-6.20 | 06 AL-3 meter_all, AL-8 inv. (2), FCW-196 | 6e18e820c, f8b90f59e |
+| CR-6.21 | 06 AL-11 last_human, hub_now, FCW-56; AL-13 | 6e18e820c, f8b90f59e |
+| CR-6.22 | 06 AL-11 last_human, FCW-202 | 6e18e820c, f8b90f59e |
+| CR-6.23 | 06 AL-1, AL-4 (5), QR-2 closed | 6e18e820c, f8b90f59e |
+| CR-6.24 | 06 AL-1 step 4/7, AL-4, FCW-3 | 6e18e820c, f8b90f59e |
+| CR-6.25 | 06 AL-3, FCW-13 | 6e18e820c, f8b90f59e |
+| CR-6.26 | 06a AL-40 gate(w3), FCW-210 | 59ec5922b, 132c78dc8 |
+| CR-6.27 | 06 AL-8 watchdog_agent_tick, FCW-198 | 6e18e820c, f8b90f59e |
+| CR-6.28 | 06 AL-13 step 7 | 6e18e820c, f8b90f59e |
+| CR-6.29 | 06 AL-13 step 4a | 6e18e820c, f8b90f59e |
+| CR-6.30 | 06 AL-15 step 3, FCW-73 | 6e18e820c, f8b90f59e |
+| CR-6.31 | 06b AL-41 step 1a, FCW-153 | 12b4a60a5 |
+| CR-6.32 | 06b AL-42 table, sweeper, FCW-211, D-1.12 | 12b4a60a5 |
+| CR-6.33 | 06a AL-30, FCW-124, FCW-209 | 59ec5922b, 132c78dc8 |
+| CR-6.34 | 06 AL-1 (VENDOR_TOOLS) | 6e18e820c, f8b90f59e |
+| CR-6.35 | 06 AL-9 offerable comment | 6e18e820c, f8b90f59e |
+| CR-6.36 | deferred to PH-5 pseudo-code by the approved disposition (06b status line); no edit | — |
+| CR-6.37 | 06 9.1 (46) | 6e18e820c, f8b90f59e |
+| CR-6.38 | 06 AL-9, FCW-199 | 6e18e820c, f8b90f59e |
+| CR-6.39 | 06 AL-9 step 3 | 6e18e820c, f8b90f59e |
+| CR-6.40 | 06 AL-9 step 3, FCW-200 | 6e18e820c, f8b90f59e |
+| CR-6.41 | 06 AL-2 TERMINAL_REPLIES, measure | 6e18e820c, f8b90f59e |
+| CR-6.42 | 06a AL-17 | 59ec5922b, 132c78dc8 |
+| CR-5.1 | 05 E-7.6 | b1a3e168b |
+| CR-5.2 | 05 E-2.6 | b1a3e168b |
+| CR-5.3 | 05 E-9.6 | b1a3e168b |
+| CR-5.4 | 05 E-153 (new) | b1a3e168b |
+| CR-5.5 | 05 E-23.6 | b1a3e168b |
+| CR-5.6 | 05 E-5.6, E-7.7 | b1a3e168b |
+| CR-5.7 | 05 E-35.6 | b1a3e168b |
+| CR-5.8 | 05 E-35.4, E-33.6 | b1a3e168b |
+| CR-5.9 | 05 E-45.6 | b1a3e168b |
+| CR-5.10 | 05 E-2.7 | b1a3e168b |
+| CR-5.11 | 05 section 10 row E-155 (new) | b1a3e168b |
+| CR-5.12 | 05 1.4.d, 11.3, 14.1, 6.14 and 9.12 (E-156..E-173), E-164, E-5.6, E-34 (f), E-104.7-8, E-106.6; 05a table 2.9 | b02c68c8f, 2f974b210 |
+| Ruling D (F-20) | 04 6.9.7.b, 6.9.7.f, 19.8 AR-7; 06 AL-6 step 4, AL-8 (FCW-41, OBS-15), QR-5; 05 E-160 | afc410bc9, 6e18e820c, b1a3e168b |
 
 ## Decision
 
