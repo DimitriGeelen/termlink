@@ -65,6 +65,100 @@ fn post_with_unusable_hub_arg_fails_with_named_reason_and_queues_nothing() {
     }
 }
 
+/// (d) ring20 msg 6dabf379: a controller registered without TERMLINK_RUNTIME_DIR
+/// landed in $XDG_RUNTIME_DIR/termlink while the hub served /var/lib/termlink,
+/// and the session was invisible for 10 days. Same layout here: a real hub in
+/// `hubdir` (standing in for /var/lib/termlink via the test seam), the session
+/// resolving to `xdg/termlink`. Register must refuse and name both dirs; with
+/// TERMLINK_RUNTIME_DIR pointing at the hub's dir it must register (control).
+#[test]
+fn register_refuses_when_running_hub_serves_another_runtime_dir() {
+    let dir = TestDir::new("t3749-regdir");
+    let hubdir = dir.path.join("hubdir");
+    let xdg = dir.path.join("xdg");
+    std::fs::create_dir_all(&hubdir).unwrap();
+    std::fs::create_dir_all(&xdg).unwrap();
+    let base = |rt: Option<&std::path::Path>| {
+        let mut c = Command::new(cargo::cargo_bin!("termlink"));
+        c.env_clear()
+            .env("PATH", std::env::var_os("PATH").unwrap_or_default())
+            .env("HOME", &dir.path)
+            .env("TERMLINK_IDENTITY_DIR", dir.path.join("id"))
+            .env("TERMLINK_HINT_CANDIDATE_DIRS", "")
+            .env("XDG_RUNTIME_DIR", &xdg)
+            .env("TERMLINK_TEST_HUB_ALT_DIR", &hubdir)
+            .env("RUST_LOG", "")
+            .stdin(Stdio::null());
+        if let Some(rt) = rt {
+            c.env("TERMLINK_RUNTIME_DIR", rt);
+        }
+        c
+    };
+    let hub = base(Some(&hubdir))
+        .args(["hub", "start"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn hub");
+    let _hub = ProcessGuard::new(hub, "t3749-regdir-hub");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !hubdir.join("hub.pid").exists() || !hubdir.join("hub.sock").exists() {
+        assert!(Instant::now() < deadline, "hub never started");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    // Spawn with a deadline: a register that does NOT refuse runs forever, and
+    // must fail this test rather than hang it (mutant-run lesson).
+    let child = base(None)
+        .args(["register", "--name", "t3749-mis", "--json"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("register");
+    let mut mis = ProcessGuard::new(child, "t3749-regdir-mis");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let status = loop {
+        if let Some(st) = mis.child().try_wait().unwrap() {
+            break st;
+        }
+        assert!(Instant::now() < deadline, "register did not refuse (still running)");
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    let mut so = String::new();
+    use std::io::Read as _;
+    mis.child().stdout.take().unwrap().read_to_string(&mut so).unwrap();
+    assert_ne!(status.code(), Some(0), "must refuse: {so}");
+    assert!(so.contains("refusing to register"), "{so}");
+    assert!(so.contains(&xdg.join("termlink").display().to_string()), "session dir: {so}");
+    assert!(so.contains(&hubdir.display().to_string()), "hub dir: {so}");
+    let sessions = xdg.join("termlink").join("sessions");
+    let registered = std::fs::read_dir(&sessions)
+        .map(|d| d.flatten().any(|e| e.path().extension().is_some_and(|x| x == "json")))
+        .unwrap_or(false);
+    assert!(!registered, "nothing may be registered on refusal");
+
+    // Positive control: same hub, session in the hub's dir — registers.
+    let child = base(Some(&hubdir))
+        .args(["register", "--name", "t3749-ok"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("register ok");
+    let mut ok = ProcessGuard::new(child, "t3749-regdir-ok");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let found = std::fs::read_dir(hubdir.join("sessions"))
+            .map(|d| d.flatten().any(|e| e.path().extension().is_some_and(|x| x == "json")))
+            .unwrap_or(false);
+        if found {
+            break;
+        }
+        assert!(ok.child().try_wait().unwrap().is_none(), "control register exited early");
+        assert!(Instant::now() < deadline, "control session never registered");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
 /// Positive control: with a live hub the same post exits 0 and says Posted, so
 /// the two tests above are measuring the failure, not a broken command.
 #[test]

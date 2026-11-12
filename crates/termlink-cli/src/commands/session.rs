@@ -279,6 +279,49 @@ fn runtime_dir_mismatch_warning(
     ))
 }
 
+/// T-3749: the runtime dir of the hub this process would reach (a RUNNING
+/// pidfile), or None when no hub is running. Same resolution as every client
+/// (`resolve_hub_paths`: the session's own dir, then /var/lib/termlink when
+/// TERMLINK_RUNTIME_DIR is unset). Test seam: `TERMLINK_TEST_HUB_ALT_DIR`
+/// replaces /var/lib/termlink so a test never reads the real hub.
+fn running_hub_dir_for_register() -> Option<std::path::PathBuf> {
+    let (pidfile, _) = match std::env::var_os("TERMLINK_TEST_HUB_ALT_DIR") {
+        Some(alt) => termlink_doctor::resolve_hub_paths_in(
+            termlink_hub::pidfile::hub_pidfile_path(),
+            termlink_hub::server::hub_socket_path(),
+            Some(std::path::Path::new(&alt)),
+        ),
+        None => super::infrastructure::resolve_hub_paths(),
+    };
+    match termlink_hub::pidfile::check(&pidfile) {
+        termlink_hub::pidfile::PidfileStatus::Running(_) => pidfile.parent().map(|p| p.to_path_buf()),
+        _ => None,
+    }
+}
+
+/// T-3749: the refusal when the session would register outside the running
+/// hub's dir. None when no hub runs, when the dirs agree, or when the operator
+/// set TERMLINK_ALLOW_RUNTIME_DIR_MISMATCH=1. Pure — unit-tested.
+fn runtime_dir_mismatch_refusal(
+    session_dir: &std::path::Path,
+    hub_dir: Option<&std::path::Path>,
+    allow: bool,
+) -> Option<String> {
+    let hub_dir = hub_dir?;
+    if allow || hub_dir == session_dir {
+        return None;
+    }
+    Some(format!(
+        "refusing to register: this session's runtime dir is {} but the running hub serves {} — \
+         the session would be invisible to the hub and to every peer. Fix: export \
+         TERMLINK_RUNTIME_DIR={} and re-run. (Set TERMLINK_ALLOW_RUNTIME_DIR_MISMATCH=1 to \
+         register here anyway.)",
+        session_dir.display(),
+        hub_dir.display(),
+        hub_dir.display()
+    ))
+}
+
 /// T-3492: every runtime dir a session could live in, regardless of
 /// `TERMLINK_RUNTIME_DIR` (which makes the normal scan exclusive). Mirrors the
 /// resolution order in `discovery::runtime_dir` plus the systemd pool.
@@ -446,6 +489,27 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
         }
     }
 
+    // T-3749 (ring20 msg 6dabf379): REFUSE, before anything registers, when a
+    // hub is running but serves a different runtime dir. The T-3480 warning
+    // below was one stderr line from a backgrounded controller; ring20's
+    // ring20-live-agent sat invisible on the .122 hub for 10 days behind it.
+    let session_runtime_dir = termlink_session::discovery::runtime_dir();
+    let running_hub_dir = running_hub_dir_for_register();
+    let allow_mismatch = std::env::var("TERMLINK_ALLOW_RUNTIME_DIR_MISMATCH").is_ok_and(|v| v == "1");
+    if let Some(refusal) =
+        runtime_dir_mismatch_refusal(&session_runtime_dir, running_hub_dir.as_deref(), allow_mismatch)
+    {
+        if json {
+            super::json_error_exit(serde_json::json!({
+                "ok": false,
+                "error": refusal,
+                "runtime_dir": session_runtime_dir.display().to_string(),
+                "hub_runtime_dir": running_hub_dir.as_ref().map(|d| d.display().to_string()),
+            }));
+        }
+        anyhow::bail!("{refusal}");
+    }
+
     let mut session = match termlink_session::Session::register_bound(config, worker_binding).await {
         Ok(s) => s,
         Err(e) => {
@@ -481,15 +545,10 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
 
     // T-3480: say which runtime dir we registered into, and warn when a hub
     // runs elsewhere (session would be alive locally but invisible to the hub).
-    let session_runtime_dir = termlink_session::discovery::runtime_dir();
+    // (Reached on a mismatch only with TERMLINK_ALLOW_RUNTIME_DIR_MISMATCH=1.)
     if verbose {
         eprintln!("Runtime dir: {}", session_runtime_dir.display());
     }
-    let (hub_pidfile, _hub_socket) = super::infrastructure::resolve_hub_paths();
-    let running_hub_dir = match termlink_hub::pidfile::check(&hub_pidfile) {
-        termlink_hub::pidfile::PidfileStatus::Running(_) => hub_pidfile.parent().map(|p| p.to_path_buf()),
-        _ => None,
-    };
     if let Some(w) = runtime_dir_mismatch_warning(&session_runtime_dir, running_hub_dir.as_deref()) {
         eprintln!("{w}");
     }
@@ -1626,6 +1685,19 @@ mod tests {
     use termlink_protocol::TransportAddr;
     use termlink_session::identity::SessionId;
     use termlink_session::lifecycle::SessionState;
+
+    // T-3749: the refusal names both dirs; no hub / same dir / explicit allow pass.
+    #[test]
+    fn t3749_register_refuses_runtime_dir_mismatch_naming_both_dirs() {
+        let s = std::path::Path::new("/run/user/0/termlink");
+        let h = std::path::Path::new("/var/lib/termlink");
+        let r = runtime_dir_mismatch_refusal(s, Some(h), false).expect("must refuse");
+        assert!(r.contains("/run/user/0/termlink") && r.contains("/var/lib/termlink"), "{r}");
+        assert!(r.contains("export TERMLINK_RUNTIME_DIR=/var/lib/termlink"), "{r}");
+        assert!(runtime_dir_mismatch_refusal(s, None, false).is_none());
+        assert!(runtime_dir_mismatch_refusal(h, Some(h), false).is_none());
+        assert!(runtime_dir_mismatch_refusal(s, Some(h), true).is_none());
+    }
 
     // T-3480: runtime-dir mismatch decision.
     #[test]
