@@ -43,7 +43,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:48Z
-last_update: 2026-11-12T19:52:47Z
+last_update: 2026-11-12T19:55:31Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -101,8 +101,8 @@ Unblocks: part of gate G-2 (the T1 release).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The spec tagged "B-18 log half" passes (vendor-channel log hook K-20)
-- [ ] The unit's fixture suite exits 0 with a PASS line per listed E-n and its mutant list is all killed (FP 3.1.b)
+- [x] The spec tagged "B-18 log half" passes (vendor-channel log hook K-20)
+- [x] The unit's fixture suite exits 0 with a PASS line per listed E-n and its mutant list is all killed (FP 3.1.b)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -156,6 +156,10 @@ Unblocks: part of gate G-2 (the T1 release).
 
 # Plan P-26 check (08-plan section 4): fixture suite exits 0 with a PASS line per E-n tagged "B-18 log half", mutant
 # list all killed (FP 3.1.b). Replace with the suite's command before closing (redirect-then-grep form, L-387).
+bash tests/b18-vendor-log-fixtures.sh > .context/working/.t3710-fix.out 2>&1 && grep -q "^ALL IN-SCOPE PASS" .context/working/.t3710-fix.out
+grep -q "^PASS E-71 (" .context/working/.t3710-fix.out && grep -q "^PASS E-140 " .context/working/.t3710-fix.out && grep -q "^PASS E-170 " .context/working/.t3710-fix.out && ! grep -q "^FAIL " .context/working/.t3710-fix.out
+bash tests/b18-vendor-log-fixtures.sh --mutants > .context/working/.t3710-mut.out 2>&1 && grep -q "^ALL MUTANTS KILLED" .context/working/.t3710-mut.out && grep -q "^KILLED M1-sendmessage-only" .context/working/.t3710-mut.out && ! grep -q "^SURVIVED" .context/working/.t3710-mut.out
+python3 -c "import json;json.load(open('.claude/settings.json'))"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -328,6 +332,11 @@ Unblocks: part of gate G-2 (the T1 release).
 
 ## Evolution
 
+### 2026-11-12 — coalesce key, hook path, scope of the E-n
+- **What changed:** E-71.4 asks for three entries from each of three tools used twice in ONE session, so "coalesced per (session, day)" can only mean per (session, day) for each tool; the key is session:day:tool. The settings entry could not be hand-written (B-005), so it goes through `fw hook-enable --script` and a wrapper script that always exits 0, because the installed termlink predates the `vendor-channel` event and a PreToolUse exit 2 would block the call.
+- **Plan impact:** E-71 tier 3 (live EP-5) waits for a release carrying the event (G-1/G-2); E-140's daily monitor is P-33; E-170's reconciliation half is P-20. The fixture suite prints DEFERRED lines for those.
+- **Triggered:** nothing new filed.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -380,6 +389,11 @@ Unblocks: part of gate G-2 (the T1 release).
 -->
 
 ## Decisions
+
+### 2026-11-12 — where vendor_log reads from, and when it is degraded
+- **Chose:** `status` reads the hook error log (default beside the sockets, or `$TERMLINK_SIDECAR_HOOK_ERRORS`) and shows `vendor_log: degraded` while a vendor-channel error line is newer than the last vendor-channel row; `unknown` when the log exists but cannot be read; the error count stays in `vendor_log_detail`.
+- **Why:** an unreachable sidecar can only be seen through the hook's own log (FCW-146); clearing on the next written row keeps the state meaning "uses are being lost now" instead of latching forever.
+- **Rejected:** a latched flag inside the sidecar (cannot see the unreachable case); a script-only `note` per call (no admin row, no coalescing; see the first hand-back).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
