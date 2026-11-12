@@ -510,6 +510,9 @@ mod tests {
             let r = req(m, json!({"topic":"inbox:b"}));
             crate::server::dispatch_admin_with(&r, &caller, || async { None }).await;
         }
+        for m in ["channel.sweep", "channel.set_retention", "channel.trim", "channel.delete", "channel.force_release"] {
+            assert!(crate::rpc_audit::is_admin_method(m), "{m} is an admin RPC (BP-7)");
+        }
         assert!(!crate::rpc_audit::is_admin_method("channel.post"));
         assert!(!crate::rpc_audit::is_admin_method("channel.create"));
         let rows: Vec<serde_json::Value> =
