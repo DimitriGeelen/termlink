@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:09Z
-last_update: 2026-11-12T07:08:57Z
+last_update: 2026-11-12T08:10:43Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -238,6 +238,15 @@ grep -q 'task: T-3356' docs/design/interactive-agent-communication-role-chain.ya
   (Z.ai GLM), Antigravity (Google). The brief goes to those four vendors, with secrets, credentials and internal
   addresses stripped (card 3.1-3.2). Scored A +35, C +28, B +7.
 - **Rejected:** B Claude Code only (same vendor as the authors); C A plus a paid OpenRouter seat (cost, small gain).
+
+### 2026-11-12 — five security findings proposed for rejection: F-7, F-36, F-37, F-38, F-39 (operator: "a")
+- **Chose:** A, reject all five together, with the reasons of 07 section 3.4 / the disposition table: F-7 the release
+  before claim is designed (a short vacancy, never two holders); F-36 no policy route exists for Tier 0, only the
+  root-only admin path decides (FCW-157); F-37 the revocation head is signature-verified (06a AL-22 step 2; checked by
+  the orchestrator); F-38 an owed answer holds 120 s, other mail still rings, the watchdog ignores it; F-39 unknown
+  `last_human` means no fast takeover (FCW-55; checked by the orchestrator). All five from one seat (Antigravity).
+- **Rejected:** B one by one; C accept them as text clarifications.
+- **Note:** the reviewer read context: Antigravity run 2 quotes code absent from the material (07 3.4.a).
 
 ## Decision
 
