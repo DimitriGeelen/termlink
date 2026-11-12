@@ -405,23 +405,20 @@ impl Bus {
             rows.iter().enumerate().map(|(pos, r)| (pos as Offset, r.3, r.4)).collect();
         let (finals, forced) = plan_ceiling(&flat, 0, need_bytes);
         let forced_set: std::collections::HashSet<Offset> = forced.iter().copied().collect();
-        let mut per_topic: Vec<(Vec<(Offset, u64, bool)>, bool)> = vec![(Vec::new(), false); guarded.len()];
+        let mut per_topic: Vec<Vec<(Offset, u64, bool)>> = vec![Vec::new(); guarded.len()];
         for pos in finals.iter().chain(forced.iter()) {
             let r = rows[*pos as usize];
-            per_topic[r.1].0.push((r.2, r.3, !forced_set.contains(pos)));
-            per_topic[r.1].1 = true;
+            per_topic[r.1].push((r.2, r.3, !forced_set.contains(pos)));
         }
         let mut removed = 0u64;
-        for (i, (chosen, any)) in per_topic.into_iter().enumerate() {
-            if !any {
+        for (i, chosen) in per_topic.into_iter().enumerate() {
+            if chosen.is_empty() {
                 continue;
             }
             let (t, g) = &guarded[i];
             // Every chosen row is removed: need = all of them.
             let n = chosen.len() as u64;
-            let mut sorted = chosen;
-            sorted.sort_by_key(|r| (!r.2, r.0));
-            removed += self.remove_planned(g.as_ref(), t, &sorted, n, 0, "V-3 hub byte ceiling")?;
+            removed += self.remove_planned(g.as_ref(), t, &chosen, n, 0, "V-3 hub byte ceiling")?;
         }
         Ok((removed, errors))
     }

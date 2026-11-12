@@ -8,6 +8,7 @@ pub mod dedupe;
 pub mod dispatch_contract;
 pub mod governor;
 pub mod inbox;
+pub mod mail_guard;
 pub mod pidfile;
 pub mod remote_store;
 pub mod retention_sweeper;

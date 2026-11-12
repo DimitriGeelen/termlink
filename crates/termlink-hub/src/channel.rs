@@ -24,6 +24,13 @@ use termlink_protocol::jsonrpc::{ErrorResponse, Response, RpcResponse};
 use termlink_session::agent_identity::fingerprint_of;
 
 static BUS: OnceLock<Bus> = OnceLock::new();
+/// T-3701: the mail guard installed on `BUS` (counters for status).
+static MAIL_GUARD: OnceLock<std::sync::Arc<crate::mail_guard::HubMailGuard>> = OnceLock::new();
+
+/// T-3701: the installed mail guard, once the bus is initialised.
+pub fn mail_guard() -> Option<&'static std::sync::Arc<crate::mail_guard::HubMailGuard>> {
+    MAIL_GUARD.get()
+}
 static ARTIFACT_STORE: OnceLock<ArtifactStore> = OnceLock::new();
 
 /// T-1286 / T-243 — passive multi-turn dialog presence tracker. Maps
@@ -181,6 +188,9 @@ pub fn init_bus(root: PathBuf) {
             "T-1162: could not auto-create broadcast mirror topic — shim will no-op"
         );
     }
+    // T-3701 (B-3, V-3): no sweep, trim, retention change or ceiling removes
+    // open mail on an inbox or conversation topic.
+    let _ = MAIL_GUARD.set(crate::mail_guard::install(&bus));
     let _ = BUS.set(bus);
 
     // T-1248 / T-1164a: Initialize content-addressed artifact store at
@@ -691,9 +701,10 @@ pub(crate) async fn handle_channel_set_retention_with(
             &format!("channel.set_retention: unknown topic '{name}' (use channel.create first)"),
         )
         .into(),
-        Err(e) => {
-            ErrorResponse::internal_error(id, &format!("channel.set_retention: {e}")).into()
-        }
+        Err(e) => crate::mail_guard::refusal(id.clone(), "channel.set_retention", &e)
+            .unwrap_or_else(|| {
+                ErrorResponse::internal_error(id, &format!("channel.set_retention: {e}")).into()
+            }),
     }
 }
 
@@ -736,7 +747,8 @@ pub(crate) async fn handle_channel_sweep_with(
             &format!("channel.sweep: unknown topic '{topic}' (use channel.create first)"),
         )
         .into(),
-        Err(e) => ErrorResponse::internal_error(id, &format!("channel.sweep: {e}")).into(),
+        Err(e) => crate::mail_guard::refusal(id.clone(), "channel.sweep", &e)
+            .unwrap_or_else(|| ErrorResponse::internal_error(id, &format!("channel.sweep: {e}")).into()),
     }
 }
 
@@ -1902,7 +1914,10 @@ pub(crate) async fn handle_channel_trim_with(
     let before_offset = params.get("before_offset").and_then(|v| v.as_u64());
     let deleted = match bus.trim_topic(topic, before_offset) {
         Ok(n) => n,
-        Err(e) => return ErrorResponse::internal_error(id, &format!("channel.trim: {e}")).into(),
+        Err(e) => {
+            return crate::mail_guard::refusal(id.clone(), "channel.trim", &e)
+                .unwrap_or_else(|| ErrorResponse::internal_error(id, &format!("channel.trim: {e}")).into())
+        }
     };
     Response::success(
         id,

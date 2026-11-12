@@ -651,6 +651,13 @@ pub async fn run_with_tcp(
         );
     }
 
+    // T-3701 (V-3): the daily retention-ceiling pass over the arc-011 mail
+    // topics (the per-topic ceiling also runs on post, inside the bus).
+    let mail_rx = shutdown_rx.clone();
+    tokio::spawn(async move {
+        crate::mail_guard::run_daily(mail_rx).await;
+    });
+
     // Start the remote store reaper (expires stale remote sessions)
     let reaper_rx = shutdown_rx.clone();
     tokio::spawn(async move {
@@ -1808,6 +1815,58 @@ fn maybe_handle_ws_subscribe(
     }
 }
 
+/// T-3701 (arc-011 B-3, 06a AL-31): run an admin RPC between its two admin-log
+/// rows. The intent row is written first; if it cannot be written the RPC is
+/// refused and nothing acts (FCW-128). The result row follows the act.
+pub(crate) async fn dispatch_admin(
+    req: &Request,
+    caller: &crate::rpc_audit::AdminCaller<'_>,
+    peer_addr: Option<&str>,
+) -> Option<RpcResponse> {
+    dispatch_admin_with(req, caller, || router::route(req, peer_addr)).await
+}
+
+/// `dispatch_admin` with the act injected (tests prove a refused RPC never acts).
+pub(crate) async fn dispatch_admin_with<F, Fut>(
+    req: &Request,
+    caller: &crate::rpc_audit::AdminCaller<'_>,
+    act: F,
+) -> Option<RpcResponse>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Option<RpcResponse>>,
+{
+    let id = req.id.clone().unwrap_or(serde_json::Value::Null);
+    let row = match crate::rpc_audit::admin_intent(&req.method, caller, &req.params) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!(method = %req.method, error = %e, "T-3701: admin RPC refused, admin-log row not written (FCW-128)");
+            return Some(
+                ErrorResponse::with_data(
+                    id,
+                    crate::mail_guard::ADMIN_LOG_UNWRITABLE,
+                    &format!(
+                        "refused: '{}' is an admin RPC and its admin-log row could not be written ({e}); \
+                         nothing was done (FCW-128)",
+                        req.method
+                    ),
+                    serde_json::json!({"fcw": "FCW-128"}),
+                )
+                .into(),
+            );
+        }
+    };
+    let resp = act().await;
+    let (ok, detail) = match &resp {
+        Some(RpcResponse::Success(r)) => (true, r.result.to_string()),
+        Some(RpcResponse::Error(e)) => (false, format!("{}: {}", e.error.code, e.error.message)),
+        None => (true, String::new()),
+    };
+    let detail: String = detail.chars().take(512).collect();
+    crate::rpc_audit::admin_result(&row, &req.method, ok, &detail);
+    resp
+}
+
 /// T-2305: process one JSON-RPC request message (one line for the legacy
 /// transport, or the text of one WS frame for arc-004 push-transport) and return
 /// the serialized response WITHOUT a trailing newline, or `None` for a
@@ -1945,6 +2004,15 @@ async fn process_request_message(
                                     )
                                     .into(),
                                 )
+                            } else if crate::rpc_audit::is_admin_method(&req.method) {
+                                // T-3701 (B-3, FCW-128): admin row before the act.
+                                let caller = crate::rpc_audit::AdminCaller {
+                                    from,
+                                    sender_id,
+                                    peer_addr: peer_addr_ref,
+                                    peer_pid,
+                                };
+                                dispatch_admin(&req, &caller, peer_addr_ref).await
                             } else {
                                 router::route(&req, peer_addr_ref).await
                             }

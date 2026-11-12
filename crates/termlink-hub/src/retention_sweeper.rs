@@ -105,7 +105,9 @@ pub fn sweep_all(bus: &Bus, now_unix_ms: i64) -> (u64, u64) {
     for topic in topics {
         match bus.topic_retention(&topic) {
             Ok(Some(Retention::Forever)) | Ok(None) => continue,
-            Ok(Some(_)) => match bus.sweep(&topic, now_unix_ms) {
+            // T-3701 (V-3): on a guarded mail topic the periodic sweep removes
+            // only final records and keeps open ones ("never cut while open").
+            Ok(Some(_)) => match bus.sweep_final_only(&topic, now_unix_ms).map(|(n, _kept_open)| n) {
                 Ok(0) => {}
                 Ok(n) => {
                     topics_pruned += 1;

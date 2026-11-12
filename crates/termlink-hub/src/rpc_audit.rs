@@ -133,6 +133,8 @@ pub fn warn_if_legacy(
 pub fn init(runtime_dir: &Path) {
     let path = runtime_dir.join(FILE_NAME);
     let _ = AUDIT_PATH.set(Some(path));
+    // T-3701 (B-3): the admin log beside it.
+    let _ = ADMIN_PATH.set(Some(runtime_dir.join(ADMIN_FILE_NAME)));
     let _ = AUDIT_MAX_BYTES.set(read_max_bytes_env());
 }
 
@@ -570,6 +572,182 @@ fn append_line(path: &Path, line: &str) -> std::io::Result<()> {
     append_line_capped(path, line, max_bytes())
 }
 
+
+// ── T-3701 (arc-011 B-3, FX-6, 04 ARC4 6.6.3, 06a AL-31): the admin log ──
+//
+// Every admin RPC gets an `intent` row BEFORE it acts and a `result` row after
+// (a crash shows an intent without a result). Rows carry `admin: true`, caller,
+// method and a digest of the params. They go to two places:
+//   1. `rpc-admin.jsonl`, written synchronously; a failed write REFUSES the RPC
+//      (FCW-128). This file is never size-rotated: once it passes
+//      `ADMIN_MAX_BYTES` it is rewritten keeping every row younger than
+//      `ADMIN_KEEP_MS` (30 days), whatever that costs in size.
+//   2. the ordinary `rpc-audit.jsonl` (queued, best-effort), so existing
+//      readers see the same rows with the `admin: true` flag.
+
+/// T-3701: the admin log file.
+pub const ADMIN_FILE_NAME: &str = "rpc-admin.jsonl";
+/// Admin rows are kept at least this long (E-67: ≥ 30 days).
+pub const ADMIN_KEEP_MS: u128 = 30 * 86_400_000;
+/// Above this size the admin log drops rows older than `ADMIN_KEEP_MS` (only those).
+pub const ADMIN_MAX_BYTES: u64 = 16 * 1024 * 1024;
+
+static ADMIN_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
+static ADMIN_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static ADMIN_WRITE_LOCK: Mutex<()> = Mutex::new(());
+#[cfg(test)]
+thread_local! {
+    /// Test seams (E-67, E-169), per thread so parallel tests stay apart
+    /// (`#[tokio::test]` runs on the test's own thread): where this thread's
+    /// admin rows go, and whether writing them fails.
+    pub(crate) static ADMIN_TEST_PATH: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
+    pub(crate) static ADMIN_TEST_FAIL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Admin RPCs (B-3): the hub's Control- and Execute-scope methods that change
+/// another party's state or remove records. `channel.create` is excluded: every
+/// sidecar re-creates its inbox idempotently on each note, which is not an act
+/// of administration.
+pub const ADMIN_METHODS: &[&str] = &[
+    termlink_protocol::control::method::CHANNEL_SET_RETENTION,
+    termlink_protocol::control::method::CHANNEL_SWEEP,
+    termlink_protocol::control::method::CHANNEL_TRIM,
+    termlink_protocol::control::method::CHANNEL_DELETE,
+    termlink_protocol::control::method::CHANNEL_FORCE_RELEASE,
+    termlink_protocol::control::method::CHANNEL_TRANSFER_CLAIM,
+];
+
+pub fn is_admin_method(method: &str) -> bool {
+    ADMIN_METHODS.contains(&method)
+}
+
+/// Who called an admin RPC.
+#[derive(Debug, Clone, Default)]
+pub struct AdminCaller<'a> {
+    pub from: Option<&'a str>,
+    pub sender_id: Option<&'a str>,
+    pub peer_addr: Option<&'a str>,
+    pub peer_pid: Option<u32>,
+}
+
+/// sha256 of the params as serialized (serde_json maps are key-ordered).
+pub fn params_digest(params: &serde_json::Value) -> String {
+    use sha2::{Digest, Sha256};
+    let h = Sha256::digest(params.to_string().as_bytes());
+    h.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// Pure: the intent row.
+pub(crate) fn build_admin_intent(ts_ms: u128, row_id: &str, method: &str, c: &AdminCaller<'_>, params: &serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "ts": ts_ms as u64,
+        "admin": true,
+        "phase": "intent",
+        "row": row_id,
+        "method": method,
+        "caller": {
+            "from": c.from,
+            "sender_id": c.sender_id,
+            "peer_addr": c.peer_addr,
+            "peer_pid": c.peer_pid,
+        },
+        "topic": params.get("topic").or_else(|| params.get("name")),
+        "params_digest": params_digest(params),
+    })
+}
+
+/// Append one admin row to `path`, synchronously; rewrite past `max_bytes`
+/// keeping rows younger than `keep_ms`. The rewrite is atomic (temp + rename).
+pub(crate) fn append_admin_row_at(path: &Path, row: &serde_json::Value, now_ms: u128, max_bytes: u64, keep_ms: u128) -> std::io::Result<()> {
+    use std::io::Write;
+    let _g = ADMIN_WRITE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    if let Ok(meta) = std::fs::metadata(path)
+        && meta.len() >= max_bytes
+    {
+        prune_admin_log(path, now_ms, keep_ms)?;
+    }
+    let mut line = row.to_string();
+    line.push('\n');
+    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(path)?;
+    f.write_all(line.as_bytes())?;
+    f.sync_data()
+}
+
+/// Drop rows older than `keep_ms` (only those; an unparseable row is kept).
+pub(crate) fn prune_admin_log(path: &Path, now_ms: u128, keep_ms: u128) -> std::io::Result<()> {
+    let text = std::fs::read_to_string(path)?;
+    let cutoff = now_ms.saturating_sub(keep_ms);
+    let kept: String = text
+        .lines()
+        .filter(|l| {
+            serde_json::from_str::<serde_json::Value>(l)
+                .ok()
+                .and_then(|v| v.get("ts").and_then(|t| t.as_u64()))
+                .is_none_or(|ts| u128::from(ts) >= cutoff)
+        })
+        .flat_map(|l| [l, "\n"])
+        .collect();
+    let tmp = path.with_extension("jsonl.tmp");
+    std::fs::write(&tmp, kept)?;
+    std::fs::rename(&tmp, path)
+}
+
+fn admin_append(row: &serde_json::Value) -> std::io::Result<()> {
+    #[cfg(test)]
+    {
+        if ADMIN_TEST_FAIL.with(|c| c.get()) {
+            return Err(std::io::Error::other("admin log write failed (test seam)"));
+        }
+        if let Some(p) = ADMIN_TEST_PATH.with(|c| c.borrow().clone()) {
+            return append_admin_row_at(&p, row, now_ms(), ADMIN_MAX_BYTES, ADMIN_KEEP_MS);
+        }
+    }
+    let Some(path) = ADMIN_PATH.get().and_then(|p| p.as_deref()) else {
+        // Not initialised (unit tests of unrelated handlers): nothing to write to.
+        return Ok(());
+    };
+    append_admin_row_at(path, row, now_ms(), ADMIN_MAX_BYTES, ADMIN_KEEP_MS)?;
+    if let Some(main) = current_path() {
+        enqueue(main, row.to_string());
+    }
+    Ok(())
+}
+
+/// FCW-128: write the intent row for an admin RPC. `Err` → the caller refuses
+/// the RPC. Returns the row id the result row refers to.
+pub fn admin_intent(method: &str, caller: &AdminCaller<'_>, params: &serde_json::Value) -> std::io::Result<String> {
+    let row_id = format!("{}-{}", now_ms(), ADMIN_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+    admin_append(&build_admin_intent(now_ms(), &row_id, method, caller, params))?;
+    Ok(row_id)
+}
+
+/// The result row (best-effort: the act already happened; a failure is logged loudly).
+pub fn admin_result(row_id: &str, method: &str, ok: bool, detail: &str) {
+    let row = serde_json::json!({
+        "ts": now_ms() as u64,
+        "admin": true,
+        "phase": "result",
+        "row": row_id,
+        "method": method,
+        "ok": ok,
+        "detail": detail,
+    });
+    if let Err(e) = admin_append(&row) {
+        tracing::error!(error = %e, method, row = row_id, "T-3701: admin log result row could not be written");
+    }
+}
+
+/// A hub-originated admin event (ceiling removals, needs-attention). Best-effort, loud on failure.
+pub fn admin_event(mut fields: serde_json::Value) {
+    if let Some(o) = fields.as_object_mut() {
+        o.insert("ts".into(), serde_json::Value::from(now_ms() as u64));
+        o.insert("admin".into(), serde_json::Value::Bool(true));
+        o.insert("phase".into(), "event".into());
+    }
+    if let Err(e) = admin_append(&fields) {
+        tracing::error!(error = %e, "T-3701: admin log event row could not be written");
+    }
+}
 
 fn json_escape(s: &str) -> String {
     serde_json::Value::String(s.to_string()).to_string()
