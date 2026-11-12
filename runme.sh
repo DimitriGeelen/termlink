@@ -2516,6 +2516,65 @@ install_fleet_tokens
 install_crontab fleet-token-remint.crontab "$CRON_DIR/termlink-fleet-token-remint"
 
 # ---------------------------------------------------------------------------
+# ACTION 22c — the non-root design user reaches the .107 hub with its own token
+# (T-3756, operator ruling A on 2026-11-12: "a")
+#
+# dimitri-mint-dev (uid 1000) runs the design session but cannot read /var/lib/termlink
+# (root-only, it holds hub.secret), so reviews and sidecar messages fail for it. The
+# directory stays closed. This mints the user its OWN Interact token on .107 (7-day TTL
+# ceiling; never the hub secret) and installs it at
+# ~dimitri-mint-dev/.termlink/secrets/107-local.token (owner the user, 600), a token-only
+# config home beside it, and token_file on the 127.0.0.1:9100 profile in its hubs.toml
+# (added if absent; other profiles and its old secret copy are left exactly as they are).
+# Every write and check runs AS the user through runuser, with the script on stdin so
+# the token never shows in a process list. Verified as the user with
+# /usr/local/bin/termlink: sha256 = the minted token, 600:user, and over TCP a
+# `channel list` + a post to fleet-token-probe with the token alone, then
+# `channel list` with the user's own config. Any miss is FAILED. The logic is
+# `scripts/fleet-token-remint.sh --local-user`; renewal is the daily .107 cron
+# (fleet-token-remint.crontab, installed by 22b above): under 3 days left, it re-mints.
+# A `note` line names the termlink on the user's own PATH and whether it can use
+# token_file (0.11.x cannot: T-3543 added it on 2026-10-23).
+# Idempotent: a verified, unchanged, not-yet-due token is skipped.
+# Seams (fixtures only): RUNME_LOCALTOK_USER, RUNME_LOCALTOK_HOME, RUNME_LOCALTOK_RUN,
+# RUNME_LOCALTOK_TL, RUNME_LOCALTOK_PATHTL, plus the 22b mint/state seams.
+# ---------------------------------------------------------------------------
+seam LOCALTOK_USER RUNME_LOCALTOK_USER "dimitri-mint-dev"
+seam LOCALTOK_HOME RUNME_LOCALTOK_HOME ""
+seam LOCALTOK_RUN RUNME_LOCALTOK_RUN ""
+seam LOCALTOK_TL RUNME_LOCALTOK_TL "/usr/local/bin/termlink"
+# Prints the user's PATH termlink, its version, and TOKEN-FILE-YES/NO (run as the user, login shell).
+seam LOCALTOK_PATHTL RUNME_LOCALTOK_PATHTL "runuser -l $LOCALTOK_USER -c 't=\$(command -v termlink) && echo \"\$t\" && \"\$t\" --version </dev/null && { \"\$t\" remote profile add --help </dev/null 2>&1 | grep -c -- --token-file >/dev/null && echo TOKEN-FILE-YES || echo TOKEN-FILE-NO; }'"
+
+install_local_user_token() {
+    local out rc args=(--local-user "$LOCALTOK_USER")
+    [ "$DRY_RUN" = "1" ] && args+=(--dry-run)
+    out="$(FLEET_TOKEN_LOCAL_HOME="$LOCALTOK_HOME" FLEET_TOKEN_LOCAL_RUN="$LOCALTOK_RUN" FLEET_TOKEN_USER_TL="$LOCALTOK_TL" \
+        token_remint "${args[@]}")"; rc=$?
+    printf '%s\n' "$out" | grep -v '^  total ' | grep -v '^$'
+    DONE=$((DONE + $(printf '%s\n' "$out" | grep -cE '^  (OK|\[DRY\]) ')))
+    SKIPPED=$((SKIPPED + $(printf '%s\n' "$out" | grep -c '^  skip ')))
+    FAILED=$((FAILED + $(printf '%s\n' "$out" | grep -c '^  FAILED ')))
+    if [ "$rc" = 2 ]; then
+        say "  FAILED  scripts/fleet-token-remint.sh --local-user could not run (rc 2, tooling)"; FAILED=$((FAILED+1))
+    fi
+    # Which termlink the user's own sessions run: informational, never counted.
+    local p tl ver cap
+    p="$(bash -c "$LOCALTOK_PATHTL" 2>/dev/null)"
+    tl="$(printf '%s\n' "$p" | sed -n 1p)"; ver="$(printf '%s\n' "$p" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    cap="$(printf '%s\n' "$p" | grep -oE 'TOKEN-FILE-(YES|NO)' | tail -1)"
+    case "$cap" in
+        TOKEN-FILE-YES) say "  note    $LOCALTOK_USER's own PATH runs $tl ${ver:-?}, which reads token_file" ;;
+        TOKEN-FILE-NO)  say "  note    $LOCALTOK_USER's own PATH runs $tl ${ver:-?}, which predates token_file (T-3543): bare \`termlink\` there will NOT use the token; $LOCALTOK_TL does. Upgrading the user's copy is your choice (see T-3756 handback)" ;;
+        *)              say "  note    could not tell which termlink $LOCALTOK_USER's PATH runs (${tl:-none found})" ;;
+    esac
+    return 0
+}
+
+head2 "22c. $LOCALTOK_USER reaches the .107 hub over TCP with its own Interact token (T-3756, ruling A)"
+install_local_user_token
+
+# ---------------------------------------------------------------------------
 # ACTION 23 — the daily telemetry rollup on the fleet hubs (T-3615)
 #
 # Only .107 reported to telemetry:daily, so the fleet view saw one host. This

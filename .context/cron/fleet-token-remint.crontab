@@ -9,8 +9,11 @@
 # install is runme.sh action 22b. Empty log = healthy; a FAILED line also goes on the operator's
 # needs-attention list (urgent-token-expiring inside the last day); /canaries auto-discovers it;
 # tooling errors go to the .stderr sink (T-2685, T-2842); the heartbeat is touched on completion.
+# T-3756 (ruling A, 2026-11-12): the second line renews the local design user's own token
+# (dimitri-mint-dev reaches the hub over 127.0.0.1:9100); its first install is runme.sh action 22c.
 SHELL=/bin/bash
 TERMLINK_WORKER_CLASS=background
 PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
 TERMLINK_RUNTIME_DIR=/var/lib/termlink
 40 3 * * * root cd /opt/termlink && bash scripts/fleet-token-remint.sh --cron >> .context/working/.fleet-token-remint-canary.log 2>> .context/working/.fleet-token-remint-canary.log.stderr
+45 3 * * * root cd /opt/termlink && bash scripts/fleet-token-remint.sh --cron --local-user dimitri-mint-dev >> .context/working/.fleet-token-remint-canary.log 2>> .context/working/.fleet-token-remint-canary.log.stderr

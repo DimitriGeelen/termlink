@@ -622,7 +622,8 @@ for sec in re.split(r'(?m)^\[', t)[1:]:
     if kv.get("address") != sys.argv[2]:
         continue
     if "secret_file" in kv:
-        print("secret" if os.path.exists(os.path.expanduser(kv["secret_file"])) else "none"); break
+        ok = os.path.exists(os.path.expanduser(kv["secret_file"])) and not os.environ.get("FAKE_SECRET_STALE")
+        print("secret" if ok else "none"); break
     print("token" if kv.get("token_file") and os.path.exists(kv["token_file"]) else "none"); break
 else:
     print("none")
@@ -667,6 +668,32 @@ export RUNME_TOKEN_REMINT="bash $REPO_ROOT/scripts/fleet-token-remint.sh" RUNME_
        RUNME_TOKEN_REMOTE_TOKEN="$TR/.termlink/secrets/107-hub.token" RUNME_TOKEN_REMOTE_HOME="$TR/.termlink/token-only-home" \
        RUNME_TOKEN_REMOTE_HUBS="$TR/.termlink/hubs.toml" RUNME_TOKEN_REMOTE_ID="$TR/.termlink" \
        RUNME_TOKEN_REMOTE_OWNER="$(id -un)" RUNME_SECRET_REMOVAL_HUBS="" RUNME_SECRET_REF_DIRS="$F/tok-refs"
+# T-3756 action 22c: the local design user is the fixture's own user with a scratch home. The
+# "runuser" is a fake that logs its ARGV (the token must never be in it) and runs the stdin
+# script with HOME = that home; FAKE_LT_DOWN=1 makes it answer nothing. The user's PATH termlink
+# is a canned old 0.11 build.
+LTU="$(id -un)"; LH="$F/lt-home"
+cat > "$F/lt-run" <<'EOS'
+#!/usr/bin/env bash
+echo "argv: $*" >> "$FAKE_FLEET_DIR/lt-argv"
+[ "${FAKE_LT_DOWN:-0}" = 1 ] && { cat >/dev/null; exit 3; }
+HOME="$2" bash -s
+EOS
+printf '#!/usr/bin/env bash
+echo /home/u/.local/bin/termlink
+echo "termlink 0.11.931"
+echo TOKEN-FILE-NO
+' > "$F/lt-pathtl"
+chmod +x "$F/lt-run" "$F/lt-pathtl"
+lt_reset() {  # the user's own hubs.toml: two profiles and its old secret copy; no token, no record
+    rm -rf "$LH"; rm -f "$F/tok-state/local-$LTU.state" "$F/lt-argv"; mkdir -p "$LH/.termlink/secrets"
+    echo "fixture-user-secret-copy" > "$LH/.termlink/secrets/hub.secret"; chmod 600 "$LH/.termlink/secrets/hub.secret"
+    printf '# user hubs.toml (fixture)\n[hubs.ring20]\naddress = "192.168.10.122:9100"\nsecret_file = "/nonexistent/x.hex"\n\n[hubs.home]\naddress = "192.168.10.107:9100"\nsecret_file = "%s"\n' \
+        "$LH/.termlink/secrets/hub.secret" > "$LH/.termlink/hubs.toml"
+}
+lt_reset
+export RUNME_LOCALTOK_USER="$LTU" RUNME_LOCALTOK_HOME="$LH" RUNME_LOCALTOK_RUN="$F/lt-run" \
+       RUNME_LOCALTOK_TL="$F/rr-tl" RUNME_LOCALTOK_PATHTL="$F/lt-pathtl"
 # The install cases run with the recorded ruling (Q3 = A); the held default has its own case
 # (RUNME_ROLLUP_CREDENTIAL_DECISION set but empty).
 export RUNME_ROLLUP_CREDENTIAL_DECISION="fixture: decided"
@@ -777,7 +804,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 44 ))   # +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 45 ))   # +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1784,7 +1811,7 @@ rm -f "$TMP/cron/termlink-heartbeat"
 # ---------------------------------------------------------------------------
 # T-3615 action 22b — scoped .107 tokens on the fleet hubs, through fakes.
 # ---------------------------------------------------------------------------
-s22b() { echo "$1" | sed -n '/^.*22b\. Scoped .107 tokens/,/^.*23\. Daily telemetry rollup/p'; }
+s22b() { echo "$1" | sed -n '/^.*22b\. Scoped .107 tokens/,/^.*22c\. /p'; }
 TOKF="$TR/.termlink/secrets/107-hub.token"; TOKSTATE="$F/tok-state/fake-hub.state"
 mints() { [ -f "$F/tok-mints" ] && wc -l < "$F/tok-mints" || echo 0; }
 tok_reset; rm -f "$TMP/cron/termlink-fleet-token-remint"; cp "$TR/.termlink/hubs.toml" "$TMP/hubs.before"
@@ -1853,6 +1880,87 @@ if [ "$rc" = "1" ] && echo "$x" | grep_all "FAILED  fake-hub has 2 profiles at 1
 else bad "22b ambiguous" "rc=$rc: $x"; fi
 tok_reset; out=$(run); rc=$?
 if [ "$rc" = "0" ] && [ -e "$TOKSTATE" ]; then ok "22b: restored to the installed state for later cases"; else bad "22b restore" "rc=$rc: $(s22b "$out")"; fi
+
+# ---------------------------------------------------------------------------
+# T-3756 action 22c — the non-root design user's own .107 token, through fakes.
+# ---------------------------------------------------------------------------
+s22c() { echo "$1" | sed -n '/^.*22c\. /,/^.*23\. Daily telemetry rollup/p'; }
+LTOK="$LH/.termlink/secrets/107-local.token"; LSTATE="$F/tok-state/local-$LTU.state"; LT="local:$LTU"
+lt_reset; cp "$LH/.termlink/hubs.toml" "$TMP/lt-hubs.before"; cp "$LH/.termlink/secrets/hub.secret" "$TMP/lt-secret.before"
+n=$(mints); out=$(run --dry-run); x=$(s22c "$out")
+if echo "$x" | grep_all -F "[DRY]   $LT: would mint an Interact token on .107 (no verified token on record)" && [ ! -e "$LTOK" ] \
+   && [ "$(mints)" = "$n" ] && cmp -s "$TMP/lt-hubs.before" "$LH/.termlink/hubs.toml" && [ ! -e "$LSTATE" ]; then
+    ok "22c: --dry-run probes as the user, names the mint, mints and writes nothing"
+else bad "22c dry-run" "$x"; fi
+rm -f "$F/tok-auth"; out=$(run); rc=$?; x=$(s22c "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep_all -F "OK      $LT: Interact token installed and proven" && echo "$x" | grep_all -F "$LTU's own config authenticates too" \
+   && [ "$(stat -c %a:%U "$LTOK")" = "600:$LTU" ] && [ "$(sha256sum < "$LTOK" | cut -d' ' -f1)" = "$(sed -n 's/^token_sha256=//p' "$LSTATE")" ] \
+   && [ "$(head -c "$(stat -c %s "$TMP/lt-hubs.before")" "$LH/.termlink/hubs.toml" | sha256sum)" = "$(sha256sum < "$TMP/lt-hubs.before")" ] \
+   && python3 -c 'import re,sys; t=open(sys.argv[1]).read(); s=[x for x in re.split(r"(?m)^\[",t) if "address = \"127.0.0.1:9100\"" in x]; sys.exit(0 if len(s)==1 and ("token_file = \"%s\"" % sys.argv[2]) in s[0] and not re.search(r"(?m)^(secret|secret_file)\s*=", s[0]) else 1)' "$LH/.termlink/hubs.toml" "$LTOK" \
+   && cmp -s "$TMP/lt-secret.before" "$LH/.termlink/secrets/hub.secret" \
+   && ! grep -qE "^(secret_file|secret) *=" "$LH/.termlink/token-only-home/.termlink/hubs.toml" && grep -q '^address = "127.0.0.1:9100"$' "$LH/.termlink/token-only-home/.termlink/hubs.toml"; then
+    ok "22c: mints, installs 600:user (sha on record), adds a 127.0.0.1:9100 token_file profile; the user's other profiles and secret copy are byte-identical"
+else bad "22c install" "rc=$rc: $x"; fi
+if grep -qx "list token $LH/.termlink/token-only-home" "$F/tok-auth" && grep -qx "post token $LH/.termlink/token-only-home" "$F/tok-auth" \
+   && grep -qx "list token $LH" "$F/tok-auth"; then
+    ok "22c: proven with the TOKEN over TCP (token-only list + accepted post) and with the user's own config"
+else bad "22c token proof" "$(cat "$F/tok-auth" 2>/dev/null)"; fi
+if [ -s "$F/lt-argv" ] && ! grep -qF "$(cat "$LTOK")" "$F/lt-argv" && ! echo "$out" | grep_all -F "$(cat "$LTOK")" && grep -qx "argv: $LTU $LH" "$F/lt-argv"; then
+    ok "22c: runs as the user (runuser argv = user + home only); the token is in no argv and not in runme's output"
+else bad "22c leak" "$(cat "$F/lt-argv" 2>/dev/null)"; fi
+if echo "$x" | grep_all -F "note    $LTU's own PATH runs /home/u/.local/bin/termlink 0.11.931, which predates token_file" \
+   && grep -q -- '--cron --local-user dimitri-mint-dev ' "$REPO_ROOT/.context/cron/fleet-token-remint.crontab"; then
+    ok "22c: names the user's old PATH termlink as unable to use token_file; the daily cron carries the renewal line"
+else bad "22c note/cron" "$x"; fi
+n=$(mints); out=$(run); rc=$?; x=$(s22c "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep_all -F "skip    $LT: verified token on record, installed unchanged" && [ "$(mints)" = "$n" ]; then
+    ok "22c: second run skips (idempotent), mints nothing"
+else bad "22c idempotent" "rc=$rc: $x"; fi
+old_sha=$(sha256sum < "$LTOK"); sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 3600 ))/" "$LSTATE"
+out=$(run); rc=$?; x=$(s22c "$out")
+if [ "$rc" = "0" ] && echo "$x" | grep_all -F "OK      $LT: Interact token installed" && [ "$(mints)" = $((n + 1)) ] && [ "$(sha256sum < "$LTOK")" != "$old_sha" ]; then
+    ok "22c: a token with under 3 days left is re-minted and replaced"
+else bad "22c renew" "rc=$rc: $x"; fi
+# Negative controls: each must be FAILED with rc 1, never OK or skip.
+rm -f "$LSTATE"; out=$(FAKE_RR_AUTH_RC=1 run); rc=$?; x=$(s22c "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep_all -F "FAILED  $LT: channel list --hub 127.0.0.1:9100 with the token-only config did not authenticate" && [ ! -e "$LSTATE" ] \
+   && ! echo "$x" | grep_all -E "^  (OK|skip) +$LT"; then
+    ok "22c control: the round trip as the user does not authenticate => FAILED rc 1, nothing recorded"
+else bad "22c auth fail" "rc=$rc: $x"; fi
+n=$(mints); out=$(FAKE_LT_DOWN=1 run); rc=$?; x=$(s22c "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep_all -F "FAILED  $LT: no answer over runuser as $LTU" && [ "$(mints)" = "$n" ]; then
+    ok "22c control: runuser gives no answer => FAILED, nothing minted"
+else bad "22c down" "rc=$rc: $x"; fi
+out=$(RUNME_LOCALTOK_HOME="" RUNME_LOCALTOK_USER=no-such-user-t3756 run); rc=$?; x=$(s22c "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep_all -F "FAILED  local:no-such-user-t3756: no such user on this host"; then
+    ok "22c control: an unknown user => FAILED"
+else bad "22c no user" "rc=$rc: $x"; fi
+# A 127.0.0.1:9100 profile whose (stale) secret_file wins over the token: the token is proven and
+# recorded, but the user's own config does not authenticate => FAILED, and a re-run does not re-mint.
+lt_reset; printf '\n[hubs.local]\naddress = "127.0.0.1:9100"\nsecret_file = "%s"\n' "$LH/.termlink/secrets/hub.secret" >> "$LH/.termlink/hubs.toml"
+out=$(FAKE_SECRET_STALE=1 run); rc=$?; x=$(s22c "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep_all -F "FAILED  $LT: token installed, proven with the token-only config and recorded, but $LTU's own config" \
+   && [ -e "$LSTATE" ] && grep -q "^secret_file = \"$LH/.termlink/secrets/hub.secret\"$" "$LH/.termlink/hubs.toml" && grep -q "^token_file = \"$LTOK\"$" "$LH/.termlink/hubs.toml"; then
+    ok "22c control: a winning stale secret_file in the user's profile => FAILED (token kept + recorded, secret line untouched)"
+else bad "22c stale secret" "rc=$rc: $x"; fi
+n=$(mints); out=$(FAKE_SECRET_STALE=1 run); rc=$?; x=$(s22c "$out")
+if [ "$rc" = "1" ] && echo "$x" | grep_all -F "FAILED  $LT: token on record and verified, but $LTU's own config" && [ "$(mints)" = "$n" ]; then
+    ok "22c control: re-run with the stale secret still FAILED, and re-mints nothing"
+else bad "22c stale secret rerun" "rc=$rc: $x"; fi
+# The cron renews the local user: quiet when healthy; re-mints when due; the first install is runme's.
+ltcron() {
+    FLEET_TOKEN_MINT="$F/tok-mint" FLEET_TOKEN_LOCAL_TL="$F/tok-ltl" FLEET_TOKEN_RUNTIME_DIR="$F/tok-rt" FLEET_TOKEN_STATE_DIR="$F/tok-state" \
+    FLEET_TOKEN_LOCAL_HOME="$LH" FLEET_TOKEN_LOCAL_RUN="$F/lt-run" FLEET_TOKEN_USER_TL="$F/rr-tl" \
+    FLEET_TOKEN_HEARTBEAT="$F/lt-hb" FLEET_TOKEN_NOTE="$F/tok-note" bash "$REPO_ROOT/scripts/fleet-token-remint.sh" --cron --local-user "$LTU" 2>&1
+}
+lt_reset; n=$(mints); o=$(ltcron); rc=$?
+if [ "$rc" = 0 ] && [ -z "$o" ] && [ "$(mints)" = "$n" ] && [ ! -e "$LTOK" ]; then
+    ok "22c cron: no token on record => renews nothing (the first install is runme's), silent"
+else bad "22c cron first" "rc=$rc: $o"; fi
+out=$(run); rc=$?; sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 7200 ))/" "$LSTATE"; old_sha=$(sha256sum < "$LTOK"); n=$(mints); o=$(ltcron); rc2=$?
+if [ "$rc" = 0 ] && [ "$rc2" = 0 ] && [ -z "$o" ] && [ "$(mints)" = $((n + 1)) ] && [ "$(sha256sum < "$LTOK")" != "$old_sha" ] && [ -e "$F/lt-hb" ]; then
+    ok "22c cron: a due local token is re-minted silently (empty findings log), heartbeat touched"
+else bad "22c cron renew" "rc=$rc/$rc2: $o"; fi
 
 # The same script as the .107 cron runs it: quiet when healthy, loud when not.
 cronrun() {

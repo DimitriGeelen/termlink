@@ -25,7 +25,24 @@
 # Residual: the token crosses as part of the remote-exec command (TLS on the wire, but visible
 # in the host's process list while that command runs). The hub's rpc audit logs no params.
 #
-# Usage: fleet-token-remint.sh [--dry-run] [--force] [--cron] [--hub NAME]...
+# Local-user mode (T-3756, operator ruling A 2026-11-12): `--local-user USER` targets a non-root
+# user on .107 itself instead of a fleet host. The user cannot read /var/lib/termlink (it holds
+# hub.secret), so it reaches the hub over TCP at $LOCAL_ADDR (127.0.0.1:9100) with its own
+# Interact token. Same mint / install / verify / record steps, with these differences:
+#   - the install and every probe run AS USER through `runuser` (FLEET_TOKEN_LOCAL_RUN), and the
+#     script reaches it on STDIN, so the token is never in any process's argv;
+#   - paths are under USER's home: .termlink/secrets/107-local.token, .termlink/token-only-home,
+#     .termlink/hubs.toml (profile at $LOCAL_ADDR), identity dir .termlink; owner USER;
+#   - the user-side binary is $USER_TL (/usr/local/bin/termlink): a 0.11.x build predates
+#     token_file (T-3543, 2026-10-23) and ignores it, so it cannot be what proves the token;
+#   - an extra proof with the user's REAL config (its own hubs.toml, not the token-only home):
+#     `channel list --hub $LOCAL_ADDR` must authenticate, because that is what its sessions use.
+#     If a secret_file in that profile wins over token_file and fails, this is FAILED (the token
+#     is still recorded, so a re-run does not re-mint for it).
+# The state record is $STATE_DIR/local-USER.state. The daily cron renews it like a fleet host.
+#
+# Usage: fleet-token-remint.sh [--dry-run] [--force] [--cron] [--hub NAME]... [--local-user USER]...
+#   --local-user  target USER on this host (see above) instead of the fleet hosts; repeatable
 #   --dry-run  probe read-only and say what would happen; mint and write nothing
 #   --force    re-mint even when the recorded token is not due
 #   --cron     cron mode: print only FAILED lines (timestamped), so the findings log stays
@@ -40,20 +57,25 @@
 # FLEET_TOKEN_REMOTE_TOKEN, FLEET_TOKEN_REMOTE_HOME, FLEET_TOKEN_REMOTE_HUBS, FLEET_TOKEN_REMOTE_ID,
 # FLEET_TOKEN_REMOTE_TL, FLEET_TOKEN_REMOTE_OWNER, FLEET_TOKEN_NOW, FLEET_TOKEN_RENEW_BEFORE,
 # FLEET_TOKEN_NOTE (command: <kind> <why>), FLEET_TOKEN_SOCKETS_LIST, FLEET_TOKEN_HEARTBEAT.
+# Local-user seams: FLEET_TOKEN_LOCAL_RUN (command: <user> <home>, reads the script on stdin),
+# FLEET_TOKEN_LOCAL_HOME (the user's home instead of getent), FLEET_TOKEN_LOCAL_ADDR, FLEET_TOKEN_USER_TL.
 set -uo pipefail
 # T-3627: grep that reads ALL its input. Under pipefail, `producer | grep -q` returns 141 when grep
 # matches and exits while the producer is still writing (L-387), which read as "no match" at random.
 grep_all() { grep "$@" >/dev/null; }
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DRY=0 FORCE=0 CRON=0 ONLY=""
+DRY=0 FORCE=0 CRON=0 ONLY="" LOCALS=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --dry-run) DRY=1 ;;
         --force) FORCE=1 ;;
         --cron) CRON=1 ;;
         --hub) shift; [ $# -ge 1 ] || { echo "fleet-token-remint: --hub needs a name" >&2; exit 2; }; ONLY="$ONLY $1" ;;
-        -h|--help) sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --local-user) shift; [ $# -ge 1 ] || { echo "fleet-token-remint: --local-user needs a user" >&2; exit 2; }
+            case "$1" in *[!a-z0-9_.-]*|"") echo "fleet-token-remint: bad user name: $1" >&2; exit 2 ;; esac
+            LOCALS="$LOCALS local:$1" ;;
+        -h|--help) sed -n '2,60p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "fleet-token-remint: unknown argument: $1" >&2; exit 2 ;;
     esac
     shift
@@ -61,7 +83,13 @@ done
 command -v python3 >/dev/null || { echo "fleet-token-remint: python3 not found" >&2; exit 2; }
 
 HUBS="${ONLY:-${FLEET_TOKEN_HUBS:-ring20-management ring20-dashboard greenfield}}"
+# --local-user alone targets only the local user(s); with --hub as well, both.
+[ -n "$LOCALS" ] && HUBS="${ONLY:+$ONLY }$LOCALS"
 ADDR="192.168.10.107:9100"
+LOCAL_ADDR="${FLEET_TOKEN_LOCAL_ADDR:-127.0.0.1:9100}"
+USER_TL="${FLEET_TOKEN_USER_TL:-/usr/local/bin/termlink}"
+LOCAL_RUN="${FLEET_TOKEN_LOCAL_RUN:-}"
+LOCALMODE=0 LUSER="" LHOME=""
 PROBE_TOPIC="fleet-token-probe"
 REMOTE="${FLEET_TOKEN_REMOTE:-}"
 MINT="${FLEET_TOKEN_MINT:-termlink hub token}"
@@ -75,6 +103,24 @@ R_ID="${FLEET_TOKEN_REMOTE_ID:-/root/.termlink}"
 R_TL="${FLEET_TOKEN_REMOTE_TL:-termlink}"
 R_OWNER="${FLEET_TOKEN_REMOTE_OWNER:-root}"
 R_PATH="/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin"
+F_ADDR="$ADDR" F_TOKEN="$R_TOKEN" F_HOME="$R_HOME" F_HUBS="$R_HUBS" F_ID="$R_ID" F_TL="$R_TL" F_OWNER="$R_OWNER" F_PATH="$R_PATH"
+
+target_setup() {  # <target>: point ADDR/R_* at a fleet host (the defaults) or at local:USER
+    ADDR="$F_ADDR" R_TOKEN="$F_TOKEN" R_HOME="$F_HOME" R_HUBS="$F_HUBS" R_ID="$F_ID" R_TL="$F_TL" R_OWNER="$F_OWNER" R_PATH="$F_PATH"
+    LOCALMODE=0 LUSER="" LHOME=""
+    case "$1" in local:*) ;; *) return 0 ;; esac
+    LOCALMODE=1 LUSER="${1#local:}"
+    LHOME="${FLEET_TOKEN_LOCAL_HOME:-$(getent passwd "$LUSER" 2>/dev/null | cut -d: -f6)}"
+    [ -n "$LHOME" ] || return 1
+    ADDR="$LOCAL_ADDR"
+    R_TOKEN="$LHOME/.termlink/secrets/107-local.token"
+    R_HOME="$LHOME/.termlink/token-only-home"
+    R_HUBS="$LHOME/.termlink/hubs.toml"
+    R_ID="$LHOME/.termlink"
+    R_TL="$USER_TL"
+    R_OWNER="$LUSER"
+    R_PATH="/usr/local/bin:/usr/bin:/bin"
+}
 NOW="${FLEET_TOKEN_NOW:-$(date +%s)}"
 # Re-mint when fewer than 3 days remain: with the 7-day ceiling a token is replaced every ~4
 # days, and a failed run leaves three more daily attempts before the host's token expires.
@@ -191,8 +237,8 @@ PY
 
 # Shell helpers the host runs. Values are baked in with %q, so nothing is re-parsed.
 remote_header() {  # <hub>
-    printf 'R_TOKEN=%q R_HOME=%q R_HUBS=%q R_ID=%q R_TL=%q ADDR=%q TOPIC=%q HUBNAME=%q\n' \
-        "$R_TOKEN" "$R_HOME" "$R_HUBS" "$R_ID" "$R_TL" "$ADDR" "$PROBE_TOPIC" "$1"
+    printf 'R_TOKEN=%q R_HOME=%q R_HUBS=%q R_ID=%q R_TL=%q ADDR=%q TOPIC=%q HUBNAME=%q LOCALMODE=%q\n' \
+        "$R_TOKEN" "$R_HOME" "$R_HUBS" "$R_ID" "$R_TL" "$ADDR" "$PROBE_TOPIC" "$1" "$LOCALMODE"
     printf 'PY_B64=%q\nexport PATH=%q\n' "$(printf '%s' "$EDITOR_PY" | base64 -w0)" "$R_PATH"
     cat <<'SH'
 umask 077
@@ -212,6 +258,11 @@ prove_token() {
     o="$(tl_tok channel post "$TOPIC" --msg-type token-probe --payload "{\"t3615\":\"token-probe\",\"host\":\"$HUBNAME\",\"ts\":$(date +%s)}" --hub "$ADDR" 2>&1)"
     case "$o" in *"Posted to "*"offset="*) echo POST-OK ;; esac
 }
+# T-3756 local mode: the user's REAL config (its own HOME and hubs.toml) must authenticate too.
+prove_real() {
+    [ "$LOCALMODE" = 1 ] || return 0
+    env -u TERMLINK_AGENT_ID -u TERMLINK_IDENTITY_FILE TERMLINK_IDENTITY_DIR="$R_ID" timeout 30 "$R_TL" channel list --hub "$ADDR" </dev/null >/dev/null 2>&1 && echo REAL-AUTH-OK
+}
 SH
 }
 
@@ -223,18 +274,29 @@ home_cfg() {  # the token-only config home's hubs.toml (deterministic: its sha25
 WANT_HOMECFG="$(home_cfg | sha256sum | cut -d' ' -f1)"
 
 run_remote() {  # <hub> <tag> <body> -> tagged output, CR stripped
+    if [ "$LOCALMODE" = 1 ]; then  # T-3756: as the local user, the script on stdin (never in argv)
+        # Wrapped in one function called with stdin from /dev/null: `bash -s` reads the script from
+        # stdin as it goes, so no command in it may read stdin.
+        { echo "__t3756_main() {"; echo "echo RUNME-TOKEN-$2"; remote_header "$1"; printf '%s\n' "$3"; echo "}"
+          echo "__t3756_main </dev/null"; } | local_run 2>/dev/null | tr -d '\r'
+        return
+    fi
     local script; script="$( { remote_header "$1"; printf '%s\n' "$3"; } | base64 -w0)"
     remote "$1" "echo RUNME-TOKEN-$2; bash -c \"\$(echo $script | base64 -d)\"" 2>/dev/null | tr -d '\r'
+}
+local_run() {  # stdin: a bash script, run as $LUSER with a clean environment
+    if [ -n "$LOCAL_RUN" ]; then $LOCAL_RUN "$LUSER" "$LHOME"; return; fi
+    runuser -u "$LUSER" -- env -i HOME="$LHOME" USER="$LUSER" LOGNAME="$LUSER" PATH="$R_PATH" LANG=C.UTF-8 bash -s
 }
 field() { printf '%s\n' "$1" | sed -n "s/^$2=//p" | tail -1; }
 has() { printf '%s\n' "$1" | grep_all -x "$2"; }
 
-state_get() {  # <hub> <key>
-    sed -n "s/^$2=//p" "$STATE_DIR/$1.state" 2>/dev/null | tail -1
+state_get() {  # <hub> <key>   (local:USER is recorded as local-USER.state)
+    sed -n "s/^$2=//p" "$STATE_DIR/${1/:/-}.state" 2>/dev/null | tail -1
 }
 state_put() {  # <hub> <expires_at> <sha> <profile>
     mkdir -p "$STATE_DIR" && chmod 700 "$STATE_DIR" || return 1
-    local f="$STATE_DIR/$1.state" mints first
+    local f="$STATE_DIR/${1/:/-}.state" mints first
     # mints counts verified installs (1 = the first, 2+ = re-mints); runme action 24 can wait
     # for a re-mint before it removes a host's secret (T-3615, greenfield ruling B). A state
     # written before this field existed counts as one verified mint.
@@ -254,10 +316,15 @@ ensure_probe_topic() {  # the scratch topic on .107 (an Interact token cannot cr
 }
 
 one_hub() {
-    local hub="$1" probe sha mode homecfg profiles tokfile exp_at rec_sha remain due=""
-    probe="$(run_remote "$hub" PROBE 'echo PROBE-BEGIN; state')"
+    local hub="$1" probe sha mode homecfg profiles tokfile exp_at rec_sha remain due="" via="remote exec (no session, or the hub is down)"
+    if ! target_setup "$hub"; then
+        say FAILED "$hub: no such user on this host (getent passwd ${hub#local:}); nothing minted or written"; return
+    fi
+    [ "$LOCALMODE" = 1 ] && via="runuser as $LUSER"
+    WANT_HOMECFG="$(home_cfg | sha256sum | cut -d' ' -f1)"
+    probe="$(run_remote "$hub" PROBE 'echo PROBE-BEGIN; state; prove_real')"
     if ! has "$probe" PROBE-BEGIN; then
-        say FAILED "$hub: no answer over remote exec (no session, or the hub is down); nothing minted or written"; return
+        say FAILED "$hub: no answer over $via; nothing minted or written"; return
     fi
     if ! has "$probe" HAVE-PY || ! has "$probe" HAVE-TL; then
         say FAILED "$hub lacks python3 or $R_TL on $R_PATH; nothing minted or written"; return
@@ -272,7 +339,7 @@ one_hub() {
     remain=$(( ${exp_at:-0} - NOW ))
     # The cron only renews: a first install edits the host's hubs.toml and is runme's (attended).
     if [ "$CRON" = 1 ] && [ -z "$exp_at" ]; then
-        say skip "$hub: no token on record; the first install is runme.sh action 22b"; return
+        say skip "$hub: no token on record; the first install is runme.sh action $([ "$LOCALMODE" = 1 ] && echo 22c || echo 22b)"; return
     fi
     [ -n "$exp_at" ] || due="no verified token on record"
     [ -z "$due" ] && [ "$remain" -lt "$RENEW_BEFORE" ] && due="token expires in $((remain / 3600))h"
@@ -282,6 +349,10 @@ one_hub() {
     [ -z "$due" ] && [ "$tokfile" != "$R_TOKEN" ] && due="the $ADDR profile has no token_file line"
     [ -z "$due" ] && [ "$FORCE" = 1 ] && due="--force"
     if [ -z "$due" ]; then
+        if [ "$LOCALMODE" = 1 ] && ! has "$probe" REAL-AUTH-OK; then
+            say FAILED "$hub: token on record and verified, but $LUSER's own config ($R_HUBS, profile at $ADDR) does not authenticate with $R_TL; a secret_file in that profile wins over token_file (stale?) or the hub is down"
+            return
+        fi
         say skip "$hub: verified token on record, installed unchanged, expires in $((remain / 3600))h (re-mint under $((RENEW_BEFORE / 3600))h)"
         return
     fi
@@ -290,7 +361,7 @@ one_hub() {
         return
     fi
     # 1. mint
-    local tok="$SCRATCH/$hub.token" mj exp_new scope b64 want_sha out edit
+    local tok="$SCRATCH/${hub/:/-}.token" mj exp_new scope b64 want_sha out edit
     if ! mj="$(TERMLINK_RUNTIME_DIR="$RUNTIME_DIR" $MINT --out "$tok" --scope interact --ttl 315360000 --force --json 2>/dev/null)"; then
         say FAILED "$hub: minting on .107 failed (TERMLINK_RUNTIME_DIR=$RUNTIME_DIR: is the hub secret readable?); nothing written"; return
     fi
@@ -310,7 +381,8 @@ printf %s \"\$TOK_B64\" | base64 -d > \"\$R_TOKEN.new\" && chmod 600 \"\$R_TOKEN
 printf %s \"\$CFG_B64\" | base64 -d > \"\$R_HOME/.termlink/hubs.toml.new\" && chmod 600 \"\$R_HOME/.termlink/hubs.toml.new\" && mv -f \"\$R_HOME/.termlink/hubs.toml.new\" \"\$R_HOME/.termlink/hubs.toml\" || echo ERR=write-home
 edit add-token \"\$R_HUBS\" \"\$ADDR\" \"\$R_TOKEN\"
 state
-prove_token")"
+prove_token
+prove_real")"
     rm -f "$tok"
     edit="$(field "$out" EDIT)"
     local bad=""
@@ -329,7 +401,13 @@ prove_token")"
     if ! state_put "$hub" "$exp_new" "$want_sha" "$(field "$out" PROFILE)"; then
         say FAILED "$hub: token installed and proven, but the state could not be written to $STATE_DIR"; return
     fi
-    say OK "$hub: Interact token installed and proven (sha256 matches, 600:$R_OWNER, profile $(field "$out" PROFILE) ${edit#EDIT=}, token-only list + post to $PROBE_TOPIC accepted), expires $(date -u -d "@$exp_new" +%Y-%m-%dT%H:%MZ 2>/dev/null || echo "$exp_new")"
+    if [ "$LOCALMODE" = 1 ] && ! has "$out" REAL-AUTH-OK; then
+        say FAILED "$hub: token installed, proven with the token-only config and recorded, but $LUSER's own config ($R_HUBS, profile at $ADDR) does not authenticate with $R_TL; a secret_file in that profile wins over token_file (stale?)"
+        return
+    fi
+    local real=""; [ "$LOCALMODE" = 1 ] && real=", $LUSER's own config authenticates too"
+    say OK "$hub: Interact token installed and proven (sha256 matches, 600:$R_OWNER, profile $(field "$out" PROFILE) ${edit#EDIT=}, token-only list + post to $PROBE_TOPIC accepted$real), expires $(date -u -d "@$exp_new" +%Y-%m-%dT%H:%MZ 2>/dev/null || echo "$exp_new")"
+    [ "$LOCALMODE" = 1 ] && return
     local fp; fp="$(field "$out" FP)"
     [ -n "$fp" ] && [ "$CRON" = 0 ] && printf '  %-7s %s\n' note "$hub signs its posts as $fp (the fleet view's sender inventory: scripts/telemetry-senders.txt)"
 }
