@@ -8458,7 +8458,7 @@ fn print_reauth_outcome_human(outcome: &ReauthBootstrapOutcome) {
 ///   file:<path>    → read file contents (UTF-8)
 ///   ssh:<host>     → spawn `ssh <host> -- sudo cat /var/lib/termlink/hub.secret`
 /// Any other prefix → error listing the accepted forms.
-fn fetch_bootstrap_secret(source: &str) -> Result<String> {
+pub(crate) fn fetch_bootstrap_secret(source: &str) -> Result<String> {
     if let Some(path) = source.strip_prefix("file:") {
         if path.is_empty() {
             anyhow::bail!("file: source requires a path (e.g. file:/tmp/new-secret.hex)");
@@ -8495,7 +8495,7 @@ fn fetch_bootstrap_secret(source: &str) -> Result<String> {
 }
 
 /// Trim and validate that `raw` is 64 hex chars (a 32-byte HMAC secret).
-fn normalize_and_validate_secret_hex(raw: &str) -> Result<String> {
+pub(crate) fn normalize_and_validate_secret_hex(raw: &str) -> Result<String> {
     let trimmed = raw.trim();
     if trimmed.len() != 64 {
         anyhow::bail!(
@@ -8556,7 +8556,7 @@ fn verify_persisted_secret(path: &std::path::Path, expected: &str) -> Result<Str
 /// bytes back to confirm they landed. Returns the confirmed-on-disk hex so the
 /// caller derives its success preview from bytes it actually persisted (T-2617),
 /// not from its input string.
-fn write_secret_file(path: &std::path::Path, hex: &str) -> Result<String> {
+pub(crate) fn write_secret_file(path: &std::path::Path, hex: &str) -> Result<String> {
     let tmp = unique_secret_tmp_path(path);
     // Write content to our private temp.
     if let Err(e) = std::fs::write(&tmp, hex) {

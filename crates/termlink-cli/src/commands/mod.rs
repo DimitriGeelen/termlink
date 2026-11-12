@@ -9,6 +9,7 @@ pub(crate) mod dispatch;
 pub(crate) mod infrastructure;
 pub(crate) mod token;
 pub(crate) mod remote;
+pub(crate) mod fleet_join;
 pub(crate) mod agent;
 pub(crate) mod file;
 pub(crate) mod artifact;

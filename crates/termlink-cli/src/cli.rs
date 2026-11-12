@@ -4477,6 +4477,44 @@ pub(crate) enum FleetAction {
         json: bool,
     },
 
+    /// T-3749: join this device to a hub in one command
+    ///
+    /// Probes the hub's TLS certificate, pins it (TOFU, or checked against
+    /// --fingerprint), fetches the credential out of band (--bootstrap-from
+    /// ssh:<host> | file:<path>, or --token-file), writes the hubs.toml
+    /// profile, then proves it with an authenticated round trip. Each step is
+    /// printed; any failure names the step and exits 1. The secret is never
+    /// printed or sent over the bus.
+    ///
+    /// Example: termlink fleet join 192.168.10.122:9100 --name ring20-management
+    ///            --bootstrap-from ssh:root@192.168.10.122 --fingerprint sha256:22c1...
+    Join {
+        /// Hub address, host:port (no scheme)
+        address: String,
+
+        /// Profile name to save in ~/.termlink/hubs.toml
+        #[arg(long)]
+        name: String,
+
+        /// Out-of-band source of the hub secret: ssh:<host> or file:<path>
+        #[arg(long = "bootstrap-from", conflicts_with = "token_file")]
+        bootstrap_from: Option<String>,
+
+        /// A hub token minted on the hub host (`termlink hub token --out F --scope interact`)
+        #[arg(long = "token-file")]
+        token_file: Option<String>,
+
+        /// Expected hub fingerprint (sha256:...), confirmed out of band with
+        /// `termlink hub fingerprint` on the hub host. Refuses on mismatch;
+        /// replaces a stale pin when it matches.
+        #[arg(long)]
+        fingerprint: Option<String>,
+
+        /// Machine-readable result
+        #[arg(long)]
+        json: bool,
+    },
+
     /// T-1660: probe every hub in ~/.termlink/hubs.toml and compare wire fingerprint vs pin
     ///
     /// Fleet-wide companion to `tofu verify <addr>`. Pure read-only diagnostic:

@@ -159,6 +159,63 @@ fn register_refuses_when_running_hub_serves_another_runtime_dir() {
     }
 }
 
+/// (c) `fleet join`: a throwaway TCP hub on an ephemeral 127.0.0.1 port, temp
+/// HOME and identity dir. Negative control first: a wrong --fingerprint must
+/// refuse (exit 1, step named) and write no profile. Then the real join must
+/// probe, pin, write the secret 0600, add the profile and prove a round trip;
+/// the secret itself never appears in the output.
+#[test]
+fn fleet_join_refuses_wrong_fingerprint_then_joins_with_round_trip() {
+    let dir = TestDir::new("t3749-join");
+    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let tcp = format!("127.0.0.1:{port}");
+    let hub = cmd(&dir, &["hub", "start", "--tcp", &tcp])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn hub");
+    let _hub = ProcessGuard::new(hub, "t3749-join-hub");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !dir.path.join("hub.secret").exists() || std::net::TcpStream::connect(&tcp).is_err() {
+        assert!(Instant::now() < deadline, "hub never came up");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let secret = std::fs::read_to_string(dir.path.join("hub.secret")).unwrap().trim().to_string();
+    let src = format!("file:{}", dir.path.join("hub.secret").display());
+    let hubs_toml = dir.path.join(".termlink").join("hubs.toml");
+
+    let bad = "sha256:".to_string() + &"0".repeat(64);
+    let (out, so, se) = run(
+        &dir,
+        &["fleet", "join", &tcp, "--name", "t3749", "--bootstrap-from", &src, "--fingerprint", &bad],
+    );
+    assert_eq!(out.status.code(), Some(1), "stdout={so} stderr={se}");
+    assert!(se.contains("[FAIL] pin") && se.contains("mismatch"), "{se}");
+    let toml_now = std::fs::read_to_string(&hubs_toml).unwrap_or_default();
+    assert!(!toml_now.contains("[hubs.t3749]"), "refused join wrote a profile: {toml_now}");
+
+    let (out, so, se) = run(&dir, &["fleet", "join", &tcp, "--name", "t3749", "--bootstrap-from", &src]);
+    assert_eq!(out.status.code(), Some(0), "stdout={so} stderr={se}");
+    for step in ["probe", "pin", "credential", "profile", "round-trip"] {
+        assert!(so.contains(&format!("[OK]   {step}")), "missing step {step}: {so}");
+    }
+    assert!(so.contains("JOINED"), "{so}");
+    assert!(!so.contains(&secret) && !se.contains(&secret), "secret leaked to output");
+    let toml_now = std::fs::read_to_string(&hubs_toml).unwrap();
+    assert!(toml_now.contains("[hubs.t3749]") && toml_now.contains(&tcp), "{toml_now}");
+    let sf = dir.path.join(".termlink").join("secrets").join("t3749.hex");
+    use std::os::unix::fs::PermissionsExt;
+    assert_eq!(std::fs::metadata(&sf).unwrap().permissions().mode() & 0o777, 0o600);
+
+    // The joined profile is usable by name for a real send.
+    let (out, so, se) = run(
+        &dir,
+        &["channel", "post", "inbox:t3749", "--payload", "hi", "--ensure-topic", "--hub", "t3749"],
+    );
+    assert_eq!(out.status.code(), Some(0), "stdout={so} stderr={se}");
+    assert!(so.contains("Posted to inbox:t3749"), "{so}");
+}
+
 /// Positive control: with a live hub the same post exits 0 and says Posted, so
 /// the two tests above are measuring the failure, not a broken command.
 #[test]

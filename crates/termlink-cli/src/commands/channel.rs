@@ -529,7 +529,7 @@ pub(crate) fn claim_auth(addr: &TransportAddr) -> Result<Option<String>> {
     }
 }
 
-async fn rpc_call_authed(
+pub(crate) async fn rpc_call_authed(
     addr: &TransportAddr,
     method: &str,
     params: Value,

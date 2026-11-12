@@ -1,0 +1,21 @@
+id: crates/termlink-cli/src/commands/fleet_join.rs
+name: fleet_join
+type: script
+subsystem: cli
+location: crates/termlink-cli/src/commands/fleet_join.rs
+tags: []
+
+purpose: "TODO: describe what this component does"
+purpose_source: none
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-11-12
+created_by: unknown

@@ -794,6 +794,17 @@ async fn main() -> Result<()> {
                     }
                 }
             }
+            FleetAction::Join { address, name, bootstrap_from, token_file, fingerprint, json } => {
+                commands::fleet_join::cmd_fleet_join(commands::fleet_join::JoinOpts {
+                    address,
+                    name,
+                    bootstrap_from,
+                    token_file,
+                    fingerprint,
+                    json,
+                })
+                .await
+            }
             FleetAction::Verify { json, exit_on_drift_only, profile } => {
                 commands::remote::cmd_fleet_verify(json, exit_on_drift_only, profile.as_deref()).await
             }
