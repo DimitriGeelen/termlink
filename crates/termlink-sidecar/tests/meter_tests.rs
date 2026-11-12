@@ -119,29 +119,59 @@ fn fcw12_s1_unreadable_or_other_boot_is_unknown() {
 
 // ---- E-16: S2 and the strict intake -----------------------------------------------------------
 
-/// Every valid event moves s2_at. Control: drop the S2 stamp in intake and each step stays put.
+/// S2 (a) moves on turn events and READY state changes only (F-3, CR-6.3 / CR-B27.1).
+/// Control: stamp S2 on every valid report (the pre-F-3 rule) and the "repeat",
+/// `evidence` and `complete` rows move S2, going red.
 #[test]
-fn e16_each_valid_event_moves_s2() {
+fn e16_f3_s2_moves_on_turn_events_and_ready_changes_only() {
     let r = rig();
-    let evs: Vec<(&str, Value)> = vec![
-        ("session_start", json!({"interactive": true})),
-        ("prompt_submit", json!({"origin": "human", "basis": "inferred"})),
-        ("tool_start", json!({"tool": "Bash"})),
-        ("tool_end", json!({"tool": "Bash"})),
-        ("turn_stop", json!({})),
-        ("ready", json!({"state": "READY"})),
-        ("evidence", json!({"nonce": "n1", "record_ref": "r"})),
-        ("complete", json!({"turn_boundary": true})),
-        ("session_end", json!({})),
+    // (event, extra, moves S2)
+    let evs: Vec<(&str, Value, bool)> = vec![
+        ("session_start", json!({"interactive": true}), true),
+        ("prompt_submit", json!({"origin": "human", "basis": "inferred"}), true),
+        ("ready", json!({"state": "BUSY"}), true),
+        ("ready", json!({"state": "BUSY"}), false),
+        ("tool_start", json!({"tool": "Bash"}), true),
+        ("ready", json!({"state": "BUSY"}), false),
+        ("tool_end", json!({"tool": "Bash"}), true),
+        ("evidence", json!({"nonce": "n1", "record_ref": "r"}), false),
+        ("complete", json!({"turn_boundary": true}), false),
+        ("turn_stop", json!({}), true),
+        ("ready", json!({"state": "READY"}), true),
+        ("ready", json!({"state": "READY"}), false),
+        ("session_end", json!({}), true),
     ];
     r.set_s1("s", None, None, None);
-    for (i, (e, x)) in evs.into_iter().enumerate() {
+    let mut s2 = None;
+    for (i, (e, x, moves)) in evs.into_iter().enumerate() {
         r.adv(1000);
         assert_eq!(r.ev("s", e, 10 + i as u64, x), Intake::Applied, "{e}");
         let a = r.act("s");
-        assert_eq!(a["s2_at"], json!(r.at()), "{e} must move S2: {a}");
+        if moves {
+            s2 = Some(r.at());
+        }
+        assert_eq!(a["s2_at"], json!(s2), "{e} (#{i}) moves S2 = {moves}: {a}");
     }
     assert_eq!(r.m.counters().unparseable, 0);
+    // An adapter that only repeats `ready {BUSY}` leaves S2 silent, so the watchdog can see it.
+    let r = rig();
+    r.set_s1("s", None, None, None);
+    r.ev("s", "ready", 1, json!({"state": "BUSY"}));
+    let first = r.at();
+    for i in 0..10 {
+        r.adv(T);
+        r.ev("s", "ready", 2 + i, json!({"state": "BUSY"}));
+    }
+    let a = r.act("s");
+    assert_eq!(a["s2_at"], json!(first), "{a}");
+    assert_eq!(a["watchdog"], "available");
+    // The built hooks: the four turn hooks move S2, any other hook name does not.
+    let r = rig();
+    r.m.legacy_hook("s", "post-tool-use", None);
+    let t = r.at();
+    r.adv(1000);
+    r.m.legacy_hook("s", "notification", None);
+    assert_eq!(r.act("s")["s2_at"], json!(t));
 }
 
 /// FCW-13: no report and no transcript -> S2 unknown, watchdog unavailable.

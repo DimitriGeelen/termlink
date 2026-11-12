@@ -8,7 +8,7 @@
 //! | signal | moves on | never moves on (6.14.2, FCW-14) |
 //! |---|---|---|
 //! | S1 | `client` PTY input the TermLink session counted (`session.input_activity`, notify scope) | `notify`, `inject`, `client_auto` input |
-//! | S2 | (a) a valid `termlink.adapter/2` report (or a built W1 hook call); (b) growth of the session's transcript | an unparseable report |
+//! | S2 | (a) a turn event or a READY state change in a valid `termlink.adapter/2` report (or a built W1 hook call); (b) growth of the session's transcript | an unparseable report; a repeated `ready` state; `evidence`, `complete` |
 //! | S3 | a message this session's agent sent, or one handed over to it | arrivals (STORED), receipts, notices |
 //!
 //! A source that cannot be read is `unknown`, never "silent" (FCW-12, FCW-13).
@@ -34,6 +34,12 @@ pub const V19_MS: u64 = 120_000;
 pub const STALE_MS: u64 = 2 * crate::deadline::TICK_MS;
 /// Bound on one S1 read (FCW-12).
 pub const S1_TIMEOUT_MS: u64 = 2_000;
+/// Time budget for all of one tick's S1 reads, which run in parallel; a read
+/// still running at the budget reads unknown this tick (F-22, CR-6.20).
+pub const TICK_BUDGET_MS: u64 = S1_TIMEOUT_MS + 500;
+/// A report this recent keeps S2 known when the transcript cannot be read
+/// (F-28, CR-6.25): the watchdog window V-18.
+pub const S2_FRESH_MS: u64 = 300_000;
 /// Strict JSON nesting limit (06 3.3).
 pub const MAX_DEPTH: u32 = 8;
 /// Largest integer a report may carry (06 3.3).
@@ -42,6 +48,10 @@ pub const MAX_INT: i64 = (1 << 53) - 1;
 const ANSWERS: [&str; 2] = ["REPLIED", "ACKNOWLEDGED_NO_ACTION"];
 /// Ends of a message (answer 4.4).
 const ENDS: [&str; 2] = ["REFUSED", "DEAD"];
+/// Turn events (ARC4 17.4): with a READY state change, the only reports that move S2 (a) (F-3, CR-6.3).
+const TURN_EVENTS: [&str; 6] = ["session_start", "prompt_submit", "tool_start", "tool_end", "turn_stop", "session_end"];
+/// The built W1 hooks that are turn events (D-2).
+const TURN_HOOKS: [&str; 4] = ["session-start", "stop", "session-end", "post-tool-use"];
 const EVENTS: [&str; 9] = ["ready", "session_start", "prompt_submit", "tool_start", "tool_end", "turn_stop", "session_end", "evidence", "complete"];
 
 // ---------------------------------------------------------------- strict JSON
@@ -326,11 +336,15 @@ struct Session {
     interactive: Option<bool>,
     transcript: Option<PathBuf>,
     tr_last: Option<(u64, i64, i64)>,
+    /// The last tick's `lstat` of the transcript failed (F-28).
+    tr_unreadable: bool,
     last_prompt: Option<Prompt>,
     /// rx of the first turn_stop or READY report after the last prompt.
     stopped: Option<u64>,
     tool: Option<(String, u64)>,
     reports: u64,
+    /// rx of the last valid report of any kind (F-28 freshness).
+    last_report: Option<u64>,
     s1: Option<S1>,
     /// Every source of the last good S1 read (for the origin check, AL-1 3).
     s1_sources: Option<S1Reply>,
@@ -375,7 +389,10 @@ pub struct Meter {
     clock: Clock,
     wall: Clock,
     transcript_root: Option<PathBuf>,
-    s1: Box<dyn S1Source>,
+    s1: Arc<dyn S1Source>,
+    /// Sessions whose S1 read has not returned yet (at most one read each).
+    s1_inflight: Arc<Mutex<std::collections::HashSet<String>>>,
+    tick_budget_ms: u64,
     ledger: Box<dyn Ledger>,
     inner: Mutex<Inner>,
 }
@@ -405,7 +422,9 @@ impl Meter {
             clock: Arc::new(termlink_session::input_meter::mono_ms),
             wall: Arc::new(crate::store::now_ms),
             transcript_root: None,
-            s1,
+            s1: Arc::from(s1),
+            s1_inflight: Arc::new(Mutex::new(std::collections::HashSet::new())),
+            tick_budget_ms: TICK_BUDGET_MS,
             ledger,
             inner: Mutex::new(Inner::default()),
         }
@@ -415,6 +434,12 @@ impl Meter {
     pub fn with_clocks(mut self, mono: Clock, wall: Clock) -> Self {
         self.clock = mono;
         self.wall = wall;
+        self
+    }
+
+    /// Test seam: the tick's S1 read budget (F-22).
+    pub fn with_tick_budget(mut self, ms: u64) -> Self {
+        self.tick_budget_ms = ms;
         self
     }
 
@@ -501,6 +526,8 @@ impl Meter {
         let counters = &mut inner.counters;
         let sess = inner.sessions.entry(session.to_owned()).or_default();
         let mut out = Intake::Applied;
+        // S2 (a) moves on turn events; a `ready` moves it only when it changes the state (F-3).
+        let mut moves_s2 = TURN_EVENTS.contains(&event);
         match event {
             "ready" => {
                 let state = s("state").unwrap_or_default().to_owned();
@@ -512,6 +539,7 @@ impl Meter {
                     Some(r) if at_ms == r.at_ms && r.state == "BUSY" && state != "BUSY" => out = Intake::Dropped("tie keeps BUSY"),
                     _ => {
                         let seq = sess.ready.as_ref().map_or(1, |r| r.seq + 1);
+                        moves_s2 = sess.ready.as_ref().map(|r| r.state.as_str()) != Some(state.as_str());
                         if state == "READY" {
                             mark_stopped(sess, at_ms, rx);
                         }
@@ -562,10 +590,13 @@ impl Meter {
         while counters.reasons.len() > 16 {
             counters.reasons.pop_front();
         }
-        // S2 (a): every valid report (AL-1 step 7, invariant 4).
+        // S2 (a): turn events and READY state changes only (AL-1, CR-6.3). An
+        // adapter repeating `ready {BUSY}`, `evidence` or `complete` is not activity.
         sess.reports += 1;
-        sess.s2_at = Some(sess.s2_at.map_or(rx, |t| t.max(rx)));
-        sess.s2_event_at = sess.s2_at;
+        sess.last_report = Some(rx);
+        if moves_s2 {
+            stamp_s2(sess, rx);
+        }
         out
     }
 
@@ -600,8 +631,10 @@ impl Meter {
             _ => {}
         }
         sess.reports += 1;
-        sess.s2_at = Some(sess.s2_at.map_or(rx, |t| t.max(rx)));
-        sess.s2_event_at = sess.s2_at;
+        sess.last_report = Some(rx);
+        if TURN_HOOKS.contains(&hook) {
+            stamp_s2(sess, rx);
+        }
     }
 
     /// S3: this session's agent sent a message in `conv` (the send API).
@@ -868,6 +901,12 @@ impl Conversation {
             Conversation::Unknown(why) => json!({"unknown": why}),
         }
     }
+}
+
+/// S2 (a): a turn event at `rx` (also S2 overall).
+fn stamp_s2(sess: &mut Session, rx: u64) {
+    sess.s2_at = Some(sess.s2_at.map_or(rx, |t| t.max(rx)));
+    sess.s2_event_at = Some(sess.s2_event_at.map_or(rx, |t| t.max(rx)));
 }
 
 fn mark_stopped(sess: &mut Session, at_ms: u64, rx: u64) {
