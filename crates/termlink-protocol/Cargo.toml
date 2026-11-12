@@ -3,6 +3,7 @@ name = "termlink-protocol"
 description = "TermLink wire protocol — control plane (JSON-RPC 2.0) and data plane (binary frames)"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 serde = { workspace = true }

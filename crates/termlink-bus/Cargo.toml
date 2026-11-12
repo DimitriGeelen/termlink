@@ -3,6 +3,7 @@ name = "termlink-bus"
 description = "TermLink agent channel bus — append-only per-topic log, per-recipient cursors, retention (T-1155)"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 serde = { workspace = true }

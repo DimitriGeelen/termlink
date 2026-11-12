@@ -15,7 +15,7 @@ members = [
 [workspace.package]
 version = "0.9.0"
 edition = "2024"
-license = "MIT"
+license = "Apache-2.0"
 repository = "https://github.com/DimitriGeelen/termlink"
 description = "Coordination substrate for parallel AI agents — hub-mediated durable append-log message bus with terminal endpoints"
 

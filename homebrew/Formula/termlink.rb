@@ -9,7 +9,7 @@ class Termlink < Formula
   desc "Cross-terminal session communication — message bus with terminal endpoints"
   homepage "https://github.com/DimitriGeelen/termlink"
   version "0.9.1"
-  license "MIT"
+  license "Apache-2.0"
 
   on_macos do
     if Hardware::CPU.arm?

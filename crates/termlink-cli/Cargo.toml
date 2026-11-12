@@ -3,6 +3,7 @@ name = "termlink"
 description = "TermLink CLI — cross-terminal session communication"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 termlink-protocol = { workspace = true }
