@@ -1,0 +1,151 @@
+{
+ "schema": "role-handback/1",
+ "chain": "arc-011-design",
+ "step": 8,
+ "role": "planner",
+ "task": "T-3357",
+ "status": "ready-for-review",
+ "output": {
+  "path": "docs/design/interactive-agent-communication-08-plan.md",
+  "sha256": "b2a658f02b715d28229caf6a3ee641cce721add1f62f16769db645311fdcfbd9"
+ },
+ "inputs": [
+  {
+   "path": "CLAUDE.md",
+   "sha256": "a9b38fd1aeed0145289c6a8c89c491c2ae077d06e1847110209827f33e172aa3"
+  },
+  {
+   "path": "docs/design/roles/README.md",
+   "sha256": "3881d5302313a0d0ca4c9ef1b4688dae101b6d693df823be962e9b70946368e0"
+  },
+  {
+   "path": "docs/design/roles/cards/_common.md",
+   "sha256": "cca38806358d7a6c09e64289164977a825f2cf57e914f672076ff77a2bdb5563"
+  },
+  {
+   "path": "docs/design/roles/cards/planner.md",
+   "sha256": "6f279cafcd0db1dc04c7841933cad894ef0e4237bc0a504e2532418aafdc2022"
+  },
+  {
+   "path": "docs/design/roles/adapters/aef.md",
+   "sha256": "d840a77649888cdbfd37d1166c15eecd6cd3c8399d497fb6b1b2c52455c6c4a4"
+  },
+  {
+   "path": "docs/design/roles/profiles/termlink.md",
+   "sha256": "b6bc160242d96ca9a8fc167c6845e292529c162fa23faa2945d4742b676e7b21"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-role-chain.yaml",
+   "sha256": "4cea381100cd19fbfb06194c12c6a45fa5a81b471904d23b8c3cdecbcaab8020"
+  },
+  {
+   "path": "docs/design/roles/schemas/role-handback-1.schema.json",
+   "sha256": "288a4e312f00bac978a4b2a87e57ee8a05cb14f916d77c397e601e03c703c148"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-01-requirements.md",
+   "sha256": "aae4ce0229b14f7e93cf518ee44d88d94c4dd08ffcac7fc441a545c892fbda24"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-02-threat-model.md",
+   "sha256": "6ffa60d9b03f953f76a2a10a50591b594b594ac3c12ba4d04ef6bd8e4b0fd09f"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-03-floor-and-phasing.md",
+   "sha256": "09d82254add16cefd29b868673d4dda135b439842d6582c8a03bbf5e7cf0fca5"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-04-architecture.md",
+   "sha256": "190a3f0953dc1e04e74dc2dcc4824c9349184021d322236316c3e6aa35463d55"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-04a-traceability.md",
+   "sha256": "c516a290997e0c75957c0be95af4d611e58155cd818d2fbae961c0f4ad6d4667"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-05-evidence.md",
+   "sha256": "15e4f53dd1bd3ca2d10e261b8e72c12056072ae257a1df0ca216465dacac1d2b"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-05a-coverage.md",
+   "sha256": "8b56a8f6fad6a4d226b994730d719f169c9c48f016dfcb0865b7fca77808ac28"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-06-pseudo-code.md",
+   "sha256": "c597d0370bd598c29fb4af93c9fbbc5fa129c98520d5cbc1449b1de401a5105c"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-06a-pseudo-code-ph2-hardening.md",
+   "sha256": "8579166a8203245e2e5e0e123aebe16b62ac15c7d7f67c4b916440ffccb0d01d"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-06b-pseudo-code-later-phases.md",
+   "sha256": "186dce6598d1bd189b177b4b9373da7c31c253bba4e8050969dffb1c09d41c08"
+  },
+  {
+   "path": "docs/design/interactive-agent-communication-07-review.md",
+   "sha256": "edcc283aced8940d9628239a0c3b41f13de2ba9dcb129f3a8d161d0340669090"
+  },
+  {
+   "path": "docs/reports/T-3344-step1-rulings-summary.md",
+   "sha256": "6381769f3b2a98f3bdc1e1cfe6c6c16c35891b5e5c9fedca55014ceaff13e418"
+  },
+  {
+   "path": "docs/reports/T-3654-main-only-rollout.md",
+   "sha256": "5a73a50114345f3b1dfb2fff1e4eb3c9453db0ac0d2c6bce4958c320d1e41aeb"
+  }
+ ],
+ "summary": "Draft build plan, no work items created (card 3.2). 71 units P-1..P-71 (PH-2 46, PH-3 8, PH-4 7, PH-5 2, PH-6 8; 5 are requests to AEF/055), 7 explorations X-1..X-7, 9 gates G-0..G-8, 150 typed edges (built/live/field/security/serial/decision/external).\nKahn cycle check: 0 cycles; proposed order checked against every edge: 0 violations (.context/working/t3357/plan.py, exit 0).\nRuling A kept (B-25 -> B-11 -> B-16) with P-1/P-2 (B-27 follow-ups F-26, F-27) and P-3 (T-3686 seams) in front.\nP-5 role-mail-only withhold (T-3689 9a); B-16 carries F-1 and the macOS interim veto; T-3688 is P-43, approval-gated.\nEvery decommission is its own unit behind an operator decision gate (NID).\nStep-1 build tasks re-scoped or confirmed (section 7.1); T-3359 proposed superseded.\nR-41 placed: P-68 in PH-6 after grants, behind exploration X-1 (section 8).\nCoverage: every R-n served or explained (R-38 deferred, R-40 merged, R-43 dropped); every E-1..E-173 served; card 3.6 items in 11.3.",
+ "completion": [
+  {
+   "condition": "6.1 Coverage table complete; no dependency cycle",
+   "met": true,
+   "evidence": "08 sections 11.1-11.3 and 5.3"
+  },
+  {
+   "condition": "6.2 Every unit has acceptance criteria and a verification check; no rubber-stamp criteria",
+   "met": true,
+   "evidence": "08 section 4 tables, 4.2"
+  },
+  {
+   "condition": "6.3 After approval: every plan item mapped to exactly one work item",
+   "met": false,
+   "evidence": "not applicable before approval; rule in 08 section 12, map arrives as v0.2"
+  },
+  {
+   "condition": "6.4 Every required drawing (D-1 to D-2) present with id, caption, text equivalent, renders without error",
+   "met": true,
+   "evidence": "08 5.4-5.7, 6.3-6.4, section 17; .context/working/t3357/render/r1.out"
+  }
+ ],
+ "open_questions": [
+  "08 section 9: explorations X-1..X-7, each decided by the operator at its time",
+  "08 section 10: FP-4 starting values stay proposals until their confirmation points"
+ ],
+ "change_requests": [
+  {
+   "step": 4,
+   "what": "CR-8.1: ARC 22 row B-16 depends on B-14; ruling A builds B-16 before T1. Reword to 'B-27; the status lines it adds itself; B-14 for the full status'"
+  },
+  {
+   "step": 4,
+   "what": "CR-8.2: ARC 22 row B-24 is done (T-3676, T-3689); mark it done"
+  },
+  {
+   "step": 5,
+   "what": "CR-8.3: no E-n for R-36 and R-41; specs for R-41 from X-1, for R-36 at PH-6 entry"
+  },
+  {
+   "step": 5,
+   "what": "CR-8.4: E-163 tagged B-25, B-1; the fix is T-3686 (P-3); retag"
+  },
+  {
+   "step": 3,
+   "what": "CR-8.5: FP 4.2 row R-41 'PH-6 or step 8': record PH-6 after grants, subject to X-1"
+  }
+ ],
+ "decisions_needed": [
+  "Approve the plan (G-0), carrying PD-1 (B-16 before full status), PD-2 (step-1 task proposals incl. T-3359 superseded), PD-3 (P-1..P-3 before B-25); work items are created only after this"
+ ],
+ "render_check": ".context/working/t3357/render/r1.out"
+}

@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:23Z
-last_update: 2026-11-12T14:39:54Z
+last_update: 2026-11-12T14:53:09Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -122,12 +122,12 @@ idempotently from it and the build queue (B-25 -> B-11 -> B-16) runs against it.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Step 7 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3)
-- [ ] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned
-- [ ] `docs/design/interactive-agent-communication-08-plan.md` exists with a version table and an inputs-of-record section citing the input hashes
-- [ ] Build plan with tasks on arc-011; the build tasks captured from the step-1 rulings (priority, main lease, sequence numbers, mail-hub check, standing tests, NTP check, canary, sidecar, hub canonical id) re-scoped or confirmed against the plan
-- [ ] R-41 typed work-message slice placed (OD-13)
-- [ ] Role-chain yaml step 8 `task:` set to this task id
+- [x] Step 7 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3)
+- [x] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned
+- [x] `docs/design/interactive-agent-communication-08-plan.md` exists with a version table and an inputs-of-record section citing the input hashes
+- [x] Build plan with tasks on arc-011; the build tasks captured from the step-1 rulings (priority, main lease, sequence numbers, mail-hub check, standing tests, NTP check, canary, sidecar, hub canonical id) re-scoped or confirmed against the plan
+- [x] R-41 typed work-message slice placed (OD-13)
+- [x] Role-chain yaml step 8 `task:` set to this task id
 
 ## Verification
 
@@ -225,6 +225,11 @@ grep -q 'task: T-3357' docs/design/interactive-agent-communication-role-chain.ya
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-11-12 — step 8 role session output (t3357-plan)
+- **Output:** `docs/design/interactive-agent-communication-08-plan.md` v0.1 (a521d45f0); hand-back `docs/design/interactive-agent-communication/role-handback-step-08.json`.
+- **Evidence for the ticked criteria:** step 7 approval recorded in this task's Context (operator "A", 2026-11-12) and T-3356; hand-back record schema-valid; plan section 1 (inputs with sha256), 7.1 (nine step-1 tasks re-scoped or confirmed; work items follow approval per card 3.2), 8 (R-41 placed: P-68 behind X-1); CHAIN already has `task: T-3357`.
+- **Not done here:** no work item created (draft until the operator approves); independent review and approval are the orchestrator's and the operator's.
 
 ### 2026-10-06T10:14:23Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
