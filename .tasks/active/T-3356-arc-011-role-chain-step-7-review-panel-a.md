@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:09Z
-last_update: 2026-11-12T08:10:43Z
+last_update: 2026-11-12T08:42:41Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -247,6 +247,14 @@ grep -q 'task: T-3356' docs/design/interactive-agent-communication-role-chain.ya
   `last_human` means no fast takeover (FCW-55; checked by the orchestrator). All five from one seat (Antigravity).
 - **Rejected:** B one by one; C accept them as text clarifications.
 - **Note:** the reviewer read context: Antigravity run 2 quotes code absent from the material (07 3.4.a).
+
+### 2026-11-12 — F-25 / RQ-3: a same-user process can forge human prompt origin and hold main (operator: "A")
+- **Chose:** A, accept as a residual until an operator key exists (widens QR-3), with the detector of CR-5.11
+  (reports suspicious human claims, e.g. from outside the hooks; never gates) and the AR-6 wording of CR-4.14.
+- **Why:** the O-3 tightening still catches honest failure (a forgotten session renewing itself); a same-user (root
+  on .107) attacker has worse options than holding main; the detector makes abuse visible; closes with Track K.
+- **Rejected:** B block B-25 until the operator key (O-3 unbuilt for months); C accept without a detector.
+- **Scored:** A +21, C +5, B −21.
 
 ## Decision
 
