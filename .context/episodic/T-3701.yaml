@@ -94,12 +94,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 144
-  commits: 5
-  files_changed: 17
-  lines_added: 2051
-  lines_removed: 58
-  footprint_refreshed_at: '2026-11-12T19:25:38Z'
-  footprint_refreshed_by_commit: pre-commit
+  commits: 4
+  files_changed: 13
+  lines_added: 1873
+  lines_removed: 34
+  footprint_refreshed_at: '2026-11-12T19:25:39Z'
+  footprint_refreshed_by_commit: be6437f0d
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3701-p-13-b-3-admin-rpc-log-sweep-refusal-ret.md
