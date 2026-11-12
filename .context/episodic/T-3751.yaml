@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3751: Presence shows peers OFFLINE while their project mailbox is live (sidecar watcher not counted) — new devices see nobody listening
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T19:25:14Z
+# ============================================================================
+
+task_id: T-3751
+task_name: "Presence shows peers OFFLINE while their project mailbox is live (sidecar watcher not counted) — new devices see nobody listening"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-12T18:08:22Z
+completed: 2026-11-12T19:23:14Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-12T20:10:29+01:00
+last_commit: 2026-11-12T20:10:29+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  presence counts live project-mailbox receivers — agent-listeners joins hub inbox tail-poll activity (source=mailbox-reader, heartbeat_age_secs kept, mailbox_scan reported); agent-send --to names the mailbox route instead of OFFLINE; 11 hermetic fixtures + 3 mutants killed
+
+# Key outcomes
+outcomes:
+  - 'A1. `agent-listeners.sh --json` emits a `source` field on every row (`heartbeat` | `mailbox-reader`), and an'
+  - 'A2. A name whose heartbeat is OFFLINE (~45 h old) but whose mailbox has a fresh reader reads LIVE (source'
+  - 'A3. `agent-send.sh --to <name> --dry-run` for a mailbox-reader peer does not print "is OFFLINE"; it exits'
+  - 'A4. Existing suites still pass: `scripts/test-agent-listeners.sh` (11/0/0), `scripts/test-agent-send.sh`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'presence counts live project-mailbox receivers — agent-listeners joins hub inbox tail-poll activity (source=mailbox-reader, heartbeat_age_secs kept, mailbox_scan reported); agent-send --to names the mailbox route instead of OFFLINE; 11 hermetic fixtures + 3 mutants killed'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3751-presence-shows-peers-offline-while-their.md'
+  - 'scripts/agent-listeners.sh'
+  - 'scripts/agent-send.sh'
+  - 'scripts/test-agent-listeners-mailbox.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T20:10:29'
+    action: 'T-3751: presence counts live project-mailbox receivers — agent-listeners joins hub inbox tail-poll activity (source=mailbox-reader, heartbeat_age_secs kept, mailbox_scan reported); agent-send --to names the mailbox route instead of OFFLINE; 11 hermetic fixtures + 3 mutants killed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 74 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, priority, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 74
+  commits: 2
+  files_changed: 7
+  lines_added: 927
+  lines_removed: 21
+  footprint_refreshed_at: '2026-11-12T19:25:30Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3751-presence-shows-peers-offline-while-their.md
+generated_by: context-agent-hybrid

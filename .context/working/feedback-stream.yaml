@@ -23199,3 +23199,39 @@ scan_id: R-37f20245
 task_id: T-3711
 payload:
   task_file: .tasks/active/T-3711-p-27-b-26-session-message-prover-on-the-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-12T19:24:34Z'
+scan_id: R-b8504ba4
+task_id: T-3751
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-12T19:24:34Z'
+scan_id: R-b8504ba4
+task_id: T-3751
+payload:
+  task_file: .tasks/active/T-3751-presence-shows-peers-offline-while-their.md
+---
+kind: scan_emitted
+timestamp: '2026-11-12T19:24:58Z'
+scan_id: R-28ce0331
+task_id: T-3701
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-12T19:24:58Z'
+scan_id: R-28ce0331
+task_id: T-3701
+payload:
+  task_file: .tasks/active/T-3701-p-13-b-3-admin-rpc-log-sweep-refusal-ret.md
