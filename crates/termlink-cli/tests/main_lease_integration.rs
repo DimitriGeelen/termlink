@@ -2,7 +2,9 @@
 //!
 //! Each test starts its own `termlink hub start` in a temp runtime dir, HOME and identity
 //! dir (unix socket only), so nothing outside the test is touched. Lease timing is shortened
-//! through the `TERMLINK_MAIN_TEST_*` seams only.
+//! through the `TERMLINK_MAIN_TEST_*` seams only, which are honoured only because each test
+//! dir is marked as a test estate (T-3686, AL-16); `seam_outside_estate_is_unknown_naming_it`
+//! is the control that the same seams are refused without the marker.
 
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -38,8 +40,15 @@ fn base_cmd(dir: &Path) -> Command {
     c
 }
 
+/// Mark `dir` (HOME and runtime dir of every command here) as a test estate (T-3686).
+fn mark_estate(dir: &Path) {
+    use termlink_session::test_seam::{ESTATE_MARKER, ESTATE_MARKER_MAGIC};
+    std::fs::write(dir.join(ESTATE_MARKER), format!("{ESTATE_MARKER_MAGIC}\n")).expect("estate marker");
+}
+
 fn start_hub(name: &str) -> Hub {
     let dir = TestDir::new(name);
+    mark_estate(&dir.path);
     let child = base_cmd(&dir.path)
         .args(["hub", "start"])
         .stdout(Stdio::null())
@@ -201,6 +210,29 @@ fn hub_down_is_unknown_never_main() {
     // No session at all is unknown too, not a guess.
     let (rc, _) = hub.main(&["am-i"]);
     assert_eq!(rc, 2);
+}
+
+/// T-3686 (E-163.1, FCW-60): the same seams without the estate marker make every
+/// `termlink main` verb answer unknown (exit 2) naming the variable, before any hub contact;
+/// with the marker back the verbs work again (the seams apply).
+#[test]
+fn seam_outside_estate_is_unknown_naming_it() {
+    let hub = start_hub("t3686-seam");
+    let marker = hub.dir.path.join(termlink_session::test_seam::ESTATE_MARKER);
+    std::fs::remove_file(&marker).expect("remove marker");
+    for verb in ["claim", "renew", "release", "status", "am-i"] {
+        let (rc, v) = hub.main(&[verb, "--session", "S-A"]);
+        assert_eq!(rc, 2, "{verb}: {v}");
+        assert_eq!(v["verdict"], "unknown", "{verb}");
+        let msg = v["message"].as_str().unwrap_or_default();
+        assert!(msg.contains("TERMLINK_MAIN_TEST_LEASE_MS") && msg.contains("outside a test estate"), "{verb}: {msg}");
+        assert!(!msg.contains(&LEASE_MS.to_string()), "value echoed: {msg}");
+    }
+    mark_estate(&hub.dir.path);
+    let (rc, v) = hub.main(&["claim", "--session", "S-A"]);
+    assert_eq!(rc, 0, "{v}");
+    let span = v["claimed_until_ms"].as_u64().unwrap() as i64 - termlink_session::main_lease::now_ms() as i64;
+    assert!(span <= LEASE_MS as i64 + 500, "seamed lease length applies inside the estate: {span} ms");
 }
 
 /// R-68 test (1): the lease lapses while the holder has an open obligation (a claimed work

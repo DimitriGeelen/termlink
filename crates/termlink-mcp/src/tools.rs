@@ -18669,14 +18669,18 @@ impl TermLinkTools {
     )]
     async fn termlink_main_status(&self, Parameters(p): Parameters<MainStatusParams>) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
+        // T-3686 (AL-16, FCW-60): a seam outside a test estate makes the answer unknown.
+        let timing = termlink_session::main_lease::Timing::from_env();
         let client = termlink_session::main_lease::LeaseClient {
             addr: termlink_protocol::transport::TransportAddr::unix(hub_socket.clone()),
             auth: None,
             identity: None,
-            timing: termlink_session::main_lease::Timing::from_env(),
+            timing: timing.clone().unwrap_or_default(),
             obligation_topics: vec![],
         };
-        let o = if hub_socket.exists() {
+        let o = if let Err(e) = &timing {
+            termlink_session::main_lease::Outcome::unknown(p.session.as_deref(), e.to_string())
+        } else if hub_socket.exists() {
             client.status(&p.project, p.session.as_deref()).await
         } else {
             termlink_session::main_lease::Outcome::unknown(p.session.as_deref(), "hub unreachable: no local hub socket")

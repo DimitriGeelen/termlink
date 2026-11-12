@@ -5,10 +5,10 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-/// Marker file name, created only by the test harness.
-pub const MARKER: &str = ".termlink-estate";
-/// First line of a genuine marker.
-pub const MARKER_MAGIC: &str = "termlink-sidecar-estate v1";
+/// Marker file name, created only by the test harness. First line of a genuine marker.
+/// Defined in `termlink_session::test_seam` (one source: the main-lease seam gate, T-3686,
+/// reads the same marker and sits below this crate).
+pub use termlink_session::test_seam::{ESTATE_MARKER as MARKER, ESTATE_MARKER_MAGIC as MARKER_MAGIC};
 /// Env var naming the sidecar store root.
 pub const STORE_ENV: &str = "TERMLINK_SIDECAR_STORE";
 

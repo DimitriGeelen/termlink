@@ -112,6 +112,11 @@ fn unknown(session: Option<&str>, why: String, json: bool) -> i32 {
 pub(crate) async fn cmd_main(verb: MainVerb, a: MainArgs) -> i32 {
     let json = a.json;
     let session = resolve_session(&a);
+    // T-3686 (AL-16, FCW-60): first, before any hub contact: a seam outside a test estate.
+    let timing = match Timing::from_env() {
+        Ok(t) => t,
+        Err(e) => return unknown(session.as_deref(), e.to_string(), json),
+    };
     let Some(project) = resolve_project(a.project.as_deref()) else {
         return unknown(session.as_deref(), "no project: pass --project, set TERMLINK_MAIN_PROJECT, or run inside a project with .framework.yaml".into(), json);
     };
@@ -136,7 +141,7 @@ pub(crate) async fn cmd_main(verb: MainVerb, a: MainArgs) -> i32 {
     if let Some(e) = env("TERMLINK_MAIN_OBLIGATION_TOPICS") {
         obligation_topics.extend(e.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()));
     }
-    let client = LeaseClient { addr, auth, identity, timing: Timing::from_env(), obligation_topics };
+    let client = LeaseClient { addr, auth, identity, timing, obligation_topics };
     let me = |s: &str| Holder {
         session: s.to_string(),
         agent: a.agent.clone().or_else(|| env("TERMLINK_AGENT_ID")).unwrap_or_default(),

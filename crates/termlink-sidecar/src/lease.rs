@@ -145,7 +145,17 @@ pub fn spawn(client: LeaseClient, shared: Arc<Shared>, stop: Arc<AtomicBool>) ->
 
 /// A read-only lease client for the sidecar's hub (no identity: it never writes).
 pub fn client(hub: termlink_protocol::TransportAddr) -> LeaseClient {
-    LeaseClient { addr: hub, auth: None, identity: None, timing: Timing::from_env(), obligation_topics: vec![] }
+    LeaseClient { addr: hub, auth: None, identity: None, timing: timing(), obligation_topics: vec![] }
+}
+
+/// T-3686 (AL-16): the sidecar's read-only view never obeys a `TERMLINK_MAIN_TEST_*` seam
+/// outside a test estate. It keeps the default timings and says so once in its log.
+fn timing() -> Timing {
+    static WARNED: std::sync::Once = std::sync::Once::new();
+    Timing::from_env().unwrap_or_else(|e| {
+        WARNED.call_once(|| eprintln!("termlink-sidecar: main lease view ignores {e}"));
+        Timing::default()
+    })
 }
 
 #[cfg(test)]

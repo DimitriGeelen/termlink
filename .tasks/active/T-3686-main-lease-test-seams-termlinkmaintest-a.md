@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-11T18:31:28Z
-last_update: 2026-11-12T15:17:08Z
+last_update: 2026-11-12T15:33:10Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -92,10 +92,10 @@ closed per E-163.1), and the E-164 seam scan on .107 reports no seam set.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Seams behave as 05 E-163.1 states for `TERMLINK_MAIN_TEST_*` (outside a test estate `termlink main` answers unknown, exit 2, naming the variable) and as 06 FCW-60/77/78; scope limited to the main-lease seams (sidecar/hub seams of E-163 belong to their own units unless trivially shared)
-- [ ] Existing main-lease tests still drive the timings (green); new test: seam set without the gate is ignored; mutant (gate removed) is killed
-- [ ] `cargo test -p termlink-session` and workspace tests green; clippy clean
-- [ ] E-164 seam scan of live termlink processes on .107 reports no `TERMLINK_MAIN_TEST_*` set (result recorded in Updates)
+- [x] Seams behave as 05 E-163.1 states for `TERMLINK_MAIN_TEST_*` (outside a test estate `termlink main` answers unknown, exit 2, naming the variable) and as 06 FCW-60/77/78; scope limited to the main-lease seams (sidecar/hub seams of E-163 belong to their own units unless trivially shared)
+- [x] Existing main-lease tests still drive the timings (green); new test: seam set without the gate is ignored; mutant (gate removed) is killed
+- [x] `cargo test -p termlink-session` and workspace tests green; clippy clean
+- [x] E-164 seam scan of live termlink processes on .107 reports no `TERMLINK_MAIN_TEST_*` set (result recorded in Updates)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -304,6 +304,11 @@ cargo test -p termlink-session -q > .context/working/.t3686-test 2>&1 && grep -q
 
 ## RCA
 
+**Symptom:** `Timing::from_env()` obeyed `TERMLINK_MAIN_TEST_LEASE_MS/_QUIET_MS/_COOLDOWN_MS` in every build, so a stray variable could shrink main's lease to 1 s on a live host; nothing reported it.
+**Root cause:** the seams had no gate at all, unlike the sidecar's seams (`beat.rs`, `lease.rs`, `liveness.rs`), which are read only in estate mode. The design table (06 4.8) records it as "none: honoured in production".
+**Why structurally allowed:** a seam is ordinary env reading. No check tied seam reads to a test estate, and nothing scanned live environments for seams (E-164 was not built yet).
+**Prevention:** one gate (`termlink_session::test_seam`) that every lease entry point goes through. Refusal tests run at unit and CLI level, and six mutants are kill-checked (`.context/working/t3686/mutants.py`). The E-164 production scan is a P-33 check.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -319,6 +324,11 @@ cargo test -p termlink-session -q > .context/working/.t3686-test 2>&1 && grep -q
 -->
 
 ## Evolution
+
+### 2026-11-12 — gate lives below the sidecar
+- **What changed:** the C-1 estate marker code is in `termlink-sidecar`, but the MCP server (one of three lease callers) does not depend on that crate, and `termlink-session` sits below it.
+- **Plan impact:** the marker constants and a marker-root finder moved into `termlink-session::test_seam`. `termlink_sidecar::estate` re-exports the constants, so there is still one source.
+- **Triggered:** none.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -373,6 +383,11 @@ cargo test -p termlink-session -q > .context/working/.t3686-test 2>&1 && grep -q
 
 ## Decisions
 
+### 2026-11-12 — what counts as a test estate for the main lease
+- **Chose:** the 06 5.16.c rule, as stated: HOME and the runtime dir (`discovery::runtime_dir()`, i.e. `TERMLINK_RUNTIME_DIR` first) both lie in ONE tree whose ancestor holds a genuine `.termlink-estate` marker (first line `termlink-sidecar-estate v1`, the C-1 marker the testkit writes). If any `TERMLINK_MAIN_TEST_*` variable (by prefix, names only) is set outside such a tree, `Timing::from_env()` returns `SeamRefused`. The CLI turns that into unknown (exit 2) before any hub contact, and so does the MCP `termlink_main_status`. The sidecar's read-only lease view keeps the defaults and logs the refusal once on stderr, because its own start refusal is FCW-77 and belongs to a later unit.
+- **Why:** the design states the mechanism, so nothing new was invented. The existing test needs only a marker file in its temp dir, and production never has a marker above both HOME and the runtime dir.
+- **Rejected:** a `cfg(test)`/feature flag (the CLI integration test runs the real binary, so it could not drive the seams); a new env var such as `TERMLINK_TEST_ESTATE=1` (a leftover variable is the bug class itself); `estate::guard_any` from the sidecar (needs `TERMLINK_SIDECAR_STORE`, and the MCP crate does not depend on the sidecar).
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -402,3 +417,9 @@ cargo test -p termlink-session -q > .context/working/.t3686-test 2>&1 && grep -q
 ### 2026-11-12T15:16:47Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-12 — build + E-164 scan [t3686-seams worker]
+- **Fix:** `crates/termlink-session/src/test_seam.rs` (new), `main_lease.rs` (`Timing::from_env` -> `Result`, `Timing::resolve`), CLI `commands/main_lease.rs`, MCP `tools.rs`, sidecar `lease.rs` + `estate.rs` (re-export), CLI test `main_lease_integration.rs` (temp dir marked as an estate; new control `seam_outside_estate_is_unknown_naming_it`).
+- **Tests:** `cargo test -p termlink-session` green (incl. 3 new Timing gate tests + 3 test_seam tests); CLI `main_lease_integration` 7/7; workspace `cargo test --workspace` rc=0, 58 suites, 4336 passed, 0 failed (no flake re-runs needed); `cargo clippy --workspace --all-targets` rc=0, no warnings.
+- **Mutants:** `.context/working/t3686/mutants.py`: 6/6 killed by real test failures (M1 gate removed, M2 estate always true, M3 runtime dir unchecked, M4 magic unchecked, M5 exact-name instead of prefix, M6 CLI swallows refusal).
+- **E-164 scan on .107 (2026-11-12, as root):** every /proc/<pid>/environ checked for variable NAMES matching `^TERMLINK_.*TEST`: 1379 pids, 921 userspace environments read, 428 kernel threads (no environ), 30 exited mid-scan, **0 hits**. The `pgrep -f termlink` subset was 126 processes, all readable, 0 hits. Static scan of /etc/systemd, /lib/systemd/system, /etc/cron.d, /etc/environment, .claude/settings*.json and .context/cron: 0 hits. Not scanned: home dotfiles outside the project boundary (T-559 refused the read). This closes the "unreadable, not conclusive" gap of the 2026-11-11 scan.

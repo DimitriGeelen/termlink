@@ -22,7 +22,8 @@
 //! * Fail-closed: any hub error is `unknown`, never `main`.
 //!
 //! The timing constants are conservative defaults (see T-3654 Decisions); the only way to
-//! change them is the `TERMLINK_MAIN_TEST_*` seams, for tests.
+//! change them is the `TERMLINK_MAIN_TEST_*` seams, for tests, honoured only inside a marked
+//! test estate (T-3686, see `crate::test_seam`).
 
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -38,6 +39,7 @@ use termlink_protocol::transport::TransportAddr;
 use crate::agent_identity::Identity;
 use crate::claim_client::{self, ClaimError};
 use crate::client::{Client, ClientError};
+pub use crate::test_seam::SeamRefused;
 
 /// `msg_type` of every lease record on the `main:<project>` topic.
 pub const MSG_TYPE: &str = "main.lease.v1";
@@ -80,16 +82,41 @@ impl Default for Timing {
 
 impl Timing {
     /// Defaults, overridden only by the test seams `TERMLINK_MAIN_TEST_LEASE_MS`,
-    /// `TERMLINK_MAIN_TEST_QUIET_MS`, `TERMLINK_MAIN_TEST_COOLDOWN_MS`. The lease floor is the
-    /// hub's 1000 ms claim minimum.
-    pub fn from_env() -> Self {
-        let num = |k: &str| std::env::var(k).ok().and_then(|v| v.trim().parse::<u64>().ok());
+    /// `TERMLINK_MAIN_TEST_QUIET_MS`, `TERMLINK_MAIN_TEST_COOLDOWN_MS`, and those only inside a
+    /// marked test estate (T-3686, AL-16): outside one, any `TERMLINK_MAIN_TEST_*` variable is
+    /// a [`SeamRefused`] naming it, which every caller turns into `unknown` (exit 2). The lease
+    /// floor is the hub's 1000 ms claim minimum.
+    pub fn from_env() -> Result<Self, SeamRefused> {
+        Self::resolve(std::env::vars_os(), crate::test_seam::in_estate_from_env)
+    }
+
+    /// [`Timing::from_env`] over an explicit environment and estate test (for tests). The
+    /// estate is only looked up when a seam is present, so production pays nothing.
+    pub fn resolve<I, F>(vars: I, in_estate: F) -> Result<Self, SeamRefused>
+    where
+        I: IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+        F: FnOnce() -> bool,
+    {
+        let vars: Vec<_> = vars.into_iter().collect();
+        let set = crate::test_seam::main_seams_set(vars.iter().cloned());
         let d = Timing::default();
-        Timing {
+        if set.is_empty() {
+            return Ok(d);
+        }
+        if !in_estate() {
+            return Err(SeamRefused { vars: set });
+        }
+        let num = |k: &str| {
+            vars.iter()
+                .find(|(n, _)| n == k)
+                .and_then(|(_, v)| v.to_str())
+                .and_then(|v| v.trim().parse::<u64>().ok())
+        };
+        Ok(Timing {
             lease_ms: num("TERMLINK_MAIN_TEST_LEASE_MS").unwrap_or(d.lease_ms).clamp(1_000, 60 * 60_000),
             quiet_ms: num("TERMLINK_MAIN_TEST_QUIET_MS").unwrap_or(d.quiet_ms),
             cooldown_ms: num("TERMLINK_MAIN_TEST_COOLDOWN_MS").unwrap_or(d.cooldown_ms),
-        }
+        })
     }
 }
 
@@ -951,6 +978,42 @@ mod tests {
         Row { claim_id: format!("c-{s}-{at}"), claimer: h(s).claimer(), claimed_at: at, claimed_until: until }
     }
     const T: Timing = Timing { lease_ms: 1_000, quiet_ms: 300, cooldown_ms: 500 };
+
+    fn env(pairs: &[(&str, &str)]) -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
+        pairs.iter().map(|(k, v)| ((*k).into(), (*v).into())).collect()
+    }
+
+    // T-3686 (E-163.1, FCW-60): outside a test estate a seam is refused, naming the variable.
+    #[test]
+    fn seam_outside_estate_is_refused_naming_the_variable() {
+        let e = env(&[("PATH", "/bin"), ("TERMLINK_MAIN_TEST_LEASE_MS", "1000")]);
+        let err = Timing::resolve(e, || false).expect_err("seam outside an estate must be refused");
+        assert_eq!(err.vars, vec!["TERMLINK_MAIN_TEST_LEASE_MS".to_string()]);
+        assert!(err.to_string().contains("TERMLINK_MAIN_TEST_LEASE_MS"));
+        assert!(!err.to_string().contains("1000"), "the value is never echoed");
+        // An unknown variable with the prefix is refused too, even if unparseable.
+        let err = Timing::resolve(env(&[("TERMLINK_MAIN_TEST_QUIET_MS", "junk")]), || false).unwrap_err();
+        assert_eq!(err.vars, vec!["TERMLINK_MAIN_TEST_QUIET_MS".to_string()]);
+    }
+
+    #[test]
+    fn seam_inside_estate_drives_the_timings() {
+        let e = env(&[
+            ("TERMLINK_MAIN_TEST_LEASE_MS", "1500"),
+            ("TERMLINK_MAIN_TEST_QUIET_MS", "800"),
+            ("TERMLINK_MAIN_TEST_COOLDOWN_MS", "400"),
+        ]);
+        assert_eq!(Timing::resolve(e, || true), Ok(Timing { lease_ms: 1_500, quiet_ms: 800, cooldown_ms: 400 }));
+        // The hub's 1000 ms claim floor still applies inside an estate.
+        let t = Timing::resolve(env(&[("TERMLINK_MAIN_TEST_LEASE_MS", "5")]), || true).unwrap();
+        assert_eq!(t.lease_ms, 1_000);
+    }
+
+    #[test]
+    fn no_seam_is_defaults_and_never_asks_the_estate() {
+        let t = Timing::resolve(env(&[("PATH", "/bin")]), || panic!("estate looked up without a seam")).unwrap();
+        assert_eq!(t, Timing::default());
+    }
 
     #[test]
     fn claimer_round_trips_and_raw_claimers_keep_their_name() {
