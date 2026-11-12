@@ -1,13 +1,18 @@
 ---
 id: T-3686
-name: "main lease test seams (TERMLINK_MAIN_TEST_*) are obeyed on live hosts: a leftover variable can shrink main's lease to 1 s"
+name: "main lease test seams (TERMLINK_MAIN_TEST_*) are obeyed on live hosts: a leftover
+  variable can shrink main's lease to 1 s"
 description: >
-  Found by step 6 (T-3355 hand-back 16a), confirmed 2026-11-11: crates/termlink-session/src/main_lease.rs:82-90 reads TERMLINK_MAIN_TEST_LEASE_MS / _QUIET_MS / _COOLDOWN_MS in production with a 1 s floor. A scan of .107 processes found none set, but many /proc/<pid>/environ were unreadable, so not conclusive. Design fix: B-25 seam gate (06 AL-16): seams honoured only in a test estate.
+  Found by step 6 (T-3355 hand-back 16a), confirmed 2026-11-11: crates/termlink-session/src/main_lease.rs:82-90
+  reads TERMLINK_MAIN_TEST_LEASE_MS / _QUIET_MS / _COOLDOWN_MS in production with
+  a 1 s floor. A scan of .107 processes found none set, but many /proc/<pid>/environ
+  were unreadable, so not conclusive. Design fix: B-25 seam gate (06 AL-16): seams
+  honoured only in a test estate.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [bug, arc:arc-011]
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-11T18:31:28Z
-last_update: 2026-11-11T18:31:28Z
-date_finished: null
+last_update: 2026-11-12T15:17:08Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +55,47 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-12T15:16:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 (no-signal);
+      D4=0 (no-signal); F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0
+      (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3686: main lease test seams (TERMLINK_MAIN_TEST_*) are obeyed on live hosts: a leftover variable can shrink main's lease to 1 s
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Found during the step 6 pseudo-code (T-3355): `Timing::from_env()` in
+`crates/termlink-session/src/main_lease.rs:82-90` reads `TERMLINK_MAIN_TEST_LEASE_MS/QUIET_MS/COOLDOWN_MS` in every
+build. Step 8 plan unit P-3 (docs/design/interactive-agent-communication-08-plan.md) places this fix before B-25.
+
+**Problem / hypothesis:** A leftover or stray variable in a live session's environment shrinks main's lease to 1 s
+(or changes quiet/cooldown), so main flaps and mail is routed to the wrong session; nothing reports it.
+
+**Goal:** Production use ignores the seams; tests can still drive them. Spec: 05 E-163, E-164; 06 FCW for seams.
+
+**Expected outcome:** A live binary/session never obeys `TERMLINK_MAIN_TEST_*` outside a test estate (it fails
+closed per E-163.1), and the E-164 seam scan on .107 reports no seam set.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Seams behave as 05 E-163.1 states for `TERMLINK_MAIN_TEST_*` (outside a test estate `termlink main` answers unknown, exit 2, naming the variable) and as 06 FCW-60/77/78; scope limited to the main-lease seams (sidecar/hub seams of E-163 belong to their own units unless trivially shared)
+- [ ] Existing main-lease tests still drive the timings (green); new test: seam set without the gate is ignored; mutant (gate removed) is killed
+- [ ] `cargo test -p termlink-session` and workspace tests green; clippy clean
+- [ ] E-164 seam scan of live termlink processes on .107 reports no `TERMLINK_MAIN_TEST_*` set (result recorded in Updates)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +146,8 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo test -p termlink-session -q > .context/working/.t3686-test 2>&1 && grep -q 'test result: ok' .context/working/.t3686-test
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +398,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3686-main-lease-test-seams-termlinkmaintest-a.md
 - **Context:** Initial task creation
+
+### 2026-11-12T15:16:47Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
