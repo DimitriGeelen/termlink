@@ -1315,13 +1315,14 @@ pub(crate) async fn cmd_agent_contact(
             match resolve_contact_fp_via_fleet(fp).await {
                 Some(r) => fleet_hub = Some(r.hub_address),
                 None => {
-                    if !json {
-                        eprintln!(
-                            "note: no LIVE presence for fp={fp} on any hub in hubs.toml — \
-                             posting to the local/default hub (pass --hub to target the \
-                             recipient's home hub explicitly)"
-                        );
-                    }
+                    // T-3749: stderr in BOTH modes (stderr is json-safe). A
+                    // json-gated note let an fp-addressed send land on the
+                    // local hub with no trace of the reroute.
+                    eprintln!(
+                        "note: no LIVE presence for fp={fp} on any hub in hubs.toml — \
+                         posting to the local/default hub (pass --hub to target the \
+                         recipient's home hub explicitly)"
+                    );
                 }
             }
         }

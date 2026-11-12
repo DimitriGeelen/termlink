@@ -2827,6 +2827,20 @@ pub fn build_cli_help_json(
     )
 }
 
+/// T-3749: `termlink_agent_send_auto_discover` cannot honour a caller-named
+/// hub (the peer's hub comes from fleet presence; agent-send.sh refuses --hub
+/// with --to). Returns the refusal when one was given; never ignore it.
+fn auto_discover_hub_refusal(hub: Option<&str>) -> Option<String> {
+    match hub.map(str::trim) {
+        Some(h) if !h.is_empty() => Some(format!(
+            "hub '{h}' was given, but auto-discover resolves the recipient's hub from fleet \
+             presence and cannot be pointed at a hub; the send was NOT made. Omit `hub`, or use \
+             termlink_agent_contact with `hub` to post to a named hub."
+        )),
+        _ => None,
+    }
+}
+
 /// T-1715: parse a `termlink_agent_contact` `target` argument into
 /// `(name, optional_project)`. Mirrors `commands::agent::parse_contact_target`
 /// (CLI, T-1448 (b)). Accepts:
@@ -30837,7 +30851,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_send_auto_discover",
-        description = "Send a turn to a listener by `agent_id` — auto-discovers the destination PTY session + dm:* topic from agent-presence heartbeat metadata. Required: `to_agent_id`, `message`. Optional: `dry_run` (prints `RESOLVED:` line and exits 0 without posting — preview), `hub` (default local), `conversation_id` (default auto-generated thread id), `timeout_secs` (default 60 — higher because non-dry-run includes up to 3 doorbell rings). Returns `{ok, exit_code, stdout, stderr}`. Exit codes: 0 delivered (or dry-run RESOLVED), 2 usage/resolution-failure, 3 not acked, 4 delivered-but-no-reply. Resolution failures (no listener / OFFLINE / no pty_session / no dm:* topic) surface in stderr with a hint. WRITES state."
+        description = "Send a turn to a listener by `agent_id` — auto-discovers the destination PTY session + dm:* topic from agent-presence heartbeat metadata. Required: `to_agent_id`, `message`. Optional: `dry_run` (prints `RESOLVED:` line and exits 0 without posting — preview), `hub` (refused: the recipient's hub is resolved from fleet presence; T-3749), `conversation_id` (default auto-generated thread id), `timeout_secs` (default 60 — higher because non-dry-run includes up to 3 doorbell rings). Returns `{ok, exit_code, stdout, stderr}`. Exit codes: 0 delivered (or dry-run RESOLVED), 2 usage/resolution-failure, 3 not acked, 4 delivered-but-no-reply. Resolution failures (no listener / OFFLINE / no pty_session / no dm:* topic) surface in stderr with a hint. WRITES state."
     )]
     async fn termlink_agent_send_auto_discover(
         &self,
@@ -30868,11 +30882,13 @@ impl TermLinkTools {
             args.push("--conversation-id".to_string());
             args.push(cid.to_string());
         }
-        // Note: agent-send.sh doesn't expose --hub directly; the script
-        // delegates hub selection to its internal `termlink channel post`
-        // and `agent-listeners.sh` calls. When `hub` is set here, pass it
-        // via env so any nested termlink command picks it up.
-        let _ = p.hub; // currently a no-op pass-through; reserved for future use.
+        // T-3749: `hub` used to be accepted and silently ignored, so a caller
+        // that named a hub got a send resolved somewhere else and an ok result.
+        // agent-send.sh --to resolves the peer's hub from fleet presence and
+        // refuses --hub, so refuse it here too, by name.
+        if let Some(e) = auto_discover_hub_refusal(p.hub.as_deref()) {
+            return json_err(e);
+        }
 
         Self::run_t1836_subprocess(&script, &args, timeout).await
     }
@@ -31885,6 +31901,17 @@ mod tests {
         let (dir, last_resort) = resolve_mcp_config_dir_from(None, &tmp, 7);
         assert!(last_resort);
         assert_eq!(dir, std::path::PathBuf::from("/var/custom-tmp/termlink-7"));
+    }
+
+    /// T-3749: a named hub must be refused, not ignored (the old code did
+    /// `let _ = p.hub;` and sent anyway). Negative control: no hub / blank hub
+    /// is allowed through.
+    #[test]
+    fn t3749_auto_discover_refuses_a_named_hub_instead_of_ignoring_it() {
+        let e = auto_discover_hub_refusal(Some("192.168.10.122:9100")).expect("must refuse");
+        assert!(e.contains("192.168.10.122:9100") && e.contains("NOT made"), "{e}");
+        assert!(auto_discover_hub_refusal(None).is_none());
+        assert!(auto_discover_hub_refusal(Some("  ")).is_none());
     }
 
     // === T-1715: agent_contact helper tests ===
