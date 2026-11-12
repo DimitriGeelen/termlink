@@ -145,7 +145,19 @@ pub fn foreground(master_fd: std::os::fd::RawFd) -> Value {
     let dir = std::path::Path::new("/proc").join(pgid.to_string());
     let exe = std::fs::read_link(dir.join("exe")).ok().map(|p| p.to_string_lossy().into_owned());
     let comm = std::fs::read_to_string(dir.join("comm")).ok().map(|s| s.trim().to_string());
-    json!({"pgid": pgid, "leader_pid": pgid, "exe_realpath": exe, "comm": comm})
+    let script = script_path(&dir);
+    json!({"pgid": pgid, "leader_pid": pgid, "exe_realpath": exe, "script_path": script, "comm": comm})
+}
+
+/// B-16 (04 17.4.a): the script an interpreter runs — the first non-option
+/// argument after argv[0], resolved against the process's cwd. `None` for a
+/// native binary run without one, or when it cannot be read.
+pub fn script_path(proc_dir: &std::path::Path) -> Option<String> {
+    let raw = std::fs::read(proc_dir.join("cmdline")).ok()?;
+    let arg = raw.split(|b| *b == 0).skip(1).map(|a| String::from_utf8_lossy(a).into_owned()).find(|a| !a.is_empty() && !a.starts_with('-'))?;
+    let p = std::path::Path::new(&arg);
+    let full = if p.is_absolute() { p.to_path_buf() } else { std::fs::read_link(proc_dir.join("cwd")).ok()?.join(p) };
+    std::fs::canonicalize(full).ok().map(|p| p.to_string_lossy().into_owned())
 }
 
 #[cfg(test)]

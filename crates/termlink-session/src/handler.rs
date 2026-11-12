@@ -622,9 +622,43 @@ pub fn doorbell_line(ids: &[String]) -> String {
     )
 }
 
+/// B-16 (06 AL-6 compose, SI-1): most ids one doorbell line names.
+pub const SI1_MAX_IDS: usize = 4;
+/// B-16 (06 AL-6 compose 2): the largest waiting count a line may state.
+pub const SI1_MAX_COUNT: u64 = 1_000_000;
+
+/// B-16 (06 AL-6 `compose`, SI-1, FCW-33/FCW-34): the bracket-free doorbell line.
+/// `ids` are 1..=4 distinct message ids of exactly 32 lowercase hex characters,
+/// `count` is the number of waiting messages, `len(ids) <= count <= 10^6`. The
+/// line carries no other input, so no byte a peer chose can reach it; its first
+/// word `sidecar:` is not an installed command (E-125). The sidecar and the
+/// session both call this, so the two sides cannot disagree on the bytes.
+pub fn si1_line(ids: &[String], count: u64) -> Result<String, &'static str> {
+    if ids.is_empty() || ids.len() > SI1_MAX_IDS {
+        return Err("a doorbell line names 1 to 4 message ids");
+    }
+    for (i, id) in ids.iter().enumerate() {
+        if id.len() != 32 || !id.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) {
+            return Err("invalid message id: exactly 32 lowercase hex characters");
+        }
+        if ids[..i].contains(id) {
+            return Err("duplicate message id");
+        }
+    }
+    if count < ids.len() as u64 || count > SI1_MAX_COUNT {
+        return Err("count must be an integer from the number of ids to 1000000");
+    }
+    Ok(format!("sidecar: {count} peer messages waiting, ids {}. The prompt hook shows them as untrusted data.", ids.join(" ")))
+}
+
 /// Handle `command.notify` — the sidecar doorbell's fixed action (T-3533).
 ///
-/// Params: `{"ids": ["<msg-id>", ...]}`. Ids are validated strictly (ASCII
+/// B-16 form (06 AL-6 session side): `{"ids": [...], "count": N}` — validated
+/// by [`si1_line`] (any failure types nothing and answers INVALID_PARAMS,
+/// FCW-34), then the line is one write and Enter a second, both tagged `notify`.
+///
+/// Built form, kept while the T-3533 doorbell still calls it (nothing working is
+/// switched off): `{"ids": ["<msg-id>", ...]}` with no `count`. Ids are validated strictly (ASCII
 /// alphanumerics and `-`, at most 128 bytes, at most [`DOORBELL_MAX_IDS`]); the
 /// session then types [`doorbell_line`] followed by Enter. There is no text,
 /// key or raw field, so a connection holding only the `notify` scope cannot
@@ -642,6 +676,32 @@ async fn handle_command_notify(
         )
         .into()
     };
+    if let Some(c) = params.get("count") {
+        // B-16: a count must be a JSON integer (not "5", not 5.0), and every id
+        // a string; anything else types nothing (FCW-34).
+        let Some(count) = c.as_u64() else {
+            return invalid("count must be an integer");
+        };
+        let Some(raw) = params.get("ids").and_then(|v| v.as_array()) else {
+            return invalid("Missing required param: ids (array of message ids)");
+        };
+        let mut ids = Vec::with_capacity(raw.len().min(SI1_MAX_IDS + 1));
+        for v in raw.iter().take(SI1_MAX_IDS + 1) {
+            match v.as_str() {
+                Some(s) => ids.push(s.to_string()),
+                None => return invalid("invalid message id: not a string"),
+            }
+        }
+        if raw.len() > SI1_MAX_IDS {
+            return invalid("a doorbell line names 1 to 4 message ids");
+        }
+        let line = match si1_line(&ids, count) {
+            Ok(l) => l,
+            Err(why) => return invalid(why),
+        };
+        let keys = vec![KeyEntry::Text(line), KeyEntry::Key("Enter".to_string())];
+        return inject_keys(id, &keys, 10, crate::input_meter::InputSource::Notify, ctx).await;
+    }
     let raw = match params.get("ids").and_then(|v| v.as_array()) {
         Some(a) if !a.is_empty() => a,
         Some(_) => return invalid("ids must name at least one message"),
@@ -1801,6 +1861,57 @@ mod tests {
         let two = doorbell_line(&["m1".to_string(), "x-9".to_string()]);
         assert!(two.starts_with("[sidecar] 2 peer messages waiting (ids m1 x-9)."));
         assert!(two.is_ascii() && !two.contains('\n'));
+    }
+
+    /// B-16 (06 5.6.c.1, SI-1, E-3): the test vector, byte for byte, and its refusals.
+    #[test]
+    fn si1_line_test_vector_and_refusals() {
+        let a = "0123456789abcdef0123456789abcdef".to_string();
+        let b = "fedcba9876543210fedcba9876543210".to_string();
+        let line = si1_line(&[a.clone(), b.clone()], 5).unwrap();
+        assert_eq!(line, "sidecar: 5 peer messages waiting, ids 0123456789abcdef0123456789abcdef fedcba9876543210fedcba9876543210. The prompt hook shows them as untrusted data.");
+        assert_eq!(line.len(), 150);
+        let h = |n: usize| "a".repeat(n);
+        for (ids, count) in [
+            (vec![h(31)], 1u64),
+            (vec![h(33)], 1),
+            (vec!["0123456789ABCDEF0123456789ABCDEF".to_string()], 1),
+            (vec![String::new()], 1),
+            (vec![], 1),
+            (vec![h(32), "b".repeat(32), "c".repeat(32), "d".repeat(32), "e".repeat(32)], 5),
+            (vec![a.clone(), a.clone()], 2),
+            (vec![a.clone(), b.clone()], 1),
+            (vec![a.clone()], 1_000_001),
+            (vec![format!("{}\n", h(31))], 1),
+        ] {
+            assert!(si1_line(&ids, count).is_err(), "{ids:?} {count}");
+        }
+    }
+
+    /// B-16 (FCW-34): the session refuses a bad B-16 call and types nothing.
+    #[tokio::test]
+    async fn command_notify_b16_form_validates_count_and_ids() {
+        let ctx = test_ctx();
+        let a = "0123456789abcdef0123456789abcdef";
+        for params in [
+            json!({"ids": [a], "count": "5"}),
+            json!({"ids": [a], "count": 5.0}),
+            json!({"ids": [a, a], "count": 2}),
+            json!({"ids": ["m-1"], "count": 1}),
+            json!({"ids": [a], "count": 0}),
+            json!({"ids": [1], "count": 1}),
+        ] {
+            let req = Request::new("command.notify", json!("n"), params.clone());
+            let resp = dispatch(&req, &ctx).await.unwrap();
+            assert!(matches!(resp, RpcResponse::Error(_)), "{params} must be refused");
+        }
+        let req = Request::new("command.notify", json!("n"), json!({"ids": [a], "count": 3}));
+        if let RpcResponse::Success(r) = dispatch(&req, &ctx).await.unwrap() {
+            let line = si1_line(&[a.to_string()], 3).unwrap();
+            assert_eq!(r.result["bytes_len"], line.len() + 1);
+        } else {
+            panic!("a valid B-16 notify must succeed");
+        }
     }
 
     #[tokio::test]
