@@ -959,7 +959,17 @@ mod tests {
             return;
         }
         use std::os::unix::fs::PermissionsExt;
-        let td = TempDir::new().unwrap();
+        // The uid-65534 child must traverse every ancestor of the tree. A private TMPDIR
+        // (e.g. the completion gate's 0700 /tmp/aef-verify-*) would make it write nothing
+        // (T-3691), so fall back to /tmp when any ancestor is closed to others.
+        let others_can_traverse = |p: &Path| {
+            p.ancestors().all(|a| {
+                std::fs::metadata(a).map(|m| m.permissions().mode() & 0o001 != 0).unwrap_or(false)
+            })
+        };
+        let tmp = std::env::temp_dir();
+        let base = if others_can_traverse(&tmp) { tmp } else { std::path::PathBuf::from("/tmp") };
+        let td = TempDir::new_in(&base).unwrap();
         std::fs::set_permissions(td.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
         let hub = td.path().join("hub");
         std::fs::create_dir_all(&hub).unwrap();

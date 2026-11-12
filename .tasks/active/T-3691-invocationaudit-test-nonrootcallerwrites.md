@@ -1,13 +1,18 @@
 ---
 id: T-3691
-name: "invocation_audit test nonroot_caller_writes_its_user_sink_for_real fails when TMPDIR is a root-only dir (P-011 gate)"
+name: "invocation_audit test nonroot_caller_writes_its_user_sink_for_real fails when
+  TMPDIR is a root-only dir (P-011 gate)"
 description: >
-  Under the completion gate TMPDIR=/tmp/aef-verify-XXXX (0700 root); the test's TempDir lives there, the uid-65534 child cannot traverse it, writes 0 rows, assertion at invocation_audit.rs:998 fails. Fix: create the test dir under a world-traversable base or skip with a message when an ancestor is not traversable (like the existing exec probe). Found closing T-3686.
+  Under the completion gate TMPDIR=/tmp/aef-verify-XXXX (0700 root); the test's TempDir
+  lives there, the uid-65534 child cannot traverse it, writes 0 rows, assertion at
+  invocation_audit.rs:998 fails. Fix: create the test dir under a world-traversable
+  base or skip with a message when an ancestor is not traversable (like the existing
+  exec probe). Found closing T-3686.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [bug, test]
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:20:59Z
-last_update: 2026-11-12T16:20:59Z
-date_finished: null
+last_update: 2026-11-12T16:39:38Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +55,40 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-12T16:38:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3691: invocation_audit test nonroot_caller_writes_its_user_sink_for_real fails when TMPDIR is a root-only dir (P-011 gate)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** Closing T-3686 on 2026-11-12, the P-011 gate failed twice on
+`invocation_audit::tests::nonroot_caller_writes_its_user_sink_for_real` while the same suite passed 3/3 in a shell.
+
+**Problem / hypothesis:** The gate sets TMPDIR=/tmp/aef-verify-XXXX (mode 0700, root). The test's TempDir is created
+under it; the uid-65534 child cannot traverse that ancestor, writes 0 rows, and the assertion at
+invocation_audit.rs:998 fails. Confirmed: the gate env differs from the shell only in TMPDIR/BATS_TMPDIR.
+
+**Goal:** The test creates its tree under a base every uid can traverse, so it runs (not skips) under any TMPDIR.
+
+**Expected outcome:** The test passes with TMPDIR pointing at a 0700 root-owned directory, as in the gate.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The test picks `std::env::temp_dir()` only when every ancestor is traversable by others, else `/tmp`
+- [x] Test passes with TMPDIR set to a fresh 0700 root-owned dir (gate shape) and with TMPDIR unset
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +139,8 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo test -p termlink-session -q --lib nonroot_caller_writes_its_user_sink_for_real > .context/working/.t3691-test 2>&1 && grep -q '1 passed' .context/working/.t3691-test
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +391,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3691-invocationaudit-test-nonrootcallerwrites.md
 - **Context:** Initial task creation
+
+### 2026-11-12T16:38:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
