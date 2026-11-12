@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3690: Relicense TermLink MIT -> Apache-2.0 (LICENSE, NOTICE, Cargo, README)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T14:01:58Z
+# ============================================================================
+
+task_id: T-3690
+task_name: "Relicense TermLink MIT -> Apache-2.0 (LICENSE, NOTICE, Cargo, README)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T13:56:28Z
+completed: 2026-11-12T14:01:36Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-12T14:59:28+01:00
+last_commit: 2026-11-12T14:59:28+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  relicense TermLink under Apache-2.0 (LICENSE, NOTICE, workspace + crate licence, README, Homebrew)
+
+# Key outcomes
+outcomes:
+  - 'LICENSE at repo root holds the Apache License 2.0 text'
+  - 'NOTICE at repo root names TermLink and the copyright holder'
+  - 'Workspace Cargo.toml declares `license = "Apache-2.0"`; no crate declares MIT; `cargo metadata` succeeds'
+  - 'README License section says Apache-2.0 and points at LICENSE/NOTICE'
+  - 'Pushed to origin; GitHub API reports spdx_id Apache-2.0 (checked after the mirror job)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — TermLink licence (operator ruling)'
+    chose: 'A — relicense MIT -> Apache-2.0: LICENSE (full text), NOTICE, Cargo.toml workspace licence, README; push origin (OneDev mirrors to GitHub).'
+    rationale: 'same licence as AEF and Workflow Designer; matches the SPRIND statement; patent grant; GitHub detects it reliably.'
+    alternatives_rejected: ['B dual MIT OR Apache-2.0 (GitHub may show "Other"); C keep MIT and add LICENSE (not "the same"); D wait past 15:30. - Operator words in chat: "A". Open: crates/Homebrew carry the new licence from the next release tag.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3690-relicense-termlink-mit---apache-20-licen.md'
+  - 'Cargo.toml'
+  - 'LICENSE'
+  - 'NOTICE'
+  - 'README.md'
+  - 'crates/termlink-bus/Cargo.toml'
+  - 'crates/termlink-cli/Cargo.toml'
+  - 'crates/termlink-hub/Cargo.toml'
+  - 'crates/termlink-protocol/Cargo.toml'
+  - 'crates/termlink-session/Cargo.toml'
+  - 'crates/termlink-sidecar/Cargo.toml'
+  - 'crates/termlink-test-utils/Cargo.toml'
+  - 'homebrew/Formula/termlink.rb'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T14:59:28'
+    action: 'T-3690: relicense TermLink under Apache-2.0 (LICENSE, NOTICE, workspace + crate licence, README, Homebrew)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 2
+  files_changed: 19
+  lines_added: 1168
+  lines_removed: 15
+  footprint_refreshed_at: '2026-11-12T14:02:02Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3690-relicense-termlink-mit---apache-20-licen.md
+generated_by: context-agent-hybrid

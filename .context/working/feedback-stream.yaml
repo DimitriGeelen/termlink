@@ -23019,3 +23019,75 @@ scan_id: R-0781448f
 task_id: T-3679
 payload:
   task_file: .tasks/active/T-3679-termlink-mcp-testsparityrs-takes-19-min-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-10T17:47:57Z'
+scan_id: R-a8abf4e9
+task_id: T-3677
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-10T17:47:57Z'
+scan_id: R-a8abf4e9
+task_id: T-3677
+payload:
+  task_file: .tasks/active/T-3677-node1-offload-trial-rust-test-suite-and-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-11T16:49:29Z'
+scan_id: R-eb32acf1
+task_id: T-3354
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-11T16:49:29Z'
+scan_id: R-eb32acf1
+task_id: T-3354
+payload:
+  task_file: .tasks/active/T-3354-arc-011-role-chain-step-5-evidence-speci.md
+---
+kind: scan_emitted
+timestamp: '2026-11-11T22:11:24Z'
+scan_id: R-fd78f1e9
+task_id: T-3355
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-11T22:11:24Z'
+scan_id: R-fd78f1e9
+task_id: T-3355
+payload:
+  task_file: .tasks/active/T-3355-arc-011-role-chain-step-6-pseudo-coder.md
+---
+kind: scan_emitted
+timestamp: '2026-11-12T14:01:39Z'
+scan_id: R-4a89464e
+task_id: T-3690
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-12T14:01:39Z'
+scan_id: R-4a89464e
+task_id: T-3690
+payload:
+  task_file: .tasks/active/T-3690-relicense-termlink-mit---apache-20-licen.md
