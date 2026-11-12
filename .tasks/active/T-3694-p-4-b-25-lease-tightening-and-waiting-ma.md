@@ -45,7 +45,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:27Z
-last_update: 2026-11-12T19:33:25Z
+last_update: 2026-11-12T20:09:16Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -108,9 +108,9 @@ Unblocks: P-5 (T-3695), P-6 (T-3696), P-32 (T-3360), P-35 (T-3654), P-38 (T-3717
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The B-25 specs pass (origin counting, `ignored: origin`, PostToolUse no longer renews, provisional SessionStart claim, fast takeover V-20, waiting-mail signal K-34 / V-21)
+- [x] The B-25 specs pass (origin counting, `ignored: origin`, PostToolUse no longer renews, provisional SessionStart claim, fast takeover V-20, waiting-mail signal K-34 / V-21)
 - [x] Projects whose origin is `absent` behave as before until they report origin (NID)
-- [ ] The unit's fixture suite exits 0 with a PASS line per B-25 E-n and its mutant list is all killed (FP 3.1.b)
+- [x] The unit's fixture suite exits 0 with a PASS line per B-25 E-n and its mutant list is all killed (FP 3.1.b)
 - [ ] `termlink main status` shows `origin` and `last_human_at` on the W1 pair
 
 ### Human
