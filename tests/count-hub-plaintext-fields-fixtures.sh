@@ -46,7 +46,7 @@ bash "$S" --root /nonexistent-x >/dev/null 2>&1; ok "missing root rc 2" "$?" "2"
 bash "$S" --max abc >/dev/null 2>&1; ok "bad --max rc 2" "$?" "2"
 ok "json carries total" "$(bash "$S" --root "$R3" --json | grep -c '"total":8')" "1"
 # T-3432: removing the artifact store's write path lowers the count (the anchor is load-bearing)
-R4="$(mk)"; sed -i 's/store.put_streaming(staging_id, offset, &chunk, is_final, expected_sha256)/store.gone()/' "$R4/crates/termlink-hub/src/artifact.rs"
+R4="$(mk)"; sed -i 's/store.put_streaming(staging_id, offset, chunk, is_final, expected_sha256)/store.gone()/' "$R4/crates/termlink-hub/src/artifact.rs"
 ok "removed artifact store write lowers" "$(bash "$S" --root "$R4" --quiet)" "8"
 rm -rf "$R" "$R2" "$R3" "$R4" "$E"
 [ "$fails" -eq 0 ] && { echo "all $n passed"; exit 0; } || { echo "$fails failed"; exit 1; }
