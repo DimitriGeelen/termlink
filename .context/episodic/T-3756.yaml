@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3756: Non-root dimitri-mint-dev reaches the .107 hub with its own interact token over TCP (runme action)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T20:52:39Z
+# ============================================================================
+
+task_id: T-3756
+task_name: "Non-root dimitri-mint-dev reaches the .107 hub with its own interact token over TCP (runme action)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T19:44:30Z
+completed: 2026-11-12T20:30:32Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-12T21:30:20+01:00
+last_commit: 2026-11-12T21:30:20+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 22c — dimitri-mint-dev reaches the .107 hub over 127.0.0.1:9100 with its own Interact token (ruling A); fleet-token-remint.sh --local-user runs install+proof as the user via runuser (script on stdin, token in no argv), proves token-only list+post and the user's own config; daily cron renews; 14 fixture cases incl. 4 negative controls (307/0)
+
+# Key outcomes
+outcomes:
+  - '`scripts/fleet-token-remint.sh --local-user USER` mints an Interact token on .107 and installs it'
+  - 'Verification runs AS the user: sha256 equals the minted token, owner/mode are 600:USER, and with'
+  - 'Idempotent: a verified, unchanged, not-yet-due token is `skip`; the run re-mints when fewer'
+  - 'runme.sh action 22c drives it (dry-run says what it would do), counting OK/skip/FAILED.'
+  - 'The equivalent suite (`tests/runme-fixtures.sh`, which already holds the remint script''s cases)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 22c — dimitri-mint-dev reaches the .107 hub over 127.0.0.1:9100 with its own Interact token (ruling A); fleet-token-remint.sh --local-user runs install+proof as the user via runuser (script on stdin, token in no argv), proves token-only list+post and the user''s own config; daily cron renews; 14 fixture cases incl. 4 negative controls (307/0)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — non-root access to the .107 hub (operator ruling)'
+    chose: 'A, a token over TCP. dimitri-mint-dev gets its own scoped Interact token (never the hub secret) and reaches the hub at 127.0.0.1:9100.'
+    rationale: '`/var/lib/termlink` holds `hub.secret`. Opening it to the user would hand the user the full secret, while a scoped, expiring token gives only what the session needs.'
+    alternatives_rejected: ['B (a group ACL on the secret dir), because it exposes the full secret to the group. C (leave as is), because the design session stays unable to use reviews or sidecar messages. - **Operator''s words (chat, 2026-11-12):** "a"']
+  - decision: '2026-11-12 — which termlink proves the token, and how it is renewed'
+    chose: 'verify with `/usr/local/bin/termlink` (0.12.x), run as the user. Renewal is the daily .107 cron `fleet-token-remint.crontab`, which got a second line (`--cron --local-user dimitri-mint-dev`, 03:45); like the fleet hosts, it re-mints when fewer than 3 days remain.'
+    rationale: 'the user''s PATH termlink is `~/.local/bin/termlink` 0.11.931, which predates `token_file`. T-3543 added it on 2026-10-23, first in describe v0.12.4-1081. Its HubEntry has no `deny_unknown_fields` (checked at ac101b85d^), so it silently ignores the key: it neither breaks nor uses the token. Renewal through the existing cron reuses proven code, with no new cron file and nothing added under the guard cap (the crontab is `operational` in guard-cap-baseline). Re-running runme every 4 days would make the operator the scheduler.'
+    alternatives_rejected: ['replacing or deleting the user''s binary, because the brief says not to touch the user''s files and nothing working is switched off. Upgrading it is listed as an operator choice in the hand-back. A separate renewal crontab was rejected as a second copy of the same schedule. - **Also chose:** the install runs through `runuser ... bash -s`, with the script on stdin. That keeps the token out of every argv (for fleet hosts the remote-exec command line still carries it, the T-3615 residual).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/fleet-token-remint.crontab'
+  - '.tasks/active/T-3756-non-root-dimitri-mint-dev-reaches-the-10.md'
+  - 'runme.sh'
+  - 'scripts/fleet-token-remint.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T21:30:20'
+    action: 'T-3756: runme action 22c — dimitri-mint-dev reaches the .107 hub over 127.0.0.1:9100 with its own Interact token (ruling A); fleet-token-remint.sh --local-user runs install+proof as the user via runuser (script on stdin, token in no argv), proves token-only list+post and the user''s own config; daily cron renews; 14 fixture cases incl. 4 negative controls (307/0)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 46 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 46
+  commits: 2
+  files_changed: 8
+  lines_added: 862
+  lines_removed: 23
+  footprint_refreshed_at: '2026-11-12T20:52:56Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3756-non-root-dimitri-mint-dev-reaches-the-10.md
+generated_by: context-agent-hybrid
