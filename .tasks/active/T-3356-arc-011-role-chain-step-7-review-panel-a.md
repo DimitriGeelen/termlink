@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:09Z
-last_update: 2026-11-12T04:41:41Z
+last_update: 2026-11-12T07:04:20Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -127,6 +127,25 @@ disposition table; accepted findings become change requests to their steps (or t
 - [x] `docs/design/interactive-agent-communication-07-review.md` exists with a version table and an inputs-of-record section citing the input hashes (evidence: sections 0 and 1, including the four answer files)
 - [x] External review panel run on steps 1, 4, 6; every finding dispositioned (accepted / rejected with reason / deferred) (evidence: 07-review section 4: 71 raw findings -> F-1..F-51, 42 accepted / 6 rejected / 3 deferred; Codex unavailable three times, recorded as RQ-1)
 - [x] Role-chain yaml step 7 `task:` set to this task id (evidence: role-chain yaml line 94 `task: T-3356`)
+
+### Human
+- [ ] [REVIEW] Independent review: step 7 output meets the review-panel card's completion conditions and is fit as input
+      for step 8
+  **Steps:**
+  1. The ORCHESTRATOR (never a reviewer seat) runs `fw reviewer judge T-3356 --criterion 1` against
+     `docs/design/interactive-agent-communication-07-review.md`, the answers in `docs/reports/T-3356-panel/` and the
+     hand-back `docs/design/interactive-agent-communication/role-handback-step-07.json`.
+  **Expected:** a green verdict bound to the reviewed revision, applied with `fw reviewer verdict apply T-3356`.
+  **If not:** findings go back to the review-panel role (max 2-3 rounds), then each is dispositioned.
+- [ ] [REVIEW] Step 7 output approved
+  **Sovereignty:** operator decision only.
+  **Steps:**
+  1. The agent presents, one at a time, the security findings proposed for rejection or deferral (F-7, F-36, F-37,
+     F-38, F-39 reject; F-25 defer with risk acceptance RQ-3), then F-1 (a change to ruled watchdog text), RQ-2 and
+     RQ-1 (close the panel at three vendors).
+  **Expected:** each ruled and recorded under Decisions; then the operator approves step 7.
+  **If not:** say what to change; the review-panel role revises.
+  (Added 2026-11-12 by the orchestrator: README section 5 requires both criteria on every deciding step.)
 
 ## Verification
 
