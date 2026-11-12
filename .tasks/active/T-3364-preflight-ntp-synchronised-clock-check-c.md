@@ -5,10 +5,10 @@ description: >
   Add a substrate-preflight check that the host clock is NTP-synchronised, since urgent
   deadlines (15 s) and cross-host telemetry depend on it.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -26,7 +26,7 @@ depends_on: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:16:21Z
-last_update: '2026-10-18T22:32:56Z'
+last_update: 2026-11-12T18:31:30Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -78,6 +78,25 @@ bvp_scores_proposed:
       D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted);
       F-ORCH=0 (no-signal)'
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-12T18:28:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 3
+      D1: 0
+      D2: 2
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=3 (L3:keyword=rollback); D1=0 (no-signal); D2=2
+      (body:telemetry-or-audit-entry); D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0
+      (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3364: Preflight: NTP-synchronised clock check (CAND-13)
@@ -108,14 +127,17 @@ Unblocks: P-24 (T-3708, serial: skew line reads the NTP state).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] scripts/substrate-preflight.sh gains a check that WARNs when the clock is not NTP-synchronised (timedatectl / chrony / ntpq, portable fallbacks, skip on unsupported)
-- [ ] Test seam plus fixtures cover synced, unsynced and unknown
-- [ ] The check lives inside the existing preflight script (no new guard, DP-3) and exposes its state for the status skew line
-- [ ] Preflight fixture: the unsynchronised-clock fixture is red, the synchronised one green
+- [x] scripts/substrate-preflight.sh gains a check that WARNs when the clock is not NTP-synchronised (timedatectl / chrony / ntpq, portable fallbacks, skip on unsupported)
+- [x] Test seam plus fixtures cover synced, unsynced and unknown
+- [x] The check lives inside the existing preflight script (no new guard, DP-3) and exposes its state for the status skew line
+- [x] Preflight fixture: the unsynchronised-clock fixture is red, the synchronised one green
 
 ## Verification
 
-bash tests/substrate-preflight-ntp-fixtures.sh
+bash tests/substrate-preflight-ntp-fixtures.sh > .context/working/.t3364-ntp.out 2>&1 && grep -q 'passed: 13   failed: 0' .context/working/.t3364-ntp.out
+bash -n scripts/substrate-preflight.sh
+bash tests/substrate-preflight-hub-socket-fixtures.sh > .context/working/.t3364-sock.out 2>&1
+bash scripts/check-guard-severity-markers.sh > .context/working/.t3364-cap.out 2>&1
 
 ## RCA
 
@@ -156,6 +178,11 @@ bash tests/substrate-preflight-ntp-fixtures.sh
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-11-12 — build
+- **What changed:** "skip on unsupported" needed a real SKIP status in `emit_check`: before, any row that was not high/medium counted as a PASS, so "could not look" would have been reported as healthy (exit-code rule 6). SKIP now prints `[SKIP]` and is not counted. `timedatectl` can be present yet fail (container without timedated), so each probe falls through to the next when it gives no definitive answer.
+- **Plan impact:** for P-24 (T-3708) the state is exposed as `scripts/substrate-preflight.sh --clock-state` (one line `clock_sync=<synced|unsynced|unknown> source=<tool>`, exit 0/1/2, no heartbeat) plus the `clock-sync` row in `--json`. No state file, so the skew line never reads a stale value.
+- **Triggered:** none.
 
 ## Recommendation
 
@@ -218,3 +245,7 @@ bash tests/substrate-preflight-ntp-fixtures.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3364-preflight-ntp-synchronised-clock-check-c.md
 - **Context:** Initial task creation
+
+### 2026-11-12T18:28:05Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

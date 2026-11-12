@@ -84,6 +84,16 @@
 #              socket_ok:false. Skips when no hub runs (Check 6) or the binary
 #              predates the field (Check 4).
 #
+#   Check 9: host clock NTP-synchronised (T-3364, CAND-13, R-57 / V-5)
+#            → Urgent deadlines (15 s) and cross-host telemetry assume a
+#              synchronised clock. Probes, first definitive answer wins:
+#              `timedatectl show -p NTPSynchronized`, `chronyc tracking`
+#              (Leap status), `ntpq -pn` (a '*' system peer). WARN when
+#              unsynchronised; SKIP ("unchecked") when no probe answers.
+#              `--clock-state` prints only this state for the status skew
+#              line (P-24): `clock_sync=<synced|unsynced|unknown> source=<tool>`,
+#              exit 0 synced / 1 unsynced / 2 unknown (could not look).
+#
 # Read-only, no network, no auth, no state mutation. Safe in any context.
 #
 # Exit codes:
@@ -103,6 +113,7 @@ set -u
 JSON=0
 QUIET=0
 HEARTBEAT=1
+CLOCK_STATE_ONLY=0
 EXIT_RC=0
 PASS_COUNT=0
 WARN_COUNT=0
@@ -135,6 +146,10 @@ Options:
                    output (and exit non-zero) only on WARN/FAIL. Use in cron jobs
                    where an empty log file is the healthy state.
                    Composes with --json (envelope only on WARN/FAIL).
+  --clock-state    Print only the clock check (Check 9) as one line,
+                   `clock_sync=<synced|unsynced|unknown> source=<tool>`, and exit
+                   0 synced / 1 unsynced / 2 unknown. No heartbeat. For the
+                   status skew line (T-3364 / P-24).
   --no-heartbeat   Suppress the T-1723 heartbeat-file touch. Used by the meta-canary
                    (check-canary-aliveness.sh with CANARY_PROBE_CMD) so the
                    freshness probe doesn't side-effect the very signal it watches.
@@ -165,6 +180,7 @@ while [ $# -gt 0 ]; do
         --json) JSON=1; shift ;;
         --quiet) QUIET=1; shift ;;
         --no-heartbeat) HEARTBEAT=0; shift ;;
+        --clock-state) CLOCK_STATE_ONLY=1; HEARTBEAT=0; shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "substrate-preflight.sh: unknown flag: $1" >&2; exit 2 ;;
     esac
@@ -237,7 +253,8 @@ emit_check() {
             fi
             ;;
         *)
-            PASS_COUNT=$((PASS_COUNT + 1))
+            # a SKIP ("could not look") is never counted as a pass (exit-code rule 6)
+            [ "$status" = "skip" ] || PASS_COUNT=$((PASS_COUNT + 1))
             ;;
     esac
 
@@ -264,6 +281,7 @@ emit_check() {
             pass) marker="PASS" ;;
             warn) marker="WARN" ;;
             fail) marker="FAIL" ;;
+            skip) marker="SKIP" ;;
             *)    marker="?"    ;;
         esac
         printf '[%s] %-18s %s\n' "$marker" "$name" "$msg"
@@ -805,7 +823,7 @@ check_hub_unit_health() {
 
 # ---- Run all checks ----------------------------------------------------
 
-if [ "$JSON" -eq 0 ]; then
+if [ "$JSON" -eq 0 ] && [ "$CLOCK_STATE_ONLY" -eq 0 ]; then
     echo "substrate pre-flight"
     echo "===================="
 fi
@@ -925,6 +943,74 @@ check_hub_socket() {
     esac
 }
 
+# ---- Check 9: host clock NTP-synchronised (T-3364, CAND-13) -----------------
+# Urgent deadlines (15 s) and cross-host telemetry assume synchronised clocks
+# (R-57, V-5). Each probe answers synced / unsynced, or nothing (tool absent,
+# daemon not running, container without timedated) and the next one is tried.
+# Seam (hermetic tests):
+#   TERMLINK_PREFLIGHT_TEST_CLOCK_TOOLS_DIR  look up timedatectl / chronyc / ntpq
+#                                            ONLY in this directory (fakes)
+_clock_tool() { # name -> path of the tool to run, or nothing
+    if [ -n "${TERMLINK_PREFLIGHT_TEST_CLOCK_TOOLS_DIR:-}" ]; then
+        [ -x "$TERMLINK_PREFLIGHT_TEST_CLOCK_TOOLS_DIR/$1" ] && printf '%s' "$TERMLINK_PREFLIGHT_TEST_CLOCK_TOOLS_DIR/$1"
+        return 0
+    fi
+    command -v "$1" 2>/dev/null || true
+}
+
+# Sets CLOCK_SYNC (synced|unsynced|unknown) and CLOCK_SOURCE (tool or "none").
+probe_clock_sync() {
+    local t out
+    CLOCK_SYNC=unknown; CLOCK_SOURCE=none
+    t=$(_clock_tool timedatectl)
+    if [ -n "$t" ] && out=$(timeout 5 "$t" show -p NTPSynchronized --value 2>/dev/null); then
+        case "$(printf '%s' "$out" | tr -d '[:space:]')" in
+            yes) CLOCK_SYNC=synced;   CLOCK_SOURCE=timedatectl; return ;;
+            no)  CLOCK_SYNC=unsynced; CLOCK_SOURCE=timedatectl; return ;;
+        esac
+    fi
+    t=$(_clock_tool chronyc)
+    if [ -n "$t" ] && out=$(timeout 5 "$t" -n tracking 2>/dev/null); then
+        case "$(printf '%s\n' "$out" | sed -n 's/^Leap status *: *//p' | head -1)" in
+            Normal|"Insert second"|"Delete second")
+                CLOCK_SYNC=synced;   CLOCK_SOURCE=chronyc; return ;;
+            "Not synchronised")
+                CLOCK_SYNC=unsynced; CLOCK_SOURCE=chronyc; return ;;
+        esac
+    fi
+    t=$(_clock_tool ntpq)
+    if [ -n "$t" ] && out=$(timeout 5 "$t" -pn 2>/dev/null); then
+        if printf '%s\n' "$out" | grep '^\*' >/dev/null; then
+            CLOCK_SYNC=synced; CLOCK_SOURCE=ntpq; return
+        elif printf '%s\n' "$out" | grep '^[ +#ox.-]' >/dev/null \
+             && printf '%s\n' "$out" | grep '^=' >/dev/null; then
+            # a peer table is printed but no peer is selected ('*')
+            CLOCK_SYNC=unsynced; CLOCK_SOURCE=ntpq; return
+        fi
+    fi
+}
+
+check_clock_sync() {
+    probe_clock_sync
+    case "$CLOCK_SYNC" in
+        synced)
+            emit_check "clock-sync" "medium" "pass" "host clock is NTP-synchronised (source: $CLOCK_SOURCE)" ;;
+        unsynced)
+            emit_check "clock-sync" "medium" "warn" \
+                "host clock is NOT NTP-synchronised (source: $CLOCK_SOURCE) — urgent deadlines and cross-host delay figures can be wrong" \
+                "Enable time sync: 'timedatectl set-ntp true' (systemd-timesyncd) or start chrony/ntpd, then re-run this check." ;;
+        *)
+            emit_check "clock-sync" "info" "skip" \
+                "clock sync unchecked: no timedatectl, chronyc or ntpq answered on this host" ;;
+    esac
+}
+
+if [ "$CLOCK_STATE_ONLY" -eq 1 ]; then
+    probe_clock_sync
+    printf 'clock_sync=%s source=%s\n' "$CLOCK_SYNC" "$CLOCK_SOURCE"
+    case "$CLOCK_SYNC" in synced) exit 0 ;; unsynced) exit 1 ;; *) exit 2 ;; esac
+fi
+
 check_runtime_dir_volatility
 check_hubs_toml
 check_be_reachable_state
@@ -934,6 +1020,7 @@ check_hub_unit_health
 check_single_hub
 check_single_binary
 check_hub_socket
+check_clock_sync
 
 # ---- Summary -----------------------------------------------------------
 
