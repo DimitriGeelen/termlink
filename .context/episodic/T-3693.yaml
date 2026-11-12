@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3693: P-2: order READY on (boot_id, mono_ns) (B-27 follow-up F-27)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-12T19:36:46Z
+# ============================================================================
+
+task_id: T-3693
+task_name: "P-2: order READY on (boot_id, mono_ns) (B-27 follow-up F-27)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T16:56:26Z
+completed: 2026-11-12T19:34:59Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-12T20:34:53+01:00
+last_commit: 2026-11-12T20:34:53+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  P-2 order READY (and last_prompt, turn stop) on (boot_id, mono_ns), receive stamp as fallback, never at_ms; hooks send both (string mono_ns), retry without for an older sidecar
+
+# Key outcomes
+outcomes:
+  - 'A backward wall-clock step does not freeze READY'
+  - 'Reports without `(boot_id, mono_ns)` are ordered by receive stamp'
+  - 'The TermLink hooks send `boot_id` and `mono_ns`'
+  - 'The unit''s fixture suite exits 0 with a PASS line for E-156 and its mutant list is all killed (FP 3.1.b)'
+  - 'Clock-step fixture: a mutant ordering by `at_ms` goes red'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — How reports are ordered (P-2)'
+    chose: '`ReportOrd {boot, ns}`: the adapter''s `(boot_id, mono_ns)` when both are present and valid, else the receive stamp in its own domain `rx:` (`:` cannot occur in a `boot_id`). Same domain: higher `ns` is later; another domain (a new boot, or a switch between adapter and receive stamps) is later than every report of the previous one (04 17.2.a). Used for READY (FCW-3, tie keeps BUSY), for `last_prompt` (an older prompt is dropped, counted `prompt_reordered`, as 17.2.a names both keys) and for "the stop ordered after the prompt" (AL-4 line 510). `at_ms` is kept for display only. The order is persisted with P-1''s record; a P-1 file without it is read back with its receive stamp.'
+    rationale: '06 v0.3 AL-1 CR-6.24, 04 v0.4 17.2.a. The receive-stamp fallback applies now, before any adapter sends the fields, so the clock-step freeze is gone for every report today.'
+    alternatives_rejected: ['comparing adapter `mono_ns` (CLOCK_BOOTTIME) with the receiver''s CLOCK_MONOTONIC receive stamp in one domain (different clocks; they drift apart over suspend).']
+  - decision: '2026-11-12 — `mono_ns` may be a decimal string; the hooks send a string'
+    chose: 'accept `mono_ns` as a JSON integer or a decimal string (1..=20 digits); the built hooks send the string form.'
+    rationale: 'a u64 in ns passes 2^53 after about 104 days of uptime, and strict JSON (06 3.3) refuses larger integers, which would make every report on a long-running host unparseable. The design does not fix the field''s type. **For P-44 (AEF''s adapter):** send the string form, or the integer only while it fits; the parity fixtures should carry both.'
+    alternatives_rejected: ['integer only (breaks after ~104 days of uptime); ms resolution (loses the ordering of reports less than 1 ms apart).']
+  - decision: '2026-11-12 — Hooks stay compatible with a sidecar started before P-2'
+    chose: 'the `ready` and `pull` ops accept `boot_id` and `mono_ns`; a hook that gets `unknown-field` asks once more without them.'
+    rationale: 'the API refuses unknown fields per op, so after an upgrade a still-running old sidecar daemon would refuse every hook call, including `pull` (mail hand-over), until it restarts. The retry costs one extra local call only in that window.'
+    alternatives_rejected: ['requiring a sidecar restart with the upgrade (the operator''s rule: a working route is not switched off as a side effect of an upgrade).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3693-p-2-order-ready-on-bootid-monons-b-27-fo.md'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/hook.rs'
+  - 'crates/termlink-sidecar/src/meter.rs'
+  - 'crates/termlink-sidecar/tests/api_tests.rs'
+  - 'crates/termlink-sidecar/tests/deliver_tests.rs'
+  - 'crates/termlink-sidecar/tests/meter_tests.rs'
+  - 'tests/b27-followups-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T20:34:53'
+    action: 'T-3693: P-2 order READY (and last_prompt, turn stop) on (boot_id, mono_ns), receive stamp as fallback, never at_ms; hooks send both (string mono_ns), retry without for an older sidecar'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 158 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 158
+  commits: 2
+  files_changed: 11
+  lines_added: 561
+  lines_removed: 90
+  footprint_refreshed_at: '2026-11-12T19:36:54Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3693-p-2-order-ready-on-bootid-monons-b-27-fo.md
+generated_by: context-agent-hybrid

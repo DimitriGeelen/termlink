@@ -23235,3 +23235,21 @@ scan_id: R-28ce0331
 task_id: T-3701
 payload:
   task_file: .tasks/active/T-3701-p-13-b-3-admin-rpc-log-sweep-refusal-ret.md
+---
+kind: scan_emitted
+timestamp: '2026-11-12T19:36:36Z'
+scan_id: R-5084916a
+task_id: T-3693
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-12T19:36:36Z'
+scan_id: R-5084916a
+task_id: T-3693
+payload:
+  task_file: .tasks/active/T-3693-p-2-order-ready-on-bootid-monons-b-27-fo.md

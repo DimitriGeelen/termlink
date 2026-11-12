@@ -6,12 +6,12 @@ description: >
   approved G-0 2026-11-12): B-27 follow-up F-27: order READY on `(boot_id, mono_ns)`,
   receive stamp as fallback; TermLink hooks send both (04 17.2.a, 06 AL-1 CR-6.24)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-sidecar/src/api.rs, crates/termlink-sidecar/src/hook.rs, crates/termlink-sidecar/tests/api_tests.rs, crates/termlink-sidecar/tests/deliver_tests.rs]
 related_tasks: [T-3357, T-3687]
 plan_unit: P-2
 arc_id: arc-011
@@ -44,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:26Z
-last_update: 2026-11-12T19:34:53Z
-date_finished:
+last_update: 2026-11-12T19:34:59Z
+date_finished: 2026-11-12T19:34:59Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -440,3 +440,16 @@ test ! -f .context/working/t3693/mutants.py || (timeout 3000 python3 -u .context
 
 ### 2026-11-12T18:31:44Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-12T19:34:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5084916a
+- **Timestamp:** 2026-11-12T19:36:36Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
