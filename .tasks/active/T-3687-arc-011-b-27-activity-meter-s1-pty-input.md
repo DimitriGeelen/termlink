@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-11T21:46:09Z
-last_update: 2026-11-12T12:03:20Z
+last_update: 2026-11-12T12:03:58Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -403,6 +403,7 @@ TMPDIR=/var/tmp cargo test -p termlink-sidecar --test api_tests --test deliver_t
 - **CR-B27.5 / F-27 (OPEN):** READY ordering stays on `at_ms`. 04 v0.4 17.2.a (T-3689) now states `(boot_id, mono_ns)` with the receive stamp as the fallback, but 06 AL-1 (CR-6.24) is not revised and no adapter sends those fields; the build follows when both land. Test `f27_ready_ordering_is_at_ms_and_a_backward_step_freezes_it` documents the current rule, including the freeze.
 - **CR-B27.6 / F-28:** the tick records a failed `lstat`; S2 is then known only on a report within `S2_FRESH_MS` (300 s, V-18), else `unknown` (`watchdog: unavailable: S2 unknown (transcript unreadable and no fresh report)`). Test `f28_unreadable_transcript_is_s2_unknown_without_a_fresh_report`.
 - Each test has a negative control: 13 mutants in `.context/working/t3687/mutants-cr.py`, all killed.
+- **Behind 06 v0.3 (T-3689, folded the same day, after this round started); OPEN follow-ups, not built here:** (1) 06 v0.3 AL-1 line 294 / 8.3 chose to *persist* `last_prompt` with `sess.ready` (QR-2 closed), where this round built CR-6.23's restart-rule alternative. Aligning means persisting `last_prompt` and READY, which also revises D-4. (2) 06 v0.3 AL-1 (CR-6.24) orders by `(boot_id, mono_ns)`, falling back to the receive stamp and never `at_ms`. The fallback applies even before adapters send the fields, so the built `at_ms` ordering (F-27 test) is now behind 06.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
