@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-11T21:46:09Z
-last_update: 2026-11-12T11:51:38Z
+last_update: 2026-11-12T12:03:20Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -394,6 +394,15 @@ TMPDIR=/var/tmp cargo test -p termlink-sidecar --test api_tests --test deliver_t
 - **D-6 (S1 binding):** S1 is read through `SessionRpc` (notify token, 2 s timeout). Nothing binds a harness session to a TermLink session yet, so in the field S1 reads `unknown` (no watchdog) until B-16 binds them; B-16 needs the same binding for `command.notify`.
 - **D-7 (left to later items):** `evidence` and `complete` reports are recorded (and move S2) but not acted on (AL-9, B-16/B-20). `ring_log.on_submit` (AL-7) and `vendor_log` (AL-39) are not called. `note_typed()` exists so that B-16 can feed FCW-5.
 - **D-8 (FCW-17):** "the last S2 event after the prompt" uses the last turn event (a report), not transcript growth.
+
+### 2026-11-12 — Step 7 change requests CR-B27.1..CR-B27.6 (07-review 6.7; operator approved step 7, 2026-11-12)
+- **CR-B27.1 / F-3:** S2 (a) moves only on turn events (`session_start`, `prompt_submit`, `tool_start`, `tool_end`, `turn_stop`, `session_end`) and on a `ready` that changes the state; a repeated `ready`, `evidence` and `complete` do not. The built hooks move S2 only for the four turn hooks (D-2 narrowed; D-7's "and move S2" no longer holds). `s2_event_at` now tracks turn events only (D-8 as written). Test `e16_f3_s2_moves_on_turn_events_and_ready_changes_only`.
+- **CR-B27.2 / F-4:** `check_origin` step 3 runs for every `human` prompt of a PTY session, basis `inferred` included; with no counters, `inferred` stays as reported and `pty-input` still drops to `inferred`; `client_auto` stays ignored. Test `f4_counter_check_for_every_human_origin`.
+- **CR-B27.3 / F-22:** the tick's S1 reads run one thread per session under one budget (`TICK_BUDGET_MS` = 2.5 s); a read past it reads unknown this tick, and a session whose read is still in flight is not read again (threads bounded by the session table). Test `f22_s1_reads_share_a_tick_deadline`.
+- **CR-B27.4 / F-26:** chose CR-6.23's restart rule over persisting `last_prompt`: no prompt this epoch and S2 within 120 s reads `operator`. Why: no state file, no rx_mono carried across processes, and it fails toward a person as the design asks. Effect until B-29: the built hooks send no prompts, so a session with S2 in the last 120 s reads `operator` (the normal ring holds; the watchdog is unaffected). Test `f26_no_prompt_this_epoch_with_recent_s2_is_operator`.
+- **CR-B27.5 / F-27 (OPEN):** READY ordering stays on `at_ms`. 04 v0.4 17.2.a (T-3689) now states `(boot_id, mono_ns)` with the receive stamp as the fallback, but 06 AL-1 (CR-6.24) is not revised and no adapter sends those fields; the build follows when both land. Test `f27_ready_ordering_is_at_ms_and_a_backward_step_freezes_it` documents the current rule, including the freeze.
+- **CR-B27.6 / F-28:** the tick records a failed `lstat`; S2 is then known only on a report within `S2_FRESH_MS` (300 s, V-18), else `unknown` (`watchdog: unavailable: S2 unknown (transcript unreadable and no fresh report)`). Test `f28_unreadable_transcript_is_s2_unknown_without_a_fresh_report`.
+- Each test has a negative control: 13 mutants in `.context/working/t3687/mutants-cr.py`, all killed.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
