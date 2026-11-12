@@ -71,7 +71,8 @@ open(p,"w").write(s.replace(o,os.environ["NEW"],1))'; then
         ( cd "$src" && env -u PROJECT_ROOT $RUST -- "$filt" ) >"$log" 2>&1
         local trc=$?
         if grep -q "^error\[E\|^error: could not compile" "$log"; then
-            echo "TOOLING $id: the mutant does not compile ($log)"; return 2
+            echo "TOOLING $id: the mutant does not compile ($log)"
+            grep -m1 -A6 "^error" "$log" | sed 's/^/    /'; return 2
         fi
         if ! grep -q "^test result:" "$log" && ! grep -q "panicked" "$log"; then
             echo "TOOLING $id: the tests did not run ($log)"; return 2
