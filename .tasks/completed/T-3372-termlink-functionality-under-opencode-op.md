@@ -2,18 +2,19 @@
 id: T-3372
 name: "TermLink functionality under OpenCode (operator direction 2026-10-03, 055 opencode-parity)"
 description: >
-  Inception: TermLink functionality under OpenCode (operator direction 2026-10-03, 055 opencode-parity)
+  Inception: TermLink functionality under OpenCode (operator direction 2026-10-03,
+  055 opencode-parity)
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-10-06T11:35:25Z
-last_update: 2026-10-06T11:35:25Z
-date_finished: null
+last_update: 2026-11-13T17:15:29Z
+date_finished: 2026-11-13T17:15:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -22,6 +23,18 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.4                    # agent-set under operator delegation 2026-10-18: portability to one more agent runtime (OpenCode, 055 parity); valuable for D4 but serves a single runtime. — float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-11-13T17:15:28Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3372: TermLink functionality under OpenCode (operator direction 2026-10-03, 055 opencode-parity)
@@ -72,15 +85,15 @@ voi_score: 0.4                    # agent-set under operator delegation 2026-10-
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -137,9 +150,60 @@ Operator directed full AEF+TermLink parity under OpenCode (2026-10-03, relayed b
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Operator directed full AEF+TermLink parity under OpenCode (2026-10-03, relayed by 055). OpenCode has the needed mechanisms (plugins with tool.execute.before/after and session.idle, MCP servers, custom commands); TermLink's share is be-reachable/identity, MCP tools, sidecar delivery and wake for an opencode agent, plus a release check that fails on breakage. Related T-2911, T-2920; ties to arc-011's harness adapter contract.
+
+Evidence:
+
+**Date**: 2026-11-13T17:15:26Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-11-13T17:15:26Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Operator directed full AEF+TermLink parity under OpenCode (2026-10-03, relayed by 055). OpenCode has the needed mechanisms (plugins with tool.execute.before/after and session.idle, MCP servers, custom commands); TermLink's share is be-reachable/identity, MCP tools, sidecar delivery and wake for an opencode agent, plus a release check that fails on breakage. Related T-2911, T-2920; ties to arc-011's harness adapter contract.
+
+Evidence:
+
+### 2026-11-13T17:15:27Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Reason:** Inception decision in progress
+
+### 2026-11-13T17:15:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2608604d
+- **Timestamp:** 2026-11-13T17:15:30Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-c0000198
+- **Timestamp:** 2026-11-13T17:15:30Z
+- **Overall:** CONFIRMED
+- **Claims:** 2
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `T-2911` | task | ✓ pass |
+| `T-2920` | task | ✓ pass |
