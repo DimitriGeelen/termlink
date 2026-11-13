@@ -130,7 +130,9 @@ pub mod macos {
         if rc != 0 || argmax <= 0 {
             return None;
         }
-        let mut buf = vec![0u8; argmax as usize];
+        // T-3784: KERN_ARGMAX comes from the kernel, but an allocation sized by it is still bounded here
+        // (macOS reports ~1 MiB; 8 MiB is a generous cap, check-alloc-sink-clamps T-2523 class).
+        let mut buf = vec![0u8; (argmax as usize).clamp(1, 8 * 1024 * 1024)];
         let mut len: libc::size_t = buf.len();
         let mut mib = [libc::CTL_KERN, libc::KERN_PROCARGS2, pid];
         // SAFETY: `buf`/`len` describe a writable buffer; no new value is set.

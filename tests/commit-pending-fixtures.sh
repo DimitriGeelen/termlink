@@ -122,7 +122,9 @@ grep -q 'commit-pending.sh list' "$REPO_ROOT/.claude/commands/resume.md" \
     && ok "W1 /resume Step 1 lists pending entries by name; Step 3 runs the helper" || bad "W1" "resume.md not wired"
 grep -q 'commit-pending.sh' "$REPO_ROOT/scripts/run-procasfit-round.sh" \
     && ok "W2 procAsFit round prompt carries the helper as a first step" || bad "W2" "run-procasfit-round.sh not wired"
-awk '/commit-pending/ {p=NR} /commit -m "\$COMMIT_TASK: Session handover/ {c=NR} END {exit !(p && c && p < c)}' \
+# T-3784: AEF be.49 commits through `_commit_handover_files "$COMMIT_TASK: Session handover ..."`; older copies
+# used `commit -m "$COMMIT_TASK: Session handover`. Either form is the handover's own commit; the helper must come first.
+awk '/commit-pending/ {p=NR} /(commit -m|_commit_handover_files) "\$COMMIT_TASK: Session handover/ {if (!c) c=NR} END {exit !(p && c && p < c)}' \
     "$REPO_ROOT/.agentic-framework/agents/handover/handover.sh" \
     && ok "W3 handover.sh runs the helper BEFORE its own pathspec commit" || bad "W3" "handover.sh not wired (or wired after its commit)"
 grep -q 'record_pending "\$tid"' "$REPO_ROOT/scripts/warn-escalation-file.sh" \
