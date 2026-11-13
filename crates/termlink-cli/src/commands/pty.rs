@@ -235,7 +235,7 @@ pub(crate) async fn cmd_interact(
     if let Err(e) = client::rpc_call(
         reg.socket_path(),
         "command.inject",
-        serde_json::json!({ "keys": keys }),
+        termlink_session::founding_log::with_declared_from(serde_json::json!({ "keys": keys })),
     )
     .await
     {
@@ -683,7 +683,7 @@ pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Optio
     let params = serde_json::json!({ "keys": keys });
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    let rpc_future = client::rpc_call_with_token_timeout(reg.socket_path(), token.as_deref(), "command.inject", params, timeout_dur);
+    let rpc_future = client::rpc_call_with_token_timeout(reg.socket_path(), token.as_deref(), "command.inject", termlink_session::founding_log::with_declared_from(params), timeout_dur);
     let resp = match tokio::time::timeout(timeout_dur, rpc_future).await {
         Ok(result) => match result {
             Ok(r) => r,
@@ -1083,7 +1083,7 @@ async fn attach_loop(
                 // socket now detaches (as the output-poll branch below already does);
                 // a refused inject prints one notice per failure streak.
                 let outcome = classify_attach_inject(
-                    client::rpc_call(socket, "command.inject", params)
+                    client::rpc_call(socket, "command.inject", termlink_session::founding_log::with_declared_from(params))
                         .await
                         .map(client::unwrap_result)
                         .map_err(|e| e.to_string()),

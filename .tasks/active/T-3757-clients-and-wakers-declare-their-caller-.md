@@ -13,10 +13,10 @@ description: >
   working is switched off before step 1 is proven in the field. Identity is declared,
   not proven, until B-6/PH-4.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -47,7 +47,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T20:31:49Z
-last_update: 2026-11-12T20:34:10Z
+last_update: '2026-11-13T17:32:07Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -75,6 +75,21 @@ bvp_scores_proposed:
       no signal)'
     rubric_sha: e4a00f38e801
     driver_set: product
+  - ts: '2026-11-13T17:32:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 (body:portability-abstraction);
+      F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0:
+      no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3757: Clients and wakers declare their caller identity (from) on inject/exec, then owner-only becomes the default for launcher sessions
@@ -95,7 +110,11 @@ by default, with TERMLINK_OWNER_ONLY_CHECK=0 as the rollback.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] CLI inject/exec/pty inject, the MCP tools, the notify wakers and the sidecar doorbell path send `from` (tests per caller)
+- [ ] Step 1a: one shared resolver `founding_log::declared_from` (TERMLINK_FROM > TERMLINK_AGENT_ID > `user:<login>` > `uid:<n>`, never empty) and `with_declared_from` (keeps an explicit `from`, leaves non-objects alone); unit tests incl. the order, the never-overwrite rule and a gate negative control (unstamped call refused by owner-only)
+- [ ] Step 1b: CLI `exec`, `inject`, `pty inject` (incl. attach and the marker run), `remote inject`, `remote exec` and the push helpers stamp `from`; an end-to-end test reads the session's use-log row per verb, plus an owner-only control (owner accepted, another declared caller refused, both rows logged)
+- [ ] Step 1c: MCP `termlink_exec`, `termlink_inject`, `termlink_interact`, `termlink_remote_inject`, `termlink_remote_exec`, `termlink_batch_exec` and `termlink_remote_call` (founding verbs only) stamp `from`; an in-process test reads the rows for exec and inject
+- [ ] Step 1d: shell wakers (notify-injector, be-reachable-pushwaker, tl-dispatch) inject through the CLI, so they declare `from` with no script change; the sidecar doorbell's `command.notify` declares the agent it serves (unit test)
+- [ ] Step 1e: the hub relay does NOT stamp (it forwards params unchanged), so a relayed call keeps its originator's `from`; coverage map in docs/reports/T-3757-from-coverage.md
 - [ ] The use log has no row without `from` for 7 days on .107 (report in docs/reports/), before step 2 starts
 - [ ] Step 2: launcher sessions start with owner-only on; a negative control shows another caller refused and the owner accepted; rollback variable tested
 
@@ -149,8 +168,8 @@ by default, with TERMLINK_OWNER_ONLY_CHECK=0 as the rollback.
 
 ## Verification
 
-# checks are added by the building worker (fixture suite per caller); placeholder keeps the gate honest
 test -f docs/reports/T-3757-from-coverage.md
+bash tests/t3757-from-fixtures.sh > .context/working/.t3757-verify.out 2>&1 && grep -q '^ALL PASS (T-3757 step 1)' .context/working/.t3757-verify.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -345,6 +364,11 @@ test -f docs/reports/T-3757-from-coverage.md
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-13 — step 1 built
+- **What changed:** stamping once in `Client::call` was the obvious design, but the hub relays founding verbs through the same `Client::call`; stamping there would have put the hub's identity on every anonymous relayed call. So `from` is stamped where a call starts (15 sites), never in a relay. Also found: MCP `termlink_batch_exec` and `termlink_remote_exec` call `command.exec`, a method no handler in this repo serves; stamped anyway, flagged in the hand-back.
+- **Plan impact:** step 2 must decide what identity a waker declares. Today a shell waker declares whatever its environment says (TERMLINK_AGENT_ID when the launcher set it, else `user:<login>`); with owner-only on, a waker without TERMLINK_AGENT_ID would be refused. The 7-day log review (AC 2) will show which callers still fall back to `user:`.
+- **Triggered:** none filed; step 2 stays in this task.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -382,6 +406,11 @@ test -f docs/reports/T-3757-from-coverage.md
 - **Rejected:** B — keep it opt-in until B-6 key cards exist (leaves the 06a default unmet for a whole phase).
 - Operator words in chat: "a". T-3702 is closed, so the ruling is recorded here.
 
+### 2026-11-13 — what a caller declares when it has no agent identity
+- **Chose:** fall back to `user:<USER|LOGNAME>`, then `uid:<euid>`; never omit `from`.
+- **Why:** AC 2 asks for no row without `from`; an honest login name is still a declared identity and tells the 7-day review which callers lack an agent id.
+- **Rejected:** reading `~/.termlink/be-reachable.state` (as `resolve_claimer` does): it names one agent for every process on the host, so an operator's manual inject would claim to be that agent and pass its owner-only check in step 2. Also rejected: stamping in `Client::call`, because the hub relay would stamp its own name.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -415,3 +444,7 @@ test -f docs/reports/T-3757-from-coverage.md
 ### 2026-11-12T20:34:10Z — status-update [task-update-agent]
 - **Change:** horizon: now → next
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-11-13T17:32:05Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

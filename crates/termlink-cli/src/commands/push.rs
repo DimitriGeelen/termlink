@@ -228,7 +228,7 @@ async fn exec_rpc(
         params["env"] = env;
     }
 
-    match client.call("command.execute", serde_json::json!("exec"), params).await {
+    match client.call("command.execute", serde_json::json!("exec"), termlink_session::founding_log::with_declared_from(params)).await {
         Ok(RpcResponse::Success(r)) => {
             let exit_code = r.result["exit_code"].as_i64().unwrap_or(-1);
             let stdout = r.result["stdout"].as_str().unwrap_or("").to_string();
@@ -265,7 +265,7 @@ async fn inject_rpc(client: &mut client::Client, session: &str, text: &str) -> R
         "inject_delay_ms": 10,
     });
 
-    match client.call("command.inject", serde_json::json!("inject"), params).await {
+    match client.call("command.inject", serde_json::json!("inject"), termlink_session::founding_log::with_declared_from(params)).await {
         Ok(RpcResponse::Success(_)) => Ok(()),
         Ok(RpcResponse::Error(e)) => {
             anyhow::bail!("Inject failed: {} {}", e.error.code, e.error.message);

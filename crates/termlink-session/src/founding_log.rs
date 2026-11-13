@@ -268,10 +268,111 @@ pub fn gate_session(
     refusal(id, method, &decision)
 }
 
+/// T-3757: explicit per-process override of the declared caller identity.
+pub const FROM_ENV: &str = "TERMLINK_FROM";
+/// The agent identity a launcher sets (`tl-claude.sh --reachable`, be-reachable).
+pub const AGENT_ID_ENV: &str = "TERMLINK_AGENT_ID";
+
+/// T-3757 (step 1 of the 06a owner-only default): the identity a caller DECLARES
+/// as `params.from` on a founding verb. Pure: tests pass the lookup and the uid.
+///
+/// `TERMLINK_FROM` > `TERMLINK_AGENT_ID` > `user:<USER|LOGNAME>` > `uid:<uid>`.
+/// Never empty, so every use-log row names a caller. Deliberately NOT read from
+/// the host-shared `~/.termlink/be-reachable.state`: that file names one agent
+/// for every process on the host, and an operator's manual inject would then
+/// claim to be that agent (and pass its owner-only check once step 2 lands).
+/// Declared, not proven (B-6 / PH-4).
+pub fn declared_from_lookup(get: impl Fn(&str) -> Option<String>, uid: u32) -> String {
+    let nonempty = |k: &str| get(k).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    nonempty(FROM_ENV)
+        .or_else(|| nonempty(AGENT_ID_ENV))
+        .or_else(|| nonempty("USER").or_else(|| nonempty("LOGNAME")).map(|u| format!("user:{u}")))
+        .unwrap_or_else(|| format!("uid:{uid}"))
+}
+
+/// [`declared_from_lookup`] over this process's environment.
+pub fn declared_from() -> String {
+    // SAFETY: geteuid has no preconditions and cannot fail.
+    #[cfg(unix)]
+    let uid = unsafe { libc::geteuid() };
+    #[cfg(not(unix))]
+    let uid = 0u32;
+    declared_from_lookup(|k| std::env::var(k).ok(), uid)
+}
+
+/// T-3757: put the declared identity into an outgoing call's params as `from`.
+/// A `from` the caller already set (a non-empty string) is kept: an explicit
+/// value wins, and a relay must not overwrite the originator's. Non-object
+/// params are left as they are (the session reads `from` only from an object).
+/// Call this where a founding-verb call STARTS, never in a relay (the hub
+/// forwards params unchanged and must not stamp its own name on them).
+pub fn stamp_from_with(params: &mut serde_json::Value, from: &str) {
+    if let Some(obj) = params.as_object_mut() {
+        let has = obj.get("from").and_then(|v| v.as_str()).is_some_and(|s| !s.trim().is_empty());
+        if !has {
+            obj.insert("from".into(), serde_json::Value::from(from));
+        }
+    }
+}
+
+/// [`stamp_from_with`] using [`declared_from`]; returns the params for chaining.
+pub fn with_declared_from(mut params: serde_json::Value) -> serde_json::Value {
+    stamp_from_with(&mut params, &declared_from());
+    params
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn t3757_declared_from_order() {
+        fn env<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
+            move |k: &str| pairs.iter().find(|(n, _)| *n == k).map(|(_, v)| v.to_string())
+        }
+        let all = [(FROM_ENV, "x"), (AGENT_ID_ENV, "agent-a"), ("USER", "root"), ("LOGNAME", "ln")];
+        assert_eq!(declared_from_lookup(env(&all), 7), "x", "TERMLINK_FROM wins");
+        assert_eq!(declared_from_lookup(env(&all[1..]), 7), "agent-a");
+        assert_eq!(declared_from_lookup(env(&all[2..]), 7), "user:root");
+        assert_eq!(declared_from_lookup(env(&all[3..]), 7), "user:ln");
+        assert_eq!(declared_from_lookup(env(&[]), 7), "uid:7", "never anonymous");
+        assert_eq!(declared_from_lookup(env(&[(FROM_ENV, "  "), (AGENT_ID_ENV, " b ")]), 0), "b", "blank skipped, trimmed");
+    }
+
+    #[test]
+    fn t3757_stamp_keeps_explicit_and_skips_non_objects() {
+        let mut p = json!({"text": "ls"});
+        stamp_from_with(&mut p, "me");
+        assert_eq!(p["from"], "me");
+        let mut p = json!({"text": "ls", "from": "origin"});
+        stamp_from_with(&mut p, "relay");
+        assert_eq!(p["from"], "origin", "an explicit from is never overwritten");
+        let mut p = json!({"from": ""});
+        stamp_from_with(&mut p, "me");
+        assert_eq!(p["from"], "me", "a blank from counts as none");
+        let mut p = json!(["a"]);
+        stamp_from_with(&mut p, "me");
+        assert_eq!(p, json!(["a"]));
+    }
+
+    #[test]
+    fn t3757_stamped_call_is_logged_with_its_from_and_passes_owner_only() {
+        // End to end through the session gate: the stamped params name the caller
+        // in the row; the same call unstamped is anonymous and refused by owner-only.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("rows.jsonl");
+        let pol = policy(Some("agent-a"), path.clone());
+        let mut stamped = json!({"text": "ls"});
+        stamp_from_with(&mut stamped, "agent-a");
+        let ok = gate_session(json!(1), "command.inject", &stamped, PermissionScope::Control, (Some(0), Some(1)), "tl-x", None, &pol);
+        assert!(ok.is_none(), "owner's stamped call is allowed");
+        let bare = gate_session(json!(2), "command.inject", &json!({"text": "ls"}), PermissionScope::Control, (Some(0), Some(1)), "tl-x", None, &pol);
+        assert!(bare.is_some(), "negative control: the unstamped call is refused");
+        let r = rows(&path);
+        assert_eq!(r[0]["caller"]["from"], "agent-a");
+        assert!(r[1]["caller"]["from"].is_null());
+    }
 
     fn policy(owner: Option<&str>, path: PathBuf) -> Policy {
         Policy { owner_only: owner.map(str::to_string), check_owner: true, log_path: Some(path) }

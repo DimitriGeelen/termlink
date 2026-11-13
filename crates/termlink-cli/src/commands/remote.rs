@@ -1719,7 +1719,7 @@ async fn cmd_remote_inject_inner(conn: &RemoteConn<'_>, opts: &RemoteInjectOpts<
 
     let inject_params = remote_inject_params(session, keys, delay_ms, by_id);
 
-    match client.call("command.inject", serde_json::json!("inject"), inject_params).await {
+    match client.call("command.inject", serde_json::json!("inject"), termlink_session::founding_log::with_declared_from(inject_params)).await {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
             if json {
                 let mut wrapped = serde_json::json!({"ok": true});
@@ -2194,7 +2194,7 @@ pub(crate) async fn cmd_remote_exec(
         params["cwd"] = serde_json::json!(dir);
     }
 
-    match rpc_client.call("command.execute", serde_json::json!("exec"), params).await {
+    match rpc_client.call("command.execute", serde_json::json!("exec"), termlink_session::founding_log::with_declared_from(params)).await {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
             let result = &r.result;
 

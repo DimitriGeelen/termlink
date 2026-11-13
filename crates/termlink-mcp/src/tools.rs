@@ -12880,7 +12880,7 @@ impl TermLinkTools {
             params["env"] = serde_json::json!(env);
         }
 
-        match client::rpc_call(reg.socket_path(), "command.execute", params).await {
+        match client::rpc_call(reg.socket_path(), "command.execute", termlink_session::founding_log::with_declared_from(params)).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => {
                     // T-2578: forward `truncated` so a T-2529/T-2537 cap-hit is not
@@ -12946,7 +12946,7 @@ impl TermLinkTools {
         }
 
         let timeout = std::time::Duration::from_secs(30);
-        match client::rpc_call_with_token_timeout(reg.socket_path(), token.as_deref(), "command.inject", serde_json::json!({"keys": keys}), timeout).await {
+        match client::rpc_call_with_token_timeout(reg.socket_path(), token.as_deref(), "command.inject", termlink_session::founding_log::with_declared_from(serde_json::json!({"keys": keys})), timeout).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 // T-2580: status-aware — a no-PTY session resolves keys without
                 // writing them and must NOT be reported as a successful inject.
@@ -13732,7 +13732,7 @@ impl TermLinkTools {
         if let Err(e) = client::rpc_call(
             reg.socket_path(),
             "command.inject",
-            serde_json::json!({ "keys": keys }),
+            termlink_session::founding_log::with_declared_from(serde_json::json!({ "keys": keys })),
         ).await {
             return json_err(format!("failed to inject command: {e}"));
         }
@@ -16018,7 +16018,7 @@ impl TermLinkTools {
                 let rpc_timeout = std::time::Duration::from_secs(timeout + 5);
                 match tokio::time::timeout(
                     rpc_timeout,
-                    client::rpc_call(&socket, "command.exec", params),
+                    client::rpc_call(&socket, "command.exec", termlink_session::founding_log::with_declared_from(params)),
                 )
                 .await
                 {
@@ -16450,7 +16450,11 @@ impl TermLinkTools {
                 Err(e) => return e,
             };
 
-            let params = p.params.unwrap_or(serde_json::json!({}));
+            let mut params = p.params.unwrap_or(serde_json::json!({}));
+            // T-3757: a founding verb sent through the generic relay declares its caller too.
+            if termlink_session::founding_log::is_founding_verb(&p.method) {
+                params = termlink_session::founding_log::with_declared_from(params);
+            }
             let req_id = serde_json::json!(format!("mcp-{}", std::process::id()));
             match rpc_client.call(&p.method, req_id, params).await {
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
@@ -16612,7 +16616,7 @@ impl TermLinkTools {
             });
             let req_id = serde_json::json!("mcp-inject");
             match rpc_client
-                .call("command.inject", req_id, params)
+                .call("command.inject", req_id, termlink_session::founding_log::with_declared_from(params))
                 .await
             {
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
@@ -16793,7 +16797,7 @@ impl TermLinkTools {
                 params["cwd"] = serde_json::json!(cwd);
             }
 
-            match rpc_client.call("command.exec", serde_json::json!("mcp-exec"), params).await {
+            match rpc_client.call("command.exec", serde_json::json!("mcp-exec"), termlink_session::founding_log::with_declared_from(params)).await {
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
                     serde_json::to_string_pretty(&serde_json::json!({
                         "ok": true,

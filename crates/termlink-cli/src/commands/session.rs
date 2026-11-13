@@ -1385,7 +1385,7 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
 
     // RPC timeout = command timeout + 5s buffer for connection/response overhead
     let rpc_timeout = std::time::Duration::from_secs(timeout + 5);
-    let rpc_future = client::rpc_call(reg.socket_path(), "command.execute", params);
+    let rpc_future = client::rpc_call(reg.socket_path(), "command.execute", termlink_session::founding_log::with_declared_from(params));
     let resp = match tokio::time::timeout(rpc_timeout, rpc_future).await {
         Ok(result) => match result {
             Ok(r) => r,
