@@ -1506,6 +1506,22 @@ not_divergence:
       T-4249 per-run exit-marker token). safe-commands and commit-pending fixtures pass.
       Adds upstream's lines to our local copies; our local lines were already registered.
   - kind: merge-of-upstream
+    tasks: [T-3778]
+    commit: 'pending (made by runme.sh action 11a when the operator runs it; subject "T-3778 fw upgrade -> v1.8.16-be.49 ...")'
+    date: 2026-11-13
+    reason: >
+      3-way merge (base be.27 c55b395a3, ours, theirs v1.8.16-be.49 da9942919) of the four
+      preserved files upstream changed, stored with a hash manifest in
+      .context/vendor-merges/T-3778/ and installed by runme 11a only when ours and theirs are
+      exactly the copies merged. lib/sidecar/inject.py and lib/sidecar_cli.py merged clean.
+      agents/context/lib/safe-commands.sh (one conflict): took upstream's T-5092 two-pass
+      structure (inert quoted text blanked by shell_write_scan.py) and kept our T-3178 first
+      rule '>>?($|[^&])' in both passes, so a trailing bare '>' still fails closed; measured on
+      11 forms against be.49's own copy, the only difference is that one. agents/handover/handover.sh
+      (one conflict): kept our T-3269 commit-pending block, took upstream's T-5052
+      _commit_handover_files staging (our separate `git add` dropped; the helper stages).
+      After the run: promote last_vendor_event to the T-3778 commit.
+  - kind: merge-of-upstream
     tasks: [T-3434]
     commit: 570c2e262
     date: 2026-10-17

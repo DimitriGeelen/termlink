@@ -416,6 +416,88 @@ if [ "${2:-}" = --format ]; then cat "$FAKE_DK/names" 2>/dev/null; else echo "CO
 EOS
 chmod +x "$DK/systemctl" "$DK/ss" "$DK/docker"
 printf 'watchtower\nsprechloop-dev\nopen-webui\n' > "$DK/names"
+# T-3778 action 11a: a scratch AEF source repo (commit A = what is vendored; tag v1.8.16-be.49
+# changes the one preserved file and carries T-5105; a side-branch commit for the ancestry
+# control) and a scratch project repo with a bare origin, a fake project fw (config set HOST,
+# watchtower restart, doctor) and a fake curl. aefu_state done|fresh rebuilds the project.
+# Default = done, so ordinary runs skip 11a. Nothing outside $TMP is read or written.
+AE="$TMP/aefu"; mkdir -p "$AE"
+aefu_g() { git -c user.name=fx -c user.email=fx@example.invalid -c init.defaultBranch=main -c commit.gpgsign=false "$@"; }
+mkdir -p "$AE/src/bin" "$AE/src/lib" "$AE/src/agents/termlink"
+cat > "$AE/src/bin/fw" <<'EOS'
+#!/usr/bin/env bash
+# fake AEF `fw upgrade [--dry-run] <project>` (T-3778 fixture); knobs FAKE_AEFU_*
+[ "$1" = upgrade ] || exit 9
+[ "$2" = --dry-run ] && { echo "3 change(s) would be made"; exit 0; }
+P="$2"; S="$(cd "$(dirname "$0")/.." && pwd)"
+[ -n "${FAKE_AEFU_UP_RC:-}" ] && { echo "x" > "$P/.agentic-framework/lib/half-written.py"; echo "upgrade broke"; exit "$FAKE_AEFU_UP_RC"; }
+echo "new upstream file" > "$P/.agentic-framework/lib/new-upstream.py"
+[ -n "${FAKE_AEFU_OLDVER:-}" ] || echo "1.8.15+2.g$(git -C "$S" rev-parse --short=9 HEAD)" > "$P/.agentic-framework/VERSION"
+cp "$S/agents/termlink/termlink.sh" "$P/.agentic-framework/agents/termlink/termlink.sh"
+echo "upstream toolkit copy" > "$P/scripts/tool.sh.upstream"
+[ -n "${FAKE_AEFU_CLOBBER:-}" ] && sed -i 's/^project rule$/project rule CLOBBERED/' "$P/CLAUDE.md"
+[ -n "${FAKE_AEFU_TOUCH_KEEP:-}" ] && echo "upstream overwrote it" > "$P/.agentic-framework/lib/keep.sh"
+echo "21 change(s) applied"
+EOS
+chmod +x "$AE/src/bin/fw"
+printf '1.8.15\n' > "$AE/src/VERSION"; printf 'upstream v1\n' > "$AE/src/lib/keep.sh"; printf 'old scan\n' > "$AE/src/agents/termlink/termlink.sh"
+aefu_g -C "$AE/src" init -q && aefu_g -C "$AE/src" add -A && aefu_g -C "$AE/src" commit -q -m "A: vendored"
+AEFU_A="$(git -C "$AE/src" rev-parse HEAD)"
+aefu_g -C "$AE/src" checkout -q -b side && echo side > "$AE/src/side.txt" && aefu_g -C "$AE/src" add -A && aefu_g -C "$AE/src" commit -q -m "S: side"
+AEFU_S="$(git -C "$AE/src" rev-parse HEAD)"; aefu_g -C "$AE/src" checkout -q main
+printf 'upstream v1\nupstream v2 line\n' > "$AE/src/lib/keep.sh"; printf 'T-5105 linear scan\n' > "$AE/src/agents/termlink/termlink.sh"
+aefu_g -C "$AE/src" add -A && aefu_g -C "$AE/src" commit -q -m "B: be.49" && aefu_g -C "$AE/src" tag v1.8.16-be.49
+AEFU_B="$(git -C "$AE/src" rev-parse HEAD)"
+mkdir -p "$AE/merges/lib"
+printf 'upstream v1\nlocal fix T-1\nupstream v2 line\n' > "$AE/merges/lib/keep.sh.merged"
+printf '# path\tours\ttheirs\tmerged\nlib/keep.sh\t%s\t%s\t%s\n' "$(printf 'upstream v1\nlocal fix T-1\n' | sha256sum | cut -d' ' -f1)" \
+    "$(sha256sum < "$AE/src/lib/keep.sh" | cut -d' ' -f1)" "$(sha256sum < "$AE/merges/lib/keep.sh.merged" | cut -d' ' -f1)" > "$AE/merges/MANIFEST.tsv"
+cat > "$AE/proj-fw" <<'EOS'
+#!/usr/bin/env bash
+# fake project fw for action 11a: config set HOST, watchtower restart, doctor
+P="$(cd "$(dirname "$0")/../.." && pwd)"
+case "$1" in
+  config) [ "$2 $3" = "set HOST" ] || exit 9; [ -n "${FAKE_AEFU_NOHOST:-}" ] && exit 0
+          sed -i '/^HOST:/d' "$P/.framework.yaml"; echo "HOST: $4" >> "$P/.framework.yaml" ;;
+  watchtower) [ "$2" = restart ] || exit 9; echo restart >> "$FAKE_AEFU_WTUP.restarts"; [ -n "${FAKE_AEFU_WT_DEAD:-}" ] || : > "$FAKE_AEFU_WTUP" ;;
+  doctor) echo "PASS  all fine"   # the FAIL appears only once the upgrade has written its files
+          [ -n "${FAKE_AEFU_DOCTOR_FAIL:-}" ] && [ -e "$P/.agentic-framework/lib/new-upstream.py" ] && echo "FAIL  something new"; exit 0 ;;
+  *) exit 9 ;;
+esac
+EOS
+printf '#!/usr/bin/env bash\n[ -e "$FAKE_AEFU_WTUP" ] && grep -qx "HOST: 0.0.0.0" "$FAKE_AEFU_PROJ/.framework.yaml"\n' > "$AE/curl"
+printf '#!/usr/bin/env bash\n[ -z "${FAKE_AEFU_DIV_DIRTY:-}" ]\n' > "$AE/divcheck"
+chmod +x "$AE/proj-fw" "$AE/curl" "$AE/divcheck"
+aefu_state() {  # done|fresh [vendored-commit]
+    local P="$AE/proj" v="${2:-$AEFU_A}"
+    rm -rf "$P" "$AE/origin.git" "$AE/wtup" "$AE/wtup.restarts" "$AE/work"; mkdir -p "$AE/work"
+    aefu_g init -q --bare "$AE/origin.git"
+    mkdir -p "$P/.agentic-framework/bin" "$P/.agentic-framework/lib" "$P/.agentic-framework/agents/termlink" "$P/scripts"
+    printf '# proj\nproject rule\n## Core Principle\ngovernance\n' > "$P/CLAUDE.md"
+    printf 'PORT: 3003\n' > "$P/.framework.yaml"
+    printf 'files:\n  - path: lib/keep.sh\n    reason: fixture\n' > "$P/.fwvendor-preserve.yaml"
+    printf '.context/working/\n' > "$P/.gitignore"
+    cp "$AE/proj-fw" "$P/.agentic-framework/bin/fw"
+    echo "1.8.15+1.g${v:0:9}" > "$P/.agentic-framework/VERSION"
+    printf 'upstream v1\nlocal fix T-1\n' > "$P/.agentic-framework/lib/keep.sh"
+    printf 'old scan\n' > "$P/.agentic-framework/agents/termlink/termlink.sh"
+    printf '#!/bin/sh\n' > "$P/scripts/existing.sh"
+    aefu_g -C "$P" init -q; git -C "$P" config user.name fx; git -C "$P" config user.email fx@example.invalid
+    git -C "$P" config commit.gpgsign false; git -C "$P" remote add origin "$AE/origin.git"
+    aefu_g -C "$P" add -A && aefu_g -C "$P" commit -q -m "T-1: fixture project"
+    if [ "$1" = done ]; then
+        echo "1.8.15+2.g${AEFU_B:0:9}" > "$P/.agentic-framework/VERSION"
+        cp "$AE/merges/lib/keep.sh.merged" "$P/.agentic-framework/lib/keep.sh"
+        printf 'T-5105 linear scan\n' > "$P/.agentic-framework/agents/termlink/termlink.sh"
+        echo "HOST: 0.0.0.0" >> "$P/.framework.yaml"; : > "$AE/wtup"
+        aefu_g -C "$P" add -A && aefu_g -C "$P" commit -q -m "T-3778: fw upgrade fixture"
+    fi
+    aefu_g -C "$P" push -q origin HEAD:main 2>/dev/null
+}
+aefu_state done
+export RUNME_AEFU_SRC="$AE/src" RUNME_AEFU_PROJECT="$AE/proj" RUNME_AEFU_WORKROOT="$AE/work" RUNME_AEFU_DIVCHECK="$AE/divcheck" \
+       RUNME_AEFU_URL="http://fixture.invalid:3003" RUNME_AEFU_CURL="$AE/curl" RUNME_AEFU_MERGES="$AE/merges" \
+       FAKE_AEFU_WTUP="$AE/wtup" FAKE_AEFU_PROJ="$AE/proj"
 # T-3443: let the real-run cases run as a non-root CI user too (fixture mode only;
 # case 11 unsets this to test the real non-root refusal).
 export RUNME_FIXTURE_ALLOW_NONROOT=1
@@ -827,7 +909,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 46 ))   # +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 47 ))   # +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -2836,6 +2918,104 @@ if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  release v9.9.9 did not install
     ok "T-3698: a release that cannot be fetched => FAILED, current unchanged"
 else bad "T-3698 missing release" "rc=$rc: $x"; fi
 rel_reset; rm -rf "$REL" "$RST" "$W1R"/pid.* "$W1R"/conf/* "$W1R"/kept.* "$W1R/restarts"
+
+# ---------------------------------------------------------------------------
+# T-3778 action 11a: vendored framework upgrade to v1.8.16-be.49 (scratch repos only).
+# ---------------------------------------------------------------------------
+s11a() { echo "$1" | sed -n '/11a\. Upgrade the vendored framework/,/11b\. Deploy/p'; }
+AP="$AE/proj"
+aefu_head() { git -C "$AP" rev-parse HEAD; }
+aefu_untouched() {  # <head-before>: fresh project unchanged — VERSION, CLAUDE.md, HEAD, no stray files
+    [ "$(cat "$AP/.agentic-framework/VERSION")" = "1.8.15+1.g${AEFU_A:0:9}" ] && [ "$(aefu_head)" = "$1" ] \
+    && grep -qx 'project rule' "$AP/CLAUDE.md" && [ ! -e "$AP/.agentic-framework/lib/new-upstream.py" ] \
+    && [ ! -e "$AP/.agentic-framework/lib/half-written.py" ] && [ -z "$(git -C "$AP" status --porcelain)" ]
+}
+
+out=$(run); rc=$?; x=$(s11a "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all "skip    vendored framework 1.8.15+2.g${AEFU_B:0:9} is at or past v1.8.16-be.49, merges in place, HOST 0.0.0.0, Watchtower answers"; then
+    ok "T-3778: at be.49, merged, pushed, HOST set, Watchtower answering => skip"
+else bad "T-3778 done skip" "rc=$rc: $x"; fi
+
+aefu_state fresh; h0=$(aefu_head)
+out=$(run --dry-run); rc=$?; x=$(s11a "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all "\[DRY\]   would upgrade 1.8.15+1.g${AEFU_A:0:9} -> v1.8.16-be.49 (${AEFU_B:0:9}, 1 commits)" \
+   && aefu_untouched "$h0" && [ -z "$(ls "$AE/work")" ]; then
+    ok "T-3778: --dry-run => says what it would do, clones and changes nothing"
+else bad "T-3778 dry-run" "rc=$rc: $x"; fi
+
+out=$(run); rc=$?; x=$(s11a "$out")
+park="$AP/.context/working/vendor-upstream-v1816-be49/scripts/tool.sh.upstream"
+if [ "$rc" = 0 ] && echo "$x" | grep_all "OK      upgraded to 1.8.15+2.g${AEFU_B:0:9}; CLAUDE.md project part and 1 preserved files byte-identical; 1 merged files installed" \
+   && echo "$x" | grep_all 'OK      HOST 0.0.0.0 set in .framework.yaml' && echo "$x" | grep_all 'OK      pushed to origin' \
+   && echo "$x" | grep_all 'OK      Watchtower restarted and answering at http://fixture.invalid:3003' \
+   && echo "$x" | grep_all 'OK      fw doctor: no new FAIL' \
+   && cmp -s "$AP/.agentic-framework/lib/keep.sh" "$AE/merges/lib/keep.sh.merged" && grep -qx 'HOST: 0.0.0.0' "$AP/.framework.yaml" \
+   && git -C "$AP" log -1 --format=%s | grep_all '^T-3778: fw upgrade -> v1.8.16-be.49' \
+   && [ "$(git -C "$AE/origin.git" rev-parse main)" = "$(aefu_head)" ] && [ -f "$park" ] && [ ! -e "$AP/scripts/tool.sh.upstream" ] \
+   && git -C "$AP" ls-files --error-unmatch .agentic-framework/lib/new-upstream.py >/dev/null 2>&1 && [ -z "$(git -C "$AP" status --porcelain)" ]; then
+    ok "T-3778: upgrade => at be.49, merge installed, HOST set, committed T-3778, pushed, .upstream parked, Watchtower answers, doctor clean"
+else bad "T-3778 upgrade" "rc=$rc: $x"; fi
+
+h1=$(aefu_head); out=$(run); rc=$?; x=$(s11a "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'skip    vendored framework' && [ "$(aefu_head)" = "$h1" ]; then
+    ok "T-3778: second run skips (idempotent: no clone, no commit)"
+else bad "T-3778 idempotent" "rc=$rc: $x"; fi
+
+rm -f "$AE/wtup"; out=$(run); rc=$?; x=$(s11a "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'OK      Watchtower restarted and answering' && [ -e "$AE/wtup" ]; then
+    ok "T-3778: Watchtower down after the upgrade => restarted and verified on the LAN URL"
+else bad "T-3778 wt repair" "rc=$rc: $x"; fi
+
+rm -f "$AE/wtup"; out=$(FAKE_AEFU_WT_DEAD=1 run); rc=$?; x=$(s11a "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  Watchtower restarted but http://fixture.invalid:3003 does not answer'; then
+    ok "T-3778: Watchtower not answering after a restart => FAILED, rc 1 (control)"
+else bad "T-3778 wt dead" "rc=$rc: $x"; fi
+: > "$AE/wtup"
+
+sed -i '/^HOST:/d' "$AP/.framework.yaml"; out=$(FAKE_AEFU_NOHOST=1 run); rc=$?; x=$(s11a "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  fw config set HOST 0.0.0.0 ran but .framework.yaml has no 'HOST: 0.0.0.0'"; then
+    ok "T-3778: HOST not written => FAILED, rc 1 (control)"
+else bad "T-3778 nohost" "rc=$rc: $x"; fi
+
+# Each control on a fresh project: refused or rolled back, rc 1, the project left as it was.
+for c in clobber oldver keep uprc doctor; do
+    aefu_state fresh; h0=$(aefu_head)
+    case $c in
+        clobber) out=$(FAKE_AEFU_CLOBBER=1 run); rc=$?; why="CLAUDE.md above '## Core Principle' changed (T-2015)" ;;
+        oldver)  out=$(FAKE_AEFU_OLDVER=1 run); rc=$?; why="after the upgrade VERSION reads '1.8.15+1.g${AEFU_A:0:9}', not v1.8.16-be.49 or later" ;;
+        keep)    out=$(FAKE_AEFU_TOUCH_KEEP=1 run); rc=$?; why="preserved lib/keep.sh was not kept byte-identical (T-4870)" ;;
+        uprc)    out=$(FAKE_AEFU_UP_RC=3 run); rc=$?; why="fw upgrade exited 3" ;;
+        doctor)  out=$(FAKE_AEFU_DOCTOR_FAIL=1 run); rc=$?; why="fw doctor has FAIL lines it did not have before the upgrade" ;;
+    esac
+    x=$(s11a "$out")
+    if [ "$c" = doctor ]; then
+        if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  $why" && echo "$x" | grep_all 'FAIL  something new' \
+           && git -C "$AP" log -1 --format=%s | grep_all '^T-3778: fw upgrade'; then
+            ok "T-3778: a new fw doctor FAIL after the upgrade => FAILED and named, rc 1 (control)"
+        else bad "T-3778 doctor" "rc=$rc: $x"; fi
+    elif [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  $why" && echo "$x" | grep_all 'rolled back to HEAD' && aefu_untouched "$h0"; then
+        ok "T-3778: $c => FAILED, every changed path rolled back, rc 1 (control)"
+    else bad "T-3778 $c" "rc=$rc: $x"; fi
+done
+
+for c in div side dirty stale notag; do
+    aefu_state fresh; h0=$(aefu_head); envs=()
+    case $c in
+        div)   envs=(FAKE_AEFU_DIV_DIRTY=1); why="check-vendor-divergence.sh is not clean" ;;
+        side)  aefu_state fresh "$AEFU_S"; h0=$(aefu_head); why="vendored commit ${AEFU_S:0:9} is not an ancestor of v1.8.16-be.49" ;;
+        dirty) echo "local edit" >> "$AP/.agentic-framework/lib/keep.sh"; why="uncommitted changes under .agentic-framework" ;;
+        stale) echo "another local fix" >> "$AP/.agentic-framework/lib/keep.sh"; aefu_g -C "$AP" commit -qam "T-1: later fix"; h0=$(aefu_head)
+               why="vendored lib/keep.sh is not the copy the stored merge was made from (re-merge needed)" ;;
+        notag) git -C "$AE/src" tag -d v1.8.16-be.49 >/dev/null; why="v1.8.16-be.49 is not in $AE/src" ;;
+    esac
+    out=$(env "${envs[@]}" RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?; x=$(s11a "$out")
+    [ "$c" = notag ] && git -C "$AE/src" tag v1.8.16-be.49 "$AEFU_B"
+    if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  .*$why" && [ "$(aefu_head)" = "$h0" ] && [ -z "$(ls "$AE/work")" ] \
+       && [ ! -e "$AP/.agentic-framework/lib/new-upstream.py" ]; then
+        ok "T-3778: $c => refused before changing anything, rc 1 (control)"
+    else bad "T-3778 refuse $c" "rc=$rc: $x"; fi
+done
+aefu_state done
 
 echo ""
 echo "----------------------------------------"

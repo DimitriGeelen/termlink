@@ -1737,6 +1737,293 @@ head2 "11. Schedule the hourly vector-index reindex (T-3336)"
 schedule_reindex
 
 # ---------------------------------------------------------------------------
+# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.49 (T-3778; operator ruling A)
+#
+# be.49 carries AEF T-5105: termlink.sh _all_wdirs is linear and fork-free (60-80 s became
+# 0.4 s per dispatch on .107), so `fw reviewer judge` no longer hits its 120 s dispatch
+# timeout. The procedure is the .vendor-divergence.yaml checklist the T-3589..T-3662 workers
+# ran by hand: refuse unless check-vendor-divergence is clean, the vendored commit is an
+# ANCESTOR of the tag (T-3434), and the framework paths have no uncommitted changes; clone
+# $AEFU_SRC fresh (fw upgrade writes into its source clone, T-4688), dry-run, upgrade with the
+# session env unset (T-3489). Then verify on disk: VERSION at or past the tag, CLAUDE.md above
+# `## Core Principle` byte-identical (T-2015), every .fwvendor-preserve.yaml file byte-identical
+# (T-4870). Four preserved files changed upstream; two of them conflict, so the 3-way merges
+# (base be.27) were resolved by the T-3778 agent and committed in .context/vendor-merges/T-3778
+# with a hash manifest: they are installed only when ours and theirs are exactly the copies
+# the merge was made from. Any failure before the commit rolls back every path the upgrade
+# changed. Toolkit .upstream copies are parked in .context/working/vendor-upstream-<tag>/.
+# be.46+ binds Watchtower to 127.0.0.1 by default (AEF T-4239), so HOST 0.0.0.0 is set
+# explicitly and Watchtower restarted; verified by the LAN URL answering. Commit (T-3778) and
+# push to origin only. fw doctor: a FAIL line that was not there before the upgrade is FAILED.
+# Idempotent: at or past the tag with merges in place, pushed, HOST set and Watchtower
+# answering -> skip; a missing HOST or a dead Watchtower is repaired.
+# Seams (fixtures only): RUNME_AEFU_SRC, RUNME_AEFU_PROJECT, RUNME_AEFU_WORKROOT,
+#   RUNME_AEFU_DIVCHECK, RUNME_AEFU_URL, RUNME_AEFU_CURL, RUNME_AEFU_MERGES.
+# ---------------------------------------------------------------------------
+seam AEFU_SRC RUNME_AEFU_SRC "/opt/999-Agentic-Engineering-Framework"
+seam AEFU_PROJECT RUNME_AEFU_PROJECT "$PROJECT_ROOT"
+seam AEFU_WORKROOT RUNME_AEFU_WORKROOT "/var/tmp"
+seam AEFU_DIVCHECK RUNME_AEFU_DIVCHECK "$PROJECT_ROOT/scripts/check-vendor-divergence.sh"
+seam AEFU_URL RUNME_AEFU_URL "http://192.168.10.107:3003"
+seam AEFU_CURL RUNME_AEFU_CURL "curl"
+seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3778"
+AEFU_TAG="v1.8.16-be.49"
+AEFU_PATHS=".agentic-framework CLAUDE.md .framework.yaml .claude/settings.json"
+
+aefu_fw()  { (cd "$AEFU_PROJECT" && "$AEFU_PROJECT/.agentic-framework/bin/fw" "$@"); }
+aefu_git() { git -C "$AEFU_PROJECT" "$@"; }
+aefu_sha() { sha256sum < "$1" 2>/dev/null | cut -d' ' -f1; }
+aefu_version() { tr -d '[:space:]' < "$AEFU_PROJECT/.agentic-framework/VERSION" 2>/dev/null; }
+aefu_vend_commit() {  # the AEF commit the vendored copy was built from (VERSION <x>+<n>.g<sha>, or tag v<x>)
+    local v ref; v="$(aefu_version)"; [ -n "$v" ] || return 1
+    case "$v" in *+*.g*) ref="${v##*.g}" ;; *) ref="v$v" ;; esac
+    git -C "$AEFU_SRC" rev-parse -q --verify "$ref^{commit}" 2>/dev/null
+}
+aefu_tag_commit() { git -C "$AEFU_SRC" rev-parse -q --verify "$AEFU_TAG^{commit}" 2>/dev/null; }
+aefu_host_ok() { grep -qE "^HOST:[[:space:]]*[\"']?0\.0\.0\.0[\"']?[[:space:]]*$" "$AEFU_PROJECT/.framework.yaml" 2>/dev/null; }
+aefu_wt_ok() { $AEFU_CURL -sf -o /dev/null --max-time 5 "$AEFU_URL" >/dev/null 2>&1; }
+aefu_wt_wait() { local i; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do aefu_wt_ok && return 0; nap 5; done; return 1; }
+aefu_manifest() { grep -v '^#' "$AEFU_MERGES/MANIFEST.tsv" 2>/dev/null | grep -v '^[[:space:]]*$'; }
+aefu_preserved() { sed -n 's/^[[:space:]]*-[[:space:]]*path:[[:space:]]*\([^[:space:]#]*\).*/\1/p' "$AEFU_PROJECT/.fwvendor-preserve.yaml" 2>/dev/null; }
+aefu_commit_sha() { aefu_git log -1 --format=%H --grep='^T-3778: fw upgrade' 2>/dev/null; }
+aefu_pushed() { local c; c="$(aefu_commit_sha)"; [ -n "$c" ] && aefu_git merge-base --is-ancestor "$c" origin/main 2>/dev/null; }
+aefu_merges_installed() {  # 0 when every manifest file in the vendored tree is the merged copy
+    local p o t m n=0
+    while IFS=$'\t' read -r p o t m; do
+        [ "$(aefu_sha "$AEFU_PROJECT/.agentic-framework/$p")" = "$m" ] || return 1; n=$((n+1))
+    done < <(aefu_manifest)
+    [ "$n" -gt 0 ]
+}
+aefu_check_manifest() {  # <vendored commit> <tag commit> -> prints why the stored merges cannot be used; nothing if they can
+    local p o t m listed=" "
+    [ -n "$(aefu_manifest)" ] || { echo "merge manifest missing or empty: $AEFU_MERGES/MANIFEST.tsv"; return; }
+    while IFS=$'\t' read -r p o t m; do
+        listed="$listed$p "
+        [ "$(aefu_sha "$AEFU_PROJECT/.agentic-framework/$p")" = "$o" ] || { echo "vendored $p is not the copy the stored merge was made from (re-merge needed)"; return; }
+        [ "$(git -C "$AEFU_SRC" show "$2:$p" 2>/dev/null | sha256sum | cut -d' ' -f1)" = "$t" ] || { echo "$AEFU_TAG's $p is not the copy the stored merge was made from (re-merge needed)"; return; }
+        [ "$(aefu_sha "$AEFU_MERGES/$p.merged")" = "$m" ] || { echo "stored merge $AEFU_MERGES/$p.merged does not match its manifest hash"; return; }
+    done < <(aefu_manifest)
+    for p in $(aefu_preserved); do
+        git -C "$AEFU_SRC" diff --quiet "$1" "$2" -- "$p" 2>/dev/null && continue
+        case "$listed" in *" $p "*) ;; *) echo "preserved $p changed upstream and has no stored merge"; return ;; esac
+    done
+}
+aefu_rollback() {  # <porcelain-before>: undo every path that changed since, restoring HEAD's copy
+    local line path
+    aefu_git status --porcelain --untracked-files=all > "$1.now" 2>/dev/null
+    while IFS= read -r line; do
+        path="${line:3}"
+        case "$line" in
+            '?? '*) rm -f -- "$AEFU_PROJECT/$path" ;;
+            *) aefu_git checkout -q HEAD -- "$path" 2>/dev/null ;;
+        esac
+    done < <(grep -vxFf "$1" "$1.now" | aefu_upgrade_paths)
+}
+aefu_upgrade_paths() {  # filter porcelain lines to the paths fw upgrade writes; a concurrent session's
+    # edits elsewhere (active tasks, .context/project, crates/) are never rolled back or committed.
+    local line
+    while IFS= read -r line; do
+        case "${line:3}" in
+            .agentic-framework/*|CLAUDE.md|.framework.yaml|.claude/*|.tasks/templates/*|.tasks/workflow/*|.context/cron/*|.context/.gitignore|.gitignore|scripts/*) printf '%s\n' "$line" ;;
+        esac
+    done
+}
+aefu_net() {  # [force-restart]: HOST 0.0.0.0 on disk, Watchtower answering at $AEFU_URL; repairs both. 0 ok, 1 failed
+    local force="${1:-0}"
+    if ! aefu_host_ok; then
+        aefu_fw config set HOST 0.0.0.0 >/dev/null 2>&1
+        if ! aefu_host_ok; then say "  FAILED  fw config set HOST 0.0.0.0 ran but .framework.yaml has no 'HOST: 0.0.0.0'"; return 1; fi
+        say "  OK      HOST 0.0.0.0 set in .framework.yaml (be.46+ binds 127.0.0.1 by default, AEF T-4239)"; force=1
+    fi
+    if [ "$force" = 1 ] || ! aefu_wt_ok; then
+        aefu_fw watchtower restart >/dev/null 2>&1
+        if ! aefu_wt_wait; then say "  FAILED  Watchtower restarted but $AEFU_URL does not answer (fw watchtower status; .framework.yaml HOST)"; return 1; fi
+        say "  OK      Watchtower restarted and answering at $AEFU_URL"
+    fi
+    return 0
+}
+
+aefu_upgrade() {
+    local tagc vendc why="" dirty W p o t m f n msg rc paths=() newfail
+    tagc="$(aefu_tag_commit)"
+    if [ -z "$tagc" ]; then
+        say "  FAILED  $AEFU_TAG is not in $AEFU_SRC (its tags were not fetched); nothing changed"; FAILED=$((FAILED+1)); return
+    fi
+    vendc="$(aefu_vend_commit)"
+    if [ -z "$vendc" ]; then
+        say "  FAILED  vendored VERSION '$(aefu_version)' does not resolve to a commit in $AEFU_SRC; nothing changed"; FAILED=$((FAILED+1)); return
+    fi
+
+    # --- Already at or past the tag: verify, repair the network binding, push if needed. ---
+    if git -C "$AEFU_SRC" merge-base --is-ancestor "$tagc" "$vendc" 2>/dev/null; then
+        if [ "$vendc" = "$tagc" ] && ! aefu_merges_installed; then
+            say "  FAILED  at $AEFU_TAG, but the merged preserved files from $AEFU_MERGES are not installed"; FAILED=$((FAILED+1)); return
+        fi
+        if ! grep -q 'T-5105' "$AEFU_PROJECT/.agentic-framework/agents/termlink/termlink.sh" 2>/dev/null; then
+            say "  FAILED  VERSION says $AEFU_TAG or later, but agents/termlink/termlink.sh lacks T-5105"; FAILED=$((FAILED+1)); return
+        fi
+        if [ -n "$(aefu_commit_sha)" ] && ! aefu_pushed; then
+            if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would push the T-3778 upgrade commit to origin"; DONE=$((DONE+1)); return; fi
+            aefu_git push -q origin HEAD:main >/dev/null 2>&1
+            if ! aefu_pushed; then say "  FAILED  the T-3778 upgrade commit is not on origin/main and the push did not take"; FAILED=$((FAILED+1)); return; fi
+            say "  OK      T-3778 upgrade commit pushed to origin"
+            n=pushed
+        fi
+        if aefu_host_ok && aefu_wt_ok; then
+            if [ "${n:-}" = pushed ]; then DONE=$((DONE+1)); return; fi
+            say "  skip    vendored framework $(aefu_version) is at or past $AEFU_TAG, merges in place, HOST 0.0.0.0, Watchtower answers at $AEFU_URL"
+            SKIPPED=$((SKIPPED+1)); return
+        fi
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would set HOST 0.0.0.0 if missing and restart Watchtower until $AEFU_URL answers"; DONE=$((DONE+1)); return
+        fi
+        if aefu_net; then DONE=$((DONE+1)); else FAILED=$((FAILED+1)); fi
+        return
+    fi
+
+    # --- Preflight: refuse before changing anything. ---
+    git -C "$AEFU_SRC" merge-base --is-ancestor "$vendc" "$tagc" 2>/dev/null \
+        || why="vendored commit ${vendc:0:9} is not an ancestor of $AEFU_TAG (${tagc:0:9}); a newer tag can be older code (T-3434)"
+    if [ -z "$why" ] && ! (cd "$PROJECT_ROOT" && bash "$AEFU_DIVCHECK" --quiet >/dev/null 2>&1); then
+        why="check-vendor-divergence.sh is not clean: an unregistered local fix would be deleted (CLAUDE.md rule 2)"
+    fi
+    if [ -z "$why" ]; then
+        # shellcheck disable=SC2086
+        dirty="$(aefu_git status --porcelain --untracked-files=all -- $AEFU_PATHS 2>&1)"
+        [ -n "$dirty" ] && why="uncommitted changes under $AEFU_PATHS: $(printf '%s' "$dirty" | head -3 | tr '\n' ' ')"
+    fi
+    if [ -z "$why" ] && [ "$(grep -c '^## Core Principle$' "$AEFU_PROJECT/CLAUDE.md" 2>/dev/null)" != 1 ]; then
+        why="CLAUDE.md has no single '## Core Principle' line, so its project part cannot be checked (T-2015)"
+    fi
+    [ -z "$why" ] && why="$(aefu_check_manifest "$vendc" "$tagc")"
+    if [ -n "$why" ]; then
+        say "  FAILED  refused before changing anything: $why"; FAILED=$((FAILED+1)); return
+    fi
+    n="$(git -C "$AEFU_SRC" rev-list --count "$vendc..$tagc" 2>/dev/null)"
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would upgrade $(aefu_version) -> $AEFU_TAG (${tagc:0:9}, $n commits) from a fresh clone of $AEFU_SRC,"
+        say "          install $(aefu_manifest | wc -l) merged preserved files, set HOST 0.0.0.0, restart Watchtower, commit T-3778, push to origin"
+        DONE=$((DONE+1)); return
+    fi
+
+    # --- Fresh clone at the tag. ---
+    W="$(mktemp -d "$AEFU_WORKROOT/t3778-aef.XXXXXX" 2>/dev/null)" || { say "  FAILED  cannot make a work dir under $AEFU_WORKROOT"; FAILED=$((FAILED+1)); return; }
+    if ! git clone -q --no-hardlinks "$AEFU_SRC" "$W/aef" >"$W/clone.log" 2>&1 \
+       || ! git -C "$W/aef" checkout -q --detach "$tagc" >>"$W/clone.log" 2>&1 \
+       || [ "$(git -C "$W/aef" rev-parse HEAD 2>/dev/null)" != "$tagc" ]; then
+        say "  FAILED  could not clone $AEFU_SRC at $AEFU_TAG (log: $W/clone.log); nothing changed"; FAILED=$((FAILED+1)); return
+    fi
+
+    # --- Before-state, for the on-disk checks and the rollback. ---
+    aefu_git status --porcelain --untracked-files=all > "$W/porcelain-before" 2>&1
+    sed '/^## Core Principle$/,$d' "$AEFU_PROJECT/CLAUDE.md" > "$W/claude-project-before"
+    for p in $(aefu_preserved); do
+        mkdir -p "$W/preserved/$(dirname "$p")"; cp -p "$AEFU_PROJECT/.agentic-framework/$p" "$W/preserved/$p" 2>/dev/null
+    done
+    aefu_fw doctor > "$W/doctor-before" 2>&1
+    local ENVU=(env -u FRAMEWORK_ROOT -u PROJECT_ROOT -u FW_ROUTED_FROM -u TASKS_DIR -u CONTEXT_DIR -u CLAUDE_PROJECT_DIR -u _FW_PATHS_DERIVED_BY TMPDIR=/var/tmp)
+
+    (cd "$AEFU_PROJECT" && "${ENVU[@]}" timeout 900 "$W/aef/bin/fw" upgrade --dry-run "$AEFU_PROJECT") > "$W/upgrade-dry.log" 2>&1; rc=$?
+    aefu_git status --porcelain --untracked-files=all > "$W/porcelain-dry" 2>&1
+    if [ "$rc" != 0 ] || ! cmp -s "$W/porcelain-before" "$W/porcelain-dry"; then
+        aefu_rollback "$W/porcelain-before"
+        say "  FAILED  fw upgrade --dry-run exited $rc or changed files (log: $W/upgrade-dry.log); rolled back"; FAILED=$((FAILED+1)); return
+    fi
+    say "  ...     fw upgrade $(aefu_version) -> $AEFU_TAG ($n commits); this takes a few minutes (log: $W/upgrade.log)"
+    (cd "$AEFU_PROJECT" && "${ENVU[@]}" timeout 1800 "$W/aef/bin/fw" upgrade "$AEFU_PROJECT") > "$W/upgrade.log" 2>&1; rc=$?
+
+    # --- On-disk checks; any miss rolls the upgrade back. ---
+    why=""
+    [ "$rc" = 0 ] || why="fw upgrade exited $rc: $(tail -3 "$W/upgrade.log" | tr '\n' ' ')"
+    if [ -z "$why" ]; then
+        f="$(aefu_vend_commit)"
+        { [ -n "$f" ] && git -C "$AEFU_SRC" merge-base --is-ancestor "$tagc" "$f" 2>/dev/null; } \
+            || why="after the upgrade VERSION reads '$(aefu_version)', not $AEFU_TAG or later"
+    fi
+    if [ -z "$why" ] && ! sed '/^## Core Principle$/,$d' "$AEFU_PROJECT/CLAUDE.md" | cmp -s - "$W/claude-project-before"; then
+        why="CLAUDE.md above '## Core Principle' changed (T-2015); diff against $W/claude-project-before"
+    fi
+    if [ -z "$why" ]; then
+        for p in $(aefu_preserved); do
+            cmp -s "$W/preserved/$p" "$AEFU_PROJECT/.agentic-framework/$p" || { why="preserved $p was not kept byte-identical (T-4870)"; break; }
+        done
+    fi
+    if [ -z "$why" ]; then
+        while IFS=$'\t' read -r p o t m; do
+            f="$AEFU_PROJECT/.agentic-framework/$p"
+            cp "$AEFU_MERGES/$p.merged" "$f" 2>/dev/null
+            [ "$(aefu_sha "$f")" = "$m" ] || { why="merged $p did not install (hash differs)"; break; }
+            case "$p" in
+                *.sh) bash -n "$f" 2>/dev/null || { why="merged $p does not parse (bash -n)"; break; } ;;
+                *.py) python3 -I -c 'import ast,sys; ast.parse(open(sys.argv[1]).read())' "$f" 2>/dev/null || { why="merged $p does not parse"; break; } ;;
+            esac
+        done < <(aefu_manifest)
+    fi
+    if [ -z "$why" ] && ! grep -q 'T-5105' "$AEFU_PROJECT/.agentic-framework/agents/termlink/termlink.sh" 2>/dev/null; then
+        why="agents/termlink/termlink.sh lacks T-5105 (the dispatch scan fix this upgrade is for)"
+    fi
+    if [ -n "$why" ]; then
+        aefu_rollback "$W/porcelain-before"
+        say "  FAILED  $why; every changed path rolled back to HEAD (logs: $W)"; FAILED=$((FAILED+1)); return
+    fi
+    say "  OK      upgraded to $(aefu_version); CLAUDE.md project part and $(aefu_preserved | wc -l) preserved files byte-identical; $(aefu_manifest | wc -l) merged files installed"
+
+    # --- Park the toolkit .upstream copies the upgrade left beside KEPT files (T-3555). ---
+    aefu_git status --porcelain --untracked-files=all > "$W/porcelain-after" 2>&1
+    n=0
+    while IFS= read -r p; do
+        case "$p" in '?? '*.upstream) ;; *) continue ;; esac
+        p="${p:3}"; f="$AEFU_PROJECT/.context/working/vendor-upstream-${AEFU_TAG//./}/$p"
+        mkdir -p "$(dirname "$f")" && mv -f "$AEFU_PROJECT/$p" "$f" && n=$((n+1))
+    done < <(grep -vxFf "$W/porcelain-before" "$W/porcelain-after")
+    [ "$n" -gt 0 ] && say "  note    $n .upstream copies parked in .context/working/vendor-upstream-${AEFU_TAG//./}/"
+
+    # --- HOST on disk before the commit, so .framework.yaml goes in with it. ---
+    if ! aefu_host_ok; then
+        aefu_fw config set HOST 0.0.0.0 >/dev/null 2>&1
+        aefu_host_ok || { say "  FAILED  fw config set HOST 0.0.0.0 ran but .framework.yaml has no 'HOST: 0.0.0.0'"; FAILED=$((FAILED+1)); return; }
+        say "  OK      HOST 0.0.0.0 set in .framework.yaml (be.46+ binds 127.0.0.1 by default, AEF T-4239)"
+    fi
+
+    # --- Commit exactly the paths this run changed, push to origin only. ---
+    aefu_git status --porcelain --untracked-files=all > "$W/porcelain-after" 2>&1
+    while IFS= read -r p; do paths+=("${p:3}"); done < <(grep -vxFf "$W/porcelain-before" "$W/porcelain-after" | aefu_upgrade_paths)
+    f="$(grep -vxFf "$W/porcelain-before" "$W/porcelain-after" | grep -vxFf <(aefu_upgrade_paths < "$W/porcelain-after") | cut -c4- | head -5 | tr '\n' ' ')"
+    [ -n "$f" ] && say "  note    changed during the run outside the upgrade's paths, left uncommitted: $f"
+    msg="T-3778: fw upgrade -> $AEFU_TAG (${tagc:0:9}, $(git -C "$AEFU_SRC" rev-list --count "$vendc..$tagc") commits; T-5105 dispatch scan; runme 11a)"
+    if [ "${#paths[@]}" = 0 ] || ! aefu_git add -A -- "${paths[@]}" >"$W/commit.log" 2>&1 \
+       || ! aefu_git commit -q -m "$msg" -- "${paths[@]}" >>"$W/commit.log" 2>&1; then
+        say "  FAILED  the upgrade is on disk and verified, but the commit did not take (log: $W/commit.log); re-run to retry"; FAILED=$((FAILED+1)); return
+    fi
+    if [ -n "$(aefu_git status --porcelain -- "${paths[@]}" 2>/dev/null)" ]; then
+        say "  FAILED  committed, but some upgraded paths are still uncommitted (log: $W/commit.log)"; FAILED=$((FAILED+1)); return
+    fi
+    say "  OK      committed $(aefu_git rev-parse --short HEAD) ($(printf '%s\n' "${paths[@]}" | wc -l) paths): $msg"
+    aefu_git push -q origin HEAD:main >"$W/push.log" 2>&1
+    if ! aefu_pushed; then
+        say "  FAILED  push to origin did not take (log: $W/push.log); re-run to retry"; FAILED=$((FAILED+1)); return
+    fi
+    say "  OK      pushed to origin (OneDev; GitHub is mirrored from there)"
+
+    # --- Watchtower onto the new code, on the LAN address. ---
+    aefu_net 1 || { FAILED=$((FAILED+1)); return; }
+
+    # --- fw doctor: no FAIL that was not there before. ---
+    aefu_fw doctor > "$W/doctor-after" 2>&1
+    newfail="$(grep 'FAIL' "$W/doctor-after" | grep -vxFf <(grep 'FAIL' "$W/doctor-before") | head -5)"
+    if [ -n "$newfail" ]; then
+        say "  FAILED  fw doctor has FAIL lines it did not have before the upgrade (log: $W/doctor-after):"
+        printf '%s\n' "$newfail" | sed 's/^/          /'
+        FAILED=$((FAILED+1)); return
+    fi
+    say "  OK      fw doctor: no new FAIL; vendored framework at $(aefu_version) (logs: $W)"
+    DONE=$((DONE+1))
+}
+
+head2 "11a. Upgrade the vendored framework to AEF $AEFU_TAG, Watchtower kept on the network (T-3778; operator ruling A)"
+aefu_upgrade
+
+# ---------------------------------------------------------------------------
 # ACTION 11b — deploy the regenerated audit crontab after a framework upgrade (T-3554)
 #
 # `fw upgrade` regenerates .context/cron/agentic-audit.crontab when the framework's
