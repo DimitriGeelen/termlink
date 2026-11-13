@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3759: Non-root design session needs dispatch: own hub, root, a root-side dispatch service, or delegation (external consultation)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T12:53:39Z
+# ============================================================================
+
+task_id: T-3759
+task_name: "Non-root design session needs dispatch: own hub, root, a root-side dispatch service, or delegation (external consultation)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T23:13:17Z
+completed: 2026-11-13T12:53:27Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-13T00:14:55+01:00
+last_commit: 2026-11-13T13:53:29+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  external consultation brief (dispatch for a non-root session), IW-1. panel answers claude-code (E > D > A > C > B) and antigravity (C > D > A > B, with E1/E2), stored unedited. panel answer codex (A > D > C > B, E: separate execution from registration), stored unedited; opencode unavailable (two empty runs). operator ruling A + D recorded, recommendation GO (panel evidence); GO itself pending operator in Watchtower. inception decision GO (via Watchtower)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-13 — dispatch for the non-root design session (operator ruling)'
+    chose: 'A + D. A: worker runs as the requesting user and signs in at the main hub over the network with its own user-bound registration permission (no root execution, workers visible). D (interim until A): the design session asks a root session using a fixed request form only (task id + reviewer kind), never commands taken from message text.'
+    rationale: 'all three panel answers converge on separating execution (unprivileged) from registration; A is the only option with no root execution and visible workers; D works today.'
+    alternatives_rejected: ['B root doorman that drops privileges (adds a root service; more to get right than A); C the user''s own hub (invisible workers, ambiguous hub detection); original C (root starts the worker: privilege escalation). - Operator words in chat: "A + D". Assumption recorded (overturnable): the interim neighbour is 1409''s own root main session (the design session belongs to project 1409). Left open: expiry of the registration permission (comes back with the build task).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/human-ac-ticks.jsonl'
+  - '.tasks/active/T-3759-non-root-design-session-needs-dispatch-o.md'
+  - '.tasks/completed/T-3759-non-root-design-session-needs-dispatch-o.md'
+  - 'docs/reports/T-3759-dispatch-nonroot/antigravity.md'
+  - 'docs/reports/T-3759-dispatch-nonroot/brief.md'
+  - 'docs/reports/T-3759-dispatch-nonroot/claude-code.md'
+  - 'docs/reports/T-3759-dispatch-nonroot/codex.md'
+  - 'docs/reports/T-3759-dispatch-nonroot/opencode-unavailable.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T00:14:55'
+    action: 'T-3759: external consultation brief (dispatch for a non-root session), IW-1'
+  - time: '2026-11-13T00:32:58'
+    action: 'T-3759: panel answers claude-code (E > D > A > C > B) and antigravity (C > D > A > B, with E1/E2), stored unedited'
+  - time: '2026-11-13T00:34:24'
+    action: 'T-3759: panel answer codex (A > D > C > B, E: separate execution from registration), stored unedited; opencode unavailable (two empty runs)'
+  - time: '2026-11-13T01:18:45'
+    action: 'T-3759: operator ruling A + D recorded, recommendation GO (panel evidence); GO itself pending operator in Watchtower'
+  - time: '2026-11-13T13:53:29'
+    action: 'T-3759: inception decision GO (via Watchtower)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 820 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 820
+  commits: 6
+  files_changed: 10
+  lines_added: 562
+  lines_removed: 17
+  footprint_refreshed_at: '2026-11-13T12:53:44Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3759-non-root-design-session-needs-dispatch-o.md
+generated_by: context-agent-hybrid

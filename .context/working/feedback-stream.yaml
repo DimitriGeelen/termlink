@@ -23541,3 +23541,29 @@ scan_id: R-896936f0
 task_id: T-3774
 payload:
   task_file: .tasks/active/T-3774-same-commit-two-versions-musl-build-repo.md
+---
+kind: scan_emitted
+timestamp: '2026-11-13T12:53:28Z'
+scan_id: R-54c1aaa8
+task_id: T-3759
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T12:53:28Z'
+scan_id: R-54c1aaa8
+task_id: T-3759
+payload:
+  task_file: .tasks/active/T-3759-non-root-design-session-needs-dispatch-o.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-11-13T12:53:28Z'
+scan_id: RC-e039b669
+task_id: T-3759
+payload:
+  overall: UNVERIFIED
+  claim_count: 0
