@@ -23523,3 +23523,21 @@ scan_id: R-affd764c
 task_id: T-3755
 payload:
   task_file: .tasks/active/T-3755-cli-integration-tests-fail-when-projectr.md
+---
+kind: scan_emitted
+timestamp: '2026-11-13T12:34:09Z'
+scan_id: R-896936f0
+task_id: T-3774
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T12:34:09Z'
+scan_id: R-896936f0
+task_id: T-3774
+payload:
+  task_file: .tasks/active/T-3774-same-commit-two-versions-musl-build-repo.md

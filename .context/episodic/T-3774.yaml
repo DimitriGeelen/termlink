@@ -1,0 +1,106 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3774: Same commit, two versions: musl build reports 0.12.1 while the host build reports 0.12.11 (build.rs version not re-derived when a tag is added)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T12:34:33Z
+# ============================================================================
+
+task_id: T-3774
+task_name: "Same commit, two versions: musl build reports 0.12.1 while the host build reports 0.12.11 (build.rs version not re-derived when a tag is added)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-13T10:50:12Z
+completed: 2026-11-13T12:34:01Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-13T13:33:48+01:00
+last_commit: 2026-11-13T13:33:48+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  dev builds report <tag>+<N>.g<sha> instead of major.minor.N — the old form collided with real releases (v0.12.11+4 reported 0.12.4) and fell at every tag; one derivation (crates/version-derive.rs) for all four crates, one comparator (scripts/lib/version-cmp.sh) for the freshness canary, arc-live-probe and preflight; floors rewritten to the same commit (0.12.786 = 0.12.4+786.gb0ed631de); tests with negative controls
+
+# Key outcomes
+outcomes:
+  - 'One derivation used by all four crates (`crates/version-derive.rs`, `include!`d by each build.rs): exact tag `vX.Y.Z` -> `X.Y.Z`; N>0 commits after it -> `X.Y.Z+N.g<sha9>`; unparseable / no tag -> None (Cargo.toml fallback, as before)'
+  - 'Unit tests of the mapping (exact tag, after-tag, the v0.12.11+4 collision case, pre-release tag, garbage -> None) pass under `rustc --test` (`tests/version-derive-tests.sh`); negative control: the old `major.minor.N` mapping put back fails 4 of them, incl. the 0.12.4 collision'
+  - 'Shared bash comparator `scripts/lib/version-cmp.sh` (SemVer precedence, then the commit count N as tie-break; sha never read as a number); `check-fleet-binary-freshness.sh`, `arc-live-probe.sh` and `substrate-preflight.sh` source it instead of their own copies'
+  - 'Fixture `tests/version-cmp-fixtures.sh` proves the chain 0.12.10 < 0.12.11-rc1 < 0.12.11 < 0.12.11+4.g… < 0.12.11+10.g… < 0.12.12 < … < 1.0.0 pairwise and that sha digits never leak; negative control: the old dotted comparator orders `0.12.11+4.g…` above `0.12.12`'
+  - 'Readers keep working and gain new-scheme cases: fleet freshness fixture (16, incl. 2 T-3774 with control), arc-live-probe (2 T-3774 cases, one must fire), preflight T6/T7 (the embedded commit decides; same number, different sha = the control), version-derivation fixtures (16)'
+  - 'Fleet floors rewritten to the same commit in the new form (`0.12.786` = b0ed631de = `0.12.4+786.gb0ed631de`)'
+  - '`env -u PROJECT_ROOT cargo build -p termlink` succeeds; the binary reports `0.12.11+6.gc559353a4` at HEAD (6 past v0.12.11); clippy on the four crates clean; session''s `recorded_version_is_the_build_version…` test passes'
+  - 'Decisions records the chosen scheme and the rejected ones; operator-facing consequences in the handback'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-13 — dev-build version form'
+    chose: '`<tag>+<N>.g<sha9>` (e.g. `0.12.11+4.ga2fcb16f8`); a tagged commit still reports exactly the tag.'
+    rationale: 'unique per commit (sha); names the release it sits on; orders after its tag and before the next under `sort -V` and our comparator; same shape the framework uses for FW_VERSION between releases (AEF T-4055), so one convention across the stack; valid SemVer.'
+    alternatives_rejected: ['`0.12.12-dev.N+g<sha>` (SemVer-ordered by spec, but claims a next version 0.12.12 that may never exist, and GNU `sort -V` puts `0.12.12-dev.4` ABOVE `0.12.12`); four-part `0.12.11.N` (not SemVer; breaks 3-part parsers such as homebrew/render-formula.sh and Rust parse_version); keep `major.minor.N` and only fix rerun triggers (the description''s fix; leaves the collisions, which are the bug).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/fleet-version-floors.conf'
+  - '.context/episodic/T-3755.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.tasks/active/T-3774-same-commit-two-versions-musl-build-repo.md'
+  - '.tasks/completed/T-3755-cli-integration-tests-fail-when-projectr.md'
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/build.rs'
+  - 'crates/termlink-hub/build.rs'
+  - 'crates/termlink-mcp/build.rs'
+  - 'crates/termlink-session/build.rs'
+  - 'crates/version-derive.rs'
+  - 'docs/operations/guard-layer-and-canaries.md'
+  - 'scripts/arc-live-probe.sh'
+  - 'scripts/check-fleet-binary-freshness.sh'
+  - 'scripts/lib/version-cmp.sh'
+  - 'scripts/substrate-preflight.sh'
+  - 'scripts/test-arc-live-probe.sh'
+  - 'scripts/test-check-fleet-binary-freshness.sh'
+  - 'scripts/test-substrate-preflight.sh'
+  - 'tests/version-cmp-fixtures.sh'
+  - 'tests/version-derive-tests.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T13:33:48'
+    action: 'T-3774: dev builds report <tag>+<N>.g<sha> instead of major.minor.N — the old form collided with real releases (v0.12.11+4 reported 0.12.4) and fell at every tag; one derivation (crates/version-derive.rs) for all four crates, one comparator (scripts/lib/version-cmp.sh) for the freshness canary, arc-live-probe and preflight; floors rewritten to the same commit (0.12.786 = 0.12.4+786.gb0ed631de); tests with negative controls'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 103 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, release]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 103
+  commits: 2
+  files_changed: 23
+  lines_added: 1146
+  lines_removed: 179
+  footprint_refreshed_at: '2026-11-13T12:35:01Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3774-same-commit-two-versions-musl-build-repo.md
+generated_by: context-agent-hybrid

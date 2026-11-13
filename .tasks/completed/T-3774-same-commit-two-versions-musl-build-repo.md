@@ -15,12 +15,12 @@ description: >
   and the version check uses the commit, not only the string; test: tag after build
   -> rebuild picks it up.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, release]
-components: []
+components: [crates/termlink-cli/build.rs, crates/termlink-hub/build.rs, crates/termlink-mcp/build.rs, crates/termlink-session/build.rs, scripts/arc-live-probe.sh, scripts/check-fleet-binary-freshness.sh, scripts/substrate-preflight.sh, scripts/test-arc-live-probe.sh, scripts/test-check-fleet-binary-freshness.sh, scripts/test-substrate-preflight.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -49,8 +49,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T10:50:12Z
-last_update: 2026-11-13T12:33:47Z
-date_finished:
+last_update: 2026-11-13T12:34:01Z
+date_finished: 2026-11-13T12:34:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -454,3 +454,23 @@ comparator (`scripts/lib/version-cmp.sh`) with pairwise-order fixtures and a con
 
 ### 2026-11-13T12:23:07Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-13T12:34:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-896936f0
+- **Timestamp:** 2026-11-13T12:34:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — One derivation used by all four crates (`crates/version-derive.rs`, `include!`d by each build.rs): exact tag `vX.Y.Z` -> `X.Y.Z`; N>0 commits after it -> `X.Y.Z+N.g<sha9>`; unparseable / no tag -> Non
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/version-derive.rs in: One derivation used by all four crates (`crates/version-derive.rs`, `include!`d by each build.rs): exact tag `vX.Y.Z` -> `X.Y.Z`; N>0 commits after it`
+- **AC#3 (Agent)** — Shared bash comparator `scripts/lib/version-cmp.sh` (SemVer precedence, then the commit count N as tie-break; sha never read as a number); `check-fleet-binary-freshness.sh`, `arc-live-probe.sh` and `s
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/lib/version-cmp.sh in: Shared bash comparator `scripts/lib/version-cmp.sh` (SemVer precedence, then the commit count N as tie-break; sha never read as a number); `check-flee`
