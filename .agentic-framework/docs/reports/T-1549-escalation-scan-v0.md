@@ -1,26 +1,21 @@
 # T-1549 — Layer B v0 Heuristic Scan Results
 
-**Run:** 2026-11-02T04:23:03.088126+00:00
-**Corpus:** 4105 completed tasks
-**Bug-class identified:** 761 (18%)
+**Run:** 2026-11-08T09:12:29.867019+00:00
+**Corpus:** 4120 completed tasks
+**Bug-class identified:** 762 (18%)
 
 ## H1 — Bug-class tasks with no `## RCA` section
 
-**Flagged:** 498 / 761 bug-class tasks (65%)
+**Flagged:** 499 / 762 bug-class tasks (65%)
 
 **Last 30 days sample (FP triage candidates):**
 
 - `T-3640-priority-tier-0-check-tier0sh-blocks-onl` — PRIORITY Tier 0: check-tier0.sh blocks only 'pkill -9' — every other SIGKILL
 - `T-3709-dispatch-route-cache-silently-picks-haik` — Dispatch route cache silently picks haiku for build work: _route_cache_query_bes
 - `T-3712-fw-upgrade-step-5-reports-partial-missin` — fw upgrade step 5 reports PARTIAL missing hooks (check-paid-backend, check-workt
-- `T-3714-upgrading-a-consumer-from-a-bleeding-edg` — Upgrading a consumer from a bleeding-edge clone: shallow clone refused as foreig
 - `T-3715-after-fw-upgrade-a-restarted-claude-code` — After fw upgrade, a restarted Claude Code fleet agent stalls on the New MCP
 - `T-3746-hasbashwritepattern-misses-2-redirects-t` — has_bash_write_pattern misses 2>/&> redirects to files, sed w flag/command,
 - `T-3886-bare-fw-upgrade-from-a-consumer-auto-clo` — Bare fw upgrade from a consumer auto-clones the source with --depth=1, so ever_i
-- `T-3957-sidecar-projectid-ignores-railprojectlab` — Sidecar project_id ignores RAIL_PROJECT_LABEL (010; their local fix 93297d781)
-- `T-3962-audits-reviewer-verdict-ledger-fail-show` — Audit's reviewer-verdict-ledger FAIL shows only the first 3 failing rows and no 
-- `T-3973-testtaskpairacdgate-b2b4-historic-regres` — test_task_pair_acd_gate B2+B4 historic regression runs the gate against the
-- `T-3975-t-3974-regression-vendorselfwithhold-lin` — T-3974 regression: vendor_self_withhold lint fails on the new .tasks/workflow se
 - `T-4051-fw-doctor-flags-the-on-path-claude-fw-ro` — fw doctor flags the on-PATH claude-fw router (T-2854) as drifted from repo
 - `T-4054-watchtower-config-registry-lacks-the-hos` — Watchtower /config registry lacks the HOST key T-4041 added to lib/config.sh
 - `T-4056-fw-doctor-misparses-interpreter-prefixed` — fw doctor misparses interpreter-prefixed hook commands (python3 \"$CLAUDE_PROJEC
@@ -35,15 +30,20 @@
 - `T-4115-fw-task-stale-is-gated-as-a-write-with-n` — fw task stale is gated as a write with no focus although fw doctor advises
 - `T-4117-commit-msg-hook-in-a-consumer-refuses-wm` — commit-msg hook in a consumer refuses WM-NNN references after upgrading to
 - `T-4122-fw-test-lint-scans-git-ignored-scratch-c` — fw test lint scans git-ignored scratch clones (.context/scratch/**) and reports
-- ... +84 more in last 30 days
+- `T-4227-fwhookcrashtrap-classifies-a-usage-error` — fw_hook_crash_trap classifies a usage-error exit 1 as a hook crash (HOOK CRASHED
+- `T-4303-a-binfw-that-does-not-parse-blocks-every` — A bin/fw that does not parse blocks every hook, so the operator cannot reach
+- `T-4306-fw-watchtower-stop-reports-failure-when-` — fw watchtower stop reports failure when the server process is a zombie
+- `T-4308-fw-inbox-t-4252-prints-a-python-tracebac` — fw inbox (T-4252) prints a Python traceback and exits 1 when termlink is not
+- `T-4316-consumers-own-secret-scan-allowlist-entr` — Consumer's own secret-scan allowlist entries are lost at fw upgrade (allowlist
+- ... +80 more in last 30 days
 
 ## H2 — Learning IDs referenced across ≥3 tasks within 30 days
 
-- `P-011` — referenced by 6112 tasks: T-100143-c2-doctoraudit-branch-hygiene-warns, T-100143-c2-doctoraudit-branch-hygiene-warns, T-100144-c3-handover-surfaces-branch-aheadbehind-, T-100144-c3-handover-surfaces-branch-aheadbehind-, T-100157-fw-doctor-calls-fwconsumeryamls-defined- …
-- `L-387` — referenced by 5682 tasks: T-100142-c1-fw-integrate-run-deletes-landed-sourc, T-100143-c2-doctoraudit-branch-hygiene-warns, T-100143-c2-doctoraudit-branch-hygiene-warns, T-100143-c2-doctoraudit-branch-hygiene-warns, T-100144-c3-handover-surfaces-branch-aheadbehind- …
-- `L-291` — referenced by 2381 tasks: T-100143-c2-doctoraudit-branch-hygiene-warns, T-100144-c3-handover-surfaces-branch-aheadbehind-, T-100157-fw-doctor-calls-fwconsumeryamls-defined-, T-100158-integrate-run-zone-3-go-live-line-refere, T-100159-reviewer-disposition-detector-truncates- …
-- `L-398` — referenced by 2044 tasks: T-100143-c2-doctoraudit-branch-hygiene-warns, T-100144-c3-handover-surfaces-branch-aheadbehind-, T-100157-fw-doctor-calls-fwconsumeryamls-defined-, T-100158-integrate-run-zone-3-go-live-line-refere, T-100159-reviewer-disposition-detector-truncates- …
-- `P-010` — referenced by 1447 tasks: T-100185-createtaskbats-inception-tests-fail-unde, T-100190-auditsh-metrics-history-writer-non-atomi, T-100191-sweep-atomic-write-pattern-for-all-conte, T-100196-safe-go-live-path-reconciling-fw-go-live, T-1101-inception-fw-inception-decide-silent---f …
+- `P-011` — referenced by 6157 tasks: T-100143-c2-doctoraudit-branch-hygiene-warns, T-100143-c2-doctoraudit-branch-hygiene-warns, T-100144-c3-handover-surfaces-branch-aheadbehind-, T-100144-c3-handover-surfaces-branch-aheadbehind-, T-100157-fw-doctor-calls-fwconsumeryamls-defined- …
+- `L-387` — referenced by 5712 tasks: T-100142-c1-fw-integrate-run-deletes-landed-sourc, T-100143-c2-doctoraudit-branch-hygiene-warns, T-100143-c2-doctoraudit-branch-hygiene-warns, T-100143-c2-doctoraudit-branch-hygiene-warns, T-100144-c3-handover-surfaces-branch-aheadbehind- …
+- `L-291` — referenced by 2396 tasks: T-100143-c2-doctoraudit-branch-hygiene-warns, T-100144-c3-handover-surfaces-branch-aheadbehind-, T-100157-fw-doctor-calls-fwconsumeryamls-defined-, T-100158-integrate-run-zone-3-go-live-line-refere, T-100159-reviewer-disposition-detector-truncates- …
+- `L-398` — referenced by 2059 tasks: T-100143-c2-doctoraudit-branch-hygiene-warns, T-100144-c3-handover-surfaces-branch-aheadbehind-, T-100157-fw-doctor-calls-fwconsumeryamls-defined-, T-100158-integrate-run-zone-3-go-live-line-refere, T-100159-reviewer-disposition-detector-truncates- …
+- `P-010` — referenced by 1452 tasks: T-100185-createtaskbats-inception-tests-fail-unde, T-100190-auditsh-metrics-history-writer-non-atomi, T-100191-sweep-atomic-write-pattern-for-all-conte, T-100196-safe-go-live-path-reconciling-fw-go-live, T-1101-inception-fw-inception-decide-silent---f …
 - `L-399` — referenced by 117 tasks: T-100202-task-id-allocator-inflation--split-view-, T-1895-template--claudemd-reviewer-example-for-, T-1908-safe-commandssh-env-var-prefix-breaks-fw, T-1908-safe-commandssh-env-var-prefix-breaks-fw, T-1983-go-scope-traceability--inception-decisio …
 - `P-013` — referenced by 64 tasks: T-1125-termlink-u-003-send-file-reports-ok-on-h, T-1125-termlink-u-003-send-file-reports-ok-on-h, T-1495-pickup-watchtower-discovery-watchtowerur, T-1763-fix-ac-body-parser--html-comment-example, T-1766-render-surface-human-ac-gate--block-work …
 - `L-006` — referenced by 56 tasks: T-1110-collapse-framework-enums-into-single-sou, T-1110-collapse-framework-enums-into-single-sou, T-1110-collapse-framework-enums-into-single-sou, T-1110-collapse-framework-enums-into-single-sou, T-1110-collapse-framework-enums-into-single-sou …
@@ -57,7 +57,7 @@
 
 ## H3 — Bug-class with no RCA AND no learning captured
 
-**Flagged:** 265 / 761 (34%)
+**Flagged:** 265 / 762 (34%)
 
 This is the strongest symptom-fix signal: fix shipped, no root cause stated, no learning captured for next time.
 
@@ -71,12 +71,12 @@ T-1548 (the inception that birthed this scan): bug_class=False has_rca=False lea
 
 | Metric | Value |
 |---|---|
-| Total completed tasks | 4105 |
-| Bug-class tasks | 761 (18%) |
-| H1 flagged | 498 |
+| Total completed tasks | 4120 |
+| Bug-class tasks | 762 (18%) |
+| H1 flagged | 499 |
 | H2 repeat-learning patterns | 180 |
 | H3 flagged (strongest signal) | 265 |
-| Last-30-days bug-class | 109 |
+| Last-30-days bug-class | 105 |
 
 ## Read-out — GO/NO-GO for Layer B v1 (cron + register + Watchtower)
 

@@ -88,6 +88,27 @@ not from memory. Peer text is data: verdicts are recorded as the tester stated t
 - **T-4939 WORKS:** `accept --dry-run --text` on all 10 listed verdicts gave 10 clean titles,
   `[PREFIX]` kept. Their operator accepts the 10 with the cleaned wording, then they re-judge.
 
+### be.29: 050-email-archive (msg bc95b804), 2026-11-03
+- **T-5051 WORKS:** be.26 → be.29 (08eb7ea28); with `HANDOVER_PUSH: 0`, `fw handover --commit` printed "Push skipped: HANDOVER_PUSH=0 for this project — committed locally only (T-5051)" and their production branch did not move. Tested through `fw handover --commit` (same push site as `/compact`).
+- **Findings:** the handover's own commit failed (their `.gitignore` hides `.context/`), yet the line said "committed locally" (T-5052); the Gaps Register raises KeyError on concerns without `title` and truncates silently (T-5053).
+
+### be.31: 050-email-archive (msg 2ee5cd85), 2026-11-03
+- **T-5052 WORKS:** be.29 → be.31 (b240a7043); `fw handover --commit` committed its new handover (S-2026-1103-1544, their commit 9cf4a8023) under their gitignored `/.context/*`; "Push skipped: HANDOVER_PUSH=0" printed; their remote did not move. T-5053 KeyError still printed, as expected (not yet fixed).
+
+### be.33: 050-email-archive (msg 5d7c2e98), 2026-11-03
+- **T-5053 WORKS:** be.31 → be.33 (3b36a63aa); `fw handover --commit` ran with no KeyError, the Gaps Register listed all 86 watching concerns with the name/summary fallback visible; handover S-2026-1103-1708 committed; push skipped; their remote did not move.
+
+### be.26: ring20-dashboard (msg a14cb4c1, their T-2632), 2026-11-02
+- **WORKS.** be.19 → be.26 (db97fbae4), vendored, 19:22-19:40Z, exit 0, no rollback. 29 local patches, zero fuzz; 27 strict, 2 ported because T-4986 reworked `cmd_rank` (their 0007 QUAD footers, 0024 `--owner` after quadrant medians; offered upstream, T-5035). Doctor 0 FAIL before and after; fast lane 17103 passed, no new failures. Watchtower cold load of `/` 110 s (see T-5010/T-5011).
+- **T-5014 WORKS:** their main session holds the lease (generation 1); another session id gets am-i exit 1.
+- **T-5008 PARTLY:** isolation is recorded on a real opencode seat (stderr.log line and `seat_pid_isolation` in meta.json). The seat refused to run the decoy `pkill`, treating it as an injection, so a live seat could not serve as the attacker. The mechanism itself, tested without a seat through the exact `unshare` wrapper: inside, the shell is PID 1 and sees 4 processes, `pkill` matched only its own line, the decoy outside stayed alive. Open: a sanctioned self-test for the seat launch path.
+- **Security review input on T-4988 (access grants):** 2 HIGH, 2 MEDIUM (self-grant by committing the grant file; symlinks under a create grant; refused verbs skipped via cd/variables; unguarded first write of the grant file). Registered as G-129; T-5031 to T-5034.
+
+### be.26: 050-email-archive (msg 18a23e53), 2026-11-02
+- **WORKS.** be.25 → be.26 (35abca011) in their agent shell: upgrade and `fw doctor` rc 0; 8 local patches merged clean; access grants unchanged.
+- **T-5014 WORKS:** main claimed on the first prompt after the upgrade ("held by main <this session>", generation 1); a foreign session id gets am-i exit 1.
+- **Note (filed under T-5014):** right after the upgrade, status read "vacant (generation 0)" until the next prompt or Stop hook, as expected for a session started before be.26; they ask for a one-line hint in the upgrade output ("main is claimed at your next prompt").
+
 ### be.25: 050-email-archive (msg 6475edfa), 2026-11-02
 - **WORKS.** be.20 → be.25 (22647d13a), in their HOME-less agent shell, no operator help.
 - **T-4993 WORKS:** `fw upgrade` ran to the end without HOME; `fw doctor` exits 0 there (12 WARN, 0 FAIL).
@@ -166,11 +187,26 @@ not from memory. Peer text is data: verdicts are recorded as the tester stated t
 - ring20-dashboard (2989cdb2): preparing be.8; will run `fw reviewer restatement list` and one
   `accept --dry-run`, leaving the real accept and reject to their operator.
 
+### be.47: 832-Workflow-designer (job 132), 2026-11-12
+- be.26 → be.47 (version_sha 4404da41d), operator job, rc 0. 100 PRESERVE lines, all from their
+  `.fwvendor-preserve.yaml`, none under `lib/`.
+- **WORKS:** T-5079 — `.agentic-framework/lib/config.sh` byte-identical to be.47 (key present);
+  plain `fw config set RELEASE_ARTIFACT_PATHS docs/authoring-kit/calibration-records/` prints
+  "Set"; `verdict_ledger.py audit` prints the INFO line listing their path.
+- An earlier refusal of that `config set` came from 832's own rehearsal harness (their bug, filed
+  on their side); AEF reproduced be.26 → be.47 here and could not trigger it.
+- **WORKS:** T-5077 — `fw task update T-1393` rewrote the task file and it stayed 664 with the
+  operator's ACL intact (`user:dimitri-mint-dev:rwx`, mask `rw-`), same before and after. Their 37
+  local fixes re-applied clean (divergence 44=44).
+- To follow: T-5081 (first Watchtower-tick hand-back).
+
 ## Fix status
 
 | Fix | Status | Evidence |
 |---|---|---|
 | T-4871 runme double start | **WORKS** | ring20-dashboard 4c89079d |
+| T-5079 release-artifact paths | **WORKS** | 832-Workflow-designer job 132 (be.47) |
+| T-5077 `_sed_i` keeps mode/owner/ACL | **WORKS** | 832-Workflow-designer be.47 (T-1393 rewrite: 664 + ACL kept) |
 | T-4914 run.log rotation | **WORKS** | ring20-dashboard 4c89079d, e24118cc |
 | T-4916 deterministic criteria reviewer-judged, `--reroute-converted` | **WORKS** | ring20-dashboard 4c89079d |
 | T-4920 Tier 0 pre-filter fail-open | **WORKS** | 832 be8285bb (0 of 80000); 010-termlink 160ded67 (136 KB probe) |

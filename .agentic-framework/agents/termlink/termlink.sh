@@ -57,19 +57,24 @@ _wdir_of() {
 
 # T-4675: every worker dir across the roots (trailing slash, as the old globs gave), one per
 # line; a name in an earlier root shadows the same name in a later one.
+# T-5105: linear and fork-free. The old version kept every name in one string and matched the
+# whole string per dir, plus two `basename` forks per dir: with ~6,800 old worker dirs a
+# dispatch's worker-cap check took minutes and review seats timed out before registering.
 _all_wdirs() {
-    local r w seen=" "
+    local r w n
+    local -A seen=()
     for r in "${DISPATCH_ROOTS[@]}"; do
         [ -d "$r" ] || continue
         for w in "$r"/*/; do
             [ -d "$w" ] || continue
-            case "$seen" in *" $(basename "$w") "*) continue ;; esac
-            seen="$seen$(basename "$w") "
+            n="${w%/}"; n="${n##*/}"
+            [ -n "${seen[$n]+x}" ] && continue
+            seen[$n]=1
             printf '%s\n' "$w"
         done
     done
 }
-TERMLINK_WORKER_TIMEOUT=$(fw_config_int "TERMLINK_WORKER_TIMEOUT" 600)
+TERMLINK_WORKER_TIMEOUT=$(fw_config_int "TERMLINK_WORKER_TIMEOUT" 3600)   # T-5068: 600 killed 23% of real runs
 
 die() { echo -e "${RED}ERROR:${NC} $1" >&2; exit 1; }
 
@@ -655,10 +660,12 @@ cmd_status() {
         local vanished_min
         vanished_min=$(fw_config_int "TERMLINK_VANISHED_MINUTES" 10)
         local _wds; mapfile -t _wds < <(_all_wdirs)   # T-4675: project root, then legacy /tmp
+        # T-5105: one `termlink list` for the whole loop, not one per worker dir (~6,800 here).
+        local _tl_listed; _tl_listed=$(termlink list 2>/dev/null || true)
         for wdir in ${_wds[@]+"${_wds[@]}"}; do
             [ -d "$wdir" ] || continue
             local name
-            name=$(basename "$wdir")
+            name="${wdir%/}"; name="${name##*/}"
             local status="running"
             if [ -f "$wdir/exit_code" ]; then
                 local ec
@@ -668,7 +675,7 @@ cmd_status() {
                 status="VANISHED"   # T-4637: killed without exit_code
             fi
             local session_alive="no"
-            termlink list 2>/dev/null | grep -q "$name" && session_alive="yes" || true
+            grep -q -- "$name" <<<"$_tl_listed" && session_alive="yes" || true
             local task_tag=""
             [ -f "$wdir/task" ] && task_tag=" [$(cat "$wdir/task")]"
             # T-3440: exit 0 is not the whole story — surface whether the task
@@ -678,6 +685,7 @@ cmd_status() {
                 local cs
                 cs=$(cat "$wdir/close_state" 2>/dev/null)
                 [ "$cs" = "n/a" ] || close_tag="  close: $cs"
+                [ "$cs" = "timeout" ] && close_tag="  close: TIMEOUT (killed by watchdog; fw termlink result $name)"   # T-5068
             fi
             printf "  %-20s  status: %-20s  session: %s%s%s\n" "$name" "$status" "$session_alive" "$task_tag" "$close_tag"
         done
@@ -2169,6 +2177,11 @@ fi
 if [ "$CLOSE_STATE" = "incomplete" ]; then
     echo "WARNING: worker exited 0 but $CLOSE_TASK is still started-work — close not run"
 fi
+# T-5068: a watchdog kill used to show only as close_state "timeout"; 1409 read killed
+# builders as finished. Say it plainly, with the limit and how to raise it.
+if [ "$CLOSE_STATE" = "timeout" ]; then
+    echo "WARNING: worker killed by the watchdog after ${TIMEOUT}s — its work may be partial. Raise the limit: --timeout <seconds> on dispatch, or fw config set TERMLINK_WORKER_TIMEOUT <seconds>" | tee -a "$WDIR/stderr.log"
+fi
 # Same best-effort jq pattern as the meta.json rewrite above.
 if command -v jq >/dev/null 2>&1 && [ -f "$WDIR/meta.json" ]; then
     jq --arg cs "$CLOSE_STATE" --arg ct "$CLOSE_TASK" \
@@ -2322,6 +2335,11 @@ cmd_result() {
             echo -e "${YELLOW}WARN${NC}  close_state: incomplete — ${ct:-the dispatched task} is still started-work (worker exited 0, close not run)"
         elif [ "$cs" = "no-verdict" ]; then
             echo -e "${YELLOW}WARN${NC}  close_state: no-verdict — the review seat exited 0 and left no verdict (T-4844)"
+        elif [ "$cs" = "timeout" ]; then
+            # T-5068: the limit that killed it is in meta.json; name it and the remedy.
+            local lim
+            lim=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("timeout",""))' "$wdir/meta.json" 2>/dev/null)
+            echo -e "${YELLOW}WARN${NC}  close_state: timeout — the watchdog KILLED this worker after ${lim:-?}s; ${ct:-its task} may be half done. Re-dispatch with --timeout <seconds> (or fw config set TERMLINK_WORKER_TIMEOUT <seconds>)"
         elif [ "$cs" != "n/a" ]; then
             echo "close_state: $cs${ct:+ ($ct)}"
         fi

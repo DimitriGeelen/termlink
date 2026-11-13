@@ -135,6 +135,35 @@ _refuse_out_of_project_commit() {
     echo "  The handover was written; nothing was committed or pushed. Set PROJECT_ROOT to the repo that holds HANDOVER_DIR, or pass --no-commit."
 }
 
+# T-5052: stage and commit the handover file(s), and record what happened in
+# HANDOVER_COMMIT_STATUS (ok|failed) so no later line claims a commit that did
+# not happen. A project that ignores .context/ but already tracks handovers
+# (force-added by hand, as 050 did) gets its new handover force-added too; a
+# project that tracks none is left alone and told why nothing was committed.
+# $1: commit message; $2..: files. Needs GIT_AGENT.
+_commit_handover_files() {
+    local _msg="$1"; shift
+    local _add=(add)
+    if [ -n "$(git -C "$PROJECT_ROOT" ls-files -- "$HANDOVER_DIR" 2>/dev/null | head -1)" ]; then
+        _add=(add -f)
+    fi
+    local _err
+    if ! _err=$(git -C "$PROJECT_ROOT" "${_add[@]}" -- "$@" 2>&1); then
+        HANDOVER_COMMIT_STATUS=failed
+        echo -e "${RED}COMMIT FAILED (T-5052): the handover could not be staged — nothing was committed.${NC}"
+        echo "  git: $(printf '%s\n' "$_err" | grep -v '^hint:' | head -2 | tr '\n' ' ')"
+        echo "  The handovers directory is gitignored and holds no tracked handover. To track handovers, force-add one once: git add -f $HANDOVER_DIR/LATEST.md"
+        return 1
+    fi
+    if PROJECT_ROOT="$PROJECT_ROOT" "$GIT_AGENT" commit -m "$_msg" -- "$@"; then
+        HANDOVER_COMMIT_STATUS=ok
+    else
+        HANDOVER_COMMIT_STATUS=failed
+        echo -e "${RED}COMMIT FAILED (T-5052): the handover commit did not go through (see the git output above) — nothing was committed.${NC}"
+        return 1
+    fi
+}
+
 # T-2588: Shared push leg for both normal handovers and --checkpoint commits.
 # Checkpoint commits previously accumulated locally with no push — exactly the
 # state a checkpoint exists to protect gets stranded if the session dies or
@@ -143,6 +172,27 @@ _refuse_out_of_project_commit() {
 _push_to_remotes() {
     _push_summary
     echo ""
+    # T-5051: project-level opt-out. On some consumers a push deploys, so the
+    # push is the operator's decision. Every --commit path (pre-compact hook,
+    # checkpoint auto-handover, fw handover --commit) reaches the push only
+    # through this function, so this one check covers them all. Standing
+    # config, not a bypass, so it is not written to the bypass log.
+    local _hp
+    if declare -f fw_config >/dev/null 2>&1; then
+        _hp=$(fw_config HANDOVER_PUSH 1 2>/dev/null || echo 1)
+    else
+        _hp="${FW_HANDOVER_PUSH:-1}"
+    fi
+    case "$_hp" in
+        0|false|False|FALSE|no|off)
+            if [ "${HANDOVER_COMMIT_STATUS:-}" = failed ]; then
+                echo "  Push skipped: HANDOVER_PUSH=0 for this project — and the handover was NOT committed (COMMIT FAILED above, T-5052)"
+            else
+                echo "  Push skipped: HANDOVER_PUSH=0 for this project — committed locally only (T-5051)"
+            fi
+            return 0
+            ;;
+    esac
     # T-4196: --no-push is an explicit, logged opt-out. Push stays the default
     # (CLAUDE.md §Session End, T-1144) — operator ruling 2026-10-13 on 832 OBS-413.
     if [ "$NO_PUSH" = true ]; then
@@ -194,10 +244,11 @@ _push_to_remotes() {
     fi
     echo -e "  ${CYAN}Push timeout: ${_push_timeout}s (${_push_timeout_source})${NC}"
     # T-1255 (G-007): When >1 remote is configured AND `origin` is one of them,
-    # push ONLY to origin. Mirroring (e.g. github) is OneDev's job via
-    # .onedev-buildspec.yml's PushRepository job. Pushing directly to mirror
-    # remotes caused github-ahead-of-onedev divergence whenever onedev briefly
-    # 502'd at handover time (T-1253 inception, PL-036).
+    # push ONLY to origin; the other remotes are mirrors that `fw mirror sync`
+    # fast-forwards from origin. Pushing directly to mirror remotes caused
+    # mirror-ahead-of-origin divergence whenever origin briefly 502'd at handover
+    # time (T-1253 inception, PL-036). T-5044: origin is GitHub since 2026-11-03;
+    # OneDev (remote `onedev`) is the mirror.
     # T-1474: Guard against the no-origin case. If no remote is named `origin`,
     # there is no canonical source for OneDev to mirror from, so the assumption
     # that other remotes are "mirrors" is invalid — push to all of them.
@@ -210,7 +261,7 @@ _push_to_remotes() {
     while IFS= read -r remote_name; do
         [ -z "$remote_name" ] && continue
         if [ "$_has_origin" = true ] && [ "$_remote_count" -gt 1 ] && [ "$remote_name" != "origin" ]; then
-            echo -e "  ${CYAN}Skipping $remote_name (mirrored from origin via PushRepository)${NC}"
+            echo -e "  ${CYAN}Skipping $remote_name (mirror: fw mirror sync fast-forwards it from origin)${NC}"
             continue
         fi
         if timeout "$_push_timeout" git -C "$PROJECT_ROOT" push --follow-tags "$remote_name" HEAD 2>&1; then
@@ -473,11 +524,12 @@ CHECKPOINT_EOF
             GIT_AGENT="$FRAMEWORK_ROOT/agents/git/git.sh"
         fi
         if [ -n "$GIT_AGENT" ]; then
-            git -C "$PROJECT_ROOT" add "$HANDOVER_FILE"
             # T-3090: scope the commit by pathspec, not by the add. The add
             # bounds the index; without `--` the commit takes the WHOLE index,
             # including a concurrent session's staged-but-uncommitted work.
-            PROJECT_ROOT="$PROJECT_ROOT" "$GIT_AGENT" commit -m "$COMMIT_TASK: Checkpoint handover $SESSION_ID" -- "$HANDOVER_FILE"
+            # T-5052: the helper stages (force when handovers are tracked) and
+            # records the outcome; a failure is printed, never hidden.
+            _commit_handover_files "$COMMIT_TASK: Checkpoint handover $SESSION_ID" "$HANDOVER_FILE" || true
             # T-2588: push immediately — checkpoints exist to survive session
             # death, so a checkpoint commit stranded locally defeats the point.
             _push_to_remotes
@@ -1537,11 +1589,24 @@ with open("$GAPS_FILE") as f:
     data = yaml.safe_load(f)
 # T-397: concerns.yaml uses 'concerns' key, fallback to 'gaps'
 items = data.get('concerns', data.get('gaps', []))
+skipped = 0
 for item in items:
-    if item.get('status') != 'watching':
+    if not isinstance(item, dict) or item.get('status') != 'watching':
         continue
+    # T-5053: many concerns carry name/summary rather than title; a missing
+    # key used to raise KeyError and cut this section short with no message.
+    cid = item.get('id')
+    if not cid:
+        skipped += 1
+        continue
+    label = item.get('title') or item.get('name') or item.get('summary') or '(untitled)'
+    label = ' '.join(str(label).split())
+    if len(label) > 160:
+        label = label[:160].rstrip() + '…'
     sev = item.get('severity', 'unknown')
-    print(f"- **{item['id']}** [{sev}]: {item['title']}")
+    print(f"- **{cid}** [{sev}]: {label}")
+if skipped:
+    print(f"- _{skipped} watching concern(s) have no \`id\` and are not listed — check concerns.yaml._")
 PYEOF
         echo ""
         echo "Run \`fw audit\` to check if any trigger conditions are met."
@@ -1808,17 +1873,15 @@ elif [ "$AUTO_COMMIT" = true ]; then
                 || echo "handover: some pending unattended writes were not committed — see 'scripts/commit-pending.sh list'" >&2
         fi
 
-        # Stage handover files
-        git -C "$PROJECT_ROOT" add "$HANDOVER_FILE" "$HANDOVER_DIR/LATEST.md"
-
-        # Commit via git agent — pathspec-scoped (T-3090).
+        # Stage and commit via git agent — pathspec-scoped (T-3090), staged
+        # and checked by _commit_handover_files (T-5052).
         #
         # The `git add` above bounds STAGING only. Before T-3090 this commit had
         # no pathspec, so it took the whole index: on 2026-08-19 it swept two
         # files belonging to a concurrent session's T-3089 into d3d3e49db and
         # emptied that session's index mid-compose. The `--` below is what makes
         # the narrow add above actually mean what it looks like it means.
-        PROJECT_ROOT="$PROJECT_ROOT" "$GIT_AGENT" commit -m "$COMMIT_TASK: Session handover $SESSION_ID" -- "$HANDOVER_FILE" "$HANDOVER_DIR/LATEST.md"
+        _commit_handover_files "$COMMIT_TASK: Session handover $SESSION_ID" "$HANDOVER_FILE" "$HANDOVER_DIR/LATEST.md" || true
 
         # Push to all remotes (T-1144: prevent unpushed commit accumulation)
         # T-1277: bound the push so an unreachable remote (e.g. onedev behind a

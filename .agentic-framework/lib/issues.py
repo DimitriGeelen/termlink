@@ -182,6 +182,24 @@ def _ledger_has(issue: int, stage: str) -> dict | None:
     return None
 
 
+# T-5096: stages that report on one fix. Each fix (task) posts them once, so a follow-up fix on
+# an issue can be announced; every other stage stays once per issue.
+PER_TASK_STAGES = ("in-progress", "fixed-on-bleeding-edge")
+
+
+def _stage_posted(issue: int, stage: str, tasks) -> dict | None:
+    """The ledger row that already posted this stage, or None. For a per-task stage named with
+    tasks, only a row naming one of those tasks counts."""
+    tasks = [t for t in (tasks or []) if t]
+    if stage not in PER_TASK_STAGES or not tasks:
+        return _ledger_has(issue, stage)
+    for r in _read_rows(_issues_dir() / "intake.jsonl"):
+        if (r.get("issue") == issue and stage in str(r.get("stage", "")).split("+")
+                and set(tasks) & set(r.get("tasks") or [])):
+            return r
+    return None
+
+
 def _next_intake_id() -> str:
     ids = [int(m.group(1)) for r in _read_rows(_issues_dir() / "intake.jsonl")
            if (m := re.match(r"INTAKE-(\d+)$", str(r.get("intake", ""))))]
@@ -216,10 +234,13 @@ def _maintainer_login() -> str:
     return login
 
 
-def _marked_on_issue(issue: int, stage: str) -> bool:
+def _marked_on_issue(issue: int, stage: str, tasks=None) -> bool:
     """Read the stage marker back from the issue. Untrusted text: only the marker is looked for,
     and only in comments by the authenticated maintainer login — any other account, the reporter
-    included, can write a marker and so suppress a stage (T-4108)."""
+    included, can write a marker and so suppress a stage (T-4108). T-5096: for a per-task stage
+    named with tasks, a marked comment that names other tasks only does not count; one that names
+    no task at all still does (the safe reading)."""
+    tasks = [t for t in (tasks or []) if t] if stage in PER_TASK_STAGES else []
     me = _maintainer_login()
     p = _gh(["issue", "view", str(issue), "--repo", _repo(), "--json", "comments"])
     if p.returncode != 0:
@@ -234,7 +255,8 @@ def _marked_on_issue(issue: int, stage: str) -> bool:
             continue
         body = c.get("body") or ""
         for m in MARKER_RE.finditer(body):
-            if stage in m.group(1).split("+"):
+            named = set(re.findall(r"\bT-\d+\b", body))
+            if stage in m.group(1).split("+") and (not tasks or not named or named & set(tasks)):
                 return True
     return False
 
@@ -272,8 +294,20 @@ def _ensure_labels(names: list) -> None:
             raise IssuesError(f"cannot create label {n!r}: {q.stderr.strip()[:300]}", 2)
 
 
+def _github_remote() -> str:
+    """The git remote that points at GitHub. T-5044: GitHub became `origin` on
+    2026-11-03 (it was the `github` mirror before), so the name alone is no guide;
+    the URL is. Falls back to "github" when no remote names github.com."""
+    p = _run(["git", "remote", "-v"])
+    for line in (p.stdout or "").splitlines() if p.returncode == 0 else []:
+        parts = line.split()
+        if len(parts) >= 2 and "github.com" in parts[1]:
+            return parts[0]
+    return "github"
+
+
 def _commit_on_mirror(commit: str) -> None:
-    remote = os.environ.get("FW_ISSUES_GIT_REMOTE", "github")
+    remote = os.environ.get("FW_ISSUES_GIT_REMOTE") or _github_remote()
     branch = os.environ.get("FW_ISSUES_BRANCH", "bleeding-edge")
     p = _run(["git", "ls-remote", remote, f"refs/heads/{branch}"])
     tip = p.stdout.split()[0] if p.returncode == 0 and p.stdout.strip() else ""
@@ -464,14 +498,14 @@ def cmd_comment(a) -> int:
                               f"{a.approved_by_operator!r} must be an operator approval record "
                               f"for #{a.issue} {st} (`fw issues approve` run by the operator)")
 
-    prior = _ledger_has(a.issue, st)
+    prior = _stage_posted(a.issue, st, a.task)
     if prior:
         print(f"#{a.issue} stage {st} already posted ({prior.get('comment', 'no url')}) — not posting again")
         return 0
     if st == "fixed-on-bleeding-edge":
         _need(a, "commit", "test_cmd")
         _commit_on_mirror(a.commit)
-    if not a.dry_run and _marked_on_issue(a.issue, st):
+    if not a.dry_run and _marked_on_issue(a.issue, st, a.task):
         print(f"#{a.issue} stage {st} already marked on the issue — not posting again")
         return 0
 
@@ -900,7 +934,9 @@ def cmd_close(a) -> int:
 _AFFIRM_RE = re.compile(
     r"\b(confirm(ed|s)?\s+(the\s+)?fix(ed)?|(verified|confirmed|checked)\s+fixed|fixed\s+for\s+me|"
     r"(it\s+)?works\s+(now|for\s+me)|(is|are)\s+(now\s+)?(fixed|working)|looks\s+fixed|can\s+confirm|"
-    r"now\s+works|works\s+as\s+expected)\b", re.I)
+    r"now\s+works|works\s+as\s+expected|works\s+as\s+described|(that|this)\s+solves\s+it)\b", re.I)
+# T-5094: a sentence that is only "Confirmed" (optionally "thank you"/"thanks") is a verdict too.
+_BARE_CONFIRM_RE = re.compile(r"^confirmed(\s*[,.!:-]?\s*(thank\s+you|thanks)\w*)?\s*[.!]?$", re.I)
 # strong negatives count anywhere in the reply; weak counter-signals only in its first paragraph, so
 # "the gate still bites" or "separate, still open" further down does not veto a confirmation.
 _STRONG_NEG_RE = re.compile(
@@ -913,7 +949,8 @@ _CAVEAT_RE = re.compile(r"\b(only|have\s+not|haven'?t|did\s+not|didn'?t|cannot|c
 # T-4668: the issue author explicitly OKs closing. Standing operator ruling: that is a routine close.
 _CLOSE_OK_RE = re.compile(
     r"\b((fine|ok|okay|good)\s+to\s+close|you\s+can\s+close|feel\s+free\s+to\s+close|"
-    r"happy\s+for\s+(this|it|the\s+issue)\s+to\s+be\s+closed)\b", re.I)
+    r"happy\s+for\s+(this|it|the\s+issue)\s+to\s+be\s+closed|"
+    r"(this|it|the\s+issue)\s+(can|may)\s+(now\s+)?be\s+closed)\b", re.I)
 _KEEP_OPEN_RE = re.compile(
     r"\b(not\s+(fine|ok|okay|good)\s+to\s+close|keep\s+(this|it|the\s+issue)?\s*open|"
     r"(don'?t|do\s+not|please\s+don'?t)\s+close)\b", re.I)
@@ -933,9 +970,24 @@ def _close_ok_sentence(text: str) -> str:
     return next((s for s in _sentences(text) if _CLOSE_OK_RE.search(s) and not s.endswith("?")), "")
 
 
+def _affirms(sentence: str) -> bool:
+    return bool(_AFFIRM_RE.search(sentence) or _BARE_CONFIRM_RE.search(sentence.strip()))
+
+
+def _verdict_sentence(text: str) -> str:
+    """T-5094: the sentence that confirmed the fix (the first, else one in the last paragraph), so
+    the thank-you quotes the verdict rather than the test details. "" when the first sentence is it."""
+    sents = _sentences(text)
+    if not sents or _affirms(sents[0]):
+        return ""
+    last_para = re.split(r"\n\s*\n", (text or "").strip())[-1]
+    return next((s for s in _sentences(last_para) if _affirms(s)), "")
+
+
 def classify_reply(text: str, author: str = "", issue_author: str = "") -> str:
     """confirmed | close-ok | not-fixed | other. Pure. `confirmed` needs the issue author's own reply,
-    an opening sentence that affirms the fix, and no counter-signal. `close-ok` (T-4668) needs a
+    a sentence that affirms the fix (the first one, or any in the last paragraph, T-5094), and no
+    counter-signal in that paragraph. `close-ok` (T-4668) needs a
     sentence that explicitly OKs closing and nothing asking to keep it open; `confirmed` wins when
     both apply. Anything doubtful is `other`."""
     text = text or ""
@@ -945,7 +997,12 @@ def classify_reply(text: str, author: str = "", issue_author: str = "") -> str:
     if _STRONG_NEG_RE.search(text):
         return "not-fixed"
     sents = _sentences(text)
-    if sents and _AFFIRM_RE.search(sents[0]) and not _WEAK_NEG_RE.search(first_para):
+    if sents and _affirms(sents[0]) and not _WEAK_NEG_RE.search(first_para):
+        return "confirmed"
+    # T-5094: submitters often put the test details first and the verdict last. Any sentence of
+    # the LAST paragraph may carry it, judged against that paragraph's own counter-signals.
+    last_para = re.split(r"\n\s*\n", text.strip())[-1] if text.strip() else ""
+    if any(_affirms(s) for s in _sentences(last_para)) and not _WEAK_NEG_RE.search(last_para):
         return "confirmed"
     if _close_ok_sentence(text) and not _KEEP_OPEN_RE.search(text):
         return "close-ok"
@@ -1232,7 +1289,7 @@ def confirm_close(n: int, reply_id: str, dry_run: bool = False, note: str = "", 
         raise IssuesError(f"reply {reply_id} OKs closing but carries a suggestion: file the follow-up, then "
                           f"`fw issues confirm-close {n} --reply-id {reply_id} --note \"Your suggestion is "
                           f"tracked as T-XXXX.\"`", 2)
-    ok = _close_ok_sentence(text) if cls == "close-ok" else ""
+    ok = _close_ok_sentence(text) if cls == "close-ok" else _verdict_sentence(text)
     body = _confirm_body(_now()[:10], _quote(ok) if ok else _quote(text),
                          (live or {}).get("url") or reply.get("url") or "",
                          _caveats(text, skip=ok), fixed["tasks"], fixed, cls, note)
@@ -1869,7 +1926,7 @@ def cmd_lifecycle(a) -> int:
             print(f"WARN: GitHub #{n} area label not refined ({str(e)[:160]}); re-run "
                   f"`fw issues labels {n} --task {a.task_id}`", file=sys.stderr)
     try:
-        if _ledger_has(n, stage):
+        if _stage_posted(n, stage, [a.task_id]):
             return 0
         ns = argparse.Namespace(issue=n, stage=stage, task=[a.task_id], commit=None, test_cmd=None,
                                 version=None, text=None, approved_by_operator=None, dry_run=False)

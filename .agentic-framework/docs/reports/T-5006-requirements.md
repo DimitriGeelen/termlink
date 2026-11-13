@@ -3,9 +3,9 @@ title: "Outside contributions through GitHub — requirements (role chain step 1
 task: T-5021 (step 1; interview under T-5006)
 arc: github-contributions (arc-027)
 role: requirements-collector
-version: 0.3
+version: 0.5
 date: 2026-11-02
-status: round 1 dispositioned; operator questions pending
+status: ready for the operator's sign-off
 ---
 
 # Outside contributions through GitHub — requirements
@@ -17,6 +17,8 @@ status: round 1 dispositioned; operator questions pending
 | 0.1 | 2026-11-02 | Skeleton; stakeholders; question list; answers A10-A12 carried in from the T-5007 dialogue | T-5006 |
 | 0.2 | 2026-11-02 | Draft: glossary, requirements, conflicts, earlier requirements, drawings | T-5021 |
 | 0.3 | 2026-11-02 | Review round 1 dispositioned (section 11): requirements restated, R-52 to R-57 added, drawings D-2/D-3 corrected, open questions 10.23 to 10.29 | T-5021 |
+| 0.4 | 2026-11-02 | Round 2: operator answers Q-1..Q-6 folded in | T-5021 |
+| 0.5 | 2026-11-02 | Round 3: round-2 findings dispositioned; sign-off list | T-5021 |
 
 ## 1 Why this document exists
 
@@ -308,13 +310,18 @@ fixing or building exactly one issue (5.3). Source: A1.a, A10, 4.4.a.
 enhancement request or other structural item. Source: A10.
 5.4 **Relayed issue**: an issue AEF files on behalf of a peer project after the peer reported to AEF over the
 sidecar; it carries the `relayed` label and a source field. Source: A11, F2.
-5.5 **Direct post**: an issue, issue update or PR comment written by a trusted peer (5.6) itself, with its own token
-of the secondary account (5.7), without the AEF relay. Source: 4R.6.a, 4R.6.c.
-5.6 **Trusted peer**: a peer project named in the operator-owned trusted-peer policy file; it may post directly and
-may act as a tester of outside PRs. Every other peer uses the relay. Source: 4R.6.a, 4R.6.c, A7.
-5.7 **Secondary account**: the one GitHub account, owned by the operator, used only for creating and updating
-issues and writing PR comments; machine traffic runs through it, not through the operator's personal account.
-Source: 4R.6.a, 4R.6.c, 4.18.a.
+5.5 **Direct post**: a fixed-form verdict (5.22) written by a trusted peer (5.6) itself, with its own token of the
+secondary account (5.7), on an issue or PR, without the AEF relay. Anything with free text goes through the relay.
+Source: 4R.6.a, 4R.6.c, narrowed by 12.5 (0.4). Since every holder writes as the same account, AEF treats every post by
+the secondary account that is not a recorded relay publication (5.30) as a direct post, whoever wrote it (0.5).
+5.6 **Trusted peer**: a peer project named in the operator-owned trusted-peer policy file; it may make direct posts
+(5.5). Every other peer uses the relay. Field tests (5.17) are open to any peer, as for AEF's own fixes. Source:
+4R.6.a, 4R.6.c, 12.5, 12.6 (0.4: "may act as a tester of outside PRs" withdrawn with A7's pre-merge testing).
+5.7 **Secondary account**: the one GitHub account, owned by the operator, that is **not** a collaborator on the
+source repo; it opens issues and writes comments as any outside GitHub user can, and can never push, merge or change
+settings. Each holder (AEF's relay, each trusted peer) has its own classic token of it. Lifecycle steps on issues and
+PRs it did not author (labels, close, reopen) are not done with it (5.23). Source: 4R.6.a, 4R.6.c, 4.18.a, 12.1,
+12.3 (0.4).
 5.8 **Project id**: the stable, unique project name of a peer project in the TermLink naming convention (the
 project layer only, never the host or hub id), stamped on relayed issues and direct posts to identify the source.
 Source: 4R.5, 4R.5.a, 4R.5.b.
@@ -336,14 +343,40 @@ links. Source: F7, 4R.7.b.
 assessed one level higher than the same change made inside the estate. Source: 4.7.b.
 5.16 **Review rung**: the review strength of the framework's review policy (rung 1, 3 or 5) required by a risk level;
 rung 5 is a three-seat, three-vendor panel. Source: A7, 4.18.h.
-5.17 **Field test**: a trusted peer running a change in a throwaway copy of its own project (never the live project)
-and reporting WORKS or FAILS with evidence. Source: A7, A12.
+5.17 **Field test**: a peer project testing a change **after** it is merged into `bleeding-edge`, through the be-tag
+(5.18), as for AEF's own fixes, and reporting WORKS or FAILS with evidence. No peer runs unmerged outside code. Source:
+A12, 12.6 (0.4: A7's pre-merge throwaway-copy test withdrawn).
 5.18 **be-tag**: the pre-release tag on `bleeding-edge` that a source project is asked to test when its issue
 reaches fixed. Source: A12, T-5007 IW-2.
 5.19 **DCO**: the Developer Certificate of Origin; a `Signed-off-by:` line on each outside commit certifying the
 contributor has the right to submit it, in addition to Apache-2.0 section 5. Source: A9.
 5.20 **Pilot**: the period in which only Mehdi's contributions run through the circuit; it ends by an operator
 decision after the circuit has held end to end. Source: A2.
+5.21 **Outside contributor**: a person contributing from their own GitHub account through a fork and PRs; AEF gives
+them no account and the repo gives them no rights. Source: 12.2, Mehdi points 1 and 6.
+5.22 **Fixed-form verdict**: a direct post consisting only of a verdict line ("WORKS" or "FAILS", the be-tag or head
+commit, the issue or PR number) plus a fixed list of fields, with no free text. The field list is open (10.34).
+Source: 12.5.
+5.23 **Lifecycle step**: a change to an issue or PR beyond opening and commenting (labels, close, reopen, hiding a
+post, a commit status or check). AEF performs these through the operator's account, as today, until the organisation
+move (5.27). Source: 12.3, 12.4, 12.5.
+5.24 **Confirmed verdict**: a direct verdict for which the same verdict has also arrived from the stamped project over
+the sidecar; only a confirmed verdict changes an issue's state. An unconfirmed one is labelled as such. Source: 12.9.
+5.25 **Submitter evidence**: what an outside PR must carry before the merge: a test that fails before the change and
+passes after, the commands and their output, `fw audit`, `fw doctor`, and what was not tested. Source: 12.6 (Mehdi's
+PR template, point 4).
+5.26 **AEF isolated test host**: a test machine under the operator's control, set apart from the operator's project
+hosts and the estate network, on which AEF runs deeper tests of unmerged outside PRs (T-5009). Source: 4.6.f, 12.6.
+5.27 **Organisation move**: moving the source repo from the operator's personal account to an organisation, so that AEF
+can hold a triage-only account; deferred to its own task. Source: 12.4.
+5.28 **AEF review check**: AEF's recommendation posted as a required check on the PR head commit ("AEF review:
+merge"), which the GitHub branch rule requires before a merge. Source: 12.8.
+5.29 **Documentation-only PR**: an outside PR that changes no code to run; it is excepted from the deeper tests on AEF's
+isolated test hosts. Source: 12.11. (How it is recognised, and whether files the framework loads as agent instructions
+count as code, is for the threat modeler and the architect: 10.37.)
+5.30 **Relay publication**: an issue, comment or recommendation AEF's relay posted through the secondary account and
+recorded in the local ledger (R-56) at posting. Any other post by the secondary account is treated as a direct post.
+Source: 12.3, 12.5 (0.5, section 13 row 13.2).
 
 ## 6 Requirements
 
@@ -405,37 +438,53 @@ by a release fast-forward from `bleeding-edge`.
 6.1.6.b `master` is the consumer install surface and receives only releases.
 6.1.6.c Given an outside PR with base `master`, when AEF takes it in, then AEF drafts a one-line refusal and no
 review or test starts. Invariant: at every update of `master`, the update is a fast-forward and the new tip was
-already reachable from `bleeding-edge` (checked by the release command and by audit).
+already reachable from `bleeding-edge` (checked by the release command and by audit). (0.5, section 13 row 13.6:)
+Provenance: at every update of `master`, the new tip is the commit of a release recorded by the release command; an
+audit check names to the operator any `master` tip that is not, including a fast-forward to an unreleased
+`bleeding-edge` commit.
 6.1.6.d Holds against: 2.7.a (malicious contributor), 2.7.d (hurried approver), for every path through the
 framework's tooling.
 6.1.6.e Prevented, detected, residual (0.3, section 11 row 17): prevented — outside work reaching `master` through
 framework tooling other than a release fast-forward; detected — a non-fast-forward or out-of-band `master` update,
 by the invariant check; residual — the repo owner's account can push to `master` directly, so a direct landing by
 the owner is detected, not prevented.
+6.1.6.f Round 2 (0.4): residual 11.R.5 accepted with detection (12.8); the audit of every merge is R-65.
+6.1.6.g Round 3 (0.5): an owner's direct fast-forward of `master` to an unreleased `bleeding-edge` commit passes the
+fast-forward invariant; it is detected only by the provenance check in 6.1.6.c, after the update, so consumers who
+install in between receive it (11.R.5).
 
 ### 6.2 Who contributes, who merges, licence
 
 6.2.1 **R-7 Pilot first.** Until the operator decides the circuit has held end to end, only Mehdi's outside PRs MUST
-be taken through review, testing and merge.
+be taken through review, deeper tests and a merge recommendation. The GitHub checks run on every PR (R-12). (0.5:
+"testing" narrowed to the deeper tests, so R-7 and R-12 agree, section 13 row 13.7.)
 6.2.1.a Operational · A2 · P1 · demonstration.
 6.2.1.b With GitHub as the source repo, a bad merge lands where consumers install from (A2).
-6.2.1.c Given the pilot is on, when a PR from another account arrives, then no review is dispatched, no test is
-requested and no merge recommendation is posted; it is answered as 10.2 decides.
+6.2.1.c Given the pilot is on, when a PR from another account arrives, then the GitHub checks run on it, but no review is
+dispatched, no deeper test is requested and no merge recommendation is posted; it is answered as 10.2 decides. Given
+the pilot contributor's PR that passes intake, then a read review is dispatched and, if clean, a recommendation is
+posted. (Until 10.2 is answered, the handling of other PRs and the pilot's exit are not testable; 14.)
 
 6.2.2 **R-8 Only the operator merges.** Outside PRs MUST be merged only by the operator, with the GitHub merge button.
-Agents MUST NOT merge. No token of the secondary account (held by AEF or by a peer) MAY have push or merge rights.
-(Restated in 0.3: the session's own push credential, R-5, is not a secondary-account token; see 6.2.2.e.)
-6.2.2.a Security invariant · A4, 4R.6.c · P1 · inspection and test.
-6.2.2.b AEF agents run the review loop and recommend; deciding is the operator's (A4).
-6.2.2.c Given each secondary-account token, when it is used to merge a PR, push a branch, change branch protection
-or write to another repository, then GitHub refuses.
-6.2.2.d Holds against: 2.7.b (compromised peer token), 2.7.c (confused agent), for secondary-account tokens.
-6.2.2.e Prevented, detected, residual (0.3, section 11 rows 4 and 6): prevented — merging or pushing with a
-secondary-account token, **only if** 11.Q-5 yields a repository role without push and merge (on a personal-account
-repo every collaborator can push and merge); not prevented — the session's push credential can push to
-`bleeding-edge` (R-5, A8) and can therefore land a PR's commits; the framework's own gates refuse it and R-58
-(proposed) would detect it; residual — a process using that credential outside the framework. Operator question
-11.Q-3.
+Agents MUST NOT merge. The secondary account MUST NOT be a collaborator on the source repo, so none of its tokens
+(held by AEF or by a peer) can push or merge. A framework rule MUST forbid agents from pushing an outside contributor's
+commits to `bleeding-edge`. (Restated in 0.4 from 12.3 and 12.7.)
+6.2.2.a Security invariant · A4, 4R.6.c, 12.3, 12.7 · P1 · inspection and test.
+6.2.2.b AEF agents run the review loop and recommend; deciding is the operator's (A4). The session keeps pushing AEF's
+own work directly (A8, R-5), so its credential could land outside commits; the operator chose a rule plus detection
+over removing direct pushes (12.7).
+6.2.2.c Given the source repo's collaborator list, when inspected, then the secondary account is not on it. Given any
+secondary-account token, when it is used to merge a PR, push a branch, change branch protection or set a commit
+status on the source repo, then GitHub refuses. Given an agent session asked to push a branch whose commits are
+authored by an outside contributor, when it runs the framework's push path, then the push is refused with the rule
+named.
+6.2.2.d Holds against: 2.7.b (compromised peer token), 2.7.c (confused agent): prevented for secondary-account tokens;
+for the session's push credential, refused inside the framework and detected outside it (R-58).
+6.2.2.e Prevented, detected, residual (0.4, 12.3, 12.7): prevented — merging or pushing with any secondary-account
+token (the account has no rights on the repo); refused — an agent pushing outside commits through the framework's
+push path; detected — any outside commit on `bleeding-edge` that did not arrive through a PR the operator merged
+(R-58); residual, **accepted with detection** (12.7, 11.R.4) — a process using the session's credential outside the
+framework.
 
 6.2.3 **R-9 One PR, one issue.** Every outside PR MUST link exactly one issue. A PR without an issue MUST be refused
 with a one-line reason.
@@ -490,6 +539,12 @@ operator's control and prove it runs the same checks; it is scheduled next, at h
 6.3.4.b "I would like to have it under my own control" (A6).
 6.3.4.c Given the own-runner task completes, when the R-12 checks run on the own runner for a commit already
 checked on GitHub, then each check gives the same verdict as on GitHub for that commit.
+6.3.4.d Round 2 (0.4): 12.6 makes T-5009's isolated test hosts the only place where deeper tests of an unmerged outside
+PR may run (R-22, R-53). A pilot PR that needs deeper tests therefore depends on this task; collector proposes P1 for
+the test-host part (operator decides at sign-off; what such a PR does meanwhile: 10.31).
+6.3.4.e Round 3 (0.5): 12.11 settles 10.31 — every outside PR with code gets the deeper tests, and waits until T-5009
+exists; documentation-only PRs (5.29) are excepted. The test-host part of this task is therefore P1 for any pilot PR
+with code.
 
 ### 6.4 Risk, review and testing
 
@@ -501,46 +556,52 @@ raised level.
 6.4.1.c Given a change the risk assessment rates low, when it arrives as an outside PR, then the recorded risk level
 is medium and the review rung required is the medium one.
 
-6.4.2 **R-17 Read before run.** Review seats MUST read an outside PR (not run it) first. No framework procedure (AEF
-dispatch, review seat, test request) MAY run an outside PR's code, check it out for execution, or send it for testing
-on any estate host or in any peer project before that read review has returned clean. (Restated in 0.3: the earlier
-"impossible" could not hold against a peer acting outside the procedure; see 6.4.2.e.)
-6.4.2.a Security invariant · A7, 4.7.a, G-128 · P1 · test and analysis.
+6.4.2 **R-17 Read before run; unmerged code runs only in two places.** Review seats MUST read an outside PR (not run
+it) first. Before the operator's merge, an outside PR's code MAY run only on GitHub-hosted runners (R-13) and on AEF's
+isolated test hosts (5.26, R-22), and on the test hosts only after the read review has returned clean. No framework
+procedure (AEF dispatch, review seat, test request) MAY run unmerged outside code, or check it out for execution, on
+the operator's project hosts or in any peer project. (Restated in 0.4 from 12.6, which withdraws A7's pre-merge peer
+testing.)
+6.4.2.a Security invariant · A7 (read first, kept), 4.7.a, G-128, 12.6 · P1 · test and analysis.
 6.4.2.b Running an unmerged PR runs a stranger's code (4.7.a); a review seat on a shared host already killed a
-production service once (G-128, T-5008).
-6.4.2.c Given an outside PR whose read review has not returned clean, when any tester asks for it or any AEF step
-would test it, then no test request is sent, the dispatch and test-request records show no checkout of its head for
-execution, and the PR shows it awaits review.
+production service once (G-128, T-5008). "The operator's project hosts never run unmerged outside code" (12.6).
+6.4.2.c Given an outside PR whose read review has not returned clean, when any AEF step would test it, then no deep
+test is dispatched and the dispatch records show no checkout of its head for execution. Given any outside PR before
+its merge, when the dispatch and test-request records are read, then every execution of its head is on a GitHub-hosted
+runner or an AEF isolated test host, and no test request for it was sent to a peer project. (0.5, section 13 row
+13.7:) Given a probe PR whose code, if run, leaves a marker, when an AEF procedure is asked to run its head on a project
+host or to send a test request for it to a peer, then the procedure refuses, and no marker exists on any project host
+or in any peer project afterwards.
 6.4.2.d Holds against: 2.7.a (malicious contributor), 2.7.d (hurried approver), inside the framework's procedures.
-6.4.2.e Prevented, detected, residual (0.3, section 11 row 2): prevented — execution through the framework's
-procedures before a clean read; not prevented — a public PR can be fetched by anyone, so a peer acting outside the
-procedure can run it; detected only if reported; residual for the operator (11.Q-2).
+6.4.2.e Prevented, detected, residual (0.4): prevented — execution through the framework's procedures anywhere but
+the two places, and on the test hosts before a clean read; not prevented — a public PR can be fetched by anyone, so a
+peer acting outside the procedure can still run it; 12.6 removes every procedural reason to (no peer is asked to test
+an unmerged PR), so residual 11.R.2 is narrowed, not closed.
 
-6.4.3 **R-18 Testers use a throwaway copy.** After a clean read review, trusted peer testers MUST run the PR only in a
-throwaway copy of their project, never in the live one, by the procedure AEF sends. Testers MUST post WORKS / FAILS on
-the PR through the secondary account (account model: 11.Q-5). Until an isolation floor (R-53, proposed) is decided and
-in place, the throwaway copy is the only protection (11.Q-2).
-6.4.3.a Security invariant · A7 · P1 · demonstration.
-6.4.3.b A field test of a stranger's code must not reach a working project.
-6.4.3.c Given a test request, when a tester follows it, then the PR is checked out into a fresh copy that is removed
-afterwards, and a WORKS/FAILS comment with evidence appears on the PR from the secondary account.
-6.4.3.d Holds against: 2.7.a (malicious contributor), for writes to the live project's working tree.
-6.4.3.e Prevented, detected, residual (0.3, section 11 row 2): prevented — the PR's code changing the live project's
-files, when the procedure is followed; not prevented by a throwaway copy — the code reading credentials on the host,
-reaching the network or other hosts, or affecting other projects on the same host (the G-128 class); residual for the
-operator until R-53 or the own runner (R-22) exists. (Where the copy runs until the own runner exists: 7.2.)
+6.4.3 **R-18 Testers use a throwaway copy — withdrawn (12.6).** The operator withdrew A7's "trusted testers run the
+PR in a throwaway copy before the merge": peers no longer run unmerged outside code at all (R-17); deeper tests before
+the merge run on AEF's isolated test hosts (R-22, R-53); peers field-test only after the merge, through the be-tag
+(R-63). Residual 11.R.3 removed with it.
 
-6.4.4 **R-19 Depth follows risk.** A higher risk level MUST mean more testers and more scenarios.
-6.4.4.a Functional · A7, 4.7.a · P1 · analysis. (Counts per level: 10.10.)
-6.4.4.b Deeper testing for riskier change, like any external tester (operator, 4.7).
-6.4.4.c Given two outside PRs rated medium and high, when tests are requested, then the high one has more testers and
-more scenarios than the medium one.
+6.4.4 **R-19 Depth follows risk.** A higher risk level MUST mean more scenarios in the deeper tests on AEF's isolated
+test hosts before the merge. Whether it also means more field testers after the merge is provisional (10.10).
+(Restated in 0.4: testers before the merge withdrawn by 12.6.)
+6.4.4.a Functional · 4.7, 4.7.a, 12.6, 12.11 · P1 · analysis. (Scenarios per level: 10.10.) Every outside PR with code gets
+deeper tests (12.11, R-22); risk sets how many scenarios, not whether.
+6.4.4.b Deeper testing for riskier change, like any external tester (operator, 4.7); 12.6 moves the deeper tests to
+the test hosts.
+6.4.4.c Given two outside PRs rated medium and high, when deeper tests are dispatched, then the high one runs more
+scenarios on the test hosts than the medium one.
 
-6.4.5 **R-20 Results judged like field reports.** Test results MUST be judged as field reports are (WORKS / FAILS
-with evidence), under the normal review logic.
-6.4.5.a Functional · 4.7 (operator), 4.7.a · P1 · inspection.
-6.4.5.b "Have the test results judged like we do with any external tester" (4.7).
-6.4.5.c Given a WORKS comment without evidence, when AEF builds the recommendation, then it counts as no result.
+6.4.5 **R-20 Results judged like field reports.** Test results — the submitter's evidence (R-62), the deeper tests on
+AEF's test hosts (R-22) and the field tests after the merge (R-63) — MUST be judged as field reports are (WORKS / FAILS
+with evidence), under the normal review logic. A direct verdict counts only when confirmed (R-61). (Restated in 0.4:
+sources of results from 12.6, confirmation from 12.9.)
+6.4.5.a Functional · 4.7 (operator), 4.7.a, 12.6, 12.9 · P1 · inspection and test.
+6.4.5.b "Have the test results judged like we do with any external tester" (4.7); AEF enforces quality, the test and
+its evidence (12.6).
+6.4.5.c Given a WORKS result without evidence, when AEF builds the recommendation, then it counts as no result. Given
+an unconfirmed direct verdict, then it counts as no result.
 
 6.4.6 **R-21 No step-down for outside PRs.** An outside PR MUST get the review rung its raised risk level requires.
 A high-risk outside PR MUST wait, labelled "waiting for review strength", until a rung-5 panel can run; a step-down
@@ -551,11 +612,19 @@ for outside PRs MUST be impossible.
 "waiting for review strength", no merge recommendation is posted, and no step-down is recorded.
 6.4.6.d Holds against: 2.7.a (malicious contributor), 2.7.d (hurried approver).
 
-6.4.7 **R-22 Deep tests move to the own runner.** When the own runner (R-15) exists, deep tests of outside PRs MUST
-run there.
-6.4.7.a Operational · A7 · P3 · demonstration.
-6.4.7.b The own runner is the isolation the operator wants under their control (A6, A7).
-6.4.7.c Given the own runner is live, when a deep test is requested, then it runs on the own runner.
+6.4.7 **R-22 Deeper tests run on AEF's isolated test hosts.** Deeper tests of an outside PR before its merge MUST run
+on AEF's isolated test hosts (5.26, T-5009), meeting the isolation floor (R-53), and nowhere else off GitHub. (Restated
+in 0.4: from "later, when the own runner exists" to the only pre-merge place, 12.6.) Every outside PR with code MUST
+get them before the operator's merge; a documentation-only PR (5.29) is excepted; until the test hosts exist, an outside
+PR with code MUST wait for them. (0.5, from 12.11.)
+6.4.7.a Security invariant · A6, 4.6.f, 12.6, 12.11 · P1 · demonstration and test.
+6.4.7.b The operator's project hosts never run unmerged outside code (12.6); the test hosts are the isolation the
+operator wants under their control (A6).
+6.4.7.c Given an outside PR with code whose read review returned clean, when deeper tests are dispatched, then they run
+on an AEF isolated test host and the dispatch record names that host's role (not its name). Given such a PR and no test
+host available, then it is labelled as waiting for the test hosts and no recommendation is posted. Given a
+documentation-only PR whose read review returned clean, then a recommendation may be posted without deeper tests.
+6.4.7.d Holds against: 2.7.a (malicious contributor).
 
 ### 6.5 The operator's time
 
@@ -573,6 +642,8 @@ level, test results, and merge / change / refuse.
 6.5.2.c Given a PR ready for the operator, when the recommendation is posted, then it contains all four parts,
 names the head commit it applies to (R-55), and fits one screen: at most 40 lines of at most 100 characters (bound
 provisional, 10.26).
+6.5.2.d Round 2 (0.4): the recommendation's verdict is also posted as the AEF review check on the head commit (R-64,
+12.8); "test results" covers the submitter's evidence, the GitHub checks and the deeper tests (12.6).
 
 6.5.3 **R-25 One-line refusals, approved.** A refusal MUST be one line on the PR, drafted by AEF and posted only after
 the operator approved it.
@@ -583,12 +654,20 @@ the operator approved it.
 ### 6.6 Peer requests as issues
 
 6.6.1 **R-26 What moves.** Peer bug reports, enhancement requests and other structural items MUST live as GitHub
-issues. Field reports, live consults and notices MUST stay on the sidecar. Trusted peers MAY also create and update
-issues and post PR comments directly (5.5, 4R.6.c). (0.3: "and replies" withdrawn, no answer supports it.)
-6.6.1.a Functional · A10, A1.b, 4R.6.c · P1 · inspection. (Further structural kinds: 10.1.)
-6.6.1.b GitHub gives a numbered thread and lifecycle; the sidecar delivers into a running session.
-6.6.1.c Given a peer files a bug report, when it is processed, then it ends as a GitHub issue; given a live consult,
-it stays on the sidecar.
+issues, filed through AEF's relay (R-27) for every peer, trusted or not. Field reports, live consults and notices MUST
+stay on the sidecar. Trusted peers MAY post fixed-form verdicts directly (R-60); the framework's tooling MUST NOT post
+free text directly for a peer. (Restated in 0.4 from 12.5: direct issue creation and free-text updates by trusted peers
+withdrawn. 0.5: the MUST NOT scoped to the framework's tooling, section 13 row 13.11.)
+6.6.1.a Functional · A10, A1.b, 4R.6.c, 12.5 · P1 · inspection and test. (Further structural kinds: 10.1.)
+6.6.1.b GitHub gives a numbered thread and lifecycle; the sidecar delivers into a running session. Anything with free
+text goes through the cleaning gate (12.5).
+6.6.1.c Given a peer files a bug report, when it is processed, then it ends as a GitHub issue authored through the
+relay, or held; given a live consult, it stays on the sidecar. Given a trusted peer's framework command asked to post
+free text directly, then it refuses and offers the relay.
+6.6.1.d Holds against: 2.7.b (careless peer), 2.7.c (confused agent), for the framework's tooling only.
+6.6.1.e Prevented, detected, residual (0.5): prevented — free text posted directly through the framework's tooling;
+detected — free text posted any other way with a peer's token, by the scan (R-52, R-60), which hides it; residual — a
+token holder can post any text with any GitHub client, and what was read before hiding stays read (11.R.1).
 
 6.6.2 **R-27 Relay for every peer.** Every peer MUST be able to report to AEF over the sidecar without any GitHub
 account, and AEF MUST file the issue naming the source project (subject to R-33).
@@ -603,30 +682,37 @@ peer's raw text MUST be impossible on the relay route.
 6.6.3.b A filter that repairs text misses what it cannot recognise; rewriting removes the copy path (4R.1).
 6.6.3.c Given a peer report, when AEF drafts the issue, then every field of the draft is a template field, no run of
 8 or more consecutive words of the report appears in the draft (run length provisional, 10.26), and the draft still
-passes through the cleaning gate (R-29) before posting.
+passes through the cleaning gate (R-29) before posting. (0.5, section 13 row 13.7:) The posting command MUST accept a
+relayed draft only with the rewrite step's provenance record (the template fields it was built from, and that the raw
+report was not an input to the posting step). Given a report of fewer than 8 words copied verbatim, and a report copied
+with every eighth word changed, when each is submitted as a draft without that provenance, then the posting command
+refuses both.
 6.6.3.d Holds against: 2.7.c (confused agent).
 
-6.6.4 **R-29 The cleaning gate.** All public text (titles, bodies, comments, verdicts) that the framework posts — by AEF
-on the relay route, and by a trusted peer through the framework's filing command on the direct route — MUST pass one
-shared cleaning gate that refuses on any hit and never repairs. (Restated in 0.3: the earlier "impossible" could not
-hold for text posted outside the framework's command; see 6.6.4.e.) The gate MUST refuse text containing: host names; IP addresses; file paths on estate machines; account and user names; tokens,
-keys and secrets; TermLink hub ids; personal data (email addresses, real names other than a contributor's own GitHub
-name, phone numbers); content from a project's own data; open security weaknesses; estate layout (which host runs
-what, network layout, backup locations). Anything the gate cannot classify MUST be held, never posted.
-6.6.4.a Security invariant · F1, 4R.1.a, A14, A11, 4R.5.a, 4R.6.c · P1 · test.
-6.6.4.b The mirror is public and a leak is never undone; one gate for both routes (A11).
+6.6.4 **R-29 The cleaning gate.** All public free text the framework posts (titles, bodies, comments) MUST pass one
+shared cleaning gate that refuses on any hit and never repairs. Since 12.5 all free text goes through AEF's relay, so
+the gate runs before every free-text post; direct posts carry no free text (R-60) and are scanned after they appear
+(R-52). The gate MUST refuse text containing: host names; IP addresses; file paths on estate machines; account and user
+names; tokens, keys and secrets; TermLink hub ids; personal data (email addresses, real names other than a
+contributor's own GitHub name, phone numbers); content from a project's own data; open security weaknesses; estate
+layout (which host runs what, network layout, backup locations). Anything the gate cannot classify MUST be held, never
+posted. (Restated in 0.4 from 12.5.)
+6.6.4.a Security invariant · F1, 4R.1.a, A14, A11, 4R.5.a, 4R.6.c, 12.5 · P1 · test.
+6.6.4.b The mirror is public and a leak is never undone; one gate for all free text (A11, 12.5).
 6.6.4.c Given a draft containing an item of any listed class, when it is submitted through the framework's filing
-command on either route, then the gate refuses, nothing is posted, and the report becomes held with the class named.
-Given a draft the gate cannot classify, then it is held. Given each draft of a fixed set of clean samples (the set is
-part of the test), then it passes and is posted; a gate that refuses clean samples fails the test.
-6.6.4.d Holds against: 2.7.c (confused agent) and 2.7.b (careless peer), when posting goes through the framework's
+command, then the gate refuses, nothing is posted, and the report becomes held with the class named. Given a draft the
+gate cannot classify, then it is held. Given each draft of a fixed set of clean samples (the set is part of the test),
+then it passes and is posted; a gate that refuses clean samples fails the test.
+6.6.4.d Holds against: 2.7.c (confused agent) and 2.7.b (careless peer), for free text through the framework's
 command.
-6.6.4.e Prevented, detected, residual (0.3, section 11 row 1): prevented — a listed item reaching public text through
-the framework's filing command, on either route; not prevented — any holder of a posting token (a compromised trusted
-peer, or an AEF process calling GitHub directly) can post any text with any GitHub client, where the gate does not
-run; detected — only if R-52 (proposed) is adopted; residual for the operator — text exposed between posting and
-detection is public and may be copied or cached, and hiding it afterwards does not undo that. Operator question
-11.Q-1 (7.7, 10.8).
+6.6.4.e Prevented, detected, residual (0.4, 12.5): prevented — a listed item reaching public free text through the
+framework's filing command; detected — a direct post with free text or a listed item in a fixed field, by the scan after
+posting (R-52), which hides it; not prevented — a holder of a posting token (a compromised trusted peer, or an AEF
+process calling GitHub directly) can still post any text with any GitHub client; residual — what can be read between
+posting and the scan's hiding (11.R.1). (0.5, section 13 row 13.5:) The fixed form narrows what a cooperating peer
+posts; it does not constrain a compromised token, which can post arbitrary text. Hiding does not retract copies already
+taken (notification e-mails, watchers, scrapers, archives), so a disclosure can be permanent; and while the scan is not
+running, the window lasts until it runs again (R-52's outage rule).
 
 6.6.5 **R-30 A refusal never loses a report.** Every peer report MUST be recorded locally on arrival, before any public
 step. A refused draft MUST stay in a visible held state with its reason; AEF rewrites it; a report still held after a
@@ -677,6 +763,8 @@ and no host name or hub id; and AEF's ledger maps the issue to the full address.
 6.6.9.e Limit (0.3, section 11 row 9): the stamp is a claim, not authentication. On direct posts every holder writes
 as the same secondary account, and a post shows the account, not the token that wrote it, so a stamp cannot be
 verified from GitHub. What a stamped direct post may change (confirm, reopen) is operator question 11.Q-6.
+6.6.9.f Round 2 (0.4): settled by 12.9 — the stamp stays a claim; a direct verdict changes state only when confirmed
+over the sidecar (R-61). Open question 10.7 closed.
 
 6.6.10 **R-35 Security reports stay private.** Security reports MUST go through GitHub private vulnerability reporting,
 visible only to the operator and the people they add, with a short `SECURITY.md` pointing there; estate peers MAY
@@ -699,35 +787,39 @@ fix is already on the source repo.
 6.7.1.c Given the arc is done, when the GitHub accounts this arc added are listed, then there is exactly one: the
 secondary account.
 
-6.7.2 **R-37 One secondary account.** One secondary GitHub account, owned by the operator (password, 2FA), MUST be
-used for creating and updating issues and writing PR comments only; machine traffic MUST NOT use the operator's
-personal account.
-6.7.2.a Security invariant · 4R.6.c, 4.18.a · P1 · inspection.
-6.7.2.b Machine traffic leaves the personal account; the account's rights are narrow (4R.6.c).
-6.7.2.c Given the secondary account, when its repository role is inspected, then it can write issues and comments
-but cannot push or merge; and AEF-generated issues and comments are authored by it.
-6.7.2.d Holds against: 2.7.b (compromised token: the damage is limited to issues and comments), if 6.7.2.e is resolved.
-6.7.2.e Feasibility (checked 2026-11-02 against GitHub's public documentation, section 11 row 6): the source repo is
-owned by a personal account, not an organisation. A personal-account repo has only two levels, owner and
-collaborator, and a collaborator can push and merge. So a secondary account that is a collaborator can push and merge;
-one that is not can open issues and comment like any GitHub user, but cannot apply labels (R-41) or close other
-people's issues. R-37 as stated cannot be built on this repo with a collaborator role. Operator question 11.Q-5.
+6.7.2 **R-37 One secondary account, not a collaborator.** One secondary GitHub account, owned by the operator
+(password, 2FA), MUST be used for opening issues and writing comments (relayed issues, AEF's comments, direct
+verdicts). It MUST NOT be a collaborator on the source repo, so it can never push, merge or change settings. Lifecycle
+steps (5.23: labels, close, reopen, hiding a post, the AEF review check) MUST be performed by AEF through the operator's
+account, as today, until the organisation move (12.4). (Restated in 0.4 from 12.3; supersedes 4R.6.c's "machine
+traffic leaves the personal account" for lifecycle steps.)
+6.7.2.a Security invariant · 4R.6.c, 4.18.a, 12.1, 12.3, 12.4 · P1 · inspection and test.
+6.7.2.b On a personal-account repo a collaborator can push and merge (11.F.2); a non-collaborator can open issues and
+comment on a public repo like any user (12.1.d), which is all the secondary account needs.
+6.7.2.c Given the source repo's collaborator list, when inspected, then the secondary account is not on it. Given the
+secondary account, when it opens an issue and comments, then both succeed; when it applies a label, closes another
+author's issue, pushes or merges, then GitHub refuses. Given a relayed issue, when its author is read, then it is the
+secondary account.
+6.7.2.d Holds against: 2.7.b (compromised token: the damage is limited to issues and comments, and to what any GitHub
+user can do elsewhere, 11.R.7).
+6.7.2.e Feasibility (0.4): the restatement is buildable on the personal-account repo (12.1). The cost is that AEF's
+lifecycle steps use the operator's full-power login on the AEF host (12.4, 11.R.8); the organisation move is deferred
+to its own task (10.30).
 
-6.7.3 **R-38 Tokens per holder.** The operator's AEF instance MUST hold its own token of the secondary account. Each
-trusted peer MUST hold its own fine-grained token, scoped to issues and PR comments on this repo only (no push, no
-merge), revocable alone without affecting other holders.
-6.7.3.a Security invariant · 4R.6.b, 4R.6.c, 4.18.b, 4.18.f · P1 · test.
-6.7.3.b A compromised host costs only its own token (4.18.b).
+6.7.3 **R-38 Classic tokens per holder.** AEF's relay MUST hold its own classic token of the secondary account. Each
+trusted peer MUST hold its own classic token of it, revocable alone without affecting other holders. (Restated in 0.4
+from 12.3: classic, not fine-grained; the narrowing to "no push, no merge" now comes from the account having no rights
+on the repo, R-37, not from the token's scope.)
+6.7.3.a Security invariant · 4R.6.b, 4.18.b, 4.18.f, 12.3 · P1 · test.
+6.7.3.b A compromised host costs only its own token (4.18.b). A fine-grained token of another account cannot write to
+this repo (11.F.3); a classic token can, with exactly the account's rights (12.1.c).
 6.7.3.c Given peer P's token is revoked, when P posts, then GitHub refuses; when AEF and another peer post, then they
-succeed. Given any secondary-account token, when it is used to push, merge, change branch protection or write to
-another repository, then GitHub refuses. Given P is removed from the trusted-peer list, then P's token is revoked
-within the revocation limit (10.27).
+succeed. Given any secondary-account token, when it is used to push, merge or change branch protection on the source
+repo, then GitHub refuses. Given P is removed from the trusted-peer list, then P's token is revoked within the
+revocation limit (10.27).
 6.7.3.d Holds against: 2.7.b (compromised peer token).
-6.7.3.e Feasibility (checked 2026-11-02, section 11 row 6): GitHub documents that a fine-grained token reaches only
-resources of one owner, and lists contributing to repositories where the user is a collaborator, or to public repos
-where the user is not a member, as unsupported; only classic tokens can write to public repos the user does not own.
-A fine-grained token of the secondary account therefore cannot write to this repo. Per-holder tokens that are
-revocable one by one remain possible as classic tokens (no per-repository scoping) or after 11.Q-5.
+6.7.3.e Limit (0.4): a classic token is not scoped to this repo; it can act as the secondary account on any public repo
+(open issues, comment). Residual 11.R.7, now applicable.
 
 6.7.4 **R-39 Operator-owned trusted list.** The trusted-peer list MUST be an operator-owned policy file; an agent
 changing it MUST be impossible without the operator's recorded approval. Peers not on it MUST use the relay.
@@ -750,13 +842,14 @@ and given the registry, then each entry names a credential store and holds no va
 
 6.8.1 **R-41 Relayed issues get the full lifecycle.** Relayed issues MUST carry a `relayed` label and a source field,
 and `fw issues sync` MUST give them the full lifecycle (stages and confirmation); where sync would wait for the
-GitHub author it MUST wait for the source project's verdict over the sidecar. The same applies to direct posts.
+GitHub author it MUST wait for the source project's verdict over the sidecar. A direct verdict on such an issue counts
+only when confirmed (R-61). (0.4: "the same applies to direct posts" restated, 12.5 and 12.9.)
 6.8.1.a Functional · F2, 4R.6.c · P1 · test.
 6.8.1.b Today owner-authored issues are ledger-only, which would drop the lifecycle the move is for (F2).
 6.8.1.c Given a relayed issue, when sync runs, then it posts the lifecycle stages and, at fixed, waits for the source
 project's verdict rather than a GitHub reply.
-6.8.1.e Dependency: applying the `relayed` label needs repository rights the secondary account may not have (6.7.2.e,
-11.Q-5).
+6.8.1.e Dependency resolved (0.4, 12.3): the `relayed` label is applied by AEF through the operator's account, as a
+lifecycle step (R-37).
 
 6.8.2 **R-42 Ask the source to check.** When an issue reaches fixed or released, AEF MUST tell the source project's
 agent to check, naming the issue, the task and the be-tag; the verdict MUST come back as a field report and confirm
@@ -768,13 +861,20 @@ AEF agent can also inform the relevant project agent to check", recorded there w
 6.8.2.c Given a relayed issue moves to fixed, when sync runs, then the source project receives a sidecar message with
 the issue, task and be-tag; given its WORKS verdict, the issue is confirmed.
 
-6.8.3 **R-43 FAILS reopens.** A FAILS verdict (from the source project over the sidecar, or a "not fixed" reply on
-GitHub) MUST reopen the issue: back to accepted, the task reopened or a follow-up linked, and a cleaned public comment
-posted.
-6.8.3.a Functional · F3 · P1 · test.
+6.8.3 **R-43 FAILS reopens.** A FAILS verdict (from the source project over the sidecar, a confirmed direct verdict
+(R-61), or a "not fixed" reply on GitHub by the issue's own author) MUST reopen the issue: back to accepted, the task
+reopened or a follow-up linked, and a cleaned public comment posted. An unconfirmed direct FAILS MUST NOT reopen it.
+(Restated in 0.4 from 12.9.) A "not fixed" reply counts as the author's only when the issue's author is not the
+secondary account; on an issue the secondary account authored (every relayed issue, R-37), any reply by that account
+is a direct post and reopens the issue only when confirmed over the sidecar (R-61). (0.5, section 13 row 13.1.)
+6.8.3.a Functional · F3, 12.9 · P1 · test.
 6.8.3.b Today a FAILS verdict has no reopen path (F3).
-6.8.3.c Given a closed or fixed issue, when a FAILS verdict arrives, then the issue is open at stage accepted, a task
-is open for it, and a comment passed by the cleaning gate is posted.
+6.8.3.c Given a closed or fixed issue, when a FAILS verdict arrives over the sidecar, then the issue is open at stage
+accepted, a task is open for it, and a comment passed by the cleaning gate is posted. Given only a direct FAILS post with
+no matching sidecar verdict, then the issue's state is unchanged and the post is labelled unconfirmed. Given a relayed
+issue and a "not fixed" reply written with any secondary-account token, then the issue's state is unchanged until the
+stamped project's sidecar FAILS for that issue arrives.
+6.8.3.d Holds against: 2.7.b (a compromised token reopening another project's issue), for state changes.
 
 6.8.4 **R-44 The sweep waits for requested checks.** The 14-day sweep MUST skip an issue while a requested check is
 pending; an overdue check MUST surface to the operator by name instead of closing the issue.
@@ -824,8 +924,9 @@ auto-deferred pickups MUST be filed on GitHub when their blocker clears.
 has a new issue, and each auto-deferred pickup whose blocker cleared has one.
 
 6.10.2 **R-50 The old command is wrapped.** `fw pickup send` for bug reports and feature proposals MUST route to the
-new filing command (direct for trusted peers, relay for the rest); learnings and patterns MUST stay on the sidecar.
-6.10.2.a Interface · F8, A13 · P2 · test.
+relay for every peer (free text, 12.5); learnings and patterns MUST stay on the sidecar. (Restated in 0.4: "direct for
+trusted peers" withdrawn by 12.5.)
+6.10.2.a Interface · F8, A13, 12.5 · P2 · test.
 6.10.2.b Old agents keep working; nothing breaks at the cutover.
 6.10.2.c Given a peer runs `fw pickup send` with type bug report, when it completes, then the report is on the new
 route (issue or held), not in the old pickup inbox; given type learning, it goes over the sidecar as before.
@@ -839,29 +940,43 @@ for the project id.
 
 ### 6.11 Added in review round 1 (version 0.3)
 
-6.11.0 R-52, R-53 and R-58 are **proposed, pending an operator question** (section 11): they are listed so the
-question has a concrete text to answer, and they are not requirements until the operator answers. R-54 to R-57 are
-accepted: each restates or completes an existing answer, cited in item a.
+6.11.0 R-54 to R-57 are accepted: each restates or completes an existing answer, cited in item a. R-52, R-53 and R-58
+were proposed pending operator questions in 0.3; the operator decided them (12.5, 12.6, 12.7), and 0.4 restates them as
+requirements.
 
-6.11.1 **R-52 Every public post is scanned (proposed, pending 11.Q-1).** `fw issues sync` MUST scan every issue,
-comment and PR comment on the source repo written by the secondary account with the cleaning gate's rules (R-29); on
-a hit it MUST flag the item, hide or minimise it where the account's rights allow (otherwise ask the operator to),
-and surface it to the operator by name.
-6.11.1.a Security (detection) · C-7, F1, 4R.6.c, codex 1, opencode 1 · P1 if adopted · test.
-6.11.1.b The direct route cannot run the gate before posting (6.6.4.e); this finds what got through.
-6.11.1.c Given a direct post containing a host name, when the next sync runs, then the post is flagged, hidden or
-queued for the operator to hide, and operator pending names it.
+6.11.1 **R-52 Every post by the secondary account is scanned and hidden on a hit.** Right after a post by the
+secondary account appears or is edited on the source repo (issue, comment, PR comment, PR review), AEF MUST scan it with
+the cleaning gate's rules (R-29). A post that is not a recorded relay publication (5.30) is a direct post and MUST also
+pass the fixed-form check (R-60); a recorded relay publication is free text by design and MUST NOT be held to the fixed
+form. On a hit AEF MUST hide the post (a lifecycle step, through the operator's account, R-37) and alert the operator by
+name. When the scan cannot run (AEF down, GitHub unreachable), AEF MUST, on return, scan every post made since the last
+completed scan and tell the operator how long the gap was. (Restated in 0.4 from 12.5: adopted; hiding no longer
+depends on the secondary account's rights. 0.5: scope split between relay publications and direct posts, edits and
+outage behaviour added, section 13 rows 13.2 and 13.5.)
+6.11.1.a Security (detection) · C-7, F1, 4R.6.c, 12.5, codex 1, opencode 1 · P1 · test. (How soon after posting:
+10.35.)
+6.11.1.b The direct route cannot run the gate before posting (6.6.4.e); this finds and hides what got through.
+6.11.1.c Given a direct post containing a host name, or free text outside the fixed form, when the scan runs, then the
+post is hidden, operator pending names it, and the ledger (R-56) records the hit and its class. Given a relay
+publication in the ledger with free text and no listed item, then it stays visible. Given a post by the secondary
+account that imitates a relay publication but is not in the ledger, then it is held to the fixed form and hidden. Given
+the scan stopped for a period, when it restarts, then every post from that period is scanned and the operator is told
+the gap.
 6.11.1.d Detects, does not prevent: 2.7.b (compromised or careless peer), 2.7.c (an AEF process posting outside the
 command).
 
-6.11.2 **R-53 Isolation floor before outside code runs off GitHub (proposed, pending 11.Q-2).** Before an outside PR's
-code runs anywhere other than GitHub-hosted runners (a tester's throwaway copy, or the own runner), the place it runs
-MUST give it no access to credentials, no network path to estate hosts beyond what the test needs, and no access to
-other projects, and MUST be destroyed afterwards. The exact floor is for the threat modeler (10.9).
-6.11.2.a Security invariant · A7, 4.7.a, G-128, C-2, codex 2, opencode 4 · P1 if adopted · test.
-6.11.2.b A throwaway copy protects the live project's files, not the host (6.4.3.e).
-6.11.2.c Given the place a test runs, when a probe PR tries to read a credential file, reach an estate host and write
-to another project, then each attempt fails and is logged; after the test the place no longer exists.
+6.11.2 **R-53 Isolation floor of AEF's test hosts.** An AEF isolated test host (5.26) MUST give the outside PR's code no
+access to credentials, no network path to estate hosts, and no access to other projects,
+and MUST be destroyed (or reset to a clean image) after each test. The exact floor is for the threat modeler. (Restated
+in 0.4 from 12.6: adopted, and narrowed from "anywhere off GitHub" to the test hosts, the only such place left. 0.5:
+the exception "beyond what the test needs" removed, section 13 row 13.8; what other network the test may reach, such as
+package downloads, is for the threat modeler.)
+6.11.2.a Security invariant · A6, 4.6.f, G-128, 12.6, 12.11, C-2, codex 2, opencode 4 · P1 for every outside PR with
+code (12.11) · test.
+6.11.2.b The operator's project hosts never run unmerged outside code (12.6); the test hosts must therefore be unable to
+reach them.
+6.11.2.c Given a test host, when a probe PR tries to read a credential file, reach an estate host and write to another
+project, then each attempt fails and is logged; after the test the host's state no longer exists.
 6.11.2.d Holds against: 2.7.a (malicious contributor).
 
 6.11.3 **R-54 PR workflows run without secrets.** Workflows triggered by pull requests MUST NOT use the
@@ -878,11 +993,13 @@ then no secret is present and the push fails.
 6.11.3.d Holds against: 2.7.a (malicious contributor).
 
 6.11.4 **R-55 A recommendation is bound to the tested commit.** A merge recommendation (R-24) MUST name the PR head commit
-it was built on; the checks, read review and field tests it reports MUST all be for that commit. Any later push to
+it was built on; the checks, read review, submitter evidence and deeper tests it reports MUST all be for that commit.
+Field tests come after the merge (R-63) and are not part of it. (0.5: "field tests" replaced, section 13 row 13.4.) Any later push to
 the PR MUST withdraw the recommendation (label removed, withdrawal comment) until it is rebuilt for the new head.
 6.11.4.a Functional (security relevant) · A16, 4.7 ("at least it should have been tested"), codex 3, opencode 2 · P1 ·
 test.
-6.11.4.b What the operator merges must be what was tested. This does not make an early merge impossible (11.Q-4).
+6.11.4.b What the operator merges must be what was tested. This does not make an early merge impossible (11.Q-4); 12.8 adds the branch rule (R-64) as friction and the
+audit of every merge (R-65) as detection.
 6.11.4.c Given a PR recommended at commit X, when the contributor pushes commit Y, then at the next sync the
 recommendation is marked withdrawn and the ready-for-merge label is gone.
 
@@ -901,20 +1018,116 @@ relay instead (R-27).
 6.11.6.b 4.18.d covered AEF being down, not GitHub.
 6.11.6.c Given GitHub returns errors, when AEF has three posts to make, then they are queued; when GitHub returns, each
 is posted once, in order, and the ledger (R-56) shows them posted.
+6.11.6.d Round 2 (0.4): a trusted peer's direct post is now a fixed-form verdict (R-60), which it also sends over the
+sidecar for confirmation (R-61); when the direct post fails, the sidecar copy is the record. "Send the report over the
+relay" reads accordingly.
 
-6.11.7 **R-58 Merges by anyone but the operator are flagged (proposed, pending 11.Q-3).** `fw issues sync` MUST flag to
-the operator by name any outside PR merged by an account other than the operator's, and any outside PR's commits that
-reach `bleeding-edge` without a merge of that PR by the operator.
-6.11.7.a Security (detection) · A4, codex 3 · P1 if adopted · test.
-6.11.7.b The session's push credential can land commits (6.2.2.e); detection is what remains.
-6.11.7.c Given an outside PR's commits pushed to `bleeding-edge` directly, when sync runs, then operator pending names
-the PR and the commits.
+6.11.7 **R-58 Outside commits that did not arrive through an operator merge raise an alarm.** An audit check MUST
+raise an alarm to the operator, by name, for any commit on `bleeding-edge` whose author is an outside contributor and
+that did not arrive through a pull request the operator merged; and for any outside PR merged by an account other than
+the operator's. (Restated in 0.4 from 12.7: adopted, as an audit check.)
+6.11.7.a Security (detection) · A4, 12.7, codex 3 · P1 · test. (How outside authors are recognised: 10.36.)
+6.11.7.b The session's push credential can land commits (6.2.2.e); the operator accepted that with detection (12.7).
+6.11.7.c Given an outside PR's commits pushed to `bleeding-edge` directly, when the audit runs, then operator pending
+names the PR and the commits.
 6.11.7.d Detects, does not prevent: 2.7.c (confused agent), 2.7.d (hurried approver).
 
-6.12 Summary: 58 requirements (R-1 to R-58), three of them proposed and pending an operator question (R-52, R-53,
-R-58); none withdrawn. 22 requirements carry item d, naming the adversary they hold against or only detect.
-Requirements restated in 0.3 carry a "Prevented, detected, residual" item where the earlier "impossible" promised
-more than can be built.
+### 6.12 Added in review round 2 (version 0.4)
+
+6.12.0 Each requirement here restates an operator decision recorded in section 12, cited in item a.
+
+6.12.1 **R-59 Outside contributors get no account and no rights.** Outside contributors MUST work from their own GitHub
+accounts through forks and PRs. AEF MUST NOT create or hand out an account for them, and they MUST NOT be collaborators
+on the source repo.
+6.12.1.a Security invariant · 12.2, A2, A4, Mehdi points 1 and 6 · P1 · inspection.
+6.12.1.b On a public repo anyone can fork and open PRs; a collaborator could push past the operator's merge (12.2).
+6.12.1.c Given the source repo's collaborator list, when inspected, then no outside contributor is on it; and given
+Mehdi's pilot PR, when inspected, then it comes from a fork owned by their own account.
+6.12.1.d Holds against: 2.7.a (malicious contributor pushing past the merge). Residual: the repo owner adding a
+collaborator by hand; R-58 detects a resulting outside commit not merged through a PR.
+
+6.12.2 **R-60 Direct posts are fixed-form verdicts.** A trusted peer's direct post MUST be a fixed-form verdict (5.22)
+and nothing else. A direct post outside the fixed form MUST be treated as a hit by the scan (R-52).
+6.12.2.a Security invariant · 12.5 · P1 · test. (Field list: 10.34.)
+6.12.2.b Free text is where a leak can happen; it goes through the relay and the gate (12.5).
+6.12.2.c Given a direct post "WORKS on be.N for #123" with the fixed fields, when the scan runs, then it is left
+visible; given a direct post with an added free-text sentence, then it is hidden and the operator is alerted.
+6.12.2.d Detects, does not prevent: 2.7.b (careless or compromised peer). The token can post any text; R-52 hides it
+afterwards (11.R.1).
+
+6.12.3 **R-61 A direct verdict changes state only when confirmed over the sidecar.** A direct verdict MUST change an
+issue's or PR's state (confirm, reopen, count towards a recommendation or towards releasing) only once the same
+verdict has also arrived over the sidecar from the stamped project. Until then the post MUST be labelled unconfirmed
+(a lifecycle step, R-37) and MUST change nothing. A confirmation MUST match the issue or PR, the verdict, the tested
+revision (be-tag or head commit) and the check request it answers (R-42); it counts once, and a confirmation for an
+earlier request or another revision MUST NOT count. (0.5, section 13 row 13.1.)
+6.12.3.a Security invariant · 12.9, C-13, 10.7 · P1 · test.
+6.12.3.b All direct posts come from one shared account, so the stamp is a claim; the sidecar knows who is speaking
+(12.9).
+6.12.3.c Given a direct WORKS post stamped with project P and no sidecar verdict from P, when sync runs, then the post
+is labelled unconfirmed and the issue's stage is unchanged; when P's WORKS then arrives over the sidecar, the issue is
+confirmed and the label is removed. Given a direct verdict stamped P that contradicts P's sidecar verdict, then only
+the sidecar verdict counts. Given a sidecar WORKS from P for be.N, when the direct post names be.N+1, or the
+confirmation answers an earlier check request, or the same confirmation is sent a second time for a new request, then it
+does not count.
+6.12.3.d Holds against: 2.7.b (a compromised token posting as another project). Residual 11.R.6 closed for state
+changes; a false stamp can still appear in the public record, labelled unconfirmed. The sidecar authenticates the
+sender, not the truth of the verdict: a compromised or careless trusted peer can post a false WORKS and confirm it
+itself (11.R.9).
+
+6.12.4 **R-62 The submitter delivers the test and the evidence.** Every outside PR MUST carry the submitter evidence
+(5.25): a test that fails before the change and passes after, the commands and their output, `fw audit`, `fw doctor`,
+and what was not tested, in the PR template's fields. A PR without it MUST be refused with one line (R-25).
+6.12.4.a Functional · 12.6 (1), Mehdi point 4 · P1 · test and inspection.
+6.12.4.b AEF enforces quality, the test and its evidence; the contributor's machine is their own business (12.6).
+6.12.4.c Given an outside PR whose template lacks the before/after test or the `fw audit` / `fw doctor` output, when AEF
+takes it in, then AEF drafts a one-line refusal and no review starts. Given the PR template, when read, then it asks
+for each listed item.
+
+6.12.5 **R-63 Field tests after the merge; a FAILS blocks the release.** After an outside PR is merged into
+`bleeding-edge`, peers MUST field-test it through the be-tag, as for AEF's own fixes (R-42). A FAILS verdict (over the
+sidecar, or a confirmed direct verdict, R-61) on a merged outside PR MUST block the release of `bleeding-edge` to
+`master` until it is resolved. (Whether a missing verdict also blocks: 10.32.)
+6.12.5.a Functional · 12.6, A12 · P1 · test.
+6.12.5.b Peers test merged work in their own projects, never unmerged outside code; the release train keeps
+`master` as the consumer install surface (12.6).
+6.12.5.c Given a merged outside PR with an unresolved FAILS verdict, when `fw release tag-and-release` runs (dry run
+included), then it refuses and names the PR and the verdict.
+6.12.5.d Holds against: 2.7.a (malicious contributor whose change passed review), 2.7.d (hurried approver), for the
+consumer install surface.
+6.12.5.e Own fixes (0.5, 12.12): R-63 covers merged outside PRs. AEF's own fixes reach `master` under the standing
+operator ruling of 2026-10-10 (T-4020, amended by T-4146): only verified-working fixes are released; a release in which
+a fix lacks a positive field test goes to the operator's explicit question. The same ruling applies to a merged outside
+PR whose field test has no verdict yet (10.32).
+
+6.12.6 **R-64 Merge rule: green checks and the AEF review check.** On GitHub `bleeding-edge`, a branch rule MUST require
+the PR checks (R-12) to be green and the AEF review check (5.28) to read "merge" on the head commit before a PR can be
+merged. AEF MUST post its recommendation as that check, on the commit the recommendation names (R-55).
+6.12.6.a Security (friction against the owner) · 12.8, C-14 · P1 · inspection and test. (Whether the rule also binds the
+session's direct pushes, and through which identity AEF posts the check: 10.29, 10.33, for the architect.)
+6.12.6.b A merge without green checks and a current recommendation should take a deliberate override (12.8).
+6.12.6.c Given a PR with green checks and no AEF review check on its head, when the merge button is used without an
+override, then GitHub refuses; given both green on the head, then it merges.
+6.12.6.d Holds against: 2.7.d (hurried approver), as friction; the repo owner can override, and R-65 detects it.
+
+6.12.7 **R-65 Every merge is audited.** An audit check MUST flag to the operator, by name, every merge into
+`bleeding-edge` that did not have green checks and an AEF review check of "merge" on the merged head commit, including
+every owner override of the rule (R-64).
+6.12.7.a Security (detection) · 12.8 · P1 · test.
+6.12.7.b The repo owner can still override in an emergency; the audit shows every override (12.8).
+6.12.7.c Given a PR merged by an override with the AEF review check missing, when the audit runs, then operator
+pending names the PR, the merge and the missing condition.
+6.12.7.d Detects, does not prevent: 2.7.d (hurried approver). Residual 11.R.5 accepted with detection.
+
+6.13 Summary (0.4): 65 requirement numbers (R-1 to R-65): 64 in force, 1 withdrawn (R-18, 12.6), none proposed or
+pending. Round 2 restated 20 (R-6, R-8, R-15, R-17, R-19, R-20, R-22, R-24, R-26, R-29, R-34, R-37, R-38, R-41, R-43,
+R-50, R-52, R-53, R-57, R-58) and added 7 (R-59 to R-65). 31 requirements carry item d, naming the adversary they
+hold against or only detect.
+6.13.a Summary (0.5, counted mechanically from the text): still 65 numbers, 64 in force, 1 withdrawn; none added.
+Round 3 restated 15 (R-6, R-7, R-15, R-17, R-19, R-22, R-26, R-28, R-29, R-43, R-52, R-53, R-55, R-61, R-63) and added
+glossary terms 5.29 and 5.30. 33 requirements carry an item d: 30 name the adversary they hold against or only detect
+(R-26 and R-43 gained one in 0.5); 3 are round-2 notes, not adversary items (6.3.4.d, 6.5.2.d, 6.11.6.d), which 0.4's
+count of 31 included without saying so (opencode round 2, finding 6).
 
 ## 7 Conflicts
 
@@ -933,6 +1146,8 @@ a throwaway copy of their project; G-128 showed a review seat on a shared host k
 **Partly resolved** by A7 itself: read review first (R-17), throwaway copy only (R-18), and the move to the own
 runner later (R-22). **Open:** until the own runner exists, a throwaway copy still runs on an estate host; what
 isolation that copy needs (separate user, container, no network to other hosts) is not settled (10.9).
+**Resolved in 0.4 by 12.6:** no peer runs unmerged outside code; deeper tests before the merge run only on AEF's
+isolated test hosts (R-17, R-22) with an isolation floor (R-53); peers field-test after the merge (R-63). R-18 withdrawn.
 
 7.3 **C-3 Control (A6) vs GitHub-hosted runners (A6).** The operator wants the checks under their own control but
 accepted GitHub's runners now. **Resolved** by R-14 (no logic in the CI, so the checks can move) and R-15 (own runner
@@ -958,7 +1173,9 @@ gate before posting. On the direct route a trusted peer holds a token with issue
 peer's side, and a careless or compromised peer (2.7.b) can post with any GitHub client, bypassing it. The token scope
 limits where a peer can write, not what it writes. **Open** (10.8): accept this for trusted peers; or add a check
 after posting (sync scans direct posts, hides and flags hits); or keep the direct route for test verdicts only.
-Put to the operator as 11.Q-1 (0.3); R-29 restated (6.6.4.e), R-52 proposed.
+Put to the operator as 11.Q-1 (0.3); R-29 restated (6.6.4.e), R-52 proposed. **Resolved in 0.4 by 12.5:** direct posts
+carry fixed-form verdicts only (R-60), free text goes through the relay and the gate (R-26, R-29), and every direct post
+is scanned and hidden on a hit (R-52).
 
 7.8 **C-8 Mehdi's documentation exception (point 2) vs "a PR without an issue is refused" (4.18.h).** **Open** (10.3).
 R-9 follows 4.18.h (no exception) until the operator decides.
@@ -974,20 +1191,37 @@ pending check closes with the main or waits for its own check.
 
 7.11 **C-11 Only the operator merges (A4) vs the session pushes directly (A8, R-5).** Any credential that can push to
 `bleeding-edge` can land a PR's commits there, which is a merge in effect; A4 forbids agent merges, A8 keeps the
-session's direct pushes. **Open** (11.Q-3). R-8 restated to what can hold (6.2.2.e).
+session's direct pushes. **Resolved in 0.4 by 12.7:** accept and detect — a framework rule forbids agents to push
+outside commits (R-8), and an audit alarm catches any that arrive without an operator-merged PR (R-58).
 7.12 **C-12 Per-peer fine-grained tokens with narrow scope (4R.6.b, 4R.6.c) vs GitHub's model for a
 personal-account repo.** A collaborator on a personal-account repo can push and merge, and a fine-grained token of
-another account cannot write to it (6.7.2.e, 6.7.3.e). **Open** (11.Q-5).
+another account cannot write to it (6.7.2.e, 6.7.3.e). **Resolved in 0.4 by 12.3:** the secondary account is not a
+collaborator and holds a classic token per holder (R-37, R-38); lifecycle steps stay on the operator's account (C-16).
 7.13 **C-13 Identity by project-id stamp (F5, 4R.5.b) vs one shared secondary account (4R.6.c).** All direct posts
 come from the same GitHub account, and a post shows the account, not the token that wrote it, so a stamp on a
-direct post cannot be authenticated. **Open** (11.Q-6, 10.7).
+direct post cannot be authenticated. **Resolved in 0.4 by 12.9:** a direct verdict changes state only when the same
+verdict arrives over the sidecar (R-61).
 7.14 **C-14 "No PR requirement for our own commits" (A8) vs merge eligibility enforced by GitHub (reviews codex 3,
 opencode 2).** A rule requiring green checks before merging may also bind the session's direct pushes; GitHub's
 documentation does not say (10.29). And the repo owner can change or bypass such a rule, so against the operator it is
-friction, not impossibility. **Open** (11.Q-4).
-7.15 Not conflicts, recorded so they are not raised again: A1.c's unchosen purpose statements ("lands and ships
+friction, not impossibility. **Resolved in 0.4 by 12.8** as policy: a branch rule requiring green checks and the AEF
+review check (R-64), plus an audit of every merge (R-65); the owner's override is accepted with detection (11.R.5).
+**Left for the architect:** whether the rule binds the session's direct pushes (10.29), since A8 keeps them free.
+7.15 **C-15 The AEF review check (12.8) vs a secondary account with no rights (12.3).** Posting a required check or
+commit status on the source repo needs write rights the secondary account does not have. **Resolved by inference, for
+the architect to confirm** (10.33): AEF posts it through the operator's account, as a lifecycle step (5.23, R-37); a
+GitHub App with only the checks permission is the alternative to examine. Either way, anything on the AEF host that can
+use the operator's login can post the check (11.R.8).
+7.16 **C-16 "Machine traffic leaves the personal account" (4R.6.c) vs lifecycle steps through the operator's account
+(12.3).** **Resolved by 12.3** (later, and explicit: "as today"): issues and comments move to the secondary account,
+lifecycle steps stay on the operator's account until the organisation move (12.4, 10.30).
+7.17 **C-17 Release not conditioned on the source project's check (D-2 in 0.3, A12) vs "a FAILS blocks the release to
+`master`" (12.6).** **Resolved by 12.6** for merged outside PRs (R-63). **Open:** whether a field test still pending
+(no verdict yet) also blocks the release, and for how long (10.32).
+7.18 Not conflicts, recorded so they are not raised again: A1.c's unchosen purpose statements ("lands and ships
 without being lost", "the same review loop") became requirements through A3 (R-1 to R-3) and A7 (R-16 to R-21); F9
-dissolved by A3.
+dissolved by A3. 12.2 (outside contributors use their own accounts) is consistent with A2, A4 and R-36: it
+adds no account.
 
 ## 8 Earlier requirements
 
@@ -995,12 +1229,12 @@ dissolved by A3.
 
 | # | Mehdi's point | Outcome | To | Reason |
 |---|---|---|---|---|
-| 8.1 | 1 Branches: fork, branch from and PR against `bleeding-edge`; names `fix/<issue>-<keyword>` / `feat/…`; `master` fast-forwards at release | **Kept** (target, branch-from and release rule); branch names not ruled | R-5, R-6 | Operator confirmed the target (4.4.a). Branching from `bleeding-edge` needs no separate requirement: `master` is always an ancestor of `bleeding-edge` (release train), so the base rule (R-6) settles where the work lands. The naming convention was not asked (10.4). |
+| 8.1 | 1 Branches: fork, branch from and PR against `bleeding-edge`; names `fix/<issue>-<keyword>` / `feat/…`; `master` fast-forwards at release | **Kept** (fork, target and release rule); **branch origin: guidance, not a requirement** (0.5); branch names not ruled | R-5, R-6, R-10, R-59 | Operator confirmed the target (4.4.a) and, in 12.2, the fork from the contributor's own account with no rights on the repo (R-59). A PR's base does not show where its branch started, so "branch from `bleeding-edge`" cannot be checked as stated; it stays as contributor guidance. What it protects is checked elsewhere: commits from another origin show in the PR and fail R-10 (every outside commit carries the task and issue) and R-11 (sign-off). The naming convention was not asked (10.4). |
 | 8.2 | 2 One PR, one issue; "Fixes #N"; none without an issue except docs; approach agreed in the issue first | **Changed** | R-9 | One issue per PR kept (A10, 4.18.h); the documentation exception is not accepted until the operator rules (7.8, 10.3); "approach agreed in the issue first" was not asked and is open (10.28). |
 | 8.3 | 3 Task reference "T-4935 (#104): …"; hook unchanged; task file on `bleeding-edge` first | **Kept** | R-10 | Operator chose option 1 (A5). |
-| 8.4 | 4 PR template (issue and task; approach and defect class; evidence; tests; `fw doctor`; what was not tested) | **Open** (not decided) | none | Not asked, so neither kept nor dropped; its content awaits the operator (10.5). (0.3: "kept, provisional" withdrawn, it blurred proposed and accepted.) |
-| 8.5 | 5 CI: add `bleeding-edge` to `test.yml`; first-time contributor run approval | **Changed** | R-12 to R-15 | Every PR is tested on GitHub-hosted runners (A6), through framework commands only, with an own runner as a high-priority follow-up (4.6.f). Approval click: 10.14. |
-| 8.6 | 6 Review: operator approves and merges; agents run the loop before the release; one-line refusals | **Changed** | R-8, R-16 to R-21, R-23 to R-25 | The operator still merges alone (A4), but the review loop runs **before** the merge, not before the release, at one risk level higher (A7, 4.7.b); queue of three and one-screen recommendation added (A16). One-line refusals kept, drafted by AEF and approved by the operator. |
+| 8.4 | 4 PR template (issue and task; approach and defect class; evidence; tests; `fw doctor`; what was not tested) | **Kept** (0.4), as the carrier of the submitter evidence | R-62 | 12.6 adopts the template's evidence: a test that fails before and passes after, commands and output, `fw audit`, `fw doctor`, what was not tested; a PR without it is refused with one line. "Approach and defect class" are not named in 12.6; they stay in the template as Mehdi proposed, not as a refusal ground. 10.5 closed. |
+| 8.5 | 5 CI: add `bleeding-edge` to `test.yml`; first-time contributor run approval | **Changed** | R-12 to R-15, R-22, R-64 | Every PR is tested on GitHub-hosted runners (A6), through framework commands only; deeper tests run on AEF's isolated test hosts (12.6); a branch rule requires the checks green before merge (12.8). Approval click: 10.14. |
+| 8.6 | 6 Review: operator approves and merges; agents run the loop before the release; one-line refusals | **Changed** | R-8, R-16, R-17, R-19 to R-25, R-59, R-62 to R-65 | The operator still merges alone (A4, 12.2), with no account or rights for the contributor (R-59). The read review, the submitter's evidence, the GitHub checks and deeper tests on AEF's isolated test hosts run **before** the merge, at one risk level higher (A7 read-first, 4.7.b, 12.6), gated by a branch rule and audited (12.8). Peer field tests run **after** the merge and **before** the release, close to Mehdi's "before the release" (12.6, R-63); A7's pre-merge peer testing is withdrawn. Queue of three and one-screen recommendation added (A16). One-line refusals kept, drafted by AEF and approved by the operator. |
 | 8.7 | 7 History: branch protection against force push on `bleeding-edge`, "only if it fits" | **Changed** | R-3 to R-5 | Extended to `master` and to deletion (A8); it fits because GitHub becomes the source (A3). |
 | 8.8 | 8 Licence: Apache-2.0 section 5, no CLA | **Changed** | R-11 | Kept, plus a DCO sign-off on every outside commit (A9). |
 
@@ -1010,27 +1244,31 @@ check is partly covered by "the framework task check" in R-12; its full scope is
 
 ## 9 Drawings
 
-9.0 Each drawing is Mermaid, render-checked with the Mermaid command-line renderer on 2026-11-02 (all three rendered
-without error; D-1, D-2 and D-3 changed in 0.3 and re-checked the same day). A node or edge marked "provisional" shows
-an open point, not a decision. The numbered textual equivalent below each drawing carries the same meaning without the diagram.
+9.0 Each drawing is Mermaid, render-checked with the Mermaid command-line renderer and the system Chrome (round 1:
+2026-11-02; round 2: D-1, D-2 and D-3 redrawn in 0.4 and re-checked on 2026-11-02, all without error; round 3: D-2 and
+D-3 changed in 0.5 and re-checked on 2026-11-02, both without error; D-1 unchanged). A node or edge
+marked "provisional" shows an open point, not a decision. The numbered textual equivalent below each drawing carries
+the same meaning without the diagram.
 
 ### 9.1 Drawing D-1: context view (structure)
 
 ```mermaid
 flowchart LR
   OP["Operator"]
-  MC["Outside contributor: Mehdi, pilot"]
+  MC["Outside contributor: own GitHub account, no rights on the repo"]
   TP["Trusted peer agents"]
   PP["Other peer agents"]
-  AEF["AEF agents: relay, review loop, sync"]
+  AEF["AEF agents: relay, review loop, sync, audit"]
   CON["Consumer projects"]
   subgraph GH["GitHub, public"]
-    SRC["Source repo: bleeding-edge, master, issues, PRs"]
+    SRC["Source repo: bleeding-edge, master, issues, PRs; branch rule"]
     CI["GitHub-hosted runners"]
     PVR["Private vulnerability reports"]
   end
+  SA["Secondary account: not a collaborator, classic token per holder"]
+  OPA["Operator's account: merge, lifecycle steps"]
+  TH["AEF isolated test hosts, T-5009"]
   OD["OneDev mirror, private"]
-  OWN["Own isolated runner, later"]
   subgraph ADV["Adversaries"]
     X1["2.7.a malicious contributor"]
     X2["2.7.b compromised peer token"]
@@ -1038,51 +1276,62 @@ flowchart LR
     X4["2.7.d hurried approver"]
     X5["2.7.e mirror sync"]
   end
-  MC -->|"fork PR, signed-off commits"| SRC
+  MC -->|"fork PR with test and evidence, signed-off commits"| SRC
   SRC -->|"PR code to check"| CI
   CI -->|"check results"| SRC
-  OP -->|"merge button, approvals"| SRC
-  AEF -->|"recommendations, relayed issues, lifecycle comments"| SRC
-  TP -->|"direct posts, WORKS or FAILS; provisional, 11.Q-1, 11.Q-5"| SRC
-  PP -->|"reports over sidecar"| AEF
-  TP -->|"reports and verdicts over sidecar"| AEF
-  AEF -->|"check requests, issue number or held"| PP
-  AEF -->|"one-screen recommendation, held reports"| OP
+  SRC -->|"unmerged PR code, after clean read"| TH
+  TH -->|"deeper test results"| AEF
+  OP --> OPA
+  OPA -->|"merge button, if checks and AEF review check are green"| SRC
+  AEF -->|"labels, close, reopen, hide, AEF review check; identity of the check provisional, 10.33"| OPA
+  AEF -->|"relayed issues, recommendations, comments"| SA
+  TP -->|"fixed-form verdicts only"| SA
+  SA -->|"issues and comments, never push or merge"| SRC
+  PP -->|"reports and verdicts over sidecar"| AEF
+  TP -->|"free-text reports, verdict confirmations over sidecar"| AEF
+  AEF -->|"be-tag check requests, issue number or held"| PP
+  AEF -->|"be-tag check requests"| TP
+  AEF -->|"one-screen recommendation, held reports, alarms"| OP
   SRC -->|"one-way mirror"| OD
-  SRC -->|"releases from master"| CON
+  SRC -->|"releases from master, blocked by an open FAILS"| CON
   MC -.->|"security report"| PVR
-  SRC -.->|"deep tests, later"| OWN
   X1 -.-> SRC
-  X2 -.-> SRC
+  X2 -.-> SA
   X3 -.-> AEF
   X4 -.-> OP
   X5 -.-> SRC
 ```
 
 9.1.1 Textual equivalent of D-1:
-9.1.1.a The GitHub source repo (`bleeding-edge`, `master`, issues, PRs) is the centre (R-1). GitHub-hosted runners and
-private vulnerability reporting sit beside it on GitHub.
-9.1.1.b The outside contributor sends a fork PR with signed-off commits to the source repo (R-9 to R-11), and sends
-security reports to private vulnerability reporting only (R-35).
-9.1.1.c The source repo sends PR code to GitHub-hosted runners; the runners send check results back to the PR
-(R-12, R-13). Deep tests move to the own isolated runner later (R-15, R-22).
-9.1.1.d The operator merges with the merge button and gives approvals on the source repo (R-8, R-25).
-9.1.1.e AEF agents write recommendations, relayed issues and lifecycle comments to the source repo through the
-secondary account (R-24, R-27, R-37, R-41), and send the operator one-screen recommendations and held reports
-(R-24, R-30).
-9.1.1.f Trusted peers post directly and post WORKS / FAILS to the source repo with their own token (R-18, R-38;
-provisional: whether direct posts stay as they are is 11.Q-1, and which kind of token is 11.Q-5), and
-send reports and verdicts to AEF over the sidecar. Other peers report to AEF over the sidecar only (R-27); AEF sends
-them check requests and an issue number or a held notice (R-30, R-42).
-9.1.1.g The source repo is mirrored one way to OneDev (R-2); consumers receive releases from `master` (R-6).
-9.1.1.h Adversaries and where they act: 2.7.a on the source repo through a PR; 2.7.b on the source repo through a
-peer token; 2.7.c inside AEF; 2.7.d at the operator's merge; 2.7.e on the source repo through the mirror sync.
+9.1.1.a The GitHub source repo (`bleeding-edge`, `master`, issues, PRs, and the branch rule on `bleeding-edge`) is the
+centre (R-1, R-64). GitHub-hosted runners and private vulnerability reporting sit beside it on GitHub.
+9.1.1.b The outside contributor works from their own GitHub account with no rights on the repo (R-59) and sends a fork
+PR carrying the test and the evidence, with signed-off commits (R-9 to R-11, R-62); security reports go to private
+vulnerability reporting only (R-35).
+9.1.1.c The source repo sends PR code to GitHub-hosted runners, which send check results back to the PR (R-12, R-13,
+R-54). After a clean read review, unmerged PR code goes to AEF's isolated test hosts for deeper tests, whose results go
+to AEF (R-17, R-22, R-53). No other estate host and no peer project receives unmerged outside code.
+9.1.1.d The operator merges through their own account, with the merge button, only when the checks and the AEF review
+check are green, unless they override (R-8, R-64, R-65).
+9.1.1.e AEF writes relayed issues, recommendations and comments through the secondary account (R-27, R-37), and
+performs lifecycle steps (labels, close, reopen, hiding a post) and the AEF review check through the operator's account
+(R-37, R-41, R-52, R-64; which identity posts the check is provisional, 10.33). AEF sends the operator one-screen
+recommendations, held reports and alarms (R-24, R-30, R-58, R-65).
+9.1.1.f The secondary account is not a collaborator: each holder has its own classic token; it opens issues and
+comments, never pushes or merges (R-37, R-38). Trusted peers post fixed-form verdicts only through it (R-60) and send
+free-text reports and the confirmation of each verdict to AEF over the sidecar (R-26, R-61). Other peers report to AEF
+over the sidecar only (R-27). AEF sends both kinds of peer be-tag check requests after a merge, and other peers an issue
+number or a held notice (R-30, R-42, R-63).
+9.1.1.g The source repo is mirrored one way to OneDev (R-2); consumers receive releases from `master`, and an open
+FAILS on a merged outside PR blocks the release (R-6, R-63).
+9.1.1.h Adversaries and where they act: 2.7.a on the source repo through a PR; 2.7.b through a token of the secondary
+account; 2.7.c inside AEF; 2.7.d at the operator's merge; 2.7.e on the source repo through the mirror sync.
 
 ### 9.2 Drawing D-2: main flow, with the refusal path and the relayed peer report (behaviour)
 
 ```mermaid
 flowchart TD
-  subgraph RELAY["Relayed peer report"]
+  subgraph RELAY["Relayed peer report, free text"]
     R1["Peer reports to AEF over sidecar"] --> R2["Recorded locally on arrival"]
     R2 --> R3{"Security report?"}
     R3 -->|yes| R4["Private route, no public issue"]
@@ -1092,11 +1341,18 @@ flowchart TD
     R7 -->|"AEF rewrites"| R5
     R7 -->|"limit passed"| R8["Surfaces to operator by name"]
     R6 -->|clean| R9["Matched against tasks and tickets"]
-    R9 --> R10["Issue filed or linked, sender gets issue number"]
+    R9 --> R10["Issue filed or linked through the secondary account, sender gets issue number"]
+  end
+  subgraph DIRECT["Direct verdict by a trusted peer"]
+    V01["Secondary-account post not recorded as a relay publication"] --> V02{"Scan: hit or free text?"}
+    V02 -->|yes| V03["Hidden, operator alerted"]
+    V02 -->|no| V04{"Same verdict over sidecar from that project?"}
+    V04 -->|"no, or other revision or request"| V05["Labelled unconfirmed, changes nothing"]
+    V04 -->|yes| V06["Counts as a verdict"]
   end
   R10 --> I1
-  I1["Issue accepted, intake task on bleeding-edge"] --> P1["Contributor opens PR"]
-  P1 --> P2{"Base bleeding-edge and one issue linked?"}
+  I1["Issue accepted, intake task on bleeding-edge"] --> P1["Contributor opens PR from own fork"]
+  P1 --> P2{"Base bleeding-edge, one issue linked, test and evidence present?"}
   P2 -->|no| F1["AEF drafts one-line refusal"]
   P2 -->|yes| C1["GitHub checks on every PR: tests, audit, lint, task check; DCO check provisional, 10.6"]
   C1 -->|red| C2["Contributor changes the PR"]
@@ -1108,11 +1364,12 @@ flowchart TD
   K1 --> K2{"Required review rung available?"}
   K2 -->|no| K3["Labelled waiting for review strength; slot use provisional, 10.12"]
   K3 -->|"panel available"| K2
-  K2 -->|yes| V1["Review seats read the PR, do not run it"]
-  V1 -->|alarming| F1
-  V1 -->|clean| T1["Trusted testers run it in throwaway copies; isolation provisional, 10.9 and 11.Q-2"]
+  K2 -->|yes| RV["Review seats read the PR, do not run it"]
+  RV -->|alarming| F1
+  RV -->|"clean, PR with code"| T1["Deeper tests on AEF isolated test hosts; until T-5009 exists the PR waits, 12.11"]
+  RV -->|"clean, documentation-only, 12.11"| D1
   T1 -->|FAILS| C2
-  T1 -->|WORKS| D1["One-screen AEF recommendation for the head commit"]
+  T1 -->|WORKS| D1["One-screen recommendation for the head commit, posted also as the AEF review check"]
   D1 -->|"new push: recommendation withdrawn"| C1
   D1 --> D2{"Operator decides"}
   D2 -->|change| C2
@@ -1120,15 +1377,21 @@ flowchart TD
   F1 --> F2{"Operator approves refusal?"}
   F2 -->|yes| F3["One line posted, PR closed"]
   F2 -->|no| D1
-  D2 -->|merge| M1["Merged into bleeding-edge on GitHub"]
+  D2 -->|merge| BR{"Branch rule: checks green and AEF review check says merge?"}
+  BR -->|yes| M1["Merged into bleeding-edge on GitHub"]
+  BR -->|"no, owner overrides"| M1
+  M1 --> AU["Audit: merges without both conditions, overrides, outside commits not merged through a PR"]
   M1 --> M2["Mirrored to OneDev"]
-  M1 --> M3["be-tag, source project asked to check"]
-  M3 -->|FAILS| I1
+  M1 --> M3["be-tag, peers field-test the merged PR, source project asked to check"]
+  V06 --> M3
+  M3 -->|FAILS| M6["Issue reopened, release to master blocked"]
+  M6 --> I1
   M3 -->|WORKS| M5["Issue confirmed"]
-  M1 --> M4["Goes out with the next release: master fast-forward"]
+  M3 -->|"no verdict yet: blocks release? provisional, 10.32"| M4
+  M5 --> M4["Goes out with the next release: master fast-forward"]
 ```
 
-9.2.1 Textual equivalent of D-2, relayed peer report:
+9.2.1 Textual equivalent of D-2, relayed peer report (all free text takes this route, R-26):
 9.2.1.a A peer reports to AEF over the sidecar; AEF records the report locally on arrival (R-30, R-31, R-56).
 9.2.1.b A security report goes to the private route and never becomes a public issue (R-35).
 9.2.1.c Otherwise AEF rewrites the report from the fixed template and stamps the project id, or the placeholder for
@@ -1136,11 +1399,19 @@ a project that opted out (R-28, R-33, R-34).
 9.2.1.d The cleaning gate checks the draft. On any hit, or if it cannot classify, the report is held with its reason
 visible and the sender is told; AEF rewrites and resubmits; past the held limit the report surfaces to the operator by
 name (R-29, R-30).
-9.2.1.e A clean draft is matched against tasks and tickets (R-45, R-46), then filed or linked; the sender receives the
-issue number. The issue then enters the main flow at 9.2.2.a.
+9.2.1.e A clean draft is matched against tasks and tickets (R-45, R-46), then filed or linked through the secondary
+account; the sender receives the issue number. The issue then enters the main flow at 9.2.2.a.
+9.2.1.f Direct verdict: any post by the secondary account that is not a recorded relay publication is a direct post
+(5.30); a trusted peer posts a fixed-form verdict that way (R-60). AEF scans it right after it appears; a hit or any
+free text gets it hidden and the operator alerted (R-52). Otherwise it counts only when the same verdict, for the same
+revision and check request, arrives over the sidecar from the stamped project; until then it is labelled unconfirmed and
+changes nothing (R-61). A confirmed verdict counts in the field test step (9.2.4). Relay publications are scanned with
+the gate's rules only (R-52).
 9.2.2 Textual equivalent of D-2, main flow:
-9.2.2.a The issue is accepted and its intake task is on `bleeding-edge` (R-10). The contributor opens a PR.
-9.2.2.b If the base is not `bleeding-edge`, or no single issue is linked, AEF drafts a one-line refusal (R-6, R-9).
+9.2.2.a The issue is accepted and its intake task is on `bleeding-edge` (R-10). The contributor opens a PR from a fork
+of their own account (R-59).
+9.2.2.b If the base is not `bleeding-edge`, no single issue is linked, or the test and evidence are missing, AEF drafts
+a one-line refusal (R-6, R-9, R-62).
 9.2.2.c The GitHub checks run on every PR (tests, audit, lint, task check), whatever the queue (R-12, R-54); on red the
 contributor changes the PR and the checks run again. Where the DCO check runs is provisional (10.6, R-11).
 9.2.2.d With green checks, if three PRs already wait for the operator, the PR is labelled "waiting" and not reviewed
@@ -1149,17 +1420,22 @@ until a slot frees (R-23).
 PR is labelled "waiting for review strength" until it is (R-21); whether it holds a slot meanwhile is provisional
 (10.12).
 9.2.2.f Review seats read the PR without running it; if they find anything alarming, AEF drafts a refusal (R-17).
-9.2.2.g If the read is clean, trusted testers run the PR in throwaway copies (R-18, R-19); the isolation they need is
-provisional (10.9, 11.Q-2, R-53). FAILS sends it back to the contributor; WORKS leads to the one-screen recommendation
-for the head commit (R-20, R-24, R-55). A new push withdraws the recommendation and the PR goes back to the checks.
-9.2.2.h The operator decides: change (back to the contributor), refuse, or merge (R-8).
+9.2.2.g If the read is clean, a PR with code gets deeper tests on AEF's isolated test hosts, more scenarios at a higher
+risk level (R-19, R-22, R-53); until those hosts exist it waits (12.11). A documentation-only PR goes straight to the
+recommendation (5.29, 12.11). FAILS sends the PR back to the contributor;
+WORKS leads to the one-screen recommendation for the head commit, posted also as the AEF review check (R-20, R-24, R-55,
+R-64). A new push withdraws the recommendation and the PR goes back to the checks.
+9.2.2.h The operator decides: change (back to the contributor), refuse, or merge (R-8). A merge passes the branch rule
+(checks green and the AEF review check saying merge), or the owner overrides it (R-64).
 9.2.3 Textual equivalent of D-2, refusal path: every refusal, from intake, the read review or the operator's decision,
 is a one-line draft by AEF that goes to the operator; if approved, the line is posted and the PR closed; if not, the
 decision returns to the recommendation (R-25).
 9.2.4 Textual equivalent of D-2, after the merge: the merge lands on GitHub `bleeding-edge` (R-1) and is mirrored to
-OneDev (R-2); it goes out with the next release, a fast-forward of `master` (R-5, R-6), which is not conditioned on the
-source project's check. A be-tag is cut and the source project is asked to check (R-42); WORKS confirms the issue;
-FAILS reopens it (R-43).
+OneDev (R-2). The audit flags any merge without both conditions, every override, and any outside commit that did not
+arrive through an operator-merged PR (R-58, R-65). A be-tag is cut; peers field-test it and the source project is asked
+to check (R-42, R-63). WORKS confirms the issue; FAILS reopens it (R-43) and blocks the release to `master` (R-63).
+Whether a missing verdict also blocks the release is provisional (10.32). The release is a fast-forward of `master`
+(R-5, R-6).
 
 ### 9.3 Drawing D-3: lifecycle of a contribution (behaviour)
 
@@ -1177,9 +1453,9 @@ stateDiagram-v2
   Linked --> Accepted : own check FAILS, unlinked
   Linked --> Closed : main ticket closed
   note right of Linked : with own pending check, provisional (open question 10.22)
-  Accepted --> Fixed : fixed by our own work
-  Accepted --> PROpen : outside PR opened
-  PROpen --> RefusalDrafted : no issue, or base master
+  Accepted --> OwnFixed : fixed by our own work
+  Accepted --> PROpen : outside PR opened from own fork
+  PROpen --> RefusalDrafted : no issue, base master, or no test and evidence
   PROpen --> Checked : checks green
   Checked --> PROpen : new push
   Checked --> Waiting : three PRs already waiting
@@ -1188,20 +1464,25 @@ stateDiagram-v2
   UnderReview --> WaitingStrength : rung not available
   WaitingStrength --> UnderReview : rung available
   UnderReview --> RefusalDrafted : read review alarming
-  UnderReview --> FieldTest : read review clean
-  note right of FieldTest : isolation provisional (open question 10.9)
-  FieldTest --> PROpen : FAILS, contributor changes
-  FieldTest --> Recommended : WORKS
+  UnderReview --> DeepTest : read clean, PR with code
+  UnderReview --> Recommended : read clean, documentation-only (12.11)
+  note right of DeepTest : on AEF isolated test hosts, waits until T-5009 exists (12.11)
+  DeepTest --> PROpen : FAILS, contributor changes
+  DeepTest --> Recommended : WORKS
   Recommended --> PROpen : new push, recommendation withdrawn
   Recommended --> PROpen : operator asks for change
   Recommended --> RefusalDrafted : operator chooses refuse
   RefusalDrafted --> Refused : operator approves refusal
   RefusalDrafted --> PROpen : operator does not approve
-  Recommended --> Merged : operator merges
+  Recommended --> Merged : operator merges, branch rule met or overridden
   Refused --> [*]
-  Merged --> Fixed : merged on bleeding-edge
-  Fixed --> Released : release
-  Fixed --> Accepted : FAILS reopens
+  Merged --> FieldTest : be-tag cut, peers field-test the merged PR
+  FieldTest --> Accepted : FAILS reopens, release blocked (R-63)
+  FieldTest --> Released : release, no open FAILS
+  note right of FieldTest : outside PRs only, only sidecar-confirmed verdicts count, a missing verdict goes to the operator's release question (10.32)
+  OwnFixed --> Released : release under the standing ruling (T-4020, T-4146)
+  OwnFixed --> Accepted : FAILS reopens (R-43)
+  note right of OwnFixed : source asked to check at fixed or released (R-42)
   Released --> Accepted : FAILS reopens
   Released --> Closed : WORKS, or 14 days with no pending check
   Closed --> Accepted : FAILS reopens
@@ -1209,36 +1490,50 @@ stateDiagram-v2
 ```
 
 9.3.1 Textual equivalent of D-3 (states, then the allowed transitions):
-9.3.1.a States: Received, Processing, Held, Private, Filed, Linked, Accepted, PROpen, Checked, Waiting, UnderReview,
-WaitingStrength, FieldTest, Recommended, RefusalDrafted, Refused, Merged, Fixed, Released, Closed.
+9.3.1.a States: Received, Processing, Held, Private, Filed, Linked, Accepted, OwnFixed, PROpen, Checked, Waiting,
+UnderReview, WaitingStrength, DeepTest, Recommended, RefusalDrafted, Refused, Merged, FieldTest, Released, Closed.
 9.3.1.b Received → Private for a security report, which ends there publicly (R-35). Received → Processing when AEF
 drafts from the template; Processing → Held when the cleaning gate refuses, and back when AEF rewrites (R-29, R-30);
 Processing → Filed when the gate passes (R-32's states).
 9.3.1.c Filed → Linked on a high-confidence match (R-46); Linked → Closed when the main ticket closes (R-47; for a
 linked ticket with its own pending check this transition is provisional, 10.22); Linked → Accepted, unlinked, when the
 linked reporter's own check FAILS (R-48). Filed → Accepted when intake accepts.
-9.3.1.d Accepted → Fixed when our own work fixes it; Accepted → PROpen when an outside PR is opened.
-9.3.1.e PROpen → RefusalDrafted when there is no issue or the base is `master` (R-6, R-9); PROpen → Checked when the
-checks are green (R-12); Checked → PROpen on a new push.
+9.3.1.d Accepted → OwnFixed when our own work fixes it; Accepted → PROpen when an outside PR is opened from the
+contributor's own fork (R-59).
+9.3.1.e PROpen → RefusalDrafted when there is no issue, the base is `master`, or the test and evidence are missing
+(R-6, R-9, R-62); PROpen → Checked when the checks are green (R-12); Checked → PROpen on a new push.
 9.3.1.f Checked → Waiting when three PRs already wait, and back when a slot frees (R-23); Checked → UnderReview when a
 slot is free.
 9.3.1.g UnderReview → WaitingStrength when the required rung is not available, and back when it is (R-21);
-UnderReview → RefusalDrafted when the read review is alarming (R-17); UnderReview → FieldTest when the read review is
-clean (R-17, R-18; isolation provisional, 10.9).
-9.3.1.h FieldTest → PROpen on FAILS (the contributor changes the PR); FieldTest → Recommended on WORKS (R-20, R-24).
+UnderReview → RefusalDrafted when the read review is alarming (R-17); UnderReview → DeepTest when the read is clean and
+the PR contains code, on AEF's isolated test hosts, waiting until T-5009 exists (R-17, R-19, R-22, 12.11); UnderReview →
+Recommended when the read is clean and the PR is documentation-only (5.29, 12.11). (0.5: the "no deeper tests needed"
+branch removed, 12.11.)
+9.3.1.h DeepTest → PROpen on FAILS (the contributor changes the PR); DeepTest → Recommended on WORKS (R-20, R-24).
 9.3.1.i Recommended → PROpen on a new push, which withdraws the recommendation (R-55), or when the operator asks for a
-change; → RefusalDrafted when the operator chooses to refuse; → Merged when the operator merges (R-8).
+change; → RefusalDrafted when the operator chooses to refuse; → Merged when the operator merges, with the branch rule
+met or overridden (R-8, R-64; an override is audited, R-65).
 9.3.1.j RefusalDrafted → Refused only when the operator approves the refusal; → PROpen when the operator does not
 (R-25). No refusal is posted without that approval.
-9.3.1.k Merged → Fixed (on `bleeding-edge`); Fixed → Released at release; Fixed or Released → Accepted when a FAILS
-verdict reopens it (R-43); Released → Closed on WORKS, or after 14 days with no pending check (R-44); Closed →
-Accepted when a FAILS verdict reopens it (R-43).
+9.3.1.k Merged → FieldTest when the be-tag is cut and peers are asked to field-test the merged PR (R-42, R-63);
+FieldTest → Accepted on FAILS, which reopens the issue and blocks the release (R-43, R-63); FieldTest → Released at a
+release with no open FAILS. Only sidecar-confirmed verdicts count (R-61); a missing verdict sends the release to the
+operator's explicit question under the standing ruling (10.32). OwnFixed → Released at a release under the standing
+ruling of 2026-10-10 (T-4020, T-4146; 12.12); OwnFixed → Accepted when a FAILS verdict reopens it (R-43); the source is
+asked to check at fixed or released (R-42). Released → Accepted when a FAILS verdict reopens it (R-43); Released → Closed on
+WORKS, or after 14 days with no pending check (R-44); Closed → Accepted when a FAILS verdict reopens it (R-43).
 9.3.1.l Ends: Refused, Closed, and (for the public record) Private.
+9.3.1.m Own fixes and outside PRs take separate release transitions (0.5, section 13 rows 13.4 and 13.12). An outside
+PR passes FieldTest, where R-63 blocks the release on a FAILS. An own fix goes OwnFixed → Released under the standing
+operator ruling of 2026-10-10 (T-4020, amended by T-4146): only verified-working fixes reach `master`, so an own fix
+with a FAILS is not released until resolved, by that ruling and not by R-63 (12.12). No new field-test stage is
+imposed on own fixes; R-42's request to the source stays as before.
 
 ## 10 Open questions
 
 Questions the answers did not settle. Each is for the operator, or (where marked) for a later role. None is a
-requirement until answered.
+requirement until answered. Round 2 (0.4) marks a question **closed** with the 12.x answer that settled it, or
+**narrowed** with what remains; the numbers stay stable.
 
 10.1 Which further structural kinds move to GitHub besides bug reports and enhancements: documentation that disagrees
 with the code, design proposals, a cleaned per-release verdict thread (A10, open since T-5007 IW-1).
@@ -1246,14 +1541,15 @@ with the code, design proposals, a cleaned per-release verdict thread (A10, open
 left untouched), and what "the circuit has held" means as an exit criterion.
 10.3 Mehdi's documentation exception: may a documentation-only PR come without an issue (C-8)?
 10.4 Branch naming `fix/<issue>-<keyword>` / `feat/<issue>-<keyword>` (Mehdi point 1): adopt, or leave free?
-10.5 The PR template's content (Mehdi point 4): adopt as proposed, or change?
+10.5 **Closed by 12.6.** The PR template carries the submitter evidence (R-62, 8.4).
 10.6 Where the DCO check runs: PR checks (collector's recommendation) or elsewhere (C-6).
-10.7 How the project-id stamp is trusted on direct posts: a trusted peer's token can stamp any project id, and a body
-saying "from project X" is not authentication (codex 2; R-34).
-10.8 Direct posts and the cleaning gate: accept, check after posting, or narrow the direct route (C-7).
-10.9 Until the own runner exists, what isolation a tester's throwaway copy needs (C-2; G-128, T-5008). For the threat
-modeler as well.
-10.10 How many testers and which scenarios per risk level (R-19).
+10.7 **Closed by 12.9.** The stamp stays a claim; a direct verdict changes state only when confirmed over the sidecar
+(R-61).
+10.8 **Closed by 12.5.** Direct posts are narrowed to fixed-form verdicts and scanned after posting (R-52, R-60).
+10.9 **Closed by 12.6.** No tester runs a throwaway copy of unmerged code; the isolation question moves to AEF's test
+hosts, whose exact floor is for the threat modeler (R-53).
+10.10 **Narrowed by 12.6.** Which scenarios run on the test hosts per risk level, and whether a higher level also asks
+for more field testers after the merge (R-19).
 10.11 The held limits: after what time or number of rewrite attempts a held report surfaces (R-30), and when a
 waiting peer report counts as "too long" (R-31).
 10.12 Does a PR labelled "waiting for review strength" hold one of the three slots (C-9)?
@@ -1282,9 +1578,26 @@ at most 40 lines of at most 100 characters (R-24); a fresh rewrite contains no r
 the report (R-28).
 10.27 Revocation limit: how soon after a peer leaves the trusted-peer list its token must be revoked (R-38).
 10.28 Mehdi point 2, "approach agreed in the issue first": adopt as intake practice, or leave free?
-10.29 Not verified: whether a GitHub rule requiring green checks before merging also binds direct pushes, and whether
-direct pushes can be exempted without exempting the operator's merges (the rulesets documentation does not say). For
-the architect, under 11.Q-4.
+10.29 **Narrowed by 12.8.** The operator chose the rule (R-64); still not verified: whether it also binds the session's
+direct pushes, and whether those can be exempted without exempting the operator's merges. For the architect.
+10.30 The organisation move (12.4) is deferred to its own task, which is not yet filed. Until then AEF's lifecycle
+steps use the operator's login (11.R.8).
+10.31 **Closed by 12.11.** Every outside PR with code gets the deeper tests and waits until T-5009 exists;
+documentation-only PRs are excepted (R-22, 5.29).
+10.32 **Narrowed (0.5) by the standing ruling cited in 12.12.** A release in which a fix lacks a positive field test
+goes to the operator's explicit question (T-4020, T-4146), so a pending verdict does not pass silently (6.12.5.e). Left:
+whether a merged outside PR with no verdict should block the release outright rather than go to that question (14.8).
+10.33 Which identity posts the AEF review check (R-64, C-15): AEF through the operator's account, or a GitHub App with
+only the checks permission. For the architect.
+10.34 The fixed list of fields in a fixed-form verdict (R-60): 12.5 gives an example ("WORKS / FAILS on be.N for #123")
+but not the list.
+10.35 How soon after a post appears the scan must run and hide it (R-52); this bounds residual 11.R.1 in normal
+operation. A sign-off prerequisite for accepting 11.R.1 (14.1). R-52's outage rule (scan the gap on return) is
+specified; the bound is not.
+10.37 How a documentation-only PR (5.29) is recognised, and whether files the framework loads as agent instructions
+(for example `CLAUDE.md`, prompts, task templates) count as code for 12.11. For the threat modeler and the architect.
+10.36 How the audit recognises an outside contributor's commits (R-58): by a list of outside contributor identities,
+by the DCO line, or by PR provenance. For the architect.
 
 ## 11 Review round 1 disposition
 
@@ -1316,7 +1629,7 @@ operator answers. Sections 1 to 4R, the operator's record, are not edited.
 | 11.17 | C9, O7.a, O7.b: acceptance criteria that pass while the guarantee fails | **accepted** | R-6 (`master` update invariant, 6.1.6.c, 6.1.6.e), R-7 (no review, test or recommendation), R-15 (same-verdict criterion only), R-17 (no checkout for execution), R-24 (head commit and a measurable one-screen bound), R-28 (template fields, no 8-word run), R-29 (clean samples must pass), R-32 (complete state set, time-bounded). The two bounds are provisional (10.26). |
 | 11.18 | C10, O9: drawings decide open points | **accepted** | D-2: checks run on every PR before the queue (R-12); the DCO node, the slot use of "waiting for review strength" and field-test isolation marked provisional (10.6, 10.12, 10.9); the release is no longer conditioned on WORKS (A12 does not say so); a new push withdraws the recommendation. D-3: every refusal passes RefusalDrafted and needs the operator's approval (A16, R-25); Linked → Closed with a pending check marked provisional (10.22); Processing and Checked states added. D-1: the direct-post edge marked provisional. All three re-rendered without error. |
 | 11.19 | C11: earlier-proposal disposition incomplete | **accepted** | 8.1 accounts for branching from `bleeding-edge`; 8.2's "approach agreed first" is open question 10.28; 8.4 changed from "kept, provisional" to "open (not decided)". |
-| 11.20 | O6.a: the impossible-count is wrong and R-13 lacks item d | **rejected** | Checked: R-13 has item d (6.3.2.d), and version 0.2 had 18 d-items, as its 6.11 said. The count in 6.12 is now taken mechanically from the text. |
+| 11.20 | O6.a: the impossible-count is wrong and R-13 lacks item d | **rejected** | Checked: R-13 has item d (6.3.2.d), and version 0.2 had 18 d-items, as its 6.11 said. The count (now in 6.13) is taken mechanically from the text. |
 | 11.21 | O6.d: 4.2.a ("A7 to A9: not yet asked") is stale | **accepted (note only)** | Section 4 is the operator's record and is not edited; 4.2.a is superseded by 4.7.c, 4.8 and 4.9, recorded here. |
 
 11.C Counts: 21 rows from 20 findings (C1 to C11, O1 to O9), split where one finding made several points.
@@ -1324,6 +1637,10 @@ operator answers. Sections 1 to 4R, the operator's record, are not edited.
 **operator 6** (11.1, 11.2, 11.4, 11.5, 11.6, 11.9), four of them with an accepted restatement.
 
 ### 11.Q Questions for the operator
+
+11.Q.0 All six were answered on 2026-11-02 (section 12): Q-1 by 12.5, Q-2 by 12.6, Q-3 by 12.7, Q-4 by 12.8, Q-5 by
+12.1 and 12.3 (with the organisation move deferred, 12.4), Q-6 by 12.9. The options below are kept as asked; the
+operator's numbering in section 12 refers to the options as discussed there.
 
 11.Q-1 **Direct posts and the cleaning gate** (11.1, C-7, 10.8). A trusted peer's token can post any text, past the
 gate.
@@ -1384,13 +1701,40 @@ Recommendation: **1** now, **2** if direct traffic grows — the sidecar already
 
 ### 11.R Residual risks for the operator to accept or reject
 
-11.R.1 Text posted outside the framework's command is public until detected (R-29, 6.6.4.e).
-11.R.2 A peer acting outside the procedure can run a public PR before review (R-17, 6.4.2.e).
-11.R.3 Until R-53 or the own runner exists, a field test exposes the tester's host (R-18, 6.4.3.e).
-11.R.4 The session's push credential can land a PR's commits (R-8, 6.2.2.e).
-11.R.5 The repo owner can push `master` directly and can bypass any GitHub rule (R-6, 6.1.6.e; 11.Q-4).
-11.R.6 A stamp on a direct post is a claim, not an identity (R-34, 6.6.9.e).
-11.R.7 Under 11.Q-5 option 2, classic tokens are not scoped to this repo.
+Status after round 2 (0.4), per the answers in section 12.
+
+11.R.1 Text posted outside the framework's command is public until detected (R-29, 6.6.4.e). **Narrowed (12.5):** direct
+posts carry fixed-form fields only, and the scan hides any hit right after it appears (R-52, R-60). **Restated (0.5,
+section 13 row 13.5):** the fixed form binds cooperating peers only; a compromised token can post arbitrary text. Worst
+case: anything a token holder posts is public, to anyone watching, to watchers' notification e-mails and to scrapers and
+archives, until the scan hides it; hiding retracts none of the copies, so a disclosure can be permanent. The window is
+unbounded until 10.35 is decided, and lasts longer while the scan is not running (R-52's outage rule). Not separately
+accepted; open for sign-off (14.1).
+11.R.2 A peer acting outside the procedure can run a public PR before review (R-17, 6.4.2.e). **Narrowed (12.6):** no
+procedure asks a peer to run unmerged code any more; anyone can still fetch a public PR. Open for sign-off.
+11.R.3 Until R-53 or the own runner exists, a field test exposes the tester's host (R-18, 6.4.3.e). **Closed (12.6):**
+removed with pre-merge peer testing; field tests run merged code only.
+11.R.4 The session's push credential can land a PR's commits (R-8, 6.2.2.e). **Accepted with detection (12.7):** a
+framework rule refuses it, and the audit raises an alarm by name (R-58).
+11.R.5 The repo owner can push `master` directly and can bypass any GitHub rule (R-6, 6.1.6.e). **Accepted with
+detection (12.8):** every override of the merge rule into `bleeding-edge` is shown by name (R-65). **Restated (0.5,
+section 13 row 13.6):** R-65 covers merges into `bleeding-edge` only. Direct updates of `master` are detected by R-6:
+a non-fast-forward by the fast-forward invariant, and a fast-forward to an unreleased commit by the release-provenance
+check (6.1.6.c). Both are after the fact: consumers who install between the update and the alarm receive it (6.1.6.g).
+11.R.6 A stamp on a direct post is a claim, not an identity (R-34, 6.6.9.e). **Closed for state changes (12.9):** only a
+sidecar-confirmed verdict changes state (R-61); a false stamp can still stand in the public record, labelled
+unconfirmed.
+11.R.7 Classic tokens are not scoped to this repo. **Now applies (12.3 chose classic tokens):** a stolen token can open
+issues and comment as the secondary account on any public repo, never push or merge here (R-38, 6.7.3.e). Not
+explicitly accepted; open for sign-off.
+11.R.8 (new in 0.4) AEF's lifecycle steps and the AEF review check use the operator's full-power login on the AEF host
+(12.3, 12.4; R-37, R-64, C-15): whatever controls that host can do anything the operator's account can. **Carried as
+today, deferred to the organisation move (12.4, 10.30);** not separately accepted; open for sign-off.
+11.R.9 (new in 0.5, section 13 row 13.10) The sidecar authenticates the sender, not the truth of a verdict (R-61). A
+compromised or careless trusted peer can post a false WORKS (or FAILS) and confirm it itself over the sidecar; it then
+counts towards confirming an issue and towards a release decision. What limits it: a WORKS without evidence
+counts as no result (R-20); a false FAILS only reopens and blocks, which is visible; the operator's release question
+applies when a fix lacks a positive field test (6.12.5.e). Not accepted; open for sign-off.
 
 ### 11.F Facts checked (2026-11-02, public sources only, no credential used)
 
@@ -1429,3 +1773,171 @@ triage would need an organisation; collaborator would let them push past the ope
 his proposal"** — Mehdi's own proposal (points 1 and 6: fork, branch from `bleeding-edge`, PR against it, the
 operator approves and merges). Recorded: outside contributors get no account from AEF and no rights on the repo;
 they work from their own account through forks and PRs. Consistent with A4 and A2.
+12.3 **Q-5 decided (operator, 2026-11-02): option 1.** Keep the repository on the operator's personal account. The
+secondary account is NOT a collaborator; it holds one classic token per trusted peer (and one for AEF's relay), each
+revocable on its own; it can open issues and comment like any outside GitHub user and can never push, merge or change
+settings. Lifecycle steps on others' issues (labels, close, reopen) stay with AEF through the operator's account, as
+today. Supersedes the fine-grained-token wording of 4R.6.c; R-37 and R-38 to be restated accordingly in round 2.
+12.4 **Organisation move: deferred to its own task** (operator: "not looking forward to big changes, but if it needs,
+it needs"). The one argument that stands is separating AEF's own GitHub access from the operator's personal login
+(today `fw issues` acts with the operator's full-power login stored on the AEF host); an organisation would let AEF
+hold a triage-only account. Contributors do not need it: on a public repo anyone can fork and open PRs (12.2), and only
+the operator can merge.
+12.5 **11.Q-1 decided (operator, 2026-11-02): option 1.** Trusted peers' direct posts are limited to fixed-form
+verdicts (e.g. "WORKS / FAILS on be.N for #123" plus a fixed list of fields; no free text). Anything with free text (a
+bug report, an explanation) goes through AEF's relay and the cleaning gate. AEF scans every direct post right after it
+appears (R-52); on a hit it hides the post and alerts the operator. Residual 11.R.1 narrows to fixed-form fields.
+12.6 **11.Q-2 decided (operator, 2026-11-02), revises A7.** Operator's framing: AEF enforces quality (the test and
+its evidence), not the security model of anyone's host; an outside contributor's machine is entirely their own
+business. Before the operator's merge into `bleeding-edge`: (1) the submitter delivers the test and the evidence
+(Mehdi's PR template: a test that fails before and passes after, commands and output, fw audit, fw doctor, what was not
+tested); a PR without it is refused with one line; (2) GitHub-hosted runners run the checks (A6); (3) deeper tests run
+on AEF's own isolated test hosts (T-5009). The operator's project hosts never run unmerged outside code. After the
+merge into `bleeding-edge`, peers field-test through the be-tag as for AEF's own fixes; a FAILS blocks the release to
+`master`. A7's "trusted testers run the PR in a throwaway copy before the merge" is withdrawn. Residual 11.R.3 removed.
+12.7 **11.Q-3 decided (operator, 2026-11-02): option 1 — accept and detect.** A framework rule forbids agents from
+pushing outside contributors' commits; an audit check raises an alarm, by name, for any commit on `bleeding-edge`
+whose author is an outside contributor and that did not arrive through a pull request the operator merged (R-58).
+Direct pushes of AEF's own work stay as in A8. Residual 11.R.4 accepted with detection.
+12.8 **11.Q-4 decided (operator, 2026-11-02): option 1 — a GitHub rule plus an after-the-fact check.** On
+`bleeding-edge`, a GitHub branch rule requires the checks to be green before a PR can be merged; AEF's recommendation
+is posted as a required check on the PR ("AEF review: merge"); an audit check afterwards flags any merge that did not
+meet both. The repo owner can still override in an emergency; the audit shows every override by name (residual 11.R.5
+accepted with detection).
+12.9 **11.Q-6 decided (operator, 2026-11-02): option 1.** A direct post's project stamp is a claim, not an identity
+(shared account). A direct verdict changes an issue's state (confirm, reopen) only once the same verdict also arrives
+over the sidecar from that project, which authenticates the sender. The GitHub post stays as the public record; an
+unconfirmed one is labelled as such and changes nothing. Residual 11.R.6 closed for state changes.
+12.10 **All round-1 operator questions answered** (Q-1 to Q-6, 2026-11-02). Next: round 2 — fold 12.3-12.9 into
+sections 5-10 (restate R-29, R-37, R-38, R-52, R-53, R-58 and A7-derived requirements), then an independent round-2
+review, then the operator's sign-off (card: 2-3 rounds).
+12.11 **Q-7 decided (operator, 2026-11-02): option 1.** Every outside PR gets the deeper tests on AEF's own isolated
+test hosts (T-5009) before the operator's merge; documentation-only PRs (no code to run) are excepted. Until T-5009
+exists, outside PRs that contain code wait for it. Settles round-2 findings codex 3 and opencode 2 (the
+"no deeper tests needed" branch of D-3 is removed).
+12.12 **Release gating for AEF's own fixes** (round-2 opencode finding 1) is not a new decision: the standing operator
+ruling of 2026-10-10 (T-4020, amended by T-4146) already says only verified-working fixes reach `master`. R-63 and
+deviation 9.3.1.m cite that ruling.
+
+## 13 Review round 2 disposition
+
+13.0 Inputs: `T-5021-review-r2-codex.md` (amber, C1 to C9) and `T-5021-review-r2-opencode.md` (amber, O1 to O6).
+Findings that make the same point share a row. Marks: **accepted** (the change made, and where), **rejected** (the
+reason), **settled** (by 12.11 or 12.12, the operator's later answers). Sections 1 to 4R and 12 are not edited. No new
+operator question was needed; what remains for the operator is in section 14.
+
+| Row | Findings | Mark | Disposition |
+|---|---|---|---|
+| 13.1 | C1: a "not fixed" reply by the issue's author reopens it, but the secondary account authors every relayed issue; R-61 lacks matching | **accepted** | R-43 (6.8.3): a reply counts as the author's only when the author is not the secondary account; every secondary-account reply needs sidecar confirmation; item d and a spoofed-reply test added. R-61 (6.12.3): the confirmation must match issue, verdict, tested revision and check request, counts once; stale and replayed confirmations tested. 5.5, 9.2.1.f and D-2 follow. Faithful to 12.9. |
+| 13.2 | C2: R-52 would hide AEF's own free-text relay posts | **accepted** | 5.30 defines a relay publication (recorded in the ledger at posting); R-52 (6.11.1) applies the gate's rules to every post and the fixed-form check only to direct posts; an unrecorded post imitating a relay publication is treated as direct. Hiding through the operator's account stays as 12.3 to 12.5 imply. |
+| 13.3 | C3, O2: the "no deeper tests needed" branch was undecided | **settled by 12.11** | Removed. Every outside PR with code gets deeper tests and waits for T-5009; documentation-only PRs are excepted (5.29). Changed: R-15 (6.3.4.e), R-19, R-22, R-53.a, D-2 (node T1, new documentation-only edge), D-3 (UnderReview edges), 9.2.2.g, 9.3.1.g; 10.31 closed. How "documentation-only" is recognised: 10.37, for the threat modeler and the architect. |
+| 13.4 | C4: R-55 reports field tests before the merge; D-3 puts own fixes through a release-blocking FieldTest | **accepted** (R-55, D-3) and **settled by 12.12** (own-fix gating) | R-55 (6.11.4) now names checks, read review, submitter evidence and deeper tests; field tests come after the merge. D-3 separates the transitions: Merged → FieldTest → Released (R-63) for outside PRs; OwnFixed → Released under the standing ruling (T-4020, T-4146) for own fixes, with no new field-test stage (9.3.1.k, 9.3.1.m, 6.12.5.e). |
+| 13.5 | C5, O5: residual disclosure understated; scan coverage and outage behaviour undefined; 11.R.1 window unbounded | **accepted** | R-29.e (6.6.4.e) and 11.R.1 restated: the fixed form binds cooperating peers only; arbitrary text remains possible; hiding retracts no copies, so disclosure can be permanent. R-52 now covers edits and PR reviews and, after an outage, scans the gap and reports its length. 10.35 marked a sign-off prerequisite (14.1). |
+| 13.6 | C6: 11.R.5 claims every override is detected, but R-65 audits only `bleeding-edge` | **accepted** | R-6.c (6.1.6.c) gains a release-provenance check: every `master` tip must be a release recorded by the release command. This verifies R-6's existing statement ("other than by a release fast-forward"), not a new policy. 6.1.6.g and 11.R.5 state the remaining gap: detection comes after the update. |
+| 13.7 | C7: R-7, R-28 and R-17 criteria pass without the guarantee | **accepted** | R-7 (6.2.1): "testing" narrowed to deeper tests so it agrees with R-12; a successful pilot case added; its dependence on 10.2 named (14.10). R-28 (6.6.3.c): the posting command requires the rewrite step's provenance; a short verbatim copy and an every-eighth-word copy must both be refused. R-17 (6.4.2.c): a probe PR shows that no prohibited execution happens. |
+| 13.8 | C8: R-53's "beyond what the test needs" | **accepted** | Exception removed (6.11.2): no network path to estate hosts; any other network the test needs (for example package downloads) is for the threat modeler. |
+| 13.9 | C9: 8.1 marks branching from `bleeding-edge` "kept", but a PR's base does not show its origin | **accepted** | 8.1 restated: branch origin is contributor guidance, not a requirement; what it protects is checked by R-10 and R-11 on every commit in the PR. |
+| 13.10 | O3: the sidecar authenticates the sender, not the verdict | **accepted** | New residual 11.R.9 (and 6.12.3.d). The evidence check O3 suggests already exists: a WORKS without evidence counts as no result (R-20); no new requirement. |
+| 13.11 | O4: R-26's "MUST NOT post free text" cannot be enforced; R-36 and R-43 lack item d | **accepted** (R-26, R-43); **rejected** (R-36) | R-26 (6.6.1) scoped to the framework's tooling, with 6.6.1.d and 6.6.1.e (prevented, detected by R-52, residual 11.R.1). R-43 gained item d (13.1). R-36 makes nothing impossible (it limits what this arc adds), so 6.0.a asks for no item d. |
+| 13.12 | O1: the collector decided release gating for own fixes | **settled by 12.12** | The standing ruling of 2026-10-10 (T-4020, amended T-4146) governs own fixes; R-63 cites it (6.12.5.e) and 9.3.1.m is restated. The same ruling narrows 10.32: a fix without a positive field test goes to the operator's release question. Left: 14.9. |
+| 13.13 | O6 (nits): d-item count; 11.20's pointer; R-7 untestable until 10.2 | **accepted** | 6.13.a recounts mechanically: 33 item-d lines, 30 naming adversaries, 3 round-2 notes. 11.20 now points at 6.13. 10.2 is in the sign-off list (14.10). |
+
+13.C Counts: 13 rows from 15 findings (C1 to C9, O1 to O6). **Accepted 11** (13.1, 13.2, 13.4 R-55 and D-3 part,
+13.5 to 13.11, 13.13); **settled 2** (13.3 by 12.11, 13.12 by 12.12; 13.4's own-fix gating also by 12.12);
+**rejected 0** as rows, one part rejected (13.11, R-36 item d). New operator questions: none. Drawings: D-2 and D-3
+changed and re-rendered without error (9.0); D-1 unchanged.
+
+## 14 Sign-off list
+
+14.0 What the operator accepts or decides at sign-off, one line each. Residual risks first (11.R), then decisions.
+
+14.1 **11.R.1 disclosure (open):** accepting means any token holder, including a compromised one, can publish
+arbitrary text that may stay public for good; the only control is hiding after detection. Decide 10.35 first.
+14.2 **11.R.2 public PR run outside procedure (open):** accepting means anyone, a peer included, can run a public PR
+before review; AEF never asks anyone to.
+14.3 **11.R.4 session credential lands outside commits (accepted with detection, 12.7):** confirm; a process outside
+the framework can land them, and the alarm comes afterwards.
+14.4 **11.R.5 owner bypass (accepted with detection, 12.8; scope restated in 0.5):** confirm; merge overrides and
+direct `master` updates are detected after the fact, and consumers who install in between receive them.
+14.5 **11.R.6 false stamp (closed for state changes, 12.9):** confirm; a false stamp can remain in the public record,
+labelled unconfirmed.
+14.6 **11.R.7 classic token not scoped to the repo (open):** accepting means a stolen token can open issues and
+comment as the secondary account on any public repo, never push or merge here.
+14.7 **11.R.8 operator's login on the AEF host (open):** accepting means, until the organisation move, whatever
+controls the AEF host can do anything the operator's account can on GitHub.
+14.8 **11.R.9 self-confirmed false verdict (open, new):** accepting means a compromised or careless trusted peer's
+false verdict, confirmed by itself over the sidecar, counts towards confirming an issue and towards a release.
+14.9 **10.32 remainder:** a merged outside PR with no field-test verdict: block the release outright, or (as the
+standing ruling gives) go to the operator's release question.
+14.10 **10.2 pilot:** how PRs from other accounts are answered during the pilot, and what ends it; R-7 is not
+testable until decided.
+14.11 **10.35 scan bound:** how soon after a post the scan must hide it (bounds 14.1).
+14.12 **Priorities (6.0.b):** accept or change the collector's P1 / P2 / P3 on each requirement.
+14.13 **Provisional bounds (10.26):** one screen = 40 lines of 100 characters; no 8-word run in a rewrite.
+14.14 **The other open operator questions** (10.1, 10.3, 10.4, 10.6, 10.10 to 10.25, 10.27, 10.28, 10.30, 10.34): decide
+now, or let them go forward to the next roles as open. 10.29, 10.33, 10.36 and 10.37 go to the architect and threat
+modeler.
+12.13 **Release channels (operator, 2026-11-02, "let's try two weeks").** Three channels: bleeding edge (everything
+new, basic tests green; daily `be-tag`s), pre-release (cut weekly from what 2 to 3 different agents showed working in
+the field), stable (cut monthly from what ran as pre-release for at least 2 weeks, used by at least two different
+projects, with no open failure against it). Emergency route for urgent security fixes: field-proven by two agents,
+then straight to pre-release and stable with the operator's explicit go. Outside PRs always target `bleeding-edge`.
+`CONTRIBUTING.md` names `master` (there is no `main`). To be filed as its own inception in this arc; consistent with
+the standing rulings T-4020 / T-4146.
+12.14 **Mehdi's proposal re-checked against the draft plan** (operator asked, 2026-11-02): added to
+`T-5006-draft-plan-for-mehdi.md` the direct answer to the closing question, the release channels, PR 1's corrections
+(`master`, branch from `bleeding-edge`), PR 2's example #106 checked on the latest pre-release, and the 28-October CI
+re-verification check as the step after the pilot.
+
+## 15 Operator sign-off of section 14 (2026-11-12)
+
+Asked one item at a time, with the agent's recommendation; the operator's answer is recorded verbatim in meaning.
+
+- **10.35 (prerequisite of 14.1):** the scan runs **within 5 minutes** of a post: a small job every 5 minutes reads
+  new posts and comments from peer accounts and hides hits; no run for 15 minutes raises a push alert to the operator.
+  (Copies already e-mailed to watchers within seconds are outside any interval.)
+- **14.1 (11.R.1 disclosure):** **accepted, as bounded** by the 5-minute scan (10.35): a token holder, including a
+  thief, can post arbitrary text that is public until hidden, and copies may be permanent; limited by tokens only for
+  trusted peers, fixed-form direct posts, no push or merge rights, revocation on misuse.
+- **14.2 (11.R.2 public PR run outside procedure):** **accepted.** Outside AEF's control for public code; AEF never asks
+  for it. Added as a requirement for the next roles: one line in the peer guidance and CONTRIBUTING, "never run
+  unmerged PR code on a host with credentials; the isolated test host does that".
+- **14.3 (11.R.4 session credential lands outside commits):** **reopened** (no longer accepted with detection only).
+  Carried to the threat modeler (T-5022) as a requirement: prevention, not only detection. Candidates to weigh: a
+  separate push credential for the AEF session that cannot land others' commits, the organisation move (T-5030),
+  signed-commit rules (insufficient alone: a contributor's own signed commits also pass).
+- **14.4 (11.R.5 owner bypass):** **confirmed**, accepted with detection: owner overrides are shown by name afterwards;
+  installs in between receive them.
+- **14.5 (11.R.6 false stamp):** **confirmed**: closed for state changes (only a sidecar-confirmed verdict changes
+  state); a false stamp can remain in the public record, labelled unconfirmed.
+- **14.6 (11.R.7 classic token not scoped to the repo):** **accepted, with a revocation rule**: peer tokens carry only
+  the issues/comments right; a daily check of the secondary account's activity on other repositories; a token is
+  revoked within one hour of suspected misuse or of a peer leaving the trusted list. **This also answers 10.27**
+  (revocation limit: one hour).
+- **14.7 (11.R.8 operator's login on the AEF host):** **accepted until the organisation move** (T-5030): the host stays
+  private, no PR code ever runs on it (the isolated test host does that), and the review check moves to a separate
+  identity when the architect decides 10.33.
+- **14.8 (11.R.9 self-confirmed false verdict):** **accepted, needing two peers**: a fix counts as field-confirmed for a
+  release only with WORKS (with evidence) from two different peers, or one peer plus the operator's own check; one
+  peer's confirmed WORKS alone may close the issue but does not count for the release. (Note for the planner: this
+  tightens the standing release ruling T-4146 for outside-PR fixes only, unless the operator extends it.)
+- **14.9 (10.32 remainder):** a merged outside PR with no positive field verdict goes to **the operator's release
+  question** (standing ruling T-4146), not an outright block; with 14.8 it needs two peers (or one plus the operator)
+  to count as confirmed.
+- **14.10 (10.2 pilot):** a PR from another account during the pilot is **labelled "waiting" with one polite line**
+  (the project is piloting outside contributions with one contributor; the PR is kept and looked at when the pilot
+  ends); nothing is reviewed or merged meanwhile. **Pilot exit** as accepted on 2026-11-11: PR 2 runs the whole
+  circuit without a workaround, a refused or returned PR gets its one-line reason, and no merged commit is lost.
+  R-7 is testable now.
+- **14.11 (10.35 scan bound):** answered above: within 5 minutes, alert after 15 minutes without a run.
+- **14.12 (6.0.b priorities):** **accepted as proposed** (P1 needed for the pilot, P2 before opening wider, P3 later); the planner (step 8) flags any P1 not needed for the pilot, and the operator may move items later.
+- **14.13 (10.26 provisional bounds):** **confirmed**: one screen = at most 40 lines of at most 100 characters; a rewrite contains no run of 8 or more consecutive words of the report.
+- **14.14 (other open questions):** settled already: **10.3** and **10.4** (Mehdi's answers accepted 2026-11-11:
+  documentation-only PRs may skip the issue for form-only changes; branch names are guidance), **10.16** (a second
+  fix on the same issue can now be announced: T-5096, 2026-11-12), **10.27** (revocation within one hour, 14.6).
+  **Passed on as open** to the next roles: 10.1, 10.6, 10.10 to 10.15, 10.17 to 10.25, 10.28, 10.30, 10.34; each
+  role answers what the design settles and brings the operator only real choices, one at a time. 10.29, 10.33,
+  10.36, 10.37 stay with the architect and threat modeler, as listed.
+
+**Result:** section 14 is signed off by the operator on 2026-11-12, with one item reopened (14.3, to the threat
+modeler as a prevention requirement). Step 1 (T-5021) is complete; step 2 (threat modeler, T-5022) may start.

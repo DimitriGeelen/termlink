@@ -59,13 +59,22 @@ _derive_version() {
 }
 FW_VERSION="$(_derive_version)"
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+# Colors — same guard as lib/colors.sh (T-5048): colour only when stdout or
+# stderr is a terminal and NO_COLOR is unset; otherwise every variable is empty,
+# so output written to a file or pipe carries no escape codes.
+if [[ ( -t 1 || -t 2 ) && -z "${NO_COLOR:-}" ]]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    CYAN='\033[0;36m'
+    BOLD='\033[1m'
+    DIM='\033[2m'
+    NC='\033[0m'
+else
+    RED='' GREEN='' YELLOW='' CYAN='' BOLD='' DIM='' NC=''
+fi
+# Embedded Python blocks below apply the rule for their own stdout:
+# colour only when sys.stdout.isatty() and NO_COLOR is unset/empty.
 
 # --- Path Resolution ---
 
@@ -687,7 +696,7 @@ _vendor_sync_changed() {
 # created by redirect, so it gets the umask mode a plain `>` would), then it is
 # moved into place or discarded. A no-op re-vendor leaves $1's mtime alone.
 _vendor_write_if_changed() {
-    local f="$1" tmp="$1.fw-vendor-tmp.$$"
+    local f="$1" tmp="$1.fw-vendor-tmp.${BASHPID:-$$}"
     cat > "$tmp" || { rm -f "$tmp"; return 1; }
     if [ -f "$f" ] && [ ! -L "$f" ] && cmp -s "$tmp" "$f"; then
         rm -f "$tmp"
@@ -1698,6 +1707,7 @@ show_help() {
     echo -e "  ${GREEN}approvals${NC} <cmd>      Approval queue (pending, status, expire)"
     echo -e "  ${GREEN}review-queue${NC}         List tasks awaiting human review (with verdicts)"
     echo -e "  ${GREEN}issues${NC} <cmd>         Inbound GitHub issues: sync (ingest, T-4078), comment, approve (T-4077)"
+    echo -e "  ${GREEN}testhost${NC} <cmd>       Isolated test host: run (--pr N | --commit SHA), watch, list (T-5009)"
     echo -e "  ${GREEN}verify-queue${NC}         Re-run stored Verification for that queue (--all, --task, --json)"
     echo -e "  ${GREEN}work-on${NC} <name|T-XXX> Create task + set focus + start (one-step gate)"
     echo -e "  ${GREEN}bus${NC} <cmd>            Result ledger for sub-agent dispatch (post, read, manifest, clear)"
@@ -2072,6 +2082,33 @@ do_doctor() {
         warnings=$((warnings + 1))
         host_warnings=$((host_warnings + 1))
     }
+
+    # T-4355 (GitHub #98): optional components a project leaves out on purpose.
+    # Listed in ABSENT_COMPONENTS, a missing one reads OK "absent by choice"
+    # instead of a permanent WARN. Fixed allowlist, so a typo cannot silence
+    # anything: an unknown name is itself a WARN. A component a workflow needs
+    # (pi, ollama, litellm) still WARNs at its own check.
+    # T-5080: the list lives in one file, shared with `fw config components`.
+    local _doctor_known_optional
+    _doctor_known_optional=$(python3 "$FRAMEWORK_ROOT/lib/optional_components.py" 2>/dev/null)
+    local _doctor_absent
+    _doctor_absent=$(fw_config "ABSENT_COMPONENTS" "" 2>/dev/null || true)
+    _doctor_absent=" ${_doctor_absent//,/ } "
+    _doctor_absent_by_choice() {
+        case "$_doctor_absent" in *" $1 "*) return 0 ;; esac
+        return 1
+    }
+    _doctor_absent_ok() {
+        echo -e "  ${GREEN}OK${NC}  $1 not installed — absent by choice (ABSENT_COMPONENTS)"
+    }
+    local _ac_name
+    for _ac_name in $_doctor_absent; do
+        case " $_doctor_known_optional " in
+            *" $_ac_name "*) ;;
+            *) echo -e "  ${YELLOW}WARN${NC}  ABSENT_COMPONENTS names '$_ac_name', which is not an optional component (known: $_doctor_known_optional)"
+               warnings=$((warnings + 1)) ;;
+        esac
+    done
 
     # Check 1: Framework directory
     if [ -d "$FRAMEWORK_ROOT/agents" ] && [ -f "$FRAMEWORK_ROOT/FRAMEWORK.md" ]; then
@@ -2705,6 +2742,8 @@ print('|'.join(f'{e}:{n}' for e, n in overlap))
                     echo -e "  ${YELLOW}WARN${NC}  bats installed but no unit tests found in tests/unit/"
                     warnings=$((warnings + 1))
                 fi
+            elif _doctor_absent_by_choice bats; then
+                _doctor_absent_ok "bats"
             else
                 _doctor_warn_host "bats not installed (run: git clone https://github.com/bats-core/bats-core && ./install.sh /usr/local)"
             fi
@@ -2712,6 +2751,8 @@ print('|'.join(f'{e}:{n}' for e, n in overlap))
 
         if command -v shellcheck >/dev/null 2>&1; then
             echo -e "  ${GREEN}OK${NC}  ShellCheck linter"
+        elif _doctor_absent_by_choice shellcheck; then
+            _doctor_absent_ok "shellcheck"
         else
             _doctor_warn_host "shellcheck not installed (run: apt install shellcheck  # or brew install shellcheck)"
         fi
@@ -2774,6 +2815,8 @@ print(f'{total}|{\",\".join(missing)}')
     # MCP is auto-managed by fw upgrade; pip needs manual install.
     if python3 -c "import playwright" 2>/dev/null; then
         echo -e "  ${GREEN}OK${NC}  Playwright pip package (test runner)"
+    elif _doctor_absent_by_choice playwright; then
+        _doctor_absent_ok "Playwright pip package"
     else
         echo -e "  ${YELLOW}WARN${NC}  Playwright pip package missing — UI regression tests can't run"
         echo -e "         Install: pip install playwright pytest-playwright && playwright install chromium"
@@ -2781,6 +2824,8 @@ print(f'{total}|{\",\".join(missing)}')
     fi
     if [ -f "$mcp_json" ] && grep -q '"playwright"' "$mcp_json" 2>/dev/null; then
         echo -e "  ${GREEN}OK${NC}  Playwright MCP server (agent UI verification)"
+    elif _doctor_absent_by_choice playwright; then
+        _doctor_absent_ok "Playwright MCP server"
     else
         echo -e "  ${YELLOW}WARN${NC}  Playwright MCP server not in .mcp.json"
         echo -e "         Run: fw upgrade  # auto-adds the MCP block"
@@ -3271,6 +3316,12 @@ PY
             if [ -n "$_wt_ident" ] && echo "$_wt_ident" | grep -q "\"service\"[[:space:]]*:[[:space:]]*\"watchtower\"" \
                 && echo "$_wt_ident" | grep -q "\"project_root\"[[:space:]]*:[[:space:]]*\"$PROJECT_ROOT\""; then
                 echo -e "  ${GREEN}OK${NC}  Watchtower running ($_wt_url, pid $_wt_pid)"
+                # T-4239: the default bind is this machine only. Say how to open
+                # it, so a project that relied on network access is not left guessing.
+                case "$(tr -d '[:space:]' < "$PROJECT_ROOT/.context/working/watchtower.host" 2>/dev/null)" in
+                    127.*|::1|localhost)
+                        echo -e "  ${CYAN}INFO${NC}  Watchtower answers on this machine only (HOST default 127.0.0.1, T-4239). To open it to your network: fw config set HOST 0.0.0.0 && fw watchtower restart" ;;
+                esac
                 # T-2938: alive and identifying correctly is NOT the same as
                 # running current code. Flask serves with debug=False here, so
                 # there is no reloader — a process started before a web/ commit
@@ -4299,6 +4350,8 @@ print(" ".join(sorted(dm.host_shared_address_keys())))' "$FRAMEWORK_ROOT" 2>/dev
             fi
         fi
         fi  # T-2452/F6-style --quick guard
+    elif _doctor_absent_by_choice termlink; then
+        _doctor_absent_ok "TermLink"
     else
         _doctor_warn_host "TermLink not installed (cargo install termlink)"
     fi
@@ -4445,24 +4498,43 @@ print(" ".join(sorted(dm.host_shared_address_keys())))' "$FRAMEWORK_ROOT" 2>/dev
     # so env overrides (FW_EMBED_HOST) and the `or OLLAMA_HOST` fallback are
     # honoured exactly as the embed path honours them — a check that resolved the
     # host differently from the code under test would be worse than none.
-    if [ -f "$FRAMEWORK_ROOT/web/embeddings.py" ]; then
-        local _embed_host
-        _embed_host="$(PROJECT_ROOT="$PROJECT_ROOT" python3 -c "
+    #
+    # T-5064 (issue #98 follow-up): SEMANTIC_RECALL=0 means no embeddings are wanted on this
+    # host, so the probe is a SKIP, read the same way as the T-3862 index check. And failover
+    # is claimed only when it exists: T-3017 retries on EMBED_BULK_HOST, and only when that
+    # differs from EMBED_HOST (web/embeddings.py:_fallback_host). With one host, or a dead
+    # alternative, embeddings fail and the line says so.
+    if [ -f "$FRAMEWORK_ROOT/web/embeddings.py" ] && \
+       [ "$(source "$FRAMEWORK_ROOT/lib/config.sh" && PROJECT_ROOT="$PROJECT_ROOT" fw_config SEMANTIC_RECALL 1)" = "0" ]; then
+        echo -e "  ${CYAN}SKIP${NC}  embed endpoint check (SEMANTIC_RECALL=0: semantic recall not configured on this host)"
+    elif [ -f "$FRAMEWORK_ROOT/web/embeddings.py" ]; then
+        local _embed_host _embed_alt _embed_hosts
+        _embed_hosts="$(PROJECT_ROOT="$PROJECT_ROOT" python3 -c "
 import sys
 sys.path.insert(0, '$FRAMEWORK_ROOT/web')
 try:
     from config import Config
-    print(Config.EMBED_HOST or '')
+    h = Config.EMBED_HOST or ''
+    b = getattr(Config, 'EMBED_BULK_HOST', '') or ''
+    print(h)
+    print(b if b and b != h else '')
 except Exception:
     print('')
+    print('')
 " 2>/dev/null)"
+        _embed_host="$(sed -n 1p <<< "$_embed_hosts")"
+        _embed_alt="$(sed -n 2p <<< "$_embed_hosts")"
         if [ -z "$_embed_host" ]; then
             echo -e "  ${CYAN}INFO${NC}  embed endpoint not configured (no embed_host, no ollama_host)"
         elif curl -sf --max-time 3 "${_embed_host%/}/api/tags" >/dev/null 2>&1; then
             echo -e "  ${GREEN}OK${NC}  embed endpoint reachable ($_embed_host)"
-        else
-            _doctor_warn_host "embed endpoint not reachable on $_embed_host; embeds still succeed via T-3017 failover, so nothing else will report this"
+        elif [ -n "$_embed_alt" ] && curl -sf --max-time 3 "${_embed_alt%/}/api/tags" >/dev/null 2>&1; then
+            _doctor_warn_host "embed endpoint not reachable on $_embed_host; embeds still succeed via T-3017 failover to $_embed_alt, so nothing else will report this"
             echo -e "         Unset embed_host in .context/settings.yaml to resolve to ollama_host, or start the endpoint. See T-3045."
+        else
+            _doctor_warn_host "embed endpoint not reachable on $_embed_host and no other embed host answers${_embed_alt:+ ($_embed_alt is down too)}: embedding calls will fail"
+            echo -e "         Start the endpoint (or point embed_host/ollama_host in .context/settings.yaml at one that runs),"
+            echo -e "         or, if this host does not use semantic recall: fw config set SEMANTIC_RECALL 0. See T-3045, T-5064."
         fi
     fi
 
@@ -4521,6 +4593,8 @@ except Exception:
             else
                 echo -e "  ${GREEN}OK${NC}  TypeScript build (${#_ts_files[@]} source(s))"
             fi
+        elif _doctor_absent_by_choice node; then
+            _doctor_absent_ok "Node.js"
         else
             _doctor_warn_host "Node.js not found (TS hooks will use Python fallback)"
         fi
@@ -5238,14 +5312,14 @@ if len(rows) > 5:
     if [ "${_has_origin:-0}" -ge 1 ]; then
         local _other_remotes _origin_refs _origin_dump
         _other_remotes=$(echo "$_all_remotes" | grep -vx 'origin' 2>/dev/null)
-        _origin_dump=$(mktemp 2>/dev/null || echo "/tmp/fw-origin-refs.$$")
+        _origin_dump=$(mktemp 2>/dev/null || echo "/tmp/fw-origin-refs.${BASHPID:-$$}")
         timeout 10 git -C "$PROJECT_ROOT" ls-remote origin 'refs/heads/*' 'refs/tags/*' 2>/dev/null | sort -k2 > "$_origin_dump" 2>/dev/null
         _origin_refs=$(wc -l < "$_origin_dump" 2>/dev/null)
         if [ -n "$_other_remotes" ] && [ "${_origin_refs:-0}" -gt 0 ]; then
             local _other _other_dump _diverge _orig_only _mirr_only _orig_names _other_names
             while IFS= read -r _other; do
                 [ -z "$_other" ] && continue
-                _other_dump=$(mktemp 2>/dev/null || echo "/tmp/fw-${_other}-refs.$$")
+                _other_dump=$(mktemp 2>/dev/null || echo "/tmp/fw-${_other}-refs.${BASHPID:-$$}")
                 timeout 10 git -C "$PROJECT_ROOT" ls-remote "$_other" 'refs/heads/*' 'refs/tags/*' 2>/dev/null | sort -k2 > "$_other_dump" 2>/dev/null
                 if [ ! -s "$_other_dump" ]; then
                     echo -e "  ${CYAN}SKIP${NC}  Mirror divergence ($_other unreachable)"
@@ -5404,6 +5478,39 @@ if len(rows) > 5:
             warnings=$((warnings + 1))
         else
             echo -e "  ${GREEN}OK${NC}  Branch hygiene clean"
+        fi
+    fi
+
+    # T-5049 (R-58): outside contributors' commits on bleeding-edge not merged by the operator.
+    if [ -f "$FRAMEWORK_ROOT/lib/outside_commits.py" ]; then
+        local _oc_out _oc_rc=0
+        _oc_out=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/outside_commits.py" audit 2>&1) || _oc_rc=$?
+        if [ "$_oc_rc" -eq 0 ]; then
+            echo -e "  ${GREEN}OK${NC}  $(echo "$_oc_out" | tail -1)"
+        else
+            echo -e "  ${YELLOW}WARN${NC}  $(echo "$_oc_out" | tail -1) (python3 lib/outside_commits.py audit)"
+            echo "$_oc_out" | grep -E '^(FAIL|WARN|ERROR)' | head -5 | while IFS= read -r _ocl; do echo "         $_ocl"; done
+            warnings=$((warnings + 1))
+        fi
+    fi
+
+    # T-5061 (G-130): a runaway file under .context/working/ (183 GB on the Greenfield laptop).
+    if [ -f "$FRAMEWORK_ROOT/lib/working-oversize.sh" ]; then
+        # shellcheck source=/dev/null
+        source "$FRAMEWORK_ROOT/lib/working-oversize.sh"
+        local _wo_out _wo_bytes _wo_path
+        # PROJECT_ROOT, not CONTEXT_DIR: doctor never sets CONTEXT_DIR, and under set -u the
+        # unbound name aborted doctor here, skipping every later check (T-5061 regression, be.40).
+        _wo_out=$(fw_working_oversized "$PROJECT_ROOT/.context/working")
+        if [ -z "$_wo_out" ]; then
+            echo -e "  ${GREEN}OK${NC}  No oversized file under .context/working/ (limit $(fw_working_human_size "${FW_WORKING_FILE_WARN_BYTES:-1073741824}"))"
+        else
+            echo -e "  ${YELLOW}WARN${NC}  Oversized file(s) under .context/working/ — a runaway writer can fill the disk (T-5061)"
+            while read -r _wo_bytes _wo_path; do
+                echo "         $(fw_working_human_size "$_wo_bytes")  .context/working/$_wo_path"
+            done <<< "$_wo_out"
+            echo "         Look at what writes it, then truncate it: : > .context/working/<file>"
+            warnings=$((warnings + 1))
         fi
     fi
 
@@ -5768,6 +5875,8 @@ YELLOW = '\033[1;33m'
 CYAN = '\033[0;36m'
 BOLD = '\033[1m'
 NC = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    GREEN = YELLOW = CYAN = BOLD = NC = ''
 
 def status_color(s):
     s = s.lower() if s else ''
@@ -5896,6 +6005,9 @@ GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 CYAN = '\033[0;36m'
 NC = '\033[0m'
+RED = '\033[0;31m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    BOLD = GREEN = YELLOW = CYAN = NC = RED = ''
 
 task_file = None
 for subdir in ['active', 'completed']:
@@ -5910,7 +6022,7 @@ for subdir in ['active', 'completed']:
         break
 
 if not task_file:
-    print(f'\033[0;31mTask {task_id} not found\033[0m')
+    print(f'{RED}Task {task_id} not found{NC}')
     sys.exit(1)
 
 with open(task_file) as f:
@@ -6125,6 +6237,8 @@ GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 CYAN = '\033[0;36m'
 NC = '\033[0m'
+if not __import__('sys').stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    BOLD = GREEN = YELLOW = CYAN = NC = ''
 
 def parse_iso(s):
     if not s: return None
@@ -6448,6 +6562,8 @@ YELLOW = '\033[1;33m'
 CYAN = '\033[0;36m'
 RED = '\033[0;31m'
 NC = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    BOLD = GREEN = YELLOW = CYAN = RED = NC = ''
 
 project_root = os.environ.get('PROJECT_ROOT', '.')
 active_dir = os.path.join(project_root, '.tasks', 'active')
@@ -6562,6 +6678,8 @@ while i < len(args):
 
 GREEN = '\033[0;32m'; YELLOW = '\033[1;33m'; CYAN = '\033[0;36m'
 RED = '\033[0;31m'; BOLD = '\033[1m'; NC = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    GREEN = YELLOW = CYAN = RED = BOLD = NC = ''
 
 project_root = os.environ.get('PROJECT_ROOT', '.')
 active_dir = os.path.join(project_root, '.tasks', 'active')
@@ -9280,6 +9398,8 @@ if ts:
 
 color = '\033[1;33m' if not expired else '\033[0;31m'
 nc = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    color = nc = ''
 print(f'  {color}{status.upper()}{nc}  {chash}  ({age_str})')
 print(f'    Risk: {risk}')
 print(f'    Cmd:  {preview}')
@@ -9328,6 +9448,8 @@ responded = resp.get('responded_at', '?')
 colors = {'approved': '\033[0;32m', 'rejected': '\033[0;31m', 'consumed': '\033[0;36m', 'expired': '\033[1;33m'}
 c = colors.get(status, '\033[0m')
 nc = '\033[0m'
+if not __import__('sys').stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    c = nc = ''
 print(f'    {c}{status.upper():10}{nc}  {chash}  via {mechanism}  at {responded}')
 print(f'              {risk}')
 " 2>/dev/null
@@ -9804,6 +9926,14 @@ decision_rows.sort(key=lambda r: (order.get(r[0], 9), -r[1]))
 decided_rows.sort(key=lambda r: -r[1])
 
 NAME_W = 60
+
+# T-5048: the rows below carry colour inline. Off a terminal, or with NO_COLOR,
+# strip it at print so a file or pipe gets plain text.
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
+    import builtins as _bi
+    _ansi = re.compile(r'\x1b\[[0-9;]*m')
+    def print(*a, **k):
+        _bi.print(*(_ansi.sub('', x) if isinstance(x, str) else x for x in a), **k)
 
 def _verdict_color(v):
     # T-1576: NO-REC in cyan (call-to-action — agent should write a recommendation),
@@ -10462,13 +10592,16 @@ from lib.gaps import close_gap, GapCloseError
 gap_id = os.environ['GAP_ID']
 rationale = os.environ.get('RATIONALE') or None
 override = bool(os.environ.get('OVERRIDE_FLAG'))
+_nc = bool(os.environ.get('NO_COLOR'))  # T-5048: colour only on a terminal
+G, N = ('\033[0;32m', '\033[0m') if sys.stdout.isatty() and not _nc else ('', '')
+RE, NE = ('\033[0;31m', '\033[0m') if sys.stderr.isatty() and not _nc else ('', '')
 try:
     result = close_gap(gap_id, rationale=rationale, override=override, actor='cli')
-    print(f'\033[0;32mClosed\033[0m {gap_id} — verdict={result[\"verdict\"]}, closed_date={result[\"closed_date\"]}')
+    print(f'{G}Closed{N} {gap_id} — verdict={result[\"verdict\"]}, closed_date={result[\"closed_date\"]}')
     print(f'Audit: {result[\"audit_path\"]}')
     sys.exit(0)
 except GapCloseError as e:
-    print(f'\033[0;31mRefused\033[0m ({e.code}) {e.message}', file=sys.stderr)
+    print(f'{RE}Refused{NE} ({e.code}) {e.message}', file=sys.stderr)
     sys.exit(1)
 "
             exit $?
@@ -10482,7 +10615,11 @@ from lib.gaps import partition_gaps, status_breakdown
 GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 RED = '\033[0;31m'
+CYAN = '\033[0;36m'
+BOLD = '\033[1m'
 NC = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    GREEN = YELLOW = RED = CYAN = BOLD = NC = ''
 
 with open("$GAPS_FILE") as f:
     data = yaml.safe_load(f) or {}
@@ -10502,7 +10639,7 @@ gaps = data.get('concerns', data.get('gaps', [])) or []
 # printing five "command not found" lines above the report (L-408).
 outstanding, terminal = partition_gaps(gaps)
 
-print(f"\033[1mGaps Register\033[0m — {len(outstanding)} outstanding, {len(terminal)} closed, {len(gaps)} total")
+print(f"{BOLD}Gaps Register{NC} — {len(outstanding)} outstanding, {len(terminal)} closed, {len(gaps)} total")
 if outstanding:
     breakdown = ', '.join(f"{k} {v}" for k, v in status_breakdown(outstanding).items())
     print(f"  Outstanding by status: {breakdown}")
@@ -10558,16 +10695,16 @@ outstanding.sort(key=lambda g: (
 ))
 
 for gap in outstanding:
-    sev_colors = {'high': '\033[0;31m', 'medium': '\033[1;33m', 'low': '\033[0;36m'}
+    sev_colors = {'high': RED, 'medium': YELLOW, 'low': CYAN}
     sev = gap.get('severity', 'unknown')
-    color = sev_colors.get(sev, '\033[0m')
+    color = sev_colors.get(sev, NC)
     status = gap.get('status') if isinstance(gap.get('status'), str) else None
     # An entry with no status at all is a register defect, not a quiet gap —
     # say so on its line rather than letting it read as an ordinary entry.
     status_str = status if status else f"{RED}<unset>{NC}"
     # T-1840: defensive .get() — legacy consumer concerns.yaml entries
     # predating the title-field requirement crashed fw gaps with KeyError.
-    print(f"  {color}{gap.get('id', '?')}\033[0m [{sev}] ({status_str})  {gap.get('title') or '<untitled>'}")
+    print(f"  {color}{gap.get('id', '?')}{NC} [{sev}] ({status_str})  {gap.get('title') or '<untitled>'}")
     trigger = (gap.get('decision_trigger') or '').strip().split('\n')[0]
     if trigger:
         print(f"    Trigger: {trigger}")
@@ -10634,13 +10771,15 @@ PYEOF
         ;;
     decisions)
         python3 << 'PYDECISIONS'
-import os, yaml, re
+import os, sys, yaml, re
 
 BOLD = '\033[1m'
 GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 CYAN = '\033[0;36m'
 NC = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    BOLD = GREEN = YELLOW = CYAN = NC = ''
 
 project_root = os.environ.get('PROJECT_ROOT', '.')
 
@@ -10697,13 +10836,15 @@ PYDECISIONS
         ;;
     timeline)
         python3 << 'PYTIMELINE'
-import os, yaml
+import os, sys, yaml
 
 BOLD = '\033[1m'
 GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 CYAN = '\033[0;36m'
 NC = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    BOLD = GREEN = YELLOW = CYAN = NC = ''
 
 project_root = os.environ.get('PROJECT_ROOT', '.')
 handover_dir = os.path.join(project_root, '.context', 'handovers')
@@ -10764,9 +10905,11 @@ PYTIMELINE
         for _a in "$@"; do [ "$_a" = "--unfilled" ] && FW_LEARNINGS_UNFILLED=1; done
         if [ "$FW_LEARNINGS_UNFILLED" = "1" ]; then
             python3 << 'PYUNFILLED'
-import os, re, yaml
+import os, re, sys, yaml
 
 BOLD='\033[1m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    BOLD = GREEN = YELLOW = NC = ''
 
 # Every shape a generator ever wrote at birth. A value matching one of these
 # tells a reader nothing the learning text does not already say, so it counts as
@@ -10807,13 +10950,15 @@ PYUNFILLED
             exit 0
         fi
         python3 << 'PYLEARNINGS'
-import os, yaml
+import os, sys, yaml
 
 BOLD = '\033[1m'
 GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 CYAN = '\033[0;36m'
 NC = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    BOLD = GREEN = YELLOW = CYAN = NC = ''
 
 project_root = os.environ.get('PROJECT_ROOT', '.')
 path = os.path.join(project_root, '.context', 'project', 'learnings.yaml')
@@ -10852,7 +10997,7 @@ PYLEARNINGS
             exit 0
         fi
         python3 << 'PYPATTERNS'
-import os, yaml
+import os, sys, yaml
 
 BOLD = '\033[1m'
 RED = '\033[0;31m'
@@ -10860,6 +11005,8 @@ GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 CYAN = '\033[0;36m'
 NC = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    BOLD = RED = GREEN = YELLOW = CYAN = NC = ''
 
 project_root = os.environ.get('PROJECT_ROOT', '.')
 path = os.path.join(project_root, '.context', 'project', 'patterns.yaml')
@@ -10922,13 +11069,15 @@ PYPATTERNS
             exit 0
         fi
         python3 << 'PYPRACTICES'
-import os, yaml
+import os, sys, yaml
 
 BOLD = '\033[1m'
 GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 CYAN = '\033[0;36m'
 NC = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    BOLD = GREEN = YELLOW = CYAN = NC = ''
 
 project_root = os.environ.get('PROJECT_ROOT', '.')
 path = os.path.join(project_root, '.context', 'project', 'practices.yaml')
@@ -10997,6 +11146,8 @@ GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 CYAN = '\033[0;36m'
 NC = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    BOLD = GREEN = YELLOW = CYAN = NC = ''
 
 if mode == 'semantic':
     from web.embeddings import search
@@ -11044,6 +11195,8 @@ GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 CYAN = '\033[0;36m'
 NC = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    BOLD = RED = GREEN = YELLOW = CYAN = NC = ''
 
 search_areas = [
     (os.path.join(project_root, '.tasks'), 'Tasks'),
@@ -11492,6 +11645,8 @@ GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 CYAN = '\033[0;36m'
 NC = '\033[0m'
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):  # T-5048
+    BOLD = GREEN = YELLOW = CYAN = NC = ''
 
 project_root = os.environ.get('PROJECT_ROOT', '.')
 ep_dir = os.path.join(project_root, '.context', 'episodic')
@@ -11686,6 +11841,14 @@ PYPREDICT
         fi
 
         case "${1:-all}" in
+            bundle)
+                # T-5070: the node1 unit-suite package (T-5069 spec)
+                shift
+                # shellcheck source=/dev/null
+                source "$FRAMEWORK_ROOT/lib/test-bundle.sh"
+                PROJECT_ROOT="$PROJECT_ROOT" fw_test_bundle "$@"
+                exit $?
+                ;;
             --lint|lint)
                 # ShellCheck linting
                 if ! command -v shellcheck >/dev/null 2>&1; then
@@ -12024,6 +12187,7 @@ PYPREDICT
                 echo "  web           Pytest web tests only"
                 echo "  playwright    Playwright UI tests (alias: ui)"
                 echo "  lint          ShellCheck linting on all .sh files"
+                echo "  bundle        Build the node1 unit-suite package (git bundle, one commit; T-5070)"
                 exit 0
                 ;;
         esac
@@ -12258,6 +12422,11 @@ YAMLEOF
     issues)
         # T-4077: GitHub issue intake. `comment` is the one outward verb; `sync` (T-4078) ingests.
         PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" python3 "$FW_LIB_DIR/issues.py" "$@"
+        exit $?
+        ;;
+    testhost)
+        # T-5009: run the R-12 PR checks on a throwaway isolated test host (stub backend in phase 3).
+        PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" python3 "$FW_LIB_DIR/testhost.py" "$@"
         exit $?
         ;;
     review)

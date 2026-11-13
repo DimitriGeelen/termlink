@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # lib/mirror.sh — Mirror cascade auto-recovery (T-1594, T-1591 Prevention #3).
 #
-# The cascade is: local → origin (OneDev) → github (mirror via OneDev
-# .onedev-buildspec.yml PushRepository job). When OneDev's mirror cron lags
-# or fails silently, github stays behind origin. T-1592 added detection in
+# The cascade is: local → origin → every other remote (a mirror). Until
+# 2026-11-03 origin was OneDev and GitHub its mirror (OneDev's PushRepository
+# job); since T-5044 origin is GitHub and OneDev (remote `onedev`) the mirror,
+# kept up to date only by this module. T-1592 added lag detection in
 # `fw doctor`. This module closes the loop: when the move is fast-forward
 # safe, push the lagging mirror up to origin's HEAD. Diverged state is
 # logged but never auto-recovered — that requires human decision.
@@ -82,7 +83,7 @@ mirror_sync_one() {
         # 7+ hours with only "push-failed" in the log; took a consumer pickup
         # to surface the actual blocking error (T-1603 hook).
         local _push_err
-        _push_err=$(mktemp 2>/dev/null || echo "/tmp/mirror-push-err.$$")
+        _push_err=$(mktemp 2>/dev/null || echo "/tmp/mirror-push-err.${BASHPID:-$$}")
         if git -C "${PROJECT_ROOT:-.}" push "$remote" "$branch" >/dev/null 2>"$_push_err"; then
             mirror_log_event "$log_file" "$remote" "synced" "$mirror_head" "$origin_head"
             [ "$quiet" -eq 0 ] && echo "  $remote: synced ${mirror_head:0:9} → ${origin_head:0:9}"
@@ -138,10 +139,13 @@ mirror_sync_tags() {
         [ "$quiet" -eq 0 ] && echo "  $remote: tags not compared (unreachable)" >&2
         return 1
     fi
+    # T-5062: differing tags are summarised in ONE line per run. One line per tag per run
+    # was 90 lines every 15 minutes for the same 90 tags (113k of a 125k-line log).
+    local -a _differs=()
     while read -r kind tag sha; do
         [ -z "$kind" ] && continue
         if [ "$kind" = "differs" ]; then
-            mirror_log_event "$log_file" "$remote:tags" "tag-differs" "$tag" ""
+            _differs+=("$tag")
             [ "$quiet" -eq 0 ] && echo "  $remote: tag $tag differs from origin — not moved (manual decision)" >&2
             continue
         fi
@@ -172,7 +176,32 @@ mirror_sync_tags() {
             rc=1
         fi
     done <<< "$diff"
+    if [ "${#_differs[@]}" -gt 0 ]; then
+        local _names="${_differs[*]}"
+        [ "${#_names}" -gt 400 ] && _names="${_names:0:400} ..."
+        mirror_log_event "$log_file" "$remote:tags" "tags-differ" "${#_differs[@]}" "$_names"
+    fi
     return "$rc"
+}
+
+# T-5062: keep .mirror-sync.log bounded. Over FW_MIRROR_LOG_MAX_BYTES (1 MB) it is cut back
+# to its last FW_MIRROR_LOG_KEEP_LINES (5000) lines: the NEWEST lines stay, because
+# mirror_stuck_diverged_check reads the last outcomes per remote. Never fatal.
+mirror_log_trim() {
+    local file="$1"
+    local cap="${FW_MIRROR_LOG_MAX_BYTES:-1048576}" keep="${FW_MIRROR_LOG_KEEP_LINES:-5000}"
+    case "$cap" in ''|*[!0-9]*) cap=1048576 ;; esac
+    case "$keep" in ''|*[!0-9]*) keep=5000 ;; esac
+    [ -f "$file" ] || return 0
+    local size; size=$(stat -c %s "$file" 2>/dev/null || wc -c < "$file")
+    [ "${size:-0}" -gt "$cap" ] || return 0
+    local tmp="$file.trim.${BASHPID:-$$}"
+    if tail -n "$keep" "$file" > "$tmp" 2>/dev/null && mv -f "$tmp" "$file"; then
+        mirror_log_event "$file" "log" "trimmed" "$size" "kept last $keep lines (cap $cap bytes)"
+    else
+        rm -f "$tmp" 2>/dev/null
+    fi
+    return 0
 }
 
 mirror_sync() {
@@ -206,6 +235,7 @@ USAGE
     done
 
     local log_file="${PROJECT_ROOT:-.}/.context/working/.mirror-sync.log"
+    mirror_log_trim "$log_file"   # T-5062
 
     local origin_head
     origin_head=$(git -C "${PROJECT_ROOT:-.}" ls-remote origin HEAD 2>/dev/null | awk '{print $1}')
@@ -235,6 +265,19 @@ USAGE
         if ! mirror_sync_one "$remote" "$origin_head" "$dry_run" "$quiet" "$log_file" "$branch"; then
             rc=1
         fi
+        # T-5044: the release train works on bleeding-edge, not on the default
+        # branch. While OneDev was origin, its own push job carried every branch to
+        # GitHub; with GitHub as origin, this sync is the only thing that carries
+        # them to the mirror. Same fast-forward-only rule, per branch.
+        local _extra _extra_head
+        for _extra in ${FW_MIRROR_EXTRA_BRANCHES-bleeding-edge}; do
+            [ "$_extra" = "$branch" ] && continue
+            _extra_head=$(git -C "${PROJECT_ROOT:-.}" ls-remote origin "refs/heads/$_extra" 2>/dev/null | awk '{print $1}')
+            [ -z "$_extra_head" ] && continue
+            if ! mirror_sync_one "$remote" "$_extra_head" "$dry_run" "$quiet" "$log_file" "$_extra"; then
+                rc=1
+            fi
+        done
         # T-4673: tags are synced independently of the branch outcome — a
         # new tag ref is safe to add even when the branch needs a human.
         if ! mirror_sync_tags "$remote" "$dry_run" "$quiet" "$log_file"; then

@@ -1780,6 +1780,16 @@ _fw_single_command_is_safe() {
                             ;;
                     esac
                     ;;
+                main)
+                    # T-5039: `main status` and `main am-i` read the main-session lease
+                    # (termlink's own help marks both read-only); claim, renew, release
+                    # and pin change it and stay absent.
+                    case "$tl_sub2" in
+                        status|am-i)
+                            return 0
+                            ;;
+                    esac
+                    ;;
                 remote)
                     # remote list/ping are network reads; remote inject/exec are not.
                     case "$tl_sub2" in
@@ -2056,6 +2066,28 @@ _fw_single_command_is_safe() {
             esac
             ;;
 
+        # T-5039: GitHub CLI reads. Only verb pairs that print state are admitted;
+        # every write is absent by construction: `gh api` (it can POST/PATCH/DELETE),
+        # create/edit/merge/close/comment/review, `pr checkout` (writes the tree),
+        # `run download` (writes files with no redirect), rerun/cancel, release
+        # upload/delete. A `--web` flag only opens a browser; output redirects are
+        # caught by has_bash_write_pattern before this arm is consulted.
+        gh)
+            local gh_sub gh_sub2
+            gh_sub=$(echo "$cmd" | awk '{print $2}')
+            gh_sub2=$(echo "$cmd" | awk '{print $3}')
+            case "$gh_sub:$gh_sub2" in
+                run:view|run:list|run:watch|\
+                pr:view|pr:list|pr:diff|pr:checks|pr:status|\
+                issue:view|issue:list|issue:status|\
+                release:view|release:list|\
+                repo:view|workflow:view|workflow:list|auth:status)
+                    return 0
+                    ;;
+            esac
+            return 1
+            ;;
+
         # Category 5: System utilities
         #
         # T-3222: curl and wget are NOT unconditionally safe, and their presence
@@ -2180,34 +2212,31 @@ has_bash_write_pattern() {
         _scan=$(printf '%s' "$_scan" | sed -E 's#(^|[^>&0-9])([0-9]|&)?>>?[[:space:]]*/dev/(null|stdout|stderr)([[:space:];|&)]|$)#\1 \4#')
     done
 
+    # Redirect operators (but not comparison operators like 2>&1)
     # ── T-3178 (LOCAL DIVERGENCE, registered in .vendor-divergence.yaml) ────────────
-    # Re-applied on top of upstream's T-3643 /dev/null strip after the 1.8.3 re-vendor
-    # (T-3370): upstream carried our /dev/null amendment (T-3187) but not this fix.
-    # Every rule below uses a HERESTRING, never `echo "$cmd" | grep -qE`. Under
-    # `set -o pipefail` a matching `grep -q` exits and closes the pipe, echo takes
-    # SIGPIPE, and the pipeline returns 141. On THIS predicate a non-zero return means
-    # "no write pattern found", so the security gate fails OPEN on a match (L-387 /
-    # T-2743). A herestring has no pipe and no SIGPIPE.
-
-    # Redirect to a FILE. The test is what FOLLOWS the operator, not what precedes it:
-    # `>` or `>>` not followed by `&` opens a file; `>&` duplicates a descriptor.
-    # The upstream rule '[^2>&]>[^>&]|>>' tests the character BEFORE the operator, but
-    # `2>&1` and `2> file` differ only AFTER it, so `cmd 2> out.txt` and `cmd &> out.txt`
-    # classified as not-a-write and the Tier-1 active-task gate admitted them with no
-    # task (050-email-archive P-006; `&>` is ours). Measured again on 1.8.3 (T-3370).
-    # A trailing operator with nothing after it matches `$` and counts as a write —
-    # fail CLOSED, a truncated command line is not evidence of safety.
-    if grep -qE '>>?($|[^&])' <<< "$_scan"; then
-        return 0
-    fi
-
-    # T-3746 (832 T-1005): the exemption above excludes `2>` and `&>` wholesale,
-    # but only the fd-duplication form (`2>&1`, `&>&2`) writes nothing. `2>err.log`
-    # and `&>out.log` redirect to a FILE and must count. /dev/null targets were
-    # already stripped from _scan, so `2>/dev/null` stays a read.
-    # (T-3489 merge: herestring instead of `echo | grep`, as the rest of this file, T-3178.)
-    if grep -qE '(2|&)>[^>&]' <<< "$_scan"; then
-        return 0
+    # Rule 1 is ours, not upstream's '[^2>&]>[^>&]|>>': the test is what FOLLOWS the
+    # operator. `>` or `>>` not followed by `&` opens a file; `>&` duplicates a
+    # descriptor. A trailing operator with nothing after it matches `$` and counts as
+    # a write: fail CLOSED, a truncated command line is not evidence of safety.
+    # (T-3778 merge onto be.49: kept inside upstream's T-5092 two-pass structure.)
+    # T-3746 (832 T-1005): the second rule — the exemption in the first excludes `2>`
+    # and `&>` wholesale, but only the fd-duplication form (`2>&1`, `&>&2`) writes
+    # nothing. `2>err.log` and `&>out.log` redirect to a FILE and must count.
+    # /dev/null targets were already stripped from _scan, so `2>/dev/null` stays a read.
+    # T-5092 (GitHub #112): on a match, the rules are re-read with INERT quoted text
+    # blanked (lib/shell_write_scan.py inert_quote_blanked), so `awk -F: '$2>9' f` is
+    # not a redirect. Quoted text that can run (sh -c, eval, perl, an awk print > f,
+    # "$(...)") is never blanked; any helper failure keeps the match: fail closed.
+    if grep -qE '>>?($|[^&])' <<< "$_scan" || grep -qE '(2|&)>[^>&]' <<< "$_scan"; then
+        local _unq
+        _unq=$(python3 -I -c 'import sys
+sys.path.insert(0, sys.argv[1])
+import shell_write_scan as s
+r = s.inert_quote_blanked(sys.argv[2])
+sys.stdout.write(r) if r is not None else sys.exit(1)' "$_FW_SAFE_COMMANDS_LIB" "$_scan" 2>/dev/null) || return 0
+        if grep -qE '>>?($|[^&])' <<< "$_unq" || grep -qE '(2|&)>[^>&]' <<< "$_unq"; then
+            return 0
+        fi
     fi
 
     # In-place sed. T-4479: anchored on a FLAG token, not a bare `-i` substring,

@@ -261,7 +261,9 @@ FW_CONFIG_REGISTRY=(
     "CONTEXT_WINDOW|800000|Context window size for budget enforcement (tokens)"
     "PORT|3000|Watchtower web UI listen port"
     "UX_SHOT_WIDTHS|1024,1440,1920|Comma-separated viewport widths for fw ux shots (agents/ux-review/ux_shots.py). T-4202: a render-surface state is screenshotted at every width here; at least 3 entries, each 320-7680, no duplicates, validated at capture. Read by the check-visual-verification gate's width minimum. T-4212."
-    "HOST|0.0.0.0|Watchtower bind address (env FW_HOST, read by web/config.py). A specific address makes the shell side probe and advertise that address instead of localhost; 0.0.0.0 or :: means all interfaces (T-4041, GitHub #88)"
+    "RELEASE_ARTIFACT_PATHS||Directories (ending in /, at least two levels deep, outside source and framework-state trees) that this project's release commit generates. A release commit touching only these does not make a reviewer verdict stale. Read only from .framework.yaml as committed; refused entries are ignored and WARNed by fw audit (T-5079, 832)"
+    "ABSENT_COMPONENTS||Optional components this project leaves out on purpose, space- or comma-separated: termlink node bats shellcheck pi ollama litellm playwright. fw doctor reports each as OK (absent by choice) instead of WARN; a workflow that needs one still WARNs, and an unknown name WARNs (T-4355, GitHub #98)"
+    "HOST|127.0.0.1|Watchtower bind address (env FW_HOST, read by web/config.py). Default 127.0.0.1: this machine only, because Watchtower has no login and can record Human decisions (T-4239). 0.0.0.0 or :: opens it to every interface (fw config set HOST 0.0.0.0); another specific address makes the shell side probe and advertise it (T-4041, GitHub #88)"
     "WATCHTOWER_OPEN_FIREWALL|0|1 = Watchtower start may add a UFW allow rule for its port when UFW is active and the bind is not loopback. 0 (default) never changes the firewall; it prints the exact ufw command instead. A loopback bind never touches UFW (T-4297)"
     "WATCHTOWER_ENSURE|1|1 = keep this project's Watchtower alive: session start and the cron keep-alive (bin/watchtower.sh ensure) start it when it is down and record the outage. 0 disables the keep-alive for this project. A Watchtower managed by a systemd .service unit is always left to systemd (T-4706, T-4711)"
     "WATCHTOWER_WARM_BEFORE_SERVE|0|1 = Watchtower finishes its startup cache warm-up (T-4363) before it serves, so the first request is warm; for a watchdog that can only probe a page. 0 (default) serves at once and warms in the background; probe /health instead, which never waits for the corpus and reports the warm-up state. The cold build can take tens of seconds, so raise WATCHTOWER_START_TIMEOUT with it (T-4854)"
@@ -285,7 +287,7 @@ FW_CONFIG_REGISTRY=(
     "CALL_CRITICAL|80|Tool-call count threshold for critical level (fallback)"
     "BASH_TIMEOUT|300000|Default Bash tool timeout in milliseconds"
     "KEYLOCK_TIMEOUT|300|Per-key lock stale cleanup timeout in seconds"
-    "TERMLINK_WORKER_TIMEOUT|600|TermLink worker execution timeout in seconds"
+    "TERMLINK_WORKER_TIMEOUT|3600|TermLink worker kill-watchdog in seconds (T-5068: 3600 fits 97.5% of measured runs; raise per dispatch with --timeout)"
     "UNIT_SUITE_FLAKE_RETRY_MAX|5|Files with a NEW unit-suite red (not in the ratchet baseline) re-run once per nightly run; a pass on the retry grades WARN suspected flaky at pre-push instead of FAIL, logged to flakes.jsonl. More NEW-red files than this = none retried. 0 = never retry (T-4875)"
     "TERMLINK_MAX_WORKERS|5|Concurrent fw termlink dispatch workers per project (T-3910). Raise situationally, on the operator's say-so: FW_TERMLINK_MAX_WORKERS=N for one run, fw config set TERMLINK_MAX_WORKERS N to keep it"
     "MESSAGING_TOOLKIT|0|Install/update the cross-host messaging toolkit (9 slash commands + 12 scripts, TermLink) on fw upgrade. Opt-in; derived once from existing files (T-4042). 1=install, 0=skip"
@@ -360,6 +362,13 @@ FW_CONFIG_REGISTRY=(
     # first, and reversible by construction, is the whole point of the ordering.
     "HANDOVER_DIGEST|1|Digest the three handover state dumps (Observation Inbox, Work in Progress, Awaiting Your Action) to count + regenerating command + top-N. 0 emits the full dumps as before. Narrative sections are unaffected either way. T-3028."
     "HANDOVER_DIGEST_TOP_N|5|How many entries each digested handover section retains in full before referring the reader to the regenerating command. T-3028."
+    # T-5051: on some consumers (050) a push to the remote deploys production, so
+    # the handover push must be switchable off per project, on every --commit path.
+    "HANDOVER_PUSH|1|0 = handover commits locally and never pushes; for projects where a push deploys (050, T-5051)."
+    # T-5009: the isolated test host controller (fw testhost, lib/testhost.py).
+    "TESTHOST_BACKEND|stub|Hypervisor backend for fw testhost: stub (a temp dir and a child process, for tests) or proxmox (phase 4, refuses until the operator chooses the node). T-5009."
+    "TESTHOST_TIMEOUT|1800|Wall-clock seconds a fw testhost run may take before the controller stops the VM and records state timeout. T-5009."
+    "TESTHOST_SERIAL_CAP_BYTES|5242880|Bytes of sanitised serial-console log fw testhost keeps per run; past the cap a visible truncation line is written and the rest is drained and dropped. T-5009."
     # T-3080. ONE window for BOTH Tier 0 approval legs. Before this the CLI leg
     # (check-tier0.sh, `fw tier0 approve` grant) carried a bare 300 literal and
     # the Watchtower leg defaulted to 3600 via TIER0_WATCHTOWER_TTL — so the path

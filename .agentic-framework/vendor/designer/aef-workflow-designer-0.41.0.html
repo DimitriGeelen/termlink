@@ -596,6 +596,21 @@ font-family: 'Outfit';
     line-height: 1;
   }
   .clean-nudge-x:hover { color: var(--text); }
+  /* T-1384: the visible advisories read as ONE card. syncAdvisoryDock() gives them one width and stacks them with no gap.
+     The top row keeps the top corners and the last row keeps the bottom corners and the shadow; borders between rows
+     overlap by 1px.
+     On a narrow canvas (under DOCK_NARROW_PX) a notice with more than one part shows its first part and a ".dock-more"
+     control naming how many parts it hides. Hidden parts stay in the DOM, so every part's text is unchanged and one
+     click away. At 1024 with both panels open, the dock took 270 of 685px (39%). */
+  .clean-nudge.dock-row { border-radius: 0; box-shadow: none; }
+  .clean-nudge.dock-row.dock-first { border-top-left-radius: 6px; border-top-right-radius: 6px; }
+  .clean-nudge.dock-row.dock-last { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
+  .clean-nudge.dock-collapsed .notice-part + .notice-part, .clean-nudge.dock-collapsed .notice-rest { display: none; }
+  .dock-more { background: transparent; border: none; color: var(--accent); cursor: pointer; font-size: 11px;
+    padding: 2px 4px; white-space: nowrap; flex: none; }
+  .dock-more:hover { text-decoration: underline; }
+  #clean-nudge .btn { padding: 3px 10px; }
+  .clean-nudge.dock-row .clean-nudge-msg { flex: 1 1 auto; }   /* one card: every row's controls end at its right edge */
 
   /* SVG element styles */
   .lane-bg { transition: fill 0.15s ease, stroke 0.15s ease; }
@@ -680,6 +695,8 @@ font-family: 'Outfit';
   .node-shape { transition: stroke-width 0.1s ease; }
   .node-label { fill: var(--text); font-family: var(--sans); font-size: 11px; font-weight: 500; pointer-events: none; }
   .node-label-sub { fill: var(--text-faint); font-family: var(--mono); font-size: 9px; pointer-events: none; }
+  /* T-1369: a document's [state]: brighter and larger than a sub-label, it is what makes the document a trigger (sweep) */
+  .data-state-label { fill: var(--text-dim); font-family: var(--mono); font-size: 10px; pointer-events: none; }
   /* Global label size (T-085): keyed off data-lsize on the svg root. The
      lane-fit ladder's explicit shrink steps use inline style, which wins
      over these rules by cascade priority. */
@@ -1278,6 +1295,15 @@ font-family: 'Outfit';
   .io-field-line2 select { flex: 1 1 0; min-width: 0; width: auto; }
   .io-field-line2 select[data-fattr="cardinality"] { flex-grow: 1.35; }   /* room for "cardinality —" (T-1302 sweep) */
   .io-field-row + .io-field-row { border-top: 1px dotted var(--border); padding-top: 5px; }   /* where a field ends (sweep) */
+  /* T-1365: the attribute's value rule from the project's field catalog, under its field row (read-only) */
+  .io-field-rule { grid-column: 1 / -1; min-width: 0; font-size: 11px; line-height: 1.45; color: var(--text-dim); overflow-wrap: anywhere; }
+  .io-field-rule summary { cursor: pointer; list-style-position: inside; }
+  .io-field-rule .r-name { color: var(--text); font-family: var(--mono); }
+  .io-field-rule .r-mono { font-family: var(--mono); }
+  .io-field-rule dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 8px; margin: 4px 0 2px 12px; }
+  .io-field-rule dt { color: var(--text-dim); }   /* not --text-faint: too weak on dark (T-1365 sweep) */
+  .io-field-rule dd { margin: 0; min-width: 0; color: var(--text); }
+  .io-field-rule.none { color: var(--text-dim); font-style: italic; }
   .io-field-when { font-family: var(--mono); font-size: 10px; color: var(--text-dim); white-space: nowrap; }
   .io-attr-hint { grid-column: 2; font-size: 10px; color: var(--orange); }
   .io-attr-hint:empty { display: none; }
@@ -1752,10 +1778,16 @@ font-family: 'Outfit';
           <marker id="mf-end" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
             <path d="M0,0 L10,5 L0,10 z" fill="var(--bg)" stroke="var(--text-dim)" stroke-width="1.1" />
           </marker>
+          <!-- T-1369: a data association's open arrowhead (BPMN draws data associations dotted, open-headed) -->
+          <marker id="da-end" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+            <path d="M1,1 L9,5 L1,9" fill="none" stroke="var(--text-dim)" stroke-width="1.3" />
+          </marker>
         </defs>
         <g id="g-pool"></g>
         <!-- T-1120: the other pools of a collaboration and the message flows, read-only (no pointer events) -->
         <g id="g-collab" pointer-events="none"></g>
+        <!-- T-1369: documents (BPMN data objects) with their state and associations, read-only (no pointer events) -->
+        <g id="g-data" pointer-events="none"></g>
         <!-- T-286: id badges paint BELOW edges by default (arrows carry flow semantics;
              badges are secondary metadata) — the selected element's badge raises into
              g-badges-top. Both layers are pointer-events:none so badges never swallow
@@ -1785,6 +1817,7 @@ font-family: 'Outfit';
            each other. -->
       <div class="clean-nudge" id="lane-fix-notice" style="display:none">
         <span class="clean-nudge-msg" id="lane-fix-msg"></span>
+        <button class="dock-more" type="button" hidden></button>
         <button class="clean-nudge-x" id="lane-fix-dismiss" type="button" title="Dismiss">✕</button>
       </div>
       <div class="clean-nudge" id="clean-nudge" style="display:none">
@@ -1797,6 +1830,7 @@ font-family: 'Outfit';
            visible; it is just said once). Same dock, same house style as the two above. -->
       <div class="clean-nudge" id="authority-summary" style="display:none">
         <span class="clean-nudge-msg" id="authority-summary-msg"></span>
+        <button class="dock-more" type="button" hidden></button>
         <button class="clean-nudge-x" id="authority-summary-dismiss" type="button" title="Dismiss">✕</button>
       </div>
     </div>
@@ -2120,9 +2154,16 @@ function syncAuthoritySummary(count) {
   if (!box || !msg) return;
   const show = count.missing > 0 && _authSummaryDismissed !== authSummaryKey();
   if (show) {
-    const t = `⚠ This map declares no authority: none of its ${count.missing} element${count.missing === 1 ? '' : 's'} ` +
-              `carries one and no lane offers a default (markers summarised here, not drawn per element)`;
-    if (msg.textContent !== t) msg.textContent = t;
+    // T-1384: a head and a rest, so a narrow dock can show the head alone. textContent is the same sentence as before.
+    const head = '⚠ This map declares no authority';
+    const rest = `: none of its ${count.missing} element${count.missing === 1 ? '' : 's'} ` +
+                 `carries one and no lane offers a default (markers summarised here, not drawn per element)`;
+    if (msg.textContent !== head + rest) {
+      const h = document.createElement('span'); h.className = 'notice-head'; h.textContent = head;
+      const r = document.createElement('span'); r.className = 'notice-rest'; r.textContent = rest;
+      msg.replaceChildren(h, r);
+      delete box.dataset.expanded;   // a new statement opens collapsed again on a narrow canvas
+    }
   }
   const d = show ? '' : 'none';
   if (box.style.display !== d) box.style.display = d;
@@ -2335,6 +2376,10 @@ const STEP_WORD = {
   eventError: 'error', eventTimer: 'timer', eventMessage: 'message',
 };
 function stepWordOf(node) {
+  // T-1366: a plain third-party event whose native kind the canvas marks (conditional, signal) is named by that kind,
+  // not "link": it is not a link (T-1222 reviewer ruling), and the id said otherwise.
+  const plainWord = PLAIN_KIND_WORD[plainEventKind(node)];
+  if (plainWord) return plainWord;
   if (STEP_WORD[node.type]) return STEP_WORD[node.type];
   const tag = node.foreignTag || '';
   if (/Gateway$/.test(tag)) return 'gw';
@@ -2900,7 +2945,17 @@ function laneCenterY(laneId) {
   return laneTop(laneId) + l.height / 2;
 }
 function poolHeight() {
-  return POOL_HEADER + getLanes().reduce((s, l) => s + l.height, 0);
+  const lanes = getLanes();
+  if (lanes.length) return POOL_HEADER + lanes.reduce((s, l) => s + l.height, 0);
+  // T-358 (AB): a map that declares no lanes has no bands to add up, so the pool encloses its nodes instead, as its right
+  // edge already does (contentRightEdgeNatural): the lowest node's bottom plus room for its name below it, and at least
+  // one default lane's height so an empty map still draws a body.
+  let bottom = POOL_Y + POOL_HEADER + 130;
+  for (const n of (state?.nodes || [])) {
+    const d = dims(n) || NODE_DEFAULTS.serviceTask;
+    bottom = Math.max(bottom, n.y + d.h + 50 /* name below the shape, then a margin */);
+  }
+  return bottom - POOL_Y;
 }
 // Absolute x of the pool's right edge. Grows past POOL_WIDTH to enclose the
 // right-most node so wide diagrams (e.g. long decision fans) are never clipped:
@@ -4072,7 +4127,7 @@ function renderPool() {
   const stripH = 24;
   const addStrip = el('g', { class: 'pool-add-lane-strip' });
   addStrip.appendChild(el('rect', { x: px, y: stripY, width: pw, height: stripH, rx: 3, class: 'pool-add-lane-strip-bg' }));
-  addStrip.appendChild(el('text', { x: px + pw / 2, y: stripY + 16, class: 'pool-add-lane-strip-text', 'text-anchor': 'middle' }, [text('+ Add another lane')]));
+  addStrip.appendChild(el('text', { x: px + pw / 2, y: stripY + 16, class: 'pool-add-lane-strip-text', 'text-anchor': 'middle' }, [text(lanesArr.length ? '+ Add another lane' : '+ Add a lane')]));   // T-358: a map with no lanes has no other
   addStrip.addEventListener('click', ev => { ev.stopPropagation(); addLane(); });
   gPool.appendChild(addStrip);
 }
@@ -4095,6 +4150,28 @@ function text(s) { const t = document.createTextNode(s); return t; }
 function isPlainEvent(n) {
   return !!n && (n.type === 'linkEventCatch' || n.type === 'linkEventThrow') && !n.linkDef
     && (n.nativeEventDefs || []).length > 0;
+}
+// T-1366: the BPMN kind of a plain event's native definition ('conditional', 'signal', 'escalation', ...), or ''.
+// Read from the definition kept verbatim on import (T-1222); only the kinds in PLAIN_KIND_WORD get a marker and an id
+// word, the rest stay the unmarked plain event.
+function plainEventKind(n) {
+  if (!isPlainEvent(n)) return '';
+  const m = /^<(?:[\w.-]+:)?(\w+)EventDefinition\b/.exec(String(n.nativeEventDefs[0] || '').trim());
+  return m ? m[1] : '';
+}
+const PLAIN_KIND_WORD = { conditional: 'conditional', signal: 'signal' };
+const PLAIN_KIND_TYPE = { conditional: 'conditionalEvent', signal: 'signalEvent' };   // panel header / badge
+// T-1366: BPMN's kind marker inside a plain event: conditional = a lined sheet, signal = a triangle (filled on a throw).
+function plainKindMarker(g, n, cx, cy, stroke) {
+  const kind = plainEventKind(n);
+  if (kind === 'conditional') {
+    g.appendChild(el('rect', { x: cx - 5, y: cy - 6.5, width: 10, height: 13, fill: 'none', stroke, 'stroke-width': '1.2', 'data-kind-marker': kind }));
+    g.appendChild(el('path', { d: `M${cx - 3} ${cy - 3.5} H${cx + 3} M${cx - 3} ${cy - 0.5} H${cx + 3} M${cx - 3} ${cy + 2.5} H${cx + 3}`, stroke, 'stroke-width': '1' }));
+  } else if (kind === 'signal') {
+    const throwing = n.type === 'linkEventThrow';
+    g.appendChild(el('path', { d: `M${cx} ${cy - 6.5} L${cx + 6} ${cy + 4.5} L${cx - 6} ${cy + 4.5} Z`, stroke, 'stroke-width': '1.2',
+                               fill: throwing ? stroke : 'none', 'stroke-linejoin': 'round', 'data-kind-marker': kind }));
+  }
 }
 // T-1222: a catch imported from a third-party bpmn:boundaryEvent keeps its host, with or without a definition (a
 // designer-made link event never carries hostRef: that field belongs to the typed-event schema).
@@ -4271,6 +4348,7 @@ function renderNodes() {
       const stroke = 'var(--text-faint)';
       g.appendChild(el('circle', { cx, cy, r, class: 'node-shape', fill: 'var(--surface-2)', stroke, 'stroke-width': '1.5' }));
       g.appendChild(el('circle', { cx, cy, r: r - 3.5, fill: 'none', stroke, 'stroke-width': '1.2' }));
+      plainKindMarker(g, n, cx, cy, 'var(--text-dim)');   // T-1366: kind marker, a step brighter than the ring (sweep: contrast)
       // T-1222: a plain third-party boundary catch keeps the BPMN boundary ring (dashed when non-interrupting).
       if (boundaryHostOf(n)) {
         const ringAttrs = { cx, cy, r: r + 3, fill: 'none', stroke, 'stroke-width': '1.2' };
@@ -4285,6 +4363,7 @@ function renderNodes() {
       const stroke = 'var(--text-faint)';
       g.appendChild(el('circle', { cx, cy, r, class: 'node-shape', fill: 'var(--surface-2)', stroke, 'stroke-width': '1.5' }));
       g.appendChild(el('circle', { cx, cy, r: r - 3.5, fill: 'var(--text-faint)', 'fill-opacity': '0.35', stroke, 'stroke-width': '1.2' }));
+      plainKindMarker(g, n, cx, cy, 'var(--text-dim)');   // T-1366: a signal throw shows the filled triangle
     } else if (n.type === 'linkEventThrow' || n.type === 'linkEventCatch') {
       // Off-page connector: hollow circle with a chevron arrow inside.
       // Throw = chevron pointing right (data leaves); catch = chevron pointing left (data enters).
@@ -5424,6 +5503,7 @@ function wrapText(s, max) {
 
 function renderEdges() {
   renderCollab();   // T-1120: kept pools + message flows; on every edge redraw, so a flow follows a dragged node
+  renderData();     // T-1369: documents and their associations, on every edge redraw, so a line follows a dragged task
   gEdges.innerHTML = '';
   gHandles.innerHTML = '';
   for (const e of state.edges) {
@@ -7287,6 +7367,64 @@ async function loadFieldCatalog() {
   } catch (e) { _fieldCatalog = null; aefRecordFault('field-catalog:load', e); }
   if (typeof renderProperties === 'function') renderProperties();
 }
+// T-1365: an attribute's value rule, shown under an aef:field whose fieldRef the catalog knows. The rule keys come from
+// the producer's SHACL property shape (greenfield: datatype, maxLength, pattern, in, description) plus its own
+// example / valueSource / derivedFrom; catalog contract T-1312 carries them through untouched. Read-only: nothing here
+// writes the map. null = no catalog, or the field is addressed by path (no rule to look up).
+function catalogRowFor(ref) { return (_fieldCatalog && ref) ? (_fieldCatalog.find(x => x.ref === ref) || null) : null; }
+function ruleValues(v) {   // `in`: an array, or a "|"-separated text
+  if (Array.isArray(v)) return v.filter(x => x !== null && x !== undefined && String(x) !== '').map(String);
+  return typeof v === 'string' && v.trim() ? v.split('|').map(s => s.trim()).filter(Boolean) : [];
+}
+function ioFieldRule(ref) {
+  if (!_fieldCatalog || !ref) return null;
+  const x = catalogRowFor(ref);
+  const box = document.createElement('div');
+  box.className = 'io-field-rule';
+  if (!x) {
+    box.classList.add('none'); box.dataset.rule = 'none';
+    box.textContent = 'not in the project\'s field catalog: no value rule';
+    return box;
+  }
+  box.dataset.rule = 'catalog';
+  const txt = v => (typeof v === 'string' || typeof v === 'number') ? String(v).trim() : '';
+  const values = ruleValues(x.in);
+  const dtype = txt(x.datatype).replace(/^xsd:/, '');
+  const bits = [];   // the one-line summary
+  if (dtype) bits.push(dtype);
+  if (txt(x.maxLength)) bits.push('max ' + txt(x.maxLength));
+  if (txt(x.pattern)) bits.push('pattern');
+  if (values.length) bits.push('one of ' + values.length);
+  else if (txt(x.example)) bits.push('e.g. ' + txt(x.example));
+  const det = document.createElement('details');
+  const sum = document.createElement('summary');
+  const nm = document.createElement('span');
+  nm.className = 'r-name';
+  nm.textContent = txt(x.notation) || txt(x.label) || x.ref;
+  sum.append(nm, document.createTextNode(bits.length ? ' · ' + bits.join(' · ') : ' · no value rule in the catalog'));
+  sum.title = 'how a value of this attribute is built (from the project\'s field catalog); click for the full rule';
+  det.appendChild(sum);
+  const dl = document.createElement('dl');
+  const add = (k, v, mono) => {
+    if (!v) return;
+    const dt = document.createElement('dt'); dt.textContent = k;
+    const dd = document.createElement('dd'); dd.textContent = v; if (mono) dd.className = 'r-mono';
+    dl.append(dt, dd);
+  };
+  add('meaning', txt(x.label));
+  add('format', txt(x.description));
+  add('type', [dtype, txt(x.maxLength) && ('max length ' + txt(x.maxLength)), txt(x.unit)].filter(Boolean).join(', '));
+  add('pattern', txt(x.pattern), true);
+  add('allowed', values.join(' | '));
+  add('example', txt(x.example) && (txt(x.example) + '  (made up, shape only)'), true);
+  add('comes from', txt(x.valueSource));
+  add('derived', txt(x.derivedFrom));
+  add('system', txt(x.systemLabel) || txt(x.system));
+  add('rule', txt(x.shape), true);
+  det.appendChild(dl);
+  box.appendChild(det);
+  return box;
+}
 const IO_CAT_MAX = 8;   // hits listed at once; type more words to narrow
 function ioCatalogMatches(q) {   // every word of q in the row's notation, label or ref (case-insensitive)
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
@@ -8066,7 +8204,8 @@ function _renderPropsInto(props, details) {
   // T-308: a bare catch event is presented as the neutral intermediate event it
   // actually is — the underlying n.type is unchanged and still exports as
   // <bpmn:intermediateCatchEvent>.
-  props.appendChild(propsHeader(isBareCatchEvent(n) ? 'intermediateEvent' : n.type, lensDeco('ids') ? displayIdOf(n) : '',
+  // T-1366: a plain event with a marked native kind (conditional, signal) is headed by that kind.
+  props.appendChild(propsHeader(PLAIN_KIND_TYPE[plainEventKind(n)] || (isBareCatchEvent(n) ? 'intermediateEvent' : n.type), lensDeco('ids') ? displayIdOf(n) : '',
     details ? null : () => deleteNode(n.id)));   // T-1127: no delete from inside the details view
   if (!details) {   // T-1127: every element can open its full details (a handoff's double-click jumps instead)
     const all = document.createElement('button');
@@ -8173,6 +8312,38 @@ function _renderPropsInto(props, details) {
     const note = document.createElement('div');
     note.className = 'field-hint';
     note.style.cssText = 'display:block;margin:2px 0 8px;line-height:1.45';
+    const kind = plainEventKind(n);   // T-1366: a conditional / signal event says what it waits for
+    if (kind === 'conditional' || kind === 'signal') {
+      let cond = '';
+      if (kind === 'conditional') {
+        const NS = 'http://www.omg.org/spec/BPMN/20100524/MODEL';
+        const d = new DOMParser().parseFromString(
+          `<r xmlns:bpmn="${NS}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${n.nativeEventDefs[0]}</r>`, 'application/xml');
+        // by local name: a source written with BPMN as the default namespace is kept unprefixed (T-1222 strips xmlns)
+        const c = Array.from(d.getElementsByTagName('*')).find(e => e.localName === 'condition');
+        cond = c ? (c.textContent || '').trim() : '';
+      }
+      note.textContent = kind === 'conditional'
+        ? 'A conditional event: the flow waits here until a condition holds' + (cond ? ':' : ' (the source names none).')
+        : 'A signal event: the flow waits here for a broadcast signal.';
+      sBare.appendChild(note);
+      if (cond) {
+        const q = document.createElement('div');
+        q.className = 'field-hint';
+        q.style.cssText = 'display:block;margin:0 0 8px;padding:6px 8px;border-left:2px solid var(--border);'
+          + 'font-family:var(--mono);color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere';
+        q.textContent = cond;
+        sBare.appendChild(q);
+      }
+      const keep = document.createElement('div');
+      keep.className = 'field-hint';
+      keep.style.cssText = 'display:block;margin:0 0 8px;line-height:1.45';
+      keep.textContent = kind === 'conditional'
+        ? 'The condition is kept exactly as the source wrote it; the designer cannot edit the condition yet.'
+        : 'The signal definition is kept exactly as the source wrote it; the designer cannot edit it yet.';
+      sBare.appendChild(keep);
+      props.appendChild(sBare);
+    } else {
     note.textContent = 'This event carries no kind and no handoff target — the source says only '
       + 'that something is awaited here. It is valid as it stands and exports unchanged.';
     sBare.appendChild(note);
@@ -8185,6 +8356,7 @@ function _renderPropsInto(props, details) {
     mkBtn.onclick = () => { sessionAuthoredLinks.add(n.uid); renderNodes(); renderProperties(); };
     sBare.appendChild(mkBtn);
     props.appendChild(sBare);
+    }
   } else if (n.type === 'linkEventCatch') {
     // Already presenting as a handoff — hold that reading for the rest of the
     // session so clearing the target field mid-edit doesn't flip the panel out
@@ -8491,6 +8663,7 @@ const LENS_TYPE_WORD = {
   scriptTask: 'Script task', subProcess: 'Sub-process', exclusiveGateway: 'Gateway (one path)',
   parallelGateway: 'Gateway (all paths)', linkEventThrow: 'Handoff out', linkEventCatch: 'Handoff in',
   eventError: 'Error event', eventTimer: 'Timer event', eventMessage: 'Message event', intermediateEvent: 'Event',
+  conditionalEvent: 'Conditional event', signalEvent: 'Signal event',   // T-1366: plain events with a marked kind
 };
 function propsHeader(typeName, id, onDelete) {
   const h = document.createElement('div');
@@ -8528,6 +8701,9 @@ function typeBadgeSvg(t) {
   if (t === 'linkEventCatch') return '<svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/><path d="M19 8 L11 14 L19 20" stroke="var(--accent)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // T-308: neutral badge for a bare catch event — matches the canvas double ring.
   if (t === 'intermediateEvent') return '<svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="var(--surface-2)" stroke="var(--text-faint)" stroke-width="1.5"/><circle cx="14" cy="14" r="7.5" fill="none" stroke="var(--text-faint)" stroke-width="1.2"/></svg>';
+  // T-1366: plain events with a marked kind: the neutral double ring plus BPMN's marker, as on the canvas.
+  if (t === 'conditionalEvent') return '<svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="var(--surface-2)" stroke="var(--text-faint)" stroke-width="1.5"/><circle cx="14" cy="14" r="7.5" fill="none" stroke="var(--text-faint)" stroke-width="1.2"/><rect x="10.5" y="9.5" width="7" height="9" fill="none" stroke="var(--text-dim)" stroke-width="1"/><path d="M12 12 H16 M12 14 H16 M12 16 H16" stroke="var(--text-dim)" stroke-width="0.9"/></svg>';
+  if (t === 'signalEvent') return '<svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="var(--surface-2)" stroke="var(--text-faint)" stroke-width="1.5"/><circle cx="14" cy="14" r="7.5" fill="none" stroke="var(--text-faint)" stroke-width="1.2"/><path d="M14 9.5 L18 17 L10 17 Z" fill="none" stroke="var(--text-dim)" stroke-width="1.1" stroke-linejoin="round"/></svg>';
   if (t === 'eventError') return '<svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="var(--red-soft)" stroke="var(--red)" stroke-width="1.5"/><path d="M15 7 L9 15 L13 15 L11 21 L18 12 L14 12 Z" fill="var(--red)" stroke="none"/></svg>';
   if (t === 'eventTimer') return '<svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.5"/><circle cx="14" cy="14" r="6" fill="none" stroke="var(--blue)" stroke-width="1.2"/><path d="M14 14 V9 M14 14 L17.5 16" stroke="var(--blue)" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>';
   if (t === 'eventMessage') return '<svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="var(--green-soft)" stroke="var(--green)" stroke-width="1.5"/><rect x="8" y="10" width="12" height="8" rx="1" fill="none" stroke="var(--green)" stroke-width="1.3"/><path d="M8 10.5 L14 15 L20 10.5" stroke="var(--green)" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -9278,6 +9454,8 @@ function ioFieldsEditor(item) {
     del.onclick = () => { item.children = item.children.filter((_, j) => j !== i); if (!item.children.length) delete item.children; renderProperties(); };
     line2.appendChild(del);
     row.append(ks, addr, line2);
+    const rule = kind === 'fieldRef' ? ioFieldRule(el.getAttribute('fieldRef')) : null;   // T-1365
+    if (rule) row.appendChild(rule);
     sec.appendChild(row);
   });
   const add = document.createElement('div');
@@ -10702,13 +10880,37 @@ function maybeShowLaneFixNotice() {
     parts.push(`this file declares ${sk.length + 1} processes and only one can be opened — ` +
                `NOT imported, and NOT saved back: ${which}`);
   }
-  // T-1096: process data is KEPT and saved back but not drawn yet — say so; and name any data association that
-  // could not be kept because what it points at is not in the document (writing it would leave a dangling reference).
+  // T-1096: process data is KEPT and saved back; and name any data association that could not be kept because what it
+  // points at is not in the document (writing it would leave a dangling reference).
+  // T-1372: since T-1369 documents are DRAWN. Count them from the layout the canvas draws (dataLayout), and call "not
+  // shown yet" only what still is not: data stores, a document no task links to, and the associations to those. A
+  // bpmn:dataObject definition is never drawn in BPMN (its references are), so it is not counted as hidden. Before,
+  // every element and association read "not shown yet" while the documents were on the canvas (greenfield, 0.37.0).
   const kd = (typeof state === 'object' && state && state.dataKept) || null;
+  let docsLine = '';
   if (kd) {
-    const nObj = (kd.elements || []).length;
+    const pl = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
     const nAssoc = Object.values(kd.perNode || {}).reduce((a, m) => a + ((m.dataInputAssociation || []).length + (m.dataOutputAssociation || []).length), 0);
-    if (nObj || nAssoc) parts.push(`${nObj} data object/store element${nObj === 1 ? '' : 's'} and ${nAssoc} data association${nAssoc === 1 ? '' : 's'} kept unchanged and saved back, not shown yet`);
+    const L = dataLayout(state);
+    // T-1381: data stores are drawn too, by the same rule, so both kinds count as drawn; only an element no task links
+    // to (of either kind), and links to such elements, stay "not drawn".
+    const drawnDocs = L ? L.docs.filter(d => d.kind === 'document').length : 0;
+    const drawnStores = L ? L.docs.filter(d => d.kind === 'store').length : 0;
+    const drawnLinks = L ? L.links.length : 0, otherAssoc = Math.max(0, nAssoc - drawnLinks);
+    // T-1372 sweep: plain words ("links", not "data associations"), the hidden items NAMED, and the good news last, so
+    // the notice's leading warning sign belongs to a warning (docsLine is pushed at the end of the notice).
+    const attr = (x, k) => { const m = new RegExp('\\b' + k + '="([^"]*)"').exec(String(x)); return m ? m[1] : ''; };
+    const unplacedOf = re => (L ? L.unplaced : []).map(id => (kd.elements || []).find(e => attr(e, 'id') === id))
+      .filter(x => x && re.test(String(x).trim())).map(x => attr(x, 'name') || attr(x, 'id'));
+    const unlinkedDocs = unplacedOf(/^<(?:[\w.-]+:)?dataObjectReference\b/);
+    const unlinkedStores = unplacedOf(/^<(?:[\w.-]+:)?dataStoreReference\b/);
+    const drawnWhat = [drawnDocs && pl(drawnDocs, 'document'), drawnStores && pl(drawnStores, 'data store')].filter(Boolean);
+    if (drawnWhat.length) docsLine = `${drawnWhat.join(' and ')} drawn under the tasks that make or use ` +
+      `${drawnDocs + drawnStores === 1 ? 'it' : 'them'}, with ${pl(drawnLinks, 'link')} to those tasks`;
+    const hidden = [unlinkedStores.length && `${pl(unlinkedStores.length, 'data store')} no task links to (${unlinkedStores.join(', ')})`,
+                    unlinkedDocs.length && `${pl(unlinkedDocs.length, 'document')} no task links to (${unlinkedDocs.join(', ')})`,
+                    otherAssoc && pl(otherAssoc, 'link')].filter(Boolean);
+    if (hidden.length) parts.push(`${hidden.join(', ')}: in the file and saved back unchanged, but not drawn`);
     if ((kd.skipped || []).length) parts.push(`${kd.skipped.length} data association${kd.skipped.length === 1 ? '' : 's'} NOT kept — ` +
       `${kd.skipped.length === 1 ? 'it points' : 'they point'} at something not in this file: ` + kd.skipped.map(s => `${s.id} → ${s.missing.join(', ')}`).join('; '));
   }
@@ -10731,10 +10933,12 @@ function maybeShowLaneFixNotice() {
   // T-1264: unmoved shapes and lines keep the file's own geometry (a node moved back into its lane, or by the person,
   // is redrawn); pool and lane outlines are still not written back
   if (nk.diRedrawn) parts.push(`on save, shapes that neither you nor this import moved keep this file's sizes and labels, and lines between them keep their bends; the file's original pool and lane outlines are NOT kept`);
+  if (docsLine) parts.push(docsLine);   // T-1372: last, so the leading warning sign belongs to a warning
   const show = parts.length > 0;
   // T-1327: one part per line. Run together with semicolons, seven parts made a 300px-tall paragraph at 1024 that
   // nobody reads. The "; " separators stay in the text (hidden), so textContent reads exactly as before.
   if (show && msg) {
+    delete el.dataset.expanded;   // T-1384: each import's notice opens collapsed again on a narrow canvas
     msg.textContent = '';
     parts.forEach((p, i) => {
       const line = document.createElement('span');
@@ -10758,17 +10962,55 @@ function maybeShowLaneFixNotice() {
 function syncAdvisoryDock() {
   const wrap = document.querySelector('.canvas-wrap');
   if (!wrap) return;
-  const shown = [$('lane-fix-notice'), $('clean-nudge'), $('authority-summary')]
-    .filter(e => e && e.style.display !== 'none');
+  const all = [$('lane-fix-notice'), $('clean-nudge'), $('authority-summary')].filter(Boolean);
+  const shown = all.filter(e => e.style.display !== 'none');
+  // T-1384: on a narrow canvas a notice with more than one part shows its first part and a control naming how many
+  // parts it hides; the person can open it (and close it again). A wide canvas shows every part, as before.
+  const narrow = wrap.clientWidth < DOCK_NARROW_PX;
+  for (const e of all) {
+    const extra = e.querySelectorAll('.notice-part + .notice-part, .notice-rest').length;
+    const can = narrow && extra > 0;
+    const collapsed = can && e.dataset.expanded !== '1';
+    e.classList.toggle('dock-collapsed', collapsed);
+    const more = e.querySelector('.dock-more');
+    if (more) {
+      if (more.hidden !== !can) more.hidden = !can;
+      const label = collapsed ? `▸ ${extra} more` : '▾ less';
+      if (can && more.textContent !== label) more.textContent = label;
+      const tip = collapsed ? `Show the ${extra} hidden part${extra === 1 ? '' : 's'} of this notice` : 'Show only the first part';
+      if (can && more.title !== tip) more.title = tip;
+      if (more.getAttribute('aria-expanded') !== String(!collapsed)) more.setAttribute('aria-expanded', String(!collapsed));
+    }
+    e.classList.toggle('dock-row', shown.includes(e));
+    e.classList.toggle('dock-first', e === shown[0]);
+    e.classList.toggle('dock-last', e === shown[shown.length - 1]);
+  }
+  // One card: one width (the widest row's natural width, still capped by max-width), no gap between rows.
+  for (const e of shown) if (e.style.width) e.style.width = '';
+  // getBoundingClientRect, rounded UP: offsetWidth rounds a fractional natural width down, and 1px short wraps a line
+  const w = Math.ceil(shown.reduce((m, e) => Math.max(m, e.getBoundingClientRect().width), 0));
+  for (const e of shown) { const s = w + 'px'; if (e.style.width !== s) e.style.width = s; }
+  for (const e of all) if (!shown.includes(e) && e.style.width) e.style.width = '';
   let y = 12;
   for (const e of shown) {
     const top = y + 'px';
     if (e.style.top !== top) e.style.top = top;
-    y += e.offsetHeight + 8;
+    y += e.offsetHeight - 1;   // T-1384: rows share their 1px border (was + 8, a gap per box)
   }
+  if (shown.length) y += 9;    // the card's bottom edge and the same 8px breathing room as before
   const pad = shown.length ? y + 'px' : '';
   if (wrap.style.paddingTop !== pad) wrap.style.paddingTop = pad;
+  _dockObserver?.takeRecords();   // our own writes above must not re-run this (the observer watches these attributes)
 }
+const DOCK_NARROW_PX = 700;   // T-1384: canvas width under which the dock collapses long notices to their first part
+let _dockObserver = null;
+document.addEventListener('click', ev => {
+  const more = ev.target.closest?.('.clean-nudge .dock-more');
+  if (!more) return;
+  const box = more.closest('.clean-nudge');
+  if (box.dataset.expanded === '1') delete box.dataset.expanded; else box.dataset.expanded = '1';
+  syncAdvisoryDock();
+});
 
 // ── Align rows (T-094) ──────────────────────────────────────────────────────
 // Explicit one-shot action: snap each cluster of near-aligned row-mates (chains
@@ -11700,6 +11942,7 @@ $('lane-fix-dismiss').onclick = () => {
 // observed rather than called from each site, so a new path cannot forget it.
 {
   const mo = new MutationObserver(() => syncAdvisoryDock());
+  _dockObserver = mo;   // T-1384: syncAdvisoryDock drops the records its own writes caused
   for (const id of ['lane-fix-notice', 'clean-nudge', 'lane-fix-msg', 'authority-summary', 'authority-summary-msg']) {
     const e = $(id);
     if (e) mo.observe(e, { attributes: true, attributeFilter: ['style', 'class'], childList: true, characterData: true, subtree: true });
@@ -13554,7 +13797,7 @@ function aefExtensionXml(node) {
     // T-1222: a node typed from its native definition carries its kind there; <aef:eventDef> is added only once a
     // binding is set, so an unedited open-and-save adds nothing and a user's binding edit is never dropped.
     if (binding || !(node.nativeEventDefs || []).length)
-    out += `        <aef:eventDef kind="${escAttr(EVENT_KIND[node.type])}" binding="${escAttr(binding)}"/>\n`;
+    out += eventDefXml(node, EVENT_KIND[node.type], binding);
   } else if (aef.eventDefKind) {
     // T-259 (T-257 GO): re-emit the preservation passthrough captured at import
     // for hosts the typed-catch override skips (start/throw carriers). Canonical
@@ -13562,7 +13805,7 @@ function aefExtensionXml(node) {
     // AEF's intake already accepted on the surviving catch (fixture v2:238).
     // else-if: a typed-catch node always emits via EVENT_KIND above, so a stale
     // passthrough can never produce a duplicate eventDef.
-    out += `        <aef:eventDef kind="${escAttr(aef.eventDefKind)}" binding="${escAttr(aef.eventDefBinding || '')}"/>\n`;
+    out += eventDefXml(node, aef.eventDefKind, aef.eventDefBinding || '');
   }
   // T-204 Slice 2: boundary perimeter position — presentational layout hint (v1 §1
   // presentational class, like aef:position). The host attachment + interrupting flag
@@ -13734,7 +13977,7 @@ const BPMN_EXPORTER = 'aef-workflow-designer';
 //
 // KEEP IN STEP WITH ./VERSION. Not by remembering — tools/_t808-version-parity.sh is
 // wired into release-designer.sh ahead of every write to dist/.
-const APP_VERSION = '0.35.0';
+const APP_VERSION = '0.41.0';
 
 // A comment is the document's doc block only if it LEADS the document — appears
 // before any element child — and is not our own trailer. Position is the rule AEF's
@@ -13866,6 +14109,7 @@ function buildBpmnXml(s) {
     lines.push(`  <!--${safeCommentData(s.docComment)}-->`);
     lines.push(``);
   }
+  const collabStart = lines.length;   // T-358 pool half: dropped again below when the source declared no participant
   lines.push(`  <bpmn:collaboration id="${escAttr(ids.collab)}"${pk && pk.collabAttrs ? keptAttrsXml(pk.collabAttrs) : ''}>`);
   // T-1326: the collaboration's and our pool's documentation and other tools' extensions, as they arrived
   for (const x of (pk && pk.collabDocs) || []) lines.push(`    ${x}`);
@@ -13899,6 +14143,9 @@ function buildBpmnXml(s) {
   for (const x of pkOut.collabArtifacts) lines.push(`    ${x}`);   // T-1326: tCollaboration's artifacts follow the flows
   lines.push(`  </bpmn:collaboration>`);
   lines.push(``);
+  // T-358 pool half (operator ruling 2026-11-09, AB): a source that declared no participant gets no invented one. The
+  // collaboration stays only when it carries something of the source's (another pool, a message flow, an artifact).
+  if (s.poolDeclared === false && !s.collab && !(pkOut.collabArtifacts || []).length) lines.splice(collabStart, lines.length - collabStart);
   lines.push(`  <bpmn:process id="${escAttr(ids.proc)}"${ids.exec == null ? '' : ` isExecutable="${escAttr(ids.exec)}"`}${pk && pk.procAttrs ? keptAttrsXml(pk.procAttrs) : ''}>`);
   // T-1326: the process's documentation, first (tBaseElement order)
   for (const x of (pk && pk.procDocs) || []) lines.push(`    ${x}`);
@@ -13924,6 +14171,14 @@ function buildBpmnXml(s) {
   // and pageWidth — absent when unset, so every map that does not carry it
   // exports byte-identically and the UNSET default stays genuinely inert.
   if (wm.kind) wmAttrs.push(`kind="${escAttr(wm.kind)}"`);
+  // T-358 (AB): a map with no lanes says how it came to have none, so the next import (ours or a peer's) does not have
+  // to guess. Written ONLY while there are no lanes: once a person adds one the map is authored and the marker goes.
+  // Inert to other tools: an attribute of our own aef:workflowMeta inside bpmn:extensionElements.
+  const lanesToEmit = s.lanes || defaultLanes();
+  if (!lanesToEmit.length && /^defaulted:/.test(s.laneProvenance || '')) wmAttrs.push(`laneProvenance="${escAttr(s.laneProvenance)}"`);
+  // T-358 pool half (AB): the pool the canvas shows was not declared by the source. Written whether or not the
+  // collaboration below is dropped, so a re-open knows even where it has to be written (multiple-diagrams).
+  if (s.poolDeclared === false) wmAttrs.push(`poolProvenance="defaulted:no-participant"`);
   lines.push(`      <aef:workflowMeta ${wmAttrs.join(' ')}/>`);
   for (const x of s.procMetaKept || []) lines.push(`      ${x}`);   // T-1249: process-level aef:meta, verbatim
   for (const x of (pk && pk.procExt) || []) lines.push(`      ${x}`);   // T-1326: other tools' process extensions
@@ -13931,9 +14186,9 @@ function buildBpmnXml(s) {
   // T-1096: the process's own ioSpecification, kept — tCallableElement places it before the laneSet
   if (s.dataKept) for (const x of s.dataKept.procIo || []) lines.push(`    ${x}`);
 
-  // lane set
-  lines.push(`    <bpmn:laneSet id="LaneSet_1">`);
-  const lanesToEmit = s.lanes || defaultLanes();
+  // lane set. T-358: none when the map has no lanes; an empty <bpmn:laneSet> is the shape the importer's partition
+  // reads as a defect (defaulted:empty-laneset), so it is never written.
+  if (lanesToEmit.length) lines.push(`    <bpmn:laneSet id="LaneSet_1">`);
   for (const lane of lanesToEmit) {
     lines.push(`      <bpmn:lane id="${escAttr(lane.id)}" name="${escAttr(lane.name)}">`);
     lines.push(`        <bpmn:extensionElements>`);
@@ -13947,7 +14202,7 @@ function buildBpmnXml(s) {
     }
     lines.push(`      </bpmn:lane>`);
   }
-  lines.push(`    </bpmn:laneSet>`);
+  if (lanesToEmit.length) lines.push(`    </bpmn:laneSet>`);
 
   // nodes. T-1339: one node's lines, ending with its close tag (a container's contents go before that, below).
   const nodeLines = n => {
@@ -14340,6 +14595,16 @@ function elementKept(el, readAttrs, skipChild) {
     children.push(keptElementXml(c));
   }
   return (attrs.length || children.length || ext.length) ? { attrs, children, ext } : null;
+}
+// T-347 AC3: <aef:eventDef> with what the source carried beyond kind and binding (node.eventDefKept), kept only while the
+// node's kind is the one it came with: a node retyped to another kind writes kind and binding alone, as T-1325 drops a
+// retyped element's old attributes. A designer-written eventDef carries nothing more, so its bytes do not change.
+const EVENT_DEF_READ_ATTRS = new Set(['kind', 'binding']);
+function eventDefXml(node, kind, binding) {
+  const k = node.eventDefKept && node.eventDefKept.kind === kind ? node.eventDefKept : null;
+  const open = `        <aef:eventDef kind="${escAttr(kind)}" binding="${escAttr(binding)}"${k ? keptAttrsXml(k.attrs) : ''}`;
+  if (!k || !k.children.length) return `${open}/>\n`;
+  return `${open}>\n` + k.children.map(x => `          ${x}\n`).join('') + `        </aef:eventDef>\n`;
 }
 // A foreign prefix the export root does not declare is declared on the element that uses it (xml: needs none).
 function keptAttrsXml(attrs) {
@@ -14756,6 +15021,169 @@ function renderCollab() {
       g.appendChild(el('text', { x: (m.x + n2.x) / 2 + 6, y: (m.y + n2.y) / 2 - 4, class: 'edge-label' }, [text(f.name)])); }
   }
 }
+// T-1369 (T-1363 GO, build B1): documents on the canvas. A bpmn:dataObjectReference (with its bpmn:dataState) and
+// the data associations that link it to tasks are KEPT on save since T-1096, verbatim, in state.dataKept; until now
+// nothing drew them, so a reader could not see which document a step makes or needs, nor in which state (the signed
+// order confirmation is the binding moment of a sale). Drawn here read-only, from the kept XML: nothing is written, so
+// the save is unchanged except for lane height (below). Geometry (operator 2026-11-02, option 1: "let the lane grow"):
+//   - every reference is placed by ONE rule, the file's own data-object DI is not used: under its anchor task, the
+//     task that PRODUCES it (its first output association), else the first that uses it (input), DATA_DOC_GAP below
+//     the task; several documents under one task stand side by side, centred under it. Greenfield's WT-01 put all 5
+//     of its documents outside every lane (above the pool, across lane borders), so a file's positions could not be
+//     trusted to read as "this step's document". With no associated task a reference is not drawn (nowhere to anchor
+//     it) and dataLayout reports it in `unplaced`;
+//   - the anchor task's LANE GROWS to hold its documents and their labels (growLanesForDocuments, once at import), and
+//     the lanes below move down with their nodes, keeping their layout. So a map with documents saves with taller
+//     lanes (operator's choice); a map without documents, or one the designer already grew, is unchanged;
+//   - each association is a straight dotted line between the borders of the task and the document, computed from the
+//     task's CURRENT position (a kept BPMNEdge would point where the task was in the file), with an open arrowhead
+//     towards the receiver: task -> document for an output, document -> task for an input.
+// T-1381: data stores (bpmn:dataStoreReference) are drawn by the same rule, as BPMN draws them: a cylinder with its name
+// (and [state] when it has one). A store is anchored like a document: under the task that writes it (its first output
+// association), else the first that reads it; side by side with that task's documents. A store no task links to is not
+// drawn and the import notice names it. Each placed element carries `kind` ('document' | 'store').
+const DATA_DOC_W = 36, DATA_DOC_H = 50, DATA_DOC_GAP = 34, DATA_DOC_SPACING = 24, DATA_LABEL_CH = 18, DATA_LABEL_LINE = 12;
+const DATA_STORE_W = 44, DATA_STORE_H = 44, DATA_STORE_RY = 6;   // the cylinder; RY is half the height of its top ellipse
+const DATA_LABEL_PX = 6.4;   // a generous width per character of an 11px label (the .node-label font), for spacing
+const DATA_LANE_MARGIN = 10;   // below the lowest label line, inside the lane
+// The labels under a document: its name wrapped, then [state]; the lines renderData draws and growLanesForDocuments makes room for.
+function dataLabelLines(d) { return [...(d.name ? wrapText(d.name, DATA_LABEL_CH) : []), ...(d.state ? ['[' + d.state + ']'] : [])]; }
+function dataLayout(s) {
+  const k = s && s.dataKept;
+  if (!k || !(k.elements || []).length) return null;
+  const NS = 'xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"'
+    + ' xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI"'
+    + ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
+  const parse = xml => {
+    const d = new DOMParser().parseFromString(`<r ${NS}>${xml}</r>`, 'application/xml');
+    return d.getElementsByTagName('parsererror').length ? null : d.documentElement.firstElementChild;
+  };
+  const docs = new Map();   // reference id -> { id, kind, name, state, x, y, w, h, placed }
+  for (const xml of k.elements) {
+    const e = parse(xml);
+    if (!e || !e.getAttribute('id')) continue;
+    const kind = e.localName === 'dataObjectReference' ? 'document' : e.localName === 'dataStoreReference' ? 'store' : null;
+    if (!kind) continue;
+    const st = Array.from(e.children).find(c => c.localName === 'dataState');
+    docs.set(e.getAttribute('id'), { id: e.getAttribute('id'), kind, name: e.getAttribute('name') || '',
+      state: st ? (st.getAttribute('name') || '') : '', x: null, y: null,
+      w: kind === 'store' ? DATA_STORE_W : DATA_DOC_W, h: kind === 'store' ? DATA_STORE_H : DATA_DOC_H, placed: 'none' });
+  }
+  if (!docs.size) return null;
+  const links = [];   // { id, doc, node, dir: 'out' (task -> doc) | 'in' (doc -> task) }
+  for (const n of s.nodes || []) {
+    const per = (k.perNode || {})[n.uid]; if (!per) continue;
+    for (const [tag, dir, refTag] of [['dataOutputAssociation', 'out', 'targetRef'], ['dataInputAssociation', 'in', 'sourceRef']]) {
+      for (const xml of per[tag] || []) {
+        const e = parse(xml); if (!e) continue;
+        for (const r of Array.from(e.children).filter(c => c.localName === refTag)) {
+          const ref = r.textContent.trim();
+          if (docs.has(ref)) links.push({ id: e.getAttribute('id') || '', doc: ref, node: n, dir });
+        }
+      }
+    }
+  }
+  // The one placement rule: each document under its anchor task (the producer, else the first user), side by side.
+  const byAnchor = new Map();   // node uid -> { node, docs: [] } in document order
+  for (const doc of docs.values()) {
+    const first = links.filter(l => l.doc === doc.id).sort((a, b) => (a.dir === b.dir ? 0 : a.dir === 'out' ? -1 : 1))[0];
+    if (!first) continue;
+    const slot = byAnchor.get(first.node.uid) || { node: first.node, docs: [] };
+    slot.docs.push(doc); byAnchor.set(first.node.uid, slot);
+  }
+  for (const { node, docs: ds } of byAnchor.values()) {
+    // T-1381: each element takes a slot as wide as its shape or its widest label line, whichever is wider, and stands
+    // centred in it. Before, elements advanced by the page width alone, so two neighbours' labels ("Order confirmation"
+    // beside "Order book") overlapped: a label reaches past a 36px page by about 30px on each side.
+    const slotW = d => Math.max(d.w, ...dataLabelLines(d).map(t => t.length * DATA_LABEL_PX));
+    const nd = dims(node), total = ds.reduce((a, d) => a + slotW(d), 0) + (ds.length - 1) * DATA_DOC_SPACING;
+    let x = node.x + nd.w / 2 - total / 2;
+    for (const doc of ds) {
+      const sw = slotW(doc);
+      Object.assign(doc, { x: x + (sw - doc.w) / 2, y: node.y + nd.h + DATA_DOC_GAP, anchor: node, placed: 'rule' });
+      x += sw + DATA_DOC_SPACING;
+    }
+  }
+  const unplaced = [...docs.values()].filter(d => d.placed === 'none').map(d => d.id);
+  return { docs: [...docs.values()].filter(d => d.placed !== 'none'), links: links.filter(l => docs.get(l.doc).placed !== 'none'), unplaced };
+}
+// The lowest point a document and its labels reach.
+function dataDocBottom(d) { return d.y + d.h + 13 + (dataLabelLines(d).length - 1) * DATA_LABEL_LINE + 4; }
+// Operator 2026-11-02 (option 1): grow each anchor task's lane until its documents and labels fit inside it, moving the
+// lanes below down WITH their nodes (by the same amount, so their layout is kept; unlike a manual resize, which
+// re-centres them). Never shrinks. Runs once at import, top lane first (a growth moves everything below it).
+function growLanesForDocuments(s) {
+  const lanesArr = (s && s.lanes) || [];
+  let grown = 0;
+  for (let i = 0; i < lanesArr.length; i++) {
+    const L = dataLayout(s); if (!L) return grown;
+    const lane = lanesArr[i];
+    const mine = L.docs.filter(d => d.anchor && d.anchor.lane === lane.id);
+    if (!mine.length) continue;
+    const top = laneTop(lane.id), need = Math.ceil(Math.max(...mine.map(dataDocBottom)) + DATA_LANE_MARGIN - (top + lane.height));
+    if (need <= 0) continue;
+    lane.height += need; grown++;
+    const below = new Set(lanesArr.slice(i + 1).map(l => l.id));
+    for (const n of s.nodes) if (below.has(n.lane)) n.y += need;
+  }
+  return grown;
+}
+// The point where the segment from a rectangle's centre towards (tx, ty) leaves the rectangle.
+function rectExit(r, tx, ty) {
+  const cx = r.x + r.w / 2, cy = r.y + r.h / 2, dx = tx - cx, dy = ty - cy;
+  if (!dx && !dy) return { x: cx, y: cy };
+  const s = Math.min(dx ? (r.w / 2) / Math.abs(dx) : Infinity, dy ? (r.h / 2) / Math.abs(dy) : Infinity);
+  return { x: cx + dx * s, y: cy + dy * s };
+}
+function renderData() {
+  const g = $('g-data'); if (!g) return;
+  g.innerHTML = '';
+  const L = dataLayout(state); if (!L) return;
+  const byId = new Map(L.docs.map(d => [d.id, d]));
+  for (const l of L.links) {
+    const d = byId.get(l.doc), nd = dims(l.node);
+    const nr = { x: l.node.x, y: l.node.y, w: nd.w, h: nd.h };
+    let a, b;
+    if (d.anchor === l.node) {
+      // T-1381 sweep: a shape anchored under this task. A centre-to-centre line would meet the task's bottom edge
+      // where its id badge sits, hiding the arrowhead in the badge text (Stock -> "Check stock"). Attach it to the
+      // bottom edge beside the badge, on the side the shape stands (right when centred): 8px in from the corner, which
+      // clears a centred badge up to about 15 characters on a 120px task.
+      const left = d.x + d.w / 2 < nr.x + nr.w / 2 - 1;
+      a = { x: left ? nr.x + 8 : nr.x + nr.w - 8, y: nr.y + nr.h };
+      b = rectExit(d, a.x, a.y);
+    } else {
+      a = rectExit(nr, d.x + d.w / 2, d.y + d.h / 2); b = rectExit(d, nr.x + nr.w / 2, nr.y + nr.h / 2);
+    }
+    const [p, q] = l.dir === 'out' ? [a, b] : [b, a];
+    g.appendChild(el('path', { d: `M${p.x.toFixed(1)},${p.y.toFixed(1)} L${q.x.toFixed(1)},${q.y.toFixed(1)}`, fill: 'none',
+      stroke: 'var(--text-dim)', 'stroke-width': '1.2', 'stroke-dasharray': '2 3', 'marker-end': 'url(#da-end)',
+      'data-data-assoc': l.id, 'data-dir': l.dir }));
+  }
+  for (const d of L.docs) {
+    let grp;
+    if (d.kind === 'store') {
+      // T-1381: BPMN's data store, a cylinder: the body with a curved bottom, the top ellipse, and the two rims under it.
+      const rx = d.w / 2, ry = DATA_STORE_RY, cx = d.x + rx, top = d.y + ry, bot = d.y + d.h - ry;
+      grp = el('g', { 'data-data-store': d.id, 'data-placed': d.placed });
+      grp.appendChild(el('path', { d: `M${d.x},${top} V${bot} A${rx},${ry} 0 0 0 ${d.x + d.w},${bot} V${top}`,
+        fill: 'var(--surface-2)', stroke: 'var(--text-dim)', 'stroke-width': '1.3' }));
+      grp.appendChild(el('ellipse', { cx, cy: top, rx, ry, fill: 'var(--surface-2)', stroke: 'var(--text-dim)', 'stroke-width': '1.3' }));
+      for (const dy of [5, 10]) grp.appendChild(el('path', { d: `M${d.x},${top + dy} A${rx},${ry} 0 0 0 ${d.x + d.w},${top + dy}`,
+        fill: 'none', stroke: 'var(--text-dim)', 'stroke-width': '1.1' }));
+    } else {
+      const f = Math.min(10, d.w / 3);   // the folded corner
+      grp = el('g', { 'data-data-object': d.id, 'data-placed': d.placed });
+      grp.appendChild(el('path', { d: `M${d.x},${d.y} H${d.x + d.w - f} L${d.x + d.w},${d.y + f} V${d.y + d.h} H${d.x} Z`,
+        fill: 'var(--surface-2)', stroke: 'var(--text-dim)', 'stroke-width': '1.3' }));
+      grp.appendChild(el('path', { d: `M${d.x + d.w - f},${d.y} V${d.y + f} H${d.x + d.w}`, fill: 'none', stroke: 'var(--text-dim)', 'stroke-width': '1.1' }));
+    }
+    const lines = dataLabelLines(d);
+    lines.forEach((t, i) => grp.appendChild(el('text', { x: d.x + d.w / 2, y: d.y + d.h + 13 + i * DATA_LABEL_LINE, 'text-anchor': 'middle',
+      class: i < lines.length - (d.state ? 1 : 0) ? 'node-label' : 'data-state-label', 'data-data-label': d.id }, [text(t)])));
+    g.appendChild(grp);
+  }
+}
 // T-1120: the DI the export writes for the kept pools — computed by collabLayout, so it equals the canvas.
 // bpmnElement -> serialized shape/edge (keeping the source DI element id where there was one).
 function collabDiXml(s) {
@@ -15002,7 +15430,16 @@ function parseBpmnXml(text) {
   } else {
     laneProvenance = 'defaulted:empty-laneset';
   }
-  if (!lanes.length) lanes.push(...defaultLanes());
+  // T-358 (operator ruling 2026-11-08, AB: drop + mark). A document that declares no lanes is opened with NO lanes:
+  // under T-888 clause 1 a lane is a partition, so a lane-less file declares none and nothing is missing. Before, this
+  // pushed defaultLanes() and every node of a peer's file came back in `Human · Sovereignty`. The emitter writes the
+  // provenance into aef:workflowMeta while the map still has no lanes (buildBpmnXml), and it is read back here, so a
+  // map this designer saved keeps saying how it came to have none. The values keep their T-358 names ("defaulted:")
+  // because the probes and the partition read them; nothing is defaulted any more.
+  const carriedLaneProv = aefMetaEl && aefMetaEl.getAttribute('laneProvenance');
+  // T-358 pool half (operator ruling 2026-11-09, AB): a save of a map whose source declared no participant says so here.
+  const carriedPoolProv = aefMetaEl && aefMetaEl.getAttribute('poolProvenance');
+  if (!lanes.length && carriedLaneProv && /^defaulted:/.test(carriedLaneProv)) laneProvenance = carriedLaneProv;
 
   // ---- nodes ----
   const REVERSE_TYPE = {}; // bpmn-tag → our node type
@@ -15382,6 +15819,10 @@ function parseBpmnXml(text) {
       const kept = elementKept(el, NODE_READ_ATTRS, c => nodeWorkEls.has(c));
       const defaultRef = el.getAttribute('default');
       const keptNode = (kept || defaultRef) ? { type, ...(foreignTag ? { foreignTag } : {}), ...(kept || { attrs: [], children: [], ext: [] }), ...(defaultRef ? { defaultRef } : {}) } : null;
+      // T-347 AC3: <aef:eventDef> is read for kind and binding only (T-204, T-259); whatever else it holds is kept with
+      // the kind it came with, and written back by eventDefXml while the node still has that kind.
+      const evKept = eventDefEl ? elementKept(eventDefEl, EVENT_DEF_READ_ATTRS) : null;
+      const eventDefKept = evKept ? { kind: eventDefEl.getAttribute('kind') || '', attrs: evKept.attrs, children: evKept.children } : null;
 
       // Default position if none was encoded — simple flow layout per lane
       if (x == null || isNaN(x) || y == null || isNaN(y)) {
@@ -15404,6 +15845,7 @@ function parseBpmnXml(text) {
         ...(nativeEventDefs.length ? { nativeEventDefs } : {}),
         ...(aefKept ? { aefKept } : {}),
         ...(keptNode ? { kept: keptNode } : {}),
+        ...(eventDefKept ? { eventDefKept } : {}),
         ...(originalId ? { originalId } : {}),
       });
       displayIdToUid.set(displayId, uid);
@@ -15629,6 +16071,9 @@ function parseBpmnXml(text) {
   const result = {
     // T-1262: with no participant to read, the pool is the designer's own Pool_<id>, never the process id, which
     // the process itself now keeps (one id, two elements).
+    // T-358 pool half (AB): false when the source declared no participant (or our own save marked it as added), so the
+    // emitter writes no invented collaboration and participant, and marks the pool where it must still write one.
+    poolDeclared: !!partEl && !carriedPoolProv,
     pool: { id: partEl?.getAttribute('id') || `Pool_${workflowMeta.id}`,
             name: partEl?.getAttribute('name') || procName },
     workflowMeta,
@@ -15708,7 +16153,10 @@ function parseBpmnXml(text) {
   // T-1342: attached boundary events onto their hosts now, as every render would. Display ids are numbered by position
   // (computeDisplayId), so numbering a file's boundary events at its own coordinates and saving them at their hosts'
   // renumbered them on the next open.
-  state = result; syncBoundaryPositions();
+  // T-1369 (operator's option 1): a lane grows to hold the documents of its tasks, the lanes below move down with their
+  // nodes. Before T-1264's capture, so the moved nodes count as moved (their kept DI no longer matches).
+  state = result; growLanesForDocuments(result);
+  syncBoundaryPositions();
   // T-1264: what of the file's own geometry differs from ours, at the positions now final (routing reads `state`)
   if (sourceCarriedDi) { state = result; captureImportedDi(doc, result, displayIdToUid, flowIdToUid); }
   state = prev;
