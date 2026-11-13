@@ -11,3 +11,8 @@ inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 19 2026-11-02 kommunal-p
 inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 20 2026-11-02 kommunal-pool follow-up, answered 2026-11-02 under T-3652 (reply .122 offset 2829 + sidecar send)
 inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 21 2026-11-02 kommunal-pool follow-up, answered 2026-11-02 under T-3652 (reply .122 offset 2829 + sidecar send)
 inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 22 2026-11-02 kommunal-pool follow-up, answered 2026-11-02 under T-3652 (reply .122 offset 2829 + sidecar send)
+inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 23 2026-11-13 ring20 Mac-delivery bug report, fixed under T-3749/T-3750; ring20 re-test PASSED (local @1771)
+inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 24 2026-11-13 ring20 Mac-delivery follow-up, fixed under T-3749/T-3750; ring20 re-test PASSED (local @1771)
+inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 25 2026-11-13 ring20 Mac-delivery bug report (escalated), fixed under T-3749/T-3750; ring20 re-test PASSED (local @1771)
+inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 26 2026-11-13 T-3750 live test post, self-addressed, no action
+inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 27 2026-11-13 ring20 Mac-delivery third report, fixed under T-3749/T-3750; ring20 re-test PASSED (local @1771)
