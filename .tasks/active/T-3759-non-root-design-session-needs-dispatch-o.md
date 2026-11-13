@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-11-12T23:13:17Z
-last_update: 2026-11-12T23:34:24Z
+last_update: 2026-11-13T00:18:45Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -133,17 +133,36 @@ bvp_scores_proposed:
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO
 
 **Rationale:**
 
-Shaping in progress: operator asked for external consultation (2026-11-13) before ruling between A own hub, B run as root, C root-side dispatch service with allow list, D delegate to a root project. Agent leans C with D as interim; panel answers pending.
+Panel (claude-code, codex, antigravity; opencode unavailable) agrees a worker must never run as root for a non-root
+requester (repo hooks, build scripts and settings in a user-writable checkout give root code execution), and that
+execution and hub registration are separate problems. Build: the worker runs as the requesting user and registers on
+the main hub over TCP (hub side exists: session.register_remote, router.rs:774, scope interact server.rs:796-798) with a
+dedicated, user-bound registration capability so no one can impersonate another session. Interim: delegate to a root
+session with a fixed request form only.
 
 **Evidence:**
 
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- docs/reports/T-3759-dispatch-nonroot/claude-code.md (E > D > A > C > B), codex.md (A > D > C > B, E = separate
+  execution from registration), antigravity.md (C > D > A > B with E1 TCP register_remote, E2 privilege drop)
+- Verified: hub implements session.register_remote/heartbeat/deregister_remote; no CLI client uses them yet
+
+## Decisions
+
+### 2026-11-13 — dispatch for the non-root design session (operator ruling)
+- **Chose:** A + D. A: worker runs as the requesting user and signs in at the main hub over the network with its own
+  user-bound registration permission (no root execution, workers visible). D (interim until A): the design session asks a
+  root session using a fixed request form only (task id + reviewer kind), never commands taken from message text.
+- **Why:** all three panel answers converge on separating execution (unprivileged) from registration; A is the only
+  option with no root execution and visible workers; D works today.
+- **Rejected:** B root doorman that drops privileges (adds a root service; more to get right than A); C the user's own
+  hub (invisible workers, ambiguous hub detection); original C (root starts the worker: privilege escalation).
+- Operator words in chat: "A + D". Assumption recorded (overturnable): the interim neighbour is 1409's own root main
+  session (the design session belongs to project 1409). Left open: expiry of the registration permission (comes back
+  with the build task).
 
 ## Decisions
 
