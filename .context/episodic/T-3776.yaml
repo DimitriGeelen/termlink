@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3776: Verify the operator's item is still open before asking for it (pattern: asked to record T-3759 GO already recorded via Watchtower)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T13:17:25Z
+# ============================================================================
+
+task_id: T-3776
+task_name: "Verify the operator's item is still open before asking for it (pattern: asked to record T-3759 GO already recorded via Watchtower)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-13T13:15:35Z
+completed: 2026-11-13T13:16:49Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Operator 2026-11-13: 'You should be a little bit ashamed ... it seems to be a pattern. You're asking me to complete something that's already been completed.' The T-3759 GO had been recorded via Watchtower at 12:53Z (1f939d178); the agent asked for it again at ~13:30Z without checking. Rule: before presenting any operator action (tick, approval, decision, runme), check its current state on disk/Watchtower (task status, AC ticks, Decision section, git log) in the same turn, and only list what is verifiably open.
+
+# Key outcomes
+outcomes:
+  - 'CLAUDE.md project rules require checking an operator item''s current state (task status, AC ticks, Decision, git log, runme log) in the same turn before asking for it'
+  - 'The open operator items were re-checked on disk 2026-11-13 (T-3759 GO done; T-3356/T-3357 approval boxes verifiably open)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 4
+  lines_added: 503
+  lines_removed: 0
+  footprint_refreshed_at: '2026-11-13T13:17:53Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3776-verify-the-operators-item-is-still-open-.md
+generated_by: context-agent-hybrid

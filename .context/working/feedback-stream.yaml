@@ -23567,3 +23567,21 @@ task_id: T-3759
 payload:
   overall: UNVERIFIED
   claim_count: 0
+---
+kind: scan_emitted
+timestamp: '2026-11-13T13:16:55Z'
+scan_id: R-040dbd54
+task_id: T-3776
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T13:16:55Z'
+scan_id: R-040dbd54
+task_id: T-3776
+payload:
+  task_file: .tasks/active/T-3776-verify-the-operators-item-is-still-open-.md
