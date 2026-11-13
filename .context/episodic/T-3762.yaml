@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3762: runme 22d: retire EVERY stale termlink copy ahead of /usr/local/bin on dimitri-mint-dev's PATH (second copy in ~/.cargo/bin found by the 2026-11-13 run)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T07:47:55Z
+# ============================================================================
+
+task_id: T-3762
+task_name: "runme 22d: retire EVERY stale termlink copy ahead of /usr/local/bin on dimitri-mint-dev's PATH (second copy in ~/.cargo/bin found by the 2026-11-13 run)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-13T06:56:53Z
+completed: 2026-11-13T07:27:49Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-13T08:18:17+01:00
+last_commit: 2026-11-13T08:18:17+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme 22d retires every stale termlink ahead of the current one on the user's PATH (field run found a second 0.11.931 in ~/.cargo/bin); refuses newer/unversioned/link copies before any move; 20 hermetic 22d cases, suite 327/0
+
+# Key outcomes
+outcomes:
+  - '22d moves every stale termlink ahead of the current one on the user''s login PATH (fixture: two 0.11.931 copies, in ~/.local/bin and ~/.cargo/bin, both end up as `termlink.bak-0.11.931` with the same sha256 and mode:owner; one OK line; the user''s PATH then runs the current build and the 127.0.0.1:9100 round trip works)'
+  - 'A copy that IS the current build (same sha256 as RUNME_STALETL_CUR), or anything after it on PATH, is never touched (fixture: an identical copy of the current binary in ~/.cargo/bin stays byte-identical and no backup appears; a stale copy after it is not moved)'
+  - 'Negative controls, each FAILED rc 1 with nothing moved: a newer-but-not-current copy (refused, reported, the stale copy beside it left in place too); a differing existing backup; runuser no answer; unknown user. After-move proof failure (no current termlink on PATH) is FAILED naming the undo for every moved copy, and a re-run stays FAILED (never skip)'
+  - 'Idempotent: a second run prints `skip` listing the kept backups; `--dry-run` names each move and moves nothing; full `tests/runme-fixtures.sh` passes with 0 failed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-13 — which copies 22d may move (within T-3758 ruling A)'
+    chose: 'scan the user''s login PATH in order; stop at the first copy that IS the current build (sha256 equal to /usr/local/bin/termlink, or the same version). Move every strictly OLDER copy ahead of it to `termlink.bak-<its version>` in its own folder. Refuse (FAILED, nothing moved at all) on a newer-but-not-current, unversioned, symlinked or non-regular copy, and on a differing existing backup. All checks run before the first move.'
+    rationale: 'ruling A says the user''s shell must run the current binary, backups kept, nothing deleted. An older copy is stale by definition; a newer one is someone''s deliberate build, so it is reported for the operator, not moved.'
+    alternatives_rejected: ['add `~/.cargo/bin` as a second hard-coded path (the next stray copy would fail the same way); move only exact 0.11.931 (an older copy at another version would block the outcome the ruling asks for); move anything not current including newer builds (outside the ruling).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3762-runme-22d-retire-every-stale-termlink-co.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T08:18:17'
+    action: 'T-3762: runme 22d retires every stale termlink ahead of the current one on the user''s PATH (field run found a second 0.11.931 in ~/.cargo/bin); refuses newer/unversioned/link copies before any move; 20 hermetic 22d cases, suite 327/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 30 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 30
+  commits: 2
+  files_changed: 6
+  lines_added: 707
+  lines_removed: 84
+  footprint_refreshed_at: '2026-11-13T07:48:08Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3762-runme-22d-retire-every-stale-termlink-co.md
+generated_by: context-agent-hybrid

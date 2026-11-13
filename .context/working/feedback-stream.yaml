@@ -23379,3 +23379,21 @@ scan_id: R-b14cf0a3
 task_id: T-3761
 payload:
   task_file: .tasks/active/T-3761-publish-the-p-2-parity-fixture-bootid-mo.md
+---
+kind: scan_emitted
+timestamp: '2026-11-13T07:47:47Z'
+scan_id: R-9df663d2
+task_id: T-3762
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T07:47:47Z'
+scan_id: R-9df663d2
+task_id: T-3762
+payload:
+  task_file: .tasks/active/T-3762-runme-22d-retire-every-stale-termlink-co.md
