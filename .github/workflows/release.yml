@@ -60,7 +60,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y cmake clang
 
       - name: Run workspace test suite
-        run: cargo test --workspace
+        run: cargo test --workspace --no-fail-fast
 
       # T-2684 — the source-level static checks and fixture suites. The moment code
       # becomes a release is exactly when they should run.
@@ -131,8 +131,9 @@ jobs:
 
       # Same command as the Linux job on purpose. A reduced macOS subset would
       # recreate the "verified in name only" problem this job exists to fix.
+      # --no-fail-fast (T-3763): report every failing test binary in one run; any failure still fails the job.
       - name: Run workspace test suite
-        run: cargo test --workspace
+        run: cargo test --workspace --no-fail-fast
 
   build-macos:
     needs: [test, test-macos]

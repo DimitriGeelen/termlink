@@ -119,6 +119,8 @@ fn e161_kill_switch_reads() {
 /// Session binding (S1 and `command.notify`), live: a real PTY session hosting `/bin/sh` as
 /// the harness. The Runner binds it from `/proc` and the session registry, reads S1 with a
 /// minted notify token, and after 30 s types the SI-1 line, which the shell refuses (127).
+/// Linux only: binding reads `/proc`, which macOS lacks; macOS binding is T-3770 (not built yet).
+#[cfg(target_os = "linux")]
 #[test]
 fn live_binding_reads_s1_and_types_the_si1_line() {
     use termlink_session::auth;
