@@ -1,13 +1,21 @@
 ---
 id: T-3755
-name: "CLI integration tests fail when PROJECT_ROOT is set in the environment (46 failures: register sessions not where tests look)"
+name: "CLI integration tests fail when PROJECT_ROOT is set in the environment (46
+  failures: register sessions not where tests look)"
 description: >
-  Found preparing v0.12.5 (T-3753): with the framework's PROJECT_ROOT=/opt/termlink exported (as in every agent shell), cargo test -p termlink --test cli_integration fails 46 tests with 'No socket appeared in /tmp/tl-test-N/sessions within 5s'; with PROJECT_ROOT unset they pass (bisected to that single variable). The tests (termlink_test_utils::termlink_cmd) set TERMLINK_RUNTIME_DIR but not PROJECT_ROOT, so something in register/session resolution prefers the project. Fix: termlink_cmd clears PROJECT_ROOT (and any other project/identity vars) so tests are hermetic; find what PROJECT_ROOT changes in register and whether that is intended in production.
+  Found preparing v0.12.5 (T-3753): with the framework's PROJECT_ROOT=/opt/termlink
+  exported (as in every agent shell), cargo test -p termlink --test cli_integration
+  fails 46 tests with 'No socket appeared in /tmp/tl-test-N/sessions within 5s'; with
+  PROJECT_ROOT unset they pass (bisected to that single variable). The tests (termlink_test_utils::termlink_cmd)
+  set TERMLINK_RUNTIME_DIR but not PROJECT_ROOT, so something in register/session
+  resolution prefers the project. Fix: termlink_cmd clears PROJECT_ROOT (and any other
+  project/identity vars) so tests are hermetic; find what PROJECT_ROOT changes in
+  register and whether that is intended in production.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [bug, test]
 components: []
 related_tasks: []
@@ -38,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T19:35:35Z
-last_update: 2026-11-12T19:35:35Z
-date_finished: null
+last_update: 2026-11-13T12:31:53Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +58,40 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-13T12:20:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3755: CLI integration tests fail when PROJECT_ROOT is set in the environment (46 failures: register sessions not where tests look)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** preparing v0.12.5 (T-3753), `cargo test -p termlink --test cli_integration` failed 46 tests ("No socket appeared in /tmp/tl-test-N/sessions within 5s") with PROJECT_ROOT=/opt/termlink exported, as it is in every agent shell; bisected to that single variable.
+
+**Problem / hypothesis:** `termlink_test_utils::termlink_cmd` pins TERMLINK_RUNTIME_DIR but inherits the rest of the caller's environment, so something in the CLI that reads PROJECT_ROOT (or a var derived from the project) sends register/session state somewhere other than the test's runtime dir.
+
+**Goal:** name that code path, decide whether it is intended in production, and make the test helper hermetic (scope: crates/termlink-test-utils and test files only; a runme build is running from this tree, so no production code).
+
+**Expected outcome:** the suite gives the same result with or without PROJECT_ROOT exported; a unit test pins the scrub.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The code path through which PROJECT_ROOT changes register/session resolution is named (file:line) in ## RCA, with a recorded decision whether that behaviour is intended in production
+- [x] `termlink_test_utils::termlink_cmd` removes PROJECT_ROOT and the other project/identity vars from the child env, so CLI tests are hermetic
+- [x] A test in crates/termlink-test-utils proves the scrub (positive) with a negative control (a var NOT in the list survives)
+- [x] `cargo test -p termlink --test cli_integration` passes with PROJECT_ROOT exported, including one naming a foreign project (was 46 failures)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -268,7 +296,18 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+env -u PROJECT_ROOT cargo test -p termlink-test-utils > .context/working/t3755/v-utils.out 2>&1 && grep -q "termlink_cmd_scrubs_project_and_identity_vars ... ok" .context/working/t3755/v-utils.out
+mkdir -p .context/working/t3755/fakeproj && touch .context/working/t3755/fakeproj/.framework.yaml && PROJECT_ROOT=/opt/termlink/.context/working/t3755/fakeproj cargo test -p termlink --test cli_integration > .context/working/t3755/v-cli.out 2>&1 && grep -q "^test result: ok" .context/working/t3755/v-cli.out
+
 ## RCA
+
+**Symptom:** 46 cli_integration tests fail with "No socket appeared in /tmp/tl-test-N/sessions within 5s" when PROJECT_ROOT is exported. Reproduced 2026-11-13 exactly (46 failed / 142 passed) with PROJECT_ROOT pointing at a different project (a dir holding `.framework.yaml`) than the test's cwd. With PROJECT_ROOT=/opt/termlink and cwd inside /opt/termlink the suite passes (same project, so nothing is foreign); the T-3753 shell must have carried a PROJECT_ROOT naming another project than cargo's cwd.
+
+**Root cause:** `crates/termlink-cli/src/commands/session.rs:426` `refuse_foreign_project_env()` (T-3551, SEV-1 T-3549) makes `termlink register` exit with "refusing to register: this process carries another project's variables" when any of `child_env::PROJECT_VARS` (`crates/termlink-session/src/child_env.rs:125`: PROJECT_ROOT, TASKS_DIR, CONTEXT_DIR, CLAUDE_PROJECT_DIR, _FW_PATHS_DERIVED_BY) points into a project other than the one cwd is in. The test helper `termlink_test_utils::termlink_cmd` set only TERMLINK_RUNTIME_DIR and passed the rest of the caller's environment through, so the spawned register process refused, never made a socket, and the wait timed out (the refusal went to the child's stderr, which the tests do not show). The only other PROJECT_ROOT reader, `invocation_audit.rs:402`, only labels the audit record's project; it writes into the runtime dir, which the helper already isolates.
+
+**Why structurally allowed:** the helper isolated one variable instead of the caller's environment; CI never exports project vars, so the leak was only visible from agent shells. TERMLINK_AGENT_ID (set in every sidecar worker shell) leaked the same way, giving test sessions the worker's identity.
+
+**Prevention:** `termlink_cmd` scrubs project vars, every `TERMLINK_*`, and `CLAUDE*`/`FW_*` before setting its own; unit test `termlink_cmd_scrubs_project_and_identity_vars` runs `/usr/bin/env` through the helper and fails if any leaks (mutant with the scrub disabled: fails), with a control variable that must survive.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -348,6 +387,11 @@ date_finished: null
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-13 — is the register refusal intended in production?
+- **Chose:** yes, keep it unchanged; fix only the test helper.
+- **Why:** T-3551 added it on purpose after SEV-1 T-3549 (a process that inherited another project's vars acted on that project's tasks while appearing on the fleet as this one). The tests were the non-hermetic party.
+- **Rejected:** relaxing the check for test runtime dirs (would weaken a SEV-1 guard to fit a test helper); `env_clear()` in the helper (drops HOME/PATH/TMPDIR the binary needs, and tests set HOME after the call).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -364,3 +408,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3755-cli-integration-tests-fail-when-projectr.md
 - **Context:** Initial task creation
+
+### 2026-11-13T12:20:33Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

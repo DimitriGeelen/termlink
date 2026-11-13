@@ -201,11 +201,34 @@ pub async fn start_session(
 /// Requires the binary to be built (use `cargo_bin!("termlink")` for the path).
 pub fn termlink_cmd(binary: &Path, runtime_dir: &Path) -> Command {
     let mut cmd = Command::new(binary);
+    // T-3755: the child must not inherit the caller's project or identity. A
+    // PROJECT_ROOT naming another project than the test's cwd makes `register`
+    // refuse (T-3551, `refuse_foreign_project_env`), and 46 cli_integration
+    // tests then time out waiting for a socket. TERMLINK_AGENT_ID & co. from an
+    // agent shell would likewise give the test session that agent's identity.
+    for (key, _) in std::env::vars_os() {
+        if let Some(k) = key.to_str()
+            && is_scrubbed_var(k)
+        {
+            cmd.env_remove(k);
+        }
+    }
     cmd.env("TERMLINK_RUNTIME_DIR", runtime_dir);
     cmd.env("RUST_LOG", "");
     // T-3492: the empty-list runtime-dir hint must not read the real dirs.
     cmd.env("TERMLINK_HINT_CANDIDATE_DIRS", "");
     cmd
+}
+
+/// T-3755: variables [`termlink_cmd`] never passes on from the test process: the
+/// project variables register judges (`child_env::PROJECT_VARS`), every
+/// `TERMLINK_*` (identity, agent id, audit switches; the helper sets the ones a
+/// test needs), and the harness's `CLAUDE*` / `FW_*` session markers.
+pub fn is_scrubbed_var(name: &str) -> bool {
+    termlink_session::child_env::PROJECT_VARS.contains(&name)
+        || name.starts_with("TERMLINK_")
+        || name.starts_with("CLAUDE")
+        || name.starts_with("FW_")
 }
 
 /// The build-profile directory the running test binary lives in, e.g.
@@ -340,6 +363,44 @@ pub fn find_termlink_bin_fresh() -> Result<PathBuf, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// T-3755: what the child actually receives, read back with `env`. The
+    /// control variable (not project/identity) must survive, so the test fails
+    /// if the helper cleared the whole environment instead of scrubbing.
+    #[test]
+    fn termlink_cmd_scrubs_project_and_identity_vars() {
+        // SAFETY: unique-to-this-test names (PROJECT_ROOT is read by no other
+        // test in this crate); set before the child is spawned.
+        unsafe {
+            std::env::set_var("PROJECT_ROOT", "/t3755/elsewhere");
+            std::env::set_var("CLAUDE_PROJECT_DIR", "/t3755/elsewhere");
+            std::env::set_var("TERMLINK_AGENT_ID", "t3755-leaked-agent");
+            std::env::set_var("FW_T3755_MARK", "leaked");
+            std::env::set_var("T3755_CONTROL_KEEP", "kept");
+        }
+        let rt = Path::new("/t3755/runtime");
+        let out = termlink_cmd(Path::new("/usr/bin/env"), rt).output().expect("run env");
+        let text = String::from_utf8_lossy(&out.stdout);
+        let lines: Vec<&str> = text.lines().collect();
+        for leaked in ["PROJECT_ROOT=", "CLAUDE_PROJECT_DIR=", "TERMLINK_AGENT_ID=", "FW_T3755_MARK="] {
+            assert!(!lines.iter().any(|l| l.starts_with(leaked)), "{leaked} reached the child:\n{text}");
+        }
+        assert!(lines.contains(&"T3755_CONTROL_KEEP=kept"), "control var lost:\n{text}");
+        assert!(lines.contains(&"TERMLINK_RUNTIME_DIR=/t3755/runtime"), "runtime dir not set:\n{text}");
+        assert!(lines.contains(&"TERMLINK_HINT_CANDIDATE_DIRS="), "hint dirs not set:\n{text}");
+    }
+
+    #[test]
+    fn scrub_list_names_project_vars_and_prefixes_only() {
+        for v in termlink_session::child_env::PROJECT_VARS {
+            assert!(is_scrubbed_var(v), "{v}");
+        }
+        assert!(is_scrubbed_var("TERMLINK_IDENTITY_DIR"));
+        assert!(is_scrubbed_var("CLAUDECODE"));
+        for kept in ["HOME", "PATH", "TMPDIR", "RUST_LOG", "FRAMEWORK_ROOT", "XTERMLINK_X"] {
+            assert!(!is_scrubbed_var(kept), "{kept} must pass through");
+        }
+    }
 
     #[test]
     fn test_dir_creates_sessions_subdir() {
