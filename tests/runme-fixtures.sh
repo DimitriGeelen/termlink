@@ -696,14 +696,15 @@ export RUNME_LOCALTOK_USER="$LTU" RUNME_LOCALTOK_HOME="$LH" RUNME_LOCALTOK_RUN="
        RUNME_LOCALTOK_TL="$F/rr-tl" RUNME_LOCALTOK_PATHTL="$F/lt-pathtl"
 # T-3758 action 22d: the user's scratch home holds the old 0.11.931 copy in ~/.local/bin (mode 750).
 # The fake "runuser" logs its argv and runs the stdin script with HOME = that home and a login-like
-# PATH: ~/bin, ~/.local/bin, then the "system" dir with the current fake termlink (0.12.77), whose
+# PATH: ~/bin, ~/.local/bin, ~/.cargo/bin (T-3762), then the "system" dir with the current fake termlink (0.12.77), whose
 # `channel list` logs who called it and exits FAKE_STL_AUTH_RC. FAKE_STL_DOWN=1 answers nothing.
 SH="$F/stl-home"; SSYS="$F/stl-sys"; mkdir -p "$SSYS"
 cat > "$F/stl-run" <<'EOS'
 #!/usr/bin/env bash
 echo "argv: $*" >> "$FAKE_FLEET_DIR/stl-argv"
 [ "${FAKE_STL_DOWN:-0}" = 1 ] && { cat >/dev/null; exit 3; }
-HOME="$2" PATH="$2/bin:$2/.local/bin:$FAKE_STL_SYS:/usr/bin:/bin" bash -s
+sys="$FAKE_STL_SYS:"; [ "${FAKE_STL_NOSYS:-0}" = 1 ] && sys=""   # T-3762: no current termlink on PATH
+HOME="$2" PATH="$2/bin:$2/.local/bin:$2/.cargo/bin:${sys}$2/after:/usr/bin:/bin" bash -s
 EOS
 cat > "$SSYS/termlink" <<'EOS'
 #!/usr/bin/env bash
@@ -2022,10 +2023,12 @@ if grep -q '2>> .context/working/.fleet-token-remint-canary.log.stderr$' "$REPO_
 else bad "remint crontab sinks"; fi
 
 # ---------------------------------------------------------------------------
-# T-3758 action 22d — the design user's stale ~/.local/bin/termlink moved aside, through fakes.
+# T-3758 action 22d — the design user's stale termlink copies moved aside, through fakes.
+# T-3762: every stale copy AHEAD of the current one on the user's PATH, not just ~/.local/bin.
 # ---------------------------------------------------------------------------
 s22d() { echo "$1" | sed -n '/^.*22d\. /,/^.*23\. Daily telemetry rollup/p'; }
 SOLD="$SH/.local/bin/termlink"; SBAK="$SOLD.bak-0.11.931"
+SCARGO="$SH/.cargo/bin/termlink"; SCBAK="$SCARGO.bak-0.11.931"
 stl_reset; orig_sha=$(sha256sum < "$SOLD"); out=$(run --dry-run); x=$(s22d "$out")
 if echo "$x" | grep_all -F "[DRY]   would move $SOLD (0.11.931, 750:$LTU:" && [ -f "$SOLD" ] && [ ! -e "$SBAK" ] && [ ! -e "$F/stl-auth" ]; then
     ok "22d: --dry-run names the move, moves nothing, runs no round trip"
@@ -2039,38 +2042,81 @@ if grep -qx "list $SH channel list --hub 127.0.0.1:9100" "$F/stl-auth" && [ -s "
     ok "22d: every step runs as the user (runuser argv = user + home only), and the bare termlink round trip used 127.0.0.1:9100"
 else bad "22d as user" "$(cat "$F/stl-auth" "$F/stl-argv" 2>/dev/null)"; fi
 bak_before=$(sha256sum < "$SBAK"); out=$(run); rc=$?; x=$(s22d "$out")
-if [ "$rc" = 0 ] && echo "$x" | grep_all -F "skip    already moved to $SBAK" && [ "$(sha256sum < "$SBAK")" = "$bak_before" ] && [ ! -e "$SOLD" ]; then
-    ok "22d: second run skips (idempotent), backup unchanged"
+if [ "$rc" = 0 ] && echo "$x" | grep_all -F "skip    no stale termlink ahead of the current one on $LTU's PATH (backups kept: $SBAK)" \
+   && [ "$(sha256sum < "$SBAK")" = "$bak_before" ] && [ ! -e "$SOLD" ]; then
+    ok "22d: second run skips (idempotent), names the kept backup, backup unchanged"
 else bad "22d idempotent" "rc=$rc: $x"; fi
+# T-3762: the field case — a second 0.11.931 in ~/.cargo/bin. Both go, in one OK line, both kept.
+stl_reset; mkdir -p "$SH/.cargo/bin"; stl_old 0.11.931 "$SCARGO"; chmod 755 "$SCARGO"; c_sha=$(sha256sum < "$SCARGO")
+out=$(run --dry-run); x=$(s22d "$out")
+if echo "$x" | grep_all -F "[DRY]   would move $SOLD (0.11.931" && echo "$x" | grep_all -F "[DRY]   would move $SCARGO (0.11.931, 755:$LTU:" \
+   && [ -f "$SOLD" ] && [ -f "$SCARGO" ] && [ ! -e "$SBAK" ] && [ ! -e "$SCBAK" ]; then
+    ok "22d: --dry-run names both stale copies, moves neither"
+else bad "22d dry-run two" "$x"; fi
+out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all -F "OK      moved $SOLD to $SBAK (750:$LTU:" && echo "$x" | grep_all -F ", moved $SCARGO to $SCBAK (755:$LTU:" \
+   && [ ! -e "$SOLD" ] && [ ! -e "$SCARGO" ] && [ "$(sha256sum < "$SBAK")" = "$orig_sha" ] && [ "$(sha256sum < "$SCBAK")" = "$c_sha" ] \
+   && [ "$(stat -c %a:%U "$SCBAK")" = "755:$LTU" ] && echo "$x" | grep_all -F "PATH runs $SSYS/termlink 0.12.77"; then
+    ok "22d: two stale copies (~/.local/bin and ~/.cargo/bin) are both moved to termlink.bak-0.11.931 in their own folder (sha256 and mode kept); PATH runs the current one"
+else bad "22d two stale" "rc=$rc: $x"; fi
+out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all -F "skip    no stale termlink ahead of the current one on $LTU's PATH (backups kept: $SBAK, $SCBAK)"; then
+    ok "22d: after two moves a re-run skips and lists both backups"
+else bad "22d two stale rerun" "rc=$rc: $x"; fi
+# A copy that IS the current build stops the walk: it and everything after it stay untouched.
+stl_reset; mkdir -p "$SH/.cargo/bin" "$SH/after"; cp -p "$SSYS/termlink" "$SCARGO"; chmod 700 "$SCARGO"; cur_copy=$(sha256sum < "$SCARGO")
+stl_old 0.11.931 "$SH/after/termlink"; after_sha=$(sha256sum < "$SH/after/termlink")
+out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all -F "OK      moved $SOLD to $SBAK" && ! echo "$x" | grep_all -F "moved $SCARGO" \
+   && [ "$(sha256sum < "$SCARGO")" = "$cur_copy" ] && [ "$(stat -c %a "$SCARGO")" = 700 ] && ! compgen -G "$SH/.cargo/bin/*bak*" >/dev/null \
+   && [ "$(sha256sum < "$SH/after/termlink")" = "$after_sha" ] && [ ! -e "$SH/after/termlink.bak-0.11.931" ] && echo "$x" | grep_all -F "PATH runs $SCARGO 0.12.77"; then
+    ok "22d: a copy that IS the current build (~/.cargo/bin) is never touched, nor the stale copy after it on PATH; the one ahead is moved"
+else bad "22d current build" "rc=$rc: $x"; fi
 # An identical backup left by an earlier attempt may be replaced: same bytes, nothing lost.
 stl_reset; cp -p "$SOLD" "$SBAK"; out=$(run); rc=$?; x=$(s22d "$out")
 if [ "$rc" = 0 ] && echo "$x" | grep_all -F "OK      moved $SOLD to $SBAK" && [ ! -e "$SOLD" ] && [ "$(sha256sum < "$SBAK")" = "$orig_sha" ]; then
     ok "22d: an existing byte-identical backup => moved, still one copy of the same bytes"
 else bad "22d identical backup" "rc=$rc: $x"; fi
+# An older copy at another version is stale too: it gets its own version in the backup name.
+stl_reset; stl_old 0.11.900 "$SOLD"; s_before=$(sha256sum < "$SOLD"); out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all -F "OK      moved $SOLD to $SOLD.bak-0.11.900" && [ "$(sha256sum < "$SOLD.bak-0.11.900")" = "$s_before" ] && [ ! -e "$SOLD" ]; then
+    ok "22d: an older copy at another version (0.11.900) is moved to termlink.bak-0.11.900"
+else bad "22d older version" "rc=$rc: $x"; fi
 # Negative controls: each FAILED with rc 1, never OK or skip.
+stl_reset; mkdir -p "$SH/.cargo/bin"; stl_old 0.13.0 "$SCARGO"; n_sha=$(sha256sum < "$SCARGO"); out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $SCARGO is version 0.13.0, newer than the current 0.12.77 but not it" \
+   && echo "$x" | grep_all -F "note    nothing was moved" && [ "$(sha256sum < "$SCARGO")" = "$n_sha" ] && [ "$(sha256sum < "$SOLD")" = "$orig_sha" ] \
+   && [ ! -e "$SBAK" ] && [ ! -e "$SCARGO.bak-0.13.0" ] && [ ! -e "$F/stl-auth" ] && ! echo "$x" | grep_all -E '^  (OK|skip) '; then
+    ok "22d control: a newer-but-not-current copy is refused and reported => FAILED rc 1; nothing moved, not even the stale copy beside it"
+else bad "22d newer" "rc=$rc: $x"; fi
 stl_reset; echo "someone else's file" > "$SBAK"; cp "$SBAK" "$TMP/stl-bak.before"; out=$(run); rc=$?; x=$(s22d "$out")
 if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $SBAK already exists with different content; refusing to overwrite it" \
    && cmp -s "$SBAK" "$TMP/stl-bak.before" && [ "$(sha256sum < "$SOLD")" = "$orig_sha" ] && ! echo "$x" | grep_all -E '^  (OK|skip) '; then
     ok "22d control: backup already exists with different content => FAILED rc 1, both files byte-identical"
 else bad "22d backup differs" "rc=$rc: $x"; fi
-stl_reset; mkdir -p "$SH/bin"; stl_old 0.11.931 "$SH/bin/termlink"; out=$(run); rc=$?; x=$(s22d "$out")
-if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $LTU's PATH still resolves termlink to $SH/bin/termlink 0.11.931, not the current 0.12.77" \
-   && echo "$x" | grep_all -F "undo: rename $SBAK back to termlink" && [ -f "$SBAK" ] && ! echo "$x" | grep_all -E '^  (OK|skip) '; then
-    ok "22d control: resolution still stale after the move (another old copy earlier on PATH) => FAILED rc 1, names the undo"
-else bad "22d still stale" "rc=$rc: $x"; fi
-out=$(run); rc=$?; x=$(s22d "$out")
-if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $LTU's PATH still resolves termlink to $SH/bin/termlink"; then
-    ok "22d control: re-run with the stale copy still first on PATH => still FAILED (never skip)"
-else bad "22d still stale rerun" "rc=$rc: $x"; fi
+stl_reset; mkdir -p "$SH/.cargo/bin"; printf '#!/usr/bin/env bash\necho no version here\n' > "$SCARGO"; chmod 755 "$SCARGO"; out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $SCARGO gave no version; left untouched" && [ -f "$SOLD" ] && [ ! -e "$SBAK" ]; then
+    ok "22d control: an unversioned copy ahead of the current one => FAILED rc 1, nothing moved"
+else bad "22d unversioned" "rc=$rc: $x"; fi
+stl_reset; mkdir -p "$SH/.cargo/bin" "$SH/elsewhere"; stl_old 0.11.931 "$SH/elsewhere/tl"; ln -s "$SH/elsewhere/tl" "$SCARGO"; out=$(run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $SCARGO is a link (version 0.11.931), not a regular file; left untouched" && [ -L "$SCARGO" ] && [ -f "$SOLD" ]; then
+    ok "22d control: a stale symlink ahead of the current one => FAILED rc 1, left untouched"
+else bad "22d symlink" "rc=$rc: $x"; fi
+stl_reset; mkdir -p "$SH/.cargo/bin"; stl_old 0.11.931 "$SCARGO"; out=$(FAKE_STL_NOSYS=1 run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $LTU's PATH still resolves termlink to nothing ?, not the current 0.12.77" \
+   && echo "$x" | grep_all -F "undo: rename $SBAK back to termlink; rename $SCBAK back to termlink" && [ -f "$SBAK" ] && [ -f "$SCBAK" ] \
+   && ! echo "$x" | grep_all -E '^  (OK|skip) '; then
+    ok "22d control: no current termlink on PATH after the move => FAILED rc 1, names the undo for every moved copy"
+else bad "22d nothing current" "rc=$rc: $x"; fi
+out=$(FAKE_STL_NOSYS=1 run); rc=$?; x=$(s22d "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $LTU's PATH still resolves termlink to nothing" && ! echo "$x" | grep_all -E '^  (OK|skip) '; then
+    ok "22d control: re-run with still no current termlink on PATH => still FAILED (never skip)"
+else bad "22d nothing current rerun" "rc=$rc: $x"; fi
 stl_reset; out=$(FAKE_STL_AUTH_RC=1 run); rc=$?; x=$(s22d "$out")
 if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $LTU's termlink is the current 0.12.77 ($SSYS/termlink), but 'termlink channel list --hub 127.0.0.1:9100' as $LTU failed (rc 1)" \
    && ! echo "$x" | grep_all -E '^  (OK|skip) '; then
     ok "22d control: the round trip as the user fails => FAILED rc 1"
 else bad "22d round trip" "rc=$rc: $x"; fi
-stl_reset; stl_old 0.11.900 "$SOLD"; s_before=$(sha256sum < "$SOLD"); out=$(run); rc=$?; x=$(s22d "$out")
-if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $SOLD is version 0.11.900, not 0.11.931" && [ "$(sha256sum < "$SOLD")" = "$s_before" ] && [ ! -e "$SBAK" ]; then
-    ok "22d control: the old copy is not 0.11.931 => FAILED rc 1, left untouched, no backup"
-else bad "22d other version" "rc=$rc: $x"; fi
 stl_reset; out=$(FAKE_STL_DOWN=1 run); rc=$?; x=$(s22d "$out")
 if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $LTU: no answer over runuser as $LTU; nothing changed" && [ -f "$SOLD" ] && [ ! -e "$SBAK" ]; then
     ok "22d control: runuser gives no answer => FAILED rc 1, nothing moved"
