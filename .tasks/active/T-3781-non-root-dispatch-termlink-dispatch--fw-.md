@@ -339,6 +339,14 @@ date_finished: null
 
 ## Decisions
 
+### 2026-11-13 — expiry of the non-root registration capability (operator ruling, from T-3760)
+- **Chose:** A — 7 days (the existing token ceiling), renewed weekly by the existing re-mint mechanism
+  (as for the dimitri-mint-dev token, T-3756).
+- **Why:** the capability can only register the user's own prefixed workers and forward nothing above observe;
+  7 days adds little risk and needs no new mechanism.
+- **Rejected:** B 24 h (daily re-mint, a missed renewal fails sooner); C 30 days (raise the hub ceiling for all tokens).
+- Operator words in chat: "A". Provisioning the 1409 user's token becomes a runme action in this task.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
