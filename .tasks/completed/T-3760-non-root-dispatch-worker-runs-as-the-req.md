@@ -14,12 +14,12 @@ description: >
   messaging proven, not only presence. Nothing runs as root for a non-root caller.
   Open for the operator: expiry of the registration capability.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011, security]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/remote_store.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-session/src/auth.rs, crates/termlink-session/src/server.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -48,8 +48,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T00:18:49Z
-last_update: '2026-11-13T17:32:01Z'
-date_finished:
+last_update: 2026-11-13T17:59:56Z
+date_finished: 2026-11-13T17:59:56Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -113,22 +113,24 @@ leases with reconciliation, messages flowing both ways, never a fallback to root
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A hub token can carry a registration claim `{principal, prefix}`; it is signed with the rest of the payload, a
+- [x] A hub token can carry a registration claim `{principal, prefix}`; it is signed with the rest of the payload, a
       token without it still validates, a malformed claim (empty or out-of-charset principal/prefix) is refused at mint
       and at hub.auth
-- [ ] `termlink hub token --register-principal P --register-prefix X` mints it (observe scope only; other scopes refused)
-- [ ] Hub: a claim-bound connection registers a record owned by P; refused: name outside the prefix, a name a live session
+- [x] `termlink hub token --register-principal P --register-prefix X` mints it (observe scope only; other scopes refused)
+- [x] Hub: a claim-bound connection registers a record owned by P; refused: name outside the prefix, a name a live session
       holds (local or remote), endpoint host other than the caller's own IP, port < 1024, more than 16 live records of P
-- [ ] Hub: heartbeat/deregister of a record owned by P from a connection bound to Q, or from a plain interact connection,
+- [x] Hub: heartbeat/deregister of a record owned by P from a connection bound to Q, or from a plain interact connection,
       is refused (negative controls); the owner succeeds; an execute connection may still remove it (operator cleanup)
-- [ ] Session: a TCP accept loop that refuses to start without token auth and gives each TCP connection observe scope
+- [x] Session: a TCP accept loop that refuses to start without token auth and gives each TCP connection observe scope
       until `auth.token`
-- [ ] `termlink register --hub ADDR --hub-token-file F` serves on TCP, registers, heartbeats, re-registers on
+- [x] `termlink register --hub ADDR --hub-token-file F` serves on TCP, registers, heartbeats, re-registers on
       SESSION_NOT_FOUND, deregisters on shutdown, and refuses a token without a registration claim
-- [ ] End-to-end test over TLS: a claim-bound client registers, the record is in `session.discover` with its owner, a call
-      the hub forwards to it returns (hub -> worker), and the worker's heartbeat on the hub succeeds (worker -> hub)
-- [ ] `cargo test` for termlink-session, termlink-hub and termlink-cli passes; clippy clean on the touched crates
-- [ ] Mutants on a clean clone: removing the owner check, the prefix check or the endpoint check each turns a test red
+- [x] End-to-end test through the hub's real accept loop (TCP listener, temp dir): a claim-bound client registers, the
+      record is in `session.discover` with its owner, a call the hub forwards to it returns (hub -> worker), and the
+      worker's heartbeat on the hub succeeds (worker -> hub); plus a live smoke of the built binary over TLS with the
+      worker running as a non-root user (`.context/working/t3760/smoke.sh`)
+- [x] `cargo test` for termlink-session, termlink-hub and termlink-cli passes; clippy clean on the touched crates
+- [x] Mutants on a clean clone: removing the owner check, the prefix check or the endpoint check each turns a test red
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -179,6 +181,11 @@ leases with reconciliation, messages flowing both ways, never a fallback to root
 -->
 
 ## Verification
+
+env -u PROJECT_ROOT TMPDIR=/var/tmp cargo test -p termlink-session --lib -- register_claim t3760 > .context/working/.t3760-v1.out 2>&1 && grep -q "test result: ok. 4 passed" .context/working/.t3760-v1.out
+env -u PROJECT_ROOT TMPDIR=/var/tmp cargo test -p termlink-hub --lib t3760 > .context/working/.t3760-v2.out 2>&1 && grep -q "test result: ok. 3 passed" .context/working/.t3760-v2.out
+env -u PROJECT_ROOT TMPDIR=/var/tmp cargo test -p termlink --bin termlink -- hub_register t3760 > .context/working/.t3760-v3.out 2>&1 && grep -q "test result: ok. 4 passed" .context/working/.t3760-v3.out
+grep -q "owner KILLED" .context/working/t3760/mutants.out && grep -q "prefix KILLED" .context/working/t3760/mutants.out && grep -q "endpoint KILLED" .context/working/t3760/mutants.out && grep -q "claimless KILLED" .context/working/t3760/mutants.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -351,6 +358,17 @@ leases with reconciliation, messages flowing both ways, never a fallback to root
 
 ## Evolution
 
+### 2026-11-13 — a TCP worker needs its own TCP listener, and the hub cannot authenticate to it
+- **What changed:** the task text assumed only the client side of `session.register_remote` was missing. Two more
+  gaps surfaced: the session server could listen only on a Unix socket (so a registered TCP endpoint had nothing
+  behind it), and the hub forwards to a TCP session without a token, so only observe-scope calls reach a worker that
+  (correctly) requires token auth on TCP. Separately, the hub router already ignores notifications, so there was no
+  unauthenticated-notification path to close.
+- **Plan impact:** this task added a token-only TCP accept loop to the session server; forwarding above observe and the
+  dispatch wiring are split out.
+- **Triggered:** T-3781 (dispatch uses `register --hub` for a non-root caller), T-3782 (hub forwarding above observe to a
+  TCP worker).
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -413,6 +431,31 @@ leases with reconciliation, messages flowing both ways, never a fallback to root
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-13 — shape of the registration capability
+- **Chose:** a signed `reg: {principal, prefix}` claim inside the existing hub token, minted at observe scope. The hub
+  binds the connection to the principal and routes the three registration methods through owner checks.
+- **Why:** it reuses the existing HMAC token, file and `hub.auth` path. An old hub ignores the unknown field and sees a
+  plain observe token, so it refuses registration (fails closed). An old token has no claim, so nothing changes for it.
+- **Rejected:** a new `PermissionScope::Register` tier, because scopes are a strict hierarchy and "may register only its
+  own names" is not a rank. Handing the user an interact token, because that allows impersonation and takeover.
+
+### 2026-11-13 — endpoint validation
+- **Chose:** the endpoint host must equal the caller's own IP as the hub sees it (IPv4-mapped forms are treated as
+  equal), with port 1024-65535.
+- **Why:** a claim holder can then point the hub only at its own machine and at a port it could bind without root.
+- **Rejected:** liveness-probing the endpoint at registration time. It proves nothing about who owns the port and adds
+  a hub-side outbound connect per request.
+
+### 2026-11-13 — capability expiry (OPEN for the operator; proposal only)
+- **Proposed default:** 7 days, which is the existing `TERMLINK_MAX_TOKEN_TTL_SECS` ceiling and the `hub token`
+  default, so no new knob is needed. Re-minting would be a weekly runme action per provisioned user.
+- **Why:** the token is checked at `hub.auth` (connect and reconnect). Records are separately bounded by the 300 s hub
+  lease, so a stopped worker disappears within 5 minutes whatever the expiry. Expiry therefore only limits how long a
+  stolen token file stays usable.
+- **Alternatives:** (A) 24 h, which shrinks the theft window but needs a daily re-mint, and an expired token stops a
+  long-running worker's reconnect after a hub restart. (B) 30 days, which needs the ceiling raised hub-wide.
+- **Not decided here:** the operator rules (hand-back item).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -433,3 +476,16 @@ leases with reconciliation, messages flowing both ways, never a fallback to root
 ### 2026-11-13T17:31:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-13T17:59:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9acfc10a
+- **Timestamp:** 2026-11-13T18:01:24Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

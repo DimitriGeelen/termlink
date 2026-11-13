@@ -1,0 +1,108 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3760: Non-root dispatch: worker runs as the requesting user and registers on the main hub over TCP with a user-bound registration capability (T-3759 GO, option A)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T18:01:41Z
+# ============================================================================
+
+task_id: T-3760
+task_name: "Non-root dispatch: worker runs as the requesting user and registers on the main hub over TCP with a user-bound registration capability (T-3759 GO, option A)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-13T00:18:49Z
+completed: 2026-11-13T17:59:56Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-13T18:45:59+01:00
+last_commit: 2026-11-13T18:54:50+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  registration claim in hub tokens + owner-bound session.register_remote/heartbeat/deregister_remote — a claim {principal,prefix} binds the connection: names under its prefix only, no live local/remote name taken, endpoint host = caller's own IP and port >= 1024, 16 live records per principal; owned records renewable/removable only by their owner (execute may remove); claim-less callers can no longer touch owned records. client side — termlink register --hub ADDR --hub-token-file F serves the session on TCP (token auth mandatory, observe until auth.token), registers with its claim, renews the lease every 60s, re-registers when the hub forgot it, deregisters on exit; termlink hub token --register-principal/--register-prefix mints the claim (observe only); hub e2e test proves register -> discover(owner) -> hub-forwarded ping -> heartbeat -> deregister
+
+# Key outcomes
+outcomes:
+  - 'A hub token can carry a registration claim `{principal, prefix}`; it is signed with the rest of the payload, a'
+  - '`termlink hub token --register-principal P --register-prefix X` mints it (observe scope only; other scopes refused)'
+  - 'Hub: a claim-bound connection registers a record owned by P; refused: name outside the prefix, a name a live session'
+  - 'Hub: heartbeat/deregister of a record owned by P from a connection bound to Q, or from a plain interact connection,'
+  - 'Session: a TCP accept loop that refuses to start without token auth and gives each TCP connection observe scope'
+  - '`termlink register --hub ADDR --hub-token-file F` serves on TCP, registers, heartbeats, re-registers on'
+  - 'End-to-end test through the hub''s real accept loop (TCP listener, temp dir): a claim-bound client registers, the'
+  - '`cargo test` for termlink-session, termlink-hub and termlink-cli passes; clippy clean on the touched crates'
+  - 'Mutants on a clean clone: removing the owner check, the prefix check or the endpoint check each turns a test red'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'client side — termlink register --hub ADDR --hub-token-file F serves the session on TCP (token auth mandatory, observe until auth.token), registers with its claim, renews the lease every 60s, re-registers when the hub forgot it, deregisters on exit; termlink hub token --register-principal/--register-prefix mints the claim (observe only); hub e2e test proves register -> discover(owner) -> hub-forwarded ping -> heartbeat -> deregister'
+    source: git-mined
+  - description: 'registration claim in hub tokens + owner-bound session.register_remote/heartbeat/deregister_remote — a claim {principal,prefix} binds the connection: names under its prefix only, no live local/remote name taken, endpoint host = caller''s own IP and port >= 1024, 16 live records per principal; owned records renewable/removable only by their owner (execute may remove); claim-less callers can no longer touch owned records'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-13 — shape of the registration capability'
+    chose: 'a signed `reg: {principal, prefix}` claim inside the existing hub token, minted at observe scope. The hub binds the connection to the principal and routes the three registration methods through owner checks.'
+    rationale: 'it reuses the existing HMAC token, file and `hub.auth` path. An old hub ignores the unknown field and sees a plain observe token, so it refuses registration (fails closed). An old token has no claim, so nothing changes for it.'
+    alternatives_rejected: ['a new `PermissionScope::Register` tier, because scopes are a strict hierarchy and "may register only its own names" is not a rank. Handing the user an interact token, because that allows impersonation and takeover.']
+  - decision: '2026-11-13 — endpoint validation'
+    chose: 'the endpoint host must equal the caller''s own IP as the hub sees it (IPv4-mapped forms are treated as equal), with port 1024-65535.'
+    rationale: 'a claim holder can then point the hub only at its own machine and at a port it could bind without root.'
+    alternatives_rejected: ['liveness-probing the endpoint at registration time. It proves nothing about who owns the port and adds a hub-side outbound connect per request.']
+  - decision: '2026-11-13 — capability expiry (OPEN for the operator; proposal only)'
+    rationale: 'the token is checked at `hub.auth` (connect and reconnect). Records are separately bounded by the 300 s hub lease, so a stopped worker disappears within 5 minutes whatever the expiry. Expiry therefore only limits how long a stolen token file stays usable.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3760-non-root-dispatch-worker-runs-as-the-req.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/hub_register.rs'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/commands/mod.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-hub/src/remote_store.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - 'crates/termlink-session/src/auth.rs'
+  - 'crates/termlink-session/src/server.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T18:45:59'
+    action: 'T-3760: registration claim in hub tokens + owner-bound session.register_remote/heartbeat/deregister_remote — a claim {principal,prefix} binds the connection: names under its prefix only, no live local/remote name taken, endpoint host = caller''s own IP and port >= 1024, 16 live records per principal; owned records renewable/removable only by their owner (execute may remove); claim-less callers can no longer touch owned records'
+  - time: '2026-11-13T18:54:50'
+    action: 'T-3760: client side — termlink register --hub ADDR --hub-token-file F serves the session on TCP (token auth mandatory, observe until auth.token), registers with its claim, renews the lease every 60s, re-registers when the hub forgot it, deregisters on exit; termlink hub token --register-principal/--register-prefix mints the claim (observe only); hub e2e test proves register -> discover(owner) -> hub-forwarded ping -> heartbeat -> deregister'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1061 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011, security]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1061
+  commits: 3
+  files_changed: 16
+  lines_added: 2028
+  lines_removed: 47
+  footprint_refreshed_at: '2026-11-13T18:01:59Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3760-non-root-dispatch-worker-runs-as-the-req.md
+generated_by: context-agent-hybrid
