@@ -417,6 +417,25 @@ impl Drop for Estate {
     }
 }
 
+/// T-3772: the harness identity of a freshly spawned PTY child, read only once it has
+/// exec'd. Before `exec` its exe is the test binary itself, and a registry built from that
+/// read never matches the shell the doorbell later sees (a race that shows on a loaded host).
+/// Linux only: it reads `/proc`.
+#[cfg(target_os = "linux")]
+pub fn harness_after_exec(pid: u32) -> crate::doorbell::Harness {
+    let me = std::env::current_exe().ok().and_then(|p| p.canonicalize().ok()).map(|p| p.to_string_lossy().into_owned());
+    for _ in 0..200 {
+        if let Some(h) = crate::doorbell::harness_of(Path::new("/proc"), pid)
+            && h.exe.is_some()
+            && h.exe != me
+        {
+            return h;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    panic!("pid {pid} never exec'd");
+}
+
 #[cfg(test)]
 mod tests {
     use super::time_factor;

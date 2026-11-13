@@ -167,7 +167,8 @@ fn live_binding_reads_s1_and_types_the_si1_line() {
         drop(meter);
         Arc::new(termlink_sidecar::meter::Meter::new(B, Box::new(rpc.clone()), Box::new(termlink_sidecar::meter::NoLedger)))
     };
-    let h = doorbell::harness_of(std::path::Path::new("/proc"), sh_pid).unwrap();
+    // T-3772: read the harness only after the child exec'd (else a loaded host races to the test binary's exe).
+    let h = termlink_sidecar::testkit::harness_after_exec(sh_pid);
     let mut runner = doorbell::Runner::new(B, r.store.clone(), r.d.clone(), meter.clone(), rpc.clone(), None).with_sessions_dir(dir.clone());
     runner.registry = vec![(h.exe.clone().unwrap(), h.script.clone())];
     let report = |ev: &str, extra: serde_json::Value| {
@@ -185,6 +186,7 @@ fn live_binding_reads_s1_and_types_the_si1_line() {
     // Off by default: nothing at all.
     assert!(runner.tick().is_none());
     std::fs::write(r.store.dir().join(SWITCH_FLAG), "").unwrap();
+    runner.bind(); // T-3772: binding runs on the meter's tick path, not inside the doorbell tick
     let first = runner.tick().unwrap();
     assert!(rpc.is_bound("cc-1"), "bound for S1 and notify");
     assert_eq!(first.decisions[0].1, "hold:nothing", "mail younger than a tick waits for the hook path");

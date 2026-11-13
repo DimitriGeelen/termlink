@@ -305,19 +305,24 @@ pub struct SessionRpc {
     /// B-16: (TermLink session id, its token secret hex): a notify-scope token is
     /// minted per call, so no token outlives its use.
     secrets: Mutex<HashMap<String, (String, String)>>,
+    /// T-3772: why a session is not bound (no harness_pid, no /proc, no hosting
+    /// TermLink session), so an S1 read says why instead of a bare "not bound".
+    unbound_why: Mutex<HashMap<String, String>>,
 }
 
 impl SessionRpc {
     pub fn new() -> std::io::Result<Self> {
-        Ok(SessionRpc { bound: Mutex::new(HashMap::new()), secrets: Mutex::new(HashMap::new()) })
+        Ok(SessionRpc { bound: Mutex::new(HashMap::new()), secrets: Mutex::new(HashMap::new()), unbound_why: Mutex::new(HashMap::new()) })
     }
     pub fn bind(&self, session: &str, socket: &Path, token: Option<String>) {
         lock(&self.bound).insert(session.to_owned(), (socket.to_path_buf(), token));
         lock(&self.secrets).remove(session);
+        lock(&self.unbound_why).remove(session);
     }
     /// B-16: bind with the TermLink session's token secret (notify scope minted per call).
     pub fn bind_secret(&self, session: &str, socket: &Path, tl_session: &str, secret_hex: Option<String>) {
         lock(&self.bound).insert(session.to_owned(), (socket.to_path_buf(), None));
+        lock(&self.unbound_why).remove(session);
         match secret_hex {
             Some(s) => lock(&self.secrets).insert(session.to_owned(), (tl_session.to_owned(), s)),
             None => lock(&self.secrets).remove(session),
@@ -330,8 +335,25 @@ impl SessionRpc {
         lock(&self.bound).remove(session);
         lock(&self.secrets).remove(session);
     }
+    /// T-3772: unbind and record why (read back by S1 errors and status).
+    pub fn unbind_why(&self, session: &str, why: &str) {
+        self.unbind(session);
+        lock(&self.unbound_why).insert(session.to_owned(), why.to_owned());
+    }
+    /// T-3772: why `session` is not bound, when a binding attempt recorded it.
+    pub fn why_unbound(&self, session: &str) -> Option<String> {
+        if self.is_bound(session) {
+            return None;
+        }
+        lock(&self.unbound_why).get(session).cloned()
+    }
     fn target(&self, session: &str) -> Result<(PathBuf, Option<String>), String> {
-        let (sock, token) = lock(&self.bound).get(session).cloned().ok_or("no TermLink PTY session is bound to this session")?;
+        let Some((sock, token)) = lock(&self.bound).get(session).cloned() else {
+            return Err(match self.why_unbound(session) {
+                Some(why) => format!("no TermLink PTY session is bound to this session ({why})"),
+                None => "no TermLink PTY session is bound to this session".into(),
+            });
+        };
         if let Some((tl, hex)) = lock(&self.secrets).get(session).cloned() {
             let bytes: Vec<u8> = (0..hex.len() / 2).filter_map(|i| u8::from_str_radix(hex.get(2 * i..2 * i + 2)?, 16).ok()).collect();
             let secret: termlink_session::auth::TokenSecret = bytes.try_into().map_err(|_| "the session's token secret is not 32 bytes of hex".to_string())?;
@@ -1175,6 +1197,12 @@ pub struct DoorbellFacts {
 }
 
 impl Meter {
+    /// T-3772: what session binding reads, without the doorbell's facts:
+    /// `(session, ended, harness_pid)` for every session.
+    pub fn binding_facts(&self) -> Vec<(String, bool, Option<u32>)> {
+        lock(&self.inner).sessions.iter().map(|(k, s)| (k.clone(), s.ended, s.harness_pid)).collect()
+    }
+
     /// B-16: every session's facts for the doorbell tick, read under one lock
     /// each (the conversation signal outside it, AL-4).
     pub fn doorbell_facts(&self, now: u64) -> Vec<DoorbellFacts> {

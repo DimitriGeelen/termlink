@@ -318,9 +318,7 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
                     d.check_overdue(crate::store::now_ms(), &deadlines);
                     // B-27 AL-3: the meter, once per tick.
                     if !meter_frozen {
-                        meter.tick();
-                        // B-16: the doorbell and the watchdog, after the meter (06 AL-5, AL-8).
-                        doorbell.tick();
+                        meter_and_doorbell_tick(&meter, &doorbell);
                     }
                     // K-34: the waiting-mail signal, once per tick.
                     if let Some(mw) = mw.as_ref().filter(|_| !mw_frozen) {
@@ -336,6 +334,16 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
         Box::new(move || r.last_beat_ms())
     };
     Ok(Running { store, sender, deliverer, _receiver: receiver, api, mail_waiting, lease_view: lease_shared, receiver_beat, tick_beat, sweep_stop, sweeper: Some(sweeper), liveness, lease })
+}
+
+/// One meter tick as the daemon runs it (AL-3, AL-5, AL-8). T-3772: session
+/// binding runs first and whatever the doorbell switch says, so S1 (and the
+/// E-153 origin check) works in a meter-only sidecar; the doorbell tick after
+/// the meter's does nothing while its switch is off.
+pub fn meter_and_doorbell_tick(meter: &crate::meter::Meter, doorbell: &crate::doorbell::Runner) -> Option<crate::doorbell::TickReport> {
+    doorbell.bind();
+    meter.tick();
+    doorbell.tick()
 }
 
 /// K-34 (T-3694): one waiting-mail tick: the deliverer's waiting mail and the fresh lease

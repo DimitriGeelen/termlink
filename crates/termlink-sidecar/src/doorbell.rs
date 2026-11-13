@@ -1167,6 +1167,12 @@ impl Doorbell {
 
 // ---------------------------------------------------------------- live ports
 
+/// T-3772: why a session cannot be bound on a host without `/proc`.
+pub const BINDING_UNAVAILABLE: &str = "session binding unavailable on this platform: it reads /proc (macOS binding is T-3770)";
+/// T-3772: why a session without a reported harness pid is not bound.
+pub const NO_HARNESS_PID: &str =
+    "no harness_pid reported for this session (a session started before the adapter was installed binds at its next session start)";
+
 /// The kill switch: on only while `<store>/doorbell-on` exists and delivery is on.
 /// Anything unreadable is off (E-161).
 pub fn switch_on(store: &crate::store::Store) -> bool {
@@ -1245,6 +1251,9 @@ pub struct Runner {
     lease: Option<std::sync::Arc<crate::lease::Shared>>,
     /// The TermLink sessions directory to bind from (None: the default).
     sessions_dir: Option<PathBuf>,
+    /// T-3772: where binding reads processes (default `/proc`). Binding is
+    /// available only where `<proc_root>/self` exists (Linux; macOS is T-3770).
+    proc_root: PathBuf,
     /// Extra registry entries `(exe_realpath, script_path)`.
     pub registry: Vec<(String, Option<String>)>,
     /// The macOS interim veto's idle-helper argument prefixes.
@@ -1275,6 +1284,7 @@ impl Runner {
             rpc,
             lease,
             sessions_dir: None,
+            proc_root: PathBuf::from("/proc"),
             registry: vec![],
             helpers: vec![],
             db: std::sync::Mutex::new(Doorbell::new()),
@@ -1289,25 +1299,51 @@ impl Runner {
         self
     }
 
+    /// Test seam (T-3772): read processes from this directory instead of `/proc`.
+    pub fn with_proc_root(mut self, d: PathBuf) -> Self {
+        self.proc_root = d;
+        self
+    }
+
     pub fn ring_log(&self) -> PathBuf {
         self.store.dir().join(RING_LOG)
     }
 
-    /// Bind each harness session to its TermLink session (S1 and `command.notify`).
-    fn bind_all(&self, facts: &[crate::meter::DoorbellFacts]) {
-        let proc_root = Path::new("/proc");
+    /// T-3772: whether session binding can run here (it walks `/proc`).
+    pub fn binding_available(&self) -> bool {
+        self.proc_root.join("self").exists()
+    }
+
+    /// Session binding for S1 and `command.notify` (B-16; T-3772). Runs on the
+    /// meter's tick path whatever the doorbell switch says: S1 and the E-153
+    /// origin check belong to the meter. It only records an RPC target; it never
+    /// rings or types anything.
+    pub fn bind(&self) {
+        self.bind_all(&self.meter.binding_facts());
+    }
+
+    /// Bind each harness session to its TermLink session; an unbound one records why.
+    fn bind_all(&self, facts: &[(String, bool, Option<u32>)]) {
+        let proc_root = self.proc_root.as_path();
+        let available = self.binding_available();
         let mut regs: Option<Vec<termlink_session::registration::Registration>> = None;
         let mut hs = lk(&self.harness);
-        for f in facts.iter().filter(|f| !f.ended) {
-            let Some(pid) = f.harness_pid else {
-                hs.remove(&f.name);
-                continue;
-            };
-            let known = hs.get(&f.name).cloned().flatten();
-            if known.as_ref().is_some_and(|h| h.pid == pid) && self.rpc.is_bound(&f.name) {
+        for (name, _, harness_pid) in facts.iter().filter(|f| !f.1) {
+            if !available {
+                hs.remove(name);
+                self.rpc.unbind_why(name, BINDING_UNAVAILABLE);
                 continue;
             }
-            hs.insert(f.name.clone(), harness_of(proc_root, pid));
+            let Some(pid) = *harness_pid else {
+                hs.remove(name);
+                self.rpc.unbind_why(name, NO_HARNESS_PID);
+                continue;
+            };
+            let known = hs.get(name).cloned().flatten();
+            if known.as_ref().is_some_and(|h| h.pid == pid) && self.rpc.is_bound(name) {
+                continue;
+            }
+            hs.insert(name.clone(), harness_of(proc_root, pid));
             let regs = regs.get_or_insert_with(|| {
                 match &self.sessions_dir {
                     Some(d) => termlink_session::manager::list_sessions_in(d, false),
@@ -1316,13 +1352,14 @@ impl Runner {
                 .unwrap_or_default()
             });
             match find_binding(proc_root, pid, regs) {
-                Some((sock, secret, tl)) => self.rpc.bind_secret(&f.name, &sock, &tl, secret),
-                None => self.rpc.unbind(&f.name),
+                Some((sock, secret, tl)) => self.rpc.bind_secret(name, &sock, &tl, secret),
+                None => self.rpc.unbind_why(name, &format!("no TermLink session hosts harness pid {pid}")),
             }
         }
     }
 
-    /// One doorbell tick (after the meter's). Nothing happens while the switch is off.
+    /// One doorbell tick (after the meter's and [`Runner::bind`]). Nothing
+    /// happens while the switch is off.
     pub fn tick(&self) -> Option<TickReport> {
         if !switch_on(&self.store) {
             return None;
@@ -1334,7 +1371,6 @@ impl Runner {
             let subs: BTreeMap<String, u64> = facts.iter().filter_map(|f| f.last_submit.as_ref().map(|(t, _)| (f.name.clone(), *t))).collect();
             lk(&self.db).restore(&log, &|s| subs.get(s).copied());
         }
-        self.bind_all(&facts);
         let hs = lk(&self.harness).clone();
         let now_ms = crate::store::now_ms();
         let withhold_all = self.deliverer.withhold_all();
@@ -1371,7 +1407,29 @@ impl Runner {
     }
 
     pub fn status_view(&self) -> Value {
-        lk(&self.db).status_view(switch_on(&self.store))
+        let mut v = lk(&self.db).status_view(switch_on(&self.store));
+        // T-3772: the binding, whatever the switch says; never "bound" where it cannot run.
+        let mut sessions = serde_json::Map::new();
+        for (name, ended, _) in self.meter.binding_facts() {
+            let s = if self.rpc.is_bound(&name) {
+                "bound".to_string()
+            } else if ended {
+                "unbound (session ended)".to_string()
+            } else {
+                match self.rpc.why_unbound(&name) {
+                    Some(why) => format!("unbound ({why})"),
+                    None => "unbound (no binding attempt yet)".to_string(),
+                }
+            };
+            sessions.insert(name, json!(s));
+        }
+        let available = self.binding_available();
+        v["binding"] = json!({
+            "available": available,
+            "why": if available { Value::Null } else { json!(BINDING_UNAVAILABLE) },
+            "sessions": sessions,
+        });
+        v
     }
 }
 
