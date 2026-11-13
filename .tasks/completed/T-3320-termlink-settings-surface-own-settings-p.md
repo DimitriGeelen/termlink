@@ -1,19 +1,25 @@
 ---
 id: T-3320
-name: "TermLink settings surface: own settings page, and a panel inside the AEF settings page when run under AEF"
+name: "TermLink settings surface: own settings page, and a panel inside the AEF settings
+  page when run under AEF"
 description: >
-  Operator 2026-10-02 during T-3310: retention limits must be configurable through a settings page; a TermLink page standalone, and inside the AEF settings page when vendored. Measured: AEF /settings/ (.agentic-framework/web/blueprints/settings.py, saves .context/settings.yaml) has no consumer-project extension point and is vendored (G-062); the hub has 25 TERMLINK_* env vars and no config file. T-3310 introduces the hub config file this page would edit.
+  Operator 2026-10-02 during T-3310: retention limits must be configurable through
+  a settings page; a TermLink page standalone, and inside the AEF settings page when
+  vendored. Measured: AEF /settings/ (.agentic-framework/web/blueprints/settings.py,
+  saves .context/settings.yaml) has no consumer-project extension point and is vendored
+  (G-062); the hub has 25 TERMLINK_* env vars and no config file. T-3310 introduces
+  the hub config file this page would edit.
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: null
 tags: [arc:arc-012]
 components: []
 related_tasks: [T-3310]
 created: 2026-10-02T14:53:52Z
-last_update: 2026-10-17T23:17:55Z
-date_finished: null
+last_update: 2026-11-13T17:15:16Z
+date_finished: 2026-11-13T17:15:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -22,6 +28,22 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.4                    # agent-set under operator delegation 2026-10-18: usability of hub knobs (25 env vars, no page); AEF settings has no consumer extension point (vendored), so part of the answer is upstream's. — float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-11-13T17:15:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-TRUST: 2
+      F-SURFACE: 2
+      F-CONV-RECALL: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-TRUST=2 (no-signal); F-SURFACE=2 (no-signal); 
+      F-CONV-RECALL=2 (no-signal)
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3320: TermLink settings surface: own settings page, and a panel inside the AEF settings page when run under AEF
@@ -72,15 +94,15 @@ voi_score: 0.4                    # agent-set under operator delegation 2026-10-
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -129,9 +151,52 @@ voi_score: 0.4                    # agent-set under operator delegation 2026-10-
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: Operator requirement; T-3310 creates the config file so the page has something to edit; the open question is where the page lives (needs an AEF extension point upstream vs a TermLink UI home).
+
+**Date**: 2026-11-13T17:15:14Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-11-13T17:15:14Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: Operator requirement; T-3310 creates the config file so the page has something to edit; the open question is where the page lives (needs an AEF extension point upstream vs a TermLink UI home).
+
+### 2026-11-13T17:15:15Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+- **Reason:** Inception decision in progress
+
+### 2026-11-13T17:15:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5be81453
+- **Timestamp:** 2026-11-13T17:15:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-ee507b2e
+- **Timestamp:** 2026-11-13T17:15:17Z
+- **Overall:** CONFIRMED
+- **Claims:** 1
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `T-3310` | task | ✓ pass |
