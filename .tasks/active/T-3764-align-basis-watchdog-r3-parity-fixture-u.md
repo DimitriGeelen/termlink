@@ -1,10 +1,18 @@
 ---
 id: T-3764
-name: "Align basis 'watchdog': r3 parity fixture uses it, the meter's AL-1 check_origin table rejects it (found by AEF T-5054)"
+name: "Align basis 'watchdog': r3 parity fixture uses it, the meter's AL-1 check_origin
+  table rejects it (found by AEF T-5054)"
 description: >
-  tests/fixtures/b25-parity/r3-prompt-origin.json case 'watchdog-line-is-automated' sends origin automated, basis "watchdog"; crates/termlink-sidecar/src/meter.rs:1286 accepts automated bases doorbell | non-interactive | harness-mark | pty-input only, so the meter marks it inconsistent (FCW-4). The lease outcome is the same (ignored), but the contract must be one: the watchdog types the same SI-1 line as the doorbell (handler.rs:651), so an adapter cannot tell them apart. Decide per 06 AL-1 / 04 17.5: change the fixture to basis doorbell (likely) or add watchdog to the table and the spec; keep the lease test; tell AEF (conversation termlink-arc011-p44-adapter2).
+  tests/fixtures/b25-parity/r3-prompt-origin.json case 'watchdog-line-is-automated'
+  sends origin automated, basis "watchdog"; crates/termlink-sidecar/src/meter.rs:1286
+  accepts automated bases doorbell | non-interactive | harness-mark | pty-input only,
+  so the meter marks it inconsistent (FCW-4). The lease outcome is the same (ignored),
+  but the contract must be one: the watchdog types the same SI-1 line as the doorbell
+  (handler.rs:651), so an adapter cannot tell them apart. Decide per 06 AL-1 / 04
+  17.5: change the fixture to basis doorbell (likely) or add watchdog to the table
+  and the spec; keep the lease test; tell AEF (conversation termlink-arc011-p44-adapter2).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T07:21:06Z
-last_update: 2026-11-13T07:21:06Z
-date_finished: null
+last_update: 2026-11-13T16:40:11Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,23 +58,54 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-13T16:36:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal);
+      F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0:
+      no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3764: Align basis 'watchdog': r3 parity fixture uses it, the meter's AL-1 check_origin table rejects it (found by AEF T-5054)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** AEF T-5054 (conversation termlink-arc011-p44-adapter2) found that the B-25 parity fixture
+`tests/fixtures/b25-parity/r3-prompt-origin.json` case `watchdog-line-is-automated` reports origin `automated`,
+basis `watchdog`. The meter's AL-1 `check_origin` table (`crates/termlink-sidecar/src/meter.rs`, spec 06 line ~312)
+accepts automated bases `doorbell | non-interactive | harness-mark | pty-input` only, so a conforming adapter that
+copies the fixture would be counted `origin-inconsistent` (FCW-4).
+
+**Problem / hypothesis:** two contracts for one fact. The watchdog types the same SI-1 line as the doorbell
+(`crates/termlink-session/src/handler.rs:651`, `sidecar: N peer messages waiting ...`), so an adapter cannot tell a
+watchdog line from a doorbell line; `watchdog` is not an observable basis and the fixture is the outlier.
+Nothing checked fixture bases against the meter table, so they drifted.
+
+**Goal:** one basis vocabulary: fixture, spec 06 AL-1 and the meter table agree, and a test keeps them agreeing.
+
+**Expected outcome:** the r3 case uses basis `doorbell` with the same `ignored` lease outcome; a new sidecar test
+fails if any fixture under `tests/fixtures/b25-parity/` carries a basis the meter rejects.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The r3 parity fixture case `watchdog-line-is-automated` uses a basis the meter's AL-1 `check_origin` table accepts, with the same expected lease outcome as before
+- [x] A test asserts every `basis` used in `tests/fixtures/b25-parity/*.json` is accepted by the meter's `check_origin` table for its origin, so the two cannot drift again
+- [x] Negative control: the test fails when a fixture carries a basis the table rejects (e.g. the old `watchdog`)
+- [x] The choice (fixture vs table) is recorded in Decisions with the 06 AL-1 / 04 17.5 rationale
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
+<!-- (no Human ACs) Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
 
@@ -114,6 +153,11 @@ date_finished: null
 -->
 
 ## Verification
+
+env -u PROJECT_ROOT TMPDIR=/var/tmp cargo test -p termlink-sidecar --test t3764_fixture_basis > .context/working/.t3764-v1.out 2>&1 && grep -q "test result: ok. 2 passed" .context/working/.t3764-v1.out
+env -u PROJECT_ROOT TMPDIR=/var/tmp cargo test -p termlink-session --lib e84_prompt_origin_parity > .context/working/.t3764-v2.out 2>&1 && grep -q "e84_prompt_origin_parity_scenario_matches_the_lease ... ok" .context/working/.t3764-v2.out
+env -u PROJECT_ROOT TMPDIR=/var/tmp cargo test -p termlink-sidecar --test p2_parity > .context/working/.t3764-v3.out 2>&1 && grep -q "test result: ok" .context/working/.t3764-v3.out
+python3 -c "import json; d=json.load(open('tests/fixtures/b25-parity/r3-prompt-origin.json')); assert all(c.get('basis')!='watchdog' for c in d['cases']) and any(c['name']=='watchdog-line-is-automated' and c['basis']=='doorbell' and c['expect']=='ignored' for c in d['cases'])"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -286,6 +330,11 @@ date_finished: null
 
 ## Evolution
 
+### 2026-11-13 — fixture, not table
+- **What changed:** the meter table and spec 06 AL-1 already agreed; only the r3 fixture used basis `watchdog`. Also seen: the meter reads a missing `basis` as "" and accepts only "absent" for `unknown`, so r3 cases with origin `unknown` (or absent) and no basis key count FCW-4 in the meter (resulting origin is unknown/absent either way, so the lease outcome is unchanged). Not changed here: production code is outside this worker's scope.
+- **Plan impact:** none to the lease. The drift test covers every pair that carries a basis.
+- **Triggered:** raised in the handback (possible follow-up: the adapter contract should say whether `unknown` sends basis "absent" literally or omits it).
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -339,6 +388,11 @@ date_finished: null
 
 ## Decisions
 
+### 2026-11-13 — basis for a watchdog line
+- **Chose:** change the fixture case `watchdog-line-is-automated` to basis `doorbell` (expect stays `ignored`), and add `crates/termlink-sidecar/tests/t3764_fixture_basis.rs` so every fixture basis must pass the meter's check_origin.
+- **Why:** 06 AL-1 check_origin and 04 17.5 list the automated bases doorbell | non-interactive | harness-mark | pty-input. The watchdog types the identical SI-1 line as the doorbell (termlink-session handler.rs:651), so an adapter cannot observe a separate `watchdog` basis. A basis no adapter can detect is not a usable contract.
+- **Rejected:** adding `watchdog` to the table and spec. That needs a production and spec change for a value no adapter could ever report correctly, and it splits one observable event in two.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -364,3 +418,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3764-align-basis-watchdog-r3-parity-fixture-u.md
 - **Context:** Initial task creation
+
+### 2026-11-13T16:36:56Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

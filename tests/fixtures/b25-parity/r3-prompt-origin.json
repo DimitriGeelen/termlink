@@ -2,6 +2,7 @@
   "schema": "termlink.parity/1",
   "report": "R3 prompt origin (ARC4 17.5, 17.9; E-84, E-27; T-3694 B-25)",
   "about": "What the main lease does with each origin report from an adapter whose harness the operator switched to origin reporting. Run against every adapter (TermLink: crates/termlink-session main_lease e84 test; AEF: B-29, P-44). 'state' is the lease as the claiming session sees it; 'held-by-other-silent' means the holder's last human prompt is older than the quiet period (5 min). 'expect' is one of: ignored (recorded ignored: origin, nothing changes), unchanged (answered, nothing changes, nothing recorded), provisional, renewed, acquired, fast-takeover.",
+  "basis_note": "The watchdog types the same SI-1 line as the doorbell, so an adapter reports a watchdog line with basis doorbell; there is no basis watchdog (06 AL-1 check_origin table; T-3764). crates/termlink-sidecar/tests/t3764_fixture_basis.rs keeps every basis here inside that table.",
   "negative_controls": [
     "an adapter that reports a doorbell or watchdog line as origin human fails case doorbell-line-is-automated (its claim would renew or take main)",
     "an adapter that reports tool activity as a prompt fails case tool-activity-never-renews"
@@ -10,7 +11,7 @@
     {"name": "human-pty-input-renews-own-lease", "state": "held-by-me", "hook": "prompt", "origin": "human", "basis": "pty-input", "expect": "renewed"},
     {"name": "human-inferred-renews-own-lease", "state": "held-by-me", "hook": "prompt", "origin": "human", "basis": "inferred", "expect": "renewed"},
     {"name": "doorbell-line-is-automated", "state": "held-by-me", "hook": "prompt", "origin": "automated", "basis": "doorbell", "expect": "ignored"},
-    {"name": "watchdog-line-is-automated", "state": "held-by-other-silent", "hook": "prompt", "origin": "automated", "basis": "watchdog", "expect": "ignored"},
+    {"name": "watchdog-line-is-automated", "state": "held-by-other-silent", "hook": "prompt", "origin": "automated", "basis": "doorbell", "expect": "ignored"},
     {"name": "unknown-origin-is-ignored", "state": "vacant", "hook": "prompt", "origin": "unknown", "expect": "ignored"},
     {"name": "absent-origin-in-reporting-harness-is-ignored", "state": "held-by-me", "hook": "prompt", "expect": "ignored"},
     {"name": "tool-activity-never-renews", "state": "held-by-me", "hook": "tool", "origin": "human", "expect": "unchanged"},
