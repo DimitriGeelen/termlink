@@ -112,7 +112,9 @@ jobs:
   # release, which is how T-3265/T-3266 went unseen.
   test-macos:
     name: Workspace test suite (macOS)
-    runs-on: macos-14
+    # T-3763: GitHub retired macos-14 ("configuration not supported", v0.12.5/v0.12.6 runs).
+    # macos-latest tracks the supported ARM image; this blocking suite catches a breaking image change.
+    runs-on: macos-latest
     timeout-minutes: 60
 
     steps:
@@ -138,10 +140,10 @@ jobs:
       matrix:
         include:
           - target: aarch64-apple-darwin
-            os: macos-14  # M1/M2/M3 runner
+            os: macos-latest  # ARM runner (T-3763: macos-14 retired)
             artifact: termlink-darwin-aarch64
           - target: x86_64-apple-darwin
-            os: macos-14  # Cross-compile for Intel on ARM runner (macos-13 deprecated)
+            os: macos-latest  # Cross-compile for Intel on the ARM runner (T-3763)
             artifact: termlink-darwin-x86_64
 
     runs-on: ${{ matrix.os }}
