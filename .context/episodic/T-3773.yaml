@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3773: Standing START watch on runme latest.log at all times (operator directive 2026-11-13), not only when a run is handed over
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T10:35:35Z
+# ============================================================================
+
+task_id: T-3773
+task_name: "Standing START watch on runme latest.log at all times (operator directive 2026-11-13), not only when a run is handed over"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-13T10:33:37Z
+completed: 2026-11-13T10:35:15Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Operator 2026-11-13, after starting runme himself and the agent not noticing: 'you should see at the moment it starts running, you should get a trigger and start inspecting ... that's a standing directive'. CLAUDE.md said to arm START+FINISH watches when handing the script over; a run the operator starts on his own was missed. Rule now: the main session keeps a START watch on .context/working/runme-logs/latest.log armed at all times, re-armed each time it fires and after every restart/compaction, and arms the FINISH watch the moment a start is seen.
+
+# Key outcomes
+outcomes:
+  - 'CLAUDE.md project rules state that the START watch on latest.log is armed at all times, re-armed when it fires and after restart/compaction, and that the FINISH watch is armed when a start is seen'
+  - 'A START watch and the FINISH watch for the 10:32Z run are armed in the current session'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 4
+  lines_added: 504
+  lines_removed: 1
+  footprint_refreshed_at: '2026-11-13T10:35:39Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3773-standing-start-watch-on-runme-latestlog-.md
+generated_by: context-agent-hybrid
