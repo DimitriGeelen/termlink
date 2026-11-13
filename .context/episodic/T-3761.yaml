@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3761: Publish the P-2 parity fixture ((boot_id, mono_ns) READY ordering) for AEF request P-44
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T00:37:12Z
+# ============================================================================
+
+task_id: T-3761
+task_name: "Publish the P-2 parity fixture ((boot_id, mono_ns) READY ordering) for AEF request P-44"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-13T00:22:48Z
+completed: 2026-11-13T00:35:57Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-13T01:35:46+01:00
+last_commit: 2026-11-13T01:35:46+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  publish the P-2 parity fixture (p2-report-ordering.json, (boot_id, mono_ns) ordering, never at_ms) for AEF P-44; termlink-sidecar test consumes it, at_ms control fails every case
+
+# Key outcomes
+outcomes:
+  - '`tests/fixtures/b25-parity/p2-report-ordering.json` exists, parses, carries `schema: termlink.parity/1`, `negative_controls`, and cases covering: ordering on mono_ns against `at_ms`, a tie keeping BUSY, a new boot ordering later, a backward wall-clock step (10 min) that does not freeze READY, mono_ns as decimal string above 2^53, reports without the fields (receive stamp), invalid/half pairs (receive stamp), an older prompt dropped, a turn stop ordered before/after the prompt'
+  - 'A test in `crates/termlink-sidecar/tests/` reads the fixture with `include_str!`, feeds every report payload verbatim to the meter and asserts every step''s `expect` and every case''s `after`; it passes'
+  - 'The same test checks the fixture''s hook-request section against `hook::request` (boot_id + string mono_ns on all four events) and the old-sidecar retry (`old_sidecar_answer` / `retry_drops`) against `hook::run`'
+  - 'Negative control: an oracle written from the fixture''s `about` agrees with every case, and the same oracle keyed on `at_ms` agrees with none (asserted in the test, so the fixture cannot be satisfied by wall-clock ordering); fixture mutants 10/10 killed (`.context/working/t3761/mutants.out`)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'publish the P-2 parity fixture (p2-report-ordering.json, (boot_id, mono_ns) ordering, never at_ms) for AEF P-44; termlink-sidecar test consumes it, at_ms control fails every case'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-13 — release P-44 to AEF (operator ruling)'
+    chose: 'B — first publish the P-2 parity fixture next to `tests/fixtures/b25-parity/r3-prompt-origin.json`, then send P-44 with both.'
+    rationale: 'P-44''s plan row needs P-2''s fixtures published; an adapter built against half the fixtures could order READY by wall clock unseen.'
+    alternatives_rejected: ['A send now with half the fixtures; C wait for v0.12.6; D hold. - **Operator words:** "B"']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3761-publish-the-p-2-parity-fixture-bootid-mo.md'
+  - 'crates/termlink-sidecar/tests/p2_parity.rs'
+  - 'tests/fixtures/b25-parity/p2-report-ordering.json'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T01:35:46'
+    action: 'T-3761: publish the P-2 parity fixture (p2-report-ordering.json, (boot_id, mono_ns) ordering, never at_ms) for AEF P-44; termlink-sidecar test consumes it, at_ms control fails every case'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 13
+  commits: 2
+  files_changed: 6
+  lines_added: 928
+  lines_removed: 4
+  footprint_refreshed_at: '2026-11-13T00:37:27Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3761-publish-the-p-2-parity-fixture-bootid-mo.md
+generated_by: context-agent-hybrid

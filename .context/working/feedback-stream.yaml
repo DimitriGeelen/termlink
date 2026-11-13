@@ -23361,3 +23361,21 @@ scan_id: R-19018850
 task_id: T-3758
 payload:
   task_file: .tasks/active/T-3758-retire-dimitri-mint-devs-stale-localbint.md
+---
+kind: scan_emitted
+timestamp: '2026-11-13T00:36:23Z'
+scan_id: R-b14cf0a3
+task_id: T-3761
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T00:36:23Z'
+scan_id: R-b14cf0a3
+task_id: T-3761
+payload:
+  task_file: .tasks/active/T-3761-publish-the-p-2-parity-fixture-bootid-mo.md

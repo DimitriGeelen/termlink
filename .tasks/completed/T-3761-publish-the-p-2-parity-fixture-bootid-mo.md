@@ -13,10 +13,10 @@ description: >
   test in the termlink-sidecar suite consumes the fixture so it cannot drift from
   the code. Rejected: A send now with half the fixtures; C wait for v0.12.6; D hold.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -47,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T00:22:48Z
-last_update: 2026-11-13T00:35:41Z
-date_finished:
+last_update: 2026-11-13T00:35:57Z
+date_finished: 2026-11-13T00:35:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -393,3 +393,21 @@ env -u PROJECT_ROOT TMPDIR=/var/tmp cargo test -p termlink-sidecar --test p2_par
 
 ### 2026-11-13T00:26:08Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-13T00:35:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b14cf0a3
+- **Timestamp:** 2026-11-13T00:36:23Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — Negative control: an oracle written from the fixture's `about` agrees with every case, and the same oracle keyed on `at_ms` agrees with none (asserted in the test, so the fixture cannot be satisfied b
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/working/t3761/mutants.out in: Negative control: an oracle written from the fixture's `about` agrees with every case, and the same oracle keyed on `at_ms` agrees with none (asserted`
