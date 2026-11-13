@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3769: Meter-only sidecar recipe for the AEF adapter/2 trial (take reports + lease checks; never pull, deliver, ring or inject)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T08:33:41Z
+# ============================================================================
+
+task_id: T-3769
+task_name: "Meter-only sidecar recipe for the AEF adapter/2 trial (take reports + lease checks; never pull, deliver, ring or inject)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-13T08:21:16Z
+completed: 2026-11-13T08:32:47Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-13T09:32:43+01:00
+last_commit: 2026-11-13T09:32:43+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  meter-only sidecar recipe for the AEF adapter/2 trial — delivery.off + receive.drained before first start, no doorbell-on; estate proof with a waiting roster message never received, and the control (undrain + delivery on) delivers it
+
+# Key outcomes
+outcomes:
+  - 'docs/operations/sidecar-meter-only.md gives the exact minimal config (agent name, runtime dir, queue/store paths, hub), how the send socket path is chosen, delivery off and no doorbell, and the supervised start'
+  - 'The doc answers AEF''s four questions (3 and 4: installed 0.12.61 has P-2 and E-153; origin needs the operator''s `termlink main origin-reporting --harness claude-code` runme act)'
+  - 'Scratch-estate proof (marked .termlink-estate tree, never /var/lib/termlink): start, a report line accepted, a prompt report returns origin_checked, status shows meter data, nothing delivered/rung/typed'
+  - 'Negative control: the same config with delivery on and a message waiting does deliver'
+  - 'Nothing on the live host is started or changed; any operator step is named as a runme action'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3769-meter-only-sidecar-recipe-for-the-aef-ad.md'
+  - 'crates/termlink-sidecar/tests/t3769_meter_only.rs'
+  - 'docs/operations/sidecar-meter-only.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T09:32:43'
+    action: 'T-3769: meter-only sidecar recipe for the AEF adapter/2 trial — delivery.off + receive.drained before first start, no doorbell-on; estate proof with a waiting roster message never received, and the control (undrain + delivery on) delivers it'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 11
+  commits: 2
+  files_changed: 6
+  lines_added: 898
+  lines_removed: 4
+  footprint_refreshed_at: '2026-11-13T08:33:50Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3769-meter-only-sidecar-recipe-for-the-aef-ad.md
+generated_by: context-agent-hybrid

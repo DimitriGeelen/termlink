@@ -23397,3 +23397,21 @@ scan_id: R-9df663d2
 task_id: T-3762
 payload:
   task_file: .tasks/active/T-3762-runme-22d-retire-every-stale-termlink-co.md
+---
+kind: scan_emitted
+timestamp: '2026-11-13T08:33:31Z'
+scan_id: R-f43280cb
+task_id: T-3769
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T08:33:31Z'
+scan_id: R-f43280cb
+task_id: T-3769
+payload:
+  task_file: .tasks/active/T-3769-meter-only-sidecar-recipe-for-the-aef-ad.md
