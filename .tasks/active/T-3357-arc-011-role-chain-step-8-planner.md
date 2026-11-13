@@ -8,7 +8,7 @@ description: >
 
 status: started-work
 workflow_type: specification
-owner: agent
+owner: human
 horizon: now
 tags: [arc:arc-011]
 arc_id: arc-011
@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:23Z
-last_update: 2026-11-13T00:40:57Z
+last_update: 2026-11-13T17:29:09Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -131,7 +131,7 @@ idempotently from it and the build queue (B-25 -> B-11 -> B-16) runs against it.
 - [x] Operator approval of step 8 recorded: his ruling, in his words, with date and channel, under `## Decisions` (evidence: "### 2026-11-12 — G-0: approve the step 8 build plan (operator ruling)", words "A"; replaces the former Human box per operator ruling 1A 2026-11-13, README 5.1)
 
 ### Human
-- [x] [REVIEW] Independent review: step 8 plan meets the planner card's completion conditions (coverage complete,
+- [ ] [REVIEW] Independent review: step 8 plan meets the planner card's completion conditions (coverage complete,
       no cycle, every unit has acceptance and a verification check, no rubber-stamp criteria, rulings honoured)
   **Steps:**
   1. The ORCHESTRATOR (never a reviewer seat) runs `fw reviewer judge T-3357 --criterion 1` against
@@ -139,7 +139,6 @@ idempotently from it and the build queue (B-25 -> B-11 -> B-16) runs against it.
      `docs/design/interactive-agent-communication/role-handback-step-08.json`.
   **Expected:** a green verdict bound to the reviewed revision, applied with `fw reviewer verdict apply T-3357`.
   **If not:** findings go back to the planner role (max 2-3 rounds), then each is dispositioned.
-  **Reviewer verdict:** green V-20261112-ef81628a — reviewer-judge-t-3357-r1-7d6b2dfb08fc:reviewer (rung rung-1-same-vendor-independent), digest b6908d3b8c09; dispatch judge-t-3357-r1-7d6b2dfb08fc; evidence: .context/reviews/evidence/T-3357/AC1-judge-t-3357-r1-7d6b2dfb08fc.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 
