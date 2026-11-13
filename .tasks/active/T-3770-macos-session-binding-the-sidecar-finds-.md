@@ -1,13 +1,21 @@
 ---
 id: T-3770
-name: "macOS session binding: the sidecar finds the harness's TermLink session only through /proc (B-16), so on a Mac S1 and the doorbell line are unbound"
+name: "macOS session binding: the sidecar finds the harness's TermLink session only
+  through /proc (B-16), so on a Mac S1 and the doorbell line are unbound"
 description: >
-  Found by the first live macOS CI job (v0.12.9, test live_binding_reads_s1_and_types_the_si1_line: 'bound from /proc'). B-16 binds the harness pid to its TermLink session by reading /proc and the session registry; macOS has no /proc, so S1 (PTY input counters, E-153 origin check) and command.notify typing are unbound on macOS. The M1 joins the fleet soon. Options: the adapter reports harness_pid + TERMLINK_SESSION_ID (env of the harness), libproc/proc_pidinfo for the parent chain on macOS, or sysctl KERN_PROC. Belongs with T-3688 (full macOS veto). Until built: the test is Linux-only (cfg) and status must say binding unavailable on macOS, never pretend bound.
+  Found by the first live macOS CI job (v0.12.9, test live_binding_reads_s1_and_types_the_si1_line:
+  'bound from /proc'). B-16 binds the harness pid to its TermLink session by reading
+  /proc and the session registry; macOS has no /proc, so S1 (PTY input counters, E-153
+  origin check) and command.notify typing are unbound on macOS. The M1 joins the fleet
+  soon. Options: the adapter reports harness_pid + TERMLINK_SESSION_ID (env of the
+  harness), libproc/proc_pidinfo for the parent chain on macOS, or sysctl KERN_PROC.
+  Belongs with T-3688 (full macOS veto). Until built: the test is Linux-only (cfg)
+  and status must say binding unavailable on macOS, never pretend bound.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011, macos]
 components: []
 related_tasks: []
@@ -38,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T09:37:28Z
-last_update: 2026-11-13T09:37:28Z
-date_finished: null
+last_update: '2026-11-13T17:32:05Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,23 +58,58 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-13T17:32:05Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal);
+      F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0:
+      no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3770: macOS session binding: the sidecar finds the harness's TermLink session only through /proc (B-16), so on a Mac S1 and the doorbell line are unbound
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** the first live macOS CI job (v0.12.9) failed `live_binding_reads_s1_and_types_the_si1_line`
+("bound from /proc"). B-16 (T-3697) binds a harness pid to the TermLink session that hosts it by walking the parent
+chain in `/proc` (`doorbell::ancestors`, `harness_of`, `find_binding`); T-3772 made the gap honest (status says
+`binding unavailable`, test Linux-only). Note: this ID is not in the 08 plan (the plan's "T-3770" mentions refer to an
+AEF task with the same number); this unit belongs beside P-43 / T-3688.
+
+**Problem:** macOS has no `/proc`, so S1 (PTY input counters, E-153 origin check) and `command.notify` typing stay
+unbound on a Mac. An M1 joins the fleet soon.
+
+**Goal:** on macOS the sidecar reads the parent chain with `proc_pidinfo(PROC_PIDTBSDINFO).pbi_ppid`, the executable
+with `proc_pidpath`, and argv/cwd (for the interpreter's script) with `sysctl KERN_PROCARGS2` and
+`PROC_PIDVNODEPATHINFO`, behind `cfg(target_os = "macos")`. Linux keeps `/proc`. Status names why when unbound.
+
+**Expected outcome / rollback:** a Mac sidecar binds like Linux; anything unreadable leaves the session unbound with
+a reason (fail closed: unbound means hold, never type). Rollback: revert the commit; behaviour returns to T-3772's
+honest "unavailable".
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] The parent-chain walk is one generic function (`ancestors_with`) used by both the Linux `/proc` reader and the macOS libproc reader; unit tests pin: stop at pid <= 1, cap 64, stop at an unreadable step, cycle-safe.
+- [ ] The macOS `KERN_PROCARGS2` buffer parser is a pure function tested on Linux with fixture buffers (normal, padding NULs, truncated, argc larger than the strings present, empty) — negative cases return None or the strings present, never panic.
+- [ ] `script_path`'s argv rule (first non-empty non-option argument after argv[0], resolved against cwd) is one function shared by the `/proc` and macOS readers (no copy).
+- [ ] Every new `cfg(target_os = "macos")` function type-checks against the macOS libc (`rustc --target x86_64-apple-darwin` with the darwin libc rmeta); the check output is kept in `.context/working/t3770/`.
+- [ ] `Runner::binding_available()` is true on macOS (native libproc) and on Linux with `/proc`; false elsewhere or under a test proc root without `self`; status `binding.why` and each unbound session name the reason (unavailable platform, no harness pid, parent chain unreadable, no hosting session).
+- [ ] Existing sidecar tests (b16_doorbell, b16_live, unit) stay green; a negative control: forcing the native reader to fail yields `unbound (...)` with a reason, never `bound`.
 
+<!--
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
+Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
 
@@ -114,6 +157,12 @@ date_finished: null
 -->
 
 ## Verification
+env -u PROJECT_ROOT cargo test -p termlink-sidecar --test t3770_native_binding --test t3772_binding > .context/working/t3770/v-bind.out 2>&1 && grep -q "native_reader_binds_through_the_parent_chain ... ok" .context/working/t3770/v-bind.out && grep -q "unreadable_harness_is_unbound_and_names_the_reader ... ok" .context/working/t3770/v-bind.out && ! grep -q "FAILED" .context/working/t3770/v-bind.out
+env -u PROJECT_ROOT cargo test -p termlink-session --lib procinfo > .context/working/t3770/v-proc.out 2>&1 && grep -q "procargs2_bad_buffers_never_panic ... ok" .context/working/t3770/v-proc.out && grep -q "ancestors_are_cycle_safe_and_capped ... ok" .context/working/t3770/v-proc.out
+env -u PROJECT_ROOT cargo test -p termlink-sidecar --test b16_doorbell > .context/working/t3770/v-b16.out 2>&1 && grep -q "test result: ok" .context/working/t3770/v-b16.out
+# macOS type-check evidence (darwin libc, cc stub; kept in .context/working/t3770/): rc=0 and no error lines
+test -s .context/working/t3770/cargo-mac-check.out && grep -q "Finished" .context/working/t3770/cargo-mac-check.out && ! grep -q "^error" .context/working/t3770/cargo-mac-check.out
+grep -q "error\[E0609\]: no field .pbi_ppidx." .context/working/t3770/mac-mutant.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +413,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3770-macos-session-binding-the-sidecar-finds-.md
 - **Context:** Initial task creation
+
+### 2026-11-13T17:32:00Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

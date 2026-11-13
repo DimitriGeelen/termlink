@@ -1168,7 +1168,8 @@ impl Doorbell {
 // ---------------------------------------------------------------- live ports
 
 /// T-3772: why a session cannot be bound on a host without `/proc`.
-pub const BINDING_UNAVAILABLE: &str = "session binding unavailable on this platform: it reads /proc (macOS binding is T-3770)";
+pub const BINDING_UNAVAILABLE: &str =
+    "session binding unavailable on this platform: it reads /proc (Linux) or libproc (macOS, T-3770), and neither is here";
 /// T-3772: why a session without a reported harness pid is not bound.
 pub const NO_HARNESS_PID: &str =
     "no harness_pid reported for this session (a session started before the adapter was installed binds at its next session start)";
@@ -1213,21 +1214,82 @@ pub fn registered(h: &Harness, extra: &[(String, Option<String>)]) -> bool {
         || (name == "node" && h.script.as_deref().is_some_and(|s| s.ends_with("/@anthropic-ai/claude-code/cli.js")))
 }
 
-/// Ancestors of `pid` (nearest first), at most 64.
+/// Parent pid of `pid` from `<proc_root>/<pid>/stat` (ppid is the 2nd field after
+/// the LAST `)`: comm may hold spaces and `)`).
+pub fn ppid_of(proc_root: &Path, pid: u32) -> Option<u32> {
+    let s = std::fs::read_to_string(proc_root.join(pid.to_string()).join("stat")).ok()?;
+    let rest = &s[s.rfind(')')? + 1..];
+    rest.split_whitespace().nth(1)?.parse().ok()
+}
+
+/// Ancestors of `pid` (nearest first), at most 64, from `/proc`.
 pub fn ancestors(proc_root: &Path, pid: u32) -> Vec<u32> {
-    let mut out = vec![];
-    let mut cur = pid;
-    for _ in 0..64 {
-        let Ok(s) = std::fs::read_to_string(proc_root.join(cur.to_string()).join("stat")) else { break };
-        let Some(rest) = s.rfind(')').map(|i| &s[i + 1..]) else { break };
-        let Some(pp) = rest.split_whitespace().nth(1).and_then(|x| x.parse::<u32>().ok()) else { break };
-        if pp <= 1 {
-            break;
-        }
-        out.push(pp);
-        cur = pp;
+    termlink_session::procinfo::ancestors_with(pid, |p| ppid_of(proc_root, p))
+}
+
+/// T-3770: where binding reads process facts when there is no `/proc` (macOS:
+/// libproc and sysctl). Plain function pointers so a test can stand one in.
+#[derive(Clone, Copy)]
+pub struct ProcReader {
+    /// Named in status and in an unbound session's reason.
+    pub name: &'static str,
+    pub ppid: fn(u32) -> Option<u32>,
+    pub harness: fn(u32) -> Option<Harness>,
+}
+
+/// The macOS reader: `proc_pidinfo` for the parent chain, `proc_pidpath` for the
+/// executable, `KERN_PROCARGS2` + the cwd for an interpreter's script.
+#[cfg(target_os = "macos")]
+pub const MACOS_READER: ProcReader = ProcReader {
+    name: "libproc",
+    ppid: termlink_session::procinfo::macos::ppid,
+    harness: macos_harness,
+};
+
+#[cfg(target_os = "macos")]
+fn macos_harness(pid: u32) -> Option<Harness> {
+    use termlink_session::procinfo::macos;
+    let exe = macos::exe(pid)?;
+    Some(Harness { pid, exe: Some(exe), script: macos::script(pid) })
+}
+
+/// The native reader on this platform (`None` where binding needs `/proc`).
+pub fn native_reader() -> Option<ProcReader> {
+    #[cfg(target_os = "macos")]
+    {
+        Some(MACOS_READER)
     }
-    out
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
+/// How a [`Runner`] reads processes for binding.
+enum Source<'a> {
+    Proc(&'a Path),
+    Native(ProcReader),
+}
+
+impl Source<'_> {
+    fn ppid(&self, pid: u32) -> Option<u32> {
+        match self {
+            Source::Proc(r) => ppid_of(r, pid),
+            Source::Native(n) => (n.ppid)(pid),
+        }
+    }
+    fn harness(&self, pid: u32) -> Option<Harness> {
+        match self {
+            Source::Proc(r) => harness_of(r, pid),
+            Source::Native(n) => (n.harness)(pid),
+        }
+    }
+    fn name(&self) -> &'static str {
+        match self {
+            Source::Proc(_) => "/proc",
+            Source::Native(n) => n.name,
+        }
+    }
 }
 
 /// Session binding (S1 and `command.notify`): the TermLink session whose server
@@ -1235,7 +1297,11 @@ pub fn ancestors(proc_root: &Path, pid: u32) -> Vec<u32> {
 /// `/proc` and the session registry; no hook hands it a socket. A wrong binding
 /// can only hold: every keystroke re-checks the foreground against the harness.
 pub fn find_binding(proc_root: &Path, harness_pid: u32, regs: &[termlink_session::registration::Registration]) -> Option<(PathBuf, Option<String>, String)> {
-    let anc = ancestors(proc_root, harness_pid);
+    find_binding_in(&ancestors(proc_root, harness_pid), regs)
+}
+
+/// [`find_binding`] over an already-walked ancestor list (any reader).
+pub fn find_binding_in(anc: &[u32], regs: &[termlink_session::registration::Registration]) -> Option<(PathBuf, Option<String>, String)> {
     anc.iter().find_map(|a| {
         regs.iter().find(|r| r.pid == *a).and_then(|r| r.addr.as_unix_path().map(|p| (p.to_path_buf(), r.token_secret.clone(), r.id.to_string())))
     })
@@ -1254,6 +1320,8 @@ pub struct Runner {
     /// T-3772: where binding reads processes (default `/proc`). Binding is
     /// available only where `<proc_root>/self` exists (Linux; macOS is T-3770).
     proc_root: PathBuf,
+    /// T-3770: the reader used when `<proc_root>/self` is absent (macOS libproc).
+    native: Option<ProcReader>,
     /// Extra registry entries `(exe_realpath, script_path)`.
     pub registry: Vec<(String, Option<String>)>,
     /// The macOS interim veto's idle-helper argument prefixes.
@@ -1285,6 +1353,7 @@ impl Runner {
             lease,
             sessions_dir: None,
             proc_root: PathBuf::from("/proc"),
+            native: native_reader(),
             registry: vec![],
             helpers: vec![],
             db: std::sync::Mutex::new(Doorbell::new()),
@@ -1299,19 +1368,40 @@ impl Runner {
         self
     }
 
-    /// Test seam (T-3772): read processes from this directory instead of `/proc`.
+    /// Test seam (T-3772): read processes from this directory instead of `/proc`
+    /// (and only from it: the native reader is dropped, T-3770).
     pub fn with_proc_root(mut self, d: PathBuf) -> Self {
         self.proc_root = d;
+        self.native = None;
         self
+    }
+
+    /// Test seam (T-3770): the reader used where `<proc_root>/self` is absent.
+    pub fn with_native(mut self, n: Option<ProcReader>) -> Self {
+        self.native = n;
+        self
+    }
+
+    fn source(&self) -> Option<Source<'_>> {
+        if self.proc_root.join("self").exists() {
+            Some(Source::Proc(&self.proc_root))
+        } else {
+            self.native.map(Source::Native)
+        }
+    }
+
+    /// T-3770: what binding reads (`/proc`, `libproc`), `None` when unavailable.
+    pub fn binding_source(&self) -> Option<&'static str> {
+        self.source().map(|s| s.name())
     }
 
     pub fn ring_log(&self) -> PathBuf {
         self.store.dir().join(RING_LOG)
     }
 
-    /// T-3772: whether session binding can run here (it walks `/proc`).
+    /// T-3772: whether session binding can run here (`/proc`, or libproc on macOS, T-3770).
     pub fn binding_available(&self) -> bool {
-        self.proc_root.join("self").exists()
+        self.source().is_some()
     }
 
     /// Session binding for S1 and `command.notify` (B-16; T-3772). Runs on the
@@ -1324,16 +1414,15 @@ impl Runner {
 
     /// Bind each harness session to its TermLink session; an unbound one records why.
     fn bind_all(&self, facts: &[(String, bool, Option<u32>)]) {
-        let proc_root = self.proc_root.as_path();
-        let available = self.binding_available();
+        let source = self.source();
         let mut regs: Option<Vec<termlink_session::registration::Registration>> = None;
         let mut hs = lk(&self.harness);
         for (name, _, harness_pid) in facts.iter().filter(|f| !f.1) {
-            if !available {
+            let Some(src) = source.as_ref() else {
                 hs.remove(name);
                 self.rpc.unbind_why(name, BINDING_UNAVAILABLE);
                 continue;
-            }
+            };
             let Some(pid) = *harness_pid else {
                 hs.remove(name);
                 self.rpc.unbind_why(name, NO_HARNESS_PID);
@@ -1343,7 +1432,13 @@ impl Runner {
             if known.as_ref().is_some_and(|h| h.pid == pid) && self.rpc.is_bound(name) {
                 continue;
             }
-            hs.insert(name.clone(), harness_of(proc_root, pid));
+            // T-3770: a pid whose parent cannot be read is unreadable, not "unhosted".
+            if src.ppid(pid).is_none() {
+                hs.remove(name);
+                self.rpc.unbind_why(name, &format!("harness pid {pid} unreadable via {} (process gone, or not permitted)", src.name()));
+                continue;
+            }
+            hs.insert(name.clone(), src.harness(pid));
             let regs = regs.get_or_insert_with(|| {
                 match &self.sessions_dir {
                     Some(d) => termlink_session::manager::list_sessions_in(d, false),
@@ -1351,7 +1446,8 @@ impl Runner {
                 }
                 .unwrap_or_default()
             });
-            match find_binding(proc_root, pid, regs) {
+            let anc = termlink_session::procinfo::ancestors_with(pid, |p| src.ppid(p));
+            match find_binding_in(&anc, regs) {
                 Some((sock, secret, tl)) => self.rpc.bind_secret(name, &sock, &tl, secret),
                 None => self.rpc.unbind_why(name, &format!("no TermLink session hosts harness pid {pid}")),
             }
@@ -1426,11 +1522,19 @@ impl Runner {
         let available = self.binding_available();
         v["binding"] = json!({
             "available": available,
+            "source": self.binding_source(),
             "why": if available { Value::Null } else { json!(BINDING_UNAVAILABLE) },
             "sessions": sessions,
         });
         v
     }
+}
+
+/// T-3757: the doorbell's `command.notify` params. The sidecar declares the
+/// agent it serves as `from` (the session's owner), so the session's use log and,
+/// once owner-only is the default (T-3757 step 2), its owner check see who rang.
+pub fn notify_params(agent: &str, ids: &[String], count: u64) -> Value {
+    json!({"ids": ids, "count": count, "from": agent})
 }
 
 /// [`Ports`] on the real sidecar.
@@ -1493,7 +1597,7 @@ impl Ports for LivePorts<'_> {
         append_row(&self.r.ring_log(), row).map_err(|e| format!("ring log: {e}"))
     }
     fn notify(&self, session: &str, ids: &[String], count: u64) -> Notified {
-        let n = match self.r.rpc.call(session, termlink_protocol::control::method::COMMAND_NOTIFY, json!({"ids": ids, "count": count}), 5_000) {
+        let n = match self.r.rpc.call(session, termlink_protocol::control::method::COMMAND_NOTIFY, notify_params(&self.r.agent, ids, count), 5_000) {
             Ok(v) if v["status"] == "injected" => Notified::Typed,
             Ok(v) => Notified::Failed(format!("not typed (status={})", v["status"])),
             Err(None) => Notified::Unknown,
@@ -1525,6 +1629,14 @@ impl Ports for LivePorts<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn t3757_notify_declares_the_agent_as_from() {
+        let p = notify_params("agent-a", &["m-1".to_string()], 1);
+        assert_eq!(p["from"], "agent-a");
+        assert_eq!(p["ids"], json!(["m-1"]));
+        assert_eq!(p["count"], 1);
+    }
 
     #[test]
     fn offsets_match_06_4_2() {
