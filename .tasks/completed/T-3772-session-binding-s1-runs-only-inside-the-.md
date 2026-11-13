@@ -17,12 +17,12 @@ description: >
   binds and reads S1 with doorbell off; doorbell off still types nothing (negative
   control).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, arc:arc-011]
-components: []
+components: [crates/termlink-sidecar/src/daemon.rs, crates/termlink-sidecar/src/testkit.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -51,8 +51,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T10:21:28Z
-last_update: 2026-11-13T10:41:28Z
-date_finished:
+last_update: 2026-11-13T10:48:05Z
+date_finished: 2026-11-13T10:48:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -106,11 +106,16 @@ Scope: crates/termlink-sidecar only (doorbell.rs, meter.rs, daemon.rs, tests). D
 ## Acceptance Criteria
 
 ### Agent
-- [ ] With the doorbell switch OFF, one daemon tick (`daemon::meter_and_doorbell_tick`) binds a harness session running in a real TermLink PTY and the meter reads S1 Known (test `t3772_doorbell_off_binds_and_reads_s1`, Linux-only)
-- [ ] Negative control in the same test: with the doorbell off nothing is typed or rung: the PTY scrollback lacks the SI-1 line, the session's `notify` counter stays null, no ring log is written, `Runner::tick` returns None
-- [ ] An unbound session says why: no harness_pid → S1 unknown names "no harness_pid"; a proc root without `self` (macOS shape) → status `binding.available=false` and S1 names "binding unavailable", never bound (test runs on every platform)
-- [ ] Existing B-16 live test and the T-3769 meter-only test still pass; `cargo test -p termlink-sidecar` green
-- [ ] Mutants on the changed binding code (clean clone): each relevant mutant killed or listed with reason
+- [x] With the doorbell switch OFF, one daemon tick (`daemon::meter_and_doorbell_tick`) binds a harness session running in a real TermLink PTY and the meter reads S1 Known (test `t3772_doorbell_off_binds_and_reads_s1`, Linux-only)
+- [x] Negative control in the same test: with the doorbell off nothing is typed or rung: the PTY scrollback lacks the SI-1 line, the session's `notify` counter stays null, no ring log is written, `Runner::tick` returns None
+- [x] An unbound session says why: no harness_pid → S1 unknown names "no harness_pid"; a proc root without `self` (macOS shape) → status `binding.available=false` and S1 names "binding unavailable", never bound (test runs on every platform)
+- [x] Existing B-16 live test and the T-3769 meter-only test still pass; `cargo test -p termlink-sidecar` green
+- [x] Mutants on the changed binding code (clean clone): each relevant mutant killed or listed with reason
+  (2026-11-13, `.context/working/t3772/mutants.py` on a `git clone --shared` at 4560e3ce5: 7 of 8 killed —
+  daemon-no-bind, bind-ignores-unavailable, binding-always-available, doorbell-ignores-switch,
+  no-pid-unbinds-silently, s1-error-drops-why, status-unavailable-reads-bound. Survivor
+  bind-clears-no-why is equivalent: `why_unbound` returns None while bound, and every unbind in
+  `bind_all` writes a fresh reason, so a stale one can never be read.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -369,6 +374,17 @@ binding reads as a named cause, not a generic one.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-13 — binding belongs to the meter, and the live tests had an exec race
+- **What changed:** binding was a doorbell concern in B-16; it is really a meter input (S1, E-153),
+  so it moved to the daemon's per-tick path ahead of `meter.tick()` (S1 now reads fresh the same tick).
+  Building the live test exposed a second defect: tests read the PTY child's exe right after spawn; under
+  load that read lands before `exec` (exe = the test binary), the registry never matches the shell, and
+  every tick holds `not-a-termlink-pty`. 3 of 3 concurrent runs failed before, 6 of 6 passed after
+  `testkit::harness_after_exec`. That is very likely the T-3771 flake (2 of 6 runs on .107).
+- **Plan impact:** none to the 08 plan rows; field binding itself is unaffected by the race (the
+  Runner reads the harness when the adapter reports `harness_pid`, long after exec).
+- **Triggered:** T-3771 can be re-checked against this commit (not closed here, not my task).
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -428,3 +444,16 @@ binding reads as a named cause, not a generic one.
 
 ### 2026-11-13T10:23:03Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-13T10:48:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1855df8f
+- **Timestamp:** 2026-11-13T10:50:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

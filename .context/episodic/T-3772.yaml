@@ -1,0 +1,100 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3772: Session binding (S1) runs only inside the doorbell tick, so with the doorbell OFF (meter-only, AEF trial) S1 is never bound and the E-153 PTY origin check cannot run
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T10:50:45Z
+# ============================================================================
+
+task_id: T-3772
+task_name: "Session binding (S1) runs only inside the doorbell tick, so with the doorbell OFF (meter-only, AEF trial) S1 is never bound and the E-153 PTY origin check cannot run"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-13T10:21:28Z
+completed: 2026-11-13T10:48:05Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-13T11:41:28+01:00
+last_commit: 2026-11-13T11:41:28+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  session binding runs on the meter's tick path whatever the doorbell switch says — a meter-only sidecar (doorbell off) now binds the PTY session and reads S1, so the E-153 origin check can run; nothing is typed or rung while off (negative + positive control); unbound sessions name why, and without /proc (macOS, T-3770) status says binding unavailable, never bound; tests read the PTY child's harness only after exec (load race)
+
+# Key outcomes
+outcomes:
+  - 'With the doorbell switch OFF, one daemon tick (`daemon::meter_and_doorbell_tick`) binds a harness session running in a real TermLink PTY and the meter reads S1 Known (test `t3772_doorbell_off_binds_and_reads_s1`, Linux-only)'
+  - 'Negative control in the same test: with the doorbell off nothing is typed or rung: the PTY scrollback lacks the SI-1 line, the session''s `notify` counter stays null, no ring log is written, `Runner::tick` returns None'
+  - 'An unbound session says why: no harness_pid → S1 unknown names "no harness_pid"; a proc root without `self` (macOS shape) → status `binding.available=false` and S1 names "binding unavailable", never bound (test runs on every platform)'
+  - 'Existing B-16 live test and the T-3769 meter-only test still pass; `cargo test -p termlink-sidecar` green'
+  - 'Mutants on the changed binding code (clean clone): each relevant mutant killed or listed with reason'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/.id-highwater'
+  - '.tasks/active/T-3687-arc-011-b-27-activity-meter-s1-pty-input.md'
+  - '.tasks/active/T-3752-flaky-test-cliregistershellsighupremoves.md'
+  - '.tasks/active/T-3754-homebrew-formula-stuck-at-091-releases-d.md'
+  - '.tasks/active/T-3755-cli-integration-tests-fail-when-projectr.md'
+  - '.tasks/active/T-3757-clients-and-wakers-declare-their-caller-.md'
+  - '.tasks/active/T-3760-non-root-dispatch-worker-runs-as-the-req.md'
+  - '.tasks/active/T-3764-align-basis-watchdog-r3-parity-fixture-u.md'
+  - '.tasks/active/T-3765-canary-fleet-binary-canary-is-firing--in.md'
+  - '.tasks/active/T-3766-canary-substrate-preflight-canary-is-fir.md'
+  - '.tasks/active/T-3767-canary-substrate-smoke-canary-is-firing-.md'
+  - '.tasks/active/T-3768-canary-waker-liveness-canary-is-firing--.md'
+  - '.tasks/active/T-3770-macos-session-binding-the-sidecar-finds-.md'
+  - '.tasks/active/T-3771-flaky-b16live-livebindingreadss1andtypes.md'
+  - '.tasks/active/T-3772-session-binding-s1-runs-only-inside-the-.md'
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/doorbell.rs'
+  - 'crates/termlink-sidecar/src/meter.rs'
+  - 'crates/termlink-sidecar/src/testkit.rs'
+  - 'crates/termlink-sidecar/tests/b16_live.rs'
+  - 'crates/termlink-sidecar/tests/t3772_binding.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T11:41:28'
+    action: 'T-3772: session binding runs on the meter''s tick path whatever the doorbell switch says — a meter-only sidecar (doorbell off) now binds the PTY session and reads S1, so the E-153 origin check can run; nothing is typed or rung while off (negative + positive control); unbound sessions name why, and without /proc (macOS, T-3770) status says binding unavailable, never bound; tests read the PTY child''s harness only after exec (load race)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 26 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 26
+  commits: 2
+  files_changed: 24
+  lines_added: 5023
+  lines_removed: 35
+  footprint_refreshed_at: '2026-11-13T10:51:09Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3772-session-binding-s1-runs-only-inside-the-.md
+generated_by: context-agent-hybrid
