@@ -1,13 +1,18 @@
 ---
 id: T-3781
-name: "Non-root dispatch: termlink dispatch / fw termlink dispatch use register --hub for a non-root caller (T-3760 follow-up)"
+name: "Non-root dispatch: termlink dispatch / fw termlink dispatch use register --hub
+  for a non-root caller (T-3760 follow-up)"
 description: >
-  T-3760 shipped the registration claim, owner-bound hub methods and termlink register --hub. Remaining for operator ruling A (T-3759): the dispatch path must, for a non-root caller, start the worker as that user and register it with register --hub + the user's claim token instead of the local runtime dir; never fall back to root; refuse when no claim token is provisioned.
+  T-3760 shipped the registration claim, owner-bound hub methods and termlink register
+  --hub. Remaining for operator ruling A (T-3759): the dispatch path must, for a non-root
+  caller, start the worker as that user and register it with register --hub + the
+  user's claim token instead of the local runtime dir; never fall back to root; refuse
+  when no claim token is provisioned.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011, security]
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T17:55:21Z
-last_update: 2026-11-13T17:55:21Z
-date_finished: null
+last_update: '2026-11-13T23:10:20Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +55,85 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-13T23:10:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 5
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 3
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'D1=4-5 (body:new-class); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-TRUST=3 (L3:keyword=allow-list,L3:keyword=fail closed); F-SURFACE=0
+      (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3781: Non-root dispatch: termlink dispatch / fw termlink dispatch use register --hub for a non-root caller (T-3760 follow-up)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** the 1409 design session runs as the non-root user `dimitri-mint-dev` and cannot
+dispatch reviewers: `termlink register` refuses or lands invisible, because the hub's runtime dir is root-only
+(T-3759, operator ruling A + D, 2026-11-13). T-3760 built the hub side and `register --hub`.
+**Problem / hypothesis:** nothing on the dispatch paths uses that yet; `fw` exports the root-only runtime dir and
+`termlink dispatch` needs the hub's Unix socket and the hub's disk-only `event.collect`.
+**Goal:** a non-root user with a provisioned hub link can dispatch workers that run as that user and are visible
+on the main hub, without root and without anyone else's identity.
+**Expected outcome:** `fw termlink dispatch` and `termlink dispatch` work for `dimitri-mint-dev` on .107; the
+workers appear in `session.discover` owned by that user; without a link the user gets a clear refusal.
+
+Operator ruling A (T-3759): a worker runs as the requesting user and registers on the main hub over TCP with
+its own registration claim (built in T-3760: `termlink register --hub --hub-token-file`, owner-bound records).
+This task wires that into the paths a non-root user actually uses:
+
+1. `fw termlink dispatch` (vendored) runs `termlink spawn --shell` and then a local `termlink pty inject`. It
+   exports the hub's runtime dir (`/var/lib/termlink`, root 0700) first, so the worker's `register` cannot write
+   there (T-3759 report, antigravity.md:47).
+2. `termlink dispatch` checks the hub on its Unix socket and collects through the hub's `event.collect`, which
+   only sees sessions on the hub's own disk (`router.rs:572`), never a TCP-registered worker.
+
+Design (agent initiative within ruling A; recorded in Decisions):
+- **Hub link** = a registration-claim token file plus the hub address, provisioned per user:
+  `TERMLINK_HUB_REGISTER_TOKEN_FILE` / `TERMLINK_HUB_REGISTER_ADDR`, else `~/.termlink/hub-register.token` and
+  `~/.termlink/hub-register.addr`. Files, not only env, because `fw` spawns through an `env -i` allow-list.
+- **Runtime dir**: for a non-root caller with a hub link, a `TERMLINK_RUNTIME_DIR` that the caller cannot
+  write is ignored (its own default dir is used), so register, spawn, inject and list agree.
+- **register** (also `--shell`): with a hub link, the same session is also served on TCP (token auth) and
+  registered on the hub with a lease; the hub-side name is the local name, or `<prefix><name>` when the local
+  name is not under the claim's prefix. If the hub refuses, the session does not start (fail closed).
+- **dispatch**: when the local hub socket is unreachable and the caller is non-root with a hub link, it checks
+  the hub over TCP and collects results from the workers' own sockets (same user). Without a link it refuses,
+  naming how to provision one. It never runs anything as another user.
+- **Provisioning** for `dimitri-mint-dev` (the 1409 design session's user): a runme action mints the claim
+  token (7 days, ruling A 2026-11-13) and the weekly re-mint renews it.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Hub-link resolution: env first, then the two default files; one file without the other is an error that
+      names the missing one; no link → None. Unit-tested.
+- [ ] Runtime-dir rule: a non-root caller with a hub link and an unwritable `TERMLINK_RUNTIME_DIR` resolves to
+      its own default dir; root, no link, or a writable dir leave the variable alone. Unit-tested.
+- [ ] Hub-side name: local name kept when the claim permits it, else `<prefix><name>`; a result the claim still
+      refuses (bad chars, > 64) is an error. Unit-tested.
+- [ ] `termlink register` (plain and `--shell`) with a hub link serves TCP with token auth, registers on the hub,
+      renews the lease and deregisters on exit; `register --hub` (T-3760) keeps working through the same code.
+      Proven by an integration test against an in-process hub with a claim token.
+- [ ] `termlink dispatch` in linked mode registers N workers on the hub and collects their results from the
+      workers' own sockets; without a link and without a local hub it refuses with a provisioning hint. Tested.
+- [ ] Live smoke on .107 as `dimitri-mint-dev`: `termlink spawn --shell` + `pty inject` + the record visible in
+      `session.discover` on the root hub with owner `dimitri-mint-dev`; a negative control without the link
+      file is refused or invisible as designed. Evidence in Updates.
+- [ ] runme action provisions `dimitri-mint-dev`'s link (token 0600 owned by the user, addr file), idempotent and
+      self-verifying, with a hermetic case in `tests/runme-fixtures.sh`; the weekly re-mint renews it.
+- [ ] `cargo test -p termlink` (cli crate) and `cargo clippy --workspace -- -D warnings` clean; mutants of the
+      runtime-dir rule and the name rule are killed.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -347,6 +417,40 @@ date_finished: null
 - **Rejected:** B 24 h (daily re-mint, a missed renewal fails sooner); C 30 days (raise the hub ceiling for all tokens).
 - Operator words in chat: "A". Provisioning the 1409 user's token becomes a runme action in this task.
 
+### 2026-11-14 — where the non-root route lives (agent, within ruling A)
+- **Chose:** inside `termlink` itself: `register` (also `--shell`) links to the hub when the user has a hub link,
+  and a non-root caller with a link ignores a `TERMLINK_RUNTIME_DIR` it cannot write. `fw termlink dispatch`
+  (vendored) needs no change: it runs `termlink spawn --shell` + a local `pty inject`, which now just work.
+- **Why:** a vendored change would be lost at the next re-vendor (G-062) and would need AEF's release; the rule
+  in termlink covers every caller (fw, MCP, scripts).
+- **Rejected:** a separate `--hub` flag on spawn/dispatch (fw strips unknown env and passes no such flag);
+  editing AEF's `_tl_resolve_runtime_dir` (upstream, slower, still leaves other callers broken).
+
+### 2026-11-14 — the link is two files, plus an env override
+- **Chose:** `~/.termlink/hub-register.token` + `~/.termlink/hub-register.addr`; env
+  `TERMLINK_HUB_REGISTER_TOKEN_FILE` + `TERMLINK_HUB_REGISTER_ADDR` override (both or neither).
+- **Why:** `fw` spawns through an `env -i` allow-list (lib/spawn-env.sh), so env alone would not reach a
+  worker; HOME does. Half a link is an error that names the missing file, never a silent fallback.
+
+### 2026-11-14 — hub-side name gets the claim's prefix
+- **Chose:** a linked session keeps its local name and registers on the hub as that name, or `<prefix><name>`
+  when the claim does not permit it. `register --hub` (T-3760) stays strict.
+- **Why:** callers such as fw name their workers without knowing the claim; refusing would break every fw
+  dispatch. The prefix still binds every hub name to the user, so no impersonation is possible.
+
+### 2026-11-14 — a linked session's own user keeps full access on the Unix socket
+- **Chose:** the TCP side needs a token secret (token-only); a new `run_accept_loop_tcp_token_only` keeps
+  same-UID Unix connections at Execute (peer credentials already prove the user). `--token-secret` still
+  restricts local connections as before.
+- **Why:** with the secret, local connections fell to Observe, so the user's own `pty inject` and `exec`
+  (what fw dispatch uses) would fail. Found by reading `server.rs:335` before testing; the integration test
+  pins it (`exec` as the user succeeds).
+
+### 2026-11-14 — dispatch collects from the workers' own sockets in linked mode
+- **Chose:** when linked, `termlink dispatch` polls each worker's own Unix socket (same user) for its result.
+- **Why:** the hub's `event.collect` resolves targets with `manager::find_session` on its own disk
+  (`router.rs:572`), so it never sees a TCP-registered worker. Forwarding through the hub is T-3782's scope.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -372,3 +476,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3781-non-root-dispatch-termlink-dispatch--fw-.md
 - **Context:** Initial task creation
+
+### 2026-11-13T23:10:19Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

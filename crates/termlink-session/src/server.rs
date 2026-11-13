@@ -291,10 +291,29 @@ pub async fn run_accept_loop(
     listener: tokio::net::UnixListener,
     session: SharedSession,
 ) {
+    run_unix_accept_loop(listener, session, true).await
+}
+
+/// T-3781: as [`run_accept_loop`], but a `token_secret` does not lower the scope of
+/// same-UID Unix connections. For a session whose secret exists only because it is
+/// also served on TCP (a hub-linked session): TCP stays token-only, while its own
+/// user keeps the access peer credentials already prove (`pty inject`, `exec`).
+pub async fn run_accept_loop_tcp_token_only(
+    listener: tokio::net::UnixListener,
+    session: SharedSession,
+) {
+    run_unix_accept_loop(listener, session, false).await
+}
+
+async fn run_unix_accept_loop(
+    listener: tokio::net::UnixListener,
+    session: SharedSession,
+    secret_limits_local: bool,
+) {
     // Cache session owner UID and token mode for auth checks
     let (owner_uid, has_token_secret) = {
         let ctx = session.read().await;
-        (ctx.registration.uid, ctx.registration.token_secret.is_some())
+        (ctx.registration.uid, secret_limits_local && ctx.registration.token_secret.is_some())
     };
 
     loop {

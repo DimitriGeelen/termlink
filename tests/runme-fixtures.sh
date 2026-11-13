@@ -776,6 +776,44 @@ lt_reset() {  # the user's own hubs.toml: two profiles and its old secret copy; 
 lt_reset
 export RUNME_LOCALTOK_USER="$LTU" RUNME_LOCALTOK_HOME="$LH" RUNME_LOCALTOK_RUN="$F/lt-run" \
        RUNME_LOCALTOK_TL="$F/rr-tl" RUNME_LOCALTOK_PATHTL="$F/lt-pathtl"
+# T-3781 action 22e: the hub link of the same scratch user, in its own scratch home. Its own fake
+# mint (logged to hl-mints, so 22b/22c mint counts are untouched), a fake "runuser" that logs its
+# ARGV and runs the stdin script with HOME = that home (FAKE_HL_DOWN=1: no answer), and a fake
+# user-side termlink whose `register --json` prints a linked record with owner FAKE_HL_OWNER
+# (default: the user) and stays up until killed. Every other case sees a verified, unchanged,
+# not-yet-due link (skip), so 22e never mints or fails outside its own cases.
+HLH="$F/hl-home"; HLS="$F/hl-state"
+cat > "$F/hl-mint" <<'EOS'
+#!/usr/bin/env bash
+[ "${FAKE_HL_MINT_FAIL:-0}" = 1 ] && exit 1
+out=""; while [ $# -gt 0 ]; do [ "$1" = --out ] && out="$2"; shift; done
+echo "fake-claim-token-$(date +%s%N)-$RANDOM" > "$out"; chmod 600 "$out"
+echo "mint $*" >> "$FAKE_FLEET_DIR/hl-mints"
+echo "{\"ok\":true,\"out\":\"$out\",\"scope\":\"observe\",\"expires_at\":$(( $(date +%s) + 604800 ))}"
+EOS
+cat > "$F/hl-run" <<'EOS'
+#!/usr/bin/env bash
+echo "argv: $*" >> "$FAKE_FLEET_DIR/hl-argv"
+[ "${FAKE_HL_DOWN:-0}" = 1 ] && { cat >/dev/null; exit 3; }
+HOME="$2" bash -s
+EOS
+cat > "$F/hl-tl" <<'EOS'
+#!/usr/bin/env bash
+[ "${1:-}" = register ] || exit 0
+echo "{\"ok\":true,\"hub_link\":{\"owner\":\"${FAKE_HL_OWNER:-$(id -un)}\",\"name\":\"x\"}}"
+echo "register $HOME" >> "$FAKE_FLEET_DIR/hl-registers"
+exec sleep 30
+EOS
+chmod +x "$F/hl-mint" "$F/hl-run" "$F/hl-tl"
+hl_skip_state() {  # a verified link on record matching the installed files, 5 days left
+    rm -rf "$HLH" "$HLS"; mkdir -p "$HLH/.termlink" "$HLS"
+    echo "fixture-claim-token" > "$HLH/.termlink/hub-register.token"; chmod 600 "$HLH/.termlink/hub-register.token"
+    echo "127.0.0.1:9100" > "$HLH/.termlink/hub-register.addr"
+    printf 'expires_at=%s\ntoken_sha256=%s\n' "$(( $(date +%s) + 432000 ))" "$(sha256sum < "$HLH/.termlink/hub-register.token" | cut -d' ' -f1)" > "$HLS/$LTU.state"
+}
+hl_skip_state
+export RUNME_HUBLINK_USER="$LTU" RUNME_HUBLINK_HOME="$HLH" RUNME_HUBLINK_RUN="$F/hl-run" \
+       RUNME_HUBLINK_MINT="$F/hl-mint" RUNME_HUBLINK_STATE_DIR="$HLS" RUNME_HUBLINK_TL="$F/hl-tl"
 # T-3758 action 22d: the user's scratch home holds the old 0.11.931 copy in ~/.local/bin (mode 750).
 # The fake "runuser" logs its argv and runs the stdin script with HOME = that home and a login-like
 # PATH: ~/bin, ~/.local/bin, ~/.cargo/bin (T-3762), then the "system" dir with the current fake termlink (0.12.77), whose
@@ -2108,7 +2146,7 @@ else bad "remint crontab sinks"; fi
 # T-3758 action 22d — the design user's stale termlink copies moved aside, through fakes.
 # T-3762: every stale copy AHEAD of the current one on the user's PATH, not just ~/.local/bin.
 # ---------------------------------------------------------------------------
-s22d() { echo "$1" | sed -n '/^.*22d\. /,/^.*23\. Daily telemetry rollup/p'; }
+s22d() { echo "$1" | sed -n '/^.*22d\. /,/^.*22e\. /p'; }
 SOLD="$SH/.local/bin/termlink"; SBAK="$SOLD.bak-0.11.931"
 SCARGO="$SH/.cargo/bin/termlink"; SCBAK="$SCARGO.bak-0.11.931"
 stl_reset; orig_sha=$(sha256sum < "$SOLD"); out=$(run --dry-run); x=$(s22d "$out")
@@ -2210,6 +2248,68 @@ else bad "22d no user" "rc=$rc: $x"; fi
 # Restore the installed state for later cases (moved and verified).
 stl_reset; out=$(run); rc=$?
 if [ "$rc" = 0 ] && [ -f "$SBAK" ] && [ ! -e "$SOLD" ]; then ok "22d: restored to the moved state for later cases"; else bad "22d restore" "rc=$rc: $(s22d "$out")"; fi
+
+# ---------------------------------------------------------------------------
+# T-3781 action 22e — the design user's hub link, through fakes (no real mint, user or hub).
+# ---------------------------------------------------------------------------
+s22e() { echo "$1" | sed -n '/^.*22e\. /,/^.*23\. Daily telemetry rollup/p'; }
+hlm() { [ -f "$F/hl-mints" ] && wc -l < "$F/hl-mints" || echo 0; }
+HLT="$HLH/.termlink/hub-register.token"; HLA="$HLH/.termlink/hub-register.addr"; HLST="$HLS/$LTU.state"; HL="hub-link:$LTU"
+out=$(run); rc=$?; x=$(s22e "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all -F "skip    $HL: verified link on record, installed unchanged" && [ "$(hlm)" = 0 ]; then
+    ok "22e: a verified, unchanged, not-yet-due link is skipped and nothing is minted"
+else bad "22e skip" "rc=$rc: $x"; fi
+rm -rf "$HLH" "$HLS" "$F/hl-argv" "$F/hl-registers"; mkdir -p "$HLH"
+out=$(run --dry-run); x=$(s22e "$out")
+if echo "$x" | grep_all -F "[DRY]   $HL: would mint a registration claim (principal $LTU, prefix $LTU-, 7 days)" && [ ! -e "$HLT" ] && [ "$(hlm)" = 0 ]; then
+    ok "22e --dry-run: says what it would mint, writes and mints nothing"
+else bad "22e dry-run" "$x"; fi
+out=$(run); rc=$?; x=$(s22e "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all -F "OK      $HL: registration claim (prefix $LTU-) installed 600:$LTU with address 127.0.0.1:9100 and proven" \
+   && [ "$(stat -c %a:%U "$HLT")" = "600:$LTU" ] && [ "$(stat -c %a "$HLA")" = 600 ] && [ "$(cat "$HLA")" = "127.0.0.1:9100" ] \
+   && [ "$(sha256sum < "$HLT" | cut -d' ' -f1)" = "$(sed -n 's/^token_sha256=//p' "$HLST")" ] \
+   && grep -qF -- "--register-principal $LTU --register-prefix $LTU- --ttl 604800" "$F/hl-mints" && grep -qx "register $HLH" "$F/hl-registers"; then
+    ok "22e: mints a 7-day claim for the user, installs token + address 600:user, proves it with a plain register as the user, records the sha"
+else bad "22e install" "rc=$rc: $x"; fi
+if [ -s "$F/hl-argv" ] && ! grep -qF "$(cat "$HLT")" "$F/hl-argv" && ! echo "$out" | grep_all -F "$(cat "$HLT")" && grep -qx "argv: $LTU $HLH" "$F/hl-argv"; then
+    ok "22e: runs as the user (argv = user + home only); the token is in no argv and not in runme's output"
+else bad "22e leak" "$(cat "$F/hl-argv" 2>/dev/null)"; fi
+n=$(hlm); out=$(run); rc=$?; x=$(s22e "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all -F "skip    $HL: verified link on record" && [ "$(hlm)" = "$n" ]; then
+    ok "22e: second run skips (idempotent), mints nothing"
+else bad "22e idempotent" "rc=$rc: $x"; fi
+old=$(sha256sum < "$HLT"); sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 3600 ))/" "$HLST"
+out=$(run); rc=$?; x=$(s22e "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all -F "OK      $HL: registration claim" && [ "$(hlm)" = $((n + 1)) ] && [ "$(sha256sum < "$HLT")" != "$old" ]; then
+    ok "22e: a link with under 3 days left is re-minted and replaced"
+else bad "22e renew" "rc=$rc: $x"; fi
+if grep -qE -- '^[0-9]+ [0-9]+ \* \* \* root cd /opt/termlink && bash scripts/hub-link-provision.sh --cron --user dimitri-mint-dev ' "$REPO_ROOT/.context/cron/fleet-token-remint.crontab"; then
+    ok "22e: the daily cron (installed by 22b) carries the renewal line"
+else bad "22e cron" "no hub-link-provision line"; fi
+out=$(HUBLINK_HOME="$HLH" HUBLINK_RUN="$F/hl-run" HUBLINK_MINT="$F/hl-mint" HUBLINK_STATE_DIR="$F/hl-nostate" HUBLINK_TL="$F/hl-tl" \
+      bash "$REPO_ROOT/scripts/hub-link-provision.sh" --cron --user "$LTU" 2>&1); rc=$?
+if [ "$rc" = 0 ] && echo "$out" | grep_all -F "skip    $HL: no link on record; the first install is runme.sh action 22e" && [ "$(hlm)" = $((n + 1)) ]; then
+    ok "22e cron: with no link on record the cron installs nothing (the first install is runme's)"
+else bad "22e cron first" "rc=$rc: $out"; fi
+# Negative controls: each FAILED with rc 1, nothing recorded.
+rm -f "$HLST"; n=$(hlm); out=$(FAKE_HL_OWNER=someone-else run); rc=$?; x=$(s22e "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $HL: a plain 'termlink register' as $LTU did not come up linked with owner $LTU" && [ ! -e "$HLST" ] \
+   && ! echo "$x" | grep_all -E "^  (OK|skip) +$HL"; then
+    ok "22e control: the register proof shows another owner => FAILED rc 1, nothing recorded"
+else bad "22e owner" "rc=$rc: $x"; fi
+n=$(hlm); out=$(FAKE_HL_DOWN=1 run); rc=$?; x=$(s22e "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $HL: no answer over runuser as $LTU" && [ "$(hlm)" = "$n" ]; then
+    ok "22e control: runuser gives no answer => FAILED, nothing minted"
+else bad "22e down" "rc=$rc: $x"; fi
+out=$(FAKE_HL_MINT_FAIL=1 run); rc=$?; x=$(s22e "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  $HL: minting on .107 failed" && [ ! -e "$HLST" ]; then
+    ok "22e control: the mint fails => FAILED, nothing written"
+else bad "22e mint fail" "rc=$rc: $x"; fi
+out=$(RUNME_HUBLINK_HOME="" RUNME_HUBLINK_USER=no-such-user-t3781 run); rc=$?; x=$(s22e "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  hub-link:no-such-user-t3781: no such user on this host"; then
+    ok "22e control: an unknown user => FAILED"
+else bad "22e no user" "rc=$rc: $x"; fi
+hl_skip_state   # later cases see the skip state again
 
 # ---------------------------------------------------------------------------
 # T-3615 action 23 — the daily telemetry rollup on the fleet hubs, through fakes.

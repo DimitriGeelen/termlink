@@ -17,3 +17,5 @@ PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
 TERMLINK_RUNTIME_DIR=/var/lib/termlink
 40 3 * * * root cd /opt/termlink && bash scripts/fleet-token-remint.sh --cron >> .context/working/.fleet-token-remint-canary.log 2>> .context/working/.fleet-token-remint-canary.log.stderr
 45 3 * * * root cd /opt/termlink && bash scripts/fleet-token-remint.sh --cron --local-user dimitri-mint-dev >> .context/working/.fleet-token-remint-canary.log 2>> .context/working/.fleet-token-remint-canary.log.stderr
+# T-3781: renew dimitri-mint-dev's hub link (registration claim, 7 days, ruling A) when under 3 days are left
+50 3 * * * root cd /opt/termlink && bash scripts/hub-link-provision.sh --cron --user dimitri-mint-dev >> .context/working/.hub-link-provision.log 2>> .context/working/.hub-link-provision.log.stderr

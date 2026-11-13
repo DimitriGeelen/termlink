@@ -3020,6 +3020,49 @@ head2 "22d. $LOCALTOK_USER's shell runs the current termlink: every stale copy a
 retire_stale_user_termlink
 
 # ---------------------------------------------------------------------------
+# ACTION 22e — the non-root design user's HUB LINK, so its sessions and dispatched
+# workers register on the .107 hub over TCP (T-3781; operator ruling A on T-3759,
+# 2026-11-13: "A + D"; expiry ruling A on T-3781, 2026-11-13: 7 days, renewed weekly)
+#
+# Mints a registration-claim token (principal dimitri-mint-dev, prefix "dimitri-mint-dev-",
+# observe scope + claim: it may register only its own prefixed names; never the hub secret)
+# and installs ~dimitri-mint-dev/.termlink/hub-register.token and hub-register.addr
+# (127.0.0.1:9100), both 600 owned by the user, written AS the user through runuser with
+# the token on stdin. Verified as the user: a plain `termlink register` with no hub flags
+# must come up on the hub with owner dimitri-mint-dev. Any miss is FAILED. The logic is
+# `scripts/hub-link-provision.sh`; renewal is the daily cron line in
+# fleet-token-remint.crontab (installed by 22b): under 3 days left, it re-mints.
+# Idempotent: a verified, unchanged, not-yet-due link is skipped.
+# Seams (fixtures only): RUNME_HUBLINK_USER, RUNME_HUBLINK_HOME, RUNME_HUBLINK_RUN,
+# RUNME_HUBLINK_MINT, RUNME_HUBLINK_STATE_DIR, RUNME_HUBLINK_TL.
+# ---------------------------------------------------------------------------
+seam HUBLINK_USER RUNME_HUBLINK_USER "dimitri-mint-dev"
+seam HUBLINK_HOME RUNME_HUBLINK_HOME ""
+seam HUBLINK_RUN RUNME_HUBLINK_RUN ""
+seam HUBLINK_MINT RUNME_HUBLINK_MINT "termlink hub token"
+seam HUBLINK_STATE_DIR RUNME_HUBLINK_STATE_DIR "/var/lib/termlink/hub-links"
+seam HUBLINK_TL RUNME_HUBLINK_TL "/usr/local/bin/termlink"
+
+install_hub_link() {
+    local out rc args=(--user "$HUBLINK_USER")
+    [ "$DRY_RUN" = "1" ] && args+=(--dry-run)
+    out="$(HUBLINK_HOME="$HUBLINK_HOME" HUBLINK_RUN="$HUBLINK_RUN" HUBLINK_MINT="$HUBLINK_MINT" \
+        HUBLINK_RUNTIME_DIR="$HUB_RT" HUBLINK_STATE_DIR="$HUBLINK_STATE_DIR" HUBLINK_TL="$HUBLINK_TL" \
+        bash "$PROJECT_ROOT/scripts/hub-link-provision.sh" "${args[@]}")"; rc=$?
+    printf '%s\n' "$out" | grep -v '^$'
+    DONE=$((DONE + $(printf '%s\n' "$out" | grep -cE '^  (OK|\[DRY\]) ')))
+    SKIPPED=$((SKIPPED + $(printf '%s\n' "$out" | grep -c '^  skip ')))
+    FAILED=$((FAILED + $(printf '%s\n' "$out" | grep -c '^  FAILED ')))
+    if [ "$rc" = 2 ]; then
+        say "  FAILED  scripts/hub-link-provision.sh could not run (rc 2, tooling)"; FAILED=$((FAILED+1))
+    fi
+    return 0
+}
+
+head2 "22e. $HUBLINK_USER's hub link: its sessions and workers register on the .107 hub over TCP (T-3781, ruling A)"
+install_hub_link
+
+# ---------------------------------------------------------------------------
 # ACTION 23 — the daily telemetry rollup on the fleet hubs (T-3615)
 #
 # Only .107 reported to telemetry:daily, so the fleet view saw one host. This

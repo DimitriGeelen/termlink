@@ -438,6 +438,39 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
 
     refuse_foreign_project_env()?;
 
+    // T-3781: a non-root user with a hub link registers this session on the main hub over
+    // TCP as well. Everything that can refuse (token, claim, name, hub) is checked here,
+    // before anything registers locally.
+    let prepared_link = match super::hub_link::link_for_this_user() {
+        Ok(Some(l)) => {
+            let tok = l.token_file.to_string_lossy().into_owned();
+            let p = super::hub_link::PreparedLink::prepare(&l.hub, &tok, None)
+                .await
+                .with_context(|| format!("hub link to {} (token {tok}) refused", l.hub));
+            let p = match p {
+                Ok(p) => p,
+                Err(e) => {
+                    if json {
+                        super::json_error_exit(serde_json::json!({"ok": false, "error": format!("{e:#}")}));
+                    }
+                    return Err(e);
+                }
+            };
+            if let Some(n) = name.as_deref() {
+                super::hub_link::hub_side_name(&p.claim, n)?;
+            }
+            Some(p)
+        }
+        Ok(None) => None,
+        Err(e) => {
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "error": format!("{e:#}")}));
+            }
+            return Err(e);
+        }
+    };
+    let linked = prepared_link.is_some();
+
     // T-3490: refuse a malformed binding before anything registers.
     let worker_binding = parse_worker_binding_arg(worker_binding.as_deref(), json)?;
 
@@ -521,11 +554,12 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
     };
 
     // Enable token-based auth if requested
-    let token_secret_hex = if enable_token_secret {
+    let token_secret_hex = if enable_token_secret || linked {
+        // T-3781: a linked session is also served on TCP, which is token-only.
         let secret = termlink_session::auth::generate_secret();
         let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
         session.registration.token_secret = Some(secret_hex.clone());
-        if verbose {
+        if verbose && enable_token_secret {
             // T-3537: never print the secret; it lives only in the registration file.
             println!("Token auth enabled (secret stored in the session registration, not shown).");
             println!("  Create tokens with: termlink token create {} --scope observe", session.id());
@@ -548,13 +582,19 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
     // (Reached on a mismatch only with TERMLINK_ALLOW_RUNTIME_DIR_MISMATCH=1.)
     if verbose {
         eprintln!("Runtime dir: {}", session_runtime_dir.display());
+        if let Some(d) = super::hub_link::dropped_runtime_dir() {
+            eprintln!(
+                "  (TERMLINK_RUNTIME_DIR={} is not writable by this user; it reaches the hub over its hub link instead, T-3781)",
+                d.display()
+            );
+        }
     }
     if let Some(w) = runtime_dir_mismatch_warning(&session_runtime_dir, running_hub_dir.as_deref()) {
         eprintln!("{w}");
     }
 
-    if json {
-        println!("{}", serde_json::json!({
+    // T-3781: printed after the hub link (if any) is up, so `ok` covers it.
+    let mut json_out = serde_json::json!({
             "ok": true,
             "runtime_dir": session_runtime_dir.to_string_lossy(),
             "id": session.id(),
@@ -563,8 +603,8 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
             "pid": std::process::id(),
             "shell": shell,
             "token_auth": token_secret_hex.is_some(),
-        }));
-    } else if verbose {
+        });
+    if !json && verbose {
         println!("Session registered:");
         println!("  ID:      {}", session.id());
         println!("  Name:    {}", session.display_name());
@@ -603,7 +643,7 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
     };
 
     // Persist updated registration (capabilities + metadata + auth + allowlist)
-    if (shell || enable_token_secret || session.registration.allowed_commands.is_some())
+    if (shell || enable_token_secret || linked || session.registration.allowed_commands.is_some())
         && let Err(e) = session.persist_registration()
     {
         if json {
@@ -635,6 +675,40 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
     let shared = Arc::new(RwLock::new(ctx));
 
     let reg_for_cleanup = registration;
+
+    // T-3781: serve the session on TCP and register it on the hub. If the hub refuses,
+    // the session does not run: remove what was registered locally and fail.
+    let mut link = None;
+    if let Some(p) = prepared_link {
+        let started = match super::hub_link::hub_side_name(&p.claim, reg_for_cleanup.display_name.as_str()) {
+            Ok(hub_name) => p.start(&hub_name, &reg_for_cleanup.roles, &reg_for_cleanup.tags, &reg_for_cleanup.capabilities, shared.clone()).await,
+            Err(e) => Err(e),
+        };
+        match started {
+            Ok(l) => {
+                json_out["hub_link"] = serde_json::json!({"hub": l.hub, "name": l.name, "remote_id": l.remote_id,
+                    "owner": l.owner, "endpoint": l.endpoint.to_string()});
+                if verbose {
+                    println!("  Hub:     {} as {} (record {}, owner {}), served on {}", l.hub, l.name, l.remote_id, l.owner, l.endpoint);
+                }
+                link = Some(l);
+            }
+            Err(e) => {
+                if let Some(ref pty) = pty_session {
+                    let _ = pty.signal(libc::SIGTERM);
+                }
+                let _ = std::fs::remove_file(reg_for_cleanup.socket_path());
+                let _ = std::fs::remove_file(termlink_session::Registration::json_path(&sessions_dir, &session_id));
+                if json {
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("hub link: {e:#}")}));
+                }
+                return Err(e).context("hub link");
+            }
+        }
+    }
+    if json {
+        println!("{json_out}");
+    }
 
     // Compute data socket path before moving reg
     let data_socket_path = if shell {
@@ -733,7 +807,15 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
         }
     };
     let shutdown: Option<&str> = tokio::select! {
-        _ = server::run_accept_loop(listener, shared_clone) => None,
+        // T-3781: a secret that exists only for the hub link's TCP side does not restrict
+        // this user's own Unix connections; --token-secret still does.
+        _ = async {
+            if linked && !enable_token_secret {
+                server::run_accept_loop_tcp_token_only(listener, shared_clone).await
+            } else {
+                server::run_accept_loop(listener, shared_clone).await
+            }
+        } => None,
         _ = tokio::signal::ctrl_c() => Some("SIGINT"),
         _ = sigterm.recv() => Some("SIGTERM"),
         _ = sighup.recv() => Some("SIGHUP"),
@@ -762,6 +844,9 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
         }
 
         println!("Session {} deregistered.", session_id);
+    }
+    if let Some(l) = link {
+        l.shutdown().await;
     }
 
     heartbeat_task.abort();

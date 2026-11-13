@@ -55,6 +55,9 @@ async fn main() -> Result<()> {
 }
 
 async fn real_main() -> Result<()> {
+    // T-3781: a non-root caller with a hub link ignores a TERMLINK_RUNTIME_DIR it cannot
+    // write (the root hub's dir), before anything reads the environment.
+    commands::hub_link::apply_runtime_dir_rule();
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
         .with_env_filter(

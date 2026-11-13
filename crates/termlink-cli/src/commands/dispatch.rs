@@ -99,12 +99,22 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
     let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
     let hub_alive = hub_socket.exists()
         && tokio::net::UnixStream::connect(&hub_socket).await.is_ok();
-    if !hub_alive {
-        if json_output {
-            super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub start (dispatch requires the hub for event collection)"}));
+    // T-3781: a non-root user cannot use the root hub's socket. With a hub link its
+    // workers register on the hub over TCP and the results are read from the workers'
+    // own sockets (same user). Without one, refuse: nothing runs as anyone else.
+    let linked = if hub_alive {
+        None
+    } else {
+        match linked_dispatch_link().await {
+            Ok(l) => Some(l),
+            Err(e) => {
+                if json_output {
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("{e:#}")}));
+                }
+                return Err(e);
+            }
         }
-        anyhow::bail!("Hub is not running. Start it with: termlink hub start\n(dispatch requires the hub for event collection)");
-    }
+    };
 
     // Generate a unique dispatch ID
     let dispatch_id = format!(
@@ -236,6 +246,17 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
                 "export TERMLINK_WORKER_NAME={}; ",
                 shell_escape(&worker_name)
             ));
+            // T-3781: the worker's `register` uses the same hub link (the tmux backend
+            // builds the environment from scratch, so pass it explicitly).
+            if let Some(ref l) = linked {
+                env.push_str(&format!(
+                    "export {}={}; export {}={}; ",
+                    super::hub_link::ENV_ADDR,
+                    shell_escape(&l.hub),
+                    super::hub_link::ENV_TOKEN,
+                    shell_escape(&l.token_file.to_string_lossy())
+                ));
+            }
             // Effective workdir: --isolate worktree path takes precedence over --workdir
             let effective_workdir = if isolate {
                 worktree_branches
@@ -392,109 +413,117 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
             break;
         }
 
-        // Filter to our dispatch workers by tag
-        // Use timeout_ms for push-based delivery (hub subscribes to sessions)
-        let mut params = json!({
-            "topic": topic,
-            "timeout_ms": subscribe_timeout_ms,
-        });
-        // Use worker names as targets for targeted collection
-        let target_names: Vec<&str> = worker_names
-            .iter()
-            .zip(registered.iter())
-            .filter(|(_, r)| **r)
-            .map(|(n, _)| n.as_str())
-            .collect();
-        if !target_names.is_empty() {
-            params["targets"] = json!(target_names);
-        }
-        if !cursors
-            .as_object()
-            .unwrap_or(&serde_json::Map::new())
-            .is_empty()
-        {
-            params["since"] = cursors.clone();
-        }
-
-        // T-2640: bound the collect RPC. Previously `client::rpc_call` awaited
-        // unbounded, so a half-open hub (accepts the connection but never writes
-        // a response line) hung this call forever — and `collect_timeout` is only
-        // checked at the loop top, never concurrently, so `--timeout` was ignored
-        // entirely. Route through the shared bounded primitive (T-2641). The
-        // per-call bound is the remaining collect budget, capped so a wedged call
-        // errors quickly and the paced retry/deadline logic below engages instead
-        // of a single call swallowing the whole budget.
-        let remaining = collect_timeout.saturating_sub(collect_start.elapsed());
-        let call_bound = collect_call_bound(remaining, subscribe_timeout_ms);
-        let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
-        let resp = match client::rpc_call_addr_with_timeout(
-            &addr,
-            "event.collect",
-            params,
-            call_bound,
-        )
-        .await
-        {
-            Ok(r) => {
-                consecutive_collect_errors = 0;
-                r
+        if linked.is_some() {
+            // T-3781: the hub's event.collect only sees sessions on its own disk, not
+            // TCP-registered workers; read each worker's own socket instead.
+            collect_from_workers_locally(&worker_names, &registered, topic.as_str(), &mut collected_events, json_output).await;
+            tokio::time::sleep(LOCAL_COLLECT_PACE).await;
+        } else {
+            // Filter to our dispatch workers by tag
+            // Use timeout_ms for push-based delivery (hub subscribes to sessions)
+            let mut params = json!({
+                "topic": topic,
+                "timeout_ms": subscribe_timeout_ms,
+            });
+            // Use worker names as targets for targeted collection
+            let target_names: Vec<&str> = worker_names
+                .iter()
+                .zip(registered.iter())
+                .filter(|(_, r)| **r)
+                .map(|(n, _)| n.as_str())
+                .collect();
+            if !target_names.is_empty() {
+                params["targets"] = json!(target_names);
             }
-            Err(e) => {
-                tracing::debug!(error = %e, "Collect error");
-                consecutive_collect_errors += 1;
-                if consecutive_collect_errors >= MAX_CONSECUTIVE_COLLECT_ERRORS {
-                    if !json_output {
-                        eprintln!(
-                            "Hub unreachable after {MAX_CONSECUTIVE_COLLECT_ERRORS} consecutive event.collect failures (last error: {e}); aborting collection."
-                        );
-                    }
-                    break;
-                }
-                // T-2640: pace the retry burst. Without this the Err arm loops
-                // with zero delay, so an instantly-erroring hub burns up to
-                // MAX_CONSECUTIVE_COLLECT_ERRORS iterations in a tight micro-spin
-                // (mirror of the events.rs T-2636 sleep-on-error convention).
-                tokio::time::sleep(COLLECT_ERR_BACKOFF).await;
-                continue;
-            }
-        };
-
-        if let Ok(result) = client::unwrap_result(resp) {
-            if let Some(events) = result["events"].as_array() {
-                for event in events {
-                    let session_name = event["session_name"]
-                        .as_str()
-                        .unwrap_or("?")
-                        .to_string();
-                    let payload = event["payload"].clone();
-
-                    if !json_output {
-                        eprintln!("  Result from {session_name}");
-                    }
-
-                    collected_events.push(json!({
-                        "worker": session_name,
-                        "payload": payload,
-                        "seq": event["seq"],
-                        "timestamp": event["timestamp"],
-                    }));
-                }
+            if !cursors
+                .as_object()
+                .unwrap_or(&serde_json::Map::new())
+                .is_empty()
+            {
+                params["since"] = cursors.clone();
             }
 
-            // Only advance cursors when events were actually returned.
-            // Hub returns cursors even for empty polls (next_seq from sessions),
-            // which would cause us to skip seq 0 events on the next poll.
-            let has_events = result["events"]
-                .as_array()
-                .is_some_and(|a| !a.is_empty());
-            if has_events
-                && let Some(new_cursors) = result.get("cursors")
-                    && let Some(obj) = new_cursors.as_object()
-                {
-                    for (k, v) in obj {
-                        cursors[k] = v.clone();
+            // T-2640: bound the collect RPC. Previously `client::rpc_call` awaited
+            // unbounded, so a half-open hub (accepts the connection but never writes
+            // a response line) hung this call forever — and `collect_timeout` is only
+            // checked at the loop top, never concurrently, so `--timeout` was ignored
+            // entirely. Route through the shared bounded primitive (T-2641). The
+            // per-call bound is the remaining collect budget, capped so a wedged call
+            // errors quickly and the paced retry/deadline logic below engages instead
+            // of a single call swallowing the whole budget.
+            let remaining = collect_timeout.saturating_sub(collect_start.elapsed());
+            let call_bound = collect_call_bound(remaining, subscribe_timeout_ms);
+            let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
+            let resp = match client::rpc_call_addr_with_timeout(
+                &addr,
+                "event.collect",
+                params,
+                call_bound,
+            )
+            .await
+            {
+                Ok(r) => {
+                    consecutive_collect_errors = 0;
+                    r
+                }
+                Err(e) => {
+                    tracing::debug!(error = %e, "Collect error");
+                    consecutive_collect_errors += 1;
+                    if consecutive_collect_errors >= MAX_CONSECUTIVE_COLLECT_ERRORS {
+                        if !json_output {
+                            eprintln!(
+                                "Hub unreachable after {MAX_CONSECUTIVE_COLLECT_ERRORS} consecutive event.collect failures (last error: {e}); aborting collection."
+                            );
+                        }
+                        break;
+                    }
+                    // T-2640: pace the retry burst. Without this the Err arm loops
+                    // with zero delay, so an instantly-erroring hub burns up to
+                    // MAX_CONSECUTIVE_COLLECT_ERRORS iterations in a tight micro-spin
+                    // (mirror of the events.rs T-2636 sleep-on-error convention).
+                    tokio::time::sleep(COLLECT_ERR_BACKOFF).await;
+                    continue;
+                }
+            };
+
+            if let Ok(result) = client::unwrap_result(resp) {
+                if let Some(events) = result["events"].as_array() {
+                    for event in events {
+                        let session_name = event["session_name"]
+                            .as_str()
+                            .unwrap_or("?")
+                            .to_string();
+                        let payload = event["payload"].clone();
+
+                        if !json_output {
+                            eprintln!("  Result from {session_name}");
+                        }
+
+                        collected_events.push(json!({
+                            "worker": session_name,
+                            "payload": payload,
+                            "seq": event["seq"],
+                            "timestamp": event["timestamp"],
+                        }));
                     }
                 }
+
+                // Only advance cursors when events were actually returned.
+                // Hub returns cursors even for empty polls (next_seq from sessions),
+                // which would cause us to skip seq 0 events on the next poll.
+                let has_events = result["events"]
+                    .as_array()
+                    .is_some_and(|a| !a.is_empty());
+                if has_events
+                    && let Some(new_cursors) = result.get("cursors")
+                        && let Some(obj) = new_cursors.as_object()
+                    {
+                        for (k, v) in obj {
+                            cursors[k] = v.clone();
+                        }
+                    }
+            }
+
         }
 
         // event.collect with timeout_ms blocks server-side; no sleep needed
@@ -782,6 +811,69 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
 }
 
 /// Show dispatch manifest status.
+/// T-3781: pause between rounds of local result polls (each poll is instant).
+const LOCAL_COLLECT_PACE: std::time::Duration = std::time::Duration::from_millis(500);
+
+/// T-3781: the hub link for a dispatch whose local hub socket is unreachable. Non-root
+/// with a link: check the hub answers over TCP. Otherwise the pre-T-3781 refusal, plus,
+/// for a non-root caller, how to provision a link.
+async fn linked_dispatch_link() -> Result<super::hub_link::HubLink> {
+    let base = "Hub is not running. Start it with: termlink hub start\n(dispatch requires the hub for event collection)";
+    let link = super::hub_link::link_for_this_user()?;
+    let Some(l) = link else {
+        if super::hub_link::effective_uid() != 0 {
+            anyhow::bail!(
+                "{base}\nThis user cannot use the root hub's socket and has no hub link. On the hub host, \
+                 provision one ({}/{} under ~/.termlink, or {} + {}): see T-3781.",
+                super::hub_link::ADDR_FILE,
+                super::hub_link::TOKEN_FILE,
+                super::hub_link::ENV_ADDR,
+                super::hub_link::ENV_TOKEN
+            );
+        }
+        anyhow::bail!("{base}");
+    };
+    let tok = l.token_file.to_string_lossy().into_owned();
+    super::hub_link::PreparedLink::prepare(&l.hub, &tok, None)
+        .await
+        .with_context(|| format!("hub link to {} (token {tok}) refused", l.hub))?;
+    Ok(l)
+}
+
+/// T-3781: one round of result polls over the workers' own sockets: the first event on
+/// `topic` from each registered worker that has not reported yet.
+async fn collect_from_workers_locally(
+    worker_names: &[String],
+    registered: &[bool],
+    topic: &str,
+    collected: &mut Vec<serde_json::Value>,
+    json_output: bool,
+) {
+    for (i, name) in worker_names.iter().enumerate() {
+        if !registered[i] || collected.iter().any(|e| e["worker"].as_str() == Some(name.as_str())) {
+            continue;
+        }
+        let Ok(reg) = manager::find_session(name) else { continue };
+        let addr = termlink_protocol::TransportAddr::unix(reg.socket_path());
+        let params = json!({"topic": topic});
+        let Ok(resp) = client::rpc_call_addr_with_timeout(&addr, "event.poll", params, std::time::Duration::from_secs(2)).await else {
+            continue;
+        };
+        let Ok(result) = client::unwrap_result(resp) else { continue };
+        if let Some(event) = result["events"].as_array().and_then(|a| a.first()) {
+            if !json_output {
+                eprintln!("  Result from {name}");
+            }
+            collected.push(json!({
+                "worker": name,
+                "payload": event["payload"].clone(),
+                "seq": event["seq"],
+                "timestamp": event["timestamp"],
+            }));
+        }
+    }
+}
+
 pub(crate) fn cmd_dispatch_status(check: bool, json_output: bool) -> Result<()> {
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
     let manifest = crate::manifest::DispatchManifest::load(&project_root)?;
