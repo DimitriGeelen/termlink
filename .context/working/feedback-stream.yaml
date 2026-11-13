@@ -23585,3 +23585,21 @@ scan_id: R-040dbd54
 task_id: T-3776
 payload:
   task_file: .tasks/active/T-3776-verify-the-operators-item-is-still-open-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-13T16:40:34Z'
+scan_id: R-5e2bebfc
+task_id: T-3764
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T16:40:34Z'
+scan_id: R-5e2bebfc
+task_id: T-3764
+payload:
+  task_file: .tasks/active/T-3764-align-basis-watchdog-r3-parity-fixture-u.md

@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3764: Align basis 'watchdog': r3 parity fixture uses it, the meter's AL-1 check_origin table rejects it (found by AEF T-5054)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T16:40:44Z
+# ============================================================================
+
+task_id: T-3764
+task_name: "Align basis 'watchdog': r3 parity fixture uses it, the meter's AL-1 check_origin table rejects it (found by AEF T-5054)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-13T07:21:06Z
+completed: 2026-11-13T16:40:17Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-13T17:40:12+01:00
+last_commit: 2026-11-13T17:40:12+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  r3 parity fixture reports a watchdog line with basis doorbell (06 AL-1); test keeps every fixture basis inside the meter's check_origin table
+
+# Key outcomes
+outcomes:
+  - 'The r3 parity fixture case `watchdog-line-is-automated` uses a basis the meter''s AL-1 `check_origin` table accepts, with the same expected lease outcome as before'
+  - 'A test asserts every `basis` used in `tests/fixtures/b25-parity/*.json` is accepted by the meter''s `check_origin` table for its origin, so the two cannot drift again'
+  - 'Negative control: the test fails when a fixture carries a basis the table rejects (e.g. the old `watchdog`)'
+  - 'The choice (fixture vs table) is recorded in Decisions with the 06 AL-1 / 04 17.5 rationale'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'r3 parity fixture reports a watchdog line with basis doorbell (06 AL-1); test keeps every fixture basis inside the meter''s check_origin table'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-13 — basis for a watchdog line'
+    chose: 'change the fixture case `watchdog-line-is-automated` to basis `doorbell` (expect stays `ignored`), and add `crates/termlink-sidecar/tests/t3764_fixture_basis.rs` so every fixture basis must pass the meter''s check_origin.'
+    rationale: '06 AL-1 check_origin and 04 17.5 list the automated bases doorbell | non-interactive | harness-mark | pty-input. The watchdog types the identical SI-1 line as the doorbell (termlink-session handler.rs:651), so an adapter cannot observe a separate `watchdog` basis. A basis no adapter can detect is not a usable contract.'
+    alternatives_rejected: ['adding `watchdog` to the table and spec. That needs a production and spec change for a value no adapter could ever report correctly, and it splits one observable event in two.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3764-align-basis-watchdog-r3-parity-fixture-u.md'
+  - 'crates/termlink-sidecar/tests/t3764_fixture_basis.rs'
+  - 'tests/fixtures/b25-parity/r3-prompt-origin.json'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T17:40:12'
+    action: 'T-3764: r3 parity fixture reports a watchdog line with basis doorbell (06 AL-1); test keeps every fixture basis inside the meter''s check_origin table'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 559 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 559
+  commits: 2
+  files_changed: 6
+  lines_added: 287
+  lines_removed: 16
+  footprint_refreshed_at: '2026-11-13T16:40:53Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3764-align-basis-watchdog-r3-parity-fixture-u.md
+generated_by: context-agent-hybrid
