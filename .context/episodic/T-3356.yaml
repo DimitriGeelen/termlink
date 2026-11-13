@@ -1,0 +1,162 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3356: arc-011 role chain step 7: review panel and disposition
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T17:29:55Z
+# ============================================================================
+
+task_id: T-3356
+task_name: "arc-011 role chain step 7: review panel and disposition"
+workflow_type: specification
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-06T10:14:09Z
+completed: 2026-11-13T17:29:33Z
+duration_days: 38
+updates_count: 4
+first_commit: 2026-11-11T23:16:16+01:00
+last_commit: 2026-11-13T18:20:02+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  step 7 started; operator panel ruling A (four vendors) recorded. step 7 phase 1, panel brief and manifest skeleton. redact the two internal addresses before the panel (04 D-1 subnet; 06b V-T0-1 target -> RFC 5737 doc address, digest and signature recomputed); brief hashes updated. panel answers stored unedited: opencode (complete), antigravity run 1 (summary only; full file lost in the seat export); codex and antigravity re-dispatched with answer-in-reply. antigravity panel answer (run 2, answer-in-reply) stored unedited; codex hit its usage limit, retry after the reset. step 7 phase 2, manifest completed (redacted hashes, seat models and dates, answer hashes, Codex unavailable x3); claude-code answer committed unchanged. step 7 output 07-review v0.1: synthesis of 71 raw findings into F-1..F-51 verified against the text, disposition (42 accepted, 6 rejected, 3 deferred), drawing D-1 (render ok), change requests CR-1..CR-6 and CR-B27, residual risks. step 7 role-handback/1 record (ready-for-review; 6 decisions for the operator). agent ACs ticked with evidence (output, hand-back, disposition, chain yaml); review and approval left to the orchestrator and operator. add the two README section 5 criteria (independent review, operator approval). reviewer verdict. independent review of step 7 green, verdict applied. operator rejects F-7, F-36..F-39 (ruling A). operator accepts F-25 / RQ-3 with the detector (ruling A). operator approves F-1 / CR-4.1, typing re-check in the watchdog's ruled checks (ruling A). operator ruling D on F-20/RQ-2 (interim ps veto on macOS with B-16, full veto T-3688). operator closes the panel at three vendors (RQ-1, ruling a). operator approves step 7 in chat (A); box left for his Watchtower tick
+
+# Key outcomes
+outcomes:
+  - 'Step 6 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3) (evidence: step 6 does not decide (`decides: false`), README 3.6; its review is green (round 2, V-20261111-7120be32, applied 2026-11-11); operator 2026-11-11 chose the step 7 panel, which presupposes step 6 as its input)'
+  - 'Role session dispatched with the yaml''s order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evidence: docs/design/interactive-agent-communication/role-handback-step-07.json, schema-valid, bus T-3356 R-001)'
+  - '`docs/design/interactive-agent-communication-07-review.md` exists with a version table and an inputs-of-record section citing the input hashes (evidence: sections 0 and 1, including the four answer files)'
+  - 'External review panel run on steps 1, 4, 6; every finding dispositioned (accepted / rejected with reason / deferred) (evidence: 07-review section 4: 71 raw findings -> F-1..F-51, 42 accepted / 6 rejected / 3 deferred; Codex unavailable three times, recorded as RQ-1)'
+  - 'Role-chain yaml step 7 `task:` set to this task id (evidence: role-chain yaml line 94 `task: T-3356`)'
+  - 'Operator approval of step 7 recorded: his ruling, in his words, with date and channel, under `## Decisions` (evidence: "### 2026-11-12 — step 7 approved (operator: "A", in chat)"; replaces the former Human box per operator ruling 1A 2026-11-13, README 5.1)'
+  - '[REVIEW] Independent review: step 7 output meets the review-panel card''s completion conditions and is fit as input'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-11 — who reviews, and may the material leave the project (operator: "A")'
+    chose: 'A, a mixed panel from the operator''s subscriptions: Claude Code (Anthropic), Codex (OpenAI), opencode (Z.ai GLM), Antigravity (Google). The brief goes to those four vendors, with secrets, credentials and internal addresses stripped (card 3.1-3.2). Scored A +35, C +28, B +7.'
+    alternatives_rejected: ['B Claude Code only (same vendor as the authors); C A plus a paid OpenRouter seat (cost, small gain).']
+  - decision: '2026-11-12 — five security findings proposed for rejection: F-7, F-36, F-37, F-38, F-39 (operator: "a")'
+    chose: 'A, reject all five together, with the reasons of 07 section 3.4 / the disposition table: F-7 the release before claim is designed (a short vacancy, never two holders); F-36 no policy route exists for Tier 0, only the root-only admin path decides (FCW-157); F-37 the revocation head is signature-verified (06a AL-22 step 2; checked by the orchestrator); F-38 an owed answer holds 120 s, other mail still rings, the watchdog ignores it; F-39 unknown `last_human` means no fast takeover (FCW-55; checked by the orchestrator). All five from one seat (Antigravity).'
+    alternatives_rejected: ['B one by one; C accept them as text clarifications.']
+  - decision: '2026-11-12 — F-25 / RQ-3: a same-user process can forge human prompt origin and hold main (operator: "A")'
+    chose: 'A, accept as a residual until an operator key exists (widens QR-3), with the detector of CR-5.11 (reports suspicious human claims, e.g. from outside the hooks; never gates) and the AR-6 wording of CR-4.14.'
+    rationale: 'the O-3 tightening still catches honest failure (a forgotten session renewing itself); a same-user (root on .107) attacker has worse options than holding main; the detector makes abuse visible; closes with Track K.'
+    alternatives_rejected: ['B block B-25 until the operator key (O-3 unbuilt for months); C accept without a detector.']
+  - decision: '2026-11-12 — F-1 (critical): the 300 s watchdog''s ruled checks gain a typing re-check (operator: "A")'
+    chose: 'A, approve CR-4.1: architecture 6.9.7.b (ruled O-2 item 2 text) adds "no client input in the last 30 s, re-read immediately before typing" to the watchdog''s checks (kill switch, foreground harness, activity veto). The reasons READY and the conversation signal stay excluded are unchanged. With it: CR-6.1 (AL-6 step 5 S1 re-read for both `via` values, AL-8 invariant (1) corrected) and CR-5.1 (E-7 case with a mutant that drops the re-read).'
+    rationale: 'without it a person typing at the 300 s mark gets the line plus Enter inside a half-written prompt, which O-2 set out to prevent; the watchdog''s purpose (a stuck flag never holds mail forever) is not weakened.'
+    alternatives_rejected: ['B keep the ruled text (accept typing into the operator''s prompt); C another wording.']
+  - decision: '2026-11-12 — F-20 / RQ-2: the 300 s watchdog on macOS (operator: D, after "can we do a simple setup that makes sure it doesn''t get stuck with a longer-term solution in parallel?"; an M1 joins the fleet soon)'
+    chose: 'D (proposed by the agent from the operator''s words, confirmed "yes"): 1. Interim, built with B-16: on macOS a `ps`-based veto (the harness process tree has a running child process, or uses noticeable CPU → hold). With the 300 s silence and the 30 s typing re-check (F-1), the watchdog may then type. Blind spot stated: a job waiting only on network or disk with no child process and no CPU is not seen; the line then arrives as the next prompt. Status `watchdog: degraded (macOS, ps veto)`. 2. Long-term, its own build task: a full macOS veto from the OS process information (CPU, disk, network per process, libproc/proc_pidinfo), equivalent to the Linux veto; it replaces the interim only when proven (standing rule: nothing working is switched off before its replacement is proven).'
+    alternatives_rejected: ['A accept "the watchdog never fires on macOS" as a residual; B type on macOS without any veto; C full macOS veto before PH-2 counts as done. - **Follow-up:** change request to step 4 6.9.7 / step 6 AL-8 for the interim veto; build task for the full veto (T-3688).']
+  - decision: '2026-11-12 — RQ-1: close the panel at three vendors (operator: "a")'
+    chose: 'A, close step 7''s panel with Claude Code, opencode and Antigravity; Codex recorded as unavailable (run 1 wrote into its read-only export on an orchestrator instruction error, run 2 usage limit, run 3 model at capacity). If Codex works later, its answer is stored as an addendum and new findings go through the normal disposition.'
+    alternatives_rejected: ['B wait for Codex (days, the build waits on these dispositions); C a paid OpenRouter seat.']
+  - decision: '2026-11-12 — step 7 approved (operator: "A", in chat)'
+    chose: 'A, approve step 7: 07-review v0.1 with the operator''s rulings above (F-7, F-36..F-39 rejected; F-25 accepted with detector; F-1 approved; F-20 ruling D; panel closed at three vendors) and the 42 accepted findings as change requests to steps 1, 4, 5, 6 and to B-27 (T-3687). - **Left (superseded 2026-11-13 by ruling 1A below):** a separate approval box. Next: fold the change requests into their steps (README 3: no step final with an open change request), the B-27 repair round, then step 8 (T-3357).'
+  - decision: '2026-11-13 — no second approval box (operator ruling 1A)'
+    chose: 'A — the recorded ruling is the approval; the "[REVIEW] Step N output approved" box is replaced by an Agent criterion that checks the ruling is on record (here and in T-3357; README section 5 / 5.1 changed accordingly).'
+    rationale: 'the operator had already approved step 7 in chat; a box asking him to confirm it again is rubber-stamping ("we don''t do rubber stamping. Knoop dat in je oren.").'
+    alternatives_rejected: ['B keep the boxes (second confirmation of a made decision); C step 7 box kept, step 8 to a reviewer (still a stamp, and a reviewer re-confirming the operator''s decision). - Operator words in chat: "1A". The approval itself stays the operator''s; without a recorded ruling no step is approved.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/applied.jsonl'
+  - '.context/reviews/evidence/T-3356/AC1-judge-t-3356-r1-1474da8da2eb.md'
+  - '.context/reviews/evidence/T-3356/AC1-judge-t-3356-r1-9f45a3e2f789.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-3356-arc-011-role-chain-step-7-review-panel-a.md'
+  - '.tasks/active/T-3688-arc-011-full-macos-activity-veto-for-the.md'
+  - 'docs/design/interactive-agent-communication-04-architecture.md'
+  - 'docs/design/interactive-agent-communication-06b-pseudo-code-later-phases.md'
+  - 'docs/design/interactive-agent-communication-07-review.md'
+  - 'docs/design/interactive-agent-communication/role-handback-step-07.json'
+  - 'docs/reports/T-3356-panel/antigravity-run1-summary.md'
+  - 'docs/reports/T-3356-panel/antigravity.md'
+  - 'docs/reports/T-3356-panel/brief.md'
+  - 'docs/reports/T-3356-panel/claude-code.md'
+  - 'docs/reports/T-3356-panel/manifest.md'
+  - 'docs/reports/T-3356-panel/opencode.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-11T23:16:16'
+    action: 'T-3356: step 7 started; operator panel ruling A (four vendors) recorded'
+  - time: '2026-11-11T23:20:34'
+    action: 'T-3356: step 7 phase 1, panel brief and manifest skeleton'
+  - time: '2026-11-11T23:45:33'
+    action: 'T-3356: redact the two internal addresses before the panel (04 D-1 subnet; 06b V-T0-1 target -> RFC 5737 doc address, digest and signature recomputed); brief hashes updated'
+  - time: '2026-11-12T00:17:17'
+    action: 'T-3356: panel answers stored unedited: opencode (complete), antigravity run 1 (summary only; full file lost in the seat export); codex and antigravity re-dispatched with answer-in-reply'
+  - time: '2026-11-12T01:26:29'
+    action: 'T-3356: antigravity panel answer (run 2, answer-in-reply) stored unedited; codex hit its usage limit, retry after the reset'
+  - time: '2026-11-12T05:36:59'
+    action: 'T-3356: step 7 phase 2, manifest completed (redacted hashes, seat models and dates, answer hashes, Codex unavailable x3); claude-code answer committed unchanged'
+  - time: '2026-11-12T05:41:08'
+    action: 'T-3356: step 7 output 07-review v0.1: synthesis of 71 raw findings into F-1..F-51 verified against the text, disposition (42 accepted, 6 rejected, 3 deferred), drawing D-1 (render ok), change requests CR-1..CR-6 and CR-B27, residual risks'
+  - time: '2026-11-12T05:41:40'
+    action: 'T-3356: step 7 role-handback/1 record (ready-for-review; 6 decisions for the operator)'
+  - time: '2026-11-12T05:42:04'
+    action: 'T-3356: agent ACs ticked with evidence (output, hand-back, disposition, chain yaml); review and approval left to the orchestrator and operator'
+  - time: '2026-11-12T08:04:20'
+    action: 'T-3356: add the two README section 5 criteria (independent review, operator approval)'
+  - time: '2026-11-12T08:08:26'
+    action: 'T-3356: reviewer verdict'
+  - time: '2026-11-12T08:08:57'
+    action: 'T-3356: independent review of step 7 green, verdict applied'
+  - time: '2026-11-12T09:10:43'
+    action: 'T-3356: operator rejects F-7, F-36..F-39 (ruling A)'
+  - time: '2026-11-12T09:42:42'
+    action: 'T-3356: operator accepts F-25 / RQ-3 with the detector (ruling A)'
+  - time: '2026-11-12T10:54:56'
+    action: 'T-3356: operator approves F-1 / CR-4.1, typing re-check in the watchdog''s ruled checks (ruling A)'
+  - time: '2026-11-12T11:45:49'
+    action: 'T-3356: operator ruling D on F-20/RQ-2 (interim ps veto on macOS with B-16, full veto T-3688)'
+  - time: '2026-11-12T12:36:24'
+    action: 'T-3356: operator closes the panel at three vendors (RQ-1, ruling a)'
+  - time: '2026-11-12T12:38:18'
+    action: 'T-3356: operator approves step 7 in chat (A); box left for his Watchtower tick'
+  - time: '2026-11-13T18:20:02'
+    action: 'T-3356: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 19 commit(s), 55155 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 55155
+  commits: 20
+  files_changed: 23
+  lines_added: 2693
+  lines_removed: 50
+  footprint_refreshed_at: '2026-11-13T17:30:10Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3356-arc-011-role-chain-step-7-review-panel-a.md
+generated_by: context-agent-hybrid

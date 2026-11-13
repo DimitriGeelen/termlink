@@ -23707,3 +23707,21 @@ task_id: T-3744
 payload:
   overall: UNVERIFIED
   claim_count: 0
+---
+kind: scan_emitted
+timestamp: '2026-11-13T17:29:43Z'
+scan_id: R-d6764c3f
+task_id: T-3356
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T17:29:43Z'
+scan_id: R-d6764c3f
+task_id: T-3356
+payload:
+  task_file: .tasks/active/T-3356-arc-011-role-chain-step-7-review-panel-a.md

@@ -6,10 +6,10 @@ description: >
   output docs/design/interactive-agent-communication-07-review.md. Starts only after
   step 6 is approved by the operator.
 
-status: started-work
+status: work-completed
 workflow_type: specification
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -25,8 +25,8 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:09Z
-last_update: 2026-11-13T14:27:38Z
-date_finished:
+last_update: 2026-11-13T17:29:33Z
+date_finished: 2026-11-13T17:29:33Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -138,7 +138,7 @@ disposition table; accepted findings become change requests to their steps (or t
      hand-back `docs/design/interactive-agent-communication/role-handback-step-07.json`.
   **Expected:** a green verdict bound to the reviewed revision, applied with `fw reviewer verdict apply T-3356`.
   **If not:** findings go back to the review-panel role (max 2-3 rounds), then each is dispositioned.
-  **Reviewer verdict:** green V-20261112-ea77f764 — reviewer-judge-t-3356-r1-1474da8da2eb:reviewer (rung rung-1-same-vendor-independent), digest f90036b3f4c3; dispatch judge-t-3356-r1-1474da8da2eb; evidence: .context/reviews/evidence/T-3356/AC1-judge-t-3356-r1-1474da8da2eb.md; ledger .context/reviews/verdicts.jsonl
+  **Reviewer verdict:** green V-20261113-1e7b1a03 — reviewer-judge-t-3356-r1-9f45a3e2f789:reviewer (rung rung-1-same-vendor-independent), digest f90036b3f4c3; dispatch judge-t-3356-r1-9f45a3e2f789; evidence: .context/reviews/evidence/T-3356/AC1-judge-t-3356-r1-9f45a3e2f789.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 
@@ -316,3 +316,21 @@ grep -q 'task: T-3356' docs/design/interactive-agent-communication-role-chain.ya
 
 ### 2026-11-11T22:15:30Z — status-update [task-update-agent]
 - **Change:** horizon: now → now
+
+### 2026-11-13T17:29:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d6764c3f
+- **Timestamp:** 2026-11-13T17:29:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evidence: docs/design/interactive-agent-communication
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=docs/design/interactive-agent-communication/role-handback-step-07.json in: Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned (evi`
