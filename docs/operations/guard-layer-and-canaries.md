@@ -253,7 +253,9 @@ The canary walks `fleet doctor --json` and FIRES (exit 1) when any **reachable**
 hub serves a version below its **declared floor** in
 `.context/cron/fleet-version-floors.conf` (`<hub-name> <min-version|->`; `-` =
 exempt, optional `*` default row). It is deliberately NOT cross-hub skew
-detection: patch numbers are commits-since-tag and are NOT comparable across
+detection. (T-3774, 2026-11-13: builds now report `<tag>+<N>.g<sha>` and compare through
+`scripts/lib/version-cmp.sh`; the floors were rewritten to the same commits in that form.
+The history below describes the OLD `major.minor.N` scheme.) Under it, patch numbers were commits-since-tag and are NOT comparable across
 build lineages OR across tag epochs (e.g. ring20-dashboard reports 0.11.806 —
 but that is a `git describe` tag-base artifact, NOT proof of a fork: v0.11.2 was
 not tagged until 2026-06-24, so a stale ~June-6 mainline build counts from

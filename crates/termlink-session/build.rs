@@ -19,7 +19,7 @@
 //!
 //! Semantics match the sibling scripts exactly:
 //! - Tagged commit `v0.8.0` → `0.8.0`
-//! - 5 commits after tag → `0.8.5`
+//! - 5 commits after tag → `0.8.0+5.g<sha9>` (T-3774; was `0.8.5`, which collided with release v0.8.5)
 //! - No tags / not a git repo → falls back to the Cargo.toml version
 //!
 //! # Re-run triggers
@@ -31,9 +31,9 @@
 //! every HEAD movement. Missing paths are tolerated by cargo (a shallow clone or
 //! tarball build simply means "never changed").
 
-use std::process::Command;
 
 const GIT_RERUN_PATHS: &[&str] = &[
+    "../version-derive.rs",
     "../../.git/HEAD",
     "../../.git/logs/HEAD",
     "../../.git/refs/heads",
@@ -64,32 +64,5 @@ fn main() {
     }
 }
 
-fn git_derived_version() -> Option<String> {
-    let output = Command::new("git")
-        .args(["describe", "--tags", "--match", "v[0-9]*"])
-        .output()
-        .ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    let desc = String::from_utf8(output.stdout).ok()?.trim().to_string();
-    let desc = desc.strip_prefix('v').unwrap_or(&desc);
-
-    if desc.contains('-') {
-        // v0.8.0-47-gabcdef → 0.8.47
-        let parts: Vec<&str> = desc.splitn(3, '-').collect();
-        if parts.len() >= 2 {
-            let base = parts[0];
-            let commits = parts[1];
-            let major_minor = base.rsplitn(2, '.').last()?;
-            Some(format!("{major_minor}.{commits}"))
-        } else {
-            None
-        }
-    } else {
-        // Exact tag: v0.8.0 → 0.8.0
-        Some(desc.to_string())
-    }
-}
+// T-3774: one scheme for every crate, see crates/version-derive.rs.
+include!("../version-derive.rs");

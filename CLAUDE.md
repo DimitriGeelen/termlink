@@ -37,7 +37,7 @@ Homebrew formula                     # brew install works (downloads from GitHub
 - **OneDev** is the source of truth. Push here only.
 - **GitHub** is a read-only mirror. OneDev's `PushRepository` buildspec job handles sync automatically using `github-push-token`.
 - **Releases** happen when you tag (`git tag v0.X.0`) and push to OneDev. GitHub Actions builds the binaries.
-- **Versioning** is git-derived via `build.rs`: tag = exact version, N commits after tag = `major.minor.N`.
+- **Versioning** is git-derived via `build.rs` (one shared `crates/version-derive.rs`, T-3774): tag = exact version (`0.12.11`); N commits after a tag = `<tag>+<N>.g<sha9>` (`0.12.11+4.ga2fcb16f8`). Unique per commit and ordered after its tag, before the next. Compare versions in scripts only through `scripts/lib/version-cmp.sh`. The pre-T-3774 dev form `major.minor.N` collided with real releases (v0.12.11+4 reported `0.12.4`) and is not comparable to anything.
 
 **Per-guard documentation is in `docs/operations/guard-layer-and-canaries.md`** (moved by T-3246;
 plain path on purpose, an `@` import would be inlined at launch, T-3244). Open it before you change,

@@ -111,6 +111,29 @@ else
     fail "T5: $l"
 fi
 
+# -------- T6/T7 (T-3774): a dev version names its commit; the verdict follows git --------
+# Built at the last crates/ commit → nothing in crates/ since → PASS drift-only.
+# Built one commit before it → a crates/ change since → WARN. Same base and count, so
+# only the embedded commit differs: the control that the sha, not the number, decides.
+echo "T6/T7: dev version 0.0.0+1.g<sha> — crates/ unchanged since sha → PASS; changed → WARN"
+if [ -z "$last_crates" ] || ! git rev-parse --verify -q "${last_crates}~1" >/dev/null 2>&1; then
+    skip "T6/T7: no crates/ history"
+else
+    l="$(run_binary_line "0.0.0+1.g${last_crates:0:9}")"
+    if printf '%s' "$l" | grep -q '\[PASS\]' && printf '%s' "$l" | grep -q 'version drift only'; then
+        pass "T6: $l"
+    else
+        fail "T6: $l"
+    fi
+    before="$(git rev-parse "${last_crates}~1")"
+    l="$(run_binary_line "0.0.0+1.g${before:0:9}")"
+    if printf '%s' "$l" | grep -q '\[WARN\]' && printf '%s' "$l" | grep -q 'older than'; then
+        pass "T7: $l"
+    else
+        fail "T7: $l"
+    fi
+fi
+
 echo ""
 echo "Results: $PASS pass / $FAIL fail / $SKIP skip"
 [ "$FAIL" -eq 0 ]

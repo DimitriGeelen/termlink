@@ -9,9 +9,9 @@
 //! Re-run trigger paths and rationale match termlink-cli/build.rs verbatim;
 //! see that file for the historical bug context (T-1057).
 
-use std::process::Command;
 
 const GIT_RERUN_PATHS: &[&str] = &[
+    "../version-derive.rs",
     "../../.git/HEAD",
     "../../.git/logs/HEAD",
     "../../.git/refs/heads",
@@ -29,30 +29,5 @@ fn main() {
     }
 }
 
-fn git_derived_version() -> Option<String> {
-    let output = Command::new("git")
-        .args(["describe", "--tags", "--match", "v[0-9]*"])
-        .output()
-        .ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    let desc = String::from_utf8(output.stdout).ok()?.trim().to_string();
-    let desc = desc.strip_prefix('v').unwrap_or(&desc);
-
-    if desc.contains('-') {
-        let parts: Vec<&str> = desc.splitn(3, '-').collect();
-        if parts.len() >= 2 {
-            let base = parts[0];
-            let commits = parts[1];
-            let major_minor = base.rsplitn(2, '.').last()?;
-            Some(format!("{major_minor}.{commits}"))
-        } else {
-            None
-        }
-    } else {
-        Some(desc.to_string())
-    }
-}
+// T-3774: one scheme for every crate, see crates/version-derive.rs.
+include!("../version-derive.rs");

@@ -541,24 +541,10 @@ check_be_reachable_state() {
 
 # ---- Check 4: termlink binary freshness (T-2181) -----------------------
 
-# Compare two SemVer-ish `major.minor.patch` strings. Returns 0 (true) if
-# $1 < $2, 1 otherwise. Empty / malformed components compare as 0.
-version_lt() {
-    local a="$1" b="$2"
-    local IFS=.
-    # shellcheck disable=SC2206
-    local av=($a) bv=($b)
-    local i
-    for i in 0 1 2; do
-        local ai="${av[$i]:-0}" bi="${bv[$i]:-0}"
-        # Strip non-digits (defensive).
-        ai="${ai//[^0-9]/}"; bi="${bi//[^0-9]/}"
-        ai="${ai:-0}"; bi="${bi:-0}"
-        if [ "$ai" -lt "$bi" ]; then return 0; fi
-        if [ "$ai" -gt "$bi" ]; then return 1; fi
-    done
-    return 1
-}
+# T-3774: one comparator for every script (SemVer + commit count, sha never read as a number).
+# shellcheck source=lib/version-cmp.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/version-cmp.sh" || {
+    echo "$(basename "$0"): scripts/lib/version-cmp.sh missing" >&2; exit 2; }
 
 # T-2226 — Distinguish version-number drift from genuine CLI-feature drift.
 # VERSION is git-derived (patch = commits-since-tag), so it increments on EVERY
@@ -572,6 +558,15 @@ version_lt() {
 # genuinely stale binary, only the proven-false-positive case.
 crates_unchanged_since_binary() {
     local bin_ver="$1" repo_ver="$2"
+    # T-3774: a dev build names its commit (0.12.11+4.ga2fcb16f8). Ask git about that
+    # commit directly instead of guessing it from a commit count. Unknown commit, or
+    # one HEAD does not descend from, proves nothing → keep WARN.
+    local sha; sha="$(version_commit "$bin_ver")"
+    if [ -n "$sha" ]; then
+        git merge-base --is-ancestor "$sha" HEAD >/dev/null 2>&1 || return 1
+        [ -z "$(git log --oneline "${sha}..HEAD" -- crates/ 2>/dev/null | head -n1)" ]
+        return
+    fi
     local IFS=.
     # shellcheck disable=SC2206
     local bv=($bin_ver) rv=($repo_ver)

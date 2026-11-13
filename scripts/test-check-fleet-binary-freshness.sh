@@ -98,6 +98,27 @@ EOF
 run "$TMPD/fleet6b.json" "$TMPD/floors6b"
 check "numeric compare reverse (0.11.2 >= 0.9.1591 healthy)" 0 "$RC" "healthy" "$OUT"
 
+# 6c. T-3774 scheme: <tag>+<N>.g<sha>. A build after a newer tag is above an older dev
+# floor (the old comparator read "11+4" as 114 and leaked sha digits into the number);
+# a dev build on the same tag with fewer commits is below it (the control).
+cat > "$TMPD/fleet6c.json" <<'EOF'
+{"ok": true, "hubs": [
+  {"hub": "newtag", "status": "ok", "hub_version": "0.12.11+4.ga2fcb16f8"},
+  {"hub": "behind", "status": "ok", "hub_version": "0.12.4+700.g999999999"}
+]}
+EOF
+cat > "$TMPD/floors6c" <<'EOF'
+newtag 0.12.4+786.gb0ed631de
+behind 0.12.4+786.gb0ed631de
+EOF
+run "$TMPD/fleet6c.json" "$TMPD/floors6c"
+check "T-3774: same-tag dev build with fewer commits fires" 1 "$RC" "behind: served=0.12.4+700.g999999999 < floor=0.12.4+786.gb0ed631de" "$OUT"
+if echo "$OUT" | grep -q "newtag:.*< floor"; then
+    echo "FAIL: T-3774: build after a newer tag must not fire"; FAIL=$((FAIL + 1))
+else
+    echo "pass: T-3774: build after a newer tag is above an older dev floor"; PASS=$((PASS + 1))
+fi
+
 # 7. star default row applies to undeclared hubs
 cat > "$TMPD/floors7" <<'EOF'
 delta -

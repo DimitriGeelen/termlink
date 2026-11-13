@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3755: CLI integration tests fail when PROJECT_ROOT is set in the environment (46 failures: register sessions not where tests look)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T12:33:45Z
+# ============================================================================
+
+task_id: T-3755
+task_name: "CLI integration tests fail when PROJECT_ROOT is set in the environment (46 failures: register sessions not where tests look)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T19:35:35Z
+completed: 2026-11-13T12:31:57Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-13T13:31:53+01:00
+last_commit: 2026-11-13T13:31:53+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_cmd scrubs inherited project vars, TERMLINK_*, CLAUDE*/FW_* — a foreign PROJECT_ROOT made register refuse (T-3551 guard, kept as intended) and 46 cli_integration tests time out; unit test reads the child env with a surviving control, mutant killed; cli_integration 188/188 with a foreign PROJECT_ROOT
+
+# Key outcomes
+outcomes:
+  - 'The code path through which PROJECT_ROOT changes register/session resolution is named (file:line) in ## RCA, with a recorded decision whether that behaviour is intended in production'
+  - '`termlink_test_utils::termlink_cmd` removes PROJECT_ROOT and the other project/identity vars from the child env, so CLI tests are hermetic'
+  - 'A test in crates/termlink-test-utils proves the scrub (positive) with a negative control (a var NOT in the list survives)'
+  - '`cargo test -p termlink --test cli_integration` passes with PROJECT_ROOT exported, including one naming a foreign project (was 46 failures)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-13 — is the register refusal intended in production?'
+    chose: 'yes, keep it unchanged; fix only the test helper.'
+    rationale: 'T-3551 added it on purpose after SEV-1 T-3549 (a process that inherited another project''s vars acted on that project''s tasks while appearing on the fleet as this one). The tests were the non-hermetic party.'
+    alternatives_rejected: ['relaxing the check for test runtime dirs (would weaken a SEV-1 guard to fit a test helper); `env_clear()` in the helper (drops HOME/PATH/TMPDIR the binary needs, and tests set HOME after the call).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3755-cli-integration-tests-fail-when-projectr.md'
+  - 'crates/termlink-test-utils/src/lib.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T13:31:53'
+    action: 'T-3755: termlink_cmd scrubs inherited project vars, TERMLINK_*, CLAUDE*/FW_* — a foreign PROJECT_ROOT made register refuse (T-3551 guard, kept as intended) and 46 cli_integration tests time out; unit test reads the child env with a surviving control, mutant killed; cli_integration 188/188 with a foreign PROJECT_ROOT'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1016 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, test]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1016
+  commits: 2
+  files_changed: 23
+  lines_added: 1116
+  lines_removed: 184
+  footprint_refreshed_at: '2026-11-13T12:33:50Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3755-cli-integration-tests-fail-when-projectr.md
+generated_by: context-agent-hybrid

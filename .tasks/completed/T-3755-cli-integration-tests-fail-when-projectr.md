@@ -12,12 +12,12 @@ description: >
   project/identity vars) so tests are hermetic; find what PROJECT_ROOT changes in
   register and whether that is intended in production.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, test]
-components: []
+components: [crates/termlink-test-utils/src/lib.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -46,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T19:35:35Z
-last_update: 2026-11-13T12:31:53Z
-date_finished:
+last_update: 2026-11-13T12:31:57Z
+date_finished: 2026-11-13T12:31:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -412,3 +412,16 @@ mkdir -p .context/working/t3755/fakeproj && touch .context/working/t3755/fakepro
 ### 2026-11-13T12:20:33Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-13T12:31:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-affd764c
+- **Timestamp:** 2026-11-13T12:33:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

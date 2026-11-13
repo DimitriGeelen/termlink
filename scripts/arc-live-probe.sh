@@ -97,20 +97,10 @@ if [ -z "$min_version" ] && [ -z "$capability" ]; then
     die_setup "nothing to gate on: pass --min-version and/or --capability"
 fi
 
-# --- dotted-numeric version compare (mirrors T-2359 version_lt) --------------
-# version_ge A B  -> true (0) iff A >= B. Strips leading 'v', per-segment numeric.
-version_ge() {
-    local a="${1#v}" b="${2#v}" IFS=.
-    local -a av bv; read -r -a av <<<"$a"; read -r -a bv <<<"$b"
-    local i len=${#av[@]}; [ ${#bv[@]} -gt "$len" ] && len=${#bv[@]}
-    for ((i=0; i<len; i++)); do
-        local x="${av[i]:-0}" y="${bv[i]:-0}"
-        x="${x//[^0-9]/}"; y="${y//[^0-9]/}"; x="${x:-0}"; y="${y:-0}"
-        if ((10#$x > 10#$y)); then return 0; fi
-        if ((10#$x < 10#$y)); then return 1; fi
-    done
-    return 0
-}
+# T-3774: one comparator for every script (SemVer + commit count, sha never read as a number).
+# shellcheck source=lib/version-cmp.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/version-cmp.sh" || {
+    echo "$(basename "$0"): scripts/lib/version-cmp.sh missing" >&2; exit 2; }
 
 # --- read fleet doctor (test hook wins; else live) --------------------------
 read_doctor_json() {

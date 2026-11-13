@@ -23487,3 +23487,39 @@ scan_id: R-3b8d5093
 task_id: T-3763
 payload:
   task_file: .tasks/active/T-3763-github-retired-the-macos-14-runner-relea.md
+---
+kind: scan_emitted
+timestamp: '2026-11-13T12:28:54Z'
+scan_id: R-0dcdc560
+task_id: T-3754
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T12:28:54Z'
+scan_id: R-0dcdc560
+task_id: T-3754
+payload:
+  task_file: .tasks/active/T-3754-homebrew-formula-stuck-at-091-releases-d.md
+---
+kind: scan_emitted
+timestamp: '2026-11-13T12:33:27Z'
+scan_id: R-affd764c
+task_id: T-3755
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T12:33:27Z'
+scan_id: R-affd764c
+task_id: T-3755
+payload:
+  task_file: .tasks/active/T-3755-cli-integration-tests-fail-when-projectr.md

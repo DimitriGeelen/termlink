@@ -113,20 +113,10 @@ floor_for() { # $1 = hub name → prints floor, "-", or "" (no row)
     if [ -n "$hit" ]; then printf '%s' "$hit"; else printf '%s' "$star"; fi
 }
 
-version_lt() { # returns 0 iff $1 < $2, numeric per dotted segment
-    local -a a b
-    IFS=. read -r -a a <<< "${1#v}"
-    IFS=. read -r -a b <<< "${2#v}"
-    local i x y
-    for i in 0 1 2 3; do
-        x="${a[i]:-0}"; y="${b[i]:-0}"
-        x="${x//[!0-9]/}"; y="${y//[!0-9]/}"
-        x="${x:-0}"; y="${y:-0}"
-        if [ "$x" -lt "$y" ] 2>/dev/null; then return 0; fi
-        if [ "$x" -gt "$y" ] 2>/dev/null; then return 1; fi
-    done
-    return 1
-}
+# T-3774: one comparator for every script (SemVer + commit count, sha never read as a number).
+# shellcheck source=lib/version-cmp.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/version-cmp.sh" || {
+    echo "$(basename "$0"): scripts/lib/version-cmp.sh missing" >&2; exit 2; }
 
 # ── walk hubs ────────────────────────────────────────────────────────────────
 FIRING_LINES=""

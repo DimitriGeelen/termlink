@@ -93,6 +93,18 @@ check "hub absent -> tooling(2)" 2 "$(TERMLINK_ARC_PROBE_TEST_DOCTOR_JSON="$TMP/
 check "cv-keys inconclusive -> tooling(2)" 2 "$(TERMLINK_ARC_PROBE_TEST_CVKEYS_RC=124 TERMLINK_ARC_PROBE_TEST_CVKEYS_OUT=/dev/null \
     run bash "$SCRIPT" --hub primary --capability cv-keys)"
 
+# 11b. T-3774 scheme: a dev build after v0.12.11 meets a 0.12.11 floor and is below 0.12.12;
+# the old per-segment comparator read "11+4" as 114 and passed the 0.12.12 floor (the control).
+cat > "$TMP/doctor_dev.json" <<'JSON'
+{"hubs":[
+  {"hub":"primary","address":"192.168.10.107:9100","status":"ok","hub_version":"0.12.11+4.ga2fcb16f8"}
+]}
+JSON
+check "T-3774: dev build >= its tag -> live" 0 "$(TERMLINK_ARC_PROBE_TEST_DOCTOR_JSON="$TMP/doctor_dev.json" \
+    run bash "$SCRIPT" --hub primary --min-version 0.12.11)"
+check "T-3774: dev build < next release -> shipped-not-live" 1 "$(TERMLINK_ARC_PROBE_TEST_DOCTOR_JSON="$TMP/doctor_dev.json" \
+    run bash "$SCRIPT" --hub primary --min-version 0.12.12)"
+
 # 12. nothing to gate on -> tooling error (2)
 check "no assertions -> tooling(2)" 2 "$(run bash "$SCRIPT" --hub primary)"
 
