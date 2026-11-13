@@ -131,7 +131,39 @@ pub fn mono_ms() -> u64 {
 /// This boot's id (`/proc/sys/kernel/random/boot_id`); `None` where there is
 /// none, and then a reader treats the stamps as not comparable.
 pub fn boot_id() -> Option<String> {
-    std::fs::read_to_string("/proc/sys/kernel/random/boot_id").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+    #[cfg(target_os = "macos")]
+    {
+        boot_id_macos()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        std::fs::read_to_string("/proc/sys/kernel/random/boot_id").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+    }
+}
+
+/// macOS has no `/proc`; its per-boot UUID is the sysctl `kern.bootsessionuuid`
+/// (T-3763: without it S1, the origin check and P-2 ordering were all `unknown` on a Mac).
+#[cfg(target_os = "macos")]
+fn boot_id_macos() -> Option<String> {
+    let mut buf = [0u8; 64];
+    let mut len: libc::size_t = buf.len();
+    // SAFETY: the name is NUL-terminated, `buf`/`len` describe a valid writable buffer,
+    // and no new value is set (null, 0).
+    let rc = unsafe {
+        libc::sysctlbyname(
+            c"kern.bootsessionuuid".as_ptr(),
+            buf.as_mut_ptr().cast::<libc::c_void>(),
+            &mut len,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    if rc != 0 {
+        return None;
+    }
+    let raw = &buf[..len.min(buf.len())];
+    let s = String::from_utf8_lossy(raw).trim_end_matches('\0').trim().to_ascii_lowercase();
+    (!s.is_empty()).then_some(s)
 }
 
 /// The PTY's foreground process group (`tcgetpgrp` on the master) with its
