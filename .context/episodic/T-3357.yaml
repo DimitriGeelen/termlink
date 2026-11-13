@@ -1,0 +1,226 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3357: arc-011 role chain step 8: planner
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T17:33:50Z
+# ============================================================================
+
+task_id: T-3357
+task_name: "arc-011 role chain step 8: planner"
+workflow_type: specification
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-06T10:14:23Z
+completed: 2026-11-13T17:33:27Z
+duration_days: 38
+updates_count: 4
+first_commit: 2026-11-12T15:39:54+01:00
+last_commit: 2026-11-13T18:32:24+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  step 8 planner dispatched (brief); T-3689 closed. step 8 build plan v0.1 (71 units, 7 explorations, typed edges, coverage, D-1, D-2). step 8 hand-back record; agent criteria the output meets. review and approval criteria for the step 8 plan. reviewer verdict. step 8 plan v0.2, repair after independent review r1 (F-1..F-4). step 8 plan v0.3, repair after independent review r2 (F-5, F-6). independent review green (V-20261112-ef81628a), applied. G-0 operator ruling A recorded (plan v0.3 approved with PD-1..PD-3). G-0 work items, PH-2 batch 1 (P-1..P-27 new tasks T-3692..T-3711). G-0 work items, PH-2 batch 2 (P-28..P-42 new; existing tasks mapped, section 7 applied). G-0 work items, PH-3 (P-48..P-54: new T-3722..T-3727; T-3347 = P-51). G-0 work items, PH-4..PH-6 (P-55..P-71 new tasks T-3728..T-3743). G-0 work items, explorations X-1..X-7 (new inceptions T-3744..T-3748; T-3385 = X-3, T-3663 = X-7). plan 08 v0.4, work-item map after G-0 (section 12.4..12.7). P-46 sent to AEF on operator release (message id recorded in the plan map). P-44 sent to AEF on operator release (ruling B, after T-3761 fixture); message id recorded in the plan map. refresh the step 8 hand-back for plan v0.4 (output hash, input hashes, 6.3 met) after review r4 amber
+
+# Key outcomes
+outcomes:
+  - 'Step 7 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3)'
+  - 'Role session dispatched with the yaml''s order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned'
+  - '`docs/design/interactive-agent-communication-08-plan.md` exists with a version table and an inputs-of-record section citing the input hashes'
+  - 'Build plan with tasks on arc-011; the build tasks captured from the step-1 rulings (priority, main lease, sequence numbers, mail-hub check, standing tests, NTP check, canary, sidecar, hub canonical id) re-scoped or confirmed against the plan'
+  - 'R-41 typed work-message slice placed (OD-13)'
+  - 'Role-chain yaml step 8 `task:` set to this task id'
+  - 'Operator approval of step 8 recorded: his ruling, in his words, with date and channel, under `## Decisions` (evidence: "### 2026-11-12 — G-0: approve the step 8 build plan (operator ruling)", words "A"; replaces the former Human box per operator ruling 1A 2026-11-13, README 5.1)'
+  - '[REVIEW] Independent review: step 8 plan meets the planner card''s completion conditions (coverage complete,'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'P-44 sent to AEF on operator release (ruling B, after T-3761 fixture); message id recorded in the plan map'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — G-0: approve the step 8 build plan (operator ruling)'
+    chose: 'A — approve docs/design/interactive-agent-communication-08-plan.md v0.3 (71 units, 7 explorations, 9 gates) with PD-1 (B-16 before the full B-14 status), PD-2 (step-1 task proposals of 7.1: T-3359 superseded; T-3360, T-3363, T-3366 split; T-3358, T-3362, T-3364, T-3361 confirmed) and PD-3 (P-1..P-3 before B-25) as recommended.'
+    rationale: 'independent review green after three rounds (V-20261112-ef81628a); PD-1..PD-3 keep ruling A''s order; every decommission, release cut, phase move and exploration keeps its own later gate.'
+    alternatives_rejected: ['B (ask PD-1..PD-3 separately: more rounds for choices that keep the ruled order), C (no change named), D (defer: build queue idle). - Operator words in chat: "A" (after a plain-language explanation of the options). Authorises: work items per plan section 12; section 7 proposals applied to each task with a Decisions entry. Left open: G-1..G-8, X-1..X-7, FP-4 values. - (Superseded 2026-11-13 by ruling 1A: no separate approval box; this recorded ruling is the approval.)']
+  - decision: '2026-11-13 — no second approval box (operator ruling 1A)'
+    chose: 'A — the recorded G-0 ruling above is the approval; the "[REVIEW] Step 8 plan approved" box is replaced by an Agent criterion that checks the ruling is on record (same in T-3356; README section 5 / 5.1).'
+    rationale: 'a second box for a decision already made is rubber-stamping ("we don''t do rubber stamping").'
+    alternatives_rejected: ['B keep the box; C route step 8 to a reviewer (a reviewer re-confirming the operator''s own decision). - Operator words in chat: "1A".']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3689.yaml'
+  - '.context/reviews/applied.jsonl'
+  - '.context/reviews/evidence/T-3357/AC1-judge-t-3357-r1-2d20aefb82f3.md'
+  - '.context/reviews/evidence/T-3357/AC1-judge-t-3357-r1-60cc5472679a.md'
+  - '.context/reviews/evidence/T-3357/AC1-judge-t-3357-r1-6126e8d19de0.md'
+  - '.context/reviews/evidence/T-3357/AC1-judge-t-3357-r1-7d6b2dfb08fc.md'
+  - '.context/reviews/evidence/T-3357/AC1-judge-t-3357-r1-e76ee5d32188.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/refusals-interim.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.context/working/feedback-stream.yaml'
+  - '.tasks/active/T-3347-cross-hub-read-of-a-messages-stage-and-r.md'
+  - '.tasks/active/T-3357-arc-011-role-chain-step-8-planner.md'
+  - '.tasks/active/T-3358-send-tooling---priority-option-for-agent.md'
+  - '.tasks/active/T-3359-role-main-readiness-gated-fenced-lease-a.md'
+  - '.tasks/active/T-3360-standing-tests-od-18-takeover-tests-and-.md'
+  - '.tasks/active/T-3361-daily-end-to-end-two-agent-message-canar.md'
+  - '.tasks/active/T-3362-sender-assigned-per-conversation-sequenc.md'
+  - '.tasks/active/T-3363-declared-mail-hub-projects-declare-canon.md'
+  - '.tasks/active/T-3364-preflight-ntp-synchronised-clock-check-c.md'
+  - '.tasks/active/T-3366-hub-canonical-id-minted-once-and-persist.md'
+  - '.tasks/active/T-3382-project-inbox-topics-are-forever-and-gro.md'
+  - '.tasks/active/T-3385-inception-otp-style-out-of-band-approval.md'
+  - '.tasks/active/T-3433-arc-011-fx-5-disclosure-inventory-check-.md'
+  - '.tasks/active/T-3614-artifact-putget-add---hub-so-a-remote-hu.md'
+  - '.tasks/active/T-3654-main-session-only-delivery-for-agents-wi.md'
+  - '.tasks/active/T-3663-bring-existing-cross-machine-file-routes.md'
+  - '.tasks/active/T-3669-t-3654-ac4-remainder-forward-non-main-ma.md'
+  - '.tasks/active/T-3687-arc-011-b-27-activity-meter-s1-pty-input.md'
+  - '.tasks/active/T-3688-arc-011-full-macos-activity-veto-for-the.md'
+  - '.tasks/active/T-3692-p-1-persist-lastprompt-with-ready-b-27-f.md'
+  - '.tasks/active/T-3693-p-2-order-ready-on-bootid-monons-b-27-fo.md'
+  - '.tasks/active/T-3694-p-4-b-25-lease-tightening-and-waiting-ma.md'
+  - '.tasks/active/T-3695-p-5-pull-withholds-only-role-mail-from-a.md'
+  - '.tasks/active/T-3696-p-6-b-11-per-agent-encryption-keys-and-t.md'
+  - '.tasks/active/T-3697-p-7-b-16-doorbell-d-and-300-s-watchdog-k.md'
+  - '.tasks/active/T-3698-p-8-release-install-action-for-107-in-ru.md'
+  - '.tasks/active/T-3699-p-9-w2-doorbell-on-for-the-w1-pair-h-11-.md'
+  - '.tasks/active/T-3700-p-12-b-2-consumer-list-per-inbox-and-bin.md'
+  - '.tasks/active/T-3701-p-13-b-3-admin-rpc-log-sweep-refusal-ret.md'
+  - '.tasks/active/T-3702-p-14-b-4-founding-verb-use-log-and-owner.md'
+  - '.tasks/active/T-3703-p-15-b-5-revocation-list.md'
+  - '.tasks/active/T-3704-p-16-b-6-agent-key-card-and-post-time-si.md'
+  - '.tasks/active/T-3705-p-17-b-7-receiver-quotas-sender-window-h.md'
+  - '.tasks/active/T-3706-p-20-b-10-reconciliation-on-start-and-da.md'
+  - '.tasks/active/T-3707-p-21-b-12-blobs-on-the-chain-with-both-d.md'
+  - '.tasks/active/T-3708-p-24-b-14-status-strength-flags-reachabi.md'
+  - '.tasks/active/T-3709-p-25-b-15-fault-injectors-and-the-drill.md'
+  - '.tasks/active/T-3710-p-26-b-18-log-half-vendor-channel-log-ho.md'
+  - '.tasks/active/T-3711-p-27-b-26-session-message-prover-on-the-.md'
+  - '.tasks/active/T-3712-p-28-b-18-deny-half-sendmessage-deny-run.md'
+  - '.tasks/active/T-3713-p-31-credential-migration-on-107.md'
+  - '.tasks/active/T-3714-p-33-production-invariant-checks-e-125e-.md'
+  - '.tasks/active/T-3715-p-36-w3-every-agent-on-107-through-the-l.md'
+  - '.tasks/active/T-3716-p-37-break-glass-drill-at-w3-scale.md'
+  - '.tasks/active/T-3717-p-38-ph-2-operator-documentation-and-w2w.md'
+  - '.tasks/active/T-3718-p-39-ph-1-built-invariants-re-asserted-o.md'
+  - '.tasks/active/T-3719-p-40-b-22-w3-acceptance-and-ph-2-exit-re.md'
+  - '.tasks/active/T-3720-p-41-w4-decommission-of-the-aef-receiver.md'
+  - '.tasks/active/T-3721-p-42-retire-the-w1-trial-provisioning-sc.md'
+  - '.tasks/active/T-3722-p-48-k-28-directory-roster-and-signed-ca.md'
+  - '.tasks/active/T-3723-p-49-k-27-tier-0-event-registry-and-audi.md'
+  - '.tasks/active/T-3724-p-50-every-client-verifies-the-hub-id-cr.md'
+  - '.tasks/active/T-3725-p-52-k-30-account-helper-and-a0-pilot.md'
+  - '.tasks/active/T-3726-p-53-t4-decommission-sidecar-alias-ended.md'
+  - '.tasks/active/T-3727-p-54-ph-3-exit-report.md'
+  - '.tasks/active/T-3728-p-55-k-26-policy-store-and-rule-engine-d.md'
+  - '.tasks/active/T-3729-p-56-grants-tier-23-starts-exact-instanc.md'
+  - '.tasks/active/T-3730-p-57-main-eligibility-from-signed-profil.md'
+  - '.tasks/active/T-3731-p-58-conversation-membership-epochs-fenc.md'
+  - '.tasks/active/T-3732-p-59-framing-on-the-old-rails-fx-1-fx-4.md'
+  - '.tasks/active/T-3733-p-60-track-a-stage-a3-per-agent-accounts.md'
+  - '.tasks/active/T-3734-p-61-ph-4-exit-report.md'
+  - '.tasks/active/T-3735-p-62-k-29-direct-circuit-and-sender-cons.md'
+  - '.tasks/active/T-3736-p-63-ph-5-exit-report-with-the-h-27-valu.md'
+  - '.tasks/active/T-3737-p-64-track-k-operator-key-off-agent-host.md'
+  - '.tasks/active/T-3738-p-65-k-31-project-mail-custody-key-and-b.md'
+  - '.tasks/active/T-3739-p-66-track-a-stage-a4-orchestrator-witho.md'
+  - '.tasks/active/T-3740-p-67-r-36-digests-and-r-9-startup-chain-.md'
+  - '.tasks/active/T-3741-p-68-r-41-typed-work-messages-after-x-1-.md'
+  - '.tasks/active/T-3742-p-70-target-decommission-shell-sidecars-.md'
+  - '.tasks/active/T-3743-p-71-arc-011-closing-report.md'
+  - '.tasks/active/T-3744-x-1-r-41-typed-work-message-slice-design.md'
+  - '.tasks/active/T-3745-x-2-ph-3-detailed-sub-design-04b.md'
+  - '.tasks/active/T-3746-x-4-ph-5-circuit-sub-design-and-h-1--h-2.md'
+  - '.tasks/active/T-3747-x-5-track-a-after-the-a0-pilot-a1a3-or-n.md'
+  - '.tasks/active/T-3748-x-6-re-wrap-cost-for-long-encrypted-hist.md'
+  - '.tasks/completed/T-3686-main-lease-test-seams-termlinkmaintest-a.md'
+  - '.tasks/completed/T-3689-arc-011-fold-step-7-change-requests-cr-1.md'
+  - 'docs/design/interactive-agent-communication-08-plan.md'
+  - 'docs/design/interactive-agent-communication/role-handback-step-08.json'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T15:39:54'
+    action: 'T-3357: step 8 planner dispatched (brief); T-3689 closed'
+  - time: '2026-11-12T15:53:07'
+    action: 'T-3357: step 8 build plan v0.1 (71 units, 7 explorations, typed edges, coverage, D-1, D-2)'
+  - time: '2026-11-12T15:54:01'
+    action: 'T-3357: step 8 hand-back record; agent criteria the output meets'
+  - time: '2026-11-12T16:14:38'
+    action: 'T-3357: review and approval criteria for the step 8 plan'
+  - time: '2026-11-12T16:20:02'
+    action: 'T-3357: reviewer verdict'
+  - time: '2026-11-12T16:25:33'
+    action: 'T-3357: step 8 plan v0.2, repair after independent review r1 (F-1..F-4)'
+  - time: '2026-11-12T17:17:51'
+    action: 'T-3357: reviewer verdict'
+  - time: '2026-11-12T17:27:16'
+    action: 'T-3357: step 8 plan v0.3, repair after independent review r2 (F-5, F-6)'
+  - time: '2026-11-12T17:41:39'
+    action: 'T-3357: reviewer verdict'
+  - time: '2026-11-12T17:42:42'
+    action: 'T-3357: independent review green (V-20261112-ef81628a), applied'
+  - time: '2026-11-12T17:50:33'
+    action: 'T-3357: G-0 operator ruling A recorded (plan v0.3 approved with PD-1..PD-3)'
+  - time: '2026-11-12T18:03:14'
+    action: 'T-3357: G-0 work items, PH-2 batch 1 (P-1..P-27 new tasks T-3692..T-3711)'
+  - time: '2026-11-12T18:10:09'
+    action: 'T-3357: G-0 work items, PH-2 batch 2 (P-28..P-42 new; existing tasks mapped, section 7 applied)'
+  - time: '2026-11-12T18:11:46'
+    action: 'T-3357: G-0 work items, PH-3 (P-48..P-54: new T-3722..T-3727; T-3347 = P-51)'
+  - time: '2026-11-12T18:14:32'
+    action: 'T-3357: G-0 work items, PH-4..PH-6 (P-55..P-71 new tasks T-3728..T-3743)'
+  - time: '2026-11-12T18:17:22'
+    action: 'T-3357: G-0 work items, explorations X-1..X-7 (new inceptions T-3744..T-3748; T-3385 = X-3, T-3663 = X-7)'
+  - time: '2026-11-12T18:18:59'
+    action: 'T-3357: plan 08 v0.4, work-item map after G-0 (section 12.4..12.7)'
+  - time: '2026-11-12T18:53:18'
+    action: 'T-3357: P-46 sent to AEF on operator release (message id recorded in the plan map)'
+  - time: '2026-11-13T01:40:57'
+    action: 'T-3357: P-44 sent to AEF on operator release (ruling B, after T-3761 fixture); message id recorded in the plan map'
+  - time: '2026-11-13T18:23:59'
+    action: 'T-3357: reviewer verdict'
+  - time: '2026-11-13T18:29:09'
+    action: 'T-3357: refresh the step 8 hand-back for plan v0.4 (output hash, input hashes, 6.3 met) after review r4 amber'
+  - time: '2026-11-13T18:32:24'
+    action: 'T-3357: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 23 commit(s), 55159 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 55159
+  commits: 24
+  files_changed: 98
+  lines_added: 24235
+  lines_removed: 325
+  footprint_refreshed_at: '2026-11-13T17:34:15Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3357-arc-011-role-chain-step-8-planner.md
+generated_by: context-agent-hybrid
