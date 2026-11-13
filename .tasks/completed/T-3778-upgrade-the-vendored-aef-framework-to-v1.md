@@ -15,12 +15,12 @@ description: >
   verify fw version, Watchtower on 192.168.10.107:3003, a dispatch reaching 'Worker
   spawned' in < 10 s, fw doctor. Rejected: B wait for T-5120 retention; C no upgrade.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -49,8 +49,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T15:01:36Z
-last_update: 2026-11-13T17:18:11Z
-date_finished:
+last_update: 2026-11-13T18:21:29Z
+date_finished: 2026-11-13T18:21:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -339,10 +339,21 @@ TMPDIR=/var/tmp timeout 1500 bash tests/runme-fixtures.sh > .context/working/t37
 bash -c 'cd .context/vendor-merges/T-3778 && grep -v "^#" MANIFEST.tsv | awk -F"\t" "{print \$4\"  \"\$1\".merged\"}" > ../../working/t3778-sums && test -s ../../working/t3778-sums && sha256sum -c --quiet ../../working/t3778-sums'
 bash scripts/check-vendor-divergence.sh > .context/working/t3778-cvd.out 2>&1 && grep -q 'all registered' .context/working/t3778-cvd.out
 python3 -c "import yaml; yaml.safe_load(open('.vendor-divergence.yaml'))"
-grep -q 'finished rc=0' .context/working/runme-logs/latest.log && grep -q '11a. Upgrade the vendored framework' .context/working/runme-logs/latest.log
+# the operator's run 20261113T165216Z: every 11a line OK, and the only FAILED lines are the offline greenfield host (rc stays 1 while .132 is offline)
+grep -q 'OK      fw doctor: no new FAIL; vendored framework at 1.8.15+1122.gda9942919' .context/working/runme-logs/runme-20261113T165216Z-355154.log
+grep -E '^  FAILED ' .context/working/runme-logs/runme-20261113T165216Z-355154.log > .context/working/t3778/failed-lines.txt; ! grep -v 'greenfield' .context/working/t3778/failed-lines.txt
 grep -q 'T-5105' .agentic-framework/agents/termlink/termlink.sh
 
 ## RCA
+
+**Symptom:** every `fw termlink dispatch` on .107 took 60-80 s before 'Worker spawned', so `fw reviewer judge` (hard
+120 s dispatch limit) failed 'no seat was dispatched' and the T-3356/T-3357 reviews could not run (T-3777).
+**Root cause:** our vendored AEF copy (be.27) predated AEF T-5105; its `_all_wdirs` scanned 7,371 worker dirs in the
+shared /tmp/tl-dispatch with two forks each and a quadratic string match.
+**Why structurally allowed:** nothing measures dispatch start time, and a vendored framework only changes when the
+operator rules an upgrade; the slowdown grew with the shared dir until it crossed the judge's limit.
+**Prevention:** upgraded to be.49 (measured 3.8 s after); AEF T-5121 makes the judge limit configurable and names it on
+timeout; AEF T-5120 (retention of finished worker dirs) is filed upstream.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -447,3 +458,16 @@ grep -q 'T-5105' .agentic-framework/agents/termlink/termlink.sh
 
 ### 2026-11-13T15:03:21Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-13T18:21:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-95c0ce16
+- **Timestamp:** 2026-11-13T18:42:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

@@ -1,0 +1,224 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3778: Upgrade the vendored AEF framework to v1.8.16-be.49 (dispatch scan fix T-5105) via one runme action, keeping Watchtower reachable on the network
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T18:42:52Z
+# ============================================================================
+
+task_id: T-3778
+task_name: "Upgrade the vendored AEF framework to v1.8.16-be.49 (dispatch scan fix T-5105) via one runme action, keeping Watchtower reachable on the network"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-13T15:01:36Z
+completed: 2026-11-13T18:21:29Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-13T16:34:17+01:00
+last_commit: 2026-11-13T18:18:12+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 11a — vendored AEF upgrade to v1.8.16-be.49 (T-5105), resolved preserved-file merges, Watchtower kept on the LAN; 17 fixture cases. fw upgrade -> v1.8.16-be.49 (da9942919, 451 commits; T-5105 dispatch scan; runme 11a). promote last_vendor_event to 5db3d2dbb (be.49 upgrade, runme 11a OK; dispatch start 3.8 s)
+
+# Key outcomes
+outcomes:
+  - '`runme.sh` has one T-3778 action that: skips when the vendored version is at or past be.49 AND the post-checks'
+  - 'The action verifies on disk and reports FAILED (rc 1) when any check misses: version at or past be.49 (by'
+  - 'The action commits only the vendored tree and the upgrade''s own outputs with a T-3778 message and pushes to'
+  - '`tests/runme-fixtures.sh` covers it hermetically through RUNME_* seams: skip-when-done, success path, and'
+  - '`bash -n runme.sh` passes and the runme fixture suite passes'
+  - 'The two conflicting preserved-file merges (safe-commands.sh, handover.sh) are resolved and stored with a hash'
+  - 'After the operator''s run, the runme log shows every 11a line OK (or skip) and no FAILED line other than the'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 11a — vendored AEF upgrade to v1.8.16-be.49 (T-5105), resolved preserved-file merges, Watchtower kept on the LAN; 17 fixture cases'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-13 — upgrade the vendored framework to be.49 (operator ruling)'
+    chose: 'A — upgrade now to v1.8.16-be.49 (T-5105 dispatch scan fix), through one runme action that restores Watchtower''s LAN binding. - **Operator''s words:** "A"'
+    alternatives_rejected: ['B wait for T-5120 retention; C no upgrade.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/.upstream'
+  - '.agentic-framework/FRAMEWORK.md'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/context/budget-gate.sh'
+  - '.agentic-framework/agents/context/checkpoint.sh'
+  - '.agentic-framework/agents/context/lib/episodic.sh'
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.agentic-framework/agents/designer/designer.sh'
+  - '.agentic-framework/agents/fabric/lib/register.sh'
+  - '.agentic-framework/agents/git/lib/stale-index-guard.py'
+  - '.agentic-framework/agents/handover/handover.sh'
+  - '.agentic-framework/agents/mcp/framework_mcp_server.py'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/agents/testhost/guest-run.sh'
+  - '.agentic-framework/agents/testhost/pr-checks.sh'
+  - '.agentic-framework/agents/testhost/template/aef-testhost-boot.sh'
+  - '.agentic-framework/agents/testhost/template/aef-testhost.service'
+  - '.agentic-framework/agents/testhost/template/packages.txt'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/bin/watchtower.sh'
+  - '.agentic-framework/docs/generated/components/agents-testhost-guest-run.md'
+  - '.agentic-framework/docs/generated/components/agents-testhost-pr-checks.md'
+  - '.agentic-framework/docs/generated/components/lib-config_components.md'
+  - '.agentic-framework/docs/generated/components/lib-mirror.md'
+  - '.agentic-framework/docs/generated/components/lib-optional_components.md'
+  - '.agentic-framework/docs/generated/components/lib-outside_commits.md'
+  - '.agentic-framework/docs/generated/components/lib-sidecar-main_session.md'
+  - '.agentic-framework/docs/generated/components/lib-test-bundle.md'
+  - '.agentic-framework/docs/generated/components/lib-testhost.md'
+  - '.agentic-framework/docs/generated/components/lib-working-oversize.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4239_default_bind_loopback.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4355_doctor_absent_components.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4360_watchtower_restart_keeps_host.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5077_sed_i_keeps_file_meta.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5078_pid_alive_reap_race.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5079_declared_release_artifacts_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t4359_operator_marker.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5080_config_components.md'
+  - '.agentic-framework/docs/generated/components/tests-web-test_t5081_owner_handback.md'
+  - '.agentic-framework/docs/generated/components/tests-web-test_t5084_review_completed_state.md'
+  - '.agentic-framework/docs/generated/components/tests-web-test_t5085_review_header_refresh.md'
+  - '.agentic-framework/docs/generated/components/tests-web-test_t5086_review_full_page_state.md'
+  - '.agentic-framework/docs/releases/v1.8.16-notes.md'
+  - '.agentic-framework/docs/reports/T-1549-escalation-scan-v0.md'
+  - '.agentic-framework/docs/reports/T-5006-draft-plan-for-mehdi.docx'
+  - '.agentic-framework/docs/reports/T-5006-draft-plan-for-mehdi.md'
+  - '.agentic-framework/docs/reports/T-5006-draft-plan-for-mehdi.pdf'
+  - '.agentic-framework/docs/reports/T-5006-github-contributions.md'
+  - '.agentic-framework/docs/reports/T-5006-requirements.md'
+  - '.agentic-framework/docs/reports/T-5006-roadmap.md'
+  - '.agentic-framework/docs/reports/T-5009-isolated-test-host-design.md'
+  - '.agentic-framework/docs/reports/T-5009-review-codex.md'
+  - '.agentic-framework/docs/reports/T-5009-review-opencode.md'
+  - '.agentic-framework/docs/reports/T-5009-review-r3-brief.md'
+  - '.agentic-framework/docs/reports/T-5009-review-r3-codex.md'
+  - '.agentic-framework/docs/reports/T-5009-review-r3-opencode.md'
+  - '.agentic-framework/docs/reports/T-5016-focus-anchor.md'
+  - '.agentic-framework/docs/reports/T-5021-review-r2-codex.md'
+  - '.agentic-framework/docs/reports/T-5021-review-r2-opencode.md'
+  - '.agentic-framework/docs/reports/T-5066-remote-nodes-writeup.md'
+  - '.agentic-framework/docs/reports/T-5069-node1-unit-suite-spec.md'
+  - '.agentic-framework/docs/reports/T-5073-node1-compare-590b.tsv'
+  - '.agentic-framework/docs/reports/T-5077-mode-repair.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.16-results.md'
+  - '.agentic-framework/lib/compat.sh'
+  - '.agentic-framework/lib/config-file.sh'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/config_components.py'
+  - '.agentic-framework/lib/costs.sh'
+  - '.agentic-framework/lib/delegation.py'
+  - '.agentic-framework/lib/gitignore-register.sh'
+  - '.agentic-framework/lib/govd_sandbox.py'
+  - '.agentic-framework/lib/inception_schema_backfill.py'
+  - '.agentic-framework/lib/issues.py'
+  - '.agentic-framework/lib/mirror.sh'
+  - '.agentic-framework/lib/operator_pending.py'
+  - '.agentic-framework/lib/optional_components.py'
+  - '.agentic-framework/lib/outside_commits.py'
+  - '.agentic-framework/lib/paths.sh'
+  - '.agentic-framework/lib/pid-alive.sh'
+  - '.agentic-framework/lib/release.sh'
+  - '.agentic-framework/lib/seeds/tasks/existing-project/T-002-first-governed-commit.md'
+  - '.agentic-framework/lib/seeds/tasks/existing-project/T-003-register-key-components.md'
+  - '.agentic-framework/lib/seeds/tasks/existing-project/T-004-complete-task-lifecycle.md'
+  - '.agentic-framework/lib/seeds/tasks/existing-project/T-005-generate-first-handover.md'
+  - '.agentic-framework/lib/seeds/tasks/existing-project/T-006-add-project-learning.md'
+  - '.agentic-framework/lib/shell_write_scan.py'
+  - '.agentic-framework/lib/sidecar/adapter.py'
+  - '.agentic-framework/lib/sidecar/addressing.py'
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - '.agentic-framework/lib/sidecar/watcher.py'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/spawn.py'
+  - '.agentic-framework/lib/task_updates.py'
+  - '.agentic-framework/lib/templates/claude-project.md'
+  - '.agentic-framework/lib/test-bundle.sh'
+  - '.agentic-framework/lib/testhost.py'
+  - '.agentic-framework/lib/testhost_proxmox.py'
+  - '.agentic-framework/lib/upstream.sh'
+  - '.agentic-framework/lib/vector-index-health.sh'
+  - '.agentic-framework/lib/vector_index_health.py'
+  - '.agentic-framework/lib/vendor_preserve.py'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/lib/watchtower.sh'
+  - '.agentic-framework/lib/working-gitignore.sh'
+  - '.agentic-framework/lib/working-oversize.sh'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/policy/internal-identities.yaml'
+  - '.agentic-framework/tools/escalation-scan-v0.py'
+  - '.agentic-framework/tools/prompt-sequence/run-sequence.sh'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.41.0.html'
+  - '.agentic-framework/vendor/designer/validate-workflow-0.41.0.py'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.agentic-framework/web/blueprints/designer_api.py'
+  - '.agentic-framework/web/blueprints/review.py'
+  - '.agentic-framework/web/blueprints/tasks.py'
+  - '.agentic-framework/web/config.py'
+  - '.agentic-framework/web/embeddings.py'
+  - '.agentic-framework/web/requirements.txt'
+  - '.agentic-framework/web/shared.py'
+  - '.agentic-framework/web/templates/_review_acs.html'
+  - '.agentic-framework/web/templates/review.html'
+  - '.context/vendor-merges/T-3778/MANIFEST.tsv'
+  - '.context/vendor-merges/T-3778/agents/context/lib/safe-commands.sh.merged'
+  - '.context/vendor-merges/T-3778/agents/handover/handover.sh.merged'
+  - '.context/vendor-merges/T-3778/lib/sidecar/inject.py.merged'
+  - '.context/vendor-merges/T-3778/lib/sidecar_cli.py.merged'
+  - '.framework.yaml'
+  - '.tasks/active/T-3778-upgrade-the-vendored-aef-framework-to-v1.md'
+  - '.vendor-divergence.yaml'
+  - 'CLAUDE.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T16:34:17'
+    action: 'T-3778: runme action 11a — vendored AEF upgrade to v1.8.16-be.49 (T-5105), resolved preserved-file merges, Watchtower kept on the LAN; 17 fixture cases'
+  - time: '2026-11-13T18:12:25'
+    action: 'T-3778: fw upgrade -> v1.8.16-be.49 (da9942919, 451 commits; T-5105 dispatch scan; runme 11a)'
+  - time: '2026-11-13T18:18:12'
+    action: 'T-3778: promote last_vendor_event to 5db3d2dbb (be.49 upgrade, runme 11a OK; dispatch start 3.8 s)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 199 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 199
+  commits: 4
+  files_changed: 139
+  lines_added: 17181
+  lines_removed: 660
+  footprint_refreshed_at: '2026-11-13T18:43:08Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3778-upgrade-the-vendored-aef-framework-to-v1.md
+generated_by: context-agent-hybrid
