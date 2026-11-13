@@ -128,6 +128,7 @@ idempotently from it and the build queue (B-25 -> B-11 -> B-16) runs against it.
 - [x] Build plan with tasks on arc-011; the build tasks captured from the step-1 rulings (priority, main lease, sequence numbers, mail-hub check, standing tests, NTP check, canary, sidecar, hub canonical id) re-scoped or confirmed against the plan
 - [x] R-41 typed work-message slice placed (OD-13)
 - [x] Role-chain yaml step 8 `task:` set to this task id
+- [x] Operator approval of step 8 recorded: his ruling, in his words, with date and channel, under `## Decisions` (evidence: "### 2026-11-12 — G-0: approve the step 8 build plan (operator ruling)", words "A"; replaces the former Human box per operator ruling 1A 2026-11-13, README 5.1)
 
 ### Human
 - [x] [REVIEW] Independent review: step 8 plan meets the planner card's completion conditions (coverage complete,
@@ -139,13 +140,6 @@ idempotently from it and the build queue (B-25 -> B-11 -> B-16) runs against it.
   **Expected:** a green verdict bound to the reviewed revision, applied with `fw reviewer verdict apply T-3357`.
   **If not:** findings go back to the planner role (max 2-3 rounds), then each is dispositioned.
   **Reviewer verdict:** green V-20261112-ef81628a — reviewer-judge-t-3357-r1-7d6b2dfb08fc:reviewer (rung rung-1-same-vendor-independent), digest b6908d3b8c09; dispatch judge-t-3357-r1-7d6b2dfb08fc; evidence: .context/reviews/evidence/T-3357/AC1-judge-t-3357-r1-7d6b2dfb08fc.md; ledger .context/reviews/verdicts.jsonl
-- [ ] [REVIEW] Step 8 plan approved (gate G-0, the last design approval; no work item exists before it)
-  **Steps:**
-  1. Open http://192.168.10.107:3003/review/T-3357 and read docs/design/interactive-agent-communication-08-plan.md
-     (units P-n by phase, order table, D-2 order view with your decision points, explorations X-1..X-7).
-  2. Check the first units match ruling A: P-1..P-5 small fixes and B-25, then B-11, then B-16.
-  **Expected:** you approve; the agent then creates one task per P-n idempotently (card 3.2, 6.3).
-  **If not:** say which unit, order or exploration to change; the planner revises the plan.
 
 ## Verification
 
@@ -233,7 +227,14 @@ grep -q 'task: T-3357' docs/design/interactive-agent-communication-role-chain.ya
   D (defer: build queue idle).
 - Operator words in chat: "A" (after a plain-language explanation of the options). Authorises: work items per plan
   section 12; section 7 proposals applied to each task with a Decisions entry. Left open: G-1..G-8, X-1..X-7, FP-4 values.
-- The operator ticks "[REVIEW] Step 8 plan approved" in Watchtower himself (/review/T-3357); the agent does not.
+- (Superseded 2026-11-13 by ruling 1A: no separate approval box; this recorded ruling is the approval.)
+
+### 2026-11-13 — no second approval box (operator ruling 1A)
+- **Chose:** A — the recorded G-0 ruling above is the approval; the "[REVIEW] Step 8 plan approved" box is replaced by
+  an Agent criterion that checks the ruling is on record (same in T-3356; README section 5 / 5.1).
+- **Why:** a second box for a decision already made is rubber-stamping ("we don't do rubber stamping").
+- **Rejected:** B keep the box; C route step 8 to a reviewer (a reviewer re-confirming the operator's own decision).
+- Operator words in chat: "1A".
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

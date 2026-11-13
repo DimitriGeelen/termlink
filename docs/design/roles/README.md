@@ -68,12 +68,18 @@ numbered text equivalent.
 ## 5 The two acceptance criteria of every step task (ring20 3.5, lessons 5.3 and 5.4)
 
 ```
+### Agent
+- [ ] Operator approval of step N recorded: his ruling, in his words, with date and channel, under `## Decisions`
+  (the approval is the operator's decision; the criterion only checks that it is on record)
 ### Human
 - [ ] [REVIEW] Independent review: step N output meets its role card's completion conditions and is fit as input for the next role
   (Steps: the orchestrator runs the review; a reviewer never runs review commands itself — lesson 5.2)
-- [ ] [REVIEW] Step N output approved
-  **Sovereignty:** operator decision only
 ```
+
+5.1 **No second approval box (operator ruling 1A, 2026-11-13, T-3356/T-3357).** The operator approves a deciding
+step once, by a ruling in chat or in Watchtower; the agent records it with his words. A separate "[REVIEW] Step N
+output approved" box asked him to confirm the same decision a second time, which is rubber-stamping ("we don't do
+rubber stamping"). The approval itself is never delegated: without a recorded ruling the step is not approved.
 
 ## 6 Lessons we already share with ring20
 

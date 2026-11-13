@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:14:09Z
-last_update: 2026-11-12T11:38:18Z
+last_update: 2026-11-13T14:27:38Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -127,6 +127,7 @@ disposition table; accepted findings become change requests to their steps (or t
 - [x] `docs/design/interactive-agent-communication-07-review.md` exists with a version table and an inputs-of-record section citing the input hashes (evidence: sections 0 and 1, including the four answer files)
 - [x] External review panel run on steps 1, 4, 6; every finding dispositioned (accepted / rejected with reason / deferred) (evidence: 07-review section 4: 71 raw findings -> F-1..F-51, 42 accepted / 6 rejected / 3 deferred; Codex unavailable three times, recorded as RQ-1)
 - [x] Role-chain yaml step 7 `task:` set to this task id (evidence: role-chain yaml line 94 `task: T-3356`)
+- [x] Operator approval of step 7 recorded: his ruling, in his words, with date and channel, under `## Decisions` (evidence: "### 2026-11-12 — step 7 approved (operator: "A", in chat)"; replaces the former Human box per operator ruling 1A 2026-11-13, README 5.1)
 
 ### Human
 - [x] [REVIEW] Independent review: step 7 output meets the review-panel card's completion conditions and is fit as input
@@ -138,15 +139,6 @@ disposition table; accepted findings become change requests to their steps (or t
   **Expected:** a green verdict bound to the reviewed revision, applied with `fw reviewer verdict apply T-3356`.
   **If not:** findings go back to the review-panel role (max 2-3 rounds), then each is dispositioned.
   **Reviewer verdict:** green V-20261112-ea77f764 — reviewer-judge-t-3356-r1-1474da8da2eb:reviewer (rung rung-1-same-vendor-independent), digest f90036b3f4c3; dispatch judge-t-3356-r1-1474da8da2eb; evidence: .context/reviews/evidence/T-3356/AC1-judge-t-3356-r1-1474da8da2eb.md; ledger .context/reviews/verdicts.jsonl
-- [ ] [REVIEW] Step 7 output approved
-  **Sovereignty:** operator decision only.
-  **Steps:**
-  1. The agent presents, one at a time, the security findings proposed for rejection or deferral (F-7, F-36, F-37,
-     F-38, F-39 reject; F-25 defer with risk acceptance RQ-3), then F-1 (a change to ruled watchdog text), RQ-2 and
-     RQ-1 (close the panel at three vendors).
-  **Expected:** each ruled and recorded under Decisions; then the operator approves step 7.
-  **If not:** say what to change; the review-panel role revises.
-  (Added 2026-11-12 by the orchestrator: README section 5 requires both criteria on every deciding step.)
 
 ## Verification
 
@@ -289,9 +281,17 @@ grep -q 'task: T-3356' docs/design/interactive-agent-communication-role-chain.ya
 - **Chose:** A, approve step 7: 07-review v0.1 with the operator's rulings above (F-7, F-36..F-39 rejected; F-25
   accepted with detector; F-1 approved; F-20 ruling D; panel closed at three vendors) and the 42 accepted findings as
   change requests to steps 1, 4, 5, 6 and to B-27 (T-3687).
-- **Left:** the operator ticks the "[REVIEW] Step 7 output approved" box himself in Watchtower (/review/T-3356); the
-  agent does not tick Human criteria. Next: fold the change requests into their steps (README 3: no step final with an
+- **Left (superseded 2026-11-13 by ruling 1A below):** a separate approval box. Next: fold the change requests into their steps (README 3: no step final with an
   open change request), the B-27 repair round, then step 8 (T-3357).
+
+### 2026-11-13 — no second approval box (operator ruling 1A)
+- **Chose:** A — the recorded ruling is the approval; the "[REVIEW] Step N output approved" box is replaced by an Agent
+  criterion that checks the ruling is on record (here and in T-3357; README section 5 / 5.1 changed accordingly).
+- **Why:** the operator had already approved step 7 in chat; a box asking him to confirm it again is rubber-stamping
+  ("we don't do rubber stamping. Knoop dat in je oren.").
+- **Rejected:** B keep the boxes (second confirmation of a made decision); C step 7 box kept, step 8 to a reviewer
+  (still a stamp, and a reviewer re-confirming the operator's decision).
+- Operator words in chat: "1A". The approval itself stays the operator's; without a recorded ruling no step is approved.
 
 ## Decision
 
