@@ -6,16 +6,16 @@ description: >
   Inception: Non-root design session needs dispatch: own hub, root, a root-side dispatch
   service, or delegation (external consultation)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-11-12T23:13:17Z
-last_update: 2026-11-13T00:18:45Z
-date_finished:
+last_update: 2026-11-13T12:53:27Z
+date_finished: 2026-11-13T12:53:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -93,15 +93,15 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -177,7 +177,16 @@ session with a fixed request form only.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Panel (claude-code, codex, antigravity; opencode unavailable) agrees a worker must never run as root for a non-root
+requester (repo hooks, build scripts and settings in a user-writable checkout give root code execution), and that
+execution and hub registration are separate problems. Build: the worker runs as the requesting user and registers on
+the main hub over TCP (hub side exists: session.register_remote, router.rs:774, scope interact server.rs:796-798) with a
+dedicated, user-bound registration capability so no one can impersonate another session. Interim: delegate to a root
+session with a fixed request form only.
+
+**Date**: 2026-11-13T12:53:26Z
 
 ## Updates
 
@@ -186,3 +195,35 @@ session with a fixed request form only.
 
 ### 2026-11-12T23:14:14Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-13T12:53:26Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Panel (claude-code, codex, antigravity; opencode unavailable) agrees a worker must never run as root for a non-root
+requester (repo hooks, build scripts and settings in a user-writable checkout give root code execution), and that
+execution and hub registration are separate problems. Build: the worker runs as the requesting user and registers on
+the main hub over TCP (hub side exists: session.register_remote, router.rs:774, scope interact server.rs:796-798) with a
+dedicated, user-bound registration capability so no one can impersonate another session. Interim: delegate to a root
+session with a fixed request form only.
+
+### 2026-11-13T12:53:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-54c1aaa8
+- **Timestamp:** 2026-11-13T12:53:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-e039b669
+- **Timestamp:** 2026-11-13T12:53:28Z
+- **Overall:** UNVERIFIED
+- **Claims:** 0
+- No verifiable claims found in ## Recommendation
