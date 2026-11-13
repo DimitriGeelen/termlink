@@ -23655,3 +23655,55 @@ task_id: T-3372
 payload:
   overall: CONFIRMED
   claim_count: 2
+---
+kind: scan_emitted
+timestamp: '2026-11-13T17:15:54Z'
+scan_id: R-b4dab199
+task_id: T-3524
+payload:
+  overall: CONCERN
+  finding_count: 5
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T17:15:54Z'
+scan_id: R-b4dab199
+task_id: T-3524
+payload:
+  task_file: .tasks/active/T-3524-wc03-which-remaining-vector-capabilities.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-11-13T17:15:54Z'
+scan_id: RC-c24777d6
+task_id: T-3524
+payload:
+  overall: CONFIRMED
+  claim_count: 2
+---
+kind: scan_emitted
+timestamp: '2026-11-13T17:16:11Z'
+scan_id: R-19cb4ff8
+task_id: T-3744
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T17:16:11Z'
+scan_id: R-19cb4ff8
+task_id: T-3744
+payload:
+  task_file: .tasks/active/T-3744-x-1-r-41-typed-work-message-slice-design.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-11-13T17:16:11Z'
+scan_id: RC-c9962abc
+task_id: T-3744
+payload:
+  overall: UNVERIFIED
+  claim_count: 0
