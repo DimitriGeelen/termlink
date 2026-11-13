@@ -189,24 +189,11 @@ fn err(code: &str, msg: &str, hint: &str) -> Value {
     json!({"error": msg, "code": code, "hint": hint})
 }
 
-/// Peer uid of a connected unix socket (`SO_PEERCRED`).
+/// Peer uid of a connected unix socket: `SO_PEERCRED` on Linux, `LOCAL_PEERCRED` on
+/// macOS, through the session crate's one implementation (T-3763: the Linux-only
+/// `libc::ucred` here never compiled on macOS, unseen while the macOS job was dead).
 pub fn peer_uid(s: &UnixStream) -> io::Result<u32> {
-    let mut cred: libc::ucred = libc::ucred { pid: 0, uid: 0, gid: 0 };
-    let mut len = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
-    // SAFETY: `cred` and `len` are valid for the call; the fd is owned by `s`.
-    let rc = unsafe {
-        libc::getsockopt(
-            s.as_raw_fd(),
-            libc::SOL_SOCKET,
-            libc::SO_PEERCRED,
-            &mut cred as *mut _ as *mut libc::c_void,
-            &mut len,
-        )
-    };
-    if rc != 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(cred.uid)
+    termlink_session::auth::PeerCredentials::from_raw_fd(s.as_raw_fd()).map(|c| c.uid)
 }
 
 impl Api {
