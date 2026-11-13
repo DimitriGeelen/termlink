@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3758: Retire dimitri-mint-dev's stale ~/.local/bin/termlink 0.11.931 (backup kept) so its shell uses the current binary and the T-3756 token
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T00:19:39Z
+# ============================================================================
+
+task_id: T-3758
+task_name: "Retire dimitri-mint-dev's stale ~/.local/bin/termlink 0.11.931 (backup kept) so its shell uses the current binary and the T-3756 token"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T22:35:16Z
+completed: 2026-11-12T23:53:49Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-13T00:32:41+01:00
+last_commit: 2026-11-13T00:32:41+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 22d — move dimitri-mint-dev's ~/.local/bin/termlink 0.11.931 to termlink.bak-0.11.931 (operator ruling A), as the user via runuser; verified on disk (sha256 + mode:owner:group, old path gone) and as the user in a fresh login shell (PATH resolves the current version, channel list --hub 127.0.0.1:9100 works with 22c's token); idempotent skip; 13 fixture cases incl. negative controls (different backup refused, still-stale resolution, failed round trip, wrong version, no runuser answer, unknown user); suite 320/0
+
+# Key outcomes
+outcomes:
+  - 'runme.sh has action 22d after 22c: moves `~USER/.local/bin/termlink` (version 0.11.931 only) to `termlink.bak-0.11.931` as the user, verifies sha256 and mode:owner:group of the backup equal the original and the old path is gone, then proves as the user: PATH resolution is not the old path, `termlink --version` equals the current binary''s, and `channel list --hub 127.0.0.1:9100` succeeds'
+  - 'Idempotent: a second run (already moved, verified) prints `skip` and changes nothing; `--dry-run` names the move and writes nothing'
+  - 'Negative controls in tests/runme-fixtures.sh, each FAILED with rc 1 and nothing overwritten: backup already exists with different content (both files byte-identical afterwards); resolution still stale after the move (another 0.11.931 earlier on PATH); the round trip fails; the old file is not 0.11.931 (left untouched); runuser gives no answer'
+  - 'All new cases use RUNME_* seams only (fake runuser, fake termlink, scratch home); the whole fixture suite passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 22d — move dimitri-mint-dev''s ~/.local/bin/termlink 0.11.931 to termlink.bak-0.11.931 (operator ruling A), as the user via runuser; verified on disk (sha256 + mode:owner:group, old path gone) and as the user in a fresh login shell (PATH resolves the current version, channel list --hub 127.0.0.1:9100 works with 22c''s token); idempotent skip; 13 fixture cases incl. negative controls (different backup refused, still-stale resolution, failed round trip, wrong version, no runuser answer, unknown user); suite 320/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — dimitri-mint-dev''s old termlink copy (operator ruling)'
+    chose: 'A — a runme action moves `/home/dimitri-mint-dev/.local/bin/termlink` (0.11.931) to `termlink.bak-0.11.931` in the same folder so the user''s PATH resolves `/usr/local/bin/termlink`; verified as the user (resolution, version, token round trip). Idempotent, FAILED on any miss, reversible by renaming the backup back.'
+    rationale: 'the old build predates `token_file` (T-3543), so a bare `termlink` there ignores the T-3756 token.'
+    alternatives_rejected: ['B, a link in the user folder (hides which binary runs); C, leave it (agents must type the full path, silent failure).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3758-retire-dimitri-mint-devs-stale-localbint.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T00:32:41'
+    action: 'T-3758: runme action 22d — move dimitri-mint-dev''s ~/.local/bin/termlink 0.11.931 to termlink.bak-0.11.931 (operator ruling A), as the user via runuser; verified on disk (sha256 + mode:owner:group, old path gone) and as the user in a fresh login shell (PATH resolves the current version, channel list --hub 127.0.0.1:9100 works with 22c''s token); idempotent skip; 13 fixture cases incl. negative controls (different backup refused, still-stale resolution, failed round trip, wrong version, no runuser answer, unknown user); suite 320/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 78 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 78
+  commits: 2
+  files_changed: 6
+  lines_added: 746
+  lines_removed: 7
+  footprint_refreshed_at: '2026-11-13T00:20:06Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3758-retire-dimitri-mint-devs-stale-localbint.md
+generated_by: context-agent-hybrid
