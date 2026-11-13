@@ -1871,7 +1871,7 @@ mod tests {
         let line = si1_line(&[a.clone(), b.clone()], 5).unwrap();
         assert_eq!(line, "sidecar: 5 peer messages waiting, ids 0123456789abcdef0123456789abcdef fedcba9876543210fedcba9876543210. The prompt hook shows them as untrusted data.");
         assert_eq!(line.len(), 150);
-        let h = |n: usize| "a".repeat(n);
+        let h = |n: usize| "a".repeat(n.clamp(1, 64));
         for (ids, count) in [
             (vec![h(31)], 1u64),
             (vec![h(33)], 1),
