@@ -47,7 +47,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T20:31:49Z
-last_update: '2026-11-13T17:32:07Z'
+last_update: 2026-11-13T17:46:21Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -110,11 +110,11 @@ by default, with TERMLINK_OWNER_ONLY_CHECK=0 as the rollback.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Step 1a: one shared resolver `founding_log::declared_from` (TERMLINK_FROM > TERMLINK_AGENT_ID > `user:<login>` > `uid:<n>`, never empty) and `with_declared_from` (keeps an explicit `from`, leaves non-objects alone); unit tests incl. the order, the never-overwrite rule and a gate negative control (unstamped call refused by owner-only)
-- [ ] Step 1b: CLI `exec`, `inject`, `pty inject` (incl. attach and the marker run), `remote inject`, `remote exec` and the push helpers stamp `from`; an end-to-end test reads the session's use-log row per verb, plus an owner-only control (owner accepted, another declared caller refused, both rows logged)
-- [ ] Step 1c: MCP `termlink_exec`, `termlink_inject`, `termlink_interact`, `termlink_remote_inject`, `termlink_remote_exec`, `termlink_batch_exec` and `termlink_remote_call` (founding verbs only) stamp `from`; an in-process test reads the rows for exec and inject
-- [ ] Step 1d: shell wakers (notify-injector, be-reachable-pushwaker, tl-dispatch) inject through the CLI, so they declare `from` with no script change; the sidecar doorbell's `command.notify` declares the agent it serves (unit test)
-- [ ] Step 1e: the hub relay does NOT stamp (it forwards params unchanged), so a relayed call keeps its originator's `from`; coverage map in docs/reports/T-3757-from-coverage.md
+- [x] Step 1a: one shared resolver `founding_log::declared_from` (TERMLINK_FROM > TERMLINK_AGENT_ID > `user:<login>` > `uid:<n>`, never empty) and `with_declared_from` (keeps an explicit `from`, leaves non-objects alone); unit tests incl. the order, the never-overwrite rule and a gate negative control (unstamped call refused by owner-only)
+- [x] Step 1b: CLI `exec`, `inject`, `pty inject` (incl. attach and the marker run), `remote inject`, `remote exec` and the push helpers stamp `from`; an end-to-end test reads the session's use-log row per verb, plus an owner-only control (owner accepted, another declared caller refused, both rows logged)
+- [x] Step 1c: MCP `termlink_exec`, `termlink_inject`, `termlink_interact`, `termlink_remote_inject`, `termlink_remote_exec`, `termlink_batch_exec` and `termlink_remote_call` (founding verbs only) stamp `from`; an in-process test reads the rows for exec and inject
+- [x] Step 1d: shell wakers (notify-injector, be-reachable-pushwaker, tl-dispatch) inject through the CLI, so they declare `from` with no script change; the sidecar doorbell's `command.notify` declares the agent it serves (unit test)
+- [x] Step 1e: the hub relay does NOT stamp (it forwards params unchanged), so a relayed call keeps its originator's `from`; coverage map in docs/reports/T-3757-from-coverage.md
 - [ ] The use log has no row without `from` for 7 days on .107 (report in docs/reports/), before step 2 starts
 - [ ] Step 2: launcher sessions start with owner-only on; a negative control shows another caller refused and the owner accepted; rollback variable tested
 
