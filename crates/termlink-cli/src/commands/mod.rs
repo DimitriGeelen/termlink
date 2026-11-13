@@ -1,4 +1,5 @@
 pub(crate) mod session;
+pub(crate) mod hub_register;
 pub(crate) mod pty;
 pub(crate) mod mirror_grid;
 pub(crate) mod mirror_grid_composer;

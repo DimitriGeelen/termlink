@@ -72,6 +72,24 @@ pub(crate) enum Command {
         /// holds the same binding. Returned by `list --json` / `discover --json`.
         #[arg(long, value_name = "DISPATCH:ATTEMPT", conflicts_with = "self_mode")]
         worker_binding: Option<String>,
+
+        /// Register on this hub over the network (IP:PORT) instead of the local
+        /// runtime dir (T-3760). The session is served on TCP with token auth,
+        /// keeps a lease and deregisters on exit. Needs --hub-token-file.
+        #[arg(long, value_name = "IP:PORT", requires = "hub_token_file",
+              conflicts_with_all = ["self_mode", "shell", "worker_binding", "identity_key", "allowed_commands"])]
+        hub: Option<String>,
+
+        /// Hub token with a registration claim, minted on the hub host by
+        /// `termlink hub token --register-principal <user> --register-prefix <p>`
+        /// (file mode 600). With --hub only.
+        #[arg(long, value_name = "PATH", requires = "hub")]
+        hub_token_file: Option<String>,
+
+        /// Address to serve the session on (default: this host's address toward
+        /// the hub, ephemeral port). The hub accepts only the caller's own IP.
+        #[arg(long, value_name = "IP:PORT", requires = "hub")]
+        listen: Option<String>,
     },
 
     /// List all registered sessions
@@ -1490,9 +1508,9 @@ pub(crate) enum HubAction {
         #[arg(long)]
         out: String,
 
-        /// observe | notify | interact
-        #[arg(long, default_value = "interact")]
-        scope: String,
+        /// observe | notify | interact (default: interact; observe with --register-principal)
+        #[arg(long)]
+        scope: Option<String>,
 
         /// Lifetime in seconds (clamped to the configured ceiling, default 7 days)
         #[arg(long, default_value_t = termlink_session::auth::DEFAULT_MAX_TOKEN_TTL_SECS)]
@@ -1505,6 +1523,17 @@ pub(crate) enum HubAction {
         /// Output as JSON: {"ok","out","scope","expires_at","ttl_secs","clamped"}
         #[arg(long)]
         json: bool,
+
+        /// T-3760: add a registration claim for this principal (e.g. the OS user
+        /// the token is for). The holder may register sessions named under
+        /// --register-prefix on this hub and renew or remove only its own records
+        /// (`termlink register --hub`). Minted at observe scope; leave --scope out.
+        #[arg(long, requires = "register_prefix", value_name = "PRINCIPAL")]
+        register_principal: Option<String>,
+
+        /// T-3760: every session name the claim's holder registers must start with this.
+        #[arg(long, requires = "register_principal", value_name = "PREFIX")]
+        register_prefix: Option<String>,
     },
     /// Export the live hub HMAC secret from <runtime_dir>/hub.secret
     ///

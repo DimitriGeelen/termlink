@@ -3959,6 +3959,97 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// T-3760 end to end through the hub's real accept loop (TCP listener, temp dir):
+    /// a claim-bound client registers a worker served on TCP; the record is
+    /// discoverable with its owner; a call the hub forwards reaches the worker and
+    /// returns (hub -> worker); the worker's heartbeat on the hub succeeds (worker ->
+    /// hub); deregistration removes it. Negative controls: a forward to an
+    /// unregistered name fails; a plain observe token cannot register.
+    #[tokio::test]
+    async fn t3760_e2e_claim_bound_worker_registers_and_messages_flow_both_ways() {
+        use termlink_session::auth::{self, PermissionScope, RegisterClaim};
+        use termlink_session::identity::SessionId;
+        use termlink_session::lifecycle::SessionState;
+        use termlink_session::registration::Registration;
+        use tokio::io::{AsyncBufReadExt, BufReader};
+
+        let _lock = ENV_LOCK.lock().await;
+        let _store = super::init_remote_store();
+        if let Some(s) = super::remote_store() { s.clear(); }
+        let dir = test_dir();
+        std::fs::create_dir_all(dir.join("sessions")).unwrap();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        // Hub with a TCP listener.
+        let secret = auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+        let hub_sock = dir.join("hub.sock");
+        let unix = tokio::net::UnixListener::bind(&hub_sock).unwrap();
+        let tcp = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let hub_port = tcp.local_addr().unwrap().port();
+        let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
+        let hub = tokio::spawn(crate::server::run_accept_loop(unix, Some(tcp), None, Some(secret_hex), stop_rx));
+
+        // Worker served on TCP with token auth (as `register --hub` does).
+        let worker_secret = auth::generate_secret();
+        let mut reg = Registration::new(
+            SessionId::generate(),
+            SessionConfig { display_name: Some("t3760e-w".into()), capabilities: vec![], roles: vec![], tags: vec![] },
+            dir.join("worker.sock"),
+        );
+        reg.state = SessionState::Ready;
+        reg.token_secret = Some(worker_secret.iter().map(|b| format!("{b:02x}")).collect());
+        let worker_ctx = Arc::new(RwLock::new(SessionContext::new(reg)));
+        let wl = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let worker_port = wl.local_addr().unwrap().port();
+        let worker = tokio::spawn(termlink_session::server::run_accept_loop_tcp(wl, worker_ctx));
+
+        let stream = tokio::net::TcpStream::connect(("127.0.0.1", hub_port)).await.unwrap();
+        let (r, mut w) = stream.into_split();
+        let mut lines = BufReader::new(r).lines();
+        let mut call = async |method: &str, params: serde_json::Value| -> serde_json::Value {
+            let req = json!({"jsonrpc": "2.0", "method": method, "id": method, "params": params});
+            w.write_all(format!("{req}\n").as_bytes()).await.unwrap();
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap()
+        };
+        let reg_params = json!({"display_name": "t3760e-w", "host": "127.0.0.1", "port": worker_port});
+
+        // Negative control: a plain observe token cannot register.
+        let plain = auth::create_token(&secret, PermissionScope::Observe, "", 60);
+        assert_eq!(call("hub.auth", json!({"token": plain.raw})).await["result"]["authenticated"], true);
+        let r0 = call("session.register_remote", reg_params.clone()).await;
+        assert_eq!(r0["error"]["code"], control::error_code::AUTH_DENIED, "{r0}");
+
+        // Re-auth with the registration claim on the same connection.
+        let tok = auth::create_register_token(&secret, RegisterClaim::new("alice", "t3760e-").unwrap(), 60).unwrap();
+        assert_eq!(call("hub.auth", json!({"token": tok.raw})).await["result"]["scope"], "observe");
+        let r1 = call("session.register_remote", reg_params).await;
+        let rid = r1["result"]["id"].as_str().unwrap_or_else(|| panic!("register: {r1}")).to_string();
+        assert_eq!(r1["result"]["owner"], "alice");
+
+        let d = call("session.discover", json!({})).await;
+        let rec = d["result"]["sessions"].as_array().unwrap().iter().find(|s| s["id"] == rid.as_str()).cloned();
+        assert_eq!(rec.unwrap()["owner"], "alice", "{d}");
+
+        // hub -> worker: the hub forwards a ping to the registered endpoint.
+        let p = call("termlink.ping", json!({"target": "t3760e-w"})).await;
+        assert_eq!(p["result"]["display_name"], "t3760e-w", "forwarded ping: {p}");
+        let miss = call("termlink.ping", json!({"target": "t3760e-nobody"})).await;
+        assert!(miss.get("error").is_some(), "forward to an unregistered name must fail: {miss}");
+
+        // worker -> hub: lease renewal, then removal.
+        assert_eq!(call("session.heartbeat", json!({"id": rid})).await["result"]["ok"], true);
+        assert_eq!(call("session.deregister_remote", json!({"id": rid})).await["result"]["ok"], true);
+        let d2 = call("session.discover", json!({})).await;
+        assert!(!d2["result"]["sessions"].as_array().unwrap().iter().any(|s| s["id"] == rid.as_str()));
+
+        let _ = stop_tx.send(true);
+        let _ = tokio::time::timeout(Duration::from_secs(3), hub).await;
+        worker.abort();
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn t3760_owned_endpoint_check_is_pure() {
         assert_eq!(super::check_owned_endpoint("127.0.0.1", 40000, Some("127.0.0.1:5")), Ok(40000));

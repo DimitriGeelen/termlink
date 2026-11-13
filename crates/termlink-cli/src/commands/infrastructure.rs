@@ -805,6 +805,7 @@ pub(crate) struct MintedTokenFile {
 /// Control and execute are refused: a remote node gets at most interact, and the
 /// secret's holder keeps everything above it. The file is created 0600 from the
 /// start (no window at a wider mode) and renamed into place.
+#[cfg(test)]
 pub(crate) fn mint_hub_token_file(
     secret_hex: &str,
     out: &std::path::Path,
@@ -812,9 +813,33 @@ pub(crate) fn mint_hub_token_file(
     ttl: u64,
     force: bool,
 ) -> Result<MintedTokenFile> {
+    mint_hub_token_file_with(secret_hex, out, scope, ttl, force, None)
+}
+
+/// As [`mint_hub_token_file`], optionally with a T-3760 registration claim
+/// `(principal, prefix)`. A claim is minted at observe scope only: the claim is the
+/// whole grant, and a wider scope would hand the registering user more than it.
+pub(crate) fn mint_hub_token_file_with(
+    secret_hex: &str,
+    out: &std::path::Path,
+    scope: &str,
+    ttl: u64,
+    force: bool,
+    reg: Option<(&str, &str)>,
+) -> Result<MintedTokenFile> {
     use std::io::Write;
     use termlink_session::auth::{self, PermissionScope};
 
+    let claim = match reg {
+        None => None,
+        Some(_) if scope != "observe" => anyhow::bail!(
+            "a registration claim is minted at observe scope only (got --scope {scope}); drop --scope"
+        ),
+        Some((principal, prefix)) => Some(
+            auth::RegisterClaim::new(principal, prefix)
+                .map_err(|e| anyhow::anyhow!("--register-principal/--register-prefix: {e}"))?,
+        ),
+    };
     let (scope_name, perm) = match scope {
         "observe" => ("observe", PermissionScope::Observe),
         "notify" => ("notify", PermissionScope::Notify),
@@ -838,7 +863,10 @@ pub(crate) fn mint_hub_token_file(
     }
 
     let (ttl_secs, clamped) = auth::clamp_token_ttl(ttl);
-    let token = auth::create_token(&secret, perm, "", ttl_secs);
+    let token = match claim {
+        Some(c) => auth::create_register_token(&secret, c, ttl_secs).map_err(anyhow::Error::new)?,
+        None => auth::create_token(&secret, perm, "", ttl_secs),
+    };
 
     let dir = out.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or_else(|| std::path::Path::new("."));
     std::fs::create_dir_all(dir).with_context(|| format!("create {}", dir.display()))?;
@@ -862,11 +890,18 @@ pub(crate) fn mint_hub_token_file(
 
 /// T-3543: `termlink hub token` — mint a scoped token for a remote node from the
 /// LIVE hub secret (same never-the-cache rule as `export-secret`).
-pub(crate) fn cmd_hub_token(out: &str, scope: &str, ttl: u64, force: bool, json_output: bool) -> Result<()> {
+pub(crate) fn cmd_hub_token(
+    out: &str,
+    scope: &str,
+    ttl: u64,
+    force: bool,
+    json_output: bool,
+    reg: Option<(&str, &str)>,
+) -> Result<()> {
     let live_path = termlink_hub::server::hub_secret_path();
     let result = std::fs::read_to_string(&live_path)
         .map_err(|e| anyhow::anyhow!("no hub.secret at {} — run this on the hub host ({e})", live_path.display()))
-        .and_then(|hex| mint_hub_token_file(&hex, std::path::Path::new(out), scope, ttl, force));
+        .and_then(|hex| mint_hub_token_file_with(&hex, std::path::Path::new(out), scope, ttl, force, reg));
     let m = match result {
         Ok(m) => m,
         Err(e) => {
@@ -1390,6 +1425,26 @@ mod tests {
             .filter(|e| e.file_name().to_string_lossy().contains(".tmp."))
             .collect();
         assert!(leftovers.is_empty(), "no temp files left behind");
+    }
+
+    #[test]
+    fn t3760_hub_token_with_registration_claim() {
+        use termlink_session::auth;
+        let dir = tempfile::tempdir().unwrap();
+        let secret = auth::generate_secret();
+        let hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+        let out = dir.path().join("reg.token");
+        let m = super::mint_hub_token_file_with(&hex, &out, "observe", 3600, false, Some(("alice", "alice-"))).unwrap();
+        assert_eq!(m.scope, "observe");
+        let (p, scope) = auth::validate_token(&secret, std::fs::read_to_string(&out).unwrap().trim(), None).unwrap();
+        assert_eq!(scope, auth::PermissionScope::Observe);
+        assert_eq!(p.reg, Some(auth::RegisterClaim::new("alice", "alice-").unwrap()));
+        // Negative controls: a wider scope with a claim, and a malformed claim, mint nothing.
+        let wide = dir.path().join("wide");
+        assert!(super::mint_hub_token_file_with(&hex, &wide, "interact", 3600, false, Some(("alice", "alice-"))).is_err());
+        let bad = dir.path().join("bad");
+        assert!(super::mint_hub_token_file_with(&hex, &bad, "observe", 3600, false, Some(("al ice", "a-"))).is_err());
+        assert!(!wide.exists() && !bad.exists());
     }
 
     fn t3340_dirs(tag: &str) -> (PathBuf, PathBuf, PathBuf) {

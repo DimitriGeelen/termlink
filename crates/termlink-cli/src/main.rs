@@ -76,8 +76,12 @@ async fn real_main() -> Result<()> {
 
     match cli.command {
         // Session management
-        Command::Register { name, roles, tags, cap, shell, self_mode, token_secret, allowed_commands, json, quiet, identity_key, worker_binding } => {
-            if self_mode {
+        Command::Register { name, roles, tags, cap, shell, self_mode, token_secret, allowed_commands, json, quiet, identity_key, worker_binding, hub, hub_token_file, listen } => {
+            if let (Some(hub), Some(token_file)) = (hub, hub_token_file) {
+                // T-3760: register on a hub over the network with a registration claim.
+                let _ = (token_secret, quiet);
+                commands::hub_register::cmd_register_on_hub(commands::hub_register::HubRegisterOpts { hub, token_file, listen, name, roles, tags, cap, json }).await
+            } else if self_mode {
                 commands::session::cmd_register_self(name, roles, tags, cap, json, identity_key).await
             } else {
                 commands::session::cmd_register(commands::session::RegisterOpts { name, roles, tags, cap, shell, enable_token_secret: token_secret, allowed_commands, json, quiet, identity_key, worker_binding }).await
@@ -296,7 +300,11 @@ async fn real_main() -> Result<()> {
             Some(HubAction::Restart { json }) => commands::infrastructure::cmd_hub_restart(json),
             Some(HubAction::Status { json, short, check, governor }) => commands::infrastructure::cmd_hub_status(json, short, check, governor).await,
             Some(HubAction::ExportSecret { out, json }) => commands::infrastructure::cmd_hub_export_secret(out.as_deref(), json),
-            Some(HubAction::Token { out, scope, ttl, force, json }) => commands::infrastructure::cmd_hub_token(&out, &scope, ttl, force, json),
+            Some(HubAction::Token { out, scope, ttl, force, json, register_principal, register_prefix }) => {
+                let reg = register_principal.as_deref().zip(register_prefix.as_deref());
+                let scope = scope.unwrap_or_else(|| if reg.is_some() { "observe" } else { "interact" }.to_string());
+                commands::infrastructure::cmd_hub_token(&out, &scope, ttl, force, json, reg)
+            }
             Some(HubAction::DispatchResolve { ref dispatch_id, attempt, ref as_state, ref reason, ref override_reason, ref outcome, ref evidence, json }) => commands::infrastructure::cmd_hub_dispatch_resolve(dispatch_id, attempt, as_state, reason, override_reason.as_deref(), outcome.as_deref(), evidence.as_deref(), json),
             Some(HubAction::Fingerprint { json }) => commands::infrastructure::cmd_hub_fingerprint(json),
             Some(HubAction::Probe { addr, json }) => commands::infrastructure::cmd_hub_probe(&addr, json).await,

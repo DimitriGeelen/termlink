@@ -30,7 +30,54 @@ pub async fn handle_connection(
     let peer = PeerCredentials::from_tokio_stream(&stream)
         .map(|c| (Some(c.uid), c.pid))
         .unwrap_or((None, None));
-    let (reader, mut writer) = stream.into_split();
+    let (reader, writer) = stream.into_split();
+    serve_connection(reader, writer, session, initial_scope, peer).await
+}
+
+/// T-3760: serve one TCP control-plane connection. There is no peer uid on TCP,
+/// so the caller starts at `Observe` and must present a token via `auth.token`
+/// (see [`run_accept_loop_tcp`], which only runs for sessions with token auth).
+pub async fn handle_tcp_connection(stream: tokio::net::TcpStream, session: SharedSession) {
+    let (reader, writer) = stream.into_split();
+    serve_connection(reader, writer, session, PermissionScope::Observe, (None, None)).await
+}
+
+/// T-3760: accept loop for a session served on TCP (a non-root worker registered on
+/// a hub over the network). Refuses to start unless the session has token auth:
+/// without a peer uid there is nothing else to authorise a caller with, so a TCP
+/// session with no token secret would grant every connection whatever scope it
+/// asked for. Each connection starts at `Observe`.
+pub async fn run_accept_loop_tcp(
+    listener: tokio::net::TcpListener,
+    session: SharedSession,
+) -> std::io::Result<()> {
+    if session.read().await.registration.token_secret.is_none() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "refusing to serve a session on TCP without token auth (no token_secret)",
+        ));
+    }
+    loop {
+        let (stream, addr) = listener.accept().await?;
+        let _ = stream.set_nodelay(true);
+        tracing::trace!(peer = %addr, "Accepted TCP control-plane connection (observe until auth.token)");
+        let sess = session.clone();
+        tokio::spawn(async move {
+            handle_tcp_connection(stream, sess).await;
+        });
+    }
+}
+
+async fn serve_connection<R, W>(
+    reader: R,
+    mut writer: W,
+    session: SharedSession,
+    initial_scope: PermissionScope,
+    peer: (Option<u32>, Option<u32>),
+) where
+    R: tokio::io::AsyncRead + Unpin,
+    W: tokio::io::AsyncWrite + Unpin,
+{
     let mut lines = BufReader::new(reader).lines();
     let mut granted_scope = initial_scope;
 
@@ -634,6 +681,38 @@ mod tests {
         reg.state = SessionState::Ready;
         reg.token_secret = Some(secret_hex);
         (SessionContext::new(reg).with_founding_policy(test_founding_policy(None)), secret)
+    }
+
+    #[tokio::test]
+    async fn t3760_tcp_loop_refuses_without_token_auth_and_starts_at_observe() {
+        use tokio::net::{TcpListener, TcpStream};
+        // Negative control: no token secret → the loop refuses to serve at all.
+        let plain = Arc::new(RwLock::new(test_session(test_socket_path())));
+        let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let err = run_accept_loop_tcp(l, plain).await.expect_err("must refuse without token auth");
+        assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
+
+        // With token auth: observe until auth.token.
+        let (ctx, secret) = test_session_with_tokens(test_socket_path());
+        let shared = Arc::new(RwLock::new(ctx));
+        let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = l.local_addr().unwrap();
+        let h = tokio::spawn(run_accept_loop_tcp(l, shared));
+        let stream = TcpStream::connect(addr).await.unwrap();
+        let (r, mut w) = stream.into_split();
+        let mut lines = BufReader::new(r).lines();
+        let mut call = async |v: serde_json::Value| {
+            w.write_all(format!("{v}\n").as_bytes()).await.unwrap();
+            serde_json::from_str::<serde_json::Value>(&lines.next_line().await.unwrap().unwrap()).unwrap()
+        };
+        let ping = call(json!({"jsonrpc": "2.0", "method": "termlink.ping", "id": "p", "params": {}})).await;
+        assert!(ping.get("result").is_some(), "ping is observe: {ping}");
+        let inj = call(json!({"jsonrpc": "2.0", "method": "command.inject", "id": "i", "params": {"text": "ls"}})).await;
+        assert_eq!(inj["error"]["code"], control::error_code::AUTH_DENIED, "inject before auth: {inj}");
+        let tok = auth::create_token(&secret, PermissionScope::Control, "", 60);
+        let a = call(json!({"jsonrpc": "2.0", "method": "auth.token", "id": "a", "params": {"token": tok.raw}})).await;
+        assert!(a.get("result").is_some(), "auth.token: {a}");
+        h.abort();
     }
 
     #[tokio::test]
