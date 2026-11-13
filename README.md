@@ -327,6 +327,11 @@ termlink --version
 Available for Linux too, but the one-liner above is lighter — it needs no tap and no
 package manager.
 
+The release workflow updates the tap's formula on every `vX.Y.Z` tag (T-3754): see
+[`homebrew/README.md`](homebrew/README.md#how-the-formula-is-updated). Until the tap
+repo `DimitriGeelen/homebrew-termlink` is public and the `HOMEBREW_TAP_TOKEN` secret
+exists, `brew tap` cannot work; use the `install.sh` one-liner above meanwhile.
+
 ### From source (for development/debugging)
 
 **Requirements:**

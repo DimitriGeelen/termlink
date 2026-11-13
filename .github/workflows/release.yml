@@ -269,3 +269,46 @@ jobs:
             dist/termlink-linux-aarch64
             dist/checksums.txt
           generate_release_notes: true
+
+  # T-3754 — the Homebrew formula was hand-edited per release and stopped at 0.9.1
+  # while releases reached v0.12.11; nothing in this workflow wrote it, and nothing
+  # compared it with the tag. This job renders Formula/termlink.rb from the release's
+  # own checksums.txt, pushes it to the tap repo, then clones the tap WITHOUT the
+  # token (what `brew tap` sees) and fails unless its version equals the tag.
+  #
+  # Separate job on purpose: the binaries are already published when it runs, so a
+  # red tap job never blocks a release, but it is visibly red. It is red until the
+  # operator has (1) created the PUBLIC repo DimitriGeelen/homebrew-termlink and
+  # (2) added the repository secret HOMEBREW_TAP_TOKEN (fine-grained token, that repo
+  # only, Contents: read and write). GITHUB_TOKEN cannot push to another repo.
+  # Pre-release tags (anything but vX.Y.Z) are skipped with a notice.
+  homebrew-tap:
+    name: Homebrew tap
+    needs: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test the formula renderer and tap updater (hermetic)
+        run: |
+          bash homebrew/test-render-formula.sh
+          bash homebrew/test-update-tap.sh
+
+      - name: Download this release's checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p tapwork
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern checksums.txt --dir tapwork
+          cat tapwork/checksums.txt
+
+      - name: Render, push and verify the tap formula
+        env:
+          TAG: ${{ github.ref_name }}
+          CHECKSUMS: tapwork/checksums.txt
+          TAP_REPO: DimitriGeelen/homebrew-termlink
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: bash homebrew/update-tap.sh

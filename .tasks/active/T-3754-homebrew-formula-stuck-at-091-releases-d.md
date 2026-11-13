@@ -1,13 +1,20 @@
 ---
 id: T-3754
-name: "Homebrew formula stuck at 0.9.1: releases do not update it, so brew install/upgrade gives a months-old TermLink"
+name: "Homebrew formula stuck at 0.9.1: releases do not update it, so brew install/upgrade
+  gives a months-old TermLink"
 description: >
-  homebrew/Formula/termlink.rb pins version 0.9.1 with sha256 'Update after first release'; .github/workflows/release.yml publishes binaries but never bumps the formula or the tap (github.com/DimitriGeelen/homebrew-termlink). README calls Homebrew the recommended macOS install. Found 2026-11-12 preparing v0.12.5 for the operator's Mac (T-3753). Fix: release job (or a release step) updates version + sha256 from checksums.txt in the tap; a check that the formula version equals the latest release tag.
+  homebrew/Formula/termlink.rb pins version 0.9.1 with sha256 'Update after first
+  release'; .github/workflows/release.yml publishes binaries but never bumps the formula
+  or the tap (github.com/DimitriGeelen/homebrew-termlink). README calls Homebrew the
+  recommended macOS install. Found 2026-11-12 preparing v0.12.5 for the operator's
+  Mac (T-3753). Fix: release job (or a release step) updates version + sha256 from
+  checksums.txt in the tap; a check that the formula version equals the latest release
+  tag.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [bug, release]
 components: []
 related_tasks: []
@@ -38,8 +45,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T19:14:20Z
-last_update: 2026-11-12T19:14:20Z
-date_finished: null
+last_update: 2026-11-13T12:28:46Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +57,50 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-13T12:19:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3754: Homebrew formula stuck at 0.9.1: releases do not update it, so brew install/upgrade gives a months-old TermLink
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** found 2026-11-12 while preparing v0.12.5 for the operator's Mac (T-3753).
+`homebrew/Formula/termlink.rb` still pins 0.9.1; the latest release is v0.12.11. Checked 2026-11-13: the tap repo
+`github.com/DimitriGeelen/homebrew-termlink` returns HTTP 404 (never created, or private).
+
+**Problem / hypothesis:** `.github/workflows/release.yml` publishes binaries and `checksums.txt` but never writes a
+formula anywhere; the formula was hand-edited per release and that stopped after 0.9.1. With no tap repo,
+`brew tap DimitriGeelen/termlink` (the README's recommended macOS install) cannot work at all.
+
+**Goal:** every vX.Y.Z release updates the tap's formula (version + 4 sha256) from its own `checksums.txt`, with no hand
+edit, and a release whose tap formula does not match the tag is visibly red. Scope: release.yml, homebrew/, docs (no crates/).
+
+**Expected outcome:** `homebrew/render-formula.sh` renders the formula from the in-repo template plus `checksums.txt`
+(fail-closed). A `homebrew-tap` job in release.yml runs after `release`: it tests the renderer, renders for the tag, pushes
+`Formula/termlink.rb` to the tap with secret `HOMEBREW_TAP_TOKEN` only when it changed, then reads it back and fails
+unless its version equals the tag. The operator creates the tap repo and the secret once (we never push to GitHub);
+until then the job fails with a message naming what is missing, never a false success.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `homebrew/render-formula.sh <version> <checksums>` writes a formula whose `version` and all four `sha256` values come from the checksums file, each keyed by the artifact name in the `url` line above it
+- [x] Negative controls: a missing artifact, a malformed hash or a non-semver version makes the renderer exit non-zero and print no formula (`homebrew/test-render-formula.sh` passes, with each control asserted)
+- [x] The in-repo formula reproduces itself: rendering it with its own version and hashes gives a byte-identical file (template and copy cannot drift)
+- [x] release.yml has a `homebrew-tap` job (needs: release) that runs the test, renders, pushes to the tap only when the content changed, and reads the formula back from the tap, failing if its version is not the tag; with no `HOMEBREW_TAP_TOKEN` it fails with `::error::` naming the secret. Prerelease tags (not vX.Y.Z) are skipped with a notice
+- [x] release.yml parses as YAML and its new shell steps pass shellcheck
+- [x] homebrew/README.md and the main README describe the automation and the two operator prerequisites
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -97,6 +134,14 @@ date_finished: null
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids (T-3370: the 1.8.3 template prescribed it again).
 -->
+- [ ] [RUBBER-STAMP] Create the public tap repo and the push secret, then confirm the next release updates the tap
+  **Steps:**
+  1. On github.com, create a PUBLIC repository named `homebrew-termlink` under DimitriGeelen (empty, no README).
+  2. Create a fine-grained personal access token with access to that one repository only and permission "Contents: Read and write".
+  3. In github.com/DimitriGeelen/termlink → Settings → Secrets and variables → Actions, add a repository secret named `HOMEBREW_TAP_TOKEN` with that token.
+  4. Tag and push the next release to OneDev as usual (`git push origin main --tags`), then open the release's GitHub Actions run.
+  **Expected:** the `Homebrew tap` job is green, and its last step prints `tap formula version == <tag>`; on the Mac, `brew tap DimitriGeelen/termlink && brew install termlink && termlink --version` prints that version.
+  **If not:** the job's `::error::` line names what is missing (the secret, the repo, or a version mismatch); fix that item and re-run the failed job from the Actions page (no new tag needed).
 
 <!--
   Render-touching build tasks (web/templates, web/static, web/blueprints, web/shared.py,
@@ -268,6 +313,13 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+TMPDIR=/var/tmp bash homebrew/test-render-formula.sh > .context/working/t3754/render.out 2>&1 && grep -q '17 passed, 0 failed' .context/working/t3754/render.out
+TMPDIR=/var/tmp bash homebrew/test-update-tap.sh > .context/working/t3754/tap.out 2>&1 && grep -q '10 passed, 0 failed' .context/working/t3754/tap.out
+shellcheck homebrew/render-formula.sh homebrew/update-tap.sh homebrew/test-render-formula.sh homebrew/test-update-tap.sh
+python3 -c "import yaml; j=yaml.safe_load(open('.github/workflows/release.yml'))['jobs']['homebrew-tap']; assert j['needs']=='release'; s=' '.join(str(x.get('run','')) for x in j['steps']); assert 'homebrew/update-tap.sh' in s and 'test-update-tap.sh' in s and 'test-render-formula.sh' in s; assert 'HOMEBREW_TAP_TOKEN' in str(j)"
+grep -q 'HOMEBREW_TAP_TOKEN' homebrew/README.md && grep -q 'homebrew/README.md#how-the-formula-is-updated' README.md
+! grep -q 'Update after first release' homebrew/Formula/termlink.rb
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -283,6 +335,18 @@ date_finished: null
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+**Symptom:** `brew install termlink` (the README's recommended macOS path) gives 0.9.1, or fails outright, while GitHub Releases is at v0.12.11.
+
+**Root cause:** the formula was edited by hand for each release (T-212, T-760, T-1141) and nothing in the release path wrote it.
+After v0.9.1 nobody did the hand edit. The tap repo that `brew tap` reads was also never created: `github.com/DimitriGeelen/homebrew-termlink` is 404.
+
+**Why structurally allowed:** release.yml ended at "binaries published". No step compared the formula's version with the tag,
+so a stale formula looked the same as a current one. The release-publication canary (T-3243) checks that the GitHub release exists.
+It does not check the package manager that installs from it (G-069: shipped is not live, at the install layer).
+
+**Prevention:** the `homebrew-tap` job renders the formula from `checksums.txt` on every vX.Y.Z tag, so nobody edits it by hand.
+It then reads the formula back from the tap and fails the release run unless the version equals the tag. A stale or missing tap now
+shows as a red release job, not silence. The renderer fails closed (missing or malformed hash, bad version) and has negative-control tests.
 
 ## Evolution
 
@@ -336,6 +400,12 @@ date_finished: null
      for Human Review). If the artefact is complete and you still don't want to
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
+**Recommendation:** GO
+**Rationale:** The release workflow now renders the formula from each release's own checksums.txt, pushes it to the tap, and proves it by reading it back without credentials. What is left is the one-time GitHub setup that only the operator can do: create the public tap repo and the HOMEBREW_TAP_TOKEN secret.
+**Evidence:**
+- `homebrew/test-render-formula.sh`: 17 cases pass under gawk and mawk. They include 12 refusals (missing artifact, malformed or uppercase hash, bad versions, empty or unreadable input) and one mutant that the pair check catches.
+- `homebrew/test-update-tap.sh`: 10 cases pass against local bare repos. They cover an empty tap, an idempotent re-run, no downgrade, a pre-release skip, a missing secret, a missing repo, a non-public repo, and a read-back serving an older version (rc 1, no proof line).
+- On 2026-11-13, `https://github.com/DimitriGeelen/homebrew-termlink` returned 404. Until the setup is done, the job fails with an error that names what is missing.
 
 ## Decisions
 
@@ -364,3 +434,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3754-homebrew-formula-stuck-at-091-releases-d.md
 - **Context:** Initial task creation
+
+### 2026-11-13T12:19:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
