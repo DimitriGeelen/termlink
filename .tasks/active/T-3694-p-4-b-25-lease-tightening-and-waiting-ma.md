@@ -45,7 +45,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:27Z
-last_update: 2026-11-13T07:12:51Z
+last_update: 2026-11-13T07:40:55Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -348,6 +348,10 @@ bash tests/b25-lease-fixtures.sh --mutants > .context/working/.t3694-mut.out 2>&
   the receiver's PTY check (E-153, origin_checked). Open (AEF slice 1): whether the UserPromptSubmit hook input carries
   the marks or only the transcript.
 - **Triggered:** nothing new; recorded for 04 17.5.d (source: AEF msg 0bdd8c35, conversation termlink-arc011-p44-adapter2).
+- **Correction (AEF msg c6305296):** promptSource `queued` is NOT a generated prompt: every queued record carried
+  origin.kind human (text the operator typed while the agent was busy), so it stays unmarked and the PTY check decides.
+  Until the hook-input keys are known (field trial), AEF's adapter reads the current prompt's own transcript record
+  (last 256 KiB, matched on the prompt text) and falls back to inferred/unknown.
 
 ### 2026-11-12 — B-25 built in main_lease.rs; K-34 definition built, its wiring blocked
 - **What changed:** The hub has no receive stamp of its own (`channel.post` stores the client's `ts`), so CR-6.21's
