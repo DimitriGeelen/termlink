@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3763: GitHub retired the macos-14 runner: release workflow cannot build macOS binaries (v0.12.5/v0.12.6 macOS jobs cancelled 'configuration not supported')
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T11:16:40Z
+# ============================================================================
+
+task_id: T-3763
+task_name: "GitHub retired the macos-14 runner: release workflow cannot build macOS binaries (v0.12.5/v0.12.6 macOS jobs cancelled 'configuration not supported')"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-13T07:08:44Z
+completed: 2026-11-13T11:16:27Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-13T08:09:40+01:00
+last_commit: 2026-11-13T11:16:35+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  release workflow on macos-latest — GitHub retired macos-14 ('configuration not supported'), which cancelled test-macos and blocked every release build. openpty winsize via addr_of_mut! — macOS libc wants *mut; T-3577's clippy cleanup turned T-3265's &mut back into & and macOS stopped compiling unseen (the macOS job was cancelled by the retired runner). sidecar peer_uid through termlink_session::auth::PeerCredentials — the Linux-only libc::ucred/SO_PEERCRED never compiled on macOS (macOS uses LOCAL_PEERCRED); found by the first live macOS job (v0.12.8). b16 live-binding test is Linux-only (binding reads /proc; macOS binding is T-3770); release CI runs cargo test --no-fail-fast so one run shows every failing binary. macOS boot_id from sysctl kern.bootsessionuuid — without it S1 counters, the E-153 origin check and P-2 (boot_id, mono_ns) ordering all read unknown on a Mac (20 macOS test failures in v0.12.10); compiled for x86_64-apple-darwin against libc before tagging
+
+# Key outcomes
+outcomes:
+  - 'release.yml names no retired macOS label (test-macos and both build-macos entries on macos-latest); test-macos stays blocking'
+  - 'A release run for the next tag completes with test-macos and build-macos successful and the macOS assets published'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.github/workflows/release.yml'
+  - '.tasks/active/T-3763-github-retired-the-macos-14-runner-relea.md'
+  - 'crates/termlink-session/src/input_meter.rs'
+  - 'crates/termlink-session/src/pty.rs'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/tests/b16_live.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T08:09:40'
+    action: 'T-3763: release workflow on macos-latest — GitHub retired macos-14 (''configuration not supported''), which cancelled test-macos and blocked every release build'
+  - time: '2026-11-13T09:17:18'
+    action: 'T-3763: openpty winsize via addr_of_mut! — macOS libc wants *mut; T-3577''s clippy cleanup turned T-3265''s &mut back into & and macOS stopped compiling unseen (the macOS job was cancelled by the retired runner)'
+  - time: '2026-11-13T09:56:40'
+    action: 'T-3763: sidecar peer_uid through termlink_session::auth::PeerCredentials — the Linux-only libc::ucred/SO_PEERCRED never compiled on macOS (macOS uses LOCAL_PEERCRED); found by the first live macOS job (v0.12.8)'
+  - time: '2026-11-13T10:43:18'
+    action: 'T-3763: b16 live-binding test is Linux-only (binding reads /proc; macOS binding is T-3770); release CI runs cargo test --no-fail-fast so one run shows every failing binary'
+  - time: '2026-11-13T11:16:35'
+    action: 'T-3763: macOS boot_id from sysctl kern.bootsessionuuid — without it S1 counters, the E-153 origin check and P-2 (boot_id, mono_ns) ordering all read unknown on a Mac (20 macOS test failures in v0.12.10); compiled for x86_64-apple-darwin against libc before tagging'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 247 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, release]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 247
+  commits: 6
+  files_changed: 11
+  lines_added: 765
+  lines_removed: 50
+  footprint_refreshed_at: '2026-11-13T11:16:59Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3763-github-retired-the-macos-14-runner-relea.md
+generated_by: context-agent-hybrid

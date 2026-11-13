@@ -11,12 +11,12 @@ description: >
   Then send ring20 the Mac upgrade + re-test commands. LAN host install is a separate
   runme step.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [release, arc:arc-011]
-components: []
+components: [.claude/commands/preflight.md, crates/termlink-cli/tests/cli_integration.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/pty.rs, scripts/count-hub-plaintext-fields.sh, tests/count-hub-plaintext-fields-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -45,8 +45,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T19:09:04Z
-last_update: 2026-11-13T00:01:15Z
-date_finished:
+last_update: 2026-11-13T11:15:33Z
+date_finished: 2026-11-13T11:15:33Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -101,10 +101,10 @@ ring20 on the operator's behalf). T-3749 fixed it, but the Mac only gets new Ter
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Full workspace tests and clippy pass on a clean export of the tagged commit (log kept under .context/working/t3753/)
-- [ ] Tag v0.12.5 on that commit pushed to origin (OneDev) only
-- [ ] GitHub release v0.12.5 exists with the macOS binaries and checksums (checked through the GitHub API)
-- [ ] ring20 sent the Mac upgrade and re-test commands (message id in Updates)
+- [x] Full workspace tests and clippy pass on a clean export of the tagged commit (log kept under .context/working/t3753/) — v0.12.5 4354/0, v0.12.6 4509/0; GitHub Linux suite + guard layer green v0.12.6..v0.12.11
+- [x] Tag pushed to origin (OneDev) only — v0.12.5 (no binaries: guard gate), v0.12.6/.7 (macos-14 retired), .8-.10 (macOS fixes, T-3763), shipped as v0.12.11 (same G-1 ruling)
+- [x] GitHub release with the macOS binaries and checksums (checked through the GitHub API) — v0.12.11, run 43408074877: darwin-aarch64, darwin-x86_64, three Linux builds, checksums.txt
+- [x] ring20 sent the Mac upgrade and re-test commands (message id in Updates) — 2026-11-13 conversation mac-delivery-2026-11-12, HUB_ACCEPTED on .122
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -156,9 +156,10 @@ ring20 on the operator's behalf). T-3749 fixed it, but the Mac only gets new Ter
 
 ## Verification
 
-git rev-parse -q --verify refs/tags/v0.12.5
-git ls-remote --tags origin v0.12.5 > .context/working/t3753/remote-tag 2>&1 && grep -q v0.12.5 .context/working/t3753/remote-tag
-curl -sf https://api.github.com/repos/DimitriGeelen/termlink/releases/tags/v0.12.5 > .context/working/t3753/gh-release.json && grep -q darwin .context/working/t3753/gh-release.json
+# the shipped release under the G-1 ruling is v0.12.11 (v0.12.5..v0.12.10 never published binaries; see ACs)
+git rev-parse -q --verify refs/tags/v0.12.11
+git ls-remote --tags origin v0.12.11 > .context/working/t3753/remote-tag 2>&1 && grep -q v0.12.11 .context/working/t3753/remote-tag
+curl -sf https://api.github.com/repos/DimitriGeelen/termlink/releases/tags/v0.12.11 > .context/working/t3753/gh-release.json && grep -q darwin-aarch64 .context/working/t3753/gh-release.json
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -331,6 +332,16 @@ curl -sf https://api.github.com/repos/DimitriGeelen/termlink/releases/tags/v0.12
 
 ## Evolution
 
+### 2026-11-13 — seven tags to one release: the release path had rotted unseen since v0.12.4
+- **What changed:** the release path was broken in four stacked ways nobody saw: (1) 5 blocking guard-layer checks red
+  (fixed T-3753 commits 3a1f17560..dcb715c13); (2) GitHub retired macos-14, cancelling the blocking macOS job (T-3763);
+  (3) macOS stopped compiling (T-3577 undid T-3265's openpty fix; the sidecar's Linux-only SO_PEERCRED; T-3763);
+  (4) macOS tests failed: no boot_id on macOS (T-3763) and /proc-only binding (T-3770). Shipped as v0.12.11.
+- **Plan impact:** P-8 (release install) and the W2 gate depend on releases; the release path itself needs a standing
+  check, since a dead macOS job looked like a passing one for weeks.
+- **Triggered:** T-3754 (Homebrew stuck at 0.9.1), T-3755 (PROJECT_ROOT breaks CLI tests), T-3770 (macOS binding),
+  T-3771 (flaky live test, fixed in T-3772), T-3774 (musl build reports a stale version).
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -412,3 +423,16 @@ curl -sf https://api.github.com/repos/DimitriGeelen/termlink/releases/tags/v0.12
 
 ### 2026-11-12T19:09:49Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-13T11:15:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1e27b93f
+- **Timestamp:** 2026-11-13T11:15:37Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

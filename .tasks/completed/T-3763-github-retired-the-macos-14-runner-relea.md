@@ -12,12 +12,12 @@ description: >
   fails when a workflow names a runner label GitHub has retired is worth considering
   (G-019: the platform moved under us silently).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, release]
-components: []
+components: [crates/termlink-session/src/pty.rs, crates/termlink-sidecar/src/api.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -46,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T07:08:44Z
-last_update: 2026-11-13T10:16:35Z
-date_finished:
+last_update: 2026-11-13T11:16:27Z
+date_finished: 2026-11-13T11:16:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -89,8 +89,8 @@ entries), and the builds need test-macos, so no release can publish binaries (th
 ## Acceptance Criteria
 
 ### Agent
-- [ ] release.yml names no retired macOS label (test-macos and both build-macos entries on macos-latest); test-macos stays blocking
-- [ ] A release run for the next tag completes with test-macos and build-macos successful and the macOS assets published
+- [x] release.yml names no retired macOS label (test-macos and both build-macos entries on macos-latest); test-macos stays blocking
+- [x] A release run for the next tag completes with test-macos and build-macos successful and the macOS assets published
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -300,6 +300,16 @@ python3 -c "import yaml;yaml.safe_load(open('.github/workflows/release.yml'))"
 
 ## RCA
 
+**Symptom:** no TermLink release since v0.12.4 published binaries; the operator's Mac could not get the T-3749 fixes.
+**Root cause:** GitHub retired the macos-14 runner, so the blocking macOS test job was cancelled in 1 s with no runner
+("configuration not supported"); with it dead, three macOS defects accumulated unseen: T-3577's clippy cleanup undid
+T-3265's openpty `*mut` fix, the new sidecar used Linux-only SO_PEERCRED, and boot_id read only Linux `/proc`.
+**Why structurally allowed:** a cancelled job reads as "not failed" and nothing watched release runs between tags;
+macOS compile was never checked anywhere except that one job.
+**Prevention:** release.yml on macos-latest (supported image tracked), `--no-fail-fast` so one run shows every macOS
+failure, a code comment on the openpty line naming why it must stay `*mut`, and the release run now green end to end
+(v0.12.11, run 43408074877). Open: a periodic check that the last release run published assets (not filed yet).
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -397,3 +407,16 @@ python3 -c "import yaml;yaml.safe_load(open('.github/workflows/release.yml'))"
 
 ### 2026-11-13T07:08:51Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-13T11:16:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3b8d5093
+- **Timestamp:** 2026-11-13T11:16:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

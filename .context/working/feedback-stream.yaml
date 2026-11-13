@@ -23451,3 +23451,39 @@ scan_id: R-1855df8f
 task_id: T-3772
 payload:
   task_file: .tasks/active/T-3772-session-binding-s1-runs-only-inside-the-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-13T11:15:37Z'
+scan_id: R-1e27b93f
+task_id: T-3753
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T11:15:37Z'
+scan_id: R-1e27b93f
+task_id: T-3753
+payload:
+  task_file: .tasks/active/T-3753-release-v0125-g-1-ship-t-3749-loud-send-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-13T11:16:29Z'
+scan_id: R-3b8d5093
+task_id: T-3763
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T11:16:29Z'
+scan_id: R-3b8d5093
+task_id: T-3763
+payload:
+  task_file: .tasks/active/T-3763-github-retired-the-macos-14-runner-relea.md

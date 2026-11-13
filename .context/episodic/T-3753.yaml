@@ -1,0 +1,116 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3753: Release v0.12.5 (G-1): ship T-3749 loud send failures, register runtime-dir check and fleet join so the operator's Mac gets them
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T11:15:46Z
+# ============================================================================
+
+task_id: T-3753
+task_name: "Release v0.12.5 (G-1): ship T-3749 loud send failures, register runtime-dir check and fleet join so the operator's Mac gets them"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T19:09:04Z
+completed: 2026-11-13T11:15:33Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-12T21:57:38+01:00
+last_commit: 2026-11-13T01:01:15+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP desc budget back under ceiling — trim send_auto_discover (T-3749 added task-ID archaeology; 107548 -> under 107500). Also clears arc-005 claim drift. drain-sink allowlist — two #[cfg(test)]-only read_to_end sites (T-3629 tofu_handshake, T-3666 fake-server drain); in-process test streams, never peer data. platform-lock allowlist — T-3667 linux-gated test; T-3687 input_meter boot_id (None off Linux -> meter S1 unknown, fail-closed) and foreground (exe/comm informational). preflight doc set says nine checks — T-3364 added Check 9 clock-sync to the script only; catalog, skill table, cron recipe and getting-started brought into agreement. test-agent-listeners-mailbox.sh redirects TERMLINK_WOKEN_SILENT_LOG into its tmp dir — T-3751 test invoked agent-send.sh against the real woken-but-silent canary log (canary-log-isolation FAIL). cli_register_shell_exits_when_its_shell_exits ignores use-log/ — T-3702 founding-verb audit log is written by the test's inject and outlives the session by design; the three session files are still asserted gone. pty child_pid_is_valid sends SIGKILL with a bounded wait — interactive sh on a tty ignores SIGTERM, so the unbounded waitpid hung while holding PTY_LOCK and every PTY test queued behind it (intermittent cargo test --workspace hang, latent since T-022). cli_wait_receives_emitted_event emits until the wait returns — a single emit after a fixed 1 s sleep raced the wait's first poll under a loaded workspace run (timeout, missed event); still bounded by wait --timeout 10. hub plaintext-field counter anchors the artifact-store write on T-3696's new call shape (chunk, not &chunk) — the field was silently dropped from the count; fixture mutant follows. si1_line test helper clamps its repeat length (alloc-sink check FIRING on T-3697's test closure); behaviour-neutral, the literals 31/33 are inside the clamp
+
+# Key outcomes
+outcomes:
+  - 'Full workspace tests and clippy pass on a clean export of the tagged commit (log kept under .context/working/t3753/) — v0.12.5 4354/0, v0.12.6 4509/0; GitHub Linux suite + guard layer green v0.12.6..v0.12.11'
+  - 'Tag pushed to origin (OneDev) only — v0.12.5 (no binaries: guard gate), v0.12.6/.7 (macos-14 retired), .8-.10 (macOS fixes, T-3763), shipped as v0.12.11 (same G-1 ruling)'
+  - 'GitHub release with the macOS binaries and checksums (checked through the GitHub API) — v0.12.11, run 43408074877: darwin-aarch64, darwin-x86_64, three Linux builds, checksums.txt'
+  - 'ring20 sent the Mac upgrade and re-test commands (message id in Updates) — 2026-11-13 conversation mac-delivery-2026-11-12, HUB_ACCEPTED on .122'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'hub plaintext-field counter anchors the artifact-store write on T-3696''s new call shape (chunk, not &chunk) — the field was silently dropped from the count; fixture mutant follows'
+    source: git-mined
+  - description: 'cli_wait_receives_emitted_event emits until the wait returns — a single emit after a fixed 1 s sleep raced the wait''s first poll under a loaded workspace run (timeout, missed event); still bounded by wait --timeout 10'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — G-1 release cut now (operator ruling)'
+    chose: 'A — tag now at the last committed state (4e6ef491f), after the full test suite passes on a clean export.'
+    rationale: 'the Mac''s silent failure is the operator-escalated problem and only a release reaches the Mac.'
+    alternatives_rejected: ['B wait for B-25 and P-2 (Mac fix waits hours); C no release, Mac builds from source (manual work for the operator); D defer (operator stays the courier). - Operator words in chat: "A". Left open: LAN host install (runme), any switch-off, B-25 rollout.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/preflight.md'
+  - '.context/checks/drain-sink-allowlist'
+  - '.context/checks/platform-lock-allowlist'
+  - '.tasks/active/T-3753-release-v0125-g-1-ship-t-3749-loud-send-.md'
+  - 'crates/termlink-cli/tests/cli_integration.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'crates/termlink-session/src/handler.rs'
+  - 'crates/termlink-session/src/pty.rs'
+  - 'docs/operations/substrate-cron-recipes.md'
+  - 'docs/operations/substrate-getting-started.md'
+  - 'docs/operations/termlink-skills-reference.md'
+  - 'scripts/count-hub-plaintext-fields.sh'
+  - 'scripts/test-agent-listeners-mailbox.sh'
+  - 'tests/count-hub-plaintext-fields-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T21:57:38'
+    action: 'T-3753: MCP desc budget back under ceiling — trim send_auto_discover (T-3749 added task-ID archaeology; 107548 -> under 107500). Also clears arc-005 claim drift'
+  - time: '2026-11-12T21:58:21'
+    action: 'T-3753: drain-sink allowlist — two #[cfg(test)]-only read_to_end sites (T-3629 tofu_handshake, T-3666 fake-server drain); in-process test streams, never peer data'
+  - time: '2026-11-12T21:59:17'
+    action: 'T-3753: platform-lock allowlist — T-3667 linux-gated test; T-3687 input_meter boot_id (None off Linux -> meter S1 unknown, fail-closed) and foreground (exe/comm informational)'
+  - time: '2026-11-12T21:59:48'
+    action: 'T-3753: preflight doc set says nine checks — T-3364 added Check 9 clock-sync to the script only; catalog, skill table, cron recipe and getting-started brought into agreement'
+  - time: '2026-11-12T22:08:54'
+    action: 'T-3753: test-agent-listeners-mailbox.sh redirects TERMLINK_WOKEN_SILENT_LOG into its tmp dir — T-3751 test invoked agent-send.sh against the real woken-but-silent canary log (canary-log-isolation FAIL)'
+  - time: '2026-11-12T22:34:52'
+    action: 'T-3753: cli_register_shell_exits_when_its_shell_exits ignores use-log/ — T-3702 founding-verb audit log is written by the test''s inject and outlives the session by design; the three session files are still asserted gone'
+  - time: '2026-11-12T23:53:55'
+    action: 'T-3753: pty child_pid_is_valid sends SIGKILL with a bounded wait — interactive sh on a tty ignores SIGTERM, so the unbounded waitpid hung while holding PTY_LOCK and every PTY test queued behind it (intermittent cargo test --workspace hang, latent since T-022)'
+  - time: '2026-11-13T00:10:20'
+    action: 'T-3753: cli_wait_receives_emitted_event emits until the wait returns — a single emit after a fixed 1 s sleep raced the wait''s first poll under a loaded workspace run (timeout, missed event); still bounded by wait --timeout 10'
+  - time: '2026-11-13T00:59:30'
+    action: 'T-3753: hub plaintext-field counter anchors the artifact-store write on T-3696''s new call shape (chunk, not &chunk) — the field was silently dropped from the count; fixture mutant follows'
+  - time: '2026-11-13T01:01:15'
+    action: 'T-3753: si1_line test helper clamps its repeat length (alloc-sink check FIRING on T-3697''s test closure); behaviour-neutral, the literals 31/33 are inside the clamp'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 10 commit(s), 966 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [release, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 966
+  commits: 11
+  files_changed: 19
+  lines_added: 780
+  lines_removed: 49
+  footprint_refreshed_at: '2026-11-13T11:16:58Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3753-release-v0125-g-1-ship-t-3749-loud-send-.md
+generated_by: context-agent-hybrid
