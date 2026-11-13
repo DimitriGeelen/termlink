@@ -23761,3 +23761,21 @@ scan_id: R-36835530
 task_id: T-3779
 payload:
   task_file: .tasks/active/T-3779-meter-reads-a-missing-basis-as--but-its-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-13T17:58:28Z'
+scan_id: R-fef239f8
+task_id: T-3770
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-13T17:58:28Z'
+scan_id: R-fef239f8
+task_id: T-3770
+payload:
+  task_file: .tasks/active/T-3770-macos-session-binding-the-sidecar-finds-.md

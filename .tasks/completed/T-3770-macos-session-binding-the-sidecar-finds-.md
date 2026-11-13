@@ -12,12 +12,12 @@ description: >
   Belongs with T-3688 (full macOS veto). Until built: the test is Linux-only (cfg)
   and status must say binding unavailable on macOS, never pretend bound.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011, macos]
-components: []
+components: [crates/termlink-session/src/lib.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -46,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T09:37:28Z
-last_update: '2026-11-13T17:32:05Z'
-date_finished:
+last_update: 2026-11-13T17:56:21Z
+date_finished: 2026-11-13T17:56:21Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -436,3 +436,16 @@ test "$(grep -c '^KILLED' .context/working/t3770/mutants.out)" -eq 6 && ! grep -
 - Commit 703a8ba6f (`git commit -- <paths>` takes whole files) also carried the T-3757 worker's then-uncommitted
   `notify_params` hunks in `crates/termlink-sidecar/src/doorbell.rs`. T-3757 had committed 8eec4b092 on top before
   this was noticed, so history was not rewritten. The tree is correct; those hunks belong to T-3757.
+
+### 2026-11-13T17:56:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-fef239f8
+- **Timestamp:** 2026-11-13T17:58:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

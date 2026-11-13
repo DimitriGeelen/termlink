@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3770: macOS session binding: the sidecar finds the harness's TermLink session only through /proc (B-16), so on a Mac S1 and the doorbell line are unbound
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T17:58:40Z
+# ============================================================================
+
+task_id: T-3770
+task_name: "macOS session binding: the sidecar finds the harness's TermLink session only through /proc (B-16), so on a Mac S1 and the doorbell line are unbound"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-13T09:37:28Z
+completed: 2026-11-13T17:56:21Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-11-13T18:46:06+01:00
+last_commit: 2026-11-13T18:55:31+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  macOS session binding — without /proc the sidecar reads the harness parent chain with proc_pidinfo(PROC_PIDTBSDINFO), the exe with proc_pidpath, argv/cwd with KERN_PROCARGS2/PROC_PIDVNODEPATHINFO (cfg macos, new termlink_session::procinfo); Linux keeps /proc; one ancestors_with walk (cycle-safe, cap 64) and one script rule shared by both readers; input_meter foreground reads libproc on macOS; status binding.source names the reader and an unreadable harness is unbound with why; tests on a stand-in reader (bind + 2 negative controls), procargs2 fixtures, a macOS CI test on a real child; cargo check --target x86_64-apple-darwin clean. with_proc_root drops an earlier native reader (kills the last surviving mutant, 6/6); ACs ticked, Verification incl. mutants, Evolution, attribution note for 703a8ba6f
+
+# Key outcomes
+outcomes:
+  - 'The parent-chain walk is one generic function (`ancestors_with`) used by both the Linux `/proc` reader and the macOS libproc reader; unit tests pin: stop at pid <= 1, cap 64, stop at an unreadable step, cycle-safe.'
+  - 'The macOS `KERN_PROCARGS2` buffer parser is a pure function tested on Linux with fixture buffers (normal, padding NULs, truncated, argc larger than the strings present, empty) — negative cases return None or the strings present, never panic.'
+  - '`script_path`''s argv rule (first non-empty non-option argument after argv[0], resolved against cwd) is one function shared by the `/proc` and macOS readers (no copy).'
+  - 'Every new `cfg(target_os = "macos")` function type-checks against the macOS libc (`rustc --target x86_64-apple-darwin` with the darwin libc rmeta); the check output is kept in `.context/working/t3770/`.'
+  - '`Runner::binding_available()` is true on macOS (native libproc) and on Linux with `/proc`; false elsewhere or under a test proc root without `self`; status `binding.why` and each unbound session name the reason (unavailable platform, no harness pid, parent chain unreadable, no hosting session).'
+  - 'Existing sidecar tests (b16_doorbell, b16_live, unit) stay green; a negative control: forcing the native reader to fail yields `unbound (...)` with a reason, never `bound`.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'macOS session binding — without /proc the sidecar reads the harness parent chain with proc_pidinfo(PROC_PIDTBSDINFO), the exe with proc_pidpath, argv/cwd with KERN_PROCARGS2/PROC_PIDVNODEPATHINFO (cfg macos, new termlink_session::procinfo); Linux keeps /proc; one ancestors_with walk (cycle-safe, cap 64) and one script rule shared by both readers; input_meter foreground reads libproc on macOS; status binding.source names the reader and an unreadable harness is unbound with why; tests on a stand-in reader (bind + 2 negative controls), procargs2 fixtures, a macOS CI test on a real child; cargo check --target x86_64-apple-darwin clean'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3770-macos-session-binding-the-sidecar-finds-.md'
+  - 'crates/termlink-session/src/input_meter.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - 'crates/termlink-session/src/procinfo.rs'
+  - 'crates/termlink-sidecar/src/doorbell.rs'
+  - 'crates/termlink-sidecar/tests/t3770_native_binding.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T18:46:06'
+    action: 'T-3770: macOS session binding — without /proc the sidecar reads the harness parent chain with proc_pidinfo(PROC_PIDTBSDINFO), the exe with proc_pidpath, argv/cwd with KERN_PROCARGS2/PROC_PIDVNODEPATHINFO (cfg macos, new termlink_session::procinfo); Linux keeps /proc; one ancestors_with walk (cycle-safe, cap 64) and one script rule shared by both readers; input_meter foreground reads libproc on macOS; status binding.source names the reader and an unreadable harness is unbound with why; tests on a stand-in reader (bind + 2 negative controls), procargs2 fixtures, a macOS CI test on a real child; cargo check --target x86_64-apple-darwin clean'
+  - time: '2026-11-13T18:55:31'
+    action: 'T-3770: with_proc_root drops an earlier native reader (kills the last surviving mutant, 6/6); ACs ticked, Verification incl. mutants, Evolution, attribution note for 703a8ba6f'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 498 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011, macos]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 498
+  commits: 3
+  files_changed: 9
+  lines_added: 814
+  lines_removed: 55
+  footprint_refreshed_at: '2026-11-13T17:58:47Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3770-macos-session-binding-the-sidecar-finds-.md
+generated_by: context-agent-hybrid
