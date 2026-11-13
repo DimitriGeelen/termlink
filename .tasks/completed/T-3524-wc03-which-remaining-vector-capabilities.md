@@ -4,16 +4,16 @@ name: "wc/0.3: which remaining vector capabilities are hub obligations"
 description: >
   Inception: wc/0.3: which remaining vector capabilities are hub obligations
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-10-21T14:44:17Z
-last_update: 2026-10-22T09:52:22Z
-date_finished:
+last_update: 2026-11-13T17:15:52Z
+date_finished: 2026-11-13T17:15:52Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -107,15 +107,15 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -178,7 +178,23 @@ review: docs/reports/T-3524-consult/ (codex, antigravity; both "modified A"; the
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO (option A′1, operator ruling 2026-10-22, "Suggested Proceed"; stamp pending in Watchtower)
+
+Rationale:
+
+Build in the hub: `dispatch.wait` (bounded; no lost wakeup; defined across hub restart; never waits inside a write
+transaction); orphan routing of questions and bounces when the dispatcher session is not live; `adopt`, authorised
+and atomic, advancing the fencing generation and carrying pending questions and bounces with deadlines unchanged.
+Build in the adapter: a `hold_lock` hook on the real SQLite lock (short test timeout); `partition`/`heal` as fault
+injection that replays a late `done` to prove fencing rejects a stale completion. The grading refusal (`consume`,
+CC-19/CC-22) stays with AEF's evaluation layer; `dispatch.get` documents a normative `finished_work` rule. External
+review: docs/reports/T-3524-consult/ (codex, antigravity; both "modified A"; they differ only on consume).
+
+Evidence:
+
+**Date**: 2026-11-13T17:15:51Z
 
 ## Updates
 
@@ -187,3 +203,59 @@ review: docs/reports/T-3524-consult/ (codex, antigravity; both "modified A"; the
 
 ### 2026-10-22T08:32:38Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-13T17:15:51Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO (option A′1, operator ruling 2026-10-22, "Suggested Proceed"; stamp pending in Watchtower)
+
+Rationale:
+
+Build in the hub: `dispatch.wait` (bounded; no lost wakeup; defined across hub restart; never waits inside a write
+transaction); orphan routing of questions and bounces when the dispatcher session is not live; `adopt`, authorised
+and atomic, advancing the fencing generation and carrying pending questions and bounces with deadlines unchanged.
+Build in the adapter: a `hold_lock` hook on the real SQLite lock (short test timeout); `partition`/`heal` as fault
+injection that replays a late `done` to prove fencing rejects a stale completion. The grading refusal (`consume`,
+CC-19/CC-22) stays with AEF's evaluation layer; `dispatch.get` documents a normative `finished_work` rule. External
+review: docs/reports/T-3524-consult/ (codex, antigravity; both "modified A"; they differ only on consume).
+
+Evidence:
+
+### 2026-11-13T17:15:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b4dab199
+- **Timestamp:** 2026-11-13T17:15:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 5
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
+     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  3. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  4. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-4
+     - evidence: `IW-4 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  5. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-5
+     - evidence: `IW-5 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-c24777d6
+- **Timestamp:** 2026-11-13T17:15:54Z
+- **Overall:** CONFIRMED
+- **Claims:** 2
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `dispatch.wait` | module | ✓ pass |
+| `dispatch.get` | module | ✓ pass |
