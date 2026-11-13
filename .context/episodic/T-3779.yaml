@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3779: Meter reads a missing basis as \"\" but its check_origin table accepts only the literal \"absent\" for origin unknown (found by T-3764)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-13T17:43:01Z
+# ============================================================================
+
+task_id: T-3779
+task_name: "Meter reads a missing basis as \"\" but its check_origin table accepts only the literal \"absent\" for origin unknown (found by T-3764)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-13T16:43:06Z
+completed: 2026-11-13T17:41:19Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-13T18:41:14+01:00
+last_commit: 2026-11-13T18:41:14+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  a prompt_submit with no basis (or null) carries basis absent (04 17.5.c, 06 AL-1) — origin unknown without a basis is no longer counted origin_inconsistent (FCW-4); a non-string basis is FCW-2; human/automated with no basis and unknown with a wrong basis still count (negative controls); r3 prompt cases without a basis scanned through the real meter; mutant unwrap_or("") killed
+
+# Key outcomes
+outcomes:
+  - 'A `prompt_submit` with `origin: unknown` and no `basis` field (or `basis: null`) is recorded `(unknown, absent)` and does NOT increment `origin_inconsistent`; a unit test pins it.'
+  - 'Negative controls: `human` or `automated` with no basis, and `unknown` with an explicit wrong basis (`pty-input`, `""`), still increment `origin_inconsistent`; a non-string basis and a missing origin are refused as FCW-2 (unparseable), not applied.'
+  - 'The missing-basis-is-absent rule is stated in 06 AL-1 (the contract text) at the table.'
+  - 'Mutant: reverting the normalisation (`unwrap_or("")`) makes the new tests fail (shared clone under .context/working/t3779/src: 2 of 3 failed, rc 101; the controls test stayed green).'
+  - '`cargo test -p termlink-sidecar` passes and `cargo clippy -p termlink-sidecar --tests` has no warnings or errors.'
+  - 'AEF notification text is in the hand-back for the orchestrator to send on conversation termlink-arc011-p44-adapter2 (same split as T-3764: the orchestrator owns that conversation).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-13 — a missing basis reads as `absent`'
+    chose: 'missing or null `basis` = `absent` in the meter; contract text in 06 AL-1 says so.'
+    rationale: '04 17.5.c makes `unknown` the "cannot decide" report and `absent` is its only basis; the value''s name is "no basis". AEF already sends it explicitly (ee51d25b7), which stays valid; the r3 fixture omits it.'
+    alternatives_rejected: ['requiring the literal `"absent"` and changing the r3 fixture: it would keep counting an honest report as a contract break for any adapter that omits the field, and the shared fixture is AEF''s too.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3779-meter-reads-a-missing-basis-as--but-its-.md'
+  - 'crates/termlink-sidecar/src/meter.rs'
+  - 'crates/termlink-sidecar/tests/t3779_missing_basis.rs'
+  - 'docs/design/interactive-agent-communication-06-pseudo-code.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-13T18:41:14'
+    action: 'T-3779: a prompt_submit with no basis (or null) carries basis absent (04 17.5.c, 06 AL-1) — origin unknown without a basis is no longer counted origin_inconsistent (FCW-4); a non-string basis is FCW-2; human/automated with no basis and unknown with a wrong basis still count (negative controls); r3 prompt cases without a basis scanned through the real meter; mutant unwrap_or("") killed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 58 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 58
+  commits: 2
+  files_changed: 7
+  lines_added: 665
+  lines_removed: 6
+  footprint_refreshed_at: '2026-11-13T17:43:15Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3779-meter-reads-a-missing-basis-as--but-its-.md
+generated_by: context-agent-hybrid
