@@ -687,6 +687,8 @@ impl Meter {
             "session_start" if !obj.get("interactive").is_some_and(Value::is_boolean) => return bad("session_start needs interactive (bool)"),
             "session_start" if obj.get("transcript_path").is_some_and(|v| !v.is_string() && !v.is_null()) => return bad("transcript_path must be a string"),
             "prompt_submit" if !obj.get("origin").is_some_and(Value::is_string) => return bad("prompt_submit needs origin"),
+            // T-3779: a basis of the wrong type is FCW-2; missing or null is `absent` (below).
+            "prompt_submit" if obj.get("basis").is_some_and(|v| !v.is_string() && !v.is_null()) => return bad("basis must be a string"),
             "tool_start" | "tool_end" if s("tool").is_none_or(|t| t.len() > 128) => return bad("tool needs a name of at most 128 bytes"),
             "evidence" if s("nonce").is_none() => return bad("evidence needs nonce"),
             _ => {}
@@ -775,7 +777,9 @@ impl Meter {
             "prompt_submit" => {
                 let ids = valid_ids(obj.get("doorbell_ids"));
                 let prev = sess.last_prompt.as_ref().map(|p| p.rx_mono);
-                let (origin, basis) = check_origin(counters, s("origin").unwrap_or(""), s("basis").unwrap_or(""), &ids, &typed_ids, origin_s1, rx, prev, last_typed);
+                // T-3779 (04 17.5.c, 06 AL-1): no basis field (or null) IS basis `absent`,
+                // the only basis of an `unknown` report; it is not an inconsistent pair.
+                let (origin, basis) = check_origin(counters, s("origin").unwrap_or(""), s("basis").unwrap_or("absent"), &ids, &typed_ids, origin_s1, rx, prev, last_typed);
                 sess.last_prompt = Some(Prompt { origin, basis, at_ms, ord: ord.clone(), rx_mono: rx, doorbell_ids: ids });
                 sess.stopped = None;
             }

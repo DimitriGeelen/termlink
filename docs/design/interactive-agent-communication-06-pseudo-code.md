@@ -308,7 +308,8 @@ on_report(raw, peer):                                   # one JSON object per co
  8  reply {ok: true} + reply_extra
 
 check_origin(sess, obj):                                   # CR-6.4 (ARC4 17.5.e): every human claim of a PTY session
- 1  o = obj.origin; b = obj.basis
+ 1  o = obj.origin; b = obj.basis if present and not null else absent   # T-3779: no basis field IS `absent`
+                                                                        # (17.5.c); a non-string basis is FCW-2
     valid = {human: {pty-input, inferred}, automated: {doorbell, non-interactive, harness-mark, pty-input},
              unknown: {absent}}
     if o not in valid or b not in valid[o]: count("origin-inconsistent"); return (unknown, absent)   # FCW-4
