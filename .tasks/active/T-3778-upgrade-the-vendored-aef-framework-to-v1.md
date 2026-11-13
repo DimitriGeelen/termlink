@@ -49,7 +49,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T15:01:36Z
-last_update: '2026-11-13T15:03:22Z'
+last_update: 2026-11-13T17:18:11Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -125,8 +125,11 @@ longer time out.
       manifest in `.context/vendor-merges/T-3778/`; the resolved safe-commands.sh classifies like be.49's own copy
       except the T-3178 trailing `>` (fails closed)
       **Evidence:** MANIFEST.tsv hashes verify; 11 forms measured against be.49's copy, only `echo x >` differs (ours W).
-- [ ] After the operator's run, `.context/working/runme-logs/latest.log` shows 11a OK (or skip) and `finished rc=0`;
-      `last_vendor_event` in `.vendor-divergence.yaml` is promoted to the T-3778 commit
+- [x] After the operator's run, the runme log shows every 11a line OK (or skip) and no FAILED line other than the
+      known-offline greenfield host; `last_vendor_event` in `.vendor-divergence.yaml` is promoted to the T-3778 commit
+      (evidence: run 20261113T165216Z, 11a: upgraded, HOST, committed 5db3d2dbb, pushed, Watchtower answering, doctor no
+      new FAIL; rc=1 only from 3 greenfield FAILED lines (.132 offline, ring20 T-2595); last_vendor_event = 5db3d2dbb;
+      wording changed from "rc=0" because rc stays 1 while .132 is offline; dispatch start measured 3.8 s after)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
