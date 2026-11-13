@@ -1,13 +1,23 @@
 ---
 id: T-3760
-name: "Non-root dispatch: worker runs as the requesting user and registers on the main hub over TCP with a user-bound registration capability (T-3759 GO, option A)"
+name: "Non-root dispatch: worker runs as the requesting user and registers on the
+  main hub over TCP with a user-bound registration capability (T-3759 GO, option A)"
 description: >
-  Operator ruling A (T-3759, 2026-11-13). Client side of the existing hub methods session.register_remote/heartbeat/deregister_remote (router.rs:774, scope interact today, server.rs:796-798): termlink register --hub <addr> (TCP) and fw termlink dispatch using it for a non-root user. A dedicated registration capability (new token scope or claim) bound to the requesting principal and a session-name prefix, so a caller can only register, renew and remove its OWN sessions (no impersonation, no takeover of an existing identity, endpoint validated; panel: codex sections 2-3, claude-code section 3). Leases/heartbeat and reconciliation for stale records; bidirectional messaging proven, not only presence. Nothing runs as root for a non-root caller. Open for the operator: expiry of the registration capability.
+  Operator ruling A (T-3759, 2026-11-13). Client side of the existing hub methods
+  session.register_remote/heartbeat/deregister_remote (router.rs:774, scope interact
+  today, server.rs:796-798): termlink register --hub <addr> (TCP) and fw termlink
+  dispatch using it for a non-root user. A dedicated registration capability (new
+  token scope or claim) bound to the requesting principal and a session-name prefix,
+  so a caller can only register, renew and remove its OWN sessions (no impersonation,
+  no takeover of an existing identity, endpoint validated; panel: codex sections 2-3,
+  claude-code section 3). Leases/heartbeat and reconciliation for stale records; bidirectional
+  messaging proven, not only presence. Nothing runs as root for a non-root caller.
+  Open for the operator: expiry of the registration capability.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011, security]
 components: []
 related_tasks: []
@@ -38,8 +48,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T00:18:49Z
-last_update: 2026-11-13T00:18:49Z
-date_finished: null
+last_update: '2026-11-13T17:32:01Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +60,75 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-13T17:32:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal);
+      F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0:
+      no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3760: Non-root dispatch: worker runs as the requesting user and registers on the main hub over TCP with a user-bound registration capability (T-3759 GO, option A)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-3759 (operator ruling "A + D", 2026-11-13, recorded in its Decisions). Project 1409's
+design session runs as a non-root user and cannot get a dispatched worker onto the main hub: the hub's runtime dir is
+root-only, so a non-root worker either registers somewhere invisible or would have to run as root (ruled out: repo
+hooks and build scripts in a user-writable checkout would then run as root).
+
+**Problem / hypothesis:** the hub already serves `session.register_remote/heartbeat/deregister_remote` (router.rs,
+scope interact), but nothing calls them, and they trust their caller completely: any interact holder can register any
+name, point it at any endpoint, and renew or remove anyone's record. Handing a non-root user an interact token would
+therefore allow impersonation and takeover (panel: codex.md s2-3, claude-code.md s3).
+
+**Goal:** a worker running as the requesting user registers on the main hub over TCP with a dedicated, user-bound
+registration permission: bound to a principal and a name prefix, no impersonation, no takeover, endpoint validated,
+leases with reconciliation, messages flowing both ways, never a fallback to root.
+
+**Expected outcome:**
+
+1. **This slice.** (a) a registration claim in the hub token (`reg: {principal, prefix}`), minted on the hub host by
+   `termlink hub token --register-principal P --register-prefix X` at observe scope; (b) the hub binds a connection
+   that presented such a token to that principal: it may register only names under its prefix, not a name a live
+   session already holds, only its own peer IP as endpoint host (port >= 1024), at most 16 records, and may renew or
+   remove only records it owns; holders without the claim can no longer touch owned records (execute excepted)
+   (notifications are already ignored by the router, so they need nothing); (c) `termlink register --hub ADDR
+   --hub-token-file F` serves the session on TCP (token auth required, no peer-uid bypass), registers it, heartbeats,
+   re-registers after a hub restart, deregisters on exit; (d) proof that the hub forwards to the registered worker
+   and the worker reaches the hub.
+2. **Out of this slice (follow-ups filed):** `termlink dispatch`/`fw termlink dispatch` choosing this path for a
+   non-root caller; forwarding above observe scope to a TCP worker (the hub holds no token for it). Open for the operator: the expiry of the registration capability (proposal in hand-back).
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] A hub token can carry a registration claim `{principal, prefix}`; it is signed with the rest of the payload, a
+      token without it still validates, a malformed claim (empty or out-of-charset principal/prefix) is refused at mint
+      and at hub.auth
+- [ ] `termlink hub token --register-principal P --register-prefix X` mints it (observe scope only; other scopes refused)
+- [ ] Hub: a claim-bound connection registers a record owned by P; refused: name outside the prefix, a name a live session
+      holds (local or remote), endpoint host other than the caller's own IP, port < 1024, more than 16 live records of P
+- [ ] Hub: heartbeat/deregister of a record owned by P from a connection bound to Q, or from a plain interact connection,
+      is refused (negative controls); the owner succeeds; an execute connection may still remove it (operator cleanup)
+- [ ] Session: a TCP accept loop that refuses to start without token auth and gives each TCP connection observe scope
+      until `auth.token`
+- [ ] `termlink register --hub ADDR --hub-token-file F` serves on TCP, registers, heartbeats, re-registers on
+      SESSION_NOT_FOUND, deregisters on shutdown, and refuses a token without a registration claim
+- [ ] End-to-end test over TLS: a claim-bound client registers, the record is in `session.discover` with its owner, a call
+      the hub forwards to it returns (hub -> worker), and the worker's heartbeat on the hub succeeds (worker -> hub)
+- [ ] `cargo test` for termlink-session, termlink-hub and termlink-cli passes; clippy clean on the touched crates
+- [ ] Mutants on a clean clone: removing the owner check, the prefix check or the endpoint check each turns a test red
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +429,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3760-non-root-dispatch-worker-runs-as-the-req.md
 - **Context:** Initial task creation
+
+### 2026-11-13T17:31:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

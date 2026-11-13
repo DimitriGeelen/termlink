@@ -242,6 +242,54 @@ pub struct TokenPayload {
     pub expires_at: u64,
     /// Random nonce to prevent replay across different token creations.
     pub nonce: String,
+    /// T-3760: registration claim. A hub connection that presents a token with this
+    /// claim is bound to `principal`: it may register remote sessions named under
+    /// `prefix` and renew or remove only the records it registered. Absent on every
+    /// other token (and skipped on the wire, so old tokens validate unchanged).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reg: Option<RegisterClaim>,
+}
+
+/// T-3760: who may register which session names (see [`TokenPayload::reg`]).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RegisterClaim {
+    /// The principal the records belong to (typically the requesting OS user).
+    pub principal: String,
+    /// Every name this principal registers must start with this prefix.
+    pub prefix: String,
+}
+
+/// Longest principal, prefix or registered session name accepted.
+pub const MAX_REGISTER_NAME_LEN: usize = 64;
+
+/// True when `s` is non-empty, at most [`MAX_REGISTER_NAME_LEN`] bytes, and only
+/// `[A-Za-z0-9._-]`. Used for the principal, the prefix and the registered name.
+pub fn is_register_name(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= MAX_REGISTER_NAME_LEN
+        && s.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+}
+
+impl RegisterClaim {
+    /// Build a claim, refusing an empty or out-of-charset principal or prefix.
+    pub fn new(principal: &str, prefix: &str) -> Result<Self, TokenError> {
+        let c = Self { principal: principal.to_string(), prefix: prefix.to_string() };
+        c.check()?;
+        Ok(c)
+    }
+
+    /// Refuse a claim whose principal or prefix is not a register name.
+    pub fn check(&self) -> Result<(), TokenError> {
+        if !is_register_name(&self.principal) || !is_register_name(&self.prefix) {
+            return Err(TokenError::InvalidRegisterClaim);
+        }
+        Ok(())
+    }
+
+    /// True when `name` is a register name under this claim's prefix.
+    pub fn permits_name(&self, name: &str) -> bool {
+        is_register_name(name) && name.starts_with(&self.prefix)
+    }
 }
 
 /// A signed capability token: base64(json_payload).base64(hmac_signature).
@@ -266,6 +314,8 @@ pub enum TokenError {
     InvalidScope(String),
     #[error("token is for a different session")]
     SessionMismatch,
+    #[error("invalid registration claim: principal and prefix must be 1-64 chars of [A-Za-z0-9._-]")]
+    InvalidRegisterClaim,
 }
 
 /// Parse a scope string into a PermissionScope.
@@ -426,6 +476,27 @@ pub fn create_token(
     session_id: &str,
     ttl_secs: u64,
 ) -> CapabilityToken {
+    sign_token(secret, scope, session_id, ttl_secs, None)
+}
+
+/// T-3760: create an observe-scope hub token carrying a registration claim. The
+/// claim is checked first, so a malformed one is never signed.
+pub fn create_register_token(
+    secret: &TokenSecret,
+    claim: RegisterClaim,
+    ttl_secs: u64,
+) -> Result<CapabilityToken, TokenError> {
+    claim.check()?;
+    Ok(sign_token(secret, PermissionScope::Observe, "", ttl_secs, Some(claim)))
+}
+
+fn sign_token(
+    secret: &TokenSecret,
+    scope: PermissionScope,
+    session_id: &str,
+    ttl_secs: u64,
+    reg: Option<RegisterClaim>,
+) -> CapabilityToken {
     use base64::Engine;
     use rand::Rng;
 
@@ -447,6 +518,7 @@ pub fn create_token(
         issued_at: now,
         expires_at: now + ttl_secs,
         nonce: nonce_hex,
+        reg,
     };
 
     let payload_json = serde_json::to_string(&payload).expect("payload serializes");
@@ -527,12 +599,70 @@ pub fn validate_token(
     // Parse scope
     let scope = parse_scope(&payload.scope)?;
 
+    // T-3760: a signed but malformed registration claim grants nothing.
+    if let Some(reg) = &payload.reg {
+        reg.check()?;
+    }
+
     Ok((payload, scope))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn register_claim_is_signed_and_old_tokens_still_validate() {
+        // T-3760: the claim rides inside the signed payload.
+        let secret = generate_secret();
+        let claim = RegisterClaim::new("alice", "alice-").unwrap();
+        let tok = create_register_token(&secret, claim.clone(), 600).unwrap();
+        let (p, scope) = validate_token(&secret, &tok.raw, None).unwrap();
+        assert_eq!(scope, PermissionScope::Observe, "a register token is observe-scope");
+        assert_eq!(p.reg, Some(claim));
+
+        // Tampering with the claim breaks the signature.
+        use base64::Engine;
+        let (b64, sig) = tok.raw.split_once('.').unwrap();
+        let json = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(b64).unwrap();
+        let forged = String::from_utf8(json).unwrap().replace("\"alice-\"", "\"root-\"");
+        let forged_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(forged.as_bytes());
+        assert!(matches!(
+            validate_token(&secret, &format!("{forged_b64}.{sig}"), None),
+            Err(TokenError::InvalidSignature)
+        ));
+
+        // A token without the claim carries no `reg` key and validates as before.
+        let plain = create_token(&secret, PermissionScope::Interact, "", 600);
+        assert!(!plain.raw.split_once('.').map(|(b, _)| {
+            let j = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(b).unwrap();
+            String::from_utf8(j).unwrap()
+        }).unwrap().contains("\"reg\""));
+        let (p, _) = validate_token(&secret, &plain.raw, None).unwrap();
+        assert!(p.reg.is_none());
+    }
+
+    #[test]
+    fn malformed_register_claims_are_refused_at_mint_and_validate() {
+        for (pr, px) in [("", "a-"), ("alice", ""), ("al ice", "a-"), ("alice", "a/"), (&"x".repeat(65)[..], "a")] {
+            assert!(RegisterClaim::new(pr, px).is_err(), "{pr:?}/{px:?} must be refused");
+        }
+        let secret = generate_secret();
+        let bad = RegisterClaim { principal: "alice".into(), prefix: "../".into() };
+        assert!(matches!(create_register_token(&secret, bad.clone(), 60), Err(TokenError::InvalidRegisterClaim)));
+        // Signed with the secret but bypassing the mint check: still refused at validation.
+        let tok = sign_token(&secret, PermissionScope::Observe, "", 60, Some(bad));
+        assert!(matches!(validate_token(&secret, &tok.raw, None), Err(TokenError::InvalidRegisterClaim)));
+    }
+
+    #[test]
+    fn register_claim_permits_only_names_under_its_prefix() {
+        let c = RegisterClaim::new("alice", "alice-").unwrap();
+        assert!(c.permits_name("alice-review-1"));
+        assert!(!c.permits_name("bob-review-1"));
+        assert!(!c.permits_name("alice"));
+        assert!(!c.permits_name("alice-x y"));
+    }
 
     #[test]
     fn peek_reads_scope_and_expiry_without_the_secret() {

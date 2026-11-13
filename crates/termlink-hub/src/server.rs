@@ -859,6 +859,7 @@ fn handle_hub_auth_token(
     req: &Request,
     token_secret: &Option<String>,
     granted_scope: &mut Option<PermissionScope>,
+    granted_reg: &mut Option<auth::RegisterClaim>,
     id: serde_json::Value,
 ) -> Option<RpcResponse> {
     let secret = match token_secret {
@@ -902,8 +903,10 @@ fn handle_hub_auth_token(
 
     // Validate the token (no session_id check — hub tokens are hub-scoped)
     match auth::validate_token(&secret_bytes, token_str, None) {
-        Ok((_payload, scope)) => {
+        Ok((payload, scope)) => {
             *granted_scope = Some(scope);
+            // T-3760: a re-auth replaces the claim too (a plain token clears it).
+            *granted_reg = payload.reg;
             tracing::info!(
                 scope = %scope,
                 "Hub connection authenticated via token"
@@ -1419,6 +1422,8 @@ async fn handle_line_connection<S>(
     let (reader, mut writer) = tokio::io::split(stream);
     let mut reader = BufReader::new(reader);
     let mut granted_scope = initial_scope;
+    // T-3760: the registration claim this connection presented in hub.auth, if any.
+    let mut granted_reg: Option<auth::RegisterClaim> = None;
     let mut line_buf: Vec<u8> = Vec::new();
 
     loop {
@@ -1474,7 +1479,7 @@ async fn handle_line_connection<S>(
         // T-3478: hub-side timing, so a slow call a client sees can be attributed.
         let started = std::time::Instant::now();
         if let Some(mut json) =
-            process_request_message(line, &token_secret, &mut granted_scope, peer_pid, &peer_addr)
+            process_request_message(line, &token_secret, &mut granted_scope, &mut granted_reg, peer_pid, &peer_addr)
                 .await
         {
             let handled = started.elapsed();
@@ -1570,6 +1575,7 @@ async fn handle_ws_connection<S>(
     // task, so `granted_scope` needs no lock.
     let (mut sink, mut source) = ws.split();
     let mut granted_scope = initial_scope;
+    let mut granted_reg: Option<auth::RegisterClaim> = None; // T-3760
 
     // T-2307 (S3): per-connection topic filter set via `hub.ws_subscribe`. Empty =
     // not subscribed → no pushes (opt-in default; the S2 firehose is now gated).
@@ -1629,7 +1635,7 @@ async fn handle_ws_connection<S>(
                         ) {
                             if sink.send(Message::Text(reply)).await.is_err() { break; }
                         } else if let Some(json) = process_request_message(
-                            txt.as_str(), &token_secret, &mut granted_scope, peer_pid, &peer_addr,
+                            txt.as_str(), &token_secret, &mut granted_scope, &mut granted_reg, peer_pid, &peer_addr,
                         ).await
                             && sink.send(Message::Text(json)).await.is_err() { break; }
                     }
@@ -1641,7 +1647,7 @@ async fn handle_ws_connection<S>(
                             ) {
                                 if sink.send(Message::Text(reply)).await.is_err() { break; }
                             } else if let Some(json) = process_request_message(
-                                &txt, &token_secret, &mut granted_scope, peer_pid, &peer_addr,
+                                &txt, &token_secret, &mut granted_scope, &mut granted_reg, peer_pid, &peer_addr,
                             ).await
                                 && sink.send(Message::Text(json)).await.is_err() { break; }
                         }
@@ -1908,6 +1914,7 @@ async fn process_request_message(
     line: &str,
     token_secret: &Option<String>,
     granted_scope: &mut Option<PermissionScope>,
+    granted_reg: &mut Option<auth::RegisterClaim>,
     peer_pid: Option<u32>,
     peer_addr: &Option<String>,
 ) -> Option<String> {
@@ -1988,7 +1995,7 @@ async fn process_request_message(
                 if req.method == control::method::HUB_AUTH {
                     // hub.auth is always allowed (it's the authentication mechanism)
                     let id = req.id.clone().unwrap_or(serde_json::Value::Null);
-                    handle_hub_auth_token(&req, token_secret, granted_scope, id)
+                    handle_hub_auth_token(&req, token_secret, granted_scope, granted_reg, id)
                 } else if req.is_notification() {
                     // Notifications don't get responses
                     router::route(&req, peer_addr_ref).await
@@ -2009,6 +2016,11 @@ async fn process_request_message(
                                 )
                                 .into(),
                             )
+                        }
+                        Some(scope) if granted_reg.is_some() && router::is_session_registration_method(&req.method) => {
+                            // T-3760: a registration claim authorises exactly these
+                            // three methods, bound to its principal (router enforces).
+                            router::route_session_registration(&req, scope, granted_reg.as_ref(), peer_addr_ref)
                         }
                         Some(scope) => {
                             // Check permission scope
@@ -2053,6 +2065,9 @@ async fn process_request_message(
                                     peer_pid,
                                 };
                                 dispatch_admin(&req, &caller, peer_addr_ref).await
+                            } else if router::is_session_registration_method(&req.method) {
+                                // T-3760: owned records are protected from claim-less callers.
+                                router::route_session_registration(&req, scope, None, peer_addr_ref)
                             } else {
                                 router::route(&req, peer_addr_ref).await
                             }
@@ -4400,14 +4415,14 @@ mod tests {
                 let line = serde_json::json!({"jsonrpc": "2.0", "id": n, "method": method,
                     "params": {"target": "t3702-target", "from": "agent-b"}}).to_string();
                 let mut granted = Some(scope);
-                let out = process_request_message(&line, &None, &mut granted, None, &peer).await.unwrap();
+                let out = process_request_message(&line, &None, &mut granted, &mut None, None, &peer).await.unwrap();
                 let v: serde_json::Value = serde_json::from_str(&out).unwrap();
                 assert_eq!(v["error"]["code"], termlink_protocol::control::error_code::AUTH_DENIED, "{method} with {scope}: {v}");
             }
         }
         let line = serde_json::json!({"jsonrpc": "2.0", "id": 99, "method": "termlink.ping", "params": {}}).to_string();
         let mut granted = Some(PermissionScope::Observe);
-        let _ = process_request_message(&line, &None, &mut granted, None, &peer).await;
+        let _ = process_request_message(&line, &None, &mut granted, &mut None, None, &peer).await;
         crate::rpc_audit::FOUNDING_TEST_PATH.with(|c| *c.borrow_mut() = None);
 
         let rows = founding_rows(&log);
@@ -4454,7 +4469,7 @@ mod tests {
         let line = serde_json::json!({"jsonrpc": "2.0", "id": 1, "method": "command.inject",
             "params": {"target": "t3702-target", "keys": []}}).to_string();
         let mut granted = Some(PermissionScope::Execute);
-        let out = process_request_message(&line, &None, &mut granted, None, &None).await.unwrap();
+        let out = process_request_message(&line, &None, &mut granted, &mut None, None, &None).await.unwrap();
         let caller = crate::rpc_audit::AdminCaller::default();
         let ping = Request::new("termlink.ping", serde_json::json!(2), serde_json::json!({}));
         let unaffected = founding_hub_gate(&ping, PermissionScope::Execute, PermissionScope::Observe, &caller);

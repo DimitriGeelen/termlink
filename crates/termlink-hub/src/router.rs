@@ -1235,6 +1235,187 @@ fn handle_deregister_remote(id: serde_json::Value, params: &serde_json::Value) -
     }
 }
 
+/// T-3760: most live records one registration principal may hold at once.
+pub const MAX_OWNED_REMOTE_PER_PRINCIPAL: usize = 16;
+
+/// T-3760: true for the three remote-registration methods.
+pub(crate) fn is_session_registration_method(method: &str) -> bool {
+    matches!(method, "session.register_remote" | "session.heartbeat" | "session.deregister_remote")
+}
+
+/// T-3760: dispatch a remote-registration method for an authenticated connection.
+///
+/// `claim` is the registration claim the connection presented in `hub.auth`, if any.
+/// With a claim, the caller is bound to `claim.principal`: it registers records it
+/// owns (name under its prefix, no live name taken, endpoint host = its own IP,
+/// port >= 1024, quota) and may renew or remove only those. Without a claim the
+/// legacy handlers run (the server has already required interact scope), but a
+/// record owned by a principal can then be renewed or removed only at execute
+/// scope (operator cleanup) — never by another interact holder.
+pub(crate) fn route_session_registration(
+    req: &Request,
+    scope: termlink_session::auth::PermissionScope,
+    claim: Option<&termlink_session::auth::RegisterClaim>,
+    peer_addr: Option<&str>,
+) -> Option<RpcResponse> {
+    use termlink_session::auth::PermissionScope;
+    if req.is_notification() {
+        return None;
+    }
+    let id = req.id.clone().unwrap_or(serde_json::Value::Null);
+    let p = &req.params;
+    Some(match (req.method.as_str(), claim) {
+        ("session.register_remote", Some(c)) => handle_register_owned(id, p, c, peer_addr),
+        ("session.register_remote", None) => handle_register_remote(id, p),
+        (_, Some(c)) => match owned_record_check(&id, p, Some(&c.principal), false) {
+            Some(refused) => refused,
+            None => registration_update(&req.method, id, p),
+        },
+        (_, None) => match owned_record_check(&id, p, None, scope.satisfies(PermissionScope::Execute)) {
+            Some(refused) => refused,
+            None => registration_update(&req.method, id, p),
+        },
+    })
+}
+
+fn registration_update(method: &str, id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
+    if method == "session.heartbeat" {
+        handle_heartbeat(id, params)
+    } else {
+        handle_deregister_remote(id, params)
+    }
+}
+
+/// T-3760: refuse a heartbeat/deregister the caller does not own. `principal` is the
+/// caller's claim principal (None = no claim). A missing record or missing `id`
+/// falls through to the handler, which reports it.
+fn owned_record_check(
+    id: &serde_json::Value,
+    params: &serde_json::Value,
+    principal: Option<&str>,
+    execute: bool,
+) -> Option<RpcResponse> {
+    let sid = params.get("id").and_then(|i| i.as_str())?;
+    let owner = remote_store()?.owner_of(sid)?;
+    let allowed = match (principal, owner.as_deref()) {
+        (Some(p), Some(o)) => p == o,
+        (Some(_), None) => false, // a claim never touches a legacy record
+        (None, Some(_)) => execute,
+        (None, None) => true,
+    };
+    if allowed {
+        return None;
+    }
+    Some(
+        ErrorResponse::new(
+            id.clone(),
+            control::error_code::AUTH_DENIED,
+            &format!(
+                "remote session '{sid}' is owned by {}; this connection {} may not renew or remove it",
+                owner.as_deref().unwrap_or("no registration principal"),
+                principal.map(|p| format!("(principal {p})")).unwrap_or_else(|| "(no registration claim)".into())
+            ),
+        )
+        .into(),
+    )
+}
+
+/// T-3760: the endpoint a claim-bound caller may register: the host must be the
+/// caller's own IP (as seen by the hub) and the port unprivileged. Pure.
+pub(crate) fn check_owned_endpoint(host: &str, port: u64, peer_addr: Option<&str>) -> Result<u16, String> {
+    let peer_ip = peer_addr
+        .and_then(|a| a.parse::<std::net::SocketAddr>().ok())
+        .map(|s| s.ip().to_canonical())
+        .ok_or_else(|| "the hub cannot see this connection's address, so the endpoint cannot be validated".to_string())?;
+    let host_ip = host
+        .parse::<std::net::IpAddr>()
+        .map(|ip| ip.to_canonical())
+        .map_err(|_| format!("endpoint host '{host}' must be an IP address"))?;
+    if host_ip != peer_ip {
+        return Err(format!("endpoint host {host_ip} is not this connection's address {peer_ip}"));
+    }
+    if !(1024..=65535).contains(&port) {
+        return Err(format!("endpoint port {port} must be 1024-65535"));
+    }
+    Ok(port as u16)
+}
+
+fn handle_register_owned(
+    id: serde_json::Value,
+    params: &serde_json::Value,
+    claim: &termlink_session::auth::RegisterClaim,
+    peer_addr: Option<&str>,
+) -> RpcResponse {
+    let denied = |id: serde_json::Value, msg: String| -> RpcResponse {
+        ErrorResponse::new(id, control::error_code::AUTH_DENIED, &format!("registration refused: {msg}")).into()
+    };
+    let Some(store) = remote_store() else {
+        return ErrorResponse::internal_error(id, "Remote store not initialized").into();
+    };
+    let Some(name) = params.get("display_name").and_then(|n| n.as_str()) else {
+        return ErrorResponse::new(id, -32602, "Missing 'display_name' in params").into();
+    };
+    if !claim.permits_name(name) {
+        return denied(id, format!("name '{name}' is not under this principal's prefix '{}'", claim.prefix));
+    }
+    let (Some(host), Some(port)) = (
+        params.get("host").and_then(|h| h.as_str()),
+        params.get("port").and_then(|p| p.as_u64()),
+    ) else {
+        return ErrorResponse::new(id, -32602, "Missing 'host' or 'port' in params").into();
+    };
+    let port = match check_owned_endpoint(host, port, peer_addr) {
+        Ok(p) => p,
+        Err(e) => return denied(id, e),
+    };
+    // No takeover of a local session either; an unreadable directory refuses.
+    match manager::list_sessions(false) {
+        Ok(v) if v.iter().any(|r| r.display_name == name) => {
+            return denied(id, format!("a live local session is already named '{name}'"));
+        }
+        Ok(_) => {}
+        Err(e) => return denied(id, format!("cannot check local sessions for the name ({e})")),
+    }
+    let worker_binding = match params.get("worker_binding") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(v) => match serde_json::from_value::<termlink_session::registration::WorkerBinding>(v.clone()) {
+            Ok(b) if !b.dispatch_id.trim().is_empty() && !b.dispatch_id.contains(':') && b.attempt > 0 => Some(b),
+            _ => return ErrorResponse::new(id, -32602, "Invalid 'worker_binding'").into(),
+        },
+    };
+    let info = crate::remote_store::RemoteSessionInfo {
+        display_name: name.to_string(),
+        host: host.to_string(),
+        port,
+        pid: params.get("pid").and_then(|p| p.as_u64()).map(|p| p as u32),
+        roles: extract_string_array(params, "roles"),
+        tags: extract_string_array(params, "tags"),
+        capabilities: extract_string_array(params, "capabilities"),
+        protocol_version: params.get("protocol_version").and_then(|v| v.as_u64()).map(|v| v as u8).unwrap_or(1),
+        worker_binding,
+    };
+    use crate::remote_store::OwnedRegisterRefusal as R;
+    let session_id = match store.try_register_owned(info, &claim.principal, MAX_OWNED_REMOTE_PER_PRINCIPAL) {
+        Ok(sid) => sid,
+        Err(R::NameTaken(h)) | Err(R::BindingHeld(h)) => {
+            return denied(id, format!("name or worker binding already held by live session {h}"));
+        }
+        Err(R::Quota(n)) => return denied(id, format!("principal {} already has {n} live records", claim.principal)),
+    };
+    tracing::info!(id = %session_id, principal = %claim.principal, name, "Owned remote session registered (T-3760)");
+    if let Some(agg) = aggregator() {
+        let target = SessionTarget {
+            id: session_id.clone(),
+            display_name: name.to_string(),
+            addr: TransportAddr::tcp(host.to_string(), port),
+        };
+        tokio::spawn(async move {
+            agg.add_session(target).await;
+        });
+    }
+    Response::success(id, json!({ "id": session_id, "owner": claim.principal })).into()
+}
+
 /// Extract a string array from a JSON value by key, defaulting to empty vec.
 fn extract_string_array(params: &serde_json::Value, key: &str) -> Vec<String> {
     params
@@ -3695,6 +3876,97 @@ mod tests {
             }
             RpcResponse::Success(_) => panic!("Expected error for nonexistent session"),
         }
+    }
+
+    #[tokio::test]
+    async fn t3760_owned_registration_binds_principal_prefix_endpoint_and_quota() {
+        use termlink_session::auth::{PermissionScope, RegisterClaim};
+        let _lock = ENV_LOCK.lock().await;
+        let _store = super::init_remote_store();
+        if let Some(s) = super::remote_store() { s.clear(); }
+        let dir = test_dir();
+        let sessions_dir = dir.join("sessions");
+        std::fs::create_dir_all(&sessions_dir).unwrap();
+        // A live LOCAL session the claim must not take over.
+        let (h1, r1) = start_test_session(&sessions_dir, "t3760a-local").await;
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let alice = RegisterClaim::new("alice", "t3760a-").unwrap();
+        let bob = RegisterClaim::new("bob", "t3760b-").unwrap();
+        let peer = Some("10.1.2.3:51000");
+        let call = |m: &str, p: serde_json::Value, scope: PermissionScope, c: Option<&RegisterClaim>, peer: Option<&str>| {
+            let req = Request::new(m, json!(1), p);
+            super::route_session_registration(&req, scope, c, peer).unwrap()
+        };
+        let reg = |name: &str, host: &str, port: u16| json!({"display_name": name, "host": host, "port": port});
+        let ok_id = |r: RpcResponse| match r {
+            RpcResponse::Success(s) => s.result["id"].as_str().unwrap().to_string(),
+            RpcResponse::Error(e) => panic!("expected success, got {}", e.error.message),
+        };
+        let refused = |r: RpcResponse, needle: &str| match r {
+            RpcResponse::Error(e) => {
+                assert_eq!(e.error.code, control::error_code::AUTH_DENIED, "{}", e.error.message);
+                assert!(e.error.message.contains(needle), "'{}' lacks '{needle}'", e.error.message);
+            }
+            RpcResponse::Success(s) => panic!("expected refusal ({needle}), got {:?}", s.result),
+        };
+        let obs = PermissionScope::Observe;
+
+        // Owner registers under its prefix with its own IP.
+        let a1 = ok_id(call("session.register_remote", reg("t3760a-w1", "10.1.2.3", 40001), obs, Some(&alice), peer));
+        assert_eq!(super::remote_store().unwrap().owner_of(&a1), Some(Some("alice".to_string())));
+        if let RpcResponse::Success(r) = super::handle_discover(json!(2), &json!({})).await {
+            let s = r.result["sessions"].as_array().unwrap().iter().find(|s| s["id"] == a1.as_str()).unwrap().clone();
+            assert_eq!(s["owner"], "alice");
+        } else { panic!("discover failed") }
+
+        // Refusals (negative controls), each against an otherwise valid request.
+        refused(call("session.register_remote", reg("t3760b-w1", "10.1.2.3", 40002), obs, Some(&alice), peer), "prefix");
+        refused(call("session.register_remote", reg("t3760a-w2", "10.9.9.9", 40002), obs, Some(&alice), peer), "not this connection");
+        refused(call("session.register_remote", reg("t3760a-w2", "10.1.2.3", 80), obs, Some(&alice), peer), "1024");
+        refused(call("session.register_remote", reg("t3760a-w2", "10.1.2.3", 40002), obs, Some(&alice), None), "cannot see");
+        refused(call("session.register_remote", reg("t3760a-w1", "10.1.2.3", 40002), obs, Some(&alice), peer), "already held");
+        refused(call("session.register_remote", reg("t3760a-local", "10.1.2.3", 40002), obs, Some(&alice), peer), "live local session");
+        // IPv4-mapped IPv6 peer address is the same host.
+        ok_id(call("session.register_remote", reg("t3760a-w6", "10.1.2.3", 40006), obs, Some(&alice), Some("[::ffff:10.1.2.3]:5"))) ;
+
+        // Bob cannot renew or remove alice's record; a plain interact caller cannot either.
+        let hb = json!({"id": a1});
+        refused(call("session.heartbeat", hb.clone(), obs, Some(&bob), peer), "owned by alice");
+        refused(call("session.deregister_remote", hb.clone(), obs, Some(&bob), peer), "owned by alice");
+        refused(call("session.heartbeat", hb.clone(), PermissionScope::Interact, None, peer), "no registration claim");
+        refused(call("session.deregister_remote", hb.clone(), PermissionScope::Interact, None, peer), "no registration claim");
+        // A claim never touches a legacy (unowned) record.
+        let legacy = ok_id(super::handle_register_remote(json!(9), &reg("legacy-x", "10.7.7.7", 9100)));
+        refused(call("session.deregister_remote", json!({"id": legacy}), obs, Some(&alice), peer), "no registration principal");
+        // Owner renews; execute (operator cleanup) may remove.
+        assert!(matches!(call("session.heartbeat", hb.clone(), obs, Some(&alice), peer), RpcResponse::Success(_)));
+        assert!(matches!(call("session.deregister_remote", hb.clone(), PermissionScope::Execute, None, None), RpcResponse::Success(_)));
+
+        // Quota: 16 live records per principal.
+        super::remote_store().unwrap().clear();
+        for i in 0..super::MAX_OWNED_REMOTE_PER_PRINCIPAL {
+            ok_id(call("session.register_remote", reg(&format!("t3760a-q{i}"), "10.1.2.3", 41000 + i as u16), obs, Some(&alice), peer));
+        }
+        refused(call("session.register_remote", reg("t3760a-qx", "10.1.2.3", 42000), obs, Some(&alice), peer), "16 live records");
+        // Another principal is unaffected by alice's quota.
+        ok_id(call("session.register_remote", reg("t3760b-q0", "10.1.2.3", 42001), obs, Some(&bob), peer));
+
+        super::remote_store().unwrap().clear();
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        h1.abort();
+        let _ = std::fs::remove_file(r1.socket_path());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn t3760_owned_endpoint_check_is_pure() {
+        assert_eq!(super::check_owned_endpoint("127.0.0.1", 40000, Some("127.0.0.1:5")), Ok(40000));
+        assert!(super::check_owned_endpoint("127.0.0.2", 40000, Some("127.0.0.1:5")).is_err());
+        assert!(super::check_owned_endpoint("localhost", 40000, Some("127.0.0.1:5")).is_err());
+        assert!(super::check_owned_endpoint("127.0.0.1", 1023, Some("127.0.0.1:5")).is_err());
+        assert!(super::check_owned_endpoint("127.0.0.1", 70000, Some("127.0.0.1:5")).is_err());
+        assert!(super::check_owned_endpoint("127.0.0.1", 40000, Some("garbage")).is_err());
     }
 
     #[tokio::test]

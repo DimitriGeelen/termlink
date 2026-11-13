@@ -33,6 +33,17 @@ pub struct RemoteSessionInfo {
     pub worker_binding: Option<termlink_session::registration::WorkerBinding>,
 }
 
+/// T-3760: why an owned registration was refused.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OwnedRegisterRefusal {
+    /// A live record already carries this display name (its id).
+    NameTaken(String),
+    /// The owner already has this many live records.
+    Quota(usize),
+    /// The worker binding (or, in a race, the name) is held by this live record.
+    BindingHeld(String),
+}
+
 /// A remote session entry stored in the hub's memory.
 #[derive(Clone, Debug)]
 pub struct RemoteEntry {
@@ -46,6 +57,9 @@ pub struct RemoteEntry {
     pub capabilities: Vec<String>,
     pub protocol_version: u8,
     pub worker_binding: Option<termlink_session::registration::WorkerBinding>,
+    /// T-3760: the principal that registered this record through a registration
+    /// claim. `None` for records registered the legacy way (interact scope).
+    pub owner: Option<String>,
     pub state: String,
     pub registered_at: Instant,
     pub last_heartbeat: Instant,
@@ -79,6 +93,9 @@ impl RemoteEntry {
         if let Some(b) = &self.worker_binding {
             v["worker_binding"] = json!(b);
         }
+        if let Some(o) = &self.owner {
+            v["owner"] = json!(o);
+        }
         v
     }
 }
@@ -108,7 +125,7 @@ impl RemoteStore {
     ///
     /// Does not enforce worker-binding uniqueness; use [`Self::try_register`].
     pub fn register(&self, info: RemoteSessionInfo) -> String {
-        self.insert(info, false).expect("unenforced insert cannot conflict")
+        self.insert(info, false, None).expect("unenforced insert cannot conflict")
     }
 
     /// Register unless a LIVE remote session already holds the same worker
@@ -116,10 +133,45 @@ impl RemoteStore {
     /// concurrent remote registrations cannot both win. `Err` carries the
     /// holder's `(id, display_name)`.
     pub fn try_register(&self, info: RemoteSessionInfo) -> Result<String, (String, String)> {
-        self.insert(info, true)
+        self.insert(info, true, None)
     }
 
-    fn insert(&self, info: RemoteSessionInfo, enforce_binding: bool) -> Result<String, (String, String)> {
+    /// T-3760: register a record owned by `owner`. Refuses a display name any live
+    /// remote record already holds (no takeover; re-checked under the insert's write
+    /// lock), `max_per_owner` or more live records for this owner (no exhaustion;
+    /// two racing calls may overshoot by one), and a held worker binding. Local file
+    /// registrations are checked by the caller.
+    pub fn try_register_owned(
+        &self,
+        info: RemoteSessionInfo,
+        owner: &str,
+        max_per_owner: usize,
+    ) -> Result<String, OwnedRegisterRefusal> {
+        {
+            let entries = self.entries.read().expect("remote store lock poisoned");
+            let live = || entries.values().filter(|e| !e.is_expired());
+            if let Some(h) = live().find(|e| e.display_name == info.display_name) {
+                return Err(OwnedRegisterRefusal::NameTaken(h.id.clone()));
+            }
+            if live().filter(|e| e.owner.as_deref() == Some(owner)).count() >= max_per_owner {
+                return Err(OwnedRegisterRefusal::Quota(max_per_owner));
+            }
+        }
+        self.insert(info, true, Some(owner.to_string())).map_err(|(id, _)| OwnedRegisterRefusal::BindingHeld(id))
+    }
+
+    /// T-3760: `None` = no such record; `Some(owner)` = the record's owner (itself
+    /// `None` for a legacy record).
+    pub fn owner_of(&self, id: &str) -> Option<Option<String>> {
+        self.entries.read().expect("remote store lock poisoned").get(id).map(|e| e.owner.clone())
+    }
+
+    fn insert(
+        &self,
+        info: RemoteSessionInfo,
+        enforce_binding: bool,
+        owner: Option<String>,
+    ) -> Result<String, (String, String)> {
         let RemoteSessionInfo {
             display_name,
             host,
@@ -137,6 +189,12 @@ impl RemoteStore {
             && let Some(h) = entries
                 .values()
                 .find(|e| !e.is_expired() && e.worker_binding.as_ref() == Some(b))
+        {
+            return Err((h.id.clone(), h.display_name.clone()));
+        }
+        // T-3760: an owned record never shares a live display name (race-safe here).
+        if owner.is_some()
+            && let Some(h) = entries.values().find(|e| !e.is_expired() && e.display_name == display_name)
         {
             return Err((h.id.clone(), h.display_name.clone()));
         }
@@ -158,6 +216,7 @@ impl RemoteStore {
             capabilities,
             protocol_version,
             worker_binding,
+            owner,
             state: "ready".to_string(),
             registered_at: now,
             last_heartbeat: now,
