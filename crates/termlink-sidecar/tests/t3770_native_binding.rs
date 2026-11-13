@@ -155,6 +155,21 @@ fn no_reader_at_all_is_unavailable() {
     assert!(st["binding"]["source"].is_null());
 }
 
+/// `with_proc_root` means "read only from this directory": a native reader set before it is
+/// dropped (else the T-3772 "no /proc" test would bind through libproc on a Mac).
+#[test]
+fn proc_root_seam_drops_an_earlier_native_reader() {
+    let r = rig(None, None);
+    let empty = r.store.dir().parent().unwrap().join(format!("no-proc2-{}", std::process::id()));
+    std::fs::create_dir_all(&empty).unwrap();
+    let e = Estate::create_without_hub().unwrap();
+    let store = Arc::new(Store::open(&e.store_root(), B).unwrap());
+    let d = Arc::new(Deliverer::new(B, store.clone(), Box::new(BuiltIn::new(Roster::new())), None));
+    let run = doorbell::Runner::new(B, store, d, r.meter.clone(), r.rpc.clone(), None).with_native(Some(CHAIN)).with_proc_root(empty);
+    assert!(!run.binding_available());
+    assert_eq!(run.binding_source(), None);
+}
+
 /// The platform default: Linux reads `/proc`, macOS reads libproc; both are available.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 #[test]

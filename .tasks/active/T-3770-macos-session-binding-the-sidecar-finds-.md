@@ -100,12 +100,12 @@ honest "unavailable".
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The parent-chain walk is one generic function (`ancestors_with`) used by both the Linux `/proc` reader and the macOS libproc reader; unit tests pin: stop at pid <= 1, cap 64, stop at an unreadable step, cycle-safe.
-- [ ] The macOS `KERN_PROCARGS2` buffer parser is a pure function tested on Linux with fixture buffers (normal, padding NULs, truncated, argc larger than the strings present, empty) — negative cases return None or the strings present, never panic.
-- [ ] `script_path`'s argv rule (first non-empty non-option argument after argv[0], resolved against cwd) is one function shared by the `/proc` and macOS readers (no copy).
-- [ ] Every new `cfg(target_os = "macos")` function type-checks against the macOS libc (`rustc --target x86_64-apple-darwin` with the darwin libc rmeta); the check output is kept in `.context/working/t3770/`.
-- [ ] `Runner::binding_available()` is true on macOS (native libproc) and on Linux with `/proc`; false elsewhere or under a test proc root without `self`; status `binding.why` and each unbound session name the reason (unavailable platform, no harness pid, parent chain unreadable, no hosting session).
-- [ ] Existing sidecar tests (b16_doorbell, b16_live, unit) stay green; a negative control: forcing the native reader to fail yields `unbound (...)` with a reason, never `bound`.
+- [x] The parent-chain walk is one generic function (`ancestors_with`) used by both the Linux `/proc` reader and the macOS libproc reader; unit tests pin: stop at pid <= 1, cap 64, stop at an unreadable step, cycle-safe.
+- [x] The macOS `KERN_PROCARGS2` buffer parser is a pure function tested on Linux with fixture buffers (normal, padding NULs, truncated, argc larger than the strings present, empty) — negative cases return None or the strings present, never panic.
+- [x] `script_path`'s argv rule (first non-empty non-option argument after argv[0], resolved against cwd) is one function shared by the `/proc` and macOS readers (no copy).
+- [x] Every new `cfg(target_os = "macos")` function type-checks against the macOS libc (`rustc --target x86_64-apple-darwin` with the darwin libc rmeta); the check output is kept in `.context/working/t3770/`.
+- [x] `Runner::binding_available()` is true on macOS (native libproc) and on Linux with `/proc`; false elsewhere or under a test proc root without `self`; status `binding.why` and each unbound session name the reason (unavailable platform, no harness pid, parent chain unreadable, no hosting session).
+- [x] Existing sidecar tests (b16_doorbell, b16_live, unit) stay green; a negative control: forcing the native reader to fail yields `unbound (...)` with a reason, never `bound`.
 
 <!--
 ### Human
@@ -163,6 +163,8 @@ env -u PROJECT_ROOT cargo test -p termlink-sidecar --test b16_doorbell > .contex
 # macOS type-check evidence (darwin libc, cc stub; kept in .context/working/t3770/): rc=0 and no error lines
 test -s .context/working/t3770/cargo-mac-check.out && grep -q "Finished" .context/working/t3770/cargo-mac-check.out && ! grep -q "^error" .context/working/t3770/cargo-mac-check.out
 grep -q "error\[E0609\]: no field .pbi_ppidx." .context/working/t3770/mac-mutant.out
+# mutants on a clean clone (.context/working/t3770/mutants.py): 6 of 6 killed
+test "$(grep -c '^KILLED' .context/working/t3770/mutants.out)" -eq 6 && ! grep -q '^SURVIVED' .context/working/t3770/mutants.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -357,6 +359,18 @@ grep -q "error\[E0609\]: no field .pbi_ppidx." .context/working/t3770/mac-mutant
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-13 — the binding was more than ancestors
+- **What changed:** binding on macOS needs three readers, not one: the parent chain (proc_pidinfo), the harness exe
+  (proc_pidpath) and, for `node cli.js`, argv + cwd (KERN_PROCARGS2 + PROC_PIDVNODEPATHINFO). The doorbell's keystroke
+  re-check also compares the PTY foreground (`input_meter::foreground`) with the harness; that read `/proc` too, so it
+  got the same macOS readers, else a bound Mac session would always hold.
+- **Plan impact:** none to the 08 plan (this T-3770 is not a plan row; the plan's "T-3770" is an AEF task). The live
+  PTY tests (b16_live, t3772 live) stay Linux-only: their helper `testkit::harness_after_exec` reads `/proc`, and
+  enabling them unproven on the blocking macOS CI job could block a release. The macOS CI job now runs
+  `procinfo::tests::macos_readers_see_a_real_child` (real libproc on a spawned child, with a missing-pid control).
+- **Triggered:** follow-up worth filing: port `harness_after_exec` and enable the live binding tests on macOS once the
+  CI run shows the readers green.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -417,3 +431,8 @@ grep -q "error\[E0609\]: no field .pbi_ppidx." .context/working/t3770/mac-mutant
 ### 2026-11-13T17:32:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-13 — attribution note [t3770-build]
+- Commit 703a8ba6f (`git commit -- <paths>` takes whole files) also carried the T-3757 worker's then-uncommitted
+  `notify_params` hunks in `crates/termlink-sidecar/src/doorbell.rs`. T-3757 had committed 8eec4b092 on top before
+  this was noticed, so history was not rewritten. The tree is correct; those hunks belong to T-3757.
