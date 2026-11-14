@@ -307,18 +307,74 @@ fn classify_hub_arg(
 
 /// T-1385: returns a TransportAddr (Unix or TCP). Variable name `sock` is
 /// preserved across the file for call-site stability — it holds an addr now.
+/// T-3788: which hub a channel command uses when no `--hub` was given.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum HubChoice {
+    /// The local hub socket exists: use it (unchanged behaviour).
+    Local(std::path::PathBuf),
+    /// No local socket; a non-root caller with a hub link (T-3781) uses that hub over
+    /// TCP with its own credential for the address (hubs.toml profile).
+    Link(String),
+    /// No local socket and no link: the pre-T-3788 outcome.
+    NotRunning(std::path::PathBuf),
+}
+
+/// T-3788 (T-3786 GO A): the choice, pure apart from `link`, which is only asked when
+/// the local socket is missing. A link that is present but broken (half-provisioned,
+/// unreadable) is an error, never a silent fall-through. `link` returns `Ok(None)` for
+/// root (see `hub_link::link_for_this_user`).
+pub(crate) fn choose_hub(
+    sock: &std::path::Path,
+    sock_exists: bool,
+    link: impl FnOnce() -> Result<Option<super::hub_link::HubLink>>,
+) -> Result<HubChoice> {
+    if sock_exists {
+        return Ok(HubChoice::Local(sock.to_path_buf()));
+    }
+    match link() {
+        Ok(Some(l)) => Ok(HubChoice::Link(l.hub)),
+        Ok(None) => Ok(HubChoice::NotRunning(sock.to_path_buf())),
+        Err(e) => Err(anyhow::anyhow!(
+            "no local hub at {}, and this user's hub link cannot be used: {e:#}",
+            sock.display()
+        )),
+    }
+}
+
+/// T-3788: say once per process which hub the fallback chose, and why.
+fn note_link_fallback(sock: &std::path::Path, hub: &str) {
+    static SAID: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if !SAID.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        eprintln!(
+            "termlink: no local hub at {}; using this user's hub link {hub} over TCP (T-3788)",
+            sock.display()
+        );
+    }
+}
+
+/// The hub for a channel command with no `--hub`, after [`choose_hub`].
+fn resolve_default_hub() -> Result<HubChoice> {
+    let (_, sock) = resolve_hub_paths();
+    let exists = sock.exists();
+    choose_hub(&sock, exists, super::hub_link::link_for_this_user)
+}
+
 pub(crate) fn hub_socket(hub: Option<&str>) -> Result<TransportAddr> {
     if let Some(h) = hub {
         return parse_hub_addr(h);
     }
-    let (_, sock) = resolve_hub_paths();
-    if !sock.exists() {
-        anyhow::bail!(
+    match resolve_default_hub()? {
+        HubChoice::Local(sock) => Ok(TransportAddr::unix(sock)),
+        HubChoice::Link(addr) => {
+            let (_, sock) = resolve_hub_paths();
+            note_link_fallback(&sock, &addr);
+            parse_hub_addr(&addr)
+        }
+        HubChoice::NotRunning(sock) => anyhow::bail!(
             "Hub is not running (no socket at {}) — start it with 'termlink hub start'",
             sock.display()
-        );
+        ),
     }
-    Ok(TransportAddr::unix(sock))
 }
 
 // T-1915: every cmd_channel_* taking `json_output: bool` needs --json on the
@@ -351,8 +407,16 @@ fn hub_socket_soft(hub: Option<&str>) -> Result<TransportAddr> {
     if let Some(h) = hub {
         return parse_hub_addr(h);
     }
-    let (_, sock) = resolve_hub_paths();
-    Ok(TransportAddr::unix(sock))
+    // T-3788: a linked non-root user with no local hub posts to its hub over TCP;
+    // otherwise the local path, missing or not (the offline-queue fallback).
+    match resolve_default_hub()? {
+        HubChoice::Link(addr) => {
+            let (_, sock) = resolve_hub_paths();
+            note_link_fallback(&sock, &addr);
+            parse_hub_addr(&addr)
+        }
+        HubChoice::Local(sock) | HubChoice::NotRunning(sock) => Ok(TransportAddr::unix(sock)),
+    }
 }
 
 /// T-3749: exit code for "the message is in the LOCAL offline queue and has
@@ -21433,5 +21497,39 @@ mod t3486_verdict_tests {
         let mut m = signed_msg(&id, "t", "chat", b"hi", 7);
         m["sender_pubkey_hex"] = json!("not-hex");
         assert!(signature_verdict(&m).starts_with("INVALID ("));
+    }
+}
+
+#[cfg(test)]
+mod t3788_hub_choice {
+    use super::*;
+    use super::super::hub_link::HubLink;
+    use std::path::Path;
+
+    fn link() -> Result<Option<HubLink>> {
+        Ok(Some(HubLink { hub: "127.0.0.1:9100".into(), token_file: "/t".into() }))
+    }
+
+    #[test]
+    fn local_socket_wins_and_the_link_is_not_even_read() {
+        let s = Path::new("/run/x/hub.sock");
+        let c = choose_hub(s, true, || panic!("must not read the link when the socket exists")).unwrap();
+        assert_eq!(c, HubChoice::Local(s.into()));
+    }
+
+    #[test]
+    fn missing_socket_uses_the_link_else_reports_not_running() {
+        let s = Path::new("/run/x/hub.sock");
+        assert_eq!(choose_hub(s, false, link).unwrap(), HubChoice::Link("127.0.0.1:9100".into()));
+        assert_eq!(choose_hub(s, false, || Ok(None)).unwrap(), HubChoice::NotRunning(s.into()));
+    }
+
+    #[test]
+    fn a_broken_link_is_an_error_naming_both_facts() {
+        let s = Path::new("/run/x/hub.sock");
+        let e = choose_hub(s, false, || Err(anyhow::anyhow!("hub link half-provisioned: a exists but b is missing")))
+            .unwrap_err();
+        let msg = format!("{e:#}");
+        assert!(msg.contains("no local hub at /run/x/hub.sock") && msg.contains("half-provisioned"), "{msg}");
     }
 }
