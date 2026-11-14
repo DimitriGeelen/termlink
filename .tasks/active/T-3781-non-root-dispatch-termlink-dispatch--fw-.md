@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T17:55:21Z
-last_update: 2026-11-13T23:34:45Z
+last_update: 2026-11-14T00:34:33Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -478,6 +478,16 @@ bash -n scripts/hub-link-provision.sh && bash -n runme.sh
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-11-14T09:30Z — live on .107 (agent)
+- runme run 2026-11-14T00:57Z (log runme-20261114T005749Z-2053325.log, rc=1 from the 3 known greenfield
+  lines only): termlink 0.12.13+11.gf1da85141 installed; action 22e OK — "registration claim (prefix
+  dimitri-mint-dev-) installed 600:dimitri-mint-dev with address 127.0.0.1:9100 and proven (a plain register
+  came up on the hub, owner dimitri-mint-dev), expires 2026-11-21T01:16Z". That proof ran on the real hub.
+- Throwaway-hub smoke as dimitri-mint-dev (`.context/working/t3781/smoke.out`): spawn --shell, pty inject,
+  exec, dispatch 2/2 collected, negative control refused.
+- Open: `fw termlink dispatch` end to end from the 1409 design session — asked 1409-sprind (msg ef9e2fd6,
+  conversation hub-socket-2026-11-12) to run one review dispatch and report. Close after that answer.
 
 ### 2026-11-13T17:55:21Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
