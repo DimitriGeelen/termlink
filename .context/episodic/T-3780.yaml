@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3780: MCP termlink_batch_exec and termlink_remote_exec call 'command.exec', which no handler serves (the session method is 'command.execute')
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-14T15:29:51Z
+# ============================================================================
+
+task_id: T-3780
+task_name: "MCP termlink_batch_exec and termlink_remote_exec call 'command.exec', which no handler serves (the session method is 'command.execute')"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-13T17:54:25Z
+completed: 2026-11-14T15:29:42Z
+duration_days: 1
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Found by the T-3757 worker 2026-11-13 (hand-back item 9): the MCP tools termlink_batch_exec and termlink_remote_exec send 'command.exec'; no handler in this repo serves that method (sessions serve 'command.execute'), so these tools likely fail with method-not-found. Verify with a test against a real session, fix the method name (or the router alias), add a parity test that every MCP tool's RPC method is served by some handler.
+
+# Key outcomes
+outcomes:
+  - 'A parity test scans the MCP tools'' RPC calls and fails on any method that is neither a `control::method`'
+  - 'Both sites call `control::method::COMMAND_EXECUTE`; the parity test then passes.'
+  - 'A test against a real session (in-process or throwaway) shows the batch-exec path running a command and'
+  - '`cargo test -p termlink-mcp` and workspace clippy clean. (1091/0; clippy rc 0.)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1295 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1295
+  commits: 1
+  files_changed: 5
+  lines_added: 645
+  lines_removed: 2
+  footprint_refreshed_at: '2026-11-14T15:30:14Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3780-mcp-termlinkbatchexec-and-termlinkremote.md
+generated_by: context-agent-hybrid

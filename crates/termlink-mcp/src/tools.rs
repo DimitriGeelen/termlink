@@ -16018,7 +16018,8 @@ impl TermLinkTools {
                 let rpc_timeout = std::time::Duration::from_secs(timeout + 5);
                 match tokio::time::timeout(
                     rpc_timeout,
-                    client::rpc_call(&socket, "command.exec", termlink_session::founding_log::with_declared_from(params)),
+                    // T-3780: was "command.exec", which nothing serves.
+                    client::rpc_call(&socket, termlink_protocol::control::method::COMMAND_EXECUTE, termlink_session::founding_log::with_declared_from(params)),
                 )
                 .await
                 {
@@ -16797,7 +16798,8 @@ impl TermLinkTools {
                 params["cwd"] = serde_json::json!(cwd);
             }
 
-            match rpc_client.call("command.exec", serde_json::json!("mcp-exec"), termlink_session::founding_log::with_declared_from(params)).await {
+            // T-3780: was "command.exec", which nothing serves.
+            match rpc_client.call(termlink_protocol::control::method::COMMAND_EXECUTE, serde_json::json!("mcp-exec"), termlink_session::founding_log::with_declared_from(params)).await {
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
                     serde_json::to_string_pretty(&serde_json::json!({
                         "ok": true,
