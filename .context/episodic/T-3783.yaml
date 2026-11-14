@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3783: Meter keeps no per-report history: 'did a prompt_submit arrive for this prompt?' cannot be answered (AEF trial question)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-14T17:20:30Z
+# ============================================================================
+
+task_id: T-3783
+task_name: "Meter keeps no per-report history: 'did a prompt_submit arrive for this prompt?' cannot be answered (AEF trial question)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-13T19:23:42Z
+completed: 2026-11-14T17:19:58Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-14T18:18:40+01:00
+last_commit: 2026-11-14T18:18:40+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the meter writes one content-free receipt line per report (outcome + reason), bounded and rotated, path in status
+
+# Key outcomes
+outcomes:
+  - 'Every `Meter::intake` call (applied, dropped or ignored, including unparseable input) appends one JSON line'
+  - 'Bounded: at the size limit (default 1 MiB, test seam) the file rotates to `.1` (one generation kept);'
+  - 'Readable: `status_view` names the log path and the failure count.'
+  - 'Negative control: an ignored report (bad schema) and a dropped one (older `ready`) are logged with their'
+  - 'No new canary or guard (guard cap); `cargo test -p termlink-sidecar` and workspace clippy clean; mutant:'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3783-meter-keeps-no-per-report-history-did-a-.md'
+  - 'crates/termlink-sidecar/src/meter.rs'
+  - 'crates/termlink-sidecar/tests/meter_tests.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-14T18:18:40'
+    action: 'T-3783: the meter writes one content-free receipt line per report (outcome + reason), bounded and rotated, path in status'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1316 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1316
+  commits: 2
+  files_changed: 6
+  lines_added: 653
+  lines_removed: 4
+  footprint_refreshed_at: '2026-11-14T17:20:44Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3783-meter-keeps-no-per-report-history-did-a-.md
+generated_by: context-agent-hybrid

@@ -23967,3 +23967,21 @@ scan_id: R-3e40ffd2
 task_id: T-3789
 payload:
   task_file: .tasks/active/T-3789-meter-persists-the-sessions-transcript-p.md
+---
+kind: scan_emitted
+timestamp: '2026-11-14T17:20:15Z'
+scan_id: R-8ebd0bd1
+task_id: T-3783
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-14T17:20:15Z'
+scan_id: R-8ebd0bd1
+task_id: T-3783
+payload:
+  task_file: .tasks/active/T-3783-meter-keeps-no-per-report-history-did-a-.md
