@@ -339,6 +339,18 @@ date_finished: null
 
 ## Decisions
 
+### 2026-11-14 — build hub forwarding above observe to TCP workers, and how (operator ruling)
+- **Chose:** build it (not D "not now"); shape **A**: at registration the worker hands the hub a token minted from
+  its own session secret; the hub uses it when forwarding, and only for callers the hub's own scope check already
+  admits to inject (Control) / exec (Execute). Owner binding and the T-3757 caller identity are kept.
+- **Why:** operator: communication between workers is the goal ("we should do what's the good solution, right? That
+  we have communication between workers"). A was the brief's recommendation if built: the hub gate already limits
+  these methods to root-equivalent callers, and it is the simpler of A/B.
+- **Rejected:** B (owner + local root only: more code, protects against a shrinking set of secret holders);
+  C (callers bring their own tokens: key distribution for no user); D (not now: overruled).
+- Operator words in chat: "I think 1409, yeah, we should do what's the good solution, right? That we have
+  communication between workers." Assumption recorded (overturnable): "the good solution" = A, the recommended shape.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
