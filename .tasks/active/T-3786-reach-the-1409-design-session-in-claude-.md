@@ -16,7 +16,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-11-14T10:24:14Z
-last_update: '2026-11-14T11:54:07Z'
+last_update: 2026-11-14T12:00:06Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -177,6 +177,20 @@ TCP hub when it has a hub link) is one bounded, reversible rule that fixes every
 - The user's route exists: hubs.toml profile 127.0.0.1:9100 with its own token (T-3756/22c) and the T-3781 link.
 
 ## Decisions
+
+### 2026-11-14 — how to reach the 1409 design session (operator ruling, chat)
+- **Chose:** A — termlink falls back to the user's TCP hub (its hub link address + its own credential) when no
+  `--hub` is given, no local hub socket exists and the caller is non-root with a hub link.
+- **Why:** the measured fault is termlink choosing a hub socket that cannot exist for this user; A fixes it at
+  that one point for every caller (mail hook, MCP, scripts) with no vendored change.
+- **Rejected:** B (AEF passes `--hub`: upstream, fixes only fw's calls); C (do nothing).
+- **Conditions the operator set:** no compromise on quality or design principles: explicit (says which hub it
+  used), fail closed (half a link or a refused credential is an error, never an empty inbox), nothing existing
+  switched off, proven live (sentinel to `1409-sprind/design` shown in the design session's transcript).
+- Operator words in chat: "Well, we want to make it working, but we don't want the great quality and design
+  principles, right? Or the design ideas." then "But if A is the right solution, I'm happy to go forward with
+  that." Read as: GO on A without compromising quality (overturnable).
+- Formal `fw inception decide` is Tier 0 (operator only): Watchtower http://192.168.10.107:3003/inception/T-3786.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
