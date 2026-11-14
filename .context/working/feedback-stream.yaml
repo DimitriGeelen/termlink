@@ -23833,3 +23833,21 @@ scan_id: R-d6ff05b8
 task_id: T-3784
 payload:
   task_file: .tasks/active/T-3784-v01212-release-blocked-by-two-guard-laye.md
+---
+kind: scan_emitted
+timestamp: '2026-11-14T10:21:09Z'
+scan_id: R-8bdfd512
+task_id: T-3785
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-14T10:21:09Z'
+scan_id: R-8bdfd512
+task_id: T-3785
+payload:
+  task_file: .tasks/active/T-3785-install-the-pinned-workflow-designer-and.md
