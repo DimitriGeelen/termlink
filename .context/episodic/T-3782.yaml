@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3782: TCP worker sessions: hub forwarding above observe scope (T-3760 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-14T10:55:44Z
+# ============================================================================
+
+task_id: T-3782
+task_name: "TCP worker sessions: hub forwarding above observe scope (T-3760 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-13T17:55:22Z
+completed: 2026-11-14T10:55:05Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-11-14T11:23:07+01:00
+last_commit: 2026-11-14T11:54:22+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  operator ruling — build forwarding above observe, shape A (worker hands the hub a token at registration). context + ACs (shape A); T-3787 captured from AEF's restart report (meter does not persist harness_pid). hub forwards inject/exec to TCP workers with a worker-minted forward token (shape A); refreshed each heartbeat; redacted, never listed
+
+# Key outcomes
+outcomes:
+  - 'A linked or `--hub` worker mints, from its own session secret, a forward token and sends it with'
+  - '`forward_to_target` to a TCP record that has a forward token authenticates (`auth.token`) before forwarding;'
+  - 'Integration test against a throwaway TCP hub: an Execute caller (hub secret) execs and injects into a'
+  - 'T-3757: the forwarded request keeps the caller''s declared `from`; the worker''s owner binding (claim'
+  - 'Live smoke on .107: as root, exec + inject through the hub into a `dimitri-mint-dev` worker (throwaway hub'
+  - '`cargo test` for termlink-hub, termlink-session, termlink-cli and workspace clippy clean; mutants: drop the'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-14 — build hub forwarding above observe to TCP workers, and how (operator ruling)'
+    chose: 'build it (not D "not now"); shape **A**: at registration the worker hands the hub a token minted from its own session secret; the hub uses it when forwarding, and only for callers the hub''s own scope check already admits to inject (Control) / exec (Execute). Owner binding and the T-3757 caller identity are kept.'
+    rationale: 'operator: communication between workers is the goal ("we should do what''s the good solution, right? That we have communication between workers"). A was the brief''s recommendation if built: the hub gate already limits these methods to root-equivalent callers, and it is the simpler of A/B.'
+    alternatives_rejected: ['B (owner + local root only: more code, protects against a shrinking set of secret holders); C (callers bring their own tokens: key distribution for no user); D (not now: overruled). - Operator words in chat: "I think 1409, yeah, we should do what''s the good solution, right? That we have communication between workers." Assumption recorded (overturnable): "the good solution" = A, the recommended shape.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3782-tcp-worker-sessions-hub-forwarding-above.md'
+  - '.tasks/active/T-3787-meter-persists-the-sessions-harnesspid-a.md'
+  - 'crates/termlink-cli/src/commands/hub_link.rs'
+  - 'crates/termlink-cli/tests/t3782_hub_forward.rs'
+  - 'crates/termlink-hub/src/remote_store.rs'
+  - 'crates/termlink-hub/src/router.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-14T11:23:07'
+    action: 'T-3782: operator ruling — build forwarding above observe, shape A (worker hands the hub a token at registration)'
+  - time: '2026-11-14T11:27:52'
+    action: 'T-3782: context + ACs (shape A); T-3787 captured from AEF''s restart report (meter does not persist harness_pid)'
+  - time: '2026-11-14T11:54:22'
+    action: 'T-3782: hub forwards inject/exec to TCP workers with a worker-minted forward token (shape A); refreshed each heartbeat; redacted, never listed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 1019 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011, security]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1019
+  commits: 4
+  files_changed: 9
+  lines_added: 906
+  lines_removed: 26
+  footprint_refreshed_at: '2026-11-14T10:55:50Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3782-tcp-worker-sessions-hub-forwarding-above.md
+generated_by: context-agent-hybrid
