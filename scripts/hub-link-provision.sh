@@ -48,9 +48,15 @@ L="hub-link:$USER_NAME"
 
 say() { printf '  %-7s %s\n' "$1" "$2"; }
 
+. "$(dirname "${BASH_SOURCE[0]}")/lib/runuser-path.sh"
+RUNUSER=""
+if [ -z "${HUBLINK_RUN:-}" ] && ! RUNUSER="$(resolve_runuser)"; then
+    printf '  %-7s %s\n' FAILED "hub-link:$USER_NAME: runuser not found (PATH=$PATH, /usr/sbin, /sbin); nothing minted or written (T-3792)"
+    exit 1
+fi
 run_as_user() {  # stdin = script; prints its output
     if [ -n "${HUBLINK_RUN:-}" ]; then $HUBLINK_RUN "$USER_NAME" "$UHOME"; return; fi
-    runuser -u "$USER_NAME" -- env -i HOME="$UHOME" PATH=/usr/local/bin:/usr/bin:/bin bash -s
+    "$RUNUSER" -u "$USER_NAME" -- env -i HOME="$UHOME" PATH=/usr/local/bin:/usr/bin:/bin bash -s
 }
 field() { printf '%s\n' "$1" | sed -n "s/^$2=//p" | tail -1; }
 has() { printf '%s\n' "$1" | grep -qx "$2"; }

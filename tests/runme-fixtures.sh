@@ -2123,8 +2123,8 @@ if [ "$rc" = 0 ] && [ -z "$o" ] && [ -e "$F/tok-hb" ] && [ "$(mints)" = "$n" ] &
 else bad "remint cron healthy" "rc=$rc: $o"; fi
 sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 7200 ))/" "$TOKSTATE"
 o=$(FAKE_TOK_POST_FAIL=1 cronrun); rc=$?
-if [ "$rc" = 1 ] && echo "$o" | grep_all -E '^[0-9T:-]+Z FAILED  fake-hub: token authenticated but a post' && grep -q '^urgent-token-expiring|T-3615: 1 fleet token re-mint' "$F/tok-notes"; then
-    ok "remint cron: a failed re-mint is one timestamped FAILED line + an urgent needs-attention note (token expires within a day)"
+if [ "$rc" = 1 ] && echo "$o" | grep_all -E '^[0-9T:-]+Z FAILED  fake-hub: token authenticated but a post' && grep -q '^token-expiring|T-3615: 1 fleet token re-mint(s) failed; EXPIRES WITHIN A DAY' "$F/tok-notes" && ! grep -q '^urgent-' "$F/tok-notes"; then
+    ok "remint cron: a failed re-mint is one timestamped FAILED line + a token-expiring note saying it expires within a day (never urgent-*, which the sidecar refuses, T-3793)"
 else bad "remint cron fail" "rc=$rc: $o / $(cat "$F/tok-notes" 2>/dev/null)"; fi
 sed -i "s/^expires_at=.*/expires_at=$(( $(date +%s) + 200000 ))/" "$TOKSTATE"; rm -f "$F/tok-notes"
 o=$(FAKE_TOK_DOWN=1 cronrun --force); rc=$?

@@ -284,9 +284,11 @@ run_remote() {  # <hub> <tag> <body> -> tagged output, CR stripped
     local script; script="$( { remote_header "$1"; printf '%s\n' "$3"; } | base64 -w0)"
     remote "$1" "echo RUNME-TOKEN-$2; bash -c \"\$(echo $script | base64 -d)\"" 2>/dev/null | tr -d '\r'
 }
+. "$ROOT/scripts/lib/runuser-path.sh"   # T-3792: cron's PATH has no sbin
+RUNUSER="$(resolve_runuser)" || RUNUSER=""
 local_run() {  # stdin: a bash script, run as $LUSER with a clean environment
     if [ -n "$LOCAL_RUN" ]; then $LOCAL_RUN "$LUSER" "$LHOME"; return; fi
-    runuser -u "$LUSER" -- env -i HOME="$LHOME" USER="$LUSER" LOGNAME="$LUSER" PATH="$R_PATH" LANG=C.UTF-8 bash -s
+    "$RUNUSER" -u "$LUSER" -- env -i HOME="$LHOME" USER="$LUSER" LOGNAME="$LUSER" PATH="$R_PATH" LANG=C.UTF-8 bash -s
 }
 field() { printf '%s\n' "$1" | sed -n "s/^$2=//p" | tail -1; }
 has() { printf '%s\n' "$1" | grep_all -x "$2"; }
@@ -321,6 +323,9 @@ one_hub() {
         say FAILED "$hub: no such user on this host (getent passwd ${hub#local:}); nothing minted or written"; return
     fi
     [ "$LOCALMODE" = 1 ] && via="runuser as $LUSER"
+    if [ "$LOCALMODE" = 1 ] && [ -z "$LOCAL_RUN" ] && [ -z "$RUNUSER" ]; then
+        say FAILED "$hub: runuser not found (PATH=$PATH, /usr/sbin, /sbin); nothing minted or written (T-3792)"; return
+    fi
     WANT_HOMECFG="$(home_cfg | sha256sum | cut -d' ' -f1)"
     probe="$(run_remote "$hub" PROBE 'echo PROBE-BEGIN; state; prove_real')"
     if ! has "$probe" PROBE-BEGIN; then
@@ -415,10 +420,11 @@ prove_real")"
 notify() {  # <kind> <why>: best effort, the findings log already carries the line
     if [ -n "${FLEET_TOKEN_NOTE:-}" ]; then $FLEET_TOKEN_NOTE "$1" "$2" >/dev/null 2>&1 || true; return; fi
     [ -r "$SOCKETS_LIST" ] || { echo "fleet-token-remint: no sidecar list at $SOCKETS_LIST: needs-attention note not recorded" >&2; return; }
-    local s
+    local s ans
     grep -v '^[[:space:]]*#' "$SOCKETS_LIST" | grep -v '^[[:space:]]*$' | while read -r s; do
-        termlink sidecar admin note --socket "$s" --kind "$1" --why "$2" >/dev/null 2>&1 \
-            || echo "fleet-token-remint: needs-attention note not recorded on $s" >&2
+        # T-3793: keep the sidecar's answer; "not recorded" alone hid a bad-kind refusal for a week.
+        ans="$(termlink sidecar admin note --socket "$s" --kind "$1" --why "$2" 2>&1)" \
+            || echo "fleet-token-remint: needs-attention note not recorded on $s: $(printf '%s' "$ans" | tr '\n' ' ' | cut -c1-300)" >&2
     done
 }
 
@@ -431,8 +437,15 @@ if [ "$CRON" = 1 ] && [ "$FAILS" -gt 0 ]; then
         e="$(state_get "$h" expires_at)"; [ -n "$e" ] || continue
         [ -z "$soonest" ] || [ "$e" -lt "$soonest" ] && soonest="$e"
     done
-    [ -n "$soonest" ] && [ $((soonest - NOW)) -lt 86400 ] && kind=urgent-token-expiring
-    notify "$kind" "T-3615: $FAILS fleet token re-mint(s) failed; see .context/working/.fleet-token-remint-canary.log. A host whose token expires falls back to nothing (mail and telemetry to .107 stop)."
+    # T-3793: never an urgent-* kind. The sidecar refuses those from outside (they are its own
+    # alarms, termlink-sidecar api.rs note()), so the old urgent-token-expiring was dropped on
+    # every socket exactly when a token was closest to expiry. The urgency goes in the text.
+    soon=""
+    if [ -n "$soonest" ] && [ $((soonest - NOW)) -lt 86400 ]; then
+        kind=token-expiring
+        soon=" EXPIRES WITHIN A DAY (soonest $(date -u -d "@$soonest" +%Y-%m-%dT%H:%MZ 2>/dev/null || echo "$soonest"))."
+    fi
+    notify "$kind" "T-3615: $FAILS fleet token re-mint(s) failed;$soon see .context/working/.fleet-token-remint-canary.log. A host whose token expires falls back to nothing (mail and telemetry to .107 stop)."
 fi
 [ "$CRON" = 1 ] && [ "$DRY" = 0 ] && touch "$HEARTBEAT" 2>/dev/null
 [ "$CRON" = 0 ] && printf '  %-7s %s\n' total "$OKS ok, $SKIPS skipped, $FAILS failed"
