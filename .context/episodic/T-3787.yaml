@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3787: Meter persists the session's harness_pid across a sidecar restart (S1 binding lost on restart)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-14T11:44:20Z
+# ============================================================================
+
+task_id: T-3787
+task_name: "Meter persists the session's harness_pid across a sidecar restart (S1 binding lost on restart)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-14T10:27:12Z
+completed: 2026-11-14T11:43:19Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-14T12:12:59+01:00
+last_commit: 2026-11-14T12:12:59+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the meter persists the harness pid with its start time and restores the binding only for the same process (same boot, same start)
+
+# Key outcomes
+outcomes:
+  - '`procinfo::start_time(pid)` (Linux `/proc/<pid>/stat` field 22, macOS BSD start time, else None) with a'
+  - 'At `session_start` the meter records the harness pid''s start time with the pid; `persist` writes both;'
+  - 'The adapter contract is unchanged (session_start carries harness_pid once); no other persisted field changes.'
+  - '`cargo test -p termlink-sidecar -p termlink-session` and workspace clippy clean; mutants: drop the start-time'
+  - 'AEF told once this is installed on .107 (needs the next runme run). Installed by runme 2026-11-14T11:20Z'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3787-meter-persists-the-sessions-harnesspid-a.md'
+  - 'crates/termlink-session/src/procinfo.rs'
+  - 'crates/termlink-sidecar/src/meter.rs'
+  - 'crates/termlink-sidecar/tests/meter_tests.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-14T12:12:59'
+    action: 'T-3787: the meter persists the harness pid with its start time and restores the binding only for the same process (same boot, same start)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 76 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 76
+  commits: 2
+  files_changed: 7
+  lines_added: 289
+  lines_removed: 17
+  footprint_refreshed_at: '2026-11-14T11:44:33Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3787-meter-persists-the-sessions-harnesspid-a.md
+generated_by: context-agent-hybrid

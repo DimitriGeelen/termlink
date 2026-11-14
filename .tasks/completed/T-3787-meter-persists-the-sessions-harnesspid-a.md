@@ -13,10 +13,10 @@ description: >
   leave unbound with the existing reason. The adapter contract stays: session_start
   carries harness_pid once.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -47,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-14T10:27:12Z
-last_update: '2026-11-14T11:03:56Z'
-date_finished:
+last_update: 2026-11-14T11:43:19Z
+date_finished: 2026-11-14T11:43:19Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -98,7 +98,9 @@ it had been bound before; 13 sessions were restored.
 - [x] The adapter contract is unchanged (session_start carries harness_pid once); no other persisted field changes.
 - [x] `cargo test -p termlink-sidecar -p termlink-session` and workspace clippy clean; mutants: drop the start-time
       comparison (reuse test catches), drop harness from persist (restore test catches).
-- [ ] AEF told once this is installed on .107 (needs the next runme run).
+- [x] AEF told once this is installed on .107 (needs the next runme run). Installed by runme 2026-11-14T11:20Z
+      (log runme-20261114T112019Z-2414219.log, rc=1 from the 3 known greenfield lines only; hub and W1 sidecars
+      restarted onto 0.12.13+19.g0c64ccc19); AEF asked to run the restart test (msg 24a391a8).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -407,3 +409,16 @@ grep -q "nocompare KILLED" .context/working/t3787/mutants.out && grep -q "nopers
 ### 2026-11-14T11:03:54Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-14T11:43:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-cc3379df
+- **Timestamp:** 2026-11-14T11:43:52Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

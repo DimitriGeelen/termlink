@@ -23869,3 +23869,21 @@ scan_id: R-f27e7ccd
 task_id: T-3782
 payload:
   task_file: .tasks/active/T-3782-tcp-worker-sessions-hub-forwarding-above.md
+---
+kind: scan_emitted
+timestamp: '2026-11-14T11:43:52Z'
+scan_id: R-cc3379df
+task_id: T-3787
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-14T11:43:52Z'
+scan_id: R-cc3379df
+task_id: T-3787
+payload:
+  task_file: .tasks/active/T-3787-meter-persists-the-sessions-harnesspid-a.md
