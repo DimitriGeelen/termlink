@@ -12,10 +12,10 @@ description: >
   no local patch): file it upstream with the evidence; possible shapes: count a peek
   read as evidence for a window, or let a reader register as prompt-driven.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -46,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-14T18:45:21Z
-last_update: 2026-11-14T20:28:38Z
-date_finished:
+last_update: 2026-11-14T21:12:58Z
+date_finished: 2026-11-14T21:12:58Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -91,7 +91,7 @@ bvp_scores_proposed:
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Report written with the guard's file:line chain, the live hub row and shapes A–C with a recommendation
 - [x] The report is sent to AEF via `fw sidecar send` and the send is recorded delivered (msg id in Updates)
-- [ ] AEF's acknowledgement (or their own task id) recorded in Updates
+- [x] AEF's acknowledgement (or their own task id) recorded in Updates
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -142,6 +142,8 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+grep -q "addressing.py:496-508" docs/reports/T-3790-send-guard-prompt-driven-reader.md && grep -q "We recommend A" docs/reports/T-3790-send-guard-prompt-driven-reader.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -314,6 +316,11 @@ bvp_scores_proposed:
 
 ## Evolution
 
+### 2026-11-14 — the guard is right in kind, wrong in question
+- **What changed:** at filing we thought the guard had no evidence for this reader at all. Reading it showed it has strong evidence (63 fetches) but asks "caught up since the last write" instead of "a reader exists"; at the moment of reading, the topic even counted as read.
+- **Plan impact:** the ask to AEF became a narrow predicate split (shape A), not a new "prompt-driven reader" protocol.
+- **Triggered:** AEF T-5137 (their fix). Nothing new on our side.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -399,3 +406,19 @@ bvp_scores_proposed:
 
 ### 2026-11-14T20:35Z — sent upstream [agent]
 - Report `docs/reports/T-3790-send-guard-prompt-driven-reader.md` sent to 999-Agentic-Engineering-Framework, client_msg_id 83823c1e-75e4-4a8e-9b3c-53a0d8f6fcda, state RECEIVED (direct receiver). Recommended shape A. Waiting for AEF's ack / task id.
+
+### 2026-11-14T21:20Z — AEF owns it [agent]
+- AEF msg 20302dbd: taken as **AEF T-5137**, confirmed the cause in addressing.py, leaning to shape A; they will report when it lands. Our notice 745ac0af acknowledged. Until then `--force` only for the 1409 design circuit.
+
+### 2026-11-14T21:12:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f550982f
+- **Timestamp:** 2026-11-14T21:13:02Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

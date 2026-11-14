@@ -24003,3 +24003,21 @@ scan_id: R-5b4ad035
 task_id: T-3791
 payload:
   task_file: .tasks/active/T-3791-substrate-resilience-demo-parses-stderr-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-14T21:13:02Z'
+scan_id: R-f550982f
+task_id: T-3790
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-14T21:13:02Z'
+scan_id: R-f550982f
+task_id: T-3790
+payload:
+  task_file: .tasks/active/T-3790-send-guard-refuses-mail-to-a-prompt-driv.md

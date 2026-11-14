@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3790: Send guard refuses mail to a prompt-driven reader (1409 design session) between its reads; raise upstream to AEF
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-14T21:13:26Z
+# ============================================================================
+
+task_id: T-3790
+task_name: "Send guard refuses mail to a prompt-driven reader (1409 design session) between its reads; raise upstream to AEF"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-14T18:45:21Z
+completed: 2026-11-14T21:12:58Z
+duration_days: 0
+updates_count: 5
+first_commit: 2026-11-14T21:28:38+01:00
+last_commit: 2026-11-14T21:28:38+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  send-guard gap written up (file:line chain, live hub row, shapes A-C) and sent to AEF (83823c1e, RECEIVED)
+
+# Key outcomes
+outcomes:
+  - 'Report written with the guard''s file:line chain, the live hub row and shapes A–C with a recommendation'
+  - 'The report is sent to AEF via `fw sidecar send` and the send is recorded delivered (msg id in Updates)'
+  - 'AEF''s acknowledgement (or their own task id) recorded in Updates'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.fabric/components/crates-termlink-cli-src-commands-hub_link.yaml'
+  - '.fabric/components/crates-termlink-cli-tests-t3781_hub_link.yaml'
+  - '.fabric/components/scripts-hub-link-provision.yaml'
+  - '.tasks/active/T-3790-send-guard-refuses-mail-to-a-prompt-driv.md'
+  - 'docs/reports/T-3790-send-guard-prompt-driven-reader.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-14T21:28:38'
+    action: 'T-3790: send-guard gap written up (file:line chain, live hub row, shapes A-C) and sent to AEF (83823c1e, RECEIVED)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 147 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 147
+  commits: 2
+  files_changed: 8
+  lines_added: 658
+  lines_removed: 5
+  footprint_refreshed_at: '2026-11-14T21:13:40Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3790-send-guard-refuses-mail-to-a-prompt-driv.md
+generated_by: context-agent-hybrid
