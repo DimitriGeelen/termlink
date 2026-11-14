@@ -1,13 +1,22 @@
 ---
 id: T-3787
-name: "Meter persists the session's harness_pid across a sidecar restart (S1 binding lost on restart)"
+name: "Meter persists the session's harness_pid across a sidecar restart (S1 binding
+  lost on restart)"
 description: >
-  AEF report 2026-11-14 (msg 8a41356b, conv termlink-arc011-p44-adapter2): after an aef-meter restart S1 is unbound ('no harness_pid reported for this session') although the session was bound before; 13 sessions were restored. Cause: Meter::persist (meter.rs:598-612) writes ready, last_prompt, stopped, ended but not harness_pid, and the adapter sends harness_pid only on session_start. Fix on the meter side: persist harness_pid together with the process start time (/proc/<pid>/stat field 22) and restore it only when the same boot and the same pid+start time still exist (pid reuse guard); otherwise leave unbound with the existing reason. The adapter contract stays: session_start carries harness_pid once.
+  AEF report 2026-11-14 (msg 8a41356b, conv termlink-arc011-p44-adapter2): after an
+  aef-meter restart S1 is unbound ('no harness_pid reported for this session') although
+  the session was bound before; 13 sessions were restored. Cause: Meter::persist (meter.rs:598-612)
+  writes ready, last_prompt, stopped, ended but not harness_pid, and the adapter sends
+  harness_pid only on session_start. Fix on the meter side: persist harness_pid together
+  with the process start time (/proc/<pid>/stat field 22) and restore it only when
+  the same boot and the same pid+start time still exist (pid reuse guard); otherwise
+  leave unbound with the existing reason. The adapter contract stays: session_start
+  carries harness_pid once.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-14T10:27:12Z
-last_update: 2026-11-14T10:27:12Z
-date_finished: null
+last_update: '2026-11-14T11:03:56Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +59,46 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-14T11:03:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3787: Meter persists the session's harness_pid across a sidecar restart (S1 binding lost on restart)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** AEF report 2026-11-14 (msg 8a41356b, conversation termlink-arc011-p44-adapter2): after the
+operator restarted aef-meter, AEF's session S1 was unbound ("no harness_pid reported for this session"), although
+it had been bound before; 13 sessions were restored.
+**Problem / hypothesis:** `Meter::persist` (meter.rs:598-612) writes ready, last_prompt, stopped and ended, but not
+`harness_pid`; the adapter sends it only with `session_start`, so every sidecar restart unbinds live sessions.
+**Goal:** a sidecar restart keeps the binding of a session whose harness process is still the same process.
+**Expected outcome:** after a restart S1 is bound again at once; a pid that died or was reused is not trusted.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `procinfo::start_time(pid)` (Linux `/proc/<pid>/stat` field 22, macOS BSD start time, else None) with a
+      parser test (comm with spaces and parentheses) and a live test (own pid stable, missing pid None).
+- [x] At `session_start` the meter records the harness pid's start time with the pid; `persist` writes both;
+      `restore` keeps the pid only on the same boot and only when that pid still has the same start time.
+      Unit tests: restored-and-bound (same start), dropped when the start time differs (pid reuse), dropped when
+      the process is gone, and an old state file without the field restores as before (unbound, no error).
+- [x] The adapter contract is unchanged (session_start carries harness_pid once); no other persisted field changes.
+- [x] `cargo test -p termlink-sidecar -p termlink-session` and workspace clippy clean; mutants: drop the start-time
+      comparison (reuse test catches), drop harness from persist (restore test catches).
+- [ ] AEF told once this is installed on .107 (needs the next runme run).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +149,10 @@ date_finished: null
 -->
 
 ## Verification
+
+env -u PROJECT_ROOT cargo test -p termlink-sidecar --test meter_tests t3787 > .context/working/t3787/v-meter.out 2>&1 && grep -q "test result: ok. 1 passed" .context/working/t3787/v-meter.out
+env -u PROJECT_ROOT cargo test -p termlink-session --lib t3787 > .context/working/t3787/v-pi.out 2>&1 && grep -q "test result: ok. 2 passed" .context/working/t3787/v-pi.out
+grep -q "nocompare KILLED" .context/working/t3787/mutants.out && grep -q "nopersist KILLED" .context/working/t3787/mutants.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -364,3 +403,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3787-meter-persists-the-sessions-harnesspid-a.md
 - **Context:** Initial task creation
+
+### 2026-11-14T11:03:54Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

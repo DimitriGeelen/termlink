@@ -64,6 +64,32 @@ pub fn parse_procargs2(buf: &[u8]) -> Option<Vec<String>> {
 }
 
 /// The macOS libproc / sysctl readers.
+/// T-3787: the start time of `pid` (`None` when it does not exist or cannot be read).
+/// Opaque, but stable for a process's life and different for a later process that
+/// reuses the pid, so a remembered `(pid, start)` pair can be re-checked.
+pub fn start_time(pid: u32) -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    {
+        parse_stat_start_time(&std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        macos::start_time(pid)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    {
+        let _ = pid;
+        None
+    }
+}
+
+/// Field 22 (`starttime`, clock ticks since boot) of a `/proc/<pid>/stat` line. The
+/// comm field may contain spaces and parentheses, so fields are counted after the last `)`.
+pub fn parse_stat_start_time(stat: &str) -> Option<u64> {
+    let rest = &stat[stat.rfind(')')? + 1..];
+    rest.split_whitespace().nth(19)?.parse().ok()
+}
+
 #[cfg(target_os = "macos")]
 pub mod macos {
     use std::path::PathBuf;
@@ -82,6 +108,11 @@ pub mod macos {
     /// Parent pid of `pid`.
     pub fn ppid(pid: u32) -> Option<u32> {
         bsdinfo(pid).map(|i| i.pbi_ppid)
+    }
+
+    /// T-3787: start time of `pid` in microseconds since the epoch.
+    pub fn start_time(pid: u32) -> Option<u64> {
+        bsdinfo(pid).map(|i| i.pbi_start_tvsec.saturating_mul(1_000_000).saturating_add(i.pbi_start_tvusec))
     }
 
     /// The process's short command name (`pbi_comm`).
@@ -146,6 +177,28 @@ pub mod macos {
     /// The script an interpreter `pid` runs ([`super::script_from_args`]).
     pub fn script(pid: u32) -> Option<String> {
         super::script_from_args(&argv(pid)?, cwd(pid).as_deref())
+    }
+}
+
+#[cfg(test)]
+mod t3787_tests {
+    use super::*;
+
+    #[test]
+    fn stat_start_time_counts_fields_after_the_last_paren() {
+        let line = "4242 (a (b) c) S 1 4242 4242 0 -1 4194560 100 0 0 0 5 3 0 0 20 0 1 0 987654 1000 10 18446744073709551615";
+        assert_eq!(parse_stat_start_time(line), Some(987654));
+        assert_eq!(parse_stat_start_time("garbage"), None);
+        assert_eq!(parse_stat_start_time("1 (x) S 1 2"), None);
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[test]
+    fn own_start_time_is_stable_and_a_missing_pid_has_none() {
+        let me = std::process::id();
+        let a = start_time(me).expect("own start time");
+        assert_eq!(start_time(me), Some(a));
+        assert_eq!(start_time(u32::MAX - 1), None);
     }
 }
 

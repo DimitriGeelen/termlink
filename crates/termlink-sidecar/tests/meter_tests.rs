@@ -1008,3 +1008,48 @@ fn p2_order_survives_a_restart() {
     let a = { m.tick(); m.status_view()["sessions"]["s"].clone() };
     assert_eq!(a["ready"]["ord"], json!({"boot": RX_DOMAIN, "ns": (rx * 1_000_000).to_string()}), "{a}");
 }
+
+/// T-3787: a sidecar restart keeps a session's harness binding when that pid is still
+/// the same process (same boot, same start time). Controls: a different start time
+/// (pid reuse), a pid that is gone, and a state file written before T-3787 (no
+/// `harness` field) all restore unbound, without an error.
+#[test]
+fn t3787_restart_keeps_the_harness_binding_only_for_the_same_process() {
+    let e = Estate::create_without_hub().unwrap();
+    let now = Arc::new(AtomicU64::new(7_000_000));
+    let me = std::process::id();
+    let bound = |m: &Meter| m.binding_facts().into_iter().find(|f| f.0 == "s").and_then(|f| f.2);
+
+    let old = rig_on(now.clone(), Some(open_store(&e)));
+    old.ev("s", "session_start", 1, json!({"interactive": true, "harness_pid": me}));
+    old.ev("s", "ready", 2, json!({"state": "BUSY"}));
+    assert_eq!(bound(&old.m), Some(me));
+    drop(old);
+    let raw = open_store(&e).read_state(STATE_NAME).unwrap().unwrap();
+    assert!(raw.contains("\"harness\""), "persisted with the session: {raw}");
+
+    let r = rig_on(now.clone(), Some(open_store(&e)));
+    assert_eq!(bound(&r.m), Some(me), "same process: bound again after the restart");
+    drop(r);
+    let st = open_store(&e);
+
+    let v: Value = serde_json::from_str(&raw).unwrap();
+    let start = v["sessions"]["s"]["harness"]["start"].as_u64().expect("start recorded");
+    let variants = [
+        ("pid reused", raw.replace(&format!("\"start\":{start}"), &format!("\"start\":{}", start + 1))),
+        ("process gone", raw.replace(&format!("\"pid\":{me}"), &format!("\"pid\":{}", u32::MAX - 1))),
+        ("pre-T-3787 file", {
+            let mut v = v.clone();
+            v["sessions"]["s"].as_object_mut().unwrap().remove("harness");
+            v.to_string()
+        }),
+    ];
+    for (why, doc) in variants {
+        assert_ne!(doc, raw, "{why}: the variant must differ");
+        st.write_state(STATE_NAME, &doc).unwrap();
+        let r = rig_on(now.clone(), Some(st.clone()));
+        assert_eq!(bound(&r.m), None, "{why}: must restore unbound");
+        assert_eq!(r.m.counters().restored, 1, "{why}: the session itself is still restored");
+        assert!(!r.m.counters().reasons.iter().any(|x| x.contains("not used")), "{why}: no error: {:?}", r.m.counters().reasons);
+    }
+}

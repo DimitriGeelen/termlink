@@ -475,6 +475,9 @@ struct Session {
     snapshot: Option<(Value, u64)>,
     /// B-16 (CR-6.19, 04 17.4.a): the harness pid `session_start` reported.
     harness_pid: Option<u32>,
+    /// T-3787: that pid's start time when it was reported, so a restart can tell the
+    /// same process from a later one that reused the pid.
+    harness_start: Option<u64>,
 }
 
 /// Counters the evidence runner reads (OBS-1).
@@ -578,7 +581,7 @@ impl Meter {
         let g = &mut *guard;
         match read {
             Ok(None) => {}
-            Ok(Some(raw)) => match restore(&raw, self.boot.as_deref()) {
+            Ok(Some(raw)) => match restore(&raw, self.boot.as_deref(), &termlink_session::procinfo::start_time) {
                 Ok(list) => {
                     for (k, sess) in list.into_iter().take(2 * MAX_SESSIONS) {
                         g.sessions.insert(k, sess);
@@ -609,6 +612,8 @@ impl Meter {
                     "last_prompt": s.last_prompt.as_ref().map(|p| json!({"origin": p.origin.name(), "basis": p.basis, "at_ms": p.at_ms, "ord": p.ord.view(), "rx_mono": p.rx_mono, "doorbell_ids": p.doorbell_ids})),
                     "stopped": s.stopped,
                     "ended": s.ended,
+                    // T-3787: restored only if that pid still has this start time.
+                    "harness": s.harness_pid.zip(s.harness_start).map(|(pid, start)| json!({"pid": pid, "start": start})),
                 }),
             );
         }
@@ -756,6 +761,7 @@ impl Meter {
                 sess.ended = false;
                 // B-16: a new harness instance is unregistered until it says which pid it is.
                 sess.harness_pid = obj.get("harness_pid").and_then(Value::as_u64).and_then(|p| u32::try_from(p).ok()).filter(|p| *p > 1);
+                sess.harness_start = sess.harness_pid.and_then(termlink_session::procinfo::start_time);
                 match transcript {
                     Some(Ok(p)) => {
                         sess.transcript = Some(p);
@@ -1373,7 +1379,9 @@ fn check_origin(
 }
 
 /// Read back [`STATE_NAME`]: the sessions of this boot, or why none are used.
-fn restore(raw: &str, boot: Option<&str>) -> Result<Vec<(String, Session)>, String> {
+/// `start_of` answers a pid's current start time (T-3787); a harness binding is kept
+/// only when it still equals the recorded one.
+fn restore(raw: &str, boot: Option<&str>, start_of: &dyn Fn(u32) -> Option<u64>) -> Result<Vec<(String, Session)>, String> {
     let v = strict_json(raw.as_bytes())?;
     if v.get("v").and_then(Value::as_u64) != Some(1) {
         return Err("unknown version".into());
@@ -1414,11 +1422,18 @@ fn restore(raw: &str, boot: Option<&str>) -> Result<Vec<(String, Session)>, Stri
                 Some(Prompt { origin, basis, at_ms: u(p, "at_ms")?, ord, rx_mono, doorbell_ids: valid_ids(p.get("doorbell_ids")) })
             }
         };
+        // T-3787: the same boot was checked above; the same process is checked here.
+        let harness = e
+            .get("harness")
+            .and_then(|h| Some((u32::try_from(h.get("pid")?.as_u64()?).ok()?, h.get("start")?.as_u64()?)))
+            .filter(|(pid, start)| *pid > 1 && start_of(*pid) == Some(*start));
         let sess = Session {
             ready,
             last_prompt,
             stopped: e.get("stopped").and_then(Value::as_u64),
             ended: e.get("ended").and_then(Value::as_bool).unwrap_or(false),
+            harness_pid: harness.map(|h| h.0),
+            harness_start: harness.map(|h| h.1),
             ..Session::default()
         };
         out.push((k.clone(), sess));
