@@ -185,3 +185,26 @@ fn linked_dispatch_registers_workers_on_the_hub_and_collects_their_results() {
     let results = v["results"].as_array().map(|a| a.len()).unwrap_or(0);
     assert_eq!(results, 2, "both results collected: {so}");
 }
+
+/// `register --hub --hub-token-file` (T-3760) still works through the shared link code:
+/// strict naming (a name outside the prefix is refused), registered, gone after SIGTERM.
+#[test]
+fn explicit_register_hub_still_works_through_the_shared_link_code() {
+    let s = setup("explicit", true);
+    let tok = s.user.path.join(".termlink").join("hub-register.token");
+    let tok = tok.to_str().unwrap();
+    let (rc, so, se) = out(user_cmd(&s.user, &["register", "--hub", &s.addr, "--hub-token-file", tok, "--name", "other-w", "--json"]));
+    assert_ne!(rc, 0, "a name outside the prefix must be refused: {so} {se}");
+    assert!(format!("{so}{se}").contains("not allowed by this token"), "{so} {se}");
+
+    let mut child = user_cmd(&s.user, &["register", "--hub", &s.addr, "--hub-token-file", tok, "--name", "t-explicit", "--json"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("register --hub");
+    wait_until("t-explicit on the hub", 20, || hub_names(&s).contains("t-explicit"));
+    // SAFETY: the register child we spawned.
+    unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
+    let _ = child.wait();
+    wait_until("t-explicit to leave the hub", 15, || !hub_names(&s).contains("t-explicit"));
+}

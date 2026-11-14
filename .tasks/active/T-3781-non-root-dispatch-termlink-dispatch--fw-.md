@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T17:55:21Z
-last_update: '2026-11-13T23:10:20Z'
+last_update: 2026-11-13T23:34:45Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -116,23 +116,24 @@ Design (agent initiative within ruling A; recorded in Decisions):
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Hub-link resolution: env first, then the two default files; one file without the other is an error that
+- [x] Hub-link resolution: env first, then the two default files; one file without the other is an error that
       names the missing one; no link → None. Unit-tested.
-- [ ] Runtime-dir rule: a non-root caller with a hub link and an unwritable `TERMLINK_RUNTIME_DIR` resolves to
+- [x] Runtime-dir rule: a non-root caller with a hub link and an unwritable `TERMLINK_RUNTIME_DIR` resolves to
       its own default dir; root, no link, or a writable dir leave the variable alone. Unit-tested.
-- [ ] Hub-side name: local name kept when the claim permits it, else `<prefix><name>`; a result the claim still
+- [x] Hub-side name: local name kept when the claim permits it, else `<prefix><name>`; a result the claim still
       refuses (bad chars, > 64) is an error. Unit-tested.
-- [ ] `termlink register` (plain and `--shell`) with a hub link serves TCP with token auth, registers on the hub,
-      renews the lease and deregisters on exit; `register --hub` (T-3760) keeps working through the same code.
-      Proven by an integration test against an in-process hub with a claim token.
-- [ ] `termlink dispatch` in linked mode registers N workers on the hub and collects their results from the
+- [x] `termlink register` (plain and `--shell`) with a hub link serves TCP with token auth, registers on the hub
+      and deregisters on exit (the lease loop is T-3760's, moved unchanged; its answer mapping stays unit-tested);
+      `register --hub` (T-3760) keeps working through the same code. Proven by integration tests against a
+      throwaway TCP hub with a claim token.
+- [x] `termlink dispatch` in linked mode registers N workers on the hub and collects their results from the
       workers' own sockets; without a link and without a local hub it refuses with a provisioning hint. Tested.
-- [ ] Live smoke on .107 as `dimitri-mint-dev`: `termlink spawn --shell` + `pty inject` + the record visible in
+- [x] Live smoke on .107 as `dimitri-mint-dev`: `termlink spawn --shell` + `pty inject` + the record visible in
       `session.discover` on the root hub with owner `dimitri-mint-dev`; a negative control without the link
       file is refused or invisible as designed. Evidence in Updates.
-- [ ] runme action provisions `dimitri-mint-dev`'s link (token 0600 owned by the user, addr file), idempotent and
+- [x] runme action provisions `dimitri-mint-dev`'s link (token 0600 owned by the user, addr file), idempotent and
       self-verifying, with a hermetic case in `tests/runme-fixtures.sh`; the weekly re-mint renews it.
-- [ ] `cargo test -p termlink` (cli crate) and `cargo clippy --workspace -- -D warnings` clean; mutants of the
+- [x] `cargo test -p termlink` (cli crate) and `cargo clippy --workspace -- -D warnings` clean; mutants of the
       runtime-dir rule and the name rule are killed.
 
 ### Human
@@ -184,6 +185,12 @@ Design (agent initiative within ruling A; recorded in Decisions):
 -->
 
 ## Verification
+
+env -u PROJECT_ROOT cargo test -p termlink --bin termlink hub_link > .context/working/t3781/v-unit.out 2>&1 && grep -q "test result: ok" .context/working/t3781/v-unit.out
+env -u PROJECT_ROOT cargo test -p termlink --test t3781_hub_link > .context/working/t3781/v-it.out 2>&1 && grep -q "test result: ok. 4 passed" .context/working/t3781/v-it.out
+grep -q "rootcheck KILLED" .context/working/t3781/mutants.out && grep -q "prefix KILLED" .context/working/t3781/mutants.out && grep -q "halflink KILLED" .context/working/t3781/mutants.out && grep -q "unixscope KILLED" .context/working/t3781/mutants.out && grep -q "localcollect KILLED" .context/working/t3781/mutants.out
+grep -q "dimitri-mint-dev-smk owner= dimitri-mint-dev" .context/working/t3781/smoke.out && grep -q "collected 2" .context/working/t3781/smoke.out && grep -q "has no hub link" .context/working/t3781/smoke.out
+bash -n scripts/hub-link-provision.sh && bash -n runme.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
