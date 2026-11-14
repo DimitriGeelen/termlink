@@ -2,9 +2,11 @@
 id: T-3768
 name: "Canary waker-liveness-canary is FIRING — investigate and fix"
 description: >
-  The waker-liveness-canary canary reports FIRING on /canaries. Filed automatically by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary always has a task naming it.
+  The waker-liveness-canary canary reports FIRING on /canaries. Filed automatically
+  by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary
+  always has a task naming it.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T08:15:10Z
-last_update: 2026-11-13T08:15:10Z
-date_finished: null
+last_update: 2026-11-14T22:02:53Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +52,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-14T21:58:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3768: Canary waker-liveness-canary is FIRING — investigate and fix
@@ -70,6 +84,11 @@ Filed automatically by scripts/canary-escalation-file.sh (T-2985) from the daily
 ```
 
 Closing this task while the canary is still bad files a new one 24h after the close.
+
+**Background / trigger:** auto-filed 2026-11-13. Latest run (2026-11-14): FIRING on 13 LIVE agents with no `pty_session` (class a, LIVE-no-waker), 0 dead wakers. Every project's agent on .107 now advertises presence through the arc-011 sidecar.
+**Problem / hypothesis:** PD-234 (T-3443, 2026-10-17, operator ruling B) stopped expecting push-wake on .107 until arc-011's doorbell (W2; T-3697 still started-work), naming non-armed agents in `.context/checks/waker-not-expected-allowlist`. That list has 2 names; class (a) now fires for every agent by construction, so the canary is permanently red and a real dead waker would hide behind it.
+**Goal:** an operator ruling on what class (a) should do on .107 until W2 (options A–D, brief given 2026-11-14), with an external consultation first (operator request).
+**Expected outcome:** the canary is red only for real breaks (a dead waker on an armed agent), within the PD-234 window.
 
 ## Acceptance Criteria
 
@@ -376,3 +395,12 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3768-canary-waker-liveness-canary-is-firing--.md
 - **Context:** Initial task creation
+
+### 2026-11-14T21:58:31Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-14T22:20Z — external consultation + root cause [agent]
+- Operator asked for an external consultation on the A–D brief. Two isolated seats (`fw review isolated-run`, tools off, neutral bundle without my recommendation): opencode (Z.ai) and claude-code. Saved in `docs/reports/T-3768-consultation/`.
+- Both picked A with conditions. Both said A *amends* PD-234 (my brief wrongly said it "cites" it) and wanted a dated lapse. claude-code flagged the 2→13 jump as unexplained and to be checked before muting ("fix the signal rather than mute it").
+- Checked: the jump is ours. T-3751 (46bc3720d, 2026-11-12) made `agent-listeners.sh` count project-mailbox readers as LIVE (`source=mailbox-reader`). Live now: 13 mailbox-reader + 1 heartbeat (penelope, allowlisted). A mailbox reader never carries `pty_session`, so class (a) fires on all of them. No be-reachable state files, no waker processes.
+- New option E: class (a) judges only `source=heartbeat` listeners. This restores PD-234 exactly as written, so no amendment is needed; mailbox readers are reported, not fired on.
