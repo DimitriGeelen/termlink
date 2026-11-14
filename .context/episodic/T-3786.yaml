@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3786: Reach the 1409 design session in Claude Desktop: can peer mail surface there?
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-14T14:17:26Z
+# ============================================================================
+
+task_id: T-3786
+task_name: "Reach the 1409 design session in Claude Desktop: can peer mail surface there?"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-14T10:24:14Z
+completed: 2026-11-14T14:17:15Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-14T11:25:47+01:00
+last_commit: 2026-11-14T15:17:18+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture — reach the 1409 design session in Claude Desktop (operator, 2026-11-14). exploration — the design session is Claude Code with its own inbox; reads fail for lack of a hub socket; recommend GO (termlink falls back to the user's TCP hub). operator ruling A recorded (quality conditions kept); formal GO awaits Watchtower. inception decision GO (via Watchtower)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-14 — how to reach the 1409 design session (operator ruling, chat)'
+    chose: 'A — termlink falls back to the user''s TCP hub (its hub link address + its own credential) when no `--hub` is given, no local hub socket exists and the caller is non-root with a hub link.'
+    rationale: 'the measured fault is termlink choosing a hub socket that cannot exist for this user; A fixes it at that one point for every caller (mail hook, MCP, scripts) with no vendored change.'
+    alternatives_rejected: ['B (AEF passes `--hub`: upstream, fixes only fw''s calls); C (do nothing). - **Conditions the operator set:** no compromise on quality or design principles: explicit (says which hub it used), fail closed (half a link or a refused credential is an error, never an empty inbox), nothing existing switched off, proven live (sentinel to `1409-sprind/design` shown in the design session''s transcript). - Operator words in chat: "Well, we want to make it working, but we don''t want the great quality and design principles, right? Or the design ideas." then "But if A is the right solution, I''m happy to go forward with that." Read as: GO on A without compromising quality (overturnable). - Formal `fw inception decide` is Tier 0 (operator only): Watchtower http://192.168.10.107:3003/inception/T-3786.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/human-ac-ticks.jsonl'
+  - '.tasks/active/T-3786-reach-the-1409-design-session-in-claude-.md'
+  - '.tasks/completed/T-3786-reach-the-1409-design-session-in-claude-.md'
+  - 'docs/reports/T-3786-desktop-session-reach.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-14T11:25:47'
+    action: 'T-3786: capture — reach the 1409 design session in Claude Desktop (operator, 2026-11-14)'
+  - time: '2026-11-14T13:00:03'
+    action: 'T-3786: exploration — the design session is Claude Code with its own inbox; reads fail for lack of a hub socket; recommend GO (termlink falls back to the user''s TCP hub)'
+  - time: '2026-11-14T13:12:48'
+    action: 'T-3786: operator ruling A recorded (quality conditions kept); formal GO awaits Watchtower'
+  - time: '2026-11-14T15:17:18'
+    action: 'T-3786: inception decision GO (via Watchtower)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 233 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 233
+  commits: 5
+  files_changed: 6
+  lines_added: 481
+  lines_removed: 21
+  footprint_refreshed_at: '2026-11-14T14:17:30Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3786-reach-the-1409-design-session-in-claude-.md
+generated_by: context-agent-hybrid

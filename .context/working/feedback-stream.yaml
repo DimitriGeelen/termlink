@@ -23887,3 +23887,29 @@ scan_id: R-cc3379df
 task_id: T-3787
 payload:
   task_file: .tasks/active/T-3787-meter-persists-the-sessions-harnesspid-a.md
+---
+kind: scan_emitted
+timestamp: '2026-11-14T14:17:17Z'
+scan_id: R-e0d4e7f4
+task_id: T-3786
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-14T14:17:17Z'
+scan_id: R-e0d4e7f4
+task_id: T-3786
+payload:
+  task_file: .tasks/active/T-3786-reach-the-1409-design-session-in-claude-.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-11-14T14:17:17Z'
+scan_id: RC-36d24587
+task_id: T-3786
+payload:
+  overall: CONFIRMED
+  claim_count: 2
