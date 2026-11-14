@@ -420,6 +420,14 @@ grep -q "novalidate KILLED" .context/working/t3789/mutants.out && grep -q "nobin
 ### 2026-11-14T17:10:13Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 
+### 2026-11-14T19:20Z — live PASS (AEF, msg 05f77d57)
+- runme 18:59Z action 22f restarted aef-meter 19:19:24Z (pid 2573769 on +28 -> 3760218 on +32), verified.
+- AEF's last session_start 19:01:49Z (to the +28 meter, which persisted transcript_path); no session restart since.
+- First reads on the new meter (19:19:58Z): s1 known, source s2, s2_age 4.5 s, transcript TRUE, watchdog available,
+  ready current_epoch true; persist_failed 0, transcript_refused 0, restored 13.
+- Observation (follow-up, not this task): one status read in the first seconds after the restart lacked the
+  session's fields; the next was complete — likely status_view before the first tick's snapshot.
+
 ## Reviewer Verdict (v1.5)
 
 - **Scan ID:** R-3e40ffd2
