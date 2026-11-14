@@ -124,6 +124,15 @@ topic_count() {
 queue_depth() {
   "$TERMLINK" channel queue-status --json 2>/dev/null | jq -r '.pending // 0'
 }
+# channel post --json: JSON is on stdout -> $out, the human explanation on stderr -> $err.
+# T-3791: never parse a 2>&1 capture; since T-3749 a queued post explains itself on stderr,
+# which made the mixed capture invalid JSON and failed queued-not-dropped on a real queue.
+post() {
+  out=$("$TERMLINK" channel post "$TOPIC" --msg-type work "$@" --json 2>"$DEMO_DIR/post.err")
+  local rc=$?
+  err=$(cat "$DEMO_DIR/post.err" 2>/dev/null)
+  return "$rc"
+}
 
 log "=== substrate RESILIENCE demo (T-2223) ==="
 log "# isolated: identity_dir=$DEMO_DIR runtime_dir=$RT topic=$TOPIC"
@@ -135,10 +144,10 @@ hub_start || die2 "could not start isolated hub"
   || die2 "channel create failed for $TOPIC"
 
 # ── Step 1 (POS): baseline delivery while hub is up ───────────────────────────
-out=$("$TERMLINK" channel post "$TOPIC" --msg-type work --payload "p1-baseline" --json 2>&1)
+post --payload "p1-baseline"
 OFF1=$(jq -r '.delivered.offset // empty' <<<"$out" 2>/dev/null)
 if [ -n "$OFF1" ]; then record "baseline-delivered" 1 "P1 delivered at offset $OFF1 (hub up)"
-else record "baseline-delivered" 0 "P1 not delivered while hub up: $out"; fi
+else record "baseline-delivered" 0 "P1 not delivered while hub up: $out $err"; fi
 
 # ── Hub blip: STOP the hub ────────────────────────────────────────────────────
 hub_stop
@@ -147,13 +156,12 @@ else log "# WARN: hub socket lingered after stop"; fi
 
 # ── Step 2 (POS): post during blip is QUEUED, not dropped ─────────────────────
 CID="resilience-demo-cid-0001"
-out=$("$TERMLINK" channel post "$TOPIC" --msg-type work --payload "p2-during-blip" \
-        --client-msg-id "$CID" --json 2>&1)
+post --payload "p2-during-blip" --client-msg-id "$CID"
 if jq -e '.queued.queue_id' >/dev/null 2>&1 <<<"$out"; then
   QID=$(jq -r '.queued.queue_id' <<<"$out")
   record "queued-not-dropped" 1 "P2 durably queued (queue_id=$QID) — not silent-dropped"
 else
-  record "queued-not-dropped" 0 "P2 was NOT queued during blip (silent drop?): $out"
+  record "queued-not-dropped" 0 "P2 was NOT queued during blip (silent drop?): $out $err"
 fi
 
 # ── Step 3 (POS): queue depth is exactly 1 ────────────────────────────────────
@@ -165,14 +173,14 @@ else record "queue-depth-1" 0 "expected queue depth 1, got '$DEPTH'"; fi
 hub_start || die2 "could not restart isolated hub"
 
 # ── Step 4 (POS): next post auto-drains the queue ─────────────────────────────
-out=$("$TERMLINK" channel post "$TOPIC" --msg-type work --payload "p3-after-recovery" --json 2>&1)
+post --payload "p3-after-recovery"
 OFF3=$(jq -r '.delivered.offset // empty' <<<"$out" 2>/dev/null)
-if grep -qiE "Drained 1 queued post" <<<"$out" && [ -n "$OFF3" ]; then
+if grep -qiE "Drained 1 queued post" <<<"$out$err" && [ -n "$OFF3" ]; then
   record "auto-drain-on-reconnect" 1 "queue auto-drained (P2 flushed) AND P3 delivered at $OFF3"
 elif [ -n "$OFF3" ]; then
   record "auto-drain-on-reconnect" 1 "P3 delivered at $OFF3 (drain verified via depth/count below)"
 else
-  record "auto-drain-on-reconnect" 0 "post after recovery did not deliver: $out"
+  record "auto-drain-on-reconnect" 0 "post after recovery did not deliver: $out $err"
 fi
 
 # ── Step 5 (POS): topic holds exactly 3 work posts (P1, drained-P2, P3) ───────
@@ -184,14 +192,13 @@ else
 fi
 
 # ── Step 6+7 (POS): replay P2's client_msg_id is absorbed exactly-once ────────
-out=$("$TERMLINK" channel post "$TOPIC" --msg-type work --payload "p2-replay" \
-        --client-msg-id "$CID" --json 2>&1)
+post --payload "p2-replay" --client-msg-id "$CID"
 REPLAY_OK=$?
 CNT_AFTER_REPLAY=$(topic_count)
 if [ "$REPLAY_OK" -eq 0 ] && [ "$CNT_AFTER_REPLAY" = "$CNT_AFTER_DRAIN" ]; then
   record "replay-absorbed-exactly-once" 1 "replay of CID=$CID accepted; topic count unchanged ($CNT_AFTER_REPLAY) — deduped"
 else
-  record "replay-absorbed-exactly-once" 0 "replay double-appended or failed: rc=$REPLAY_OK count $CNT_AFTER_DRAIN->$CNT_AFTER_REPLAY: $out"
+  record "replay-absorbed-exactly-once" 0 "replay double-appended or failed: rc=$REPLAY_OK count $CNT_AFTER_DRAIN->$CNT_AFTER_REPLAY: $out $err"
 fi
 
 # ── Step 8 (POS): outbound queue fully drained ───────────────────────────────

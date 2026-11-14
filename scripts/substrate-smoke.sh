@@ -144,10 +144,13 @@ finalize() {
         else
             failed_json=$(printf '%s\n' "${STAGES_FAILED[@]}" | jq -R . | jq -s -c .)
         fi
-        printf '{"ok":%s,"topic":"%s","claim_id":"%s","stages_passed":%s,"stages_failed":%s,"errors":"%s"}\n' \
-            "$ok_str" "$SMOKE_TOPIC" "$CLAIM_ID" \
-            "$passed_json" "$failed_json" \
-            "$(printf '%b' "$ERRORS_OUT" | sed 's/"/\\"/g' | tr -d '\n')"
+        # T-3791: jq builds the line. The old printf + sed escaped quotes but not
+        # backslashes, so an error carrying JSON (`\n` escapes) made the whole verdict
+        # invalid and the canary reported the broken stage as 'unknown'.
+        jq -nc --argjson ok "$ok_str" --arg topic "$SMOKE_TOPIC" --arg claim "$CLAIM_ID" \
+            --argjson passed "$passed_json" --argjson failed "$failed_json" \
+            --arg errors "$(printf '%b' "$ERRORS_OUT" | tr -d '\n')" \
+            '{ok:$ok,topic:$topic,claim_id:$claim,stages_passed:$passed,stages_failed:$failed,errors:$errors}'
     else
         if [ "$rc" -eq 0 ]; then
             echo "substrate smoke: PASS (topic=${SMOKE_TOPIC}, ${#STAGES_PASSED[@]} stages OK)"
