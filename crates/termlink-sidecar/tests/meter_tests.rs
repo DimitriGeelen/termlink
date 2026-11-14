@@ -1053,3 +1053,68 @@ fn t3787_restart_keeps_the_harness_binding_only_for_the_same_process() {
         assert!(!r.m.counters().reasons.iter().any(|x| x.contains("not used")), "{why}: no error: {:?}", r.m.counters().reasons);
     }
 }
+
+/// T-3789: a restart keeps the transcript of a session whose harness binding was
+/// restored, re-validated like at session_start. Controls: a different harness start
+/// time (pid reuse) restores no transcript; a transcript file that is gone is dropped
+/// with a reason; a state file written before T-3789 restores without error.
+#[test]
+fn t3789_restart_keeps_the_transcript_only_with_the_binding_and_revalidated() {
+    let e = Estate::create_without_hub().unwrap();
+    struct Tmp(std::path::PathBuf);
+    impl Drop for Tmp {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let root = Tmp(std::env::temp_dir().join(format!("t3789-{}", std::process::id())));
+    let _ = std::fs::remove_dir_all(&root.0);
+    let tr = root.0.join("proj").join("s.jsonl");
+    std::fs::create_dir_all(tr.parent().unwrap()).unwrap();
+    std::fs::write(&tr, "{}\n").unwrap();
+    let me = std::process::id();
+    let meter = |st: Arc<Store>| {
+        Meter::new(A, Box::new(Unbound), Box::new(NoLedger)).with_transcript_root(root.0.clone()).with_state(st)
+    };
+    let has_tr = |m: &Meter| {
+        m.tick();
+        m.status_view()["sessions"]["s"]["transcript"].as_bool()
+    };
+
+    let m = meter(open_store(&e));
+    let start = json!({"schema": SCHEMA, "harness": "fake", "agent_id": A, "session_id": "s", "event": "session_start",
+        "at_ms": 1, "interactive": true, "harness_pid": me, "transcript_path": tr.to_str().unwrap()});
+    assert_eq!(m.intake(start.to_string().as_bytes()), Intake::Applied);
+    let ready = json!({"schema": SCHEMA, "harness": "fake", "agent_id": A, "session_id": "s", "event": "ready", "at_ms": 2, "state": "BUSY"});
+    m.intake(ready.to_string().as_bytes());
+    assert_eq!(has_tr(&m), Some(true));
+    drop(m);
+    let raw = open_store(&e).read_state(STATE_NAME).unwrap().unwrap();
+    assert!(raw.contains("\"transcript\""), "{raw}");
+
+    let m = meter(open_store(&e));
+    assert_eq!(has_tr(&m), Some(true), "same process: transcript right after the restart");
+    drop(m);
+
+    let st = open_store(&e);
+    let v: Value = serde_json::from_str(&raw).unwrap();
+    let start_t = v["sessions"]["s"]["harness"]["start"].as_u64().unwrap();
+    let reused = raw.replace(&format!("\"start\":{start_t}"), &format!("\"start\":{}", start_t + 1));
+    let old = {
+        let mut v = v.clone();
+        v["sessions"]["s"].as_object_mut().unwrap().remove("transcript");
+        v.to_string()
+    };
+    for (why, doc) in [("pid reused", reused), ("pre-T-3789 file", old)] {
+        st.write_state(STATE_NAME, &doc).unwrap();
+        let m = meter(st.clone());
+        assert_eq!(has_tr(&m), Some(false), "{why}: no transcript");
+        assert!(!m.counters().reasons.iter().any(|x| x.contains("not used")), "{why}: {:?}", m.counters().reasons);
+    }
+
+    std::fs::remove_file(&tr).unwrap();
+    st.write_state(STATE_NAME, &raw).unwrap();
+    let m = meter(st.clone());
+    assert_eq!(has_tr(&m), Some(false), "file gone: dropped");
+    assert!(m.counters().reasons.iter().any(|x| x.contains("restored transcript of s not used")), "{:?}", m.counters().reasons);
+}

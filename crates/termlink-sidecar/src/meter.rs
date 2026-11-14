@@ -583,7 +583,14 @@ impl Meter {
             Ok(None) => {}
             Ok(Some(raw)) => match restore(&raw, self.boot.as_deref(), &termlink_session::procinfo::start_time) {
                 Ok(list) => {
-                    for (k, sess) in list.into_iter().take(2 * MAX_SESSIONS) {
+                    for (k, mut sess) in list.into_iter().take(2 * MAX_SESSIONS) {
+                        // T-3789: the same checks as at session_start, now.
+                        if let Some(p) = sess.transcript.take() {
+                            match self.validate_transcript(&p.to_string_lossy()) {
+                                Ok(real) => sess.transcript = Some(real),
+                                Err(why) => g.counters.reasons.push_back(format!("restored transcript of {k} not used: {why}")),
+                            }
+                        }
                         g.sessions.insert(k, sess);
                         g.counters.restored += 1;
                     }
@@ -614,6 +621,8 @@ impl Meter {
                     "ended": s.ended,
                     // T-3787: restored only if that pid still has this start time.
                     "harness": s.harness_pid.zip(s.harness_start).map(|(pid, start)| json!({"pid": pid, "start": start})),
+                    // T-3789: restored only with the harness binding, and re-validated.
+                    "transcript": s.transcript.as_ref().map(|p| p.to_string_lossy().into_owned()),
                 }),
             );
         }
@@ -1434,6 +1443,8 @@ fn restore(raw: &str, boot: Option<&str>, start_of: &dyn Fn(u32) -> Option<u64>)
             ended: e.get("ended").and_then(Value::as_bool).unwrap_or(false),
             harness_pid: harness.map(|h| h.0),
             harness_start: harness.map(|h| h.1),
+            // T-3789: only for the same process; `with_state` re-validates it.
+            transcript: harness.and(e.get("transcript").and_then(Value::as_str)).map(PathBuf::from),
             ..Session::default()
         };
         out.push((k.clone(), sess));
