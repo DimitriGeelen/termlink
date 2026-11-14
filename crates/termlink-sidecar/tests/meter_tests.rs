@@ -1118,3 +1118,52 @@ fn t3789_restart_keeps_the_transcript_only_with_the_binding_and_revalidated() {
     assert_eq!(has_tr(&m), Some(false), "file gone: dropped");
     assert!(m.counters().reasons.iter().any(|x| x.contains("restored transcript of s not used")), "{:?}", m.counters().reasons);
 }
+
+/// T-3783: every report leaves one content-free receipt line — applied, dropped or
+/// ignored, with the reason — so "did this report arrive?" can be answered. Controls: an
+/// ignored report (wrong schema) and a dropped one (an older `ready`) are logged as such,
+/// never as applied; a field outside the named set (here a secret-looking one) is never
+/// copied; the log rotates to `.1` at the size limit.
+#[test]
+fn t3783_every_report_leaves_one_receipt_line_without_content() {
+    let e = Estate::create_without_hub().unwrap();
+    let now = Arc::new(AtomicU64::new(9_000_000));
+    let r = rig_on(now.clone(), Some(open_store(&e)));
+    let path = r.m.report_log_path().expect("a store gives a log path");
+    let st = |x: &str| json!({"state": x});
+
+    assert_eq!(r.ev("s", "ready", 500, with(st("BUSY"), o("b1", 100))), Intake::Applied);
+    assert_eq!(r.ev("s", "ready", 900, with(st("READY"), o("b1", 99))), Intake::Dropped("ready-reordered"));
+    let bad = json!({"schema": "something-else", "session_id": "s", "event": "ready", "at_ms": 1, "secret_note": "SECRET-T3783"});
+    assert!(matches!(r.m.intake(bad.to_string().as_bytes()), Intake::Ignored(_)));
+    r.m.intake(b"not json at all");
+    let p = with(json!({"origin": "human", "basis": "inferred"}), json!({"prompt_text": "SECRET-T3783-PROMPT"}));
+    r.ev("s", "prompt_submit", 950, p);
+
+    let log = std::fs::read_to_string(&path).unwrap();
+    let lines: Vec<Value> = log.lines().map(|l| serde_json::from_str(l).unwrap()).collect();
+    assert_eq!(lines.len(), 5, "one line per intake call: {log}");
+    assert_eq!((lines[0]["outcome"].as_str(), lines[0]["event"].as_str(), lines[0]["session"].as_str()), (Some("applied"), Some("ready"), Some("s")));
+    assert_eq!(lines[0]["at_ms"], 500);
+    assert_eq!((lines[1]["outcome"].as_str(), lines[1]["reason"].as_str()), (Some("dropped"), Some("ready-reordered")));
+    assert_eq!(lines[2]["outcome"], "ignored");
+    assert!(lines[2]["reason"].as_str().unwrap().contains("schema"), "{}", lines[2]);
+    assert_eq!((lines[3]["outcome"].as_str(), lines[3]["session"].as_str(), lines[3]["event"].as_str()), (Some("ignored"), Some("?"), Some("?")));
+    assert_eq!(lines[4]["event"], "prompt_submit");
+    assert!(!log.contains("SECRET-T3783"), "no report content beyond the named fields: {log}");
+    for l in &lines {
+        let keys: Vec<&String> = l.as_object().unwrap().keys().collect();
+        assert!(keys.iter().all(|k| ["ts_ms", "session", "event", "outcome", "reason", "at_ms", "seq"].contains(&k.as_str())), "{l}");
+    }
+    assert_eq!(r.m.status_view()["report_log"].as_str(), Some(path.to_str().unwrap()));
+    assert_eq!(r.m.status_view()["counters"]["report_log_failed"], 0);
+    drop(r);
+
+    // Rotation: a tiny limit moves the full file to `.1` and starts a new one.
+    let m = Meter::new(A, Box::new(Unbound), Box::new(NoLedger)).with_report_log_max(64).with_state(open_store(&e));
+    m.intake(b"x");
+    m.intake(b"y");
+    let rotated = path.with_extension("log.1");
+    assert!(rotated.exists(), "rotated to {}", rotated.display());
+    assert_eq!(std::fs::read_to_string(&path).unwrap().lines().count(), 1, "a fresh file after rotation");
+}

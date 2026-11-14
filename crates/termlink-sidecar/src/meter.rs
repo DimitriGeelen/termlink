@@ -55,6 +55,11 @@ const TURN_HOOKS: [&str; 4] = ["session-start", "stop", "session-end", "post-too
 /// The store state file holding every session's READY record and `last_prompt`
 /// (AL-1 CR-6.23; P-1, T-3692).
 pub const STATE_NAME: &str = "meter.ready";
+/// T-3783: the per-report receipt log in the store dir (one JSON line per report, no
+/// report content beyond the fields named in [`Meter::log_report`]).
+pub const REPORT_LOG: &str = "meter-reports.log";
+/// T-3783: rotate the receipt log to `.1` at this size (one generation kept).
+pub const REPORT_LOG_MAX: u64 = 1024 * 1024;
 const EVENTS: [&str; 9] = ["ready", "session_start", "prompt_submit", "tool_start", "tool_end", "turn_stop", "session_end", "evidence", "complete"];
 
 // ---------------------------------------------------------------- strict JSON
@@ -496,6 +501,8 @@ pub struct Counters {
     pub persist_failed: u64,
     /// Sessions read back from [`STATE_NAME`] at start.
     pub restored: u64,
+    /// T-3783: appends to [`REPORT_LOG`] that failed.
+    pub report_log_failed: u64,
     pub reasons: VecDeque<String>,
 }
 
@@ -525,6 +532,10 @@ pub struct Meter {
     state: Option<Arc<crate::store::Store>>,
     /// This host's boot id: persisted records are read back on the same boot only.
     boot: Option<String>,
+    /// T-3783: rotation size of [`REPORT_LOG`] (test seam).
+    report_log_max: u64,
+    /// T-3783: serialises appends to the receipt log.
+    report_log_lock: Mutex<()>,
     inner: Mutex<Inner>,
 }
 
@@ -559,8 +570,21 @@ impl Meter {
             ledger,
             state: None,
             boot: termlink_session::input_meter::boot_id(),
+            report_log_max: REPORT_LOG_MAX,
+            report_log_lock: Mutex::new(()),
             inner: Mutex::new(Inner::default()),
         }
+    }
+
+    /// Test seam (T-3783): the receipt log's rotation size.
+    pub fn with_report_log_max(mut self, bytes: u64) -> Self {
+        self.report_log_max = bytes.max(1);
+        self
+    }
+
+    /// T-3783: where the receipt log is written (none without a state store).
+    pub fn report_log_path(&self) -> Option<PathBuf> {
+        self.state.as_ref().map(|st| st.dir().join(REPORT_LOG))
     }
 
     /// Test seam: the boot id the persisted records are checked against.
@@ -675,7 +699,47 @@ impl Meter {
 
     /// AL-1: one adapter report, as received on the owner-only socket (the
     /// peer check is the socket's, FCW-1). Never fails; refusal is counted.
+    /// Take one adapter report, and (T-3783) record what happened to it.
     pub fn intake(&self, raw: &[u8]) -> Intake {
+        let out = self.intake_inner(raw);
+        self.log_report(raw, &out);
+        out
+    }
+
+    /// T-3783: one line per report: receive time, session, event, `at_ms`/`seq` when present,
+    /// outcome and reason. Nothing else of the report is copied (no prompt text). A failed
+    /// write is counted, never an error for the reporter.
+    fn log_report(&self, raw: &[u8], out: &Intake) {
+        let Some(path) = self.report_log_path() else { return };
+        let v: Value = if raw.len() <= MAX_REPORT { serde_json::from_slice(raw).unwrap_or(Value::Null) } else { Value::Null };
+        let session = v.get("session_id").and_then(Value::as_str).filter(|x| valid_session(x)).unwrap_or("?");
+        let event = v.get("event").and_then(Value::as_str).filter(|e| EVENTS.contains(e)).unwrap_or("?");
+        let (outcome, reason) = match out {
+            Intake::Applied => ("applied", String::new()),
+            Intake::Dropped(why) => ("dropped", (*why).to_string()),
+            Intake::Ignored(why) => ("ignored", why.chars().take(200).collect()),
+        };
+        let mut line = json!({"ts_ms": (self.wall)(), "session": session, "event": event, "outcome": outcome, "reason": reason});
+        for k in ["at_ms", "seq"] {
+            if let Some(n) = v.get(k).and_then(Value::as_u64) {
+                line[k] = json!(n);
+            }
+        }
+        let _g = lock(&self.report_log_lock);
+        let res = (|| -> std::io::Result<()> {
+            use std::io::Write;
+            if std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0) >= self.report_log_max {
+                std::fs::rename(&path, path.with_extension("log.1"))?;
+            }
+            let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&path)?;
+            writeln!(f, "{line}")
+        })();
+        if res.is_err() {
+            lock(&self.inner).counters.report_log_failed += 1;
+        }
+    }
+
+    fn intake_inner(&self, raw: &[u8]) -> Intake {
         if raw.len() > MAX_REPORT {
             return self.ignore(&mut lock(&self.inner).counters, "too-large".into());
         }
@@ -1179,11 +1243,14 @@ impl Meter {
             "sessions": sessions,
             "mono_now": now,
             "sidecar_epoch": self.epoch,
+            // T-3783: one line per received report (outcome + reason, no content).
+            "report_log": self.report_log_path().map(|p| p.display().to_string()),
             "counters": {
                 "adapter_reports_unparseable": c.unparseable, "ready_reordered": c.ready_reordered, "prompt_reordered": c.prompt_reordered,
                 "origin_inconsistent": c.origin_inconsistent, "origin_overridden": c.origin_overridden,
                 "transcript_refused": c.transcript_refused, "session_table_full": c.session_table_full,
                 "s3_unattributed": c.s3_unattributed, "persist_failed": c.persist_failed,
+                "report_log_failed": c.report_log_failed,
                 "restored": c.restored, "last_reasons": c.reasons,
             },
         })
