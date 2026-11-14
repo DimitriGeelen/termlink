@@ -413,6 +413,9 @@ grep -q "addressing.py:496-508" docs/reports/T-3790-send-guard-prompt-driven-rea
 ### 2026-11-14T21:12:58Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 
+### 2026-11-14T21:45Z — AEF T-5137 landed [agent]
+- AEF msg 32760f6c: landed on bleeding-edge b0ce91893, option A narrowed. A fetch older than the last write counts as a reader only within ACTIVE_READER_WINDOW_MS = 1 day, and the send prints a "queues unread" note. Not in be.50; it comes with the next be-tag. Until we re-vendor past it, `--force` stays the workaround for the 1409 design circuit.
+
 ## Reviewer Verdict (v1.5)
 
 - **Scan ID:** R-f550982f
