@@ -3063,6 +3063,54 @@ head2 "22e. $HUBLINK_USER's hub link: its sessions and workers register on the .
 install_hub_link
 
 # ---------------------------------------------------------------------------
+# ACTION 22f — restart AEF's trial meter, but only when a restart was requested (T-3789 test;
+# operator ruling A on 2026-11-14: "a" — the meter restarts of the test go through runme)
+#
+# The AEF adapter trial (T-5054) runs its meter as our unit termlink-sidecar@999-Agentic-Engineering-
+# Framework--aef-meter.service. Proving T-3787/T-3789 needs restarts at chosen moments, so this
+# action restarts it ONLY when the agent filed a request file (one line: why); with no request it
+# skips. Verified after the restart: unit active, a new main pid, and its executable not marked
+# "(deleted)": it runs the installed binary at ~/.local/bin/termlink (same inode, `-ef`, as 4b checks). On success the request is removed and one line is
+# appended to the restart log; on failure the request stays (a re-run tries again) and it is FAILED.
+# Seams (fixtures only): RUNME_AEFM_UNIT, RUNME_AEFM_REQUEST, RUNME_AEFM_LOG, RUNME_AEFM_BIN (plus 4b's
+# RUNME_W1_SYSTEMCTL and RUNME_W1_PROC).
+# ---------------------------------------------------------------------------
+seam AEFM_UNIT RUNME_AEFM_UNIT "termlink-sidecar@999-Agentic-Engineering-Framework--aef-meter.service"
+seam AEFM_REQUEST RUNME_AEFM_REQUEST "$PROJECT_ROOT/.context/working/aef-meter-restart.request"
+seam AEFM_LOG RUNME_AEFM_LOG "$PROJECT_ROOT/.context/working/aef-meter-restarts.log"
+seam AEFM_BIN RUNME_AEFM_BIN "${HOME:-/root}/.local/bin/termlink"
+restart_aef_meter_on_request() {
+    local why old pid i exe
+    if [ ! -s "$AEFM_REQUEST" ]; then
+        say "  skip    no restart of $AEFM_UNIT requested (request file $AEFM_REQUEST absent)"; SKIPPED=$((SKIPPED+1)); return 0
+    fi
+    why="$(head -1 "$AEFM_REQUEST" | cut -c1-200)"
+    old="$($W1_SYSTEMCTL show -p MainPID --value "$AEFM_UNIT" 2>/dev/null)"
+    if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would restart $AEFM_UNIT (pid ${old:-none}; requested: $why)"; DONE=$((DONE+1)); return 0; fi
+    if ! $W1_SYSTEMCTL restart "$AEFM_UNIT"; then
+        say "  FAILED  systemctl restart $AEFM_UNIT; the request stays"; FAILED=$((FAILED+1)); return 0
+    fi
+    pid=""
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        pid="$($W1_SYSTEMCTL show -p MainPID --value "$AEFM_UNIT" 2>/dev/null)"
+        [ -n "$pid" ] && [ "$pid" != "0" ] && [ "$pid" != "$old" ] && break
+        [ "${RUNME_FIXTURE:-0}" = "1" ] || sleep 1
+    done
+    exe="$(readlink "$W1_PROC/$pid/exe" 2>/dev/null)"
+    if [ "$($W1_SYSTEMCTL is-active "$AEFM_UNIT" 2>/dev/null)" != "active" ] || [ -z "$pid" ] || [ "$pid" = "0" ] \
+       || [ "$pid" = "$old" ] || ! [ "$W1_PROC/$pid/exe" -ef "$AEFM_BIN" ]; then
+        say "  FAILED  $AEFM_UNIT after restart: not active, same pid, or not on the installed binary (pid ${pid:-none}, exe ${exe:-?}); the request stays"
+        FAILED=$((FAILED+1)); return 0
+    fi
+    printf '%s restarted %s pid %s -> %s exe %s requested: %s\n' "$(date -u +%FT%TZ)" "$AEFM_UNIT" "${old:-none}" "$pid" "$exe" "$why" >> "$AEFM_LOG"
+    rm -f "$AEFM_REQUEST"
+    say "  OK      $AEFM_UNIT restarted and verified: active, pid ${old:-none} -> $pid, runs $exe; request done ($why)"; DONE=$((DONE+1))
+}
+
+head2 "22f. Restart AEF's trial meter when requested (T-3789 test, ruling A)"
+restart_aef_meter_on_request
+
+# ---------------------------------------------------------------------------
 # ACTION 23 — the daily telemetry rollup on the fleet hubs (T-3615)
 #
 # Only .107 reported to telemetry:daily, so the fleet view saw one host. This

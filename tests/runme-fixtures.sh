@@ -547,6 +547,8 @@ export RUNME_SKIP_BUILD=1 RUNME_TERMLINK_SRC="$TMP/tl-new" RUNME_TERMLINK_DEST="
 # cases see nothing from 4b; its own cases below set RUNME_W1_UNITS.
 W1R="$TMP/w1r"; mkdir -p "$W1R/proc"
 export RUNME_W1_UNITS="" RUNME_W1_SYSTEMCTL="$W1R/systemctl" RUNME_W1_PROC="$W1R/proc" RUNME_W1_BIN="$W1R/termlink-new"
+# T-3789 action 22f: no restart request by default (=> skip); scratch request and log paths.
+export RUNME_AEFM_UNIT="u-aef" RUNME_AEFM_REQUEST="$TMP/aefm.request" RUNME_AEFM_LOG="$TMP/aefm.log" RUNME_AEFM_BIN="$W1R/termlink-new"
 # T-3651 (action 4c): scratch configs, sockets, status client and audit log; no re-pin recorded.
 mkdir -p "$W1R/conf"
 export RUNME_W1_REPIN_MAIN="" RUNME_W1_CONF_DIR="$W1R/conf" RUNME_W1_SOCK_DIR="$W1R/sock" \
@@ -948,7 +950,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 48 ))   # +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 49 ))   # +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -2253,7 +2255,7 @@ if [ "$rc" = 0 ] && [ -f "$SBAK" ] && [ ! -e "$SOLD" ]; then ok "22d: restored t
 # ---------------------------------------------------------------------------
 # T-3781 action 22e — the design user's hub link, through fakes (no real mint, user or hub).
 # ---------------------------------------------------------------------------
-s22e() { echo "$1" | sed -n '/^.*22e\. /,/^.*23\. Daily telemetry rollup/p'; }
+s22e() { echo "$1" | sed -n '/^.*22e\. /,/^.*22f\. /p'; }
 hlm() { [ -f "$F/hl-mints" ] && wc -l < "$F/hl-mints" || echo 0; }
 HLT="$HLH/.termlink/hub-register.token"; HLA="$HLH/.termlink/hub-register.addr"; HLST="$HLS/$LTU.state"; HL="hub-link:$LTU"
 hl_skip_state; rm -f "$F/hl-mints"   # counts below are this block's own
@@ -2693,6 +2695,30 @@ else bad "T-3647 still-stale" "rc=$rc: $x"; fi
 rm -f "$W1R/pid.u-none"; out=$(RUNME_W1_UNITS="u-none" run); x=$(s4b "$out")
 if echo "$x" | grep_all 'skip    u-none not running'; then ok "T-3647: unit not running => skip, nothing restarted"
 else bad "T-3647 absent" "$x"; fi
+# ---- T-3789: action 22f restarts aef-meter only on request ------------------------
+s22f() { echo "$1" | sed -n '/^.*22f\. /,/^.*23\. Daily telemetry rollup/p'; }
+rm -f "$W1R/restarts" "$TMP/aefm.request" "$TMP/aefm.log"; w1_unit u-aef 31 termlink-old
+out=$(run); x=$(s22f "$out")
+if echo "$x" | grep_all -F "skip    no restart of u-aef requested" && [ ! -s "$W1R/restarts" ]; then
+    ok "22f: no request => skip, nothing restarted"
+else bad "22f no request" "$x"; fi
+echo "T-3789 test step a" > "$TMP/aefm.request"
+out=$(run); rc=$?; x=$(s22f "$out")
+if echo "$x" | grep_all -F "OK      u-aef restarted and verified: active, pid 31 -> 131" && [ ! -e "$TMP/aefm.request" ] \
+   && grep -q "u-aef pid 31 -> 131 .*requested: T-3789 test step a" "$TMP/aefm.log" && [ "$(cat "$W1R/restarts")" = u-aef ]; then
+    ok "22f: a request restarts once, verifies the new pid, logs it and removes the request"
+else bad "22f restart" "rc=$rc: $x"; fi
+out=$(run); x=$(s22f "$out")
+if echo "$x" | grep_all -F "skip    no restart of u-aef requested" && [ "$(wc -l < "$W1R/restarts")" = 1 ]; then
+    ok "22f: second run skips (the request was consumed)"
+else bad "22f idempotent" "$x"; fi
+echo "step c" > "$TMP/aefm.request"; w1_unit u-aef 41 termlink-old
+out=$(FAKE_W1_STALE_AFTER=1 run); rc=$?; x=$(s22f "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all -F "FAILED  u-aef after restart" && [ -s "$TMP/aefm.request" ]; then
+    ok "22f control: a restart that does not verify => FAILED rc 1, the request stays"
+else bad "22f fail" "rc=$rc: $x"; fi
+rm -f "$W1R"/pid.* "$W1R/restarts" "$TMP/aefm.request" "$TMP/aefm.log"
+
 rm -f "$W1R"/pid.* "$W1R/restarts"
 
 # ---- T-3651: action 4c lists or re-pins the W1 main, audited ----------------------
