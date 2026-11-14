@@ -2,12 +2,16 @@
 id: T-3782
 name: "TCP worker sessions: hub forwarding above observe scope (T-3760 follow-up)"
 description: >
-  A worker served on TCP by termlink register --hub requires token auth; the hub forwards calls to it without a token, so only observe-scope methods (ping, query.*) reach it. inject/exec/notify to such a worker need a design: the worker hands the hub a scoped token at registration, or callers present their own. Must keep owner binding and the T-3757 caller identity.
+  A worker served on TCP by termlink register --hub requires token auth; the hub forwards
+  calls to it without a token, so only observe-scope methods (ping, query.*) reach
+  it. inject/exec/notify to such a worker need a design: the worker hands the hub
+  a scoped token at registration, or callers present their own. Must keep owner binding
+  and the T-3757 caller identity.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011, security]
 components: []
 related_tasks: []
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T17:55:22Z
-last_update: 2026-11-13T17:55:22Z
-date_finished: null
+last_update: '2026-11-14T10:24:26Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +54,59 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-14T10:24:26Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal);
+      F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0:
+      no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3782: TCP worker sessions: hub forwarding above observe scope (T-3760 follow-up)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-3760/T-3781 let a non-root user's sessions and workers register on the hub over TCP.
+The hub forwards calls to them without a token (`router.rs:2032`), and their TCP side is token-only, so only
+observe-scope calls (ping, query.*, event.poll) reach them through the hub.
+**Problem / hypothesis:** inject/exec/notify through the hub to such a worker fail; workers on the hub are visible
+but not controllable from another session or host. Operator ruling 2026-11-14: build it, shape A (see Decisions).
+**Goal:** the hub can forward inject/exec to a TCP worker for exactly the callers its own scope check already
+admits for those methods, with the worker's owner binding and the T-3757 caller identity intact.
+**Expected outcome:** e.g. root's main session runs `termlink remote inject/exec` on `dimitri-mint-dev-<name>` via
+the .107 hub and it works; an Interact-scope fleet token still cannot.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] A linked or `--hub` worker mints, from its own session secret, a forward token and sends it with
+      `session.register_remote` (and again on every re-register); the hub keeps it with the remote record in
+      memory only, drops it with the record, and never returns or logs it (`session.discover`, `remote list`,
+      rpc audit). Unit-tested on the hub side, including "not in discover output".
+- [ ] `forward_to_target` to a TCP record that has a forward token authenticates (`auth.token`) before forwarding;
+      a record without one behaves exactly as today (observe only). The caller gate is unchanged: the hub's own
+      `hub_method_scope` (inject = Control, exec = Execute) still decides who may call.
+- [ ] Integration test against a throwaway TCP hub: an Execute caller (hub secret) execs and injects into a
+      linked worker through the hub; an Interact-scope token is refused by the hub for the same calls; a worker
+      registered by an old binary (no token) still answers observe calls.
+- [ ] T-3757: the forwarded request keeps the caller's declared `from`; the worker's owner binding (claim
+      principal) is unchanged; a forward token never lets one principal's connection register or renew another's.
+- [ ] Live smoke on .107: as root, exec + inject through the hub into a `dimitri-mint-dev` worker (throwaway hub
+      as in T-3781's smoke); negative control with an Interact token refused.
+- [ ] `cargo test` for termlink-hub, termlink-session, termlink-cli and workspace clippy clean; mutants: drop the
+      `auth.token` step (forward fails), leak the token into discover (test catches), skip the caller gate
+      (Interact refused test catches).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -376,3 +419,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3782-tcp-worker-sessions-hub-forwarding-above.md
 - **Context:** Initial task creation
+
+### 2026-11-14T10:24:25Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
