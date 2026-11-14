@@ -10,12 +10,12 @@ description: >
   Field case: the 1409 design session (Claude Code in Claude Desktop, user dimitri-mint-dev)
   never reads its inbox 1409-sprind/design.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -44,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-14T14:17:50Z
-last_update: '2026-11-14T14:18:06Z'
-date_finished:
+last_update: 2026-11-14T15:02:49Z
+date_finished: 2026-11-14T15:02:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -114,8 +114,12 @@ it used), fail closed, nothing existing switched off, proven live.
 - [x] Mutants killed: drop the fallback branch (round-trip test fails); drop the non-root check (root test fails);
       treat a half link as no link (half-link test fails). (nofallback, noroot, halfaslink KILLED.)
 - [x] `cargo test -p termlink` and workspace clippy clean. (1522/0; clippy rc 0.)
-- [ ] Live proof after install (runme): a sentinel posted to `inbox:…/1409-sprind/design` surfaces in the design
+- [x] Live proof after install (runme): a sentinel posted to `inbox:…/1409-sprind/design` surfaces in the design
       session's transcript on its next prompt, and that session logs no new "NOT CHECKED: reading inbox" lines.
+      Evidence: runme 2026-11-14T14:39Z installed 0.12.13+25.geb4f33df7 (rc=1, 3 known greenfield lines only);
+      sentinel `T3788-SENTINEL-…` (.context/working/t3788/sentinel) sent 14:58:37Z (msg 85b3d66f, HUB_ACCEPTED;
+      `--force` because no read had ever succeeded); surfaced in design session dba4134c at 15:00:59Z as an
+      `attachment` of type `hook_additional_context` from `UserPromptSubmit`; 0 NOT CHECKED lines since 14:58Z.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -342,6 +346,16 @@ grep -q "nofallback KILLED" .context/working/t3788/mutants.out && grep -q "noroo
 
 ## Evolution
 
+### 2026-11-14 — the send guard and the topic scope
+- **What changed:** the first live send to `1409-sprind/design` was refused by AEF's send guard ("no evidence
+  anything reads" the inbox) — correct from its view, since no read had ever succeeded; the first send used `--force`.
+  Now that the hook reads it, the hub records fetches and later sends need no `--force`. Also learned: a linked
+  user's Interact token cannot `channel create` (Control), so `--ensure-topic` from that user cannot create a missing
+  inbox; existing inboxes are unaffected.
+- **Plan impact:** none; the fallback covers the channel rail only (8 other modules that read the hub path directly,
+  e.g. dispatch and agent work, keep their behaviour — dispatch has its own linked mode from T-3781).
+- **Triggered:** nothing new.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -423,3 +437,16 @@ grep -q "nofallback KILLED" .context/working/t3788/mutants.out && grep -q "noroo
 
 ### 2026-11-14T14:18:03Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-14T15:02:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4ca1924f
+- **Timestamp:** 2026-11-14T15:02:52Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
