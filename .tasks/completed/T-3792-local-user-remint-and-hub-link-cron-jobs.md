@@ -1,16 +1,13 @@
 ---
-id: T-3793
-name: "fleet-token-remint raises urgent-token-expiring, which the sidecar refuses
-  from outside: the expiry alarm is silent when it matters"
+id: T-3792
+name: "Local-user remint and hub-link cron jobs fail: runuser not on cron PATH (no sbin)"
 description: >
-  notify() passes kind urgent-token-expiring when any token is under 24h; termlink-sidecar
-  api.rs:753 refuses urgent-* from outside by design (sidecar's own alarms). Every
-  02:40Z run since greenfield's token lapsed recorded no note (14 stderr lines).
+  Local-user remint and hub-link cron jobs fail: runuser not on cron PATH (no sbin)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -40,9 +37,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-14T21:10:54Z
-last_update: '2026-11-14T21:14:27Z'
-date_finished:
+created: 2026-11-14T20:56:28Z
+last_update: 2026-11-14T21:50:36Z
+date_finished: 2026-11-14T21:50:36Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -53,36 +50,24 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-11-14T21:14:27Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 0
-      D2: 1
-      D3: 0
-      D4: 0
-      F-RECALL: 0
-    rationale: D1=0 (no-signal); D2=1 (body:log-or-error-line); D3=0 
-      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3793: fleet-token-remint raises urgent-token-expiring, which the sidecar refuses from outside: the expiry alarm is silent when it matters
+# T-3792: Local-user remint and hub-link cron jobs fail: runuser not on cron PATH (no sbin)
 
 ## Context
 
-**Background/trigger:** the fleet-token-remint canary is ERRORING with "needs-attention note not recorded" on both sidecar admin sockets (14 lines in `.fleet-token-remint-canary.log.stderr`, all from the 02:40Z run).
-**Problem/hypothesis:** `scripts/fleet-token-remint.sh:439` picks kind `urgent-token-expiring` when any token expires within 24h (greenfield's has, since the host went offline). `crates/termlink-sidecar/src/api.rs:748-754` refuses `urgent-*` kinds from outside by design ("the sidecar's own alarms"). Verified: the socket connects and answers `bad-kind` for an urgent kind; the 02:45Z local-only run (kind `token-remint`) records fine. The note is dropped exactly when expiry is nearest, and notify() discards the refusal text, so the cause was invisible.
-**Goal:** stay inside the sidecar's contract: a non-urgent kind that still says the expiry is imminent, and the refusal text kept in stderr.
-**Expected outcome:** the 02:40Z run records its note; the canary stops ERRORING. Whether the operator wants an outside-raisable urgent tier is R-37 (escalation threshold), an open arc-011 question, not decided here.
+**Background/trigger:** `.fleet-token-remint-canary.log` shows `FAILED local:dimitri-mint-dev: no answer over runuser` on 2026-11-13 and 11-14 (03:45 job); `.hub-link-provision.log` shows the same for the 03:50 job.
+**Problem/hypothesis:** the crontab PATH is `/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin`; `runuser` is `/usr/sbin/runuser`. Reproduced: under that env `runuser: command not found` (rc 127), and the script reports it as "no answer". By hand (sbin on PATH) the same dry run is OK.
+**Goal:** both scripts find runuser regardless of PATH, and a missing runuser is named as such, not as "no answer".
+**Expected outcome:** the 03:45/03:50 jobs succeed; the dimitri-mint-dev token (121h left) and hub-link claim get renewed before expiry.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] notify() never sends an `urgent-*` kind; near expiry it sends `token-expiring` with the soonest expiry time in the why
-- [x] a refused note logs the sidecar's answer (code + error) to stderr, not just "not recorded"
-- [x] a live call with the new kind is accepted by a real admin socket (`"ok":true`)
+- [x] fleet-token-remint.sh and hub-link-provision.sh resolve runuser via PATH, then /usr/sbin, /sbin; if none exists they FAIL naming "runuser not found"
+- [x] Dry run under the exact cron environment (env -i, crontab PATH) succeeds for --local-user dimitri-mint-dev
+- [x] Existing fixtures for both scripts still pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -134,9 +119,9 @@ bvp_scores_proposed:
 
 ## Verification
 
-grep -q "kind=token-expiring" scripts/fleet-token-remint.sh && ! grep -q "kind=urgent-" scripts/fleet-token-remint.sh
-grep -q 'not recorded on $s: ' scripts/fleet-token-remint.sh
-termlink sidecar admin note --socket /var/lib/termlink/sidecar/claude-termlink.admin.sock --kind urgent-x --why probe > .context/working/.t3793-u 2>&1; grep -q bad-kind .context/working/.t3793-u
+env -i SHELL=/bin/bash PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin TERMLINK_RUNTIME_DIR=/var/lib/termlink HOME=/root bash scripts/fleet-token-remint.sh --dry-run --local-user dimitri-mint-dev > .context/working/.t3792-r 2>&1 && grep -q "0 failed" .context/working/.t3792-r
+env -i SHELL=/bin/bash PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin TERMLINK_RUNTIME_DIR=/var/lib/termlink HOME=/root bash scripts/hub-link-provision.sh --user dimitri-mint-dev --dry-run > .context/working/.t3792-h 2>&1 && grep -qE "^  (skip|OK|would)" .context/working/.t3792-h
+out=$(env -i PATH=/usr/bin:/bin RUNUSER_SEARCH=/nonexistent bash scripts/hub-link-provision.sh --user dimitri-mint-dev --dry-run 2>&1); echo "$out" | grep -q "FAILED  hub-link:dimitri-mint-dev: runuser not found"
 grep -q "T-3052 fixtures: [0-9]* passed, 0 failed" .context/working/remint-diag/runme-fix2.out
 
 # Shell commands that MUST pass before work-completed. One per line.
@@ -308,10 +293,10 @@ grep -q "T-3052 fixtures: [0-9]* passed, 0 failed" .context/working/remint-diag/
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** the fleet-token-remint canary has been ERRORING with "needs-attention note not recorded" on both admin sockets every night since greenfield's token lapsed, while notes from the 02:45Z run landed.
-**Root cause:** T-3615 (3ff65a137, 2026-10-28) chose kind `urgent-token-expiring` for a token under 24h. The sidecar's `note` op (since T-3435, 872108f40) refuses `urgent-*` from outside by design. Each tool was correct on its own, but the two contracts disagreed.
-**Why structurally allowed:** the fixture stubs the sidecar (`FLEET_TOKEN_NOTE` writes to a file), so it asserted the very kind the real sidecar refuses. `notify()` threw away the refusal text, so the log said only "not recorded".
-**Prevention:** the fixture now asserts `token-expiring` and that no `urgent-*` kind is ever sent. A refusal now logs the sidecar's code and error. A live call proved the new kind is accepted (`{"noted":"token-expiring","ok":true}`). Learning: a stub that records what you send cannot catch a contract the receiver enforces, so check the stub against the real receiver once.
+**Symptom:** the 03:45 (`--local-user dimitri-mint-dev`) and 03:50 (`hub-link-provision.sh --cron`) jobs logged "no answer over runuser" on 2026-11-13 and 11-14; by hand both were fine.
+**Root cause:** the crontabs set `PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin`, and `runuser` is `/usr/sbin/runuser`. Bare `runuser` was "command not found" (rc 127), its stderr went to /dev/null, and the probe's missing PROBE-BEGIN was reported as "no answer".
+**Why structurally allowed:** every test drives these scripts through the `FLEET_TOKEN_LOCAL_RUN` / `HUBLINK_RUN` seams, so the default runuser branch never ran in a test. The live proof was runme 22e from an interactive root shell, which has sbin on PATH. The cron environment was never part of a proof.
+**Prevention:** `scripts/lib/runuser-path.sh` resolves runuser from PATH, then /usr/sbin, then /sbin; a missing runuser is a named FAILED line. Verification runs both scripts under the exact crontab env (`env -i` + crontab PATH). Learning: prove a cron job under its crontab environment, not the shell's.
 
 ## Evolution
 
@@ -389,10 +374,20 @@ grep -q "T-3052 fixtures: [0-9]* passed, 0 failed" .context/working/remint-diag/
 
 ## Updates
 
-### 2026-11-14T21:10:54Z — task-created [task-create-agent]
+### 2026-11-14T20:56:28Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3793-fleet-token-remint-raises-urgent-token-e.md
+- **Output:** /opt/termlink/.tasks/active/T-3792-local-user-remint-and-hub-link-cron-jobs.md
 - **Context:** Initial task creation
 
-### 2026-11-14T21:14:24Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
+### 2026-11-14T21:50:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2ea4924c
+- **Timestamp:** 2026-11-14T21:50:40Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

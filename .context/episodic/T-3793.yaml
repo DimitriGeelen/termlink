@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3793: fleet-token-remint raises urgent-token-expiring, which the sidecar refuses from outside: the expiry alarm is silent when it matters
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-14T21:49:45Z
+# ============================================================================
+
+task_id: T-3793
+task_name: "fleet-token-remint raises urgent-token-expiring, which the sidecar refuses from outside: the expiry alarm is silent when it matters"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-14T21:10:54Z
+completed: 2026-11-14T21:49:23Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  notify() passes kind urgent-token-expiring when any token is under 24h; termlink-sidecar api.rs:753 refuses urgent-* from outside by design (sidecar's own alarms). Every 02:40Z run since greenfield's token lapsed recorded no note (14 stderr lines).
+
+# Key outcomes
+outcomes:
+  - 'notify() never sends an `urgent-*` kind; near expiry it sends `token-expiring` with the soonest expiry time in the why'
+  - 'a refused note logs the sidecar''s answer (code + error) to stderr, not just "not recorded"'
+  - 'a live call with the new kind is accepted by a real admin socket (`"ok":true`)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 38 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 38
+  commits: 2
+  files_changed: 11
+  lines_added: 1077
+  lines_removed: 18
+  footprint_refreshed_at: '2026-11-14T21:51:14Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3793-fleet-token-remint-raises-urgent-token-e.md
+generated_by: context-agent-hybrid
