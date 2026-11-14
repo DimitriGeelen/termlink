@@ -8,16 +8,16 @@ description: >
   but no terminal to inject into and no prompt hook. Question: can a Desktop session
   be a mail recipient, and how?
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-11-14T10:24:14Z
-last_update: 2026-11-14T12:00:06Z
-date_finished:
+last_update: 2026-11-14T14:17:15Z
+date_finished: 2026-11-14T14:17:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -121,15 +121,15 @@ IN: how mail can reach the 1409 design session; options with cost. OUT: building
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -203,7 +203,14 @@ TCP hub when it has a hub link) is one bounded, reversible rule that fixes every
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: The design session is Claude Code run by the desktop app and already has its own inbox
+(`1409-sprind/design`) and the mail hooks; mail never surfaces only because termlink, run as dimitri-mint-dev
+with no `--hub`, looks for a hub socket in that user's runtime dir. Option A (termlink falls back to the user's
+TCP hub when it has a hub link) is one bounded, reversible rule that fixes every caller without a vendored change.
+
+**Date**: 2026-11-14T14:17:14Z
 
 ## Updates
 
@@ -213,3 +220,44 @@ TCP hub when it has a hub link) is one bounded, reversible rule that fixes every
 ### 2026-11-14T11:54:06Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-14T14:17:14Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** The design session is Claude Code run by the desktop app and already has its own inbox
+(`1409-sprind/design`) and the mail hooks; mail never surfaces only because termlink, run as dimitri-mint-dev
+with no `--hub`, looks for a hub socket in that user's runtime dir. Option A (termlink falls back to the user's
+TCP hub when it has a hub link) is one bounded, reversible rule that fixes every caller without a vendored change.
+
+### 2026-11-14T14:17:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e0d4e7f4
+- **Timestamp:** 2026-11-14T14:17:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
+     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-36d24587
+- **Timestamp:** 2026-11-14T14:17:17Z
+- **Overall:** CONFIRMED
+- **Claims:** 2
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `T-3756` | task | ✓ pass |
+| `T-3781` | task | ✓ pass |
