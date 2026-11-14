@@ -23985,3 +23985,21 @@ scan_id: R-8ebd0bd1
 task_id: T-3783
 payload:
   task_file: .tasks/active/T-3783-meter-keeps-no-per-report-history-did-a-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-14T20:36:10Z'
+scan_id: R-5b4ad035
+task_id: T-3791
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-14T20:36:10Z'
+scan_id: R-5b4ad035
+task_id: T-3791
+payload:
+  task_file: .tasks/active/T-3791-substrate-resilience-demo-parses-stderr-.md
