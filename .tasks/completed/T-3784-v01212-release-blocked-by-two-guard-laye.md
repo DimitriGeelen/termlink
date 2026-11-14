@@ -13,12 +13,12 @@ description: >
   at 1884). Fix: clamp the buffer (1..=8 MiB); W3 accepts both commit forms and still
   requires the helper first. Then re-tag (v0.12.13) under the G-1 ruling.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, release]
-components: []
+components: [tests/commit-pending-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -47,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T20:13:54Z
-last_update: 2026-11-13T20:15:11Z
-date_finished:
+last_update: 2026-11-14T00:21:50Z
+date_finished: 2026-11-14T00:21:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -92,7 +92,7 @@ layer failed on two checks, so no binaries were built.
 ### Agent
 - [x] procinfo.rs bounds the KERN_ARGMAX buffer (clamp 1..=8 MiB); scripts/check-alloc-sink-clamps.sh passes
 - [x] W3 accepts both commit forms (`commit -m` and `_commit_handover_files`) and still fails if the helper runs after the commit (negative control run)
-- [ ] Release re-tagged and the GitHub run publishes binaries (recorded in Updates)
+- [x] Release re-tagged and the GitHub run publishes binaries (recorded in Updates)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -401,6 +401,16 @@ checks and fixture suites on the clean clone too, not only cargo test + clippy (
 
 ## Updates
 
+### 2026-11-14T00:25Z — v0.12.13 published (agent)
+- Tag v0.12.13 at 26bf6548c (diff to v0.12.12: only procinfo.rs, commit-pending-fixtures.sh, this task).
+- Local gate on a clean clone: every red checked and shown environment-only (no in-tree binary,
+  TERMLINK_BIN override, host pin trail, warn-class standing-controls); pin-events 15/15 and
+  sweep-debris 20/20 once the environment matched.
+- GitHub run 43528057552: test suite + guard layer, macOS tests, all 5 builds and `release` succeeded;
+  release v0.12.13 is public with 6 assets (darwin aarch64/x86_64, linux aarch64/x86_64/x86_64-static,
+  checksums.txt). Only "Homebrew tap" failed: TAP_TOKEN is empty — the operator's open T-3754 steps
+  (tap repo + token + secret), not this task.
+
 ### 2026-11-13T20:13:54Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3784-v01212-release-blocked-by-two-guard-laye.md
@@ -408,3 +418,16 @@ checks and fixture suites on the clean clone too, not only cargo test + clippy (
 
 ### 2026-11-13T20:14:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-14T00:21:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d6ff05b8
+- **Timestamp:** 2026-11-14T00:21:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

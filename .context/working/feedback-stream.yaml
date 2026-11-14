@@ -23815,3 +23815,21 @@ scan_id: R-95c0ce16
 task_id: T-3778
 payload:
   task_file: .tasks/active/T-3778-upgrade-the-vendored-aef-framework-to-v1.md
+---
+kind: scan_emitted
+timestamp: '2026-11-14T00:21:56Z'
+scan_id: R-d6ff05b8
+task_id: T-3784
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-14T00:21:56Z'
+scan_id: R-d6ff05b8
+task_id: T-3784
+payload:
+  task_file: .tasks/active/T-3784-v01212-release-blocked-by-two-guard-laye.md
