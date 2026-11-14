@@ -16,6 +16,34 @@ pub const DEFAULT_TTL: Duration = Duration::from_secs(300); // 5 minutes
 /// Default interval for the reaper background task.
 pub const REAPER_INTERVAL: Duration = Duration::from_secs(30);
 
+/// T-3782: a token the worker minted from its own session secret and handed the hub
+/// at registration, so the hub can authenticate when it forwards a call above observe
+/// scope. Held in memory with the record only: never serialised, never logged (its
+/// `Debug` is redacted), dropped with the record.
+#[derive(Clone, PartialEq, Eq)]
+pub struct ForwardToken(String);
+
+impl ForwardToken {
+    /// Longest token accepted from a peer (a real one is a few hundred bytes).
+    pub const MAX_LEN: usize = 4096;
+
+    /// `None` for an empty or oversized value.
+    pub fn new(raw: &str) -> Option<Self> {
+        let raw = raw.trim();
+        (!raw.is_empty() && raw.len() <= Self::MAX_LEN).then(|| Self(raw.to_string()))
+    }
+
+    pub fn expose(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for ForwardToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ForwardToken(<redacted>)")
+    }
+}
+
 /// Parameters for registering a new remote session.
 pub struct RemoteSessionInfo {
     pub display_name: String,
@@ -31,6 +59,8 @@ pub struct RemoteSessionInfo {
     pub protocol_version: u8,
     /// Explicit worker binding (T-3490); unique among live sessions.
     pub worker_binding: Option<termlink_session::registration::WorkerBinding>,
+    /// T-3782: the worker's forward token, if it sent one.
+    pub forward_token: Option<ForwardToken>,
 }
 
 /// T-3760: why an owned registration was refused.
@@ -60,6 +90,8 @@ pub struct RemoteEntry {
     /// T-3760: the principal that registered this record through a registration
     /// claim. `None` for records registered the legacy way (interact scope).
     pub owner: Option<String>,
+    /// T-3782: see [`ForwardToken`]; never part of [`Self::to_json`].
+    pub forward_token: Option<ForwardToken>,
     pub state: String,
     pub registered_at: Instant,
     pub last_heartbeat: Instant,
@@ -162,6 +194,16 @@ impl RemoteStore {
 
     /// T-3760: `None` = no such record; `Some(owner)` = the record's owner (itself
     /// `None` for a legacy record).
+    /// T-3782: the forward token of the live record `id`, if it has one.
+    pub fn forward_token_of(&self, id: &str) -> Option<ForwardToken> {
+        self.entries
+            .read()
+            .expect("remote store lock poisoned")
+            .get(id)
+            .filter(|e| !e.is_expired())
+            .and_then(|e| e.forward_token.clone())
+    }
+
     pub fn owner_of(&self, id: &str) -> Option<Option<String>> {
         self.entries.read().expect("remote store lock poisoned").get(id).map(|e| e.owner.clone())
     }
@@ -182,6 +224,7 @@ impl RemoteStore {
             capabilities,
             protocol_version,
             worker_binding,
+            forward_token,
         } = info;
         let mut entries = self.entries.write().expect("remote store lock poisoned");
         if enforce_binding
@@ -217,6 +260,7 @@ impl RemoteStore {
             protocol_version,
             worker_binding,
             owner,
+            forward_token,
             state: "ready".to_string(),
             registered_at: now,
             last_heartbeat: now,
@@ -224,6 +268,21 @@ impl RemoteStore {
         };
         entries.insert(id.clone(), entry);
         Ok(id)
+    }
+
+    /// T-3782: refresh the heartbeat and, when `token` is given, replace the record's
+    /// forward token (a long-running worker sends a freshly minted one each beat, so
+    /// the hub's copy never outlives the token TTL ceiling). Returns true if found.
+    pub fn heartbeat_with_token(&self, id: &str, token: Option<ForwardToken>) -> bool {
+        if let Some(entry) = self.entries.write().expect("remote store lock poisoned").get_mut(id) {
+            entry.last_heartbeat = Instant::now();
+            if token.is_some() {
+                entry.forward_token = token;
+            }
+            true
+        } else {
+            false
+        }
     }
 
     /// Refresh the heartbeat for a remote session. Returns true if found.
@@ -313,6 +372,26 @@ pub async fn run_reaper(
 mod tests {
     use super::*;
 
+    #[test]
+    fn t3782_forward_token_is_kept_refreshed_and_never_shown() {
+        let store = RemoteStore::new();
+        let mut i = info("w1", "127.0.0.1", 4000, None, vec![], vec![], vec![]);
+        i.forward_token = ForwardToken::new("tok-one");
+        let id = store.register(i);
+        assert_eq!(store.forward_token_of(&id).map(|t| t.expose().to_string()).as_deref(), Some("tok-one"));
+        let e = store.get(&id).unwrap();
+        assert!(!e.to_json().to_string().contains("tok-one"), "never in discovery JSON");
+        assert!(!format!("{e:?}").contains("tok-one"), "Debug is redacted");
+        assert!(store.heartbeat_with_token(&id, None));
+        assert_eq!(store.forward_token_of(&id).unwrap().expose(), "tok-one", "a beat without one keeps it");
+        assert!(store.heartbeat_with_token(&id, ForwardToken::new("tok-two")));
+        assert_eq!(store.forward_token_of(&id).unwrap().expose(), "tok-two", "a beat with one replaces it");
+        assert!(store.deregister(&id));
+        assert!(store.forward_token_of(&id).is_none(), "gone with the record");
+        assert!(ForwardToken::new("  ").is_none());
+        assert!(ForwardToken::new(&"x".repeat(ForwardToken::MAX_LEN + 1)).is_none());
+    }
+
     fn info(name: &str, host: &str, port: u16, pid: Option<u32>, roles: Vec<String>, tags: Vec<String>, caps: Vec<String>) -> RemoteSessionInfo {
         RemoteSessionInfo {
             display_name: name.into(),
@@ -324,6 +403,7 @@ mod tests {
             capabilities: caps,
             protocol_version: 1,
             worker_binding: None,
+            forward_token: None,
         }
     }
 

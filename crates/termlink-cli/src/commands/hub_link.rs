@@ -233,6 +233,22 @@ pub(crate) fn classify_heartbeat<E: std::fmt::Display>(resp: &Result<RpcResponse
     }
 }
 
+/// T-3782: a forward token for the hub, minted from this session's own secret (the one
+/// its TCP side validates). Execute scope, bound to the session id, at the token TTL
+/// ceiling; the lease loop sends a fresh one with every heartbeat. `None` when the
+/// session has no (valid) secret, so the record stays observe-only.
+pub(crate) fn mint_forward_token(secret_hex: Option<&str>, session_id: &str) -> Option<String> {
+    let hex = secret_hex?;
+    if hex.len() != 64 {
+        return None;
+    }
+    let mut secret: auth::TokenSecret = [0u8; 32];
+    for (i, b) in secret.iter_mut().enumerate() {
+        *b = u8::from_str_radix(hex.get(2 * i..2 * i + 2)?, 16).ok()?;
+    }
+    Some(auth::create_token(&secret, auth::PermissionScope::Execute, session_id, auth::DEFAULT_MAX_TOKEN_TTL_SECS).raw)
+}
+
 /// Connect to the hub with the claim token (observe scope plus the claim).
 pub(crate) async fn connect(hub: &str, token_file: &str) -> Result<client::Client> {
     super::remote::connect_remote_hub_with_token(hub, None, None, Some(token_file), "observe").await
@@ -281,14 +297,22 @@ impl PreparedLink {
         let PreparedLink { hub, token_file, claim, addr, mut client } = self;
         let tcp = tokio::net::TcpListener::bind(addr).await.with_context(|| format!("cannot listen on {addr}"))?;
         let endpoint = tcp.local_addr()?;
-        let params = json!({
+        let (secret_hex, session_id) = {
+            let ctx = shared.read().await;
+            (ctx.registration.token_secret.clone(), ctx.registration.id.as_str().to_string())
+        };
+        let minter = move || mint_forward_token(secret_hex.as_deref(), &session_id);
+        let mut params = json!({
             "display_name": name, "host": endpoint.ip().to_string(), "port": endpoint.port(),
             "pid": std::process::id(), "roles": roles, "tags": tags, "capabilities": caps,
         });
+        if let Some(t) = minter() {
+            params["forward_token"] = json!(t);
+        }
         let rid = register_on(&mut client, &params).await?;
         let tcp_loop = tokio::spawn(server::run_accept_loop_tcp(tcp, shared));
         let (stop_tx, stop_rx) = tokio::sync::oneshot::channel::<()>();
-        let lease = tokio::spawn(lease_loop(hub.clone(), token_file, client, params, rid.clone(), stop_rx));
+        let lease = tokio::spawn(lease_loop(hub.clone(), token_file, client, params, rid.clone(), stop_rx, Box::new(minter)));
         Ok(Linked { hub, owner: claim.principal.clone(), name: name.to_string(), remote_id: rid, endpoint, stop: Some(stop_tx), lease: Some(lease), tcp_loop })
     }
 }
@@ -302,13 +326,21 @@ async fn lease_loop(
     params: serde_json::Value,
     mut rid: String,
     mut stop: tokio::sync::oneshot::Receiver<()>,
+    minter: Box<dyn Fn() -> Option<String> + Send>,
 ) {
+    let mut params = params;
     let mut ticker = tokio::time::interval(std::time::Duration::from_secs(HEARTBEAT_SECS));
     ticker.tick().await;
     loop {
         tokio::select! {
             _ = ticker.tick() => {
-                let r = client.call("session.heartbeat", json!("t3760-hb"), json!({"id": rid})).await;
+                // T-3782: each beat carries a freshly minted forward token.
+                let mut hb = json!({"id": rid});
+                if let Some(t) = minter() {
+                    hb["forward_token"] = json!(t);
+                    params["forward_token"] = hb["forward_token"].clone();
+                }
+                let r = client.call("session.heartbeat", json!("t3760-hb"), hb).await;
                 match classify_heartbeat(&r) {
                     Lease::Renewed => {}
                     lease => {
@@ -445,6 +477,19 @@ mod tests {
         assert_eq!(listen_addr(Some("127.0.0.1:4100"), || Ok(ip)).unwrap(), "127.0.0.1:4100".parse().unwrap());
         assert!(listen_addr(Some("nonsense"), || Ok(ip)).is_err());
         assert_eq!(local_ip_toward("127.0.0.1:9100").unwrap(), "127.0.0.1".parse::<IpAddr>().unwrap());
+    }
+
+    #[test]
+    fn forward_token_is_minted_from_the_session_secret_and_validates_against_it() {
+        let secret = auth::generate_secret();
+        let hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+        let t = mint_forward_token(Some(&hex), "tl-abc").expect("token");
+        let (payload, scope) = auth::validate_token(&secret, &t, None).expect("valid against the same secret");
+        assert_eq!(scope, auth::PermissionScope::Execute);
+        assert_eq!(payload.session_id, "tl-abc");
+        assert!(auth::validate_token(&auth::generate_secret(), &t, None).is_err(), "another secret refuses it");
+        assert_eq!(mint_forward_token(None, "x"), None, "no secret: observe only");
+        assert_eq!(mint_forward_token(Some("zz"), "x"), None, "malformed secret: none");
     }
 
     #[test]

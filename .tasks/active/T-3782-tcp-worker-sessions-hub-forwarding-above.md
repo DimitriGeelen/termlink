@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T17:55:22Z
-last_update: '2026-11-14T10:24:26Z'
+last_update: 2026-11-14T10:27:53Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -90,23 +90,36 @@ the .107 hub and it works; an Interact-scope fleet token still cannot.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A linked or `--hub` worker mints, from its own session secret, a forward token and sends it with
+- [x] A linked or `--hub` worker mints, from its own session secret, a forward token and sends it with
       `session.register_remote` (and again on every re-register); the hub keeps it with the remote record in
       memory only, drops it with the record, and never returns or logs it (`session.discover`, `remote list`,
       rpc audit). Unit-tested on the hub side, including "not in discover output".
-- [ ] `forward_to_target` to a TCP record that has a forward token authenticates (`auth.token`) before forwarding;
+      Evidence: `remote_store::tests::t3782_forward_token_is_kept_refreshed_and_never_shown` (to_json, redacted
+      Debug, refresh on heartbeat, gone on deregister); `hub_link::tests::forward_token_is_minted_from_the_session_
+      secret_and_validates_against_it`; rpc audit records no params (rpc_audit.rs); live listing: 0 occurrences.
+      Addition: every heartbeat carries a fresh token, so the hub's copy never outlives the 7-day TTL ceiling.
+- [x] `forward_to_target` to a TCP record that has a forward token authenticates (`auth.token`) before forwarding;
       a record without one behaves exactly as today (observe only). The caller gate is unchanged: the hub's own
-      `hub_method_scope` (inject = Control, exec = Execute) still decides who may call.
-- [ ] Integration test against a throwaway TCP hub: an Execute caller (hub secret) execs and injects into a
+      `hub_method_scope` (inject = Control, exec = Execute) still decides who may call. A refused token fails the
+      forward loudly ("worker refused the hub's forward token"), never a silent observe fallback.
+- [x] Integration test against a throwaway TCP hub: an Execute caller (hub secret) execs and injects into a
       linked worker through the hub; an Interact-scope token is refused by the hub for the same calls; a worker
       registered by an old binary (no token) still answers observe calls.
-- [ ] T-3757: the forwarded request keeps the caller's declared `from`; the worker's owner binding (claim
+      Evidence: `tests/t3782_hub_forward.rs` (1 test, pass); the no-token path is the unchanged hub test
+      `router::tests::forward_to_remote_session_via_tcp` (forward_token: None), pass in the 591/0 hub run.
+- [x] T-3757: the forwarded request keeps the caller's declared `from`; the worker's owner binding (claim
       principal) is unchanged; a forward token never lets one principal's connection register or renew another's.
-- [ ] Live smoke on .107: as root, exec + inject through the hub into a `dimitri-mint-dev` worker (throwaway hub
+      Evidence: the hub forwards `req.params` unchanged (router.rs forward_to_target), so `from` passes through;
+      the token is used only hub→worker; owner checks (`owned_record_check`) run before the heartbeat refresh, and
+      the T-3760/T-3757 suites pass (hub 591/0, cli 1515/0 incl. t3757_declared_from).
+- [x] Live smoke on .107: as root, exec + inject through the hub into a `dimitri-mint-dev` worker (throwaway hub
       as in T-3781's smoke); negative control with an Interact token refused.
-- [ ] `cargo test` for termlink-hub, termlink-session, termlink-cli and workspace clippy clean; mutants: drop the
+      Evidence `.context/working/t3782/smoke.out`: exec stdout "t3782-exec-ok / dimitri-mint-dev"; inject wrote a
+      proof file as dimitri-mint-dev; Interact exec and inject refused with the scope error.
+- [x] `cargo test` for termlink-hub, termlink-session, termlink-cli and workspace clippy clean; mutants: drop the
       `auth.token` step (forward fails), leak the token into discover (test catches), skip the caller gate
-      (Interact refused test catches).
+      (Interact refused test catches). Hub 591/0, session 698/0, cli 1515/0, clippy rc 0; mutants noauth, leak,
+      gate, norefresh all KILLED (`.context/working/t3782/mutants.out`).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -157,6 +170,11 @@ the .107 hub and it works; an Interact-scope fleet token still cannot.
 -->
 
 ## Verification
+
+env -u PROJECT_ROOT cargo test -p termlink-hub --lib t3782 > .context/working/t3782/v-unit.out 2>&1 && grep -q "test result: ok. 1 passed" .context/working/t3782/v-unit.out
+env -u PROJECT_ROOT cargo test -p termlink --test t3782_hub_forward > .context/working/t3782/v-it.out 2>&1 && grep -q "test result: ok. 1 passed" .context/working/t3782/v-it.out
+grep -q "noauth KILLED" .context/working/t3782/mutants.out && grep -q "leak KILLED" .context/working/t3782/mutants.out && grep -q "gate KILLED" .context/working/t3782/mutants.out && grep -q "norefresh KILLED" .context/working/t3782/mutants.out
+grep -q "stdout= 't3782-exec-ok" .context/working/t3782/smoke.out && grep -q "proof file: 't3782-inject-ok" .context/working/t3782/smoke.out && grep -q "exec ok= False" .context/working/t3782/smoke.out && grep -q "inject ok= False" .context/working/t3782/smoke.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -328,6 +346,16 @@ the .107 hub and it works; an Interact-scope fleet token still cannot.
 -->
 
 ## Evolution
+
+### 2026-11-14 — token lifetime and a stale test binary
+- **What changed:** the token TTL is capped at 7 days, so a once-only token would silently stop working on a
+  long-running worker. Every heartbeat now carries a freshly minted token and the hub replaces its copy.
+  A full hub run first showed the new unit test red: the mutant script restored files with `mv` from a backup
+  that kept an older mtime, so cargo kept the last mutant's build. Rebuilt after `touch`: 591/0; the scripts
+  now `touch` after restoring. Mutant verdicts stand (each mutant recompiled its crate); only the final
+  "rebuilt clean" binary was stale. Both smokes (T-3781, T-3782) were re-run on the clean binary.
+- **Plan impact:** none to the design; the mutant-script pattern needs the touch everywhere it is reused.
+- **Triggered:** nothing new.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at

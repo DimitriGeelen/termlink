@@ -847,6 +847,7 @@ fn handle_register_remote(id: serde_json::Value, params: &serde_json::Value) -> 
         capabilities,
         protocol_version,
         worker_binding: worker_binding.clone(),
+        forward_token: forward_token_param(params),
     }) {
         Ok(id) => id,
         Err((holder_id, holder_name)) => {
@@ -1187,7 +1188,7 @@ fn handle_heartbeat(id: serde_json::Value, params: &serde_json::Value) -> RpcRes
         None => return ErrorResponse::new(id, -32602, "Missing 'id' in params").into(),
     };
 
-    if store.heartbeat(session_id) {
+    if store.heartbeat_with_token(session_id, forward_token_param(params)) {
         Response::success(id, json!({ "ok": true })).into()
     } else {
         ErrorResponse::new(
@@ -1393,6 +1394,7 @@ fn handle_register_owned(
         capabilities: extract_string_array(params, "capabilities"),
         protocol_version: params.get("protocol_version").and_then(|v| v.as_u64()).map(|v| v as u8).unwrap_or(1),
         worker_binding,
+        forward_token: forward_token_param(params),
     };
     use crate::remote_store::OwnedRegisterRefusal as R;
     let session_id = match store.try_register_owned(info, &claim.principal, MAX_OWNED_REMOTE_PER_PRINCIPAL) {
@@ -1978,6 +1980,12 @@ pub(crate) fn match_target<'a, E>(
 }
 
 /// Forward a request to the target session specified in params.target.
+/// T-3782: the `forward_token` a worker sent with `session.register_remote` (absent,
+/// empty or oversized: none, so the record stays observe-only as before).
+fn forward_token_param(params: &serde_json::Value) -> Option<crate::remote_store::ForwardToken> {
+    params.get("forward_token").and_then(|v| v.as_str()).and_then(crate::remote_store::ForwardToken::new)
+}
+
 async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse {
     // Extract target from params
     let target = match req.params.get("target").and_then(|t| t.as_str()) {
@@ -2005,6 +2013,7 @@ async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse 
     } else {
         manager::find_session(target).ok()
     };
+    let mut forward_token = None;
     let addr = if let Some(reg) = local {
         reg.addr.to_transport_addr()
     } else if let Some(entry) = remote_store().and_then(|s| {
@@ -2014,6 +2023,7 @@ async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse 
             match_target(&live, target, exact_id, |e| e.id.as_str(), |e| e.display_name.as_str()).cloned()
         })
     }) {
+        forward_token = remote_store().and_then(|s| s.forward_token_of(&entry.id));
         TransportAddr::Tcp {
             host: entry.host.clone(),
             port: entry.port,
@@ -2028,8 +2038,14 @@ async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse 
     };
 
     // Forward the request, preserving the original request id
+    // T-3782: a TCP worker that handed the hub a forward token is authenticated first,
+    // so calls above observe reach it. Who may make such a call was already decided by
+    // the hub's own scope check on the caller's connection (hub_method_scope).
     let forward_result = async {
         let mut c = client::Client::connect_addr_raw(&addr).await?;
+        if let Some(t) = &forward_token {
+            authenticate_forward(&mut c, t).await?;
+        }
         c.call(&req.method, id.clone(), req.params.clone()).await
     };
     match forward_result.await {
@@ -2047,6 +2063,25 @@ async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse 
             )
             .into()
         }
+    }
+}
+
+/// T-3782: `auth.token` on a fresh connection to a TCP worker. A refusal is an error
+/// (the forward fails loudly) rather than a silent fallback to observe scope.
+async fn authenticate_forward(
+    c: &mut client::Client,
+    token: &crate::remote_store::ForwardToken,
+) -> std::io::Result<()> {
+    match c
+        .call(control::method::AUTH_TOKEN, serde_json::json!("t3782-auth"), serde_json::json!({"token": token.expose()}))
+        .await
+    {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => Ok(()),
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            format!("worker refused the hub's forward token: {} {}", e.error.code, e.error.message),
+        )),
+        Err(e) => Err(std::io::Error::other(format!("forward auth failed: {e}"))),
     }
 }
 
@@ -3057,6 +3092,7 @@ mod tests {
             capabilities: vec![],
             protocol_version: 1,
             worker_binding: None,
+            forward_token: None,
         });
 
         // Forward a ping to the remote session via the router
