@@ -10,10 +10,10 @@ description: >
   persist it with the session; restore it only when the harness binding is restored
   (same boot, same pid start time) and re-run validate_transcript on it.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -44,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-14T15:36:04Z
-last_update: '2026-11-14T16:42:32Z'
-date_finished:
+last_update: 2026-11-14T17:10:13Z
+date_finished: 2026-11-14T17:10:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -99,7 +99,8 @@ does not write it, so a restart drops it; S2 then waits for the next turn event 
       (`meter_tests::t3789_restart_keeps_the_transcript_only_with_the_binding_and_revalidated`.)
 - [x] Mutants killed: skip the re-validation (file-gone test fails); restore the path without the binding
       (reuse test fails). (novalidate, nobinding KILLED; sidecar 321/0; clippy rc 0.)
-- [ ] `cargo test -p termlink-sidecar` and workspace clippy clean; AEF told when installed on .107.
+- [x] `cargo test -p termlink-sidecar` and workspace clippy clean; AEF told when installed on .107. (runme
+      2026-11-14T16:52Z installed 0.12.13+28.g77f843026, rc=1 from the 3 known greenfield lines only; AEF told.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -325,6 +326,15 @@ grep -q "novalidate KILLED" .context/working/t3789/mutants.out && grep -q "nobin
 
 ## Evolution
 
+### 2026-11-14 — a second session_start-only fact
+- **What changed:** T-3787 restored the harness binding; AEF's live test then showed the transcript path is the same
+  kind of fact (sent only with session_start), so S2 stayed unknown after a restart. Restoring it reuses T-3787's
+  same-process guard, plus the session_start validation, run again at restore.
+- **Plan impact:** any further session_start-only field should be checked against `persist`; today's set
+  (interactive, harness_pid, transcript_path) is now: interactive not persisted (re-reported each session), the other
+  two persisted with the guard.
+- **Triggered:** nothing new.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -406,3 +416,16 @@ grep -q "novalidate KILLED" .context/working/t3789/mutants.out && grep -q "nobin
 
 ### 2026-11-14T16:42:30Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-14T17:10:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3e40ffd2
+- **Timestamp:** 2026-11-14T17:10:18Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
