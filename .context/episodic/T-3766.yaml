@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3766: Canary substrate-preflight-canary is FIRING — investigate and fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T10:32:59Z
+# ============================================================================
+
+task_id: T-3766
+task_name: "Canary substrate-preflight-canary is FIRING — investigate and fix"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-13T08:15:08Z
+completed: 2026-11-15T10:32:32Z
+duration_days: 2
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  The substrate-preflight-canary canary reports FIRING on /canaries. Filed automatically by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary always has a task naming it.
+
+# Key outcomes
+outcomes:
+  - '`substrate-preflight-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3017 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [canary-escalation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3017
+  commits: 1
+  files_changed: 9
+  lines_added: 559
+  lines_removed: 24
+  footprint_refreshed_at: '2026-11-15T10:34:13Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3766-canary-substrate-preflight-canary-is-fir.md
+generated_by: context-agent-hybrid

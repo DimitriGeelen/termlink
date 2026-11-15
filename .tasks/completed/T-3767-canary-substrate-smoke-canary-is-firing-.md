@@ -1,13 +1,15 @@
 ---
-id: T-3766
-name: "Canary substrate-preflight-canary is FIRING — investigate and fix"
+id: T-3767
+name: "Canary substrate-smoke-canary is FIRING — investigate and fix"
 description: >
-  The substrate-preflight-canary canary reports FIRING on /canaries. Filed automatically by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary always has a task naming it.
+  The substrate-smoke-canary canary reports FIRING on /canaries. Filed automatically
+  by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary
+  always has a task naming it.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [canary-escalation]
 components: []
 related_tasks: []
@@ -37,9 +39,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-13T08:15:08Z
-last_update: 2026-11-13T08:15:08Z
-date_finished: null
+created: 2026-11-13T08:15:09Z
+last_update: 2026-11-15T10:33:04Z
+date_finished: 2026-11-15T10:33:04Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,32 +52,49 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-15T10:33:03Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-3766: Canary substrate-preflight-canary is FIRING — investigate and fix
+# T-3767: Canary substrate-smoke-canary is FIRING — investigate and fix
 
 ## Context
 
-<!-- canary-escalation: canary=substrate-preflight-canary -->
+<!-- canary-escalation: canary=substrate-smoke-canary -->
 Filed automatically by scripts/canary-escalation-file.sh (T-2985) from the daily canary cron.
 
-- **Canary:** `substrate-preflight-canary` — status **FIRING** (`bash scripts/canary-status.sh`)
-- **Findings log:** `.context/working/.substrate-preflight-canary.log` (tooling errors: `.log.stderr`)
+- **Canary:** `substrate-smoke-canary` — status **FIRING** (`bash scripts/canary-status.sh`)
+- **Findings log:** `.context/working/.substrate-smoke-canary.log` (tooling errors: `.log.stderr`)
 - **What each status means:** FIRING = the watched thing is broken; ERRORING = the canary could not run; STALE = its cron has stopped completing. Per-canary operator action: `docs/operations/guard-layer-and-canaries.md`.
 
 **Latest signal line:**
 
 ```
-Summary: 8 pass, 2 warn, 0 fail — substrate will run but fix warnings when convenient.
+check-substrate-smoke: verb-3 work-stealing composition BROKEN at stage 'unknown' (T-2696)
 ```
 
 Closing this task while the canary is still bad files a new one 24h after the close.
+
+**Background / trigger:** auto-filed 2026-11-13. "verb-3 work-stealing composition BROKEN at stage 'unknown'".
+**Problem / hypothesis:** found and fixed in T-3791. The resilience demo parsed stderr-mixed output (T-3749 added a stderr line), and the smoke's hand-built JSON lost the stage name.
+**Goal:** confirm the daily canary run is green with the fix.
+**Expected outcome:** HEALTHY. Checked 2026-11-15: canary-status HEALTHY after the 07:37 run; full smoke PASS 10/10 on 2026-11-14.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `substrate-preflight-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
+- [x] `substrate-smoke-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -126,6 +145,8 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 -->
 
 ## Verification
+
+out=$(bash scripts/canary-status.sh 2>&1); echo "$out" | grep -qE "HEALTHY.*substrate-smoke-canary"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -296,6 +317,11 @@ Closing this task while the canary is still bad files a new one 24h after the cl
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** daily "BROKEN at stage 'unknown'" from 2026-11-13.
+**Root cause:** see T-3791. Our resilience demo parsed `channel post --json 2>&1`, which T-3749's new stderr line made invalid JSON. Separately, the smoke's `--json` escaped quotes but not backslashes, so the stage name was lost.
+**Why structurally allowed:** the demo ran only in the daily canary, and the canary fixtures used a canned verdict (detail in T-3791).
+**Prevention:** T-3791. A stdout-only post helper, a jq-built verdict, and a negative-control wrapper `tests/fixtures/t3791-tl-noqueue.sh`.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -372,7 +398,23 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 
 ## Updates
 
-### 2026-11-13T08:15:08Z — task-created [task-create-agent]
+### 2026-11-13T08:15:09Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3766-canary-substrate-preflight-canary-is-fir.md
+- **Output:** /opt/termlink/.tasks/active/T-3767-canary-substrate-smoke-canary-is-firing-.md
 - **Context:** Initial task creation
+
+### 2026-11-15T10:33:00Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-15T10:33:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c75451a2
+- **Timestamp:** 2026-11-15T10:33:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

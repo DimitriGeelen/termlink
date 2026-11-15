@@ -1,13 +1,15 @@
 ---
-id: T-3767
-name: "Canary substrate-smoke-canary is FIRING — investigate and fix"
+id: T-3673
+name: "Canary stuck-claims-canary is FIRING — investigate and fix"
 description: >
-  The substrate-smoke-canary canary reports FIRING on /canaries. Filed automatically by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary always has a task naming it.
+  The stuck-claims-canary canary reports FIRING on /canaries. Filed automatically
+  by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary
+  always has a task naming it.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [canary-escalation]
 components: []
 related_tasks: []
@@ -37,9 +39,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-13T08:15:09Z
-last_update: 2026-11-13T08:15:09Z
-date_finished: null
+created: 2026-11-04T08:15:04Z
+last_update: 2026-11-15T10:31:17Z
+date_finished: 2026-11-15T10:31:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,32 +52,49 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-15T10:31:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-3767: Canary substrate-smoke-canary is FIRING — investigate and fix
+# T-3673: Canary stuck-claims-canary is FIRING — investigate and fix
 
 ## Context
 
-<!-- canary-escalation: canary=substrate-smoke-canary -->
+<!-- canary-escalation: canary=stuck-claims-canary -->
 Filed automatically by scripts/canary-escalation-file.sh (T-2985) from the daily canary cron.
 
-- **Canary:** `substrate-smoke-canary` — status **FIRING** (`bash scripts/canary-status.sh`)
-- **Findings log:** `.context/working/.substrate-smoke-canary.log` (tooling errors: `.log.stderr`)
+- **Canary:** `stuck-claims-canary` — status **FIRING** (`bash scripts/canary-status.sh`)
+- **Findings log:** `.context/working/.stuck-claims-canary.log` (tooling errors: `.log.stderr`)
 - **What each status means:** FIRING = the watched thing is broken; ERRORING = the canary could not run; STALE = its cron has stopped completing. Per-canary operator action: `docs/operations/guard-layer-and-canaries.md`.
 
 **Latest signal line:**
 
 ```
-check-substrate-smoke: verb-3 work-stealing composition BROKEN at stage 'unknown' (T-2696)
+  substrate-drain-demo-1438568  active=0 expired=15 oldest_active_age=0ms
 ```
 
 Closing this task while the canary is still bad files a new one 24h after the close.
+
+**Background / trigger:** auto-filed. The canary reported topics with stuck or expired claims (11 topics at the peak, 1 at the last firing).
+**Problem / hypothesis:** claims whose holders had gone away. Leases auto-expire by design.
+**Goal:** confirm it cleared through the mechanism and stays clean.
+**Expected outcome:** HEALTHY on consecutive daily runs. Checked 2026-11-15: the log was last written 2026-11-06 07:27; the heartbeat is fresh daily through 2026-11-15 07:27 (9 clean runs).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `substrate-smoke-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
+- [x] `stuck-claims-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -126,6 +145,8 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 -->
 
 ## Verification
+
+out=$(bash scripts/canary-status.sh 2>&1); echo "$out" | grep -qE "HEALTHY.*stuck-claims-canary"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -296,6 +317,11 @@ Closing this task while the canary is still bad files a new one 24h after the cl
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** stuck or expired claims on up to 11 topics (last firing: 1 topic, logged before 2026-11-06).
+**Root cause:** claim holders went away without releasing; the leases then expired as designed.
+**Why structurally allowed:** by design. Leases are the recovery mechanism, and the canary is the visibility.
+**Prevention:** existing. The lease expiry cleared it with no action, and 9 clean daily runs followed. Nothing new to build.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -372,7 +398,23 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 
 ## Updates
 
-### 2026-11-13T08:15:09Z — task-created [task-create-agent]
+### 2026-11-04T08:15:04Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3767-canary-substrate-smoke-canary-is-firing-.md
+- **Output:** /opt/termlink/.tasks/active/T-3673-canary-stuck-claims-canary-is-firing--in.md
 - **Context:** Initial task creation
+
+### 2026-11-15T10:31:13Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-15T10:31:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e453b4e6
+- **Timestamp:** 2026-11-15T10:31:23Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

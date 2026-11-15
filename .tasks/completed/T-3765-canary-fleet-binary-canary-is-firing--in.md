@@ -2,12 +2,14 @@
 id: T-3765
 name: "Canary fleet-binary-canary is FIRING — investigate and fix"
 description: >
-  The fleet-binary-canary canary reports FIRING on /canaries. Filed automatically by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary always has a task naming it.
+  The fleet-binary-canary canary reports FIRING on /canaries. Filed automatically
+  by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary
+  always has a task naming it.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [canary-escalation]
 components: []
 related_tasks: []
@@ -38,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T08:15:07Z
-last_update: 2026-11-13T08:15:07Z
-date_finished: null
+last_update: 2026-11-15T10:31:54Z
+date_finished: 2026-11-15T10:31:54Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +52,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-15T10:31:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3765: Canary fleet-binary-canary is FIRING — investigate and fix
@@ -71,11 +85,16 @@ Filed automatically by scripts/canary-escalation-file.sh (T-2985) from the daily
 
 Closing this task while the canary is still bad files a new one 24h after the close.
 
+**Background / trigger:** auto-filed 2026-11-13. The canary reported 4 hubs "served=0.12.37 < floor=0.12.786".
+**Problem / hypothesis:** both numbers were the pre-T-3774 dev form `major.minor.N`, which is not comparable to anything (CLAUDE.md, Versioning). T-3774 replaced it with `<tag>+<N>.g<sha>`, and the hubs were moved onto v0.12.13+ builds on 2026-11-13/14.
+**Goal:** confirm the floor check now passes on real versions.
+**Expected outcome:** HEALTHY on consecutive daily runs. Checked 2026-11-15: the log was last written 2026-11-13 06:03; the heartbeat is fresh through 2026-11-15 06:03 (2 clean runs).
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `fleet-binary-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
+- [x] `fleet-binary-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -126,6 +145,8 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 -->
 
 ## Verification
+
+out=$(bash scripts/canary-status.sh 2>&1); echo "$out" | grep -qE "HEALTHY.*fleet-binary-canary"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -296,6 +317,11 @@ Closing this task while the canary is still bad files a new one 24h after the cl
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** 4 hubs "below floor": served 0.12.37, floor 0.12.786.
+**Root cause:** the pre-T-3774 dev version form (`major.minor.N`) collided with real releases and was not comparable. Both numbers were of that form.
+**Why structurally allowed:** fixed by T-3774, which made versions git-derived (`<tag>+<N>.g<sha>`) and comparable only through `scripts/lib/version-cmp.sh`.
+**Prevention:** T-3774's version scheme, plus the T-2746 version-derivation static check. The hubs are on v0.12.13+, with 2 clean daily runs since.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -376,3 +402,19 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3765-canary-fleet-binary-canary-is-firing--in.md
 - **Context:** Initial task creation
+
+### 2026-11-15T10:31:51Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-15T10:31:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c0d56f09
+- **Timestamp:** 2026-11-15T10:32:02Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

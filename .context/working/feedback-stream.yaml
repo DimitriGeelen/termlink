@@ -24165,3 +24165,75 @@ scan_id: R-894fce0b
 task_id: T-3795
 payload:
   task_file: .tasks/active/T-3795-canary-file-shaped-posts-canary-is-firin.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T10:31:23Z'
+scan_id: R-e453b4e6
+task_id: T-3673
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T10:31:23Z'
+scan_id: R-e453b4e6
+task_id: T-3673
+payload:
+  task_file: .tasks/active/T-3673-canary-stuck-claims-canary-is-firing--in.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T10:32:02Z'
+scan_id: R-c0d56f09
+task_id: T-3765
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T10:32:02Z'
+scan_id: R-c0d56f09
+task_id: T-3765
+payload:
+  task_file: .tasks/active/T-3765-canary-fleet-binary-canary-is-firing--in.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T10:32:36Z'
+scan_id: R-b730b9e4
+task_id: T-3766
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T10:32:36Z'
+scan_id: R-b730b9e4
+task_id: T-3766
+payload:
+  task_file: .tasks/active/T-3766-canary-substrate-preflight-canary-is-fir.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T10:33:13Z'
+scan_id: R-c75451a2
+task_id: T-3767
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T10:33:13Z'
+scan_id: R-c75451a2
+task_id: T-3767
+payload:
+  task_file: .tasks/active/T-3767-canary-substrate-smoke-canary-is-firing-.md

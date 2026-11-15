@@ -1,13 +1,15 @@
 ---
-id: T-3673
-name: "Canary stuck-claims-canary is FIRING — investigate and fix"
+id: T-3766
+name: "Canary substrate-preflight-canary is FIRING — investigate and fix"
 description: >
-  The stuck-claims-canary canary reports FIRING on /canaries. Filed automatically by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary always has a task naming it.
+  The substrate-preflight-canary canary reports FIRING on /canaries. Filed automatically
+  by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary
+  always has a task naming it.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [canary-escalation]
 components: []
 related_tasks: []
@@ -37,9 +39,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-04T08:15:04Z
-last_update: 2026-11-04T08:15:04Z
-date_finished: null
+created: 2026-11-13T08:15:08Z
+last_update: 2026-11-15T10:32:32Z
+date_finished: 2026-11-15T10:32:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,32 +52,49 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-15T10:32:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-3673: Canary stuck-claims-canary is FIRING — investigate and fix
+# T-3766: Canary substrate-preflight-canary is FIRING — investigate and fix
 
 ## Context
 
-<!-- canary-escalation: canary=stuck-claims-canary -->
+<!-- canary-escalation: canary=substrate-preflight-canary -->
 Filed automatically by scripts/canary-escalation-file.sh (T-2985) from the daily canary cron.
 
-- **Canary:** `stuck-claims-canary` — status **FIRING** (`bash scripts/canary-status.sh`)
-- **Findings log:** `.context/working/.stuck-claims-canary.log` (tooling errors: `.log.stderr`)
+- **Canary:** `substrate-preflight-canary` — status **FIRING** (`bash scripts/canary-status.sh`)
+- **Findings log:** `.context/working/.substrate-preflight-canary.log` (tooling errors: `.log.stderr`)
 - **What each status means:** FIRING = the watched thing is broken; ERRORING = the canary could not run; STALE = its cron has stopped completing. Per-canary operator action: `docs/operations/guard-layer-and-canaries.md`.
 
 **Latest signal line:**
 
 ```
-  substrate-drain-demo-1438568  active=0 expired=15 oldest_active_age=0ms
+Summary: 8 pass, 2 warn, 0 fail — substrate will run but fix warnings when convenient.
 ```
 
 Closing this task while the canary is still bad files a new one 24h after the close.
+
+**Background / trigger:** auto-filed 2026-11-13. The preflight's last writes were WARNs: two live hubs for uid 0, hub-unit NRestarts 433 (flap residue), and hub and CLI on 0.12.37 below project VERSION.
+**Problem / hypothesis:** the same 2026-11-13 state as T-3765: old binaries, plus a stray /tmp hub. The 11-13/14 runme runs installed v0.12.13+ and handled the hub.
+**Goal:** confirm the preflight is clean now.
+**Expected outcome:** HEALTHY on consecutive daily runs. Checked 2026-11-15: the log was last written 2026-11-13 05:23; the heartbeat is fresh through 2026-11-15 05:23.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `stuck-claims-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
+- [x] `substrate-preflight-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -126,6 +145,8 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 -->
 
 ## Verification
+
+out=$(bash scripts/canary-status.sh 2>&1); echo "$out" | grep -qE "HEALTHY.*substrate-preflight-canary"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -296,6 +317,11 @@ Closing this task while the canary is still bad files a new one 24h after the cl
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** preflight findings on 2026-11-13: two live hubs for uid 0, unit flap residue (NRestarts 433), and the CLI and hub on 0.12.37 below project VERSION.
+**Root cause:** the .107 state before the 2026-11-13/14 runme runs: an old binary was installed, and a stray /tmp hub was alive.
+**Why structurally allowed:** the preflight is detection; the fixes were runme actions (install, hub restart, flap ack) that ran on 11-13/14.
+**Prevention:** existing. The fleet-binary and preflight canaries watch for it daily, and both are clean since.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -372,7 +398,23 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 
 ## Updates
 
-### 2026-11-04T08:15:04Z — task-created [task-create-agent]
+### 2026-11-13T08:15:08Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3673-canary-stuck-claims-canary-is-firing--in.md
+- **Output:** /opt/termlink/.tasks/active/T-3766-canary-substrate-preflight-canary-is-fir.md
 - **Context:** Initial task creation
+
+### 2026-11-15T10:32:30Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-11-15T10:32:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b730b9e4
+- **Timestamp:** 2026-11-15T10:32:36Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

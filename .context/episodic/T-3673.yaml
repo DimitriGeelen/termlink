@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3673: Canary stuck-claims-canary is FIRING — investigate and fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T10:31:49Z
+# ============================================================================
+
+task_id: T-3673
+task_name: "Canary stuck-claims-canary is FIRING — investigate and fix"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-04T08:15:04Z
+completed: 2026-11-15T10:31:17Z
+duration_days: 11
+updates_count: 3
+first_commit: 2026-11-07T19:29:37+01:00
+last_commit: 2026-11-07T19:29:37+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  commit unattended write — canary escalation filed (stuck-claims-canary) by canary-escalation-file.sh
+
+# Key outcomes
+outcomes:
+  - '`stuck-claims-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3673-canary-stuck-claims-canary-is-firing--in.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-07T19:29:37'
+    action: 'T-3673: commit unattended write — canary escalation filed (stuck-claims-canary) by canary-escalation-file.sh'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15976 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [canary-escalation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 15976
+  commits: 2
+  files_changed: 10
+  lines_added: 937
+  lines_removed: 24
+  footprint_refreshed_at: '2026-11-15T10:34:12Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3673-canary-stuck-claims-canary-is-firing--in.md
+generated_by: context-agent-hybrid
