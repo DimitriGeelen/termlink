@@ -1,0 +1,119 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3802: Re-vendor AEF be.51 -> be.52 (T-5148/T-5149/T-5150/T-5157 inbox aliases) via runme 11a, then enable the termlink alias
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T22:44:25Z
+# ============================================================================
+
+task_id: T-3802
+task_name: "Re-vendor AEF be.51 -> be.52 (T-5148/T-5149/T-5150/T-5157 inbox aliases) via runme 11a, then enable the termlink alias"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-15T20:59:37Z
+completed: 2026-11-15T22:44:17Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-15T22:27:27+01:00
+last_commit: 2026-11-15T23:44:16+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme 11a retargeted to AEF v1.8.16-be.52 (3e064047d; T-5148/T-5149/T-5150/T-5157); 2 preserved files merged with manifest; fixtures 362/0. fw upgrade -> v1.8.16-be.52 (3e064047d, 156 commits; T-5157; runme 11a). inbox alias 'termlink' enabled after --mark-read (cursor 0->56); sentinel surfaces; field verdicts to AEF (all four WORKS)
+
+# Key outcomes
+outcomes:
+  - 'The be.52 tag''s commit is confirmed against AEF''s stated commit before anything is built on it (AEF named tag object 24308c846 → commit 3e064047d, same as the public mirror; be.51 is an ancestor, 156 commits)'
+  - 'Preserved files changed be.51 → be.52 are merged and stored with a manifest (or none changed); runme 11a targets be.52; fixtures pass (sidecar_cli.py clean; discovery.py one conflict resolved to upstream''s removal of the helper, our comment wording kept; fixtures 362/0)'
+  - 'After the operator''s run: VERSION at be.52; `--mark-read termlink` then the alias; a sentinel post to `…/termlink` surfaces in this session (runme 22:19Z rc=0, VERSION 1.8.15+1489.g3e064047d, commit 800e9b20b; cursor 0→56; alias in read_topics; sentinel at offset 56 shown by `fw sidecar inbox --peek`, alone)'
+  - 'Field verdict (WORKS/FAILS + command) for T-5148, T-5149, T-5150, T-5157 sent to AEF (msg 290aad95: all four WORKS; small gap noted on T-5150''s close-peer suggestion)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme 11a retargeted to AEF v1.8.16-be.52 (3e064047d; T-5148/T-5149/T-5150/T-5157); 2 preserved files merged with manifest; fixtures 362/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/docs/generated/components/learnings-route.md'
+  - '.agentic-framework/docs/generated/components/tests-playwright-test_htmx_nav_page_scripts.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5008_seat_signal_guard_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5126_register_scan_cache_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5126_token_tile_warm_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5129_fabric_explorer_deferred_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5131_audit_record_no_overwrite.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5132_ctl013_coverage.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5134_boundary_claude_code_tmpdir.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5136_tag_cloud_c_loader.md'
+  - '.agentic-framework/docs/generated/components/tests-web-test_t5128_approvals_ac_cache.md'
+  - '.agentic-framework/docs/generated/components/tests-web-test_t5136_task_list_pager.md'
+  - '.agentic-framework/docs/generated/components/web-blueprints-discovery.md'
+  - '.agentic-framework/docs/generated/components/web-warmup.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.16-results.md'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/outside_commits.py'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/sidecar/addressing.py'
+  - '.agentic-framework/lib/sidecar/inbox.py'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/web/app.py'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.agentic-framework/web/blueprints/discovery.py'
+  - '.agentic-framework/web/shared.py'
+  - '.agentic-framework/web/templates/base.html'
+  - '.agentic-framework/web/templates/tasks.html'
+  - '.context/vendor-merges/T-3802/MANIFEST.tsv'
+  - '.context/vendor-merges/T-3802/lib/sidecar_cli.py.merged'
+  - '.context/vendor-merges/T-3802/web/blueprints/discovery.py.merged'
+  - '.framework.yaml'
+  - '.tasks/active/T-3802-re-vendor-aef-be51---be52-t-5148t-5149t-.md'
+  - '.vendor-divergence.yaml'
+  - 'runme.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-15T22:27:27'
+    action: 'T-3802: runme 11a retargeted to AEF v1.8.16-be.52 (3e064047d; T-5148/T-5149/T-5150/T-5157); 2 preserved files merged with manifest; fixtures 362/0'
+  - time: '2026-11-15T23:33:21'
+    action: 'T-3802: fw upgrade -> v1.8.16-be.52 (3e064047d, 156 commits; T-5157; runme 11a)'
+  - time: '2026-11-15T23:44:16'
+    action: 'T-3802: inbox alias ''termlink'' enabled after --mark-read (cursor 0->56); sentinel surfaces; field verdicts to AEF (all four WORKS)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 104 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 104
+  commits: 4
+  files_changed: 44
+  lines_added: 4041
+  lines_removed: 98
+  footprint_refreshed_at: '2026-11-15T22:46:15Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3802-re-vendor-aef-be51---be52-t-5148t-5149t-.md
+generated_by: context-agent-hybrid

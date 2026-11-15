@@ -9,10 +9,10 @@ description: >
   inbox to the receiver, or have the alerts/needs-attention path flag new mail on
   an inbox that names us.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -43,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-15T13:59:01Z
-last_update: '2026-11-15T16:14:44Z'
-date_finished:
+last_update: 2026-11-15T22:45:33Z
+date_finished: 2026-11-15T22:45:33Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -83,7 +83,7 @@ bvp_scores_proposed:
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] The read path for this project's mail is measured: which topics the prompt hook reads, and where a nickname could be added without editing `.agentic-framework/`
-- [ ] A post to `inbox:cacc73ea32b121dd/termlink` is surfaced to this session (live proof with a sentinel), or, if that needs vendored code, the gap is filed upstream and a project-side alarm covers it meanwhile
+- [x] A post to `inbox:cacc73ea32b121dd/termlink` is surfaced to this session (live proof with a sentinel), or, if that needs vendored code, the gap is filed upstream and a project-side alarm covers it meanwhile (it needed vendored code: filed upstream as AEF T-5148/T-5149/T-5150/T-5157, all shipped in be.52 and vendored by T-3802; sentinel at offset 56 surfaces via `fw sidecar inbox --peek` after `--mark-read termlink` and `SIDECAR_INBOX_ALIASES: termlink`)
 - [x] The 8 waiting 1409 posts on that inbox are accounted for (already answered on T-3797); widened to all 54 posts in 6 conversations, of which 5 were handled elsewhere and 1 (dmd-107-disk) is now done and answered
 
 ### Human
@@ -135,6 +135,9 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+grep -q "^SIDECAR_INBOX_ALIASES: termlink" .framework.yaml
+PROJECT_ROOT=$PWD python3 -c 'import sys;sys.path.insert(0,".agentic-framework");from lib.sidecar import inbox;sys.exit(0 if "inbox:cacc73ea32b121dd/termlink" in inbox.read_topics() else 1)'
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -305,6 +308,11 @@ bvp_scores_proposed:
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** 54 consults addressed `--to termlink` sat for up to 36 days on `inbox:cacc73ea32b121dd/termlink`, which nothing read. One operator request (disk cleanup) went unanswered for 20 days, and 1409's urgent report waited about 3 hours.
+**Root cause:** AEF's `circuit.is_project_id` counted our checkout directory name (/opt/termlink) as a project, so `--to termlink` resolved to its own inbox instead of being refused. Readers had no alias mechanism. The orphan detector judged by the hub's unread flag, which our own alert scan's peek cleared.
+**Why structurally allowed:** sender, reader and detector each looked correct on its own; the gap was the combination, and it lived in vendored code.
+**Prevention:** AEF T-5150 (refuse unknown bare names, "did you mean"), T-5148 (declared aliases), T-5149 (orphan detection by our own acknowledgement), T-5157 (`--mark-read`), all in be.52 and vendored (T-3802). Our alias `termlink` is declared and live-proven.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -411,3 +419,16 @@ bvp_scores_proposed:
 ### 2026-11-15T20:40Z — AEF answer: T-5157 `--mark-read` (notice 91f98a85) [agent]
 - There was no supported way; a new alias topic starts at cursor 0. Added in AEF T-5157 (bleeding-edge 0f1b1a6c8, next be-tag): `fw sidecar inbox --mark-read termlink` moves OUR cursor on `inbox:<hub>/termlink` past its latest offset. It drains nothing, prints no bodies, sends no receipts, never moves backwards, and exits 1 'NOT CHANGED' if the hub cannot be asked.
 - Order once the be-tag carrying T-5148 + T-5157 is vendored: (1) re-vendor; (2) `.agentic-framework/bin/fw sidecar inbox --mark-read termlink`; (3) `SIDECAR_INBOX_ALIASES: termlink` in .framework.yaml; (4) sentinel post to `…/termlink` and confirm it surfaces here.
+
+### 2026-11-15T22:45:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-696a7d0b
+- **Timestamp:** 2026-11-15T22:45:35Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

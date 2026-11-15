@@ -4,12 +4,12 @@ name: "runme action 28: long-lived Claude token for testdev (setup-token, operat
 description: >
   testdev's claude.ai login from 2026-10-12 expired (measured 2026-11-10: OAuth session expired and could not be refreshed), blocking arc-011 tier-3 tests and the two-agent canary (T-3354 hand-back 9a). Operator 2026-11-10 ruled A: testdev gets its own long-lived token via claude setup-token.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-10T21:13:08Z
-last_update: 2026-11-11T15:00:00Z
-date_finished: null
+last_update: 2026-11-15T22:42:14Z
+date_finished: 2026-11-15T22:42:14Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -73,9 +73,9 @@ by testdev's login shells; the operator's own login is untouched.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] runme action 28 added: dry-run describes it, no terminal gives HELD, a non-token paste gives FAILED and stores nothing, a good paste stores the token (mode 600) and exports it from the profile, an already-working token is skipped
-- [ ] Hermetic fixture cases for those paths in tests/runme-fixtures.sh pass; the token never appears in the run's stdout/stderr
-- [ ] After the operator's run, `latest.log` shows action 28 OK and a prompt as testdev answers OK
+- [x] runme action 28 added: dry-run describes it, no terminal gives HELD, a non-token paste gives FAILED and stores nothing, a good paste stores the token (mode 600) and exports it from the profile, an already-working token is skipped (2026-11-15: each path has a passing fixture case in the 362/0 run, .context/working/t3802/fix.out)
+- [x] Hermetic fixture cases for those paths in tests/runme-fixtures.sh pass; the token never appears in the run's stdout/stderr (12 action-28 cases PASS, incl. "the token appears nowhere in the run's output or the run logs")
+- [x] After the operator's run, `latest.log` shows action 28 OK and a prompt as testdev answers OK (runme-20261111T115459Z: action 28 OK, prompt as testdev answered; re-verified as "skip, stored token answers" on 2026-11-15T20:22Z)
 
 ### Human
 - [ ] [RUBBER-STAMP] Create testdev's token at the terminal
@@ -135,6 +135,9 @@ by testdev's login shells; the operator's own login is untouched.
 -->
 
 ## Verification
+
+grep -q "OK      testdev has its own long-lived token" .context/working/runme-logs/runme-20261111T115459Z-3899365.log
+grep -q "the token appears nowhere in the run's output or the run logs" .context/working/t3802/fix.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -331,6 +334,13 @@ by testdev's login shells; the operator's own login is untouched.
 
 ## Recommendation
 
+**Recommendation:** GO
+**Rationale:** The remaining Human criterion ("Create testdev's token at the terminal") is measured as done, and two independent reviewer seats passed it in round 2 (T-3800 review bundle 3). The agent closes it under the operator ruling of 2026-11-15 (measured evidence plus a positive independent review).
+**Evidence:**
+- runme 2026-11-11T08:30Z action 28 FAILED, then 11:54Z OK: testdev's own long-lived token at `/home/testdev/.config/claude/oauth-token`, mode 600, loaded by .profile; a prompt as testdev answered.
+- runme 2026-11-15T20:22Z action 28: "skip, testdev's stored token answers".
+- Reviews: `docs/reports/T-3800-reviews/review-3-opencode.md` and `review-3-claude-code.md`, both PASS.
+
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
      (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
      shape is copied rather than reinvented.
@@ -406,3 +416,21 @@ by testdev's login shells; the operator's own login is untouched.
 - Measured, from the runme logs, action 28 (asks the operator to paste the token at the terminal, then verifies one prompt as testdev): 2026-11-11T08:30Z FAILED (did not answer); 2026-11-11T11:54Z OK (testdev's own long-lived token, `/home/testdev/.config/claude/oauth-token`, mode 600, loaded by .profile); 2026-11-14 OK; 2026-11-15T20:22Z skip ("testdev's stored token answers").
 - Independent review, two rounds (`docs/reports/T-3800-reviews/bundle-2.md`, `bundle-3.md`): round 2, both seats PASS.
 - Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions; extends D-626). The Human criterion is left unticked.
+
+### 2026-11-15T22:42:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-dbaabe18
+- **Timestamp:** 2026-11-15T22:42:15Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Hermetic fixture cases for those paths in tests/runme-fixtures.sh pass; the token never appears in the run's stdout/stderr (12 action-28 cases PASS, incl. "the token appears nowhere in the run's outpu
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/runme-fixtures.sh in: Hermetic fixture cases for those paths in tests/runme-fixtures.sh pass; the token never appears in the run's stdout/stderr (12 action-28 cases PASS, i`

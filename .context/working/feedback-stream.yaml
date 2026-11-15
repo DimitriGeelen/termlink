@@ -24435,3 +24435,93 @@ scan_id: R-1eff952b
 task_id: T-3803
 payload:
   task_file: .tasks/active/T-3803-event-broadcast---targets-deprecation-hi.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T22:37:20Z'
+scan_id: R-ca823067
+task_id: T-1632
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T22:37:20Z'
+scan_id: R-ca823067
+task_id: T-1632
+payload:
+  task_file: .tasks/active/T-1632-bump-defaultprotocolversion-to-3-t-1166-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T22:40:39Z'
+scan_id: R-b67577c9
+task_id: T-2258
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T22:40:39Z'
+scan_id: R-b67577c9
+task_id: T-2258
+payload:
+  task_file: .tasks/active/T-2258-fix-hub-read-path-stall--channelstatesub.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T22:42:15Z'
+scan_id: R-dbaabe18
+task_id: T-3685
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T22:42:15Z'
+scan_id: R-dbaabe18
+task_id: T-3685
+payload:
+  task_file: .tasks/active/T-3685-runme-action-28-long-lived-claude-token-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T22:44:18Z'
+scan_id: R-b20503c2
+task_id: T-3802
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T22:44:18Z'
+scan_id: R-b20503c2
+task_id: T-3802
+payload:
+  task_file: .tasks/active/T-3802-re-vendor-aef-be51---be52-t-5148t-5149t-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T22:45:35Z'
+scan_id: R-696a7d0b
+task_id: T-3798
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T22:45:35Z'
+scan_id: R-696a7d0b
+task_id: T-3798
+payload:
+  task_file: .tasks/active/T-3798-mail-to-an-unread-nickname-inbox-eg-inbo.md

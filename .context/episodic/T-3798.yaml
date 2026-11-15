@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3798: Mail to an unread nickname inbox (e.g. inbox:…/termlink) waits silently; escalate or alias it to 010-termlink
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T22:45:47Z
+# ============================================================================
+
+task_id: T-3798
+task_name: "Mail to an unread nickname inbox (e.g. inbox:…/termlink) waits silently; escalate or alias it to 010-termlink"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-15T13:59:01Z
+completed: 2026-11-15T22:45:33Z
+duration_days: 0
+updates_count: 8
+first_commit: 2026-11-15T17:20:34+01:00
+last_commit: 2026-11-15T21:30:37+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  nickname inbox measured (54 consults, 6 conversations); the stranded 10-26 disk request done (target 111G→20G) and answered; three upstream asks filed with AEF. AEF took the three asks (T-5148/T-5149/T-5150); open until re-vendor. AEF T-5150 landed (bare nickname refused, did-you-mean); T-5148/T-5149 open. AEF T-5148 (inbox aliases) landed on bleeding-edge; asked how a new alias starts at head. AEF T-5157 --mark-read gives the alias a clean start; enable order recorded
+
+# Key outcomes
+outcomes:
+  - 'The read path for this project''s mail is measured: which topics the prompt hook reads, and where a nickname could be added without editing `.agentic-framework/`'
+  - 'A post to `inbox:cacc73ea32b121dd/termlink` is surfaced to this session (live proof with a sentinel), or, if that needs vendored code, the gap is filed upstream and a project-side alarm covers it meanwhile (it needed vendored code: filed upstream as AEF T-5148/T-5149/T-5150/T-5157, all shipped in be.52 and vendored by T-3802; sentinel at offset 56 surfaces via `fw sidecar inbox --peek` after `--mark-read termlink` and `SIDECAR_INBOX_ALIASES: termlink`)'
+  - 'The 8 waiting 1409 posts on that inbox are accounted for (already answered on T-3797); widened to all 54 posts in 6 conversations, of which 5 were handled elsewhere and 1 (dmd-107-disk) is now done and answered'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3798-mail-to-an-unread-nickname-inbox-eg-inbo.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-15T17:20:34'
+    action: 'T-3798: nickname inbox measured (54 consults, 6 conversations); the stranded 10-26 disk request done (target 111G→20G) and answered; three upstream asks filed with AEF'
+  - time: '2026-11-15T17:22:08'
+    action: 'T-3798: AEF took the three asks (T-5148/T-5149/T-5150); open until re-vendor'
+  - time: '2026-11-15T20:24:59'
+    action: 'T-3798: AEF T-5150 landed (bare nickname refused, did-you-mean); T-5148/T-5149 open'
+  - time: '2026-11-15T20:56:37'
+    action: 'T-3798: AEF T-5148 (inbox aliases) landed on bleeding-edge; asked how a new alias starts at head'
+  - time: '2026-11-15T21:30:37'
+    action: 'T-3798: AEF T-5157 --mark-read gives the alias a clean start; enable order recorded'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 526 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 526
+  commits: 6
+  files_changed: 9
+  lines_added: 473
+  lines_removed: 35
+  footprint_refreshed_at: '2026-11-15T22:46:14Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3798-mail-to-an-unread-nickname-inbox-eg-inbo.md
+generated_by: context-agent-hybrid

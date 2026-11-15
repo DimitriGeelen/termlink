@@ -8,20 +8,20 @@ description: >
   while channel.post is unaffected; aggravated by a recent write to the same topic.
   Hypothesis: read-subscribe lock contention/deadlock in the hub. Investigate + fix.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-hub/src/channel.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-23T19:39:50Z
-last_update: '2026-09-27T21:34:04Z'
-date_finished:
+last_update: 2026-11-15T22:37:36Z
+date_finished: 2026-11-15T22:37:36Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -387,3 +387,20 @@ the running binary and the task reopens with new evidence rather than closing.
 - Live repro on a scratch topic (1500 posts, deleted afterwards), each read under `timeout -s KILL 12` over TCP: cold rc=0 68ms; post then immediate re-read rc=0 67ms; 4 concurrent full reads during 20 posts rc=0 73/72/111/152ms.
 - Independent review, round 2 (`docs/reports/T-3800-reviews/bundle-3.md`): both seats PASS.
 - Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions; extends D-626). The Human criterion is left unticked.
+
+### 2026-11-15T22:19:23Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** T-3800, operator ruling 2026-11-15: remaining act-in-the-world step measured as done, independent review PASS (docs/reports/T-3800-reviews)
+
+### 2026-11-15T22:37:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b67577c9
+- **Timestamp:** 2026-11-15T22:40:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

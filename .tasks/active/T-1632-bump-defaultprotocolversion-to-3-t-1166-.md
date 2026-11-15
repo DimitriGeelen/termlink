@@ -9,16 +9,16 @@ description: >
   Functional cut works (-32601 + retired methods absent); version-handshake half is
   incomplete. Older clients see method-not-found rather than PROTOCOL_VERSION_TOO_OLD.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
 tags: [T-1166, protocol, cut-followup]
-components: []
+components: [crates/termlink-hub/src/router.rs]
 related_tasks: [T-1166]
 created: 2026-05-12T21:55:18Z
-last_update: '2026-09-27T21:34:03Z'
-date_finished:
+last_update: 2026-11-15T22:35:59Z
+date_finished: 2026-11-15T22:35:59Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:36Z'
     estimator: bvp-estimator-v1-heuristic
@@ -287,3 +287,20 @@ The two-axis split (control_plane_version for capability surface, protocol_versi
 - Measured: the hub at .122 (hubs.toml `ring20-management` → .122:9100) returns `hub.capabilities` with `control_plane_version: 3` and `protocol_version: 1`, hub_version 0.12.13+32.g023fbc762. The T-1166 bake has cleared: the legacy cut landed 2026-05-31, and fleet legacy usage is 0 over 7 days.
 - Independent review, two rounds (`docs/reports/T-3800-reviews/bundle-2.md`, `bundle-3.md`): round 2, both seats PASS (opencode, claude-code).
 - Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions; extends D-626). The Human criterion is left unticked: the close is by the ruling, not by a tick.
+
+### 2026-11-15T22:19:22Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** T-3800, operator ruling 2026-11-15: remaining act-in-the-world step measured as done, independent review PASS (docs/reports/T-3800-reviews)
+
+### 2026-11-15T22:35:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ca823067
+- **Timestamp:** 2026-11-15T22:37:20Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
