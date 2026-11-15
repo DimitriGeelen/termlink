@@ -1,0 +1,13 @@
+# T-3799 — weekly trim of /opt/termlink/target/debug (operator yes, 2026-11-15)
+# Source of truth: /opt/termlink/.context/cron/target-cache-trim.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-target-cache-trim (USER field syntax — do NOT load into a user crontab)
+#
+# The debug cache regrew to 88 GB in about 20 days on /opt (btrfs, Timeshift, 89% full).
+# Sunday 04:30: when target/debug is at least 30 GiB and no build runs (no cargo/rustc,
+# build lock free), `cargo clean --profile dev` plus the mutants build dir; release kept.
+# --quiet: nothing is written below the threshold, so the .log holds only trims and skips;
+# diagnostics go to .stderr (T-2685).
+SHELL=/bin/bash
+TERMLINK_WORKER_CLASS=background
+PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+30 4 * * 0 root cd /opt/termlink && bash scripts/target-cache-trim.sh --quiet >> .context/working/.target-cache-trim.log 2>> .context/working/.target-cache-trim.log.stderr

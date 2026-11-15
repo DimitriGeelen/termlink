@@ -339,6 +339,8 @@ install_crontab sidecar-backstop.crontab          "$CRON_DIR/termlink-sidecar-ba
 install_crontab waker-liveness-canary.crontab     "$CRON_DIR/termlink-waker-liveness-canary"
 # T-2985 (value review C-19): a FIRING/ERRORING/STALE canary files a de-duplicated task daily.
 install_crontab canary-escalation.crontab         "$CRON_DIR/termlink-canary-escalation"
+# T-3799 (operator yes 2026-11-15): weekly trim of target/debug when no build runs.
+install_crontab target-cache-trim.crontab         "$CRON_DIR/termlink-target-cache-trim"
 
 # ---------------------------------------------------------------------------
 # ACTION 1b — the background-class env line on every other installed crontab (T-3615)
