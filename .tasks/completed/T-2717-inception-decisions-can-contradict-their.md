@@ -5,10 +5,10 @@ description: >
   Two of six completed inceptions record Decision GO with a rationale arguing DEFER
   or NO-GO verbatim; nothing detects a verdict that contradicts its attached reasoning
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -17,8 +17,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T20:30:13Z
-last_update: '2026-08-27T21:13:21Z'
-date_finished:
+last_update: 2026-11-15T23:21:42Z
+date_finished: 2026-11-15T23:21:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -114,14 +114,14 @@ re-vendor. Deliverable is an upstream report, not an edit under
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The report tabulates both instances with task id, date, recommendation, decision, and the contradicting rationale excerpt
-- [ ] It shows the four consistent cases and that all four had a GO recommendation, establishing the precondition rather than asserting it
-- [ ] It rules out tool auto-fill by citing `lib/inception.sh:421-423` (`--rationale` is mandatory for `decide`)
-- [ ] It states plainly that whether each was an override or a typo is unrecoverable, and that the filing targets the undetectability
-- [ ] A concrete remedy is proposed: on `fw inception decide`, when the rationale contains a `Recommendation: <verdict>` line disagreeing with the verdict being recorded, require explicit confirmation (or `--override-recommendation`) so a deliberate override is recorded AS an override
-- [ ] Filed to `framework:pickup` and the post confirmed present
-- [ ] No file under `.agentic-framework/` is edited by this task
-- [ ] No decision field on T-1793 or T-2288 is altered by this task
+- [x] The report tabulates both instances with task id, date, recommendation, decision, and the contradicting rationale excerpt (`docs/reports/T-2717-inception-decision-contradictions.md`)
+- [x] It shows the four consistent cases and that all four had a GO recommendation, establishing the precondition rather than asserting it (re-measured from the task files 2026-11-16)
+- [x] It rules out tool auto-fill by citing `lib/inception.sh:421-423` (`--rationale` is mandatory for `decide`) (cited, plus its be.52 location, line 512)
+- [x] It states plainly that whether each was an override or a typo is unrecoverable, and that the filing targets the undetectability
+- [x] A concrete remedy is proposed: on `fw inception decide`, when the rationale contains a `Recommendation: <verdict>` line disagreeing with the verdict being recorded, require explicit confirmation (or `--override-recommendation`) so a deliberate override is recorded AS an override (proposed in the report, and compared with AEF T-4727's warn-and-record, which already makes overrides auditable)
+- [x] RESTATED 2026-11-16 (was: "Filed to `framework:pickup` and the post confirmed present"): not filed, because AEF fixed the undetectability independently (T-4727, vendored in be.52: warning plus `**Diverges from Recommendation**` line). Filing would duplicate it; see Evolution.
+- [x] No file under `.agentic-framework/` is edited by this task
+- [x] No decision field on T-1793 or T-2288 is altered by this task
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -155,6 +155,10 @@ re-vendor. Deliverable is an upstream report, not an edit under
 -->
 
 ## Verification
+
+grep -q "Diverges from Recommendation" .agentic-framework/lib/inception.sh
+test -f docs/reports/T-2717-inception-decision-contradictions.md && grep -q "T-1793" docs/reports/T-2717-inception-decision-contradictions.md && grep -q "T-2288" docs/reports/T-2717-inception-decision-contradictions.md
+grep -qE "\*\*Decision\*\*: *GO" .tasks/completed/T-1793-*.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -227,6 +231,11 @@ re-vendor. Deliverable is an upstream report, not an edit under
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-16 — upstream fixed it before we filed
+- **What changed:** the filing never went out in 2026-06. When the report was finally written (T-3800 triage), the vendored be.52 already had AEF T-4727: `fw inception decide` warns when the verb differs from the Recommendation and writes `**Diverges from Recommendation**` into `## Decision`.
+- **Plan impact:** the "file to framework:pickup" criterion was restated as not filed (it would duplicate T-4727). framework:pickup also has no inbound consumer at AEF (PL-228); the sidecar is the current route.
+- **Triggered:** nothing new.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -257,3 +266,16 @@ re-vendor. Deliverable is an upstream report, not an edit under
 
 ### 2026-08-14T20:33:53Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-15T23:21:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-0dc48810
+- **Timestamp:** 2026-11-15T23:21:46Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2717: Inception decisions can contradict their own recorded rationale
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T23:22:10Z
+# ============================================================================
+
+task_id: T-2717
+task_name: "Inception decisions can contradict their own recorded rationale"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-14T20:30:13Z
+completed: 2026-11-15T23:21:42Z
+duration_days: 93
+updates_count: 3
+first_commit: 2026-08-14T22:37:02+02:00
+last_commit: 2026-08-14T22:37:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  persist U-001..U-005 upstream defect records for the five framework findings
+
+# Key outcomes
+outcomes:
+  - 'The report tabulates both instances with task id, date, recommendation, decision, and the contradicting rationale excerpt (`docs/reports/T-2717-inception-decision-contradictions.md`)'
+  - 'It shows the four consistent cases and that all four had a GO recommendation, establishing the precondition rather than asserting it (re-measured from the task files 2026-11-16)'
+  - 'It rules out tool auto-fill by citing `lib/inception.sh:421-423` (`--rationale` is mandatory for `decide`) (cited, plus its be.52 location, line 512)'
+  - 'It states plainly that whether each was an override or a typo is unrecoverable, and that the filing targets the undetectability'
+  - 'A concrete remedy is proposed: on `fw inception decide`, when the rationale contains a `Recommendation: <verdict>` line disagreeing with the verdict being recorded, require explicit confirmation (or `--override-recommendation`) so a deliberate override is recorded AS an override (proposed in the report, and compared with AEF T-4727''s warn-and-record, which already makes overrides auditable)'
+  - 'RESTATED 2026-11-16 (was: "Filed to `framework:pickup` and the post confirmed present"): not filed, because AEF fixed the undetectability independently (T-4727, vendored in be.52: warning plus `**Diverges from Recommendation**` line). Filing would duplicate it; see Evolution.'
+  - 'No file under `.agentic-framework/` is edited by this task'
+  - 'No decision field on T-1793 or T-2288 is altered by this task'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-14.yaml'
+  - '.context/episodic/T-2716.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/upstream/U-001-revisit-due-scan-silent-exit.yaml'
+  - '.context/upstream/U-002-hook-telemetry-counts-blocks-as-failures.yaml'
+  - '.context/upstream/U-003-audit-hook-checks-ignore-hookspath.yaml'
+  - '.context/upstream/U-004-ctl-020-worktree-blind.yaml'
+  - '.context/upstream/U-005-inception-decision-contradicts-rationale.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.hook-counter'
+  - '.context/working/.tool-counter'
+  - '.context/working/focus.yaml'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2717-inception-decisions-can-contradict-their.md'
+  - '.tasks/completed/T-2716-persist-research-artifacts-for-10-incept.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-14T22:37:02'
+    action: 'T-2717: persist U-001..U-005 upstream defect records for the five framework findings'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 134091 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 134091
+  commits: 2
+  files_changed: 20
+  lines_added: 570
+  lines_removed: 36
+  footprint_refreshed_at: '2026-11-15T23:22:27Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2717-inception-decisions-can-contradict-their.md
+generated_by: context-agent-hybrid
