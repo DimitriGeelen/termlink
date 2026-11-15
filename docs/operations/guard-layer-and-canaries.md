@@ -294,7 +294,9 @@ agent-presence heartbeat == the waker-running signal**. A daily cron runs
 
 Three firing classes: **(a) LIVE-but-unwakeable** — a LIVE agent-presence
 listener WITHOUT `pty_session` (peers can DM it durably but nothing rings its
-PTY — T-2380 breakpoint #2); **(b) dead-waker** — a local
+PTY — T-2380 breakpoint #2; only heartbeat listeners are judged: a LIVE
+`source=mailbox-reader` entry (T-3751) never carries a heartbeat, so it is reported, not
+fired on, T-3768); **(b) dead-waker** — a local
 `~/.termlink/be-reachable*.state` whose `pushwaker_pid` is dead or recycled
 (/proc cmdline guard, T-2239 pattern): the waker died silently after arming
 (clean `be-reachable stop` removes the state file); **(c) rail-dark** (opt-in

@@ -132,6 +132,7 @@ skip_proc = (sys.argv[5] == "1")
 listeners_raw = os.environ.get("LISTENERS_JSON", "").strip()
 unwakeable = []          # class (a): LIVE, no pty_session
 acknowledged = []        # class (a) agents the operator does not expect armed
+mailbox_readers = []     # T-3768: LIVE via a mailbox read, no heartbeat: not class (a)
 allow = {}
 try:
     for line in open(os.environ.get("WAKER_ALLOWLIST", "")):
@@ -153,6 +154,13 @@ if listeners_raw:
         env = {}
     for l in (env.get("listeners") or []):
         if l.get("status") != "LIVE":
+            continue
+        # T-3768: since T-3751 the presence list also counts project-mailbox readers
+        # (source=mailbox-reader). They read an inbox and never send a presence
+        # heartbeat, so they can never carry pty_session; judging them as class (a)
+        # fired on every agent on the hub. Reported, never fired on.
+        if l.get("source") == "mailbox-reader":
+            mailbox_readers.append(l.get("agent_id"))
             continue
         live_total += 1
         if l.get("pty_session"):
@@ -234,6 +242,7 @@ if fmt == "json":
         "rail_dark": rail_dark,
         "unwakeable": unwakeable,
         "acknowledged": acknowledged,
+        "mailbox_readers": mailbox_readers,
         "dead_wakers": dead_wakers,
         "armed_states": armed_states,
         "dormant_states": dormant_states,
@@ -261,13 +270,16 @@ else:
             print("  (note: %s)" % presence_error)
     if acknowledged:
         print("ACK=%d not armed by decision: %s" % (len(acknowledged), ", ".join(a["agent_id"] for a in acknowledged)))
+    if mailbox_readers:
+        print("MBOX=%d live by mailbox read only (no heartbeat, not judged)" % len(mailbox_readers))
     print("FIRE=%d" % fire)
 PY
 )" || { echo "waker-liveness canary: classify error" >&2; exit 2; }
 
 FIRE="$(printf '%s\n' "$REPORT" | sed -n 's/^FIRE=//p' | tail -1)"
 ACKLINE="$(printf '%s\n' "$REPORT" | sed -n 's/^ACK=//p' | tail -1)"
-BODY="$(printf '%s\n' "$REPORT" | grep -v '^FIRE=' | grep -v '^ACK=' || true)"
+MBOXLINE="$(printf '%s\n' "$REPORT" | sed -n 's/^MBOX=//p' | tail -1)"
+BODY="$(printf '%s\n' "$REPORT" | grep -v '^FIRE=' | grep -v '^ACK=' | grep -v '^MBOX=' || true)"
 
 if [ "${FIRE:-0}" = 0 ]; then
     if [ "$QUIET" != 1 ]; then
@@ -278,6 +290,7 @@ if [ "${FIRE:-0}" = 0 ]; then
             [ -n "$PRESENCE_ERROR" ] && note=" (note: ${PRESENCE_ERROR})"
             echo "waker-liveness canary: healthy — no unwakeable LIVE agents, no dead wakers${note}"
             [ -n "$ACKLINE" ] && echo "  ($ACKLINE — see $ALLOWLIST)"
+            [ -n "$MBOXLINE" ] && echo "  ($MBOXLINE — T-3768)"
         fi
     fi
     exit 0

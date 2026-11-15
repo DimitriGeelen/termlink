@@ -40,7 +40,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T08:15:10Z
-last_update: 2026-11-14T22:02:53Z
+last_update: 2026-11-15T06:45:06Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -94,7 +94,8 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `waker-liveness-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
+- [x] `waker-liveness-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
+- [x] Class (a) judges only heartbeat listeners; a LIVE `source=mailbox-reader` is reported, never fired on; an unlisted heartbeat agent and a dead waker still fire (fixtures 8–10; mutant without the filter fails 3)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -145,6 +146,9 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 -->
 
 ## Verification
+
+bash tests/waker-liveness-fixtures.sh > .context/working/.t3768-fix 2>&1 && grep -q "10 passed, 0 failed" .context/working/.t3768-fix
+bash scripts/check-waker-liveness-freshness.sh > .context/working/.t3768-live 2>&1 && grep -q "healthy" .context/working/.t3768-live
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -314,6 +318,11 @@ Closing this task while the canary is still bad files a new one 24h after the cl
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** the waker-liveness canary jumped from 2 to 13–14 "LIVE-no-waker" agents on 2026-11-13 and stayed red. It flagged every project's agent on .107.
+**Root cause:** T-3751 (46bc3720d, 2026-11-12) widened `agent-listeners.sh`: project-mailbox readers now count as LIVE (`source=mailbox-reader`). The waker canary consumes that list and judged every LIVE entry for `pty_session`, which only a heartbeat can carry, so every mailbox reader fired as class (a).
+**Why structurally allowed:** T-3751 changed the meaning of a shared producer (the "LIVE" set), and the consumer's fixtures pinned only the old shape (heartbeat entries with no `source`). Nothing tied the consumer's assumption to the producer's change. My first brief also treated the jump as expected and almost turned it into a policy change. The outside reviewer (claude-code) caught that ("fix the signal rather than mute it").
+**Prevention:** the canary judges only heartbeat listeners and reports mailbox readers separately (`mailbox_readers` in `--json`). Fixtures 8–10 cover the mixed shape, and the guard doc states the rule. Learning: when a canary's count jumps, find which producer changed before deciding it is policy.
 
 ## Evolution
 

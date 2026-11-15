@@ -42,6 +42,23 @@ check "6 a dead waker fires even for an allowlisted agent" '[ $rc = 1 ] && grep 
 out=$(TERMLINK_WAKER_TEST_JSON="$T/two.json" TERMLINK_WAKER_STATE_DIR="$T/state" TERMLINK_WAKER_ALLOWLIST="$T/allow" bash "$SUT" --no-heartbeat --json 2>&1)
 check "7 --json carries the acknowledged list" 'python3 -c "import json,sys; d=json.loads(sys.argv[1]); sys.exit(0 if [a[\"agent_id\"] for a in d[\"acknowledged\"]]==[\"alpha\",\"beta\"] else 1)" "$out"'
 
+# T-3768: a LIVE mailbox reader (T-3751, source=mailbox-reader) never carries a heartbeat,
+# so it is reported but never judged as class (a). A heartbeat agent beside it still is.
+rm -f "$T/state/"*.state; : > "$T/allow"
+cat > "$T/mbox.json" <<'EOF'
+{"listeners":[{"agent_id":"proj-x","status":"LIVE","source":"mailbox-reader","age_secs":5},
+              {"agent_id":"gamma","status":"LIVE","source":"heartbeat","identity_fingerprint":"cccc","age_secs":9,"host":"h"}]}
+EOF
+mrun() { TERMLINK_WAKER_TEST_JSON="$T/mbox.json" TERMLINK_WAKER_STATE_DIR="$T/state" TERMLINK_WAKER_SKIP_PROC=1 \
+         TERMLINK_WAKER_ALLOWLIST="$T/allow" bash "$SUT" --no-heartbeat "$@" 2>&1; }
+out=$(mrun); rc=$?
+check "8 a mailbox reader never fires; an unlisted heartbeat agent beside it still does" '[ $rc = 1 ] && ! grep -q "LIVE-no-waker\] proj-x" <<< "$out" && grep -q "LIVE-no-waker\] gamma" <<< "$out"'
+printf 'gamma  # x\n' > "$T/allow"
+out=$(mrun); rc=$?
+check "9 with the heartbeat agent acknowledged: healthy, and the mailbox reader is reported" '[ $rc = 0 ] && grep -q "1 live by mailbox read only" <<< "$out"'
+out=$(mrun --json); rc=$?
+check "10 --json lists mailbox_readers" 'python3 -c "import json,sys; d=json.loads(sys.argv[1]); sys.exit(0 if d[\"mailbox_readers\"]==[\"proj-x\"] else 1)" "$out"'
+
 echo "---"
 echo "waker-liveness fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]
