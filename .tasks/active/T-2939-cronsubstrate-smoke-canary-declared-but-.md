@@ -209,3 +209,8 @@ bash scripts/check-cron-install-drift.sh > /tmp/.t2939-cron.out 2>&1 && grep -q 
 - **Remediation verified:** Steps command matches the crontab's self-declared `# Installed to:` header AND the audit's mitigation line byte-for-byte; source is git-tracked with USER-field syntax and the T-2685 split-stream redirect idiom.
 - **Beyond the AC:** ran the job ad-hoc — `bash scripts/check-substrate-smoke-freshness.sh --no-heartbeat` exits 0 healthy, so the stamp schedules a canary that provably round-trips today.
 - **Not done deliberately:** the install itself. This session runs as root and could have copied the file, but the Human AC assigns host-state changes to the operator; performing it would check a Human AC by another route (autonomous-mode boundary).
+
+### 2026-11-15T19:55Z — measured-evidence close (operator ruling, T-3800) [agent]
+- Measured: `/etc/cron.d/termlink-substrate-smoke-canary` exists (root 0644, installed 2026-10-28) and is byte-identical to `.context/cron/substrate-smoke-canary.crontab`. Its heartbeat is from 2026-11-15T07:37:23, matching the daily 07:37 schedule. Cron drift is healthy.
+- Independent review (opencode + claude-code, isolated, tools off): both PASS. Saved in `docs/reports/T-3800-reviews/`.
+- Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions; extends D-626).

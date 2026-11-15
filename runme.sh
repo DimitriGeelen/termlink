@@ -477,13 +477,24 @@ HANDBACKS=(T-1428 T-1451 T-1665 T-1723 T-212 T-2271 T-2371 T-2534 T-2541 T-2586
            T-3107 T-3109 T-3110 T-3111 T-3112 T-3114 T-3115 T-3118 T-3119 T-3120
            T-3121 T-3122 T-3123 T-3124 T-3125 T-3126 T-3179 T-3180 T-3181 T-3182
            T-3183 T-3188 T-3250)
+# T-3800 (operator ruling 2026-11-15, recorded in T-3800 ## Decisions): a task whose remaining
+# act-in-the-world step the agent measured as done, AND that an independent reviewer passed per
+# the review protocol, is the agent's to close. These four were excluded above for exactly that
+# reason; each now carries the measurement and two PASS verdicts in its Updates
+# (docs/reports/T-3800-reviews/). Handed back here, the agent closes them through the normal gate.
+HANDBACKS_T3800=(T-2858 T-2938 T-2939 T-3178)
 if [ -n "${RUNME_TEST_HANDBACKS+x}" ]; then
-    HANDBACKS=()
+    HANDBACKS=() HANDBACKS_T3800=()
     [ -n "$RUNME_TEST_HANDBACKS" ] && read -r -a HANDBACKS <<< "$RUNME_TEST_HANDBACKS"
 fi
+# Fixture seam for 2c alone (when SET, even empty, it replaces the T-3800 list).
+if [ -n "${RUNME_TEST_HANDBACKS_T3800+x}" ]; then
+    HANDBACKS_T3800=()
+    [ -n "$RUNME_TEST_HANDBACKS_T3800" ] && read -r -a HANDBACKS_T3800 <<< "$RUNME_TEST_HANDBACKS_T3800"
+fi
 
-handback_task() {  # <T-ID>
-    local id="$1" f
+handback_task() {  # <T-ID> [reason]
+    local id="$1" f reason="${2:-T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion}"
     f=$(ls "$TASKS_DIR"/active/"$id"-*.md 2>/dev/null | head -1)
     if [ -z "$f" ]; then
         say "  skip    $id is no longer active"; SKIPPED=$((SKIPPED+1)); return
@@ -495,7 +506,7 @@ handback_task() {  # <T-ID>
         say "  [DRY]   would hand $id back to owner: agent"; DONE=$((DONE+1)); return
     fi
     "$FW" task update "$id" --owner agent --skip-human-ownership \
-        --reason "T-3592 stage 1, operator ruling A 2026-10-26: no open Human criterion" >>/tmp/.runme-handback-"$id" 2>&1
+        --reason "$reason" >>/tmp/.runme-handback-"$id" 2>&1
     if grep -q '^owner: agent' "$f"; then
         say "  OK      handed back and verified: $id owner: agent"; DONE=$((DONE+1))
     else
@@ -506,6 +517,12 @@ handback_task() {  # <T-ID>
 if [ "${#HANDBACKS[@]}" -gt 0 ]; then
     head2 "2b. Hand ${#HANDBACKS[@]} human-owned tasks with no Human criterion back to the agent (T-3592, ruling A)"
     for id in "${HANDBACKS[@]}"; do handback_task "$id"; done
+fi
+if [ "${#HANDBACKS_T3800[@]}" -gt 0 ]; then
+    head2 "2c. Hand ${#HANDBACKS_T3800[@]} measured-and-reviewed tasks back to the agent to close (T-3800, operator ruling 2026-11-15)"
+    for id in "${HANDBACKS_T3800[@]}"; do
+        handback_task "$id" "T-3800, operator ruling 2026-11-15: remaining act-in-the-world step measured as done, independent review PASS (docs/reports/T-3800-reviews)"
+    done
 fi
 
 # ---------------------------------------------------------------------------

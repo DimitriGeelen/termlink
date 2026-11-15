@@ -343,3 +343,8 @@ bash scripts/check-vendor-divergence.sh
 
 ### 2026-09-26T22:29:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-15T19:55Z — measured-evidence close (operator ruling, T-3800) [agent]
+- Measured: `framework:pickup` offset 202, from 010-termlink: "SECURITY FIX for the Tier-1 write gate … (T-3178) … confirms and EXTENDS 050-email-archive's P-006 (their T-2257, offset 188)". Amendment at offset 206 (T-3187). The fix is kept local in safe-commands.sh and carried through every re-vendor up to be.51 (T-3794 merge).
+- Independent review (opencode + claude-code, isolated, tools off): both PASS. Saved in `docs/reports/T-3800-reviews/`.
+- Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions; extends D-626).

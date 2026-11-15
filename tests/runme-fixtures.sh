@@ -1239,6 +1239,18 @@ if [ "$rc" = "1" ] && echo "$out" | grep_all "FAILED  T-9592 still not owner: ag
     ok "handback: fw that claims success but changes nothing => FAILED, not OK"
 else bad "handback refuse" "rc=$rc: $out"; fi
 rm -f "$TMP/tasks/active/T-9592-fixture.md" "$TMP/tasks/active/T-9593-fixture.md"
+# T-3800 action 2c: measured-and-reviewed tasks handed back (scratch task only).
+printf -- '---\nid: T-9800\nstatus: started-work\nowner: human\n---\n' > "$TMP/tasks/active/T-9800-fixture.md"
+out=$(RUNME_TEST_HANDBACKS_T3800="T-9800" run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep_all "2c. Hand 1 measured-and-reviewed tasks back to the agent to close (T-3800" \
+   && echo "$out" | grep_all "OK      handed back and verified: T-9800 owner: agent" && grep -q '^owner: agent' "$TMP/tasks/active/T-9800-fixture.md"; then
+    ok "T-3800 handback (2c): a listed human-owned task is handed back and verified"
+else bad "T-3800 handback" "rc=$rc: $out"; fi
+out=$(RUNME_TEST_HANDBACKS_T3800="T-9800" run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep_all "skip    T-9800 already owner: agent"; then
+    ok "T-3800 handback (2c): second run skips (idempotent)"
+else bad "T-3800 handback idempotent" "rc=$rc: $out"; fi
+rm -f "$TMP/tasks/active/T-9800-fixture.md"
 hub_state 500 "/old/termlink (deleted)"
 out=$(FAKE_HUB_RESTART_MODE=rotate run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep_all "hub.secret-CHANGED"; then

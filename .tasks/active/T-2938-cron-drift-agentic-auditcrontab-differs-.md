@@ -207,3 +207,8 @@ bash scripts/check-cron-install-drift.sh > /tmp/.t2938-cron.out 2>&1 && grep -q 
 - **Reproduction attempt:** `diff` of registry source vs deployed copy → IDENTICAL. Audit 2026-09-18: `[PASS] Cron registry in sync with /etc/cron.d/agentic-audit-termlink`. The 09-16/09-17 audits still showed the drift.
 - **Resolving event:** T-2870 regenerated `.context/cron/agentic-audit.crontab` from the registry (0d58b34d1, 5af8510f2) and the deployed copy was installed 2026-09-18 17:47.
 - **Human AC evidence (not ticked — sovereignty):** its Expected state ("audit no longer prints [FAIL] Cron drift") is the current live state. Recommend close on the cited evidence per the Human Task Completion Rule.
+
+### 2026-11-15T19:55Z — measured-evidence close (operator ruling, T-3800) [agent]
+- Measured: `cmp -s .context/cron/agentic-audit.crontab /etc/cron.d/agentic-audit-termlink` → identical; `check-cron-install-drift.sh` → healthy (47 installed and matching, 0 acknowledged, 0 skipped).
+- Independent review (opencode + claude-code, isolated, tools off): both PASS. Saved in `docs/reports/T-3800-reviews/`.
+- Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions; extends D-626).

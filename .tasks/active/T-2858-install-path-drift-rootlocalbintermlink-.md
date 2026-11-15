@@ -364,3 +364,8 @@ vendored binary, **0.9.13 dated 2026-03-27** (~5 months and ~1000 commits stale)
 gitignored (`.gitignore:68`), so it is invisible to git and to this check both. Nothing in
 the main checkout's config points at it any more — T-2874 removed that pin — but four
 git worktrees still carry it, filed separately.
+
+### 2026-11-15T19:55Z — measured-evidence close (operator ruling, T-3800) [agent]
+- Measured: `/root/.cargo/bin`, `/usr/local/bin` and `/root/.local/bin/termlink` all report `0.12.13+32.g023fbc762`, with the same sha256 prefix 9179611302a9. No install-path drift.
+- Independent review (`fw review isolated-run`, opencode + claude-code, tools off): both PASS. Saved in `docs/reports/T-3800-reviews/review-1-*.md`, bundle in `bundle-1.md`.
+- Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions: measured evidence + positive independent review; extends D-626).
