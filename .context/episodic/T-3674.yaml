@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3674: Canary fleet-doorbell-mail-canary is FIRING — investigate and fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T20:27:41Z
+# ============================================================================
+
+task_id: T-3674
+task_name: "Canary fleet-doorbell-mail-canary is FIRING — investigate and fix"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-05T08:15:03Z
+completed: 2026-11-15T20:27:24Z
+duration_days: 10
+updates_count: 3
+first_commit: 2026-11-07T19:29:38+01:00
+last_commit: 2026-11-15T08:28:21+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  commit unattended write — canary escalation filed (fleet-doorbell-mail-canary) by canary-escalation-file.sh. operator ruling A — restart greenfield's hub (host up, hub down since ~11-04); agent verifies after
+
+# Key outcomes
+outcomes:
+  - '`fleet-doorbell-mail-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-15 — greenfield and the doorbell canary: A, bring its hub back (operator ruling)'
+    chose: 'A. greenfield (.132) is up (ping OK, ssh open) but its hub port 9100 has been closed since about 2026-11-04; restart the hub there. The 03:40 re-mint cron then renews its token by itself, and both canaries clear. - **Operator words:** "please proceed", given in reply to the brief recommending A. Read as A; the operator can overturn this.'
+    rationale: 'a running machine with a dead hub is a real break, not a sleeping host; marking it expected-offline would mask it.'
+    alternatives_rejected: ['B, expected-offline (masks a break); C, remove from the fleet (only if greenfield is finished, and that needs explicit approval); D, leave red (11 days of unacted red).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3674-canary-fleet-doorbell-mail-canary-is-fir.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-07T19:29:38'
+    action: 'T-3674: commit unattended write — canary escalation filed (fleet-doorbell-mail-canary) by canary-escalation-file.sh'
+  - time: '2026-11-15T08:28:21'
+    action: 'T-3674: operator ruling A — restart greenfield''s hub (host up, hub down since ~11-04); agent verifies after'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 15132 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [canary-escalation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 15132
+  commits: 3
+  files_changed: 4
+  lines_added: 536
+  lines_removed: 9
+  footprint_refreshed_at: '2026-11-15T20:27:50Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3674-canary-fleet-doorbell-mail-canary-is-fir.md
+generated_by: context-agent-hybrid

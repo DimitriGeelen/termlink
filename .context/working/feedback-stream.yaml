@@ -24381,3 +24381,21 @@ scan_id: R-78ccc0e7
 task_id: T-2939
 payload:
   task_file: .tasks/active/T-2939-cronsubstrate-smoke-canary-declared-but-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T20:27:28Z'
+scan_id: R-6d3afb53
+task_id: T-3674
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T20:27:28Z'
+scan_id: R-6d3afb53
+task_id: T-3674
+payload:
+  task_file: .tasks/active/T-3674-canary-fleet-doorbell-mail-canary-is-fir.md

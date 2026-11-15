@@ -6,10 +6,10 @@ description: >
   by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary
   always has a task naming it.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [canary-escalation]
 components: []
 related_tasks: []
@@ -40,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-05T08:15:03Z
-last_update: 2026-11-15T07:28:21Z
-date_finished:
+last_update: 2026-11-15T20:27:24Z
+date_finished: 2026-11-15T20:27:24Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -94,7 +94,7 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `fleet-doorbell-mail-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
+- [x] `fleet-doorbell-mail-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -145,6 +145,9 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 -->
 
 ## Verification
+
+timeout 120 termlink hub probe 192.168.10.132:9100 > .context/working/.t3674 2>&1 && grep -q "sha256:" .context/working/.t3674
+out=$(bash scripts/canary-status.sh 2>&1); echo "$out" | grep -qE "HEALTHY.*fleet-doorbell-mail-canary"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -315,6 +318,11 @@ Closing this task while the canary is still bad files a new one 24h after the cl
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** the doorbell+mail canary reported DRIFT daily from about 2026-11-04: greenfield (.132) `setup-fail`, unreachable. (node1-pool's `not-checked` never flipped the verdict.)
+**Root cause:** greenfield's TermLink hub was down while the host stayed up (ping OK, ssh open, port 9100 closed). The cause on .132 is not visible from here; it was restarted from outside this session on 2026-11-15.
+**Why structurally allowed:** the canary did its job; the fix needed access to .132, which this agent does not have (ssh publickey refused).
+**Prevention:** existing canary, plus the daily re-mint and fleet deploy now cover greenfield again. runme 2026-11-15T20:22Z upgraded its hub to 0.12.13+32 (secret and cert verified) and installed and proved its .107 token.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -405,3 +413,16 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 
 ### 2026-11-15T06:46:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-15T20:27:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6d3afb53
+- **Timestamp:** 2026-11-15T20:27:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
