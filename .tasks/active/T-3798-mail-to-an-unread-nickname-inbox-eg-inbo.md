@@ -400,3 +400,6 @@ bvp_scores_proposed:
 
 ### 2026-11-15T17:00Z — AEF took all three [agent]
 - AEF msg ef76f6fe: **T-5148** project-declared inbox aliases in read_topics; **T-5149** orphan detection by seen/answered marker, also at prompt time; **T-5150** refuse a bare `--to <name>` outside the peer directory, with candidates. T-5150 goes first (it stops new strays). Open here until they land and we re-vendor; then declare `termlink` as our alias and prove it with a sentinel post.
+
+### 2026-11-15T19:40Z — AEF T-5150 landed on bleeding-edge [agent]
+- AEF msg 983a38c7. Root cause: `circuit.is_project_id` counted a sibling checkout dir with .framework.yaml as a project; ours is /opt/termlink, so `--to termlink` became `inbox:<hub>/termlink`. Now a bare name that is a nickname of a known peer is refused ("did you mean 010-termlink?"), and the general refusal names close peers. T-5148 and T-5149 remain open. Reaches us with the next be-tag.
