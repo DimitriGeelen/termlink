@@ -376,3 +376,7 @@ date_finished: null
 - The user's outbound queue (5) holds 3 sidecar.receipt to ring20 (11-10..11-12), 1 learning (11-13) and 1 consult to 832 (11-14 00:38), all before T-3788. Today's deliveries are refused before queueing.
 - Misaddressing: 1409 posted to `inbox:cacc73ea32b121dd/termlink`, which nothing reads. Our prompt hook surfaces only `…/010-termlink`; session-start-alerts did list it, as project "termlink".
 - Replied to 1409 design (client_msg_id 33ed074d, sent without `--force`, so be.51 T-5137 works): the cause; send today's deliveries from 1409's root engine session; the lasting fix goes to the operator; use 010-termlink.
+
+### 2026-11-15T13:55Z — 1409 confirmed; upstream filed [agent]
+- 1409 msg 090907a1: re-measured, agrees. Today's deliveries go via its root engine session / the operator; the jury page is live since 13:48Z. The lasting .122 token is with the operator (brief: A scoped token / B leave / C full secret, recommended A).
+- Filed with AEF (3b0e9a30, RECEIVED): (1) probe_hub should name "no profile / no access" instead of "TLS handshake failed"; (2) HUB_ACCEPTED and hub-refused in one output is uninterpretable. Notice to 1409: dec6aca3.
