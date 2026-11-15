@@ -4,12 +4,12 @@ name: "Weekly cron trims target/debug when no build runs (operator yes 2026-11-1
 description: >
   Weekly cron trims target/debug when no build runs (operator yes 2026-11-15)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-15T16:32:17Z
-last_update: 2026-11-15T16:54:51Z
-date_finished: null
+last_update: 2026-11-15T17:05:47Z
+date_finished: 2026-11-15T17:05:47Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -68,7 +68,7 @@ date_finished: null
 - [x] `scripts/target-cache-trim.sh` trims only at or above TRIM_MIN_GB (30), skips while cargo/rustc runs or the build lock is held, verifies target/debug is gone after the clean (else exit 1), and keeps release
 - [x] Hermetic fixtures cover: below threshold (no-op), busy (skip, nothing removed), trim (fake cargo called with `clean --profile dev`), clean that frees nothing (FAILED, exit 1), dry-run
 - [x] `.context/cron/target-cache-trim.crontab` (weekly, background class, stderr split) is in runme action 1's install list; runme fixtures pass
-- [ ] After the operator's runme run, `/etc/cron.d/termlink-target-cache-trim` equals the source
+- [x] After the operator's runme run, `/etc/cron.d/termlink-target-cache-trim` equals the source
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -373,3 +373,21 @@ cmp -s .context/cron/target-cache-trim.crontab /etc/cron.d/termlink-target-cache
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3799-weekly-cron-trims-targetdebug-when-no-bu.md
 - **Context:** Initial task creation
+
+### 2026-11-15T17:05:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-796d3799
+- **Timestamp:** 2026-11-15T17:05:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/target-cache-trim.sh` trims only at or above TRIM_MIN_GB (30), skips while cargo/rustc runs or the build lock is held, verifies target/debug is gone after the clean (else exit 1), and keeps r
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/target-cache-trim.sh in: `scripts/target-cache-trim.sh` trims only at or above TRIM_MIN_GB (30), skips while cargo/rustc runs or the build lock is held, verifies target/debug `

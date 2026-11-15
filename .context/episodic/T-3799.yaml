@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3799: Weekly cron trims target/debug when no build runs (operator yes 2026-11-15)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T17:06:09Z
+# ============================================================================
+
+task_id: T-3799
+task_name: "Weekly cron trims target/debug when no build runs (operator yes 2026-11-15)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-15T16:32:17Z
+completed: 2026-11-15T17:05:47Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-15T17:54:52+01:00
+last_commit: 2026-11-15T17:54:52+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  weekly target/debug trim (>=30 GiB, never during a build, verified on disk); crontab in runme action 1; fixtures 6/0, runme 360/0
+
+# Key outcomes
+outcomes:
+  - '`scripts/target-cache-trim.sh` trims only at or above TRIM_MIN_GB (30), skips while cargo/rustc runs or the build lock is held, verifies target/debug is gone after the clean (else exit 1), and keeps release'
+  - 'Hermetic fixtures cover: below threshold (no-op), busy (skip, nothing removed), trim (fake cargo called with `clean --profile dev`), clean that frees nothing (FAILED, exit 1), dry-run'
+  - '`.context/cron/target-cache-trim.crontab` (weekly, background class, stderr split) is in runme action 1''s install list; runme fixtures pass'
+  - 'After the operator''s runme run, `/etc/cron.d/termlink-target-cache-trim` equals the source'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'weekly target/debug trim (>=30 GiB, never during a build, verified on disk); crontab in runme action 1; fixtures 6/0, runme 360/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/target-cache-trim.crontab'
+  - '.tasks/active/T-3564-session-handover-maintenance.md'
+  - '.tasks/active/T-3757-clients-and-wakers-declare-their-caller-.md'
+  - '.tasks/active/T-3781-non-root-dispatch-termlink-dispatch--fw-.md'
+  - '.tasks/active/T-3799-weekly-cron-trims-targetdebug-when-no-bu.md'
+  - 'runme.sh'
+  - 'scripts/target-cache-trim.sh'
+  - 'tests/target-cache-trim-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-15T17:54:52'
+    action: 'T-3799: weekly target/debug trim (>=30 GiB, never during a build, verified on disk); crontab in runme action 1; fixtures 6/0, runme 360/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 33 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 33
+  commits: 2
+  files_changed: 11
+  lines_added: 658
+  lines_removed: 9
+  footprint_refreshed_at: '2026-11-15T17:06:23Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3799-weekly-cron-trims-targetdebug-when-no-bu.md
+generated_by: context-agent-hybrid
