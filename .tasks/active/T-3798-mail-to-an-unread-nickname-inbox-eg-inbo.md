@@ -1,13 +1,18 @@
 ---
 id: T-3798
-name: "Mail to an unread nickname inbox (e.g. inbox:…/termlink) waits silently; escalate or alias it to 010-termlink"
+name: "Mail to an unread nickname inbox (e.g. inbox:…/termlink) waits silently; escalate
+  or alias it to 010-termlink"
 description: >
-  T-3797: 1409's urgent consult went to inbox:cacc73ea32b121dd/termlink (4 posts + nudges, ~3 h). Our prompt hook surfaces only …/010-termlink; session-start-alerts listed it as project 'termlink' but nothing escalated. Options: alias our own nickname inbox to the receiver, or have the alerts/needs-attention path flag new mail on an inbox that names us.
+  T-3797: 1409's urgent consult went to inbox:cacc73ea32b121dd/termlink (4 posts +
+  nudges, ~3 h). Our prompt hook surfaces only …/010-termlink; session-start-alerts
+  listed it as project 'termlink' but nothing escalated. Options: alias our own nickname
+  inbox to the receiver, or have the alerts/needs-attention path flag new mail on
+  an inbox that names us.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-15T13:59:01Z
-last_update: 2026-11-15T13:59:01Z
-date_finished: null
+last_update: '2026-11-15T16:14:44Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +55,36 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-15T16:14:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3798: Mail to an unread nickname inbox (e.g. inbox:…/termlink) waits silently; escalate or alias it to 010-termlink
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** 2026-11-15, T-3797. 1409's urgent consult (2a5ca5a4) went to `inbox:cacc73ea32b121dd/termlink`: 4 posts plus 4 nudges over ~3 h. The operator had to ask whether it had arrived.
+**Problem / hypothesis:** the prompt hook surfaces only the topics `inbox.read_topics()` returns for `010-termlink`. `termlink` is how peers naturally name this project, but no reader owns that inbox. session-start-alerts lists it (as project "termlink") only at session start, and nothing surfaces it mid-session.
+**Goal:** mail addressed to this project's nickname inbox reaches this session the same way as mail to `010-termlink`, without patching vendored code (G-062).
+**Expected outcome:** a post to `inbox:<our hub>/termlink` is surfaced to this session (or flagged as needing attention) within one prompt; the 1409 case cannot recur silently.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The read path for this project's mail is measured: which topics the prompt hook reads, and where a nickname could be added without editing `.agentic-framework/`
+- [ ] A post to `inbox:cacc73ea32b121dd/termlink` is surfaced to this session (live proof with a sentinel), or, if that needs vendored code, the gap is filed upstream and a project-side alarm covers it meanwhile
+- [x] The 8 waiting 1409 posts on that inbox are accounted for (already answered on T-3797); widened to all 54 posts in 6 conversations, of which 5 were handled elsewhere and 1 (dmd-107-disk) is now done and answered
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +385,15 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3798-mail-to-an-unread-nickname-inbox-eg-inbo.md
 - **Context:** Initial task creation
+
+### 2026-11-15T16:14:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-15T16:45Z — measured, one stranded request answered, filed upstream [agent]
+- Read path: the prompt hook reads AEF `inbox.read_topics()` = [`inbox:cacc73ea32b121dd/010-termlink`, its V9 spelling, `sidecar:010-termlink`]. There is no project-side alias setting. Our Rust sidecar (`claude-termlink`, /etc/termlink-sidecar/claude-termlink.json) is the arc-011 instance, not this mail path. So an alias needs vendored code (G-062: no local patch).
+- The nickname inbox `inbox:cacc73ea32b121dd/termlink` holds 54 consults in 6 conversations from 832 (sidecar-delivery-noninjectable → handled T-3454), 055 (worker-lifecycle-2026-10-21 → T-3596), dimitri-mint-dev (dmd-107-load-2026-11-01 → T-3640; **dmd-107-disk-2026-10-26 → never handled**), and 1409 (termlink-lizenz-2026-11-12 → T-3690; sprind-ring20-tls → T-3797).
+- dmd-107-disk (operator request, 2026-10-26: clean /opt/termlink/target) done now. Checked nothing installed, running or scheduled uses target/ (no build running). `cargo clean --profile dev` freed 94.1 GiB, the arc011-mutants dir 3.6 GiB; target 111G → 20G. /opt (btrfs, Timeshift) is at 89%, 211G free, until snapshots rotate. Answered dimitri-mint-dev (759687ee).
+- AEF's orphan detector missed it because `orphan_inboxes()` judges non-own topics by the hub's unread flag, which any fetch clears (our own alert scan peeks), and it runs only in fw audit.
+- Filed with AEF (09376cac): (1) project-declared read aliases in read_topics; (2) orphan detection by a seen/answered marker, not the hub flag; (3) refuse a bare `--to <name>` that resolves to an unread nickname inbox and name the candidates.
+- Meanwhile coverage is session-start-alerts only (it lists nickname-inbox mail at session start/resume), not mid-session.
