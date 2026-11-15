@@ -403,3 +403,7 @@ bvp_scores_proposed:
 
 ### 2026-11-15T19:40Z — AEF T-5150 landed on bleeding-edge [agent]
 - AEF msg 983a38c7. Root cause: `circuit.is_project_id` counted a sibling checkout dir with .framework.yaml as a project; ours is /opt/termlink, so `--to termlink` became `inbox:<hub>/termlink`. Now a bare name that is a nickname of a known peer is refused ("did you mean 010-termlink?"), and the general refusal names close peers. T-5148 and T-5149 remain open. Reaches us with the next be-tag.
+
+### 2026-11-15T20:05Z — AEF T-5148 landed on bleeding-edge [agent]
+- AEF msg 805773f7: `SIDECAR_INBOX_ALIASES` (in .framework.yaml) or env `FW_SIDECAR_INBOX_ALIASES`. Every reader also reads `inbox:<own hub>/<alias>` through read_topics(); read-only. For us: `SIDECAR_INBOX_ALIASES: termlink`.
+- Caveat before enabling: it would re-surface all 54 already-handled consults. Asked AEF for the supported way to start a new alias at the head (msg sent). Plan after re-vendor: set the start point, add the alias, then prove it with one sentinel post to `…/termlink` surfacing in a session.
