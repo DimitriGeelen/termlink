@@ -106,11 +106,13 @@ except:
     RESOLVED=$(realpath -m "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")
 
     # T-4988: the operator-owned grant file is never written by the agent.
-    if [ "$RESOLVED" = "$(realpath -m "$PROJECT_ROOT/policy/access-grants.yaml")" ]; then
+    # T-5031: nor the list of keys that may sign grant changes.
+    if [ "$RESOLVED" = "$(realpath -m "$PROJECT_ROOT/policy/access-grants.yaml")" ] \
+        || [ "$RESOLVED" = "$(realpath -m "$PROJECT_ROOT/policy/grants-allowed-signers")" ]; then
         echo "" >&2
-        echo "  ACCESS GRANTS — policy/access-grants.yaml is the operator's file (T-4988)." >&2
-        echo "  The agent never writes it. Ask the operator to change it and commit it with" >&2
-        echo "  the trailer 'Grants-Change: operator'; only the committed version counts." >&2
+        echo "  ACCESS GRANTS — ${RESOLVED#"$PROJECT_ROOT"/} is the operator's file (T-4988, T-5031)." >&2
+        echo "  The agent never writes it. Ask the operator to change it and commit it signed" >&2
+        echo "  (git commit -S) with the trailer 'Grants-Change: operator'." >&2
         exit 2
     fi
 
@@ -225,7 +227,15 @@ except Exception:
     # exactly the parser differential this task removes, so the filter names
     # characters instead; what it skips cannot spell a path outside the cwd.
 # T-4921: here-string, not a pipe — under pipefail a pipe into grep -q can read a match as no match (T-4920).
-    if ! grep -qE '(cd\s+/|/opt/|/home/|/root/|/var/|/etc/|/usr/|>+\s*/|tee\s.*/|>\|\s*/|(^|[^[:alnum:]_.-])(cp|mv|install|ln|rsync|dd|sed|perl|truncate|chmod|chown|chgrp|touch|mkdir)\s.*/|\.agentic-framework/bin/fw)' <<<"$COMMAND" \
+    # T-5033: a session cwd OUTSIDE the project (e.g. inside an access grant) makes a bare
+    # relative word an outside path — `chmod 777 x` names no slash — so never skip then.
+    _bd_cwd_outside=0
+    case "$CMD_CWD" in
+        ""|"$PROJECT_ROOT"|"$PROJECT_ROOT"/*) ;;
+        *) _bd_cwd_outside=1 ;;
+    esac
+    if [ "$_bd_cwd_outside" = 0 ] \
+       && ! grep -qE '(cd\s+/|/opt/|/home/|/root/|/var/|/etc/|/usr/|>+\s*/|tee\s.*/|>\|\s*/|(^|[^[:alnum:]_.-])(cp|mv|install|ln|rsync|dd|sed|perl|truncate|chmod|chown|chgrp|touch|mkdir)\s.*/|\.agentic-framework/bin/fw)' <<<"$COMMAND" \
        && ! grep -qE '[/~{$`\\"'"'"']|\.\.|(^|[^[:alnum:]_.-])(cd|pushd)([^[:alnum:]_.-]|$)' <<<"$COMMAND"; then
         exit 0
     fi
@@ -921,18 +931,198 @@ def _write_verb_targets(cmd):
 # members the typed text never names (`../` included). Refused when the command names a grant.
 _GRANT_REFUSED_VERBS = {'chmod', 'chown', 'chgrp', 'touch', 'setfacl', 'chattr',
                         'tar', 'bsdtar', 'unzip', '7z', '7za', 'cpio', 'pax'}
+# T-5033 (ring20-dashboard a14cb4c1): the refusal used to run only when a grant path appeared
+# LITERALLY in the text, so `chmod 777 /srv/share/cr*`, `D=/srv/sh; chmod 777 ${D}are/x` or a
+# relative operand from a cwd in the grant skipped it. Now each operand of a refused verb is
+# judged after (1) the command's own NAME=value assignments are substituted and (2) relative
+# words are resolved against the session cwd. Whatever stays unresolved — a glob, an unknown
+# $VAR, a substitution — is judged by its literal prefix: refused when a grant path could
+# start with it (fail closed). Archive tools are refused when the cwd itself is in a grant,
+# since they write members their operands never name.
+# Create-level grants only, as before: a read grant is not writable at all (the write rules
+# refuse there), and `tar c` FROM a read grant is a read.
+_GRANT_ALL = list(_GRANT_CREATE)
+
+
+def _t5033_under_grant(p):
+    p = os.path.normpath(p)
+    return any(p == g or p.startswith(g.rstrip('/') + '/') for g in _GRANT_ALL)
+
+
+def _t5033_could_reach_grant(prefix):
+    """True when some grant path starts with `prefix` or lies under it (the operand's literal
+    head before a glob / variable / substitution)."""
+    if not prefix:
+        return False
+    return any(g.startswith(prefix) or prefix.startswith(g.rstrip('/') + '/') or prefix == g
+               for g in _GRANT_ALL)
+
+
+def _t5033_reason():
+    if not _GRANT_ALL:
+        return ''
+    cwd = os.environ.get('_BOUNDARY_CWD', '') or project_root
+    cwd_in_grant = _t5033_under_grant(cwd)
+    assigns = {}
+    for seg in re.split(r'[;&|\n()]', _BOUNDARY_CMD_RAW):
+        words = seg.split()
+        # NAME=value words at the head of a segment (or after `export`) are this command's own
+        while words and words[0] == 'export':
+            words = words[1:]
+        while words and re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', words[0]):
+            k, v = words[0].split('=', 1)
+            assigns[k] = v.strip('\'"')
+            words = words[1:]
+        while words and words[0].rsplit('/', 1)[-1] in _WRAPPERS:
+            words = words[1:]
+        if not words:
+            continue
+        verb = words[0].rsplit('/', 1)[-1]
+        if verb not in _GRANT_REFUSED_VERBS:
+            continue
+        if cwd_in_grant:
+            return f'{verb} with the working directory inside a granted path'
+        for w in words[1:]:
+            if w.startswith('-'):
+                continue
+            w = w.strip('\'"')
+            for _ in range(3):   # nested ${A}${B}
+                w2 = re.sub(r'\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)',
+                            lambda m: assigns.get(m.group(1) or m.group(2), m.group(0)), w)
+                if w2 == w:
+                    break
+                w = w2
+            m = re.search(r'[*?\[$`]', w)
+            head = w[:m.start()] if m else w
+            if head.startswith('~'):
+                head = os.path.expanduser(head)
+            if head and not head.startswith('/'):
+                head = os.path.join(cwd, head)
+            if not m:
+                if _t5033_under_grant(head):
+                    return f'{verb} on a granted path'
+            elif _t5033_could_reach_grant(os.path.normpath(head) + ('/' if head.endswith('/') else '')
+                                          if head else ''):
+                return f'{verb} on an operand that can expand into a granted path ({w})'
+    return ''
+
+
+if _GRANT_ALL:
+    _t5033 = _t5033_reason()
+    if _t5033:
+        print(f'BLOCKED|{_t5033} is refused (T-4989/T-5033: no metadata changes, '
+              f'no archive extraction under an access grant)')
+        sys.exit(0)
+
+
+# T-5032 (ring20-dashboard a14cb4c1, HIGH): no typed command creates or carries a LINK into a
+# create grant. A typed write THROUGH a link is already judged at its resolved path (T-4989),
+# but the link itself would let anything that follows it reach outside through a granted-looking
+# path. Quote-aware words from the RAW command; relative paths resolved against the command's
+# cwd (a `cd` into the grant does not hide the target). Refused when a segment's DESTINATION is
+# in a create grant and: the verb is ln/link; cp -s/-l; or cp (link-preserving: -a -d -P -r -R),
+# mv, or rsync (-a/-l without -L/--copy-links/--no-links) carries a source that is or contains
+# a link. Plain copies and dereferencing copies (cp -L, rsync -L) stay allowed.
+_LINK_WALK_CAP = 20000
+
+
+def _t5032_has_link(p):
+    """True when `p` is a symlink, or a directory with one inside (bounded walk; over the cap
+    counts as True — fail closed)."""
+    if os.path.islink(p):
+        return True
+    if not os.path.isdir(p):
+        return False
+    n = 0
+    for _d, dirs, files in os.walk(p, followlinks=False):
+        for name in dirs + files:
+            n += 1
+            if n > _LINK_WALK_CAP or os.path.islink(os.path.join(_d, name)):
+                return True
+    return False
+
+
+def _t5032_in_grant(p):
+    try:
+        sys.path.insert(0, os.environ.get('_BOUNDARY_FW_LIB', ''))
+        import access_grants
+    except Exception:
+        return False
+    cands = {os.path.normpath(p), os.path.join(os.path.realpath(os.path.dirname(p) or '/'),
+                                               os.path.basename(p))}
+    return any(access_grants._under(c, g) for c in cands for g in _GRANT_CREATE)
+
+
+def _t5032_reason():
+    import shlex
+    cwd = os.environ.get('_BOUNDARY_CWD', '') or project_root
+    for seg in re.split(r'[;&|\n()]', _BOUNDARY_CMD_RAW):
+        try:
+            words = shlex.split(seg)
+        except ValueError:
+            continue   # unbalanced quotes: the other passes judge it
+        while words and (re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', words[0])
+                         or words[0].rsplit('/', 1)[-1] in _WRAPPERS):
+            words = words[1:]
+        if not words:
+            continue
+        verb = words[0].rsplit('/', 1)[-1]
+        if verb not in ('ln', 'link', 'cp', 'mv', 'rsync'):
+            continue
+        opts, paths, dest_opt, after_dd, i = [], [], None, False, 1
+        while i < len(words):
+            w = words[i]
+            if not after_dd and w == '--':
+                after_dd = True
+            elif not after_dd and w in ('-t', '--target-directory') and i + 1 < len(words):
+                dest_opt = words[i + 1]
+                i += 1
+            elif not after_dd and w.startswith('--target-directory='):
+                dest_opt = w.split('=', 1)[1]
+            elif not after_dd and w.startswith('-') and w != '-':
+                opts.append(w)
+            else:
+                paths.append(w)
+            i += 1
+        ab = lambda x: os.path.normpath(os.path.join(cwd, os.path.expanduser(x)))
+        if dest_opt is not None:
+            dest, srcs = ab(dest_opt), [ab(x) for x in paths]
+        elif len(paths) >= 2:
+            dest, srcs = ab(paths[-1]), [ab(x) for x in paths[:-1]]
+        elif len(paths) == 1 and verb in ('ln', 'link'):
+            dest, srcs = cwd, [ab(paths[0])]       # `ln -s X` links into the cwd
+        else:
+            continue
+        if not _t5032_in_grant(dest):
+            continue
+        short = ''.join(o[1:] for o in opts if not o.startswith('--'))
+        long_ = {o.split('=', 1)[0] for o in opts if o.startswith('--')}
+        if verb in ('ln', 'link'):
+            return f'{verb} into a granted path'
+        if verb == 'cp':
+            if set(short) & set('sl') or long_ & {'--symbolic-link', '--link'}:
+                return 'cp -s/-l (link creation) into a granted path'
+            preserving = (set(short) & set('adPrR') or long_ & {'--archive', '--no-dereference',
+                                                               '--recursive', '--preserve'})
+            if preserving and 'L' not in short and '--dereference' not in long_ \
+                    and any(_t5032_has_link(s) for s in srcs):
+                return 'cp of a link (copied as a link) into a granted path'
+        if verb == 'mv' and any(_t5032_has_link(s) for s in srcs):
+            return 'mv of a link into a granted path'
+        if verb == 'rsync':
+            keeps = set(short) & set('al') or long_ & {'--archive', '--links'}
+            derefs = 'L' in short or long_ & {'--copy-links', '--no-links', '--no-l'}
+            if keeps and not derefs and any(_t5032_has_link(s) for s in srcs):
+                return 'rsync copying links as links into a granted path (add -L or --no-links)'
+    return ''
+
+
 if _GRANT_CREATE:
-    _raw_for_grants = _BOUNDARY_CMD_RAW
-    if any(g in _raw_for_grants for g in _GRANT_CREATE):
-        for _seg in re.split(r'[;&|\n()]', command):
-            _toks = _seg.split()
-            _verb = next((t.rsplit('/', 1)[-1] for t in _toks
-                          if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', t)
-                          and t.rsplit('/', 1)[-1] not in _WRAPPERS), '')
-            if _verb in _GRANT_REFUSED_VERBS:
-                print(f'BLOCKED|{_verb} on a granted path is refused (T-4989: no metadata changes, '
-                      f'no archive extraction under an access grant)')
-                sys.exit(0)
+    _t5032 = _t5032_reason()
+    if _t5032:
+        print(f'BLOCKED|{_t5032} is refused (T-5032: no links under an access grant — '
+              f'a link would let anything that follows it reach outside the grant)')
+        sys.exit(0)
 
 for target_file in (list(write_ops.findall(command)) + list(_tee_targets(command))
                     + [t for t in _write_verb_targets(command) if t.startswith('/')]):
@@ -984,6 +1174,15 @@ READ_ALLOWED_PREFIXES = (
 _TL_RT = os.path.realpath(os.environ.get('TERMLINK_RUNTIME_DIR', '') or '/')
 READ_ALLOWED_PREFIXES += ('/root/.termlink/',) + ((_HOME + '/.termlink/',) if _HOME else ()) \
     + ((_TL_RT + '/',) if 'termlink' in os.path.basename(_TL_RT) else ())
+# T-5134 (dimitri-mint-dev T-226): CLAUDE_CODE_TMPDIR moves Claude Code's own session
+# scratchpad and task-output files from /tmp/claude-<uid>/ to <dir>/claude-<uid>/. Only
+# that per-account subtree becomes readable, never the directory itself; a relative or
+# empty value, or one that resolves to /, adds nothing.
+_CC_TMP = os.environ.get('CLAUDE_CODE_TMPDIR', '')
+if _CC_TMP.startswith('/'):
+    _CC_TMP = os.path.realpath(_CC_TMP)
+    if _CC_TMP != '/':
+        READ_ALLOWED_PREFIXES += (os.path.join(_CC_TMP, 'claude-%d' % os.getuid()) + '/',)
 # Exact-path allowlist (no trailing slash test).
 READ_ALLOWED_EXACT = {
     project_root,

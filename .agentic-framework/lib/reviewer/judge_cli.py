@@ -889,6 +889,33 @@ def _await_worker(fw: Path, did: str, root: Path, timeout: int) -> int:
     return r.returncode
 
 
+DISPATCH_TIMEOUT_KEY = "REVIEWER_JUDGE_DISPATCH_TIMEOUT"
+DISPATCH_TIMEOUT_DEFAULT = 120
+_DISPATCH_TIMEOUT_RANGE = (30, 3600)
+
+
+def _dispatch_spawn_timeout(root: Path) -> int:
+    """T-5121: seconds to wait for `fw termlink dispatch` to report 'Worker spawned'.
+    env FW_<KEY> > .framework.yaml > the registry default (120, lib/config.sh). Read without a
+    subprocess: it runs right before the dispatch, whose subprocess.run the judge tests intercept.
+    Anything that is not an integer in range means the default: a wrong value must not turn
+    into a 0 s or 1 h wait."""
+    raw = os.environ.get("FW_" + DISPATCH_TIMEOUT_KEY, "")
+    if not raw:
+        try:
+            text = (Path(root) / ".framework.yaml").read_text(encoding="utf-8")
+        except OSError:
+            text = ""
+        m = re.search(rf"^\s*{DISPATCH_TIMEOUT_KEY}:\s*['\"]?([^'\"#\n]+?)['\"]?\s*(#.*)?$", text, re.M)
+        raw = m.group(1) if m else ""
+    try:
+        v = int(str(raw).strip())
+    except ValueError:
+        return DISPATCH_TIMEOUT_DEFAULT
+    lo, hi = _DISPATCH_TIMEOUT_RANGE
+    return v if lo <= v <= hi else DISPATCH_TIMEOUT_DEFAULT
+
+
 def _dispatch_real(*, task_id: str, brief: str, root: Path, name: str, vendor: str,
                    timeout: int = HARNESS_SEAT_TIMEOUT, revision: str = "", run_id: str = "",
                    seat: str = "") -> str:
@@ -898,10 +925,16 @@ def _dispatch_real(*, task_id: str, brief: str, root: Path, name: str, vendor: s
     pf = root / ".context/working" / f"judge-brief-{name}.md"
     pf.parent.mkdir(parents=True, exist_ok=True)
     pf.write_text(brief)
-    r = subprocess.run(_dispatch_argv(fw, task_id=task_id, name=name, prompt_file=pf, root=root,
-                                      vendor=vendor, timeout=timeout, revision=revision,
-                                      run_id=run_id, seat=seat),
-                       cwd=root, capture_output=True, text=True, timeout=120)
+    spawn_s = _dispatch_spawn_timeout(root)
+    try:
+        r = subprocess.run(_dispatch_argv(fw, task_id=task_id, name=name, prompt_file=pf, root=root,
+                                          vendor=vendor, timeout=timeout, revision=revision,
+                                          run_id=run_id, seat=seat),
+                           cwd=root, capture_output=True, text=True, timeout=spawn_s)
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(f"dispatch did not report 'Worker spawned' within {spawn_s} s — raise "
+                           f"{DISPATCH_TIMEOUT_KEY} (fw config set {DISPATCH_TIMEOUT_KEY} <s>) if "
+                           f"dispatching is slow on this host") from e
     m = re.search(r"Worker spawned:\s*(\S+)", r.stdout)
     if r.returncode != 0 or not m:
         raise RuntimeError(f"dispatch failed (exit {r.returncode}): {(r.stderr or r.stdout)[-300:]}")
@@ -940,21 +973,29 @@ def _unavailable_reason(dispatch_id: str) -> str:
     """Why a dispatched seat left no ledger row, read from its worker dir (T-3852): the exit
     status and, when the worker's own stream or stderr names one, a usage or rate limit. Short by
     design — a reason for the operator's message, never a raw log. '' is never returned."""
-    w = dispatch_tokens.dispatch_dir() / dispatch_id
+    # T-5119: worker_dir, not dispatch_dir — a harness seat (codex, opencode, antigravity) keeps
+    # the /tmp root (T-4675 exception), so looking only in the project root found nothing and
+    # every such seat read "no completion" whatever had happened to it.
+    w = dispatch_tokens.worker_dir(dispatch_id)
     try:
         code = (w / "exit_code").read_text().strip()
     except OSError:
         code = ""
-    text = ""
+    raw = ""
     # result.md: antigravity prints its whole output (and its refusal) to stdout.
     for name in ("result.jsonl", "stderr.log", "result.md"):
         try:
-            text += (w / name).read_text(errors="replace").lower()
+            raw += (w / name).read_text(errors="replace")
         except OSError:
             pass
+    text = raw.lower()
+    # T-5119 (055 T-645): a provider that refuses the account (balance, quota, auth) is not a
+    # rate limit — the fix is a top-up or a key, not a retry. Checked before "429".
+    refused = _provider_refusal(text, raw)
     # T-4456: a headless harness that needed a tool permission it cannot prompt for exits 0 with
     # no verdict; say that, not a bare "exit 0".
-    limit = ("usage limit" if "usage limit" in text else
+    limit = (refused if refused else
+             "usage limit" if "usage limit" in text else
              "rate limit" if ("rate limit" in text or "429" in text) else
              "tool permission auto-denied (headless)" if "auto-denied" in text else "")
     # T-4844: the runtime names a seat that exited 0 and left no verdict (completion seat_state,
@@ -971,6 +1012,35 @@ def _unavailable_reason(dispatch_id: str) -> str:
         err = _stream_error(w / "result.jsonl")
         return f"exit {code}: {err}" if err else f"exit {code}"
     return "no completion"
+
+
+# Specific provider phrases only: result.md can hold a reviewer's whole printed review, so a
+# generic word ("billing", "unauthorized") would mislabel a seat that reviewed such a feature.
+_REFUSAL_BALANCE = ("insufficient balance", "insufficient_quota", "insufficient quota",
+                    "exceeded your current quota", "credit balance is too low",
+                    "no resource package", "please recharge")
+_REFUSAL_AUTH = ("invalid api key", "invalid_api_key", "incorrect api key provided",
+                 "authentication_error", "invalid x-api-key")
+# Also matches the escaped form a harness nests the provider body in: \"code\":\"1113\".
+_PROVIDER_CODE = re.compile(r'\\?"code\\?"\s*:\s*\\?"?(\d{3,6})')
+
+
+def _provider_refusal(text: str, raw: str) -> str:
+    """T-5119: 'provider refused: <kind>[ (code N)]' when the seat's own output says the
+    provider refused the account; '' otherwise. `text` is `raw` lower-cased. The code is taken
+    only from the line that carries the refusal, never from elsewhere in the stream."""
+    kind = ("balance or quota" if any(m in text for m in _REFUSAL_BALANCE) else
+            "authentication" if any(m in text for m in _REFUSAL_AUTH) else "")
+    if not kind:
+        return ""
+    markers = _REFUSAL_BALANCE if kind == "balance or quota" else _REFUSAL_AUTH
+    for line in raw.splitlines():
+        low = line.lower()
+        if any(m in low for m in markers):
+            m = _PROVIDER_CODE.search(line)
+            if m:
+                return f"provider refused: {kind} (code {m.group(1)})"
+    return f"provider refused: {kind}"
 
 
 def _no_verdict(w: Path) -> bool:

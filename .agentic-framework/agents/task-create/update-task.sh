@@ -244,6 +244,13 @@ apply_reviewer_verdicts() {
     if echo "$applied" | grep -q '"verdict_id"'; then
         echo -e "${GREEN}Reviewer verdict applied: $applied${NC}"
     fi
+    # T-5117: a verdict that exists but does not count is named, never silent — 055's
+    # partial-complete re-run printed "Update Complete" with the green quietly judged stale.
+    local _na
+    _na=$(printf '%s\n' "$applied" | grep '^NOT APPLIED:' || true)
+    if [ -n "$_na" ]; then
+        echo -e "${YELLOW}${_na}${NC}"
+    fi
 }
 
 # Human Sovereignty Gate (R-033/T-198)
@@ -2336,6 +2343,21 @@ if [ -n "$NEW_STATUS" ]; then
                     echo "  Fix: git rm '$_t1863_orig' (the destination is canonical)" >&2
                     exit 1
                 fi
+                # T-5118: record WHEN the task was finalised. date_finished keeps the
+                # first transition's time (the agent-side finish metrics read); a
+                # task that sat partial-complete for a day was otherwise outside the
+                # T-4182 closure-commit window the moment it was finalised (055 T-645).
+                # Replaces an existing line, else inserts before the closing '---'.
+                # T-5122: mktemp, never a $$-only name (invariant T-5067).
+                if _t5118_tmp=$(mktemp "$TASK_FILE.t5118.XXXXXX") && awk -v ts="$TIMESTAMP" '
+                    BEGIN { n = 0; done = 0 }
+                    /^---[[:space:]]*$/ { n++; if (n == 2 && !done) { print "date_finalised: " ts; done = 1 } }
+                    n == 1 && /^date_finalised:/ { if (!done) { print "date_finalised: " ts; done = 1 }; next }
+                    { print }
+                ' "$TASK_FILE" > "$_t5118_tmp"; then
+                    cat "$_t5118_tmp" > "$TASK_FILE"
+                fi
+                rm -f "$_t5118_tmp"
                 echo -e "${GREEN}Moved to completed/${NC}"
                 # T-4094: next-step hint is printed by the staging postcondition at the end.
 

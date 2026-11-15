@@ -536,8 +536,19 @@ def opencode_seat_config(seat_tmp: str) -> str:
     has `external_directory "*" -> ask`, and headless `opencode run` rejects every ask; this appends
     one allowance for exactly that path (verified: `opencode debug agent plan`)."""
     t = str(seat_tmp).rstrip("/")
-    return json.dumps({"agent": {"plan": {"permission": {"external_directory": {
-        t: "allow", t + "/*": "allow"}}}}}, sort_keys=True, separators=(",", ":"))
+    return json.dumps({"agent": {"plan": {"permission": {
+        "external_directory": {t: "allow", t + "/*": "allow"},
+        # T-5008 (ring20-dashboard b2be4058): a seat's `pkill -f 'uvicorn main:app'` stopped a
+        # live service. The PID namespace makes that harmless; this refuses it outright too
+        # (verified: `opencode debug agent plan` resolves each pattern to action "deny").
+        "bash": SEAT_SIGNAL_DENY_GLOBS,
+    }}}}, sort_keys=True, separators=(",", ":"))
+
+
+#: T-5008: commands a review seat may never run — signalling processes by NAME reaches anything
+#: the operator's user runs. A seat stops its own server by the PID it started it with.
+SEAT_SIGNAL_DENY_GLOBS = {"pkill *": "deny", "killall *": "deny", "kill *$(pgrep*": "deny",
+                          "kill *$(pidof*": "deny", "kill *`pgrep*": "deny"}
 
 
 def brief_digest(text: str) -> str:
@@ -654,7 +665,16 @@ _LAUNCH_FLAG_FILES = ("tools.txt", "permission_mode.txt", "mcp_config.txt", "str
 #: model. Committed at WORKER_SETTINGS; registration copies the committed file into the worker
 #: directory and signs its hash, start and complete re-check it.
 WORKER_SETTINGS = Path("policy/review-worker-settings.json")
-WORKER_SETTINGS_WANT = {"crossSessionInbound": "refuse"}
+WORKER_SETTINGS_WANT = {"crossSessionInbound": "refuse",
+                        # T-5008: a review worker may not signal processes by name (deny only
+                        # restricts: no env, no hooks, no allow is added)
+                        "permissions": {"deny": [
+                            "Bash(pkill:*)", "Bash(killall:*)", "Bash(kill $(pgrep:*)",
+                            "Bash(kill -9 $(pgrep:*)", "Bash(kill $(pidof:*)",
+                            "Bash(kill -9 $(pidof:*)"]}}
+#: The exact settings a reviewed revision may carry: today's, or the one before T-5008 (a review
+#: of an older revision reads that revision's committed file). Nothing else.
+WORKER_SETTINGS_ACCEPTED = ({"crossSessionInbound": "refuse"}, WORKER_SETTINGS_WANT)
 #: Round 9 (R8-1b): project files claude reads from the working tree it is launched in. A review
 #: worker starts only when none differs from the run's pinned revision, so what it loads is part
 #: of the reviewed revision, never an uncommitted edit.
@@ -686,7 +706,7 @@ def _worker_settings(root: Path, revision: str) -> str:
         data = json.loads(text) if text else None
     except ValueError:
         data = None
-    if data != WORKER_SETTINGS_WANT:
+    if data not in WORKER_SETTINGS_ACCEPTED:
         raise ValueError(f"{WORKER_SETTINGS} ({where or 'not committed'}) is not exactly "
                          f"{json.dumps(WORKER_SETTINGS_WANT)} — a review worker's settings are "
                          f"pinned: inbound refused, no env, no hooks")
@@ -3094,13 +3114,15 @@ def _stale_fault(ctx: _Ctx, row: dict) -> tuple[str, str] | None:
     if rc != 0 or rc2 != 0:
         return "stale-review", f"git cannot say what changed since reviewed revision {rev[:9]} — refusing"
     changed = set(diff.splitlines())
-    ref = re.compile(rf"(?<![A-Za-z0-9-]){re.escape(ctx.task_id)}(?![0-9])")
     for rec in out.split("\x1e"):
         if "\x1d" not in rec:
             continue
         head, files = rec.split("\x1d", 1)
         sha, _, msg = head.partition("\x1f")
-        if not ref.search(msg):
+        # T-5116: the task's work is a commit whose SUBJECT opens with its id (the component
+        # count's rule, `_owns`), not any commit that mentions it: 055's green on T-645 went
+        # stale because a T-704 commit named T-645 in its body.
+        if not _owns(msg.lstrip().split("\n", 1)[0], ctx.task_id):
             continue
         work = [f for f in files.splitlines() if f.strip() and f in changed
                 and not f.startswith(_NOT_WORK + artifacts)]
@@ -3145,6 +3167,9 @@ def _note_torn(root: Path, task_id: str, lines: list[str]) -> None:
             seen.add(sha)
 
 
+_NO_VERDICT = "no verdict for the current criterion text"
+
+
 def satisfying_verdict(ctx: _Ctx, crit) -> tuple[dict | None, str]:
     """(green row, '') that satisfies `crit`, else (None, why).
 
@@ -3187,7 +3212,7 @@ def satisfying_verdict(ctx: _Ctx, crit) -> tuple[dict | None, str]:
             return None, f"uncommitted: row {row['id']} for this criterion is not in the accepted history"
         mine.append(row)
     if not mine:
-        return None, "no verdict for the current criterion text"
+        return None, _NO_VERDICT
     # T-3986: a not-evaluated row is no verdict, so the LATEST EVALUATED row decides. Every row
     # from that one to the end is still validated first: an invalid trailing not-evaluated row
     # is `unknown` like any invalid latest row, and cannot be skipped to reach an older green.
@@ -3757,8 +3782,8 @@ def apply(task_id: str, root: Path | None = None) -> dict:
     Reads the ledger, writes only the task file and the applied ledger. Idempotent.
     """
     root = root or _root()
-    result = {"task": task_id, "ticked": [], "withdrawn": [], "refused": [], "recited": [], "owner_before": "",
-              "owner_after": "", "skipped": ""}
+    result = {"task": task_id, "ticked": [], "withdrawn": [], "refused": [], "recited": [], "not_applied": [],
+              "owner_before": "", "owner_after": "", "skipped": ""}
     ctx = _task_ctx(root, task_id)
     if ctx is None:
         result["skipped"] = "task not active"
@@ -3801,9 +3826,13 @@ def apply(task_id: str, root: Path | None = None) -> dict:
     for c in human_criteria(new_text):
         if c.ticked or ctx.classify(c).delegation_class != REVIEWER_JUDGES:
             continue
-        r, _ = satisfying_verdict(ctx, c)
+        r, why = satisfying_verdict(ctx, c)
         if r:
             hits.append((c, r, green_degraded_of(ctx, c, r)))
+        elif why and not why.startswith(_NO_VERDICT):
+            # T-5117: a verdict exists for this criterion but does not count (stale, invalid,
+            # red, not evaluated). Say why; silence left 055 with an open box and no reason.
+            result["not_applied"].append({"ac": c.index, "why": why})
     for c, r, deg in sorted(hits, key=lambda h: -h[0].start):
         lines[c.start] = re.sub(r"\[ \]", "[x]", lines[c.start], count=1)
         lines.insert(c.end, _cite(r, root, deg))
@@ -4370,6 +4399,9 @@ def _cli(argv: list[str] | None = None) -> int:
         for w in res.get("withdrawn") or []:
             print(f"WITHDRAWN: {args.task_id} AC{w['ac']} verdict {w['verdict_id']} — tick removed, "
                   f"owner: human — {w['why']}", file=sys.stderr)
+        # T-5117: a verdict that exists but does not count is named, never silent.
+        for n in res.get("not_applied") or []:
+            print(f"NOT APPLIED: {args.task_id} AC{n['ac']} — {n['why']}", file=sys.stderr)
         if res.get("refused"):
             print("REFUSED: reviewer-derived tick(s) no longer match the applied log — restore the "
                   "annotation, or an operator runs `fw reviewer verdict release`", file=sys.stderr)

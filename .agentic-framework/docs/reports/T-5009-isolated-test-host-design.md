@@ -181,7 +181,7 @@ from the node's own conventions.
 | User | `aef-testhost@pve`, no password, no other groups or ACLs |
 | Role `AEFPRTest` | `VM.Allocate VM.Config.CDROM VM.Config.Disk VM.Config.Options VM.PowerMgmt VM.Console VM.Audit Pool.Audit` |
 | Role `AEFPRTemplate` | `VM.Clone VM.Audit` |
-| Role `AEFPRIso` | `Datastore.AllocateTemplate Datastore.Audit` |
+| Role `AEFPRIso` | `Datastore.Allocate Datastore.AllocateTemplate Datastore.Audit` (Allocate added 2026-11-13: deleting the run's ISO needs it; first real run got HTTP 403. Safe because `aef-pr-iso` holds only AEF's ISOs) |
 | Role `AEFPRDisk` | `Datastore.AllocateSpace` |
 | ACLs (user, propagate) | `/pool/aef-pr-test` AEFPRTest; `/vms/<template-vmid>` AEFPRTemplate; `/storage/<iso-storage>` AEFPRIso; `/storage/<disk-storage>` AEFPRDisk. Nothing on `/`, `/nodes`, `/access`, `/sdn`, other VMs or storages |
 | Token | `aef-testhost@pve!prtest`, privilege separation **off** (inherits exactly the ACLs above), expiry: the operator's choice, recorded |
@@ -225,6 +225,11 @@ straight into that file by the runme; it is never printed, logged or sent over t
 - **Token:** created on the node by a runme from ring20-manager (which reaches the node as root over ssh), stored in
   Infisical following the estate pattern, printed only as a fingerprint; this host's 0600 file is written from the
   Infisical copy, never printed. Which of the two this host reads is the operator's choice.
+
+**Operator, 2026-11-13:** token expiry **365 days** ("365 days is fine"), renewed with the rebuild. AEF read
+ring20's T-2661 runme (their commit 2de023b3e) against this section: matches; ring20 added the bats-core v1.11.0
+commit pin (5da66876b8b6) and build-only DNS on AEF's review. Node setup done; template, token and check retry
+pending with ring20's operator. AEF's first `fw testhost check-token` plus one known-commit run is the build check.
 
 **Operator, 2026-11-12:** (1) ring20 builds the node side as its own task, with its runmes from ring20-manager,
 exactly per this spec; AEF reads the runmes against the spec before the operator runs them. (2) Token in Infisical

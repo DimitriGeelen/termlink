@@ -287,8 +287,13 @@ FW_CONFIG_REGISTRY=(
     "CALL_CRITICAL|80|Tool-call count threshold for critical level (fallback)"
     "BASH_TIMEOUT|300000|Default Bash tool timeout in milliseconds"
     "KEYLOCK_TIMEOUT|300|Per-key lock stale cleanup timeout in seconds"
+    "TERMLINK_DISPATCH_RETENTION_DAYS|7|Days a finished, collected dispatch worker dir is kept before fw termlink dispatch prunes it in the background, at most hourly (T-5120, 010 T-3777). 0 turns the automatic prune off; 0-365, an invalid value means 7. Running, unfinalised and uncollected workers are never pruned."
+    "TERMLINK_DISPATCH_UNCOLLECTED_DAYS|30|Days a finished dispatch worker dir whose result was never collected (fw termlink result) is kept before the prune removes it (T-5120, operator 2026-11-13). 0 = never remove an uncollected result; 0-3650, never sooner than TERMLINK_DISPATCH_RETENTION_DAYS; an invalid value means 30."
     "TERMLINK_WORKER_TIMEOUT|3600|TermLink worker kill-watchdog in seconds (T-5068: 3600 fits 97.5% of measured runs; raise per dispatch with --timeout)"
     "UNIT_SUITE_FLAKE_RETRY_MAX|5|Files with a NEW unit-suite red (not in the ratchet baseline) re-run once per nightly run; a pass on the retry grades WARN suspected flaky at pre-push instead of FAIL, logged to flakes.jsonl. More NEW-red files than this = none retried. 0 = never retry (T-4875)"
+    "TERMLINK_SIDECAR_SOCKET||Path to the TermLink sidecar's send socket (<agent>.send.sock) for the adapter/2 hooks when TERMLINK_SIDECAR_SOCKET is not in the hook's environment (T-5054). Empty = environment only"
+    "SIDECAR_KEEP_RUNNING|off|on = TermLink's sidecar supervisor (sidecar-supervise.sh may-run, the termlink-sidecar@ unit's ExecCondition) may keep this project's TermLink sidecar running; absent/off = it will not start. Read by TermLink, not by AEF code. Set for the T-5054 meter-only trial sidecar (aef-meter)"
+    "TERMLINK_ADAPTER2|0|1 = this agent's Claude Code hooks send TermLink adapter/2 reports to the sidecar socket named by TERMLINK_SIDECAR_SOCKET (T-5054, 010 P-44). 0 (default) sends nothing. Never set it on an agent whose settings already run TermLink's own termlink-sidecar hook entries; switching an agent over is an operator act (TermLink 04 17.9)"
     "TERMLINK_MAX_WORKERS|5|Concurrent fw termlink dispatch workers per project (T-3910). Raise situationally, on the operator's say-so: FW_TERMLINK_MAX_WORKERS=N for one run, fw config set TERMLINK_MAX_WORKERS N to keep it"
     "MESSAGING_TOOLKIT|0|Install/update the cross-host messaging toolkit (9 slash commands + 12 scripts, TermLink) on fw upgrade. Opt-in; derived once from existing files (T-4042). 1=install, 0=skip"
     "HANDOVER_DEDUP_COOLDOWN|300|Seconds between duplicate handover detection"
@@ -369,6 +374,15 @@ FW_CONFIG_REGISTRY=(
     "TESTHOST_BACKEND|stub|Hypervisor backend for fw testhost: stub (a temp dir and a child process, for tests) or proxmox (phase 4, refuses until the operator chooses the node). T-5009."
     "TESTHOST_TIMEOUT|1800|Wall-clock seconds a fw testhost run may take before the controller stops the VM and records state timeout. T-5009."
     "TESTHOST_SERIAL_CAP_BYTES|5242880|Bytes of sanitised serial-console log fw testhost keeps per run; past the cap a visible truncation line is written and the rest is drained and dropped. T-5009."
+    "TESTHOST_PVE_URL||Proxmox API base URL for the proxmox backend, e.g. https://<node>:8006; must be a name or address the node's certificate lists (T-5099)"
+    "TESTHOST_PVE_NODE||Proxmox node name used in API paths (/nodes/<node>/...) (T-5099)"
+    "TESTHOST_PVE_POOL||Proxmox resource pool the test VMs live in; the token's VM rights are on this pool only (T-5099)"
+    "TESTHOST_PVE_TEMPLATE||VMID of the test template VM (not in the pool; the token may only clone it) (T-5099)"
+    "TESTHOST_PVE_ISO_STORAGE||Proxmox directory storage the run's input ISO is uploaded to (T-5099)"
+    "TESTHOST_PVE_DISK_STORAGE||Proxmox storage for linked-clone disks (must hold the template's disk) (T-5099)"
+    "TESTHOST_PVE_CA||Path to the Proxmox CA certificate used to verify the API's TLS (T-5099)"
+    "TESTHOST_PVE_TOKEN_FILE||Path to the 0600 file holding the pool-limited API token line user@realm!id=secret; empty = .context/secrets/testhost-pve-token (T-5099)"
+    "TESTHOST_PVE_VMID_RANGE||LOW-HIGH VMID block the controller may clone into, at most 100 ids, e.g. 9501-9509; any other id is refused (T-5099)"
     # T-3080. ONE window for BOTH Tier 0 approval legs. Before this the CLI leg
     # (check-tier0.sh, `fw tier0 approve` grant) carried a bare 300 literal and
     # the Watchtower leg defaulted to 3600 via TIER0_WATCHTOWER_TTL — so the path
@@ -408,6 +422,7 @@ FW_CONFIG_REGISTRY=(
     # full mem/disk/cpu/net adaptive governor is slice S5b.
     "PROVISION_LOAD_MAX|0.8|Per-core normalized 1-minute loadavg threshold for the environmental governor's provisioning admission (lib/aef_governor.py). Under = allow, at/over = defer, at/over 2x = deny; bad values fall back to 0.8, logged. T-3311."
     "REVIEW_PAID_BACKENDS|allowed|Whether fw reviewer judge may offer an unfilled panel seat to a PAID backend (fw review propose). allowed (default): it proposes and waits for the operator's approval. never: an estate-only project; the judge plans no paid seats, files no proposals, and each unfilled seat says so plainly. T-4996 (ring20: dead OpenRouter proposals in a project whose operator never approves paid)."
+    "REVIEWER_JUDGE_DISPATCH_TIMEOUT|120|Seconds fw reviewer judge waits for fw termlink dispatch to report 'Worker spawned' for one review seat before the seat counts as not dispatched (T-5121, 010 T-3777: a slow dispatch ended reviews with no seat dispatched). 30-3600; an invalid value means 120."
     "REVIEWER_JUDGE_WEEKLY_SPEND_CEILING|10000|Weekly USD spend ceiling for independent reviewer judgments via fw reviewer judge (T-3580, IW-7 rung selection). Estimated USD, read from the committed cost ledger (.context/costs/reviews.jsonl, reviewer-judge rows). When the due rung would pass it, the run is registered one rung lower; the SIGNED REVIEW RUN records the decision (due, granted, spend, ledger commit), the ticked criterion annotation shows rung granted/due/reason, and fw audit WARNs on every step-down. Floor 100: a value below it (0, negative, NaN, non-numeric) means no step-down, never always. T-3580."
     # T-4490 (T-4466 GO, operator 2026-10-20). Project opt-out for green-degraded panel closes.
     "BOUNDARY_EXTRA_READ_PATHS||Colon-separated absolute paths the project-boundary gate (agents/context/check-project-boundary.sh) lets Bash commands READ, on top of its built-in allowlist (which already covers \$HOME/.local and \$HOME/.claude of the running account). Writes are not widened. Relative entries and / are ignored. T-4361, GitHub #104."

@@ -327,8 +327,39 @@ def _get_pattern_summary():
     }
 
 
+# T-5126 (1409): stale-while-revalidate for the approvals box. The summary costs 26 s cold and
+# ~5 s warm here (minutes at 1409's 6,000 tasks), and the request that found the 60 s cache
+# expired used to pay it. Now an expired entry is served as it is and refreshed in ONE
+# background thread; a cold start shows no approvals box until the first build is done.
+import threading as _qr_threading
+
+_qr_refresh = {"thread": None}
+_qr_refresh_lock = _qr_threading.Lock()
+
+
 def _get_approval_qr():
-    """Build approval summary and QR data URL for mobile access (T-671). Cached for 60s (T-1246)."""
+    now = _time_mod.monotonic()
+    data = _qr_cache["data"]
+    if data is not None and (now - _qr_cache["ts"]) < _DASHBOARD_CACHE_TTL:
+        return data
+    try:   # the builder runs outside the request: read the port here, where `request` exists
+        from flask import request
+        port = request.host.split(":")[-1] if ":" in request.host else "3000"
+    except Exception:
+        port = "3000"
+    with _qr_refresh_lock:
+        t = _qr_refresh["thread"]
+        if t is None or not t.is_alive():
+            t = _qr_threading.Thread(target=_build_approval_qr, args=(port,),
+                                     name="approval-qr-refresh", daemon=True)
+            _qr_refresh["thread"] = t
+            t.start()
+    return data if data is not None else (None, None, None)
+
+
+def _build_approval_qr(port: str | None = None):
+    """Build approval summary and QR data URL for mobile access (T-671). Cached for 60s (T-1246).
+    `port` is passed in when this runs in the background refresh thread (T-5126)."""
     now = _time_mod.monotonic()
     if _qr_cache["data"] is not None and (now - _qr_cache["ts"]) < _DASHBOARD_CACHE_TTL:
         return _qr_cache["data"]
@@ -363,9 +394,10 @@ def _get_approval_qr():
             lan_ip = socket.gethostbyname(hostname)
         except socket.gaierror:
             lan_ip = "127.0.0.1"
-        # Detect port from Flask request context
-        from flask import request
-        port = request.host.split(":")[-1] if ":" in request.host else "3000"
+        # Detect port from Flask request context (or the caller's, T-5126)
+        if port is None:
+            from flask import request
+            port = request.host.split(":")[-1] if ":" in request.host else "3000"
         url = f"http://{lan_ip}:{port}/approvals"
 
         qr = qrcode.QRCode(version=1, box_size=4, border=2,
@@ -384,8 +416,42 @@ def _get_approval_qr():
     return result
 
 
+# T-5126 (1409 msg c905c099): the tile parses EVERY session transcript of the project. Warm,
+# that is incremental and fast; cold (a fresh Watchtower) it is a full read — 34 s here for
+# 754 files, minutes at 1409 (2,557 files, 3.9 GB) — and `/` waited for it. Now the first
+# request starts the parse in a background thread and renders without the tile (the template
+# already omits it when there is no data); once the parse has finished, the tile is back.
+import threading as _threading
+
+_token_warm = {"thread": None, "done": False}
+_token_warm_lock = _threading.Lock()
+
+
+def _warm_token_usage():
+    try:
+        from web.blueprints.costs import _load_all_sessions
+        _load_all_sessions()
+    except Exception:
+        pass
+    finally:
+        _token_warm["done"] = True
+
+
+def _token_usage_ready() -> bool:
+    if _token_warm["done"]:
+        return True
+    with _token_warm_lock:
+        if _token_warm["thread"] is None:
+            t = _threading.Thread(target=_warm_token_usage, name="token-usage-warm", daemon=True)
+            _token_warm["thread"] = t
+            t.start()
+    return False
+
+
 def _get_token_usage():
     """Get token usage summary for landing page widget (T-803)."""
+    if not _token_usage_ready():   # T-5126: never make `/` wait for a cold transcript parse
+        return None
     try:
         from web.blueprints.costs import _load_all_sessions, _fmt_tokens
         sessions = _load_all_sessions()
