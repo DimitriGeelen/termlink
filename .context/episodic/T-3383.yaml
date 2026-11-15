@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3383: Measure 30 days of hub outage durations to re-check the circuit credential lifetime (OQ-3 D, H-1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T23:46:01Z
+# ============================================================================
+
+task_id: T-3383
+task_name: "Measure 30 days of hub outage durations to re-check the circuit credential lifetime (OQ-3 D, H-1)"
+workflow_type: specification
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-07T16:33:27Z
+completed: 2026-11-15T23:10:24Z
+duration_days: 39
+updates_count: 5
+first_commit: 2026-10-11T19:05:50+02:00
+last_commit: 2026-11-16T00:10:23+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub outage collector, summariser, liveness canary, runme install + fixtures. hub outage result after ~34 days — H-1 covered (fleet p95 2281 s, production p95 <= 540 s); one shared 1 h 44 min outage exceeds 1 h
+
+# Key outcomes
+outcomes:
+  - 'scripts/collect-hub-outages.sh probes every hub in hubs.toml with a bounded read-only call and appends one NDJSON line per hub per sample (ts, hub, reachable, latency_ms, error class) to a gitignored file under .context/working/; unreachable is data (exit 0), never an alarm (PL-219); per-hub timeout (PL-189)'
+  - 'scripts/summarise-hub-outages.sh turns samples into outage intervals (start, end, duration_s, open flag) per hub with --json, plus p50/p95/max and whether 1 h covers p95 (H-1)'
+  - 'Heartbeat is written on EXIT (T-2843); --no-heartbeat supported'
+  - '.context/cron/hub-outage-collector.crontab runs the collector every minute with the T-2685 split-stderr idiom and a correct "# Installed to:" header'
+  - 'A liveness canary (scripts/check-hub-outage-collector-freshness.sh + crontab) fires when the collector heartbeat/samples go stale, and appears in /canaries (canary-status.sh discovery)'
+  - 'runme.sh has an idempotent install action for both crontabs; tests/runme-fixtures.sh EXPECT_N updated and passing'
+  - 'Hermetic fixtures cover collector, summariser interval maths, canary, and a mutant check, all green'
+  - '7-day run pending: collector installed via runme action; task stays started-work (exit condition of PH-0 6.2.1.a (1) is time-based) (done: about 34 days, 49,517 samples per hub; result in `docs/reports/T-3383-hub-outage-result.md`: H-1 covered, fleet p95 2,281 s, production p95 ≤ 540 s; one shared 1 h 44 min outage across .107/.121/.122 exceeds 1 h)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'hub outage collector, summariser, liveness canary, runme install + fixtures'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/hub-outage-collector.crontab'
+  - '.tasks/active/T-3383-measure-30-days-of-hub-outage-durations-.md'
+  - 'docs/reports/T-3383-hub-outage-result.md'
+  - 'runme.sh'
+  - 'scripts/check-hub-outage-collector-freshness.sh'
+  - 'scripts/collect-hub-outages.sh'
+  - 'scripts/summarise-hub-outages.sh'
+  - 'tests/hub-outage-collector-fixtures.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T19:05:50'
+    action: 'T-3383: hub outage collector, summariser, liveness canary, runme install + fixtures'
+  - time: '2026-11-16T00:10:23'
+    action: 'T-3383: hub outage result after ~34 days — H-1 covered (fleet p95 2281 s, production p95 <= 540 s); one shared 1 h 44 min outage exceeds 1 h'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 56556 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 56556
+  commits: 3
+  files_changed: 12
+  lines_added: 554
+  lines_removed: 16
+  footprint_refreshed_at: '2026-11-15T23:47:59Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3383-measure-30-days-of-hub-outage-durations-.md
+generated_by: context-agent-hybrid

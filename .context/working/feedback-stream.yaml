@@ -24597,3 +24597,21 @@ scan_id: R-c90f5928
 task_id: T-2719
 payload:
   task_file: .tasks/active/T-2719-agent-inbox-unread-count-mixes-retention.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T23:45:10Z'
+scan_id: R-f43489da
+task_id: T-3383
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T23:45:10Z'
+scan_id: R-f43489da
+task_id: T-3383
+payload:
+  task_file: .tasks/active/T-3383-measure-30-days-of-hub-outage-durations-.md

@@ -12,12 +12,12 @@ description: >
   telemetry once R-46.e exists; report the distribution and whether 1 h covers the
   95th percentile; bring a change back to the operator only if it does not.
 
-status: started-work
+status: work-completed
 workflow_type: specification
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, scripts/check-hub-outage-collector-freshness.sh, scripts/collect-hub-outages.sh, scripts/summarise-hub-outages.sh, tests/hub-outage-collector-fixtures.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -46,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-07T16:33:27Z
-last_update: 2026-11-15T23:10:23Z
-date_finished:
+last_update: 2026-11-15T23:10:24Z
+date_finished: 2026-11-15T23:10:24Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -402,3 +402,25 @@ grep -q "H-1 (a 1 h window covers p95 outage): covered" docs/reports/T-3383-hub-
 
 ### 2026-10-11T17:00:03Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-15T23:10:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f43489da
+- **Timestamp:** 2026-11-15T23:45:10Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 3
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — scripts/collect-hub-outages.sh probes every hub in hubs.toml with a bounded read-only call and appends one NDJSON line per hub per sample (ts, hub, reachable, latency_ms, error class) to a gitignored 
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/collect-hub-outages.sh in: scripts/collect-hub-outages.sh probes every hub in hubs.toml with a bounded read-only call and appends one NDJSON line per hub per sample (ts, hub, re`
+- **AC#2 (Agent)** — scripts/summarise-hub-outages.sh turns samples into outage intervals (start, end, duration_s, open flag) per hub with --json, plus p50/p95/max and whether 1 h covers p95 (H-1)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/summarise-hub-outages.sh in: scripts/summarise-hub-outages.sh turns samples into outage intervals (start, end, duration_s, open flag) per hub with --json, plus p50/p95/max and whe`
+- **AC#5 (Agent)** — A liveness canary (scripts/check-hub-outage-collector-freshness.sh + crontab) fires when the collector heartbeat/samples go stale, and appears in /canaries (canary-status.sh discovery)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/check-hub-outage-collector-freshness.sh in: A liveness canary (scripts/check-hub-outage-collector-freshness.sh + crontab) fires when the collector heartbeat/samples go stale, and appears in /can`
