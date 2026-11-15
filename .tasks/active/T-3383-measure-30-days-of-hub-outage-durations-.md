@@ -46,7 +46,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-07T16:33:27Z
-last_update: 2026-10-11T17:05:50Z
+last_update: 2026-11-15T23:10:23Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -78,6 +78,11 @@ bvp_scores_proposed:
 
 ## Context
 
+**Background / trigger:** arc-011 step 2 (T-3351) set circuit-credential lifetimes on an assumption about how long hubs are down; the operator asked for it to be measured.
+**Problem / hypothesis:** H-1: a 1 h credential/stale-list window covers real hub outages (p95). Unmeasured until this collector ran.
+**Goal:** collect at least 7 (ideally 30) days of per-hub reachability samples and summarise outage durations.
+**Expected outcome:** p50/p95/max outage per hub and a yes/no on H-1, fed back to the two rulings below.
+
 Two operator rulings in T-3351 (arc-011 step 2) wait on this measurement:
 1. OQ-3 = D (2026-10-07): circuit credential lifetime 1 h, renewal from 30 min, 24 h absolute, stale-list 1 h are
    STARTING values; re-check that 1 h covers the measured hub outages (hypothesis H-1).
@@ -96,7 +101,7 @@ Two operator rulings in T-3351 (arc-011 step 2) wait on this measurement:
 - [x] A liveness canary (scripts/check-hub-outage-collector-freshness.sh + crontab) fires when the collector heartbeat/samples go stale, and appears in /canaries (canary-status.sh discovery)
 - [x] runme.sh has an idempotent install action for both crontabs; tests/runme-fixtures.sh EXPECT_N updated and passing
 - [x] Hermetic fixtures cover collector, summariser interval maths, canary, and a mutant check, all green
-- [ ] 7-day run pending: collector installed via runme action; task stays started-work (exit condition of PH-0 6.2.1.a (1) is time-based)
+- [x] 7-day run pending: collector installed via runme action; task stays started-work (exit condition of PH-0 6.2.1.a (1) is time-based) (done: about 34 days, 49,517 samples per hub; result in `docs/reports/T-3383-hub-outage-result.md`: H-1 covered, fleet p95 2,281 s, production p95 ≤ 540 s; one shared 1 h 44 min outage across .107/.121/.122 exceeds 1 h)
 
 ### Human
 <!-- none -->
@@ -140,6 +145,7 @@ Two operator rulings in T-3351 (arc-011 step 2) wait on this measurement:
 bash tests/hub-outage-collector-fixtures.sh > /tmp/.t3383.out 2>&1 && grep -q "FAIL: 0" /tmp/.t3383.out
 bash tests/runme-fixtures.sh > /tmp/.t3383r.out 2>&1
 test -f .context/cron/hub-outage-collector.crontab
+grep -q "H-1 (a 1 h window covers p95 outage): covered" docs/reports/T-3383-hub-outage-result.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
