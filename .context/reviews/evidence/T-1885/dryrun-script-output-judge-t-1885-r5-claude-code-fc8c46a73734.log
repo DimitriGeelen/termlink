@@ -1,0 +1,158 @@
+# fw independent-review v0.1
+# DRY-RUN mode | task-filter=* class-filter=* since=* tick=False
+
+· T-1137   [OPERATOR-ACTION        ] SURFACE       /var/log on proxmox .180 is below 50 % after rotation + dail
+· T-1137   [OBSERVE-INFRA          ] SURFACE       CT 200 (.122) stops rebooting
+· T-1415   [TIME-GATED             ] SURFACE       Verify production hubs have been running flag-off for ≥7 day
+✓ T-1415   [REVIEW-CLI             ] PASS-ROBUST   Confirm bake metric is clean
+· T-1417   [OBSERVE-INFRA          ] SURFACE       Audit shows zero `event.broadcast` callers from this codebas
+· T-1419   [OBSERVE-INFRA          ] SURFACE       Post-deploy of T-1418, the freshness signal correctly distin
+· T-1420   [RUBBER-STAMP-MECHANICAL] SURFACE       Binary deployed on .141 — Method A or B
+· T-1420   [OBSERVE-INFRA          ] SURFACE       Full chat arc parity confirmed via fleet check
+· T-1426   [OTHER                  ] SURFACE       Verify the warning is informative without being noisy
+✗ T-1429   [REVIEW-CLI             ] FAIL          Verify the verb's UX from a vendored-agent perspective
+            reason: timeout or exec-error on at least one command
+~ T-1430   [REVIEW-CLI             ] PASS-LOOSE    Verify topic self-doc is discoverable from a fresh agent's p
+· T-1432   [OTHER                  ] SURFACE       Verify the cut-readiness signal is actionable
+? T-1435   [REVIEW-RENDER          ] INCONCLUSIVE  Verification of CUT-READY happens under T-1418, not here
+· T-1457   [OPERATOR-ACTION        ] SURFACE       Decide whether .141 needs a peer Claude attached at all, or 
+~ T-1486   [REVIEW-RENDER          ] PASS-LOOSE    Verify the watch view is steady (no flicker / no row jitter)
+✗ T-1487   [REVIEW-CLI             ] FAIL          Verify the one-liner output is operator-scannable
+            reason: 3/3 cmds non-zero exit, no keyword match
+~ T-1489   [REVIEW-CLI             ] PASS-LOOSE    Verify the truncation footer reads naturally
+? T-1498   [REVIEW-RENDER          ] INCONCLUSIVE  Verify the live single-peer view is steady and useful for "b
+~ T-1502   [REVIEW-CLI             ] PASS-LOOSE    Verify the fixed reading verbs surface real chat-arc content
+~ T-1529   [REVIEW-CLI             ] PASS-LOOSE    Verify the verb reads naturally
+? T-1530   [REVIEW-CLI             ] INCONCLUSIVE  Verify the verb reads naturally
+? T-1531   [REVIEW-CLI             ] INCONCLUSIVE  Verify the verb reads naturally
+~ T-1532   [REVIEW-CLI             ] PASS-LOOSE    Verify the verb reads naturally
+~ T-1533   [REVIEW-CLI             ] PASS-LOOSE    Verify the verb reads naturally
+~ T-1534   [REVIEW-CLI             ] PASS-LOOSE    Verify the verb reads naturally
+~ T-1535   [REVIEW-CLI             ] PASS-LOOSE    Verify the verb reads naturally
+? T-1536   [REVIEW-CLI             ] INCONCLUSIVE  Verify the verb reads naturally
+? T-1537   [REVIEW-CLI             ] INCONCLUSIVE  Verify the verb reads naturally
+? T-1557   [REVIEW-RENDER          ] INCONCLUSIVE  Verify `agent typers --watch` is steady (no flicker / no jit
+✗ T-1558   [REVIEW-CLI             ] FAIL          Verify `agent inbox --watch` reads naturally as live unread 
+            reason: timeout or exec-error on at least one command
+? T-1559   [REVIEW-RENDER          ] INCONCLUSIVE  Verify both `--watch` views are steady and useful
+~ T-1570   [REVIEW-CLI             ] PASS-LOOSE    Verify `termlink_agent_poll_*` family is operator-fluent ove
+· T-1632   [TIME-GATED             ] SURFACE       On next .122 deploy (after T-1166 bake clears), `hub.capabil
+· T-1633   [TIME-GATED             ] SURFACE       On next .122 deploy (post-bake), the warning is visible in h
+~ T-1673   [REVIEW-CLI             ] PASS-LOOSE    Confirm release pipeline produced artifacts
+· T-1695   [OPERATOR-ACTION        ] SURFACE       Re-enable OneDev auto-mirror (optional but recommended)
+· T-1695   [OPERATOR-ACTION        ] SURFACE       Revoke the diagnostic PAT pasted in this session (ends `…7eh
+· T-1695   [OTHER                  ] SURFACE       Releases published on GitHub for v0.10.0, v0.11.0, v0.11.1 (
+· T-1795   [OTHER                  ] SURFACE       Live confirm the fix on a populated hub
+· T-1799   [OPERATOR-ACTION        ] SURFACE       Rotate/revoke the compromised PAT on GitHub
+~ T-1885   [REVIEW-CLI             ] PASS-LOOSE    Run `fw independent-review --dry-run` and verify the per-tas
+· T-2014   [OTHER                  ] SURFACE       Framework-agent prompt is operator-ready: complete enough th
+· T-2015   [OTHER                  ] SURFACE       Framework-agent prompt at `docs/reports/T-2015-fw-upgrade-cl
+· T-2016   [OTHER                  ] SURFACE       Framework-agent prompt at `docs/reports/T-2016-fw-upgrade-re
+~ T-2197   [REVIEW-CLI             ] PASS-LOOSE    Make GO/NO-GO/DEFER decision on each of the 4 inceptions per
+· T-2198   [REVIEWER-AGENT-MISFILE ] SURFACE       Approve the T-2144 NO-GO decision. **Steps:** 1) read T-2144
+~ T-2203   [REVIEW-CLI             ] PASS-LOOSE    Choose Path A (`fw tier0 approve` + loop) or Path B (direct 
+~ T-2209   [REVIEW-CLI             ] PASS-LOOSE    The five history skills read naturally and are discoverable 
+~ T-2210   [REVIEW-CLI             ] PASS-LOOSE    The captured evidence is sufficient to batch-confirm the rub
+· T-2211   [OTHER                  ] SURFACE       The demo is a convincing operator-facing proof of the headli
+· T-2258   [OTHER                  ] SURFACE       Fixed binary deployed to the `.107` hub and the live repro n
+· T-2297   [OPERATOR-ACTION        ] SURFACE       Live end-to-end after installing the rebuilt hub binary
+~ T-2385   [REVIEW-CLI             ] PASS-LOOSE    The loud WARNING wording is clear and actionable in a real s
+· T-2389   [OTHER                  ] SURFACE       Decide when to re-home .107 agents under the T-2388 launcher
+· T-2402   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2409   [OTHER                  ] SURFACE       Decide who completes the ring20 host-side work (the residual
+~ T-2470   [REVIEW-CLI             ] PASS-LOOSE    Bless the canonical purpose sentence
+· T-2486   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+? T-2522   [REVIEW-RENDER          ] INCONCLUSIVE  **DECIDE: does `Days(N)` retention mean "keep N days by hub-
+~ T-2532   [REVIEW-CLI             ] PASS-LOOSE    Resolve the four OPEN policy decisions in `## Decisions` (ca
+· T-2550   [OTHER                  ] SURFACE       Decide the fix direction for spawn's default success semanti
+· T-2566   [OTHER                  ] SURFACE       Decision recorded on Q1 (queue / drop / coalesce presence on
+~ T-2566   [REVIEW-CLI             ] PASS-LOOSE    Decision recorded on Q2 (loop exit-after-N-queued: yes/no, N
+· T-2567   [OTHER                  ] SURFACE       Decide: should `execute_capped` force `exit_code = -1` (or a
+~ T-2567   [REVIEW-CLI             ] PASS-LOOSE    Consumer-contract audit: enumerate every `exec` / `termlink_
+· T-2570   [OPERATOR-ACTION        ] SURFACE       Decide whether non-goal #4 warrants any structural guard at 
+~ T-2570   [REVIEW-CLI             ] PASS-LOOSE    If a guard is wanted, scope what it would check (e.g. a revi
+· T-2576   [OTHER                  ] SURFACE       Decide the contract shape: an at-risk signal on `LeasedClaim
+· T-2576   [OPERATOR-ACTION        ] SURFACE       Decide whether the renew loop should also proactively surfac
+· T-2577   [OTHER                  ] SURFACE       Decide the remedy among (a) sweep-side guard below min live 
+~ T-2577   [REVIEW-CLI             ] PASS-LOOSE    Confirm the boundary vs T-2562 (forever-archival guard) and 
+~ T-2644   [REVIEW-CLI             ] PASS-LOOSE    Interactive attach surfaces dropped input without terminal c
+✗ T-2669   [REVIEW-CLI             ] FAIL          Choose the timeout policy for the ~140 CLASS 2 sites so the 
+            reason: timeout or exec-error on at least one command
+~ T-2708   [REVIEW-CLI             ] PASS-LOOSE    Is laptop-141 meant to be online?
+· T-2709   [OPERATOR-ACTION        ] SURFACE       Confirm the recency window is the right semantic
+· T-2710   [OPERATOR-ACTION        ] SURFACE       Decide whether the remaining 7 canaries get fixture suites n
+· T-2711   [OPERATOR-ACTION        ] SURFACE       Decide whether U-001 is filed to the shared `framework:picku
+· T-2723   [OPERATOR-ACTION        ] SURFACE       Decide whether U-008 is filed to the shared `framework:picku
+· T-2725   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2815   [OPERATOR-ACTION        ] SURFACE       Decide whether to remove the stray `/etc/cron.d/agentic-audi
+· T-2819   [OTHER                  ] SURFACE       Run the one-time catch-up in the main checkout and review be
+? T-2836   [REVIEW-RENDER          ] INCONCLUSIVE  Repaired episodics render correctly in Watchtower, and the t
+✗ T-2837   [REVIEW-CLI             ] FAIL          P-043 is disposed of deliberately — acted on or dropped, not
+            reason: timeout or exec-error on at least one command
+· T-2839   [OTHER                  ] SURFACE       The "every configured hub" ruling is implemented the way you
+· T-2839   [OTHER                  ] SURFACE       Restoring a deleted vendored guard was the right call under 
+· T-2861   [OTHER                  ] SURFACE       The next termlink session is launched under `claude-fw`, so 
+· T-2862   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2864   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2867   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2870   [RUBBER-STAMP-MECHANICAL] SURFACE       Serialise both `fw pickup process` cron lines with `flock`, 
+· T-2872   [OTHER                  ] SURFACE       Choose how `agent inbox` should stop counting its own receip
+· T-2875   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2898   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2907   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2908   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2909   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2918   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2920   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2925   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2930   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2931   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2932   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2934   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2936   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2937   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2940   [OTHER                  ] SURFACE       Review queue triaged to a readable size
+· T-2944   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2945   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2972   [RUBBER-STAMP-MECHANICAL] SURFACE       Post the three approved replies to the 055 cockpit DM topics
+· T-2984   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-2992   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+~ T-3139   [REVIEW-CLI             ] PASS-LOOSE    Confirm the upstream filing is the right route, or direct a 
+· T-3169   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3189   [OTHER                  ] SURFACE       The repopulated cost axis produces a sane ranking
+· T-3321   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3330   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3333   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3335   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+? T-3337   [REVIEW-RENDER          ] INCONCLUSIVE  Watchtower "Ask" search still answers after the change
+? T-3344   [REVIEW-CLI             ] INCONCLUSIVE  Independent review: step 1 output meets its role card's comp
+~ T-3344   [REVIEW-CLI             ] PASS-LOOSE    Step 1 output approved
+· T-3350   [OTHER                  ] SURFACE       Rule GP-11 (how the operator is a party to agent conversatio
+· T-3371   [OTHER                  ] SURFACE       The objectives say what termlink is for, in words you would 
+· T-3385   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3423   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3439   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3455   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3476   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3477   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3534   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3548   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3553   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3596   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3654   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3685   [RUBBER-STAMP-MECHANICAL] SURFACE       Create testdev's token at the terminal
+~ T-3717   [REVIEW-CLI             ] PASS-LOOSE    The operator follows the W3 rollback runbook on paper and fi
+· T-3745   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3746   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3747   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3748   [OTHER                  ] SURFACE       Review exploration findings and approve go/no-go decision
+· T-3754   [RUBBER-STAMP-MECHANICAL] SURFACE       Create the public tap repo and the push secret, then confirm
+
+# Summary  (processed=141, skipped-resume=0)
+
+  PASS-ROBUST   1
+  PASS-LOOSE    28
+  FAIL          5
+  INCONCLUSIVE  12
+  SURFACE       95
+
