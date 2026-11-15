@@ -24093,3 +24093,21 @@ scan_id: R-2ea4924c
 task_id: T-3792
 payload:
   task_file: .tasks/active/T-3792-local-user-remint-and-hub-link-cron-jobs.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T06:45:13Z'
+scan_id: R-8600f5ee
+task_id: T-3768
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T06:45:13Z'
+scan_id: R-8600f5ee
+task_id: T-3768
+payload:
+  task_file: .tasks/active/T-3768-canary-waker-liveness-canary-is-firing--.md

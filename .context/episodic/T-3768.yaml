@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3768: Canary waker-liveness-canary is FIRING — investigate and fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T06:45:27Z
+# ============================================================================
+
+task_id: T-3768
+task_name: "Canary waker-liveness-canary is FIRING — investigate and fix"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-13T08:15:10Z
+completed: 2026-11-15T06:45:09Z
+duration_days: 2
+updates_count: 4
+first_commit: 2026-11-14T23:02:53+01:00
+last_commit: 2026-11-15T07:45:06+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  external consultation (opencode + claude-code, isolated) on the waker canary; root cause is T-3751 counting mailbox readers as LIVE. waker canary judges heartbeat listeners only; mailbox readers (T-3751) reported, not fired on — option E, PD-234 unchanged; fixtures 10/0, mutant killed
+
+# Key outcomes
+outcomes:
+  - '`waker-liveness-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)'
+  - 'Class (a) judges only heartbeat listeners; a LIVE `source=mailbox-reader` is reported, never fired on; an unlisted heartbeat agent and a dead waker still fire (fixtures 8–10; mutant without the filter fails 3)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'waker canary judges heartbeat listeners only; mailbox readers (T-3751) reported, not fired on — option E, PD-234 unchanged; fixtures 10/0, mutant killed'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3768-canary-waker-liveness-canary-is-firing--.md'
+  - 'docs/operations/guard-layer-and-canaries.md'
+  - 'docs/reports/T-3768-consultation/bundle.md'
+  - 'docs/reports/T-3768-consultation/independence.json'
+  - 'docs/reports/T-3768-consultation/prompt.md'
+  - 'docs/reports/T-3768-consultation/seat-claude-code.md'
+  - 'docs/reports/T-3768-consultation/seat-opencode.md'
+  - 'scripts/check-waker-liveness-freshness.sh'
+  - 'tests/waker-liveness-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-14T23:02:53'
+    action: 'T-3768: external consultation (opencode + claude-code, isolated) on the waker canary; root cause is T-3751 counting mailbox readers as LIVE'
+  - time: '2026-11-15T07:45:06'
+    action: 'T-3768: waker canary judges heartbeat listeners only; mailbox readers (T-3751) reported, not fired on — option E, PD-234 unchanged; fixtures 10/0, mutant killed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2789 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [canary-escalation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2789
+  commits: 3
+  files_changed: 12
+  lines_added: 320
+  lines_removed: 13
+  footprint_refreshed_at: '2026-11-15T06:45:46Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3768-canary-waker-liveness-canary-is-firing--.md
+generated_by: context-agent-hybrid

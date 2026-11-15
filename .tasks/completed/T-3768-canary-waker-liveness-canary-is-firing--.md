@@ -6,12 +6,12 @@ description: >
   by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary
   always has a task naming it.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [canary-escalation]
-components: []
+components: [scripts/check-waker-liveness-freshness.sh, tests/waker-liveness-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -40,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-13T08:15:10Z
-last_update: 2026-11-15T06:45:06Z
-date_finished:
+last_update: 2026-11-15T06:45:09Z
+date_finished: 2026-11-15T06:45:09Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -413,3 +413,21 @@ bash scripts/check-waker-liveness-freshness.sh > .context/working/.t3768-live 2>
 - Both picked A with conditions. Both said A *amends* PD-234 (my brief wrongly said it "cites" it) and wanted a dated lapse. claude-code flagged the 2→13 jump as unexplained and to be checked before muting ("fix the signal rather than mute it").
 - Checked: the jump is ours. T-3751 (46bc3720d, 2026-11-12) made `agent-listeners.sh` count project-mailbox readers as LIVE (`source=mailbox-reader`). Live now: 13 mailbox-reader + 1 heartbeat (penelope, allowlisted). A mailbox reader never carries `pty_session`, so class (a) fires on all of them. No be-reachable state files, no waker processes.
 - New option E: class (a) judges only `source=heartbeat` listeners. This restores PD-234 exactly as written, so no amendment is needed; mailbox readers are reported, not fired on.
+
+### 2026-11-15T06:45:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8600f5ee
+- **Timestamp:** 2026-11-15T06:45:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `waker-liveness-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/canary-status.sh in: `waker-liveness-canary` reports HEALTHY on `bash scripts/canary-status.sh` (cause fixed, or the canary corrected if the finding was false)`
