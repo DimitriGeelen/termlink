@@ -8,10 +8,10 @@ description: >
   T-2025 + T-2028 are §6 primitives whose GO/NO-GO is blocking new substrate work
   per T-2144 conclusion. Operator authority required for resolution.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -20,8 +20,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-12T10:20:56Z
-last_update: '2026-09-27T21:34:04Z'
-date_finished:
+last_update: 2026-11-15T21:05:39Z
+date_finished: 2026-11-15T21:05:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -105,7 +105,8 @@ cost_estimate_proposed:
 > (diagnosed + fixed under T-2810; a second overdue deferral, T-2250, came out with it).
 > No `fw inception decide` was run on anything — those are yours.
 >
-- [ ] [REVIEW] Make GO/NO-GO/DEFER decision on each of the 4 inceptions per agent recommendations. **Steps:** read each task's Recommendation; run `fw inception decide T-XXX go|no-go|defer --rationale "..."`. **Expected:** all 4 transition out of limbo. **If not:** defer with explicit revisit_at date so G-053 daily scan picks them up later
+- [x] [REVIEW] Make GO/NO-GO/DEFER decision on each of the 4 inceptions per agent recommendations. **Steps:** read each task's Recommendation; run `fw inception decide T-XXX go|no-go|defer --rationale "..."`. **Expected:** all 4 transition out of limbo. **If not:** defer with explicit revisit_at date so G-053 daily scan picks them up later
+  **Reviewer verdict:** green V-20261115-819321af — reviewer-judge-t-2197-r1-5f302ad19fb4:reviewer (rung rung-1-same-vendor-independent), digest f5bc366f3f46; dispatch judge-t-2197-r1-5f302ad19fb4; evidence: .context/reviews/evidence/T-2197/AC1-judge-t-2197-r1-5f302ad19fb4.md; ledger .context/reviews/verdicts.jsonl
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -139,6 +140,9 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+# T-3800: each of the 4 inceptions carries a recorded decision (the Human REVIEW criterion's outcome).
+bash -c 'for t in T-1635 T-1898 T-2025 T-2028; do f=$(ls .tasks/active/$t-*.md .tasks/completed/$t-*.md 2>/dev/null | head -1); grep -qE "\*\*Decision\*\*: *(GO|NO-GO|DEFER)" "$f" || exit 1; done'
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -336,3 +340,16 @@ that could never arrive.
 `fw inception decide` is the human's call under the Authority Model, and "proceed as you see
 fit" delegates initiative, not that authority. Both are now visible, which is the part that
 was missing.
+
+### 2026-11-15T21:05:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1a98e9da
+- **Timestamp:** 2026-11-15T21:05:47Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

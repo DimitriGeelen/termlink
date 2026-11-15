@@ -1,0 +1,105 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2197: Audit D13 — 4 inception limbo tasks awaiting go/no-go (T-1635, T-1898, T-2025, T-2028)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T21:05:59Z
+# ============================================================================
+
+task_id: T-2197
+task_name: "Audit D13 — 4 inception limbo tasks awaiting go/no-go (T-1635, T-1898, T-2025, T-2028)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-06-12T10:20:56Z
+completed: 2026-11-15T21:05:39Z
+duration_days: 156
+updates_count: 4
+first_commit: 2026-08-20T19:23:40+02:00
+last_commit: 2026-11-15T21:51:36+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  refresh the inception-limbo list — 2 of 4 already closed, T-1898 was invisible by mechanism (T-2810). finalize T-2811 episodic, ack pickup through 26 (reply on the weak-check class at offset 26). reviewer verdict
+
+# Key outcomes
+outcomes:
+  - 'T-1635 RCA: read task, identify the 1 unchecked Human AC, refresh evidence if RUBBER-STAMP; if REVIEW, surface for human decision in this task''s Human ACs. **Done.** T-1635 Recommendation = GO (with option-i refinement); Decision section already records "**Decision**: GO". Agent ACs all ticked. The single unchecked Human AC is a [REVIEW] of `docs/reports/v2-peer-consult-seam-response.md` against the AEF proposal — pure human-judgment seam-review. Surfaced via `fw task review T-1635`. Already done; just needs human REVIEW click'
+  - 'T-1898 RCA: identify whether the inception has produced enough information for a go/no-go OR whether more exploration is required. **Recommendation = DEFER (revisit_at: 2026-07-06).** Rationale (per T-1898 file): zero of 8 spikes (S1-S8) executed because operator paused before spike-budget authorization. Decision recorded = DEFER. Two ways back to actionable: explicit spike-budget authorization OR triggering event (e.g. ring20-management >24h silence recurrence within 7d). G-053 daily revisit-due cron will surface on 2026-07-06. Surfaced via `fw task review T-1898`'
+  - 'T-2025 RCA: same as T-1898. Note T-2025 is substrate primitive #4 (filesystem-write observation) — substrate-arc directly blocks if deferred. **Recommendation = NO-GO; re-scope as documentation-only.** Investigation revealed the captured framing didn''t match reality: `agent-presence` IS already durable (retention=forever SQLite-backed), only the derived LIVE/STALE/OFFLINE view is in-memory, reconstructible within one heartbeat (~30s). Building T-2025 as captured would create two-sources-of-truth anti-pattern. Action on NO-GO is doc-only (ADR §6 #7 wording + substrate-claim-primitive post-restart blackout paragraph). Substrate-arc IS NOT blocked — primitive #4 was a phantom requirement. Surfaced via `fw task review T-2025`. **Correction: T-2025 is substrate primitive #7 (persistent presence + circuit-breaker), not #4 (filesystem-write observation, which is T-2022). T-2197''s original description had this miscategorized**'
+  - 'T-2028 RCA: same as T-1898. Note T-2028 is substrate primitive #10 throughput/connection budget per T-2144 (already shipped) — likely closable as superseded. **Recommendation = PARTIAL GO with 3 tracks (A: retention audit + Retention::Latest, B: connection cap + per-sender rate limit, C: budget observability).** ALL THREE TRACKS SHIPPED per CLAUDE.md catalog: Track A (T-2142 Retention::Latest), Track B + C (T-2048..T-2070 hub.governor_status RPC + CLI + fleet wrapping + watch + notify + log + history MCP). Closeable as "GO retroactively — all three tracks shipped." Already surfaced for human close via `fw task review T-2028` during T-2201 work, see commit `dc6df225`'
+  - 'Per-task next-step proposed in Updates section of each (decide GO / decide NO-GO with evidence / DEFER with revisit_at). **Done by Recommendation section in each task file** (all 4 have populated Recommendation blocks). Per-task /inception/<id> Watchtower URL surfaced via the 4 `fw task review` calls. Decision routes:'
+  - '[REVIEW] Make GO/NO-GO/DEFER decision on each of the 4 inceptions per agent recommendations. **Steps:** read each task''s Recommendation; run `fw inception decide T-XXX go|no-go|defer --rationale "..."`. **Expected:** all 4 transition out of limbo. **If not:** defer with explicit revisit_at date so G-053 daily scan picks them up later'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-20.yaml'
+  - '.context/episodic/T-2810.yaml'
+  - '.context/episodic/T-2811.yaml'
+  - '.context/project/decisions.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/reviews/evidence/T-2197/AC1-judge-t-2197-r1-5f302ad19fb4.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.tool-counter'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2197-audit-d13--4-inception-limbo-tasks-await.md'
+  - '.tasks/completed/T-2810-the-g-053-revisit-cron-has-run-daily-for.md'
+  - '.tasks/completed/T-2811-watchtower-cannot-start--4-untracked-web.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-20T19:23:40'
+    action: 'T-2197: refresh the inception-limbo list — 2 of 4 already closed, T-1898 was invisible by mechanism (T-2810)'
+  - time: '2026-08-20T20:00:59'
+    action: 'T-2197: finalize T-2811 episodic, ack pickup through 26 (reply on the weak-check class at offset 26)'
+  - time: '2026-11-15T21:51:36'
+    action: 'T-2197: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 225284 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 225284
+  commits: 4
+  files_changed: 26
+  lines_added: 870
+  lines_removed: 118
+  footprint_refreshed_at: '2026-11-15T21:06:44Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2197-audit-d13--4-inception-limbo-tasks-await.md
+generated_by: context-agent-hybrid
