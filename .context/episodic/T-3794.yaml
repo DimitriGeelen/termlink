@@ -1,0 +1,157 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3794: Re-vendor AEF v1.8.16-be.49 -> be.51 (T-5137 send guard) via runme 11a
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T08:13:54Z
+# ============================================================================
+
+task_id: T-3794
+task_name: "Re-vendor AEF v1.8.16-be.49 -> be.51 (T-5137 send guard) via runme 11a"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-15T07:30:28Z
+completed: 2026-11-15T08:13:43Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-15T08:57:25+01:00
+last_commit: 2026-11-15T09:10:21+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme 11a retargeted to AEF v1.8.16-be.51 (c27b56a1a, T-5137 send guard); 3 preserved files merged clean with manifest; tag/marker/task are seams; fixtures 360/0. fw upgrade -> v1.8.16-be.51 (c27b56a1a, 211 commits; T-5137; runme 11a)
+
+# Key outcomes
+outcomes:
+  - 'Preserved files that changed be.49 -> be.51 are identified from a clone of the public mirror at c27b56a1a; each has a stored merge + manifest (or none changed)'
+  - 'runme 11a targets be.51 and checks for T-5137 instead of T-5105; runme fixtures pass'
+  - 'After the operator''s run: VERSION at be.51, `latest.log` shows 11a OK and rc 0 (bar greenfield''s expected lines)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme 11a retargeted to AEF v1.8.16-be.51 (c27b56a1a, T-5137 send guard); 3 preserved files merged clean with manifest; tag/marker/task are seams; fixtures 360/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/context/check-active-task.sh'
+  - '.agentic-framework/agents/context/check-project-boundary.sh'
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.agentic-framework/agents/context/sidecar-adapter2.sh'
+  - '.agentic-framework/agents/git/lib/framework-hook-lines.txt'
+  - '.agentic-framework/agents/git/lib/grant-file-guard.sh'
+  - '.agentic-framework/agents/git/lib/hooks.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/agents/testhost/guest-run.sh'
+  - '.agentic-framework/docs/generated/components/agents-context-sidecar-adapter2.md'
+  - '.agentic-framework/docs/generated/components/agents-git-lib-grant-file-guard.md'
+  - '.agentic-framework/docs/generated/components/agents-testhost-template-aef-testhost-boot.md'
+  - '.agentic-framework/docs/generated/components/lib-sidecar-adapter2.md'
+  - '.agentic-framework/docs/generated/components/lib-task_updates.md'
+  - '.agentic-framework/docs/generated/components/lib-testhost_proxmox.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5031_grant_file_commit_guard.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5031_signed_grants.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5032_grant_links.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5033_grant_refused_verbs_resolved.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5034_grant_file_bootstrap.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5036_boundary_quoted_space_path.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5088_fabric_register_not_refused.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5089_fabric_dotfile_slug.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5093_template_handover_default.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5112_partial_complete_close.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5116_stale_mention_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5117_close_prints_not_applied.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5117_not_applied_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5118_finalised_closure_commit.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5119_provider_refusal_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5120_dispatch_prune.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5121_judge_dispatch_timeout_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t5123_termlink_check_no_hub.md'
+  - '.agentic-framework/docs/reports/EWCR/T-5135-deepseek-mistral-dispositions.md'
+  - '.agentic-framework/docs/reports/EWCR/drive-7-procasfit-handback.md'
+  - '.agentic-framework/docs/reports/T-5009-isolated-test-host-design.md'
+  - '.agentic-framework/docs/reports/T-5054-adapter2-design.md'
+  - '.agentic-framework/docs/reports/T-5054-adapter2-spec-pack.md'
+  - '.agentic-framework/docs/reports/T-5054-sidecar-meter-only.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.16-results.md'
+  - '.agentic-framework/lib/access_grants.py'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/design_register.py'
+  - '.agentic-framework/lib/hook_parity.py'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/sidecar/adapter2.py'
+  - '.agentic-framework/lib/sidecar/addressing.py'
+  - '.agentic-framework/lib/sidecar/hooks.py'
+  - '.agentic-framework/lib/sidecar/main_session.py'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/testhost.py'
+  - '.agentic-framework/lib/testhost_proxmox.py'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/policy/review-worker-settings.json'
+  - '.agentic-framework/web/blueprints/approvals.py'
+  - '.agentic-framework/web/blueprints/cockpit.py'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.agentic-framework/web/blueprints/core.py'
+  - '.agentic-framework/web/blueprints/fabric.py'
+  - '.agentic-framework/web/blueprints/tasks.py'
+  - '.agentic-framework/web/search_utils.py'
+  - '.agentic-framework/web/templates/base.html'
+  - '.agentic-framework/web/templates/fabric_explorer.html'
+  - '.agentic-framework/web/templates/tasks.html'
+  - '.agentic-framework/web/warmup.py'
+  - '.context/vendor-merges/T-3794/MANIFEST.tsv'
+  - '.context/vendor-merges/T-3794/agents/context/check-active-task.sh.merged'
+  - '.context/vendor-merges/T-3794/agents/context/lib/safe-commands.sh.merged'
+  - '.context/vendor-merges/T-3794/lib/sidecar_cli.py.merged'
+  - '.framework.yaml'
+  - '.tasks/active/T-3794-re-vendor-aef-v1816-be49---be51-t-5137-s.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-15T08:57:25'
+    action: 'T-3794: runme 11a retargeted to AEF v1.8.16-be.51 (c27b56a1a, T-5137 send guard); 3 preserved files merged clean with manifest; tag/marker/task are seams; fixtures 360/0'
+  - time: '2026-11-15T09:10:21'
+    action: 'T-3794: fw upgrade -> v1.8.16-be.51 (c27b56a1a, 211 commits; T-5137; runme 11a)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 43 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 43
+  commits: 3
+  files_changed: 80
+  lines_added: 9942
+  lines_removed: 150
+  footprint_refreshed_at: '2026-11-15T08:14:04Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3794-re-vendor-aef-v1816-be49---be51-t-5137-s.md
+generated_by: context-agent-hybrid

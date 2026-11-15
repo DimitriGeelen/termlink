@@ -24111,3 +24111,21 @@ scan_id: R-8600f5ee
 task_id: T-3768
 payload:
   task_file: .tasks/active/T-3768-canary-waker-liveness-canary-is-firing--.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T08:13:44Z'
+scan_id: R-bb8a1cb6
+task_id: T-3794
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T08:13:44Z'
+scan_id: R-bb8a1cb6
+task_id: T-3794
+payload:
+  task_file: .tasks/active/T-3794-re-vendor-aef-v1816-be49---be51-t-5137-s.md

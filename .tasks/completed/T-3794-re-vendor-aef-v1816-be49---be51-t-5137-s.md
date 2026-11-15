@@ -4,12 +4,12 @@ name: "Re-vendor AEF v1.8.16-be.49 -> be.51 (T-5137 send guard) via runme 11a"
 description: >
   Re-vendor AEF v1.8.16-be.49 -> be.51 (T-5137 send guard) via runme 11a
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-15T07:30:28Z
-last_update: 2026-11-15T07:57:25Z
-date_finished: null
+last_update: 2026-11-15T08:13:43Z
+date_finished: 2026-11-15T08:13:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -67,7 +67,7 @@ date_finished: null
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Preserved files that changed be.49 -> be.51 are identified from a clone of the public mirror at c27b56a1a; each has a stored merge + manifest (or none changed)
 - [x] runme 11a targets be.51 and checks for T-5137 instead of T-5105; runme fixtures pass
-- [ ] After the operator's run: VERSION at be.51, `latest.log` shows 11a OK and rc 0 (bar greenfield's expected lines)
+- [x] After the operator's run: VERSION at be.51, `latest.log` shows 11a OK and rc 0 (bar greenfield's expected lines)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -374,3 +374,21 @@ grep -q "T-5137" .agentic-framework/lib/sidecar/addressing.py
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3794-re-vendor-aef-v1816-be49---be51-t-5137-s.md
 - **Context:** Initial task creation
+
+### 2026-11-15T08:15Z — operator run done [agent]
+- runme-20261115T080538Z-4099106.log (head 91b6e240e), rc=1 from the 3 greenfield FAILED lines only (host up, hub down; T-3674 ruling A pending).
+- 11a: upgraded 1.8.15+1122.gda9942919 -> 1.8.15+1333.gc27b56a1a (211 commits). CLAUDE.md project part and 12 preserved files byte-identical; 3 merged files installed. 18 .upstream copies parked in `.context/working/vendor-upstream-v1816-be51/`. Commit dbe0bfa80 pushed to origin; Watchtower answering at 192.168.10.107:3003; fw doctor no new FAIL.
+- T-5137 live: `topic_has_active_reader` accepts a reader that fetched 1h ago behind our post, and refuses one quiet for 3 days or never fetched. The design circuit no longer needs `--force` while its session reads at least daily.
+
+### 2026-11-15T08:13:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-bb8a1cb6
+- **Timestamp:** 2026-11-15T08:13:44Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
