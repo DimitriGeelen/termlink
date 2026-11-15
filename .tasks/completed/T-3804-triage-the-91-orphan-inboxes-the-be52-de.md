@@ -4,10 +4,10 @@ name: "Triage the 91 orphan inboxes the be.52 detector found (stranded mail to n
 description: >
   Triage the 91 orphan inboxes the be.52 detector found (stranded mail to nickname addresses on .107's hub)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-15T22:59:54Z
-last_update: 2026-11-15T23:03:25Z
-date_finished: null
+last_update: 2026-11-15T23:03:26Z
+date_finished: 2026-11-15T23:03:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -371,3 +371,16 @@ test "$(grep -c "inbox:cacc73ea32b121dd\|^t3684" docs/reports/T-3804-orphan-inbo
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3804-triage-the-91-orphan-inboxes-the-be52-de.md
 - **Context:** Initial task creation
+
+### 2026-11-15T23:03:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4c808653
+- **Timestamp:** 2026-11-15T23:03:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

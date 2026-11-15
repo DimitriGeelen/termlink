@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3804: Triage the 91 orphan inboxes the be.52 detector found (stranded mail to nickname addresses on .107's hub)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T23:03:39Z
+# ============================================================================
+
+task_id: T-3804
+task_name: "Triage the 91 orphan inboxes the be.52 detector found (stranded mail to nickname addresses on .107's hub)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-15T22:59:54Z
+completed: 2026-11-15T23:03:26Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-16T00:03:25+01:00
+last_commit: 2026-11-16T00:03:25+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  91 orphan inboxes triaged (81 test residue, 2 W1 traffic, 8 real-mail topics); 5 senders told the real circuit; all acknowledged, detector clean
+
+# Key outcomes
+outcomes:
+  - 'All 91 classified in `docs/reports/T-3804-orphan-inboxes.md` (topic, count, senders, first/last date, class), metadata only (no bodies read except to judge whether a request is pending): 81 test residue, 2 our W1 sidecar traffic, 8 topics with real mail (dates unreadable from the post envelope, noted)'
+  - 'For each nickname of a known project that holds real mail, the owner (or sender) is told the real circuit, and any pending request to us is answered: 5 notices (832, ring20, 055, AEF, 1409); none pending to us (our own 12 posts were moot or broadcasts)'
+  - 'Seen-and-judged orphans acknowledged with `fw sidecar orphan-inboxes --ack`; the detector then lists none of them (91 acked; "orphan inboxes: none")'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3804-triage-the-91-orphan-inboxes-the-be52-de.md'
+  - 'docs/reports/T-3804-orphan-inboxes.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-16T00:03:25'
+    action: 'T-3804: 91 orphan inboxes triaged (81 test residue, 2 W1 traffic, 8 real-mail topics); 5 senders told the real circuit; all acknowledged, detector clean'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 2
+  files_changed: 5
+  lines_added: 600
+  lines_removed: 4
+  footprint_refreshed_at: '2026-11-15T23:03:49Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3804-triage-the-91-orphan-inboxes-the-be52-de.md
+generated_by: context-agent-hybrid

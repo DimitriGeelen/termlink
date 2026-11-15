@@ -24525,3 +24525,21 @@ scan_id: R-696a7d0b
 task_id: T-3798
 payload:
   task_file: .tasks/active/T-3798-mail-to-an-unread-nickname-inbox-eg-inbo.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T23:03:27Z'
+scan_id: R-4c808653
+task_id: T-3804
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T23:03:27Z'
+scan_id: R-4c808653
+task_id: T-3804
+payload:
+  task_file: .tasks/active/T-3804-triage-the-91-orphan-inboxes-the-be52-de.md
