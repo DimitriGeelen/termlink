@@ -397,3 +397,6 @@ bvp_scores_proposed:
 - AEF's orphan detector missed it because `orphan_inboxes()` judges non-own topics by the hub's unread flag, which any fetch clears (our own alert scan peeks), and it runs only in fw audit.
 - Filed with AEF (09376cac): (1) project-declared read aliases in read_topics; (2) orphan detection by a seen/answered marker, not the hub flag; (3) refuse a bare `--to <name>` that resolves to an unread nickname inbox and name the candidates.
 - Meanwhile coverage is session-start-alerts only (it lists nickname-inbox mail at session start/resume), not mid-session.
+
+### 2026-11-15T17:00Z — AEF took all three [agent]
+- AEF msg ef76f6fe: **T-5148** project-declared inbox aliases in read_topics; **T-5149** orphan detection by seen/answered marker, also at prompt time; **T-5150** refuse a bare `--to <name>` outside the peer directory, with candidates. T-5150 goes first (it stops new strays). Open here until they land and we re-vendor; then declare `termlink` as our alias and prove it with a sentinel post.
