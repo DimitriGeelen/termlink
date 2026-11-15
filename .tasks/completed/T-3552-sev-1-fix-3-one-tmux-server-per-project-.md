@@ -8,12 +8,12 @@ description: >
   servers with a clean env (update-environment empty, exit-empty off); attach/list
   wrappers and cockpit enumeration; never kill the shared default server to migrate.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [incident, sev1]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/commands/execution.rs, crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/commands/tmux.rs, crates/termlink-cli/src/commands/tmux_spawn.rs, crates/termlink-cli/src/main.rs, crates/termlink-session/src/child_env.rs, crates/termlink-session/src/lib.rs, crates/termlink-session/src/registration.rs, crates/termlink-session/src/tmux_server.rs, scripts/check-env-leak-freshness.sh, scripts/lib/env-leak-scan.py, scripts/lib/session-zombies.py, scripts/lib/tmux_servers.py, tests/env-leak-canary-fixtures.sh, tests/tmux-servers-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-22T14:05:04Z
-last_update: 2026-10-23T13:06:16Z
-date_finished:
+last_update: 2026-11-15T23:52:51Z
+date_finished: 2026-11-15T23:52:51Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -73,7 +73,10 @@ bvp_scores_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** SEV-1 T-3549 (2026-10-22): environment leaked across projects through a shared tmux server. Fixes 1 and 2 (T-3550, T-3551) block the leak by construction; this is fix 3.
+**Problem / hypothesis:** every project's sessions shared the default tmux server, so one project's environment and panes were reachable from another.
+**Goal:** one tmux server per project (`tl-<slug>-<hash>`), with spawns, list, attach and the canaries aware of it; switched on per host once consumers (055's cockpit) read the new servers.
+**Expected outcome:** built and installed default OFF (operator ruling A); turning it on is one runme action after 055 confirms (T-3806).
 
 Consumer requirement (055-agentic-fleet-cockpit, 2026-10-22, conversation sev1-tmux-env-leak-2026-10-22): the
 attach/list wrappers take a **project path**, not a socket path. Send them the interface draft on that
@@ -89,7 +92,7 @@ sev1-tmux-env-leak-2026-10-22 before the switch flips on .107.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Interface draft `docs/reports/T-3552-per-project-tmux-interface.md` written and sent to 055 on sev1-tmux-env-leak-2026-10-22 before any interface is fixed; their answer recorded
+- [x] Interface draft `docs/reports/T-3552-per-project-tmux-interface.md` written and sent to 055 on sev1-tmux-env-leak-2026-10-22 before any interface is fixed; their answer recorded
 - [x] Socket name derived only from the T-3551 project rule (`project_of`), validated `^tl-[a-z0-9-]{1,24}-[0-9a-f]{8}$`, used only with `-L`; unit tests for slug, hash, validation and a refused unsafe name
 - [x] tmux spawn/dispatch put new sessions on the project's server, started under the T-3550 allow-list with `-f /dev/null`, `exit-empty off`, `update-environment ""`; live test on a private server; the default server is never killed
 - [x] `termlink tmux socket|list|attach` take a project path; `list --json` reports dead servers instead of skipping them; registration metadata carries `tmux_server`
@@ -144,6 +147,10 @@ sev1-tmux-env-leak-2026-10-22 before the switch flips on .107.
 -->
 
 ## Verification
+
+test -f docs/reports/T-3552-per-project-tmux-interface.md
+env -u PROJECT_ROOT cargo test -p termlink --bin termlink tmux > .context/working/.t3552 2>&1 && grep -q "test result: ok" .context/working/.t3552
+bash tests/env-leak-canary-fixtures.sh > .context/working/.t3552e 2>&1
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -314,6 +321,11 @@ sev1-tmux-env-leak-2026-10-22 before the switch flips on .107.
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** SEV-1 T-3549 (2026-10-22): panes in five projects (0506, 1023, 832, 999-AEF, /opt/termlink) carried 1409's live agent socket and token through the shared tmux server.
+**Root cause:** (ranked in `docs/reports/T-3549-incident/claude.md`) (1) the default tmux server's global environment came from whichever client started it, shared host state that nobody owned; (2) a name-based deny-list (tmux_spawn.rs) that cannot cover variables nobody knew about.
+**Why structurally allowed:** every project's sessions used one default server, so a single server-wide environment was visible everywhere. Fixes were reactive additions to the deny-list.
+**Prevention:** T-3550 (clean server environment plus an allow-list) and T-3551 (project rule) block the leak by construction. This task adds per-project servers (`tl-<slug>-<hash>`, `-f /dev/null`, `update-environment ""`), and the env-leak canary and zombie sweep enumerate every `tl-*` server. Switched on per host after 055's readers move (T-3806, operator ruling A).
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -411,3 +423,16 @@ sev1-tmux-env-leak-2026-10-22 before the switch flips on .107.
 ### 2026-10-22T22:07:16Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-15T23:52:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-496db667
+- **Timestamp:** 2026-11-15T23:52:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

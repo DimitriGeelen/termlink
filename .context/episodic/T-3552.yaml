@@ -1,0 +1,125 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3552: SEV-1 fix 3: one tmux server per project via a single controlled launcher; project-aware attach/list for cockpits; migrate sessions by controlled replacement
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T23:53:10Z
+# ============================================================================
+
+task_id: T-3552
+task_name: "SEV-1 fix 3: one tmux server per project via a single controlled launcher; project-aware attach/list for cockpits; migrate sessions by controlled replacement"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-22T14:05:04Z
+completed: 2026-11-15T23:52:51Z
+duration_days: 24
+updates_count: 3
+first_commit: 2026-10-23T00:08:54+02:00
+last_commit: 2026-10-23T15:06:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  interface draft for per-project tmux servers (for 055's comment before it is fixed). per-project tmux server names (tl-<slug>-<hash8> from the T-3551 project rule; tl-host outside any project; validated before any -L). zombie detector and env-leak canary enumerate every per-project tmux server (before spawn moves onto them). tmux spawn/dispatch put new sessions on their project's own server. termlink tmux socket|list|attach by project path (055's requirement). registrations record their tmux_server; tmux list matches sessions to registrations by it. per-project servers behind a host switch, default OFF (operator ruling A); socket --ensure; attach -f ignore-size / -r. tmux attach tells 'tmux could not run' and 'server not available' apart from 'no sessions'. tmux list --json carries the pane/window fields 055's cockpit reads (item B). record 050 as a cutover consumer (Pen's tmux probe)
+
+# Key outcomes
+outcomes:
+  - 'Interface draft `docs/reports/T-3552-per-project-tmux-interface.md` written and sent to 055 on sev1-tmux-env-leak-2026-10-22 before any interface is fixed; their answer recorded'
+  - 'Socket name derived only from the T-3551 project rule (`project_of`), validated `^tl-[a-z0-9-]{1,24}-[0-9a-f]{8}$`, used only with `-L`; unit tests for slug, hash, validation and a refused unsafe name'
+  - 'tmux spawn/dispatch put new sessions on the project''s server, started under the T-3550 allow-list with `-f /dev/null`, `exit-empty off`, `update-environment ""`; live test on a private server; the default server is never killed'
+  - '`termlink tmux socket|list|attach` take a project path; `list --json` reports dead servers instead of skipping them; registration metadata carries `tmux_server`'
+  - 'session-zombies.py and the env-leak canary enumerate every `tl-*` server; their fixtures cover a project server'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'interface draft for per-project tmux servers (for 055''s comment before it is fixed)'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-23 — cutover gate: host switch, default OFF until 055''s readers move (operator ruling)'
+    chose: 'A. New spawns go to per-project servers only when `/etc/termlink/tmux-per-project` exists or `TERMLINK_TMUX_PER_PROJECT=1` is set; otherwise they stay on the default server, still protected by T-3550/T-3551. 055 switches its readers (capture-pane, list-clients, attach -f ignore-size, ...) and tells us; turning the switch on is then one runme action. Greenfield''s deploy goes ahead meanwhile.'
+    rationale: '055''s cockpit reads only the default server; an unconditional switch blinds it the moment the binary is installed. The leak itself is already blocked by construction, so server separation can wait on the reader side.'
+    alternatives_rejected: ['B, on by default with an opt-out every spawner must honour (one that does not blinds the cockpit); C, holding all deploys until 055 has switched.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3558.yaml'
+  - '.fabric/components/crates-termlink-session-src-tmux_server.yaml'
+  - '.fabric/components/scripts-lib-tmux_servers.yaml'
+  - '.fabric/components/tests-tmux-servers-fixtures.yaml'
+  - '.tasks/active/T-3552-sev-1-fix-3-one-tmux-server-per-project-.md'
+  - '.tasks/completed/T-3558-re-vendor-aef-v1815-be3---be4-b19757443-.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/dispatch.rs'
+  - 'crates/termlink-cli/src/commands/execution.rs'
+  - 'crates/termlink-cli/src/commands/mod.rs'
+  - 'crates/termlink-cli/src/commands/tmux.rs'
+  - 'crates/termlink-cli/src/commands/tmux_spawn.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-session/src/child_env.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - 'crates/termlink-session/src/registration.rs'
+  - 'crates/termlink-session/src/tmux_server.rs'
+  - 'docs/reports/T-3552-per-project-tmux-interface.md'
+  - 'scripts/check-env-leak-freshness.sh'
+  - 'scripts/lib/env-leak-scan.py'
+  - 'scripts/lib/session-zombies.py'
+  - 'scripts/lib/tmux_servers.py'
+  - 'tests/env-leak-canary-fixtures.sh'
+  - 'tests/tmux-servers-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-23T00:08:54'
+    action: 'T-3552: interface draft for per-project tmux servers (for 055''s comment before it is fixed)'
+  - time: '2026-10-23T00:11:21'
+    action: 'T-3552: per-project tmux server names (tl-<slug>-<hash8> from the T-3551 project rule; tl-host outside any project; validated before any -L)'
+  - time: '2026-10-23T00:13:34'
+    action: 'T-3552: zombie detector and env-leak canary enumerate every per-project tmux server (before spawn moves onto them)'
+  - time: '2026-10-23T00:19:37'
+    action: 'T-3552: tmux spawn/dispatch put new sessions on their project''s own server'
+  - time: '2026-10-23T00:24:57'
+    action: 'T-3552: termlink tmux socket|list|attach by project path (055''s requirement)'
+  - time: '2026-10-23T00:30:23'
+    action: 'T-3552: registrations record their tmux_server; tmux list matches sessions to registrations by it'
+  - time: '2026-10-23T11:04:10'
+    action: 'T-3552: per-project servers behind a host switch, default OFF (operator ruling A); socket --ensure; attach -f ignore-size / -r'
+  - time: '2026-10-23T12:04:16'
+    action: 'T-3552: tmux attach tells ''tmux could not run'' and ''server not available'' apart from ''no sessions'''
+  - time: '2026-10-23T12:12:17'
+    action: 'T-3552: tmux list --json carries the pane/window fields 055''s cockpit reads (item B)'
+  - time: '2026-10-23T15:06:17'
+    action: 'T-3552: record 050 as a cutover consumer (Pen''s tmux probe)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 10 commit(s), 35147 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [incident, sev1]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 35147
+  commits: 11
+  files_changed: 28
+  lines_added: 1722
+  lines_removed: 99
+  footprint_refreshed_at: '2026-11-15T23:53:21Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3552-sev-1-fix-3-one-tmux-server-per-project-.md
+generated_by: context-agent-hybrid
