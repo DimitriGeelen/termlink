@@ -1,25 +1,19 @@
 ---
-id: T-3178
-name: "Tier-1 write-gate bypass: 2> file and &> file classify as not-a-write"
+id: T-2858
+name: "Install-path drift: /root/.local/bin/termlink is stale behind the other two
+  install paths"
 description: >
-  has_bash_write_pattern() in vendored agents/context/lib/safe-commands.sh classifies
-  a numbered-fd redirect to a FILE as not-a-write, so the Tier-1 active-task gate
-  admits it with no task. Reported by 050-email-archive (P-006, their T-2257) at framework:pickup
-  offset 188 with a fix and 11 bats tests. CONFIRMED LIVE HERE by sourcing our own
-  vendored predicate: 'bin/fw audit 2> out.txt' -> not-write. We also found a SECOND
-  case they did not report: 'bin/fw audit &> out.txt' -> not-write, which is bash
-  shorthand for '>file 2>&1' and is unambiguously a file write. Their report lists
-  &> in its must-not-change set, which their own proposed fix contradicts - worth
-  telling them. Root cause: the exclusion tests the char BEFORE the operator ('[^2>&]>[^>&]|>>'),
-  but 2>&1 and 2>file differ only AFTER it. Proposed predicate '>>?($|[^&])' verified
-  here against 10 cases including both bypasses and all five must-not-change duplicator
-  forms. File is VENDORED (G-062): register in .vendor-divergence.yaml before patching,
-  and confirm upstream carries it.
+  check-installed-binary-drift has been the guard layer's only firing member for two
+  sessions. /root/.local/bin/termlink is 0.11.1612 (2026-08-26) while /root/.cargo/bin
+  and /usr/local/bin both carry 0.11.1716. The fix is one cp, but the path is outside
+  /opt/termlink so the T-559 project boundary correctly refuses it from an agent session.
+  Filing so the operator action has an approval record instead of being re-stated
+  verbally each session.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -33,9 +27,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-26T22:27:54Z
-last_update: '2026-09-27T21:34:09Z'
-date_finished:
+created: 2026-08-30T10:13:13Z
+last_update: 2026-11-15T20:22:31Z
+date_finished: 2026-11-15T20:22:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -47,7 +41,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-26T22:29:41Z'
+  - ts: '2026-09-02T06:40:17Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -61,59 +55,68 @@ bvp_scores_proposed:
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
-  - ts: '2026-09-26T23:44:10Z'
+  - ts: '2026-09-08T21:28:26Z'
     estimator: bvp-estimator-v1-heuristic
     cost_estimate:
       blast_radius:
       tier: 2
       effort: 8
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=254,acs=9)
+      (workflow:build); effort=8 (lines=293,acs=5)
     rubric_sha: e4a00f38e801
-  - ts: '2026-09-27T21:34:09Z'
+  - ts: '2026-09-27T21:34:06Z'
     estimator: bvp-estimator-v1-heuristic
     cost_estimate:
-      blast_radius: 3
+      blast_radius: 1
       tier: 2
       effort: 8
-    rationale: blast_radius=3 (3-file-refs-derived-T-3189); tier=2 
-      (workflow:build); effort=8 (lines=263,acs=9)
+    rationale: blast_radius=1 (1-file-ref-derived-T-3189); tier=2 
+      (workflow:build); effort=8 (lines=290,acs=5)
     rubric_sha: e4a00f38e801
 ---
 
-# T-3178: Tier-1 write-gate bypass: 2> file and &> file classify as not-a-write
+# T-2858: Install-path drift: /root/.local/bin/termlink is stale behind the other two install paths
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`check-installed-binary-drift.sh` has been the guard layer's **only** firing member for
+two consecutive sessions (85 passed / 0 errored / 1 FAIL). Measured now:
+
+```
+/root/.cargo/bin/termlink     0.11.1716   2026-08-29
+/root/.local/bin/termlink     0.11.1612   2026-08-26   <-- stale
+/usr/local/bin/termlink       0.11.1716   2026-08-29
+DRIFT(1): 2 distinct versions across installed paths
+```
+
+Why this is not cosmetic: **different consumers on this host execute different code.**
+Whichever tool resolves `termlink` via `~/.local/bin` runs a build from three days and
+~104 commits earlier, so a fix that is landed, tested and green in git is simply not
+running for that caller — and nothing about the failure says "you are on an old binary".
+That is the G-069 shipped≠live class the fleet-binary canary exists to catch, reproduced
+locally on one host.
+
+**Why an agent cannot do it:** the target is `/root/.local/bin`, outside `/opt/termlink`,
+so the T-559 project boundary refuses the write — correctly. It was declined, not
+attempted. This task exists so the action has an approval record rather than being
+re-stated verbally each session.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Both live bypasses reproduced against our OWN vendored predicate by sourcing
-      `safe-commands.sh` and calling `has_bash_write_pattern` directly (PL-386 — never
-      act on a differing number without the framework's own predicate): `2> out.txt`
-      and `&> out.txt` both return not-write.
-- [x] The five descriptor-duplicator forms confirmed to still read not-write in our
-      tree, so the fix has a real must-not-change set to hold: `2>&1`, `1>&2`, `>&2`,
-      plus `> out.txt` / `3> out.txt` / `sed -i` correctly reading WRITE.
-- [x] Proposed replacement predicate `>>?($|[^&])` verified in isolation over all ten
-      cases: both bypasses classify WRITE, all three duplicator forms stay not-write,
-      a bare command stays not-write, a trailing `2>` fails closed to WRITE.
-- [x] Divergence registered in `.vendor-divergence.yaml` BEFORE the vendored file is
-      touched (T-2812 / G-062), with `status: filed-upstream` citing offset 188 and
-      `risk_if_revendored: HIGH` — a re-vendor silently restores the bypass.
-- [x] Fix applied to `.agentic-framework/agents/context/lib/safe-commands.sh` using a
-      herestring, never `echo "$cmd" | grep -q`: on a SECURITY predicate a SIGPIPE 141
-      reads as "no write pattern" and fails OPEN (L-387 / T-2743).
-- [x] Local fixture suite pins both bypasses and the must-not-change set, and fails
-      against the pre-fix predicate extracted from git rather than a synthetic mutant.
-- [x] Reply posted to `framework:pickup` telling 050-email-archive we reproduced their
-      bug, that `&> file` is a second live bypass, and that their must-not-change entry
-      for `&>` contradicts their own fix. Verified by read-back (T-2876).
+- [x] The drift is measured and recorded with per-path version and mtime (see Context)
+- [x] The blocked action is attributed to the specific gate that refused it (T-559 project boundary), not left as an unexplained omission
+- [x] [REVIEWER] All known install paths agree on one version — no install-path drift (2026-10-24: runme T-3287/T-3289 installs every copy; ~/.cargo/bin, /usr/local/bin, ~/.local/bin all 0.12.1084; check-installed-binary-drift: "installed paths agree: 0.12.1084")
+  **Converted from a `### Human` `[RUBBER-STAMP]` AC on 2026-09-26 (T-3156, operator GO on SQ-1).**
+  **The literal Expected string is STALE and I substituted the current equivalent — flagged rather than done quietly.** The original clause required the last line to read `check-installed-binary-drift: clean`. That string **no longer exists** in the script's output (`grep -c` → 0); its verdict line is now `installed paths agree: <version>`. The semantic claim is unchanged — all known paths on one version — and rc 0 confirms it, but a reviewer should know the assertion was rewritten rather than matched.
+  **Measured 2026-09-26:** `check-installed-binary-drift.sh` → `installed paths agree: 0.12.13`, rc 0, across 4 known install paths. The AC was written when the target was 0.11.1766 with two paths stale at 0.11.1716; the tree has since moved past both, so the condition is satisfied more strongly than it was specified.
+  **Scope, from the script's own disclaimer:** *"Paths not listed above were NOT examined. This check asserts nothing about install locations it does not know about."*
+  **Left unticked deliberately** — conversion is not closure.
 
 ### Human
+_The `[RUBBER-STAMP]` AC that was here has moved to `### Agent` as a `[REVIEWER]` AC — T-3156, operator GO on SQ-1. Its Expected clause was the output of `check-installed-binary-drift.sh`, so per T-1811/T-1878 it does not belong in the human queue. The `cp` of the newer binary over the two stale paths was an operator act and has already been performed. NOTE: the original Expected named the literal string `check-installed-binary-drift: clean`, which the script no longer emits — see the converted AC for the substitution and its evidence._
+
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -147,15 +150,6 @@ cost_estimate_proposed:
 -->
 
 ## Verification
-
-bash tests/safe-commands-write-pattern-fixtures.sh
-bash scripts/check-vendor-divergence.sh
-# Line 1 is the 34-assertion suite. Its Case 5 extracts the PRE-FIX function from git
-# and asserts it still reproduces all three defects, so a green here means the fix is
-# load-bearing rather than that the test never exercised the defect.
-# Line 2 asserts the vendored change is still REGISTERED. A divergence that falls out
-# of the register is the T-2812 class, and for this file the loss is silent: a
-# re-vendor restores the bypass and the restored gate looks exactly like a working one.
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -193,34 +187,6 @@ bash scripts/check-vendor-divergence.sh
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
 #
-# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
-#
-# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
-# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
-# "the bad thing is not there" from "I could not look", and the gate reports green
-# over a check that never ran. Pair every absence assertion with something that
-# fails if the search could not happen:
-#
-#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
-#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
-#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
-#
-# Count-equals-zero is the same defect wearing a different hat, and it is the one
-# that bites hardest over a COMMAND's output rather than a file:
-#
-#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
-#
-# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
-# lines, the count is 0, and the leg passes — a build gate that goes green
-# precisely when the build could not run. Measured in this corpus, not invented.
-# Keep the producer's exit code in the verdict:
-#
-#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
-#
-# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
-# not. The convention mostly works — this note is here so the next one is written
-# right, because a vacuous leg is invisible until the day the path moves.
-#
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
 # verdict — and the pass marker you grep for survives a partial failure: a suite
@@ -244,6 +210,10 @@ bash scripts/check-vendor-divergence.sh
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+
+# T-3156: the converted [REVIEWER] AC — all KNOWN install paths on one version.
+# Asserts the script verdict + rc, not the stale literal "…: clean" it no longer emits.
+bash scripts/check-installed-binary-drift.sh > /tmp/.t2858-drift.out 2>&1 && grep -q "installed paths agree" /tmp/.t2858-drift.out
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -285,6 +255,20 @@ bash scripts/check-vendor-divergence.sh
 -->
 
 ## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** One `cp`, fully reversible, and it clears the guard layer's only firing
+member — taking the layer to 86 passed / 0 firing / 0 errored. The cost of leaving it is
+not the red line itself; it is that a permanently-firing guard trains the reader to skim
+past a FAIL, the same fatigue mechanism T-2818 documented from the other direction. A
+guard nobody reads has stopped working.
+
+**Evidence:**
+- Firing in the guard layer for two consecutive sessions; every other member green
+- `/root/.local/bin` = 0.11.1612 (2026-08-26) vs 0.11.1716 (2026-08-29) on the other two paths
+- Refused from the agent session by the T-559 project boundary — declined, not skipped
+- Reversible: the prior binary is restorable from `~/.cargo/bin` or a rebuild
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
      (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
@@ -336,15 +320,69 @@ bash scripts/check-vendor-divergence.sh
 
 ## Updates
 
-### 2026-09-26T22:27:54Z — task-created [task-create-agent]
+### 2026-08-30T10:13:13Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3178-tier-1-write-gate-bypass-2-file-and--fil.md
+- **Output:** /opt/termlink/.tasks/active/T-2858-install-path-drift-rootlocalbintermlink-.md
 - **Context:** Initial task creation
 
-### 2026-09-26T22:29:41Z — status-update [task-update-agent]
+### 2026-09-02T06:40:17Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 
+### 2026-09-02T09:05Z — re-measured: the drift is now TWO paths, and both are pre-T-2873 [claude-code]
+
+`check-installed-binary-drift.sh` fired again in today's guard-layer sweep. The picture
+has changed since this task was filed, in a way that changes the human action from one
+path to two:
+
+```
+/root/.cargo/bin/termlink     0.11.1766   2026-09-01   <- current
+/root/.local/bin/termlink     0.11.1716   2026-08-29   <- STALE
+/usr/local/bin/termlink       0.11.1716   2026-08-29   <- STALE (new; was not stale at filing)
+/usr/bin/termlink             (absent)
+build artifact                0.11.1766                 (pending deploy, informational)
+```
+
+The T-2873 rebuild advanced **only** `/root/.cargo/bin` — it was installed there by
+temp-file + `mv -f` because the destination was being executed by live processes. So
+`/usr/local/bin` did not fall behind through neglect; it fell behind because the T-2873
+install deliberately touched one path.
+
+**Why this is now more than cosmetic.** `0.11.1716` is the **pre-fix** binary for T-2873:
+its `termlink_remote_inject` builds `command.inject` keys as bare strings and is rejected
+by every hub with `-32602`. So any caller resolving `termlink` through `/root/.local/bin`
+or `/usr/local/bin` still gets the broken tool, while a caller on PATH gets the fix. That
+is the check's own DRIFT wording — *"a fix landed in git is running for some callers and
+not others"* — with a named, currently-live defect behind it.
+
+**Still blocked for the same reason.** Writing to either path is refused by the T-559
+project-boundary gate, which is exactly what this task's second AC already records. The
+`[RUBBER-STAMP]` step below now covers two paths rather than one.
+
+**Unexamined by construction.** The check probes 4 known paths and says so explicitly. A
+**fifth** install exists — `/opt/termlink/.termlink/bin/termlink`, the T-288 per-project
+vendored binary, **0.9.13 dated 2026-03-27** (~5 months and ~1000 commits stale). It is
+gitignored (`.gitignore:68`), so it is invisible to git and to this check both. Nothing in
+the main checkout's config points at it any more — T-2874 removed that pin — but four
+git worktrees still carry it, filed separately.
+
 ### 2026-11-15T19:55Z — measured-evidence close (operator ruling, T-3800) [agent]
-- Measured: `framework:pickup` offset 202, from 010-termlink: "SECURITY FIX for the Tier-1 write gate … (T-3178) … confirms and EXTENDS 050-email-archive's P-006 (their T-2257, offset 188)". Amendment at offset 206 (T-3187). The fix is kept local in safe-commands.sh and carried through every re-vendor up to be.51 (T-3794 merge).
-- Independent review (opencode + claude-code, isolated, tools off): both PASS. Saved in `docs/reports/T-3800-reviews/`.
-- Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions; extends D-626).
+- Measured: `/root/.cargo/bin`, `/usr/local/bin` and `/root/.local/bin/termlink` all report `0.12.13+32.g023fbc762`, with the same sha256 prefix 9179611302a9. No install-path drift.
+- Independent review (`fw review isolated-run`, opencode + claude-code, tools off): both PASS. Saved in `docs/reports/T-3800-reviews/review-1-*.md`, bundle in `bundle-1.md`.
+- Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions: measured evidence + positive independent review; extends D-626).
+
+### 2026-11-15T20:22:11Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** T-3800, operator ruling 2026-11-15: remaining act-in-the-world step measured as done, independent review PASS (docs/reports/T-3800-reviews)
+
+### 2026-11-15T20:22:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-847efff6
+- **Timestamp:** 2026-11-15T20:22:33Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

@@ -1,0 +1,108 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3178: Tier-1 write-gate bypass: 2> file and &> file classify as not-a-write
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T20:23:22Z
+# ============================================================================
+
+task_id: T-3178
+task_name: "Tier-1 write-gate bypass: 2> file and &> file classify as not-a-write"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-26T22:27:54Z
+completed: 2026-11-15T20:22:58Z
+duration_days: 50
+updates_count: 5
+first_commit: 2026-09-27T00:30:20+02:00
+last_commit: 2026-09-27T12:25:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  triage framework:pickup 163-196 -- four filings need local work. restore the five regenerated episodics to tracking. close the Tier-1 write-gate bypass, both directions. filed upstream at offset 202, read-back verified; suite durable across commits. routed to operator review
+
+# Key outcomes
+outcomes:
+  - 'Both live bypasses reproduced against our OWN vendored predicate by sourcing'
+  - 'The five descriptor-duplicator forms confirmed to still read not-write in our'
+  - 'Proposed replacement predicate `>>?($|[^&])` verified in isolation over all ten'
+  - 'Divergence registered in `.vendor-divergence.yaml` BEFORE the vendored file is'
+  - 'Fix applied to `.agentic-framework/agents/context/lib/safe-commands.sh` using a'
+  - 'Local fixture suite pins both bypasses and the must-not-change set, and fails'
+  - 'Reply posted to `framework:pickup` telling 050-email-archive we reproduced their'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.context/episodic/T-2879.yaml'
+  - '.context/episodic/T-3166.yaml'
+  - '.context/episodic/T-3167.yaml'
+  - '.context/episodic/T-3168.yaml'
+  - '.context/episodic/T-3170.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.hook-counter'
+  - '.context/working/focus.yaml'
+  - '.fabric/components/tests-safe-commands-write-pattern-fixtures.yaml'
+  - '.tasks/active/T-3178-tier-1-write-gate-bypass-2-file-and--fil.md'
+  - '.tasks/active/T-3179-p-011-reports-exit-127-as-fail-hiding-th.md'
+  - '.tasks/active/T-3180-claudemdbak-is-a-durable-acknowledgement.md'
+  - '.tasks/active/T-3181-termlinkspawn-and-termlinkdispatch-repor.md'
+  - '.tasks/completed/T-2879-rail-enrolment-gap-1-of-14-local-claude-.md'
+  - '.tasks/completed/T-3170-evaluate-832-bvp-auto-confirm-and-scorin.md'
+  - '.vendor-divergence.yaml'
+  - 'tests/safe-commands-write-pattern-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-27T00:30:20'
+    action: 'T-3178: triage framework:pickup 163-196 -- four filings need local work'
+  - time: '2026-09-27T00:31:06'
+    action: 'T-3178: restore the five regenerated episodics to tracking'
+  - time: '2026-09-27T12:21:48'
+    action: 'T-3178: close the Tier-1 write-gate bypass, both directions'
+  - time: '2026-09-27T12:25:28'
+    action: 'T-3178: filed upstream at offset 202, read-back verified; suite durable across commits'
+  - time: '2026-09-27T12:25:45'
+    action: 'T-3178: routed to operator review'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 7 commit(s), 71875 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 71875
+  commits: 8
+  files_changed: 31
+  lines_added: 2879
+  lines_removed: 379
+  footprint_refreshed_at: '2026-11-15T20:25:41Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3178-tier-1-write-gate-bypass-2-file-and--fil.md
+generated_by: context-agent-hybrid

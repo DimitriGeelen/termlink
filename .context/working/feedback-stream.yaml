@@ -24309,3 +24309,75 @@ scan_id: R-eaaedc58
 task_id: T-3750
 payload:
   task_file: .tasks/active/T-3750-mail-on-our-inbox-at-other-hubs-is-seen-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T20:22:33Z'
+scan_id: R-847efff6
+task_id: T-2858
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T20:22:33Z'
+scan_id: R-847efff6
+task_id: T-2858
+payload:
+  task_file: .tasks/active/T-2858-install-path-drift-rootlocalbintermlink-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T20:23:06Z'
+scan_id: R-834278a0
+task_id: T-3178
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T20:23:06Z'
+scan_id: R-834278a0
+task_id: T-3178
+payload:
+  task_file: .tasks/active/T-3178-tier-1-write-gate-bypass-2-file-and--fil.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T20:23:53Z'
+scan_id: R-5572ae03
+task_id: T-2938
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T20:23:53Z'
+scan_id: R-5572ae03
+task_id: T-2938
+payload:
+  task_file: .tasks/active/T-2938-cron-drift-agentic-auditcrontab-differs-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T20:24:24Z'
+scan_id: R-78ccc0e7
+task_id: T-2939
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T20:24:24Z'
+scan_id: R-78ccc0e7
+task_id: T-2939
+payload:
+  task_file: .tasks/active/T-2939-cronsubstrate-smoke-canary-declared-but-.md

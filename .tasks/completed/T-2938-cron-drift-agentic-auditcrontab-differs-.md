@@ -4,10 +4,10 @@ name: "cron drift: agentic-audit.crontab differs from deployed /etc/cron.d copy"
 description: >
   arc-008 cycle-1 audit finding. Full census: .context/audits/arc-008-cycle1-census.md
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
 components:
   - .context/cron/agentic-audit.crontab
@@ -25,8 +25,8 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T17:54:17Z
-last_update: 2026-09-26T23:47:54Z
-date_finished:
+last_update: 2026-11-15T20:23:51Z
+date_finished: 2026-11-15T20:23:51Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -135,6 +135,11 @@ bash scripts/check-cron-install-drift.sh > /tmp/.t2938-cron.out 2>&1 && grep -q 
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-15 — the fix landed long ago; only the close was waiting
+- **What changed:** T-2870 regenerated the crontab from the registry and it was deployed; the drift has measured clean ever since (2026-11-15: identical, drift check healthy, 47/47). The task stayed open only because its last step was an act in the world the operator had to confirm.
+- **Plan impact:** none. The operator's 2026-11-15 ruling (T-3800: measured evidence plus a positive independent review) let the agent close it.
+- **Triggered:** nothing new.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -212,3 +217,20 @@ bash scripts/check-cron-install-drift.sh > /tmp/.t2938-cron.out 2>&1 && grep -q 
 - Measured: `cmp -s .context/cron/agentic-audit.crontab /etc/cron.d/agentic-audit-termlink` → identical; `check-cron-install-drift.sh` → healthy (47 installed and matching, 0 acknowledged, 0 skipped).
 - Independent review (opencode + claude-code, isolated, tools off): both PASS. Saved in `docs/reports/T-3800-reviews/`.
 - Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions; extends D-626).
+
+### 2026-11-15T20:22:12Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** T-3800, operator ruling 2026-11-15: remaining act-in-the-world step measured as done, independent review PASS (docs/reports/T-3800-reviews)
+
+### 2026-11-15T20:23:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5572ae03
+- **Timestamp:** 2026-11-15T20:23:53Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

@@ -4,10 +4,10 @@ name: "cron(substrate-smoke-canary) declared but never installed to /etc/cron.d"
 description: >
   arc-008 cycle-1 audit finding. Full census: .context/audits/arc-008-cycle1-census.md
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
 components:
   - .context/cron/substrate-smoke-canary.crontab
@@ -25,8 +25,8 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T17:55:23Z
-last_update: 2026-09-26T23:46:53Z
-date_finished:
+last_update: 2026-11-15T20:24:20Z
+date_finished: 2026-11-15T20:24:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -136,6 +136,11 @@ bash scripts/check-cron-install-drift.sh > /tmp/.t2939-cron.out 2>&1 && grep -q 
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-15 — installed 2026-10-28; only the close was waiting
+- **What changed:** the canary's crontab was installed on 2026-10-28 (runme) and has run daily since. On 2026-11-15 it was identical to its source, with a 07:37 heartbeat, and green again after T-3791 fixed its demo. The task stayed open only for the operator's confirmation of the install.
+- **Plan impact:** none. Closed under the operator's 2026-11-15 measured-evidence ruling (T-3800) after two independent PASS verdicts.
+- **Triggered:** nothing new (T-3791 was a separate defect found the day before).
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -214,3 +219,20 @@ bash scripts/check-cron-install-drift.sh > /tmp/.t2939-cron.out 2>&1 && grep -q 
 - Measured: `/etc/cron.d/termlink-substrate-smoke-canary` exists (root 0644, installed 2026-10-28) and is byte-identical to `.context/cron/substrate-smoke-canary.crontab`. Its heartbeat is from 2026-11-15T07:37:23, matching the daily 07:37 schedule. Cron drift is healthy.
 - Independent review (opencode + claude-code, isolated, tools off): both PASS. Saved in `docs/reports/T-3800-reviews/`.
 - Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions; extends D-626).
+
+### 2026-11-15T20:22:13Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** T-3800, operator ruling 2026-11-15: remaining act-in-the-world step measured as done, independent review PASS (docs/reports/T-3800-reviews)
+
+### 2026-11-15T20:24:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-78ccc0e7
+- **Timestamp:** 2026-11-15T20:24:24Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

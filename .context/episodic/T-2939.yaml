@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2939: cron(substrate-smoke-canary) declared but never installed to /etc/cron.d
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T20:24:38Z
+# ============================================================================
+
+task_id: T-2939
+task_name: "cron(substrate-smoke-canary) declared but never installed to /etc/cron.d"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-09T17:55:23Z
+completed: 2026-11-15T20:24:20Z
+duration_days: 67
+updates_count: 6
+first_commit: 2026-09-18T20:40:44+02:00
+last_commit: 2026-09-18T20:40:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Agent AC done — finding reproduced, remediation verified, job proven live; parked to review
+
+# Key outcomes
+outcomes:
+  - 'Finding is reproduced and recorded with the exact audit line, and the remediation command is verified to be the correct one before the human runs it'
+  - '[REVIEWER] substrate-smoke canary is installed and scheduled, and not drifted from the tracked source'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2939-cronsubstrate-smoke-canary-declared-but-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-18T20:40:44'
+    action: 'T-2939: Agent AC done — finding reproduced, remediation verified, job proven live; parked to review'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 96628 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 96628
+  commits: 2
+  files_changed: 10
+  lines_added: 569
+  lines_removed: 24
+  footprint_refreshed_at: '2026-11-15T20:25:41Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2939-cronsubstrate-smoke-canary-declared-but-.md
+generated_by: context-agent-hybrid

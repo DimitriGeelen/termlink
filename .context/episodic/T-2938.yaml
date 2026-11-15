@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2938: cron drift: agentic-audit.crontab differs from deployed /etc/cron.d copy
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T20:24:19Z
+# ============================================================================
+
+task_id: T-2938
+task_name: "cron drift: agentic-audit.crontab differs from deployed /etc/cron.d copy"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-09T17:54:17Z
+completed: 2026-11-15T20:23:51Z
+duration_days: 67
+updates_count: 6
+first_commit: 2026-09-18T20:41:57+02:00
+last_commit: 2026-09-27T01:49:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  finding no longer reproduces — resolved in field by T-2870; parked to review with close evidence. arc-008 cron findings verified and routed to operator review (with T-2939)
+
+# Key outcomes
+outcomes:
+  - 'Finding is reproduced and recorded with the exact audit line, and the remediation command is verified to be the correct one before the human runs it'
+  - '[REVIEWER] The deployed crontab matches the registry — no drift, nothing uninstalled'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2938-cron-drift-agentic-auditcrontab-differs-.md'
+  - '.tasks/active/T-2939-cronsubstrate-smoke-canary-declared-but-.md'
+  - '.tasks/active/T-3178-tier-1-write-gate-bypass-2-file-and--fil.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-18T20:41:57'
+    action: 'T-2938: finding no longer reproduces — resolved in field by T-2870; parked to review with close evidence'
+  - time: '2026-09-27T01:49:15'
+    action: 'T-2938: arc-008 cron findings verified and routed to operator review (with T-2939)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 96629 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 96629
+  commits: 3
+  files_changed: 12
+  lines_added: 583
+  lines_removed: 29
+  footprint_refreshed_at: '2026-11-15T20:25:41Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2938-cron-drift-agentic-auditcrontab-differs-.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,107 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2858: Install-path drift: /root/.local/bin/termlink is stale behind the other two install paths
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T20:22:53Z
+# ============================================================================
+
+task_id: T-2858
+task_name: "Install-path drift: /root/.local/bin/termlink is stale behind the other two install paths"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-30T10:13:13Z
+completed: 2026-11-15T20:22:31Z
+duration_days: 77
+updates_count: 6
+first_commit: 2026-08-30T12:15:40+02:00
+last_commit: 2026-10-24T00:05:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file the install-path drift as a tracked approval. drop duplicated Context heading left by the template. re-measure — two paths stale now, both carrying the pre-T-2873 remote_inject. the Human AC command named one stale path while the Updates entry claimed two — the copy-paste step now actually covers /root/.local/bin AND /usr/local/bin (measured: both at 0.11.1716, cargo path at 0.11.1766). install paths agree (0.12.1084 on all three); reviewer criterion ticked with evidence
+
+# Key outcomes
+outcomes:
+  - 'The drift is measured and recorded with per-path version and mtime (see Context)'
+  - 'The blocked action is attributed to the specific gate that refused it (T-559 project boundary), not left as an unexplained omission'
+  - '[REVIEWER] All known install paths agree on one version — no install-path drift (2026-10-24: runme T-3287/T-3289 installs every copy; ~/.cargo/bin, /usr/local/bin, ~/.local/bin all 0.12.1084; check-installed-binary-drift: "installed paths agree: 0.12.1084")'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-30.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2880.yaml'
+  - '.context/handovers/S-2026-0830-0109.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0830-1023.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0830-1214.discard-manifest.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/.tool-counter'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2858-install-path-drift-rootlocalbintermlink-.md'
+  - '.tasks/completed/T-2880-dispose-stranded-pickup-envelope-p-055--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-30T12:15:40'
+    action: 'T-2858: file the install-path drift as a tracked approval'
+  - time: '2026-08-30T12:16:47'
+    action: 'T-2858: drop duplicated Context heading left by the template'
+  - time: '2026-09-02T08:42:45'
+    action: 'T-2858: re-measure — two paths stale now, both carrying the pre-T-2873 remote_inject'
+  - time: '2026-09-07T23:30:08'
+    action: 'T-2858: the Human AC command named one stale path while the Updates entry claimed two — the copy-paste step now actually covers /root/.local/bin AND /usr/local/bin (measured: both at 0.11.1716, cargo path at 0.11.1766)'
+  - time: '2026-10-24T00:05:09'
+    action: 'T-2858: install paths agree (0.12.1084 on all three); reviewer criterion ticked with evidence'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 111489 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 111489
+  commits: 6
+  files_changed: 30
+  lines_added: 2661
+  lines_removed: 92
+  footprint_refreshed_at: '2026-11-15T20:25:40Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2858-install-path-drift-rootlocalbintermlink-.md
+generated_by: context-agent-hybrid
