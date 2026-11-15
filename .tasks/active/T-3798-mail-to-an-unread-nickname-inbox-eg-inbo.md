@@ -1,13 +1,13 @@
 ---
-id: T-3797
-name: "1409 sends to proxmox-ring20-management fail: hub-refused TLS handshake failed (since ~10:00Z); misaddressed inbox 'termlink'"
+id: T-3798
+name: "Mail to an unread nickname inbox (e.g. inbox:…/termlink) waits silently; escalate or alias it to 010-termlink"
 description: >
-  1409 sends to proxmox-ring20-management fail: hub-refused TLS handshake failed (since ~10:00Z); misaddressed inbox 'termlink'
+  T-3797: 1409's urgent consult went to inbox:cacc73ea32b121dd/termlink (4 posts + nudges, ~3 h). Our prompt hook surfaces only …/010-termlink; session-start-alerts listed it as project 'termlink' but nothing escalated. Options: alias our own nickname inbox to the receiver, or have the alerts/needs-attention path flag new mail on an inbox that names us.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -37,8 +37,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-15T13:46:36Z
-last_update: 2026-11-15T13:46:36Z
+created: 2026-11-15T13:59:01Z
+last_update: 2026-11-15T13:59:01Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -52,22 +52,18 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-3797: 1409 sends to proxmox-ring20-management fail: hub-refused TLS handshake failed (since ~10:00Z); misaddressed inbox 'termlink'
+# T-3798: Mail to an unread nickname inbox (e.g. inbox:…/termlink) waits silently; escalate or alias it to 010-termlink
 
 ## Context
 
-**Background / trigger:** the 1409 design session, on the operator's behalf (2026-11-15), posted a consult (client_msg_id 2a5ca5a4, conversation sprind-ring20-tls) four times to `inbox:cacc73ea32b121dd/termlink`, plus nudges. Our sidecar surfaces `…/010-termlink`, so it never reached this session until the operator asked. Report: sidecar sends to proxmox-ring20-management fail since ~10:00Z with `hub-refused: hub ring20-management unreachable: TLS handshake failed`. Its measurements: TCP .122:9100 open, openssl handshake OK, fingerprint = pinned. Urgent: two dev.streichliste.de deliveries depend on it.
-**Problem / hypothesis:** to be measured. Something in .107's hub-side forward path to .122 fails the handshake, while a direct openssl handshake succeeds.
-**Goal:** find the cause, restore sends to ring20-management, answer 1409, and fix why a message addressed to `termlink` never surfaced here.
-**Expected outcome:** 1409's queued sends land on ring20-management; 1409 gets an answer with the cause.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Cause of the TLS handshake failure measured and named
-- [x] A send from .107 to ring20-management succeeds again (or the blocker is named with who must act)
-- [x] 1409 answered on its conversation
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,26 +360,7 @@ date_finished: null
 
 ## Updates
 
-### 2026-11-15T13:46:36Z — task-created [task-create-agent]
+### 2026-11-15T13:59:01Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3797-1409-sends-to-proxmox-ring20-management-.md
+- **Output:** /opt/termlink/.tasks/active/T-3798-mail-to-an-unread-nickname-inbox-eg-inbo.md
 - **Context:** Initial task creation
-
-### 2026-11-15T11:40Z — measured [agent]
-- Not TLS. As root, `termlink hub probe 192.168.10.122:9100` and `tofu verify` both pass (pin 22c19fed… matches).
-- The design session runs as dimitri-mint-dev. Its `~/.termlink/hubs.toml` (unchanged since 2026-11-12) has one profile, `local-hub` 127.0.0.1:9100, so there is no ring20-management address or credential.
-- AEF `lib/sidecar/termlink_transport.py:192-200` resolves the hub name through the sender's hubs.toml, falls back to the bare name, and reports ANY non-zero `hub probe` exit as "TLS handshake failed". That misleading label is upstream (AEF).
-- The user's outbound queue (5) holds 3 sidecar.receipt to ring20 (11-10..11-12), 1 learning (11-13) and 1 consult to 832 (11-14 00:38), all before T-3788. Today's deliveries are refused before queueing.
-- Misaddressing: 1409 posted to `inbox:cacc73ea32b121dd/termlink`, which nothing reads. Our prompt hook surfaces only `…/010-termlink`; session-start-alerts did list it, as project "termlink".
-- Replied to 1409 design (client_msg_id 33ed074d, sent without `--force`, so be.51 T-5137 works): the cause; send today's deliveries from 1409's root engine session; the lasting fix goes to the operator; use 010-termlink.
-
-### 2026-11-15T13:55Z — 1409 confirmed; upstream filed [agent]
-- 1409 msg 090907a1: re-measured, agrees. Today's deliveries go via its root engine session / the operator; the jury page is live since 13:48Z. The lasting .122 token is with the operator (brief: A scoped token / B leave / C full secret, recommended A).
-- Filed with AEF (3b0e9a30, RECEIVED): (1) probe_hub should name "no profile / no access" instead of "TLS handshake failed"; (2) HUB_ACCEPTED and hub-refused in one output is uninterpretable. Notice to 1409: dec6aca3.
-
-### 2026-11-15T14:10Z — CORRECTION: the sends were delivered [agent]
-- 1409's diagnostics (msg 0cd0d866): the failing send is the shell `fw sidecar send`, not an MCP tool. ring20's manager reported the 13:53Z send arrived.
-- Read on .122 (root profile): `inbox:22c19fedafd73da2/proxmox-ring20-management` holds 1409's consults at 10:03Z (e71949e7) and 10:23Z (06b8278a), with 06b8278a repeated at 10:33/10:38/10:58/11:18/12:18Z. The topic is read up to date (last fetch 13:56Z after last write 13:55Z; unread_since none).
-- So my 11:40Z conclusion "no access" was WRONG. Delivery works; only the pre-check (`probe_hub` through the user's hubs.toml) fails and prints a false "hub-refused … TLS handshake failed". The false refusal drove 6 re-sends of one consult. The post route the user actually uses is not yet identified.
-- The operator brief "scoped .122 token" is withdrawn as unnecessary for delivery.
-- Corrections sent: 1409 (3c361043), AEF (cdcf5a64). The design session's MCP servers are still the 3 old processes on the deleted binary (pids 223043/784062/1355346). That affects only mcp__termlink__* tools; a new session fixes it.
