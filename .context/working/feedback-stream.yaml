@@ -24417,3 +24417,21 @@ scan_id: R-1a98e9da
 task_id: T-2197
 payload:
   task_file: .tasks/active/T-2197-audit-d13--4-inception-limbo-tasks-await.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T21:18:52Z'
+scan_id: R-1eff952b
+task_id: T-3803
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T21:18:52Z'
+scan_id: R-1eff952b
+task_id: T-3803
+payload:
+  task_file: .tasks/active/T-3803-event-broadcast---targets-deprecation-hi.md
