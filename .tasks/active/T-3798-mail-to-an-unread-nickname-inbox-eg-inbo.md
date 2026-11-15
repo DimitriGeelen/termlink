@@ -407,3 +407,7 @@ bvp_scores_proposed:
 ### 2026-11-15T20:05Z — AEF T-5148 landed on bleeding-edge [agent]
 - AEF msg 805773f7: `SIDECAR_INBOX_ALIASES` (in .framework.yaml) or env `FW_SIDECAR_INBOX_ALIASES`. Every reader also reads `inbox:<own hub>/<alias>` through read_topics(); read-only. For us: `SIDECAR_INBOX_ALIASES: termlink`.
 - Caveat before enabling: it would re-surface all 54 already-handled consults. Asked AEF for the supported way to start a new alias at the head (msg sent). Plan after re-vendor: set the start point, add the alias, then prove it with one sentinel post to `…/termlink` surfacing in a session.
+
+### 2026-11-15T20:40Z — AEF answer: T-5157 `--mark-read` (notice 91f98a85) [agent]
+- There was no supported way; a new alias topic starts at cursor 0. Added in AEF T-5157 (bleeding-edge 0f1b1a6c8, next be-tag): `fw sidecar inbox --mark-read termlink` moves OUR cursor on `inbox:<hub>/termlink` past its latest offset. It drains nothing, prints no bodies, sends no receipts, never moves backwards, and exits 1 'NOT CHANGED' if the hub cannot be asked.
+- Order once the be-tag carrying T-5148 + T-5157 is vendored: (1) re-vendor; (2) `.agentic-framework/bin/fw sidecar inbox --mark-read termlink`; (3) `SIDECAR_INBOX_ALIASES: termlink` in .framework.yaml; (4) sentinel post to `…/termlink` and confirm it surfaces here.
