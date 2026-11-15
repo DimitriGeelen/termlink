@@ -56,14 +56,17 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** 2026-10-22, SEV-1: panes in five projects carried 1409's live agent socket and token through .107's shared default tmux server (found and reported the same day).
+**Problem / hypothesis:** the shared server's global environment came from whichever client started it, and a name-based deny-list (T-3445) could not cover unknown variables. Any project's pane could reach another project's agent.
+**Goal:** an incident brief, independent reviews and synthesis, a cross-project damage assessment agreed with AEF, and remediation decided with the operator and built (T-3550, T-3551, T-3552, detector, socket isolation T-3548).
+**Expected outcome:** no project variable can reach another project's sessions, a canary fires if one does, and the damage is assessed.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Incident brief written (timeline, mechanism, the T-3445 deny-list gap with file:line, every TermLink path that starts tmux, open questions) at docs/reports/T-3549-incident/brief.md, with no hosts, IPs or secrets
-- [ ] Seven independent reviews collected (four seats from here plus AEF's and 055's own), saved under docs/reports/T-3549-incident/, and synthesised with agreements and disagreements quoted
+- [x] Incident brief written (timeline, mechanism, the T-3445 deny-list gap with file:line, every TermLink path that starts tmux, open questions) at docs/reports/T-3549-incident/brief.md, with no hosts, IPs or secrets (checked 2026-11-16: 0 IPv4 patterns, 0 secret/token/password matches)
+- [x] Seven independent reviews collected (four seats from here plus AEF's and 055's own), saved under docs/reports/T-3549-incident/, and synthesised with agreements and disagreements quoted (operator reduced it to six: "accept six reviewers", quoted at the top of `synthesis-six.md`; 3 seats here + 3 from AEF T-4635, unanimous and split points quoted)
 - [ ] Damage assessment across projects agreed with AEF: which sessions started in the window, on which framework version, and whether anything was written into another project
 - [ ] Remediation decided with the operator, then built and verified: the source-side guard (no project variable can reach the shared server), a detector that fires when the server's global environment holds a project path, and the socket-isolation decision (T-3548)
 
