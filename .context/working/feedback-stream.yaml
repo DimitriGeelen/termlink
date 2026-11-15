@@ -24147,3 +24147,21 @@ scan_id: R-03368d8e
 task_id: T-3796
 payload:
   task_file: .tasks/active/T-3796-file-shaped-posts-canary-832-sends-files.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T10:26:36Z'
+scan_id: R-894fce0b
+task_id: T-3795
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T10:26:36Z'
+scan_id: R-894fce0b
+task_id: T-3795
+payload:
+  task_file: .tasks/active/T-3795-canary-file-shaped-posts-canary-is-firin.md
