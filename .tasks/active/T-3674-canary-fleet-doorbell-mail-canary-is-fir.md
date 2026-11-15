@@ -2,9 +2,11 @@
 id: T-3674
 name: "Canary fleet-doorbell-mail-canary is FIRING — investigate and fix"
 description: >
-  The fleet-doorbell-mail-canary canary reports FIRING on /canaries. Filed automatically by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary always has a task naming it.
+  The fleet-doorbell-mail-canary canary reports FIRING on /canaries. Filed automatically
+  by scripts/canary-escalation-file.sh (T-2985, value review C-19) so a firing canary
+  always has a task naming it.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-05T08:15:03Z
-last_update: 2026-11-05T08:15:03Z
-date_finished: null
+last_update: 2026-11-15T07:28:21Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +52,18 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-15T06:46:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3674: Canary fleet-doorbell-mail-canary is FIRING — investigate and fix
@@ -70,6 +84,11 @@ Filed automatically by scripts/canary-escalation-file.sh (T-2985) from the daily
 ```
 
 Closing this task while the canary is still bad files a new one 24h after the close.
+
+**Background / trigger:** auto-filed 2026-11-05. Latest run (2026-11-14): DRIFT, unreachable=1 (greenfield, 192.168.10.132, setup-fail); node1-pool is only `not-checked` (token-only profile, does not flip the verdict); laptop-141 is declared transient.
+**Problem / hypothesis:** the canary fires because greenfield has been offline since about 2026-11-04 (the remint log shows "no answer" nightly since then). Its token has lapsed. The check is behaving correctly; whether greenfield is expected back, should be marked expected-offline, or leaves the fleet is the operator's call.
+**Goal:** an operator ruling on greenfield's place in the fleet canaries.
+**Expected outcome:** the doorbell canary is red only for a real break.
 
 ## Acceptance Criteria
 
@@ -360,6 +379,13 @@ Closing this task while the canary is still bad files a new one 24h after the cl
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-15 — greenfield and the doorbell canary: A, bring its hub back (operator ruling)
+- **Chose:** A. greenfield (.132) is up (ping OK, ssh open) but its hub port 9100 has been closed since about 2026-11-04; restart the hub there. The 03:40 re-mint cron then renews its token by itself, and both canaries clear.
+- **Operator words:** "please proceed", given in reply to the brief recommending A. Read as A; the operator can overturn this.
+- **Why:** a running machine with a dead hub is a real break, not a sleeping host; marking it expected-offline would mask it.
+- **Rejected:** B, expected-offline (masks a break); C, remove from the fleet (only if greenfield is finished, and that needs explicit approval); D, leave red (11 days of unacted red).
+- **Open:** this agent has no login on .132 (ssh publickey refused), so the restart is the operator's or greenfield's owner's. The agent verifies afterwards (hub probe + the next re-mint run).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -376,3 +402,6 @@ Closing this task while the canary is still bad files a new one 24h after the cl
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3674-canary-fleet-doorbell-mail-canary-is-fir.md
 - **Context:** Initial task creation
+
+### 2026-11-15T06:46:50Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
