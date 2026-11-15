@@ -66,7 +66,7 @@ date_finished: null
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Cause of the TLS handshake failure measured and named
-- [ ] A send from .107 to ring20-management succeeds again (or the blocker is named with who must act)
+- [x] A send from .107 to ring20-management succeeds again (or the blocker is named with who must act)
 - [x] 1409 answered on its conversation
 
 ### Human
@@ -380,3 +380,10 @@ date_finished: null
 ### 2026-11-15T13:55Z — 1409 confirmed; upstream filed [agent]
 - 1409 msg 090907a1: re-measured, agrees. Today's deliveries go via its root engine session / the operator; the jury page is live since 13:48Z. The lasting .122 token is with the operator (brief: A scoped token / B leave / C full secret, recommended A).
 - Filed with AEF (3b0e9a30, RECEIVED): (1) probe_hub should name "no profile / no access" instead of "TLS handshake failed"; (2) HUB_ACCEPTED and hub-refused in one output is uninterpretable. Notice to 1409: dec6aca3.
+
+### 2026-11-15T14:10Z — CORRECTION: the sends were delivered [agent]
+- 1409's diagnostics (msg 0cd0d866): the failing send is the shell `fw sidecar send`, not an MCP tool. ring20's manager reported the 13:53Z send arrived.
+- Read on .122 (root profile): `inbox:22c19fedafd73da2/proxmox-ring20-management` holds 1409's consults at 10:03Z (e71949e7) and 10:23Z (06b8278a), with 06b8278a repeated at 10:33/10:38/10:58/11:18/12:18Z. The topic is read up to date (last fetch 13:56Z after last write 13:55Z; unread_since none).
+- So my 11:40Z conclusion "no access" was WRONG. Delivery works; only the pre-check (`probe_hub` through the user's hubs.toml) fails and prints a false "hub-refused … TLS handshake failed". The false refusal drove 6 re-sends of one consult. The post route the user actually uses is not yet identified.
+- The operator brief "scoped .122 token" is withdrawn as unnecessary for delivery.
+- Corrections sent: 1409 (3c361043), AEF (cdcf5a64). The design session's MCP servers are still the 3 old processes on the deleted binary (pids 223043/784062/1355346). That affects only mcp__termlink__* tools; a new session fixes it.
