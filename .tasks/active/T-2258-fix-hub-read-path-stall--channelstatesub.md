@@ -381,3 +381,9 @@ the running binary and the task reopens with new evidence rather than closing.
   tick per the framework rule (agent never ticks `### Human` ACs; G-068). This was the last
   open item on T-2258 — ready for human finalize
   (`cd /opt/termlink && .agentic-framework/bin/fw task update T-2258 --status work-completed`).
+
+### 2026-11-15T20:50Z — measured-evidence close (operator ruling, T-3800) [agent]
+- Measured: the fix db7c10a56 (and T-2355's c6e226ee3) are ancestors of the running .107 hub binary, 0.12.13+32.g023fbc762, read via `/proc/<pid>/exe`.
+- Live repro on a scratch topic (1500 posts, deleted afterwards), each read under `timeout -s KILL 12` over TCP: cold rc=0 68ms; post then immediate re-read rc=0 67ms; 4 concurrent full reads during 20 posts rc=0 73/72/111/152ms.
+- Independent review, round 2 (`docs/reports/T-3800-reviews/bundle-3.md`): both seats PASS.
+- Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions; extends D-626). The Human criterion is left unticked.

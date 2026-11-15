@@ -401,3 +401,8 @@ by testdev's login shells; the operator's own login is untouched.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3685-runme-action-28-long-lived-claude-token-.md
 - **Context:** Initial task creation
+
+### 2026-11-15T20:50Z — measured-evidence close (operator ruling, T-3800) [agent]
+- Measured, from the runme logs, action 28 (asks the operator to paste the token at the terminal, then verifies one prompt as testdev): 2026-11-11T08:30Z FAILED (did not answer); 2026-11-11T11:54Z OK (testdev's own long-lived token, `/home/testdev/.config/claude/oauth-token`, mode 600, loaded by .profile); 2026-11-14 OK; 2026-11-15T20:22Z skip ("testdev's stored token answers").
+- Independent review, two rounds (`docs/reports/T-3800-reviews/bundle-2.md`, `bundle-3.md`): round 2, both seats PASS.
+- Closed by the agent under the operator ruling of 2026-11-15 (T-3800 Decisions; extends D-626). The Human criterion is left unticked.

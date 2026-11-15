@@ -482,7 +482,9 @@ HANDBACKS=(T-1428 T-1451 T-1665 T-1723 T-212 T-2271 T-2371 T-2534 T-2541 T-2586
 # the review protocol, is the agent's to close. These four were excluded above for exactly that
 # reason; each now carries the measurement and two PASS verdicts in its Updates
 # (docs/reports/T-3800-reviews/). Handed back here, the agent closes them through the normal gate.
-HANDBACKS_T3800=(T-2858 T-2938 T-2939 T-3178)
+# Round 1 (T-2858 T-2938 T-2939 T-3178) handed back 2026-11-15T20:22Z and closed (a9a3c8320); removed.
+# Round 2: two PASS verdicts each in docs/reports/T-3800-reviews/review-3-*.md.
+HANDBACKS_T3800=(T-1632 T-2258 T-3685)
 if [ -n "${RUNME_TEST_HANDBACKS+x}" ]; then
     HANDBACKS=() HANDBACKS_T3800=()
     [ -n "$RUNME_TEST_HANDBACKS" ] && read -r -a HANDBACKS <<< "$RUNME_TEST_HANDBACKS"
