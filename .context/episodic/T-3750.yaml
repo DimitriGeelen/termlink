@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3750: Mail on our inbox at other hubs is seen only at session start: ring20's escalated report sat unseen while the session ran
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T18:31:17Z
+# ============================================================================
+
+task_id: T-3750
+task_name: "Mail on our inbox at other hubs is seen only at session start: ring20's escalated report sat unseen while the session ran"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-12T17:18:18Z
+completed: 2026-11-15T18:30:18Z
+duration_days: 3
+updates_count: 4
+first_commit: 2026-11-12T18:32:31+01:00
+last_commit: 2026-11-12T18:43:58+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  relay mail on our inboxes on remote hubs into the sidecar receiver each supervisor sweep. live proof (ring20 23-25 and test post HANDED_OVER in the main session), ACs ticked, decisions, ring20 offsets status. close — remote-hub inbox mail relayed into the running session (live-proven)
+
+# Key outcomes
+outcomes:
+  - '`scripts/lib/remote-inbox-mail.py --full-body` adds the full message body to each mail row (existing output unchanged without it)'
+  - '`scripts/lib/remote-inbox-relay.py` stores each unseen remote-inbox peer post into the receiver store with a deterministic id (`remote-<hash(hub|topic|offset)>`), idempotently, and advances its own per-topic cursor only after every mail on that topic was stored'
+  - 'First run seeds the relay cursor from the session-start seen-markers (no flood of already-shown history); with no marker it relays only posts younger than the window'
+  - 'An unreachable hub or unreadable topic: relay exits 2, writes `NOT CHECKED` to its log and status file, advances no cursor for it, and stores ONE notice into the receiver per outage (not per run)'
+  - '`scripts/notify-sidecar-supervisor.sh` runs the relay each sweep (flock, bounded timeout, failure isolated: the supervisor''s own exit semantics unchanged); seam `NOTIFY_SUPERVISOR_REMOTE_RELAY` (`off` or a command)'
+  - 'Hermetic fixtures `tests/remote-inbox-relay-fixtures.sh` (fake termlink, temp receiver dir, no real hub) pass, including a negative control: the start-only path (relay disabled) leaves the receiver empty and the test detecting live surfacing fails'
+  - 'Existing fixtures still pass: session-start-alerts, notify-sidecar-supervisor'
+  - 'Live proof: a "T-3750 live test, ignore" notice posted to our inbox on .122 is stored by the relay and surfaced into a running session without restart (observation method recorded in Updates)'
+  - 'ring20 offsets 19-23 on .122 listed with their answered/unanswered status in this task'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-12 — how remote-inbox mail reaches the running session'
+    chose: 'a relay (`scripts/lib/remote-inbox-relay.py`) that stores new remote-inbox peer posts in the AEF sidecar receiver store (`receiver.store_message`, envelope `via: hub-topic`, id `remote-<sha16(hub|topic|offset)>`), run each sweep of the existing 5-minute `scripts/notify-sidecar-supervisor.sh` cron. The receiver''s own watcher (30 s tick) injects and the prompt hook surfaces and records HANDED_OVER, exactly as for local-hub mail.'
+    rationale: 'reuses the one path that already reaches a running session (inject when ready, transcript-evidenced hand-over, receipts) and the existing reader (remote-inbox-mail.py + its seen-marker scheme). No AEF edit, no new cron (DP-3: within an existing operational job, guard cap unchanged at 99/34), live without operator action because cron re-reads the script each run. Latency ≤ 5 min + one watcher tick.'
+    alternatives_rejected: ['1. Extend the AEF watcher''s `ingest_hub` to read remote hubs — the right long-term home, but vendored (lost at re-vendor). Request text for AEF below. 2. A project UserPromptSubmit/Stop hook running the reader — fires only when the operator types or a turn ends; an idle session (the ring20 case) would still not see the mail, and it adds hub latency to every prompt. 3. Re-posting remote mail onto our local inbox topic — duplicates the message on a second hub, forges the sender''s position in another topic, and the watcher would then RECEIVED-receipt it on the wrong rail. 4. A new cron of its own — breaks DP-3 without retiring a guard, and needs an operator install. 5. Sharing the session-start seen-markers — the relay has its own cursor ("stored in the receiver" is not "seen"); it only SEEDS from them so history already shown at session start is not replayed. - **AEF request (not sent):** "lib/sidecar/watcher.py ingest_hub: also drain the agent''s inbox topics on every remote hub in hubs.toml (bounded per hub, NOT CHECKED per hub when unreachable), so consumer projects do not need a relay. 010-termlink T-3750 runs one meanwhile."']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/t3750/handback.md'
+  - '.tasks/active/T-3750-mail-on-our-inbox-at-other-hubs-is-seen-.md'
+  - 'scripts/lib/remote-inbox-mail.py'
+  - 'scripts/lib/remote-inbox-relay.py'
+  - 'scripts/notify-sidecar-supervisor.sh'
+  - 'tests/notify-sidecar-api-fixtures.sh'
+  - 'tests/notify-sidecar-supervisor-fixtures.sh'
+  - 'tests/remote-inbox-relay-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T18:32:31'
+    action: 'T-3750: relay mail on our inboxes on remote hubs into the sidecar receiver each supervisor sweep'
+  - time: '2026-11-12T18:38:29'
+    action: 'T-3750: live proof (ring20 23-25 and test post HANDED_OVER in the main session), ACs ticked, decisions, ring20 offsets status'
+  - time: '2026-11-12T18:43:58'
+    action: 'T-3750: close — remote-hub inbox mail relayed into the running session (live-proven)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 4392 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, priority, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4392
+  commits: 4
+  files_changed: 15
+  lines_added: 1260
+  lines_removed: 27
+  footprint_refreshed_at: '2026-11-15T18:32:06Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3750-mail-on-our-inbox-at-other-hubs-is-seen-.md
+generated_by: context-agent-hybrid

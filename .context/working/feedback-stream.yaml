@@ -24273,3 +24273,39 @@ scan_id: R-796d3799
 task_id: T-3799
 payload:
   task_file: .tasks/active/T-3799-weekly-cron-trims-targetdebug-when-no-bu.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T18:24:38Z'
+scan_id: R-4d10b23d
+task_id: T-3749
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T18:24:38Z'
+scan_id: R-4d10b23d
+task_id: T-3749
+payload:
+  task_file: .tasks/active/T-3749-mac-to-ring20-message-lost-silently-clie.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T18:30:54Z'
+scan_id: R-eaaedc58
+task_id: T-3750
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T18:30:54Z'
+scan_id: R-eaaedc58
+task_id: T-3750
+payload:
+  task_file: .tasks/active/T-3750-mail-on-our-inbox-at-other-hubs-is-seen-.md

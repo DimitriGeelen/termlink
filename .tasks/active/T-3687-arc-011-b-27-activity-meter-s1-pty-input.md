@@ -385,7 +385,7 @@ TMPDIR=/var/tmp cargo test -p termlink-sidecar --test api_tests --test deliver_t
 
 ## Decisions
 
-### 2026-11-12 — Follow-ups F-26 and F-27 done (P-1 T-3692, P-2 T-3693)
+### 2026-11-12 — Items F-26 and F-27 done (P-1 T-3692, P-2 T-3693)
 - **F-26 (CR-B27.4, D-4 revised):** built in T-3692, commit `0ad22deb4` (closed `c1fa536ff`). READY and `last_prompt` (with the turn stop) are persisted in the store file `state.meter.ready` and read back on the same boot; a restored READY record keeps its old epoch, so the gate still reads it absent (FCW-6). QR-2 is closed. The CR-6.23 restart rule stays, narrowed to sessions that never reported a prompt (the built hooks send none until B-29), so the field keeps failing toward a person.
 - **F-27 (CR-B27.5):** built in T-3693, commit `aa8680f36` (closed `9c49e0a14`). READY, `last_prompt` and the turn stop are ordered on `(boot_id, mono_ns)`, falling back to the receive stamp and never `at_ms`; the built hooks send `boot_id` and `mono_ns` (as a decimal string) and retry without them for a sidecar started before P-2. Test `f27_ready_ordering_is_at_ms_and_a_backward_step_freezes_it` is replaced by `p2_backward_wall_step_does_not_freeze_ready`.
 - This task stays open for its own criteria.

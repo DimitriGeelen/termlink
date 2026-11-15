@@ -1,0 +1,108 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3749: Mac to ring20 message lost silently: client closes in TLS handshake against .122 hub, sender sees success (ring20 T-2657, operator-escalated)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T18:24:53Z
+# ============================================================================
+
+task_id: T-3749
+task_name: "Mac to ring20 message lost silently: client closes in TLS handshake against .122 hub, sender sees success (ring20 T-2657, operator-escalated)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-12T17:18:16Z
+completed: 2026-11-15T18:20:44Z
+duration_days: 3
+updates_count: 3
+first_commit: 2026-11-12T18:35:31+01:00
+last_commit: 2026-11-12T19:47:41+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel post fails loudly — queued-not-delivered exits 3, unusable --hub (scheme/no profile/bad port) is a named error. MCP send_auto_discover refuses a named hub instead of ignoring it; agent contact reroute note on stderr in --json too. register refuses (before registering) when the running hub serves another runtime dir, naming both dirs; override TERMLINK_ALLOW_RUNTIME_DIR_MISMATCH=1. termlink fleet join — probe, pin (or check --fingerprint), out-of-band credential, profile, authenticated round trip; docs/operations/fleet-join.md. queued-not-delivered is a typed error mapped to exit 3 in main (no process::exit in library code; the in-process T-2443 durability test killed the harness). agent ACs ticked, RCA + Evolution recorded (not closed)
+
+# Key outcomes
+outcomes:
+  - '(a) Likeliest cause of the 0.1 ms handshake EOF written in ## RCA, with the exact Mac test to confirm it'
+  - '(b) Every audited send path that does not reach the intended hub/session exits non-zero with a named reason; hermetic tests with a negative control'
+  - '(c) A one-command device join exists, verifies with a real round trip, never sends the secret over the bus, documented in docs/operations/'
+  - '(d) `termlink register` fails loudly naming both dirs when its runtime dir differs from the one the reachable hub serves; test with a negative control'
+  - 'Workspace tests and clippy green'
+  - 'Hand-back written at .context/working/t3749/handback.md'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'queued-not-delivered is a typed error mapped to exit 3 in main (no process::exit in library code; the in-process T-2443 durability test killed the harness)'
+    source: git-mined
+  - description: 'channel post fails loudly — queued-not-delivered exits 3, unusable --hub (scheme/no profile/bad port) is a named error'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.fabric/components/crates-termlink-cli-src-commands-fleet_join.yaml'
+  - '.tasks/active/T-3749-mac-to-ring20-message-lost-silently-clie.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/commands/fleet_join.rs'
+  - 'crates/termlink-cli/src/commands/mod.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-cli/src/commands/session.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-cli/tests/t3749_loud_send.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'docs/operations/fleet-join.md'
+  - 'scripts/telemetry-rollup.sh'
+  - 'tests/telemetry-rollup-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-12T18:35:31'
+    action: 'T-3749: channel post fails loudly — queued-not-delivered exits 3, unusable --hub (scheme/no profile/bad port) is a named error'
+  - time: '2026-11-12T18:41:15'
+    action: 'T-3749: MCP send_auto_discover refuses a named hub instead of ignoring it; agent contact reroute note on stderr in --json too'
+  - time: '2026-11-12T18:59:13'
+    action: 'T-3749: register refuses (before registering) when the running hub serves another runtime dir, naming both dirs; override TERMLINK_ALLOW_RUNTIME_DIR_MISMATCH=1'
+  - time: '2026-11-12T19:07:26'
+    action: 'T-3749: termlink fleet join — probe, pin (or check --fingerprint), out-of-band credential, profile, authenticated round trip; docs/operations/fleet-join.md'
+  - time: '2026-11-12T19:34:57'
+    action: 'T-3749: queued-not-delivered is a typed error mapped to exit 3 in main (no process::exit in library code; the in-process T-2443 durability test killed the harness)'
+  - time: '2026-11-12T19:47:41'
+    action: 'T-3749: agent ACs ticked, RCA + Evolution recorded (not closed)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 4382 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, priority, arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4382
+  commits: 7
+  files_changed: 22
+  lines_added: 1778
+  lines_removed: 93
+  footprint_refreshed_at: '2026-11-15T18:32:05Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3749-mac-to-ring20-message-lost-silently-clie.md
+generated_by: context-agent-hybrid

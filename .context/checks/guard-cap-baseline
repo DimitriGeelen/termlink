@@ -15,7 +15,7 @@
 #   canary <path>          a counted canary cron job (.context/cron/*.crontab)
 #   operational <path>     an operational cron job (supervisor, rollup, re-mint, heartbeat,
 #                          audit, sweep): listed so a new crontab must be classified, NOT
-#                          counted (DP-3 excludes the 12 operational crons). Fixture suites
+#                          counted (DP-3 excludes the 13 operational crons; +target-cache-trim, T-3799). Fixture suites
 #                          (tests/*fixtures*.sh) are not guards and are not listed.
 cap check 99
 cap canary 34
@@ -161,6 +161,7 @@ operational .context/cron/notify-sidecar-supervisor.crontab
 operational .context/cron/notify-wake-supervisor.crontab
 operational .context/cron/presence-sweep.crontab
 operational .context/cron/sidecar-backstop.crontab
+operational .context/cron/target-cache-trim.crontab
 operational .context/cron/telemetry-rollup.crontab
 operational .context/cron/woken-silent-triage.crontab
 operational .context/cron/zombie-reap.crontab

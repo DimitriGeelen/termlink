@@ -1,21 +1,22 @@
 ---
-id: T-3750
-name: "Mail on our inbox at other hubs is seen only at session start: ring20's escalated
-  report sat unseen while the session ran"
+id: T-3749
+name: "Mac to ring20 message lost silently: client closes in TLS handshake against
+  .122 hub, sender sees success (ring20 T-2657, operator-escalated)"
 description: >
-  Peers replying from their own hub write to inbox:<fp>/010-termlink on THAT hub (ring20
-  lesson 5.11). scripts/session-start-alerts.sh reads remote inboxes once at session
-  start; the running session's sidecar receiver does not watch them, so ring20's operator-escalated
-  consult (2026-11-12, .122 offset 23) and older turns (offsets 19-22, 2026-10-28)
-  were not surfaced live. Needs a live watch or periodic surfacing of remote-hub inboxes
-  into the running main session.
+  Operator's M1 MacBook (WireGuard 10.10.10.13, NAT 192.168.10.25) sent a TermLink
+  message to the ring20 management agent; nothing arrived anywhere; .122 hub log shows
+  TCP accept then 'tls handshake eof' 0.1 ms later; sender showed no error. Asks:
+  (a) cause, (b) loud failure at the sender (non-zero exit, reason; name-addressed
+  message must reach that session or say it did not), (c) one-command device join
+  for .122 (profile + fingerprint + token). Report: inbox:22c19fedafd73da2/010-termlink
+  offset 23 on .122.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, priority, arc:arc-011]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/fleet_join.rs, crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs, crates/termlink-mcp/src/tools.rs, scripts/telemetry-rollup.sh, tests/telemetry-rollup-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -43,9 +44,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-11-12T17:18:18Z
-last_update: 2026-11-12T17:43:58Z
-date_finished:
+created: 2026-11-12T17:18:16Z
+last_update: 2026-11-15T18:20:44Z
+date_finished: 2026-11-15T18:20:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -57,7 +58,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-11-12T17:23:16Z'
+  - ts: '2026-11-12T17:24:51Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 1
@@ -74,53 +75,41 @@ bvp_scores_proposed:
     driver_set: product
 ---
 
-# T-3750: Mail on our inbox at other hubs is seen only at session start: ring20's escalated report sat unseen while the session ran
+# T-3749: Mac to ring20 message lost silently: client closes in TLS handshake against .122 hub, sender sees success (ring20 T-2657, operator-escalated)
 
 ## Context
 
-**Background / trigger:** On 2026-11-12 ring20 posted an operator-escalated priority bug report to our inbox on
-its OWN hub (.122, `inbox:22c19fedafd73da2/010-termlink`, offset 23). It sat unseen about an hour while this
-project's main session was running. Older ring20 turns on the same topic (offsets 19-22, 2026-10-28) need
-checking for answers.
+**Background / trigger:** The operator's Mac (WireGuard 10.10.10.13, NAT 192.168.10.25) sent a TermLink message to the
+ring20 management agent; nothing arrived. The .122 hub (0.12.1610) logged TCP accept then `tls handshake eof`
+0.1 ms later; the sender saw no error. Report: `.122` `inbox:22c19fedafd73da2/010-termlink` offset 23 (ring20 T-2657).
+Addendum (ring20 msg 6dabf379): session ring20-live-agent was invisible on .122 for 10 days because it registered
+under /run/user/0/termlink while the hub serves /var/lib/termlink.
 
-**Problem / hypothesis:** Peers reply from their own hub (ring20 lesson 5.11). Remote-hub inboxes are read only by
-`scripts/session-start-alerts.sh` section 2b (`scripts/lib/remote-inbox-mail.py`, T-3653), i.e. once at
-session start. Live mail reaches a running session only through the AEF sidecar receiver: its watcher
-(30 s tick) drains LOCAL hub inbox topics into the receiver store (`lib/sidecar/receiver.store_message`),
-injects one line when the session is ready, and the UserPromptSubmit hook surfaces the stored message.
-Nothing feeds remote-hub inbox mail into that store.
+**Problem / hypothesis:** A client path opens TCP to the hub and closes before sending a ClientHello (0.1 ms is
+shorter than any WireGuard round trip, so the client never waited for the server), and the send verb then reports
+success or exits 0 without saying the hub was not reached. The operator is the courier between his Mac and the
+agents; a send that looks successful but never left the machine is the worst failure shape (Directive 2).
 
-**Goal:** Smallest change: a relay that reads our inboxes on remote hubs (reusing remote-inbox-mail.py and
-its seen-marker scheme, own state dir) and stores each new peer post in the receiver store as a
-`via: hub-topic` envelope, so the existing tick → inject → hook path surfaces it. Run from an existing
-5-minute cron script (no new cron, DP-3). An unreachable hub is reported (log + one notice into the
-receiver per outage), never "no mail". The relay cursor advances only after the store succeeded.
-Not in scope: the AEF watcher itself (vendored), the CLI send paths and client.rs (T-3749), the
-session-start path (kept working, unchanged in behaviour).
+**Goal:** (a) find client paths that open TCP to a hub and close before ClientHello, and send verbs that then route
+elsewhere and report success; (b) send verbs exit non-zero with a named reason when the intended hub/session was not
+reached, and a name-addressed send never succeeds against a different session or hub; (c) one-command device join;
+(d) `register`/`spawn` fail loudly when the session runtime dir is not the one the reachable hub serves.
+Out of scope: session-start-alerts.sh and remote-inbox-mail.py (T-3750); messaging ring20 (operator relays).
 
-**Expected outcome:** A post to our inbox on a remote hub is stored in the receiver within one supervisor cycle
-(≤5 min) and surfaced to a running session without restart; hermetic tests prove it and a negative
-control shows the old start-only behaviour fails them.
+**Expected outcome:** A failed send from any device exits non-zero and names why; a new device joins the .122 hub
+with one command that ends in a verified round trip; a mis-rooted session registration is refused with both dirs
+named. Hand-back at `.context/working/t3749/handback.md`.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `scripts/lib/remote-inbox-mail.py --full-body` adds the full message body to each mail row (existing output unchanged without it)
-- [x] `scripts/lib/remote-inbox-relay.py` stores each unseen remote-inbox peer post into the receiver store with a deterministic id (`remote-<hash(hub|topic|offset)>`), idempotently, and advances its own per-topic cursor only after every mail on that topic was stored
-- [x] First run seeds the relay cursor from the session-start seen-markers (no flood of already-shown history); with no marker it relays only posts younger than the window
-- [x] An unreachable hub or unreadable topic: relay exits 2, writes `NOT CHECKED` to its log and status file, advances no cursor for it, and stores ONE notice into the receiver per outage (not per run)
-- [x] `scripts/notify-sidecar-supervisor.sh` runs the relay each sweep (flock, bounded timeout, failure isolated: the supervisor's own exit semantics unchanged); seam `NOTIFY_SUPERVISOR_REMOTE_RELAY` (`off` or a command)
-- [x] Hermetic fixtures `tests/remote-inbox-relay-fixtures.sh` (fake termlink, temp receiver dir, no real hub) pass, including a negative control: the start-only path (relay disabled) leaves the receiver empty and the test detecting live surfacing fails
-- [x] Existing fixtures still pass: session-start-alerts, notify-sidecar-supervisor
-- [x] Live proof: a "T-3750 live test, ignore" notice posted to our inbox on .122 is stored by the relay and surfaced into a running session without restart (observation method recorded in Updates)
-- [x] ring20 offsets 19-23 on .122 listed with their answered/unanswered status in this task
-
-**ring20 on .122 `inbox:22c19fedafd73da2/010-termlink` (read 2026-11-12):**
-- 19-22 (2026-10-27/28, kommunal-pool follow-ups, claim-over-TCP bug, 512 KiB cap): ANSWERED 2026-11-02 under T-3652
-  (reply .122 offset 2829 + sidecar send), recorded in `.context/project/unacted-mail-handled.txt` lines 10-13.
-- 23 (17:14Z), 24 (17:21Z, follow-up with "part ours, part yours"), 25 (17:23Z, a re-send of 23), all conversation
-  `mac-delivery-2026-11-12`: NOT yet answered from this project as far as the repo shows. The relay's first
-  live run delivered all three into the main session at 17:30:31Z (HANDED_OVER, transcript evidence).
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [x] (a) Likeliest cause of the 0.1 ms handshake EOF written in ## RCA, with the exact Mac test to confirm it
+- [x] (b) Every audited send path that does not reach the intended hub/session exits non-zero with a named reason; hermetic tests with a negative control
+- [x] (c) A one-command device join exists, verifies with a real round trip, never sends the secret over the bus, documented in docs/operations/
+- [x] (d) `termlink register` fails loudly naming both dirs when its runtime dir differs from the one the reachable hub serves; test with a negative control
+- [x] Workspace tests and clippy green
+- [x] Hand-back written at .context/working/t3749/handback.md
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -324,21 +313,11 @@ control shows the old start-only behaviour fails them.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-bash tests/remote-inbox-relay-fixtures.sh > .context/working/.t3750-relay.out 2>&1 && grep -q "ALL PASS" .context/working/.t3750-relay.out
-bash tests/notify-sidecar-supervisor-fixtures.sh > .context/working/.t3750-sup.out 2>&1 && grep -q " 0 failed" .context/working/.t3750-sup.out
-bash tests/session-start-alerts-fixtures.sh > .context/working/.t3750-ssa.out 2>&1 && grep -q "failed: 0" .context/working/.t3750-ssa.out
-python3 -m py_compile scripts/lib/remote-inbox-relay.py scripts/lib/remote-inbox-mail.py
-bash scripts/check-guard-severity-markers.sh > .context/working/.t3750-cap.out 2>&1
+test -f .context/working/t3749/handback.md
+cargo clippy --workspace --all-targets > .context/working/t3749/clippy.out 2>&1 && ! grep -q "^error" .context/working/t3749/clippy.out
+cargo test -p termlink --test t3749_loud_send > .context/working/t3749/loud.out 2>&1 && grep -q "test result: ok" .context/working/t3749/loud.out
 
 ## RCA
-
-**Symptom:** ring20's escalated report on .122 sat unseen ~1 h in a running session.
-**Root cause:** remote-hub inbox mail had exactly one reader, run at session start; the live surfacing path
-(AEF sidecar receiver) only drains local-hub topics.
-**Why structurally allowed:** T-3653 fixed "never read" with "read at start", and no test asserted that mail
-arriving DURING a session reaches it.
-**Prevention:** fixture `tests/remote-inbox-relay-fixtures.sh` asserts mid-session arrival lands in the
-receiver store, with a negative control for the start-only path.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -354,15 +333,41 @@ receiver store, with a negative control for the start-only path.
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** the operator's Mac sent a message to the ring20 agent. The .122 hub logged a TCP accept and then `tls handshake eof`
+0.1 ms later. Nothing arrived anywhere, and the sender showed no error.
+
+**Root cause (likeliest; the Mac's command and version are not yet known):** two separate things happened.
+(1) The hub log line is a TCP connect that closed with ZERO bytes. No ClientHello was sent. It is not a TOFU mismatch: that
+sends a ClientHello and then a TLS alert, and it needs at least one WireGuard round trip, far more than 0.1 ms.
+Reproduced on .107 against a byte-logging listener: `termlink net test` (CLI, and MCP `termlink_net_test`) opens a bare TCP
+"L1" probe and drops it, which shows on the hub as accept + `tls handshake eof`. A client killed in the 50-80 ms between TCP
+connect and its ClientHello looks the same. The .122 path is healthy: from .107 the wire fp matches the reported
+sha256:22c19fed... and our pin.
+(2) The message itself almost certainly never targeted .122. With no usable .122 profile, `channel post` / `channel dm` /
+`agent contact` falls through to the LOCAL hub socket. The Mac has no hub, so the post went into the Mac's offline queue,
+printed "Queued to ...", and **exited 0**. `--hub tcp://...`, a misspelled profile name or a bad port did the same
+(measured with 0.12.1610: `--hub tcp://127.0.0.2:19100` printed `Queued`, rc=0). MCP `send_auto_discover` also accepted a
+`hub` and silently ignored it.
+
+**Why structurally allowed:** "queued locally" and "delivered" shared exit code 0. The `--hub` parser's last resort was
+"treat it as a unix path", so every typo became a valid-looking local target. No test asserted a non-zero exit for an
+undelivered send.
+
+**Prevention:** exit 3 + `NOT DELIVERED:` on every queued post. Strict `--hub` parsing with named reasons. The refusal in
+`send_auto_discover`. `register` refuses a runtime-dir mismatch. `termlink fleet join` makes the correct setup a single
+proven command. All are pinned by hermetic tests in `crates/termlink-cli/tests/t3749_loud_send.rs` plus unit tests; the
+pre-fix binary is the negative control and the refusal mutant was killed.
+
+**Mac test to confirm (no secrets):** `termlink --version`; `termlink remote profile list`; `termlink hub probe
+192.168.10.122:9100` (expect sha256:22c19fed...); `termlink tofu verify 192.168.10.122:9100`; `termlink channel
+queue-status` (a pending count > 0 is the lost message); and the exact command used for the send.
+
 ## Evolution
 
-### 2026-11-12 — remote mail joins the receiver's own path instead of a new channel
-- **What changed:** the AEF sidecar receiver already surfaces any envelope placed in its store, so remote-hub mail
-  needed no new surfacing channel; a relay inside the existing 5-minute supervisor sweep is enough (DP-3 unchanged).
-- **Plan impact:** arc-011's later units that read remote inboxes (one receiver per project, forward-once) can reuse
-  this relay instead of building their own reader.
-- **Triggered:** an AEF follow-up request (native remote-hub topics in the receiver), text in Decisions, not sent;
-  open operator choice on outage-notice volume for laptop hubs (.141).
+### 2026-11-12 — the hub log was not the send
+- **What changed:** the 0.1 ms EOF is a probe-shaped zero-byte connection; the real loss was the local offline queue answering exit 0.
+- **Plan impact:** (b) became the main fix; (a) is answered by the Mac test rather than a code path on .122.
+- **Triggered:** none filed. The `net test` L1 bare connect still leaves a misleading WARN on hubs (left as is, noted in the hand-back).
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -426,29 +431,6 @@ receiver store, with a negative control for the start-only path.
      - **Rejected:** [alternatives and why not]
 -->
 
-### 2026-11-12 — how remote-inbox mail reaches the running session
-- **Chose:** a relay (`scripts/lib/remote-inbox-relay.py`) that stores new remote-inbox peer posts in the AEF
-  sidecar receiver store (`receiver.store_message`, envelope `via: hub-topic`, id `remote-<sha16(hub|topic|offset)>`),
-  run each sweep of the existing 5-minute `scripts/notify-sidecar-supervisor.sh` cron. The receiver's own watcher
-  (30 s tick) injects and the prompt hook surfaces and records HANDED_OVER, exactly as for local-hub mail.
-- **Why:** reuses the one path that already reaches a running session (inject when ready, transcript-evidenced
-  hand-over, receipts) and the existing reader (remote-inbox-mail.py + its seen-marker scheme). No AEF edit, no new
-  cron (DP-3: within an existing operational job, guard cap unchanged at 99/34), live without operator action because
-  cron re-reads the script each run. Latency ≤ 5 min + one watcher tick.
-- **Rejected:**
-  1. Extend the AEF watcher's `ingest_hub` to read remote hubs — the right long-term home, but vendored (lost at
-     re-vendor). Request text for AEF below.
-  2. A project UserPromptSubmit/Stop hook running the reader — fires only when the operator types or a turn ends;
-     an idle session (the ring20 case) would still not see the mail, and it adds hub latency to every prompt.
-  3. Re-posting remote mail onto our local inbox topic — duplicates the message on a second hub, forges the sender's
-     position in another topic, and the watcher would then RECEIVED-receipt it on the wrong rail.
-  4. A new cron of its own — breaks DP-3 without retiring a guard, and needs an operator install.
-  5. Sharing the session-start seen-markers — the relay has its own cursor ("stored in the receiver" is not "seen");
-     it only SEEDS from them so history already shown at session start is not replayed.
-- **AEF request (not sent):** "lib/sidecar/watcher.py ingest_hub: also drain the agent's inbox topics on every
-  remote hub in hubs.toml (bounded per hub, NOT CHECKED per hub when unreachable), so consumer projects do not need
-  a relay. 010-termlink T-3750 runs one meanwhile."
-
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -461,26 +443,23 @@ receiver store, with a negative control for the start-only path.
 
 ## Updates
 
-### 2026-11-12T17:18:18Z — task-created [task-create-agent]
+### 2026-11-12T17:18:16Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3750-mail-on-our-inbox-at-other-hubs-is-seen-.md
+- **Output:** /opt/termlink/.tasks/active/T-3749-mac-to-ring20-message-lost-silently-clie.md
 - **Context:** Initial task creation
 
-### 2026-11-12T17:23:13Z — status-update [task-update-agent]
+### 2026-11-12T17:24:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 
-### 2026-11-12T17:36Z — live proof [T-3750 worker]
-- **How observed:** from the receiver's own ledger `.context/sidecar/receiver/events.jsonl` and the receiving
-  session's transcript. No restart; the cron re-reads the supervisor script each run, so the change was live from commit.
-- **Real mail first:** the 17:30:12Z cron sweep relayed ring20 offsets 23-25 (STORED, INGESTED_FROM_REMOTE_HUB). At
-  17:30:18Z the watcher injected them into session tl-zez4b23c (the main session, generation 3, Claude transcript
-  10c2f139). At 17:30:31Z they were HANDED_OVER with `transcript:10c2f139…` evidence. The transcript holds the
-  `hook_additional_context` attachment "Sidecar receiver: 3 message(s)" with the "relayed from our inbox on remote hub
-  192.168.10.122" origin line (line 143386).
-- **Test post:** at 17:32:40Z a "T-3750 live test, ignore" post went to `inbox:22c19fedafd73da2/010-termlink` on .122
-  (offset 26). The 17:35:13Z sweep relayed it as remote-9ac1f89aae32852f, it was injected at 17:35:22Z and was
-  HANDED_OVER at 17:35:36Z (same transcript evidence). A HANDED_OVER receipt was posted to the local-hub topic
-  `inbox:cacc73ea32b121dd/010-termlink/t3750-live-test`; that is a stray topic left by the fake sender name.
-- **Outage path live:** .132 (greenfield, no answer in 10 s) and .141 (laptop-141, no route) were NOT CHECKED on runs
-  1 and 2. On run 2 the relay stored one notice per hub, and both were HANDED_OVER at 17:35:36Z. CONFIRM_FAILED for
-  the notices is expected: no receiver exists for the relay's own sender name.
+### 2026-11-15T18:20:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4d10b23d
+- **Timestamp:** 2026-11-15T18:24:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
