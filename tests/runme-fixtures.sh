@@ -497,6 +497,7 @@ aefu_state() {  # done|fresh [vendored-commit]
 aefu_state done
 export RUNME_AEFU_SRC="$AE/src" RUNME_AEFU_PROJECT="$AE/proj" RUNME_AEFU_WORKROOT="$AE/work" RUNME_AEFU_DIVCHECK="$AE/divcheck" \
        RUNME_AEFU_URL="http://fixture.invalid:3003" RUNME_AEFU_CURL="$AE/curl" RUNME_AEFU_MERGES="$AE/merges" \
+       RUNME_AEFU_TAG="v1.8.16-be.49" RUNME_AEFU_MARK_FILE="agents/termlink/termlink.sh" RUNME_AEFU_MARK="T-5105" RUNME_AEFU_TASK="T-3778" \
        FAKE_AEFU_WTUP="$AE/wtup" FAKE_AEFU_PROJ="$AE/proj"
 # T-3443: let the real-run cases run as a non-root CI user too (fixture mode only;
 # case 11 unsets this to test the real non-root refusal).

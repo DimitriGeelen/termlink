@@ -1737,9 +1737,14 @@ head2 "11. Schedule the hourly vector-index reindex (T-3336)"
 schedule_reindex
 
 # ---------------------------------------------------------------------------
-# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.49 (T-3778; operator ruling A)
+# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.51 (T-3794; operator go 2026-11-15)
 #
-# be.49 carries AEF T-5105: termlink.sh _all_wdirs is linear and fork-free (60-80 s became
+# T-3794 retarget: be.51 (c27b56a1a) carries AEF T-5137, the send-guard fix we filed as T-3790
+# (a reader that fetched within a day counts as present). Three preserved files changed
+# be.49 -> be.51 and merged clean (check-active-task.sh, safe-commands.sh, sidecar_cli.py),
+# stored with their manifest in .context/vendor-merges/T-3794. Below: the T-3778 history.
+#
+# be.49 carried AEF T-5105: termlink.sh _all_wdirs is linear and fork-free (60-80 s became
 # 0.4 s per dispatch on .107), so `fw reviewer judge` no longer hits its 120 s dispatch
 # timeout. The procedure is the .vendor-divergence.yaml checklist the T-3589..T-3662 workers
 # ran by hand: refuse unless check-vendor-divergence is clean, the vendored commit is an
@@ -1766,8 +1771,14 @@ seam AEFU_WORKROOT RUNME_AEFU_WORKROOT "/var/tmp"
 seam AEFU_DIVCHECK RUNME_AEFU_DIVCHECK "$PROJECT_ROOT/scripts/check-vendor-divergence.sh"
 seam AEFU_URL RUNME_AEFU_URL "http://192.168.10.107:3003"
 seam AEFU_CURL RUNME_AEFU_CURL "curl"
-seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3778"
-AEFU_TAG="v1.8.16-be.49"
+seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3794"
+# T-3794: retargeted be.49 -> be.51 (AEF T-5137, the send-guard fix from our T-3790). The tag,
+# the marker that proves the wanted fix landed, and the task the commit names are seams, so the
+# fixtures keep their be.49 scenario while a real run takes be.51.
+seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.51"
+seam AEFU_MARK_FILE RUNME_AEFU_MARK_FILE "lib/sidecar/addressing.py"
+seam AEFU_MARK RUNME_AEFU_MARK "T-5137"
+seam AEFU_TASK RUNME_AEFU_TASK "T-3794"
 AEFU_PATHS=".agentic-framework CLAUDE.md .framework.yaml .claude/settings.json"
 
 aefu_fw()  { (cd "$AEFU_PROJECT" && "$AEFU_PROJECT/.agentic-framework/bin/fw" "$@"); }
@@ -1785,7 +1796,7 @@ aefu_wt_ok() { $AEFU_CURL -sf -o /dev/null --max-time 5 "$AEFU_URL" >/dev/null 2
 aefu_wt_wait() { local i; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do aefu_wt_ok && return 0; nap 5; done; return 1; }
 aefu_manifest() { grep -v '^#' "$AEFU_MERGES/MANIFEST.tsv" 2>/dev/null | grep -v '^[[:space:]]*$'; }
 aefu_preserved() { sed -n 's/^[[:space:]]*-[[:space:]]*path:[[:space:]]*\([^[:space:]#]*\).*/\1/p' "$AEFU_PROJECT/.fwvendor-preserve.yaml" 2>/dev/null; }
-aefu_commit_sha() { aefu_git log -1 --format=%H --grep='^T-3778: fw upgrade' 2>/dev/null; }
+aefu_commit_sha() { aefu_git log -1 --format=%H --grep="^$AEFU_TASK: fw upgrade" 2>/dev/null; }
 aefu_pushed() { local c; c="$(aefu_commit_sha)"; [ -n "$c" ] && aefu_git merge-base --is-ancestor "$c" origin/main 2>/dev/null; }
 aefu_merges_installed() {  # 0 when every manifest file in the vendored tree is the merged copy
     local p o t m n=0
@@ -1859,14 +1870,14 @@ aefu_upgrade() {
         if [ "$vendc" = "$tagc" ] && ! aefu_merges_installed; then
             say "  FAILED  at $AEFU_TAG, but the merged preserved files from $AEFU_MERGES are not installed"; FAILED=$((FAILED+1)); return
         fi
-        if ! grep -q 'T-5105' "$AEFU_PROJECT/.agentic-framework/agents/termlink/termlink.sh" 2>/dev/null; then
-            say "  FAILED  VERSION says $AEFU_TAG or later, but agents/termlink/termlink.sh lacks T-5105"; FAILED=$((FAILED+1)); return
+        if ! grep -q "$AEFU_MARK" "$AEFU_PROJECT/.agentic-framework/$AEFU_MARK_FILE" 2>/dev/null; then
+            say "  FAILED  VERSION says $AEFU_TAG or later, but $AEFU_MARK_FILE lacks $AEFU_MARK"; FAILED=$((FAILED+1)); return
         fi
         if [ -n "$(aefu_commit_sha)" ] && ! aefu_pushed; then
-            if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would push the T-3778 upgrade commit to origin"; DONE=$((DONE+1)); return; fi
+            if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would push the $AEFU_TASK upgrade commit to origin"; DONE=$((DONE+1)); return; fi
             aefu_git push -q origin HEAD:main >/dev/null 2>&1
-            if ! aefu_pushed; then say "  FAILED  the T-3778 upgrade commit is not on origin/main and the push did not take"; FAILED=$((FAILED+1)); return; fi
-            say "  OK      T-3778 upgrade commit pushed to origin"
+            if ! aefu_pushed; then say "  FAILED  the $AEFU_TASK upgrade commit is not on origin/main and the push did not take"; FAILED=$((FAILED+1)); return; fi
+            say "  OK      $AEFU_TASK upgrade commit pushed to origin"
             n=pushed
         fi
         if aefu_host_ok && aefu_wt_ok; then
@@ -1902,7 +1913,7 @@ aefu_upgrade() {
     n="$(git -C "$AEFU_SRC" rev-list --count "$vendc..$tagc" 2>/dev/null)"
     if [ "$DRY_RUN" = "1" ]; then
         say "  [DRY]   would upgrade $(aefu_version) -> $AEFU_TAG (${tagc:0:9}, $n commits) from a fresh clone of $AEFU_SRC,"
-        say "          install $(aefu_manifest | wc -l) merged preserved files, set HOST 0.0.0.0, restart Watchtower, commit T-3778, push to origin"
+        say "          install $(aefu_manifest | wc -l) merged preserved files, set HOST 0.0.0.0, restart Watchtower, commit $AEFU_TASK, push to origin"
         DONE=$((DONE+1)); return
     fi
 
@@ -1959,8 +1970,8 @@ aefu_upgrade() {
             esac
         done < <(aefu_manifest)
     fi
-    if [ -z "$why" ] && ! grep -q 'T-5105' "$AEFU_PROJECT/.agentic-framework/agents/termlink/termlink.sh" 2>/dev/null; then
-        why="agents/termlink/termlink.sh lacks T-5105 (the dispatch scan fix this upgrade is for)"
+    if [ -z "$why" ] && ! grep -q "$AEFU_MARK" "$AEFU_PROJECT/.agentic-framework/$AEFU_MARK_FILE" 2>/dev/null; then
+        why="$AEFU_MARK_FILE lacks $AEFU_MARK (the fix this upgrade is for)"
     fi
     if [ -n "$why" ]; then
         aefu_rollback "$W/porcelain-before"
@@ -1990,7 +2001,7 @@ aefu_upgrade() {
     while IFS= read -r p; do paths+=("${p:3}"); done < <(grep -vxFf "$W/porcelain-before" "$W/porcelain-after" | aefu_upgrade_paths)
     f="$(grep -vxFf "$W/porcelain-before" "$W/porcelain-after" | grep -vxFf <(aefu_upgrade_paths < "$W/porcelain-after") | cut -c4- | head -5 | tr '\n' ' ')"
     [ -n "$f" ] && say "  note    changed during the run outside the upgrade's paths, left uncommitted: $f"
-    msg="T-3778: fw upgrade -> $AEFU_TAG (${tagc:0:9}, $(git -C "$AEFU_SRC" rev-list --count "$vendc..$tagc") commits; T-5105 dispatch scan; runme 11a)"
+    msg="$AEFU_TASK: fw upgrade -> $AEFU_TAG (${tagc:0:9}, $(git -C "$AEFU_SRC" rev-list --count "$vendc..$tagc") commits; $AEFU_MARK; runme 11a)"
     if [ "${#paths[@]}" = 0 ] || ! aefu_git add -A -- "${paths[@]}" >"$W/commit.log" 2>&1 \
        || ! aefu_git commit -q -m "$msg" -- "${paths[@]}" >>"$W/commit.log" 2>&1; then
         say "  FAILED  the upgrade is on disk and verified, but the commit did not take (log: $W/commit.log); re-run to retry"; FAILED=$((FAILED+1)); return
@@ -2020,7 +2031,7 @@ aefu_upgrade() {
     DONE=$((DONE+1))
 }
 
-head2 "11a. Upgrade the vendored framework to AEF $AEFU_TAG, Watchtower kept on the network (T-3778; operator ruling A)"
+head2 "11a. Upgrade the vendored framework to AEF $AEFU_TAG, Watchtower kept on the network ($AEFU_TASK; operator go)"
 aefu_upgrade
 
 # ---------------------------------------------------------------------------
