@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3303: Make claude-termlink sign with its per-agent key and migrate its mailbox (T-3302 GO, option B)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T23:07:16Z
+# ============================================================================
+
+task_id: T-3303
+task_name: "Make claude-termlink sign with its per-agent key and migrate its mailbox (T-3302 GO, option B)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-01T13:27:27Z
+completed: 2026-11-15T23:06:52Z
+duration_days: 45
+updates_count: 3
+first_commit: 2026-10-01T16:00:48+02:00
+last_commit: 2026-10-01T17:11:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 8 — this project's Claude sessions sign as claude-termlink's own key (T-3302 GO option B): merges env.TERMLINK_AGENT_ID=claude-termlink into .claude/settings.local.json (the hook-registering settings.json is B-005-protected and untouched), verifies all other keys unchanged; idempotent; seam-guarded. Fixtures 70/70 (+3), real settings file unchanged across the suite. identity set and verified via runme action 8 (rc=0; new sessions resolve 6738c073 per_agent); AC2 retirement rule recorded with revisit_at 2026-10-15 (d1993 mailbox retired once its topics are quiet 14 days); AC3 (pen's owner) open pending operator. /check-arc resolves self from the configured identity (agent identity --resolve --no-create) instead of the busiest presence sender, and walks the host-key threads during the transition — the old heuristic kept returning d1993 after the switch, hiding mail sent to claude-termlink by name (6738). Corrects my earlier wrong claim (that d1993 threads would drop out of view) in T-3303 and the handover
+
+# Key outcomes
+outcomes:
+  - 'The place where this project''s Claude sessions get their environment is identified (claude-fw launcher, `.claude/settings.json` `env`, or the fleet cockpit unit), and `TERMLINK_AGENT_ID=claude-termlink` is set there; a new session reports `termlink agent identity --resolve --no-create` = `6738c073bbcc587a`, `source: per_agent`'
+  - 'Both sidecar mailboxes stay watched; a dated rule records when d1993 is retired for this agent (its dm topics quiet for N days), and how to rename 6738 to the `claude-termlink` entry'
+  - 'pen''s owner is told (DM) that pen signs with the shared host key, with the T-3302 brief as context — their decision, not ours (2026-11-16: sent to 050-email-archive''s project inbox by name via the sidecar, client_msg_id 4b1eb669, RECEIVED by its receiver. The 2026-10-01 route concern, a DM to the shared fingerprint, no longer applies; owner identified from pen''s session tag project=050-email-archive)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 8 — this project''s Claude sessions sign as claude-termlink''s own key (T-3302 GO option B): merges env.TERMLINK_AGENT_ID=claude-termlink into .claude/settings.local.json (the hook-registering settings.json is B-005-protected and untouched), verifies all other keys unchanged; idempotent; seam-guarded. Fixtures 70/70 (+3), real settings file unchanged across the suite'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-10-01 — where the identity is set, and the mailbox retirement rule'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/check-arc.md'
+  - '.context/handovers/S-2026-1001-1007.md'
+  - '.tasks/active/T-3303-make-claude-termlink-sign-with-its-per-a.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T16:00:48'
+    action: 'T-3303: runme action 8 — this project''s Claude sessions sign as claude-termlink''s own key (T-3302 GO option B): merges env.TERMLINK_AGENT_ID=claude-termlink into .claude/settings.local.json (the hook-registering settings.json is B-005-protected and untouched), verifies all other keys unchanged; idempotent; seam-guarded. Fixtures 70/70 (+3), real settings file unchanged across the suite'
+  - time: '2026-10-01T17:04:04'
+    action: 'T-3303: identity set and verified via runme action 8 (rc=0; new sessions resolve 6738c073 per_agent); AC2 retirement rule recorded with revisit_at 2026-10-15 (d1993 mailbox retired once its topics are quiet 14 days); AC3 (pen''s owner) open pending operator'
+  - time: '2026-10-01T17:11:13'
+    action: 'T-3303: /check-arc resolves self from the configured identity (agent identity --resolve --no-create) instead of the busiest presence sender, and walks the host-key threads during the transition — the old heuristic kept returning d1993 after the switch, hiding mail sent to claude-termlink by name (6738). Corrects my earlier wrong claim (that d1993 threads would drop out of view) in T-3303 and the handover'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 65379 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 65379
+  commits: 4
+  files_changed: 8
+  lines_added: 274
+  lines_removed: 20
+  footprint_refreshed_at: '2026-11-15T23:07:25Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3303-make-claude-termlink-sign-with-its-per-a.md
+generated_by: context-agent-hybrid

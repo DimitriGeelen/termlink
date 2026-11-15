@@ -9,12 +9,12 @@ description: >
   until d1993's topics are quiet N days, then make 6738 the claude-termlink entry;
   (3) tell pen's owner pen shares the host key. Brief: docs/reports/T-3302-identity-canonical-brief.md
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [.claude/commands/check-arc.md, runme.sh, tests/runme-fixtures.sh]
 related_tasks: [T-3302]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -27,8 +27,8 @@ related_tasks: [T-3302]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T13:27:27Z
-last_update: 2026-10-01T13:58:17Z
-date_finished:
+last_update: 2026-11-15T23:06:52Z
+date_finished: 2026-11-15T23:06:52Z
 revisit_at: 2026-10-15
 revisit_evidence_needed: d1993 dm topics for claude-termlink quiet 14 days -> rename 6738 to the claude-termlink sidecar entry, drop the d1993 line
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -59,7 +59,10 @@ bvp_scores_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-3302 (GO, option B) found that this project's Claude session signed with the host's shared TermLink key (d1993…), so peers could not tell it apart from other agents on .107. pen (penelope, 050-email-archive's agent) signs with the same shared key.
+**Problem / hypothesis:** messages from a shared-key signer cannot be attributed to one agent; pen's owner may not know pen is one of them.
+**Goal:** this project signs with its own per-agent key (done, AC1-2); pen's owner is told about pen, as their decision to make.
+**Expected outcome:** claude-termlink signs as 6738c073bbcc587a; 050-email-archive has the facts and the T-3302 brief.
 
 ## Acceptance Criteria
 
@@ -67,10 +70,13 @@ bvp_scores_proposed:
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] The place where this project's Claude sessions get their environment is identified (claude-fw launcher, `.claude/settings.json` `env`, or the fleet cockpit unit), and `TERMLINK_AGENT_ID=claude-termlink` is set there; a new session reports `termlink agent identity --resolve --no-create` = `6738c073bbcc587a`, `source: per_agent`
 - [x] Both sidecar mailboxes stay watched; a dated rule records when d1993 is retired for this agent (its dm topics quiet for N days), and how to rename 6738 to the `claude-termlink` entry
-- [ ] pen's owner is told (DM) that pen signs with the shared host key, with the T-3302 brief as context — their decision, not ours
+- [x] pen's owner is told (DM) that pen signs with the shared host key, with the T-3302 brief as context — their decision, not ours (2026-11-16: sent to 050-email-archive's project inbox by name via the sidecar, client_msg_id 4b1eb669, RECEIVED by its receiver. The 2026-10-01 route concern, a DM to the shared fingerprint, no longer applies; owner identified from pen's session tag project=050-email-archive)
 
 
 ## Verification
+
+termlink agent identity --resolve --no-create > .context/working/.t3303 2>&1 && grep -q "6738c073bbcc587a" .context/working/.t3303
+test -f docs/reports/T-3302-identity-canonical-brief.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -266,3 +272,21 @@ bvp_scores_proposed:
 ### 2026-10-01T13:58:17Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-15T23:06:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8979e4ce
+- **Timestamp:** 2026-11-15T23:06:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — The place where this project's Claude sessions get their environment is identified (claude-fw launcher, `.claude/settings.json` `env`, or the fleet cockpit unit), and `TERMLINK_AGENT_ID=claude-termlin
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=claude/settings.json in: The place where this project's Claude sessions get their environment is identified (claude-fw launcher, `.claude/settings.json` `env`, or the fleet co`
