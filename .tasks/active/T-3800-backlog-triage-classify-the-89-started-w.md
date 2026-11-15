@@ -376,3 +376,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3800-backlog-triage-classify-the-89-started-w.md
 - **Context:** Initial task creation
+
+### 2026-11-16 — the measured-evidence ruling goes upstream [agent]
+- AEF opened inception **T-5171** (project-declared widening of delegation for one class under stated conditions; their T-3968 was closed). AEF recommends GO with hard conditions: operator-authored policy entry, measured evidence plus reviewer green, the ruling id cited on every tick, an audit WARN per tick, Tier-0 and sovereignty out of scope. The go/no-go is AEF's operator's call.
+- Sent the ruling's verbatim wording at AEF's request (msg 1a622646). Until T-5171 lands, tasks with an open act-in-the-world Human criterion (T-1632, T-2258, T-3685) wait in the operator's review queue.
