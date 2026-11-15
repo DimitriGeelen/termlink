@@ -24579,3 +24579,21 @@ scan_id: R-0dc48810
 task_id: T-2717
 payload:
   task_file: .tasks/active/T-2717-inception-decisions-can-contradict-their.md
+---
+kind: scan_emitted
+timestamp: '2026-11-15T23:42:55Z'
+scan_id: R-c90f5928
+task_id: T-2719
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-15T23:42:55Z'
+scan_id: R-c90f5928
+task_id: T-2719
+payload:
+  task_file: .tasks/active/T-2719-agent-inbox-unread-count-mixes-retention.md

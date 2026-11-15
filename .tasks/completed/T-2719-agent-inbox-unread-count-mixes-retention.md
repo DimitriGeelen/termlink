@@ -5,16 +5,16 @@ description: >
   termlink agent inbox subtracts an absolute cursor from a retention-window-relative
   latest index, over-reporting unread by 19x on a topic past its retention cap;
   agent unread reports the true count from absolute offsets
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs]
 related_tasks: []
 created: 2026-08-14T21:20:00Z
-last_update: 2026-11-15T23:30:32Z
-date_finished:
+last_update: 2026-11-15T23:30:35Z
+date_finished: 2026-11-15T23:30:35Z
 bvp_scores_proposed:
   - ts: '2026-08-23T19:13:29Z'
     estimator: bvp-estimator-v1-heuristic
@@ -309,3 +309,21 @@ task would violate the one-bug-one-task rule. File as their own tasks next sessi
 - **Source:** 999-AEF session, cross-session message
 - **Action:** filed without local reproduction; context-budget gate blocked Bash
 - **Next:** run the falsifiable prediction before any patching
+
+### 2026-11-15T23:30:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c90f5928
+- **Timestamp:** 2026-11-15T23:42:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#5 (Agent)** — The `cursor`-source divergence (`~/.termlink/cursors.json` vs hub ack receipt) is fixed or filed as its own task — it is NOT covered by T-2533 and upgrading alone makes the printed count worse (2026-1
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/cursors.json in: The `cursor`-source divergence (`~/.termlink/cursors.json` vs hub ack receipt) is fixed or filed as its own task — it is NOT covered by T-2533 and upg`

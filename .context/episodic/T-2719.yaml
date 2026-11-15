@@ -1,0 +1,101 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2719: agent inbox unread count mixes retention-relative index with absolute cursor
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-15T23:43:39Z
+# ============================================================================
+
+task_id: T-2719
+task_name: "agent inbox unread count mixes retention-relative index with absolute cursor"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-14T21:20:00Z
+completed: 2026-11-15T23:30:35Z
+duration_days: 93
+updates_count: 2
+first_commit: 2026-08-14T22:49:59+02:00
+last_commit: 2026-11-16T00:30:32+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file agent-inbox unread miscount reported by 999-AEF peer session. verify prediction — latest half is T-2533 (fixed, undeployed), cursor half is a separate two-store defect. agent inbox caps unread at the live count (stale cursor below the retention window counted swept posts: 1802 vs 999 -> 1000 vs 999); over-report tests for both paths + mutant; T-3805 filed (no local cursors for a new identity)
+
+# Key outcomes
+outcomes:
+  - 'The prediction is tested first: `inbox` and `unread` agree on a topic UNDER its retention cap, and disagree on one OVER it — recorded with both outputs *(§1 — passed; 127 vs 125 under cap, 388 vs 30 over)*'
+  - 'If the prediction fails, the task is re-scoped to the real cause rather than patched to match the peer''s read *(prediction passed, but the `cursor` half of the diagnosis was wrong — re-scoped in §3 rather than patched to match)*'
+  - 'The subtraction site is located and cited by `file:line`, showing which operand is retention-relative and which is absolute *(`channel.rs:8749` compute_unread_rows; `latest` = count−1, `cursor` from `channel.rs:8800` local store — §2/§3)*'
+  - 'The code fix for the `latest` operand is identified *(T-2533 / `ac859d321` / v0.11.871 — already merged, not deployed)*'
+  - 'The `cursor`-source divergence (`~/.termlink/cursors.json` vs hub ack receipt) is fixed or filed as its own task — it is NOT covered by T-2533 and upgrading alone makes the printed count worse (2026-11-16: receipt reconciliation landed in T-2757; the stale-cursor over-count is fixed here by capping unread at the live count; the remaining gap, no local cursors for a new identity, is filed as T-3805)'
+  - 'T-2533''s test suite gains the over-report direction of the `count-1` fallback (cursor below count−1), which its current tests do not cover (`compute_unread_rows_count_fallback_overreports_below_count`, plus `…_frontier_below_window_capped_at_live_count` for the authoritative path; the mutant without the cap fails)'
+  - '`agent inbox` and `channel unread` are shown agreeing on the reporter''s exact case, on a binary >= 0.11.871 (agent-chat-arc, host identity d1993: before 1802 vs 999; fixed build 1000 vs 999. The 1 is by design: `channel unread` skips meta message types (UNREAD_META_TYPES), `agent inbox` counts offsets)'
+  - 'The peer (999-AEF) gets the outcome: prediction passed, `latest` half already fixed in T-2533 and undeployed, `cursor` half is a separate defect their diagnosis did not cover *(sent 2026-08-15, msg 94180c21)*'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'verify prediction — latest half is T-2533 (fixed, undeployed), cursor half is a separate two-store defect'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-14.yaml'
+  - '.context/audits/2026-08-15.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.hook-counter'
+  - '.context/working/.tool-counter'
+  - '.context/working/focus.yaml'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2719-agent-inbox-unread-count-mixes-retention.md'
+  - '.tasks/active/T-2720-fleet-version-floors-not-bumped-when-t-2.md'
+  - '.tasks/active/T-3805-agent-inbox-lists-only-topics-with-a-loc.md'
+  - '.termlink-task'
+  - 'VERSION'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-14T22:49:59'
+    action: 'T-2719: file agent-inbox unread miscount reported by 999-AEF peer session'
+  - time: '2026-08-15T07:19:23'
+    action: 'T-2719: verify prediction — latest half is T-2533 (fixed, undeployed), cursor half is a separate two-store defect'
+  - time: '2026-11-16T00:30:32'
+    action: 'T-2719: agent inbox caps unread at the live count (stale cursor below the retention window counted swept posts: 1802 vs 999 -> 1000 vs 999); over-report tests for both paths + mutant; T-3805 filed (no local cursors for a new identity)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 134050 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 134050
+  commits: 4
+  files_changed: 17
+  lines_added: 774
+  lines_removed: 55
+  footprint_refreshed_at: '2026-11-15T23:44:25Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2719-agent-inbox-unread-count-mixes-retention.md
+generated_by: context-agent-hybrid
