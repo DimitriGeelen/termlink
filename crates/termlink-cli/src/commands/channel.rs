@@ -9448,7 +9448,14 @@ pub(crate) fn compute_unread_rows(
         let frontier = reconcile_consumption_frontier(*cursor, receipt_up_to);
         let unread = match unread_verdict(latest, authoritative, frontier, receipt_up_to) {
             UnreadVerdict::CaughtUp => continue,
-            UnreadVerdict::Unread(n) => Some(n),
+            // T-2719: a frontier below the retention window would count posts the
+            // sweep already removed (live: latest 3413, cursor 1611 -> 1802, while
+            // the topic holds 1000). Nothing older than the window can be read, so
+            // unread never exceeds the live record count.
+            UnreadVerdict::Unread(n) => Some(match topic_counts.get(topic) {
+                Some(c) if authoritative => n.min(*c),
+                _ => n,
+            }),
             UnreadVerdict::Indeterminate => None,
         };
         rows.push(UnreadRow {
@@ -17735,6 +17742,37 @@ mod tests {
             rows.is_empty(),
             "count-1 fallback under-reports on swept topics (the T-2533 bug)"
         );
+    }
+
+    // T-2719: the over-report direction. A frontier BELOW the retention window
+    // (a stale local cursor) made `agent inbox` count swept posts as unread.
+    // Live 2026-11-16: latest 3413, 1000 live posts, cursor 1611 → 1802 printed
+    // while `channel unread` said 999. Unread is capped at the live count.
+    #[test]
+    fn compute_unread_rows_frontier_below_window_capped_at_live_count() {
+        let cursors = vec![("agent-chat-arc".to_string(), 1611)];
+        let counts = counts_map(&[("agent-chat-arc", 1000)]);
+        let latest = latest_map(&[("agent-chat-arc", 3413)]);
+        let rows = compute_unread_rows(&cursors, &counts, &latest, &no_receipts());
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].unread, Some(1000), "unread must not exceed the 1000 posts the topic still holds");
+        // Inside the window nothing changes: cursor 3400 → 13 unread.
+        let rows = compute_unread_rows(&[("agent-chat-arc".to_string(), 3400)], &counts, &latest, &no_receipts());
+        assert_eq!(rows[0].unread, Some(13));
+    }
+
+    // T-2719: the count-1 FALLBACK (pre-T-2533 hub, no latest_offset) over-reports
+    // in the other direction too: cursor below count-1 counts positions, not
+    // offsets. T-2533's tests covered only the under-report (row dropped). This
+    // pins the fallback's behaviour: it is not clamped (count-1 is not an offset).
+    #[test]
+    fn compute_unread_rows_count_fallback_overreports_below_count() {
+        let cursors = vec![("agent-chat-arc".to_string(), 1611)];
+        let counts = counts_map(&[("agent-chat-arc", 2000)]);
+        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]), &no_receipts());
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].latest, 1999, "fallback latest is count-1, a position");
+        assert_eq!(rows[0].unread, Some(388), "count-1 fallback over-reports (2026-08-14 case: 388 vs 30)");
     }
 
     // ---- T-2757: frontier reconciliation ----------------------------------

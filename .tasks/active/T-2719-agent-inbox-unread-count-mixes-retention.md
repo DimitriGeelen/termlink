@@ -13,7 +13,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-08-14T21:20:00Z
-last_update: '2026-09-27T21:34:06Z'
+last_update: 2026-11-15T23:30:32Z
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-23T19:13:29Z'
@@ -62,6 +62,11 @@ cost_estimate_proposed:
 # T-2719: agent inbox unread count mixes retention-relative index with absolute cursor
 
 ## Context
+
+**Background / trigger:** AEF reported (2026-08-14) that `termlink agent inbox` showed an unread count wildly different from `channel unread` for the same topic (388 vs 30 on agent-chat-arc).
+**Problem / hypothesis:** two operands: (1) `latest` was count-derived on swept topics, fixed hub-side in T-2533 (v0.11.871); (2) `agent inbox` reads cursors from the local `~/.termlink/cursors.json` while `channel unread` reads the hub ack receipt, two stores never reconciled.
+**Goal:** both verbs agree on the reporter's case; the cursor divergence fixed or filed; the over-report direction tested.
+**Expected outcome:** one honest unread number regardless of which verb is asked.
 
 Reported by the 999-AEF peer session (uds:/tmp/cc-socks/124667.sock) on
 2026-08-14, homed here because the fix lives in this repo. Reproduced on
@@ -233,9 +238,9 @@ assumption that no longer holds — after T-2680, T-2709, T-2714, T-2715, T-2718
 - [x] If the prediction fails, the task is re-scoped to the real cause rather than patched to match the peer's read *(prediction passed, but the `cursor` half of the diagnosis was wrong — re-scoped in §3 rather than patched to match)*
 - [x] The subtraction site is located and cited by `file:line`, showing which operand is retention-relative and which is absolute *(`channel.rs:8749` compute_unread_rows; `latest` = count−1, `cursor` from `channel.rs:8800` local store — §2/§3)*
 - [x] The code fix for the `latest` operand is identified *(T-2533 / `ac859d321` / v0.11.871 — already merged, not deployed)*
-- [ ] The `cursor`-source divergence (`~/.termlink/cursors.json` vs hub ack receipt) is fixed or filed as its own task — it is NOT covered by T-2533 and upgrading alone makes the printed count worse
-- [ ] T-2533's test suite gains the over-report direction of the `count-1` fallback (cursor below count−1), which its current tests do not cover
-- [ ] `agent inbox` and `channel unread` are shown agreeing on the reporter's exact case, on a binary >= 0.11.871
+- [x] The `cursor`-source divergence (`~/.termlink/cursors.json` vs hub ack receipt) is fixed or filed as its own task — it is NOT covered by T-2533 and upgrading alone makes the printed count worse (2026-11-16: receipt reconciliation landed in T-2757; the stale-cursor over-count is fixed here by capping unread at the live count; the remaining gap, no local cursors for a new identity, is filed as T-3805)
+- [x] T-2533's test suite gains the over-report direction of the `count-1` fallback (cursor below count−1), which its current tests do not cover (`compute_unread_rows_count_fallback_overreports_below_count`, plus `…_frontier_below_window_capped_at_live_count` for the authoritative path; the mutant without the cap fails)
+- [x] `agent inbox` and `channel unread` are shown agreeing on the reporter's exact case, on a binary >= 0.11.871 (agent-chat-arc, host identity d1993: before 1802 vs 999; fixed build 1000 vs 999. The 1 is by design: `channel unread` skips meta message types (UNREAD_META_TYPES), `agent inbox` counts offsets)
 - [x] The peer (999-AEF) gets the outcome: prediction passed, `latest` half already fixed in T-2533 and undeployed, `cursor` half is a separate defect their diagnosis did not cover *(sent 2026-08-15, msg 94180c21)*
 
 ## Verification
