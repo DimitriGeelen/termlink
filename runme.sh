@@ -1758,9 +1758,15 @@ head2 "11. Schedule the hourly vector-index reindex (T-3336)"
 schedule_reindex
 
 # ---------------------------------------------------------------------------
-# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.51 (T-3794; operator go 2026-11-15)
+# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.52 (T-3802)
 #
-# T-3794 retarget: be.51 (c27b56a1a) carries AEF T-5137, the send-guard fix we filed as T-3790
+# T-3802 retarget: be.52 (tag object 24308c846 -> commit 3e064047d) carries our T-3798 asks:
+# T-5148 inbox aliases, T-5149 orphan detector, T-5150 refuse unknown bare names, T-5157
+# `fw sidecar inbox --mark-read`. Two preserved files changed be.51 -> be.52: sidecar_cli.py
+# (clean) and web/blueprints/discovery.py (one conflict, resolved to upstream's removal of the
+# index-build helper; our comment wording kept). Merges + manifest in .context/vendor-merges/T-3802.
+#
+# T-3794 retarget (previous): be.51 (c27b56a1a) carries AEF T-5137, the send-guard fix we filed as T-3790
 # (a reader that fetched within a day counts as present). Three preserved files changed
 # be.49 -> be.51 and merged clean (check-active-task.sh, safe-commands.sh, sidecar_cli.py),
 # stored with their manifest in .context/vendor-merges/T-3794. Below: the T-3778 history.
@@ -1792,14 +1798,14 @@ seam AEFU_WORKROOT RUNME_AEFU_WORKROOT "/var/tmp"
 seam AEFU_DIVCHECK RUNME_AEFU_DIVCHECK "$PROJECT_ROOT/scripts/check-vendor-divergence.sh"
 seam AEFU_URL RUNME_AEFU_URL "http://192.168.10.107:3003"
 seam AEFU_CURL RUNME_AEFU_CURL "curl"
-seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3794"
+seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3802"
 # T-3794: retargeted be.49 -> be.51 (AEF T-5137, the send-guard fix from our T-3790). The tag,
 # the marker that proves the wanted fix landed, and the task the commit names are seams, so the
 # fixtures keep their be.49 scenario while a real run takes be.51.
-seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.51"
-seam AEFU_MARK_FILE RUNME_AEFU_MARK_FILE "lib/sidecar/addressing.py"
-seam AEFU_MARK RUNME_AEFU_MARK "T-5137"
-seam AEFU_TASK RUNME_AEFU_TASK "T-3794"
+seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.52"
+seam AEFU_MARK_FILE RUNME_AEFU_MARK_FILE "lib/sidecar/inbox.py"
+seam AEFU_MARK RUNME_AEFU_MARK "T-5157"
+seam AEFU_TASK RUNME_AEFU_TASK "T-3802"
 AEFU_PATHS=".agentic-framework CLAUDE.md .framework.yaml .claude/settings.json"
 
 aefu_fw()  { (cd "$AEFU_PROJECT" && "$AEFU_PROJECT/.agentic-framework/bin/fw" "$@"); }

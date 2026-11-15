@@ -261,6 +261,8 @@ divergences:
       - T-3370
     reapplied_1_8_3: >-
       Re-applied in d211b551a (T-3370): 1.8.3 removed the CALLER (AEF T-3786) but kept _trigger_async_index_build() with a live build_index() call; ours makes it inert (log only). tests/vector-index-reader-no-rebuild-fixtures.sh 4/4.
+    be52_note: >-
+      T-3802 (2026-11-15): be.52 removes _trigger_async_index_build entirely (with a test), so the fix is functionally upstream. The only local difference left in the T-3802 merge is one comment's wording ("a background index build here" instead of upstream's "build_index()"), kept so our fixture's literal `build_index()` check stays meaningful. The _db_opened_at import (T-3370 entry) is also upstream (be.52 embeddings.py:133).
   - task: T-3336
     commit: pending-same-commit
     commit_note: Registered in the same commit that carries the change.
