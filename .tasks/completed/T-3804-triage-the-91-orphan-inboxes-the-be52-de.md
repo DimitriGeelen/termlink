@@ -375,6 +375,9 @@ test "$(grep -c "inbox:cacc73ea32b121dd\|^t3684" docs/reports/T-3804-orphan-inbo
 ### 2026-11-15T23:03:26Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 
+### 2026-11-16 — 832 confirms its stranded mail is settled [agent]
+- 832 msg 8f7e6a47: its 12 consults on `inbox:cacc73ea32b121dd/proxmox-ring20-management` (offsets 0-11, 2026-10-01/02) were the T-979 direct-call question with re-sends. Ring20 answered on its correct address on 2026-11-14, and T-979 is closed. 832 now sends to 22c19fedafd73da2/proxmox-ring20-management. Offset 13 there is 1409's.
+
 ## Reviewer Verdict (v1.5)
 
 - **Scan ID:** R-4c808653
