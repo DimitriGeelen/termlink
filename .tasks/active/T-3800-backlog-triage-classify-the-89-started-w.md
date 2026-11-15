@@ -353,6 +353,13 @@ date_finished: null
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-15 — Who closes a task whose remaining step is measured as done: A, the agent, after a positive independent review (operator ruling)
+- **Operator words:** "Yes, you may close the task yourself." and "of course assuming you got a positive review from the reviewers as we have defined it in our review protocol."
+- **Chose:** A, conditioned. When the agent can measure that a task's remaining act-in-the-world step is done (a file or unit on disk, a commit, a peer's reply on record), it may close the task itself, provided that (1) the command and its output are recorded in the task, and (2) an independent reviewer seat, run per our protocol (`fw review isolated-run`, tools off, neutral bundle with the task and the measured evidence, no recommendation), returns a positive verdict, saved under `docs/reports/T-3800-reviews/`. A negative or unclear verdict sends the task back to the operator.
+- **Why:** the operator objected to ticking already-documented evidence as rubber stamping. This keeps the operator for what only the operator can do, and every close carries measured proof plus an outside check.
+- **Rejected:** B (operator closes every act-in-the-world item: rubber stamping); C (reviewer alone, without measured evidence).
+- **Scope:** this extends D-626 (2026-09-23) for this project. Decisions, sovereignty fields, tier-0 approvals, and anything the agent cannot measure stay with the operator.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:

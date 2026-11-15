@@ -2121,3 +2121,598 @@ decisions:
     date: 2026-10-31
     task: T-3200
     rationale: "Operator ruling A, 2026-10-31 (after delegating per batch on 2026-09-29 and 2026-10-18). Ends the voi-prompt WARN guard's recurring escalation while keeping every value labelled and overridable."
+
+  - id: PD-297
+    decision: "Convert every site that actually runs as a pipeline, RISKY or SAFE: 380 sites across 98 files (here-string"
+    scope: project
+    date: 2026-11-01
+    task: T-3631
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-298
+    decision: "D′. The repo holds two layers, as AEF holds the framework plus a vendored instance of itself:"
+    scope: project
+    date: 2026-11-01
+    task: T-3612
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-299
+    decision: "C. Draft from Q1–Q7, operator reads and corrects it, then at most 2 rounds of outside review by the"
+    scope: project
+    date: 2026-11-01
+    task: T-3612
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-300
+    decision: "E. \"TermLink makes sure every message reaches the recipient it is meant for: it finds that recipient,"
+    scope: project
+    date: 2026-11-01
+    task: T-3612
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-301
+    decision: "A (operator: \"A, as suggested\"). Rewrite R13 as an ALLOW case: a deterministic `[REVIEWER]` criterion on a"
+    scope: project
+    date: 2026-11-01
+    task: T-3636
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-302
+    decision: "close (operator: \"1 yes\"). Work done (fixtures 21/21); no Human AC; owner:human only, so the close is the"
+    scope: project
+    date: 2026-11-01
+    task: T-3636
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-303
+    decision: "D (operator: \"proceed to suggestion\", after Q&A). No code change."
+    scope: project
+    date: 2026-11-01
+    task: T-3630
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-304
+    decision: "topic `liveness:<hub_id>/<agent>` (named like the inbox `inbox:<hub_id>/<agent>`, `send::inbox_topic`), created"
+    scope: project
+    date: 2026-11-01
+    task: T-3646
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-305
+    decision: "`stuck` = the note is fresh, but at the note's own sample time the main's inbox held a message at or past"
+    scope: project
+    date: 2026-11-01
+    task: T-3646
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-306
+    decision: "hub-to-hub contact is allowed only in a hub module named `directory_card*.rs`, and topic-message RPCs or the topic store are forbidden there too. A spoke dial is allowed only in a `circuit*.rs` module (Rust test) or file (check-strict-star.sh) whose enclosing fn names `HubMintedCredential` between its `fn` line and the connect."
+    scope: project
+    date: 2026-11-01
+    task: T-3643
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-307
+    decision: "enforcement inside `scripts/check-guard-severity-markers.sh` against the tracked baseline `.context/checks/guard-cap-baseline`. A counted canary is a `.context/cron/*.crontab` whose name contains `canary`. The 12 others are listed as `operational`, so any NEW crontab must be classified and a canary cannot escape the count by its name."
+    scope: project
+    date: 2026-11-01
+    task: T-3644
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-308
+    decision: "B with GLM's two amendments:"
+    scope: project
+    date: 2026-11-01
+    task: T-3352
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-309
+    decision: "B: every message (normal and urgent) reaches a working agent at its next tool call. Consequences per"
+    scope: project
+    date: 2026-11-01
+    task: T-3352
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-310
+    decision: "A: Rust, in the TermLink workspace (`crates/termlink-sidecar`), as built for PH-1 (B1..B15)."
+    scope: project
+    date: 2026-11-01
+    task: T-3352
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-311
+    decision: "A: PH-1 is closed, PH-2 starts. The next session plans PH-2 into build tasks the way PH-1 was planned"
+    scope: project
+    date: 2026-11-01
+    task: T-3352
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-312
+    decision: "B (operator: \"b\"). The main's sidecar posts a periodic hub note \"alive, drained up to offset N\"; peers"
+    scope: project
+    date: 2026-11-02
+    task: T-3619
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-313
+    decision: "`scripts/arc011-w1-provision.sh` keeps an existing config's `book.main` (W1_MAIN still overrides; the default applies only on first provisioning)."
+    scope: project
+    date: 2026-11-02
+    task: T-3651
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-314
+    decision: "one `{\"op\":\"status\"}` line over the sidecar status unix socket from tokio, 5s timeout."
+    scope: project
+    date: 2026-11-02
+    task: T-3651
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-315
+    decision: "undeclared second hub / second version = severity high, status fail, preflight exit 2."
+    scope: project
+    date: 2026-11-02
+    task: T-3657
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-316
+    decision: "`<runtime_dir>/second-hub.declared`, written by `termlink hub start --allow-second-hub` and removed by"
+    scope: project
+    date: 2026-11-02
+    task: T-3657
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-317
+    decision: "sibling row `single-binary`: `type -aP termlink`, deduped by realpath, each `--version`; two or more"
+    scope: project
+    date: 2026-11-02
+    task: T-3657
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-318
+    decision: "`fw sidecar drop` refuses under CLAUDECODE=1 unless `--i-am-human`; from the operator's own terminal it"
+    scope: project
+    date: 2026-11-02
+    task: T-3657
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-319
+    decision: "Large/complex work goes through the role sequence when it sets a security boundary or an interface others build on, is expensive to undo, or spans 3+ projects/hosts; otherwise one inception + build tasks. arc-011's remaining qualifying items (hub signing key, revocation list, cross-host forward) run steps 4-8 before build; we pilot AEF T-3935's template arc first."
+    scope: project
+    date: 2026-11-02
+    task: unknown
+    rationale: "Operator 2026-11-02: 'Yes, for now we can do that. But I want 999 to create a template.' ring20 entry criteria (msg 765ba4f9)."
+
+  - id: PD-320
+    decision: "drop our SessionStart/UserPromptSubmit `termlink main claim --session-from-stdin`; keep our SessionEnd release."
+    scope: project
+    date: 2026-11-02
+    task: T-3659
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-321
+    decision: "present the live hub row's own claimer string when its parsed session equals ours (`session_claimer`)."
+    scope: project
+    date: 2026-11-02
+    task: T-3660
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-322
+    decision: "trim the two new descriptions to their contract and drop task-ID archaeology from 5 older ones (107891 -> 107493)."
+    scope: project
+    date: 2026-11-02
+    task: T-3660
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-323
+    decision: "resolve in the CLI before upload: a `to` with `/` is used as given; else `inbox:<hub_id>/<to>` if it"
+    scope: project
+    date: 2026-11-02
+    task: T-3661
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-324
+    decision: "fix the receiver cursor (`since_for_next_seq`) and keep file send; deprecation text now names"
+    scope: project
+    date: 2026-11-02
+    task: T-3661
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-325
+    decision: "flush after `write_all` in `Client::call`/`notify` (termlink-session), the mirror of the hub-side T-3474."
+    scope: project
+    date: 2026-11-03
+    task: T-3666
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-326
+    decision: "carry the base64 in the `command.execute` `env` map (`TERMLINK_PUSH_B64`); the command reads `\"$VAR\"` via the `printf` builtin."
+    scope: project
+    date: 2026-11-03
+    task: T-3667
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-327
+    decision: "A (operator: \"A\"). Round 2 (rung 5, architecture v0.2) is accepted as the independent review on the green"
+    scope: project
+    date: 2026-11-08
+    task: T-3353
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-328
+    decision: "A (operator: \"For now yes, but we want to improve it for the future\"). `artifact put --hub` only with"
+    scope: project
+    date: 2026-11-08
+    task: T-3353
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-329
+    decision: "D+ (operator: \"D plus is fine but we also need to have a fallback option ...\"). Not A: the operator"
+    scope: project
+    date: 2026-11-08
+    task: T-3353
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-330
+    decision: "A with the tightening (operator: \"A with the tightening\"). Any interactive session of the project may"
+    scope: project
+    date: 2026-11-08
+    task: T-3353
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-331
+    decision: "A (operator: \"A\"). `permissions.deny` for `SendMessage` in this project's settings (6.10.2, ends RA-5);"
+    scope: project
+    date: 2026-11-08
+    task: T-3353
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-332
+    decision: "A (operator: \"A\"). V-1..V-13 (and the related DR-3, DR-12, DR-14) accepted as starting values under FP-4:"
+    scope: project
+    date: 2026-11-08
+    task: T-3353
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-333
+    decision: "A (operator: \"A\"). L0 base (today, every project), L1 separate accounts (agents never as root), L2 keyed"
+    scope: project
+    date: 2026-11-08
+    task: T-3353
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-334
+    decision: "the ~28 always-on production checks (E-121..E-148, handback item 9b) are built as one combined check plus"
+    scope: project
+    date: 2026-11-11
+    task: T-3354
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-335
+    decision: "A — relicense MIT -> Apache-2.0: LICENSE (full text), NOTICE, Cargo.toml workspace licence, README; push origin (OneDev mirrors to GitHub)."
+    scope: project
+    date: 2026-11-12
+    task: T-3690
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-336
+    decision: "apply every CR-1..CR-6 item as its owning role, marked \"(changed in vX by CR-n.m)\"; the \"or\" items"
+    scope: project
+    date: 2026-11-12
+    task: T-3689
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-337
+    decision: "the 06 5.16.c rule, as stated: HOME and the runtime dir (`discovery::runtime_dir()`, i.e. `TERMLINK_RUNTIME_DIR` first) both lie in ONE tree whose ancestor holds a genuine `.termlink-estate` marker (first line `termlink-sidecar-estate v1`, the C-1 marker the testkit writes). If any `TERMLINK_MAIN_TEST_*` variable (by prefix, names only) is set outside such a tree, `Timing::from_env()` returns `SeamRefused`. The CLI turns that into unknown (exit 2) before any hub contact, and so does the MCP `termlink_main_status`. The sidecar's read-only lease view keeps the defaults and logs the refusal once on stderr, because its own start refusal is FCW-77 and belongs to a later unit."
+    scope: project
+    date: 2026-11-12
+    task: T-3686
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-338
+    decision: "one store state file per agent, `state.meter.ready` (Store::write_state: tmp, fsync, rename, fsync dir), holding per session the READY record, `last_prompt`, the turn stop that ends the prompt's window, and `ended`, plus the host `boot_id`. Written under the meter lock after every applied `ready`, `prompt_submit`, `turn_stop`, `session_end` and after the built `stop` / `session-end` hooks; read back by `Meter::with_state` at sidecar start (daemon.rs). Records of another boot, an unknown version or a damaged file are not used, and the reason is kept in `last_reasons`; a failed write is counted (`persist_failed`); sessions read back are counted (`restored`)."
+    scope: project
+    date: 2026-11-12
+    task: T-3692
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-339
+    decision: "keep the rule \"no prompt on record and S2 within 120 s reads `operator`\", which now means a session that never reported a prompt (a persisted prompt counts), instead of deleting it."
+    scope: project
+    date: 2026-11-12
+    task: T-3692
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-340
+    decision: "confirm as proposed in plan 08 v0.3 section 7.1 (approved by the operator 2026-11-12, ruling A with PD-2, recorded in T-3357): this task is unit P-23; it also feeds the status skew line (P-24, T-3708)."
+    scope: project
+    date: 2026-11-12
+    task: T-3364
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-341
+    decision: "extend `scripts/session-message-selftest.sh` with `--rail termlink` (default) and keep"
+    scope: project
+    date: 2026-11-12
+    task: T-3711
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-342
+    decision: "each assert can append a JSON line (rail, role, run_id, verdict, rc, script_sha256) to"
+    scope: project
+    date: 2026-11-12
+    task: T-3711
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-343
+    decision: "a `RemovalGuard` trait in termlink-bus, installed by the hub; every bus removal path on a guarded"
+    scope: project
+    date: 2026-11-12
+    task: T-3701
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-344
+    decision: "a separate `rpc-admin.jsonl`, written synchronously (FCW-128 needs a write that can fail the RPC),"
+    scope: project
+    date: 2026-11-12
+    task: T-3701
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-345
+    decision: "`ReportOrd {boot, ns}`: the adapter's `(boot_id, mono_ns)` when both are present and valid, else the receive stamp in its own domain `rx:` (`:` cannot occur in a `boot_id`). Same domain: higher `ns` is later; another domain (a new boot, or a switch between adapter and receive stamps) is later than every report of the previous one (04 17.2.a). Used for READY (FCW-3, tie keeps BUSY), for `last_prompt` (an older prompt is dropped, counted `prompt_reordered`, as 17.2.a names both keys) and for \"the stop ordered after the prompt\" (AL-4 line 510). `at_ms` is kept for display only. The order is persisted with P-1's record; a P-1 file without it is read back with its receive stamp."
+    scope: project
+    date: 2026-11-12
+    task: T-3693
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-346
+    decision: "accept `mono_ns` as a JSON integer or a decimal string (1..=20 digits); the built hooks send the string form."
+    scope: project
+    date: 2026-11-12
+    task: T-3693
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-347
+    decision: "the `ready` and `pull` ops accept `boot_id` and `mono_ns`; a hook that gets `unknown-field` asks once more without them."
+    scope: project
+    date: 2026-11-12
+    task: T-3693
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-348
+    decision: "`TERMLINK_OWNER_ONLY=<owner>` read once at session start (reaches the session daemon through"
+    scope: project
+    date: 2026-11-12
+    task: T-3702
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-349
+    decision: "session rows at `<session socket dir>/use-log/<session-id>.jsonl` (`TERMLINK_USE_LOG` overrides), hub rows"
+    scope: project
+    date: 2026-11-12
+    task: T-3702
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-350
+    decision: "`status` reads the hook error log (default beside the sockets, or `$TERMLINK_SIDECAR_HOOK_ERRORS`) and shows `vendor_log: degraded` while a vendor-channel error line is newer than the last vendor-channel row; `unknown` when the log exists but cannot be read; the error count stays in `vendor_log_detail`."
+    scope: project
+    date: 2026-11-12
+    task: T-3710
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-351
+    decision: "A, a token over TCP. dimitri-mint-dev gets its own scoped Interact token (never the hub"
+    scope: project
+    date: 2026-11-12
+    task: T-3756
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-352
+    decision: "verify with `/usr/local/bin/termlink` (0.12.x), run as the user. Renewal is the daily .107"
+    scope: project
+    date: 2026-11-12
+    task: T-3756
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-353
+    decision: "a flag file `<store>/withhold-all` (same pattern as `delivery-off`), read at every pull; anything at"
+    scope: project
+    date: 2026-11-12
+    task: T-3695
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-354
+    decision: "the register check is opt-in per agent through `enc_key_register` in the sidecar config. Configured: every defect refuses start (FCW-109, FCW-110). Not configured: the sidecar starts with `keys.encryption: not provisioned`, and blob paths must refuse."
+    scope: project
+    date: 2026-11-12
+    task: T-3696
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-355
+    decision: "the start-up check writes its view to `<store>/keys/encryption.json`, and `status` reads it with one line."
+    scope: project
+    date: 2026-11-12
+    task: T-3696
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-356
+    decision: "A — a runme action moves `/home/dimitri-mint-dev/.local/bin/termlink` (0.11.931) to"
+    scope: project
+    date: 2026-11-13
+    task: T-3758
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-357
+    decision: "B — first publish the P-2 parity fixture next to `tests/fixtures/b25-parity/r3-prompt-origin.json`, then send P-44 with both."
+    scope: project
+    date: 2026-11-13
+    task: T-3761
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-358
+    decision: "scan the user's login PATH in order; stop at the first copy that IS the current build (sha256 equal to /usr/local/bin/termlink, or the same version). Move every strictly OLDER copy ahead of it to `termlink.bak-<its version>` in its own folder. Refuse (FAILED, nothing moved at all) on a newer-but-not-current, unversioned, symlinked or non-regular copy, and on a differing existing backup. All checks run before the first move."
+    scope: project
+    date: 2026-11-13
+    task: T-3762
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-359
+    decision: "A — tag now at the last committed state (4e6ef491f), after the full test suite passes on a clean export."
+    scope: project
+    date: 2026-11-13
+    task: T-3753
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-360
+    decision: "yes, keep it unchanged; fix only the test helper."
+    scope: project
+    date: 2026-11-13
+    task: T-3755
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-361
+    decision: "`<tag>+<N>.g<sha9>` (e.g. `0.12.11+4.ga2fcb16f8`); a tagged commit still reports exactly the tag."
+    scope: project
+    date: 2026-11-13
+    task: T-3774
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-362
+    decision: "A + D. A: worker runs as the requesting user and signs in at the main hub over the network with its own"
+    scope: project
+    date: 2026-11-13
+    task: T-3759
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-363
+    decision: "change the fixture case `watchdog-line-is-automated` to basis `doorbell` (expect stays `ignored`), and add `crates/termlink-sidecar/tests/t3764_fixture_basis.rs` so every fixture basis must pass the meter's check_origin."
+    scope: project
+    date: 2026-11-13
+    task: T-3764
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-364
+    decision: "A, a mixed panel from the operator's subscriptions: Claude Code (Anthropic), Codex (OpenAI), opencode"
+    scope: project
+    date: 2026-11-13
+    task: T-3356
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-365
+    decision: "A, reject all five together, with the reasons of 07 section 3.4 / the disposition table: F-7 the release"
+    scope: project
+    date: 2026-11-13
+    task: T-3356
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-366
+    decision: "A, accept as a residual until an operator key exists (widens QR-3), with the detector of CR-5.11"
+    scope: project
+    date: 2026-11-13
+    task: T-3356
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-367
+    decision: "A, approve CR-4.1: architecture 6.9.7.b (ruled O-2 item 2 text) adds \"no client input in the last 30 s,"
+    scope: project
+    date: 2026-11-13
+    task: T-3356
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-368
+    decision: "D (proposed by the agent from the operator's words, confirmed \"yes\"):"
+    scope: project
+    date: 2026-11-13
+    task: T-3356
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-369
+    decision: "A, close step 7's panel with Claude Code, opencode and Antigravity; Codex recorded as unavailable (run 1"
+    scope: project
+    date: 2026-11-13
+    task: T-3356
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-370
+    decision: "A, approve step 7: 07-review v0.1 with the operator's rulings above (F-7, F-36..F-39 rejected; F-25"
+    scope: project
+    date: 2026-11-13
+    task: T-3356
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-371
+    decision: "A — the recorded ruling is the approval; the \"[REVIEW] Step N output approved\" box is replaced by an Agent"
+    scope: project
+    date: 2026-11-13
+    task: T-3356
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-372
+    decision: "A — approve docs/design/interactive-agent-communication-08-plan.md v0.3 (71 units, 7 explorations,"
+    scope: project
+    date: 2026-11-13
+    task: T-3357
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-373
+    decision: "A — the recorded G-0 ruling above is the approval; the \"[REVIEW] Step 8 plan approved\" box is replaced by"
+    scope: project
+    date: 2026-11-13
+    task: T-3357
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-374
+    decision: "missing or null `basis` = `absent` in the meter; contract text in 06 AL-1 says so."
+    scope: project
+    date: 2026-11-13
+    task: T-3779
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-375
+    decision: "a signed `reg: {principal, prefix}` claim inside the existing hub token, minted at observe scope. The hub"
+    scope: project
+    date: 2026-11-13
+    task: T-3760
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-376
+    decision: "the endpoint host must equal the caller's own IP as the hub sees it (IPv4-mapped forms are treated as"
+    scope: project
+    date: 2026-11-13
+    task: T-3760
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-377
+    decision: "A — upgrade now to v1.8.16-be.49 (T-5105 dispatch scan fix), through one runme action that restores"
+    scope: project
+    date: 2026-11-13
+    task: T-3778
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-378
+    decision: "build it (not D \"not now\"); shape **A**: at registration the worker hands the hub a token minted from"
+    scope: project
+    date: 2026-11-14
+    task: T-3782
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-379
+    decision: "A — termlink falls back to the user's TCP hub (its hub link address + its own credential) when no"
+    scope: project
+    date: 2026-11-14
+    task: T-3786
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-380
+    decision: "a relay (`scripts/lib/remote-inbox-relay.py`) that stores new remote-inbox peer posts in the AEF"
+    scope: project
+    date: 2026-11-15
+    task: T-3750
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-381
+    decision: "Measured-evidence close: the agent may close a task whose remaining act-in-the-world step it can measure as done, with the command+output recorded AND a positive independent reviewer verdict per the review protocol; otherwise the operator closes (operator ruling 2026-11-15, extends D-626)"
+    scope: project
+    date: 2026-11-15
+    task: T-3800
+    rationale: "Operator: ticking already-documented evidence is rubber stamping; keep the operator for what only the operator can do"
