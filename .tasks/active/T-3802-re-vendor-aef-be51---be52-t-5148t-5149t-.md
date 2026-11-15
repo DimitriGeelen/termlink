@@ -67,8 +67,8 @@ date_finished: null
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] The be.52 tag's commit is confirmed against AEF's stated commit before anything is built on it (AEF named tag object 24308c846 → commit 3e064047d, same as the public mirror; be.51 is an ancestor, 156 commits)
 - [x] Preserved files changed be.51 → be.52 are merged and stored with a manifest (or none changed); runme 11a targets be.52; fixtures pass (sidecar_cli.py clean; discovery.py one conflict resolved to upstream's removal of the helper, our comment wording kept; fixtures 362/0)
-- [ ] After the operator's run: VERSION at be.52; `--mark-read termlink` then the alias; a sentinel post to `…/termlink` surfaces in this session
-- [ ] Field verdict (WORKS/FAILS + command) for T-5148, T-5149, T-5150, T-5157 sent to AEF
+- [x] After the operator's run: VERSION at be.52; `--mark-read termlink` then the alias; a sentinel post to `…/termlink` surfaces in this session (runme 22:19Z rc=0, VERSION 1.8.15+1489.g3e064047d, commit 800e9b20b; cursor 0→56; alias in read_topics; sentinel at offset 56 shown by `fw sidecar inbox --peek`, alone)
+- [x] Field verdict (WORKS/FAILS + command) for T-5148, T-5149, T-5150, T-5157 sent to AEF (msg 290aad95: all four WORKS; small gap noted on T-5150's close-peer suggestion)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -119,6 +119,10 @@ date_finished: null
 -->
 
 ## Verification
+
+grep -q "g3e064047d" .agentic-framework/VERSION
+grep -q "^SIDECAR_INBOX_ALIASES: termlink" .framework.yaml
+PROJECT_ROOT=$PWD python3 -c 'import sys;sys.path.insert(0,".agentic-framework");from lib.sidecar import inbox;sys.exit(0 if "inbox:cacc73ea32b121dd/termlink" in inbox.read_topics() else 1)'
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
