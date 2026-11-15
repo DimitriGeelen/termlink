@@ -377,6 +377,9 @@ PROJECT_ROOT=$PWD python3 -c 'import sys;sys.path.insert(0,".agentic-framework")
 ### 2026-11-15T22:44:17Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 
+### 2026-11-15T22:50Z — end-to-end proof through the prompt hook [agent]
+- The sentinel (msg e8dc5599, `T-3802-alias-sentinel-1794782598`) and the post-alias `--to termlink` probe (013af31e) were both surfaced to this session by the UserPromptSubmit sidecar hook ("[sidecar] 2 peer messages waiting"), not only by `--peek`. The alias works end to end.
+
 ## Reviewer Verdict (v1.5)
 
 - **Scan ID:** R-b20503c2
