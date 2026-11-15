@@ -191,6 +191,17 @@ NAV_GROUPS = [
     ]),
 ]
 
+# T-5146: menu pages that load their own external script library. Their menu links are
+# plain links (hx-boost="false"), so the browser loads them once, directly. Boosted,
+# htmx fetched the page, T-5130's handler then saw the new library and loaded the URL a
+# second time (/bvp: 5.2-5.7 s against 2.8 s direct). Kept honest by
+# tests/web/test_t5146_nav_full_load.py, which renders every menu page.
+NAV_FULL_LOAD_ENDPOINTS = frozenset({
+    "bvp.bvp_scatter",          # d3
+    "fabric.fabric_graph",      # d3
+    "terminal.terminal_page",   # xterm.js and socket.io
+})
+
 
 def _nav_flatten(items):
     """Yield leaf (label, endpoint, icon) tuples from a group's items, recursing
@@ -1877,11 +1888,80 @@ def _compute_readiness(task_id: str, body: str, root: Path, path: Path | None,
     return (WAITING_ON_AGENT if reasons else READY), tuple(reasons)
 
 
+# T-5147: background refresh of readiness entries the board served stale. A write to any
+# review ledger moves _readiness_stamp and so invalidates every awaiting task at once; the
+# board's next request recomputed them all inline (9-22 s, independent reviewer on T-5136).
+_READINESS_REFRESH_PENDING: dict[str, str] = {}   # task-file path -> task id
+# Tasks the newest ledger rows name: a just-recorded verdict's task is refreshed first, so
+# it turns ready within seconds instead of after the whole queue (independent reviewer on
+# T-5147: 390 tasks, 99.6 s under load).
+_READINESS_REFRESH_FIRST: dict[str, str] = {}
+_READINESS_REFRESH_LOCK = threading.Lock()
+_READINESS_REFRESH_THREAD: dict = {"t": None}
+_RECENT_LEDGER_IDS: dict = {"stamp": None, "ids": frozenset()}
+_LEDGER_TAIL_BYTES = 65536
+_TASK_ID_RE = re_mod.compile(r'"(T-\d+)"')
+
+
+def _recent_ledger_task_ids(root: Path, stamp: tuple) -> frozenset:
+    """Task ids named in the newest rows of the review ledgers (their last 64 KB), once
+    per ledger stamp. Cheap: only the file tails are read."""
+    if _RECENT_LEDGER_IDS["stamp"] == stamp:
+        return _RECENT_LEDGER_IDS["ids"]
+    ids: set = set()
+    try:
+        for f in (root / ".context" / "reviews").glob("*.jsonl"):
+            try:
+                with open(f, "rb") as fh:
+                    fh.seek(max(0, f.stat().st_size - _LEDGER_TAIL_BYTES))
+                    ids.update(_TASK_ID_RE.findall(fh.read().decode("utf-8", "replace")))
+            except OSError:
+                continue
+    except OSError:
+        pass
+    _RECENT_LEDGER_IDS.update(stamp=stamp, ids=frozenset(ids))
+    return _RECENT_LEDGER_IDS["ids"]
+
+
+def _readiness_refresh_worker() -> None:
+    while True:
+        with _READINESS_REFRESH_LOCK:
+            queue = _READINESS_REFRESH_FIRST or _READINESS_REFRESH_PENDING
+            if not queue:
+                _READINESS_REFRESH_THREAD["t"] = None
+                return
+            path, task_id = queue.popitem()
+        try:
+            review_readiness(task_id, "", "", path)   # exact path: recomputes and stores
+        except Exception:  # a failed refresh leaves the stale entry; the next exact call recomputes
+            logger.warning("readiness refresh failed for %s", task_id, exc_info=True)
+
+
+def _schedule_readiness_refresh(task_id: str, path: Path) -> None:
+    first = task_id in _recent_ledger_task_ids(Path(PROJECT_ROOT), _readiness_stamp(Path(PROJECT_ROOT)))
+    with _READINESS_REFRESH_LOCK:
+        if first:
+            _READINESS_REFRESH_PENDING.pop(str(path), None)
+            _READINESS_REFRESH_FIRST[str(path)] = task_id
+        elif str(path) not in _READINESS_REFRESH_FIRST:
+            _READINESS_REFRESH_PENDING[str(path)] = task_id
+        if _READINESS_REFRESH_THREAD["t"] is None:
+            t = threading.Thread(target=_readiness_refresh_worker,
+                                 name="readiness-refresh", daemon=True)
+            _READINESS_REFRESH_THREAD["t"] = t
+            t.start()
+
+
 def review_readiness(task_id: str, status: str, body: str,
-                     path: Path | str | None = None) -> tuple[str, list[str]]:
+                     path: Path | str | None = None,
+                     allow_stale: bool = False) -> tuple[str, list[str]]:
     """``(state, reasons)`` for a task awaiting the operator; state is ``READY`` or
     ``WAITING_ON_AGENT``. Reasons are empty iff ready. Cached per task-file mtime and
-    the ledger stamp when ``path`` is given. Fails toward waiting, never silently ready."""
+    the ledger stamp when ``path`` is given. Fails toward waiting, never silently ready.
+
+    ``allow_stale`` (T-5147, board only): when only the ledger stamp moved since the cached
+    entry, a cached WAITING is returned as is and refreshed in the background. A cached
+    READY is never served stale, so stale data can only under-report readiness."""
     root = Path(PROJECT_ROOT)
     p = Path(path) if path else None
     stamp = _readiness_stamp(root)
@@ -1900,6 +1980,9 @@ def review_readiness(task_id: str, status: str, body: str,
         # depends on the task file alone, so a commit elsewhere does not invalidate it.
         if hit and hit[0] == mtime and (hit[1] is None or hit[1] == tstamp):
             return hit[2][0], list(hit[2][1])
+        if allow_stale and hit and hit[0] == mtime and hit[2][0] != READY:
+            _schedule_readiness_refresh(task_id, p)
+            return hit[2][0], list(hit[2][1])
     used: list = []
     state, reasons = _compute_readiness(task_id, body, root, p, stamp, used)
     if p is not None:
@@ -1910,12 +1993,14 @@ def review_readiness(task_id: str, status: str, body: str,
 _OPEN_HUMAN_CACHE: dict[str, tuple[int, int]] = {}
 
 
-def task_review_state(path: Path | str) -> tuple[str | None, list[str], int]:
+def task_review_state(path: Path | str,
+                      allow_stale: bool = False) -> tuple[str | None, list[str], int]:
     """``(state, reasons, open_human)`` for one task file (T-4045 board column).
 
     ``state`` is None when the task has no unchecked Human criterion (it is not
     awaiting anyone); otherwise ``review_readiness``'s verdict. Both the open-Human
-    count and the readiness are cached per file mtime."""
+    count and the readiness are cached per file mtime. ``allow_stale``: see
+    ``review_readiness`` (T-5147; the board only)."""
     p = Path(path)
 
     def _count(q: Path) -> int:
@@ -1928,7 +2013,7 @@ def task_review_state(path: Path | str) -> tuple[str | None, list[str], int]:
     if open_human == 0:
         return None, [], 0
     state, reasons = review_readiness(p.name.split("-", 2)[0] + "-" + p.name.split("-", 2)[1],
-                                      "", "", p)
+                                      "", "", p, allow_stale=allow_stale)
     return state, reasons, open_human
 
 
@@ -1962,7 +2047,9 @@ def board_awaiting_reason(meta: dict) -> str | None:
     path = meta.get("_path")
     active = meta.get("_location") == "active" and bool(path)
     meta["_review_state"], meta["_wait_reasons"], meta["_open_human"] = (
-        task_review_state(path) if active else (None, [], 0))
+        # T-5147: the board may show the last known WAITING while a ledger write is
+        # re-verified in the background; it never shows a stale READY.
+        task_review_state(path, allow_stale=True) if active else (None, [], 0))
     if meta["_review_state"] == READY:
         return AWAIT_REVIEWER_READY
     if (active and str(meta.get("status") or "") == "work-completed"

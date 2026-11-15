@@ -380,6 +380,25 @@ def _require_remote_inbox(name: str, hub: str, hub_id: str, runner) -> None:
         f"{listed}. Use --to {hub_id}/<project>; nothing posted")
 
 
+def nickname_candidates(name: str) -> list[str]:
+    """T-5150: peer-directory names that ``name`` is a nickname of: the part after a numeric
+    project prefix (``termlink`` → ``010-termlink``) or a whole hyphen-separated part
+    (``ring20`` → ``ring20-dashboard``). Case-insensitive; never ``name`` itself."""
+    n = (name or "").strip().lower()
+    if not n:
+        return []
+    out = []
+    for peer_name in sorted(load_peers()["peers"]):
+        p = peer_name.lower()
+        if p == n:
+            continue
+        parts = p.split("-")
+        after_number = p.split("-", 1)[1] if parts[0].isdigit() and "-" in p else None
+        if n == after_number or n in parts:
+            out.append(peer_name)
+    return out
+
+
 def resolve(to: str, *, hub: str | None = None, level: str = "auto",
             runner=subprocess.run, hubs_file: Path | None = None) -> dict:
     """Where a `--to` goes: {circuit, topic, hub (None = local), how}.
@@ -437,6 +456,19 @@ def resolve(to: str, *, hub: str | None = None, level: str = "auto",
             return out(known["circuit"],
                        hub_arg_for(known["hub_id"], runner=runner, hubs_file=hubs_file),
                        f"peer directory (hub {known['hub_id']})")
+    # T-5150 (010 T-3798): a nickname of a known peer (`termlink` for 010-termlink) is
+    # refused, naming the peer. It must run before is_project_id: that treats a sibling
+    # checkout DIRECTORY as a project, and 010's checkout is /opt/termlink, so `--to
+    # termlink` became inbox:<hub>/termlink, which nobody reads (54 consults sat there).
+    # The hub's "inbox was fetched" evidence below is weak too (a peek counts, T-5149).
+    # A numbered NNN-name id, our own id, or an explicit --level keeps its meaning.
+    if (level == "auto" and name != circuit.project_id()
+            and not circuit._PROJECT_ID_RE.match(name)):
+        nick = nickname_candidates(name)
+        if nick:
+            raise AddressError(
+                f"recipient {name!r} is not a project or peer; did you mean "
+                + " or ".join(nick) + f"? Send --to {nick[0]} (peer directory: {peers_path()})")
     if level == "project" or (level == "auto" and circuit.is_project_id(name)):
         return out(f"{own}/{name}", hub_arg, "project address on this hub")
     if level == "agent":
@@ -455,7 +487,18 @@ def resolve(to: str, *, hub: str | None = None, level: str = "auto",
         f"the peer directory ({peers_path()}), and not a sub-agent of this agent "
         f"(no inbox:{own}/{circuit.project_id()}/{name} on this hub). Address it as "
         f"--to <hubid>/{name}, or --hub <profile> for a peer on another hub, or "
-        f"--level agent if it IS your sub-agent")
+        f"--level agent if it IS your sub-agent" + _close_peers_hint(name))
+
+
+def _close_peers_hint(name: str) -> str:
+    """T-5150: name the closest peers in the general refusal, when there are any."""
+    import difflib
+    close = difflib.get_close_matches(name.lower(), [p.lower() for p in load_peers()["peers"]],
+                                      n=3, cutoff=0.6)
+    if not close:
+        return ""
+    by_lower = {p.lower(): p for p in load_peers()["peers"]}
+    return ". Closest peers: " + ", ".join(by_lower[c] for c in close)
 
 
 # ── T-4418: is anything reading an explicit circuit? ─────────────────────────
@@ -634,10 +677,60 @@ def orphan_inboxes(*, runner=None) -> list[dict] | None:
                             "read_topic": inbox.inbox_topic(),
                             "last_writer": (r.get("activity") or {}).get("last_writer")})
             continue
-        if circuit.is_project_id(rest) or not topic_is_unread(r):
+        # T-5149 (010 T-3798): a peer's nickname is judged even when is_project_id accepts
+        # it — that counts a sibling checkout directory as a project, and 010's checkout
+        # here is /opt/termlink, so inbox:<hub>/termlink (54 consults) was never looked at.
+        if circuit.is_project_id(rest) and not nickname_candidates(rest):
             continue
         a = r.get("activity") or {}
-        out.append({"topic": topic, "count": r.get("count"),
+        latest = r.get("latest_offset")
+        if isinstance(latest, int):
+            # Judged by OUR acknowledgement, not the hub's unread_since_ms: any fetch clears
+            # that, a peek included, and a session-start scan peeks every inbox.
+            acked = orphan_acks().get(topic)
+            first_unacked = (acked + 1) if isinstance(acked, int) else 0
+            unacked = max(0, min(r.get("count") or 0, latest + 1 - first_unacked))
+            if not unacked:
+                continue
+            count = unacked
+        else:
+            if not topic_is_unread(r):
+                continue
+            count = r.get("count")
+        out.append({"topic": topic, "count": count,
                     "unread_since_ms": a.get("unread_since_ms"),
-                    "last_writer": a.get("last_writer")})
+                    "last_writer": a.get("last_writer"),
+                    "nickname_of": nickname_candidates(rest)})
     return out
+
+
+def _orphan_acks_path() -> Path:
+    from . import outbox
+    return outbox._root() / ".context" / "sidecar" / "orphan-acks.json"
+
+
+def orphan_acks() -> dict:
+    """T-5149: {topic: last acknowledged offset} for orphan inboxes this project dealt with."""
+    try:
+        data = json.loads(_orphan_acks_path().read_text(encoding="utf-8"))
+        return {k: v for k, v in data.items() if isinstance(v, int)}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def ack_orphan_inbox(topic: str, *, runner=None) -> int | None:
+    """Record ``topic``'s current latest offset as dealt with. Returns it, or None when the
+    hub could not be asked or does not list the topic."""
+    rows = hub_inbox_topics(own_hub_id(), None, runner)
+    row = next((r for r in rows or [] if r.get("name") == topic), None)
+    latest = (row or {}).get("latest_offset")
+    if not isinstance(latest, int):
+        return None
+    acks = orphan_acks()
+    acks[topic] = latest
+    p = _orphan_acks_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(acks, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(tmp, p)
+    return latest

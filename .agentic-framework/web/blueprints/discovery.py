@@ -20,17 +20,9 @@ log = logging.getLogger(__name__)
 bp = Blueprint("discovery", __name__)
 
 
-_index_build_thread = None
-
-
-def _trigger_async_index_build():
-    """T-3337 (LOCAL DIVERGENCE, re-applied after the 1.8.3 re-vendor, T-3370):
-    never build the vector index from a web request. A background index build
-    here deleted the live index and rebuilt it for hours (AEF lost 2.5 GB -> 45 KB
-    on 2026-10-03). In 1.8.3 nothing calls this function (upstream T-3786), but it
-    still contained the build; keeping it inert means a future caller cannot bring
-    the defect back. Rebuilding is the job of `fw index reindex`."""
-    log.warning("vector index not ready — run `fw index reindex` (never built from a page view, T-3337)")
+# T-3786: no page view builds the vector index. The background-build helper that
+# lived here had no caller after T-3786, yet one call would have brought back the
+# index wipe; it is removed, and test_t3786 keeps the builder out of web/blueprints.
 
 
 @bp.route("/decisions")
