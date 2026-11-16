@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3811: T-2722 spike: rootless Podman worker reaches the .107 hub (pasta vs host network, scoped Interact token, one claim round-trip)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-16T22:36:06Z
+# ============================================================================
+
+task_id: T-3811
+task_name: "T-2722 spike: rootless Podman worker reaches the .107 hub (pasta vs host network, scoped Interact token, one claim round-trip)"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-16T15:55:42Z
+completed: 2026-11-16T22:35:53Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-16T16:56:01+01:00
+last_commit: 2026-11-16T17:38:03+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Podman reachability spike for ring20 T-2722 (operator ruling A: install on .107 via runme, measure as non-root). runme action 29 installs podman + passt + uidmap for the T-2722 spike (operator ruling A); verified on disk, Docker untouched; fixtures 392/0
+
+# Key outcomes
+outcomes:
+  - 'runme step installs podman + passt on .107 from the Ubuntu archive, verifies `podman --version` and `pasta --version` on disk, changes nothing else (Docker untouched); idempotent; hermetic fixture case (runme action 29; fixtures 392/0 with 5 action-29 cases; runme-20261116T193448Z: "OK installed and verified: podman version 4.9.3; pasta unknown version")'
+  - 'Measured as a non-root user and recorded in docs/reports/T-3811-podman-spike.md: container start time; hub reachability (TLS probe to the hub) with rootless pasta networking and with host networking; one claim round-trip (claim + release on a scratch topic) with a scoped Interact token, no hub.secret in the container (start 0.72–0.75 s; pasta to the host IP refused, pasta:--map-gw via the gateway OK 0.73 s; host network OK; claim + release --ack OK 0.77 s, no hub.secret asserted)'
+  - 'The numbers posted to group:t2722-oci-workers against IW-1, signed 010-termlink (offset 7)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 29 installs podman + passt + uidmap for the T-2722 spike (operator ruling A); verified on disk, Docker untouched; fixtures 392/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-16 — where to run the spike (operator ruling)'
+    chose: 'A, "a" (operator, 2026-11-16): install podman + passt on .107 through one runme step and measure there.'
+    rationale: 'measured numbers on the actual host for IW-1''s network half; two packages, nothing existing changed.'
+    alternatives_rejected: ['B another node with Podman (none named); C answer from T-3477 Docker numbers + docs (unmeasured).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3811-t-2722-spike-rootless-podman-worker-reac.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-16T16:56:01'
+    action: 'T-3811: Podman reachability spike for ring20 T-2722 (operator ruling A: install on .107 via runme, measure as non-root)'
+  - time: '2026-11-16T17:38:03'
+    action: 'T-3811: runme action 29 installs podman + passt + uidmap for the T-2722 spike (operator ruling A); verified on disk, Docker untouched; fixtures 392/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 400 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 400
+  commits: 3
+  files_changed: 7
+  lines_added: 654
+  lines_removed: 14
+  footprint_refreshed_at: '2026-11-16T22:36:16Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3811-t-2722-spike-rootless-podman-worker-reac.md
+generated_by: context-agent-hybrid

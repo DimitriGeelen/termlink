@@ -1,15 +1,21 @@
 ---
 id: T-3811
-name: "T-2722 spike: rootless Podman worker reaches the .107 hub (pasta vs host network, scoped Interact token, one claim round-trip)"
+name: "T-2722 spike: rootless Podman worker reaches the .107 hub (pasta vs host network,
+  scoped Interact token, one claim round-trip)"
 description: >
-  For ring20's group inception T-2722 (pool workers as OCI containers). ring20 accepted our offer (group:t2722-oci-workers @3). Operator ruling A 2026-11-16: install podman + passt on .107 through one runme step (nothing existing changed; Docker untouched), then measure as a non-root user: container start time; hub reachability from rootless networking (pasta) vs host network; one claim round-trip with a scoped Interact token. Post the numbers to the group against IW-1.
+  For ring20's group inception T-2722 (pool workers as OCI containers). ring20 accepted
+  our offer (group:t2722-oci-workers @3). Operator ruling A 2026-11-16: install podman
+  + passt on .107 through one runme step (nothing existing changed; Docker untouched),
+  then measure as a non-root user: container start time; hub reachability from rootless
+  networking (pasta) vs host network; one claim round-trip with a scoped Interact
+  token. Post the numbers to the group against IW-1.
 
-status: captured
+status: work-completed
 workflow_type: test
 owner: agent
-horizon: next
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-16T15:55:42Z
-last_update: 2026-11-16T15:55:42Z
-date_finished: null
+last_update: 2026-11-16T22:35:53Z
+date_finished: 2026-11-16T22:35:53Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,21 +56,43 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-16T22:33:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal);
+      F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0:
+      no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3811: T-2722 spike: rootless Podman worker reaches the .107 hub (pasta vs host network, scoped Interact token, one claim round-trip)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** ring20's group inception T-2722 (operator's idea, 2026-11-16) asks whether the job pool's workers should become OCI containers (Podman preferred) after Claude Code drifted across six nodes. 010 joined the group (operator: "A") and offered a reachability spike; ring20 accepted (group:t2722-oci-workers @3).
+
+**Problem / hypothesis:** our T-3477 numbers are for Docker: the default bridge could not reach the hub (ufw INPUT DROP), host networking could. Rootless Podman uses pasta networking by default, which may behave differently; a worker must also authenticate without hub.secret.
+
+**Goal:** measure, as a non-root user on .107: container start time; hub reachability over pasta vs host networking; one claim round-trip with a scoped Interact token.
+
+**Expected outcome:** IW-1's network half answered with numbers in docs/reports/T-3811-podman-spike.md and posted to the group.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] runme step installs podman + passt on .107 from the Ubuntu archive, verifies `podman --version` and `pasta --version` on disk, changes nothing else (Docker untouched); idempotent; hermetic fixture case (runme action 29 written; fixtures 392/0 with 5 action-29 cases; the install itself is verified after the operator's run)
-- [ ] Measured as a non-root user and recorded in docs/reports/T-3811-podman-spike.md: container start time; hub reachability (TLS probe to the hub) with rootless pasta networking and with host networking; one claim round-trip (claim + release on a scratch topic) with a scoped Interact token, no hub.secret in the container
-- [ ] The numbers posted to group:t2722-oci-workers against IW-1, signed 010-termlink
+- [x] runme step installs podman + passt on .107 from the Ubuntu archive, verifies `podman --version` and `pasta --version` on disk, changes nothing else (Docker untouched); idempotent; hermetic fixture case (runme action 29; fixtures 392/0 with 5 action-29 cases; runme-20261116T193448Z: "OK installed and verified: podman version 4.9.3; pasta unknown version")
+- [x] Measured as a non-root user and recorded in docs/reports/T-3811-podman-spike.md: container start time; hub reachability (TLS probe to the hub) with rootless pasta networking and with host networking; one claim round-trip (claim + release on a scratch topic) with a scoped Interact token, no hub.secret in the container (start 0.72–0.75 s; pasta to the host IP refused, pasta:--map-gw via the gateway OK 0.73 s; host network OK; claim + release --ack OK 0.77 s, no hub.secret asserted)
+- [x] The numbers posted to group:t2722-oci-workers against IW-1, signed 010-termlink (offset 7)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -116,6 +144,9 @@ date_finished: null
 
 ## Verification
 
+test -s docs/reports/T-3811-podman-spike.md
+grep -q 'pasta:--map-gw' docs/reports/T-3811-podman-spike.md
+podman --version
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -309,6 +340,11 @@ date_finished: null
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-16 — pasta is not the default, and the host's address is the container's
+- **What changed:** expected "rootless Podman = pasta"; Podman 4.9.3 defaults to slirp4netns (pasta from 5.0), and under pasta the container holds the host's IP, so the host's address and `host.containers.internal` are refused. `pasta:--map-gw` + the gateway address reaches the host.
+- **Plan impact:** the group's image/run spec needs Podman >= 5 or an explicit pasta setting, and a hub address via the gateway (or host networking); a pre-pinned hub fingerprint in the image.
+- **Triggered:** none here; findings posted to ring20's T-2722 group for their artefact.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -370,3 +406,20 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3811-t-2722-spike-rootless-podman-worker-reac.md
 - **Context:** Initial task creation
+
+### 2026-11-16T22:33:14Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-16T22:35:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-34c1b8e7
+- **Timestamp:** 2026-11-16T22:35:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

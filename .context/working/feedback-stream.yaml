@@ -24705,3 +24705,21 @@ scan_id: R-8b712aa9
 task_id: T-3366
 payload:
   task_file: .tasks/active/T-3366-hub-canonical-id-minted-once-and-persist.md
+---
+kind: scan_emitted
+timestamp: '2026-11-16T22:35:54Z'
+scan_id: R-34c1b8e7
+task_id: T-3811
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-16T22:35:54Z'
+scan_id: R-34c1b8e7
+task_id: T-3811
+payload:
+  task_file: .tasks/active/T-3811-t-2722-spike-rootless-podman-worker-reac.md
