@@ -7,10 +7,10 @@ description: >
   hubs adopt today's fingerprint-derived id), so a certificate rotation no longer
   renames inboxes; end the sidecar: alias one release after the re-vendor.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -28,7 +28,7 @@ depends_on: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:16:54Z
-last_update: '2026-10-18T22:32:57Z'
+last_update: '2026-11-16T05:45:23Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -80,6 +80,25 @@ bvp_scores_proposed:
       D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted);
       F-ORCH=0 (no-signal)'
     rubric_sha: e4a00f38e801
+  - ts: '2026-11-16T05:45:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 3
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=3 (L3:keyword=rollback); D1=0 (no-signal); D2=0
+      (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0 (L0: no signal);
+      F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3366: Hub canonical id minted once and persisted; fingerprint becomes instance id (OD-12)
@@ -162,6 +181,12 @@ cargo test -p termlink-hub hub_id
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-16 — build start: deployment order is part of the unit
+- **What changed:** every runme run restarts the local hub onto the installed binary (step 5, `restart_hub`) and step 6 upgrades the fleet hubs. AL-17 FCW-79 makes a hub with prior state and no `hub.id` refuse to start. Shipping the binary without the migration in front of the restart would take every hub down on the next run.
+- **Plan impact:** the legacy migration (AL-17 "one runme action per hub") is built here, not left to P-31: a CLI verb `termlink hub adopt-id` (writes `first16(current fingerprint)`, or random with "no certificate", only when `hub.id` is absent; idempotent; refuses a differing existing id), and runme steps 5 and 6 run it with the NEW binary before each restart. P-31 (T-3713) keeps the .107 encryption keys and key cards.
+- **Slices:** S1 hub side: `hub.id` + `hub.signing.key` (FCW-79..82), `hub.version` reads the file and adds `signing_key`, `adopt-id` verb, E-36/E-37-hub/E-166-hub fixtures + mutants. S2 runme steps 5/6 migration-before-restart + fixtures. S3 sidecar signing-key pin (FCW-83/84, E-37 sidecar half). S4 `sidecar:` topic forward-with-warning (AC 3). E-38 is P-11's (T-3363) and is not built here.
+- **Triggered:** none yet.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -198,6 +223,11 @@ cargo test -p termlink-hub hub_id
 - **Why:** minting is T1 hardening that signed state depends on; ending an alias switches a working route off, so it cannot ride along in a build task.
 - **Rejected:** keeping the alias end here (would decommission implicitly, against the NID rule).
 
+### 2026-11-16 — when to build the auth chain (operator ruling)
+- **Chose:** A, "A, start T-3366 after the hand-over" (operator, 2026-11-16): build in this session, right after the T-3807 runme hand-over.
+- **Why:** unsigned mail stopped a week ago (measured: 204/204 inbox messages of the last 7 days signed and valid), but a valid signature binds only the key, not the project; T-3366 → T-3704 is the chain that binds them.
+- **Rejected:** B next session; C T-3704 first on a temporary key (breaks the security order); D park.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -223,3 +253,7 @@ cargo test -p termlink-hub hub_id
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3366-hub-canonical-id-minted-once-and-persist.md
 - **Context:** Initial task creation
+
+### 2026-11-16T05:45:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
