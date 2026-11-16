@@ -10,14 +10,18 @@
 | AL-17 inv.1 / r1 #3 | `t3366-m16-publish-clobbers` | the publish replaces an existing hub.id | `hub_identity::tests::e166_write_never_clobbers_an_existing_id` | killed |
 | FCW-83 / r1 #2 | `t3366-m17-read-error-repins` | an unreadable pin is taken as no pin and re-pinned | `e37_unreadable_pin_is_not_replaced` | killed |
 | E-126 | `t3366-m18-status-always-match` | status says the hub id matches whatever answered | `e126_status_states_the_answering_hub_id_and_whether_it_matches` | killed |
-| FCW-79 / ruling B | `t3366-m19-cert-not-prior` | a certificate-only directory mints silently instead of refusing | `hub_identity::tests::e36_first_start_with_cert_takes_the_certificate_id` | killed |
+| FCW-79 / ruling B | `t3366-m19-cert-not-prior` | a certificate-only directory mints silently instead of refusing | `hub_identity::tests::e36_cert_only_dir_refuses_until_adopt_gives_the_certificate_id` | killed |
 | FCW-79 | `t3366-m2-no-fcw79` | a missing hub.id beside prior state is minted instead of refused | `hub_identity::tests::e36_fcw79_missing_id_beside_state_refuses_and_writes_nothing` | killed |
+| E-166 crash table / r2 #5 | `t3366-m20-journal-ignored` | an interrupted mint is not finished by the next start | `hub_identity::tests::e166_interrupted_first_start_is_finished_by_the_next_start` | killed |
+| AL-18 inv.3 / r2 #2 | `t3366-m21-pin-clobbers` | the pin publish replaces another thread's pin | `e37_concurrent_first_contacts_with_different_offers_pin_once` | killed |
+| OBS-37 / r2 #2 | `t3366-m22-pin-without-record` | the pin is written although its record could not be | `e37_no_record_means_no_pin` | killed |
+| OBS-37 / r2 #2b | `t3366-m23-no-admin-row` | a new pin writes no admin row | `e37_first_contact_pins_restart_keeps_and_a_swapped_key_is_refused_and_named` | killed |
 | FCW-80 | `t3366-m3-lenient-id` | any 16-character hub.id is accepted | `hub_identity::tests::e36_fcw80_malformed_id_refuses` | killed |
 | FCW-82 | `t3366-m4-no-key-mode-check` | a signing key file with any mode is accepted | `hub_identity::tests::e37_fcw82_bad_key_file_refuses` | killed |
 | AL-18 | `t3366-m5-key-regenerated` | a missing signing key beside an existing id is regenerated at start | `hub_identity::tests::e37_key_missing_beside_id_refuses` | killed |
 | FCW-81 | `t3366-m6-write-in-place` | hub.id is written in place, not via temp + publish | `hub_identity::tests::e166_failure_before_rename_leaves_no_id_and_no_temp` | killed |
-| AL-17 adopt | `t3366-m7-adopt-ignores-existing-id` | adopt-id does not see an id already on disk | `hub_identity::tests::adopt_is_idempotent_and_never_changes_an_existing_id` | killed |
+| AL-17 adopt | `t3366-m7-adopt-overwrites` | adopt-id replaces an id already on disk | `hub_identity::tests::adopt_is_idempotent_and_never_changes_an_existing_id` | killed |
 | SI-25 | `t3366-m8-debug-prints-key` | the debug form prints the private seed | `hub_identity::tests::e37_private_key_is_never_printed` | killed |
 | FCW-83 / E-37 control | `t3366-m9-silent-repin` | a changed hub key is re-pinned silently | `e37_first_contact_pins_restart_keeps_and_a_swapped_key_is_refused_and_named` | killed |
 
-PASS: all 19 mutants turned their test red. Run 2026-11-16T09:09Z on d04bfe9f7.
+PASS: all 23 mutants turned their test red. Run 2026-11-16T10:42Z on 0043aff40.

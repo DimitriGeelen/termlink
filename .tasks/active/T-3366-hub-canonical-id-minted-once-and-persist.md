@@ -138,10 +138,10 @@ Unblocks: P-11 (T-3363), P-15 (T-3703, security), P-16 (T-3704, security), P-31 
 
 ## Verification
 
-env -u PROJECT_ROOT cargo test -p termlink-hub hub_identity > .context/working/.t3366-v1.out 2>&1 && grep -q 'test result: ok. 20 passed' .context/working/.t3366-v1.out
+env -u PROJECT_ROOT cargo test -p termlink-hub hub_identity > .context/working/.t3366-v1.out 2>&1 && grep -q 'test result: ok. 23 passed' .context/working/.t3366-v1.out
 env -u PROJECT_ROOT cargo test -p termlink --test t3366_hub_identity > .context/working/.t3366-v2.out 2>&1 && grep -q 'test result: ok. 3 passed' .context/working/.t3366-v2.out
-env -u PROJECT_ROOT cargo test -p termlink-sidecar --test t3366_hub_key_pin > .context/working/.t3366-v3.out 2>&1 && grep -q 'test result: ok. 6 passed' .context/working/.t3366-v3.out
-grep -q 'PASS: all 19 mutants turned their test red' docs/reports/T-3366-mutants.md
+env -u PROJECT_ROOT cargo test -p termlink-sidecar --test t3366_hub_key_pin > .context/working/.t3366-v3.out 2>&1 && grep -q 'test result: ok. 8 passed' .context/working/.t3366-v3.out
+grep -q 'PASS: all 23 mutants turned their test red' docs/reports/T-3366-mutants.md
 
 ## RCA
 
