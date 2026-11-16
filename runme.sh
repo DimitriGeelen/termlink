@@ -3490,7 +3490,12 @@ drop_ntfy_cron
 # RUNME_DROP_LIST (the list).
 # ---------------------------------------------------------------------------
 seam DROP_FW RUNME_DROP_FW "$PROJECT_ROOT/.agentic-framework/bin/fw"
-seam DROP_LIST RUNME_DROP_LIST "$PROJECT_ROOT/.context/sidecar/drop-list-T-3656.tsv"
+# T-3807 (operator "yes, prepare the cleanup runme", 2026-11-16): the T-3656 list was dropped on
+# 2026-11-02; this run takes the T-3807 list instead, 35 provable drops from the approvals page
+# (12 stale inbound duplicates from AEF whose task T-3336 is closed, 18 sends to peers with no live
+# receiver, 3 rejected sends, 2 sends to the unread nickname inbox aef-greenfield-test). Escalated
+# sends to live peers and the open 1409 design consults are deliberately NOT listed.
+seam DROP_LIST RUNME_DROP_LIST "$PROJECT_ROOT/.context/sidecar/drop-list-T-3807.tsv"
 
 waiting_ids() {  # prints the ids `fw sidecar waiting --json` lists, one per line; rc 1 if unreadable
     local j
@@ -3516,7 +3521,7 @@ drop_t3656_waiting() {
         say "  skip    none of the $n_listed listed messages is still waiting (already dropped or handled)"; SKIPPED=$((SKIPPED+1)); return
     fi
     if [ "$DRY_RUN" = "1" ]; then
-        say "  [DRY]   would drop ${#pending[@]} of $n_listed listed waiting messages, each with its T-3656 evidence as the reason ($((n_listed-${#pending[@]})) no longer waiting)"
+        say "  [DRY]   would drop ${#pending[@]} of $n_listed listed waiting messages, each with its recorded evidence as the reason ($((n_listed-${#pending[@]})) no longer waiting)"
         DONE=$((DONE+1)); return
     fi
     if [ "${CLAUDECODE:-}" = "1" ]; then
@@ -3541,7 +3546,7 @@ drop_t3656_waiting() {
     DONE=$((DONE+1))
 }
 
-head2 "26. Drop the $(grep -c . "$DROP_LIST" 2>/dev/null || echo 0) waiting messages T-3656 proved harmless (T-3657; operator 2026-11-02)"
+head2 "26. Drop the $(grep -c . "$DROP_LIST" 2>/dev/null || echo 0) waiting messages proved stale (T-3807; operator 2026-11-16)"
 drop_t3656_waiting
 
 # ---------------------------------------------------------------------------
