@@ -1,0 +1,15 @@
+# fc: E-126
+# mutation: status says the hub id matches whatever answered
+# package: termlink-sidecar
+# test: --test t3366_hub_key_pin e126_status_states_the_answering_hub_id_and_whether_it_matches
+--- a/crates/termlink-sidecar/src/hub_key_pin.rs
++++ b/crates/termlink-sidecar/src/hub_key_pin.rs
+@@ -171,7 +171,7 @@
+         return json!({"id": null, "declared": null, "match": false});
+     };
+     let seen = store.read_state(&hub_seen_name(d)).ok().flatten().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+-    let m = seen.as_deref() == Some(d);
++    let m = true || seen.as_deref() == Some(d);
+     json!({"id": seen, "declared": d, "match": m})
+ }
+ 

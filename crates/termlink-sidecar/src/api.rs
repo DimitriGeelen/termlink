@@ -1248,6 +1248,7 @@ fn status_at(
         "ok": true,
         "agent": agent,
         "hub_id": hub_id.map(Value::from).unwrap_or_else(|| json!("not configured")),
+        "hub": crate::hub_key_pin::hub_status(store, hub_id),
         "hub_signing_key": crate::hub_key_pin::status(store, hub_id),
         "stages": STAGES,
         "rows": rows,

@@ -39,7 +39,9 @@ fn start(dir: &TestDir, tag: &str, tcp: bool) -> ProcessGuard {
         args.push("--tcp");
         args.push(&port);
     }
-    let child = cmd(dir, &args).stdout(Stdio::null()).stderr(Stdio::null()).spawn().expect("spawn hub");
+    // SI-25 scan input: the hub's own output is kept in the runtime dir.
+    let log = |n: &str| std::fs::OpenOptions::new().create(true).append(true).open(dir.path.join(n)).unwrap();
+    let child = cmd(dir, &args).env("RUST_LOG", "info").stdout(log("hub.out.log")).stderr(log("hub.err.log")).spawn().expect("spawn hub");
     let g = ProcessGuard::new(child, tag);
     let deadline = Instant::now() + Duration::from_secs(20);
     while !(dir.path.join("hub.sock").exists() && dir.path.join("hub.pid").exists()) {
@@ -97,6 +99,20 @@ fn e36_e37_restart_and_certificate_rotation_keep_id_and_signing_key() {
     assert_eq!(v1["hub_id"], v2["hub_id"], "hub_id survives rotation: {v1} vs {v2}");
     assert_eq!(v1["signing_key"], v2["signing_key"], "signing key survives rotation");
     stop(g, &dir);
+    // SI-25 (E-37.4): the private seed appears in no file of the runtime dir but its own,
+    // the hub's stdout/stderr logs included.
+    let seed = std::fs::read_to_string(dir.path.join("hub.signing.key")).unwrap().trim().to_string();
+    assert!(std::fs::metadata(dir.path.join("hub.err.log")).unwrap().len() > 0, "the scan must see real hub output");
+    let mut stack = vec![dir.path.clone()];
+    while let Some(d) = stack.pop() {
+        for e in std::fs::read_dir(&d).unwrap().flatten() {
+            let p = e.path();
+            if p.is_dir() { stack.push(p); continue; }
+            if p.file_name().is_some_and(|n| n == "hub.signing.key") { continue; }
+            let body = std::fs::read(&p).unwrap_or_default();
+            assert!(!String::from_utf8_lossy(&body).contains(&seed), "seed found in {}", p.display());
+        }
+    }
 }
 
 #[test]

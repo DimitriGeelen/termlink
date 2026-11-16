@@ -4,7 +4,7 @@
 # test: --test t3366_hub_identity e36_e37_restart_and_certificate_rotation_keep_id_and_signing_key
 --- a/crates/termlink-hub/src/router.rs
 +++ b/crates/termlink-hub/src/router.rs
-@@ -895,7 +895,7 @@
+@@ -894,7 +894,7 @@
  fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
      let instance = crate::tls::own_cert_fingerprint();
      let ident = crate::hub_identity::current();

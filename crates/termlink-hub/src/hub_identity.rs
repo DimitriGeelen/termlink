@@ -87,12 +87,12 @@ fn is_id(s: &str) -> bool {
     s.len() == 16 && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
-/// Prior hub state in `dir`: a secret, a signing key, or any topic log — the things that make
-/// an id visible to peers. A certificate alone is not: E-36 starts a "cert only (legacy hub)"
-/// directory and expects `first16(fingerprint)`, which AL-17's first-start branch gives (the
-/// spec's step 1 also lists the certificate; E-36 is the tested reading, logged in T-3366).
+/// Prior hub state in `dir`: a secret, a certificate, a signing key, or any topic log
+/// (AL-17 step 1). Operator ruling B, 2026-11-16 (T-3366): a certificate alone IS prior state,
+/// so a certificate-only directory refuses (FCW-79) until `hub adopt-id` gives it the same
+/// certificate-derived id E-36 expects. Fail-closed over E-36's unreachable "start" reading.
 pub fn has_prior_state(dir: &Path) -> bool {
-    ["hub.secret", KEY_FILE].iter().any(|f| dir.join(f).exists())
+    ["hub.secret", "hub.cert.pem", KEY_FILE].iter().any(|f| dir.join(f).exists())
         || std::fs::read_dir(dir.join("bus")).map(|mut r| r.next().is_some()).unwrap_or(false)
 }
 
@@ -124,16 +124,28 @@ thread_local! {
 
 fn atomic_write(dir: &Path, name: &str, contents: &[u8], mode: u32) -> std::io::Result<()> {
     let path = dir.join(name);
-    // Crash table (AL-17 2.1.f): a temp left by a start that died before its rename is removed.
+    // Crash table (AL-17 2.1.f): a temp left by a start that died before its publish is removed.
+    // Only a DEAD writer's temp: a concurrent start may be writing its own right now.
     if let Ok(rd) = std::fs::read_dir(dir) {
         let prefix = format!(".{name}.tmp-");
         for e in rd.flatten() {
-            if e.file_name().to_string_lossy().starts_with(&prefix) {
+            let fname = e.file_name().to_string_lossy().into_owned();
+            let Some(rest) = fname.strip_prefix(&prefix) else { continue };
+            let pid: Option<i32> = rest.split('-').next().and_then(|p| p.parse().ok());
+            // SAFETY: kill(pid, 0) only probes for existence.
+            let dead = pid.is_none_or(|p| p <= 0 || (unsafe { libc::kill(p, 0) } != 0
+                && std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)));
+            if dead {
                 let _ = std::fs::remove_file(e.path());
             }
         }
     }
-    let tmp: PathBuf = dir.join(format!(".{name}.tmp-{}", std::process::id()));
+    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let tmp: PathBuf = dir.join(format!(
+        ".{name}.tmp-{}-{}",
+        std::process::id(),
+        SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
     let res = (|| {
         use std::os::unix::fs::OpenOptionsExt;
         let mut f = std::fs::OpenOptions::new().create_new(true).write(true).mode(mode).open(&tmp)?;
@@ -144,7 +156,10 @@ fn atomic_write(dir: &Path, name: &str, contents: &[u8], mode: u32) -> std::io::
         if FAIL_BEFORE_RENAME.with(|c| c.get()) {
             return Err(std::io::Error::other("injected: crash before rename"));
         }
-        std::fs::rename(&tmp, &path)?;
+        // No-clobber publish (review T-3366 r1 #3): link the complete temp to the final name;
+        // `AlreadyExists` when another start got there first, and that file is never replaced.
+        std::fs::hard_link(&tmp, &path)?;
+        let _ = std::fs::remove_file(&tmp);
         if let Ok(d) = std::fs::File::open(dir) {
             let _ = d.sync_all();
         }
@@ -234,14 +249,27 @@ pub fn load_or_mint(dir: &Path) -> std::io::Result<HubIdentity> {
         None => {
             std::fs::create_dir_all(dir)?;
             let (id, from_cert) = mint_value(dir);
-            write_id(dir, &id)?;
-            tracing::info!(hub_id = %id, from_certificate = from_cert, "hub.id minted (first start, T-3366)");
-            (id, true)
+            match write_id(dir, &id) {
+                Ok(()) => {
+                    tracing::info!(hub_id = %id, from_certificate = from_cert, "hub.id minted (first start, T-3366)");
+                    (id, true)
+                }
+                // A concurrent first start minted first: take ITS id, never serve one that lost.
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => match read_id(dir)? {
+                    Some(won) => (won, true),
+                    None => return Err(e),
+                },
+                Err(e) => return Err(e),
+            }
         }
     };
     let signing = match read_key(dir)? {
         Some(k) => k,
-        None if first_start => generate_key(dir)?,
+        None if first_start => match generate_key(dir) {
+            Ok(k) => k,
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => read_key(dir)?.ok_or(e)?,
+            Err(e) => return Err(e),
+        },
         None => {
             return Err(refuse(format!(
                 "hub.signing.key missing beside existing state in {}; run `termlink hub adopt-id` (runme does this before a restart)",
@@ -265,26 +293,49 @@ pub struct Adopted {
 }
 
 /// The legacy migration (AL-17, "the only path past FCW-79"): give a hub that predates
-/// T-3366 its id and signing key, without renaming any inbox. Idempotent; never changes an
-/// id already on disk; refuses a malformed one or a bad key file rather than replacing it.
-pub fn adopt_legacy(dir: &Path, dry_run: bool) -> std::io::Result<Adopted> {
-    let (hub_id, id_source) = match read_id(dir)? {
-        Some(id) => (id, "kept"),
-        None => {
-            let (id, from_cert) = mint_value(dir);
-            if !dry_run {
-                std::fs::create_dir_all(dir)?;
-                write_id(dir, &id)?;
-            }
-            (id, if from_cert { "certificate" } else { "random" })
+/// T-3366 its id and signing key, without renaming any inbox. Idempotent. It acts ONLY on a
+/// pre-T-3366 directory (neither `hub.id` nor `hub.signing.key`); a directory that has one
+/// without the other was already migrated and lost a file, and is refused, never re-minted or
+/// re-keyed (review T-3366 r1 #1: that would undo FCW-79 / AL-18 through the deploy path).
+/// `expect`: the id the hub serves today; the call refuses, writing nothing, when the id it
+/// would write (or finds) differs, so a wrong id never lands on disk.
+pub fn adopt_legacy(dir: &Path, dry_run: bool, expect: Option<&str>) -> std::io::Result<Adopted> {
+    let id = read_id(dir)?;
+    let key = read_key(dir)?;
+    let check = |found: &str| -> std::io::Result<()> {
+        match expect {
+            Some(e) if e != found => Err(refuse(format!(
+                "hub.id would be {found} but the hub serves {e}; nothing written (an inbox would be renamed)"
+            ))),
+            _ => Ok(()),
         }
     };
-    let (signing_key, key_generated) = match read_key(dir)? {
-        Some(k) => (signing_fingerprint(&k), false),
-        None if dry_run => ("(would be generated)".to_string(), true),
-        None => (signing_fingerprint(&generate_key(dir)?), true),
-    };
-    Ok(Adopted { hub_id, id_source, key_generated, signing_key })
+    match (id, key) {
+        (Some(id), Some(k)) => {
+            check(&id)?;
+            Ok(Adopted { hub_id: id, id_source: "kept", key_generated: false, signing_key: signing_fingerprint(&k) })
+        }
+        (Some(_), None) => Err(refuse(format!(
+            "hub.signing.key missing beside hub.id in {}: this hub was already migrated and lost its key; adopt-id does not re-key (a new key is an operator action)",
+            dir.display()
+        ))),
+        (None, Some(_)) => Err(refuse(format!(
+            "hub.id missing beside hub.signing.key in {}: this hub was already migrated and lost its id; restore hub.id, adopt-id does not re-mint",
+            dir.display()
+        ))),
+        (None, None) => {
+            let (id, from_cert) = mint_value(dir);
+            check(&id)?;
+            let id_source = if from_cert { "certificate" } else { "random" };
+            if dry_run {
+                return Ok(Adopted { hub_id: id, id_source, key_generated: true, signing_key: "(would be generated)".into() });
+            }
+            std::fs::create_dir_all(dir)?;
+            write_id(dir, &id)?;
+            let k = generate_key(dir)?;
+            Ok(Adopted { hub_id: id, id_source, key_generated: true, signing_key: signing_fingerprint(&k) })
+        }
+    }
 }
 
 #[cfg(test)]
@@ -332,13 +383,19 @@ mod tests {
     fn e36_first_start_with_cert_takes_the_certificate_id() {
         let d = tmp("cert");
         let want = write_cert(&d);
-        assert_eq!(load_or_mint(&d).unwrap().hub_id, want, "cert only (legacy hub) keeps first16(fingerprint)");
+        // ruling B: a certificate-only directory is prior state — refused, nothing written ...
+        let e = load_or_mint(&d).unwrap_err().to_string();
+        assert!(e.contains("hub.id missing beside existing state"), "{e}");
+        assert!(!d.join(ID_FILE).exists() && !d.join(KEY_FILE).exists());
+        // ... until adopt-id gives it first16(fingerprint) (E-36: no inbox renamed)
+        let ad = adopt_legacy(&d, false, None).unwrap();
+        assert_eq!((ad.hub_id.as_str(), ad.id_source), (want.as_str(), "certificate"));
         assert_eq!(load_or_mint(&d).unwrap().hub_id, want);
         // and adopt on a secret+cert legacy hub gives the same certificate id
         let d2 = tmp("cert2");
         let want2 = write_cert(&d2);
         std::fs::write(d2.join("hub.secret"), "ab".repeat(32)).unwrap();
-        let ad = adopt_legacy(&d2, false).unwrap();
+        let ad = adopt_legacy(&d2, false, None).unwrap();
         assert_eq!((ad.hub_id.as_str(), ad.id_source, ad.key_generated), (want2.as_str(), "certificate", true));
         assert_eq!(load_or_mint(&d2).unwrap().hub_id, want2);
         let _ = std::fs::remove_dir_all(&d2);
@@ -350,6 +407,7 @@ mod tests {
     fn e36_certificate_rotation_changes_neither_id_nor_key() {
         let d = tmp("rot");
         write_cert(&d);
+        adopt_legacy(&d, false, None).unwrap();
         let a = load_or_mint(&d).unwrap();
         let new = write_cert(&d);
         assert_ne!(new, a.hub_id, "the fixture must really rotate");
@@ -377,7 +435,9 @@ mod tests {
     fn e36_fcw79_topic_log_counts_as_prior_state() {
         let d = tmp("bus");
         std::fs::create_dir_all(d.join("bus/x")).unwrap();
-        assert!(load_or_mint(&d).is_err());
+        let e = load_or_mint(&d).unwrap_err().to_string();
+        assert!(e.contains("hub.id missing beside existing state"), "{e}");
+        assert!(!d.join(ID_FILE).exists());
         let _ = std::fs::remove_dir_all(&d);
     }
 
@@ -497,16 +557,84 @@ mod tests {
     fn adopt_is_idempotent_and_never_changes_an_existing_id() {
         let d = tmp("adopt");
         std::fs::write(d.join("hub.secret"), "ab".repeat(32)).unwrap();
-        let dry = adopt_legacy(&d, true).unwrap();
+        let dry = adopt_legacy(&d, true, None).unwrap();
         assert_eq!(dry.id_source, "random");
         assert!(!d.join(ID_FILE).exists() && !d.join(KEY_FILE).exists());
-        let a = adopt_legacy(&d, false).unwrap();
+        let a = adopt_legacy(&d, false, None).unwrap();
         assert_eq!((a.id_source, a.key_generated), ("random", true));
-        let b = adopt_legacy(&d, false).unwrap();
+        let b = adopt_legacy(&d, false, None).unwrap();
         assert_eq!((b.hub_id.as_str(), b.id_source, b.key_generated), (a.hub_id.as_str(), "kept", false));
         assert_eq!(b.signing_key, a.signing_key);
         write_cert(&d); // a later cert never changes the adopted id
-        assert_eq!(adopt_legacy(&d, false).unwrap().hub_id, a.hub_id);
+        assert_eq!(adopt_legacy(&d, false, None).unwrap().hub_id, a.hub_id);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    // Review r1 #1: a migrated hub that lost ONE file is refused, never re-keyed or re-minted.
+    #[test]
+    fn adopt_refuses_a_lost_key_beside_an_id_and_writes_no_key() {
+        let d = tmp("lostkey");
+        std::fs::write(d.join("hub.secret"), "ab".repeat(32)).unwrap();
+        adopt_legacy(&d, false, None).unwrap();
+        std::fs::remove_file(d.join(KEY_FILE)).unwrap();
+        let e = adopt_legacy(&d, false, None).unwrap_err().to_string();
+        assert!(e.contains("does not re-key"), "{e}");
+        assert!(!d.join(KEY_FILE).exists());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn adopt_refuses_a_lost_id_beside_a_key_and_writes_no_id() {
+        let d = tmp("lostid");
+        write_cert(&d);
+        std::fs::write(d.join("hub.secret"), "ab".repeat(32)).unwrap();
+        adopt_legacy(&d, false, None).unwrap();
+        std::fs::remove_file(d.join(ID_FILE)).unwrap();
+        write_cert(&d); // a rotation since: a re-mint would take the NEW certificate's id
+        let e = adopt_legacy(&d, false, None).unwrap_err().to_string();
+        assert!(e.contains("does not re-mint"), "{e}");
+        assert!(!d.join(ID_FILE).exists());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    // `--expect`: a differing id is refused before anything is written; a matching one passes.
+    #[test]
+    fn adopt_expect_mismatch_writes_nothing() {
+        let d = tmp("expect");
+        let want = write_cert(&d);
+        std::fs::write(d.join("hub.secret"), "ab".repeat(32)).unwrap();
+        let e = adopt_legacy(&d, false, Some("0123456789abcdef")).unwrap_err().to_string();
+        assert!(e.contains("nothing written"), "{e}");
+        assert!(!d.join(ID_FILE).exists() && !d.join(KEY_FILE).exists());
+        assert_eq!(adopt_legacy(&d, false, Some(&want)).unwrap().hub_id, want);
+        assert!(adopt_legacy(&d, false, Some("0123456789abcdef")).is_err(), "kept id checked too");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    // Review r1 #3: the publish never replaces an existing file.
+    #[test]
+    fn e166_write_never_clobbers_an_existing_id() {
+        let d = tmp("noclobber");
+        write_id(&d, "aaaaaaaaaaaaaaaa").unwrap();
+        let e = write_id(&d, "bbbbbbbbbbbbbbbb").unwrap_err();
+        assert_eq!(e.kind(), std::io::ErrorKind::AlreadyExists);
+        assert_eq!(read_id(&d).unwrap().as_deref(), Some("aaaaaaaaaaaaaaaa"));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    // Review r1 #3: concurrent first starts on one directory all end with the SAME id and key.
+    #[test]
+    fn e166_concurrent_first_starts_converge_on_one_id() {
+        let d = tmp("race");
+        let hs: Vec<_> = (0..8)
+            .map(|_| {
+                let d = d.clone();
+                std::thread::spawn(move || load_or_mint(&d).map(|i| (i.hub_id.clone(), i.signing_key_fingerprint())))
+            })
+            .collect();
+        let rs: Vec<_> = hs.into_iter().map(|h| h.join().unwrap().unwrap()).collect();
+        assert!(rs.iter().all(|r| r == &rs[0]), "{rs:?}");
+        assert_eq!(read_id(&d).unwrap().as_deref(), Some(rs[0].0.as_str()));
         let _ = std::fs::remove_dir_all(&d);
     }
 
@@ -514,7 +642,7 @@ mod tests {
     fn adopt_refuses_a_malformed_id_rather_than_replacing_it() {
         let d = tmp("adoptbad");
         std::fs::write(d.join(ID_FILE), "nope\n").unwrap();
-        assert!(adopt_legacy(&d, false).is_err());
+        assert!(adopt_legacy(&d, false, None).is_err());
         assert_eq!(std::fs::read_to_string(d.join(ID_FILE)).unwrap(), "nope\n");
         let _ = std::fs::remove_dir_all(&d);
     }

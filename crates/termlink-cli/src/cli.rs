@@ -1611,12 +1611,16 @@ pub(crate) enum HubAction {
     /// Writes <runtime_dir>/hub.id = first 16 hex of the current TLS fingerprint (the id every
     /// inbox already uses, so nothing is renamed; random when there is no certificate) and
     /// generates hub.signing.key (0600), each only when absent. Idempotent: an existing id is
-    /// never changed; a malformed id or key file is refused, not replaced. Safe while the hub
-    /// runs (the running binary ignores both files). runme runs it before every hub restart.
+    /// never changed; a directory with only one of the two files (a migrated hub that lost one) is
+    /// refused, never re-minted or re-keyed. Safe while the hub runs (the running binary ignores
+    /// both files). runme runs it right after installing a new binary and before every restart.
     AdoptId {
         /// Report what would be written; write nothing
         #[arg(long)]
         dry_run: bool,
+        /// The id the hub serves today: refuse, writing nothing, if the id would differ
+        #[arg(long, value_name = "HUB_ID")]
+        expect: Option<String>,
         /// Output as JSON: {"runtime_dir","hub_id","id_source","key_generated","signing_key","dry_run"}
         #[arg(long)]
         json: bool,

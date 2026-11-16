@@ -138,10 +138,10 @@ Unblocks: P-11 (T-3363), P-15 (T-3703, security), P-16 (T-3704, security), P-31 
 
 ## Verification
 
-env -u PROJECT_ROOT cargo test -p termlink-hub hub_identity > .context/working/.t3366-v1.out 2>&1 && grep -q 'test result: ok. 15 passed' .context/working/.t3366-v1.out
+env -u PROJECT_ROOT cargo test -p termlink-hub hub_identity > .context/working/.t3366-v1.out 2>&1 && grep -q 'test result: ok. 20 passed' .context/working/.t3366-v1.out
 env -u PROJECT_ROOT cargo test -p termlink --test t3366_hub_identity > .context/working/.t3366-v2.out 2>&1 && grep -q 'test result: ok. 3 passed' .context/working/.t3366-v2.out
-env -u PROJECT_ROOT cargo test -p termlink-sidecar --test t3366_hub_key_pin > .context/working/.t3366-v3.out 2>&1 && grep -q 'test result: ok. 2 passed' .context/working/.t3366-v3.out
-grep -q 'PASS: all 12 mutants turned their test red' docs/reports/T-3366-mutants.md
+env -u PROJECT_ROOT cargo test -p termlink-sidecar --test t3366_hub_key_pin > .context/working/.t3366-v3.out 2>&1 && grep -q 'test result: ok. 6 passed' .context/working/.t3366-v3.out
+grep -q 'PASS: all 19 mutants turned their test red' docs/reports/T-3366-mutants.md
 
 ## RCA
 
@@ -190,7 +190,7 @@ grep -q 'PASS: all 12 mutants turned their test red' docs/reports/T-3366-mutants
 - **Triggered:** none yet.
 
 ### 2026-11-16 — S1 + S2 built: spec reading on "prior state"
-- **What changed:** AL-17 step 1 lists `hub.cert.pem` as prior state, but E-36.2/E-36.4 start a "cert only (legacy hub)" directory and expect it to keep `first16(fingerprint)`, which only AL-17's first-start branch gives. Built to E-36 (the tested reading): prior state = `hub.secret`, `hub.signing.key` or any topic log under `bus/` (what makes an id visible to peers); a certificate alone mints from the certificate. A real legacy hub always has a secret, so it still meets FCW-79 and goes through `adopt-id`.
+- **What changed:** AL-17 step 1 lists `hub.cert.pem` as prior state, but E-36.2/E-36.4 start a "cert only (legacy hub)" directory and expect it to keep `first16(fingerprint)`, which only AL-17's first-start branch gives. Built to E-36 (the tested reading): prior state = `hub.secret`, `hub.signing.key` or any topic log under `bus/` (what makes an id visible to peers); a certificate alone mints from the certificate. A real legacy hub always has a secret, so it still meets FCW-79 and goes through `adopt-id`. **Superseded the same day:** review r1 #3a objected that the agent settled the contradiction alone, toward the less fail-closed side; the operator ruled B (see Decisions): the certificate IS prior state, as AL-17 step 1 says.
 - **What changed (2):** the hub mints before it writes its own secret/certificate in `prepare_start`, so a brand-new TCP hub gets a random id (CR-6.42), not one derived from the certificate it is about to create.
 - **S3 design (AL-18 sidecar half):** one module `hub_key_pin` in termlink-sidecar, called from the existing `check_pin` in send.rs and pull.rs after the hub-id match, with the `hub.version` reply already in hand. Pin stored per hub id in store state `hub-key-pin-<hub_id>`. No `signing_key` offered (pre-T-3366 hub): unchanged behaviour, status says "not offered". No pin yet: pin only when the hub address is the local socket or TLS under the TOFU-pinned certificate, write the pin, needs-attention "hub signing key pinned" (FCW-84 otherwise: no pin, hub-signed data unverified). Pin differs: needs-attention naming both fingerprints, coalesced per day; `verified_hub_key()` returns None, so every hub-signed object P-15/P-16 will check is refused (FCW-83). Mail posting and pulling are NOT held on a key mismatch: there are no hub-signed objects yet, and holding mail would switch off a working route (NID rule); the spec refuses hub-signed objects, not mail. Status gains `hub_signing_key {pinned, offered, state}` (OBS-36). Pin changes only by a runme re-pin action (later, with P-15).
 - **Plan impact:** S2 covers both local restart points (step 5 `restart_hub`, step 5a `install_hub_unit`) and the fleet (step 6), where the runtime dir is read from the running hub's own environment; an unconfirmable dir or an adopted id that differs from the served id fails the hub without swapping.
@@ -236,6 +236,11 @@ grep -q 'PASS: all 12 mutants turned their test red' docs/reports/T-3366-mutants
 - **Chose:** A, "A, start T-3366 after the hand-over" (operator, 2026-11-16): build in this session, right after the T-3807 runme hand-over.
 - **Why:** unsigned mail stopped a week ago (measured: 204/204 inbox messages of the last 7 days signed and valid), but a valid signature binds only the key, not the project; T-3366 → T-3704 is the chain that binds them.
 - **Rejected:** B next session; C T-3704 first on a temporary key (breaks the security order); D park.
+
+### 2026-11-16 — is a certificate-only directory "existing state"? (operator ruling, review r1 #3a)
+- **Chose:** B, "as recommended please" (operator, 2026-11-16): the strict AL-17 step 1 reading. A certificate counts as prior state; a certificate-only directory refuses to start (FCW-79) until `hub adopt-id` gives it the certificate-derived id E-36 expects.
+- **Why:** the spec contradicts itself (step 1 lists the certificate; E-36.2/36.4 start a cert-only directory). B fails closed; its only cost is an `adopt-id` step runme already runs. Real legacy hubs always have a secret, and a new hub mints before its certificate exists, so neither is affected.
+- **Rejected:** A (keep the E-36 reading: a directory that lost every other file would mint silently, possibly from a rotated certificate); C (change request first, A meanwhile).
 
 ### 2026-11-16 — the `sidecar:` forward criterion (operator ruling)
 - **Chose:** C, "C, split it into its own task" (operator, 2026-11-16). The criterion "Mail to sidecar: topics forwarded with a sender warning until the alias end release" moves verbatim in intent to **T-3809** (build, arc-011, horizon next), where it is built as a hub forward envelope carrying the original signed message.

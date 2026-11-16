@@ -5332,7 +5332,7 @@ pub(crate) async fn cmd_fleet_doctor(
                 // T-1132: probe hub.version; fall back to "unknown" for pre-T-1132 hubs.
                 // T-3366: keep the hub's canonical `hub_id` from the same reply (null when the hub
                 // states none), so a deploy can check the id survived the restart (runme step 6).
-                let (hub_version, hub_id) = match client
+                let (hub_version, hub_id, signing_key) = match client
                     .call(
                         "hub.version",
                         serde_json::json!("fleet-doctor-version"),
@@ -5343,8 +5343,9 @@ pub(crate) async fn cmd_fleet_doctor(
                     Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => (
                         r.result.get("hub_version").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
                         r.result.get("hub_id").cloned().unwrap_or(serde_json::Value::Null),
+                        r.result.get("signing_key").cloned().unwrap_or(serde_json::Value::Null),
                     ),
-                    _ => ("unknown".to_string(), serde_json::Value::Null),
+                    _ => ("unknown".to_string(), serde_json::Value::Null, serde_json::Value::Null),
                 };
                 *fleet_versions.entry(hub_version.clone()).or_insert(0) += 1;
 
@@ -5402,6 +5403,7 @@ pub(crate) async fn cmd_fleet_doctor(
                     "secret_source": &secret_source,
                     "hub_version": &hub_version,
                     "hub_id": hub_id,
+                    "signing_key": signing_key,
                 });
                 // T-1652: surface the perms warning even on a healthy hub —
                 // the leak risk is structural to the file, not to the probe.

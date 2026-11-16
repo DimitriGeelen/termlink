@@ -1,0 +1,15 @@
+# fc: AL-18 / r1 #1
+# mutation: adopt-id generates a new key for a migrated hub that lost its key
+# package: termlink-hub
+# test: --lib hub_identity::tests::adopt_refuses_a_lost_key_beside_an_id_and_writes_no_key
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -315,6 +315,8 @@
+             check(&id)?;
+             Ok(Adopted { hub_id: id, id_source: "kept", key_generated: false, signing_key: signing_fingerprint(&k) })
+         }
++        (Some(id), None) => { let k = generate_key(dir)?; Ok(Adopted { hub_id: id, id_source: "kept", key_generated: true, signing_key: signing_fingerprint(&k) }) }
++        #[allow(unreachable_patterns)]
+         (Some(_), None) => Err(refuse(format!(
+             "hub.signing.key missing beside hub.id in {}: this hub was already migrated and lost its key; adopt-id does not re-key (a new key is an operator action)",
+             dir.display()

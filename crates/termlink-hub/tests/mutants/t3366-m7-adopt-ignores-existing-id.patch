@@ -1,0 +1,15 @@
+# fc: AL-17 adopt
+# mutation: adopt-id does not see an id already on disk
+# package: termlink-hub
+# test: --lib hub_identity::tests::adopt_is_idempotent_and_never_changes_an_existing_id
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -300,7 +300,7 @@
+ /// `expect`: the id the hub serves today; the call refuses, writing nothing, when the id it
+ /// would write (or finds) differs, so a wrong id never lands on disk.
+ pub fn adopt_legacy(dir: &Path, dry_run: bool, expect: Option<&str>) -> std::io::Result<Adopted> {
+-    let id = read_id(dir)?;
++    let id = read_id(dir)?.filter(|_| false);
+     let key = read_key(dir)?;
+     let check = |found: &str| -> std::io::Result<()> {
+         match expect {

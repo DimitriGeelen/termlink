@@ -4,7 +4,7 @@
 # test: --lib hub_identity::tests::e37_fcw82_bad_key_file_refuses
 --- a/crates/termlink-hub/src/hub_identity.rs
 +++ b/crates/termlink-hub/src/hub_identity.rs
-@@ -191,7 +191,7 @@
+@@ -206,7 +206,7 @@
          Err(e) => return Err(refuse(format!("hub.signing.key unreadable ({}: {e})", path.display()))),
      };
      let mode = meta.mode() & 0o777;

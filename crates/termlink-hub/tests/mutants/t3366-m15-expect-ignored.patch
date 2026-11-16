@@ -1,0 +1,15 @@
+# fc: r1 #4
+# mutation: adopt-id --expect is ignored
+# package: termlink-hub
+# test: --lib hub_identity::tests::adopt_expect_mismatch_writes_nothing
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -304,7 +304,7 @@
+     let key = read_key(dir)?;
+     let check = |found: &str| -> std::io::Result<()> {
+         match expect {
+-            Some(e) if e != found => Err(refuse(format!(
++            Some(e) if false && e != found => Err(refuse(format!(
+                 "hub.id would be {found} but the hub serves {e}; nothing written (an inbox would be renamed)"
+             ))),
+             _ => Ok(()),

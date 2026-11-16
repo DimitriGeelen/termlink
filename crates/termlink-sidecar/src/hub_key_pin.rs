@@ -89,10 +89,30 @@ fn remember(store: &Store, hub_id: &str, st: &KeyState) {
 /// id). `trusted_path` is true for the local hub socket. Never fails: a problem becomes a state
 /// and, where the spec asks for one, a needs-attention entry.
 pub fn observe(store: &Store, hub_id: &str, version: &Value, trusted_path: bool) -> KeyState {
+    // Review T-3366 r1 #2: a store read ERROR is not "no pin" — it must never lead to a re-pin.
+    let pin = match store.read_state(&pin_state_name(hub_id)) {
+        Ok(p) => p.map(|s| s.trim().to_string()),
+        Err(e) => {
+            let off = offered(version).unwrap_or_default();
+            alert(store, "hub-signing-key-pin-unreadable", &format!("hub {hub_id}: the stored pin cannot be read ({e}); hub-signed data unverified, nothing re-pinned"));
+            let st = KeyState::Unverified(off);
+            remember(store, hub_id, &st);
+            return st;
+        }
+    };
     let st = match offered(version) {
-        None => KeyState::NotOffered,
+        None => {
+            if let Some(p) = &pin {
+                // A pinned hub that stops offering its key: refused like a mismatch, and said so.
+                let day = crate::store::now_ms() / 86_400_000;
+                let detail = format!("hub {hub_id} no longer offers its signing key (pinned {p}); every hub-signed object is refused");
+                if let Err(e) = store.attention_coalesced("hub-signing-key-withdrawn", &format!("{day}"), &detail) {
+                    eprintln!("termlink-sidecar: needs attention (hub-signing-key-withdrawn): {detail} [could not record it: {e}]");
+                }
+            }
+            KeyState::NotOffered
+        }
         Some(off) => {
-            let pin = store.read_state(&pin_state_name(hub_id)).ok().flatten().map(|s| s.trim().to_string());
             match pin {
                 Some(p) if p == off => KeyState::Pinned(off),
                 Some(p) => {
@@ -127,8 +147,32 @@ pub fn observe(store: &Store, hub_id: &str, version: &Value, trusted_path: bool)
 /// the offer in `version` equals the stored pin. `None` means refuse.
 pub fn verified_hub_key(store: &Store, hub_id: &str, version: &Value) -> Option<String> {
     let off = offered(version)?;
-    let pin = store.read_state(&pin_state_name(hub_id)).ok().flatten()?;
+    let pin = store.read_state(&pin_state_name(hub_id)).ok().flatten()?; // error or absent: refuse
     (pin.trim() == off).then_some(off)
+}
+
+fn hub_seen_name(declared: &str) -> String {
+    format!("hub-id-seen-{declared}")
+}
+
+/// E-126: record the id the hub answered with on this check (written only on change), so
+/// `status` shows `hub {id, declared, match}` without a hub call.
+pub fn observe_hub_id(store: &Store, declared: &str, found: Option<&str>) {
+    let line = found.unwrap_or("").to_string();
+    let name = hub_seen_name(declared);
+    if store.read_state(&name).ok().flatten().as_deref().map(str::trim) != Some(line.as_str()) {
+        let _ = store.write_state(&name, &line);
+    }
+}
+
+/// `status` view (E-126): `{id, declared, match}`; `id` null when never observed.
+pub fn hub_status(store: &Store, declared: Option<&str>) -> Value {
+    let Some(d) = declared else {
+        return json!({"id": null, "declared": null, "match": false});
+    };
+    let seen = store.read_state(&hub_seen_name(d)).ok().flatten().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let m = seen.as_deref() == Some(d);
+    json!({"id": seen, "declared": d, "match": m})
 }
 
 /// `status` view (OBS-36): `{pinned, offered, state}` from the stored pin and last observation.

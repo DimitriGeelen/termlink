@@ -140,3 +140,65 @@ fn e166_fcw84_untrusted_first_contact_pins_nothing_and_no_offer_changes_nothing(
     assert_eq!(hub_key_pin::observe(&store, "0123456789abcdef", &v, true), KeyState::NewlyPinned(fp.clone()));
     assert_eq!(hub_key_pin::observe(&store, "0123456789abcdef", &v, true), KeyState::Pinned(fp));
 }
+
+// Review r1 #2: an UNREADABLE pin is never treated as "no pin" (no re-pin over it).
+#[test]
+fn e37_unreadable_pin_is_not_replaced() {
+    let e = Estate::create_without_hub().unwrap();
+    let store = Store::open(&e.store_root(), "agent-a").unwrap();
+    let h = "0123456789abcdef";
+    // the pin's state file is a directory: reading it errors
+    std::fs::create_dir_all(store.dir().join(format!("state.{}", hub_key_pin::pin_state_name(h)))).unwrap();
+    let v = json!({"hub_id": h, "signing_key": format!("ed25519:{}", "b".repeat(64))});
+    assert!(matches!(hub_key_pin::observe(&store, h, &v, true), KeyState::Unverified(_)));
+    assert!(store.dir().join(format!("state.{}", hub_key_pin::pin_state_name(h))).is_dir(), "not replaced");
+    assert_eq!(hub_key_pin::verified_hub_key(&store, h, &v), None);
+    assert!(attention_kinds(&store).iter().any(|(k, _)| k == "hub-signing-key-pin-unreadable"));
+}
+
+// Review r1 #2: a pinned hub that stops offering its key is refused and named.
+#[test]
+fn e37_withdrawn_key_is_named_and_refused() {
+    let e = Estate::create_without_hub().unwrap();
+    let store = Store::open(&e.store_root(), "agent-a").unwrap();
+    let h = "0123456789abcdef";
+    let fp = format!("ed25519:{}", "c".repeat(64));
+    hub_key_pin::observe(&store, h, &json!({"hub_id": h, "signing_key": fp}), true);
+    let old = json!({"hub_id": h});
+    assert_eq!(hub_key_pin::observe(&store, h, &old, true), KeyState::NotOffered);
+    assert_eq!(hub_key_pin::verified_hub_key(&store, h, &old), None);
+    assert!(attention_kinds(&store).iter().any(|(k, d)| k == "hub-signing-key-withdrawn" && d.contains(&fp)));
+}
+
+// E-126: status `hub {id, declared, match}`; control: another id reads match=false.
+#[test]
+fn e126_status_states_the_answering_hub_id_and_whether_it_matches() {
+    let mut e = Estate::create().unwrap();
+    let id = e.hub_id().unwrap();
+    let store = Arc::new(Store::open(&e.store_root(), "agent-a").unwrap());
+    assert_eq!(hub_key_pin::hub_status(&store, Some(&id))["id"], Value::Null, "not observed yet");
+    let sender = Sender::new(sender_cfg(&e, &id), store.clone()).unwrap();
+    assert!(sender.check_pin().is_ok());
+    let st = hub_key_pin::hub_status(&store, Some(&id));
+    assert_eq!((st["id"].as_str(), st["declared"].as_str(), st["match"].as_bool()), (Some(id.as_str()), Some(id.as_str()), Some(true)));
+    e.restart_hub().unwrap();
+    assert!(sender.check_pin().is_ok());
+    assert_eq!(hub_key_pin::hub_status(&store, Some(&id))["match"], true, "same id after restart");
+    // control: a sidecar declared for another hub sees this hub's id, match false
+    let other = Sender::new(sender_cfg(&e, "ffffffffffffffff"), store.clone()).unwrap();
+    assert!(other.check_pin().is_err());
+    let st = hub_key_pin::hub_status(&store, Some("ffffffffffffffff"));
+    assert_eq!((st["id"].as_str(), st["match"].as_bool()), (Some(id.as_str()), Some(false)));
+}
+
+// AR-1 LIMIT (E-37.5): a rogue key present at the FIRST trusted contact is pinned. Recorded as
+// the design's known limit, not a pass: the pin defends against a later swap only.
+#[test]
+fn e37_ar1_limit_rogue_key_at_first_contact_is_pinned() {
+    let e = Estate::create_without_hub().unwrap();
+    let store = Store::open(&e.store_root(), "agent-a").unwrap();
+    let rogue = format!("ed25519:{}", "d".repeat(64));
+    let st = hub_key_pin::observe(&store, "0123456789abcdef", &json!({"hub_id": "0123456789abcdef", "signing_key": rogue}), true);
+    assert_eq!(st, KeyState::NewlyPinned(rogue));
+    eprintln!("LIMIT AR-1: a rogue key present at first trusted contact is pinned (by design)");
+}

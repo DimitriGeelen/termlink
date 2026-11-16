@@ -985,9 +985,9 @@ pub(crate) fn cmd_hub_fingerprint(json_output: bool) -> Result<()> {
 
 /// T-3366: `termlink hub adopt-id` — the AL-17 legacy migration, the only path past FCW-79.
 /// Exit 0 with what it did (or would do); an unreadable/malformed id or key file is an error.
-pub(crate) fn cmd_hub_adopt_id(dry_run: bool, json_output: bool) -> Result<()> {
+pub(crate) fn cmd_hub_adopt_id(dry_run: bool, expect: Option<&str>, json_output: bool) -> Result<()> {
     let dir = termlink_session::discovery::runtime_dir();
-    let a = termlink_hub::hub_identity::adopt_legacy(&dir, dry_run)
+    let a = termlink_hub::hub_identity::adopt_legacy(&dir, dry_run, expect)
         .map_err(|e| anyhow::anyhow!("hub adopt-id: {e}"))?;
     if json_output {
         println!(

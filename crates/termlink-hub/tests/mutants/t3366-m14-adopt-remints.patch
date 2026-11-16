@@ -1,0 +1,20 @@
+# fc: FCW-79 / r1 #1
+# mutation: adopt-id re-mints a migrated hub that lost its id
+# package: termlink-hub
+# test: --lib hub_identity::tests::adopt_refuses_a_lost_id_beside_a_key_and_writes_no_id
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -319,11 +319,11 @@
+             "hub.signing.key missing beside hub.id in {}: this hub was already migrated and lost its key; adopt-id does not re-key (a new key is an operator action)",
+             dir.display()
+         ))),
+-        (None, Some(_)) => Err(refuse(format!(
++        (None, Some(_)) if false => Err(refuse(format!(
+             "hub.id missing beside hub.signing.key in {}: this hub was already migrated and lost its id; restore hub.id, adopt-id does not re-mint",
+             dir.display()
+         ))),
+-        (None, None) => {
++        (None, _) => {
+             let (id, from_cert) = mint_value(dir);
+             check(&id)?;
+             let id_source = if from_cert { "certificate" } else { "random" };

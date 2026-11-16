@@ -12,4 +12,4 @@
 +    s.len() == 16
  }
  
- /// Prior hub state in `dir`: a secret, a signing key, or any topic log — the things that make
+ /// Prior hub state in `dir`: a secret, a certificate, a signing key, or any topic log

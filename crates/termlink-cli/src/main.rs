@@ -310,7 +310,7 @@ async fn real_main() -> Result<()> {
             }
             Some(HubAction::DispatchResolve { ref dispatch_id, attempt, ref as_state, ref reason, ref override_reason, ref outcome, ref evidence, json }) => commands::infrastructure::cmd_hub_dispatch_resolve(dispatch_id, attempt, as_state, reason, override_reason.as_deref(), outcome.as_deref(), evidence.as_deref(), json),
             Some(HubAction::Fingerprint { json }) => commands::infrastructure::cmd_hub_fingerprint(json),
-            Some(HubAction::AdoptId { dry_run, json }) => commands::infrastructure::cmd_hub_adopt_id(dry_run, json),
+            Some(HubAction::AdoptId { dry_run, expect, json }) => commands::infrastructure::cmd_hub_adopt_id(dry_run, expect.as_deref(), json),
             Some(HubAction::Probe { addr, json }) => commands::infrastructure::cmd_hub_probe(&addr, json).await,
         },
         Command::Main { action } => {

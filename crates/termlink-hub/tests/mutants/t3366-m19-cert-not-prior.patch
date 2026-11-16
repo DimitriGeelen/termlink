@@ -1,0 +1,15 @@
+# fc: FCW-79 / ruling B
+# mutation: a certificate-only directory mints silently instead of refusing
+# package: termlink-hub
+# test: --lib hub_identity::tests::e36_first_start_with_cert_takes_the_certificate_id
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -92,7 +92,7 @@
+ /// so a certificate-only directory refuses (FCW-79) until `hub adopt-id` gives it the same
+ /// certificate-derived id E-36 expects. Fail-closed over E-36's unreachable "start" reading.
+ pub fn has_prior_state(dir: &Path) -> bool {
+-    ["hub.secret", "hub.cert.pem", KEY_FILE].iter().any(|f| dir.join(f).exists())
++    ["hub.secret", KEY_FILE].iter().any(|f| dir.join(f).exists())
+         || std::fs::read_dir(dir.join("bus")).map(|mut r| r.next().is_some()).unwrap_or(false)
+ }
+ 

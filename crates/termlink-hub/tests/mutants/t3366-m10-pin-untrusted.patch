@@ -4,7 +4,7 @@
 # test: --test t3366_hub_key_pin e166_fcw84_untrusted_first_contact_pins_nothing_and_no_offer_changes_nothing
 --- a/crates/termlink-sidecar/src/hub_key_pin.rs
 +++ b/crates/termlink-sidecar/src/hub_key_pin.rs
-@@ -105,7 +105,7 @@
+@@ -125,7 +125,7 @@
                      }
                      KeyState::Mismatch { pinned: p, offered: off }
                  }

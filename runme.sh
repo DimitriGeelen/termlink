@@ -701,6 +701,8 @@ install_termlink() {
         if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would build and install $TL_SRC -> $TL_DESTS"; DONE=$((DONE+1)); return; fi
         say "  FAILED  built binary missing: $TL_SRC"; FAILED=$((FAILED+1)); return
     fi
+    # T-3366: migrate hub.id with the NEW binary before it replaces the hub's (review r1 #4).
+    adopt_hub_id "$TL_SRC" || { say "  FAILED  not installing: the new binary would refuse to start this hub"; FAILED=$((FAILED+1)); return; }
     local want dest first=1
     want="$("$TL_SRC" --version 2>/dev/null)"
     for dest in $TL_DESTS; do
@@ -712,6 +714,57 @@ install_termlink() {
         fi
         install_termlink_to "$dest" "$want"
     done
+}
+
+# T-3366 (AL-17 legacy migration): a hub binary with T-3366 refuses to start beside existing
+# state without hub.id (FCW-79). `adopt_hub_id [binary]` makes <binary> write hub.id (the
+# current certificate's first 16 hex, the id every inbox already uses) and hub.signing.key,
+# only on a pre-T-3366 directory; a directory with one file but not the other is refused by
+# adopt-id itself (review T-3366 r1 #1). It runs (a) in step 4 with the NEWLY BUILT binary
+# BEFORE it is installed at the hub's path, so a crash/auto-restart between install and step 5
+# cannot start a binary that would refuse (review r1 #4), and (b) again before every restart.
+# The running hub's served id is passed as --expect, so a differing id is never written; the
+# key must be owned by the hub process's user (FCW-82 would refuse it otherwise). Sets HUB_ID0.
+# Returns 1 (caller must not install/restart) when anything cannot be verified.
+# A binary that predates T-3366 (clap: "unrecognized subcommand") has nothing to migrate.
+seam HUB_RT RUNME_HUB_RUNTIME_DIR "/var/lib/termlink"
+seam HUB_PROC RUNME_HUB_PROC "/proc"
+seam HUB_SYSTEMCTL RUNME_HUB_SYSTEMCTL "systemctl"
+adopt_hub_id() {
+    local bin="${1:-$HUB_BIN}" help served out line pid kuid puid
+    HUB_ID0=""
+    [ -e "$HUB_RT/hub.secret" ] || [ -e "$HUB_RT/hub.id" ] || { say "  note    no hub state in $HUB_RT — nothing to migrate"; return 0; }
+    if ! help="$("$bin" hub adopt-id --help 2>&1)"; then
+        case "$help" in
+          *"unrecognized subcommand"*)
+            say "  note    $bin has no 'hub adopt-id' (pre-T-3366): no hub.id needed"; return 0 ;;
+        esac
+        say "  FAILED  cannot tell whether $bin supports 'hub adopt-id': $(printf '%s' "$help" | tail -1)"; return 1
+    fi
+    served=""
+    if [ -S "$HUB_RT/hub.sock" ]; then
+        if ! served="$("$bin" sidecar hub-id --hub-socket "$HUB_RT/hub.sock" 2>/dev/null)" || ! [[ "$served" =~ ^[0-9a-f]{16}$ ]]; then
+            say "  FAILED  the running hub's id cannot be read from $HUB_RT/hub.sock — not migrating blind"; return 1
+        fi
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   $(TERMLINK_RUNTIME_DIR="$HUB_RT" "$bin" hub adopt-id --dry-run ${served:+--expect "$served"} 2>&1 | head -1)"; return 0
+    fi
+    if ! out="$(TERMLINK_RUNTIME_DIR="$HUB_RT" "$bin" hub adopt-id ${served:+--expect "$served"} 2>&1)"; then
+        say "  FAILED  hub adopt-id refused in $HUB_RT: $(printf '%s' "$out" | tail -1)"; return 1
+    fi
+    HUB_ID0="$(tr -d '\n' < "$HUB_RT/hub.id" 2>/dev/null)"
+    if ! [[ "$HUB_ID0" =~ ^[0-9a-f]{16}$ ]] || [ ! -s "$HUB_RT/hub.signing.key" ]; then
+        say "  FAILED  hub adopt-id ran but $HUB_RT/hub.id or hub.signing.key is not on disk"; HUB_ID0=""; return 1
+    fi
+    pid="$("$HUB_SYSTEMCTL" show -p MainPID --value termlink-hub 2>/dev/null)"
+    if [ -n "$pid" ] && [ "$pid" != "0" ] && [ -d "$HUB_PROC/$pid" ]; then
+        kuid="$(stat -c %u "$HUB_RT/hub.signing.key")"; puid="$(stat -c %u "$HUB_PROC/$pid")"
+        if [ "$kuid" != "$puid" ]; then
+            say "  FAILED  hub.signing.key is owned by uid $kuid but the hub runs as uid $puid (it would refuse it, FCW-82)"; return 1
+        fi
+    fi
+    while IFS= read -r line; do say "  adopt   $line"; done <<< "$out"
 }
 
 head2 "4. termlink binary — every copy on this host (T-3287, T-3289)"
@@ -1219,36 +1272,6 @@ hub_mainpid() { "$HUB_SYSTEMCTL" show -p MainPID --value "$HUB_UNIT" 2>/dev/null
 hub_exe()     { readlink "$HUB_PROC/$1/exe" 2>/dev/null; }
 hub_hash()    { sha256sum "$HUB_RT/$1" 2>/dev/null | cut -d' ' -f1; }
 
-# T-3366 (AL-17 legacy migration): a hub binary with T-3366 refuses to start beside existing
-# state without hub.id (FCW-79). Before ANY restart, the installed binary writes hub.id (the
-# current certificate's first 16 hex, the id every inbox already uses) and hub.signing.key,
-# each only when absent. Idempotent; never changes an existing id. Sets HUB_ID0 for the
-# post-restart check. Returns 1 (caller must not restart) when it cannot verify hub.id.
-# A binary that predates T-3366 has no `adopt-id`: nothing to migrate, restart as before.
-adopt_hub_id() {
-    HUB_ID0=""
-    local help
-    if ! help="$("$HUB_BIN" hub adopt-id --help 2>&1)"; then
-        case "$help" in
-          *"unrecognized subcommand"*)
-            say "  note    $HUB_BIN has no 'hub adopt-id' (pre-T-3366): no hub.id needed"; return 0 ;;
-        esac
-        say "  FAILED  cannot tell whether $HUB_BIN supports 'hub adopt-id': $(printf '%s' "$help" | tail -1) — not restarting"; return 1
-    fi
-    if [ "$DRY_RUN" = "1" ]; then
-        say "  [DRY]   $(TERMLINK_RUNTIME_DIR="$HUB_RT" "$HUB_BIN" hub adopt-id --dry-run 2>&1 | head -1)"; return 0
-    fi
-    local out
-    if ! out="$(TERMLINK_RUNTIME_DIR="$HUB_RT" "$HUB_BIN" hub adopt-id 2>&1)"; then
-        say "  FAILED  hub adopt-id refused in $HUB_RT: $out — not restarting (the new hub would refuse to start)"; return 1
-    fi
-    HUB_ID0="$(tr -d '\n' < "$HUB_RT/hub.id" 2>/dev/null)"
-    if ! [[ "$HUB_ID0" =~ ^[0-9a-f]{16}$ ]] || [ ! -s "$HUB_RT/hub.signing.key" ]; then
-        say "  FAILED  hub adopt-id ran but $HUB_RT/hub.id or hub.signing.key is not on disk — not restarting"; return 1
-    fi
-    say "  adopt   $(printf '%s' "$out" | head -1)"
-}
-
 restart_hub() {
     local pid exe
     pid="$(hub_mainpid)"
@@ -1284,9 +1307,14 @@ restart_hub() {
     [ "$nexe" = "$HUB_BIN" ] || problems="$problems exe='${nexe:-none}';"
     [ "$(hub_hash hub.secret)" = "$sec0" ] || problems="$problems hub.secret-CHANGED(peers-need-reauth);"
     [ "$(hub_hash hub.cert.pem)" = "$crt0" ] || problems="$problems hub.cert-CHANGED(tofu-drift);"
-    # T-3366: the canonical id must survive the restart (a changed id renames every inbox).
-    if [ -n "$HUB_ID0" ] && [ "$(tr -d '\n' < "$HUB_RT/hub.id" 2>/dev/null)" != "$HUB_ID0" ]; then
-        problems="$problems hub.id-CHANGED(was $HUB_ID0);"
+    # T-3366: the id the NEW hub serves must be the adopted one (a changed id renames every inbox).
+    if [ -n "$HUB_ID0" ]; then
+        local served1=""
+        for i in $(seq 1 "$HUB_WAIT"); do
+            served1="$("$HUB_BIN" sidecar hub-id --hub-socket "$HUB_RT/hub.sock" 2>/dev/null)" && [ -n "$served1" ] && break
+            nap 1
+        done
+        [ "$served1" = "$HUB_ID0" ] || problems="$problems hub.id-CHANGED(was $HUB_ID0, serves '${served1:-unreadable}');"
     fi
     # T-3450: systemd reports the unit active before the new hub has written its pidfile and
     # socket, so one read of `hub status` raced the startup (a false FAILED on 2026-10-17 at
@@ -1522,17 +1550,26 @@ upgrade_fleet_hubs() {
         # (no inbox renamed). Not confirmed => no swap.
         local id0 adopt
         id0="$(fleet_hub_field "$hub" hub_id)"
-        adopt="$(fleet_remote "$hub" "if ! h=\$($STAGED hub adopt-id --help 2>&1); then case \"\$h\" in *'unrecognized subcommand'*) echo RUNME-ADOPT-NA ;; *) echo RUNME-ADOPT-PROBEFAIL ;; esac; exit 0; fi; p=\$(pgrep -o -f '^[^ ]*termlink hub start'); rt=\$(tr '\\0' '\\n' </proc/\$p/environ 2>/dev/null | sed -n 's/^TERMLINK_RUNTIME_DIR=//p'); if [ -z \"\$rt\" ] || [ ! -d \"\$rt\" ]; then echo RUNME-ADOPT-NORT; exit 0; fi; TERMLINK_RUNTIME_DIR=\$rt $STAGED hub adopt-id >/dev/null && echo RUNME-ADOPT-OK \$(tr -d '\\n' < \$rt/hub.id) \$rt" 2>&1 | tr -d '\r')"
+        if ! [[ "$id0" =~ ^[0-9a-f]{16}$ ]]; then
+            say "  FAILED  $hub: fleet doctor states no hub_id for it — cannot migrate against the served id, not swapping"; FAILED=$((FAILED+1)); continue
+        fi
+        # --expect: adopt-id refuses, writing nothing, if the id it would write differs from the
+        # served one (review r1 #4); the key must belong to the hub process's user (FCW-82).
+        adopt="$(fleet_remote "$hub" "if ! h=\$($STAGED hub adopt-id --help 2>&1); then case \"\$h\" in *'unrecognized subcommand'*) echo RUNME-ADOPT-NA ;; *) echo RUNME-ADOPT-PROBEFAIL ;; esac; exit 0; fi; p=\$(pgrep -o -f '^[^ ]*termlink hub start'); rt=\$(tr '\\0' '\\n' </proc/\$p/environ 2>/dev/null | sed -n 's/^TERMLINK_RUNTIME_DIR=//p'); if [ -z \"\$rt\" ] || [ ! -d \"\$rt\" ]; then echo RUNME-ADOPT-NORT; exit 0; fi; TERMLINK_RUNTIME_DIR=\$rt $STAGED hub adopt-id --expect $id0 >/dev/null 2>&1 || { echo RUNME-ADOPT-REFUSED; exit 0; }; [ \"\$(stat -c %u \$rt/hub.signing.key)\" = \"\$(stat -c %u /proc/\$p)\" ] || { echo RUNME-ADOPT-UID; exit 0; }; echo RUNME-ADOPT-OK \$(tr -d '\\n' < \$rt/hub.id) \$rt" 2>&1 | tr -d '\r')"
         case "$adopt" in
           *RUNME-ADOPT-NA*) id0="" ;;
           *RUNME-ADOPT-OK*)
             adopt="$(printf '%s\n' "$adopt" | sed -n 's/.*RUNME-ADOPT-OK \([0-9a-f]\{16\}\) .*/\1/p' | tail -1)"
-            if [ -z "$adopt" ] || { [ -n "$id0" ] && [ "$adopt" != "$id0" ]; }; then
-                say "  FAILED  $hub: adopted hub.id '${adopt:-unreadable}' is not the id it serves ('${id0:-none}') — not swapping"; FAILED=$((FAILED+1)); continue
+            if [ "$adopt" != "$id0" ]; then
+                say "  FAILED  $hub: hub.id on disk '${adopt:-unreadable}' is not the id it serves ('$id0') — not swapping"; FAILED=$((FAILED+1)); continue
             fi
-            id0="$adopt"; say "  adopt   $hub hub.id $adopt (unchanged)" ;;
+            say "  adopt   $hub hub.id $adopt (unchanged)" ;;
           *RUNME-ADOPT-NORT*)
             say "  FAILED  $hub: cannot confirm the running hub's TERMLINK_RUNTIME_DIR, so hub.id cannot be migrated — not swapping (the new hub would refuse to start)"; FAILED=$((FAILED+1)); continue ;;
+          *RUNME-ADOPT-REFUSED*)
+            say "  FAILED  $hub: hub adopt-id refused (id would differ from the served '$id0', or a migrated hub lost a file) — nothing written, not swapping"; FAILED=$((FAILED+1)); continue ;;
+          *RUNME-ADOPT-UID*)
+            say "  FAILED  $hub: hub.signing.key is not owned by the hub process's user (it would refuse it) — not swapping"; FAILED=$((FAILED+1)); continue ;;
           *)
             say "  FAILED  $hub: hub adopt-id did not confirm: $(printf '%s' "$adopt" | tail -1) — not swapping"; FAILED=$((FAILED+1)); continue ;;
         esac

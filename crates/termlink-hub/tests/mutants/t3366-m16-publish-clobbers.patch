@@ -1,0 +1,15 @@
+# fc: AL-17 inv.1 / r1 #3
+# mutation: the publish replaces an existing hub.id
+# package: termlink-hub
+# test: --lib hub_identity::tests::e166_write_never_clobbers_an_existing_id
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -158,7 +158,7 @@
+         }
+         // No-clobber publish (review T-3366 r1 #3): link the complete temp to the final name;
+         // `AlreadyExists` when another start got there first, and that file is never replaced.
+-        std::fs::hard_link(&tmp, &path)?;
++        std::fs::rename(&tmp, &path)?;
+         let _ = std::fs::remove_file(&tmp);
+         if let Ok(d) = std::fs::File::open(dir) {
+             let _ = d.sync_all();
