@@ -1,0 +1,15 @@
+# fc: AL-17 inv.3
+# mutation: hub.version derives hub_id from the certificate on each call (ARC4 6.1.7)
+# package: termlink
+# test: --test t3366_hub_identity e36_e37_restart_and_certificate_rotation_keep_id_and_signing_key
+--- a/crates/termlink-hub/src/router.rs
++++ b/crates/termlink-hub/src/router.rs
+@@ -895,7 +895,7 @@
+ fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
+     let instance = crate::tls::own_cert_fingerprint();
+     let ident = crate::hub_identity::current();
+-    let hub_id = ident.as_ref().map(|i| i.hub_id.clone());
++    let hub_id = instance.as_deref().and_then(crate::tls::hub_id_from_fingerprint);
+     let signing_key = ident.as_ref().map(|i| i.signing_key_fingerprint());
+     Response::success(
+         id,

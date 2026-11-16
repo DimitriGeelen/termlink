@@ -884,13 +884,18 @@ fn handle_register_remote(id: serde_json::Value, params: &serde_json::Value) -> 
 /// across the fleet before a Tier-B RPC fails on a skewed hub.
 ///
 /// T-3345 (OD-12): also states the hub's own identity — `hub_id` (canonical
-/// id, today the 16-hex fingerprint prefix) and `hub_instance_id` (the full
-/// TLS fingerprint). Both are `null` when the hub has no cert on disk; the
-/// hub never guesses. Clients read these instead of deriving the id from an
-/// unauthenticated `hub probe`.
+/// id) and `hub_instance_id` (the full TLS fingerprint, `null` without a cert;
+/// it changes on rotation, the canonical id does not). Clients read these
+/// instead of deriving the id from an unauthenticated `hub probe`.
+///
+/// T-3366 (AL-17 invariant 3): `hub_id` is the minted `hub.id` the hub read at start, never
+/// recomputed from the certificate (so a rotation renames nothing); `signing_key` is
+/// `ed25519:<sha256 of the public key>` (AL-18). Both null only before the hub has started.
 fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
     let instance = crate::tls::own_cert_fingerprint();
-    let hub_id = instance.as_deref().and_then(crate::tls::hub_id_from_fingerprint);
+    let ident = crate::hub_identity::current();
+    let hub_id = ident.as_ref().map(|i| i.hub_id.clone());
+    let signing_key = ident.as_ref().map(|i| i.signing_key_fingerprint());
     Response::success(
         id,
         json!({
@@ -899,6 +904,7 @@ fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
             "control_plane_version": termlink_protocol::CONTROL_PLANE_VERSION,
             "hub_id": hub_id,
             "hub_instance_id": instance,
+            "signing_key": signing_key,
         }),
     )
     .into()

@@ -1,0 +1,15 @@
+# fc: FCW-79
+# mutation: a missing hub.id beside prior state is minted instead of refused
+# package: termlink-hub
+# test: --lib hub_identity::tests::e36_fcw79_missing_id_beside_state_refuses_and_writes_nothing
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -225,7 +225,7 @@
+     let prior = has_prior_state(dir);
+     let (hub_id, first_start) = match read_id(dir)? {
+         Some(id) => (id, false),
+-        None if prior => {
++        None if false && prior => {
+             return Err(refuse(format!(
+                 "hub.id missing beside existing state in {}; restore it, or run `termlink hub adopt-id` (runme does this before a restart)",
+                 dir.display()

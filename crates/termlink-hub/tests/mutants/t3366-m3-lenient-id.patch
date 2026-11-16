@@ -1,0 +1,15 @@
+# fc: FCW-80
+# mutation: any 16-character hub.id is accepted
+# package: termlink-hub
+# test: --lib hub_identity::tests::e36_fcw80_malformed_id_refuses
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -84,7 +84,7 @@
+ }
+ 
+ fn is_id(s: &str) -> bool {
+-    s.len() == 16 && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
++    s.len() == 16
+ }
+ 
+ /// Prior hub state in `dir`: a secret, a signing key, or any topic log — the things that make

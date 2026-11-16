@@ -1,0 +1,15 @@
+# fc: AL-18
+# mutation: a missing signing key beside an existing id is regenerated silently
+# package: termlink-hub
+# test: --lib hub_identity::tests::e37_key_missing_beside_id_refuses
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -241,7 +241,7 @@
+     };
+     let signing = match read_key(dir)? {
+         Some(k) => k,
+-        None if first_start => generate_key(dir)?,
++        None if true || first_start => generate_key(dir)?,
+         None => {
+             return Err(refuse(format!(
+                 "hub.signing.key missing beside existing state in {}; run `termlink hub adopt-id` (runme does this before a restart)",

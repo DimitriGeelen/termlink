@@ -130,16 +130,18 @@ Unblocks: P-11 (T-3363), P-15 (T-3703, security), P-16 (T-3704, security), P-31 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Canonical id persisted in the runtime dir and survives cert regeneration
+- [x] Canonical id persisted in the runtime dir and survives cert regeneration (unit e36_certificate_rotation…; L4 t3366_hub_identity rotation test; mutant m1 killed)
 - [ ] Existing hubs migrate to their current fingerprint-derived id (no inbox renamed)
 - [ ] Mail to sidecar: topics forwarded with a sender warning until the alias end release (the alias end itself is P-53, T-3726)
 - [ ] The B-1 specs pass, including the hub signing key and the `hub.version` fields (DR-1 A, DR-2 A)
-- [ ] A re-mint beside existing state is refused
+- [x] A re-mint beside existing state is refused (FCW-79 unit + L4 legacy test; mutant m2 killed)
 - [ ] The unit's fixture suite exits 0 with a PASS line per B-1 E-n and its mutant list is all killed (FP 3.1.b)
 
 ## Verification
 
-cargo test -p termlink-hub hub_id
+env -u PROJECT_ROOT cargo test -p termlink-hub hub_identity > .context/working/.t3366-v1.out 2>&1 && grep -q 'test result: ok. 15 passed' .context/working/.t3366-v1.out
+env -u PROJECT_ROOT cargo test -p termlink --test t3366_hub_identity > .context/working/.t3366-v2.out 2>&1 && grep -q 'test result: ok. 3 passed' .context/working/.t3366-v2.out
+grep -q 'PASS: all 8 mutants turned their test red' docs/reports/T-3366-mutants.md
 
 ## RCA
 
@@ -186,6 +188,12 @@ cargo test -p termlink-hub hub_id
 - **Plan impact:** the legacy migration (AL-17 "one runme action per hub") is built here, not left to P-31: a CLI verb `termlink hub adopt-id` (writes `first16(current fingerprint)`, or random with "no certificate", only when `hub.id` is absent; idempotent; refuses a differing existing id), and runme steps 5 and 6 run it with the NEW binary before each restart. P-31 (T-3713) keeps the .107 encryption keys and key cards.
 - **Slices:** S1 hub side: `hub.id` + `hub.signing.key` (FCW-79..82), `hub.version` reads the file and adds `signing_key`, `adopt-id` verb, E-36/E-37-hub/E-166-hub fixtures + mutants. S2 runme steps 5/6 migration-before-restart + fixtures. S3 sidecar signing-key pin (FCW-83/84, E-37 sidecar half). S4 `sidecar:` topic forward-with-warning (AC 3). E-38 is P-11's (T-3363) and is not built here.
 - **Triggered:** none yet.
+
+### 2026-11-16 — S1 + S2 built: spec reading on "prior state"
+- **What changed:** AL-17 step 1 lists `hub.cert.pem` as prior state, but E-36.2/E-36.4 start a "cert only (legacy hub)" directory and expect it to keep `first16(fingerprint)`, which only AL-17's first-start branch gives. Built to E-36 (the tested reading): prior state = `hub.secret`, `hub.signing.key` or any topic log under `bus/` (what makes an id visible to peers); a certificate alone mints from the certificate. A real legacy hub always has a secret, so it still meets FCW-79 and goes through `adopt-id`.
+- **What changed (2):** the hub mints before it writes its own secret/certificate in `prepare_start`, so a brand-new TCP hub gets a random id (CR-6.42), not one derived from the certificate it is about to create.
+- **Plan impact:** S2 covers both local restart points (step 5 `restart_hub`, step 5a `install_hub_unit`) and the fleet (step 6), where the runtime dir is read from the running hub's own environment; an unconfirmable dir or an adopted id that differs from the served id fails the hub without swapping.
+- **Triggered:** none.
 
 ## Recommendation
 

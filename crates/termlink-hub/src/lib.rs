@@ -7,6 +7,7 @@ pub mod cv_index;
 pub mod dedupe;
 pub mod dispatch_contract;
 pub mod governor;
+pub mod hub_identity;
 pub mod inbox;
 pub mod mail_guard;
 pub mod pidfile;

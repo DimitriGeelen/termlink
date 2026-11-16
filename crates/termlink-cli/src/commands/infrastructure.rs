@@ -983,6 +983,44 @@ pub(crate) fn cmd_hub_fingerprint(json_output: bool) -> Result<()> {
     Ok(())
 }
 
+/// T-3366: `termlink hub adopt-id` — the AL-17 legacy migration, the only path past FCW-79.
+/// Exit 0 with what it did (or would do); an unreadable/malformed id or key file is an error.
+pub(crate) fn cmd_hub_adopt_id(dry_run: bool, json_output: bool) -> Result<()> {
+    let dir = termlink_session::discovery::runtime_dir();
+    let a = termlink_hub::hub_identity::adopt_legacy(&dir, dry_run)
+        .map_err(|e| anyhow::anyhow!("hub adopt-id: {e}"))?;
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "runtime_dir": dir.display().to_string(),
+                "hub_id": a.hub_id,
+                "id_source": a.id_source,
+                "key_generated": a.key_generated,
+                "signing_key": a.signing_key,
+                "dry_run": dry_run,
+            })
+        );
+    } else {
+        let verb = if dry_run { "would write" } else { "wrote" };
+        match a.id_source {
+            "kept" => println!("hub.id {} kept (already present) in {}", a.hub_id, dir.display()),
+            "certificate" => println!("hub.id {} {verb} from the current certificate in {}", a.hub_id, dir.display()),
+            _ => println!(
+                "hub.id {} {verb} at random: no certificate in {} (peers will see a new id)",
+                a.hub_id,
+                dir.display()
+            ),
+        }
+        if a.key_generated {
+            println!("hub.signing.key {} ({})", if dry_run { "would be generated" } else { "generated" }, a.signing_key);
+        } else {
+            println!("hub.signing.key kept ({})", a.signing_key);
+        }
+    }
+    Ok(())
+}
+
 /// T-3503 (T7d): resolve an `unknown` worker-contract attempt on this host. No RPC exists
 /// for it; this opens the local bus store directly. Errors are loud (non-zero exit).
 /// T-3527: `CLAUDECODE=1` marks an agent session (the AEF convention, `lib/arc.sh`), which

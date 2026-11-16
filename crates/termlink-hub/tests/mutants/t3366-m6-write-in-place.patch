@@ -1,0 +1,15 @@
+# fc: FCW-81
+# mutation: hub.id is written in place, not via temp + rename
+# package: termlink-hub
+# test: --lib hub_identity::tests::e166_failure_before_rename_leaves_no_id_and_no_temp
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -136,7 +136,7 @@
+     let tmp: PathBuf = dir.join(format!(".{name}.tmp-{}", std::process::id()));
+     let res = (|| {
+         use std::os::unix::fs::OpenOptionsExt;
+-        let mut f = std::fs::OpenOptions::new().create_new(true).write(true).mode(mode).open(&tmp)?;
++        let mut f = std::fs::OpenOptions::new().create(true).truncate(true).write(true).mode(mode).open(&path)?;
+         f.write_all(contents)?;
+         f.sync_all()?;
+         drop(f);

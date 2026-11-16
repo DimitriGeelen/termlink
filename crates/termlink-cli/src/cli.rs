@@ -1606,6 +1606,21 @@ pub(crate) enum HubAction {
         #[arg(long)]
         json: bool,
     },
+    /// Give a hub that predates T-3366 its canonical id and signing key (legacy migration)
+    ///
+    /// Writes <runtime_dir>/hub.id = first 16 hex of the current TLS fingerprint (the id every
+    /// inbox already uses, so nothing is renamed; random when there is no certificate) and
+    /// generates hub.signing.key (0600), each only when absent. Idempotent: an existing id is
+    /// never changed; a malformed id or key file is refused, not replaced. Safe while the hub
+    /// runs (the running binary ignores both files). runme runs it before every hub restart.
+    AdoptId {
+        /// Report what would be written; write nothing
+        #[arg(long)]
+        dry_run: bool,
+        /// Output as JSON: {"runtime_dir","hub_id","id_source","key_generated","signing_key","dry_run"}
+        #[arg(long)]
+        json: bool,
+    },
     /// Probe a remote hub via TLS handshake and print its leaf cert sha256
     ///
     /// G-011 rotation-protocol companion to `hub fingerprint` (which reads

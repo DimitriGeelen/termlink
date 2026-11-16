@@ -489,6 +489,12 @@ async fn prepare_start(
         std::fs::create_dir_all(parent)?;
     }
 
+    // T-3366 (AL-17/AL-18): read or mint hub.id and hub.signing.key BEFORE this start writes
+    // its own secret or certificate, so a first start is recognised as one. A refusal here
+    // (FCW-79..82) leaves a running hub's files untouched, like every check above.
+    let identity = crate::hub_identity::load_or_mint(&termlink_session::discovery::runtime_dir())?;
+    tracing::info!(hub_id = %identity.hub_id, signing_key = %identity.signing_key_fingerprint(), "Hub identity loaded (T-3366)");
+
     let (tcp_listener, token_secret, tls_acceptor) = if let Some(addr) = tcp_addr {
         let listener = TcpListener::bind(addr).await.map_err(|e| {
             std::io::Error::new(e.kind(), format!("Failed to bind TCP {}: {}", addr, e))
@@ -501,6 +507,7 @@ async fn prepare_start(
     };
 
     let (unix_listener, socket_id) = claim_runtime(socket_path, pidfile_path)?;
+    crate::hub_identity::set_current(identity);
     tracing::info!(path = %socket_path.display(), "Hub listening on Unix");
 
     let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");

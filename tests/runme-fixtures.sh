@@ -581,6 +581,7 @@ case "$1" in
     case "${FAKE_HUB_RESTART_MODE:-ok}" in
       fail) exit 1 ;;
       rotate) printf 'new-secret' > "$H/rt/hub.secret" ;;
+      reid) printf 'ffffffffffffffff\n' > "$H/rt/hub.id" ;;   # T-3366: an id that changed
     esac
     n=$((pid+1)); echo "$n" > "$H/pid"; mkdir -p "$H/proc/$n"
     ln -sfn "${FAKE_HUB_NEW_EXE:-$FAKE_HUB_BIN}" "$H/proc/$n/exe"
@@ -597,6 +598,24 @@ if [ "$1 $2" = "hub status" ]; then
     n=$(( $(cat "$FAKE_HUB_DIR/status-reads" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$FAKE_HUB_DIR/status-reads"
     if [ "$n" -le "${FAKE_HUB_STATUS_LAG:-0}" ]; then echo '{"ok":true,"status":"stopped"}'; exit 0; fi
     echo "{\"ok\":true,\"pid\":$(cat "$FAKE_HUB_DIR/pid"),\"status\":\"running\"}"; exit 0
+fi
+# T-3366: `hub adopt-id`. FAKE_HUB_ADOPT: ok (default: write hub.id + key when absent),
+# none (a pre-T-3366 binary: the verb does not exist), refuse (exit 1), noop (exit 0, writes nothing).
+if [ "$1 $2" = "hub adopt-id" ]; then
+    case "${FAKE_HUB_ADOPT:-ok}" in
+      none) echo "error: unrecognized subcommand 'adopt-id'" >&2; exit 2 ;;
+      broken) echo "error while loading shared libraries" >&2; exit 127 ;;
+    esac
+    [ "${3:-}" = "--help" ] && exit 0
+    [ "${FAKE_HUB_ADOPT:-ok}" = refuse ] && { echo "hub adopt-id: hub.id unreadable or malformed" >&2; exit 1; }
+    rt="${TERMLINK_RUNTIME_DIR:?}"
+    if [ "${3:-}" = "--dry-run" ]; then echo "hub.id cacc73ea32b121dd would write from the current certificate in $rt"; exit 0; fi
+    [ "${FAKE_HUB_ADOPT:-ok}" = noop ] && exit 0
+    echo adopt >> "$FAKE_HUB_DIR/adopts"
+    if [ -s "$rt/hub.id" ]; then echo "hub.id $(tr -d '\n' < "$rt/hub.id") kept (already present) in $rt"
+    else printf 'cacc73ea32b121dd\n' > "$rt/hub.id"; echo "hub.id cacc73ea32b121dd wrote from the current certificate in $rt"; fi
+    [ -s "$rt/hub.signing.key" ] || { printf '%064d\n' 0 > "$rt/hub.signing.key"; chmod 600 "$rt/hub.signing.key"; }
+    exit 0
 fi
 exit 0
 EOS
@@ -622,7 +641,8 @@ F="$TMP/fleet"; mkdir -p "$F"
 cat > "$F/doctor" <<'EOS'
 #!/usr/bin/env bash
 v=$(cat "$FAKE_FLEET_DIR/ver"); st=$(cat "$FAKE_FLEET_DIR/status" 2>/dev/null || echo ok)
-echo "{\"hubs\":[{\"hub\":\"fake-hub\",\"address\":\"10.0.0.1:9100\",\"hub_version\":\"$v\",\"status\":\"$st\"}]}"
+id=$(cat "$FAKE_FLEET_DIR/hubid" 2>/dev/null || echo cacc73ea32b121dd)
+echo "{\"hubs\":[{\"hub\":\"fake-hub\",\"address\":\"10.0.0.1:9100\",\"hub_version\":\"$v\",\"status\":\"$st\",\"hub_id\":\"$id\"}]}"
 EOS
 # The swap (not the staging) changes the served version: via the fake remote's
 # install+restart when the hub has a unit (FAKE_UNIT=1), else via --swap-restart.
@@ -631,6 +651,7 @@ cat > "$F/swap" <<'EOS'
 case "${FAKE_DEPLOY_MODE:-ok}" in
   auth) echo "9.9.9" > "$FAKE_FLEET_DIR/ver"; echo "auth-mismatch" > "$FAKE_FLEET_DIR/status" ;;
   nochange) : ;;
+  reid) echo "9.9.9" > "$FAKE_FLEET_DIR/ver"; echo ffffffffffffffff > "$FAKE_FLEET_DIR/hubid" ;;
   *) echo "9.9.9" > "$FAKE_FLEET_DIR/ver" ;;
 esac
 EOS
@@ -667,6 +688,14 @@ case "$2" in *RUNME-ROLLUP*)
 esac
 echo "$2" >> "$FAKE_FLEET_DIR/remote-cmds"
 case "$2" in
+  *"hub adopt-id"*)   # T-3366: FAKE_FLEET_ADOPT na (default: pre-T-3366 binary) | ok | nort | other | fail
+    case "${FAKE_FLEET_ADOPT:-na}" in
+      na) echo RUNME-ADOPT-NA ;;
+      ok) echo "RUNME-ADOPT-OK cacc73ea32b121dd /var/lib/termlink" ;;
+      other) echo "RUNME-ADOPT-OK 0123456789abcdef /var/lib/termlink" ;;
+      nort) echo RUNME-ADOPT-NORT ;;
+      fail) echo "hub adopt-id: hub.id unreadable or malformed"; exit 1 ;;
+    esac ;;
   *"t3311-sweep.conf"*)   # T-3311 action 21: drop-in + restart; must match BEFORE the plain unit probe
     [ "${FAKE_UNIT:-1}" = "1" ] || { echo NO-UNIT; exit 0; }
     [ "${FAKE_SWEEP_APPLIES:-1}" = "1" ] && echo 3600 > "$FAKE_SWEEP_FILE"
@@ -683,7 +712,7 @@ exit "${FAKE_TOFU_RC:-0}"
 EOS
 cp "$TMP/tl-new" "$F/musl"
 chmod +x "$F/doctor" "$F/deploy" "$F/tofu" "$F/musl" "$F/swap" "$F/remote"
-fleet_state() { echo "$1" > "$F/ver"; echo ok > "$F/status"; rm -f "$F/deploys" "$F/remote-cmds"; }
+fleet_state() { echo "$1" > "$F/ver"; echo ok > "$F/status"; rm -f "$F/deploys" "$F/remote-cmds" "$F/hubid"; }
 export FAKE_FLEET_DIR="$F" RUNME_FLEET_HUBS=fake-hub RUNME_MUSL_SRC="$F/musl" \
        RUNME_FLEET_DEPLOY="$F/deploy" RUNME_FLEET_DOCTOR="$F/doctor" RUNME_TOFU="$F/tofu" RUNME_FLEET_WAIT_SECS=2 \
        RUNME_FLEET_REMOTE="$F/remote"
@@ -1271,6 +1300,50 @@ out=$(FAKE_HUB_ACTIVE=failed run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep_all "unit=failed"; then
     ok "hub: unit not active after restart => FAILED"
 else bad "hub inactive must fail" "rc=$rc: $out"; fi
+# T-3366: adopt-id runs before the restart; the id must survive it.
+hub_state 900 "/old/termlink (deleted)"; rm -f "$H/rt/hub.id" "$H/rt/hub.signing.key" "$H/adopts"
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep_all "adopt   hub.id cacc73ea32b121dd wrote from the current certificate" \
+   && echo "$out" | grep_all "+ hub.id cacc73ea32b121dd unchanged" && [ "$(cat "$H/rt/hub.id")" = "cacc73ea32b121dd" ] \
+   && [ "$(wc -l < "$H/adopts")" = "1" ] && [ "$(wc -l < "$H/restarts")" = "1" ]; then
+    ok "hub (T-3366): legacy hub gets hub.id from adopt-id BEFORE the restart; id verified unchanged after"
+else bad "hub adopt before restart" "rc=$rc: $out"; fi
+hub_state 910 "/old/termlink (deleted)"
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep_all "adopt   hub.id cacc73ea32b121dd kept (already present)"; then
+    ok "hub (T-3366): second migration keeps the existing id (idempotent)"
+else bad "hub adopt idempotent" "rc=$rc: $out"; fi
+hub_state 920 "/old/termlink (deleted)"
+out=$(FAKE_HUB_ADOPT=refuse run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep_all "FAILED  hub adopt-id refused" && [ ! -e "$H/restarts" ]; then
+    ok "hub (T-3366): adopt-id refused => FAILED and NO restart (the new hub would refuse to start)"
+else bad "hub adopt refuse" "rc=$rc: $out"; fi
+hub_state 930 "/old/termlink (deleted)"; rm -f "$H/rt/hub.id" "$H/rt/hub.signing.key"
+out=$(FAKE_HUB_ADOPT=noop run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep_all "is not on disk — not restarting" && [ ! -e "$H/restarts" ]; then
+    ok "hub (T-3366): adopt-id that claims success but writes nothing => FAILED by the on-disk read, no restart"
+else bad "hub adopt noop" "rc=$rc: $out"; fi
+hub_state 940 "/old/termlink (deleted)"; rm -f "$H/rt/hub.id" "$H/rt/hub.signing.key"
+out=$(FAKE_HUB_ADOPT=none run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep_all "has no 'hub adopt-id' (pre-T-3366)" && echo "$out" | grep_all "OK      restarted and verified: pid 940 -> 941"; then
+    ok "hub (T-3366): a pre-T-3366 binary restarts as before (nothing to migrate)"
+else bad "hub adopt none" "rc=$rc: $out"; fi
+hub_state 950 "/old/termlink (deleted)"
+out=$(FAKE_HUB_RESTART_MODE=reid run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep_all "hub.id-CHANGED(was cacc73ea32b121dd)"; then
+    ok "hub (T-3366): an id changed by the restart => FAILED naming it"
+else bad "hub reid" "rc=$rc: $out"; fi
+hub_state 955 "/old/termlink (deleted)"
+out=$(FAKE_HUB_ADOPT=broken run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep_all "cannot tell whether" && [ ! -e "$H/restarts" ]; then
+    ok "hub (T-3366): a binary whose adopt-id probe fails for another reason => FAILED, no restart (never taken as pre-T-3366)"
+else bad "hub adopt broken" "rc=$rc: $out"; fi
+hub_state 960 "/old/termlink (deleted)"; rm -f "$H/rt/hub.id" "$H/rt/hub.signing.key" "$H/adopts"
+out=$(run --dry-run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep_all -F "[DRY]   hub.id cacc73ea32b121dd would write" && [ ! -e "$H/rt/hub.id" ] && [ ! -e "$H/adopts" ]; then
+    ok "hub (T-3366): --dry-run previews the migration and writes nothing"
+else bad "hub adopt dry-run" "rc=$rc: $out"; fi
+printf 'cacc73ea32b121dd\n' > "$H/rt/hub.id"; printf '%064d\n' 0 > "$H/rt/hub.signing.key"
 hub_state 100 "$H/hubbin"
 
 # ---------------------------------------------------------------------------
@@ -1326,6 +1399,34 @@ out=$(FAKE_TOFU_RC=1 run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep_all "tofu verify failed"; then
     ok "fleet: cert changed (tofu verify fails) => FAILED"
 else bad "fleet cert rotation must fail" "rc=$rc: $out"; fi
+# T-3366: hub.id is migrated on the remote host BEFORE the swap, against the running hub's dir.
+fleet_state 0.11.1
+out=$(FAKE_FLEET_ADOPT=ok FAKE_UNIT=1 run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep_all "adopt   fake-hub hub.id cacc73ea32b121dd (unchanged)" \
+   && echo "$out" | grep_all "hub_id cacc73ea32b121dd unchanged" \
+   && [ "$(grep -n 'hub adopt-id' "$F/remote-cmds" | head -1 | cut -d: -f1)" -lt "$(grep -n 'systemctl restart' "$F/remote-cmds" | head -1 | cut -d: -f1)" ]; then
+    ok "fleet (T-3366): adopt-id runs remotely BEFORE the restart; the served id is verified unchanged after"
+else bad "fleet adopt ok" "rc=$rc: $out $(cat "$F/remote-cmds" 2>/dev/null)"; fi
+fleet_state 0.11.1
+out=$(FAKE_FLEET_ADOPT=nort FAKE_UNIT=1 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep_all "cannot confirm the running hub's TERMLINK_RUNTIME_DIR" && ! grep -q "systemctl restart" "$F/remote-cmds"; then
+    ok "fleet (T-3366): running hub's runtime dir unconfirmable => FAILED, no swap"
+else bad "fleet adopt nort" "rc=$rc: $out"; fi
+fleet_state 0.11.1
+out=$(FAKE_FLEET_ADOPT=other FAKE_UNIT=1 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep_all "adopted hub.id '0123456789abcdef' is not the id it serves ('cacc73ea32b121dd')" && ! grep -q "systemctl restart" "$F/remote-cmds"; then
+    ok "fleet (T-3366): adopted id differs from the served id (an inbox would be renamed) => FAILED, no swap"
+else bad "fleet adopt other" "rc=$rc: $out"; fi
+fleet_state 0.11.1
+out=$(FAKE_FLEET_ADOPT=fail FAKE_UNIT=0 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep_all "hub adopt-id did not confirm" && ! grep -q -- "--swap-restart" "$F/deploys"; then
+    ok "fleet (T-3366): adopt-id refused => FAILED, no --swap-restart"
+else bad "fleet adopt fail" "rc=$rc: $out"; fi
+fleet_state 0.11.1
+out=$(FAKE_FLEET_ADOPT=ok FAKE_DEPLOY_MODE=reid FAKE_UNIT=1 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep_all "hub_id 'ffffffffffffffff' is not 'cacc73ea32b121dd'"; then
+    ok "fleet (T-3366): an id changed by the restart => FAILED naming both"
+else bad "fleet reid" "rc=$rc: $out"; fi
 fleet_state 9.9.9
 
 # ---------------------------------------------------------------------------

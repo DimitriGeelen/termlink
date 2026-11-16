@@ -1219,6 +1219,36 @@ hub_mainpid() { "$HUB_SYSTEMCTL" show -p MainPID --value "$HUB_UNIT" 2>/dev/null
 hub_exe()     { readlink "$HUB_PROC/$1/exe" 2>/dev/null; }
 hub_hash()    { sha256sum "$HUB_RT/$1" 2>/dev/null | cut -d' ' -f1; }
 
+# T-3366 (AL-17 legacy migration): a hub binary with T-3366 refuses to start beside existing
+# state without hub.id (FCW-79). Before ANY restart, the installed binary writes hub.id (the
+# current certificate's first 16 hex, the id every inbox already uses) and hub.signing.key,
+# each only when absent. Idempotent; never changes an existing id. Sets HUB_ID0 for the
+# post-restart check. Returns 1 (caller must not restart) when it cannot verify hub.id.
+# A binary that predates T-3366 has no `adopt-id`: nothing to migrate, restart as before.
+adopt_hub_id() {
+    HUB_ID0=""
+    local help
+    if ! help="$("$HUB_BIN" hub adopt-id --help 2>&1)"; then
+        case "$help" in
+          *"unrecognized subcommand"*)
+            say "  note    $HUB_BIN has no 'hub adopt-id' (pre-T-3366): no hub.id needed"; return 0 ;;
+        esac
+        say "  FAILED  cannot tell whether $HUB_BIN supports 'hub adopt-id': $(printf '%s' "$help" | tail -1) — not restarting"; return 1
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   $(TERMLINK_RUNTIME_DIR="$HUB_RT" "$HUB_BIN" hub adopt-id --dry-run 2>&1 | head -1)"; return 0
+    fi
+    local out
+    if ! out="$(TERMLINK_RUNTIME_DIR="$HUB_RT" "$HUB_BIN" hub adopt-id 2>&1)"; then
+        say "  FAILED  hub adopt-id refused in $HUB_RT: $out — not restarting (the new hub would refuse to start)"; return 1
+    fi
+    HUB_ID0="$(tr -d '\n' < "$HUB_RT/hub.id" 2>/dev/null)"
+    if ! [[ "$HUB_ID0" =~ ^[0-9a-f]{16}$ ]] || [ ! -s "$HUB_RT/hub.signing.key" ]; then
+        say "  FAILED  hub adopt-id ran but $HUB_RT/hub.id or hub.signing.key is not on disk — not restarting"; return 1
+    fi
+    say "  adopt   $(printf '%s' "$out" | head -1)"
+}
+
 restart_hub() {
     local pid exe
     pid="$(hub_mainpid)"
@@ -1229,6 +1259,7 @@ restart_hub() {
     if [ "$exe" = "$HUB_BIN" ]; then
         say "  skip    hub (pid $pid) already runs the installed binary: $exe"; SKIPPED=$((SKIPPED+1)); return
     fi
+    adopt_hub_id || { FAILED=$((FAILED+1)); return; }
     if [ "$DRY_RUN" = "1" ]; then
         say "  [DRY]   would restart $HUB_UNIT (pid $pid runs '${exe:-unknown}', installed is $HUB_BIN)"; DONE=$((DONE+1)); return
     fi
@@ -1253,6 +1284,10 @@ restart_hub() {
     [ "$nexe" = "$HUB_BIN" ] || problems="$problems exe='${nexe:-none}';"
     [ "$(hub_hash hub.secret)" = "$sec0" ] || problems="$problems hub.secret-CHANGED(peers-need-reauth);"
     [ "$(hub_hash hub.cert.pem)" = "$crt0" ] || problems="$problems hub.cert-CHANGED(tofu-drift);"
+    # T-3366: the canonical id must survive the restart (a changed id renames every inbox).
+    if [ -n "$HUB_ID0" ] && [ "$(tr -d '\n' < "$HUB_RT/hub.id" 2>/dev/null)" != "$HUB_ID0" ]; then
+        problems="$problems hub.id-CHANGED(was $HUB_ID0);"
+    fi
     # T-3450: systemd reports the unit active before the new hub has written its pidfile and
     # socket, so one read of `hub status` raced the startup (a false FAILED on 2026-10-17 at
     # load ~30). Re-read within the same bounded window; fail only if it never reads running.
@@ -1264,7 +1299,7 @@ restart_hub() {
     done
     [ "$ok_status" = 1 ] || problems="$problems hub-status-not-running-as-$npid;"
     if [ -z "$problems" ]; then
-        say "  OK      restarted and verified: pid $pid -> $npid, exe $nexe ($("$HUB_BIN" --version 2>/dev/null)); secret + cert unchanged"; DONE=$((DONE+1))
+        say "  OK      restarted and verified: pid $pid -> $npid, exe $nexe ($("$HUB_BIN" --version 2>/dev/null)); secret + cert${HUB_ID0:+ + hub.id $HUB_ID0} unchanged"; DONE=$((DONE+1))
     else
         say "  FAILED  hub restart verification:$problems"; FAILED=$((FAILED+1))
     fi
@@ -1299,6 +1334,7 @@ install_hub_unit() {
         say "  [DRY]   would install $HUB_UNIT_SRC -> $HUB_UNIT_DEST, daemon-reload, restart $HUB_UNIT"; DONE=$((DONE+1)); return
     fi
     local old_pid; old_pid="$(hub_mainpid)"
+    adopt_hub_id || { FAILED=$((FAILED+1)); return; }   # T-3366: before any restart
     if ! install -m 644 "$HUB_UNIT_SRC" "$HUB_UNIT_DEST"; then
         say "  FAILED  could not install $HUB_UNIT_DEST"; FAILED=$((FAILED+1)); return
     fi
@@ -1480,6 +1516,26 @@ upgrade_fleet_hubs() {
             say "  FAILED  staging on $hub failed (see /tmp/.runme-deploy-$hub.log)"; FAILED=$((FAILED+1)); continue
         fi
         unitbin="$(fleet_remote "$hub" 'systemctl cat termlink-hub 2>/dev/null | sed -n "s/^ExecStart=\([^ ]*\).*/\1/p" | head -1' 2>/dev/null | tr -d '\r' | tail -1)"
+        # T-3366: the staged binary refuses to start beside existing state without hub.id
+        # (FCW-79). Migrate first, against the RUNNING hub's own runtime dir (from its
+        # environment); the adopted id must be the one fleet doctor already reports
+        # (no inbox renamed). Not confirmed => no swap.
+        local id0 adopt
+        id0="$(fleet_hub_field "$hub" hub_id)"
+        adopt="$(fleet_remote "$hub" "if ! h=\$($STAGED hub adopt-id --help 2>&1); then case \"\$h\" in *'unrecognized subcommand'*) echo RUNME-ADOPT-NA ;; *) echo RUNME-ADOPT-PROBEFAIL ;; esac; exit 0; fi; p=\$(pgrep -o -f '^[^ ]*termlink hub start'); rt=\$(tr '\\0' '\\n' </proc/\$p/environ 2>/dev/null | sed -n 's/^TERMLINK_RUNTIME_DIR=//p'); if [ -z \"\$rt\" ] || [ ! -d \"\$rt\" ]; then echo RUNME-ADOPT-NORT; exit 0; fi; TERMLINK_RUNTIME_DIR=\$rt $STAGED hub adopt-id >/dev/null && echo RUNME-ADOPT-OK \$(tr -d '\\n' < \$rt/hub.id) \$rt" 2>&1 | tr -d '\r')"
+        case "$adopt" in
+          *RUNME-ADOPT-NA*) id0="" ;;
+          *RUNME-ADOPT-OK*)
+            adopt="$(printf '%s\n' "$adopt" | sed -n 's/.*RUNME-ADOPT-OK \([0-9a-f]\{16\}\) .*/\1/p' | tail -1)"
+            if [ -z "$adopt" ] || { [ -n "$id0" ] && [ "$adopt" != "$id0" ]; }; then
+                say "  FAILED  $hub: adopted hub.id '${adopt:-unreadable}' is not the id it serves ('${id0:-none}') — not swapping"; FAILED=$((FAILED+1)); continue
+            fi
+            id0="$adopt"; say "  adopt   $hub hub.id $adopt (unchanged)" ;;
+          *RUNME-ADOPT-NORT*)
+            say "  FAILED  $hub: cannot confirm the running hub's TERMLINK_RUNTIME_DIR, so hub.id cannot be migrated — not swapping (the new hub would refuse to start)"; FAILED=$((FAILED+1)); continue ;;
+          *)
+            say "  FAILED  $hub: hub adopt-id did not confirm: $(printf '%s' "$adopt" | tail -1) — not swapping"; FAILED=$((FAILED+1)); continue ;;
+        esac
         if [ -n "$unitbin" ]; then
             # G-070: a systemd-supervised hub is restarted THROUGH its unit. The
             # restart is delayed and detached so this exec (which rides on that
@@ -1498,8 +1554,11 @@ upgrade_fleet_hubs() {
             [ "$(fleet_hub_field "$hub" hub_version)" = "$want" ] && break; nap 1
         done
         have="$(fleet_hub_field "$hub" hub_version)"; st="$(fleet_hub_field "$hub" status)"
-        if [ "$have" = "$want" ] && [ "$st" = "ok" ] && $TOFU "$addr" >/dev/null 2>&1; then
-            say "  OK      upgraded and verified: $hub serves $have; fleet doctor ok (secret still authenticates); tofu verify ok (cert unchanged)"; DONE=$((DONE+1))
+        local id1=""; [ -n "$id0" ] && id1="$(fleet_hub_field "$hub" hub_id)"
+        if [ -n "$id0" ] && [ "$id1" != "$id0" ]; then
+            say "  FAILED  $hub after deploy: hub_id '${id1:-none}' is not '$id0' (T-3366: the id must survive the restart)"; FAILED=$((FAILED+1))
+        elif [ "$have" = "$want" ] && [ "$st" = "ok" ] && $TOFU "$addr" >/dev/null 2>&1; then
+            say "  OK      upgraded and verified: $hub serves $have; fleet doctor ok (secret still authenticates); tofu verify ok (cert unchanged)${id0:+; hub_id $id0 unchanged}"; DONE=$((DONE+1))
         else
             say "  FAILED  $hub after deploy: version='${have:-none}' status='${st:-none}' (want $want/ok), or tofu verify failed — see /tmp/.runme-deploy-$hub.log"; FAILED=$((FAILED+1))
         fi

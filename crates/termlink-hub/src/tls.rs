@@ -40,11 +40,11 @@ pub fn own_cert_fingerprint_at(path: &Path) -> Option<String> {
 
 /// The hub's canonical id, derived from a fingerprint (T-3345, OD-12 ruling 3c).
 ///
-/// Until the architect decides how canonical ids are minted (arc-011 step 4),
-/// the canonical id IS the first 16 hex of the TLS fingerprint — the value
-/// every live `inbox:<hub-id>/<project>` name already uses, so nothing is
-/// renamed. Clients must read it from `hub.version`, never derive it, so that
-/// only this function changes when minting lands.
+/// T-3366: used only when an id is MINTED (`hub_identity`: first start with a
+/// certificate, or `hub adopt-id` on a legacy hub) — the first 16 hex of the TLS
+/// fingerprint, the value every live `inbox:<hub-id>/<project>` name already uses,
+/// so nothing is renamed. After that the id lives in `hub.id` and is never derived
+/// again; clients read it from `hub.version`.
 pub fn hub_id_from_fingerprint(fingerprint: &str) -> Option<String> {
     let hex = fingerprint.strip_prefix("sha256:").unwrap_or(fingerprint);
     let id = hex.get(..16)?;

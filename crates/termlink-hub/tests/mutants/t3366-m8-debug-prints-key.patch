@@ -1,0 +1,15 @@
+# fc: SI-25
+# mutation: the debug form prints the private seed
+# package: termlink-hub
+# test: --lib hub_identity::tests::e37_private_key_is_never_printed
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -50,7 +50,7 @@
+         // SI-25: the private key never appears in any log or debug print.
+         f.debug_struct("HubIdentity")
+             .field("hub_id", &self.hub_id)
+-            .field("signing_key", &self.signing_key_fingerprint())
++            .field("signing_key", &hex(&self.signing.to_bytes()))
+             .finish()
+     }
+ }

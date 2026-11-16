@@ -16,6 +16,10 @@
 # under its mutant means the rule is not actually checked. The working tree is
 # never modified.
 #
+# T-3366: ARC011_MUTANTS_DIR (patch directory, default the sidecar's) and
+# ARC011_MUTANTS_PACKAGE (baseline package and per-patch default, default termlink-sidecar)
+# let other units reuse this runner; a patch may name its own package with `# package: <p>`.
+#
 # Exit: 0 every mutant turned its test red; 1 at least one survived; 2 tooling
 # (no termlink binary for the throwaway hub, baseline red, a patch that does not
 # apply or does not build).
@@ -25,7 +29,8 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MUT_DIR="crates/termlink-sidecar/tests/mutants"
+MUT_DIR="${ARC011_MUTANTS_DIR:-crates/termlink-sidecar/tests/mutants}"
+PKG="${ARC011_MUTANTS_PACKAGE:-termlink-sidecar}"
 ONLY=""
 REPORT=""
 while [ $# -gt 0 ]; do
@@ -70,7 +75,7 @@ cp -a systemd-templates/termlink-sidecar@.service "$SCRATCH/systemd-templates/" 
 
 echo "arc011-mutants: scratch copy $SCRATCH, target $CARGO_TARGET_DIR, hub $TERMLINK_BIN"
 echo "arc011-mutants: baseline (unpatched suite must be green)..."
-if ! (cd "$SCRATCH" && timeout 2400 cargo test -q -p termlink-sidecar >"$SCRATCH/baseline.log" 2>&1); then
+if ! (cd "$SCRATCH" && timeout 2400 cargo test -q -p "$PKG" >"$SCRATCH/baseline.log" 2>&1); then
   echo "arc011-mutants: BASELINE RED: the unpatched suite fails; no mutant result would mean anything" >&2
   tail -30 "$SCRATCH/baseline.log" >&2
   exit 2
@@ -84,15 +89,16 @@ for p in "${patches[@]}"; do
   fc="$(sed -n 's/^# fc: //p' "$p" | head -1)"
   what="$(sed -n 's/^# mutation: //p' "$p" | head -1)"
   test_args="$(sed -n 's/^# test: //p' "$p" | head -1)"
+  ppkg="$(sed -n 's/^# package: //p' "$p" | head -1)"; ppkg="${ppkg:-$PKG}"
   if [ -z "$test_args" ]; then
     result="ERROR (no test named)"; errors=$((errors+1))
   elif ! (cd "$SCRATCH" && patch -p1 -s <"$ROOT/$p"); then
     result="ERROR (patch does not apply)"; errors=$((errors+1))
   else
     # shellcheck disable=SC2086
-    if ! (cd "$SCRATCH" && timeout 1800 cargo test -q -p termlink-sidecar --no-run $test_args >"$SCRATCH/$name.build.log" 2>&1); then
+    if ! (cd "$SCRATCH" && timeout 1800 cargo test -q -p "$ppkg" --no-run $test_args >"$SCRATCH/$name.build.log" 2>&1); then
       result="ERROR (does not build)"; errors=$((errors+1))
-    elif (cd "$SCRATCH" && timeout 1200 cargo test -q -p termlink-sidecar $test_args -- --exact >"$SCRATCH/$name.log" 2>&1); then
+    elif (cd "$SCRATCH" && timeout 1200 cargo test -q -p "$ppkg" $test_args -- --exact >"$SCRATCH/$name.log" 2>&1); then
       result="SURVIVED"; survived=$((survived+1))
     else
       result="killed"; killed=$((killed+1))
