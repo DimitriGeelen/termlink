@@ -225,8 +225,11 @@ pub fn read_key(dir: &Path) -> std::io::Result<Option<SigningKey>> {
     }
     let raw = std::fs::read_to_string(&path)
         .map_err(|e| refuse(format!("hub.signing.key unreadable ({}: {e})", path.display())))?;
-    let s = raw.trim_end_matches('\n');
-    let bytes: Option<Vec<u8>> = (s.len() == 64)
+    // Exactly 64 hex digits and at most one trailing newline. The digit check comes first:
+    // from_str_radix accepts a leading '+', and slicing a non-ASCII byte string would panic
+    // instead of refusing (review confirmation round, claude-code #3).
+    let s = raw.strip_suffix('\n').unwrap_or(&raw);
+    let bytes: Option<Vec<u8>> = (s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit()))
         .then(|| (0..32).map(|i| u8::from_str_radix(&s[2 * i..2 * i + 2], 16).ok()).collect())
         .flatten();
     let Some(bytes) = bytes else {
@@ -638,6 +641,21 @@ mod tests {
             .filter(|e| e.file_name().to_string_lossy().contains(".tmp-"))
             .collect();
         assert!(temps.is_empty());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    // FCW-82 (confirmation round #3): a '+'-prefixed, non-ASCII or multi-newline key file is
+    // refused with the stated message, never accepted and never a panic.
+    #[test]
+    fn e37_fcw82_malformed_key_variants_are_refused_not_panicking() {
+        let d = tmp("keyvar");
+        load_or_mint(&d).unwrap();
+        for bad in ["+a".repeat(32) + "\n", "é".repeat(32) + "\n", "ab".repeat(32) + "\n\n"] {
+            std::fs::write(d.join(KEY_FILE), &bad).unwrap();
+            std::fs::set_permissions(d.join(KEY_FILE), std::fs::Permissions::from_mode(0o600)).unwrap();
+            let e = load_or_mint(&d).unwrap_err().to_string();
+            assert!(e.contains("malformed"), "{bad:?}: {e}");
+        }
         let _ = std::fs::remove_dir_all(&d);
     }
 
