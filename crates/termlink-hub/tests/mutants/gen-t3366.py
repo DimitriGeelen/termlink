@@ -79,9 +79,9 @@ M = [
   [('    ["hub.secret", "hub.cert.pem", KEY_FILE]', '    ["hub.secret", KEY_FILE]')],
   'termlink-hub', LIB + 'e36_cert_only_dir_refuses_until_adopt_gives_the_certificate_id'),
  # review round 2 fixes
- ('t3366-m20-journal-ignored', 'E-166 crash table / r2 #5', 'an interrupted mint is not finished by the next start', H,
-  [('    if let Some(done) = finish_pending(dir)? {\n        tracing::info!(hub_id = %done.hub_id, "hub identity: an interrupted mint was finished (T-3366)");',
-    '    if let Some(done) = None::<HubIdentity> {\n        tracing::info!(hub_id = %done.hub_id, "hub identity: an interrupted mint was finished (T-3366)");')],
+ ('t3366-m20-journal-ignored', 'E-166 crash table / r2 #5', 'the journal is never read: an interrupted mint is not finished', H,
+  [('    let marker = dir.join(PENDING_FILE);\n    let raw = match std::fs::read_to_string(&marker) {',
+    '    let marker = dir.join(PENDING_FILE);\n    let raw = match std::fs::read_to_string(dir.join("no-such-journal")) {')],
   'termlink-hub', LIB + 'e166_interrupted_first_start_is_finished_by_the_next_start'),
  ('t3366-m21-pin-clobbers', 'AL-18 inv.3 / r2 #2', 'the pin publish replaces another thread\'s pin', P,
   [('match store.write_state_new(&pin_state_name(hub_id), &off) {', 'match store.write_state(&pin_state_name(hub_id), &off).map(|_| true) {')],

@@ -1,15 +1,15 @@
 # fc: E-166 crash table / r2 #5
-# mutation: an interrupted mint is not finished by the next start
+# mutation: the journal is never read: an interrupted mint is not finished
 # package: termlink-hub
 # test: --lib hub_identity::tests::e166_interrupted_first_start_is_finished_by_the_next_start
 --- a/crates/termlink-hub/src/hub_identity.rs
 +++ b/crates/termlink-hub/src/hub_identity.rs
-@@ -324,7 +324,7 @@
- }
- 
- pub fn load_or_mint(dir: &Path) -> std::io::Result<HubIdentity> {
--    if let Some(done) = finish_pending(dir)? {
-+    if let Some(done) = None::<HubIdentity> {
-         tracing::info!(hub_id = %done.hub_id, "hub identity: an interrupted mint was finished (T-3366)");
-         return Ok(done);
-     }
+@@ -247,7 +247,7 @@
+ /// `Ok(None)` when no mint is pending.
+ fn finish_pending(dir: &Path) -> std::io::Result<Option<HubIdentity>> {
+     let marker = dir.join(PENDING_FILE);
+-    let raw = match std::fs::read_to_string(&marker) {
++    let raw = match std::fs::read_to_string(dir.join("no-such-journal")) {
+         Ok(s) => s,
+         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+         Err(e) => return Err(refuse(format!("{PENDING_FILE} unreadable ({e})"))),
