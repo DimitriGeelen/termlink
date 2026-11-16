@@ -1618,7 +1618,9 @@ pub(crate) enum HubAction {
         /// Report what would be written; write nothing
         #[arg(long)]
         dry_run: bool,
-        /// The id the hub serves today: refuse, writing nothing, if the id would differ
+        /// The id the hub serves today: refuse, writing nothing, if the id would differ.
+        /// Always pass it when the hub is running; without it a hub that lost both files after a
+        /// certificate rotation would take the NEW certificate's id
         #[arg(long, value_name = "HUB_ID")]
         expect: Option<String>,
         /// Output as JSON: {"runtime_dir","hub_id","id_source","key_generated","signing_key","dry_run"}

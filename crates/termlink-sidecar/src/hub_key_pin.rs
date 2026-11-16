@@ -71,6 +71,30 @@ fn alert(store: &Store, kind: &str, detail: &str) {
     }
 }
 
+/// OBS-37 (review r2 #2b): the admin row `hub-key-pinned` on the store's admin chain, written
+/// once the pin is published (the needs-attention entry, written before, is the intent record).
+fn admin_row_pinned(store: &Store, hub_id: &str, fp: &str) {
+    use sha2::{Digest, Sha256};
+    let digest: String = Sha256::digest(fp.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+    let extra = crate::store::LineExtra { reason: Some(fp.to_string()), ..Default::default() };
+    match store.append_event_unless(crate::api::ADMIN_CONV, "hub-key-pinned", hub_id, "hub", &digest, extra, |_| false) {
+        Ok(Some(_)) => {}
+        Ok(None) | Err(_) => alert(store, "hub-signing-key-admin-row-failed", &format!("hub {hub_id}: pinned {fp}, but the admin row could not be written")),
+    }
+}
+
+/// FCW-83: the offer differs from the pin. Named once per day per offered key; never re-pinned.
+fn mismatch(store: &Store, hub_id: &str, p: String, off: String) -> KeyState {
+    let detail = format!(
+        "hub {hub_id} signing key changed: pinned {p}, offered {off}; every hub-signed object is refused until an operator re-pin"
+    );
+    let day = crate::store::now_ms() / 86_400_000;
+    if let Err(e) = store.attention_coalesced("hub-signing-key-changed", &format!("{day}:{off}"), &detail) {
+        eprintln!("termlink-sidecar: needs attention (hub-signing-key-changed): {detail} [could not record it: {e}]");
+    }
+    KeyState::Mismatch { pinned: p, offered: off }
+}
+
 /// Record the last observation so `status` can show it without a hub call; written only on change.
 fn remember(store: &Store, hub_id: &str, st: &KeyState) {
     let off = match st {
@@ -115,27 +139,33 @@ pub fn observe(store: &Store, hub_id: &str, version: &Value, trusted_path: bool)
         Some(off) => {
             match pin {
                 Some(p) if p == off => KeyState::Pinned(off),
-                Some(p) => {
-                    let detail = format!(
-                        "hub {hub_id} signing key changed: pinned {p}, offered {off}; every hub-signed object is refused until an operator re-pin"
-                    );
-                    let day = crate::store::now_ms() / 86_400_000;
-                    if let Err(e) = store.attention_coalesced("hub-signing-key-changed", &format!("{day}:{off}"), &detail) {
-                        eprintln!("termlink-sidecar: needs attention (hub-signing-key-changed): {detail} [could not record it: {e}]");
-                    }
-                    KeyState::Mismatch { pinned: p, offered: off }
-                }
+                Some(p) => mismatch(store, hub_id, p, off),
                 None if !trusted_path || !valid_fp(&off) => KeyState::Unverified(off),
-                None => match store.write_state(&pin_state_name(hub_id), &off) {
-                    Ok(()) => {
-                        alert(store, "hub-signing-key-pinned", &format!("hub {hub_id} signing key pinned: {off}"));
-                        KeyState::NewlyPinned(off)
-                    }
-                    Err(e) => {
-                        alert(store, "hub-signing-key-pin-failed", &format!("hub {hub_id}: could not record the pin {off}: {e}"));
+                None => {
+                    // Review r2 #2: the durable record comes FIRST; no record, no pin. Then a
+                    // no-clobber publish: two threads with different offers cannot replace each
+                    // other's pin; the loser compares against the winner's.
+                    if let Err(e) = store.attention("hub-signing-key-pinned", &format!("hub {hub_id} signing key pinned: {off}")) {
+                        eprintln!("termlink-sidecar: hub {hub_id}: not pinning {off}: the pin's record could not be written ({e})");
                         KeyState::Unverified(off)
+                    } else {
+                        match store.write_state_new(&pin_state_name(hub_id), &off) {
+                            Ok(true) => {
+                                admin_row_pinned(store, hub_id, &off);
+                                KeyState::NewlyPinned(off)
+                            }
+                            Ok(false) => match store.read_state(&pin_state_name(hub_id)) {
+                                Ok(Some(p)) if p.trim() == off => KeyState::Pinned(off),
+                                Ok(Some(p)) => mismatch(store, hub_id, p.trim().to_string(), off),
+                                _ => KeyState::Unverified(off),
+                            },
+                            Err(e) => {
+                                alert(store, "hub-signing-key-pin-failed", &format!("hub {hub_id}: could not record the pin {off}: {e}"));
+                                KeyState::Unverified(off)
+                            }
+                        }
                     }
-                },
+                }
             }
         }
     };

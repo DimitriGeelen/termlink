@@ -4,7 +4,7 @@
 # test: --test t3366_hub_key_pin e37_unreadable_pin_is_not_replaced
 --- a/crates/termlink-sidecar/src/hub_key_pin.rs
 +++ b/crates/termlink-sidecar/src/hub_key_pin.rs
-@@ -90,7 +90,7 @@
+@@ -114,7 +114,7 @@
  /// and, where the spec asks for one, a needs-attention entry.
  pub fn observe(store: &Store, hub_id: &str, version: &Value, trusted_path: bool) -> KeyState {
      // Review T-3366 r1 #2: a store read ERROR is not "no pin" — it must never lead to a re-pin.

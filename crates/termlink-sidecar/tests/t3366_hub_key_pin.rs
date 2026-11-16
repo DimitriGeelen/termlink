@@ -59,6 +59,9 @@ fn e37_first_contact_pins_restart_keeps_and_a_swapped_key_is_refused_and_named()
     let k1 = hub_version(&e)["signing_key"].as_str().unwrap().to_string();
     assert_eq!(store.read_state(&hub_key_pin::pin_state_name(&id)).unwrap().as_deref(), Some(k1.as_str()));
     assert!(attention_kinds(&store).iter().any(|(k, d)| k == "hub-signing-key-pinned" && d.contains(&k1)));
+    // OBS-37: the admin row on the store's admin chain names the pinned key
+    let rows = store.chain_lines(termlink_sidecar::api::ADMIN_CONV).unwrap();
+    assert!(rows.iter().any(|l| l.event == "hub-key-pinned" && l.msg_id == id), "no admin row");
     assert_eq!(hub_key_pin::verified_hub_key(&store, &id, &hub_version(&e)).as_deref(), Some(k1.as_str()));
 
     // restart: same key, still pinned, nothing changed
@@ -201,4 +204,44 @@ fn e37_ar1_limit_rogue_key_at_first_contact_is_pinned() {
     let st = hub_key_pin::observe(&store, "0123456789abcdef", &json!({"hub_id": "0123456789abcdef", "signing_key": rogue}), true);
     assert_eq!(st, KeyState::NewlyPinned(rogue));
     eprintln!("LIMIT AR-1: a rogue key present at first trusted contact is pinned (by design)");
+}
+
+// Review r2 #2: threads observing DIFFERENT offers on an empty pin end with ONE pin, never replaced;
+// the losers see a mismatch, not a silent re-pin.
+#[test]
+fn e37_concurrent_first_contacts_with_different_offers_pin_once() {
+    let e = Estate::create_without_hub().unwrap();
+    let store = Arc::new(Store::open(&e.store_root(), "agent-a").unwrap());
+    let h = "0123456789abcdef";
+    let offers: Vec<String> = (0..8).map(|i| format!("ed25519:{}", format!("{i:x}").repeat(64))).collect();
+    let hs: Vec<_> = offers
+        .iter()
+        .cloned()
+        .map(|off| {
+            let st = store.clone();
+            std::thread::spawn(move || hub_key_pin::observe(&st, h, &json!({"hub_id": h, "signing_key": off}), true))
+        })
+        .collect();
+    let rs: Vec<KeyState> = hs.into_iter().map(|t| t.join().unwrap()).collect();
+    let pinned = store.read_state(&hub_key_pin::pin_state_name(h)).unwrap().unwrap();
+    assert_eq!(rs.iter().filter(|r| matches!(r, KeyState::NewlyPinned(_))).count(), 1, "{rs:?}");
+    for r in &rs {
+        match r {
+            KeyState::NewlyPinned(f) | KeyState::Pinned(f) => assert_eq!(f, &pinned),
+            KeyState::Mismatch { pinned: p, .. } => assert_eq!(p, &pinned),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+}
+
+// Review r2 #2: no durable record, no pin.
+#[test]
+fn e37_no_record_means_no_pin() {
+    let e = Estate::create_without_hub().unwrap();
+    let store = Store::open(&e.store_root(), "agent-a").unwrap();
+    let h = "0123456789abcdef";
+    std::fs::create_dir_all(store.dir().join("attention.jsonl")).unwrap(); // the record cannot be written
+    let v = json!({"hub_id": h, "signing_key": format!("ed25519:{}", "e".repeat(64))});
+    assert!(matches!(hub_key_pin::observe(&store, h, &v, true), KeyState::Unverified(_)));
+    assert_eq!(store.read_state(&hub_key_pin::pin_state_name(h)).unwrap(), None);
 }

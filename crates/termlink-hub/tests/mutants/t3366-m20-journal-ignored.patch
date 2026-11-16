@@ -1,0 +1,15 @@
+# fc: E-166 crash table / r2 #5
+# mutation: an interrupted mint is not finished by the next start
+# package: termlink-hub
+# test: --lib hub_identity::tests::e166_interrupted_first_start_is_finished_by_the_next_start
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -286,7 +286,7 @@
+ /// first start. Must run BEFORE the start writes its own secret or certificate, so a first start
+ /// is recognised as one.
+ pub fn load_or_mint(dir: &Path) -> std::io::Result<HubIdentity> {
+-    if let Some(done) = finish_pending(dir)? {
++    if let Some(done) = None::<HubIdentity> {
+         tracing::info!(hub_id = %done.hub_id, "hub identity: an interrupted mint was finished (T-3366)");
+         return Ok(done);
+     }

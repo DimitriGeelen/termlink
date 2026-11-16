@@ -1,0 +1,15 @@
+# fc: OBS-37 / r2 #2
+# mutation: the pin is written although its record could not be
+# package: termlink-sidecar
+# test: --test t3366_hub_key_pin e37_no_record_means_no_pin
+--- a/crates/termlink-sidecar/src/hub_key_pin.rs
++++ b/crates/termlink-sidecar/src/hub_key_pin.rs
+@@ -145,7 +145,7 @@
+                     // Review r2 #2: the durable record comes FIRST; no record, no pin. Then a
+                     // no-clobber publish: two threads with different offers cannot replace each
+                     // other's pin; the loser compares against the winner's.
+-                    if let Err(e) = store.attention("hub-signing-key-pinned", &format!("hub {hub_id} signing key pinned: {off}")) {
++                    if let Err(e) = Ok::<(), crate::store::StoreError>(()) {
+                         eprintln!("termlink-sidecar: hub {hub_id}: not pinning {off}: the pin's record could not be written ({e})");
+                         KeyState::Unverified(off)
+                     } else {

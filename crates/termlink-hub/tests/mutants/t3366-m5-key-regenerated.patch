@@ -4,12 +4,12 @@
 # test: --lib hub_identity::tests::e37_key_missing_beside_id_refuses
 --- a/crates/termlink-hub/src/hub_identity.rs
 +++ b/crates/termlink-hub/src/hub_identity.rs
-@@ -265,7 +265,7 @@
-     };
-     let signing = match read_key(dir)? {
-         Some(k) => k,
--        None if first_start => match generate_key(dir) {
-+        None if true || first_start => match generate_key(dir) {
-             Ok(k) => k,
-             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => read_key(dir)?.ok_or(e)?,
-             Err(e) => return Err(e),
+@@ -293,6 +293,8 @@
+     match (read_id(dir)?, read_key(dir)?) {
+         (Some(hub_id), Some(signing)) => Ok(HubIdentity { hub_id, signing }),
+         // The key is always written before the id, so an id without a key is a loss, not a crash.
++        (Some(hub_id), None) => Ok(HubIdentity { hub_id, signing: generate_key(dir)? }),
++        #[allow(unreachable_patterns)]
+         (Some(_), None) => Err(refuse(format!(
+             "hub.signing.key missing beside existing state in {}; restore it (a new key is an operator action)",
+             dir.display()

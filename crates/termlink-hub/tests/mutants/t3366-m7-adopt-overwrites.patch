@@ -1,0 +1,18 @@
+# fc: AL-17 adopt
+# mutation: adopt-id replaces an id already on disk
+# package: termlink-hub
+# test: --lib hub_identity::tests::adopt_is_idempotent_and_never_changes_an_existing_id
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -350,7 +350,10 @@
+         return Ok(Adopted { hub_id: done.hub_id.clone(), id_source: "pending", key_generated: !had_key, signing_key: done.signing_key_fingerprint() });
+     }
+     match (read_id(dir)?, read_key(dir)?) {
+-        (Some(id), Some(k)) => {
++        (Some(_), Some(k)) => {
++            let id = mint_value(dir).0;
++            let _ = std::fs::remove_file(dir.join(ID_FILE));
++            write_id(dir, &id)?;
+             check(&id)?;
+             Ok(Adopted { hub_id: id, id_source: "kept", key_generated: false, signing_key: signing_fingerprint(&k) })
+         }

@@ -575,13 +575,17 @@ export RUNME_REL_TAG="" RUNME_REL_ROOT="$TMP/rel-root" RUNME_REL_INSTALLER="$REP
 # binary, so ordinary cases see a skip.
 H="$TMP/hub"; mkdir -p "$H/proc" "$H/rt"
 printf 'secret-bytes' > "$H/rt/hub.secret"; printf 'cert-bytes' > "$H/rt/hub.cert.pem"
+# T-3366: a running hub has its socket (runme reads the served id from it before migrating).
+python3 -c 'import socket,sys; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1])' "$H/rt/hub.sock"
 cat > "$H/systemctl" <<'EOS'
 #!/usr/bin/env bash
 H="${FAKE_HUB_DIR:?}"; pid=$(cat "$H/pid")
 case "$1" in
   # T-3587: NRestarts lives in a file (default 0, so other cases skip action 5b);
   # reset-failed zeroes it unless FAKE_HUB_RESET_STICKY=1.
-  show) if [ "${3:-}" = "NRestarts" ]; then cat "$H/nrestarts" 2>/dev/null || echo 0; else echo "$pid"; fi ;;
+  show) if [ "${3:-}" = "NRestarts" ]; then cat "$H/nrestarts" 2>/dev/null || echo 0
+        elif [ "${3:-}" = "User" ]; then echo "${FAKE_HUB_USER:-}"   # T-3366: the unit's User (empty = root)
+        elif [ "${FAKE_HUB_NOPID:-0}" = 1 ]; then echo ""; else echo "$pid"; fi ;;
   reset-failed) echo reset-failed >> "$H/resets"; [ "${FAKE_HUB_RESET_STICKY:-0}" = 1 ] || echo 0 > "$H/nrestarts" ;;
   is-active) echo "${FAKE_HUB_ACTIVE:-active}" ;;
   restart)
@@ -610,6 +614,7 @@ fi
 # T-3366: `sidecar hub-id` serves hub.id (FAKE_SERVED overrides: the id the RUNNING hub serves).
 if [ "$1 $2" = "sidecar hub-id" ]; then
     rt="$(dirname "$4")"
+    if [ "${FAKE_SERVED_NONE:-0}" = 1 ]; then echo "hub-id: the hub at $4 states no hub_id" >&2; exit 2; fi
     if [ -n "${FAKE_SERVED:-}" ]; then echo "$FAKE_SERVED"; exit 0; fi
     [ -s "$rt/hub.id" ] && { tr -d '\n' < "$rt/hub.id"; echo; exit 0; }
     echo cacc73ea32b121dd; exit 0
@@ -716,10 +721,10 @@ case "$2" in
   *"hub adopt-id"*)   # T-3366: FAKE_FLEET_ADOPT na (default: pre-T-3366 binary) | ok | nort | other | fail
     case "${FAKE_FLEET_ADOPT:-na}" in
       na) echo RUNME-ADOPT-NA ;;
-      ok) echo "RUNME-ADOPT-OK cacc73ea32b121dd /var/lib/termlink" ;;
+      ok) echo "RUNME-ADOPT-LINE hub.id cacc73ea32b121dd kept (already present) in /var/lib/termlink"; echo "RUNME-ADOPT-OK cacc73ea32b121dd /var/lib/termlink" ;;
       other) echo "RUNME-ADOPT-OK 0123456789abcdef /var/lib/termlink" ;;
       nort) echo RUNME-ADOPT-NORT ;;
-      refused) echo RUNME-ADOPT-REFUSED ;;
+      refused) echo "RUNME-ADOPT-REFUSED Error: hub adopt-id: hub.id would be 0123456789abcdef but the hub serves cacc73ea32b121dd; nothing written" ;;
       uid) echo RUNME-ADOPT-UID ;;
       fail) echo "hub adopt-id: hub.id unreadable or malformed"; exit 1 ;;
     esac ;;
@@ -1327,7 +1332,10 @@ out=$(FAKE_HUB_ACTIVE=failed run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep_all "unit=failed"; then
     ok "hub: unit not active after restart => FAILED"
 else bad "hub inactive must fail" "rc=$rc: $out"; fi
-# T-3366: adopt-id runs before the restart; the id must survive it.
+# T-3366: adopt-id runs before the restart; the id must survive it. The running hub's socket is
+# present (r2 #4: an unmigrated hub that is not running is never migrated blind).
+mksock() { python3 -c 'import socket,sys; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1])' "$1"; }
+rm -f "$H/rt/hub.sock"; mksock "$H/rt/hub.sock"
 hub_state 900 "/old/termlink (deleted)"; rm -f "$H/rt/hub.id" "$H/rt/hub.signing.key" "$H/adopts"
 out=$(run); rc=$?
 if [ "$rc" = "0" ] && echo "$out" | grep_all "adopt   hub.id cacc73ea32b121dd wrote from the current certificate" \
@@ -1387,7 +1395,6 @@ else bad "hub adopt refuse in step 4" "rc=$rc: $out"; fi
 cp "$TMP/tl-old" "$TMP/bin/termlink"
 # served id differs from what adopt would write: refused, nothing written
 hub_state 980 "/old/termlink (deleted)"; rm -f "$H/rt/hub.id" "$H/rt/hub.signing.key"
-python3 -c 'import socket,sys; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1])' "$H/rt/hub.sock"
 out=$(FAKE_SERVED=0123456789abcdef run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep_all "but the hub serves 0123456789abcdef; nothing written" && [ ! -e "$H/rt/hub.id" ] && [ ! -e "$H/restarts" ]; then
     ok "hub (T-3366 r1): adopted id would differ from the RUNNING hub's served id => refused, nothing written, no restart"
@@ -1398,7 +1405,6 @@ out=$(run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep_all "does not re-mint or re-key" && [ ! -e "$H/rt/hub.signing.key" ] && [ ! -e "$H/restarts" ]; then
     ok "hub (T-3366 r1): a migrated hub that lost its key => FAILED, no re-key, no restart"
 else bad "hub lost key" "rc=$rc: $out"; fi
-rm -f "$H/rt/hub.sock"
 # key owned by another uid than the hub process => FAILED, no restart
 hub_state 990 "/old/termlink (deleted)"; rm -f "$H/rt/hub.id" "$H/rt/hub.signing.key"
 if [ "$(id -u)" = 0 ]; then
@@ -1407,7 +1413,32 @@ if [ "$(id -u)" = 0 ]; then
         ok "hub (T-3366 r1): key not owned by the hub's user => FAILED, no restart (FCW-82 would refuse it)"
     else bad "hub key uid" "rc=$rc: $out"; fi
 else ok "hub (T-3366 r1): key-owner case needs root to chown; skipped as non-root"; fi
-rm -f "$H/rt/hub.id" "$H/rt/hub.signing.key" "$H/rt/hub.sock"
+# r2 #4: the key owner is compared with the unit's User when no hub process is running
+hub_state 100 "$H/hubbin"; rm -f "$H/rt/hub.id" "$H/rt/hub.signing.key"
+out=$(FAKE_TL_ADOPT=1 FAKE_HUB_NOPID=1 FAKE_HUB_USER=nobody run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep_all "but the hub runs as uid $(id -u nobody)"; then
+    ok "hub (T-3366 r2): no hub process => key owner compared with the unit's User, mismatch FAILED"
+else bad "hub key uid via unit user" "rc=$rc: $out"; fi
+# r2 #4: an unmigrated hub that is not running is never migrated blind
+hub_state 100 "$H/hubbin"; rm -f "$H/rt/hub.id" "$H/rt/hub.signing.key" "$H/rt/hub.sock"
+out=$(FAKE_TL_ADOPT=1 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep_all "an unmigrated hub is not migrated blind" && [ ! -e "$H/rt/hub.id" ]; then
+    ok "hub (T-3366 r2): hub not running and no hub.id => FAILED, nothing written (no blind migration)"
+else bad "hub blind" "rc=$rc: $out"; fi
+# r2 #4: socket-only legacy hub (states no id, no certificate) takes the CR-6.42 random path, said loudly
+mksock "$H/rt/hub.sock"; mv "$H/rt/hub.cert.pem" "$H/cert.saved"
+out=$(FAKE_TL_ADOPT=1 FAKE_SERVED_NONE=1 run); rc=$?
+mv "$H/cert.saved" "$H/rt/hub.cert.pem"
+if echo "$out" | grep_all "mints a RANDOM id (CR-6.42)" && [ -s "$H/rt/hub.id" ]; then
+    ok "hub (T-3366 r2): socket-only legacy hub (no id served, no certificate) => random-id migration, named"
+else bad "hub socket-only" "rc=$rc: $out"; fi
+# ... but a hub that states no id WHILE it has a certificate is not migrated blind
+rm -f "$H/rt/hub.id" "$H/rt/hub.signing.key"
+out=$(FAKE_TL_ADOPT=1 FAKE_SERVED_NONE=1 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep_all "cannot be read from" && [ ! -e "$H/rt/hub.id" ]; then
+    ok "hub (T-3366 r2): no id served but a certificate present => FAILED, nothing written"
+else bad "hub no id with cert" "rc=$rc: $out"; fi
+rm -f "$H/rt/hub.id" "$H/rt/hub.signing.key" "$H/rt/hub.sock"; mksock "$H/rt/hub.sock"
 printf 'cacc73ea32b121dd\n' > "$H/rt/hub.id"; printf '%064d\n' 0 > "$H/rt/hub.signing.key"; chmod 600 "$H/rt/hub.signing.key"
 hub_state 100 "$H/hubbin"
 
@@ -1468,6 +1499,7 @@ else bad "fleet cert rotation must fail" "rc=$rc: $out"; fi
 fleet_state 0.11.1
 out=$(FAKE_FLEET_ADOPT=ok FAKE_UNIT=1 run); rc=$?
 if [ "$rc" = "0" ] && echo "$out" | grep_all "adopt   fake-hub hub.id cacc73ea32b121dd (unchanged)" \
+   && echo "$out" | grep_all "adopt   fake-hub: hub.id cacc73ea32b121dd kept (already present)" \
    && echo "$out" | grep_all "hub_id cacc73ea32b121dd unchanged" \
    && [ "$(grep -n 'hub adopt-id' "$F/remote-cmds" | head -1 | cut -d: -f1)" -lt "$(grep -n 'systemctl restart' "$F/remote-cmds" | head -1 | cut -d: -f1)" ]; then
     ok "fleet (T-3366): adopt-id runs remotely BEFORE the restart; the served id is verified unchanged after"
@@ -1499,7 +1531,7 @@ if [ "$rc" = "1" ] && echo "$out" | grep_all "fleet doctor states no hub_id for 
 else bad "fleet no served id" "rc=$rc: $out"; fi
 fleet_state 0.11.1
 out=$(FAKE_FLEET_ADOPT=refused FAKE_UNIT=1 run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep_all "hub adopt-id refused (id would differ" && ! grep -q "systemctl restart" "$F/remote-cmds"; then
+if [ "$rc" = "1" ] && echo "$out" | grep_all "hub adopt-id refused: Error: hub adopt-id: hub.id would be 0123456789abcdef but the hub serves cacc73ea32b121dd" && ! grep -q "systemctl restart" "$F/remote-cmds"; then
     ok "fleet (T-3366 r1): remote adopt-id refused (--expect mismatch / lost file) => FAILED, no swap"
 else bad "fleet refused" "rc=$rc: $out"; fi
 fleet_state 0.11.1

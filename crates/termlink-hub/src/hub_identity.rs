@@ -233,51 +233,81 @@ pub fn read_key(dir: &Path) -> std::io::Result<Option<SigningKey>> {
     Ok(Some(SigningKey::from_bytes(&seed)))
 }
 
-/// Hub start (AL-17 step 2, AL-18): read or mint the id, read or generate the key.
-/// Must run BEFORE the start writes its own secret or certificate, so a first start is
-/// recognised as one.
-pub fn load_or_mint(dir: &Path) -> std::io::Result<HubIdentity> {
-    let prior = has_prior_state(dir);
-    let (hub_id, first_start) = match read_id(dir)? {
-        Some(id) => (id, false),
-        None if prior => {
-            return Err(refuse(format!(
-                "hub.id missing beside existing state in {}; restore it, or run `termlink hub adopt-id` (runme does this before a restart)",
-                dir.display()
-            )));
-        }
-        None => {
-            std::fs::create_dir_all(dir)?;
-            let (id, from_cert) = mint_value(dir);
-            match write_id(dir, &id) {
-                Ok(()) => {
-                    tracing::info!(hub_id = %id, from_certificate = from_cert, "hub.id minted (first start, T-3366)");
-                    (id, true)
-                }
-                // A concurrent first start minted first: take ITS id, never serve one that lost.
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => match read_id(dir)? {
-                    Some(won) => (won, true),
-                    None => return Err(e),
-                },
-                Err(e) => return Err(e),
-            }
-        }
+pub const PENDING_FILE: &str = ".hub-identity.pending";
+
+/// Finish a mint the journal says was started (review T-3366 r2 #5): the key and the id are two
+/// files, so a crash between their writes would otherwise leave a state every later start refuses.
+/// The marker holds the chosen id; the key is written first, then the id, then the marker goes.
+/// A complete identity already on disk wins over the marker (a racing start finished first).
+/// `Ok(None)` when no mint is pending.
+fn finish_pending(dir: &Path) -> std::io::Result<Option<HubIdentity>> {
+    let marker = dir.join(PENDING_FILE);
+    let raw = match std::fs::read_to_string(&marker) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(refuse(format!("{PENDING_FILE} unreadable ({e})"))),
     };
+    let want = raw.trim_end_matches('\n');
+    if !is_id(want) {
+        return Err(refuse(format!("{PENDING_FILE} is malformed; remove it only after checking hub.id by hand")));
+    }
     let signing = match read_key(dir)? {
         Some(k) => k,
-        None if first_start => match generate_key(dir) {
+        None => match generate_key(dir) {
             Ok(k) => k,
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => read_key(dir)?.ok_or(e)?,
             Err(e) => return Err(e),
         },
-        None => {
-            return Err(refuse(format!(
-                "hub.signing.key missing beside existing state in {}; run `termlink hub adopt-id` (runme does this before a restart)",
-                dir.display()
-            )));
-        }
     };
-    Ok(HubIdentity { hub_id, signing })
+    let hub_id = match write_id(dir, want) {
+        Ok(()) => want.to_string(),
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => read_id(dir)?.ok_or(e)?,
+        Err(e) => return Err(e),
+    };
+    let _ = std::fs::remove_file(&marker);
+    if let Ok(d) = std::fs::File::open(dir) {
+        let _ = d.sync_all();
+    }
+    Ok(Some(HubIdentity { hub_id, signing }))
+}
+
+/// Journal a mint of `id`, then finish it. A marker already there (a concurrent mint) is used as is.
+fn mint_both(dir: &Path, id: &str) -> std::io::Result<HubIdentity> {
+    std::fs::create_dir_all(dir)?;
+    match atomic_write(dir, PENDING_FILE, format!("{id}\n").as_bytes(), 0o644) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(e) => return Err(std::io::Error::new(e.kind(), format!("hub.id could not be written atomically: {e}"))),
+    }
+    finish_pending(dir)?.ok_or_else(|| refuse("hub identity mint vanished while being finished"))
+}
+
+/// Hub start (AL-17 step 2, AL-18): read the id and key, finish an interrupted mint, or mint on a
+/// first start. Must run BEFORE the start writes its own secret or certificate, so a first start
+/// is recognised as one.
+pub fn load_or_mint(dir: &Path) -> std::io::Result<HubIdentity> {
+    if let Some(done) = finish_pending(dir)? {
+        tracing::info!(hub_id = %done.hub_id, "hub identity: an interrupted mint was finished (T-3366)");
+        return Ok(done);
+    }
+    match (read_id(dir)?, read_key(dir)?) {
+        (Some(hub_id), Some(signing)) => Ok(HubIdentity { hub_id, signing }),
+        // The key is always written before the id, so an id without a key is a loss, not a crash.
+        (Some(_), None) => Err(refuse(format!(
+            "hub.signing.key missing beside existing state in {}; restore it (a new key is an operator action)",
+            dir.display()
+        ))),
+        (None, _) if has_prior_state(dir) => Err(refuse(format!(
+            "hub.id missing beside existing state in {}; restore it, or run `termlink hub adopt-id` on a hub that predates T-3366 (runme does this before a restart)",
+            dir.display()
+        ))),
+        (None, _) => {
+            let (id, from_cert) = mint_value(dir);
+            let done = mint_both(dir, &id)?;
+            tracing::info!(hub_id = %done.hub_id, from_certificate = from_cert, "hub.id minted (first start, T-3366)");
+            Ok(done)
+        }
+    }
 }
 
 /// What [`adopt_legacy`] did.
@@ -300,8 +330,6 @@ pub struct Adopted {
 /// `expect`: the id the hub serves today; the call refuses, writing nothing, when the id it
 /// would write (or finds) differs, so a wrong id never lands on disk.
 pub fn adopt_legacy(dir: &Path, dry_run: bool, expect: Option<&str>) -> std::io::Result<Adopted> {
-    let id = read_id(dir)?;
-    let key = read_key(dir)?;
     let check = |found: &str| -> std::io::Result<()> {
         match expect {
             Some(e) if e != found => Err(refuse(format!(
@@ -310,7 +338,18 @@ pub fn adopt_legacy(dir: &Path, dry_run: bool, expect: Option<&str>) -> std::io:
             _ => Ok(()),
         }
     };
-    match (id, key) {
+    // An interrupted migration (or first start) is finished, not refused (review r2 #5).
+    if let Ok(raw) = std::fs::read_to_string(dir.join(PENDING_FILE)) {
+        let id = raw.trim_end_matches('\n').to_string();
+        check(&id)?;
+        if dry_run {
+            return Ok(Adopted { hub_id: id, id_source: "pending", key_generated: false, signing_key: "(an interrupted migration would be finished)".into() });
+        }
+        let had_key = read_key(dir)?.is_some();
+        let done = finish_pending(dir)?.ok_or_else(|| refuse("pending migration vanished"))?;
+        return Ok(Adopted { hub_id: done.hub_id.clone(), id_source: "pending", key_generated: !had_key, signing_key: done.signing_key_fingerprint() });
+    }
+    match (read_id(dir)?, read_key(dir)?) {
         (Some(id), Some(k)) => {
             check(&id)?;
             Ok(Adopted { hub_id: id, id_source: "kept", key_generated: false, signing_key: signing_fingerprint(&k) })
@@ -330,10 +369,9 @@ pub fn adopt_legacy(dir: &Path, dry_run: bool, expect: Option<&str>) -> std::io:
             if dry_run {
                 return Ok(Adopted { hub_id: id, id_source, key_generated: true, signing_key: "(would be generated)".into() });
             }
-            std::fs::create_dir_all(dir)?;
-            write_id(dir, &id)?;
-            let k = generate_key(dir)?;
-            Ok(Adopted { hub_id: id, id_source, key_generated: true, signing_key: signing_fingerprint(&k) })
+            let done = mint_both(dir, &id)?;
+            check(&done.hub_id)?;
+            Ok(Adopted { hub_id: done.hub_id.clone(), id_source, key_generated: true, signing_key: done.signing_key_fingerprint() })
         }
     }
 }
@@ -378,9 +416,9 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
     }
 
-    // E-36: a cert present at first start gives first16(fingerprint).
+    // E-36 under ruling B: a cert-only dir is prior state; adopt-id gives it first16(fingerprint).
     #[test]
-    fn e36_first_start_with_cert_takes_the_certificate_id() {
+    fn e36_cert_only_dir_refuses_until_adopt_gives_the_certificate_id() {
         let d = tmp("cert");
         let want = write_cert(&d);
         // ruling B: a certificate-only directory is prior state — refused, nothing written ...
@@ -635,6 +673,47 @@ mod tests {
         let rs: Vec<_> = hs.into_iter().map(|h| h.join().unwrap().unwrap()).collect();
         assert!(rs.iter().all(|r| r == &rs[0]), "{rs:?}");
         assert_eq!(read_id(&d).unwrap().as_deref(), Some(rs[0].0.as_str()));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    // Review r2 #5: a crash between the key and the id leaves a journal; the next start finishes it.
+    #[test]
+    fn e166_interrupted_first_start_is_finished_by_the_next_start() {
+        let d = tmp("pend1");
+        std::fs::write(d.join(PENDING_FILE), "aaaaaaaaaaaaaaaa\n").unwrap();
+        let k = generate_key(&d).unwrap(); // the crash happened after the key, before the id
+        let i = load_or_mint(&d).unwrap();
+        assert_eq!(i.hub_id, "aaaaaaaaaaaaaaaa");
+        assert_eq!(i.signing_key_fingerprint(), signing_fingerprint(&k), "the key already written is kept");
+        assert!(!d.join(PENDING_FILE).exists());
+        assert_eq!(load_or_mint(&d).unwrap().hub_id, "aaaaaaaaaaaaaaaa");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn e166_interrupted_migration_is_finished_by_adopt_and_checked_against_expect() {
+        let d = tmp("pend2");
+        let want = write_cert(&d);
+        std::fs::write(d.join("hub.secret"), "ab".repeat(32)).unwrap();
+        std::fs::write(d.join(PENDING_FILE), format!("{want}\n")).unwrap(); // crashed before the key
+        assert!(adopt_legacy(&d, false, Some("0123456789abcdef")).is_err(), "expect still checked");
+        assert!(!d.join(ID_FILE).exists() && !d.join(KEY_FILE).exists());
+        let a = adopt_legacy(&d, false, Some(&want)).unwrap();
+        assert_eq!((a.hub_id.as_str(), a.id_source, a.key_generated), (want.as_str(), "pending", true));
+        assert!(!d.join(PENDING_FILE).exists());
+        assert_eq!(load_or_mint(&d).unwrap().hub_id, want);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    // Without a journal, a key without an id is a LOSS (the key is always written first): refused.
+    #[test]
+    fn e36_key_without_id_and_no_journal_is_refused() {
+        let d = tmp("keyonly");
+        std::fs::write(d.join("hub.secret"), "ab".repeat(32)).unwrap();
+        generate_key(&d).unwrap();
+        let e = load_or_mint(&d).unwrap_err().to_string();
+        assert!(e.contains("hub.id missing beside existing state"), "{e}");
+        assert!(!d.join(ID_FILE).exists());
         let _ = std::fs::remove_dir_all(&d);
     }
 

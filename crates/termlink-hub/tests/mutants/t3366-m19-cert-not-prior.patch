@@ -1,7 +1,7 @@
 # fc: FCW-79 / ruling B
 # mutation: a certificate-only directory mints silently instead of refusing
 # package: termlink-hub
-# test: --lib hub_identity::tests::e36_first_start_with_cert_takes_the_certificate_id
+# test: --lib hub_identity::tests::e36_cert_only_dir_refuses_until_adopt_gives_the_certificate_id
 --- a/crates/termlink-hub/src/hub_identity.rs
 +++ b/crates/termlink-hub/src/hub_identity.rs
 @@ -92,7 +92,7 @@

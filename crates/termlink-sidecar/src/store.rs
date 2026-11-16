@@ -601,6 +601,31 @@ impl Store {
         Ok(())
     }
 
+    /// Write a named state only if none exists yet: a no-clobber publish (T-3366 review r2 #2).
+    /// `Ok(true)` when written, `Ok(false)` when the state was already there (left untouched).
+    pub fn write_state_new(&self, name: &str, value: &str) -> Result<bool> {
+        check_name(name)?;
+        let tmp = self.dir.join("tmp").join(format!(
+            "state-{}-{}",
+            std::process::id(),
+            TMP_COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        let mut f = create0600(&tmp, true)?;
+        f.write_all(value.as_bytes())?;
+        f.sync_all()?;
+        drop(f);
+        let res = fs::hard_link(&tmp, self.dir.join(format!("state.{name}")));
+        let _ = fs::remove_file(&tmp);
+        match res {
+            Ok(()) => {
+                fsync_dir(&self.dir)?;
+                Ok(true)
+            }
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => Ok(false),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     /// Remove a named state file; absent is not an error. The directory is
     /// synced so the removal survives a crash.
     pub fn remove_state(&self, name: &str) -> Result<()> {

@@ -4,8 +4,8 @@
 # test: --lib hub_identity::tests::adopt_expect_mismatch_writes_nothing
 --- a/crates/termlink-hub/src/hub_identity.rs
 +++ b/crates/termlink-hub/src/hub_identity.rs
-@@ -304,7 +304,7 @@
-     let key = read_key(dir)?;
+@@ -332,7 +332,7 @@
+ pub fn adopt_legacy(dir: &Path, dry_run: bool, expect: Option<&str>) -> std::io::Result<Adopted> {
      let check = |found: &str| -> std::io::Result<()> {
          match expect {
 -            Some(e) if e != found => Err(refuse(format!(
