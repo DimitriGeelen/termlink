@@ -24687,3 +24687,21 @@ scan_id: R-9d5176cd
 task_id: T-3810
 payload:
   task_file: .tasks/active/T-3810-greenfield-132-calls-channelcreate-on-th.md
+---
+kind: scan_emitted
+timestamp: '2026-11-16T20:02:43Z'
+scan_id: R-8b712aa9
+task_id: T-3366
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-16T20:02:43Z'
+scan_id: R-8b712aa9
+task_id: T-3366
+payload:
+  task_file: .tasks/active/T-3366-hub-canonical-id-minted-once-and-persist.md

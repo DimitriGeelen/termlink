@@ -7,13 +7,13 @@ description: >
   hubs adopt today's fingerprint-derived id), so a certificate rotation no longer
   renames inboxes; end the sidecar: alias one release after the re-vendor.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 arc_id: arc-011
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-hub/src/tls.rs, crates/termlink-sidecar/src/api.rs, crates/termlink-sidecar/src/lib.rs, crates/termlink-sidecar/src/pull.rs, crates/termlink-sidecar/src/send.rs, crates/termlink-sidecar/src/store.rs, runme.sh, scripts/arc011-mutants.sh, tests/runme-fixtures.sh]
 related_tasks: [T-3344, T-3357, T-3726]
 plan_unit: P-10
 depends_on: []
@@ -28,8 +28,8 @@ depends_on: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:16:54Z
-last_update: '2026-11-16T05:45:23Z'
-date_finished:
+last_update: 2026-11-16T20:01:28Z
+date_finished: 2026-11-16T20:01:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -242,6 +242,11 @@ grep -q 'PASS: all 26 mutants turned their test red' docs/reports/T-3366-mutants
 - **Why:** the spec contradicts itself (step 1 lists the certificate; E-36.2/36.4 start a cert-only directory). B fails closed; its only cost is an `adopt-id` step runme already runs. Real legacy hubs always have a secret, and a new hub mints before its certificate exists, so neither is affected.
 - **Rejected:** A (keep the E-36 reading: a directory that lost every other file would mint silently, possibly from a rotated certificate); C (change request first, A meanwhile).
 
+### 2026-11-16 — close on the split confirmation round (operator ruling)
+- **Chose:** A, "A, as recommended" (operator, 2026-11-16): close T-3366 now on the operator's authority. Confirmation round (ruling A below): opencode PASS; claude-code FAIL whose only BLOCKING point was evidence wording in disposition 2a ("I found no blocking code defect"), corrected; its MINOR `read_key` finding fixed and tested after the round (27/27; deploys with the next runme). Dispositions: docs/reports/T-3366-reviews/r4-dispositions.md.
+- **Why:** the disagreement is about how the evidence was worded, not about the code; field proof: 4 hubs migrated with ids unchanged, pins and admin rows live on both W1 sidecars.
+- **Rejected:** B a fifth round (against the cap and ruling A); C operator review in Watchtower first; D keep open.
+
 ### 2026-11-16 — closing after three one-seat review rounds (operator ruling)
 - **Chose:** A, "A, as recommended" (operator, 2026-11-16): one confirmation round on the final commit with BOTH seats once opencode's usage limit resets; close only on two PASS; a FAIL from either goes to the operator with the dispositions, not to another round.
 - **Why:** the close ruling (T-3800, 2026-11-15) asks for a positive review from both seats; opencode never ran in rounds 1–3 (usage limit), and the 2–3 round cap was reached.
@@ -281,3 +286,16 @@ grep -q 'PASS: all 26 mutants turned their test red' docs/reports/T-3366-mutants
 ### 2026-11-16T05:45:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-16T20:01:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8b712aa9
+- **Timestamp:** 2026-11-16T20:02:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
