@@ -132,10 +132,9 @@ Unblocks: P-11 (T-3363), P-15 (T-3703, security), P-16 (T-3704, security), P-31 
 ### Agent
 - [x] Canonical id persisted in the runtime dir and survives cert regeneration (unit e36_certificate_rotation…; L4 t3366_hub_identity rotation test; mutant m1 killed)
 - [x] Existing hubs migrate to their current fingerprint-derived id (no inbox renamed) (runme-20261116T073957Z rc=0: local cacc73ea32b121dd, .122 22c19fedafd73da2, .121 1389a831016c4bf1, greenfield aef925c6d2f4ac54, each adopted before the restart and verified unchanged after; live hub.version serves hub_id + signing_key)
-- [ ] Mail to sidecar: topics forwarded with a sender warning until the alias end release (the alias end itself is P-53, T-3726)
-- [ ] The B-1 specs pass, including the hub signing key and the `hub.version` fields (DR-1 A, DR-2 A)
+- [x] The B-1 specs pass, including the hub signing key and the `hub.version` fields (DR-1 A, DR-2 A) (docs/reports/T-3366-evidence.md; live `hub.version` serves `hub_id` + `signing_key`)
 - [x] A re-mint beside existing state is refused (FCW-79 unit + L4 legacy test; mutant m2 killed)
-- [ ] The unit's fixture suite exits 0 with a PASS line per B-1 E-n and its mutant list is all killed (FP 3.1.b)
+- [x] The unit's fixture suite exits 0 with a PASS line per B-1 E-n and its mutant list is all killed (FP 3.1.b) (evidence table: E-36, E-37, E-126, E-166 PASS; E-38 is P-11's, E-163 not applicable, both stated; 12/12 mutants killed)
 
 ## Verification
 
@@ -237,6 +236,11 @@ grep -q 'PASS: all 12 mutants turned their test red' docs/reports/T-3366-mutants
 - **Chose:** A, "A, start T-3366 after the hand-over" (operator, 2026-11-16): build in this session, right after the T-3807 runme hand-over.
 - **Why:** unsigned mail stopped a week ago (measured: 204/204 inbox messages of the last 7 days signed and valid), but a valid signature binds only the key, not the project; T-3366 → T-3704 is the chain that binds them.
 - **Rejected:** B next session; C T-3704 first on a temporary key (breaks the security order); D park.
+
+### 2026-11-16 — the `sidecar:` forward criterion (operator ruling)
+- **Chose:** C, "C, split it into its own task" (operator, 2026-11-16). The criterion "Mail to sidecar: topics forwarded with a sender warning until the alias end release" moves verbatim in intent to **T-3809** (build, arc-011, horizon next), where it is built as a hub forward envelope carrying the original signed message.
+- **Why:** one task, one deliverable: alias handling is not id minting, and PD-2 already moved the alias end to its own unit (P-53, T-3726). A plain copy would fail the receiver's signature check (the signature covers the topic), so the forward needs its own design. No `sidecar:` post in 42 days, so the split carries no delivery risk.
+- **Rejected:** A build it here (keeps T-3366 and T-3704 waiting on a route idle for six weeks); B warn only (departs from R-71.a); D defer inside T-3366 (same wait as A).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
