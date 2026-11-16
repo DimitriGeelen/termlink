@@ -3188,6 +3188,18 @@ async fn ensure_topic(sock: &TransportAddr, name: &str) -> Result<bool> {
              (T-2426; use `channel create {name} --retention ...` first if the output must outlive a week)"
         );
     }
+    // T-3810: look before creating. `channel.create` needs Control; a scoped Interact token
+    // (fleet tokens, T-3615) is refused on EVERY post, which logged ~2,880 hub WARNs a day for
+    // one 30-s /be-reachable heartbeat. A present topic is the common case: one read, no write.
+    // If the read fails, fall through to the old create (behaviour unchanged).
+    if let Ok(resp) = rpc_call_authed(sock, method::CHANNEL_LIST, json!({"prefix": name})).await
+        && let Ok(result) = client::unwrap_result(resp)
+    {
+        let topics = result.get("topics").and_then(|t| t.as_array()).cloned().unwrap_or_default();
+        if topics.iter().any(|t| t.get("name").and_then(|n| n.as_str()) == Some(name)) {
+            return Ok(false);
+        }
+    }
     let retention = termlink_protocol::retention_defaults::default_retention(name).to_json();
     let resp = rpc_call_authed(
         sock,

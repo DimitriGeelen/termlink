@@ -62,8 +62,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Source found: greenfield PID 544 `scripts/listener-heartbeat.sh --agent-id aef-greenfield-test --interval 30 --hub <.107>` (/be-reachable), whose `channel post --ensure-topic` called `channel.create` before EVERY post (CLI `ensure_topic`)
+- [x] `ensure_topic` lists the topic first (`channel.list`, prefix = name) and creates only when absent; a failed list falls back to the old create; test `t3810_ensure_topic_no_create` (real hub: the first post creates, three more create nothing) passes, and fails without the fix (control run)
+- [ ] After the fixed binary reaches greenfield (runme step 6), the .107 hub journal shows no new `permission denied method=channel.create` from it for 10 minutes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -115,6 +116,7 @@ date_finished: null
 
 ## Verification
 
+env -u PROJECT_ROOT cargo test -p termlink --test t3810_ensure_topic_no_create > .context/working/.t3810-v1.out 2>&1 && grep -q 'test result: ok. 1 passed' .context/working/.t3810-v1.out
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
