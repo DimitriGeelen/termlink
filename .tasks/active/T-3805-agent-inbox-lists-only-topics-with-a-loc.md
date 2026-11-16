@@ -1,13 +1,20 @@
 ---
 id: T-3805
-name: "agent inbox lists only topics with a local cursor: a per-agent identity (6738) sees [] while channel unread reports 999"
+name: "agent inbox lists only topics with a local cursor: a per-agent identity (6738)
+  sees [] while channel unread reports 999"
 description: >
-  T-2719 follow-up (2026-11-16): 'termlink agent inbox --json' walks ~/.termlink/cursors.json keyed by identity; this session signs as 6738c073 (T-3303) and has no local cursors, so it prints []. 'channel unread agent-chat-arc' for the same identity reports 999 unread (hub receipt view). The old host-key cursor (agent-chat-arc::d1993…: 1611) stays stale. Options: seed the digest from hub-side receipts/subscriptions as well as the local store, or say 'no tracked topics for <identity>' instead of an empty list.
+  T-2719 follow-up (2026-11-16): 'termlink agent inbox --json' walks ~/.termlink/cursors.json
+  keyed by identity; this session signs as 6738c073 (T-3303) and has no local cursors,
+  so it prints []. 'channel unread agent-chat-arc' for the same identity reports 999
+  unread (hub receipt view). The old host-key cursor (agent-chat-arc::d1993…: 1611)
+  stays stale. Options: seed the digest from hub-side receipts/subscriptions as well
+  as the local store, or say 'no tracked topics for <identity>' instead of an empty
+  list.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +45,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-15T23:30:06Z
-last_update: 2026-11-15T23:30:06Z
-date_finished: null
+last_update: 2026-11-16T00:45:26Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +57,36 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-16T00:40:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3805: agent inbox lists only topics with a local cursor: a per-agent identity (6738) sees [] while channel unread reports 999
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-2719 (2026-11-16): this session's per-agent identity (6738c073…, T-3303) ran `termlink agent inbox --json` and got `[]`, while `channel unread agent-chat-arc` reported 999 unread for it.
+**Problem / hypothesis:** `agent inbox` digests only topics in the local cursor store; an identity with no local cursors gets an empty list that reads as "nothing unread".
+**Goal:** the empty case says what it is ("no topics tracked for this identity") and points at the hub view, without breaking the JSON array that scripts and the MCP tool parse.
+**Expected outcome:** nobody mistakes "untracked" for "read". Seeding the digest from hub receipts is a larger change, left for later if needed.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] With no local cursors, `agent inbox --json` still prints `[]` on stdout and prints on stderr that no topics are tracked for the named identity (not "nothing unread"), pointing at `channel unread <topic>`
+- [x] The text form says the same, naming the identity
+- [x] A binary test (fresh HOME, no hub needed) pins both, and a mutant without the stderr line fails it (`tests/t3805_inbox_untracked.rs`; mutant rc=101, restored rc=0; no other consumer of the old text)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +137,8 @@ date_finished: null
 -->
 
 ## Verification
+
+env -u PROJECT_ROOT cargo test -p termlink --test t3805_inbox_untracked > .context/working/.t3805 2>&1 && grep -q "test result: ok. 1 passed" .context/working/.t3805
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -284,6 +309,11 @@ date_finished: null
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** `termlink agent inbox --json` printed `[]` for this session's per-agent identity, while the hub held 999 unread posts for it on agent-chat-arc.
+**Root cause:** the digest walks only the local cursor store (`cursor_store::list_for_fingerprint`). An identity that never ran `subscribe --resume` has none, and the JSON path printed a bare `[]`, identical to "all read".
+**Why structurally allowed:** the empty case was written when every session shared the host identity, which always had cursors; per-agent identities (T-3302/T-3303) made "no cursors" common.
+**Prevention:** the empty case now names the identity and says "not nothing unread" (stderr for JSON, so the array shape is kept; stdout for text), pinned by `tests/t3805_inbox_untracked.rs` with a mutant. Seeding the digest from hub receipts stays a possible later change.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -364,3 +394,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3805-agent-inbox-lists-only-topics-with-a-loc.md
 - **Context:** Initial task creation
+
+### 2026-11-16T00:40:54Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

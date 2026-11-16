@@ -9517,10 +9517,20 @@ pub(crate) async fn cmd_channel_inbox(
     let cursors = cursor_store::list_for_fingerprint(&fp)?;
 
     if cursors.is_empty() {
+        // T-3805: an empty digest here means "no topic tracked for this identity",
+        // NOT "nothing unread". A per-agent identity (TERMLINK_AGENT_ID) starts with
+        // no local cursors while the hub may hold hundreds of unread posts for it.
+        // The JSON shape stays an array (scripts and the MCP tool parse it); the
+        // distinction goes to stderr.
+        let hint = format!(
+            "no topics tracked for identity {fp} (no local cursors); this is not \"nothing unread\". \
+             Use `termlink channel unread <topic>` for the hub's view, or `subscribe --resume` to start tracking"
+        );
         if json_output {
             println!("[]");
+            eprintln!("termlink: {hint}");
         } else {
-            println!("No cursors recorded yet — use `subscribe --resume` to start tracking topics.");
+            println!("Note: {hint}.");
         }
         return Ok(());
     }
