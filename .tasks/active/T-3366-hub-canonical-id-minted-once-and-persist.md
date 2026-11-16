@@ -242,6 +242,11 @@ grep -q 'PASS: all 23 mutants turned their test red' docs/reports/T-3366-mutants
 - **Why:** the spec contradicts itself (step 1 lists the certificate; E-36.2/36.4 start a cert-only directory). B fails closed; its only cost is an `adopt-id` step runme already runs. Real legacy hubs always have a secret, and a new hub mints before its certificate exists, so neither is affected.
 - **Rejected:** A (keep the E-36 reading: a directory that lost every other file would mint silently, possibly from a rotated certificate); C (change request first, A meanwhile).
 
+### 2026-11-16 — closing after three one-seat review rounds (operator ruling)
+- **Chose:** A, "A, as recommended" (operator, 2026-11-16): one confirmation round on the final commit with BOTH seats once opencode's usage limit resets; close only on two PASS; a FAIL from either goes to the operator with the dispositions, not to another round.
+- **Why:** the close ruling (T-3800, 2026-11-15) asks for a positive review from both seats; opencode never ran in rounds 1–3 (usage limit), and the 2–3 round cap was reached.
+- **Rejected:** B close on evidence alone (departs from the ruling); C operator judges in Watchtower; D wait a day.
+
 ### 2026-11-16 — the `sidecar:` forward criterion (operator ruling)
 - **Chose:** C, "C, split it into its own task" (operator, 2026-11-16). The criterion "Mail to sidecar: topics forwarded with a sender warning until the alias end release" moves verbatim in intent to **T-3809** (build, arc-011, horizon next), where it is built as a hub forward envelope carrying the original signed message.
 - **Why:** one task, one deliverable: alias handling is not id minting, and PD-2 already moved the alias end to its own unit (P-53, T-3726). A plain copy would fail the receiver's signature check (the signature covers the topic), so the forward needs its own design. No `sidecar:` post in 42 days, so the split carries no delivery risk.
