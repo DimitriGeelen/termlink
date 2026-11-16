@@ -24669,3 +24669,21 @@ scan_id: R-c278a47a
 task_id: T-3807
 payload:
   task_file: .tasks/active/T-3807-clean-the-sidecar-waiting-list-drop-stal.md
+---
+kind: scan_emitted
+timestamp: '2026-11-16T19:59:22Z'
+scan_id: R-9d5176cd
+task_id: T-3810
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-16T19:59:22Z'
+scan_id: R-9d5176cd
+task_id: T-3810
+payload:
+  task_file: .tasks/active/T-3810-greenfield-132-calls-channelcreate-on-th.md

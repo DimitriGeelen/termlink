@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3810: greenfield (.132) calls channel.create on the .107 hub every 30 s with an Interact token and is refused (required control) since 2026-11-15 20:25Z
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-16T19:59:30Z
+# ============================================================================
+
+task_id: T-3810
+task_name: "greenfield (.132) calls channel.create on the .107 hub every 30 s with an Interact token and is refused (required control) since 2026-11-15 20:25Z"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-16T10:17:36Z
+completed: 2026-11-16T19:59:20Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-11-16T13:40:56+01:00
+last_commit: 2026-11-16T14:56:25+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  first look — 30.3 s cycle from greenfield is AEF ensure_topic re-trying a create its Interact token may not do; post succeeds. channel post --ensure-topic looks before creating (channel.list) — a scoped Interact token no longer triggers a refused channel.create on every post
+
+# Key outcomes
+outcomes:
+  - 'Source found: greenfield PID 544 `scripts/listener-heartbeat.sh --agent-id aef-greenfield-test --interval 30 --hub <.107>` (/be-reachable), whose `channel post --ensure-topic` called `channel.create` before EVERY post (CLI `ensure_topic`)'
+  - '`ensure_topic` lists the topic first (`channel.list`, prefix = name) and creates only when absent; a failed list falls back to the old create; test `t3810_ensure_topic_no_create` (real hub: the first post creates, three more create nothing) passes, and fails without the fix (control run)'
+  - 'After the fixed binary reaches greenfield (runme step 6), the .107 hub journal shows no new `permission denied method=channel.create` from it for 10 minutes (runme-20261116T193448Z rc=0, greenfield on fe72c850c at 19:47Z; journal: 2 a minute through 19:46Z, 0 from 19:48Z to 19:58Z)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3810-greenfield-132-calls-channelcreate-on-th.md'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/tests/t3810_ensure_topic_no_create.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-16T13:40:56'
+    action: 'T-3810: first look — 30.3 s cycle from greenfield is AEF ensure_topic re-trying a create its Interact token may not do; post succeeds'
+  - time: '2026-11-16T14:56:25'
+    action: 'T-3810: channel post --ensure-topic looks before creating (channel.list) — a scoped Interact token no longer triggers a refused channel.create on every post'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 581 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 581
+  commits: 3
+  files_changed: 6
+  lines_added: 613
+  lines_removed: 11
+  footprint_refreshed_at: '2026-11-16T19:59:36Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3810-greenfield-132-calls-channelcreate-on-th.md
+generated_by: context-agent-hybrid

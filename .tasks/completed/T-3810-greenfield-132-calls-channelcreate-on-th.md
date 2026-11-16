@@ -1,15 +1,23 @@
 ---
 id: T-3810
-name: "greenfield (.132) calls channel.create on the .107 hub every 30 s with an Interact token and is refused (required control) since 2026-11-15 20:25Z"
+name: "greenfield (.132) calls channel.create on the .107 hub every 30 s with an Interact
+  token and is refused (required control) since 2026-11-15 20:25Z"
 description: >
-  Measured 2026-11-16 10:12Z in the .107 hub journal: 1637 'permission denied method=channel.create required=control granted=interact' in 24 h, about 2 a minute, first at 2026-11-15T20:25:54Z; rpc-audit: TCP channel.create from caller 90d4553895d5a9a6 at the .132 address (36 of the last 38). Find what on greenfield retries the create (likely a client posting to a topic that does not exist yet with its scoped .107 token from T-3615), and stop the loop: create the topic once with a control credential, or have the client use a verb its scope allows. Observed while checking 1409's TermLink trouble; not 1409's cause.
+  Measured 2026-11-16 10:12Z in the .107 hub journal: 1637 'permission denied method=channel.create
+  required=control granted=interact' in 24 h, about 2 a minute, first at 2026-11-15T20:25:54Z;
+  rpc-audit: TCP channel.create from caller 90d4553895d5a9a6 at the .132 address (36
+  of the last 38). Find what on greenfield retries the create (likely a client posting
+  to a topic that does not exist yet with its scoped .107 token from T-3615), and
+  stop the loop: create the topic once with a control credential, or have the client
+  use a verb its scope allows. Observed while checking 1409's TermLink trouble; not
+  1409's cause.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-16T10:17:36Z
-last_update: 2026-11-16T10:17:36Z
-date_finished: null
+last_update: 2026-11-16T19:59:20Z
+date_finished: 2026-11-16T19:59:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +58,22 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-16T19:58:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 2
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'D1=0 (no-signal); D2=2 (body:telemetry-or-audit-entry); D3=0 (no-signal);
+      D4=0 (no-signal); F-TRUST=0 (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0
+      (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3810: greenfield (.132) calls channel.create on the .107 hub every 30 s with an Interact token and is refused (required control) since 2026-11-15 20:25Z
@@ -64,7 +88,7 @@ date_finished: null
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Source found: greenfield PID 544 `scripts/listener-heartbeat.sh --agent-id aef-greenfield-test --interval 30 --hub <.107>` (/be-reachable), whose `channel post --ensure-topic` called `channel.create` before EVERY post (CLI `ensure_topic`)
 - [x] `ensure_topic` lists the topic first (`channel.list`, prefix = name) and creates only when absent; a failed list falls back to the old create; test `t3810_ensure_topic_no_create` (real hub: the first post creates, three more create nothing) passes, and fails without the fix (control run)
-- [ ] After the fixed binary reaches greenfield (runme step 6), the .107 hub journal shows no new `permission denied method=channel.create` from it for 10 minutes
+- [x] After the fixed binary reaches greenfield (runme step 6), the .107 hub journal shows no new `permission denied method=channel.create` from it for 10 minutes (runme-20261116T193448Z rc=0, greenfield on fe72c850c at 19:47Z; journal: 2 a minute through 19:46Z, 0 from 19:48Z to 19:58Z)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -310,6 +334,11 @@ env -u PROJECT_ROOT cargo test -p termlink --test t3810_ensure_topic_no_create >
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-11-16 — the cause was ours, not greenfield's
+- **What changed:** filed as a greenfield/AEF configuration loop; the first look pointed at AEF `ensure_topic`. The process list on greenfield showed the real caller: the `/be-reachable` heartbeat (`listener-heartbeat.sh`, every 30 s), and the root cause was our CLI: `channel post --ensure-topic` called `channel.create` before every post.
+- **Plan impact:** fixed in the TermLink CLI (look before creating) instead of on greenfield; every heartbeat in the fleet benefits.
+- **Triggered:** none.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -372,3 +401,25 @@ env -u PROJECT_ROOT cargo test -p termlink --test t3810_ensure_topic_no_create >
 - **Likely source:** AEF `lib/sidecar/inbox.py` `ensure_topic` (T-3803): it creates the agent's own inbox topic when `topic_present` says it is absent. On .107 either the topic does not exist, or the presence check cannot see it under greenfield's scoped Interact token, so every cycle re-tries a create that the token may not do. The post after it succeeds.
 - **On greenfield:** cron has `termlink-telemetry-rollup` (daily) and `agentic-audit-aef-greenfield-test`; no long-lived process held a TCP connection to .107:9100 over 35 s (the cycle is short-lived calls).
 - **Next:** confirm on greenfield which project's sidecar runs the cycle (the aef-greenfield-test session or its cron), whether its inbox topic exists on .107, and whether `topic_present` fails under the scoped token; then either create the topic once with a control credential (runme) or file the presence-check gap to AEF. Harmless for delivery; costs log noise (~2,880 WARN lines a day).
+
+### 2026-11-16T19:58:39Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-16T19:59:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9d5176cd
+- **Timestamp:** 2026-11-16T19:59:22Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Source found: greenfield PID 544 `scripts/listener-heartbeat.sh --agent-id aef-greenfield-test --interval 30 --hub <.107>` (/be-reachable), whose `channel post --ensure-topic` called `channel.create` 
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/listener-heartbeat.sh in: Source found: greenfield PID 544 `scripts/listener-heartbeat.sh --agent-id aef-greenfield-test --interval 30 --hub <.107>` (/be-reachable), whose `cha`
