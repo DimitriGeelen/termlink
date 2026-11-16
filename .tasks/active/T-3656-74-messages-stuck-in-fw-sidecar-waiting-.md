@@ -405,3 +405,7 @@ test "$(wc -l < .context/working/t3656/drop-list.tsv)" -gt 0
 
 ### 2026-11-02T12:53:43Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-16 — measured: nothing stuck any more (T-3800 triage) [agent]
+- `fw sidecar status` on be.52: messages total 237, **pending 0**, expired unswept 0. The 74 were dropped with evidence via runme action 26 (T-3657), and delivery has since moved to direct receivers and the arc-011 main lease (T-3693, T-3654).
+- Still open: the root cause with file:line in AEF's receiver. That code path has been replaced since, so this is archaeology; it was left for a session with budget. If not pursued, the honest close is "superseded by T-3693/T-3654, not root-caused".
