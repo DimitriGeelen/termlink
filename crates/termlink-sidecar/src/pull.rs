@@ -243,6 +243,9 @@ impl Inner {
         let v = unwrap_result(resp).map_err(PinError::Unreachable)?;
         let found = v.get("hub_id").and_then(Value::as_str).map(str::to_owned);
         if found.as_deref() == Some(self.cfg.declared_hub_id.as_str()) {
+            // T-3366 (AL-18): pin / compare the hub's signing key; never holds mail.
+            let trusted = matches!(self.cfg.hub, termlink_protocol::TransportAddr::Unix { .. });
+            crate::hub_key_pin::observe(&self.store, &self.cfg.declared_hub_id, &v, trusted);
             Ok(())
         } else {
             Err(PinError::Mismatch { declared: self.cfg.declared_hub_id.clone(), found })

@@ -10,6 +10,7 @@ pub mod store;
 pub mod api;
 pub mod send;
 pub mod pull;
+pub mod hub_key_pin;
 pub mod policy;
 pub mod frame;
 pub mod adapter;

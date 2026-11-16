@@ -1,0 +1,15 @@
+# fc: FCW-84
+# mutation: a first contact off the local socket pins the key
+# package: termlink-sidecar
+# test: --test t3366_hub_key_pin e166_fcw84_untrusted_first_contact_pins_nothing_and_no_offer_changes_nothing
+--- a/crates/termlink-sidecar/src/hub_key_pin.rs
++++ b/crates/termlink-sidecar/src/hub_key_pin.rs
+@@ -105,7 +105,7 @@
+                     }
+                     KeyState::Mismatch { pinned: p, offered: off }
+                 }
+-                None if !trusted_path || !valid_fp(&off) => KeyState::Unverified(off),
++                None if !valid_fp(&off) => KeyState::Unverified(off),
+                 None => match store.write_state(&pin_state_name(hub_id), &off) {
+                     Ok(()) => {
+                         alert(store, "hub-signing-key-pinned", &format!("hub {hub_id} signing key pinned: {off}"));

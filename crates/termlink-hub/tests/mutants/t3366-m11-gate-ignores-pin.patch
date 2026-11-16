@@ -1,0 +1,16 @@
+# fc: FCW-83
+# mutation: verified_hub_key accepts any offered key
+# package: termlink-sidecar
+# test: --test t3366_hub_key_pin e37_first_contact_pins_restart_keeps_and_a_swapped_key_is_refused_and_named
+--- a/crates/termlink-sidecar/src/hub_key_pin.rs
++++ b/crates/termlink-sidecar/src/hub_key_pin.rs
+@@ -128,7 +128,8 @@
+ pub fn verified_hub_key(store: &Store, hub_id: &str, version: &Value) -> Option<String> {
+     let off = offered(version)?;
+     let pin = store.read_state(&pin_state_name(hub_id)).ok().flatten()?;
+-    (pin.trim() == off).then_some(off)
++    let _ = pin;
++    Some(off)
+ }
+ 
+ /// `status` view (OBS-36): `{pinned, offered, state}` from the stored pin and last observation.
