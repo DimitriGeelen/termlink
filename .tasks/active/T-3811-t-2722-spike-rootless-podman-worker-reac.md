@@ -62,7 +62,7 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] runme step installs podman + passt on .107 from the Ubuntu archive, verifies `podman --version` and `pasta --version` on disk, changes nothing else (Docker untouched); idempotent; hermetic fixture case
+- [ ] runme step installs podman + passt on .107 from the Ubuntu archive, verifies `podman --version` and `pasta --version` on disk, changes nothing else (Docker untouched); idempotent; hermetic fixture case (runme action 29 written; fixtures 392/0 with 5 action-29 cases; the install itself is verified after the operator's run)
 - [ ] Measured as a non-root user and recorded in docs/reports/T-3811-podman-spike.md: container start time; hub reachability (TLS probe to the hub) with rootless pasta networking and with host networking; one claim round-trip (claim + release on a scratch topic) with a scoped Interact token, no hub.secret in the container
 - [ ] The numbers posted to group:t2722-oci-workers against IW-1, signed 010-termlink
 

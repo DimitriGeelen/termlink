@@ -4036,6 +4036,46 @@ if [ "$DISABLE_MISMATCH" = "1" ]; then
     done
 fi
 
+# ---------------------------------------------------------------------------
+# ACTION 29 — Podman + passt on .107 for the T-2722 spike (T-3811; operator ruling A,
+# 2026-11-16: "a")
+#
+# ring20's group inception T-2722 asks whether pool workers should run as OCI containers;
+# 010 measures whether a ROOTLESS Podman container reaches the TermLink hub (pasta vs host
+# network, scoped Interact token, one claim round-trip). Podman is not installed here.
+# Installs podman, passt (pasta networking) and uidmap (rootless subuid mapping) from the
+# Ubuntu archive. Changes nothing else: Docker, its daemon and containers are untouched.
+# Verified on disk: `podman --version` and `pasta --version` answer. Idempotent: both
+# present => skip. A failed install or a binary that does not answer => FAILED.
+# Seams (fixtures only): RUNME_PODMAN_APT, RUNME_PODMAN_BIN, RUNME_PASTA_BIN.
+# ---------------------------------------------------------------------------
+seam PODMAN_APT RUNME_PODMAN_APT "apt-get"
+seam PODMAN_BIN RUNME_PODMAN_BIN "podman"
+seam PASTA_BIN RUNME_PASTA_BIN "pasta"
+
+install_podman() {
+    local pv av
+    pv="$("$PODMAN_BIN" --version 2>/dev/null | head -1)"; av="$("$PASTA_BIN" --version 2>/dev/null | head -1)"
+    if [ -n "$pv" ] && [ -n "$av" ]; then
+        say "  skip    already installed: $pv; $av"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would run: $PODMAN_APT install -y podman passt uidmap (Docker untouched)"; DONE=$((DONE+1)); return
+    fi
+    if ! DEBIAN_FRONTEND=noninteractive "$PODMAN_APT" install -y podman passt uidmap >/tmp/.runme-podman.log 2>&1; then
+        say "  FAILED  $PODMAN_APT install podman passt uidmap failed: $(tail -1 /tmp/.runme-podman.log)"; FAILED=$((FAILED+1)); return
+    fi
+    pv="$("$PODMAN_BIN" --version 2>/dev/null | head -1)"; av="$("$PASTA_BIN" --version 2>/dev/null | head -1)"
+    if [ -n "$pv" ] && [ -n "$av" ]; then
+        say "  OK      installed and verified: $pv; $av"; DONE=$((DONE+1))
+    else
+        say "  FAILED  install reported success but podman ('${pv:-no answer}') or pasta ('${av:-no answer}') does not answer"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "29. Podman + passt for the T-2722 container spike (T-3811; operator ruling A)"
+install_podman
+
 head2 "Verification"
 if [ "$DRY_RUN" = "1" ]; then
     say "  [DRY]   skipped (nothing was changed)"
