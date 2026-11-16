@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3807: Clean the sidecar waiting list: drop stale inbound duplicates and outbound sends to receiver-less projects (operator yes 2026-11-16)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-16T06:25:39Z
+# ============================================================================
+
+task_id: T-3807
+task_name: "Clean the sidecar waiting list: drop stale inbound duplicates and outbound sends to receiver-less projects (operator yes 2026-11-16)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-16T00:59:49Z
+completed: 2026-11-16T06:25:31Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-11-16T02:52:17+01:00
+last_commit: 2026-11-16T02:52:17+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 26 drops the 35 provably stale waiting messages (drop list with evidence per id); fixtures 362/0
+
+# Key outcomes
+outcomes:
+  - '`.context/sidecar/drop-list-T-3807.tsv` lists only provable drops (T-3336-closed inbound duplicates, sends to projects with no receiver, rejected sends, sends to the unread nickname inbox), each with its evidence; escalated sends to live peers are left out and listed in the task'
+  - 'runme action 26 reads the T-3807 list; runme fixtures pass (362 passed, 0 failed; 5 action-26 cases)'
+  - 'After the operator''s run: every listed id is gone from `fw sidecar waiting` (runme-20261116T060159Z rc=0, action 26 OK; re-read: 0 of 35 still waiting, 16 waiting in total)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 26 drops the 35 provably stale waiting messages (drop list with evidence per id); fixtures 362/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/sidecar/drop-list-T-3807.tsv'
+  - '.tasks/active/T-3807-clean-the-sidecar-waiting-list-drop-stal.md'
+  - 'runme.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-16T02:52:17'
+    action: 'T-3807: runme action 26 drops the 35 provably stale waiting messages (drop list with evidence per id); fixtures 362/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 325 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 325
+  commits: 2
+  files_changed: 6
+  lines_added: 539
+  lines_removed: 9
+  footprint_refreshed_at: '2026-11-16T06:25:46Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3807-clean-the-sidecar-waiting-list-drop-stal.md
+generated_by: context-agent-hybrid

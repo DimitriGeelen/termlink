@@ -4,12 +4,12 @@ name: "Clean the sidecar waiting list: drop stale inbound duplicates and outboun
 description: >
   Clean the sidecar waiting list: drop stale inbound duplicates and outbound sends to receiver-less projects (operator yes 2026-11-16)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-16T00:59:49Z
-last_update: 2026-11-16T00:59:49Z
-date_finished: null
+last_update: 2026-11-16T06:25:31Z
+date_finished: 2026-11-16T06:25:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -67,7 +67,7 @@ date_finished: null
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] `.context/sidecar/drop-list-T-3807.tsv` lists only provable drops (T-3336-closed inbound duplicates, sends to projects with no receiver, rejected sends, sends to the unread nickname inbox), each with its evidence; escalated sends to live peers are left out and listed in the task
 - [x] runme action 26 reads the T-3807 list; runme fixtures pass (362 passed, 0 failed; 5 action-26 cases)
-- [ ] After the operator's run: every listed id is gone from `fw sidecar waiting`
+- [x] After the operator's run: every listed id is gone from `fw sidecar waiting` (runme-20261116T060159Z rc=0, action 26 OK; re-read: 0 of 35 still waiting, 16 waiting in total)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -376,3 +376,16 @@ test "$(grep -c . .context/sidecar/drop-list-T-3807.tsv)" = 35
 - From `fw sidecar waiting --json` (50 entries): **35 to drop** in `.context/sidecar/drop-list-T-3807.tsv`. That is 12 inbound duplicates (AEF, t3336-vector-index, task closed), 18 sends to peers with no live receiver, 3 rejected, and 2 to the nickname inbox aef-greenfield-test.
 - **15 kept** (conversation may be live, not provable): escalated to AEF (estate-knowledge-requirements, aef-v1815-be3, termlink-arc011-p46-mail-hub), 832 (tl-132-hub-recovery, inbox-retention-t3443), 055 (consult-010-termlink, env-leak-t536, sev1-tmux-env-leak), 003/0235/0909 (file-routes-inventory), 1409 (hub-socket), dimitri-mint-dev (disk); and the 2 open 1409 design consults (a567e343 is the T-3781 dispatch test).
 - runme action 26 now reads the T-3807 list.
+
+### 2026-11-16T06:25:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c278a47a
+- **Timestamp:** 2026-11-16T06:25:32Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
