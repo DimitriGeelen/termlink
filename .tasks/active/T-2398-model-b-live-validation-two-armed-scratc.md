@@ -8,10 +8,10 @@ description: >
   produces coherent autonomous flow for >=2 hops (IW-1). Do NOT run on urgent budget
   — needs a fresh session.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
@@ -20,7 +20,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-10T18:43:32Z
-last_update: '2026-09-27T21:34:04Z'
+last_update: 2026-11-16T00:28:18Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -79,6 +79,11 @@ cost_estimate_proposed:
 # T-2398: Model-B live validation: two armed scratch agents, observe interruption-coherence (T-2397 GO)
 
 ## Context
+
+**Background / trigger:** T-2397 (GO) chose to prove Model B (armed push-wake agents) live before building on it.
+**Problem / hypothesis:** whether an armed agent consumes a wake, bounces a two-hop exchange unaided, and stays coherent when interrupted mid-task (IW-1).
+**Goal:** run that live test with two scratch agents and feed the result back to T-2397.
+**Expected outcome:** recorded verdicts; parked 2026-11-16 because push-wake is no longer the delivery route (PD-234, arc-011).
 
 Executes T-2397 GO step 2 (prove-first). Design: `docs/reports/T-2397-agent-flow-model-inception.md`.
 **Precondition:** GO recorded on T-2397 (`fw inception decide T-2397 go`, Tier 0 —
@@ -268,3 +273,11 @@ to T-2397's dialogue log.
 
 ### 2026-07-10T20:48:10Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-11-16 — parked (horizon later), T-3800 triage [agent]
+- Not run since 2026-07. Its subject, Model B push-wake (armed PTY agents woken by injection), is no longer the delivery route on .107. Operator ruling PD-234 (2026-10-17) stopped expecting push-wake here until arc-011's doorbell (W2), and arc-011's sidecar delivery is live. A two-agent live test of the set-aside model is not worth running now.
+- Parked, not closed: if push-wake comes back (e.g. at W2), this task's design (interruption coherence, two-hop) is still the right test.
+
+### 2026-11-16T00:28:18Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)
