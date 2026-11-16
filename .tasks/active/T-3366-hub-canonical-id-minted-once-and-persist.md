@@ -131,7 +131,7 @@ Unblocks: P-11 (T-3363), P-15 (T-3703, security), P-16 (T-3704, security), P-31 
 
 ### Agent
 - [x] Canonical id persisted in the runtime dir and survives cert regeneration (unit e36_certificate_rotation…; L4 t3366_hub_identity rotation test; mutant m1 killed)
-- [ ] Existing hubs migrate to their current fingerprint-derived id (no inbox renamed)
+- [x] Existing hubs migrate to their current fingerprint-derived id (no inbox renamed) (runme-20261116T073957Z rc=0: local cacc73ea32b121dd, .122 22c19fedafd73da2, .121 1389a831016c4bf1, greenfield aef925c6d2f4ac54, each adopted before the restart and verified unchanged after; live hub.version serves hub_id + signing_key)
 - [ ] Mail to sidecar: topics forwarded with a sender warning until the alias end release (the alias end itself is P-53, T-3726)
 - [ ] The B-1 specs pass, including the hub signing key and the `hub.version` fields (DR-1 A, DR-2 A)
 - [x] A re-mint beside existing state is refused (FCW-79 unit + L4 legacy test; mutant m2 killed)
