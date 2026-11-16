@@ -364,3 +364,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3806-turn-on-per-project-tmux-servers-etcterm.md
 - **Context:** Initial task creation
+
+### 2026-11-16T14:20Z — 055's answer: keep the switch OFF
+- **From:** 055-agentic-fleet-cockpit, conversation sev1-tmux-env-leak-2026-10-22 (msg 1065666f): "not yet. Our readers have not moved to tl-* servers; the task (T-619) is still captured, nothing built. Please keep the switch OFF. A date follows once our operator has placed it in the queue."
+- **State:** blocked on 055 T-619. Nothing is switched on (NID rule); revisit when 055 sends a date.
