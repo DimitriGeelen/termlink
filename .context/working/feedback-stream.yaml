@@ -24633,3 +24633,21 @@ scan_id: R-496db667
 task_id: T-3552
 payload:
   task_file: .tasks/active/T-3552-sev-1-fix-3-one-tmux-server-per-project-.md
+---
+kind: scan_emitted
+timestamp: '2026-11-16T00:46:00Z'
+scan_id: R-b700006f
+task_id: T-3805
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-16T00:46:00Z'
+scan_id: R-b700006f
+task_id: T-3805
+payload:
+  task_file: .tasks/active/T-3805-agent-inbox-lists-only-topics-with-a-loc.md
