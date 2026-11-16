@@ -4,7 +4,7 @@
 # test: --lib hub_identity::tests::e37_key_missing_beside_id_refuses
 --- a/crates/termlink-hub/src/hub_identity.rs
 +++ b/crates/termlink-hub/src/hub_identity.rs
-@@ -293,6 +293,8 @@
+@@ -331,6 +331,8 @@
      match (read_id(dir)?, read_key(dir)?) {
          (Some(hub_id), Some(signing)) => Ok(HubIdentity { hub_id, signing }),
          // The key is always written before the id, so an id without a key is a loss, not a crash.

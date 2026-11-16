@@ -4,7 +4,7 @@
 # test: --lib hub_identity::tests::adopt_refuses_a_lost_key_beside_an_id_and_writes_no_key
 --- a/crates/termlink-hub/src/hub_identity.rs
 +++ b/crates/termlink-hub/src/hub_identity.rs
-@@ -354,6 +354,8 @@
+@@ -395,6 +395,8 @@
              check(&id)?;
              Ok(Adopted { hub_id: id, id_source: "kept", key_generated: false, signing_key: signing_fingerprint(&k) })
          }

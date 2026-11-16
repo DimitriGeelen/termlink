@@ -4,7 +4,7 @@
 # test: --test t3366_hub_key_pin e126_status_states_the_answering_hub_id_and_whether_it_matches
 --- a/crates/termlink-sidecar/src/hub_key_pin.rs
 +++ b/crates/termlink-sidecar/src/hub_key_pin.rs
-@@ -201,7 +201,7 @@
+@@ -218,7 +218,7 @@
          return json!({"id": null, "declared": null, "match": false});
      };
      let seen = store.read_state(&hub_seen_name(d)).ok().flatten().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());

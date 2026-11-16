@@ -4,11 +4,11 @@
 # test: --test t3366_hub_key_pin e37_first_contact_pins_restart_keeps_and_a_swapped_key_is_refused_and_named
 --- a/crates/termlink-sidecar/src/hub_key_pin.rs
 +++ b/crates/termlink-sidecar/src/hub_key_pin.rs
-@@ -151,7 +151,6 @@
-                     } else {
-                         match store.write_state_new(&pin_state_name(hub_id), &off) {
-                             Ok(true) => {
+@@ -163,7 +163,6 @@
+                     match store.write_state_new(&pin_state_name(hub_id), &off) {
+                         Ok(true) => match store.attention("hub-signing-key-pinned", &format!("hub {hub_id} signing key pinned: {off}")) {
+                             Ok(()) => {
 -                                admin_row_pinned(store, hub_id, &off);
                                  KeyState::NewlyPinned(off)
                              }
-                             Ok(false) => match store.read_state(&pin_state_name(hub_id)) {
+                             Err(e) => {

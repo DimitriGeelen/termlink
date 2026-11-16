@@ -1,0 +1,15 @@
+# fc: E-36.4 / r3 #5
+# mutation: the file mode is left to the umask
+# package: termlink-hub
+# test: --lib hub_identity::tests::e36_id_mode_is_0644_under_a_strict_umask
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -152,7 +152,7 @@
+         {
+             // the mode argument is masked by the umask; set it exactly (review r3 #5: E-36.4 asks 0644)
+             use std::os::unix::fs::PermissionsExt;
+-            f.set_permissions(std::fs::Permissions::from_mode(mode))?;
++            let _ = std::fs::Permissions::from_mode(mode);
+         }
+         f.write_all(contents)?;
+         f.sync_all()?;

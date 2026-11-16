@@ -10,6 +10,6 @@
          use std::os::unix::fs::OpenOptionsExt;
 -        let mut f = std::fs::OpenOptions::new().create_new(true).write(true).mode(mode).open(&tmp)?;
 +        let mut f = std::fs::OpenOptions::new().create(true).truncate(true).write(true).mode(mode).open(&path)?;
-         f.write_all(contents)?;
-         f.sync_all()?;
-         drop(f);
+         {
+             // the mode argument is masked by the umask; set it exactly (review r3 #5: E-36.4 asks 0644)
+             use std::os::unix::fs::PermissionsExt;

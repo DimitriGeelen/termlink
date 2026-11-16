@@ -1,0 +1,15 @@
+# fc: AL-18 / r3 #1
+# mutation: a stale journal marker re-keys a hub whose key was lost
+# package: termlink-hub
+# test: --lib hub_identity::tests::e37_stale_marker_beside_an_id_without_key_is_refused_not_rekeyed
+--- a/crates/termlink-hub/src/hub_identity.rs
++++ b/crates/termlink-hub/src/hub_identity.rs
+@@ -260,7 +260,7 @@
+     // its key. The key is always published before the id, so an id on disk with no key is a loss.
+     let id_now = read_id(dir)?;
+     let key_now = read_key(dir)?;
+-    if id_now.is_some() && key_now.is_none() {
++    if false && id_now.is_some() && key_now.is_none() {
+         return Err(refuse(format!(
+             "hub.signing.key missing beside hub.id in {} ({PENDING_FILE} is stale); not re-keying (a new key is an operator action)",
+             dir.display()

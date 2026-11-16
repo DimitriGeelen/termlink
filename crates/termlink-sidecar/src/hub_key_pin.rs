@@ -71,15 +71,26 @@ fn alert(store: &Store, kind: &str, detail: &str) {
     }
 }
 
-/// OBS-37 (review r2 #2b): the admin row `hub-key-pinned` on the store's admin chain, written
-/// once the pin is published (the needs-attention entry, written before, is the intent record).
+/// OBS-37 (review r2 #2b): the admin row `hub-key-pinned` on the store's admin chain: msg id =
+/// hub id, digest = sha256 of the fingerprint, reason = the fingerprint. Exactly one per hub id:
+/// written on a new pin, and backfilled once for a pin made before this row existed (r3 #3). A
+/// state flag keeps the admin chain from being read on every check.
 fn admin_row_pinned(store: &Store, hub_id: &str, fp: &str) {
+    let flag = format!("hub-key-admin-{hub_id}");
+    if store.read_state(&flag).ok().flatten().as_deref().map(str::trim) == Some(fp) {
+        return;
+    }
     use sha2::{Digest, Sha256};
     let digest: String = Sha256::digest(fp.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
     let extra = crate::store::LineExtra { reason: Some(fp.to_string()), ..Default::default() };
-    match store.append_event_unless(crate::api::ADMIN_CONV, "hub-key-pinned", hub_id, "hub", &digest, extra, |_| false) {
-        Ok(Some(_)) => {}
-        Ok(None) | Err(_) => alert(store, "hub-signing-key-admin-row-failed", &format!("hub {hub_id}: pinned {fp}, but the admin row could not be written")),
+    let r = store.append_event_unless(crate::api::ADMIN_CONV, "hub-key-pinned", hub_id, "hub", &digest, extra, |lines| {
+        lines.iter().any(|l| l.event == "hub-key-pinned" && l.msg_id == hub_id && l.digest == digest)
+    });
+    match r {
+        Ok(_) => {
+            let _ = store.write_state(&flag, fp);
+        }
+        Err(e) => alert(store, "hub-signing-key-admin-row-failed", &format!("hub {hub_id}: pinned {fp}, but the admin row could not be written: {e}")),
     }
 }
 
@@ -138,31 +149,37 @@ pub fn observe(store: &Store, hub_id: &str, version: &Value, trusted_path: bool)
         }
         Some(off) => {
             match pin {
-                Some(p) if p == off => KeyState::Pinned(off),
+                Some(p) if p == off => {
+                    admin_row_pinned(store, hub_id, &off); // r3 #3: backfills a pin made before OBS-37
+                    KeyState::Pinned(off)
+                }
                 Some(p) => mismatch(store, hub_id, p, off),
                 None if !trusted_path || !valid_fp(&off) => KeyState::Unverified(off),
                 None => {
-                    // Review r2 #2: the durable record comes FIRST; no record, no pin. Then a
-                    // no-clobber publish: two threads with different offers cannot replace each
-                    // other's pin; the loser compares against the winner's.
-                    if let Err(e) = store.attention("hub-signing-key-pinned", &format!("hub {hub_id} signing key pinned: {off}")) {
-                        eprintln!("termlink-sidecar: hub {hub_id}: not pinning {off}: the pin's record could not be written ({e})");
-                        KeyState::Unverified(off)
-                    } else {
-                        match store.write_state_new(&pin_state_name(hub_id), &off) {
-                            Ok(true) => {
+                    // Review r2 #2 / r3 #4: a no-clobber publish, so threads with different offers
+                    // cannot replace each other's pin (the loser compares against the winner's);
+                    // only the thread that published writes the "pinned" record, and if that record
+                    // cannot be written the fresh pin is rolled back: no record, no pin.
+                    match store.write_state_new(&pin_state_name(hub_id), &off) {
+                        Ok(true) => match store.attention("hub-signing-key-pinned", &format!("hub {hub_id} signing key pinned: {off}")) {
+                            Ok(()) => {
                                 admin_row_pinned(store, hub_id, &off);
                                 KeyState::NewlyPinned(off)
                             }
-                            Ok(false) => match store.read_state(&pin_state_name(hub_id)) {
-                                Ok(Some(p)) if p.trim() == off => KeyState::Pinned(off),
-                                Ok(Some(p)) => mismatch(store, hub_id, p.trim().to_string(), off),
-                                _ => KeyState::Unverified(off),
-                            },
                             Err(e) => {
-                                alert(store, "hub-signing-key-pin-failed", &format!("hub {hub_id}: could not record the pin {off}: {e}"));
+                                let _ = store.remove_state(&pin_state_name(hub_id));
+                                eprintln!("termlink-sidecar: hub {hub_id}: pin {off} rolled back: its record could not be written ({e})");
                                 KeyState::Unverified(off)
                             }
+                        },
+                        Ok(false) => match store.read_state(&pin_state_name(hub_id)) {
+                            Ok(Some(p)) if p.trim() == off => KeyState::Pinned(off),
+                            Ok(Some(p)) => mismatch(store, hub_id, p.trim().to_string(), off),
+                            _ => KeyState::Unverified(off),
+                        },
+                        Err(e) => {
+                            alert(store, "hub-signing-key-pin-failed", &format!("hub {hub_id}: could not record the pin {off}: {e}"));
+                            KeyState::Unverified(off)
                         }
                     }
                 }

@@ -1,0 +1,14 @@
+# fc: OBS-37 / r3 #3
+# mutation: a pin made before OBS-37 never gets its admin row
+# package: termlink-sidecar
+# test: --test t3366_hub_key_pin e37_admin_row_is_backfilled_once_for_an_old_pin
+--- a/crates/termlink-sidecar/src/hub_key_pin.rs
++++ b/crates/termlink-sidecar/src/hub_key_pin.rs
+@@ -150,7 +150,6 @@
+         Some(off) => {
+             match pin {
+                 Some(p) if p == off => {
+-                    admin_row_pinned(store, hub_id, &off); // r3 #3: backfills a pin made before OBS-37
+                     KeyState::Pinned(off)
+                 }
+                 Some(p) => mismatch(store, hub_id, p, off),

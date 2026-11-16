@@ -4,7 +4,7 @@
 # test: --lib hub_identity::tests::adopt_is_idempotent_and_never_changes_an_existing_id
 --- a/crates/termlink-hub/src/hub_identity.rs
 +++ b/crates/termlink-hub/src/hub_identity.rs
-@@ -350,7 +350,10 @@
+@@ -391,7 +391,10 @@
          return Ok(Adopted { hub_id: done.hub_id.clone(), id_source: "pending", key_generated: !had_key, signing_key: done.signing_key_fingerprint() });
      }
      match (read_id(dir)?, read_key(dir)?) {

@@ -4,12 +4,12 @@
 # test: --lib hub_identity::tests::e36_fcw79_missing_id_beside_state_refuses_and_writes_nothing
 --- a/crates/termlink-hub/src/hub_identity.rs
 +++ b/crates/termlink-hub/src/hub_identity.rs
-@@ -297,7 +297,7 @@
+@@ -335,7 +335,7 @@
              "hub.signing.key missing beside existing state in {}; restore it (a new key is an operator action)",
              dir.display()
          ))),
--        (None, _) if has_prior_state(dir) => Err(refuse(format!(
-+        (None, _) if false && has_prior_state(dir) => Err(refuse(format!(
-             "hub.id missing beside existing state in {}; restore it, or run `termlink hub adopt-id` on a hub that predates T-3366 (runme does this before a restart)",
-             dir.display()
-         ))),
+-        (None, _) if has_prior_state(dir) => match finish_pending_again(dir)? {
++        (None, _) if false && has_prior_state(dir) => match finish_pending_again(dir)? {
+             Some(done) => Ok(done),
+             None => Err(refuse(format!(
+                 "hub.id missing beside existing state in {}; restore it, or run `termlink hub adopt-id` on a hub that predates T-3366 (runme does this before a restart)",

@@ -4,7 +4,7 @@
 # test: --lib hub_identity::tests::adopt_refuses_a_lost_id_beside_a_key_and_writes_no_id
 --- a/crates/termlink-hub/src/hub_identity.rs
 +++ b/crates/termlink-hub/src/hub_identity.rs
-@@ -358,11 +358,11 @@
+@@ -399,11 +399,11 @@
              "hub.signing.key missing beside hub.id in {}: this hub was already migrated and lost its key; adopt-id does not re-key (a new key is an operator action)",
              dir.display()
          ))),

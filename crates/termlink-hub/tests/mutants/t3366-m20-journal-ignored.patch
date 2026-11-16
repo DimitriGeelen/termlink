@@ -4,9 +4,9 @@
 # test: --lib hub_identity::tests::e166_interrupted_first_start_is_finished_by_the_next_start
 --- a/crates/termlink-hub/src/hub_identity.rs
 +++ b/crates/termlink-hub/src/hub_identity.rs
-@@ -286,7 +286,7 @@
- /// first start. Must run BEFORE the start writes its own secret or certificate, so a first start
- /// is recognised as one.
+@@ -324,7 +324,7 @@
+ }
+ 
  pub fn load_or_mint(dir: &Path) -> std::io::Result<HubIdentity> {
 -    if let Some(done) = finish_pending(dir)? {
 +    if let Some(done) = None::<HubIdentity> {

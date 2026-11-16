@@ -114,14 +114,14 @@ pub fn read_id(dir: &Path) -> std::io::Result<Option<String>> {
     Ok(Some(s.to_string()))
 }
 
-/// Write `contents` to `dir/name` atomically: temp (with `mode`) + fsync + rename + dir fsync.
-/// On any error the temp is removed and no partial file is left (FCW-81).
 #[cfg(test)]
 thread_local! {
     /// E-166 fault injector (tests only): fail after the temp is written, before the rename.
-    static FAIL_BEFORE_RENAME: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static FAIL_BEFORE_RENAME: std::cell::Cell<Option<&'static str>> = const { std::cell::Cell::new(None) };
 }
 
+/// Write `contents` to `dir/name` atomically: temp (exact `mode`) + fsync + no-clobber publish +
+/// dir fsync. On any error the temp is removed and no partial file is left (FCW-81).
 fn atomic_write(dir: &Path, name: &str, contents: &[u8], mode: u32) -> std::io::Result<()> {
     let path = dir.join(name);
     // Crash table (AL-17 2.1.f): a temp left by a start that died before its publish is removed.
@@ -149,11 +149,16 @@ fn atomic_write(dir: &Path, name: &str, contents: &[u8], mode: u32) -> std::io::
     let res = (|| {
         use std::os::unix::fs::OpenOptionsExt;
         let mut f = std::fs::OpenOptions::new().create_new(true).write(true).mode(mode).open(&tmp)?;
+        {
+            // the mode argument is masked by the umask; set it exactly (review r3 #5: E-36.4 asks 0644)
+            use std::os::unix::fs::PermissionsExt;
+            f.set_permissions(std::fs::Permissions::from_mode(mode))?;
+        }
         f.write_all(contents)?;
         f.sync_all()?;
         drop(f);
         #[cfg(test)]
-        if FAIL_BEFORE_RENAME.with(|c| c.get()) {
+        if FAIL_BEFORE_RENAME.with(|c| c.get()) == Some(name) {
             return Err(std::io::Error::other("injected: crash before rename"));
         }
         // No-clobber publish (review T-3366 r1 #3): link the complete temp to the final name;
@@ -251,7 +256,17 @@ fn finish_pending(dir: &Path) -> std::io::Result<Option<HubIdentity>> {
     if !is_id(want) {
         return Err(refuse(format!("{PENDING_FILE} is malformed; remove it only after checking hub.id by hand")));
     }
-    let signing = match read_key(dir)? {
+    // Review r3 #1: a marker that outlived a finished mint must not re-key a hub that later lost
+    // its key. The key is always published before the id, so an id on disk with no key is a loss.
+    let id_now = read_id(dir)?;
+    let key_now = read_key(dir)?;
+    if id_now.is_some() && key_now.is_none() {
+        return Err(refuse(format!(
+            "hub.signing.key missing beside hub.id in {} ({PENDING_FILE} is stale); not re-keying (a new key is an operator action)",
+            dir.display()
+        )));
+    }
+    let signing = match key_now {
         Some(k) => k,
         None => match generate_key(dir) {
             Ok(k) => k,
@@ -264,7 +279,11 @@ fn finish_pending(dir: &Path) -> std::io::Result<Option<HubIdentity>> {
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => read_id(dir)?.ok_or(e)?,
         Err(e) => return Err(e),
     };
-    let _ = std::fs::remove_file(&marker);
+    if let Err(e) = std::fs::remove_file(&marker)
+        && e.kind() != std::io::ErrorKind::NotFound
+    {
+        tracing::warn!(error = %e, "{PENDING_FILE} could not be removed after the mint finished");
+    }
     if let Ok(d) = std::fs::File::open(dir) {
         let _ = d.sync_all();
     }
@@ -279,12 +298,31 @@ fn mint_both(dir: &Path, id: &str) -> std::io::Result<HubIdentity> {
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
         Err(e) => return Err(std::io::Error::new(e.kind(), format!("hub.id could not be written atomically: {e}"))),
     }
-    finish_pending(dir)?.ok_or_else(|| refuse("hub identity mint vanished while being finished"))
+    if let Some(done) = finish_pending(dir)? {
+        return Ok(done);
+    }
+    // A concurrent start finished the mint and removed the marker first: take its result.
+    match (read_id(dir)?, read_key(dir)?) {
+        (Some(hub_id), Some(signing)) => Ok(HubIdentity { hub_id, signing }),
+        _ => Err(refuse("hub identity mint vanished while being finished")),
+    }
 }
 
 /// Hub start (AL-17 step 2, AL-18): read the id and key, finish an interrupted mint, or mint on a
 /// first start. Must run BEFORE the start writes its own secret or certificate, so a first start
 /// is recognised as one.
+/// Review r3 #5: before FCW-79 refuses, look once more — a concurrent first start may have written
+/// its marker and key between our reads. A finished identity found now is used, not refused.
+fn finish_pending_again(dir: &Path) -> std::io::Result<Option<HubIdentity>> {
+    if let Some(done) = finish_pending(dir)? {
+        return Ok(Some(done));
+    }
+    match (read_id(dir)?, read_key(dir)?) {
+        (Some(hub_id), Some(signing)) => Ok(Some(HubIdentity { hub_id, signing })),
+        _ => Ok(None),
+    }
+}
+
 pub fn load_or_mint(dir: &Path) -> std::io::Result<HubIdentity> {
     if let Some(done) = finish_pending(dir)? {
         tracing::info!(hub_id = %done.hub_id, "hub identity: an interrupted mint was finished (T-3366)");
@@ -297,10 +335,13 @@ pub fn load_or_mint(dir: &Path) -> std::io::Result<HubIdentity> {
             "hub.signing.key missing beside existing state in {}; restore it (a new key is an operator action)",
             dir.display()
         ))),
-        (None, _) if has_prior_state(dir) => Err(refuse(format!(
-            "hub.id missing beside existing state in {}; restore it, or run `termlink hub adopt-id` on a hub that predates T-3366 (runme does this before a restart)",
-            dir.display()
-        ))),
+        (None, _) if has_prior_state(dir) => match finish_pending_again(dir)? {
+            Some(done) => Ok(done),
+            None => Err(refuse(format!(
+                "hub.id missing beside existing state in {}; restore it, or run `termlink hub adopt-id` on a hub that predates T-3366 (runme does this before a restart)",
+                dir.display()
+            ))),
+        },
         (None, _) => {
             let (id, from_cert) = mint_value(dir);
             let done = mint_both(dir, &id)?;
@@ -513,18 +554,67 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
     }
 
-    // E-166 control (mutant "write hub.id in place"): a failure after the bytes are written but
-    // before the rename leaves NO hub.id and no temp; an in-place writer leaves the file.
+    // E-166 control (mutant "write hub.id in place"): a failure after hub.id's bytes are written but
+    // before its publish leaves NO hub.id and no temp; the journal (marker + key) stays, and the next
+    // start finishes the mint with the journalled id. An in-place writer leaves hub.id behind.
     #[test]
     fn e166_failure_before_rename_leaves_no_id_and_no_temp() {
         let d = tmp("inject");
-        FAIL_BEFORE_RENAME.with(|c| c.set(true));
+        FAIL_BEFORE_RENAME.with(|c| c.set(Some(ID_FILE)));
         let r = load_or_mint(&d);
-        FAIL_BEFORE_RENAME.with(|c| c.set(false));
+        FAIL_BEFORE_RENAME.with(|c| c.set(None));
         assert!(r.is_err());
-        assert_eq!(std::fs::read_dir(&d).unwrap().count(), 0, "no hub.id, no temp");
-        // and the next start mints normally (crash table row 1)
-        assert!(load_or_mint(&d).is_ok());
+        assert!(!d.join(ID_FILE).exists(), "no hub.id");
+        let temps = std::fs::read_dir(&d).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().contains(".tmp-")).count();
+        assert_eq!(temps, 0, "no temp");
+        let journalled = std::fs::read_to_string(d.join(PENDING_FILE)).unwrap().trim().to_string();
+        let i = load_or_mint(&d).unwrap();
+        assert_eq!(i.hub_id, journalled, "the next start finishes the journalled mint");
+        assert!(!d.join(PENDING_FILE).exists());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    // Review r3 #5: a failure at the KEY publish leaves the marker only; the next start finishes it.
+    #[test]
+    fn e166_failure_at_the_key_write_is_finished_by_the_next_start() {
+        let d = tmp("injectkey");
+        FAIL_BEFORE_RENAME.with(|c| c.set(Some(KEY_FILE)));
+        let r = load_or_mint(&d);
+        FAIL_BEFORE_RENAME.with(|c| c.set(None));
+        assert!(r.is_err());
+        assert!(!d.join(ID_FILE).exists() && !d.join(KEY_FILE).exists());
+        assert!(d.join(PENDING_FILE).exists());
+        let i = load_or_mint(&d).unwrap();
+        assert!(d.join(KEY_FILE).exists() && read_id(&d).unwrap().as_deref() == Some(i.hub_id.as_str()));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    // Review r3 #1: a STALE marker beside an id whose key was lost later never re-keys the hub.
+    #[test]
+    fn e37_stale_marker_beside_an_id_without_key_is_refused_not_rekeyed() {
+        let d = tmp("stalemark");
+        let first = load_or_mint(&d).unwrap();
+        std::fs::write(d.join(PENDING_FILE), format!("{}\n", first.hub_id)).unwrap(); // outlived the mint
+        std::fs::remove_file(d.join(KEY_FILE)).unwrap(); // key lost later
+        let e = load_or_mint(&d).unwrap_err().to_string();
+        assert!(e.contains("not re-keying"), "{e}");
+        assert!(!d.join(KEY_FILE).exists(), "no new key written");
+        assert!(adopt_legacy(&d, false, None).is_err(), "adopt refuses too");
+        assert!(!d.join(KEY_FILE).exists());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    // Review r3 #5: hub.id is 0644 whatever the umask (E-36.4).
+    #[test]
+    fn e36_id_mode_is_0644_under_a_strict_umask() {
+        let d = tmp("umask");
+        // SAFETY: umask has no preconditions; restored at once.
+        let old = unsafe { libc::umask(0o077) };
+        let r = load_or_mint(&d);
+        unsafe { libc::umask(old) };
+        r.unwrap();
+        assert_eq!(std::fs::metadata(d.join(ID_FILE)).unwrap().permissions().mode() & 0o777, 0o644);
+        assert_eq!(std::fs::metadata(d.join(KEY_FILE)).unwrap().permissions().mode() & 0o777, 0o600);
         let _ = std::fs::remove_dir_all(&d);
     }
 

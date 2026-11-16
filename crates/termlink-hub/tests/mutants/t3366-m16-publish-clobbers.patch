@@ -4,7 +4,7 @@
 # test: --lib hub_identity::tests::e166_write_never_clobbers_an_existing_id
 --- a/crates/termlink-hub/src/hub_identity.rs
 +++ b/crates/termlink-hub/src/hub_identity.rs
-@@ -158,7 +158,7 @@
+@@ -163,7 +163,7 @@
          }
          // No-clobber publish (review T-3366 r1 #3): link the complete temp to the final name;
          // `AlreadyExists` when another start got there first, and that file is never replaced.

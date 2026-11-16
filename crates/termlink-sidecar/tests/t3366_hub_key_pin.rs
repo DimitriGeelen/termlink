@@ -61,7 +61,13 @@ fn e37_first_contact_pins_restart_keeps_and_a_swapped_key_is_refused_and_named()
     assert!(attention_kinds(&store).iter().any(|(k, d)| k == "hub-signing-key-pinned" && d.contains(&k1)));
     // OBS-37: the admin row on the store's admin chain names the pinned key
     let rows = store.chain_lines(termlink_sidecar::api::ADMIN_CONV).unwrap();
-    assert!(rows.iter().any(|l| l.event == "hub-key-pinned" && l.msg_id == id), "no admin row");
+    let want: String = {
+        use sha2::{Digest, Sha256};
+        Sha256::digest(k1.as_bytes()).iter().map(|b| format!("{b:02x}")).collect()
+    };
+    let pinned_rows: Vec<_> = rows.iter().filter(|l| l.event == "hub-key-pinned" && l.msg_id == id).collect();
+    assert_eq!(pinned_rows.len(), 1, "exactly one admin row");
+    assert_eq!(pinned_rows[0].digest, want, "the admin row carries the pinned fingerprint's digest");
     assert_eq!(hub_key_pin::verified_hub_key(&store, &id, &hub_version(&e)).as_deref(), Some(k1.as_str()));
 
     // restart: same key, still pinned, nothing changed
@@ -232,6 +238,26 @@ fn e37_concurrent_first_contacts_with_different_offers_pin_once() {
             other => panic!("unexpected {other:?}"),
         }
     }
+    // r3 #4: only the publisher writes a "pinned" record, and it names the key actually pinned
+    let recs: Vec<_> = attention_kinds(&store).into_iter().filter(|(k, _)| k == "hub-signing-key-pinned").collect();
+    assert_eq!(recs.len(), 1, "{recs:?}");
+    assert!(recs[0].1.contains(&pinned));
+}
+
+// r3 #3: a pin made before OBS-37 gets its admin row once, however often it is observed.
+#[test]
+fn e37_admin_row_is_backfilled_once_for_an_old_pin() {
+    let e = Estate::create_without_hub().unwrap();
+    let store = Store::open(&e.store_root(), "agent-a").unwrap();
+    let h = "0123456789abcdef";
+    let fp = format!("ed25519:{}", "f".repeat(64));
+    store.write_state(&hub_key_pin::pin_state_name(h), &fp).unwrap(); // pinned by older code
+    let v = json!({"hub_id": h, "signing_key": fp});
+    for _ in 0..3 {
+        assert_eq!(hub_key_pin::observe(&store, h, &v, true), KeyState::Pinned(fp.clone()));
+    }
+    let rows = store.chain_lines(termlink_sidecar::api::ADMIN_CONV).unwrap();
+    assert_eq!(rows.iter().filter(|l| l.event == "hub-key-pinned" && l.msg_id == h).count(), 1);
 }
 
 // Review r2 #2: no durable record, no pin.
