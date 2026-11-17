@@ -409,7 +409,7 @@ EOS
 export RUNME_WIDEN_PY="$TMP/fake_human_ac_ticks.py"
 # T-3806 action 31: a scratch switch file, present by default so ordinary runs skip.
 mkdir -p "$TMP/etc-termlink"; : > "$TMP/etc-termlink/tmux-per-project"
-export RUNME_TMUXPP_FILE="$TMP/etc-termlink/tmux-per-project"
+export RUNME_TMUXPP_FILE="$TMP/etc-termlink/tmux-per-project" RUNME_TMUXPP_STATE=on
 # T-3685 action 28: a fake `su - testdev -c` that answers OK only for the GOOD token in the
 # scratch token file, and fake terminal files. Default = a working token, so ordinary runs skip.
 TD="$TMP/testdev"; mkdir -p "$TD/home/.config/claude"
@@ -3496,7 +3496,7 @@ echo active > "$FAKE_WIDEN_STATE"
 # ---------------------------------------------------------------------------
 # T-3806 action 31 — switch on per-project tmux servers.
 # ---------------------------------------------------------------------------
-s31() { echo "$1" | sed -n '/^.*31\. Switch on per-project/,/^.*Verification/p'; }
+s31() { echo "$1" | sed -n '/^.*31\. Per-project tmux servers/,/^.*Verification/p'; }
 SW="$RUNME_TMUXPP_FILE"
 rm -rf "$TMP/etc-termlink"; out=$(run --dry-run); x=$(s31 "$out")
 if echo "$x" | grep_all "\[DRY\]   would create $SW (empty, 0644)" && [ ! -e "$SW" ]; then
@@ -3515,6 +3515,24 @@ if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  $SW exists but is not a regula
     ok "31: a directory in the switch's place => FAILED, left alone"
 else bad "31 not-a-file" "rc=$rc: $x"; fi
 rmdir "$SW"; : > "$SW"
+# T-3816: declared state off removes the file; a later run never re-creates it.
+out=$(RUNME_TMUXPP_STATE=off run --dry-run); x=$(s31 "$out")
+if echo "$x" | grep_all "\[DRY\]   would remove $SW" && [ -f "$SW" ]; then
+    ok "31 off: --dry-run names the removal and removes nothing"
+else bad "31 off dry-run" "$x"; fi
+out=$(RUNME_TMUXPP_STATE=off run); rc=$?; x=$(s31 "$out")
+if echo "$x" | grep_all "OK      per-project tmux servers switched off: $SW removed" && [ ! -e "$SW" ]; then
+    ok "31 off: removes the switch file and verifies it is gone"
+else bad "31 off" "rc=$rc: $x"; fi
+out=$(RUNME_TMUXPP_STATE=off run); x=$(s31 "$out")
+if echo "$x" | grep_all "skip    per-project tmux servers already off ($SW absent)" && [ ! -e "$SW" ]; then
+    ok "31 off: second run skips and does not re-create the file (idempotent)"
+else bad "31 off idempotent" "$x"; fi
+out=$(RUNME_TMUXPP_STATE=maybe run); rc=$?; x=$(s31 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  TMUXPP_STATE must be on or off, not 'maybe'" && [ ! -e "$SW" ]; then
+    ok "31: an unknown declared state => FAILED, nothing changed"
+else bad "31 bad state" "rc=$rc: $x"; fi
+: > "$SW"
 
 echo ""
 echo "----------------------------------------"

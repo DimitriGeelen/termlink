@@ -4148,11 +4148,38 @@ widen_t3800
 # From then on NEW TermLink tmux spawns go to tl-<slug>-<hash8> / tl-host; nothing running on the
 # default server is touched or killed (T-3552 migration rule 1). Rollback: remove the file.
 # Idempotent: present as a regular file -> skip. Verified on disk (regular file, mode 644).
-# Seams (fixtures only): RUNME_TMUXPP_FILE.
+# T-3816: the action drives the file to a DECLARED state, so a later run never re-creates a file that was
+# switched off on purpose. TMUXPP_STATE=on|off below is the one line a ruling changes.
+# Seams (fixtures only): RUNME_TMUXPP_FILE, RUNME_TMUXPP_STATE.
 # ---------------------------------------------------------------------------
 seam TMUXPP_FILE RUNME_TMUXPP_FILE "/etc/termlink/tmux-per-project"
+# T-3816 operator ruling A (2026-11-17, "Okay, then do as recommend"): OFF until 055's cockpit finds claude-fw keepers
+# on tl-* servers (their slice 2); then back to "on" by the same one-line change.
+seam TMUXPP_STATE RUNME_TMUXPP_STATE "off"
+
+tmux_per_project_off() {
+    if [ ! -e "$TMUXPP_FILE" ]; then
+        say "  skip    per-project tmux servers already off ($TMUXPP_FILE absent)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ ! -f "$TMUXPP_FILE" ]; then
+        say "  FAILED  $TMUXPP_FILE exists but is not a regular file; nothing changed"; FAILED=$((FAILED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would remove $TMUXPP_FILE: new TermLink tmux spawns go back to the default server"; DONE=$((DONE+1)); return
+    fi
+    rm -f "$TMUXPP_FILE" 2>/tmp/.runme-tmuxpp-err
+    if [ ! -e "$TMUXPP_FILE" ]; then
+        say "  OK      per-project tmux servers switched off: $TMUXPP_FILE removed; sessions already on tl-* servers keep running"; DONE=$((DONE+1))
+    else
+        say "  FAILED  could not remove $TMUXPP_FILE: $(tail -1 /tmp/.runme-tmuxpp-err)"; FAILED=$((FAILED+1))
+    fi
+}
 
 tmux_per_project_on() {
+    if [ "$TMUXPP_STATE" = "off" ]; then tmux_per_project_off; return; fi
+    if [ "$TMUXPP_STATE" != "on" ]; then
+        say "  FAILED  TMUXPP_STATE must be on or off, not '$TMUXPP_STATE'; nothing changed"; FAILED=$((FAILED+1)); return
+    fi
     if [ -f "$TMUXPP_FILE" ]; then
         say "  skip    per-project tmux servers already on ($TMUXPP_FILE present)"; SKIPPED=$((SKIPPED+1)); return
     fi
@@ -4172,7 +4199,7 @@ tmux_per_project_on() {
     fi
 }
 
-head2 "31. Switch on per-project tmux servers (T-3806; 055's cockpit live; T-3552 operator ruling A)"
+head2 "31. Per-project tmux servers: declared state '$TMUXPP_STATE' (T-3806 on; T-3816 rollback)"
 tmux_per_project_on
 
 head2 "Verification"
