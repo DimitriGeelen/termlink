@@ -2,12 +2,15 @@
 id: T-3712
 name: "P-28: B-18 deny half: SendMessage deny runme action"
 description: >
-  arc-011 plan unit P-28 (docs/design/interactive-agent-communication-08-plan.md v0.3, approved G-0 2026-11-12): B-18 deny half: SendMessage deny as an idempotent operator action in `/opt/termlink/runme.sh`, refusing to run before P-27 has passed (O-4 A)
+  arc-011 plan unit P-28 (docs/design/interactive-agent-communication-08-plan.md v0.3,
+  approved G-0 2026-11-12): B-18 deny half: SendMessage deny as an idempotent operator
+  action in `/opt/termlink/runme.sh`, refusing to run before P-27 has passed (O-4
+  A)
 
-status: captured
+status: started-work
 workflow_type: decommission
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: [T-3357, T-3711, T-3710, T-2876, T-3353]
@@ -42,8 +45,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:50Z
-last_update: 2026-11-12T16:56:50Z
-date_finished: null
+last_update: 2026-11-17T21:16:21Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -54,6 +57,26 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-17T21:16:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 5
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 0
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=5 (L1:keyword=operator runs,L3:keyword=rollback);
+      D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-TRUST=0
+      (L0: no signal); F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3712: P-28: B-18 deny half: SendMessage deny runme action
@@ -377,6 +400,11 @@ Unblocks: P-40 (T-3719, deny in place).
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-11-17 — Operator rule: Claude Code cross-session messages are forbidden; always TermLink
+- **Operator words:** "I do know that Antropix internal messages should be blocked. You should always use Termlink. It's forbidden. 999 AEF agents should know that."
+- **Trigger:** project 100 tried a Claude Code cross-session SendMessage to our session (msg 4ee8f417, refused by our session) instead of the TermLink sidecar.
+- **Effect:** confirms the purpose of this unit (B-18 deny half); its prerequisite P-27 (T-3711) passed live 2026-11-12. AEF told the same day so its agents and its framework carry the rule. Scope of the deny (this project's sessions vs every Claude session on .107) is the one open question before build.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -393,3 +421,7 @@ Unblocks: P-40 (T-3719, deny in place).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3712-p-28-b-18-deny-half-sendmessage-deny-run.md
 - **Context:** Initial task creation
+
+### 2026-11-17T21:16:00Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
