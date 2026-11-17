@@ -59,6 +59,7 @@ if str(_HERE.parent) not in sys.path:
     sys.path.insert(0, str(_HERE.parent))
 
 from lib import dispatch_tokens  # noqa: E402
+from lib import large_file_limit  # noqa: E402
 from lib import review_model_preflight  # noqa: E402
 from lib import review_policy  # noqa: E402
 from lib import task_commits  # noqa: E402
@@ -174,7 +175,14 @@ def _partition(task_data: dict, root: Path, task_id: str,
         if cl.delegation_class == REVIEWER_JUDGES:
             judged.append(item)
         elif cl.delegation_class == OPERATOR_ONLY:
-            item["reason"] = cl.reason
+            # T-5180: an operator widening (lib/delegation_widening.py) makes a MEASURED
+            # act-in-the-world criterion reviewer-judged; the ledger asks the same function.
+            wide, why = ctx.widening(crit)
+            if wide is not None:
+                item["widened"] = {"id": wide["id"], "ruling": str(wide.get("ruling") or "")}
+                judged.append(item)
+                continue
+            item["reason"] = cl.reason + (f" [widening: {why}]" if why else "")
             operator.append(item)
     return judged, operator
 
@@ -598,6 +606,23 @@ def _bare_get_refusals(base_url: str, pages: list[str]) -> dict[str, str]:
     return out
 
 
+def _oversized_evidence(root: Path, evidence: dict) -> list[tuple[str, int]]:
+    """T-5173: [(path, size)] for evidence the verdict commit would carry that is over the
+    large-file limit: the judge's own page captures and the task's Visual Verification shots."""
+    paths = list(evidence.get("shots") or [])
+    paths += [s.get("path") for s in (evidence.get("visual") or {}).get("shots") or []
+              if s.get("path")]
+    seen, found = set(), []
+    for rel in paths:
+        if rel in seen:
+            continue
+        seen.add(rel)
+        p = Path(rel) if Path(rel).is_absolute() else root / rel
+        for _, size in large_file_limit.oversized([p]):
+            found.append((rel, size))
+    return found
+
+
 def _gather_evidence(root: Path, task_id: str, task_data: dict, criteria: list[dict],
                      capture: Capturer, *, dry_run: bool) -> dict:
     """{'needed', 'pages', 'shots', 'error', 'captures', 'partial'}.
@@ -729,6 +754,16 @@ def _build_brief(task_id: str, criteria: list[dict], *, rung: int = 1, rung_reas
     lines += ["", "## The criteria", "", f"Task: {task_id}", ""]
     for c in criteria:
         lines += [f"### Criterion {c['index']} (Human AC#{c['ac_index']})", "", c["body"], ""]
+        if c.get("widened"):
+            lines += [
+                f"**Widened act-in-the-world criterion** — {c['widened']['id']} (project ruling "
+                f"{c['widened']['ruling']}). This criterion is an act outside the repository that "
+                "the operator's ruling lets an independent reviewer close on measured evidence. "
+                "The `**Measured:**` line above names the command that was run and the fenced "
+                "block under it is its recorded output. Judge whether that recorded output proves "
+                "the act happened as the criterion states. Return green only if it does; if the "
+                "output is missing, ambiguous, or does not show the act, return red or escalate.",
+                ""]
 
     if ev["needed"]:
         lines += ["## Rendered pages", ""]
@@ -1321,6 +1356,18 @@ def judge(task_id: str, root: Path, *, criterion_n: int | None = None, dry_run: 
     evidence = _gather_evidence(root, task_id, task_data, judged, capture or _capture_playwright,
                                 dry_run=dry_run)
     res["evidence"] = evidence
+    too_big = _oversized_evidence(root, evidence)
+    if too_big:
+        # T-5173: the review runtime commits every file the verdict cites. One over the T-1845
+        # large-file limit makes that commit fail AFTER the reviewer has worked: the verdict
+        # stays uncommitted, fw audit FAILs, and only the operator can discard it (T-5167).
+        res.update(code=1, error=(
+            "evidence over the commit limit — nothing dispatched: "
+            + "; ".join(f"{p} is {large_file_limit.human(n)}" for p, n in too_big)
+            + f" (limit {large_file_limit.human(large_file_limit.block_bytes())}, "
+            "FW_LARGE_FILE_BLOCK_BYTES). Re-shoot the state with a steps file ending in a crop "
+            "step (fw ux shots, T-4958), then judge again."))
+        return res
     run_id = f"run-{task_id.lower()}-{uuid.uuid4().hex[:10]}"
     briefs = {s["seat"]: _build_brief(task_id, judged, rung=rung, rung_reason=reason,
                                       ceiling_note=note, evidence=evidence,

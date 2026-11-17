@@ -69,12 +69,13 @@ from typing import Callable, Optional
 
 LEDGER_NAME = "human-ac-ticks.jsonl"
 # T-4165: the operator's standing-delegation grants are guarded the same way
-LEDGER_NAMES = (LEDGER_NAME, "standing-delegations.jsonl")
+# T-5181 review 3 #3: the operator's accepted misses too
+LEDGER_NAMES = (LEDGER_NAME, "standing-delegations.jsonl", "accepted-misses.jsonl")
 
 # A mention of a guarded path anywhere in the command (quotes/backslashes removed).
 MENTION_RE = re.compile(
     r"\.tasks\b|tasks/(?:active|completed|templates)\b|/(?:active|completed)/T-\d"
-    r"|human-ac-ticks\.jsonl|standing-delegations\.jsonl|toggle-ac",
+    r"|human-ac-ticks\.jsonl|standing-delegations\.jsonl|accepted-misses\.jsonl|toggle-ac",
     re.I,
 )
 # T-4159: a task-file NAME (`T-NNNN[-slug].md`) with the path word in front of it. It is
@@ -1223,8 +1224,18 @@ def _segment(seg: list[str], ctx: _Ctx) -> None:
     ops = [a for a in args if not a.startswith("-")]
     if not ctx.boundary and \
             any(os.path.basename(a) in ("human_ac_ticks.py", "human_ac_ticks") for a in ops[:2]) and ("ack" in ops or ("delegation" in ops and
-                                                   ("grant" in ops or "revoke" in ops))):
+                                                   ("grant" in ops or "revoke" in ops or "widen" in ops))):
+        # T-5181 review 2 #3: `widen` (T-5180) is the operator's ruling too
         ctx.hits.append(Hit("records a Human-tick provenance row (the operator's act)"))
+        return
+    if not ctx.boundary and "accept" in ops and \
+            any(os.path.basename(a) in ("accepted_miss.py", "accepted_miss") for a in ops[:2]):
+        # T-5181 review 2 #3: the module refuses under CLAUDECODE/AI_AGENT, but `env -u` strips
+        # those; the text gate refuses the verb itself (same boundary as `delegation grant`).
+        ctx.hits.append(Hit("records an accepted miss (the operator's act)"))
+        return
+    if not ctx.boundary and verb == "fw" and ops[:2] == ["task", "accept-miss"]:
+        ctx.hits.append(Hit("records an accepted miss (the operator's act)"))
         return
     if verb in ("cd", "pushd"):
         dest = next((a for a in args if not a.startswith("-")), None)

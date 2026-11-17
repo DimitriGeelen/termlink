@@ -108,6 +108,7 @@ import re
 import subprocess
 import sys
 import secrets
+import shutil
 import time
 import uuid
 from typing import NoReturn
@@ -122,6 +123,7 @@ from lib import judge_verdict  # noqa: E402
 from lib import review_cost  # noqa: E402
 from lib import review_policy  # noqa: E402
 from lib import task_commits  # noqa: E402
+from lib import delegation_widening  # noqa: E402
 from lib.delegation import (  # noqa: E402
     GENERATED_ANNOTATION_RE,
     REVIEWER_JUDGES,
@@ -332,6 +334,16 @@ def _uncommitted_why(root: Path, row: dict) -> str:
                   f"{row['id']} --reason \"…\"")
 
 
+def _clip_git_error(text: str, head: int = 900, tail: int = 300) -> str:
+    """T-5173: keep the START of git's output (a refusing hook names the file and the reason
+    there) and its end. Keeping only the last 500 characters turned the T-1845 large-file
+    refusal into 'ould not be in git: unstage it', which read as a staging clash."""
+    text = (text or "").strip()
+    if len(text) <= head + tail + 20:
+        return text
+    return f"{text[:head]} […{len(text) - head - tail} characters cut…] {text[-tail:]}"
+
+
 def _commit_rows_once(root: Path, paths: list[str], identity: str, message: str,
                       email: str = "") -> tuple[str, str]:
     # T-3655: per-reviewer email, never a shared one.
@@ -356,8 +368,8 @@ def _commit_rows_once(root: Path, paths: list[str], identity: str, message: str,
                              cwd=str(root), env=env, capture_output=True, text=True)
         if not (add.returncode or com.returncode):
             return _head_sha(root), ""
-        err = (add.stderr + com.stderr).strip()[-500:]
-        if "index.lock" not in err or time.monotonic() >= deadline:
+        err = _clip_git_error(add.stderr + com.stderr)
+        if "index.lock" not in (add.stderr + com.stderr) or time.monotonic() >= deadline:
             break
         attempt += 1
         time.sleep(min(0.5 * attempt, 2.0, max(deadline - time.monotonic(), 0.05)))
@@ -1662,6 +1674,25 @@ def parse_harness_verdicts(text: str) -> dict[int, dict]:
     return {n: v for n, v in out.items() if n not in bad}
 
 
+def _freeze_seat_evidence(root: Path, task: str, did: str, paths: list[str]) -> list[str]:
+    """T-5178: per-dispatch copies of the screenshots a harness seat cited, as a claude seat makes
+    them itself (brief, T-4514): `REPORT_DIR/<task>/<stem>-<dispatch><ext>`. The originals under
+    .context/working/judge-evidence/ and .context/visual/ are overwritten by the next capture of
+    the same page, which broke the row's evidence hash. Same bytes, so the sha256-matched page and
+    checklist checks are unaffected. An existing copy is never overwritten."""
+    out = []
+    for rel in paths:
+        src = root / rel
+        p = Path(rel)
+        dst_rel = Path(REPORT_DIR) / task / f"{p.stem}-{did}{p.suffix}"
+        dst = root / dst_rel
+        if not dst.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, dst)
+        out.append(str(dst_rel))
+    return out
+
+
 def _seat_named_screenshots(root: Path, did: str, kind: str, revision: str, v: dict) -> list[str]:
     """T-4944 (operator 2026-11-01, "vision-gated"): the screenshots a harness seat may be cited as
     having seen. Only for a kind the committed registry declares `vision: true` (probed:
@@ -1763,6 +1794,8 @@ def _record_for_worker_locked(root: Path, did: str, drec: dict, kind: str, here:
         guidance = v["guidance"] or ("" if v["outcome"] == GREEN else v["why"])
         seen = _seat_named_screenshots(root, did, kind, str(drec.get("revision") or ""), v) \
             if v["outcome"] == GREEN else []
+        seen = _freeze_seat_evidence(root, task, did, seen)
+        touched.extend(seen)
         try:
             rec = record(task, ac, v["outcome"], reviewer=f"{identity}:{seat}", rung=rung,
                          guidance=guidance, evidence=[str(rep)] + seen, digest=criterion_digest(crit),
@@ -2328,6 +2361,27 @@ class _Ctx(_Base):
     def classify(self, crit):
         return classify(crit, workflow_type=self.workflow, render_surface=self.render)
 
+    def widening(self, crit) -> tuple[dict | None, str]:
+        """T-5180: the operator widening that makes this OPERATOR-ONLY criterion reviewer-judged
+        (lib/delegation_widening.py, the one decision point), else (None, why not). (None, "")
+        when the project records no widening — then nothing below changes."""
+        return delegation_widening.active_widening(self.root, self.task_id, self.text, crit)
+
+    def judged(self, crit):
+        """(classification, widening row or None, why-not) — a criterion is reviewer-judged when
+        its class routes to REVIEWER-JUDGES, or an active widening covers it (T-5180)."""
+        cl = self.classify(crit)
+        if cl.delegation_class == REVIEWER_JUDGES:
+            return cl, None, ""
+        w, why = self.widening(crit)
+        return cl, w, why
+
+
+def _not_judged_reason(ac: int, cl, why: str) -> str:
+    return (f"AC#{ac} is {cl.cls} ({cl.delegation_class}): only the operator may "
+            f"answer it, so no reviewer verdict can satisfy or escalate it — {cl.reason}"
+            + (f" [widening: {why}]" if why else ""))
+
 
 def _evidence_fault(root: Path, e: str) -> str:
     if os.path.isabs(e) or e.startswith(("~", "\\")):
@@ -2682,11 +2736,9 @@ def _fault(ctx: _Ctx, row: dict, crit, intro: dict | None, *, need_commit: bool 
     if f:
         return f
     if row["outcome"] == GREEN:
-        cl = ctx.classify(crit)
-        if cl.delegation_class != REVIEWER_JUDGES:
-            return "not-reviewer-judged", (
-                f"AC#{crit.index} is {cl.cls} ({cl.delegation_class}): only the operator may "
-                f"answer it, so no reviewer verdict can satisfy or escalate it — {cl.reason}")
+        cl, wide, why = ctx.judged(crit)
+        if cl.delegation_class != REVIEWER_JUDGES and wide is None:
+            return "not-reviewer-judged", _not_judged_reason(crit.index, cl, why)
         return (_strength_fault(ctx, row, crit) or _run_fault(ctx, row, crit, recording=recording)
                 or _stale_fault(ctx, row))
     return None
@@ -3509,11 +3561,9 @@ def record(task_id: str, ac_index: int, outcome: str, *, reviewer: str, rung: st
                f"the reviewer judged text with digest {digest} but AC#{ac_index} now has "
                f"digest {dg} — the criterion changed after it was read")
 
-    cl = ctx.classify(crit)
-    if cl.delegation_class != REVIEWER_JUDGES:
-        refuse("not-reviewer-judged",
-               f"AC#{ac_index} is {cl.cls} ({cl.delegation_class}): only the operator may "
-               f"answer it, so no reviewer verdict can satisfy or escalate it — {cl.reason}")
+    cl, wide, why = ctx.judged(crit)
+    if cl.delegation_class != REVIEWER_JUDGES and wide is None:
+        refuse("not-reviewer-judged", _not_judged_reason(ac_index, cl, why))
 
     # The worker session that runs this record: its identity derives from the dispatch id.
     worker = worker_identity(dispatch_id)
@@ -3563,6 +3613,8 @@ def record(task_id: str, ac_index: int, outcome: str, *, reviewer: str, rung: st
     }
     if run_id.strip():
         rec["run_id"] = run_id.strip()
+    if wide is not None:
+        rec["widened_by"], rec["ruling"] = wide["id"], str(wide.get("ruling") or "")
     # Not committed yet, and no completion yet: the runtime signs one when the worker exits.
     f = _fault(ctx, rec, crit, None, need_commit=False, recording=True)
     if f:
@@ -3761,13 +3813,27 @@ def _step_down_of(root: Path, r: dict) -> str:
     return review_policy.disclosure((run or {}).get("ceiling_decision"))
 
 
-def _cite(r: dict, root: Path | None = None, degraded: str = "") -> str:
+def _cite(r: dict, root: Path | None = None, degraded: str = "", widened: dict | None = None) -> str:
     down = _step_down_of(root, r) if root is not None else ""
     return (f"  **Reviewer verdict:** green {r['id']} — {r['reviewer']} (rung {r['rung']}), "
             f"digest {r['ac_digest']}; dispatch {r['dispatch_id']}; "
             + (f"STEP-DOWN: {down}; " if down else "")
             + (f"{GREEN_DEGRADED}: {degraded}; " if degraded else "")
+            + (f"{delegation_widening.widened_note(widened)}; " if widened else "")
             + f"evidence: {', '.join(r['evidence'])}; ledger {VERDICTS}")
+
+
+def _widening_of(ctx: _Ctx, crit) -> dict | None:
+    """The widening a reviewer-derived tick on `crit` rests on (None for a REVIEWER-JUDGES one)."""
+    cl, wide, _why = ctx.judged(crit)
+    return wide if cl.delegation_class != REVIEWER_JUDGES else None
+
+
+def _widened_fields(wide: dict | None, crit) -> dict:
+    if not wide:
+        return {}
+    return {"widened_by": wide["id"], "ruling": str(wide.get("ruling") or ""),
+            "criterion": crit.title.strip()[:120]}
 
 
 def apply(task_id: str, root: Path | None = None) -> dict:
@@ -3810,10 +3876,15 @@ def apply(task_id: str, root: Path | None = None) -> dict:
         r, why = satisfying_verdict(ctx, c)
         if r is not None:
             deg = green_degraded_of(ctx, c, r)
-            if r["id"] != ann[1] or (f"{GREEN_DEGRADED}:" in lines[ann[0]]) != bool(deg):
-                lines[ann[0]] = _cite(r, root, deg)
+            wide = _widening_of(ctx, c)
+            wnote = delegation_widening.widened_note(wide) if wide else ""
+            if r["id"] != ann[1] or (f"{GREEN_DEGRADED}:" in lines[ann[0]]) != bool(deg) \
+                    or bool(wnote) != ("; widened by SD-" in lines[ann[0]]) \
+                    or (wnote and wnote not in lines[ann[0]]):
+                lines[ann[0]] = _cite(r, root, deg, wide)
                 result["recited"].append({"ac": c.index, "verdict_id": r["id"],
-                                          **({"green_degraded": deg} if deg else {})})
+                                          **({"green_degraded": deg} if deg else {}),
+                                          **_widened_fields(wide, c)})
             continue
         del lines[ann[0]]
         lines[c.start] = re.sub(r"\[[xX]\]", "[ ]", lines[c.start], count=1)
@@ -3824,20 +3895,24 @@ def apply(task_id: str, root: Path | None = None) -> dict:
     lines = new_text.split("\n")
     hits = []
     for c in human_criteria(new_text):
-        if c.ticked or ctx.classify(c).delegation_class != REVIEWER_JUDGES:
+        if c.ticked:
+            continue
+        cl, wide, _why = ctx.judged(c)
+        if cl.delegation_class != REVIEWER_JUDGES and wide is None:
             continue
         r, why = satisfying_verdict(ctx, c)
         if r:
-            hits.append((c, r, green_degraded_of(ctx, c, r)))
+            hits.append((c, r, green_degraded_of(ctx, c, r), wide))
         elif why and not why.startswith(_NO_VERDICT):
             # T-5117: a verdict exists for this criterion but does not count (stale, invalid,
             # red, not evaluated). Say why; silence left 055 with an open box and no reason.
             result["not_applied"].append({"ac": c.index, "why": why})
-    for c, r, deg in sorted(hits, key=lambda h: -h[0].start):
+    for c, r, deg, wide in sorted(hits, key=lambda h: -h[0].start):
         lines[c.start] = re.sub(r"\[ \]", "[x]", lines[c.start], count=1)
-        lines.insert(c.end, _cite(r, root, deg))
+        lines.insert(c.end, _cite(r, root, deg, wide))
         result["ticked"].append({"ac": c.index, "verdict_id": r["id"], "reviewer": r["reviewer"],
-                                 **({"green_degraded": deg} if deg else {})})
+                                 **({"green_degraded": deg} if deg else {}),
+                                 **_widened_fields(wide, c)})
     result["ticked"].sort(key=lambda t: t["ac"])
     result["withdrawn"].sort(key=lambda t: t["ac"])
     if not hits and not result["withdrawn"] and not result["recited"]:
@@ -3887,6 +3962,20 @@ def green_degraded_lines(root: Path) -> list[str]:
     return out
 
 
+def widened_lines(root: Path) -> list[str]:
+    """T-5180: one `WARN widened:` line per criterion a widening let a reviewer close (from the
+    applied log, once per task/criterion/verdict), naming the widening and the project's ruling."""
+    seen: dict[tuple, str] = {}
+    for a in _read(APPLIED, root):
+        for t in (a.get("ticked") or []) + (a.get("recited") or []):
+            if isinstance(t, dict) and t.get("widened_by"):
+                seen[(a.get("task"), t.get("ac"), t.get("verdict_id"))] = (
+                    f"widened by {t['widened_by']} (ruling {t.get('ruling')}): "
+                    f"\"{t.get('criterion', '')}\"")  # latest apply wins (review #3: recited)
+    return [f"WARN widened: {task} AC#{ac} {vid}: {what}"
+            for (task, ac, vid), what in seen.items()]
+
+
 def audit(root: Path | None = None) -> tuple[int, list[str]]:
     """Cross-check the ledger's history AND every row. (exit code, lines): 0 clean, 2 on failure.
 
@@ -3906,6 +3995,7 @@ def audit(root: Path | None = None) -> tuple[int, list[str]]:
              for run in _read(RUNS, root)
              if run.get("kind") == "run" and review_policy.is_step_down(run.get("ceiling_decision"))]
     downs += green_degraded_lines(root)
+    downs += widened_lines(root)
     # T-5079: a declared release-artifact list exempts paths from the staleness check; show it.
     _arts, _refused = declared_release_artifacts(root)
     if _arts:

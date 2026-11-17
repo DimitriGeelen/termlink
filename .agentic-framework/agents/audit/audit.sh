@@ -3307,6 +3307,8 @@ _audit_collect() {
     _audit_prefetch vl env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/verdict_ledger.py" audit
 [ -f "$FRAMEWORK_ROOT/lib/human_ac_ticks.py" ] && \
     _audit_prefetch hat env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/human_ac_ticks.py" audit
+[ -f "$FRAMEWORK_ROOT/lib/accepted_miss.py" ] && \
+    _audit_prefetch am env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/accepted_miss.py" audit
 [ -f "$FRAMEWORK_ROOT/lib/outside_commits.py" ] && \
     _audit_prefetch oc env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/outside_commits.py" audit
 [ -f "$FRAMEWORK_ROOT/lib/watchtower_decision_revert.py" ] && \
@@ -3379,6 +3381,31 @@ if [ -f "$FRAMEWORK_ROOT/lib/human_ac_ticks.py" ]; then
     fi
 else
     fail "Human-AC ticks: lib/human_ac_ticks.py is missing — Human ticks UNVERIFIED" \
+         "detector code unavailable" \
+         "Restore it: bin/fw vendor self (or fw upgrade)"
+fi
+
+# T-5181 (T-5152 GO): an accepted miss `[~]` resolves an Agent criterion for P-010 only with
+# a matching row in the append-only .context/reviews/accepted-misses.jsonl (operator verb
+# `fw task accept-miss`). FAIL on a committed `[~]` with no matching row (bare, stale after
+# an edit, or citing an unknown id) and on any commit that rewrote committed ledger rows.
+if [ -f "$FRAMEWORK_ROOT/lib/accepted_miss.py" ]; then
+    _audit_collect am
+    _am_out=$_PF_OUT
+    _am_rc=$_PF_RC
+    if [ "$_am_rc" -eq 0 ]; then
+        pass "Accepted misses: $(echo "$_am_out" | tail -1)"
+    elif [ "$_am_rc" -eq 2 ]; then
+        fail "Accepted misses: $(echo "$_am_out" | tail -1)" \
+             "$(echo "$_am_out" | grep '^FAIL' | head -3 | tr '\n' ';')" \
+             "Inspect: python3 lib/accepted_miss.py audit — a [~] the operator did not accept goes back to [ ] (the agent may add **Miss proposed:** under it); the operator accepts with: fw task accept-miss T-XXX --ac N --reason '...'; a rewritten ledger is restored from git"
+    else
+        fail "Accepted misses: audit could not run (rc=$_am_rc) — accepted misses UNVERIFIED" \
+             "$(echo "$_am_out" | tail -2 | tr '\n' ';')" \
+             "Run: python3 lib/accepted_miss.py audit"
+    fi
+else
+    fail "Accepted misses: lib/accepted_miss.py is missing — accepted misses UNVERIFIED" \
          "detector code unavailable" \
          "Restore it: bin/fw vendor self (or fw upgrade)"
 fi
@@ -3506,6 +3533,22 @@ _audit_review_green_degraded() {
          "Fix the unavailable seat kinds (fw reviewer judge names each reason); opt out per project: fw config set REVIEW_GREEN_DEGRADED 0"
 }
 _audit_review_green_degraded
+
+# T-5180 (T-5171 GO): every criterion an operator widening let a reviewer close (a measured
+# act-in-the-world step) is a WARN of its own, naming the task, criterion, widening id and ruling.
+_audit_review_widened() {
+    [ -f "$FRAMEWORK_ROOT/lib/verdict_ledger.py" ] || return 0
+    local _wl
+    _wl=$(printf '%s\n' "$_VL_AUDIT_OUT" | grep '^WARN widened:' || true)
+    [ -z "$_wl" ] && return 0
+    while IFS= read -r _line; do
+        [ -n "$_line" ] || continue
+        warn "Reviewer-closed act-in-the-world criterion under an operator widening: ${_line#WARN widened: }" \
+             "" \
+             "Inspect: python3 lib/human_ac_ticks.py delegation list — revoke the widening there if the ruling no longer holds"
+    done <<<"$_wl"
+}
+_audit_review_widened
 
 # T-3282 (G-104): the RUNNING Watchtower is a deployment surface of its own —
 # source can be fixed, tested, and closed green while the process serves the
