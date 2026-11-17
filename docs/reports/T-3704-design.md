@@ -69,16 +69,29 @@ The unit splits cleanly at AL-20:
 15. **Key format.** The card stores `signing_key` and `encryption_key` as `ed25519:<64 hex public key>` and
     `x25519:<64 hex>`.
 
-## 4. Slice A, what gets built
+## 4. Slice A, what gets built (v2, after review round 1: `T-3704-reviews/r1-dispositions.md`)
 
-1. Hub: card store `<runtime_dir>/key-cards/<agent>.json` (0600, atomic write, `seq` compare-and-set under a per-agent
-   lock), schema `termlink.key-card/1` with `agent, project, signing_key, encryption_key, instances, seq, by`.
-2. Hub: `hub.key_card_put` / `hub.key_card_get` (admin; put needs `execute` on the unix socket; admin-log row first).
-3. Hub: the post check in `handle_channel_post` for the three types, behind the `off|log|enforce` setting; refusals
-   `CHANNEL_NO_KEY_CARD` (FCW-135) and `CHANNEL_KEY_CARD_MISMATCH` (FCW-133), each with an admin-log row.
-4. CLI: `termlink hub key-card put|get|list` for runme.
-5. Sidecar receiver: `from_agent` must name the agent whose register key signed it (FCW-98).
-6. Tests: E-169 card case on the fake; E-69's post half (`fx-a` signed with `fx-b`'s key; hub secret only; no card) on
-   a throwaway real hub, at the hub and, with the hub check off, at the receiver; the mutant
-   `fc-01-verify-accepts-any-signature` and mutants per refusal.
-7. No runme action in this slice: publishing cards is P-31.
+Where section 3 and the dispositions differ, the dispositions win (v2): liveness is out of the gate; card keys are
+`ed25519-pub:` / `x25519-pub:`; the receiver uses a named roster; P-16 closes only when slice B passes too.
+
+1. Hub: ONE card store file `<runtime_dir>/key-cards.json` (0600, atomic write + fsync, never a path built from a
+   name), schema `termlink.key-card/1` per entry: `agent, project, signing_key, encryption_key, instances, seq, by`.
+   Per-agent lock; posts read the card under it; `seq` compare-and-set on write. Start-up compares each `seq` with the
+   last logged `seq` (attention on mismatch). An unreadable or corrupt store refuses every gated post with the reason.
+2. Hub: `hub.key_card_put` / `hub.key_card_get` / `hub.key_card_list`. Put: unix socket only, `execute` scope, admin
+   row written before the answer (refused if it cannot be written), needs-attention raised on every put; a put that
+   changes an existing card's project or key needs `replace: true` and names old and new.
+3. Hub: post check in `handle_channel_post` for `sidecar.msg.v1` / `sidecar.stage.v1` on `inbox:*`, behind
+   `off|log|enforce` (default `off`; changes admin-logged; shown in `hub.status`). `from_agent` validated as a plain
+   name; refusals `CHANNEL_NO_KEY_CARD` (FCW-135) and `CHANNEL_KEY_CARD_MISMATCH` (FCW-133), admin rows coalesced per
+   (claimed agent, poster key, minute); per-claimed-agent refusal counts in `hub.status`.
+4. CLI: `termlink hub key-card put|get|list` and `termlink hub key-card-check off|log|enforce` for runme.
+5. Sidecar: named roster `{agent: key}`; `from_agent` must be a plain name and, when named in the roster, signed by
+   that key (FCW-98); unnamed legacy entries accepted and counted "unbound"; admits only the two arc-011 types; reads
+   its own refusal count from `hub.status` and raises "posts claiming to be you were refused" (coalesced per day).
+6. Tests: E-169 card cases on the fake (no card; corrupt store; admin row unwritable on put); E-69 post half on a
+   throwaway real hub (`fx-a` signed with `fx-b`'s key; hub secret only; no card; Q's agent claiming P's name; a
+   traversal name) at the hub and, with the hub check off, at the receiver; put accepted and logged; replace without
+   `replace: true` refused. Mutants: `fc-01-verify-accepts-any-signature`, one per refusal, the name check, the
+   receiver type filter, the lock-free read, the unreadable-store-as-empty.
+7. No runme action in this slice: publishing cards and moving the setting are P-31 (T-3713).
