@@ -4,12 +4,12 @@ name: "Re-vendor AEF be.52 -> be.54 (T-5170 alias hint, T-5180 operator widening
 description: >
   Re-vendor AEF be.52 -> be.54 (T-5170 alias hint, T-5180 operator widening) via runme 11a
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-16T23:41:16Z
-last_update: 2026-11-17T09:05:42Z
-date_finished: null
+last_update: 2026-11-17T09:14:34Z
+date_finished: 2026-11-17T09:14:34Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -68,8 +68,8 @@ date_finished: null
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] The be.54 tag's commit and ancestry are confirmed before anything is built on it (c6c0a6738; be.52 ancestor; T-5180 present)
 - [x] Preserved files changed be.52 -> be.54 are merged and stored with a manifest, or none changed; runme 11a targets be.54 with marker T-5180 in lib/human_ac_ticks.py; runme fixtures pass (none changed; fixtures 392/0)
-- [ ] After the operator's run: VERSION at be.54 (g c6c0a6738), `human_ac_ticks.py delegation widen --help` answers, runme log rc=0
-- [ ] Field verdict for T-5170 and T-5180 (as far as testable before the widen) sent to AEF
+- [x] After the operator's run: VERSION at be.54 (g c6c0a6738), `human_ac_ticks.py delegation widen --help` answers, runme log rc=0 (runme-20261117T090743Z-3609132 rc=0: 11a commit 6de8bff9b pushed, 2 merged files, 12 preserved byte-identical; action 30 widening SD-ab145e8e active to 2027-02-15. First run 08:50Z refused 11a before changing anything: reused T-3802 merge set, fixed in 1c061cb5e)
+- [x] Field verdict for T-5170 and T-5180 (as far as testable before the widen) sent to AEF (msg bb92576a: T-5170 WORKS, widen WORKS as operator act; reviewer-green tick path follows after the first widened close)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -382,3 +382,16 @@ python3 .agentic-framework/lib/human_ac_ticks.py delegation widen --help > .cont
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3812-re-vendor-aef-be52---be54-t-5170-alias-h.md
 - **Context:** Initial task creation
+
+### 2026-11-17T09:14:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e5b4e19d
+- **Timestamp:** 2026-11-17T09:14:35Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

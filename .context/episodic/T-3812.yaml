@@ -1,0 +1,173 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3812: Re-vendor AEF be.52 -> be.54 (T-5170 alias hint, T-5180 operator widening) via runme 11a
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-17T09:14:47Z
+# ============================================================================
+
+task_id: T-3812
+task_name: "Re-vendor AEF be.52 -> be.54 (T-5170 alias hint, T-5180 operator widening) via runme 11a"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-16T23:41:16Z
+completed: 2026-11-17T09:14:34Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-11-17T01:23:30+01:00
+last_commit: 2026-11-17T10:11:13+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme 11a retargeted be.52 -> be.54 (T-5180 operator widening, T-5170); no preserved file changed, T-3802 merges reused; fixtures 392/0. runme action 30 — operator widening of act-in-the-world for T-1632/T-2258/T-3685 under ruling T-3800, expires 2027-02-15 (ruling A); refuses under CLAUDECODE/AI_AGENT, verified by delegation list; fixtures 401/0. runme 11a uses a T-3812 merge set (ours = vendored T-3802 merge, theirs = be.54 == be.52, merged = ours); the 08:50Z operator run refused the reused T-3802 set before changing anything. fw upgrade -> v1.8.16-be.54 (c6c0a6738, 141 commits; T-5180; runme 11a)
+
+# Key outcomes
+outcomes:
+  - 'The be.54 tag''s commit and ancestry are confirmed before anything is built on it (c6c0a6738; be.52 ancestor; T-5180 present)'
+  - 'Preserved files changed be.52 -> be.54 are merged and stored with a manifest, or none changed; runme 11a targets be.54 with marker T-5180 in lib/human_ac_ticks.py; runme fixtures pass (none changed; fixtures 392/0)'
+  - 'After the operator''s run: VERSION at be.54 (g c6c0a6738), `human_ac_ticks.py delegation widen --help` answers, runme log rc=0 (runme-20261117T090743Z-3609132 rc=0: 11a commit 6de8bff9b pushed, 2 merged files, 12 preserved byte-identical; action 30 widening SD-ab145e8e active to 2027-02-15. First run 08:50Z refused 11a before changing anything: reused T-3802 merge set, fixed in 1c061cb5e)'
+  - 'Field verdict for T-5170 and T-5180 (as far as testable before the widen) sent to AEF (msg bb92576a: T-5170 WORKS, widen WORKS as operator act; reviewer-green tick path follows after the first widened close)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 30 — operator widening of act-in-the-world for T-1632/T-2258/T-3685 under ruling T-3800, expires 2027-02-15 (ruling A); refuses under CLAUDECODE/AI_AGENT, verified by delegation list; fixtures 401/0'
+    source: git-mined
+  - description: 'runme 11a retargeted be.52 -> be.54 (T-5180 operator widening, T-5170); no preserved file changed, T-3802 merges reused; fixtures 392/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-17 — How long the T-3800 widening for T-1632/T-2258/T-3685 lasts: A, 90 days (operator ruling)'
+    chose: 'A — expires 2027-02-15; scope `--tasks T-1632,T-2258,T-3685` only; `--text` the T-3800 ruling verbatim; pattern matching exactly the three open criterion titles. Runme action 30, run by the operator from their own terminal after action 11a vendors be.54.'
+    rationale: 'the three-task scope already limits most; 90 days covers T-1632''s .122 deploy without a standing open-ended grant.'
+    alternatives_rejected: ['B (one year, the maximum: a grant nobody revisits); C (14 days: lapses if the .122 deploy or a review round slips). - **Left open:** each close still needs measured evidence under the criterion plus a reviewer green (`fw reviewer judge`).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/context/lib/episodic.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/agents/ux-review/ux_shots.py'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/generated/components/lib-large_file_limit.md'
+  - '.agentic-framework/docs/generated/components/lib-reviewer-probe_vision.md'
+  - '.agentic-framework/docs/generated/components/tests-playwright-arc_corpus.md'
+  - '.agentic-framework/docs/generated/components/tests-playwright-arc_fixture.md'
+  - '.agentic-framework/docs/generated/components/tests-playwright-test_api_fabric_source.md'
+  - '.agentic-framework/docs/generated/components/tests-playwright-test_arc_badge.md'
+  - '.agentic-framework/docs/generated/components/tests-playwright-test_arc_close_recommendation_panel.md'
+  - '.agentic-framework/docs/generated/components/tests-playwright-test_landing_arc_cards.md'
+  - '.agentic-framework/docs/generated/components/tests-playwright-test_t5145_task_filter_selects.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-t4943_capture_every_required_page_test.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5148_inbox_aliases.md'
+  - '.agentic-framework/docs/generated/components/tests-unit-test_t5150_nickname_refused.md'
+  - '.agentic-framework/docs/generated/components/tests-web-test_t5140_site_nav_on_every_page.md'
+  - '.agentic-framework/docs/generated/components/tests-web-test_t5146_nav_full_load.md'
+  - '.agentic-framework/docs/generated/components/tests-web-test_t5147_readiness_stale_while_refresh.md'
+  - '.agentic-framework/docs/reports/EWCR/T-5144-r7-sd1-reconciliation.md'
+  - '.agentic-framework/docs/reports/T-4944-harness-seat-vision.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.16-results.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/MANIFEST.yaml'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/README.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/accepted-scenarios.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/attempt.schema.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/deadline-event.schema.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/evidence-and-idempotency.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/evidence-reference.schema.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples/attempt.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples/deadline-event.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples/evidence-reference-superseding.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples/evidence-reference.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples/instance-human-script-human.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples/instance.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples/procedure-human-script-human.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples/procedure.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples/refusal-privilege-exceeds-profile.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples/refusal-task-cancelled-during-attempt.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples/refusal.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples/transition-envelope.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/instance.schema.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/procedure.schema.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/refusal-threat-matrix.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/refusal.schema.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/task-lifecycle-contract.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/traceability.yaml'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/transition-envelope.schema.json'
+  - '.agentic-framework/lib/accepted_miss.py'
+  - '.agentic-framework/lib/arc_membership.py'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/delegation_widening.py'
+  - '.agentic-framework/lib/human_ac_ticks.py'
+  - '.agentic-framework/lib/inception.sh'
+  - '.agentic-framework/lib/issues.py'
+  - '.agentic-framework/lib/large_file_limit.py'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/reviewer/probe_vision.py'
+  - '.agentic-framework/lib/shell_write_scan.py'
+  - '.agentic-framework/lib/sidecar/addressing.py'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/policy/designer-pin.yaml'
+  - '.agentic-framework/policy/review-backends.yaml'
+  - '.agentic-framework/tools/ewcr-contracts-check.py'
+  - '.agentic-framework/tools/ewcr-trace-check.py'
+  - '.agentic-framework/vendor/designer/aef-workflow-designer-0.43.0.html'
+  - '.agentic-framework/vendor/designer/validate-workflow-0.43.0.py'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.agentic-framework/web/blueprints/tasks.py'
+  - '.agentic-framework/web/shared.py'
+  - '.context/project/unacted-mail-handled.txt'
+  - '.context/vendor-merges/T-3812/MANIFEST.tsv'
+  - '.context/vendor-merges/T-3812/lib/sidecar_cli.py.merged'
+  - '.context/vendor-merges/T-3812/web/blueprints/discovery.py.merged'
+  - '.framework.yaml'
+  - '.tasks/active/T-3806-turn-on-per-project-tmux-servers-etcterm.md'
+  - '.tasks/active/T-3812-re-vendor-aef-be52---be54-t-5170-alias-h.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-17T01:23:30'
+    action: 'T-3812: runme 11a retargeted be.52 -> be.54 (T-5180 operator widening, T-5170); no preserved file changed, T-3802 merges reused; fixtures 392/0'
+  - time: '2026-11-17T02:23:25'
+    action: 'T-3812: runme action 30 — operator widening of act-in-the-world for T-1632/T-2258/T-3685 under ruling T-3800, expires 2027-02-15 (ruling A); refuses under CLAUDECODE/AI_AGENT, verified by delegation list; fixtures 401/0'
+  - time: '2026-11-17T10:05:42'
+    action: 'T-3812: runme 11a uses a T-3812 merge set (ours = vendored T-3802 merge, theirs = be.54 == be.52, merged = ours); the 08:50Z operator run refused the reused T-3802 set before changing anything'
+  - time: '2026-11-17T10:11:13'
+    action: 'T-3812: fw upgrade -> v1.8.16-be.54 (c6c0a6738, 141 commits; T-5180; runme 11a)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 573 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 573
+  commits: 5
+  files_changed: 86
+  lines_added: 9300
+  lines_removed: 186
+  footprint_refreshed_at: '2026-11-17T09:14:55Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3812-re-vendor-aef-be52---be54-t-5170-alias-h.md
+generated_by: context-agent-hybrid
