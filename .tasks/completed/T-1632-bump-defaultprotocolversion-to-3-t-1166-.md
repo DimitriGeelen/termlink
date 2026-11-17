@@ -11,13 +11,13 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: [T-1166, protocol, cut-followup]
 components: [crates/termlink-hub/src/router.rs]
 related_tasks: [T-1166]
 created: 2026-05-12T21:55:18Z
-last_update: 2026-11-15T22:35:59Z
+last_update: 2026-11-17T14:05:23Z
 date_finished: 2026-11-15T22:35:59Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:36Z'
@@ -60,6 +60,7 @@ cost_estimate_proposed:
     rationale: blast_radius=5 (4-file-refs-derived-T-3189); tier=2 
       (workflow:build); effort=8 (lines=221,acs=9)
     rubric_sha: e4a00f38e801
+date_finalised: 2026-11-17T14:05:23Z
 ---
 
 # T-1632: Bump default_protocol_version() to 3 (T-1166 AC #6 follow-up)
@@ -90,7 +91,7 @@ Rejected alternatives:
 - [x] No client-side reader of `protocol_version` breaks (verified via grep — no consumers exist today)
 
 ### Human
-- [ ] [REVIEW] On next .122 deploy (after T-1166 bake clears), `hub.capabilities` returns `control_plane_version: 3` alongside `protocol_version: 1`.
+- [x] [REVIEW] On next .122 deploy (after T-1166 bake clears), `hub.capabilities` returns `control_plane_version: 3` alongside `protocol_version: 1`.
   **Steps:**
   1. After deploying the new build to .122: `termlink remote call --hub 192.168.10.122:9100 --method hub.capabilities`
   2. Inspect the JSON `result` field
@@ -102,6 +103,7 @@ Rejected alternatives:
   hub.version: "protocol_version": 1, "control_plane_version": 3, "hub_id": "22c19fedafd73da2"
   ```
   Both fields present with the expected values.
+  **Reviewer verdict:** green V-20261117-946a879a — reviewer-judge-t-1632-r5-opencode-799f72af75a6:opencode (rung rung-5-panel:opencode), digest cfe12598b86a; dispatch judge-t-1632-r5-opencode-799f72af75a6; widened by SD-ab145e8e (ruling T-3800); evidence: .context/reviews/evidence/T-1632/AC1-judge-t-1632-r5-opencode-799f72af75a6.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 

@@ -1,0 +1,110 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1632: Bump default_protocol_version() to 3 (T-1166 AC #6 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-17T14:06:06Z
+# ============================================================================
+
+task_id: T-1632
+task_name: "Bump default_protocol_version() to 3 (T-1166 AC #6 follow-up)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-05-12T21:55:18Z
+completed: 2026-11-15T22:35:59Z
+duration_days: 187
+updates_count: 10
+first_commit: 2026-05-13T00:15:17+02:00
+last_commit: 2026-11-17T15:04:13+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  emit control_plane_version on hub.capabilities + hub.version. tick 8/8 Agent ACs — implementation verified locally. fresh 0.9.2125 binary built — deploy-ready evidence. .122 deploy complete — control_plane_version=3 live on the wire. .121 ring20-dashboard deploy complete — fleet rollout at 2/2. Human REVIEW evidence captured — live hub.capabilities probe of .122 shows control_plane_version=3, protocol_version=1 (post-T-1903 deploy). reviewer verdict. reviewer verdict (codex seat codex, recorded by the runtime). reviewer verdict (opencode seat opencode, recorded by the runtime)
+
+# Key outcomes
+outcomes:
+  - '`hub.capabilities` response includes `control_plane_version: 3` field (sourced from `termlink_protocol::CONTROL_PLANE_VERSION`) — router.rs:1033 (commit e89ecb47)'
+  - '`hub.version` response includes `control_plane_version: 3` field (same source) — router.rs:895 (commit e89ecb47)'
+  - '`protocol_version` field still emits `DATA_PLANE_VERSION` (= 1) — no semantic change to the existing field'
+  - 'Test `hub_version_returns_binary_version_and_protocol_version` updated to assert `control_plane_version` is present and equals `CONTROL_PLANE_VERSION` — passes'
+  - 'Cut-path test for `hub.capabilities` (post-cut variant) asserts `control_plane_version` field — `cut_path::capabilities_emits_control_plane_version` passes under `--features legacy_primitives_disabled` (6 cut_path tests pass)'
+  - '`cargo test -p termlink-hub --lib` passes — `hub_version_returns_binary_version_and_protocol_version` 1 passed; `hub_capabilities` 1 passed + 2 ignored (pre-cut tests, expected per T-1415)'
+  - '`cargo check --workspace` passes — clean (1 pre-existing unrelated warning in termlink-mcp)'
+  - 'No client-side reader of `protocol_version` breaks (verified via grep — no consumers exist today)'
+  - '[REVIEW] On next .122 deploy (after T-1166 bake clears), `hub.capabilities` returns `control_plane_version: 3` alongside `protocol_version: 1`.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/evidence/T-1632/AC1-judge-t-1632-r5-claude-code-859fdaa2219d.md'
+  - '.context/reviews/evidence/T-1632/AC1-judge-t-1632-r5-codex-0153dc9fc10d.md'
+  - '.context/reviews/evidence/T-1632/AC1-judge-t-1632-r5-opencode-799f72af75a6.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-1632-bump-defaultprotocolversion-to-3-t-1166-.md'
+  - '.tasks/completed/T-1640-fix-pgrep-self-match-in-hub-binary-swaps.md'
+  - 'crates/termlink-hub/src/router.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-13T00:15:17'
+    action: 'T-1632: emit control_plane_version on hub.capabilities + hub.version'
+  - time: '2026-05-13T00:15:40'
+    action: 'T-1632: tick 8/8 Agent ACs — implementation verified locally'
+  - time: '2026-05-15T21:55:48'
+    action: 'T-1632: fresh 0.9.2125 binary built — deploy-ready evidence'
+  - time: '2026-05-15T22:12:01'
+    action: 'T-1632: .122 deploy complete — control_plane_version=3 live on the wire'
+  - time: '2026-05-15T22:46:27'
+    action: 'T-1632: .121 ring20-dashboard deploy complete — fleet rollout at 2/2'
+  - time: '2026-06-01T01:21:28'
+    action: 'T-1632: Human REVIEW evidence captured — live hub.capabilities probe of .122 shows control_plane_version=3, protocol_version=1 (post-T-1903 deploy)'
+  - time: '2026-11-17T15:00:17'
+    action: 'T-1632: reviewer verdict'
+  - time: '2026-11-17T15:01:33'
+    action: 'T-1632: reviewer verdict (codex seat codex, recorded by the runtime)'
+  - time: '2026-11-17T15:04:13'
+    action: 'T-1632: reviewer verdict (opencode seat opencode, recorded by the runtime)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 9 commit(s), 269320 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1166, protocol, cut-followup]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 269320
+  commits: 10
+  files_changed: 13
+  lines_added: 379
+  lines_removed: 43
+  footprint_refreshed_at: '2026-11-17T14:06:09Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1632-bump-defaultprotocolversion-to-3-t-1166-.md
+generated_by: context-agent-hybrid
