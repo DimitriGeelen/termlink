@@ -4162,7 +4162,8 @@ widen_t3800
 seam TMUXPP_FILE RUNME_TMUXPP_FILE "/etc/termlink/tmux-per-project"
 # T-3816 operator ruling A (2026-11-17, "Okay, then do as recommend"): OFF until 055's cockpit finds claude-fw keepers
 # on tl-* servers (their slice 2); then back to "on" by the same one-line change.
-seam TMUXPP_STATE RUNME_TMUXPP_STATE "off"
+# T-3817: 055 T-736 LIVE (msg 473e2ab3, ~23:48 CET 2026-11-17): back to "on" under that ruling.
+seam TMUXPP_STATE RUNME_TMUXPP_STATE "on"
 
 tmux_per_project_off() {
     if [ ! -e "$TMUXPP_FILE" ]; then

@@ -2,12 +2,15 @@
 id: T-3817
 name: "Switch per-project tmux servers ON again once 055 cockpit slice 2 is live"
 description: >
-  055 (T-736) makes its cockpit find claude-fw keepers on metadata.tmux_server; when they report it live on sev1-tmux-env-leak-2026-10-22, set runme action 31 TMUXPP_STATE back to on (T-3816 ruling A), operator runs runme, joint check with a restarted fleet agent.
+  055 (T-736) makes its cockpit find claude-fw keepers on metadata.tmux_server; when
+  they report it live on sev1-tmux-env-leak-2026-10-22, set runme action 31 TMUXPP_STATE
+  back to on (T-3816 ruling A), operator runs runme, joint check with a restarted
+  fleet agent.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-17T18:22:21Z
-last_update: 2026-11-17T18:22:21Z
-date_finished: null
+last_update: 2026-11-17T22:50:25Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +53,34 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-17T22:49:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3817: Switch per-project tmux servers ON again once 055 cockpit slice 2 is live
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-3816 switched per-project tmux servers off (operator ruling A 2026-11-17: "back on with the same action, state on, after 055's slice 2 is live"). 055 reported T-736 LIVE (msg 473e2ab3, deployed ~23:48 CET): the cockpit finds claude-fw keepers on their own tl-* server; opening, typing and Stop work there; 39 per-project scenarios green; independent review PASS.
+**Problem / hypothesis:** the reason for switching off is gone; the switch can go back on.
+**Goal:** runme action 31 declared state back to on; operator runs it; joint check with 055 (one fleet agent via claude-fw --termlink, keeper on a tl-* server, opened, typed into, stopped from the cockpit).
+**Expected outcome:** /etc/termlink/tmux-per-project present; new keepers land on per-project servers and the cockpit reaches them.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] runme action 31 declared state set to on (citing T-3816 ruling A and 055 msg 473e2ab3); after the operator's run the file is present (log OK, rc=0)
+- [ ] 055 told; joint check done (one claude-fw --termlink agent's keeper on a tl-* server, opened, typed into and stopped from the cockpit); 055's answer recorded here
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +381,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3817-switch-per-project-tmux-servers-on-again.md
 - **Context:** Initial task creation
+
+### 2026-11-17T22:49:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
