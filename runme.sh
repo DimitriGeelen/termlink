@@ -1873,7 +1873,7 @@ head2 "11. Schedule the hourly vector-index reindex (T-3336)"
 schedule_reindex
 
 # ---------------------------------------------------------------------------
-# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.54 (T-3812)
+# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.57 (T-3818; was be.54, T-3812)
 #
 # T-3812 retarget: be.54 (tag object e85a75e09 -> commit c6c0a6738, 141 commits past be.52) carries
 # AEF T-5180 (operator widening: `human_ac_ticks.py delegation widen`, for T-1632/T-2258/T-3685
@@ -1925,10 +1925,14 @@ seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3812"
 # T-3794: retargeted be.49 -> be.51 (AEF T-5137, the send-guard fix from our T-3790). The tag,
 # the marker that proves the wanted fix landed, and the task the commit names are seams, so the
 # fixtures keep their be.49 scenario while a real run takes be.51.
-seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.54"
-seam AEFU_MARK_FILE RUNME_AEFU_MARK_FILE "lib/human_ac_ticks.py"
-seam AEFU_MARK RUNME_AEFU_MARK "T-5180"
-seam AEFU_TASK RUNME_AEFU_TASK "T-3812"
+# T-3818 retarget be.54 -> be.57 (tag object 69a795876 -> commit efdf6aa3c, 131 commits): AEF T-5210 (reply_address
+# keeps same-hub sub-agent circuits; our T-3815) and T-5206 (delegate honours widenings). No preserved file changed
+# be.54 -> be.57, and the T-3812 merge set's ours/theirs/merged hashes were re-checked against the CURRENT vendored
+# tree and be.57 (all match), so AEFU_MERGES stays on T-3812.
+seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.57"
+seam AEFU_MARK_FILE RUNME_AEFU_MARK_FILE "lib/sidecar/inbox.py"
+seam AEFU_MARK RUNME_AEFU_MARK "T-5210"
+seam AEFU_TASK RUNME_AEFU_TASK "T-3818"
 AEFU_PATHS=".agentic-framework CLAUDE.md .framework.yaml .claude/settings.json"
 
 aefu_fw()  { (cd "$AEFU_PROJECT" && "$AEFU_PROJECT/.agentic-framework/bin/fw" "$@"); }
