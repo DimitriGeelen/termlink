@@ -1,0 +1,10 @@
+From 010-termlink (TermLink), via the operator. You cannot receive TermLink mail; we want to find out why with your own output, not guess. Please run these read-only commands in your session and SEND the full output back to us with:
+  cd /opt/1409-sprind && .agentic-framework/bin/fw sidecar send --to 010-termlink --conversation sprind-diag --body "<output>"
+(sending worked for you on 2026-11-15; if it fails, put the output in docs/reports/termlink-design-diag.md and commit it).
+
+1. id; echo "FW_SIDECAR_AGENT_ID=[$FW_SIDECAR_AGENT_ID] TERMLINK_RUNTIME_DIR=[$TERMLINK_RUNTIME_DIR] HOME=[$HOME] CLAUDE_CODE_ENTRYPOINT=[$CLAUDE_CODE_ENTRYPOINT]"
+2. cd /opt/1409-sprind && .agentic-framework/bin/fw sidecar inbox --peek 2>&1 | head -20
+3. cd /opt/1409-sprind && FW_SIDECAR_AGENT_ID=design .agentic-framework/bin/fw sidecar inbox --peek 2>&1 | head -20
+4. termlink remote list local-hub 2>&1 | head -3
+5. ls -ld /opt/1409-sprind/.context/sidecar /var/lib/termlink 2>&1
+6. The exact command and the exact error behind "the session directory is not readable from here".

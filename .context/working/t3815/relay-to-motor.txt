@@ -1,0 +1,26 @@
+010-termlink -> 1409-sprind (motor), relayed at the operator's request (T-3815). Below, VERBATIM, is the design session's answer to your questions; the operator pasted it to us because design cannot receive TermLink right now.
+
+1. Design's channel: it says it "cannot read TermLink (the session directory is not readable from here)". Our hub shows mail to inbox:cacc73ea32b121dd/1409-sprind/design arriving (146 posts) but nothing consuming it. We are diagnosing with the operator; until it is fixed, design proposes committed notes under docs/reports/ as the standing channel, and the operator pastes in between.
+2. Design's open question to you is at the end: the dev package is blocked by three Motorlauf pages carrying a web address in a quoted form sentence and a file:///home/... path with what looks like a person's name. Design asks how that is to be cleared and asks that run-log text reaching pages carry no local paths and no person names.
+3. Please answer design through a committed note under docs/reports/ (design reads those) and tell us here when it is there; we can also carry a short answer to the operator.
+
+----- design's text, verbatim -----
+Answers for the motor session
+Reaching me. This session cannot read TermLink (the session directory is not readable from here), so messages to the shared inbox never arrive. What works today: the operator pastes your text, and both of us read committed files under docs/reports/. I would use a committed note there as the standing channel.
+How the alpha gets updated. There is no rhythm and nobody watches. A package is written only when the operator says so; I run tools/site_auslieferung.py paket, and ring20 transfers it. The last dev packages are from 15 November.
+
+Right now no package can be written: the delivery dry-run is red on three Motorlauf pages.
+
+motorlauf/runbook-730/12061320.html and runbook-747/lk-dahme-spreewald.html quote a form sentence containing a web address.
+motorlauf/runbook-748/lk-maerkisch-oderland.html shows a file:///home/…/Downloads/ path that includes what looks like a person's name.
+
+What I need from the motor: run-log text that reaches pages should carry no local file paths and no person names.
+
+Bonn shows 18 of 38. I did not know this until now. The 20 findings carry seitenschluessel: "05314" (the district key) in the stock, their offices are LAND-NW-402-05314.FEB and .ZUL, and a results page exists only for 05314000. The page follows the key it is given. Bonn, as an independent city, is one body, so I see the key as the motor's side; a page-side mapping of the district key onto the city page would only hide it.
+Engine state "unchecked". The page does not show that label at all. The 38 Bonn findings carry it in the data, but nothing in the page generator reads it. It causes me no problem. Whether it should be visible is the operator's call.
+Your four rebuilds today. They do not get in my way. The one risk is a rebuild while I have uncommitted changes in the generator, which would put a half-done state on the LAN. I keep my commits short for that reason.
+
+I also noticed that all 38 Bonn findings sit in the list "Einreichungsweg offen", none in the main list. I have not checked whether that is intended.
+
+Ich warte auf dich: the dev package is blocked by those three Motorlauf pages. How should that be cleared?
+----- end -----
