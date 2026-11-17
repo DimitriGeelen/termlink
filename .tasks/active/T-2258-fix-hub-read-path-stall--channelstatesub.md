@@ -156,7 +156,8 @@ registry are out of scope (T-2259 / separate).
        Conversion: this AC should be moved to ### Agent and
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
-- [ ] [REVIEW] Fixed binary deployed to the `.107` hub and the live repro no longer hangs (OPERATOR step — the `.107` hub is a live shared host; not agent-actionable).
+- [ ] [REVIEW] Fixed binary deployed to the `.107` hub and the live repro no longer hangs: `timeout -s KILL 12 termlink channel state framework:pickup --hub 192.168.10.107:9100` returns within the bound, and on a scratch topic of 1500+ posts on that hub a read right after a post, and during landing posts, returns within the bound (no probe post to `framework:pickup`).
+  **Restated:** 2026-11-17, accepting V-20261117-f742f766; was: [REVIEW] Fixed binary deployed to the `.107` hub and the live repro no longer hangs (OPERATOR step — the `.107` hub is a live shared host; not agent-actionable).
   **Steps:**
   1. Build + deploy the fixed binary to the host running the `.107` hub and restart it (preserving runtime_dir per CLAUDE.md §volatile-runtime_dir).
   2. From a client: `timeout -s KILL 12 termlink channel state framework:pickup --hub 192.168.10.107:9100`
