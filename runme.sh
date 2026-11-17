@@ -988,7 +988,10 @@ w1_set_main_project() {
         live="$(w1_live_lease "$a")"; state="${live%%|*}"; proj="${live#*|}"; why="${proj#*|}"; proj="${proj%%|*}"
         if w1_env_has_project "$env"; then
             case "$state" in
-                held|vacant) say "  skip    $a: project $W1_MAIN_PROJECT set and status reports main.lease.state=$state"; SKIPPED=$((SKIPPED+1)); continue ;;
+                # T-3818: all four lease states the sidecar defines (lease.rs:99, B-25) prove the lease is READ, which is
+                # what this action checks. "lapsed" only means the main session has been idle past its renewal window
+                # (seen 2026-11-17 19:17Z while the main session waited on the operator); it renews on the next activity.
+                held|vacant|lapsed|provisional) say "  skip    $a: project $W1_MAIN_PROJECT set and status reports main.lease.state=$state"; SKIPPED=$((SKIPPED+1)); continue ;;
             esac
             if [ -n "$proj" ]; then
                 say "  FAILED  $a: project $proj set but main.lease.state=$state ($why); not restarted, a restart would not fix that"; FAILED=$((FAILED+1)); continue
@@ -1013,13 +1016,13 @@ w1_set_main_project() {
         # The lease reader's first read lands within one interval (15 s); allow two.
         for i in $(seq 1 30); do
             live="$(w1_live_lease "$a")"; state="${live%%|*}"
-            case "$state" in held|vacant) break ;; esac
+            case "$state" in held|vacant|lapsed|provisional) break ;; esac
             nap 1
         done
         why="${live#*|}"; why="${why#*|}"
         case "$state" in
-            held|vacant) say "  OK      $a: TERMLINK_MAIN_PROJECT=$W1_MAIN_PROJECT; $unit restarted (pid $W1_PID); main.lease.state=$state"; DONE=$((DONE+1)) ;;
-            *) say "  FAILED  $a: after restart main.lease.state=$state${why:+ ($why)}, not held or vacant"; FAILED=$((FAILED+1)) ;;
+            held|vacant|lapsed|provisional) say "  OK      $a: TERMLINK_MAIN_PROJECT=$W1_MAIN_PROJECT; $unit restarted (pid $W1_PID); main.lease.state=$state"; DONE=$((DONE+1)) ;;
+            *) say "  FAILED  $a: after restart main.lease.state=$state${why:+ ($why)}, not a lease state (held, vacant, lapsed, provisional)"; FAILED=$((FAILED+1)) ;;
         esac
     done
 }

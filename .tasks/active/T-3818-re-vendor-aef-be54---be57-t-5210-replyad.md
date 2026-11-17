@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-17T18:23:57Z
-last_update: 2026-11-17T18:46:51Z
+last_update: 2026-11-17T20:28:40Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -66,8 +66,8 @@ date_finished: null
 ### Agent
 - [x] be.57 tag commit and ancestry confirmed (be.54 c6c0a6738 is an ancestor) and T-5210 / T-5206 present before anything is built on it (tag 69a795876 -> efdf6aa3c, 131 commits; 9a06fb409/efdf6aa3c T-5210, 9e6c30fac/802e5da8f T-5206)
 - [x] Merge set for be.57 stored with a manifest whose "ours" hashes equal the CURRENT vendored files (the T-3812 lesson); runme 11a targets be.57; runme dry-run shows 11a would install; fixtures pass (no preserved file changed be.54->be.57; T-3812 set re-checked: ours/theirs(be.57)/merged all MATCH, so reused; dry-run "would upgrade ... install 2 merged preserved files"; fixtures 409/0)
-- [ ] After the operator's run: VERSION at be.57, runme log rc=0
-- [ ] Field verdict to AEF: T-5210 (reply line for a design message names its circuit) and T-5206 (delegate dry-run on a widened task)
+- [ ] After the operator's run: VERSION at be.57, runme log rc=0 (runme-20261117T191719Z: 11a OK, commit 603bc12d8 pushed, VERSION 1.8.15+1761.gefdf6aa3c; rc=1 only from action 4d reading a LAPSED main lease as a failure, fixed in this task: all four lease states accepted; re-run pending)
+- [x] Field verdict to AEF: T-5210 (reply line for a design message names its circuit) and T-5206 (delegate dry-run on a widened task) (both WORKS, plus T-5180 close leg; msg sent 2026-11-17)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

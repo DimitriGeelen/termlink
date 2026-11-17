@@ -3150,9 +3150,16 @@ if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  u-main: project 010-termlink s
    && [ ! -e "$W1R/restarts" ]; then
     ok "T-3654: project set but lease unknown for another reason => FAILED, rc 1, no restart"
 else bad "T-3654 hub-down" "rc=$rc: $x"; fi
+# T-3818: a lapsed lease (main session idle past its renewal window) is a READ lease: skip, no restart.
+w1_reset4d; w1_env u-main "TERMLINK_MAIN_PROJECT=010-termlink"; echo "lapsed|010-termlink|" > "$W1R/lease.u-main"
+out=$(RUNME_W1_UNITS="u-main" run); rc=$?; x=$(s4d "$out")
+if [ "$rc" = 0 ] && echo "$x" | grep_all 'skip    u-main: project 010-termlink set and status reports main.lease.state=lapsed' \
+   && [ ! -e "$W1R/restarts" ]; then
+    ok "T-3818: project set and lease lapsed => skip (the lease is read), rc 0, no restart"
+else bad "T-3818 lapsed" "rc=$rc: $x"; fi
 w1_reset4d
 out=$(FAKE_W1_LEASE_STATE=unknown FAKE_W1_LEASE_WHY="not read yet" RUNME_W1_UNITS="u-main" run); rc=$?; x=$(s4d "$out")
-if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  u-main: after restart main.lease.state=unknown (not read yet), not held or vacant'; then
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  u-main: after restart main.lease.state=unknown (not read yet), not a lease state (held, vacant, lapsed, provisional)'; then
     ok "T-3654: lease still unknown after restart => FAILED, rc 1"
 else bad "T-3654 verify-miss" "rc=$rc: $x"; fi
 w1_reset4d; w1_env u-main "TERMLINK_MAIN_PROJECT=other-project"
