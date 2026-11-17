@@ -10,8 +10,8 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
 components: [crates/termlink-hub/src/channel.rs]
 related_tasks: []
@@ -20,7 +20,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-23T19:39:50Z
-last_update: 2026-11-15T22:37:36Z
+last_update: 2026-11-17T23:20:58Z
 date_finished: 2026-11-15T22:37:36Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -74,6 +74,7 @@ cost_estimate_proposed:
     rationale: blast_radius=5 (5-file-refs-derived-T-3189); tier=2 
       (workflow:build); effort=8 (lines=306,acs=8)
     rubric_sha: e4a00f38e801
+date_finalised: 2026-11-17T23:20:58Z
 ---
 
 # T-2258: Fix hub read-path stall — channel.state/subscribe deadlock under concurrent write
@@ -156,7 +157,7 @@ registry are out of scope (T-2259 / separate).
        Conversion: this AC should be moved to ### Agent and
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
-- [ ] [REVIEW] Fixed binary deployed to the `.107` hub and the live repro no longer hangs: `timeout -s KILL 12 termlink channel state framework:pickup --hub 192.168.10.107:9100` returns within the bound, and on a scratch topic of 1500+ posts on that hub a read right after a post, and during landing posts, returns within the bound (no probe post to `framework:pickup`).
+- [x] [REVIEW] Fixed binary deployed to the `.107` hub and the live repro no longer hangs: `timeout -s KILL 12 termlink channel state framework:pickup --hub 192.168.10.107:9100` returns within the bound, and on a scratch topic of 1500+ posts on that hub a read right after a post, and during landing posts, returns within the bound (no probe post to `framework:pickup`).
   **Restated:** 2026-11-17, accepting V-20261117-f742f766; was: [REVIEW] Fixed binary deployed to the `.107` hub and the live repro no longer hangs (OPERATOR step — the `.107` hub is a live shared host; not agent-actionable).
   **Steps:**
   1. Build + deploy the fixed binary to the host running the `.107` hub and restart it (preserving runtime_dir per CLAUDE.md §volatile-runtime_dir).
@@ -192,6 +193,7 @@ registry are out of scope (T-2259 / separate).
   Deleted topic 't3814-repro-1794924411' (1521 record(s) removed)
   ```
   The 1521 removed records confirm the topic held 1500 seeds + 1 write + 20 landing posts when it was read.
+  **Reviewer verdict:** green V-20261117-1f015452 — reviewer-judge-t-2258-r5-opencode-c4e0a0c2ad5e:opencode (rung rung-5-panel:opencode), digest 2ce883cab2bd; dispatch judge-t-2258-r5-opencode-c4e0a0c2ad5e; widened by SD-ab145e8e (ruling T-3800); evidence: .context/reviews/evidence/T-2258/AC1-judge-t-2258-r5-opencode-c4e0a0c2ad5e.md; ledger .context/reviews/verdicts.jsonl
 
 ## Verification
 

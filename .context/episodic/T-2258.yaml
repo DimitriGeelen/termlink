@@ -1,0 +1,124 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2258: Fix hub read-path stall — channel.state/subscribe deadlock under concurrent write
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-17T23:24:43Z
+# ============================================================================
+
+task_id: T-2258
+task_name: "Fix hub read-path stall — channel.state/subscribe deadlock under concurrent write"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-06-23T19:39:50Z
+completed: 2026-11-15T22:37:36Z
+duration_days: 145
+updates_count: 7
+first_commit: 2026-06-23T21:41:35+02:00
+last_commit: 2026-11-18T00:20:07+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file hub read-path-deadlock (+T-2259 no-federation-propagation) from ring20 framework:pickup findings. fix hub read-path stall — spawn_blocking for large-topic walks. add ring20 independent repro (framework:pickup off51, via T-2266 sweep) as corroborating evidence + post-deploy verification command. LIVE .107 re-test PASSED — fix active in 0.11.324, field repro + starvation battery all bounded (Human AC evidenced, ready for finalize). reviewer verdict. reviewer verdict (codex seat codex, recorded by the runtime). reviewer verdict (opencode seat opencode, recorded by the runtime)
+
+# Key outcomes
+outcomes:
+  - 'Root cause localized to the specific blocking-walk sites in the read path (`channel.rs:851` subscribe, `:980` receipts), documented in `## RCA` — confirmed by Explore lock-map (no std-guard-across-`.await`, no lock-ordering deadlock); matches the symptom (read hangs under concurrent write, large-topic-only, writes fast).'
+  - 'Regression test `channel_subscribe_no_hang_under_concurrent_walks_t2258` added — K genuinely-concurrent full-topic walks (`Arc<Bus>`) + concurrent writers under a bounded join, closing the sequential-only gap in the T-2013 test. Forward GUARD (passes post-fix; catches a future re-block of the worker pool). HONEST LIMITATION (RCA + Evolution): an in-process handler test cannot reproduce the reactor-starvation hang, so it does NOT fail pre-fix; definitive pre/post confirmation is the operator''s live `.107` re-test (Human AC below).'
+  - 'Fix applied: both large-topic read walks now run on tokio''s blocking pool via `spawn_blocking` (not `block_in_place`), so no full-topic scan pins a worker thread / starves the I/O reactor. (The O(K) gated cv_index walk stays `block_in_place` — small, opt-in, not the field culprit.)'
+  - '`cargo test -p termlink-hub --lib` (368) + `cargo test -p termlink-bus` (79) pass, 0 failures (incl. both starvation tests).'
+  - '`cargo build -p termlink` succeeds (release-buildable fixed binary exists in repo).'
+  - '[REVIEW] Fixed binary deployed to the `.107` hub and the live repro no longer hangs: `timeout -s KILL 12 termlink channel state framework:pickup --hub 192.168.10.107:9100` returns within the bound, and on a scratch topic of 1500+ posts on that hub a read right after a post, and during landing posts, returns within the bound (no probe post to `framework:pickup`).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'LIVE .107 re-test PASSED — fix active in 0.11.324, field repro + starvation battery all bounded (Human AC evidenced, ready for finalize)'
+    source: git-mined
+  - description: 'fix hub read-path stall — spawn_blocking for large-topic walks'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/reviews/applied.jsonl'
+  - '.context/reviews/evidence/T-2258/AC1-judge-t-2258-r5-claude-code-41f10e257f83.md'
+  - '.context/reviews/evidence/T-2258/AC1-judge-t-2258-r5-claude-code-e765982328ca.md'
+  - '.context/reviews/evidence/T-2258/AC1-judge-t-2258-r5-claude-code-f632fe76f3ab.md'
+  - '.context/reviews/evidence/T-2258/AC1-judge-t-2258-r5-claude-code-fee2cdab2130.md'
+  - '.context/reviews/evidence/T-2258/AC1-judge-t-2258-r5-codex-6abb35a7a01b.md'
+  - '.context/reviews/evidence/T-2258/AC1-judge-t-2258-r5-codex-785ec783d53c.md'
+  - '.context/reviews/evidence/T-2258/AC1-judge-t-2258-r5-opencode-1ff344cb6f49.md'
+  - '.context/reviews/evidence/T-2258/AC1-judge-t-2258-r5-opencode-c4e0a0c2ad5e.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/refusals-interim.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.tasks/active/T-2258-fix-hub-read-path-stall--channelstatesub.md'
+  - '.tasks/active/T-2259-propagate-no-federation-by-design-correc.md'
+  - '.tasks/completed/T-2266-fleet-wide-sweep--relay-orphaned-peer-pi.md'
+  - 'crates/termlink-hub/src/channel.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-06-23T21:41:35'
+    action: 'T-2258: file hub read-path-deadlock (+T-2259 no-federation-propagation) from ring20 framework:pickup findings'
+  - time: '2026-06-23T22:11:06'
+    action: 'T-2258: fix hub read-path stall — spawn_blocking for large-topic walks'
+  - time: '2026-06-24T01:51:01'
+    action: 'T-2258: add ring20 independent repro (framework:pickup off51, via T-2266 sweep) as corroborating evidence + post-deploy verification command'
+  - time: '2026-07-05T01:16:09'
+    action: 'T-2258: LIVE .107 re-test PASSED — fix active in 0.11.324, field repro + starvation battery all bounded (Human AC evidenced, ready for finalize)'
+  - time: '2026-11-17T14:57:48'
+    action: 'T-2258: reviewer verdict'
+  - time: '2026-11-17T15:10:06'
+    action: 'T-2258: reviewer verdict'
+  - time: '2026-11-18T00:01:41'
+    action: 'T-2258: reviewer verdict'
+  - time: '2026-11-18T00:11:26'
+    action: 'T-2258: reviewer verdict (codex seat codex, recorded by the runtime)'
+  - time: '2026-11-18T00:15:02'
+    action: 'T-2258: reviewer verdict'
+  - time: '2026-11-18T00:15:53'
+    action: 'T-2258: reviewer verdict (codex seat codex, recorded by the runtime)'
+  - time: '2026-11-18T00:16:14'
+    action: 'T-2258: reviewer verdict (opencode seat opencode, recorded by the runtime)'
+  - time: '2026-11-18T00:20:07'
+    action: 'T-2258: reviewer verdict (opencode seat opencode, recorded by the runtime)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 12 commit(s), 208977 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 208977
+  commits: 13
+  files_changed: 21
+  lines_added: 1087
+  lines_removed: 26
+  footprint_refreshed_at: '2026-11-17T23:24:47Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2258-fix-hub-read-path-stall--channelstatesub.md
+generated_by: context-agent-hybrid
