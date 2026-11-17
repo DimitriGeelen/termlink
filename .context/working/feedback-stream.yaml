@@ -24759,3 +24759,21 @@ scan_id: R-9a46fde6
 task_id: T-3806
 payload:
   task_file: .tasks/active/T-3806-turn-on-per-project-tmux-servers-etcterm.md
+---
+kind: scan_emitted
+timestamp: '2026-11-17T18:22:44Z'
+scan_id: R-a491ed9f
+task_id: T-3816
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-17T18:22:44Z'
+scan_id: R-a491ed9f
+task_id: T-3816
+payload:
+  task_file: .tasks/active/T-3816-switch-per-project-tmux-servers-off-agai.md

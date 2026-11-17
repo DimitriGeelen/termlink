@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3816: Switch per-project tmux servers OFF again until 055 cockpit finds claude-fw keepers on tl-* servers (rollback of T-3806)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-17T18:22:52Z
+# ============================================================================
+
+task_id: T-3816
+task_name: "Switch per-project tmux servers OFF again until 055 cockpit finds claude-fw keepers on tl-* servers (rollback of T-3806)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-17T17:23:14Z
+completed: 2026-11-17T18:22:43Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-17T19:22:41+01:00
+last_commit: 2026-11-17T19:22:41+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 31 drives a declared state (on|off), set off on operator ruling A; switched off 18:14Z; fixtures 409/0; re-enable follow-up T-3817
+
+# Key outcomes
+outcomes:
+  - 'runme action 31 takes a declared state (on|off): absent->create for on, present->remove for off, idempotent, verified on disk; fixtures cover both directions and pass (4 off cases + bad-state case; 409/0; the first two runs failed 265 cases because the new seam was not exported in the fixture setup, which the T-3299 seam guard caught as exit 2)'
+  - 'After the operator''s ruling and run: the file is absent (runme log OK, rc=0), 055 told on sev1-tmux-env-leak-2026-10-22 (runme-20261117T181352Z rc=0: "switched off: ... removed"; 055 msg 75806f5d; 055 confirmed 0e857247: deploy fixture passes again)'
+  - 'Re-enable recorded as the open follow-up (same action, state on, after 055 reports slice 2 live) (T-3817, horizon next)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 31 drives a declared state (on|off), set off on operator ruling A; switched off 18:14Z; fixtures 409/0; re-enable follow-up T-3817'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-17 — Switch per-project tmux servers off again: A (operator ruling)'
+    chose: 'A — remove /etc/termlink/tmux-per-project now via runme action 31 (declared state off); back on with the same action (state on) after 055''s cockpit slice 2 is live.'
+    rationale: 'with the switch on, the next restart of any fleet agent puts its claude-fw keeper on a tl-* server the cockpit does not read, so the cockpit could show and type into the wrapper pane (silent misdirection of agent input), and 055''s deploy fixture is blocked. The October leak stays blocked by construction (T-3550/T-3551); off only removes the second layer added today.'
+    alternatives_rejected: ['B, leave it on until 055''s fix (relies on no fleet restart for days).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3815-1409-design-session-cannot-read-termlink.md'
+  - '.tasks/active/T-3816-switch-per-project-tmux-servers-off-agai.md'
+  - '.tasks/active/T-3817-switch-per-project-tmux-servers-on-again.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-17T19:22:41'
+    action: 'T-3816: runme action 31 drives a declared state (on|off), set off on operator ruling A; switched off 18:14Z; fixtures 409/0; re-enable follow-up T-3817'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 59 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 59
+  commits: 2
+  files_changed: 8
+  lines_added: 916
+  lines_removed: 9
+  footprint_refreshed_at: '2026-11-17T18:22:54Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3816-switch-per-project-tmux-servers-off-agai.md
+generated_by: context-agent-hybrid
