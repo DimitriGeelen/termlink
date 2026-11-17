@@ -16,3 +16,4 @@ inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 24 2026-11-13 ring20 Mac
 inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 25 2026-11-13 ring20 Mac-delivery bug report (escalated), fixed under T-3749/T-3750; ring20 re-test PASSED (local @1771)
 inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 26 2026-11-13 T-3750 live test post, self-addressed, no action
 inbox:22c19fedafd73da2/010-termlink@192.168.10.122:9100 27 2026-11-13 ring20 Mac-delivery third report, fixed under T-3749/T-3750; ring20 re-test PASSED (local @1771)
+dm:8e6fd77ec6f74b37:d1993c2c3ec44c94 21 2026-11-17 1409 'TLS handshake failed' to ring20-management: handled under T-3797 (closed; AEF probe_hub mislabel, posts were delivered on .122; misaddressed 'termlink' inbox)

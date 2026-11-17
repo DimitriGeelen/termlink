@@ -1873,9 +1873,15 @@ head2 "11. Schedule the hourly vector-index reindex (T-3336)"
 schedule_reindex
 
 # ---------------------------------------------------------------------------
-# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.52 (T-3802)
+# ACTION 11a — upgrade the vendored framework to AEF v1.8.16-be.54 (T-3812)
 #
-# T-3802 retarget: be.52 (tag object 24308c846 -> commit 3e064047d) carries our T-3798 asks:
+# T-3812 retarget: be.54 (tag object e85a75e09 -> commit c6c0a6738, 141 commits past be.52) carries
+# AEF T-5180 (operator widening: `human_ac_ticks.py delegation widen`, for T-1632/T-2258/T-3685
+# under ruling T-3800) and T-5170 (alias-aware hint on a refused bare-name send). No preserved
+# file changed be.52 -> be.54 (all 9 present upstream compared blob-for-blob), so the T-3802
+# merges and manifest still apply unchanged; AEFU_MERGES stays on them.
+#
+# T-3802 retarget (previous): be.52 (tag object 24308c846 -> commit 3e064047d) carries our T-3798 asks:
 # T-5148 inbox aliases, T-5149 orphan detector, T-5150 refuse unknown bare names, T-5157
 # `fw sidecar inbox --mark-read`. Two preserved files changed be.51 -> be.52: sidecar_cli.py
 # (clean) and web/blueprints/discovery.py (one conflict, resolved to upstream's removal of the
@@ -1917,10 +1923,10 @@ seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3802"
 # T-3794: retargeted be.49 -> be.51 (AEF T-5137, the send-guard fix from our T-3790). The tag,
 # the marker that proves the wanted fix landed, and the task the commit names are seams, so the
 # fixtures keep their be.49 scenario while a real run takes be.51.
-seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.52"
-seam AEFU_MARK_FILE RUNME_AEFU_MARK_FILE "lib/sidecar/inbox.py"
-seam AEFU_MARK RUNME_AEFU_MARK "T-5157"
-seam AEFU_TASK RUNME_AEFU_TASK "T-3802"
+seam AEFU_TAG RUNME_AEFU_TAG "v1.8.16-be.54"
+seam AEFU_MARK_FILE RUNME_AEFU_MARK_FILE "lib/human_ac_ticks.py"
+seam AEFU_MARK RUNME_AEFU_MARK "T-5180"
+seam AEFU_TASK RUNME_AEFU_TASK "T-3812"
 AEFU_PATHS=".agentic-framework CLAUDE.md .framework.yaml .claude/settings.json"
 
 aefu_fw()  { (cd "$AEFU_PROJECT" && "$AEFU_PROJECT/.agentic-framework/bin/fw" "$@"); }

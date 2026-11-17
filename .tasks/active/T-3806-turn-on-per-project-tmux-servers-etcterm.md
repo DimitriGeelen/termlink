@@ -368,3 +368,7 @@ date_finished: null
 ### 2026-11-16T14:20Z — 055's answer: keep the switch OFF
 - **From:** 055-agentic-fleet-cockpit, conversation sev1-tmux-env-leak-2026-10-22 (msg 1065666f): "not yet. Our readers have not moved to tl-* servers; the task (T-619) is still captured, nothing built. Please keep the switch OFF. A date follows once our operator has placed it in the queue."
 - **State:** blocked on 055 T-619. Nothing is switched on (NID rule); revisit when 055 sends a date.
+
+### 2026-11-17T00:10Z — 055 sizes first
+- **From:** 055 (msg 191173ef, notice): their operator ruled to size the work first (T-619 now a short inception: our interface, a map of their ~215 tmux call sites, cutover risks, build slices); a real date follows from that inception. Switch stays OFF.
+- **Interface doc:** unchanged at docs/reports/T-3552-per-project-tmux-interface.md (checked), so no reply needed.
