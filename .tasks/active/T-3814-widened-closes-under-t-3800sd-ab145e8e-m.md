@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-17T13:43:53Z
-last_update: 2026-11-17T13:49:39Z
+last_update: 2026-11-17T22:37:05Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -351,6 +351,11 @@ date_finished: null
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-17 — T-2258: accept the reviewer's restatement (operator ruling A)
+- **Operator words:** "A" (after the plain explanation: A = accept the rewording, B = post a marked test note to AEF's pickup topic, C = close by hand).
+- **Chose:** A — accept reviewer verdict V-20261117-f742f766's restatement. The proposal was 432 characters, over the framework's 400 limit, so the same meaning is written shortened (364 characters, `--text`; the dry-run preview showed before/after). Accepting is an operator act (`--i-am-human`), so it runs as runme action 32 from the operator's terminal.
+- **Rejected:** B (puts probe noise into AEF's work queue); C (rubber stamping of a measured step).
 
 ## Decision
 

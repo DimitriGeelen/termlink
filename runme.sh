@@ -4209,6 +4209,55 @@ tmux_per_project_on() {
 head2 "31. Per-project tmux servers: declared state '$TMUXPP_STATE' (T-3806 on; T-3816 rollback)"
 tmux_per_project_on
 
+# ---------------------------------------------------------------------------
+# 32. Accept reviewer restatements the operator has ruled on (T-3814; AEF T-4916/T-4930)
+# `fw reviewer restatement accept` is the operator's act: it refuses an agent shell and needs --i-am-human, which this
+# script passes ONLY for the rows below, each a ruling recorded verbatim in its task (never on anyone's behalf for an
+# unruled row). Row: <verdict id>|<task>|<ruling ref>|<criterion wording, at most 400 chars>.
+#   T-2258: operator "A" 2026-11-17 on the brief recommending acceptance (reviewer V-20261117-f742f766 proposed 432
+#   chars, over the 400 limit; the same meaning shortened to 364 chars, the --dry-run preview shown before the ruling).
+# Idempotent: a task whose criterion already carries "**Restated:** ... accepting <verdict id>" is skipped. Verified on
+# disk: after accept, that line must be in the task file. Under an agent shell (CLAUDECODE=1 / AI_AGENT) -> FAILED.
+# Seams (fixtures only): RUNME_RESTATE_FW (the fw that answers `reviewer restatement accept`), RUNME_RESTATE_TASKS_DIR.
+# ---------------------------------------------------------------------------
+seam RESTATE_FW RUNME_RESTATE_FW "$PROJECT_ROOT/.agentic-framework/bin/fw"
+seam RESTATE_TASKS_DIR RUNME_RESTATE_TASKS_DIR "$PROJECT_ROOT/.tasks"
+RESTATE_ROWS='V-20261117-f742f766|T-2258|operator A 2026-11-17 (T-3814)|[REVIEW] Fixed binary deployed to the `.107` hub and the live repro no longer hangs: `timeout -s KILL 12 termlink channel state framework:pickup --hub 192.168.10.107:9100` returns within the bound, and on a scratch topic of 1500+ posts on that hub a read right after a post, and during landing posts, returns within the bound (no probe post to `framework:pickup`).'
+
+restate_done() {  # <verdict> <task>: 0 when the task file records the accepted restatement
+    local f; f="$(ls "$RESTATE_TASKS_DIR"/active/"$2"-*.md "$RESTATE_TASKS_DIR"/completed/"$2"-*.md 2>/dev/null | head -1)"
+    [ -n "$f" ] && grep -q "\*\*Restated:\*\*.*accepting $1" "$f"
+}
+
+restatements_accept() {
+    local row v t ref text
+    while IFS= read -r row; do
+        [ -n "$row" ] || continue
+        v="${row%%|*}"; row="${row#*|}"; t="${row%%|*}"; row="${row#*|}"; ref="${row%%|*}"; text="${row#*|}"
+        if restate_done "$v" "$t"; then
+            say "  skip    $t: restatement $v already accepted"; SKIPPED=$((SKIPPED+1)); continue
+        fi
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would accept restatement $v for $t ($ref)"; DONE=$((DONE+1)); continue
+        fi
+        if [ "${CLAUDECODE:-}" = "1" ] || [ -n "${AI_AGENT:-}" ]; then
+            say "  FAILED  $t: accepting a restatement is your act and this shell is an agent's; run $PROJECT_ROOT/runme.sh from your own terminal"
+            FAILED=$((FAILED+1)); continue
+        fi
+        if ! (cd "$PROJECT_ROOT" && "$RESTATE_FW" reviewer restatement accept "$v" --text "$text" --i-am-human) > /tmp/.runme-restate-out 2>&1; then
+            say "  FAILED  $t: restatement accept $v refused: $(tail -1 /tmp/.runme-restate-out)"; FAILED=$((FAILED+1)); continue
+        fi
+        if restate_done "$v" "$t"; then
+            say "  OK      $t: restatement $v accepted ($ref); the criterion now reads the restated wording"; DONE=$((DONE+1))
+        else
+            say "  FAILED  $t: accept $v exited 0 but the task file has no **Restated:** line for it"; FAILED=$((FAILED+1))
+        fi
+    done <<< "$RESTATE_ROWS"
+}
+
+head2 "32. Accept the reviewer restatements you ruled on (T-3814: T-2258)"
+restatements_accept
+
 head2 "Verification"
 if [ "$DRY_RUN" = "1" ]; then
     say "  [DRY]   skipped (nothing was changed)"

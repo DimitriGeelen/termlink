@@ -410,6 +410,23 @@ export RUNME_WIDEN_PY="$TMP/fake_human_ac_ticks.py"
 # T-3806 action 31: a scratch switch file, present by default so ordinary runs skip.
 mkdir -p "$TMP/etc-termlink"; : > "$TMP/etc-termlink/tmux-per-project"
 export RUNME_TMUXPP_FILE="$TMP/etc-termlink/tmux-per-project" RUNME_TMUXPP_STATE=on
+# T-3814 action 32: a fake fw answering `reviewer restatement accept` over a scratch task tree. Default: the
+# T-2258 file already records the accepted restatement, so ordinary runs skip.
+RS="$TMP/restate"; mkdir -p "$RS/tasks/active"
+RS_TASK="$RS/tasks/active/T-2258-fake.md"
+rs_seed() { printf -- '- [ ] [REVIEW] old wording\n' > "$RS_TASK"; [ "${1:-}" = done ] && printf '  **Restated:** 2026-11-17, accepting V-20261117-f742f766; was: old\n' >> "$RS_TASK"; : > "$RS/calls"; }
+rs_seed done
+cat > "$RS/fw" <<EOS
+#!/usr/bin/env bash
+echo "\$*" >> "$RS/calls"
+[ "\$1 \$2 \$3" = "reviewer restatement accept" ] || exit 3
+case " \$* " in *" --i-am-human "*) ;; *) echo "REFUSED: operator only"; exit 2 ;; esac
+[ "\${FAKE_RS_MODE:-}" = refuse ] && { echo "REFUSED: the restatement is 432 characters (limit 400)"; exit 1; }
+[ "\${FAKE_RS_MODE:-}" = noop ] && exit 0
+printf '  **Restated:** 2026-11-17, accepting %s; was: old\n' "\$4" >> "$RS_TASK"
+EOS
+chmod +x "$RS/fw"
+export RUNME_RESTATE_FW="$RS/fw" RUNME_RESTATE_TASKS_DIR="$RS/tasks"
 # T-3685 action 28: a fake `su - testdev -c` that answers OK only for the GOOD token in the
 # scratch token file, and fake terminal files. Default = a working token, so ordinary runs skip.
 TD="$TMP/testdev"; mkdir -p "$TD/home/.config/claude"
@@ -1058,7 +1075,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 52 ))   # +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 53 ))   # +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -3540,6 +3557,36 @@ if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  TMUXPP_STATE must be on or off
     ok "31: an unknown declared state => FAILED, nothing changed"
 else bad "31 bad state" "rc=$rc: $x"; fi
 : > "$SW"
+
+# ---------------------------------------------------------------------------
+# T-3814 action 32 — accept the restatements the operator ruled on.
+# ---------------------------------------------------------------------------
+s32() { echo "$1" | sed -n '/^.*32\. Accept the reviewer restatements/,/^.*Verification/p'; }
+rs_seed; out=$(CLAUDECODE= AI_AGENT= run --dry-run); x=$(s32 "$out")
+if echo "$x" | grep_all '\[DRY\]   would accept restatement V-20261117-f742f766 for T-2258' && [ ! -s "$RS/calls" ]; then
+    ok "32: --dry-run names the restatement and calls nothing"
+else bad "32 dry-run" "$x"; fi
+rs_seed; out=$(CLAUDECODE=1 AI_AGENT= run); rc=$?; x=$(s32 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  T-2258: accepting a restatement is your act and this shell is an agent's" && [ ! -s "$RS/calls" ]; then
+    ok "32: under an agent shell => FAILED, --i-am-human never passed"
+else bad "32 agent shell" "rc=$rc: $x"; fi
+rs_seed; out=$(CLAUDECODE= AI_AGENT= FAKE_RS_MODE=refuse run); rc=$?; x=$(s32 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  T-2258: restatement accept V-20261117-f742f766 refused: REFUSED: the restatement is 432 characters'; then
+    ok "32: a refused accept => FAILED with the refusal"
+else bad "32 refused" "rc=$rc: $x"; fi
+rs_seed; out=$(CLAUDECODE= AI_AGENT= FAKE_RS_MODE=noop run); rc=$?; x=$(s32 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  T-2258: accept V-20261117-f742f766 exited 0 but the task file has no \*\*Restated:\*\* line'; then
+    ok "32: accept exits 0 but nothing written => FAILED (verified on disk)"
+else bad "32 noop" "rc=$rc: $x"; fi
+rs_seed; out=$(CLAUDECODE= AI_AGENT= run); rc=$?; x=$(s32 "$out")
+if echo "$x" | grep_all 'OK      T-2258: restatement V-20261117-f742f766 accepted' && grep -q -- '--text \[REVIEW\] Fixed binary deployed' "$RS/calls" && grep -q -- '--i-am-human' "$RS/calls"; then
+    ok "32: accepts with the recorded wording and verifies the Restated line"
+else bad "32 accept" "rc=$rc: $x / $(cat "$RS/calls")"; fi
+out=$(CLAUDECODE= AI_AGENT= run); x=$(s32 "$out")
+if echo "$x" | grep_all 'skip    T-2258: restatement V-20261117-f742f766 already accepted' && [ "$(wc -l < "$RS/calls")" = 1 ]; then
+    ok "32: second run skips (idempotent)"
+else bad "32 idempotent" "$x"; fi
+rs_seed done
 
 echo ""
 echo "----------------------------------------"
