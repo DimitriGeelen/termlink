@@ -24741,3 +24741,21 @@ scan_id: R-e5b4e19d
 task_id: T-3812
 payload:
   task_file: .tasks/active/T-3812-re-vendor-aef-be52---be54-t-5170-alias-h.md
+---
+kind: scan_emitted
+timestamp: '2026-11-17T15:55:13Z'
+scan_id: R-9a46fde6
+task_id: T-3806
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-17T15:55:13Z'
+scan_id: R-9a46fde6
+task_id: T-3806
+payload:
+  task_file: .tasks/active/T-3806-turn-on-per-project-tmux-servers-etcterm.md

@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3806: Turn on per-project tmux servers (/etc/termlink/tmux-per-project) once 055 confirms its cockpit readers moved (T-3552 cutover gate)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-17T15:55:23Z
+# ============================================================================
+
+task_id: T-3806
+task_name: "Turn on per-project tmux servers (/etc/termlink/tmux-per-project) once 055 confirms its cockpit readers moved (T-3552 cutover gate)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-15T23:50:14Z
+completed: 2026-11-17T15:55:11Z
+duration_days: 2
+updates_count: 6
+first_commit: 2026-11-16T14:58:19+01:00
+last_commit: 2026-11-17T15:26:21+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  055 asks to keep the per-project tmux switch OFF until their T-619 is built. runme action 31 switches on per-project tmux servers (/etc/termlink/tmux-per-project) — 055 cockpit live (msg de0a46c3), T-3552 ruling A; fixtures 405/0
+
+# Key outcomes
+outcomes:
+  - 'runme action 31 added (idempotent; verifies the file on disk; dry-run writes nothing) with hermetic fixture cases; fixtures pass (4 action-31 cases; 405/0)'
+  - 'After the operator''s run: the switch file exists, and one real `termlink spawn --backend tmux` from /opt/termlink registers with `metadata.tmux_server` = the `termlink tmux socket /opt/termlink` name; the scratch session is cleaned up (runme-20261117T142926Z rc=0, action 31 OK; t3806-check registered with tmux_server=tl-termlink-e5237bac = `termlink tmux socket /opt/termlink`, absent from the default server; removed after 055''s check, `termlink list` shows 0)'
+  - '055 confirms the session showed in its cockpit (joint check); answer recorded here (msg 8f3b4720: PASSED; cockpit reads tl-termlink-e5237bac and sees tl-t3806-check (a plain sh, so not listed as a Claude instance, by design); stronger: two real 1409 Claudes started via termlink on tl-1409-sprind-291e7dc7 (tl-t6173-k11, tl-t6840-bb-regeln) are listed as "TermLink (its own tmux server)", viewed read-only through the PTY. 055: "from our side T-3552/T-619 is done")'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 31 switches on per-project tmux servers (/etc/termlink/tmux-per-project) — 055 cockpit live (msg de0a46c3), T-3552 ruling A; fixtures 405/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3806-turn-on-per-project-tmux-servers-etcterm.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-16T14:58:19'
+    action: 'T-3806: 055 asks to keep the per-project tmux switch OFF until their T-619 is built'
+  - time: '2026-11-17T15:26:21'
+    action: 'T-3806: runme action 31 switches on per-project tmux servers (/etc/termlink/tmux-per-project) — 055 cockpit live (msg de0a46c3), T-3552 ruling A; fixtures 405/0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2404 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2404
+  commits: 3
+  files_changed: 6
+  lines_added: 224
+  lines_removed: 17
+  footprint_refreshed_at: '2026-11-17T15:55:32Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3806-turn-on-per-project-tmux-servers-etcterm.md
+generated_by: context-agent-hybrid

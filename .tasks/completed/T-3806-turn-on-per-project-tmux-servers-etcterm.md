@@ -9,12 +9,12 @@ description: >
   attach -f ignore-size) and tell us; then one runme action creates the switch file
   and verifies a new spawn lands on its project server. Asked 055 on 2026-11-16.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -43,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-15T23:50:14Z
-last_update: 2026-11-17T14:26:21Z
-date_finished:
+last_update: 2026-11-17T15:55:11Z
+date_finished: 2026-11-17T15:55:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -83,8 +83,8 @@ bvp_scores_proposed:
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] runme action 31 added (idempotent; verifies the file on disk; dry-run writes nothing) with hermetic fixture cases; fixtures pass (4 action-31 cases; 405/0)
-- [ ] After the operator's run: the switch file exists, and one real `termlink spawn --backend tmux` from /opt/termlink registers with `metadata.tmux_server` = the `termlink tmux socket /opt/termlink` name; the scratch session is cleaned up
-- [ ] 055 confirms the session showed in its cockpit (joint check); answer recorded here
+- [x] After the operator's run: the switch file exists, and one real `termlink spawn --backend tmux` from /opt/termlink registers with `metadata.tmux_server` = the `termlink tmux socket /opt/termlink` name; the scratch session is cleaned up (runme-20261117T142926Z rc=0, action 31 OK; t3806-check registered with tmux_server=tl-termlink-e5237bac = `termlink tmux socket /opt/termlink`, absent from the default server; removed after 055's check, `termlink list` shows 0)
+- [x] 055 confirms the session showed in its cockpit (joint check); answer recorded here (msg 8f3b4720: PASSED; cockpit reads tl-termlink-e5237bac and sees tl-t3806-check (a plain sh, so not listed as a Claude instance, by design); stronger: two real 1409 Claudes started via termlink on tl-1409-sprind-291e7dc7 (tl-t6173-k11, tl-t6840-bb-regeln) are listed as "TermLink (its own tmux server)", viewed read-only through the PTY. 055: "from our side T-3552/T-619 is done")
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -135,6 +135,9 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+test -f /etc/termlink/tmux-per-project
+grep -q 'seam TMUXPP_FILE RUNME_TMUXPP_FILE "/etc/termlink/tmux-per-project"' runme.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -402,3 +405,16 @@ bvp_scores_proposed:
 ### 2026-11-17T13:57:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-11-17T15:55:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9a46fde6
+- **Timestamp:** 2026-11-17T15:55:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none
