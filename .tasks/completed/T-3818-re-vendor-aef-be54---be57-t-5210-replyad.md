@@ -4,12 +4,12 @@ name: "Re-vendor AEF be.54 -> be.57 (T-5210 reply_address sub-agent circuits, T-
 description: >
   Re-vendor AEF be.54 -> be.57 (T-5210 reply_address sub-agent circuits, T-5206 delegate honours widenings) via runme 11a
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-17T18:23:57Z
-last_update: 2026-11-17T20:28:40Z
-date_finished: null
+last_update: 2026-11-17T20:47:44Z
+date_finished: 2026-11-17T20:47:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -66,7 +66,7 @@ date_finished: null
 ### Agent
 - [x] be.57 tag commit and ancestry confirmed (be.54 c6c0a6738 is an ancestor) and T-5210 / T-5206 present before anything is built on it (tag 69a795876 -> efdf6aa3c, 131 commits; 9a06fb409/efdf6aa3c T-5210, 9e6c30fac/802e5da8f T-5206)
 - [x] Merge set for be.57 stored with a manifest whose "ours" hashes equal the CURRENT vendored files (the T-3812 lesson); runme 11a targets be.57; runme dry-run shows 11a would install; fixtures pass (no preserved file changed be.54->be.57; T-3812 set re-checked: ours/theirs(be.57)/merged all MATCH, so reused; dry-run "would upgrade ... install 2 merged preserved files"; fixtures 409/0)
-- [ ] After the operator's run: VERSION at be.57, runme log rc=0 (runme-20261117T191719Z: 11a OK, commit 603bc12d8 pushed, VERSION 1.8.15+1761.gefdf6aa3c; rc=1 only from action 4d reading a LAPSED main lease as a failure, fixed in this task: all four lease states accepted; re-run pending)
+- [x] After the operator's run: VERSION at be.57, runme log rc=0 (runme-20261117T191719Z: 11a OK, commit 603bc12d8 pushed, VERSION 1.8.15+1761.gefdf6aa3c; rc=1 only from action 4d reading a LAPSED main lease as a failure, fixed in this task (6a4f446de): all four lease states accepted; re-run runme-20261117T204604Z rc=0 with 4d "skip ... main.lease.state=lapsed" on both sidecars)
 - [x] Field verdict to AEF: T-5210 (reply line for a design message names its circuit) and T-5206 (delegate dry-run on a widened task) (both WORKS, plus T-5180 close leg; msg sent 2026-11-17)
 
 ### Human
@@ -118,6 +118,10 @@ date_finished: null
 -->
 
 ## Verification
+
+grep -q "gefdf6aa3c" .agentic-framework/VERSION
+grep -q "T-5210" .agentic-framework/lib/sidecar/inbox.py
+grep -q 'held|vacant|lapsed|provisional) say "  skip' runme.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -368,3 +372,16 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3818-re-vendor-aef-be54---be57-t-5210-replyad.md
 - **Context:** Initial task creation
+
+### 2026-11-17T20:47:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-317920e8
+- **Timestamp:** 2026-11-17T20:47:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Scope:** static anti-pattern scan; PASS means no anti-pattern was found, not that the criteria hold
+- **Needs Human:** no
+- **Findings:** none

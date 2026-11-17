@@ -1,0 +1,131 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3818: Re-vendor AEF be.54 -> be.57 (T-5210 reply_address sub-agent circuits, T-5206 delegate honours widenings) via runme 11a
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-17T20:49:00Z
+# ============================================================================
+
+task_id: T-3818
+task_name: "Re-vendor AEF be.54 -> be.57 (T-5210 reply_address sub-agent circuits, T-5206 delegate honours widenings) via runme 11a"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-11-17T18:23:57Z
+completed: 2026-11-17T20:47:44Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-17T19:46:51+01:00
+last_commit: 2026-11-17T21:28:41+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme 11a retargeted be.54 -> be.57 (T-5210 sub-agent reply circuits, T-5206); T-3812 merge set re-verified against the current tree and reused; dry-run clean; fixtures 409/0. fw upgrade -> v1.8.16-be.57 (efdf6aa3c, 131 commits; T-5210; runme 11a). runme 4d accepts all four lease states (held|vacant|lapsed|provisional) as a READ lease; a lapsed main (idle main session) failed the 19:17Z run; fixtures 410/0 (one earlier run 409/1 on T-3654 idempotent, not reproduced)
+
+# Key outcomes
+outcomes:
+  - 'be.57 tag commit and ancestry confirmed (be.54 c6c0a6738 is an ancestor) and T-5210 / T-5206 present before anything is built on it (tag 69a795876 -> efdf6aa3c, 131 commits; 9a06fb409/efdf6aa3c T-5210, 9e6c30fac/802e5da8f T-5206)'
+  - 'Merge set for be.57 stored with a manifest whose "ours" hashes equal the CURRENT vendored files (the T-3812 lesson); runme 11a targets be.57; runme dry-run shows 11a would install; fixtures pass (no preserved file changed be.54->be.57; T-3812 set re-checked: ours/theirs(be.57)/merged all MATCH, so reused; dry-run "would upgrade ... install 2 merged preserved files"; fixtures 409/0)'
+  - 'After the operator''s run: VERSION at be.57, runme log rc=0 (runme-20261117T191719Z: 11a OK, commit 603bc12d8 pushed, VERSION 1.8.15+1761.gefdf6aa3c; rc=1 only from action 4d reading a LAPSED main lease as a failure, fixed in this task (6a4f446de): all four lease states accepted; re-run runme-20261117T204604Z rc=0 with 4d "skip ... main.lease.state=lapsed" on both sidecars)'
+  - 'Field verdict to AEF: T-5210 (reply line for a design message names its circuit) and T-5206 (delegate dry-run on a widened task) (both WORKS, plus T-5180 close leg; msg sent 2026-11-17)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme 4d accepts all four lease states (held|vacant|lapsed|provisional) as a READ lease; a lapsed main (idle main session) failed the 19:17Z run; fixtures 410/0 (one earlier run 409/1 on T-3654 idempotent, not reproduced)'
+    source: git-mined
+  - description: 'runme 11a retargeted be.54 -> be.57 (T-5210 sub-agent reply circuits, T-5206); T-3812 merge set re-verified against the current tree and reused; dry-run clean; fixtures 409/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/context/check-human-ac-tick.py'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/generated/components/lib-accepted_miss.md'
+  - '.agentic-framework/docs/reports/T-5186-profile-page.py'
+  - '.agentic-framework/docs/reports/T-5186-profile-subprocesses.py'
+  - '.agentic-framework/docs/reports/T-5186-watchtower-volume-performance.md'
+  - '.agentic-framework/docs/reports/T-5190-subscription-quota-overview.md'
+  - '.agentic-framework/docs/reports/T-5199-image-only-rung5-evidence.md'
+  - '.agentic-framework/docs/reports/field-test-v1.8.16-results.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/designer-0.43-mapping.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples-mapping/human-script-human.bpmn'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/examples-mapping/human-script-human.procedure.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/runtime-projection/runtime-projection-v2.schema.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/runtime-projection/runtime-projection.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/runtime-projection/runtime-projection.schema.json'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/validator-refusal-mapping.md'
+  - '.agentic-framework/docs/research/executable-workflow/contracts/v2/validator-refusal-mapping.yaml'
+  - '.agentic-framework/docs/screenshots/T-5209-probe-vision-default.png'
+  - '.agentic-framework/lib/comment_strip.py'
+  - '.agentic-framework/lib/delegation_cli.py'
+  - '.agentic-framework/lib/dispatch_tokens.py'
+  - '.agentic-framework/lib/quota_ledger.py'
+  - '.agentic-framework/lib/quota_limits.py'
+  - '.agentic-framework/lib/quota_status.py'
+  - '.agentic-framework/lib/review_cost.py'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/reviewer/probe_vision.py'
+  - '.agentic-framework/lib/shell_write_scan.py'
+  - '.agentic-framework/lib/sidecar/inbox.py'
+  - '.agentic-framework/lib/subscriptions.py'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/policy/subscriptions.yaml'
+  - '.agentic-framework/web/blueprints/approvals.py'
+  - '.agentic-framework/web/blueprints/designer.py'
+  - '.agentic-framework/web/blueprints/designer_api.py'
+  - '.agentic-framework/web/shared.py'
+  - '.agentic-framework/web/templates/_approvals_content.html'
+  - '.framework.yaml'
+  - '.tasks/active/T-3818-re-vendor-aef-be54---be57-t-5210-replyad.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-17T19:46:51'
+    action: 'T-3818: runme 11a retargeted be.54 -> be.57 (T-5210 sub-agent reply circuits, T-5206); T-3812 merge set re-verified against the current tree and reused; dry-run clean; fixtures 409/0'
+  - time: '2026-11-17T20:20:38'
+    action: 'T-3818: fw upgrade -> v1.8.16-be.57 (efdf6aa3c, 131 commits; T-5210; runme 11a)'
+  - time: '2026-11-17T21:28:41'
+    action: 'T-3818: runme 4d accepts all four lease states (held|vacant|lapsed|provisional) as a READ lease; a lapsed main (idle main session) failed the 19:17Z run; fixtures 410/0 (one earlier run 409/1 on T-3654 idempotent, not reproduced)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 143 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 143
+  commits: 4
+  files_changed: 49
+  lines_added: 5561
+  lines_removed: 148
+  footprint_refreshed_at: '2026-11-17T20:49:12Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3818-re-vendor-aef-be54---be57-t-5210-replyad.md
+generated_by: context-agent-hybrid
