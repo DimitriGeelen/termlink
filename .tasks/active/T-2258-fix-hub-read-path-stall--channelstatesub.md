@@ -163,6 +163,20 @@ registry are out of scope (T-2259 / separate).
   3. Post a note to the topic, then immediately re-read the same topic.
   **Expected:** The read returns within the bound every time, including immediately after a post.
   **If not:** Capture `.107` hub logs/metrics during the hang and reopen the task with the new evidence.
+  **Measured:** 2026-11-17 ~09:40Z (T-3814), from .107 as a client over TCP: `hub.version` on 192.168.10.107:9100, then five `timeout -s KILL 12 termlink channel state framework:pickup --hub 192.168.10.107:9100`, one `channel post` to a scratch topic `test-t3814-probe` (not framework:pickup, to keep probe noise out of a shared topic) and three immediate re-reads of that topic
+  ```
+  hub_version 0.12.13+135.gd167da0e2 (deployed by the operator's runme run 2026-11-17 08:50Z, hub restarted with secret, cert and hub.id unchanged)
+  read 1 rc=0 0.16s
+  read 2 rc=0 0.14s
+  read 3 rc=0 0.38s
+  read 4 rc=0 0.19s
+  read 5 rc=0 0.17s
+  post rc=0
+  read-after-post 1 rc=0 0.24s
+  read-after-post 2 rc=0 0.48s
+  read-after-post 3 rc=0 0.41s
+  ```
+  Every read returned well inside the 12 s bound, including immediately after a post.
 
 ## Verification
 

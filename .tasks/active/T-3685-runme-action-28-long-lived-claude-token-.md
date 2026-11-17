@@ -85,6 +85,12 @@ by testdev's login shells; the operator's own login is untouched.
   3. Paste it at the hidden prompt and press Enter.
   **Expected:** the run prints `OK      testdev has its own long-lived token`.
   **If not:** tell the agent; it reads the log and the action can be re-run safely.
+  **Measured:** `grep -h "testdev has its own long-lived token\|testdev's stored token answers" .context/working/runme-logs/runme-20261111T115459Z-3899365.log .context/working/runme-logs/runme-20261117T090743Z-3609132.log` (2026-11-17, T-3814)
+  ```
+    OK      testdev has its own long-lived token (/home/testdev/.config/claude/oauth-token, mode 600, loaded by /home/testdev/.profile); one prompt as testdev answered OK
+    skip    testdev's stored token answers (one prompt as testdev returned OK)
+  ```
+  The first line is the operator's run of 2026-11-11 (token created at the terminal, the Expected line verbatim); the second is the operator's run of 2026-11-17 09:07Z, where action 28 ran one prompt as testdev with the stored token and it answered OK.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

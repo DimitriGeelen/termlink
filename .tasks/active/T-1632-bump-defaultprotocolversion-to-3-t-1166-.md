@@ -96,6 +96,12 @@ Rejected alternatives:
   2. Inspect the JSON `result` field
   **Expected:** Both `protocol_version: 1` and `control_plane_version: 3` present
   **If not:** Capture the response, attach to this task, and revert the deploy (rollback path: previous binary at `/tmp/termlink.pre-T1166`)
+  **Measured:** 2026-11-17 (T-3814), `hub.capabilities` (scope execute) and `hub.version` (scope observe) on 192.168.10.122:9100 via the termlink MCP remote call, after the operator's runme run of 2026-11-17 08:50Z upgraded .122 (fleet action: "ring20-management serves 0.12.13+135.gd167da0e2; fleet doctor ok; tofu verify ok; hub_id 22c19fedafd73da2 unchanged")
+  ```
+  hub.capabilities: "protocol_version": 1, "control_plane_version": 3, "hub_version": "0.12.13+135.gd167da0e2", "features": {"legacy_primitives": false}
+  hub.version: "protocol_version": 1, "control_plane_version": 3, "hub_id": "22c19fedafd73da2"
+  ```
+  Both fields present with the expected values.
 
 ## Verification
 
