@@ -4082,6 +4082,62 @@ install_podman() {
 head2 "29. Podman + passt for the T-2722 container spike (T-3811; operator ruling A)"
 install_podman
 
+# ---------------------------------------------------------------------------
+# 30. Widen act-in-the-world for T-1632, T-2258, T-3685 under ruling T-3800 (T-3812; operator
+#     2026-11-17 "proceed as seen fit" on the brief recommending A = 90 days, expires 2027-02-15)
+# AEF T-5180 (vendored by action 11a, be.54): `human_ac_ticks.py delegation widen` lets a MEASURED
+# act-in-the-world criterion close on an independent reviewer green, each tick annotated "widened
+# by SD-... (ruling T-3800)" and WARNed by fw audit. It is the operator's own act: the script
+# refuses under agent control (CLAUDECODE=1 or AI_AGENT), --i-am-human included, so from an agent
+# shell this action is FAILED with the run-it-yourself line. Scope is the three task ids only; the
+# pattern matches exactly their three open criterion titles. Idempotent: an active widening with
+# ruling T-3800 covering all three tasks -> skip. Before 11a has landed be.54 (no widen verb) ->
+# FAILED, nothing written. Verified on disk by `delegation list` afterwards.
+# Seams (fixtures only): RUNME_WIDEN_PY (the human_ac_ticks.py that answers list/widen).
+# ---------------------------------------------------------------------------
+seam WIDEN_PY RUNME_WIDEN_PY "$PROJECT_ROOT/.agentic-framework/lib/human_ac_ticks.py"
+WIDEN_TASKS="T-1632,T-2258,T-3685"
+WIDEN_EXPIRES="2027-02-15"
+WIDEN_PATTERN="control_plane_version: 3|Fixed binary deployed to the .\\.107. hub|Create testdev's token at the terminal"
+WIDEN_TEXT="Yes, you may close the task yourself. -- of course assuming you got a positive review from the reviewers as we have defined it in our review protocol. (operator, 2026-11-15, T-3800 ruling A)"
+
+widen_active() {  # rc 0 when `delegation list` shows an active T-3800 widening over all three tasks
+    local out
+    out="$(cd "$PROJECT_ROOT" && python3 "$WIDEN_PY" delegation list 2>/dev/null)" || return 2
+    printf '%s\n' "$out" | grep ' widening active ' | grep -F 'ruling=T-3800 ' | grep -qF "tasks=$WIDEN_TASKS "
+}
+
+widen_t3800() {
+    if [ ! -f "$WIDEN_PY" ] || ! grep -q "T-5180" "$WIDEN_PY" 2>/dev/null; then
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would widen act-in-the-world for $WIDEN_TASKS (ruling T-3800, expires $WIDEN_EXPIRES) once action 11a has vendored be.54"; DONE=$((DONE+1)); return
+        fi
+        say "  FAILED  the vendored framework has no 'delegation widen' (AEF T-5180, be.54): action 11a must land first; nothing written"; FAILED=$((FAILED+1)); return
+    fi
+    if widen_active; then
+        say "  skip    an active widening for $WIDEN_TASKS under ruling T-3800 is already recorded"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would record: delegation widen --class act-in-the-world --ruling T-3800 --tasks $WIDEN_TASKS --expires $WIDEN_EXPIRES"; DONE=$((DONE+1)); return
+    fi
+    if [ "${CLAUDECODE:-}" = "1" ] || [ -n "${AI_AGENT:-}" ]; then
+        say "  FAILED  this shell is an agent's: a widening is your own ruling and AEF refuses it under agent control. Run $PROJECT_ROOT/runme.sh from your own terminal."
+        FAILED=$((FAILED+1)); return
+    fi
+    if ! (cd "$PROJECT_ROOT" && python3 "$WIDEN_PY" delegation widen --class act-in-the-world --ruling "T-3800" \
+            --text "$WIDEN_TEXT" --pattern "$WIDEN_PATTERN" --tasks "$WIDEN_TASKS" --expires "$WIDEN_EXPIRES") > /tmp/.runme-widen-out 2>&1; then
+        say "  FAILED  delegation widen refused: $(tail -1 /tmp/.runme-widen-out)"; FAILED=$((FAILED+1)); return
+    fi
+    if widen_active; then
+        say "  OK      widening recorded and listed active: act-in-the-world for $WIDEN_TASKS, ruling T-3800, expires $WIDEN_EXPIRES"; DONE=$((DONE+1))
+    else
+        say "  FAILED  delegation widen exited 0 but 'delegation list' shows no active T-3800 widening over $WIDEN_TASKS"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "30. Widen act-in-the-world for T-1632, T-2258, T-3685 under ruling T-3800, until 2027-02-15 (T-3812; operator ruling A)"
+widen_t3800
+
 head2 "Verification"
 if [ "$DRY_RUN" = "1" ]; then
     say "  [DRY]   skipped (nothing was changed)"

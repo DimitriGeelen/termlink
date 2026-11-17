@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-16T23:41:16Z
-last_update: 2026-11-17T00:23:30Z
+last_update: 2026-11-17T01:23:25Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -358,6 +358,13 @@ python3 .agentic-framework/lib/human_ac_ticks.py delegation widen --help > .cont
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-11-17 — How long the T-3800 widening for T-1632/T-2258/T-3685 lasts: A, 90 days (operator ruling)
+- **Operator words:** "proceed as seen fit", given while the brief with recommendation A was the only open decision. Read as accepting A; stated back to the operator as overturnable.
+- **Chose:** A — expires 2027-02-15; scope `--tasks T-1632,T-2258,T-3685` only; `--text` the T-3800 ruling verbatim; pattern matching exactly the three open criterion titles. Runme action 30, run by the operator from their own terminal after action 11a vendors be.54.
+- **Why:** the three-task scope already limits most; 90 days covers T-1632's .122 deploy without a standing open-ended grant.
+- **Rejected:** B (one year, the maximum: a grant nobody revisits); C (14 days: lapses if the .122 deploy or a review round slips).
+- **Left open:** each close still needs measured evidence under the criterion plus a reviewer green (`fw reviewer judge`).
 
 ## Decision
 

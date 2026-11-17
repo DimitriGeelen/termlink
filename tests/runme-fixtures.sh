@@ -380,6 +380,33 @@ EOS
 chmod +x "$TMP/fake-drop-fw"
 printf 'aaaa-1111\tT-3656: e2e residue: selftest conv x\nbbbb-2222\tT-3656: answered: reply "ok" posted 2026-10-06\ncccc-3333\tT-3656: answered: gone already\n' > "$TMP/drop-list.tsv"
 export RUNME_DROP_FW="$TMP/fake-drop-fw" RUNME_DROP_LIST="$TMP/drop-list.tsv"
+# T-3812 action 30: a fake human_ac_ticks.py answering `delegation list|widen` over a scratch
+# state file. Default state = an active T-3800 widening, so ordinary runs skip. It refuses a
+# widen under CLAUDECODE=1 as the real one does (T-5180), and logs every widen it accepts.
+export FAKE_WIDEN_STATE="$TMP/widen.state" FAKE_WIDEN_LOG="$TMP/widen.log"
+echo active > "$FAKE_WIDEN_STATE"
+cat > "$TMP/fake_human_ac_ticks.py" <<'EOS'
+# fake for runme action 30 (AEF T-5180 delegation widen)
+import os, sys
+a, st = sys.argv[1:], os.environ["FAKE_WIDEN_STATE"]
+if a[:2] == ["delegation", "list"]:
+    if open(st).read().strip() == "active":
+        print("SD-0123abcd widening active class=act-in-the-world ruling=T-3800 expires=2027-02-15 arc=- "
+              "tasks=T-1632,T-2258,T-3685 pattern='x' by=op text='y'")
+    sys.exit(0)
+if a[:2] == ["delegation", "widen"]:
+    if os.environ.get("CLAUDECODE") == "1" or os.environ.get("AI_AGENT", "").strip():
+        print("REFUSED: under agent control"); sys.exit(2)
+    open(os.environ["FAKE_WIDEN_LOG"], "a").write("\x1f".join(a) + "\n")
+    mode = os.environ.get("FAKE_WIDEN_MODE", "")
+    if mode == "refuse":
+        print("ValueError: --expires must be today..365 days ahead"); sys.exit(1)
+    if mode != "noop":
+        open(st, "w").write("active")
+    sys.exit(0)
+sys.exit(3)
+EOS
+export RUNME_WIDEN_PY="$TMP/fake_human_ac_ticks.py"
 # T-3685 action 28: a fake `su - testdev -c` that answers OK only for the GOOD token in the
 # scratch token file, and fake terminal files. Default = a working token, so ordinary runs skip.
 TD="$TMP/testdev"; mkdir -p "$TD/home/.config/claude"
@@ -1028,7 +1055,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 50 ))   # +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 51 ))   # +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -3409,6 +3436,59 @@ for c in div side dirty stale notag; do
     else bad "T-3778 refuse $c" "rc=$rc: $x"; fi
 done
 aefu_state done
+
+# ---------------------------------------------------------------------------
+# T-3812 action 30 — operator widening under ruling T-3800 (AEF T-5180).
+# ---------------------------------------------------------------------------
+s30() { echo "$1" | sed -n '/^.*30\. Widen act-in-the-world/,/^.*Verification/p'; }
+seed30() { : > "$FAKE_WIDEN_STATE"; : > "$FAKE_WIDEN_LOG"; }
+seed30; out=$(CLAUDECODE= run --dry-run); x=$(s30 "$out")
+if echo "$x" | grep_all '\[DRY\]   would record: delegation widen --class act-in-the-world --ruling T-3800 --tasks T-1632,T-2258,T-3685 --expires 2027-02-15' && [ ! -s "$FAKE_WIDEN_LOG" ]; then
+    ok "30: --dry-run names the widening and records nothing"
+else bad "30 dry-run" "$x"; fi
+seed30; printf 'print("old")\n' > "$TMP/old_hat.py"
+out=$(CLAUDECODE= RUNME_WIDEN_PY="$TMP/old_hat.py" run); rc=$?; x=$(s30 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  the vendored framework has no 'delegation widen' (AEF T-5180, be.54): action 11a must land first" && [ ! -s "$FAKE_WIDEN_LOG" ]; then
+    ok "30: before be.54 is vendored => FAILED, nothing written"
+else bad "30 pre-be.54" "rc=$rc: $x"; fi
+seed30; out=$(CLAUDECODE=1 AI_AGENT= run); rc=$?; x=$(s30 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  this shell is an agent's: a widening is your own ruling" && [ ! -s "$FAKE_WIDEN_LOG" ]; then
+    ok "30: under CLAUDECODE=1 => FAILED with the run-it-yourself line; widen never called"
+else bad "30 agent shell" "rc=$rc: $x"; fi
+seed30; out=$(CLAUDECODE= AI_AGENT=x run); rc=$?; x=$(s30 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  this shell is an agent's" && [ ! -s "$FAKE_WIDEN_LOG" ]; then
+    ok "30: under AI_AGENT => FAILED as well (the second agent marker AEF checks)"
+else bad "30 AI_AGENT" "rc=$rc: $x"; fi
+seed30; out=$(CLAUDECODE= AI_AGENT= FAKE_WIDEN_MODE=refuse run); rc=$?; x=$(s30 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  delegation widen refused: ValueError: --expires must be"; then
+    ok "30: a refused widen => FAILED with the refusal"
+else bad "30 refused" "rc=$rc: $x"; fi
+seed30; out=$(CLAUDECODE= AI_AGENT= FAKE_WIDEN_MODE=noop run); rc=$?; x=$(s30 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  delegation widen exited 0 but 'delegation list' shows no active T-3800 widening"; then
+    ok "30: widen exits 0 but nothing is listed => FAILED (verified on disk)"
+else bad "30 noop" "rc=$rc: $x"; fi
+seed30; out=$(CLAUDECODE= AI_AGENT= run); rc=$?; x=$(s30 "$out")
+w="$(head -1 "$FAKE_WIDEN_LOG")"
+if echo "$x" | grep_all "OK      widening recorded and listed active: act-in-the-world for T-1632,T-2258,T-3685, ruling T-3800, expires 2027-02-15" \
+   && [ "$(wc -l < "$FAKE_WIDEN_LOG")" = 1 ] && [[ "$w" == *$'\x1f'--tasks$'\x1f'T-1632,T-2258,T-3685$'\x1f'* ]] \
+   && [[ "$w" == *"Yes, you may close the task yourself."* ]] && [[ "$w" != *i-am-human* ]]; then
+    ok "30: records one widening with the verbatim ruling and the three tasks; no --i-am-human"
+else bad "30 widen" "rc=$rc: $x / $w"; fi
+out=$(CLAUDECODE= AI_AGENT= run); x=$(s30 "$out")
+if echo "$x" | grep_all "skip    an active widening for T-1632,T-2258,T-3685 under ruling T-3800 is already recorded" && [ "$(wc -l < "$FAKE_WIDEN_LOG")" = 1 ]; then
+    ok "30: second run skips, widen not called again (idempotent)"
+else bad "30 idempotent" "$x"; fi
+python3 - "$RUNME" <<'EOP' && ok "30: the pattern matches exactly the three open criterion titles" || bad "30 pattern" "see python"
+import re, sys
+src = open(sys.argv[1]).read()
+pat = re.search(r'^WIDEN_PATTERN="(.*)"$', src, re.M).group(1).replace('\\\\', '\\')
+titles = ["[REVIEW] On next .122 deploy (after T-1166 bake clears), `hub.capabilities` returns `control_plane_version: 3` alongside `protocol_version: 1`.",
+          "[REVIEW] Fixed binary deployed to the `.107` hub and the live repro no longer hangs (OPERATOR step — the `.107` hub is a live shared host; not agent-actionable).",
+          "[RUBBER-STAMP] Create testdev's token at the terminal"]
+controls = ["[REVIEW] Fixed binary deployed to the `.122` hub", "Create a token", "control_plane_version: 2"]
+sys.exit(0 if all(re.search(pat, t) for t in titles) and not any(re.search(pat, c) for c in controls) else 1)
+EOP
+echo active > "$FAKE_WIDEN_STATE"
 
 echo ""
 echo "----------------------------------------"

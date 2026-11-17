@@ -372,3 +372,4 @@ date_finished: null
 ### 2026-11-17T00:10Z — 055 sizes first
 - **From:** 055 (msg 191173ef, notice): their operator ruled to size the work first (T-619 now a short inception: our interface, a map of their ~215 tmux call sites, cutover risks, build slices); a real date follows from that inception. Switch stays OFF.
 - **Interface doc:** unchanged at docs/reports/T-3552-per-project-tmux-interface.md (checked), so no reply needed.
+- **055 T-619 questions (msg c1136ab4) answered** (msg 1c63cc4a): only TermLink-created tmux sessions move (spawn, dispatch, fw termlink dispatch/spawn); register moves nothing; interface as built; no per-project opt-out today. 055 (msg a952ad71, notice): confirmed; no opt-out needed so far; date follows within their inception.
