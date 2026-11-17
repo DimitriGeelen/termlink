@@ -485,9 +485,51 @@ def _log_cost_locked(b: dict, *, task: str, backend: str, purpose: str, tokens: 
     rec = {"ts": _now(), "task": task, "backend": backend, "class": b["cost_class"],
            "purpose": purpose, "tokens": tokens, "cost_amount": cost,
            "metering": "metered" if metered else (UNMETERED_SUB if b["harness_class"] == "subscription" else "unmetered"),
-           "proposal_id": proposal_id, "evidence": evidence}
+           "proposal_id": proposal_id, "evidence": evidence,
+           "subscription": _subscription_for(b)}
     _append(ledger("reviews.jsonl"), rec)
+    _quota_append(rec, b)
     return rec
+
+
+def _quota_append(rec: dict, b: dict) -> None:
+    """T-5202 (T-5190 S3): one row in the machine-wide quota ledger for this cost row — ids and
+    the reported token count only. Never raises; a failure warns once and the row stands."""
+    try:
+        here = str(Path(__file__).resolve().parent)
+        if here not in sys.path:
+            sys.path.insert(0, here)
+        import quota_ledger  # noqa: E402  (sibling module)
+        tokens = rec.get("tokens")
+        quota_ledger.append(quota_ledger.make_row(
+            event="review", project=_roots()[0], task=rec.get("task"),
+            review_id=quota_ledger.review_id_for(rec), worker_kind=b.get("worker_kind"),
+            subscription=rec.get("subscription"),
+            tokens={"total": tokens} if isinstance(tokens, int) else None, ts=rec.get("ts")))
+    except Exception as e:  # noqa: BLE001 - e.g. an old vendored copy without the module
+        print(f"WARNING: quota ledger not written ({type(e).__name__})", file=sys.stderr)
+
+
+def _subscription_for(b: dict) -> str:
+    """T-5201 (T-5190 S2): the subscription a review row's load ran on — resolved from the
+    backend's worker kind on this host, as `fw termlink dispatch` resolves a dispatch's. A
+    backend with no worker kind is "unassigned"; an unreadable registry is "unknown" with one
+    stderr warning and never blocks the row. Rows written before T-5201 carry no field."""
+    kind = b.get("worker_kind")
+    if not kind:
+        return "unassigned"
+    try:
+        here = str(Path(__file__).resolve().parent)
+        if here not in sys.path:
+            sys.path.insert(0, here)
+        import subscriptions  # noqa: E402  (sibling module)
+    except Exception:  # noqa: BLE001 - e.g. the module is absent in an old vendored copy
+        print('WARNING: subscription registry unreadable — recorded as "unknown"', file=sys.stderr)
+        return "unknown"
+    sid, warn = subscriptions.record_id(kind)
+    if warn:
+        print(warn, file=sys.stderr)
+    return sid
 
 
 def _week(ts: str) -> str:
