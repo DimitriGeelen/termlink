@@ -6,8 +6,8 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
 components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-10T21:13:08Z
-last_update: 2026-11-15T22:42:14Z
+last_update: 2026-11-17T13:54:58Z
 date_finished: 2026-11-15T22:42:14Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,6 +50,7 @@ date_finished: 2026-11-15T22:42:14Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+date_finalised: 2026-11-17T13:54:58Z
 ---
 
 # T-3685: runme action 28: long-lived Claude token for testdev (setup-token, operator ruling A)
@@ -78,7 +79,7 @@ by testdev's login shells; the operator's own login is untouched.
 - [x] After the operator's run, `latest.log` shows action 28 OK and a prompt as testdev answers OK (runme-20261111T115459Z: action 28 OK, prompt as testdev answered; re-verified as "skip, stored token answers" on 2026-11-15T20:22Z)
 
 ### Human
-- [ ] [RUBBER-STAMP] Create testdev's token at the terminal
+- [x] [RUBBER-STAMP] Create testdev's token at the terminal
   **Steps:**
   1. Run `/opt/termlink/runme.sh` in a terminal.
   2. At action 28, open the link `claude setup-token` shows, log in, copy the token it prints.
@@ -91,6 +92,7 @@ by testdev's login shells; the operator's own login is untouched.
     skip    testdev's stored token answers (one prompt as testdev returned OK)
   ```
   The first line is the operator's run of 2026-11-11 (token created at the terminal, the Expected line verbatim); the second is the operator's run of 2026-11-17 09:07Z, where action 28 ran one prompt as testdev with the stored token and it answered OK.
+  **Reviewer verdict:** green V-20261117-465699a6 — reviewer-judge-t-3685-r1-8c9cbae1daae:reviewer (rung rung-1-same-vendor-independent), digest 534cd444c649; dispatch judge-t-3685-r1-8c9cbae1daae; widened by SD-ab145e8e (ruling T-3800); evidence: .context/reviews/evidence/T-3685/AC1-judge-t-3685-r1-8c9cbae1daae.md; ledger .context/reviews/verdicts.jsonl
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

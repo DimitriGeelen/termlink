@@ -1,0 +1,109 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3685: runme action 28: long-lived Claude token for testdev (setup-token, operator ruling A)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-17T13:55:15Z
+# ============================================================================
+
+task_id: T-3685
+task_name: "runme action 28: long-lived Claude token for testdev (setup-token, operator ruling A)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-10T21:13:08Z
+completed: 2026-11-15T22:42:14Z
+duration_days: 5
+updates_count: 3
+first_commit: 2026-11-10T22:41:46+01:00
+last_commit: 2026-11-17T14:51:27+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 28 — testdev's own long-lived Claude token via setup-token at the terminal (token never logged), with 8 fixture cases; allowlist the fake fixture token. action 28 gives testdev its own Claude temp dir first (/etc/environment's /var/tmp/claude is root's), then checks the stored token; failed check names what claude said. action 28 picks the setup-token token from a private script(1) recording (wrapped lines joined, recording deleted); paste fallback reads every line. Two pastes had kept only the first 43 chars. operator chose B (Infisical) for testdev's token; consultation recorded. reviewer verdict
+
+# Key outcomes
+outcomes:
+  - 'runme action 28 added: dry-run describes it, no terminal gives HELD, a non-token paste gives FAILED and stores nothing, a good paste stores the token (mode 600) and exports it from the profile, an already-working token is skipped (2026-11-15: each path has a passing fixture case in the 362/0 run, .context/working/t3802/fix.out)'
+  - 'Hermetic fixture cases for those paths in tests/runme-fixtures.sh pass; the token never appears in the run''s stdout/stderr (12 action-28 cases PASS, incl. "the token appears nowhere in the run''s output or the run logs")'
+  - 'After the operator''s run, `latest.log` shows action 28 OK and a prompt as testdev answers OK (runme-20261111T115459Z: action 28 OK, prompt as testdev answered; re-verified as "skip, stored token answers" on 2026-11-15T20:22Z)'
+  - '[RUBBER-STAMP] Create testdev''s token at the terminal'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 28 — testdev''s own long-lived Claude token via setup-token at the terminal (token never logged), with 8 fixture cases; allowlist the fake fixture token'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-10 — how testdev gets a Claude login (operator: "A")'
+    chose: 'testdev gets its own long-lived token (`claude setup-token`), not a copy of the operator''s login.'
+  - decision: '2026-11-11 — how the token reaches .107 (operator: "B is the royal way ... for long term ... transferable to other machines")'
+    chose: 'B, Infisical (ring20''s estate secret store). Folder /010-termlink in prod, key TESTDEV_CLAUDE_TOKEN; one machine identity per host (010-termlink@107), read-only on that folder; fetch per use at testdev launch, value only to that process, no file at rest; whitespace stripped on fetch. ring20 writes the identity bootstrap runme and the `infisical-get` helper; we wire it into the testdev launch and switch action 28 to it (ring20 msgs 29814fd4, 2f0ccc09, 9b23e8ff).'
+    rationale: 'one place for operator-held secrets, per-host identities revocable one by one, carries over to new hosts; the token can be created on any machine and pasted into the Infisical web form, so terminal wrapping no longer matters.'
+    alternatives_rejected: ['A, automatic capture at the .107 terminal (built and tested, 279 fixtures; kept as code, not the route); C, AEF Watchtower Settings (fixed key names, plain http on the LAN). - **Asked around first** (operator 2026-11-11): 16 agents on conversation operator-secret-paste-2026-11-11; answers from 050 (Infisical), ring20 (Infisical), AEF (Watchtower Settings, limits), 1409 (same as AEF).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3677.yaml'
+  - '.context/reviews/evidence/T-3685/AC1-judge-t-3685-r1-8c9cbae1daae.md'
+  - '.context/reviews/recorded.jsonl'
+  - '.context/reviews/refusals-interim.jsonl'
+  - '.context/reviews/review-completions.jsonl'
+  - '.context/reviews/review-dispatches.jsonl'
+  - '.context/reviews/review-runs.jsonl'
+  - '.context/reviews/verdicts.jsonl'
+  - '.secret-scan-allowlist'
+  - '.tasks/active/T-3564-session-handover-maintenance.md'
+  - '.tasks/active/T-3638-aef-ask-per-layer-value-driver-sets-prod.md'
+  - '.tasks/active/T-3682-warn-escalation-check-go-propagationsh-r.md'
+  - '.tasks/active/T-3683-canary-charter-drift-canary-is-erroring-.md'
+  - '.tasks/active/T-3684-canary-hub-outage-collector-canary-is-fi.md'
+  - '.tasks/active/T-3685-runme-action-28-long-lived-claude-token-.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-10T22:41:46'
+    action: 'T-3685: runme action 28 — testdev''s own long-lived Claude token via setup-token at the terminal (token never logged), with 8 fixture cases; allowlist the fake fixture token'
+  - time: '2026-11-11T11:03:41'
+    action: 'T-3685: action 28 gives testdev its own Claude temp dir first (/etc/environment''s /var/tmp/claude is root''s), then checks the stored token; failed check names what claude said'
+  - time: '2026-11-11T11:46:56'
+    action: 'T-3685: action 28 picks the setup-token token from a private script(1) recording (wrapped lines joined, recording deleted); paste fallback reads every line. Two pastes had kept only the first 43 chars'
+  - time: '2026-11-11T16:00:01'
+    action: 'T-3685: operator chose B (Infisical) for testdev''s token; consultation recorded'
+  - time: '2026-11-17T14:51:27'
+    action: 'T-3685: reviewer verdict'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 7289 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7289
+  commits: 6
+  files_changed: 19
+  lines_added: 2064
+  lines_removed: 23
+  footprint_refreshed_at: '2026-11-17T13:55:29Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3685-runme-action-28-long-lived-claude-token-.md
+generated_by: context-agent-hybrid
