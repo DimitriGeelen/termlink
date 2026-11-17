@@ -24795,3 +24795,21 @@ scan_id: R-317920e8
 task_id: T-3818
 payload:
   task_file: .tasks/active/T-3818-re-vendor-aef-be54---be57-t-5210-replyad.md
+---
+kind: scan_emitted
+timestamp: '2026-11-17T23:25:29Z'
+scan_id: R-700ecb41
+task_id: T-3814
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-11-17T23:25:29Z'
+scan_id: R-700ecb41
+task_id: T-3814
+payload:
+  task_file: .tasks/active/T-3814-widened-closes-under-t-3800sd-ab145e8e-m.md

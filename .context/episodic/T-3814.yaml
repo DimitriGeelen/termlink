@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3814: Widened closes under T-3800/SD-ab145e8e: measure and reviewer-judge T-3685, T-2258, T-1632 act-in-the-world criteria
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-11-17T23:25:53Z
+# ============================================================================
+
+task_id: T-3814
+task_name: "Widened closes under T-3800/SD-ab145e8e: measure and reviewer-judge T-3685, T-2258, T-1632 act-in-the-world criteria"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-11-17T13:43:53Z
+completed: 2026-11-17T23:25:24Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-11-17T14:49:40+01:00
+last_commit: 2026-11-18T00:25:21+01:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Measured blocks under the open act-in-the-world criteria of T-3685, T-2258, T-1632 (measured 2026-11-17 after the d167da0e2 fleet deploy). T-2258 large-topic repro on d167da0e2 (1500-post scratch topic, write-then-read, 4 concurrent reads under 20 landing posts, all rc=0 <200ms) after the reviewer's amber. runme action 32 accepts the reviewer restatement for T-2258 (operator A 2026-11-17; shortened to 364 chars under the 400 limit); --i-am-human only for ruled rows; fixtures 416/0. T-2258 criterion restated (operator A; runme action 32, verdict V-20261117-f742f766). criteria met
+
+# Key outcomes
+outcomes:
+  - 'T-3685, T-2258, T-1632 each carry a **Measured:** block (command + recorded output, measured this session) under the open criterion (commit 7dbd8bfb9; T-2258''s large-topic repro added 879b46eac)'
+  - 'Each task judged by the reviewer path (`fw reviewer judge`); outcome per task recorded here (closed on green; otherwise left with the operator and the reason stated) (T-3685: green V-20261117-465699a6, closed 1afbaf681; T-1632: greens claude-code + opencode, closed 0c82cde39; T-2258: two ambers on the out-of-date literal, operator A on the restatement (runme action 32), then three greens claude-code + codex + opencode, closed 3fdfdd76f)'
+  - 'Close-leg field verdict on T-5180 sent to AEF (msg 82f18e01: close leg WORKS)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 32 accepts the reviewer restatement for T-2258 (operator A 2026-11-17; shortened to 364 chars under the 400 limit); --i-am-human only for ruled rows; fixtures 416/0'
+    source: git-mined
+
+# Decisions (task file Decisions section, joined with decisions.yaml by task id — T-4193)
+decisions:
+  - decision: '2026-11-17 — T-2258: accept the reviewer''s restatement (operator ruling A)'
+    chose: 'A — accept reviewer verdict V-20261117-f742f766''s restatement. The proposal was 432 characters, over the framework''s 400 limit, so the same meaning is written shortened (364 characters, `--text`; the dry-run preview showed before/after). Accepting is an operator act (`--i-am-human`), so it runs as runme action 32 from the operator''s terminal.'
+    alternatives_rejected: ['B (puts probe noise into AEF''s work queue); C (rubber stamping of a measured step).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/t3814/repro-2258.sh'
+  - '.tasks/active/T-1632-bump-defaultprotocolversion-to-3-t-1166-.md'
+  - '.tasks/active/T-2258-fix-hub-read-path-stall--channelstatesub.md'
+  - '.tasks/active/T-3685-runme-action-28-long-lived-claude-token-.md'
+  - '.tasks/active/T-3814-widened-closes-under-t-3800sd-ab145e8e-m.md'
+  - 'runme.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-11-17T14:49:40'
+    action: 'T-3814: Measured blocks under the open act-in-the-world criteria of T-3685, T-2258, T-1632 (measured 2026-11-17 after the d167da0e2 fleet deploy)'
+  - time: '2026-11-17T15:07:47'
+    action: 'T-3814: T-2258 large-topic repro on d167da0e2 (1500-post scratch topic, write-then-read, 4 concurrent reads under 20 landing posts, all rc=0 <200ms) after the reviewer''s amber'
+  - time: '2026-11-17T23:37:06'
+    action: 'T-3814: runme action 32 accepts the reviewer restatement for T-2258 (operator A 2026-11-17; shortened to 364 chars under the 400 limit); --i-am-human only for ruled rows; fixtures 416/0'
+  - time: '2026-11-17T23:57:37'
+    action: 'T-3814: T-2258 criterion restated (operator A; runme action 32, verdict V-20261117-f742f766)'
+  - time: '2026-11-18T00:25:21'
+    action: 'T-3814: criteria met'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 581 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 581
+  commits: 6
+  files_changed: 10
+  lines_added: 673
+  lines_removed: 11
+  footprint_refreshed_at: '2026-11-17T23:25:57Z'
+  footprint_refreshed_by_commit: pre-commit
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3814-widened-closes-under-t-3800sd-ab145e8e-m.md
+generated_by: context-agent-hybrid
