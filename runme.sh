@@ -1878,8 +1878,10 @@ schedule_reindex
 # T-3812 retarget: be.54 (tag object e85a75e09 -> commit c6c0a6738, 141 commits past be.52) carries
 # AEF T-5180 (operator widening: `human_ac_ticks.py delegation widen`, for T-1632/T-2258/T-3685
 # under ruling T-3800) and T-5170 (alias-aware hint on a refused bare-name send). No preserved
-# file changed be.52 -> be.54 (all 9 present upstream compared blob-for-blob), so the T-3802
-# merges and manifest still apply unchanged; AEFU_MERGES stays on them.
+# file changed be.52 -> be.54 (all 9 present upstream compared blob-for-blob). The T-3802 set
+# cannot be reused (its "ours" is be.51's copy; the operator run of 2026-11-17 08:50Z refused it,
+# rightly), so .context/vendor-merges/T-3812 restates the two merged files: ours = the vendored
+# T-3802 merge, theirs = be.54 (== be.52), merged = ours unchanged.
 #
 # T-3802 retarget (previous): be.52 (tag object 24308c846 -> commit 3e064047d) carries our T-3798 asks:
 # T-5148 inbox aliases, T-5149 orphan detector, T-5150 refuse unknown bare names, T-5157
@@ -1919,7 +1921,7 @@ seam AEFU_WORKROOT RUNME_AEFU_WORKROOT "/var/tmp"
 seam AEFU_DIVCHECK RUNME_AEFU_DIVCHECK "$PROJECT_ROOT/scripts/check-vendor-divergence.sh"
 seam AEFU_URL RUNME_AEFU_URL "http://192.168.10.107:3003"
 seam AEFU_CURL RUNME_AEFU_CURL "curl"
-seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3802"
+seam AEFU_MERGES RUNME_AEFU_MERGES "$PROJECT_ROOT/.context/vendor-merges/T-3812"
 # T-3794: retargeted be.49 -> be.51 (AEF T-5137, the send-guard fix from our T-3790). The tag,
 # the marker that proves the wanted fix landed, and the task the commit names are seams, so the
 # fixtures keep their be.49 scenario while a real run takes be.51.

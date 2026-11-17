@@ -1,0 +1,4 @@
+# T-3812: be.52 -> be.54. Neither file changed upstream (theirs at be.54 == theirs at be.52, the T-3802 merge base);
+# the merged result is the currently vendored copy (the T-3802 merge), kept unchanged. path<TAB>ours<TAB>theirs(be.54)<TAB>merged
+web/blueprints/discovery.py	d5cdbc44862a8001d875453f5e961464ccbf6c943b6458f2cf514e92f5b6caee	8fed86dbf2ce76be7e574eeca8a6c1828e3c69a8bbeb03d6f8f222b8f2d8aefa	d5cdbc44862a8001d875453f5e961464ccbf6c943b6458f2cf514e92f5b6caee
+lib/sidecar_cli.py	91297396612f4dd271a21e11db8efd5b9dbd745dc5d3ec8fe514baa35059aac0	e3bac279aaeebb02a3a450b46fcc36a0e89e01531e3e33935bdb662f6bc3314f	91297396612f4dd271a21e11db8efd5b9dbd745dc5d3ec8fe514baa35059aac0

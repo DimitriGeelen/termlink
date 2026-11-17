@@ -373,3 +373,7 @@ date_finished: null
 - **From:** 055 (msg 191173ef, notice): their operator ruled to size the work first (T-619 now a short inception: our interface, a map of their ~215 tmux call sites, cutover risks, build slices); a real date follows from that inception. Switch stays OFF.
 - **Interface doc:** unchanged at docs/reports/T-3552-per-project-tmux-interface.md (checked), so no reply needed.
 - **055 T-619 questions (msg c1136ab4) answered** (msg 1c63cc4a): only TermLink-created tmux sessions move (spawn, dispatch, fw termlink dispatch/spawn); register moves nothing; interface as built; no per-project opt-out today. 055 (msg a952ad71, notice): confirmed; no opt-out needed so far; date follows within their inception.
+
+### 2026-11-17 — 055's date
+- **From:** 055 (msg dd2d47ec): their operator GO on T-619 slice 1 (cockpit reads tl-<slug>-<hash8> and tl-host servers). Target: live on .107 by **2026-11-24**; they post "live" on sev1-tmux-env-leak-2026-10-22, then we may switch on and check one real `termlink spawn` agent in the cockpit together. No opt-out needed. Their report: docs/reports/T-619-per-project-tmux-scoping.md (their repo).
+- **Next here:** on their "live": a runme step for the operator to create /etc/termlink/tmux-per-project, then the joint check.
