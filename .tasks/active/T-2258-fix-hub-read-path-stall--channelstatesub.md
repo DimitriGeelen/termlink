@@ -177,6 +177,20 @@ registry are out of scope (T-2259 / separate).
   read-after-post 3 rc=0 0.41s
   ```
   Every read returned well inside the 12 s bound, including immediately after a post.
+  **Measured (large topic, post-then-read on the SAME topic):** 2026-11-17 (T-3814), `bash .context/working/t3814/repro-2258.sh` against 192.168.10.107:9100 (hub_version 0.12.13+135.gd167da0e2, read by `hub.version` the same hour). A post probe is NOT sent to framework:pickup itself because AEF reads every post there as a pickup to act on; instead a scratch topic is built to the large-topic condition (1500 posts), written to and re-read at once, read 4x concurrently while 20 posts land, then deleted. framework:pickup is read (only) three times. Each read under `timeout -s KILL 12`.
+  ```
+  cold read (t3814-repro-1794924411):          rc=0 104ms
+  post once, then immediate re-read:           rc=0 178ms
+  concurrent read 4 while 20 posts land:       rc=0 112ms
+  concurrent read 2 while 20 posts land:       rc=0 153ms
+  concurrent read 1 while 20 posts land:       rc=0 173ms
+  concurrent read 3 while 20 posts land:       rc=0 189ms
+  framework:pickup read 1:                     rc=0 156ms
+  framework:pickup read 2:                     rc=0 134ms
+  framework:pickup read 3:                     rc=0 166ms
+  Deleted topic 't3814-repro-1794924411' (1521 record(s) removed)
+  ```
+  The 1521 removed records confirm the topic held 1500 seeds + 1 write + 20 landing posts when it was read.
 
 ## Verification
 
