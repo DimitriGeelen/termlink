@@ -407,6 +407,9 @@ if a[:2] == ["delegation", "widen"]:
 sys.exit(3)
 EOS
 export RUNME_WIDEN_PY="$TMP/fake_human_ac_ticks.py"
+# T-3806 action 31: a scratch switch file, present by default so ordinary runs skip.
+mkdir -p "$TMP/etc-termlink"; : > "$TMP/etc-termlink/tmux-per-project"
+export RUNME_TMUXPP_FILE="$TMP/etc-termlink/tmux-per-project"
 # T-3685 action 28: a fake `su - testdev -c` that answers OK only for the GOOD token in the
 # scratch token file, and fake terminal files. Default = a working token, so ordinary runs skip.
 TD="$TMP/testdev"; mkdir -p "$TD/home/.config/claude"
@@ -1055,7 +1058,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 51 ))   # +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 52 ))   # +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -3489,6 +3492,29 @@ controls = ["[REVIEW] Fixed binary deployed to the `.122` hub", "Create a token"
 sys.exit(0 if all(re.search(pat, t) for t in titles) and not any(re.search(pat, c) for c in controls) else 1)
 EOP
 echo active > "$FAKE_WIDEN_STATE"
+
+# ---------------------------------------------------------------------------
+# T-3806 action 31 — switch on per-project tmux servers.
+# ---------------------------------------------------------------------------
+s31() { echo "$1" | sed -n '/^.*31\. Switch on per-project/,/^.*Verification/p'; }
+SW="$RUNME_TMUXPP_FILE"
+rm -rf "$TMP/etc-termlink"; out=$(run --dry-run); x=$(s31 "$out")
+if echo "$x" | grep_all "\[DRY\]   would create $SW (empty, 0644)" && [ ! -e "$SW" ]; then
+    ok "31: --dry-run names the switch file and creates nothing"
+else bad "31 dry-run" "$x"; fi
+out=$(run); rc=$?; x=$(s31 "$out")
+if echo "$x" | grep_all "OK      per-project tmux servers switched on: $SW created" && [ -f "$SW" ] && [ "$(stat -c %a "$SW")" = 644 ] && [ ! -s "$SW" ]; then
+    ok "31: creates the empty mode-644 switch file and verifies it on disk"
+else bad "31 create" "rc=$rc: $x"; fi
+out=$(run); x=$(s31 "$out")
+if echo "$x" | grep_all "skip    per-project tmux servers already on ($SW present)"; then
+    ok "31: second run skips (idempotent)"
+else bad "31 idempotent" "$x"; fi
+rm -f "$SW"; mkdir -p "$SW"; out=$(run); rc=$?; x=$(s31 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  $SW exists but is not a regular file; nothing changed" && [ -d "$SW" ]; then
+    ok "31: a directory in the switch's place => FAILED, left alone"
+else bad "31 not-a-file" "rc=$rc: $x"; fi
+rmdir "$SW"; : > "$SW"
 
 echo ""
 echo "----------------------------------------"

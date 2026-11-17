@@ -1,13 +1,18 @@
 ---
 id: T-3806
-name: "Turn on per-project tmux servers (/etc/termlink/tmux-per-project) once 055 confirms its cockpit readers moved (T-3552 cutover gate)"
+name: "Turn on per-project tmux servers (/etc/termlink/tmux-per-project) once 055
+  confirms its cockpit readers moved (T-3552 cutover gate)"
 description: >
-  T-3552 built per-project tmux servers default OFF (operator ruling A, 2026-10-23): new spawns go to tl-* servers only when /etc/termlink/tmux-per-project exists or TERMLINK_TMUX_PER_PROJECT=1. 055 must first switch its readers (capture-pane, list-clients, attach -f ignore-size) and tell us; then one runme action creates the switch file and verifies a new spawn lands on its project server. Asked 055 on 2026-11-16.
+  T-3552 built per-project tmux servers default OFF (operator ruling A, 2026-10-23):
+  new spawns go to tl-* servers only when /etc/termlink/tmux-per-project exists or
+  TERMLINK_TMUX_PER_PROJECT=1. 055 must first switch its readers (capture-pane, list-clients,
+  attach -f ignore-size) and tell us; then one runme action creates the switch file
+  and verifies a new spawn lands on its project server. Asked 055 on 2026-11-16.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-15T23:50:14Z
-last_update: 2026-11-15T23:50:14Z
-date_finished: null
+last_update: 2026-11-17T14:26:21Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +55,36 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-17T13:57:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3806: Turn on per-project tmux servers (/etc/termlink/tmux-per-project) once 055 confirms its cockpit readers moved (T-3552 cutover gate)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Background / trigger:** T-3552 built per-project tmux servers behind a host switch; operator ruling A (2026-10-23, "proceed as suggested") keeps it OFF until 055's cockpit reads them, then "turning the switch on is one runme action". 055 reported LIVE on .107 since 2026-11-17 11:25 (msg de0a46c3, their T-732).
+**Problem / hypothesis:** every TermLink tmux spawn still lands on the host's shared default server, the SEV-1 T-3549 setting.
+**Goal:** runme action 31 creates /etc/termlink/tmux-per-project (empty, root, 0644); then one real `termlink spawn --backend tmux` lands on its project's tl-* server and 055 sees it in the cockpit.
+**Expected outcome:** new TermLink tmux sessions on .107 run on per-project servers; nothing on the default server is touched or killed; rollback = remove the file.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] runme action 31 added (idempotent; verifies the file on disk; dry-run writes nothing) with hermetic fixture cases; fixtures pass (4 action-31 cases; 405/0)
+- [ ] After the operator's run: the switch file exists, and one real `termlink spawn --backend tmux` from /opt/termlink registers with `metadata.tmux_server` = the `termlink tmux socket /opt/termlink` name; the scratch session is cleaned up
+- [ ] 055 confirms the session showed in its cockpit (joint check); answer recorded here
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -377,3 +398,7 @@ date_finished: null
 ### 2026-11-17 — 055's date
 - **From:** 055 (msg dd2d47ec): their operator GO on T-619 slice 1 (cockpit reads tl-<slug>-<hash8> and tl-host servers). Target: live on .107 by **2026-11-24**; they post "live" on sev1-tmux-env-leak-2026-10-22, then we may switch on and check one real `termlink spawn` agent in the cockpit together. No opt-out needed. Their report: docs/reports/T-619-per-project-tmux-scoping.md (their repo).
 - **Next here:** on their "live": a runme step for the operator to create /etc/termlink/tmux-per-project, then the joint check.
+
+### 2026-11-17T13:57:11Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

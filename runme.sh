@@ -4140,6 +4140,41 @@ widen_t3800() {
 head2 "30. Widen act-in-the-world for T-1632, T-2258, T-3685 under ruling T-3800, until 2027-02-15 (T-3812; operator ruling A)"
 widen_t3800
 
+# ---------------------------------------------------------------------------
+# 31. Switch on per-project tmux servers on this host (T-3806; T-3552 operator ruling A 2026-10-23)
+# T-3552's ruling: the host switch stays OFF until 055's cockpit reads the tl-* servers, then
+# "turning the switch on is one runme action". 055 reported LIVE on .107 since 2026-11-17 11:25
+# (msg de0a46c3, their T-732). This creates /etc/termlink/tmux-per-project (empty, root, 0644).
+# From then on NEW TermLink tmux spawns go to tl-<slug>-<hash8> / tl-host; nothing running on the
+# default server is touched or killed (T-3552 migration rule 1). Rollback: remove the file.
+# Idempotent: present as a regular file -> skip. Verified on disk (regular file, mode 644).
+# Seams (fixtures only): RUNME_TMUXPP_FILE.
+# ---------------------------------------------------------------------------
+seam TMUXPP_FILE RUNME_TMUXPP_FILE "/etc/termlink/tmux-per-project"
+
+tmux_per_project_on() {
+    if [ -f "$TMUXPP_FILE" ]; then
+        say "  skip    per-project tmux servers already on ($TMUXPP_FILE present)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ -e "$TMUXPP_FILE" ]; then
+        say "  FAILED  $TMUXPP_FILE exists but is not a regular file; nothing changed"; FAILED=$((FAILED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would create $TMUXPP_FILE (empty, 0644): new TermLink tmux spawns go to per-project servers"; DONE=$((DONE+1)); return
+    fi
+    if ! { mkdir -p "$(dirname "$TMUXPP_FILE")" && : > "$TMUXPP_FILE" && chmod 0644 "$TMUXPP_FILE"; } 2>/tmp/.runme-tmuxpp-err; then
+        say "  FAILED  could not create $TMUXPP_FILE: $(tail -1 /tmp/.runme-tmuxpp-err)"; FAILED=$((FAILED+1)); return
+    fi
+    if [ -f "$TMUXPP_FILE" ] && [ "$(stat -c %a "$TMUXPP_FILE" 2>/dev/null)" = "644" ]; then
+        say "  OK      per-project tmux servers switched on: $TMUXPP_FILE created (rollback: remove it); running sessions untouched"; DONE=$((DONE+1))
+    else
+        say "  FAILED  $TMUXPP_FILE was written but is not a mode-644 regular file"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "31. Switch on per-project tmux servers (T-3806; 055's cockpit live; T-3552 operator ruling A)"
+tmux_per_project_on
+
 head2 "Verification"
 if [ "$DRY_RUN" = "1" ]; then
     say "  [DRY]   skipped (nothing was changed)"
