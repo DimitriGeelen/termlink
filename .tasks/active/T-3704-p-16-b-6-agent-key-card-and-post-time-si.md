@@ -2,12 +2,14 @@
 id: T-3704
 name: "P-16: B-6 agent key card and post-time signature check"
 description: >
-  arc-011 plan unit P-16 (docs/design/interactive-agent-communication-08-plan.md v0.3, approved G-0 2026-11-12): B-6: agent key card at the hub, post-time signature check, signed dead letter for retired instances
+  arc-011 plan unit P-16 (docs/design/interactive-agent-communication-08-plan.md v0.3,
+  approved G-0 2026-11-12): B-6: agent key card at the hub, post-time signature check,
+  signed dead letter for retired instances
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: [T-3357, T-3366]
@@ -42,8 +44,8 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:40Z
-last_update: 2026-11-12T16:56:40Z
-date_finished: null
+last_update: 2026-11-17T17:05:40Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -54,6 +56,26 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-11-17T16:56:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_DELIVERY_TRUTH: 0
+      AS_FAILURE_SURFACED: 0
+      AS_OPERATOR_SIMPLICITY: 3
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-TRUST: 1
+      F-SURFACE: 0
+      F-CONV-RECALL: 0
+    rationale: 'AS_DELIVERY_TRUTH=0 (L0: no signal); AS_FAILURE_SURFACED=0 (L0: no
+      signal); AS_OPERATOR_SIMPLICITY=3 (L3:keyword=rollback); D1=2 (body:learning-ref);
+      D2=0 (no-signal); D3=0 (no-signal); D4=0 (no-signal); F-TRUST=1 (L1:keyword=signature);
+      F-SURFACE=0 (L0: no signal); F-CONV-RECALL=0 (L0: no signal)'
+    rubric_sha: e4a00f38e801
+    driver_set: product
 ---
 
 # T-3704: P-16: B-6 agent key card and post-time signature check
@@ -78,11 +100,18 @@ Depends on: T-3366 (P-10 security: signing key before signed dead letters)
 Depends on: gate G-0 (decision: plan approved 2026-11-12; satisfied)
 Unblocks: P-30 (T-3669), P-31 (T-3713); part of gate G-2.
 
+**Design (2026-11-17):** `docs/reports/T-3704-design.md` settles the 15 gaps in `docs/reports/T-3704-spec-extract.md`.
+Slice A (card store, runme-only admin write, post-time check `off|log|enforce` default off, receiver `from_agent`
+check) is built under this task; slice B (old-key replacement FCW-134 and the signed DEAD letter AL-34 / E-70) needs
+AL-20, which P-15 (T-3703) builds first; slice B gets its own task after P-15.
+
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The B-6 specs pass (agent key card at the hub, post-time signature check, signed dead letter for retired instances)
-- [ ] The unit's fixture suite exits 0 with a PASS line per B-6 E-n and its mutant list is all killed (FP 3.1.b)
+- [ ] Design note's gap settlements reviewed by two isolated seats before code (docs/reports/T-3704-reviews/), WRONG items fixed
+- [ ] Slice A built: card store + `hub.key_card_put/get` (admin, execute scope, admin-log row first) + post check for sidecar.msg.v1 / sidecar.stage.v1 / sidecar.liveness.v1 behind `off|log|enforce` (default off) + receiver `from_agent` check
+- [ ] E-169 card case (L2, hub fake) and E-69 post half (L4, throwaway real hub: `fx-a` signed with `fx-b`'s key, hub secret only, no card; at hub and at receiver) PASS; mutants incl. `fc-01-verify-accepts-any-signature` all killed
+- [ ] Slice B captured as its own task, depending on T-3703
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -386,3 +415,7 @@ Unblocks: P-30 (T-3669), P-31 (T-3713); part of gate G-2.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3704-p-16-b-6-agent-key-card-and-post-time-si.md
 - **Context:** Initial task creation
+
+### 2026-11-17T16:56:25Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
