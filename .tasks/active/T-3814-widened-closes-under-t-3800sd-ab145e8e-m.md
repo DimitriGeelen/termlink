@@ -65,9 +65,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] T-3685, T-2258, T-1632 each carry a **Measured:** block (command + recorded output, measured this session) under the open criterion
-- [ ] Each task judged by the reviewer path (`fw reviewer judge`); outcome per task recorded here (closed on green; otherwise left with the operator and the reason stated)
-- [ ] Close-leg field verdict on T-5180 sent to AEF
+- [x] T-3685, T-2258, T-1632 each carry a **Measured:** block (command + recorded output, measured this session) under the open criterion (commit 7dbd8bfb9; T-2258's large-topic repro added 879b46eac)
+- [x] Each task judged by the reviewer path (`fw reviewer judge`); outcome per task recorded here (closed on green; otherwise left with the operator and the reason stated) (T-3685: green V-20261117-465699a6, closed 1afbaf681; T-1632: greens claude-code + opencode, closed 0c82cde39; T-2258: two ambers on the out-of-date literal, operator A on the restatement (runme action 32), then three greens claude-code + codex + opencode, closed 3fdfdd76f)
+- [x] Close-leg field verdict on T-5180 sent to AEF (msg 82f18e01: close leg WORKS)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -118,6 +118,10 @@ date_finished: null
 -->
 
 ## Verification
+
+test -f .tasks/completed/T-3685-runme-action-28-long-lived-claude-token-.md
+ls .tasks/completed/T-1632-*.md
+ls .tasks/completed/T-2258-*.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
