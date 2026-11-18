@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:39Z
-last_update: 2026-11-18T18:43:04Z
+last_update: 2026-11-18T18:46:09Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -363,6 +363,21 @@ grep -q '12/12 killed' docs/reports/T-3703-mutants.md && grep -q '18/18 killed' 
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-11-18 — slice A: the spec's own vectors exposed a gap
+- **What changed:** the revocation head carries the LIST's digest as content (V-HEAD-1 is 151 bytes with it), so AL-20's "drop top-level digest before hashing" cannot apply to it (gap 19). AL-20 lives in `termlink-session` (the crate hub and sidecar already share for ed25519/SHA-256), not `termlink-protocol`; no RFC 8785 code existed. Debug-build crypto made the 10^5 fuzz take 575 s; crypto deps now build at opt-level 3 in dev/test (28 s).
+- **Plan impact:** per-schema self-digest rule (`CONTENT_DIGEST_SCHEMAS`); change request to 06a 2.4. The V-REV vectors are now tracked fixtures (T-3819 reuses them).
+- **Triggered:** none new.
+
+### 2026-11-18 — design review r1: three settlements were wrong
+- **What changed:** "own project cannot be told apart" was false (rostered = own project), self-revocation without a card let anyone fill the list, and admin-row-first left the log ahead of the file on a crash; the pin form (fingerprint only) cannot verify a signature.
+- **Plan impact:** `hub.version` publishes the public key; self-revoke only for carded keys (B-6 slice A is now a dependency); intent + committed admin rows with reconcile and reissue.
+- **Triggered:** operator ruling A (2026-11-18): `hub.revoke` under the same-uid stated limit.
+
+### 2026-11-18 — code review r2/r3: the field failure modes were in the seams
+- **What changed:** the stale rule never ran during the most common failure (hub down: the tick only ran after `hub.version` succeeded); a restored hub's post check and its reissue chaining, a corrupted sidecar store that could never heal, and a torn admin row that blocked every restart were all found by the reviewers, not the unit tests. The unit tests drove `Tracker::tick` directly; the bugs lived in how the pass and the hub's start-up call it.
+- **Plan impact:** an L4 outage test through `Receiver::pass`; mutants per fix (B 12, C 18). The sender-side WAITING reason needs a recipient-key directory the sender lacks: moved to P-24.
+- **Triggered:** criteria on T-3708 (WAITING reason, E-127 reader, status vocabulary, stale-gate reason) and T-3713 (orphaned claims after restart, caches, hub-before-sidecar roll-out).
 
 ## Recommendation
 
