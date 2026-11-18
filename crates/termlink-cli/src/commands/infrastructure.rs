@@ -1040,6 +1040,45 @@ pub(crate) async fn cmd_hub_key_card(action: crate::cli::KeyCardAction) -> Resul
     Ok(())
 }
 
+/// T-3703: `termlink hub revocation revoke|show|reissue` over the local hub socket.
+pub(crate) async fn cmd_hub_revocation(action: crate::cli::RevocationAction) -> Result<()> {
+    use crate::cli::RevocationAction as A;
+    use termlink_session::client;
+    use termlink_session::signed_state as ss;
+    let socket_path = termlink_hub::server::hub_socket_path();
+    let (method, params, json_out) = match action {
+        A::Revoke { key, public_key, public_key_file, project, agent, reason, json } => {
+            let key = match (key, public_key, public_key_file) {
+                (Some(k), _, _) => k,
+                (None, pk, file) => {
+                    let raw = match (pk, file) {
+                        (Some(p), _) => p,
+                        (None, Some(f)) => std::fs::read_to_string(&f).with_context(|| format!("reading {}", f.display()))?,
+                        (None, None) => anyhow::bail!("give --key, --public-key or --public-key-file"),
+                    };
+                    ss::fingerprint_of_hex(&raw).ok_or_else(|| anyhow::anyhow!("the public key is not a 64-hex ed25519 key"))?
+                }
+            };
+            ("hub.revoke", json!({"key": key, "project": project, "agent": agent, "reason": reason}), json)
+        }
+        A::Show { head, json } => (if head { "hub.revocation_head" } else { "hub.revocation_get" }, json!({}), json),
+        A::Reissue { json } => ("hub.revocation_reissue", json!({}), json),
+    };
+    let resp = tokio::time::timeout(std::time::Duration::from_secs(10), client::rpc_call(&socket_path, method, params))
+        .await
+        .map_err(|_| anyhow::anyhow!("{method}: the local hub did not answer within 10s"))??;
+    let result = client::unwrap_result(resp).map_err(|e| anyhow::anyhow!("{method}: {e}"))?;
+    if json_out {
+        println!("{result}");
+    } else if let Some(text) = result.get("text").and_then(|t| t.as_str()) {
+        let v: serde_json::Value = serde_json::from_str(text).unwrap_or_default();
+        println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
+    } else {
+        println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+    }
+    Ok(())
+}
+
 pub(crate) fn cmd_hub_adopt_id(dry_run: bool, expect: Option<&str>, json_output: bool) -> Result<()> {
     let dir = termlink_session::discovery::runtime_dir();
     let a = termlink_hub::hub_identity::adopt_legacy(&dir, dry_run, expect)

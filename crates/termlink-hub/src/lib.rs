@@ -10,6 +10,7 @@ pub mod governor;
 pub mod hub_identity;
 pub mod inbox;
 pub mod key_card;
+pub mod revocation;
 pub mod mail_guard;
 pub mod pidfile;
 pub mod remote_store;

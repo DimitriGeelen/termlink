@@ -15,7 +15,8 @@
 //!
 //! The fixture is `tests/fixtures/signed-state-vectors.json` (06a 2.4.c.1 plus V-REQ-1).
 
-use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
+pub use ed25519_dalek::VerifyingKey;
+use ed25519_dalek::{Signature, Signer, SigningKey};
 use sha2::{Digest, Sha256};
 use std::fmt;
 
@@ -529,13 +530,26 @@ pub fn key_fingerprint(key: &VerifyingKey) -> String {
     format!("ed25519:{}", hex(&Sha256::digest(key.as_bytes())))
 }
 
+/// The ed25519 public key of a raw 64-hex string (lower case), if it is one.
+pub fn verifying_key_of_hex(raw: &str) -> Option<VerifyingKey> {
+    let bytes: [u8; 32] = unhex_lower(raw)?.try_into().ok()?;
+    VerifyingKey::from_bytes(&bytes).ok()
+}
+
+/// [`key_fingerprint`] of a raw 64-hex public key (any case, surrounding whitespace ignored); `None` if it is
+/// not an ed25519 public key.
+pub fn fingerprint_of_hex(raw: &str) -> Option<String> {
+    let bytes: [u8; 32] = unhex_lower(&raw.trim().to_ascii_lowercase())?.try_into().ok()?;
+    VerifyingKey::from_bytes(&bytes).ok().map(|k| key_fingerprint(&k))
+}
+
 pub fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
 /// Lower-case hex only (an upper-case signature or digest is a different string, refused).
 pub fn unhex_lower(s: &str) -> Option<Vec<u8>> {
-    if s.len() % 2 != 0 || !s.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c)) {
+    if !s.len().is_multiple_of(2) || !s.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c)) {
         return None;
     }
     (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).ok()).collect()

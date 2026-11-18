@@ -39,6 +39,12 @@ impl HubIdentity {
         signing_fingerprint(&self.signing)
     }
 
+    /// T-3703 (design v2 5.1): the 32-byte public key as 64 lower hex, offered in `hub.version` so a
+    /// sidecar can verify hub-signed state after checking `sha256(key)` against its pin.
+    pub fn signing_public_key_hex(&self) -> String {
+        hex(self.signing.verifying_key().as_bytes())
+    }
+
     /// The signing key, for hub-signed objects (P-15, P-16). Never serialise it.
     pub fn signing_key(&self) -> &SigningKey {
         &self.signing

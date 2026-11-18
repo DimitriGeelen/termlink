@@ -617,6 +617,19 @@ pub async fn run_with_tcp(
         }
     }
 
+    // T-3703 (design v2 5.7): a revocation list behind the admin log's last committed row (a restore)
+    // blocks head/get until hub.revocation_reissue; a lost commit row or unreadable list raises attention.
+    if let Some(ident) = crate::hub_identity::current() {
+        let log = runtime_dir.join(crate::rpc_audit::ADMIN_FILE_NAME);
+        for m in crate::revocation::startup_reconcile(&runtime_dir, &log, &ident.hub_id, ident.signing_key()) {
+            tracing::warn!(detail = %m, "T-3703: revocation list reconcile");
+            let row = serde_json::json!({"event": "revocation-reconcile", "attention": true, "detail": m});
+            if let Err(e) = crate::rpc_audit::admin_note(row) {
+                tracing::error!(error = %e, "T-3703: revocation reconcile row not written");
+            }
+        }
+    }
+
     // T-2048: Install connection-cap + per-sender rate-limit governors.
     // Reads TERMLINK_MAX_CONNECTIONS / TERMLINK_RATE_LIMIT_PER_SEC from env,
     // falls back to DEFAULT_MAX_CONNECTIONS / DEFAULT_RATE_LIMIT_PER_SEC.
@@ -782,10 +795,15 @@ fn hub_method_scope(method: &str) -> PermissionScope {
         | "hub.bus_state"
         | "hub.governor_status"
         | "hub.key_card_get"
-        | "hub.key_card_list" => PermissionScope::Observe,
+        | "hub.key_card_list"
+        | "hub.revocation_head"
+        | "hub.revocation_get" => PermissionScope::Observe,
 
         // T-3704 (B-6): card writes and the check setting; also local-socket only (router).
-        "hub.key_card_put" | "hub.key_card_mode" => PermissionScope::Execute,
+        // T-3703 (B-5): operator revocation and reissue, same rule (operator ruling A 2026-11-18).
+        "hub.key_card_put" | "hub.key_card_mode" | "hub.revoke" | "hub.revocation_reissue" => PermissionScope::Execute,
+        // T-3703: a self-revocation is authenticated by its own signature and a key card.
+        "hub.revocation_request" => PermissionScope::Interact,
 
         // Observe: read-only channel/bus + agent introspection (T-2267).
         // Before this arm existed the entire channel.* surface fell through

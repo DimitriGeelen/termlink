@@ -4259,6 +4259,60 @@ restatements_accept() {
 head2 "32. Accept the reviewer restatements you ruled on (T-3814: T-2258)"
 restatements_accept
 
+# ---------------------------------------------------------------------------
+# 33. Revoke the agent keys you ruled on (T-3703, arc-011 P-15 / B-5; operator ruling A 2026-11-18)
+# The hub's signed revocation list. A revocation cannot be undone: a wrongly revoked agent gets a new key and card.
+# Row: <agent>|<project>|<raw 64-hex public key>|<ruling ref>|<reason>. Rows are added only for a revocation the
+# operator has ruled on (a leaked key, the P-37 drill); with none, the action skips. Idempotent: the hub answers
+# `already` for a listed key. Verified on disk: the hub's signed list (hub revocation show) must name the key's
+# fingerprint (ed25519:<sha256 of the key>). Under an agent shell (CLAUDECODE=1 / AI_AGENT) -> FAILED.
+# Seams (fixtures only): RUNME_REVOKE_TL (the termlink that answers `hub revocation`), RUNME_REVOKE_ROWS.
+# ---------------------------------------------------------------------------
+seam REVOKE_TL RUNME_REVOKE_TL "termlink"
+seam REVOKE_ROWS RUNME_REVOKE_ROWS ""
+
+revoke_fp() {  # <raw hex> -> ed25519:<sha256>
+    python3 -c 'import hashlib,sys; print("ed25519:" + hashlib.sha256(bytes.fromhex(sys.argv[1])).hexdigest())' "$1" 2>/dev/null
+}
+
+revocations_apply() {
+    local row agent project pk ref reason fp
+    if [ -z "$REVOKE_ROWS" ]; then
+        say "  skip    no revocation ruled on"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    while IFS= read -r row; do
+        [ -n "$row" ] || continue
+        agent="${row%%|*}"; row="${row#*|}"; project="${row%%|*}"; row="${row#*|}"
+        pk="${row%%|*}"; row="${row#*|}"; ref="${row%%|*}"; reason="${row#*|}"
+        fp="$(revoke_fp "$pk")"
+        if [ -z "$fp" ]; then
+            say "  FAILED  $agent: the public key in the row is not hex"; FAILED=$((FAILED+1)); continue
+        fi
+        if "$REVOKE_TL" hub revocation show --json 2>/dev/null | grep -q -- "$fp"; then
+            say "  skip    $agent: key $fp already revoked"; SKIPPED=$((SKIPPED+1)); continue
+        fi
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would revoke $agent's key $fp ($ref)"; DONE=$((DONE+1)); continue
+        fi
+        if [ "${CLAUDECODE:-}" = "1" ] || [ -n "${AI_AGENT:-}" ]; then
+            say "  FAILED  $agent: revoking a key is your act and this shell is an agent's; run $PROJECT_ROOT/runme.sh from your own terminal"
+            FAILED=$((FAILED+1)); continue
+        fi
+        if ! "$REVOKE_TL" hub revocation revoke --public-key "$pk" --project "$project" --agent "$agent" --reason "$reason" --json \
+                > /tmp/.runme-revoke-out 2>&1; then
+            say "  FAILED  $agent: hub refused the revocation: $(tail -1 /tmp/.runme-revoke-out)"; FAILED=$((FAILED+1)); continue
+        fi
+        if "$REVOKE_TL" hub revocation show --json 2>/dev/null | grep -q -- "$fp"; then
+            say "  OK      $agent: key $fp revoked ($ref); every receiver refuses it from its next pull"; DONE=$((DONE+1))
+        else
+            say "  FAILED  $agent: the revoke exited 0 but the hub's signed list does not name $fp"; FAILED=$((FAILED+1))
+        fi
+    done <<< "$REVOKE_ROWS"
+}
+
+head2 "33. Revoke the agent keys you ruled on (T-3703)"
+revocations_apply
+
 head2 "Verification"
 if [ "$DRY_RUN" = "1" ]; then
     say "  [DRY]   skipped (nothing was changed)"

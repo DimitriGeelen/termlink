@@ -572,6 +572,17 @@ pub mod error_code {
     /// T-3704: a key-card write was refused (not over the local socket, bad name or key, or a
     /// change of an existing card's key or project without `replace`).
     pub const KEY_CARD_REFUSED: i64 = -32045;
+    /// T-3703 (arc-011 B-5, FCW-99 at the hub): an arc-011 post is signed by a carded agent's key
+    /// that is on the hub's revocation list. `data` carries `{fcw, agent}`.
+    pub const KEY_REVOKED: i64 = -32046;
+    /// T-3703: a revocation call was refused (bad key or names, request not signed by the key it
+    /// revokes, no key card for a self-revocation, request too old, list would exceed 1 MiB, or the
+    /// list could not be written). Nothing changed.
+    pub const REVOCATION_REFUSED: i64 = -32047;
+    /// T-3703 (design v2 5.7): the revocation file is behind the admin log's last committed
+    /// revocation (a restore); the head is not served until `hub.revocation_reissue`. A sidecar
+    /// counts this as a failed pull, never as an empty list.
+    pub const REVOCATION_RECONCILE: i64 = -32048;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.

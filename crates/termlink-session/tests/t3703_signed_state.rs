@@ -199,11 +199,10 @@ fn change(r: &mut Rng, o: &mut J, other: &SigningKey) {
             if let Some(J::Arr(es)) = match o {
                 J::Obj(m) => m.iter_mut().find(|(k, _)| k == "entries").map(|(_, v)| v),
                 _ => None,
-            } {
-                if let Some(J::Obj(e)) = es.first_mut() {
-                    let i = r.below(e.len());
-                    e[i].1 = J::Str("ed25519:".to_string() + &"0".repeat(64));
-                }
+            } && let Some(J::Obj(e)) = es.first_mut()
+            {
+                let i = r.below(e.len());
+                e[i].1 = J::Str("ed25519:".to_string() + &"0".repeat(64));
             }
         }
         _ => o.set("extra", J::Int(r.below(100) as i64)),

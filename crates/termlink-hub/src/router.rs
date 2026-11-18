@@ -172,6 +172,11 @@ pub async fn route(req: &Request, peer_addr: Option<&str>) -> Option<RpcResponse
         "hub.key_card_mode" => handle_key_card_mode(id, &req.params, peer_addr),
         "hub.key_card_get" => handle_key_card_get(id, &req.params),
         "hub.key_card_list" => handle_key_card_list(id),
+        "hub.revocation_head" => handle_revocation_read(id, true),
+        "hub.revocation_get" => handle_revocation_read(id, false),
+        "hub.revoke" => handle_revoke(id, &req.params, peer_addr),
+        "hub.revocation_request" => handle_revocation_request(id, &req.params),
+        "hub.revocation_reissue" => handle_revocation_reissue(id, peer_addr),
         "hub.legacy_usage" => handle_hub_legacy_usage(id, &req.params),
         "hub.bus_state" => handle_hub_bus_state(id),
         "hub.governor_status" => handle_hub_governor_status(id),
@@ -974,6 +979,121 @@ fn handle_key_card_mode(id: serde_json::Value, params: &serde_json::Value, peer_
     }
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// T-3703 (arc-011 P-15, B-5; AL-21): the signed revocation list. Writes are admin RPCs (the intent row is
+// written before dispatch, FCW-91); the committed row follows the persisted list (design v2 5.7).
+
+fn revocation_error(id: serde_json::Value, reason: &str) -> RpcResponse {
+    let code = if reason.starts_with("RECONCILE") {
+        control::error_code::REVOCATION_RECONCILE
+    } else {
+        control::error_code::REVOCATION_REFUSED
+    };
+    ErrorResponse::with_data(id, code, &format!("refused: {reason}"), serde_json::json!({})).into()
+}
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+fn revocation_commit_log(by: &'static str) -> impl FnOnce(&termlink_session::signed_state::J, &[termlink_session::signed_state::J]) -> Result<(), String> {
+    move |list, added| {
+        crate::rpc_audit::admin_note(crate::revocation::committed_row(list, added, by)).map_err(|e| e.to_string())
+    }
+}
+
+fn handle_revocation_read(id: serde_json::Value, head_only: bool) -> RpcResponse {
+    let Some(ident) = crate::hub_identity::current() else {
+        return revocation_error(id, "the hub identity is not loaded");
+    };
+    let dir = termlink_session::discovery::runtime_dir();
+    let r = if head_only {
+        crate::revocation::head(&dir, &ident.hub_id, ident.signing_key())
+    } else {
+        crate::revocation::get(&dir, &ident.hub_id, ident.signing_key())
+    };
+    match r {
+        // `text` is the exact signed object; a verifier parses it with the strict gate (FCW-88)
+        Ok(o) => Response::success(id, serde_json::json!({"text": crate::revocation::text_of(&o)})).into(),
+        Err(e) => revocation_error(id, &e),
+    }
+}
+
+fn handle_revoke(id: serde_json::Value, params: &serde_json::Value, peer_addr: Option<&str>) -> RpcResponse {
+    if let Some(r) = key_card_local_only(&id, "hub.revoke", peer_addr) {
+        return r;
+    }
+    let Some(ident) = crate::hub_identity::current() else {
+        return revocation_error(id, "the hub identity is not loaded");
+    };
+    let field = |n: &str| params.get(n).and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let r = crate::revocation::Revoke {
+        key: field("key"),
+        project: field("project"),
+        agent: field("agent"),
+        reason: field("reason"),
+        by: "operator",
+        event: "admin-revoke",
+    };
+    let dir = termlink_session::discovery::runtime_dir();
+    match crate::revocation::revoke(&dir, &ident.hub_id, ident.signing_key(), &r, now_ms(), revocation_commit_log("hub.revoke")) {
+        Ok(i) => Response::success(id, serde_json::json!({"ok": true, "seq": i.seq, "digest": i.digest, "already": i.already})).into(),
+        Err(e) => revocation_error(id, &e),
+    }
+}
+
+fn handle_revocation_request(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
+    let Some(ident) = crate::hub_identity::current() else {
+        return revocation_error(id, "the hub identity is not loaded");
+    };
+    // the request travels as text so the strict gate sees duplicates and number forms (FCW-88)
+    let Some(text) = params.get("request").and_then(|v| v.as_str()) else {
+        return revocation_error(id, "missing 'request' (the signed request as JSON text)");
+    };
+    let req = match termlink_session::signed_state::parse_strict(text.as_bytes()) {
+        Ok(r) => r,
+        Err(e) => return revocation_error(id, &format!("request: {e}")),
+    };
+    let dir = termlink_session::discovery::runtime_dir();
+    let cards = |pk: &[u8; 32]| -> Result<Option<(String, String)>, String> {
+        Ok(crate::key_card::list(&dir)?
+            .into_iter()
+            .find(|c| crate::key_card::parse_signing_key(&c.signing_key).as_ref() == Some(pk))
+            .map(|c| (c.agent, c.project)))
+    };
+    let r = match crate::revocation::check_request(&req, now_ms(), &cards) {
+        Ok(r) => r,
+        Err(e) => {
+            let row = serde_json::json!({"event": "revocation-request-refused", "attention": true, "reason": e});
+            let _ = crate::rpc_audit::admin_note(row);
+            return revocation_error(id, &e);
+        }
+    };
+    match crate::revocation::revoke(&dir, &ident.hub_id, ident.signing_key(), &r, now_ms(), revocation_commit_log("hub.revocation_request")) {
+        Ok(i) => Response::success(
+            id,
+            serde_json::json!({"ok": true, "seq": i.seq, "digest": i.digest, "already": i.already, "agent": r.agent, "by": "self"}),
+        )
+        .into(),
+        Err(e) => revocation_error(id, &e),
+    }
+}
+
+fn handle_revocation_reissue(id: serde_json::Value, peer_addr: Option<&str>) -> RpcResponse {
+    if let Some(r) = key_card_local_only(&id, "hub.revocation_reissue", peer_addr) {
+        return r;
+    }
+    let Some(ident) = crate::hub_identity::current() else {
+        return revocation_error(id, "the hub identity is not loaded");
+    };
+    let dir = termlink_session::discovery::runtime_dir();
+    let log = dir.join(crate::rpc_audit::ADMIN_FILE_NAME);
+    match crate::revocation::reissue(&dir, &log, &ident.hub_id, ident.signing_key(), now_ms(), revocation_commit_log("hub.revocation_reissue")) {
+        Ok(i) => Response::success(id, serde_json::json!({"ok": true, "seq": i.seq, "digest": i.digest})).into(),
+        Err(e) => revocation_error(id, &e),
+    }
+}
+
 static HUB_START_MS: std::sync::LazyLock<u64> = std::sync::LazyLock::new(|| {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
 });
@@ -1013,6 +1133,7 @@ fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
     let ident = crate::hub_identity::current();
     let hub_id = ident.as_ref().map(|i| i.hub_id.clone());
     let signing_key = ident.as_ref().map(|i| i.signing_key_fingerprint());
+    let signing_public_key = ident.as_ref().map(|i| i.signing_public_key_hex());
     Response::success(
         id,
         json!({
@@ -1022,6 +1143,7 @@ fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
             "hub_id": hub_id,
             "hub_instance_id": instance,
             "signing_key": signing_key,
+            "signing_public_key": signing_public_key,
         }),
     )
     .into()

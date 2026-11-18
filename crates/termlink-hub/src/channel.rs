@@ -2907,9 +2907,26 @@ pub(crate) fn key_card_gate(
     if mode == Mode::Off {
         return None;
     }
-    let Check::Refuse { code, fcw, agent, reason, carded } = key_card::check_post(dir, topic, msg_type, payload, signer.as_bytes())
-    else {
-        return None;
+    let (code, fcw, agent, reason, carded) = match key_card::check_post(dir, topic, msg_type, payload, signer.as_bytes()) {
+        Check::Refuse { code, fcw, agent, reason, carded } => (code, fcw, agent, reason, carded),
+        Check::NotGated => return None,
+        // T-3703 (design v2 5.8): the card matches; its key must not be on the hub's own revocation list.
+        Check::Pass { agent } => {
+            let ident = crate::hub_identity::current()?;
+            let fp = termlink_session::signed_state::key_fingerprint(signer);
+            match crate::revocation::revoked_keys(dir, &ident.hub_id, ident.signing_key()) {
+                Ok(keys) if !keys.contains(&fp) => return None,
+                Ok(_) => (
+                    error_code::KEY_REVOKED,
+                    "FCW-99",
+                    agent.clone(),
+                    format!("agent {agent:?}'s card key {fp} is on the hub's revocation list"),
+                    true,
+                ),
+                // fail closed like an unreadable card store (T-3704 design v2)
+                Err(e) => (error_code::KEY_REVOKED, "FCW-99", agent, format!("revocation list unreadable: {e}"), true),
+            }
+        }
     };
     let enforced = mode == Mode::Enforce;
     key_card::note_refusal(&agent, signer_fp, enforced, carded);

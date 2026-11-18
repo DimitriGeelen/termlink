@@ -312,6 +312,7 @@ async fn real_main() -> Result<()> {
             Some(HubAction::Fingerprint { json }) => commands::infrastructure::cmd_hub_fingerprint(json),
             Some(HubAction::AdoptId { dry_run, expect, json }) => commands::infrastructure::cmd_hub_adopt_id(dry_run, expect.as_deref(), json),
             Some(HubAction::KeyCard { action }) => commands::infrastructure::cmd_hub_key_card(action).await,
+            Some(HubAction::Revocation { action }) => commands::infrastructure::cmd_hub_revocation(action).await,
             Some(HubAction::Probe { addr, json }) => commands::infrastructure::cmd_hub_probe(&addr, json).await,
         },
         Command::Main { action } => {

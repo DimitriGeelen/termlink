@@ -1493,9 +1493,53 @@ pub(crate) enum KeyCardAction {
     },
 }
 
+/// `termlink hub revocation` actions (T-3703, arc-011 B-5).
+#[derive(Subcommand)]
+pub(crate) enum RevocationAction {
+    /// Revoke an agent key (operator; local socket only; cannot be undone — re-key the agent with a new card)
+    Revoke {
+        /// The key fingerprint, ed25519:<64 hex of sha256(public key)>; or give --public-key / --public-key-file
+        #[arg(long, conflicts_with_all = ["public_key", "public_key_file"])]
+        key: Option<String>,
+        /// The agent's raw 64-hex ed25519 public key (the fingerprint is computed)
+        #[arg(long, conflicts_with = "public_key_file")]
+        public_key: Option<String>,
+        /// File holding the raw 64-hex public key (e.g. /etc/termlink-sidecar/keys/<agent>.pub)
+        #[arg(long)]
+        public_key_file: Option<std::path::PathBuf>,
+        #[arg(long)]
+        project: String,
+        #[arg(long)]
+        agent: String,
+        /// Why (1..200 characters; shown to every receiver's operator)
+        #[arg(long)]
+        reason: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show the signed list (or only its head with --head)
+    Show {
+        #[arg(long)]
+        head: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Rebuild the list above every committed seq after a restore (REVOCATION_RECONCILE)
+    Reissue {
+        #[arg(long)]
+        json: bool,
+    },
+}
+
 /// Hub server actions
 #[derive(Subcommand)]
 pub(crate) enum HubAction {
+    /// The hub's signed revocation list (T-3703, arc-011 B-5): revoke an agent key, show the list or its
+    /// head, reissue after a restore. Writes go over the local unix socket only and are admin-logged.
+    Revocation {
+        #[command(subcommand)]
+        action: RevocationAction,
+    },
     /// Start the hub server (default if no subcommand given)
     Start {
         /// Optional TCP address to listen on (e.g., "0.0.0.0:9100", "127.0.0.1:9100")

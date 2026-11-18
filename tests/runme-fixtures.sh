@@ -427,6 +427,27 @@ printf '  **Restated:** 2026-11-17, accepting %s; was: old\n' "\$4" >> "$RS_TASK
 EOS
 chmod +x "$RS/fw"
 export RUNME_RESTATE_FW="$RS/fw" RUNME_RESTATE_TASKS_DIR="$RS/tasks"
+# T-3703 action 33: a fake termlink answering `hub revocation show|revoke` from a scratch list of fingerprints.
+# Default: no rows (nothing ruled on), so ordinary runs skip.
+RV="$TMP/revoke"; mkdir -p "$RV"; : > "$RV/list"; : > "$RV/calls"
+cat > "$RV/termlink" <<EOS
+#!/usr/bin/env bash
+echo "\$*" >> "$RV/calls"
+[ "\$1 \$2" = "hub revocation" ] || exit 3
+case "\$3" in
+  show) printf '{"text":"%s"}\n' "\$(tr '\n' ' ' < "$RV/list")" ;;
+  revoke) [ "\${FAKE_RV_MODE:-}" = refuse ] && { echo "hub.revoke: refused: reason must be 1..200 characters" >&2; exit 1; }
+          [ "\${FAKE_RV_MODE:-}" = noop ] && { echo '{"ok":true,"seq":1}'; exit 0; }
+          pk=""; while [ \$# -gt 0 ]; do [ "\$1" = --public-key ] && pk="\$2"; shift; done
+          python3 -c 'import hashlib,sys; print("ed25519:" + hashlib.sha256(bytes.fromhex(sys.argv[1])).hexdigest())' "\$pk" >> "$RV/list"
+          echo '{"ok":true,"seq":1,"already":false}' ;;
+  *) exit 4 ;;
+esac
+EOS
+chmod +x "$RV/termlink"
+export RUNME_REVOKE_TL="$RV/termlink" RUNME_REVOKE_ROWS=""
+RV_ROW="fx-a|010-termlink|d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a|drill (fixture)|key exposed"
+RV_FP="ed25519:21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
 # T-3685 action 28: a fake `su - testdev -c` that answers OK only for the GOOD token in the
 # scratch token file, and fake terminal files. Default = a working token, so ordinary runs skip.
 TD="$TMP/testdev"; mkdir -p "$TD/home/.config/claude"
@@ -1075,7 +1096,7 @@ kill "$OTHER" 2>/dev/null; wait "$OTHER" 2>/dev/null
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 53 ))   # +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 54 ))   # +1 no revocation ruled on (T-3703 action 33); +1 restatement accepted (T-3814 action 32); +1 per-project tmux switch (T-3806 action 31); +1 T-3800 widening (T-3812 action 30); +1 podman install (T-3811 action 29); +1 aef-meter restart request (T-3789 action 22f); +1 hub link (T-3781 action 22e); +1 vendored framework at be.49 (T-3778 action 11a); +1 stale user termlink moved aside (T-3758 action 22d); +1 local design user token (T-3756 action 22c); +1 release list-only (T-3698 action 4e); +1 testdev long-lived token (T-3685 action 28); +1 docker tcp 2375 closed (T-3664 action 27); +1 drop T-3656 waiting (T-3657 action 26); +1 ntfy cron lines (T-3618 action 25); +3 T-3615 (action 1b background-class resync, action 23 fleet rollup, action 22b fleet token); +2 operator tick records (T-3611: T-3006, T-3200); +1 hub flap ack (T-3587 action 5b); +1 watchtower onto current (T-3568 action 11c); +1 audit crontab sync (T-3554 action 11b); +1 ring20 pack (T-3477 action 22); +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -3587,6 +3608,41 @@ if echo "$x" | grep_all 'skip    T-2258: restatement V-20261117-f742f766 already
     ok "32: second run skips (idempotent)"
 else bad "32 idempotent" "$x"; fi
 rs_seed done
+
+# ---------------------------------------------------------------------------
+# T-3703 action 33 — revoke the agent keys the operator ruled on.
+# ---------------------------------------------------------------------------
+s33() { echo "$1" | sed -n '/^.*33\. Revoke the agent keys/,/^.*Verification/p'; }
+rv_seed() { : > "$RV/list"; : > "$RV/calls"; }
+rv_seed; out=$(run); x=$(s33 "$out")
+if echo "$x" | grep_all 'skip    no revocation ruled on' && ! grep -q revoke "$RV/calls"; then
+    ok "33: no ruled revocation => skip, nothing called"
+else bad "33 empty" "$x"; fi
+rv_seed; out=$(CLAUDECODE= AI_AGENT= RUNME_REVOKE_ROWS="$RV_ROW" run --dry-run); x=$(s33 "$out")
+if echo "$x" | grep_all "\[DRY\]   would revoke fx-a's key $RV_FP (drill (fixture))" && ! grep -q ' revoke ' "$RV/calls"; then
+    ok "33: --dry-run names the key fingerprint and revokes nothing"
+else bad "33 dry-run" "$x"; fi
+rv_seed; out=$(CLAUDECODE=1 AI_AGENT= RUNME_REVOKE_ROWS="$RV_ROW" run); rc=$?; x=$(s33 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  fx-a: revoking a key is your act and this shell is an agent's" && ! grep -q ' revoke ' "$RV/calls"; then
+    ok "33: under an agent shell => FAILED, nothing revoked"
+else bad "33 agent shell" "rc=$rc: $x"; fi
+rv_seed; out=$(CLAUDECODE= AI_AGENT= FAKE_RV_MODE=refuse RUNME_REVOKE_ROWS="$RV_ROW" run); rc=$?; x=$(s33 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all 'FAILED  fx-a: hub refused the revocation: hub.revoke: refused: reason must be'; then
+    ok "33: a refused revocation => FAILED with the hub's reason"
+else bad "33 refused" "rc=$rc: $x"; fi
+rv_seed; out=$(CLAUDECODE= AI_AGENT= FAKE_RV_MODE=noop RUNME_REVOKE_ROWS="$RV_ROW" run); rc=$?; x=$(s33 "$out")
+if [ "$rc" = 1 ] && echo "$x" | grep_all "FAILED  fx-a: the revoke exited 0 but the hub's signed list does not name $RV_FP"; then
+    ok "33: revoke exits 0 but the list lacks the key => FAILED (verified on disk)"
+else bad "33 noop" "rc=$rc: $x"; fi
+rv_seed; out=$(CLAUDECODE= AI_AGENT= RUNME_REVOKE_ROWS="$RV_ROW" run); rc=$?; x=$(s33 "$out")
+if echo "$x" | grep_all "OK      fx-a: key $RV_FP revoked (drill (fixture))" && grep -q -- '--reason key exposed' "$RV/calls" && grep -q -- "--public-key d75a98" "$RV/calls"; then
+    ok "33: revokes with the ruled row and verifies the fingerprint on the hub's list"
+else bad "33 revoke" "rc=$rc: $x / $(cat "$RV/calls")"; fi
+out=$(CLAUDECODE= AI_AGENT= RUNME_REVOKE_ROWS="$RV_ROW" run); x=$(s33 "$out")
+if echo "$x" | grep_all "skip    fx-a: key $RV_FP already revoked" && [ "$(grep -c ' revoke ' "$RV/calls")" = 1 ]; then
+    ok "33: second run skips (idempotent)"
+else bad "33 idempotent" "$x"; fi
+rv_seed
 
 echo ""
 echo "----------------------------------------"

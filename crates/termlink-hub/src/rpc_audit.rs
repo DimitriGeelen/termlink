@@ -620,6 +620,10 @@ pub const ADMIN_METHODS: &[&str] = &[
     // T-3704 (B-6): card writes and the check setting (admin row before the act, FCW-128).
     "hub.key_card_put",
     "hub.key_card_mode",
+    // T-3703 (B-5, FCW-91): every revocation has its row before it takes effect.
+    "hub.revoke",
+    "hub.revocation_request",
+    "hub.revocation_reissue",
 ];
 
 pub fn is_admin_method(method: &str) -> bool {
