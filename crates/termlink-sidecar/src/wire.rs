@@ -240,6 +240,9 @@ pub enum Refusal {
     BadSignature,
     /// `to_instance` names another or ended instance (SI-26): never redirected.
     WrongInstance { want: String, got: String },
+    /// T-3704 (B-6, FCW-98): the claimed `from_agent` is bound by name to another key in the
+    /// roster, or the signer key is bound to another agent name.
+    AgentKeyMismatch,
 }
 
 impl fmt::Display for Refusal {
@@ -254,6 +257,9 @@ impl fmt::Display for Refusal {
             Self::WrongInstance { want, got } => {
                 write!(f, "message is for instance {got}, this is {want}")
             }
+            Self::AgentKeyMismatch => {
+                write!(f, "the claimed from_agent and the signer key are bound to different agents in the roster")
+            }
         }
     }
 }
@@ -261,8 +267,10 @@ impl fmt::Display for Refusal {
 impl std::error::Error for Refusal {}
 
 /// Sender fingerprint -> public key. PH-1: filled by the harness (note 7.2).
+/// T-3704 (B-6): optionally also agent name -> key (a NAMED entry, `agent=<hex>` in the config),
+/// so a key may only speak as the agent it is bound to. Unnamed entries keep the PH-1 behaviour.
 #[derive(Debug, Clone, Default)]
-pub struct Roster(BTreeMap<String, VerifyingKey>);
+pub struct Roster(BTreeMap<String, VerifyingKey>, BTreeMap<String, VerifyingKey>);
 
 impl Roster {
     pub fn new() -> Self {
@@ -285,11 +293,52 @@ impl Roster {
         for (fp, pk) in &other.0 {
             self.0.insert(fp.clone(), *pk);
         }
+        for (name, pk) in &other.1 {
+            self.1.insert(name.clone(), *pk);
+        }
+    }
+
+    /// T-3704: add a key bound to an agent name; returns its fingerprint.
+    pub fn bind(&mut self, agent: &str, pk: VerifyingKey) -> String {
+        self.1.insert(agent.to_string(), pk);
+        self.add(pk)
+    }
+
+    /// Number of named entries (status: "bound" vs "unbound" senders).
+    pub fn bound_count(&self) -> usize {
+        self.1.len()
+    }
+
+    /// T-3704 (FCW-98): `from_agent` must be a plain name; if it is bound, the signer must be its
+    /// key; and a key bound to some agent may not speak as another one.
+    pub fn check_agent(&self, from_agent: &str, pk: &VerifyingKey) -> Result<(), Refusal> {
+        if !plain_agent_name(from_agent) {
+            return Err(Refusal::Malformed("from_agent is not a plain agent name"));
+        }
+        if let Some(k) = self.1.get(from_agent)
+            && k.as_bytes() != pk.as_bytes()
+        {
+            return Err(Refusal::AgentKeyMismatch);
+        }
+        if self.1.iter().any(|(name, k)| k.as_bytes() == pk.as_bytes() && name != from_agent) {
+            return Err(Refusal::AgentKeyMismatch);
+        }
+        Ok(())
     }
 }
 
+/// `^[a-z0-9][a-z0-9._-]{0,63}$`, no `..` (the hub's key-card name rule, T-3704).
+pub fn plain_agent_name(s: &str) -> bool {
+    let b = s.as_bytes();
+    !b.is_empty()
+        && b.len() <= 64
+        && (b[0].is_ascii_lowercase() || b[0].is_ascii_digit())
+        && b.iter().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, b'.' | b'_' | b'-'))
+        && !s.contains("..")
+}
+
 /// Signer key -> `from`, roster, signature: the checks shared by messages and stages.
-fn check_signer(s: &Signed, roster: &Roster, from: &str, msg_type: &str) -> Result<(), Refusal> {
+fn check_signer(s: &Signed, roster: &Roster, from: &str, from_agent: &str, msg_type: &str) -> Result<(), Refusal> {
     let pk_bytes: [u8; 32] = unhex(&s.signer_pk)
         .and_then(|b| b.try_into().ok())
         .ok_or(Refusal::Malformed("signer key"))?;
@@ -301,6 +350,7 @@ fn check_signer(s: &Signed, roster: &Roster, from: &str, msg_type: &str) -> Resu
     if rostered.as_bytes() != pk.as_bytes() {
         return Err(Refusal::KeyMismatch);
     }
+    roster.check_agent(from_agent, &pk)?;
     let sig_bytes: [u8; 64] = unhex(&s.sig)
         .and_then(|b| b.try_into().ok())
         .ok_or(Refusal::Malformed("signature"))?;
@@ -320,7 +370,7 @@ pub fn verify(s: &Signed, roster: &Roster, my_instance: &str) -> Result<Msg, Ref
     if msg.payload_bytes() != s.payload {
         return Err(Refusal::NotCanonical);
     }
-    check_signer(s, roster, &msg.from, MSG_TYPE)?;
+    check_signer(s, roster, &msg.from, &msg.from_agent, MSG_TYPE)?;
     if msg.to_instance != my_instance {
         return Err(Refusal::WrongInstance {
             want: my_instance.to_owned(),
@@ -361,6 +411,8 @@ pub fn verify_open(s: &Signed, roster: &Roster, my_instance: &str) -> Result<(Ms
     let mut own = Roster::new();
     own.add(pk);
     let msg = verify(s, &own, my_instance)?;
+    // T-3704: an unrostered key may still not claim an agent name the roster binds to another key.
+    roster.check_agent(&msg.from_agent, &pk)?;
     Ok((msg, Signer::Unrostered))
 }
 
@@ -374,6 +426,7 @@ pub fn refusal_code(r: &Refusal) -> &'static str {
         Refusal::KeyMismatch => "key-mismatch",
         Refusal::BadSignature => "bad-signature",
         Refusal::WrongInstance { .. } => "wrong-instance",
+        Refusal::AgentKeyMismatch => "agent-key-mismatch",
     }
 }
 
@@ -474,7 +527,7 @@ pub fn verify_stage(s: &Signed, roster: &Roster) -> Result<Stage, Refusal> {
     if st.payload_bytes() != s.payload {
         return Err(Refusal::NotCanonical);
     }
-    check_signer(s, roster, &st.from, STAGE_TYPE)?;
+    check_signer(s, roster, &st.from, &st.from_agent, STAGE_TYPE)?;
     Ok(st)
 }
 
@@ -767,6 +820,49 @@ mod wire_tests {
         assert!(matches!(verify(&s, &r, "inst-b"), Err(Refusal::Malformed(_))));
         s.payload = b"{\"v\":2}".to_vec();
         assert!(matches!(verify(&s, &r, "inst-b"), Err(Refusal::Malformed(_))));
+    }
+
+    /// T-3704 (B-6, E-69.4 receiver half, FCW-98): with both keys rostered, a post claiming
+    /// `alice` signed by bob's key is refused once the roster binds names; the bound key passes.
+    #[test]
+    fn t3704_named_roster_binds_from_agent_to_its_key() {
+        let (alice, bob) = (ident(11), ident(12));
+        let mut r = Roster::new();
+        r.bind("alice", alice.verifying_key());
+        r.bind("bob", bob.verifying_key());
+        // bob's key, message says from_agent "alice" (msg_from always claims alice)
+        let s = sign(&bob, "inbox:b", 42, &msg_from(&bob, "inst-b"));
+        assert_eq!(verify(&s, &r, "inst-b"), Err(Refusal::AgentKeyMismatch));
+        assert_eq!(refusal_code(&Refusal::AgentKeyMismatch), "agent-key-mismatch");
+        // alice's own key passes
+        let ok = sign(&alice, "inbox:b", 42, &msg_from(&alice, "inst-b"));
+        assert!(verify(&ok, &r, "inst-b").is_ok());
+        // a bound key speaking as an unbound name is refused too
+        let mut m = msg_from(&bob, "inst-b");
+        m.from_agent = "carol".into();
+        let s = sign(&bob, "inbox:b", 42, &m);
+        assert_eq!(verify(&s, &r, "inst-b"), Err(Refusal::AgentKeyMismatch));
+        // an unrostered key claiming a bound name is refused by verify_open as well
+        let eve = ident(13);
+        let s = sign(&eve, "inbox:b", 42, &msg_from(&eve, "inst-b"));
+        assert_eq!(verify_open(&s, &r, "inst-b").map(|_| ()), Err(Refusal::AgentKeyMismatch));
+        // a traversal-style name is refused before any lookup
+        let mut m = msg_from(&alice, "inst-b");
+        m.from_agent = "../x".into();
+        let s = sign(&alice, "inbox:b", 42, &m);
+        assert!(matches!(verify(&s, &r, "inst-b"), Err(Refusal::Malformed(_))));
+    }
+
+    /// T-3704: unnamed (legacy) roster entries keep the PH-1 behaviour: no name binding.
+    #[test]
+    fn t3704_unnamed_roster_entries_stay_unbound() {
+        let (alice, bob) = (ident(14), ident(15));
+        let mut r = Roster::new();
+        r.add(alice.verifying_key());
+        r.add(bob.verifying_key());
+        assert_eq!(r.bound_count(), 0);
+        let s = sign(&bob, "inbox:b", 42, &msg_from(&bob, "inst-b"));
+        assert!(verify(&s, &r, "inst-b").is_ok(), "unbound: from_agent is not checked against the key");
     }
 
     #[test]

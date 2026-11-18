@@ -109,14 +109,28 @@ impl Drop for Running {
 
 fn roster_of(keys: &[String]) -> Result<Roster, String> {
     let mut r = Roster::new();
-    for k in keys {
+    for entry in keys {
+        // T-3704 (B-6): `agent=<hex>` binds the key to that agent name; bare `<hex>` stays unbound.
+        let (name, k) = match entry.split_once('=') {
+            Some((n, k)) => {
+                if !crate::wire::plain_agent_name(n) {
+                    return Err(format!("roster entry names {n:?}, not a plain agent name"));
+                }
+                (Some(n), k)
+            }
+            None => (None, entry.as_str()),
+        };
         let bytes: Vec<u8> = (0..k.len())
             .step_by(2)
             .map(|i| k.get(i..i + 2).and_then(|h| u8::from_str_radix(h, 16).ok()))
             .collect::<Option<_>>()
             .ok_or_else(|| format!("roster key is not hex: {k}"))?;
         let arr: [u8; 32] = bytes.try_into().map_err(|_| format!("roster key is not 32 bytes: {k}"))?;
-        r.add(VerifyingKey::from_bytes(&arr).map_err(|e| format!("roster key: {e}"))?);
+        let pk = VerifyingKey::from_bytes(&arr).map_err(|e| format!("roster key: {e}"))?;
+        match name {
+            Some(n) => r.bind(n, pk),
+            None => r.add(pk),
+        };
     }
     Ok(r)
 }
