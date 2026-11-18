@@ -44,6 +44,7 @@ HUB_RT="${W1_HUB_RT:-/var/lib/termlink}"
 BIN="${W1_BIN:-$(command -v termlink || echo /root/.cargo/bin/termlink)}"
 SHOME="${W1_HOME:-${HOME:-/root}}"
 SUPERVISE="${W1_SUPERVISE:-$ROOT/scripts/sidecar-supervise.sh}"
+CFG_CHANGED=""   # T-3823: agents whose config this run changed (restarted to load it)
 ADMIN_LIST="${W1_ADMIN_LIST:-$PDIR/.context/working/sidecar-admin-sockets.list}"
 WAIT="${W1_WAIT_SECS:-30}"
 EXPECT_SUP="${W1_EXPECT_SUPERVISOR:-systemd}"
@@ -123,7 +124,9 @@ apply() {
         local roster="" peers="" sep=""
         for peer in $PAIR; do
             [ "$peer" = "$a" ] && continue
-            roster="$roster$sep\"${PUB[$peer]}\""; peers="$peers$sep\"$peer\": \"${INST[$peer]}\""; sep=", "
+            # T-3823 (T-3704 r3): a named entry binds the partner's key to its agent name (the receiver refuses a
+            # post signed by that key that claims another name)
+            roster="$roster$sep\"$peer=${PUB[$peer]}\""; peers="$peers$sep\"$peer\": \"${INST[$peer]}\""; sep=", "
         done
         local cfg main="${W1_MAIN:-}"
         [ -n "$main" ] || main=$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("book") or {}).get("main") or "")' "$ETC/$a.json" 2>/dev/null)
@@ -148,6 +151,8 @@ print(json.dumps(cfg, indent=2, sort_keys=True))
 EOF
 )
         [ -n "$cfg" ] || { bad "$a: cannot build the config"; continue; }
+        # T-3823: a running sidecar reads its config at start; a changed config takes effect only after a restart
+        if [ -f "$ETC/$a.json" ] && ! cmp -s <(printf '%s' "$cfg") "$ETC/$a.json"; then CFG_CHANGED="$CFG_CHANGED $a"; fi
         write_if_changed "$ETC/$a.json" 0644 "$cfg" "$a sidecar config"
         write_if_changed "$ETC/$PROJECT--$a.env" 0644 "# Written by scripts/arc011-w1-provision.sh (T-3438, arc-011 W1)
 PROJECT_DIR=$PDIR
@@ -175,6 +180,15 @@ TERMLINK_MAIN_PROJECT=$PROJECT
     [ "$FAILED" = 0 ] || return
     # 8-9: start and verify
     for a in $PAIR; do
+        case " $CFG_CHANGED " in
+          *" $a "*)
+            # stop (marker first) then start below: the sidecar re-reads the changed config
+            if env ${W1_SUPERVISE_ENV:-} bash "$SUPERVISE" stop "$PROJECT--$a" >/tmp/.w1-stop-"$a".log 2>&1; then
+                ok "$a: config changed, sidecar stopped to load it"
+            else
+                bad "$a: config changed but the sidecar could not be stopped (see /tmp/.w1-stop-$a.log)"; continue
+            fi ;;
+        esac
         if env ${W1_SUPERVISE_ENV:-} bash "$SUPERVISE" start "$PROJECT--$a" >/tmp/.w1-start-"$a".log 2>&1; then :; else
             bad "$a: sidecar did not start (see /tmp/.w1-start-$a.log)"; continue
         fi

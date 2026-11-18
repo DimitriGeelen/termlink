@@ -60,8 +60,8 @@ check "2a apply succeeds" '[ $rc = 0 ] && ! grep -q FAILED <<< "$out"'
 check "2b key register holds each public key" '[ "$(cat "$T/etc/keys/claude-termlink.pub")" = "$(pub claude-termlink)" ] && [ "$(cat "$T/etc/keys/claude-termlink-alt.pub")" = "$(pub claude-termlink-alt)" ]'
 check "2c instance ids are <agent>.<stamp> (plain names)" '[ "$(cat "$T/etc/instances/claude-termlink")" = claude-termlink.w1-20261013 ]'
 check "2d production marker in each store root, owner-only dir" '[ "$(head -1 "$T/varlib/claude-termlink/.termlink-sidecar-root")" = "termlink-sidecar-production v1" ] && [ "$(stat -c %a "$T/varlib/claude-termlink")" = 700 ]'
-check "2e config: roster is the partner key, book maps partner to its instance, main pinned" \
-    'python3 -c "import json,sys; c=json.load(open(\"$T/etc/claude-termlink.json\")); sys.exit(0 if c[\"roster\"]==[\"$(pub claude-termlink-alt)\"] and c[\"book\"]==dict(peers={\"claude-termlink-alt\":\"claude-termlink-alt.w1-20261013\"},main=\"claude-termlink\") and c[\"hub_id\"]==\"feedfacefeedface\" and c[\"key_register\"].endswith(\"keys/claude-termlink.pub\") and c[\"hub\"]==dict(type=\"unix\",path=\"$T/rt/hub.sock\") else 1)"'
+check "2e config: roster binds the partner key to its name (T-3823), book maps partner to its instance, main pinned" \
+    'python3 -c "import json,sys; c=json.load(open(\"$T/etc/claude-termlink.json\")); sys.exit(0 if c[\"roster\"]==[\"claude-termlink-alt=$(pub claude-termlink-alt)\"] and c[\"book\"]==dict(peers={\"claude-termlink-alt\":\"claude-termlink-alt.w1-20261013\"},main=\"claude-termlink\") and c[\"hub_id\"]==\"feedfacefeedface\" and c[\"key_register\"].endswith(\"keys/claude-termlink.pub\") and c[\"hub\"]==dict(type=\"unix\",path=\"$T/rt/hub.sock\") else 1)"'
 check "2f per-agent settings files name the project, agent, config and store" 'grep -qx "AGENT=claude-termlink-alt" "$T/etc/010-termlink--claude-termlink-alt.env" && grep -qx "TERMLINK_SIDECAR_STORE=$T/varlib/claude-termlink-alt" "$T/etc/010-termlink--claude-termlink-alt.env"'
 check "2g admin-socket list names both admin sockets" '[ "$(wc -l < "$T/proj/.context/working/sidecar-admin-sockets.list")" = 2 ] && grep -qx "$T/rt/sidecar/claude-termlink.admin.sock" "$T/proj/.context/working/sidecar-admin-sockets.list"'
 check "2h SIDECAR_KEEP_RUNNING on in the project settings" 'grep -qx "SIDECAR_KEEP_RUNNING: on" "$T/proj/.framework.yaml"'
@@ -109,6 +109,8 @@ echo "abababababababababababababababababababababababababababababababab" > "$T/et
 out=$(bash "$SUT" --apply 2>&1); rc=$?
 check "7b a provisioned encryption register stays in the rebuilt config (T-3713)" \
     'python3 -c "import json,sys; c=json.load(open(\"$T/etc/claude-termlink.json\")); sys.exit(0 if c.get(\"enc_key_register\",\"\").endswith(\"keys/claude-termlink.x25519.pub\") else 1)" && python3 -c "import json,sys; sys.exit(0 if \"enc_key_register\" not in json.load(open(\"$T/etc/claude-termlink-alt.json\")) else 1)"'
+check "7c a changed config restarts that sidecar (stop, then start) so it is loaded; an unchanged one is only started" \
+    'grep -qx "stop 010-termlink--claude-termlink" "$T/calls" && ! grep -qx "stop 010-termlink--claude-termlink-alt" "$T/calls"'
 rm -f "$T/etc/keys/claude-termlink.x25519.pub"
 
 echo "---"
