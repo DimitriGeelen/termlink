@@ -145,13 +145,18 @@ fn e41_l4_a_hub_outage_makes_the_list_stale_through_the_receive_pass() {
     let id = e.hub_id().unwrap();
     let _ = rpc(&e, "channel.create", json!({"name": format!("inbox:{id}/fx-b")}));
     let b = side(&e, &id, "b", "a");
-    b.rx.set_revocation_stale_after(Duration::from_millis(300));
+    let window = Duration::from_secs(3);
+    b.rx.set_revocation_stale_after(window);
     let _ = b.rx.pass();
+    let verified_at = std::time::Instant::now();
     assert_eq!(b.rx.revocation_state(), termlink_sidecar::revocation::State::Verified);
     e.stop_hub();
     let _ = b.rx.pass();
-    assert_eq!(b.rx.revocation_state(), termlink_sidecar::revocation::State::Verified, "not yet past PN-13");
-    std::thread::sleep(Duration::from_millis(400));
+    // timing-safe: "not yet stale" is asserted only when this pass really ran inside the window
+    if verified_at.elapsed() < window {
+        assert_eq!(b.rx.revocation_state(), termlink_sidecar::revocation::State::Verified, "not yet past PN-13");
+    }
+    std::thread::sleep((window + Duration::from_millis(500)).saturating_sub(verified_at.elapsed()));
     let _ = b.rx.pass();
     assert_eq!(b.rx.revocation_state(), termlink_sidecar::revocation::State::Stale);
     assert!(termlink_sidecar::revocation::narrowing(&b.store));

@@ -44,7 +44,7 @@ origin: {kind: "operator", source: "T-3357", ref: "G-0"}
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-11-12T16:56:39Z
-last_update: 2026-11-18T18:39:04Z
+last_update: 2026-11-18T18:43:04Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -164,7 +164,7 @@ Unblocks: P-24 (T-3708), P-37 (T-3716, live); part of gate G-2.
 
 # Plan P-15 check (08-plan section 4): fixture suite exits 0 with a PASS line per B-5 E-n, mutant list all killed
 # (FP 3.1.b). The mutant runners take ~45 min and are recorded in docs/reports/T-3703-mutants.md (not re-run here).
-env -u PROJECT_ROOT cargo test -p termlink-session --test t3703_signed_state > .context/working/.t3703-v1 2>&1 && grep -q 'E-42 PASS' .context/working/.t3703-v1
+env -u PROJECT_ROOT cargo test -p termlink-session --test t3703_signed_state -- --nocapture > .context/working/.t3703-v1 2>&1 && grep -q 'E-42 PASS' .context/working/.t3703-v1
 env -u PROJECT_ROOT cargo test -p termlink-hub --lib revocation > .context/working/.t3703-v2 2>&1 && grep -q 'test result: ok. 12 passed' .context/working/.t3703-v2
 env -u PROJECT_ROOT cargo build -p termlink > .context/working/.t3703-v3b 2>&1 && env -u PROJECT_ROOT cargo test -p termlink --test t3703_revocation > .context/working/.t3703-v3 2>&1 && grep -q 'test result: ok. 3 passed' .context/working/.t3703-v3
 env -u PROJECT_ROOT cargo test -p termlink-sidecar --lib revocation > .context/working/.t3703-v4 2>&1 && grep -q 'test result: ok. 14 passed' .context/working/.t3703-v4
